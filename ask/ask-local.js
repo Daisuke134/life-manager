@@ -54,6 +54,7 @@ function parseReply(subject, body) {
     const t = line.trim();
     if (!t || t.startsWith(">") || /^On .*wrote:/.test(t) || /^Event ID:/i.test(t)) continue;
     if (GREETING.test(t)) continue; // skip a top-posted greeting ("はい！") — take the real answer line
+    if (/[？?]\s*$/.test(t)) continue; // skip a question line (the bot's own prompt, echoed when same-account)
     location = t; break;
   }
   return { eventId: m[1], location };
