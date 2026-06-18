@@ -49,8 +49,8 @@ const PORT = Number(process.env.BRIDGE_PORT || 8788); // distinct default from t
 
 // ---- env (Telnyx)
 const API = process.env.TELNYX_API_KEY;
-const CONN = process.env.TELNYX_CONNECTION_ID || "2982013078364751402"; // anicca-cc
-const FROM = process.env.TELNYX_PHONE_NUMBER || "+14322234204"; // our Telnyx number
+const CONN = process.env.TELNYX_CONNECTION_ID || ""; // your Telnyx Call Control connection id
+const FROM = process.env.TELNYX_PHONE_NUMBER || ""; // your Telnyx number (E.164)
 
 function die(msg) {
   console.error("FATAL:", msg);
@@ -92,6 +92,9 @@ if (DRY) {
 
 // ---- real run
 if (!API) die("TELNYX_API_KEY missing in env");
+if (!CONN) die("TELNYX_CONNECTION_ID missing in env");
+if (!FROM) die("TELNYX_PHONE_NUMBER missing in env");
+if (!TO) die("no destination — set LIFE_PHONE (or LIFE_CALL_TO / --to)");
 if (!process.env.GEMINI_API_KEY) die("GEMINI_API_KEY missing in env");
 
 // G5 preflight: refuse to dial on an empty Telnyx balance (a mid-call cutoff is a fake "connected").
