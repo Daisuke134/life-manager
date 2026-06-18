@@ -187,6 +187,17 @@ function buildGeminiSetup({ model, voiceName, systemInstruction }) {
           voiceConfig: { prebuiltVoiceConfig: { voiceName: voiceName || "Charon" } },
         },
       },
+      // Tune automatic VAD for a natural PHONE call: capture his first word (prefixPaddingMs)
+      // and WAIT for him to finish instead of cutting in (longer silenceDurationMs + LOW
+      // end-of-speech sensitivity). Source: live-api/capabilities "Configure Automatic VAD".
+      realtimeInputConfig: {
+        automaticActivityDetection: {
+          startOfSpeechSensitivity: "START_SENSITIVITY_HIGH",
+          endOfSpeechSensitivity: "END_SENSITIVITY_LOW",
+          prefixPaddingMs: 300,
+          silenceDurationMs: 800,
+        },
+      },
       systemInstruction: { parts: [{ text: systemInstruction || "" }] },
       // Transcribe BOTH sides so we can read what Gemini heard from the user (input) and what Charon
       // said (output). Server returns serverContent.inputTranscription.text / outputTranscription.text.
