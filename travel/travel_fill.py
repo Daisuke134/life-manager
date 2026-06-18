@@ -21,6 +21,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import config as C  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "adapters"))
 import transport as _t  # noqa: E402
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "agent"))
+import resolve as _ag  # noqa: E402
 
 JST = timezone(timedelta(hours=9))
 STATE_FILE = C.data_path("travel_filled.json")
@@ -29,24 +31,7 @@ MIN_DIST_M = int(os.environ.get("TRAVEL_FILL_MIN_DIST_M", "500"))
 MIN_GAP_MIN = int(os.environ.get("TRAVEL_FILL_MIN_GAP_MIN", "10"))
 LEAVE_LEAD_MIN = int(os.environ.get("TRAVEL_FILL_LEAVE_LEAD_MIN", "0"))
 
-ROUTINE_AT_HOME_PATTERNS = (
-    "sleep", "睡眠", "就寝", "寝る",
-    "wake", "起床",
-    "meditat", "瞑想", "座禅",
-    "breakfast", "朝食", "朝ごはん",
-    "lunch", "昼食", "昼ごはん",
-    "dinner", "夕食", "晩ごはん",
-    "meal", "食事",
-    "running", "🏃", "jog",
-)
 TRAVEL_SUMMARY_PREFIX = ("🚆", "🚌", "🚶", "🚇", "移動")
-
-
-
-
-def is_routine_at_home(summary):
-    s = (summary or "").lower()
-    return any(p in s for p in ROUTINE_AT_HOME_PATTERNS)
 
 
 def is_travel(summary):
@@ -54,52 +39,22 @@ def is_travel(summary):
     return any(s.startswith(p) for p in TRAVEL_SUMMARY_PREFIX)
 
 
-ADDR_PATTERNS = (
-    # 〒NNN-NNNN followed by Japanese address up to a delimiter
-    re.compile(r"(〒\d{3}-\d{4}\s*[^,;()\n　]+)"),
-    # 東京都/大阪府/北海道/京都府/etc + ward/city + ...
-    re.compile(r"((?:北海道|東京都|京都府|大阪府|[^\s]{1,3}県)[^\s,;()\n　]{2,40})"),
-    # NAIST / MUIT / specific named locations followed by address fragment
-    re.compile(r"((?:NAIST|MUIT|MUFG)\s+〒?\d{0,3}-?\d{0,4}\s*[^\s,;()\n　]+)"),
-    # standalone 〇〇駅 (avoid grabbing entire title)
-    re.compile(r"([一-龯ぁ-んァ-ヶ]{2,8}駅)"),
-)
-
-
-def extract_address_from_text(text):
-    if not text:
-        return None
-    for pat in ADDR_PATTERNS:
-        m = pat.search(text)
-        if m:
-            return m.group(1).strip()
-    return None
-
-
 def resolve_event_location(event):
     """Resolve where an event happens.
-    Order:
-      1) event.location  (= explicit)
-      2) routine_at_home  → profile.home_address
-      3) regex-extract a JP address from summary / description
-      4) None / 'unknown'  → caller must defer (LLM not allowed to fabricate)
+      1) event.location               → explicit (fast path)
+      2) agentic_resolve (LLM)         → map to a known place (home/work/history) generally,
+                                         verified by geocode so no hallucinated place is inserted
+      3) None / 'ask:<question>'       → caller defers; the agent's crafted question is mailed
     """
     loc = (event or {}).get("location") or ""
     if loc.strip():
         return loc.strip(), "explicit"
-    if is_routine_at_home(event.get("summary", "")):
-        return C.home_address(), "home_routine"
-    extracted = (
-        extract_address_from_text(event.get("summary", ""))
-        or extract_address_from_text(event.get("description", ""))
-    )
-    if extracted:
-        return extracted, "summary_extracted"
-    # web fallback: let Google geocode try the raw title (e.g. "NAIST", "スターバックス 渋谷")
-    title = (event.get("summary") or "").strip()
-    if title and geocode(title):
-        return title, "geocoded"
-    return None, "unknown"
+    known = {"home": C.home_address(), "work": C.env("LIFE_WORK_ADDRESS"), "history": []}
+    r = _ag.agentic_resolve(event, known)
+    if r.get("location") and geocode(r["location"]):  # geocode-verify → reject hallucinated places
+        return r["location"], "agent"
+    # unknown → ask, carrying the agent's crafted question (if any) verbatim for ask-local
+    return None, ("ask:" + r["question"] if r.get("question") else "unknown")
 
 
 CAL = _t.make_transport(
@@ -136,7 +91,7 @@ def fetch_events(days):
 
 
 def geocode(addr):
-    key = C.env("GOOGLE_API_KEY")
+    key = C.env("LIFE_MAPS_KEY") or C.env("GOOGLE_API_KEY")
     if not (addr and key):
         return None
     try:
@@ -165,7 +120,7 @@ def haversine_m(p1, p2):
 
 
 def directions_minutes(src_addr, dst_addr):
-    key = C.env("GOOGLE_API_KEY")
+    key = C.env("LIFE_MAPS_KEY") or C.env("GOOGLE_API_KEY")
     if not (key and src_addr and dst_addr):
         return None
     for mode in ("transit", "driving"):
@@ -258,10 +213,10 @@ def plan_action(kind, travel_min):
 def pair_decision(prev_addr, prev_kind, curr_addr, curr_kind):
     """Which event (if any) needs an ASK before we can route prev→curr.
     Asks about the ACTUALLY-unknown event (fixes asking about curr when prev was the unknown one)."""
-    if not prev_addr or prev_kind == "unknown":
-        return ("ask_prev", "unknown_location")
-    if not curr_addr or curr_kind == "unknown":
-        return ("ask_curr", "unknown_location")
+    if not prev_addr or prev_kind == "unknown" or str(prev_kind).startswith("ask:"):
+        return ("ask_prev", prev_kind if str(prev_kind).startswith("ask:") else "unknown_location")
+    if not curr_addr or curr_kind == "unknown" or str(curr_kind).startswith("ask:"):
+        return ("ask_curr", curr_kind if str(curr_kind).startswith("ask:") else "unknown_location")
     return ("ok", None)
 
 

@@ -37,10 +37,12 @@ function loadQueue(p) {
 }
 function buildQuestionEmail(row) {
   const s = (row.summary || "予定").trim();
-  const why = row.reason === "no_route" ? "の移動経路が分かりませんでした" : "の場所が分かりませんでした";
   const subject = `[Anicca] 場所を教えてください: ${s} [ASK-${row.eventId}]`;
-  const body =
-    `「${s}」${why}。\nこの予定はどこで行われますか？ 駅名や住所をこのメールに返信してください。\n\nEvent ID: ${row.eventId}`;
+  // Prefer the agent-crafted, user-specific question (reason "ask:<q>"); else the fixed template.
+  const agentQ = typeof row.reason === "string" && row.reason.startsWith("ask:") ? row.reason.slice(4) : "";
+  const why = row.reason === "no_route" ? "の移動経路が分かりませんでした" : "の場所が分かりませんでした";
+  const ask = agentQ || `「${s}」${why}。\nこの予定はどこで行われますか？ 駅名や住所をこのメールに返信してください。`;
+  const body = `${ask}\n\nEvent ID: ${row.eventId}`;
   return { subject, body };
 }
 const GREETING = /^(はい|うん|ok|okay|yes|了解|わかりました|承知|ありがとう|どうも|thanks?|thank you)[!！。.、,\s]*$/i;
