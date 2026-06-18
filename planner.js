@@ -73,7 +73,11 @@ function plan({ nowMs = Date.now(), dryRun = false } = {}) {
         if (fireMs <= nowMs) continue;          // already passed → no past --at
         const name = `life-call-${stamp}-${safeName(summary)}-${off}`;
         if (existing.has(name)) continue;       // idempotent
-        const msg = `Use exec to run: node ${CALL_JS} --event=${JSON.stringify(eventJson)} --urgency=${toneFor(off)}`;
+        // Forward the executor's env config (set on THIS plan run) to the generated call cron,
+        // so the call gets TELNYX/GEMINI keys + the right data dir without re-hardcoding any host path.
+        const envFwd = ["LIFE_ENV_FILE", "LIFE_DATA_DIR"]
+          .filter((k) => process.env[k]).map((k) => `${k}=${process.env[k]}`).join(" ");
+        const msg = `Use exec to run: ${envFwd ? envFwd + " " : ""}node ${CALL_JS} --event=${JSON.stringify(eventJson)} --urgency=${toneFor(off)}`;
         registerAt(name, new Date(fireMs).toISOString(), msg, dryRun);
         added++;
       }
