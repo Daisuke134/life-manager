@@ -155,26 +155,38 @@ def _routes_drive_minutes(src_addr, dst_addr, key, depart_at=None):
         return None
 
 
-def directions_minutes(src_addr, dst_addr, depart_at=None):
-    # TRANSIT stays on legacy Directions: VERIFIED 2026-06-21 that Routes API TRANSIT returns no
-    # routes for our key/region, while legacy transit works. Try transit first, then traffic-aware drive.
-    key = C.env("LIFE_MAPS_KEY") or C.env("GOOGLE_API_KEY")
-    if not (key and src_addr and dst_addr):
-        return None
-    params = {
-        "origin": src_addr, "destination": dst_addr, "mode": "transit",
-        "language": "ja", "departure_time": "now", "key": key,
-    }
+def _legacy_transit_minutes(src_addr, dst_addr, key, arrive_by=None):
+    # NEVER-LATE: anchor transit to the EVENT (arrival_time = event start), not "now". TRANSIT stays on
+    # legacy Directions — VERIFIED 2026-06-21 that Routes API TRANSIT returns no routes for our region.
+    import datetime as _dt
+    params = {"origin": src_addr, "destination": dst_addr, "mode": "transit", "language": "ja", "key": key}
+    now = _dt.datetime.now(_dt.timezone.utc)
+    if arrive_by and arrive_by.astimezone(_dt.timezone.utc) > now:
+        params["arrival_time"] = str(int(arrive_by.timestamp()))
+    else:
+        params["departure_time"] = "now"
     url = "https://maps.googleapis.com/maps/api/directions/json?" + urllib.parse.urlencode(params)
     try:
         with urllib.request.urlopen(url, timeout=12) as r:
             j = json.loads(r.read().decode())
-        if j.get("status") == "OK":
-            sec = j["routes"][0]["legs"][0]["duration"]["value"]
-            return max(5, round(sec / 60))
+        if j.get("status") == "OK" and (j.get("routes") or [{}])[0].get("legs"):
+            return max(5, round(j["routes"][0]["legs"][0]["duration"]["value"] / 60))
     except Exception:
         pass
-    return _routes_drive_minutes(src_addr, dst_addr, key, depart_at)
+    return None
+
+
+def directions_minutes(src_addr, dst_addr, depart_at=None):
+    # Query BOTH transit (anchored to event start) and traffic-aware drive, take the LARGER —
+    # never-late bias (mode unknown → assume the slower). Returns None only if neither resolves.
+    key = C.env("LIFE_MAPS_KEY") or C.env("GOOGLE_API_KEY")
+    if not (key and src_addr and dst_addr):
+        return None
+    cands = [m for m in (
+        _legacy_transit_minutes(src_addr, dst_addr, key, depart_at),
+        _routes_drive_minutes(src_addr, dst_addr, key, depart_at),
+    ) if m is not None]
+    return max(cands) if cands else None
 
 
 def short_name(addr):
