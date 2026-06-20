@@ -119,37 +119,62 @@ def haversine_m(p1, p2):
     return 2 * R * math.asin(math.sqrt(a))
 
 
-def directions_minutes(src_addr, dst_addr):
+def _routes_drive_minutes(src_addr, dst_addr, key, depart_at=None):
+    # #71 traffic-aware DRIVE via Routes API computeRoutes (TRAFFIC_AWARE_OPTIMAL). Real traffic →
+    # the old ×1.4 fudge is GONE. departureTime ≈ event start, clamped to >= now+60s (Routes rejects
+    # past times). Mirrors apps/life-call/lib/travel.js.
+    import datetime as _dt
+    now = _dt.datetime.now(_dt.timezone.utc)
+    dep = depart_at.astimezone(_dt.timezone.utc) if depart_at else now
+    if dep < now + _dt.timedelta(seconds=60):
+        dep = now + _dt.timedelta(seconds=60)
+    body = json.dumps({
+        "origin": {"address": src_addr},
+        "destination": {"address": dst_addr},
+        "travelMode": "DRIVE",
+        "routingPreference": "TRAFFIC_AWARE_OPTIMAL",
+        "departureTime": dep.strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }).encode()
+    req = urllib.request.Request(
+        "https://routes.googleapis.com/directions/v2:computeRoutes",
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": key,
+            "X-Goog-FieldMask": "routes.duration",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=12) as r:
+            j = json.loads(r.read().decode())
+        dur = (j.get("routes") or [{}])[0].get("duration", "")  # e.g. "812s"
+        if not dur.endswith("s"):
+            return None
+        return max(5, round(int(dur[:-1]) / 60))
+    except Exception:
+        return None
+
+
+def directions_minutes(src_addr, dst_addr, depart_at=None):
+    # TRANSIT stays on legacy Directions: VERIFIED 2026-06-21 that Routes API TRANSIT returns no
+    # routes for our key/region, while legacy transit works. Try transit first, then traffic-aware drive.
     key = C.env("LIFE_MAPS_KEY") or C.env("GOOGLE_API_KEY")
     if not (key and src_addr and dst_addr):
         return None
-    for mode in ("transit", "driving"):
-        params = {
-            "origin": src_addr,
-            "destination": dst_addr,
-            "mode": mode,
-            "language": "ja",
-            "key": key,
-        }
-        if mode == "transit":
-            params["departure_time"] = "now"
-        url = (
-            "https://maps.googleapis.com/maps/api/directions/json?"
-            + urllib.parse.urlencode(params)
-        )
-        try:
-            with urllib.request.urlopen(url, timeout=12) as r:
-                j = json.loads(r.read().decode())
-            if j.get("status") != "OK":
-                continue
+    params = {
+        "origin": src_addr, "destination": dst_addr, "mode": "transit",
+        "language": "ja", "departure_time": "now", "key": key,
+    }
+    url = "https://maps.googleapis.com/maps/api/directions/json?" + urllib.parse.urlencode(params)
+    try:
+        with urllib.request.urlopen(url, timeout=12) as r:
+            j = json.loads(r.read().decode())
+        if j.get("status") == "OK":
             sec = j["routes"][0]["legs"][0]["duration"]["value"]
-            mins = max(5, round(sec / 60))
-            if mode == "driving":
-                mins = round(mins * 1.4)  # Tokyo transit ≈ driving × 1.4 in JP
-            return mins
-        except Exception:
-            continue
-    return None
+            return max(5, round(sec / 60))
+    except Exception:
+        pass
+    return _routes_drive_minutes(src_addr, dst_addr, key, depart_at)
 
 
 def short_name(addr):
@@ -294,7 +319,7 @@ def main():
             state[key] = existing["id"]
             summary["skipped_existing"] += 1
             continue
-        travel_min = directions_minutes(prev_addr, curr_addr)
+        travel_min = directions_minutes(prev_addr, curr_addr, curr["start"])
         action, reason = plan_action(kind, travel_min)
         if action == "ask":
             enqueue_ask(curr, reason)  # route unknown → ASK, never guess a fixed 45 min
