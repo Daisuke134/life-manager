@@ -38,3 +38,20 @@ test("each real Composio execution records one composio_call without making ledg
     assert.deepEqual(await resilient.listEventsRaw("u1", {}), []);
   } finally { global.fetch = original; }
 });
+
+test("calendar provider timeout is aborted and returns the closed read result", async () => {
+  let aborted = false;
+  const calendar = makeComposioCalendar({
+    apiKey: "k",
+    timeoutMs: 1,
+    fetchImpl: async (_url, { signal }) => await new Promise((_, reject) => {
+      signal.addEventListener("abort", () => {
+        aborted = true;
+        reject(signal.reason);
+      }, { once: true });
+    }),
+  });
+
+  assert.deepEqual(await calendar.listEventsRaw("u1", {}), []);
+  assert.equal(aborted, true);
+});

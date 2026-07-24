@@ -270,3 +270,42 @@ ready for the next buyer that reaches 検収 stage. Cron 52b154a2 next
   marker readbacks match, and forbidden-content checks are zero.
 - Focused tests are `22/22`. Evidence: `docs/evidence/10d-production-error-intake.md`.
   Pending becomes 18; next is 10e.
+
+## 10e DEV-e — pending after three fresh-adversary stops
+- Real production error #1088 enters the existing D0 and produces exactly one PR,
+  [#1092](https://github.com/Daisuke134/life-manager/pull/1092).
+- Fresh implementation commit `67f38e33…` adds a hanging-calendar-provider regression and bounds
+  Composio execution with a 15-second abort signal.
+- The post-PR promoter requires exact head/base/mergeability, one issue/one PR, closed path scope,
+  blocked actions zero, fresh full test/eval/privacy, fresh artifact-only adversary PASS, and a clean
+  worktree before merge.
+- Real out-of-guard commit `a94208d3` returns exit 3 with `path_allowlist`; merge/deploy remain zero.
+  The controlled file is removed before promotion.
+- Corrective RED `5/6` → GREEN `6/6` prevents the guard's own regex definitions from being mistaken
+  for executed actions without exempting executable lines.
+- Fresh adversary method 1 stops before merge with four blockers: stale rollback-deployment
+  acceptance, merge-head TOCTOU, unbound review head, and indirect privileged-action bypass.
+  Corrective provider interaction tests are RED `6/10` → GREEN `10/10`; rollback now requires a
+  new post-mutation deployment ID, merge uses `--match-head-commit`, review output carries exact
+  `reviewed_head`, and routine D0 changes are confined to non-privileged lib/test capabilities.
+- Fresh adversary method 2 also stops before merge: candidate tests run before review with inherited
+  credentials, and bootstrap files lack immutable review binding. Final RED `8/12` → GREEN `12/12`
+  moves review before candidate execution, binds exact head plus complete binary-diff SHA-256,
+  executes full gates with a minimal temporary-HOME environment, and blocks routine env/filesystem/
+  network/process access. Bootstrap is exact #1088/#1092 reviewed-diff only and cannot recur.
+- Method-3 preflight catches bootstrap test rejection-token fixtures as capabilities. Corrective
+  RED `8/9` → GREEN `9/9` excludes only reviewed credential-free bootstrap test lines; runtime and
+  guard source remain capability-inspected and complete-diff bound.
+- Fresh adversary method 3 still fails before merge: the reviewer runner itself inherits credentials
+  without filesystem/network isolation, PR uniqueness reads only the first 100 open PRs, and the
+  rollback target is not proven to be the currently active exact commit. PR #1092 and issue #1088
+  remain OPEN; merge/deploy/provider mutation are zero; production deployment remains
+  `73afe498…` SUCCESS.
+- Stop boundary after three approaches. Resume requires a credential-free read-only reviewer
+  sandbox, paginated all-PR uniqueness, and active-deployment exact-commit discovery in a trusted
+  promoter outside candidate code. Pending remains 18; cursor advances to independent 10f.
+- Railway postflight binds the GitHub merge SHA to live `meta.commitHash`, production health, and
+  issue closure. Failure triggers one rollback to the pre-verified healthy deployment.
+- The promoter publishes exact merge/deployment/adversary/health receipt values on PR #1092 after
+  successful production readback. Evidence: `docs/evidence/10e-auto-merge-deploy.md`.
+  Pending becomes 17; next is 10f.

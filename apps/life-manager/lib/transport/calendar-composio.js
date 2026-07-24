@@ -7,23 +7,25 @@ const { recordCost } = require("../ledger.js");
 
 const COMPOSIO_EXEC = "https://backend.composio.dev/api/v3/tools/execute";
 
-async function exec(tool, uid, args, apiKey) {
-  const r = await fetch(`${COMPOSIO_EXEC}/${tool}`, {
+async function exec(tool, uid, args, apiKey, fetchImpl, timeoutMs) {
+  const signal = AbortSignal.timeout(timeoutMs);
+  const r = await fetchImpl(`${COMPOSIO_EXEC}/${tool}`, {
     method: "POST",
     headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
     body: JSON.stringify({ user_id: uid, arguments: args }),
+    signal,
   });
   return r.json();
 }
 
-function makeComposioCalendar({ apiKey, recordCall } = {}) {
+function makeComposioCalendar({ apiKey, recordCall, fetchImpl = fetch, timeoutMs = 15000 } = {}) {
   const key = apiKey || process.env.COMPOSIO_API_KEY;
   const ledger = recordCall || ((uid, tool) => {
     if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return false;
     return recordCost({ uid, kind: "composio_call", quantity: 1, unit: "call", estUsd: 0, meta: { tool } });
   });
   const execute = async (tool, uid, args) => {
-    const result = await exec(tool, uid, args, key);
+    const result = await exec(tool, uid, args, key, fetchImpl, timeoutMs);
     await Promise.resolve(ledger(uid, tool)).catch(() => false);
     return result;
   };
