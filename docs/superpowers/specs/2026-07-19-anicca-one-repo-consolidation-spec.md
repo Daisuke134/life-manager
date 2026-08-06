@@ -31,12 +31,13 @@ program cursorはPortable Runtime仕様の実行順を正本とする。Order 0�
 **`OSS-SECURITY-BASELINE-1` → `REPO-V0-RETIRE-1` →
 `AE-X402-SOURCE-CONSOLIDATE-1`** は全てdone。`BROWSER-AUTH-1`も実Lumaの認証・暗号化保存・
 別process/Steel復元・production queue・再起動継続・失効handoffまでdone。現在のprogram subcursorは
-`BROWSER-MATRIX-1`である。generic matrix実装はPR #1348、merge
+`DAILY-V1-1`である。generic matrix実装はPR #1348、merge
 `ab71c1514b10ae1a74b770bf7ad8d1cf12dc6c38`、Railway deployment
 `1fdf8320-0086-4620-820b-a94e4ebdb08b` SUCCESSまで反映済みである。ただし実provider 3系統は未実行であり、
 現行verification harnessがenqueue後に対象jobをdirect claimするため、resident cloud loopの実行主体証明にも未到達である。
-直近atomicはBROWSER-MATRIX-1（§0.4.6cは2026-07-30に撤回済み）であり、zero-start以降の新しいfinance機能はPortable Runtimeの
-local/cloud release gateを追い越さない。
+このbrowser debtはDAILYの完成を追い越さず、次のPHYSICAL small sliceが必要とする時だけ再開する。
+直近atomicはDAILY-V1-1（製品第一版、契約は§0.4.6d）であり、zero-start以降の新しいfinance機能はDAILY→PHYSICAL→
+MENTALのproduct feedback gateとPortable Runtimeのlocal/cloud release gateを追い越さない。
 historical §10 row `8c.R`の「双方unarchived」はrename直後の保全条件であり、現在のrepo境界・退役判断には使わない。
 
 根拠（一次ソース）:
@@ -601,22 +602,30 @@ Base/Solana receipt、PM public APIを束ねたproduction E2Eを必須とする�
 
 **Life Manager product track（Agent Economy active scope外）**
 
-| 順 | ID | atomic outcome | done evidence | 現在 |
+この表の番号は既存IDのregistryであり実行順ではない。現在以後の唯一のproduct順は§0.4.6eと
+「Boundaries / Execution / E2E judgment」に置く。browser atomicは選択中organが必要とする時だけ挿入するdependencyである。
+
+| registry | ID | atomic outcome | done evidence | 現在 |
 |---:|---|---|---|---|
 | 1 | **BROWSER-GEN-1** | Telegramの自然文から意図を取り、webを探索して未登録の適切なsiteを選び、Railway private Steelの実Chromiumだけで実action→provider readback→Telegram trace/receiptまで完走 | prompt、選定理由、cloud session id、実URL、side effect、provider readback、TG message id、session release。同じ実行でlocal Mac browser side effect 0 | **done** — 実Telegram→production Life Manager→Railway private Steel→Luma登録→provider `You’re In`→Telegram PNG→Steel releaseを完走。job=`73d313c0-2574-49d2-8aad-e40665db0cdb`、Steel=`ac1fabf6-eada-48d2-a0ee-e9145504a989`、TG evidence=`350`、PNG SHA=`0a72dec2…c1c1f`。Cloudflareのpass/stuck両classも実測し、challenge時は正直に停止。evidence=`docs/evidence/browser/2026-07-28-browser-gen-1.md` |
 | 2 | **OSS-MERGE-1** | canonical security baselineをgreen化し、その後`life-manager-v0`、`profitable-claude`、`anicca-dais`、`anicca-products`、`anicca.ai`上のLife Manager source、既存local foldersをmanifest化する。必要な公開可能code/skills/tests/docs/configだけをcanonicalへ吸収し、private stateは§2.2のexternal inputへ分離する | active credential rotation/revocation、gitleaks/PII finding裁定、CI green。source/target manifest、history/license provenance、secret/PII/generated artifact 0。`life-manager-v0` 35 filesのbehavior map、旧issue `#11`→canonical `#1287`移管、redirect-only README、archive readback。private git URL・absolute home source path・submodule・symlink escape・runtime copy 0。fresh cloneだけでinstall/focused/full/evalがPASS | **done**。PR #1268、canonical merge `8d47689d3…`。exact main fresh cloneでroot/app install、647/647、8 eval、panel privacy、checkout clean。source 7系統、single `runtime/agent-runner`、legacy path検知、gitleaks/PII 0。evidence=`docs/evidence/oss/oss-merge-1.md`。外部Anicca iOS/APIのRevenueCat incidentはLife Manager cursorを止めない |
 | ~~3~~ | **BROWSER-AUTH-1** | agent-owned accountとユーザー提供credentialsをtenant別に隔離し、cloud job再起動後も許可済みsessionを復元 | 2 tenantのcredential非混線、secretのrepo/log/trace 0。実Lumaでlogin→encrypted save→fresh process/Steel restore→production queue→authenticated identity/action/provider readback。失効時は正直な再認証handoff | **done**。実LumaでOTP/profile/passkeyを通過し`/home`のprotected `Create Event`をreadback、encrypted context save→別Steel/別process→production durable queue→exact-image restart後もauthenticated readback。最終PR #1344、merge=`e075fb305…`、deployment=`173c819d…` SUCCESS、instance=`253cd9d2188f`、job=`84d9df6e…`、Steel=`f0d5ae91…`、TG=`474`、release=true。expired rowはjob=`e071f4c1…`で`handoff_required/login`、2-tenant wrong tenant/origin/principal read 0、全session release、最終production logのOTP/cookie/auth/raw-context pattern 0。focused=`53/53 + 23/23`。evidence=`docs/evidence/browser/2026-07-29-browser-auth-1.md` |
-| 4 | **BROWSER-MATRIX-1** | Dais固有siteをhard-codeせず、別site・別地域・別意図でも同じplanner/executorが行動 | 未登録siteを含む3系統（予約、問い合わせ/メール、申請等）の実provider receipt。resident cloud loop自身がdurable queueからclaimし、verification harnessはenqueue/pollだけを行う。site adapter固有成功またはharnessからのdirect executor callだけではPASSにしない | **in progress / current cursor**。generic classifier/receipt/harnessはPR #1348、merge `ab71c1514…`、Railway deployment `1fdf8320…` SUCCESS、focused 89/89、full app、OSS 11/11、required CI全green。production boot logはLife Manager loops ONおよび`browser jobs ON (Railway private Steel)`を示し、runtime secret群も存在確認済み（値は非出力）。未完は①harnessのdirect `claimBrowserJobById`/`runNextBrowserJob`を除去してenqueue-only + terminal pollへ変える、②予約・問い合わせ・申請の実side effect、③各provider readback・TG receipt・Steel release 3/3。①はPR #1361でdone（merge `569cf748e…`、Railway `7ea230f6…` SUCCESS、resident claim実測 job `8cdd6942…`）。②③は合成fixtureを作らず、Dais本人がownerの実service（Luma等）での実生活の用事として撃つ。詳細と唯一の受入契約は§0.4.6a |
+| 4 | **DAILY-V1-1** | まずDaisでDAILY journeyを完全に閉じ、その後、友人がQR→Telegram→web onboarding（Google login、Calendar、電話、subscriptionまたは明示trial）を自力完了して同じDAILYを利用する | ①Daisで`[Travel]`実挿入・実着信・実live location遅刻メール・全TG receiptを再現 ②Dais以外の実tenantが手動DB/開発者介入0で同じjourneyを完走 ③tenant混線0・Dais固有値0 ④利用者feedbackを記録してDAILY blocker 0 | **current / pending**。§0.4.6dが唯一の受入契約。主要runtimeは実装・scheduler配線済み。`/start→/lm?tg=…→Supabase user→Telegram binding→Composio Calendar`も実装済み。`notify.js→mail-resend.js`のstakeholder遅刻メールは配線済みで、既存Dais L3では実Gmail受信まで証明済み。残るproduct gateはDais DAILYの再現可能な一束と、Dais以外の実tenant E2E・feedback |
+| 4.1 | **DAILY-PILOT-1** | DAILYだけを友人へprivate alphaとして配り、次organへ進む前に日常利用feedbackを閉じる | 2人以上のDais以外tenantが7日間利用し、onboarding/drop-off、誤call、誤Travel、遅刻連絡、質問負荷を記録。P0/P1=0、未解決P2に明示裁定、tenant分離readback | pending。DAILY-V1-1より前に開始しない |
+| 4.2 | **PHYSICAL-SLICE-1** | DAILY pilot後、固定6 careのうち本人が明示選択した1カテゴリだけをlocal OSS/BYOKで実証し、同じcommitをwebへ昇格 | local実providerで誤予約0・重複0・provider readback・取消経路・本人receipt。その後cloud別tenantで同じcontractを再現。明示opt-in/category/予算/時間帯/取消条件が揃うまで自動予約禁止 | pending。§0.4.6e |
+| 4.3 | **MENTAL-SLICE-1** | PHYSICAL pilot後、schedule-aware affirmation 1 journeyだけを本人feedbackで改善しlocal→webへ昇格 | Daisと別tenantでcontext整合、過剰通知0、感情の創作0、停止/訂正反映、実TG receipt | pending。retreat予約や対外連絡は同時に入れない |
 | 5 | **BROWSER-HANDOFF-1** | `handoff_required`を行き止まりにせず、詰まったcloud session自身をuserへ渡して解錠させ、以後同origin/同tenantはhuman 0で継続する | 実jobが2FA/未login/challengeで停止した時にself-host Steelの`debugUrl`/casting websocketをtenantへ限時配布し、userの実操作（`Input.dispatchMouseEvent`/`dispatchKeyEvent`）が同一sessionへ届き、完了検知後に同sessionの`/sessions/:id/context`をencrypted保存→**その後の同origin jobがhuman 0で成功**まで1本。URL秘匿・期限・tenant scope・失効revoke・secret 0 | pending。※§0.4.6bが唯一の受入契約 |
-| 6 | **BROWSER-RECOVERY-1** | timeout、DOM変更、login失効、challenge、Steel session消失からretry/replanし、side effectを重複させない | controlled failureごとの実trace、idempotency readback、成功/正直な失敗TG、全session release | pending |
-| 7 | **LOCAL-CLOUD-PARITY-1** | canonicalの同じcommitをlocal OSSとmulti-tenant cloud web appの両方で起動し、同じengine/skills/action contractを使う | clean VM local E2Eとcloud E2Eのgit SHA/runtime version一致。local-only/cloud-only実装、別repo copy、Mac browser dependency 0 | pending |
-| 8 | **CLOUD-LOOPS-1** | Life Managerのscheduler・executor・state・ledgerをcloud常設し、現在loadedなMac loopを止めずにMac非依存を証明 | cloud単独の周期実行receipt、Mac/cloud shadow差0、single-writer lease/idempotency、二重送信0。既存Mac loopはこの移行中にunloadしない | pending |
-| 9 | **LIFE-OUTCOMES-1** | cloud常設loopがchatをprimary push surfaceとして、MENTAL・PHYSICAL・FINANCIALの各1 journeyを本人のcontext/capabilityに合わせてobserve→decide→act→verify→reportまで閉じる | MENTAL=実context triggerと過剰通知0、PHYSICAL=実need→予約/実施follow-through、FINANCIAL=利用可能railを自律実行してverified receiptまたは正直なno-income/blocked report。3 journeyとも実mobile TG message id、provider/ledger readback、同じeventのrealtime panel readback一致 | pending。収益額や通院時期など外部event待ちは実装cursorを止めず、controlled real journeyと正直な未達を分離する |
-| 10 | **LEGACY-RETIRE-1** | cloud/local equivalence後にLife Managerのactive code/workflow/deploy責務を旧repo・旧folderから外す | `life-manager-v0`はrequired code/runtime reference 0を確認してcanonical redirect/archive、`profitable-claude`もhistorical redirect/archive、`anicca-products`は他productだけ、`anicca.ai`はLife Manager deployment source 0、`anicca-dais`はprivate state export後にrequired code 0。obsolete local checkoutはmanifest/hash/rollback path確認後だけrecoverableに退役。production downtime/loop gap 0 | pending。`life-manager-v0`のbounded archiveは先行`REPO-V0-RETIRE-1`で閉じる |
-| 11 | **DEV-E2E-1** | monitoring/Sentry/feedback→issue→TDD fix→PR→merge→deploy→production verificationを無人で1本閉じる | controlled real issue、commit/PR/CI/deploy SHA、production readback、失敗時rollback/recovery receipt | pending |
-| 12 | **OPS-PANEL-1** | 既存の恒久 `/panel` を、全loop・browser trace・action receipt・失敗理由・次回実行が常時見えるrealtime overview/controlへ完成する | authenticated panelとruntime ledgerの差0、tenant分離、成功/失敗両traceの表示、chatへ送ったreceiptと同じevent id。routine report/ask/actionは既存mobile chatで完結し、panelはいつでも全体像を確認できる | pending |
+| 6 | **BROWSER-MATRIX-1** | Dais固有siteをhard-codeせず、別site・別地域・別意図でも同じplanner/executorが行動 | 未登録siteを含む3系統（予約、問い合わせ/メール、申請等）の実provider receipt。resident cloud loop自身がdurable queueからclaimし、verification harnessはenqueue/pollだけを行う。site adapter固有成功またはharnessからのdirect executor callだけではPASSにしない | **paused behind DAILY feedback gate**。generic classifier/receipt/harness、deploy、resident claim是正はdone。未完provider 3系統を目的なく撃たず、PHYSICAL以降の選択済みsmall sliceが必要とする実生活actionで再開する。詳細は§0.4.6a |
+| 7 | **BROWSER-RECOVERY-1** | timeout、DOM変更、login失効、challenge、Steel session消失からretry/replanし、side effectを重複させない | controlled failureごとの実trace、idempotency readback、成功/正直な失敗TG、全session release | pending |
+| 8 | **LOCAL-CLOUD-PARITY-1** | canonicalの同じcommitをlocal OSSとmulti-tenant cloud web appの両方で起動し、同じengine/skills/action contractを使う | clean VM local E2Eとcloud E2Eのgit SHA/runtime version一致。local-only/cloud-only実装、別repo copy、Mac browser dependency 0 | pending |
+| 9 | **CLOUD-LOOPS-1** | Life Managerのscheduler・executor・state・ledgerをcloud常設し、現在loadedなMac loopを止めずにMac非依存を証明 | cloud単独の周期実行receipt、Mac/cloud shadow差0、single-writer lease/idempotency、二重送信0。既存Mac loopはこの移行中にunloadしない | pending |
+| 10 | **LIFE-OUTCOMES-1** | DAILY→PHYSICAL→MENTAL→FINANCIALのpilotを順番に閉じた後、4 organのverified journeyをchat primaryで統合表示 | 各organの独立pilot evidence、実mobile TG receipt、provider/ledger readback、panel同event id。未検証organをautopilotと表示しない | pending。4 organを同時実装するatomicではない |
+| 11 | **FINANCIAL-MULTITENANT-1** | MENTAL pilot後、localで実収益が検証済みのearning recipeを1本だけper-tenantへ配線し、各user walletへverified surplusを届ける | 現per-user tickにearnings/payout/walletは無い。gig/writer/crypto等は「loopが動く」ではなく、外部payer実着金・費用控除後surplus・再現性をlocalで先に証明する。done=別tenant walletへverified surplus、ledger exactly-once、資金混線0 | pending。未収益recipeをwebへ移さない |
+| 12 | **LEGACY-RETIRE-1** | cloud/local equivalence後にLife Managerのactive code/workflow/deploy責務を旧repo・旧folderから外す | `life-manager-v0`はrequired code/runtime reference 0を確認してcanonical redirect/archive、`profitable-claude`もhistorical redirect/archive、`anicca-products`は他productだけ、`anicca.ai`はLife Manager deployment source 0、`anicca-dais`はprivate state export後にrequired code 0。obsolete local checkoutはmanifest/hash/rollback path確認後だけrecoverableに退役。production downtime/loop gap 0 | pending。`life-manager-v0`のbounded archiveは先行`REPO-V0-RETIRE-1`で閉じる |
+| 13 | **DEV-E2E-1** | monitoring/Sentry/feedback→issue→TDD fix→PR→merge→deploy→production verificationを無人で1本閉じる | controlled real issue、commit/PR/CI/deploy SHA、production readback、失敗時rollback/recovery receipt | pending |
+| 14 | **OPS-PANEL-1** | 既存の恒久 `/panel` を、全loop・browser trace・action receipt・失敗理由・次回実行が常時見えるrealtime overview/controlへ完成する | authenticated panelとruntime ledgerの差0、tenant分離、成功/失敗両traceの表示、chatへ送ったreceiptと同じevent id。routine report/ask/actionは既存mobile chatで完結し、panelはいつでも全体像を確認できる | pending |
 
-##### 0.4.6a BROWSER-MATRIX-1 current execution contract
+##### 0.4.6a BROWSER-MATRIX-1 deferred execution contract
 
 ###### 1. Overview（What / Why）
 
@@ -641,7 +650,7 @@ ownership証明にはならない。BROWSER-MATRIX-1は、Life Manager自身の�
 | 5 | 3 provider recordと3 durable receiptをbounded IDまたはSHA-256で対応付け、raw form内容、email、OTP、cookie、authorization、session contextをevidenceへ出さない |
 | 6 | local/Mac browser side effectは0。Macでloadedな既存loopはLOCAL-CLOUD-PARITY-1/CLOUD-LOOPS-1完了前に停止しない |
 | 7 | timeout、challenge、login失効、KYC、payment、法的同意へ遭遇したjobは成功と偽らずhandoff/blocked receiptを残す。これはBROWSER-MATRIX-1の3成功recordを代替しない |
-| 8 | 3/3通過後だけ本表をdoneへ上書きし、BROWSER-HANDOFF-1をcurrentへ進める |
+| 8 | DAILY-PILOT-1完了後、選択中organのsmall sliceが必要とする実providerだけで再開する。3/3は汎用browser capability debtとして保持するが、organ feedback gateを追い越さない |
 
 ###### 3. As-Is / To-Be
 
@@ -697,7 +706,7 @@ ownership証明にはならない。BROWSER-MATRIX-1は、Life Manager自身の�
 | 3 | zero-cost/cancellable booking、non-binding inquiry、non-binding applicationのcontrolled responder URLをruntime secretとして設定 | GitにURL token/owner credential 0 |
 | 4 | production harnessは3 jobをenqueueし、resident loopがclaim/executeする間terminal rowをpollする | resident claim 3/3 |
 | 5 | provider保存record、durable receipt、TG evidence、Steel release、secret scanを独立照合する | §2の8条件全PASS |
-| 6 | `docs/evidence/browser/2026-07-30-browser-matrix-1.md`へbounded evidenceを書き、BROWSER-MATRIX-1=done、BROWSER-HANDOFF-1=currentへ更新する | stale current claim 0 |
+| 6 | 選択中sliceのbounded evidenceへprovider receiptを書き、matrix debtを更新する。次browser atomicを自動的にcurrentへしない | stale current claim 0 |
 
 | E2E judgment | Value |
 |---|---|
@@ -839,6 +848,123 @@ browserは「PHYSICAL専用の部品」ではなく**APIの無い相手に触る
 
 誤りの作り方も記録する: 器官別runtimeファイルを数本だけ`grep`して0 hitだったことを
 「依存なし」と断定した。否定の主張は横断grepとentry pointからの配線追跡の両方でしか裏付かない。
+
+
+##### 0.4.6d DAILY-V1-1 execution contract（製品の第一版 = 日々を運営する）
+
+###### 1. Overview（What / Why）
+
+Life Managerの第一版は「browserで何でもできること」ではなく、**DAILYだけで本人の日々を確実に回すこと**である。
+最初にDaisで再現可能なDAILY journeyを完成させる。次に友人がQR → Telegram → web onboarding
+（Google login、Google Calendar、電話番号、subscriptionまたは明示trial）を自力完了し、同じjourneyを使う。
+Calendarだけではscheduler対象にならない。production cohortは`phone + paid（または期限内comp）+ supported calendar provider`
+であり、この条件を省略して「QRだけで動く」と書かない。
+DAILY pilotのfeedbackを閉じるまで、PHYSICAL/MENTAL/FINANCIALの新scopeと汎用browser matrixを追い越させない。
+
+実測（2026-07-30、`apps/life-manager`）で、部品はほぼ揃っている:
+
+| 能力 | 実体 | 状態 |
+|---|---|---|
+| 移動時間の自動挿入 | `lib/travel.js` — Google Directionsで出発時刻を算出し`[Travel]` blockを予定の前に挿入 | 実装済み |
+| 出発前の音声call | `wakeUserOnce` + Telnyx ⇄ Gemini Live bridge（`/ws`） | 実装済み |
+| 遅刻検知 | `lib/late-notice.js` — 「fresh Telegram live locationだけがgate。observeして報告し、聞かない」 | 実装済み |
+| 場所の解決 | `lib/ask.js` — 場所欠落の予定をGeminiが推論（hardcodeしない） | 実装済み |
+| stakeholder遅刻メール | `lib/notify.js` → `lib/mail-resend.js`。Calendarのexternal attendeeを宛先にし、失敗/宛先無しは本人へ正直にTG報告 | 実装・配線済み。既存Dais L3で実Gmail受信済み |
+| multi-tenant onboarding | `/start` → `/lm?tg=…` → `lm-onboard.js`のtenant upsert/Telegram binding → Composio Calendar | 実装済み。Dais以外のproduction journey証拠は未取得 |
+| per-user tick | `scheduler.js`: `travel/wake/lateNotice/ask/care/mental/diet/precepts/relations` の9本 | 実装済み |
+
+未実装と未実証を混ぜない。onboardingとstakeholder連絡は実装済みである。残るのは
+**①DaisでDAILY全journeyを一束として再現 ②Dais以外がonboardingから全journeyを完走
+③友人pilotのfeedbackを閉じる**ことである。
+
+###### 2. Acceptance Criteria
+
+| # | MUST |
+|---:|---|
+| 1 | Daisの実tenantで、Travel→call→location遅刻判定→相手メール→TG receiptを再現可能な一束として完走する |
+| 2 | Dais以外の実tenantが、QR → Telegram → web onboarding → Google Calendar → phone → subscription/明示trialを自分で完了する。Dais固有値、手動DB、開発者介入0 |
+| 3 | そのtenantの実Calendarへ`[Travel]` blockが自動挿入され、出発時刻が実移動手段/実距離から算出される |
+| 4 | 出発前callが実際に着信する。phone無しの利用形態を将来許す場合はcallを試みず、capability unavailableを正直に表示する |
+| 5 | 実live locationから遅刻を検知し、Calendarのexternal attendeeへ実メールする。連絡先無し/送信失敗は本人へ正直に報告し、到着時刻の断定や理由を創作しない |
+| 6 | 全actionがTelegram receiptとして本人に届き、同じevent idでpanelからも読める |
+| 7 | tenant混線0。他tenantのcalendar/連絡先/位置情報を読まない・書かない |
+| 8 | Dais以外2人以上のprivate pilotで7日間使い、P0/P1=0、未解決P2を明示裁定してからPHYSICALへ進む |
+| 9 | local/Mac依存0。Macでloadedな既存loopはLOCAL-CLOUD-PARITY-1/CLOUD-LOOPS-1完了前に停止しない |
+
+###### 3. As-Is / To-Be
+
+| Surface | As-Is | To-Be |
+|---|---|---|
+| onboarding | multi-tenant codeは存在するが、Dais以外のproduction完走証拠がない | 他人がQRから自力でtenantを作り、Calendar/phone/subscriptionまたはtrialまで完了 |
+| travel | Dais tenantで稼働 | 任意tenantで稼働し、tenantごとの移動手段/居住地に適応 |
+| stakeholder連絡 | Dais L3は実Gmail受信までdone。他tenant証拠なし | 任意tenantで遅刻確定時にexternal attendeeへ実メールし、receiptを残す |
+| scope | DAILYとorgan/browser debtが同じcursorで競合 | DAILY pilotがgreenになるまでDAILY以外を開始しない |
+
+###### 4. Test Matrix
+
+| # | To-Be | Test / evidence | Cover |
+|---:|---|---|---|
+| 1 | Dais DAILY再現 | Travel/call/late email/TGを同一journeyでreadback | pending |
+| 2 | 他人のonboarding | QRから実tenant作成・Calendar/phone/entitlement接続、Dais固有値0 | pending |
+| 3 | travel自動挿入 | 実Calendarの`[Travel]` block readback | pending |
+| 4 | 出発前call | 実着信record | pending |
+| 5 | 遅刻連絡 | 実live location → external attendee実受信 → TG receipt、捏造0 | pending |
+| 6 | receipt/tenant一致 | TG/panel同event id、wrong tenant read/write 0 | pending |
+| 7 | friend pilot | 2人以上×7日、feedback ledger、P0/P1=0 | pending |
+
+###### 5. Boundaries
+
+| Decision | MUST / DO NOT |
+|---|---|
+| scope | DAILYの精度・onboarding・receiptだけを扱う。予約・care・収益browser taskをDAILY完了条件へ混ぜない |
+| 連絡 | 許可されたchannelのみ。連絡先が無ければ捏造せず本人へ報告する |
+| 事実 | 到着時刻・遅延理由・本人の意図を創作しない。観測した事実だけを送る |
+| 質問 | manager規律（§0.4.6b 1.5）。routineな判断をuserへ投げない |
+| Mac | 既存Mac loopをこの段階で止めない |
+
+###### 6. Execution Steps
+
+| 順 | Action | Done |
+|---:|---|---|
+| 1 | Daisで①travel挿入②出発前call③遅刻メール④TG receiptを同一journeyで再実証し、欠陥をDAILY内で閉じる | 実Calendar/実着信/実受信/実TG |
+| 2 | 既存multi-tenant onboardingを変更前提にせず実productionで通し、失敗地点だけをTDD修理する | Dais以外の接続trace、手動DB 0 |
+| 3 | そのtenantでDAILY journeyを完走する | 実Calendar/実着信/実送信、tenant混線0 |
+| 4 | 友人2人以上へprivate alphaを配り7日間feedbackを記録・修理する | P0/P1=0、P2裁定 |
+| 5 | `docs/evidence/`へbounded evidenceを書き、SSOTを更新する | §2の9条件全PASS |
+
+##### 0.4.6e Organ rollout contract（小さく実証してから昇格）
+
+DAILY pilotがgreenになるまで次organを開始しない。以後のproduct順は
+**PHYSICAL → MENTAL → FINANCIAL**で固定する。各organは一度に自由自律化せず、本人が理解できるsmall sliceを
+local OSS/BYOKで実providerに対して先に検証し、同じcanonical commit・同じengine・同じaction/verification contractを
+subscription web appへ昇格する。localとwebでbusiness logicをforkしない。localは開発・実証surfaceであり、
+Mac browser/sessionをcloud productionの定常依存にはしない。
+
+| Gate | MUST |
+|---|---|
+| scope | organごとにcategory/journeyを1つだけ選ぶ。次sliceは前sliceの実user feedback後 |
+| authority | 初回は明示opt-in。予約category、予算、時間帯、取消条件、対外送信範囲が閉じるまでcommitしない |
+| local first | OSS/BYOKで実provider readback、重複0、取消/失敗経路、receiptを実証 |
+| web promotion | localでgreenなexact commitだけをmulti-tenant cloudへ昇格し、別tenantで再実証 |
+| honesty | localでloopが動くことを「収益が出る」「予約できる」と同一視しない。provider receipt/外部payerだけが成果 |
+| rollback | cloud writer cutover前は既存Mac writerを止めない。shadow差0とsingle-writer証明後にだけ移譲 |
+
+PHYSICAL production classifierはpromptが自由にcare typeを決める構造ではなく、現在は以下の**固定6カテゴリ**である。
+Calendar summaryの明示keywordで分類し、先頭一致の1カテゴリだけに束縛する。production intent sourceは未配線なので、
+Calendar履歴がないcareをagentが推測して予約してはならない。
+
+| care type | 表示 | 主なCalendar keyword | Places query |
+|---|---|---|---|
+| `gastric_screening` | 胃がん検診・胃内視鏡 | 胃がん検診、胃ドック、胃カメラ、胃内視鏡、gastroscopy | `胃がん検診 胃内視鏡` |
+| `colorectal_screening` | 大腸がん検診・大腸内視鏡 | 大腸がん検診、大腸ドック、大腸カメラ、大腸内視鏡、便潜血、colonoscopy | `大腸がん検診 大腸内視鏡` |
+| `brain_dock` | 脳ドック | 脳ドック、brain dock、brain screening | `脳ドック` |
+| `dental` | 歯科 | 歯科、歯医者、デンタル、dental、dentist | `歯科` |
+| `haircut` | 散髪・美容室 | 散髪、美容室、美容院、床屋、理容、ヘアサロン、haircut、barber | `美容室` |
+| `clinic` | 一般健診・診療所 | クリニック、健康診断、内科、診療所、clinic、checkup | `クリニック` |
+
+カテゴリ追加はprompt変更ではなく、classifier keyword、category-bound Places query、i18n、eval、実履歴の
+false-positive/false-negative、予約authorityを1カテゴリ単位で追加してから行う。最初のPHYSICAL sliceは6カテゴリ全部を
+自動予約せず、Daisが明示選択した1カテゴリだけを使う。
 
 
 **event/時間依存の自動成果ゲート（上の実装cursorを止めない）**
@@ -1091,8 +1217,11 @@ browser profileは同じrepoの作業面またはexternal runtime stateであり
 private key、credential、個人memory、ledger、log、browser profileをGitへ集約することは「one repo」に含めない。
 これらをrepoへ移す変更はFAILである。実行順は
 **`OSS-SECURITY-BASELINE-1` → `REPO-V0-RETIRE-1` → `AE-X402-SOURCE-CONSOLIDATE-1` → `BROWSER-AUTH-1` →
-`BROWSER-MATRIX-1` → `BROWSER-HANDOFF-1` → `BROWSER-RECOVERY-1` → `LOCAL-CLOUD-PARITY-1` → `CLOUD-LOOPS-1` →
-`LIFE-OUTCOMES-1` → `LEGACY-RETIRE-1` → `DEV-E2E-1` → `OPS-PANEL-1`** とし、稼働loopはparity証明前に止めない。
+`DAILY-V1-1` → `DAILY-PILOT-1` → `PHYSICAL-SLICE-1` → `MENTAL-SLICE-1` →
+`FINANCIAL-MULTITENANT-1` → `LOCAL-CLOUD-PARITY-1` → `CLOUD-LOOPS-1` →
+`LIFE-OUTCOMES-1` → `LEGACY-RETIRE-1` → `DEV-E2E-1` → `OPS-PANEL-1`** とする。
+`BROWSER-HANDOFF-1` / `BROWSER-MATRIX-1` / `BROWSER-RECOVERY-1`は独立product cursorではなく、
+選択中sliceが必要とする時だけ挿入するjust-in-time dependencyである。稼働loopはparity証明前に止めない。
 `life-manager-v0`をarchiveした事実だけではdoneにしない。REPO-AC-1〜6の全PASSと、canonical exact SHAから
 local/cloud E2Eが動き、Telegram/panel/provider receiptまで同じevent IDでreadbackできた時だけrepository consolidationをdoneとする。
 
@@ -1363,7 +1492,7 @@ healthyの判定は通知回数やagent activityではなく、MENTALは有効�
 
 ### 9.8 ship 順序と FINANCIAL の法的立ち位置（2026-07-20 Dais 裁定）
 
-- **順序 = DAILY core再出荷 → MARKETING自走 → intent-aware BRAIN → PHYSICAL → MENTAL → FINANCIAL → DEV自動化を最終phase**。DEV-a〜dの既存部品は保持するが、auto-merge/deployとdaily self-buildは他atomicがdoneになるまで停止し、完成したシステムを最後に自動化する。
+- **現在のproduct順序 = DAILY完成 → 友人DAILY pilot → PHYSICAL small slice → MENTAL small slice → FINANCIAL proven-recipe slice**（§0.4.6e）。MARKETING/BRAIN/DEVの既存部品は保持するが、このproduct feedback順を追い越す新scopeにしない。
 - FINANCIAL の中心 = **anicca の crypto rail（wallet-as-identity、human credential ゼロ、human loop ゼロ）**。
   グレーでない: 「AI が自分の wallet で稼ぐ」であり、投資助言でも user 資産運用でもない。
 - gig/KYC/銀行口座を要するfiat手法は全userの既定にせず、userが明示的にそのcapabilityを委任し、
@@ -1615,8 +1744,9 @@ aniccaios の affirmation の進化形。full schedule を知っているから�
 **未完atomicの実行process（過去記録より優先）**: 新規の未完atomicは `using-git-worktrees` → `writing-plans` → `subagent-driven-development` → `test-driven-development` → `requesting-code-review` → `verification-before-completion` → `finishing-a-development-branch` のSuperpowers workflowで進める。既存のVCSDD参照・state・verdict・artifactは当時の真実を示すimmutable historical evidenceであり、現在のworkflowではない。新しいVCSDD artifact/commandは作らない。
 
 **★Agent Economyの現在の実行順の正本 = §0.4.6。★**
-旧organ ship順（MARKETING → PHYSICAL → MENTAL → FINANCIAL → DEV）は各organを作る順として有効だが、
-Agent Economyは収益・日数・自然検知を待って止まらず、zero-start tenant wallet、tenant x402 routing、
+旧organ ship順（MARKETING → PHYSICAL → MENTAL → FINANCIAL → DEV）はsupersededであり、現在のproduct順には使わない。
+Agent Economyの既存observerは収益・日数・自然検知を待つ間も継続するが、新しいFINANCIAL product scopeは
+DAILY→PHYSICAL→MENTALのfeedback gateを追い越さない。将来再開時はzero-start tenant wallet、tenant x402 routing、
 cloud custody、provider adapter、publication refreshを番号順に閉じ、Franklin continuityはnonblocking referenceとして追う。汎用cloud browser以降は
 Life Manager product trackであり、Agent Economy cursorへ混ぜない。
 fiat rail（Stripe Link）はJP未提供のまま使わず、CORE crypto railだけを対象にする。
@@ -1751,7 +1881,7 @@ SURVIVE-1 doneとは書かない。EARN-HC-1は完了した。JP lightning-talk 
 TaskMarket readbackも追加cost 0の実launchd wakeで完了した。13c-SELL/WORKは
 外部payer/acceptance待ちの自動成果ゲートとして継続し、§0.4.6どおり実装済み機械だけで観測する。
 Life Manager product trackはBROWSER-GEN-1、OSS-MERGE-1、BROWSER-AUTH-1がdone。
-現在はBROWSER-MATRIX-1がcurrent（§0.4.6cは撤回済み）。BROWSER-MATRIX-1の
+現在はDAILY-V1-1がcurrent（§0.4.6d）。BROWSER-MATRIX-1の
 generic code/merge/deployとresident-loop ownership是正はdoneで、実provider receipt 3/3は
 Dais本人がownerの実serviceでの実生活actionとして取る。受入契約は§0.4.6a。
 H2 diet + H3 checkup + H4 precepts はdone/cloud deploy済み。
@@ -1845,12 +1975,12 @@ REPORT-1（daily 1/7、weekly 1/1、TG + authenticated panel差0）は自動蓄�
 | 10g | BRAIN-a | intent-aware context graph: explicit goal、repeated preference、family/dependent、delegation、prohibition、correctionをprovenance/confidence/expiry付きで保持 | schema/contract test + Dais型/母型/予定を好まない型のfixture。訂正で古い推定が失効 | **done (2026-07-24 L2実測)**: `apps/life-manager/lib/intent-graph.js` 閉schema(6 kind/provenance source enum/閉key)+ confidence tier 明示0.9>繰り返し0.6>推定0.3。`applyCorrection`がsupersedes対象をcorrectedへ失効(削除せずprovenance監査可)、`effectiveEntries`はexpired/corrected除外のpure read。contract test `lib/intent-graph.test.js` 7/7、fixture `test/fixtures/intent-graph/{dais,mother,non-event}.json`(非event型はinferred推定がcorrectionで失効済みの形を実証)。full suite fail 0でmain test chainに常設 |
 | 10h | BRAIN-b | proactive opportunity engine: definite goodとpersonal goodを分け、body/mind/finance/life-admin候補をbenefit/urgency/confidence/reversibility/cost/riskで裁定 | `intent-cases.jsonl` 15+ cases eval 100%。hoikuen、tech event、友人時間、休養、何もしない正解を含む | **done (2026-07-24 L2実測)**: `lib/opportunity-engine.js` 決定cascade — 明示prohibition優先skip → active支持intent 0でskip(何もしないが正解) → risk/cost gate → material preferenceのみclosed-Q 1問(再質問しない) → inferred単独は観察継続 → 委任内+reversible+低riskで無確認act、それ以外ask。`eval/intent-cases.jsonl` 18 cases 100%(hoikuen調査act/契約ask/再質問skip、tech event act/高額skip、友人時間ask/推定のみskip、休養act、prohibition skip、訂正済み・期限切れ支持skip等)。contract test 4/4、eval chain常設、full suite fail 0 |
 | 10i | BRAIN-c | personalized action E2E: 現userのreal contextから1件を選び、web/emailのみで実行し、calendar/TGへ事後報告。不可なら正直報告 | 実候補根拠 + 実web/email side-effectまたは正直な実TG + gcal event。不要なapproval Q 0件 | **done (real L3)**: productionのpaid+calendar接続userと実upcoming event 5件からevent `2ft16f…`を選択。現userの明示instructionを`explicit_goal`+`delegation` provenanceとして既存`opportunity-engine.js`へ渡し、裁定=`act/delegated-reversible-low-risk`、approval Q=0。実Gmail self-send provider id=`19f9380e8cbc40f9`、RFC Message-ID=`<CAFe2jSZ67NfG8FML7qkRPpkKxzO9XAJim8i1Hc8GN=6-9dO-BQ@mail.gmail.com>`を受信側からreadback。実gcal event=`fd7rvh2u2sbqa0e4q4vl6vo0rs`, confirmed, private marker=`life_manager_action=10i`、実TG message id=`3392`。profile email null反例をprovider前に停止しcorrective RED→GREEN、provider markerで実rerunは`already_completed`・重複side effect 0。focused=`9/9`、full/eval/privacy GREEN。evidence=`docs/evidence/10i-personalized-action-e2e.md` |
-| 11a | PHY-a | 未通院・未ケア検知 rule: calendar/context/本人intent履歴から歯科・散髪等を検知。固定周期を全員へ押し付けず、medical diagnosisはしない。eval `phy-cases.jsonl` 10+ cases | eval 100% + 実 calendar/context で、care categoryと本人cadenceが意味的に一致する検知1件 | **pending — 実データで検知器を実行し正しく abstain（2026-07-25 再測定）**。初回の「履歴が無い」判断は**検索が浅かったための誤り**（keyword 5個で打ち切った）。provider 側 query を広げて再取得し、散髪=3件（`2025-02-26`/`2025-10-18`/`2026-06-21`）、健康診断=2件（`2025-03-10`/`2026-05-29`）、歯科=1件（`2026-06-13`）を確認。実イベント6件を `detectCalendarCare` に投入した実行結果は `real_event_count=6, candidates=[]`。散髪は間隔234日/246日（中央値≈240日）に対し最終から34日、健診は445日間隔に対し57日で、いずれも `OVERDUE_FACTOR=1.5` に届かない。**検知器は実データ上で正しく沈黙しており（誤検知0）、現時点で放置されたケアが実在しない**。done 条件は実検知1件のため、実際に期限超過が起きるか本人 intent が記録されるまで成立しない。捏造は行わない | pending |
+| 11a | PHY-a | 固定6カテゴリ（`gastric_screening` / `colorectal_screening` / `brain_dock` / `dental` / `haircut` / `clinic`）のCalendar明示keywordと本人cadenceから未ケアを検知。promptで自由categoryを発明しない。固定周期を全員へ押し付けず、medical diagnosisはしない。production intent sourceは未配線 | eval 100% + 実calendarでcategory/cadence一致。予約authorityは§0.4.6e | **pending — 実データで正しくabstain**。散髪3件、健康診断2件、歯科1件を投入して`real_event_count=6, candidates=[]`。散髪・健診とも本人cadenceの期限前で誤検知0。実際の期限超過または将来の明示intent接続までactionable検知を捏造しない。PHYSICAL着手はDAILY-PILOT-1後、最初はDaisが明示選択した1カテゴリだけ | pending |
 | 11b | PHY-b | 候補選定: 生活圏（home/work）+ 11aのexact care category + 履歴の「いつもの店」優先。web 予約可否の判定込み | 同じcare needを提供する実候補3件 + 生活圏 + 予約経路の判定実測 | **pending — audit reopen**: 旧候補3件/public route readbackは保持するが、11aのgeneric clinic検知から内科3件を選んだcare-need bindingが無い。近さだけで診療科を決めず、再検証した11a categoryと各providerのpublic service evidenceを一致させる。旧evidence=`docs/evidence/11b-real-care-candidates.md` | pending |
 | 11c | PHY-c | 予約実行: VPS/cloud常駐browserのwebフォーム or メール（§9.5 電話禁止）。local Mac/browserを定常runtimeにしない。不可なら候補提示 + 正直報告。名乗り = "Life Manager (AI secretary, acting for <user>)"（§10.1 U8） | cloud/VPS browserまたはemail経由の実予約1件 + provider readback、または同じcloud jobの正直報告実TG。local browser side effect 0 | **pending — provider実弾のみ**: 旧DigiKar SMS boundaryと実TG `3394`は履歴として保持。#1198でproduction `life-call`からprivate Steelへ接続し、health 200→session作成→実Chromiumで`https://example.com/`取得（HTTP 200）→DOM marker readback→同一session release 200を実測。初回実測で①実listenerは3000でなく8080 ②`HOST=::`由来の無効ws URL ③Chromeのprivate DNS Host拒否を発見し、port/`DOMAIN`/Railway-private Host rewriteを修理。Railway exact SHA `3a8364a56…` SUCCESS後、deploy同梱`npm run smoke:steel-cloud`でも2回目を完走。fake CDPではないcloud browser railの穴は閉じた。executorは#1156のまま、`LM_BOOKING_ENABLED`はoff。残るdone条件（実予約1件 or 候補つき正直報告の実TG）はactionable検知時に実施。evidence=`docs/superpowers/evidence/2026-07-28-steel-real-cloud-e2e.md` |
 | 11d | PHY-d | 事後報告 + calendar 登録 + 当日 call 連動（§9.11 PHYSICAL copy） | §9.11 copy での実 TG + gcal 実 event | **pending — confirmed booking dependency blocked after 3 approaches**: 11cの実provider readbackは`status=honest_failure_reported`、booking id=`null`。method 1=選択可能slotを予約済み扱い、method 2=未確定を述べる実TG `3394`を「予約しました」の§9.11 copy扱い、method 3=tentative slotからgcal/call作成、はいずれもfalse successとなるため拒否。closed gateは`confirmed booking id + provider_confirmed + starts_at`が揃うまでTG success/gcal/call=`0/0/0`、tentative/failure/fabricated idを拒否し`3/3`。provider変更/phone/SMS bypass=0。再開条件は固定providerの実confirmed booking id+開始時刻。evidence=`docs/evidence/11d-physical-aftercare-blocked.md` | **実装 merged（#1156, 2026-07-27）— 実測 leg のみ pending**: `care-aftercare.js` — booked 時のみ §9.11 copy 実TG + gcal 書込（calendar 未書込なら文面もそう言う）、honest_failure 時は候補提示 message。当日 call 連動は既存 physical-aftercare の gated leg。done 条件（実TG + gcal 実 event）は 11c の実弾と同時 |
 | 12a | MEN-a | trigger 判定 engine: schedule+location+直前 event から「効く瞬間」を判定。固定時刻禁止・3通/日上限。eval `men-cases.jsonl` 10+ cases | eval 100%（上限・抑制ケース含む） | **done (2026-07-24 L2実測)**: `lib/mental-trigger.js` 決定cascade — 3通/日cap → 2h最小間隔 → mid-event抑制 → 移動中抑制 → 重要予定10-45分前=pre_event → 激務終了30分以内+次予定60分以上先=between_events → 就寝目標60-15分前+残予定0=pre_sleep → それ以外抑制。固定時刻は構造的に不可能(空scheduleは全24時間suppressをcontract testで証明)。`eval/men-cases.jsonl` 15 cases 100%(cap・間隔・mid-event・移動・通常予定は送らない・同時刻でもschedule次第で結果が変わる等の抑制ケース込み)。contract 4/4、test+eval chain常設、full suite fail 0 |
-| 12b | MEN-b | 文面生成: aniccaios affirmation 資産を種に LLM が状況別生成（§9.11 MENTAL 例文の型） | 生成文が §9.11 原則（一方向・絵文字1個まで）を満たす sample 10本 | **done (2026-07-25 実測)**: `lib/mental-copy.js` を RED→GREEN で追加（11/11）。§9.11 原則を機械可読な規則として実装 — 疑問符・返信要求（返信/教えて/reply 等）を含む文は `not_one_directional` で拒否、絵文字2個以上は `too_many_emoji`、空文字・120字超も拒否。trigger は pre_event / between_events / pre_sleep の3種で、同じ seed でも moment ごとに別の文面を生成し、英語 affirmation を日本語文へ逐語転記しない。**実 aniccaios 資産 `AffirmationData.swift` を種に sample 10本を生成 → 10/10 が規則を満たし、10本すべてユニーク**。evidence=`docs/evidence/12b-mental-copy-samples.md`。test=749 PASS、eval 7種100%、privacy PASS |
+| 12b | MEN-b | 文面生成: aniccaios affirmation資産由来の固定seedを、`mental-copy.js`がtrigger別の決定論的日本語copyへ変換する。現在runtimeにLLMによるリアルタイム感情理解・自由生成はない | copyが§9.11原則（一方向・絵文字1個まで）を満たすsample 10本 | **done (2026-07-25実測)**: `lib/mental-copy.js`は疑問符・返信要求、絵文字2個以上、空、120字超を拒否。triggerはpre_event / between_events / pre_sleepの3種。実`AffirmationData.swift`由来seedでsample 10/10規則適合・全unique。これはschedule-aware copyの証明であり、本人のrealtime mental stateを理解した証明ではない。evidence=`docs/evidence/12b-mental-copy-samples.md` |
 | 12c | MEN-c | 送信配線 + E2E: 実 schedule 由来 trigger 3種（予定前/合間/就寝前）で実 TG 着信 | 実 TG 3通のスクショ/メッセージ id | **done (2026-07-26)**: 3/3 実 TG 着信を production DB から読み戻し — pre_event=`260`(07-25 09:20Z), pre_sleep=`271`(07-25 13:30Z), between_events=`272`(07-25 18:49Z)。between_events は本番で構造的に発火不能だった（tick の calendar fetch が `timeMin=now` で「終わったイベント」を返せない）ため PR #1129 で lookback 35min を追加し、MENTAL のみ広い窓・他 consumer は strict-future をテストで固定。fix 後、実90分イベント終了の11秒後に発火（旧コードでは生成不能な row = deploy 生存証明を兼ねる）。テストイベント2件は削除済み(readback 0)。evidence=`docs/evidence/12c-mental-three-triggers-live.md` |
 | 13a | FIN-a | agent wallet 自己生成（§10.1 U7 Franklin 型。既存 wallet 流用禁止）+ 秘密鍵の安全保存 | 新 address 実在 + 残高 0 確認 + 鍵が repo/log に無い grep | **done (2026-07-25 実測)**: `lib/agent-wallet.js` を RED→GREEN で追加（9/9）。keccak256 は Node の SHA3-256 と別物のため監査済み `@noble/hashes` / `@noble/curves` を使用し、**公開 Ethereum テストベクタ2本でアドレス導出とEIP-55 checksum を照合**（自己整合ではなく外部基準）。曲線位数外・不正長・ゼロ鍵は拒否、entropy 不良は再試行せず失敗させる（弱鍵の隠蔽を防ぐ）。秘密鍵は入れ子まで再帰的に除去する `redactWallet` を通さないとログへ出せない。**実 wallet 生成**: address `0x477EeE969ccfdc0e959F38cE8B83e372FC0262ad`（Base）。on-chain 実読み取りで `eth_getBalance=0x0`、`eth_getTransactionCount=0x0`（未使用の新規アドレス）。鍵は `~/.cloak/life-manager-agent-wallet.json` に mode `0600` で保存し、**repo 0 hit / logs 0 hit / git history 0 hit** を grep で実証。test=770 PASS |
 | 13b | FIN-b | 送金先 closed Q（§9.11 FINANCIAL copy、初回1問のみ）+ 永続保存 | 実 TG で登録往復1回 + DB 実 row | **pending — 実装は RED→GREEN で完了、実 TG 往復と実 DB row は未実施（2026-07-25）**: discovery 告知の［登録する］は `handleDiscoveryCallback` が tap を ack して return するだけの **dead end** だった（実測）。`lib/payout-question.js` を RED→GREEN で追加（16/16）し、tap → §9.11 FINANCIAL closed Q（3択、自由入力なし）→ 回答を `lm_users.payout_destination` へ永続保存、まで配線。copy は `lib/i18n.js` に置き spec §9.11 と逐語一致を test で固定（copy は Dais 所有のため実装は新規文面を作らない）。**初回1問のみ**: 送信前に必ず column を read し、既に destination がある行は無送信。read 失敗は「未回答」ではなく `lookup_failed` として扱い、推測で再質問しない。**保存は CAS**（`payout_destination=is.null` + `Prefer: return=representation`）で書いた値を読み戻して照合し、DB に見えない書き込みは `persist_failed` として失敗を返す（成功報告しない）。［あとで］は無書き込みで gate は locked のまま。保存内容は rail 選択（`status=awaiting_details`）で、`isPayoutDestinationUsable()` は false を返すため 13c/13d が送金可能先と誤認できない（口座番号/wallet address の収集は 13c/13d の仕事）。12c の教訓に従い **production 配線も証明**: `server.js` を実起動して Telegram が送る callback 2種を POST し、§9.11 の質問が Bot API 経由で実送信され、回答が `lm_users` へ PATCH されることを contract test で実測。test=786 PASS（baseline 770 + 16）、eval 7種 100%（21/12/12/27/18/15/12）、panel-privacy PASS（api=177 browser=63 recipes=19 channels=9）。**残: 実 Telegram での往復1回と実 DB row は未実施** — この branch は fixture のみで検証し、実メッセージ送信・production data 変更は一切行っていない | **done (2026-07-26)**: 実 TG 往復1回 + DB 実 row — discovery［登録する］tap → §9.11 copy 逐語の質問が 02:17 JST に実着弾（callback が server に届いた = INC-3 修理の E2E 証明を兼ねる）→［walletアドレスを登録］tap（rail 選択は §9.8 由来: fiat 閉鎖中で wallet が唯一の live rail）→ production readback `{"type":"wallet","status":"awaiting_details","answered_at":"2026-07-26T05:18:30.952Z"}`。address 収集は 13d の初手。evidence=`docs/evidence/13b-payout-question-round-trip.md` |
