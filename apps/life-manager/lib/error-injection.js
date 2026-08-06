@@ -6,6 +6,11 @@ const {
 } = require("./error-intake.js");
 
 
+function runtimeRegressionDetected({ httpStatus, evalFailed } = {}) {
+  return Number(httpStatus) >= 500 || evalFailed === true;
+}
+
+
 async function observeFailure(probe) {
   if (typeof probe !== "function") throw new Error("controlled_failure_dependencies_required");
   let failed = false;
@@ -62,4 +67,5 @@ async function runControlledErrorInjection(options = {}) {
 
 module.exports = {
   runControlledErrorInjection,
+  runtimeRegressionDetected,
 };

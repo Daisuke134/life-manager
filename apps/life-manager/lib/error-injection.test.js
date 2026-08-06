@@ -3,7 +3,15 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { runControlledErrorInjection } = require("./error-injection.js");
+const {
+  runControlledErrorInjection,
+  runtimeRegressionDetected,
+} = require("./error-injection.js");
+
+
+test("production-health 5xx is a runtime regression without an eval failure", () => {
+  assert.equal(runtimeRegressionDetected({ httpStatus: 503, evalFailed: false }), true);
+});
 
 
 test("three observed failures become three closed incident classes", async () => {

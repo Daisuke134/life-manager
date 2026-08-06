@@ -5,7 +5,10 @@ const http = require("node:http");
 const { execFileSync } = require("node:child_process");
 const { Pool } = require("pg");
 const { persistFeedback } = require("../lib/feedback-intake.js");
-const { runControlledErrorInjection } = require("../lib/error-injection.js");
+const {
+  runControlledErrorInjection,
+  runtimeRegressionDetected,
+} = require("../lib/error-injection.js");
 
 
 const RAILWAY_PROJECT = "f9c524cb-ba4a-43bb-9639-ff736afd9ec1";
@@ -52,11 +55,11 @@ async function runtimeProbe() {
     response.end("controlled");
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  let httpFailed = false;
+  let httpStatus = 0;
   try {
     const address = server.address();
     const response = await fetch(`http://127.0.0.1:${address.port}/health`);
-    httpFailed = response.status >= 500;
+    httpStatus = response.status;
     await response.arrayBuffer();
   } finally {
     await new Promise((resolve) => server.close(resolve));
@@ -69,7 +72,9 @@ async function runtimeProbe() {
   } catch {
     evalFailed = true;
   }
-  if (httpFailed && evalFailed) throw new Error("controlled_runtime_regression");
+  if (runtimeRegressionDetected({ httpStatus, evalFailed })) {
+    throw new Error("controlled_runtime_regression");
+  }
 }
 
 
