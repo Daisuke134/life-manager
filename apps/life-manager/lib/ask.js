@@ -391,7 +391,10 @@ async function askTick(uid, opts) {
     const res = await recallOrResolve(event, {
       uid, supaUrl, supaKey, home: opts.home, mapsKey, geminiKey,
       recall: opts.recall,
-      resolve: interpretation.decision === "ask_closed" ? async () => ({ kind: "ask" }) : opts.resolve,
+      // The interpreter's ask_closed decision is only a legacy question hint. Let the
+      // agent resolve the location first; otherwise every location-missing event skips
+      // description/context/Places reasoning and goes straight to asking the user.
+      resolve: opts.resolve,
     });
     if (res.kind === "online") {
       continue; // online/remote/phone → no place, no travel, never ask. (No mark: re-classify is cheap.)

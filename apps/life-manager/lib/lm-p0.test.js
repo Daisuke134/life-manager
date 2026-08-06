@@ -195,6 +195,28 @@ test("life-manager#11: ask-kind event with a found candidate autofills, sends no
   assert.deepEqual(records[0], ["u1", "e1", "gmail", "http://s", "k"]);
 });
 
+test("#1287: agent resolves a physical event before any location question", async () => {
+  const patches = [];
+  const result = await askTick("u1", {
+    composioKey: "c", supaUrl: "http://s", supaKey: "k", geminiKey: "g",
+    listEvents: async () => [{
+      id: "e-description", summary: "MUIT 集会", description: "会場: Tokyo Hall",
+      start: { dateTime: "2026-07-01T12:00:00Z" },
+    }],
+    askedSet: async () => new Set(),
+    patchEvent: async (...args) => patches.push(args),
+    recordResolution: async () => {},
+    recall: async () => null,
+    resolve: async (event) => {
+      assert.equal(event.description, "会場: Tokyo Hall");
+      return { kind: "filled", location: "Tokyo Hall", resolvedFrom: "description" };
+    },
+    geminiRaw: async () => { throw new Error("candidate search must not run after resolution"); },
+  });
+  assert.deepEqual(result, { autofilled: 1, asked: 0, resolved: 0 });
+  assert.deepEqual(patches[0], ["u1", "e-description", { location: "Tokyo Hall" }, "c", undefined]);
+});
+
 // life-manager#11 (control): when NO candidate is found either, the event still falls through to the ask
 // path unchanged (claimAsk gates the real send, which needs Supabase — asserted here via the fast-path
 // askedSet dedup instead, proving askTick does not autofill on a genuinely unresolvable event).
