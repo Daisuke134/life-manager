@@ -10,7 +10,9 @@ async function observeFailure(probe) {
   if (typeof probe !== "function") throw new Error("controlled_failure_dependencies_required");
   let failed = false;
   try {
-    await probe();
+    const result = await probe();
+    failed = result === false
+      || (result && typeof result === "object" && (result.ok === false || result.sent === false));
   } catch {
     failed = true;
   }

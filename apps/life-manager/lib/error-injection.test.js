@@ -43,3 +43,21 @@ test("a probe that does not actually fail is rejected without creating intake", 
   );
   assert.equal(writes, 0);
 });
+
+
+test("a delivery probe returning sent:false is recorded as a side-effect failure", async () => {
+  const persisted = [];
+  const fail = async () => { throw new Error("controlled failure"); };
+  const result = await runControlledErrorInjection({
+    provenanceKey: "fixture-error-provenance-key",
+    timeoutProbe: fail,
+    sideEffectProbe: async () => ({ sent: false }),
+    runtimeProbe: fail,
+    persist: async (intake) => {
+      persisted.push(intake);
+      return { id: String(persisted.length), duplicate: false };
+    },
+  });
+  assert.equal(result[1].incidentClass, "side-effect-failed");
+  assert.equal(persisted[1].summary, "Side effect failed in delivery (controlled-delivery-failure).");
+});
