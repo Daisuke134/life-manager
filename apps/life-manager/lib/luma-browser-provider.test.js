@@ -181,6 +181,43 @@ test("submits the live Japanese one-click registration control", async () => {
   assert.deepEqual(calls, ["click"]);
 });
 
+test("required form input after the registration click remains retryable before Apply submit", async () => {
+  const register = {
+    first() { return this; },
+    async count() { return 1; },
+    async isVisible() { return true; },
+    async click() {},
+  };
+  const requiredInput = {
+    async inputValue() { return ""; },
+  };
+  const dialog = {
+    last() { return this; },
+    async count() { return 1; },
+    async isVisible() { return true; },
+    locator(selector) {
+      assert.equal(selector, "input[required], textarea[required], select[required]");
+      return {
+        async count() { return 1; },
+        nth() { return requiredInput; },
+      };
+    },
+  };
+  const page = {
+    getByRole(role) {
+      return role === "dialog" ? dialog : register;
+    },
+    async waitForTimeout() {},
+    async evaluate() { return { registered: false }; },
+  };
+
+  await assert.rejects(submitLumaOnPage(page), (error) => {
+    assert.equal(error.code, "LUMA_FORM_INPUT_REQUIRED");
+    assert.equal(error.unknownEffect, false);
+    return true;
+  });
+});
+
 test("paid registration cannot click without a matching verified spend authorization", async () => {
   const paidOffer = { price: 2500, priceCurrency: "JPY", availability: "https://schema.org/InStock" };
   const blocked = fixture(["参加登録"], paidOffer);

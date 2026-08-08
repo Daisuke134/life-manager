@@ -389,6 +389,7 @@ async function executeCapabilityJob(job, services) {
       && new Set([
         "LUMA_LOGIN_REQUIRED",
         "LUMA_RSVP_UNAVAILABLE",
+        "LUMA_FORM_INPUT_REQUIRED",
         "LUMA_EFFECT_UNKNOWN",
       ]).has(String(executionError.code || ""))
       ? executionError.code

@@ -69,7 +69,7 @@ async function submitLumaOnPage(page) {
           throw providerError(
             "Luma RSVP required form input unavailable",
             "LUMA_FORM_INPUT_REQUIRED",
-            true,
+            false,
           );
         }
       }

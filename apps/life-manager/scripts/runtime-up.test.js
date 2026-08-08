@@ -519,6 +519,7 @@ test("outbound Luma worker persists only an allowlisted provider state code", as
   for (const [providerCode, expectedCode, unknownEffect] of [
     ["LUMA_LOGIN_REQUIRED", "LUMA_LOGIN_REQUIRED", false],
     ["LUMA_RSVP_UNAVAILABLE", "LUMA_RSVP_UNAVAILABLE", false],
+    ["LUMA_FORM_INPUT_REQUIRED", "LUMA_FORM_INPUT_REQUIRED", false],
     ["LUMA_EFFECT_UNKNOWN", "LUMA_EFFECT_UNKNOWN", true],
     ["LUMA_PRIVATE_PROVIDER_DETAIL", "CAPABILITY_EXECUTION_FAILED", false],
   ]) {
