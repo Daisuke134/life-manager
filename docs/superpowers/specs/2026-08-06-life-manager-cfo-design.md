@@ -2,12 +2,12 @@
 
 | Field | Value |
 |---|---|
-| Status | PLAN — implementation has not started |
+| Status | IMPLEMENTED — LIVE E2E PASS |
 | Owner | Life Manager financial organ |
 | Product scope | Dais first, multi-tenant after local E2E |
 | Runtime order | local first, Steel cloud second |
-| Existing foundations | `apps/life-call`, Moneytree connector, Fleet telemetry, `lm_api_cost`, `lm_financial_ledger` |
-| First unfinished item | **CFO-0c: implement the financial-unit registry child spec; then CFO-0d freezes Telegram UX** |
+| Existing foundations | `apps/life-call`, Moneytree connector, Fleet telemetry, `lm_api_cost`, and the canonical `lm_agent_earnings` source (the panel's `lm_financial_ledger` name is a stale alias) |
+| First unfinished item | **CFO-0d: freeze the Telegram information hierarchy, copy, inline-button contract, and evidence fixtures** |
 
 ## 1. Overview — What and Why
 
@@ -158,7 +158,7 @@ remain visible.
 | MUFG | Installed Moneytree connector; live read found one MUFG deposit account | Not persisted in a CFO snapshot |
 | Binance | No canonical adapter found | Balance, history, Earn, and tax lots absent |
 | API cost | `apps/life-call/lib/ledger.js` → `lm_api_cost` | Not attributed consistently to a business |
-| Financial ledger | Panel reads `lm_financial_ledger` | Producer/schema ownership is incomplete |
+| Financial ledger | CFO inventory observes canonical `lm_agent_earnings`; the panel still exposes the legacy `lm_financial_ledger` alias | Availability is observed; balance, transaction, and P&L adapters remain later CFO work |
 | Fleet economics | Chain-verified net worth/revenue/burn aggregation exists | Not joined to personal bank/exchange assets |
 | Private CFO | `apps/landing/app/private/page.tsx` exists | Separate dashboard artifact, not the controller |
 | Tax | NTA treatment is documented externally | No lot ledger, realized-event ledger, or reserve |
@@ -299,15 +299,19 @@ the API expense confirmed.
 |---|---|---|---|---|
 | `life_manager_saas` | Life Manager | Stripe/provider receipts | `ai.anicca.life-manager-*` | Product and web runtime exist; verified revenue is read only from receipts |
 | `anicca_ios` | Anicca iOS | Apple/RevenueCat receipts | iOS + API services | Separate subscription business; legacy CFO estimates are quarantined |
-| `writer_agent` | Writer Agent | Publisher/payment receipts | `ai.anicca.writer-*` | Live loops; current canonical verified revenue is zero until an external receipt lands |
-| `affiliate_agent` | Affiliate Agent | Network commission receipt | Affiliate SSOT/runtime | Legacy core is dead and provider auth is incomplete; current verified new revenue is zero |
+| `writer_agent` | Writer Agent | Publisher/payment receipts | `ai.anicca.writer-*` | Live loops; no verified revenue is asserted until an external receipt lands |
+| `affiliate_agent` | Affiliate Agent | Network commission receipt | Affiliate SSOT/runtime | Legacy core is dead and provider auth is incomplete; no verified new revenue is asserted |
 | `gig_work` | Gig Work | Marketplace/client payment receipt | `ai.anicca.hf-gig-*`, outcome watcher | Live work runtime; revenue requires landed external payment |
 | `x402_services` | x402 Services | On-chain customer settlement | `ai.anicca.x402-*` | Transfers/swaps between owned assets are not revenue |
+| `capafy_marketplace` | Capafy Marketplace | Capafy sales receipt | `ai.anicca.capafy-*`, Capafy provisioner | Building; revenue requires a canonical landed sales receipt |
+| `proprietary_investing` | Proprietary Investing | Reconciled investing receipt | `ai.anicca.autohedge`, `ai.anicca.pm-*`, `ai.anicca.reinvest` | Planned; no reconciled canonical source is asserted yet |
+| `job_income` | Employment Income | Payroll/bank receipt | `ai.anicca.job-search-*` | Personal income, not business revenue; receipt required |
 
-`job_income` is shown separately as employment income, not business revenue. Franklin agents are economic owners
-and cost centres; they are not extra businesses unless they launch a product with an independent P&L. TaskMarket,
+Franklin agents are economic owners and cost centres; they are not extra businesses unless they launch a product
+with an independent P&L. TaskMarket,
 uGig, Stripe, Apple, and x402 are revenue channels. launchd labels are runtimes. This prevents both omission and
-double counting. CFO-0c reconciles this seed list against every live runtime and ledger before it becomes complete.
+double counting. CFO-0c has reconciled this registry against every live runtime and canonical ledger-source entry;
+missing or planned receipts remain unverified rather than being treated as zero revenue.
 
 ### Telegram is the primary financial UI
 
@@ -657,12 +661,32 @@ The child spec narrows M0 without replacing this document's financial truth, saf
 - [x] **CFO-0** Create this canonical design and name the first slice.
 - [x] **CFO-0b** Add this document to the Life Manager SSOT index and mark older CFO fragments as inputs, not
       competing specs.
-- [ ] **CFO-0c** Inventory every live earning loop and assign a stable `business_id`, owner, ledger source,
+- [x] **CFO-0c** Inventory every live earning loop and assign a stable `business_id`, owner, ledger source,
       runtime, and current status. Reconcile the seed registry in this spec against launchd and canonical ledgers;
       quarantine legacy/fake MRR and do not change execution.
 - [ ] **CFO-0d** Freeze the Telegram information hierarchy, Japanese/English copy, inline-button contract, and
       four evidence labels from this spec with accessibility/readability fixtures. Include bounded self-heal,
       recovered-report, one-alert dedupe, and every-business drill-down states.
+
+### CFO-0c closure evidence
+
+`CFO-0c` is complete. The correction wave was closed in order with commits `be53043ce` (complete runtime census),
+`7f56f93fb` (canonical ledger-source inventory), and `86afe492d` (privacy, immutable hash, and normal CI). The
+documentation closure commit is `ce2c99239` (`docs(cfo): close complete runtime inventory`).
+
+- Focused `npm run test:cfo`: 35/35 tests passed.
+- Full `npm test`: exit code 0 after `npm ci --no-audit --no-fund` restored the worktree's missing `ws` dependency.
+- Live read-only inventory: 139 observed `ai.anicca.*` labels; 84 classified as financial units and 55 as explicit
+  exclusions; 9 financial units; `unmapped_count=0`; `ambiguous_count=0`.
+- Ledger observations: 9 catalogue entries, with `planned=3` and `unavailable=6`; these are availability statuses,
+  not revenue or balance claims.
+- Independently verified hash references: `registry_sha256=32c3d67f09d3e72b6fdc8a4a8f5d95d38f14a9edd33e8d913238bf65b0868375`;
+  `observation_hash=f459730c8505cf22b9f58d45287a6d382b10971b64e0199cf637bad92279046c`.
+- Receipt permissions were `0600`, containing-directory permissions were `0700`, and no receipt or private path was
+  tracked. The inventory performed no launchd, ledger, database, network-write, or Telegram mutation.
+
+`CFO-0d` is now the only active financial item. Missing or planned receipt sources remain unverified and are not
+converted into zero revenue.
 
 ### M1 — One truthful read-only snapshot
 

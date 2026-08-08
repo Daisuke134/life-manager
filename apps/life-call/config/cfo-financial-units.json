@@ -1,0 +1,245 @@
+{
+  "schema_version": 1,
+  "registry_id": "life_manager_cfo_financial_units",
+  "relevant_runtime_prefixes": ["ai.anicca."],
+  "financial_units": [
+    {
+      "financial_unit_id": "life_manager_saas",
+      "unit_kind": "business",
+      "display_order": 1,
+      "display_name": { "en": "Life Manager", "ja": "ライフマネージャー" },
+      "owner_ref": "human:dais",
+      "cost_center_refs": [],
+      "lifecycle": "active",
+      "runtime_matchers": ["ai.anicca.life-manager-*", "ai.anicca.agent-economy-loop", "ai.anicca.hf-reddit-loop-*", "ai.anicca.reddit-loop-*", "ai.anicca.lateness-heartbeat", "ai.anicca.lm-recording-store", "ai.anicca.outbound-runtime-healthcheck", "ai.anicca.phone-conversation", "ai.anicca.pipecat-phone", "ai.anicca.realtime-guide", "ai.anicca.telegram-bot", "ai.anicca.phone-tunnel*"],
+      "revenue_channel_ids": ["stripe_life_manager", "taskmarket_life_manager", "ugig_life_manager"],
+      "ledger_source_ids": ["lm_agent_earnings"],
+      "evidence_refs": ["docs/superpowers/specs/2026-06-21-life-manager-LAUNCH-ORDER.md"]
+    },
+    {
+      "financial_unit_id": "anicca_ios",
+      "unit_kind": "business",
+      "display_order": 2,
+      "display_name": { "en": "Anicca iOS", "ja": "アニッチャ iOS" },
+      "owner_ref": "human:dais",
+      "cost_center_refs": [],
+      "lifecycle": "active",
+      "runtime_matchers": [],
+      "revenue_channel_ids": ["apple_app_store_anicca"],
+      "ledger_source_ids": ["revenuecat_subscription_events"],
+      "evidence_refs": ["AGENTS.md"]
+    },
+    {
+      "financial_unit_id": "writer_agent",
+      "unit_kind": "business",
+      "display_order": 3,
+      "display_name": { "en": "Writer Agent", "ja": "ライターエージェント" },
+      "owner_ref": "human:dais",
+      "cost_center_refs": [],
+      "lifecycle": "active",
+      "runtime_matchers": ["ai.anicca.writer-*", "ai.anicca.article-*"],
+      "revenue_channel_ids": ["note_writer", "substack_writer", "publisher_writer"],
+      "ledger_source_ids": ["writer_receipts"],
+      "evidence_refs": ["docs/writer-agent/WRITER-AGENT-SSOT.md"]
+    },
+    {
+      "financial_unit_id": "affiliate_agent",
+      "unit_kind": "business",
+      "display_order": 4,
+      "display_name": { "en": "Affiliate Agent", "ja": "アフィリエイトエージェント" },
+      "owner_ref": "human:dais",
+      "cost_center_refs": [],
+      "lifecycle": "building",
+      "runtime_matchers": ["ai.anicca.affiliate-*", "ai.anicca.clip-loop"],
+      "revenue_channel_ids": ["amazon_associates", "rakuten_affiliate", "affiliate_networks"],
+      "ledger_source_ids": ["affiliate_commission_receipts"],
+      "evidence_refs": ["docs/affiliate-agent/AFFILIATE-AGENT-SSOT.md"]
+    },
+    {
+      "financial_unit_id": "gig_work",
+      "unit_kind": "business",
+      "display_order": 5,
+      "display_name": { "en": "Gig Work", "ja": "ギグワーク" },
+      "owner_ref": "human:dais",
+      "cost_center_refs": [],
+      "lifecycle": "active",
+      "runtime_matchers": ["ai.anicca.hf-gig-*", "ai.anicca.gig-outcome-watch", "ai.anicca.hf-bounty-daily", "ai.anicca.bounty-core-healthcheck", "ai.anicca.freelancer-bid-watch"],
+      "revenue_channel_ids": ["gig_marketplaces", "direct_gig_clients"],
+      "ledger_source_ids": ["gig_payment_receipts"],
+      "evidence_refs": ["docs/loop-engineering/26-gig-loop-asis-tobe-plan.md"]
+    },
+    {
+      "financial_unit_id": "x402_services",
+      "unit_kind": "business",
+      "display_order": 6,
+      "display_name": { "en": "x402 Services", "ja": "x402サービス" },
+      "owner_ref": "human:dais",
+      "cost_center_refs": ["agent:franklin1", "agent:franklin2"],
+      "lifecycle": "active",
+      "runtime_matchers": ["ai.anicca.x402-*", "ai.anicca.image-claude-p", "ai.anicca.image-franklin1", "ai.anicca.image-franklin2", "ai.anicca.mcp-claude-p", "ai.anicca.mcp-franklin1", "ai.anicca.mcp-franklin2", "ai.anicca.the402-*"],
+      "revenue_channel_ids": ["x402_onchain"],
+      "ledger_source_ids": ["x402_settlement_receipts"],
+      "evidence_refs": ["apps/x402-agents/package.json"]
+    },
+    {
+      "financial_unit_id": "job_income",
+      "unit_kind": "personal_income",
+      "display_order": 7,
+      "display_name": { "en": "Employment Income", "ja": "給与所得" },
+      "owner_ref": "human:dais",
+      "cost_center_refs": [],
+      "lifecycle": "active",
+      "runtime_matchers": ["ai.anicca.job-search-*"],
+      "revenue_channel_ids": ["payroll_bank"],
+      "ledger_source_ids": ["payroll_bank_receipts"],
+      "evidence_refs": ["launchd:ai.anicca.job-search-*"]
+    },
+    {
+      "financial_unit_id": "capafy_marketplace",
+      "unit_kind": "business",
+      "display_order": 8,
+      "display_name": { "en": "Capafy Marketplace", "ja": "Capafyマーケットプレイス" },
+      "owner_ref": "human:dais",
+      "cost_center_refs": [],
+      "lifecycle": "building",
+      "runtime_matchers": ["ai.anicca.capafy-*", "ai.anicca.provision-browser.instagram.capafy-provision"],
+      "revenue_channel_ids": ["capafy_sales"],
+      "ledger_source_ids": ["capafy_sales_receipts"],
+      "evidence_refs": ["docs/superpowers/specs/2026-07-30-capafy-10k-mrr-game-plan.md"]
+    },
+    {
+      "financial_unit_id": "proprietary_investing",
+      "unit_kind": "business",
+      "display_order": 9,
+      "display_name": { "en": "Proprietary Investing", "ja": "プロプライエタリ投資" },
+      "owner_ref": "human:dais",
+      "cost_center_refs": [],
+      "lifecycle": "planned",
+      "runtime_matchers": ["ai.anicca.autohedge", "ai.anicca.pm-*", "ai.anicca.reinvest"],
+      "revenue_channel_ids": ["proprietary_investing"],
+      "ledger_source_ids": ["proprietary_investing_receipts"],
+      "evidence_refs": ["docs/superpowers/specs/2026-06-10-ai-entity-content-engine-design.md"]
+    }
+  ],
+  "ledger_sources": [
+    {
+      "ledger_source_id": "lm_agent_earnings",
+      "probe_kind": "external",
+      "locator": "life-manager-agent-earnings",
+      "default_status": "unavailable"
+    },
+    {
+      "ledger_source_id": "revenuecat_subscription_events",
+      "probe_kind": "external",
+      "locator": "revenuecat-subscription-events",
+      "default_status": "unavailable"
+    },
+    {
+      "ledger_source_id": "writer_receipts",
+      "probe_kind": "sqlite",
+      "locator": "writer-receipts",
+      "default_status": "unavailable"
+    },
+    {
+      "ledger_source_id": "affiliate_commission_receipts",
+      "probe_kind": "planned",
+      "locator": "affiliate-commission-receipts",
+      "default_status": "planned"
+    },
+    {
+      "ledger_source_id": "gig_payment_receipts",
+      "probe_kind": "jsonl",
+      "locator": "gig-payment-receipts",
+      "default_status": "unavailable"
+    },
+    {
+      "ledger_source_id": "x402_settlement_receipts",
+      "probe_kind": "directory",
+      "locator": "x402-settlement-receipts",
+      "default_status": "unavailable"
+    },
+    {
+      "ledger_source_id": "payroll_bank_receipts",
+      "probe_kind": "planned",
+      "locator": "payroll-bank-receipts",
+      "default_status": "planned"
+    },
+    {
+      "ledger_source_id": "capafy_sales_receipts",
+      "probe_kind": "directory",
+      "locator": "capafy-sales-receipts",
+      "default_status": "unavailable"
+    },
+    {
+      "ledger_source_id": "proprietary_investing_receipts",
+      "probe_kind": "planned",
+      "locator": "proprietary-investing-receipts",
+      "default_status": "planned"
+    }
+  ],
+  "runtime_exclusions": [
+    {
+      "exclusion_id": "cfo_controller",
+      "runtime_matchers": ["ai.anicca.cfo-*"],
+      "classification": "controller",
+      "cost_treatment": "shared_overhead",
+      "evidence_refs": ["docs/superpowers/specs/2026-08-06-life-manager-cfo-design.md"]
+    },
+    {
+      "exclusion_id": "fleet_observer",
+      "runtime_matchers": ["ai.anicca.fleet-*"],
+      "classification": "observer",
+      "cost_treatment": "shared_overhead",
+      "evidence_refs": ["docs/superpowers/specs/2026-08-04-fleet-and-remote-stability-design.md"]
+    },
+    {
+      "exclusion_id": "repair_infrastructure",
+      "runtime_matchers": ["ai.anicca.self-fix-*", "ai.anicca.connector-healer-*"],
+      "classification": "repair_infrastructure",
+      "cost_treatment": "shared_overhead",
+      "evidence_refs": ["docs/superpowers/specs/2026-08-06-life-manager-cfo-design.md"]
+    },
+    {
+      "exclusion_id": "franklin_cost_centres",
+      "runtime_matchers": ["ai.anicca.franklin-loop", "ai.anicca.franklin2-loop"],
+      "classification": "agent_cost_centre",
+      "cost_treatment": "x402_services",
+      "evidence_refs": ["docs/superpowers/specs/2026-08-08-life-manager-cfo-m0-business-registry-design.md"]
+    },
+    {
+      "exclusion_id": "shared_marketing",
+      "runtime_matchers": ["ai.anicca.marketing-*", "ai.anicca.self-improve-evolve", "ai.anicca.warmup-flip-daily"],
+      "classification": "shared_marketing",
+      "cost_treatment": "shared_overhead",
+      "evidence_refs": ["docs/superpowers/specs/2026-06-06-anicca-marketing-aso-overhaul-design.md"]
+    },
+    {
+      "exclusion_id": "financial_observer",
+      "runtime_matchers": ["ai.anicca.daily-nl-report", "ai.anicca.earn-watch", "ai.anicca.earning-health-allslots", "ai.anicca.sbi-usdc-monitor", "ai.anicca.stripe-revenue-listener", "ai.anicca.stripe-revenue-poller"],
+      "classification": "observer",
+      "cost_treatment": "shared_overhead",
+      "evidence_refs": ["docs/superpowers/specs/2026-08-06-life-manager-cfo-design.md"]
+    },
+    {
+      "exclusion_id": "economic_controller",
+      "runtime_matchers": ["ai.anicca.ceo-runner", "ai.anicca.citizen-refill", "ai.anicca.founder-loop-cadence"],
+      "classification": "controller",
+      "cost_treatment": "shared_overhead",
+      "evidence_refs": ["docs/superpowers/specs/2026-08-06-life-manager-cfo-design.md"]
+    },
+    {
+      "exclusion_id": "shared_connector",
+      "runtime_matchers": ["ai.anicca.agentmail-*", "ai.anicca.clawrouter", "ai.anicca.slack-bridge", "ai.anicca.tsbridge"],
+      "classification": "connector",
+      "cost_treatment": "shared_overhead",
+      "evidence_refs": ["docs/superpowers/specs/2026-08-06-life-manager-cfo-design.md"]
+    },
+    {
+      "exclusion_id": "shared_ops_repair",
+      "runtime_matchers": ["ai.anicca.agents-skills-sync", "ai.anicca.browser-state-backup", "ai.anicca.cadence-deadline-check", "ai.anicca.cdp-daily-driver-owner", "ai.anicca.citizens-diff-monitor", "ai.anicca.claude-projects-backup", "ai.anicca.colima-autostart", "ai.anicca.disk-autoprune", "ai.anicca.disk-janitor", "ai.anicca.effect-watch", "ai.anicca.f7-silence-check", "ai.anicca.fuel-watch", "ai.anicca.monkey-watchdog", "ai.anicca.openclaw-conformity-monkey", "ai.anicca.openclaw-core-backup", "ai.anicca.openclaw-janitor-monkey", "ai.anicca.session-vault", "ai.anicca.sync-memory", "ai.anicca.tier1-remediate", "ai.anicca.tier2-agent-diagnose", "ai.anicca.token-daily-report", "ai.anicca.verify-loops-audit", "ai.anicca.watchdog"],
+      "classification": "repair_infrastructure",
+      "cost_treatment": "shared_overhead",
+      "evidence_refs": ["docs/superpowers/specs/2026-08-06-life-manager-cfo-design.md"]
+    }
+  ]
+}
