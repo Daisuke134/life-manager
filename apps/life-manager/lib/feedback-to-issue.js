@@ -6,6 +6,21 @@ const { execFileSync } = require("node:child_process");
 const ISSUE_REPO = "Daisuke134/life-manager";
 const DEV_LOOP_LABEL = "lm:type:self-heal";
 const SOURCE_REF = /^(tg|err):sha256:[a-f0-9]{32}$/;
+const PRODUCT_LEARNING_FIELDS = Object.freeze([
+  "source_event_id",
+  "user_segment",
+  "opportunity",
+  "desired_outcome",
+  "evidence",
+  "proposed_assumption_test",
+  "success_metric",
+]);
+const PRODUCT_LEARNING_FORMATS = Object.freeze({
+  source_event_id: /^[a-z0-9][a-z0-9._:-]{0,159}$/,
+  user_segment: /^[a-z0-9][a-z0-9_-]{0,63}$/,
+  desired_outcome: /^[a-z0-9][a-z0-9_,-]{0,159}$/,
+  evidence: /^[a-z0-9][a-z0-9._/-]{0,499}$/,
+});
 
 
 function normalizeRow(row) {
@@ -25,11 +40,29 @@ function normalizeRow(row) {
   ) {
     throw new Error("feedback_issue_row_invalid");
   }
+  const productLearning = {};
+  for (const field of PRODUCT_LEARNING_FIELDS) {
+    if (value[field] == null) continue;
+    const fieldValue = String(value[field]).trim();
+    if (!fieldValue || fieldValue.length > 500 || /[\r\n]/.test(fieldValue)) {
+      throw new Error("feedback_issue_row_invalid");
+    }
+    productLearning[field] = fieldValue;
+  }
+  if (Object.keys(productLearning).length && Object.keys(productLearning).length !== PRODUCT_LEARNING_FIELDS.length) {
+    throw new Error("feedback_issue_row_invalid");
+  }
+  for (const [field, pattern] of Object.entries(PRODUCT_LEARNING_FORMATS)) {
+    if (productLearning[field] && !pattern.test(productLearning[field])) {
+      throw new Error("feedback_issue_row_invalid");
+    }
+  }
   return Object.freeze({
     id,
     source_ref: sourceRef,
     summary,
     labels: Object.freeze(labels),
+    ...productLearning,
   });
 }
 
@@ -58,6 +91,12 @@ function buildFeedbackIssue(input) {
     "- Keep all existing tests and evals green.",
     "- Do not add raw identity, contact, message, or secret data.",
     "",
+    ...(row.source_event_id ? [
+      "## Product learning",
+      "",
+      ...PRODUCT_LEARNING_FIELDS.map((field) => `${field}: ${row[field]}`),
+      "",
+    ] : []),
     `<!-- ${markerFor(row)} -->`,
   ].join("\n");
   return Object.freeze({
@@ -87,7 +126,10 @@ async function claimNextFeedback(query) {
      SET status = 'issued', updated_at = now()
      FROM candidate
      WHERE feedback.id = candidate.id
-     RETURNING feedback.id, feedback.source_ref, feedback.summary, feedback.labels`,
+     RETURNING feedback.id, feedback.source_ref, feedback.summary, feedback.labels,
+       feedback.source_event_id, feedback.user_segment, feedback.opportunity,
+       feedback.desired_outcome, feedback.evidence,
+       feedback.proposed_assumption_test, feedback.success_metric`,
     [],
   );
   const row = result && Array.isArray(result.rows) ? result.rows[0] : null;
@@ -188,6 +230,7 @@ function createGhIssueClient(options = {}) {
 module.exports = {
   ISSUE_REPO,
   DEV_LOOP_LABEL,
+  PRODUCT_LEARNING_FIELDS,
   buildFeedbackIssue,
   claimNextFeedback,
   processNextFeedback,

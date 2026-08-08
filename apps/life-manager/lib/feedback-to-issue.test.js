@@ -48,6 +48,34 @@ test("issue contract accepts a closed production error row without weakening fee
 });
 
 
+test("dogfood product feedback preserves the required privacy-safe learning evidence in its issue", () => {
+  const issue = buildFeedbackIssue({
+    id: "1282",
+    source_ref: "tg:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    summary: "Feedback intake should create a product issue with measurable follow-through.",
+    labels: ["feedback"],
+    source_event_id: "dais-chat-2026-07-10-life-manager-tobe",
+    user_segment: "dogfood",
+    opportunity: "Life Manager must improve itself from Telegram feedback and production metrics.",
+    desired_outcome: "product_velocity,self_improvement",
+    evidence: "docs/superpowers/specs/2026-07-10-life-manager-autopilot-product-loop-design.md",
+    proposed_assumption_test: "Send dogfood feedback through Telegram/intake and verify it creates or updates a GitHub issue.",
+    success_metric: "issue_created_from_feedback=true; source_event_id_present=true; success_metric_present=true; evidence_present=true",
+  });
+  for (const field of [
+    "source_event_id: dais-chat-2026-07-10-life-manager-tobe",
+    "user_segment: dogfood",
+    "opportunity: Life Manager must improve itself from Telegram feedback and production metrics.",
+    "desired_outcome: product_velocity,self_improvement",
+    "evidence: docs/superpowers/specs/2026-07-10-life-manager-autopilot-product-loop-design.md",
+    "proposed_assumption_test: Send dogfood feedback through Telegram/intake and verify it creates or updates a GitHub issue.",
+    "success_metric: issue_created_from_feedback=true; source_event_id_present=true; success_metric_present=true; evidence_present=true",
+  ]) {
+    assert.match(issue.body, new RegExp(field.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")));
+  }
+});
+
+
 test("queue claim is concurrency-safe and reclaims only stale incomplete issues", async () => {
   const seen = [];
   const query = async (sql, params) => {

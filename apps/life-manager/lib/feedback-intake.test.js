@@ -74,6 +74,31 @@ test("closed intake schema contains no raw text, chat id, actor id, or user id",
 });
 
 
+test("Telegram product feedback retains a complete scrubbed learning contract", () => {
+  const intake = buildFeedbackIntake({
+    text: [
+      "feedback: Feedback intake should create a product issue.",
+      "source_event_id: dais-chat-2026-07-10-life-manager-tobe",
+      "user_segment: dogfood",
+      "opportunity: Improve itself from feedback and production metrics.",
+      "desired_outcome: product_velocity,self_improvement",
+      "evidence: docs/superpowers/specs/2026-07-10-life-manager-autopilot-product-loop-design.md",
+      "proposed_assumption_test: Send dogfood feedback through Telegram intake.",
+      "success_metric: issue_created_from_feedback=true; evidence_present=true",
+    ].join("\n"),
+    uid: "real-user-id",
+    chatId: "123456",
+    messageId: "44",
+    provenanceKey: "fixture-provenance-key",
+  });
+  assert.equal(intake.summary, "Feedback intake should create a product issue.");
+  assert.equal(intake.source_event_id, "dais-chat-2026-07-10-life-manager-tobe");
+  assert.equal(intake.user_segment, "dogfood");
+  assert.equal(intake.success_metric, "issue_created_from_feedback=true; evidence_present=true");
+  assert.equal(JSON.stringify(intake).includes("real-user-id"), false);
+});
+
+
 test("Postgres persistence uses parameters, writes only the closed intake, and is idempotent", async () => {
   const seen = [];
   const query = async (sql, params) => {
