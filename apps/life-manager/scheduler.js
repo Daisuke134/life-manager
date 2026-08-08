@@ -153,6 +153,29 @@ async function releaseWake(uid, eventKey, claimToken, opts = {}) {
   }).catch(() => {});
 }
 
+// Persist the provider handle immediately after Telnyx accepts a wake call. The claim row is the
+// call ledger, so a successful dial must never be observable only in process logs.
+async function recordWakeCall(uid, eventKey, providerCallId, opts = {}) {
+  const { url, key } = SUPA();
+  if (!url || !key || !uid || !eventKey || !providerCallId) {
+    return { ok: false, error: "Supabase credentials or call identity missing" };
+  }
+  const f = opts.fetchImpl || fetch;
+  const response = await f(
+    `${url}/rest/v1/lm_wake_log?uid=eq.${encodeURIComponent(uid)}&event_key=eq.${encodeURIComponent(eventKey)}`,
+    {
+      method: "PATCH",
+      headers: {
+        apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ provider_call_id: providerCallId }),
+    },
+  ).catch((e) => ({ ok: false, error: String((e && e.message) || e) }));
+  if (!response.ok) return { ok: false, error: response.error || `HTTP ${response.status}` };
+  return { ok: true };
+}
+
 // 1b: releaseWake above is what makes a failed call INVISIBLE — it deletes the only row that said we
 // were about to ring. lm_wake_miss is the counter-ledger: every wake we owed and did not deliver
 // leaves a reasoned row that /status reads back. Best-effort by contract, because a ledger outage
@@ -409,7 +432,8 @@ async function wakeCallOnce(u, nowMs, deps = {}) {
       apiKey: deps.apiKey || process.env.COMPOSIO_API_KEY,
       calendar: deps.calendar, gmailAccountId: u.gmail_account_id,
     });
-  } catch {
+  } catch (e) {
+    console.error(`[wake] calendar fetch failed uid=${String(u.uid).slice(0, 12)}: ${e && e.message}`);
     return;
   }
   const futureEvents = (events || []).filter((e) => Number(e.startMs) >= now);
@@ -481,6 +505,15 @@ async function wakeCallOnce(u, nowMs, deps = {}) {
           res = { ok: false, error: String((e && e.message) || e) };
         }
         if (res.ok) {
+          let ledger;
+          try {
+            ledger = await (deps.recordWakeCall || recordWakeCall)(u.uid, eventKey, res.ccid);
+          } catch (e) {
+            ledger = { ok: false, error: String((e && e.message) || e) };
+          }
+          if (!ledger || !ledger.ok) {
+            console.error(`[wake] call ledger update failed T-${lvl.min} uid=${u.uid.slice(0, 12)}: ${ledger && ledger.error}`);
+          }
           console.log(`[scheduler] WAKE T-${lvl.min} uid=${u.uid.slice(0, 12)} "${ev.summary}" ccid=${res.ccid}`);
         } else {
           console.error(`[scheduler] dial failed T-${lvl.min} uid=${u.uid.slice(0, 12)}: ${res.error}`);
@@ -992,7 +1025,7 @@ module.exports = {
   // utilities used by server.js and tests
   isHelperBlock, buildStreamUrl, langForPhone, langForUser,
   // wake claim ledger (C-H1 dedup) — claim before dial, release on dial failure so a retry can fire
-  claimWake, releaseWake,
+  claimWake, releaseWake, recordWakeCall,
   // low-balance admin alert (issue#10): pure decision fns + the side-effecting sender
   isLowBalanceError, shouldAlertLowBalance, maybeAlertLowBalance, LOW_BALANCE_ALERT_COOLDOWN_MS,
 };
