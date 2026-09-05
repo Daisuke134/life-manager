@@ -1,0 +1,56 @@
+name: Cloud reminder contracts
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/life-manager/lib/**'
+      - 'apps/life-manager/test/**'
+      - 'apps/life-manager/package.json'
+      - 'apps/life-manager/package-lock.json'
+      - '.github/workflows/cloud-reminder.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  reminder:
+    name: Travel and online notification contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/life-manager
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Existing reminder, interpreter, and route contracts
+        run: node --test lib/travel-reminder.test.js lib/calendar-interpreter.test.js lib/events.test.js lib/transit.test.js lib/travel-transit-wire.test.js lib/route-cache.test.js
+      - name: Detailed travel and online notification regressions
+        run: node --test lib/travel-reminder-detail.test.js
+      - name: Package exact tracked Cloud source for offline verification
+        working-directory: .
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/cloud-review"
+          git archive --format=tar.gz --output="$RUNNER_TEMP/cloud-review/cloud-source.tar.gz" HEAD \
+            AGENTS.md apps/life-manager/lib apps/life-manager/test \
+            apps/life-manager/migrations apps/life-manager/package.json \
+            apps/life-manager/package-lock.json apps/life-manager/scheduler.js \
+            apps/life-manager/server.js docs/superpowers/specs/2026-09-05-cloud-01-reminder-display-contract.md
+          git rev-parse HEAD > "$RUNNER_TEMP/cloud-review/commit.txt"
+          sha256sum "$RUNNER_TEMP/cloud-review/cloud-source.tar.gz" > "$RUNNER_TEMP/cloud-review/archive.sha256"
+      - name: Retain tracked-source verification snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-review-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/cloud-review/
+          if-no-files-found: error
+          retention-days: 1

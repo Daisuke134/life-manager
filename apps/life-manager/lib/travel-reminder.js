@@ -175,10 +175,22 @@ function stopText(stop) {
   const platform = String(stop.platform || "").trim();
   return escapeHtml(String(stop.name).trim()) + (platform ? ` ${escapeHtml(platform)}` : "");
 }
+function isWalk(step) { return Boolean(step && (step.kind === "walk" || step.mode === "walk")); }
+function walkingMinutes(seconds) {
+  if ((typeof seconds !== "number" && typeof seconds !== "string") || String(seconds).trim() === "") return null;
+  const n = Number(seconds);
+  return Number.isFinite(n) && n >= 0 ? Math.ceil(n / 60) : null;
+}
 function stepText(step, transitIndex, zone) {
-  if (!step || step.kind === "walk" || step.mode === "walk") return null;
+  if (!step || typeof step !== "object") return null;
   const from = stopText(step.from), to = stopText(step.to);
   const depart = timeText(step.departAt, zone), arrive = timeText(step.arriveAt, zone);
+  if (isWalk(step)) {
+    const start = toMs(step.departAt), end = toMs(step.arriveAt);
+    const minutes = start !== null && end !== null ? walkingMinutes((end - start) / 1000) : null;
+    const path = from && to ? `${from} → ${to}` : "徒歩区間";
+    return `🚶 ${path}\n${minutes === null ? "徒歩（所要時間不明）" : `徒歩 ${minutes}分`}`;
+  }
   if (!from || !to || !depart || !arrive) return null;
   const service = [step.service, step.trainType, step.headsign].filter((v) => v != null && String(v).trim())
     .map((v) => escapeHtml(String(v).trim())).join("・");
@@ -186,17 +198,13 @@ function stepText(step, transitIndex, zone) {
   return transitIndex === 0 ? `${depart} ${from}\n${service} → ${arrive} ${to}`
     : `${depart} ${from}から${service} → ${arrive} ${to}`;
 }
-function walkText(route) {
-  const values = [route && route.accessWalkSeconds, route && route.egressWalkSeconds]
-    .filter((v) => v !== null && v !== undefined && v !== "").map(Number).filter(Number.isFinite);
-  if (!values.length && Array.isArray(route && route.steps)) {
-    for (const step of route.steps) {
-      if (!step || (step.kind !== "walk" && step.mode !== "walk")) continue;
-      const from = toMs(step.departAt), to = toMs(step.arriveAt);
-      if (from !== null && to !== null && to >= from) values.push((to - from) / 1000);
-    }
-  }
-  return values.length ? `徒歩 ${Math.max(0, Math.round(values.reduce((a, b) => a + b, 0) / 60))}分` : null;
+// Access/egress summaries fill only absent edge steps, never duplicate a detailed walking leg.
+function edgeWalkText(step, seconds, access) {
+  const minutes = walkingMinutes(seconds);
+  if (!step || isWalk(step) || minutes === null || minutes <= 0) return null;
+  const station = stopText(access ? step.from : step.to);
+  if (!station) return null;
+  return `🚶 ${access ? `出発地 → ${station}` : `${station} → 目的地`}\n徒歩 ${minutes}分`;
 }
 function fareText(fare) {
   if (!fare || typeof fare !== "object") return null;
@@ -209,24 +217,62 @@ function fareText(fare) {
   return null;
 }
 
+function onlineDetailsUrl(location) {
+  const raw = String(location || "").trim().replace(/^(?:オンライン|online)\s*[:：]\s*/iu, "");
+  if (!/^https:\/\/[^\s<>"'\\]+$/iu.test(raw)) return null;
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" && !url.username && !url.password ? url.href : null;
+  } catch { return null; }
+}
+
+// This formatter emits escaped text, not HTML tags. Bound the encoded form conservatively so one
+// claim still corresponds to one sendMessage, without splitting an entity or Unicode code point.
+function reminderText(lines) {
+  const text = lines.join("\n");
+  if (text.length <= 4096) return text;
+  const suffix = "\n…（詳細が長いため一部省略）";
+  let prefix = "";
+  for (const match of text.matchAll(/&(?:amp|lt|gt|quot|#39);|[\s\S]/gu)) {
+    if (prefix.length + match[0].length + suffix.length > 4096) break;
+    prefix += match[0];
+  }
+  return prefix + suffix;
+}
+
 function formatTravelReminder(event, route, { departureMs, timezone: zone = DEFAULT_TIMEZONE, routeAttempted } = {}) {
   const start = startMs(event);
   if (start === null) return "";
-  const departure = toMs(departureMs) ?? computeDepartureMs(event, route);
-  const lines = [`🚆 次は ${timeText(start, zone)}「${escapeHtml(event.summary || "予定")}」`];
-  if (departure !== null) lines.push(`${timeText(departure, zone)} 出発 → ${timeText(start, zone)} 到着予定`);
-  const destination = physical(event) ? String(event.location || "").trim() : "";
-  if (destination) lines.push(`目的地: ${escapeHtml(destination)}`);
-  const attempted = routeAttempted === undefined ? physical(event) : routeAttempted === true;
-  if (!route) return attempted ? lines.concat("", "経路を取得できませんでした。").join("\n") : lines.join("\n");
-  const rendered = [], steps = Array.isArray(route.steps) ? route.steps : [];
+  const online = event.online === true || event.isOnline === true;
+  const steps = (Array.isArray(route && route.steps) ? route.steps : []).filter((step) => step && typeof step === "object");
+  const walkOnly = steps.length > 0 && steps.every(isWalk);
+  const icon = online ? "💻" : !physical(event) ? "🔔" : walkOnly ? "🚶" : "🚆";
+  const lines = [`${icon} 次は ${timeText(start, zone)}「${escapeHtml(event.summary || "予定")}」`];
+  if (!physical(event)) {
+    const url = online && onlineDetailsUrl(event.location);
+    if (url) lines.push("", `イベント詳細: ${escapeHtml(url)}`);
+    return reminderText(lines);
+  }
+  const departure = route ? toMs(departureMs) ?? computeDepartureMs(event, route) : null;
+  const arrival = timeText(route && route.arrivalAt, zone);
+  if (departure !== null) lines.push(`${timeText(departure, zone)} 出発${arrival ? ` → ${arrival} 到着予定` : ""}`);
+  else if (arrival) lines.push(`${arrival} 到着予定`);
+  lines.push(`目的地: ${escapeHtml(String(event.location || "").trim())}`);
+  const attempted = routeAttempted === undefined ? true : routeAttempted === true;
+  if (!route) return reminderText(attempted ? lines.concat("", "経路を取得できませんでした。") : lines);
+  const rendered = [];
+  const access = edgeWalkText(steps[0], route.accessWalkSeconds, true);
+  if (access) rendered.push(access);
   let index = 0;
   for (const step of steps) {
     const text = stepText(step, index, zone);
-    if (text) { rendered.push(text); index += 1; }
+    if (text) rendered.push(text);
+    if (!isWalk(step) && text) index += 1;
   }
+  const egress = edgeWalkText(steps[steps.length - 1], route.egressWalkSeconds, false);
+  if (egress) rendered.push(egress);
   if (rendered.length) lines.push("", ...rendered);
-  const facts = [walkText(route)];
+  const facts = [];
   const transfers = route.transferCount === null || route.transferCount === undefined || route.transferCount === ""
     ? null : Number(route.transferCount);
   if (Number.isFinite(transfers)) facts.push(`乗換 ${transfers}回`);
@@ -234,7 +280,7 @@ function formatTravelReminder(event, route, { departureMs, timezone: zone = DEFA
   const present = facts.filter(Boolean);
   if (present.length) lines.push(present.join(" / "));
   lines.push("", "※ 出口番号は経路元が返した場合だけ表示します。運行情報が変わることがあります。");
-  return lines.join("\n");
+  return reminderText(lines);
 }
 
 function eventKey(event) {
