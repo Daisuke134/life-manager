@@ -1,21 +1,14 @@
-"""Provider-neutral Storefront judgement kernel.
+"""Coconala Storefront judgement kernel.
 
-Follows the one dependency direction this house's loop-engineering rules require
-(``loop config -> reusable recipe -> shared runtime -> provider adapter -> official
-provider``): this module holds the platform-independent judgement a Storefront wake
-makes -- portfolio allocation, mutation-contract sealing/validation, official demand
-scoring, replace-plan rendering, in-flight draft recovery, and the proposal-rejection
-guard -- so a second marketplace consumer (Lancers, CrowdWorks, ...) never has to
-rebuild it from scratch the way it would if this judgement stayed locked inside one
-provider's script.
+This adjacent module keeps portfolio allocation, mutation-contract sealing/validation,
+official demand scoring, replace-plan rendering, in-flight draft recovery, and the
+proposal-rejection guard out of the much larger DOM adapter. It remains local while
+Coconala is its only production consumer. If a second marketplace adopts the behavior,
+promote this single implementation to the shared runtime at that point.
 
-Extracted from the first marketplace provider adapter that grew this judgement, which
-keeps thin module-level aliases to every function moved here so its own, much larger
-call-site file and its existing tests keep working unchanged. This is a move, not a
-redesign: no field is renamed, no return shape changed, no threshold altered. Anything
-that named a DOM selector, an official URL, a form label, or a fixed platform string
-was left behind or turned into a parameter here instead -- this module must not know
-which marketplace is calling it.
+The adapter keeps thin module-level aliases so its existing call sites remain unchanged.
+This ownership move is not a redesign: no field is renamed, no return shape changed, and
+no threshold altered. DOM selectors, official URLs, and form labels remain in the adapter.
 
 Two functions here (``families_with_unpublished_drafts`` and
 ``recover_prepared_create_contract``) take an ``observed_deleted_draft_ids`` callable
