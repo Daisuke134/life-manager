@@ -50,8 +50,8 @@ class DomContractError(Exception):
         self.selector, self.why, self.found, self.observed = selector, why, found, observed
 
 
-def _evidence_path(evidence_dir: Path) -> Path:
-    return Path(evidence_dir) / "dom-contract-failures.jsonl"
+def _evidence_path(evidence_dir: Path, evidence_path: Optional[Path] = None) -> Path:
+    return Path(evidence_path) if evidence_path is not None else Path(evidence_dir) / "dom-contract-failures.jsonl"
 
 
 def record_failure(
@@ -62,6 +62,7 @@ def record_failure(
     why: str,
     found: Any = None,
     observed: Any = None,
+    evidence_path: Optional[Path] = None,
 ) -> None:
     """Append one line describing a refusal. Never raises: diagnostics must not fail a lane."""
     try:
@@ -73,7 +74,7 @@ def record_failure(
             "observed": observed,
             "observed_at": dt.datetime.now(dt.timezone.utc).isoformat(),
         }
-        path = _evidence_path(evidence_dir)
+        path = _evidence_path(evidence_dir, evidence_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "a", encoding="utf-8") as handle:
             handle.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
@@ -115,6 +116,7 @@ def exactly_one(
     evidence_dir: Path,
     selector: Optional[str] = None,
     observe: Optional[Callable[[], Any]] = None,
+    evidence_path: Optional[Path] = None,
 ) -> Any:
     """Return the locator when it matches exactly one element, else record and raise.
 
@@ -126,13 +128,14 @@ def exactly_one(
         found = int(locator.count())
     except Exception:
         record_failure(evidence_dir, platform=platform, selector=name,
-                       why="count_failed", observed=_observe(observe))
+                       why="count_failed", observed=_observe(observe), evidence_path=evidence_path)
         raise DomContractError(name, "count_failed", None) from None
 
     if found != 1:
         observed = _observe(observe)
         record_failure(evidence_dir, platform=platform, selector=name,
-                       why="count_not_one", found=found, observed=observed)
+                       why="count_not_one", found=found, observed=observed,
+                       evidence_path=evidence_path)
         raise DomContractError(name, "count_not_one", found, observed)
     return locator
 
@@ -144,6 +147,7 @@ def visible_one(
     evidence_dir: Path,
     selector: Optional[str] = None,
     observe: Optional[Callable[[], Any]] = None,
+    evidence_path: Optional[Path] = None,
 ) -> Any:
     """`exactly_one`, and the element must be visible.
 
@@ -152,19 +156,21 @@ def visible_one(
     lane -- became the one failure that stayed anonymous.
     """
     value = exactly_one(locator, platform=platform, evidence_dir=evidence_dir,
-                        selector=selector, observe=observe)
+                        selector=selector, observe=observe, evidence_path=evidence_path)
     name = selector if selector is not None else str(locator)
     try:
         visible = value.is_visible()
     except Exception:
         observed = _observe(observe)
         record_failure(evidence_dir, platform=platform, selector=name,
-                       why="visibility_check_failed", found=1, observed=observed)
+                       why="visibility_check_failed", found=1, observed=observed,
+                       evidence_path=evidence_path)
         raise DomContractError(name, "visibility_check_failed", 1, observed) from None
 
     if not visible:
         observed = _observe(observe)
         record_failure(evidence_dir, platform=platform, selector=name,
-                       why="not_visible", found=1, observed=observed)
+                       why="not_visible", found=1, observed=observed,
+                       evidence_path=evidence_path)
         raise DomContractError(name, "not_visible", 1, observed)
     return value

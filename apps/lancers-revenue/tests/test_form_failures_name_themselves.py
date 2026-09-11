@@ -31,8 +31,8 @@ def test_no_raise_site_is_anonymous_any_more():
     """The guard that would have caught this the first time: grep the file, not the behaviour."""
     source = TICK.read_text(encoding="utf-8")
     anonymous = re.findall(r'raise RuntimeError\("proposal_form_changed"\)', source)
-    # The three survivors are inside _one/_visible_one, which record immediately above.
-    assert len(anonymous) == 3, f"{len(anonymous)} raise sites still record nothing"
+    # The two survivors are the shared-contract adapters in _one/_visible_one.
+    assert len(anonymous) == 2, f"{len(anonymous)} raise sites still record nothing"
     assert source.count("raise _form_changed(") >= 38
 
 

@@ -312,8 +312,9 @@ currently has that complete new-revenue chain.
 
 The completed extraction order remains historical evidence: `SHARED-PAID-1` -> `LANCERS-PAID-1` ->
 `CROWDWORKS-PAID-1`. Dais now explicitly changes the controlling lane order to **Apply -> Reply ->
-Paid -> Storefront**. The active atom is `APPLY-REPORT-9`: restore Coconala's real application effect
-and then prove one fresh three-provider Apply receipt set. Completed Reply and Paid extraction work is
+Paid -> Storefront**. The Apply report, three-provider receipt, discovery-width and release-dependency
+gates are accepted. The active atom is now `APPLY-SHARE-3`: adopt the existing shared DOM contract in
+the evidence-defined provider order. Completed Reply and Paid extraction work is
 not reopened or reimplemented; those owners keep monitoring while Apply creates the upstream contract.
 After Apply acceptance, recheck Reply continuous health, then close real-contract Paid acceptance,
 then finish Storefront coverage and revenue attribution.
@@ -1831,7 +1832,7 @@ does not start them and does not reorder anyone's cursor to fit them:
    means starting from the newest. A not-found on the first page still fails loudly, because that
    one really is a missing source.
 
-9. [ ] `APPLY-REPORT-9` ★ Coconala has applied to nothing since 2026-09-02, and the reason is not
+9. [x] `APPLY-REPORT-9` ★ Coconala has applied to nothing since 2026-09-02, and the reason is not
    "no suitable work". Measured 2026-09-07: every listing the Apply lane observes is rejected on a
    single condition — `form_state:absent` — and it is **100% of them**, in all 14 sampled runs back
    to 2026-09-05 10:49, which is as far as retained evidence goes. The listings are open:
@@ -1948,6 +1949,18 @@ does not start them and does not reorder anyone's cursor to fit them:
    `observed=0`, `effect=0`, `readback=0`, `failed=1`, with all 42 uncertain intents still fenced.
    Therefore #4825's acquire fix is accepted, but `APPLY-REPORT-9` is not: owner-aware disk recovery and
    a later official application readback are still required.
+
+   **Accepted with a real official effect.** Natural pass
+   `gig-apply-direct-1789135247565385000-77880` observed 80 official listings, selected one
+   actionable request and submitted request `5253018` at ¥30,000. The authenticated applied-history
+   readback confirmed that exact request (`effect=1`, `readback=1`, `failed=0`, `pending=0`), and the
+   shared Telegram transport delivered the aggregate as message `76957` plus the application event as
+   message `76969`. The following natural pass
+   `gig-apply-direct-1789136136682314000-94531` made no duplicate mutation (`effect=0`,
+   `readback=0`) and retained the prior request in official applied history. That later pass exposed
+   a separate discovery-cursor failure, `temporary_source_successor_unavailable`; it does not revoke
+   the proven application transaction and remains subsequent fixed-order work rather than being
+   relabelled as an Apply-form failure.
 
 10. [x] `APPLY-REPORT-10` Name the marketplace in the submitted-application report. `report_envelope.py`
    excluded `coconala` from the `[Platform][応募完了]` format, so Coconala fell through to a generic
@@ -2101,9 +2114,9 @@ The measurement that opens this cursor, taken 2026-09-07 across all three lanes:
 
 | | applications | what the lane was doing instead |
 |---|---|---|
-| Lancers | **0 in the last 120 wakes** | `planner_contract_invalid` 1235, more than every other failure combined |
-| CrowdWorks | 0 today, 14 all time, last 2026-09-05 | rejecting 59 of 98 open postings as `wrong_category` |
-| Coconala | 0 since 2026-09-02 | `APPLY-REPORT-9`, unchanged and still the open question |
+| Lancers | fresh official proposal evidence retained | aggregate Apply gate accepted; current proposal-history selector drift is subsequent work |
+| CrowdWorks | fresh official proposal evidence retained | aggregate Apply gate accepted; current browser/vault attach instability is subsequent work |
+| Coconala | fresh official request `5253018` | `APPLY-REPORT-9` accepted with official readback and Telegram receipts |
 
 None of the three was throttled, logged out or short of jobs. All three were refusing work they
 can do, for three different reasons, in three separately written filters. That is the same root
@@ -2135,7 +2148,7 @@ as `APPLY-REPORT-4`: three adapters, three answers, and the strictest one silent
    in code. An unknown label is workable on purpose: wrongly refusing one costs every posting
    under it, silently, while wrongly bidding costs one proposal.
 
-4. [ ] `APPLY-FIT-4` ★ Confirm the three lanes actually apply. PASS = one natural wake per
+4. [x] `APPLY-FIT-4` ★ Confirm the three lanes actually apply. PASS = one natural wake per
    platform, after the releases are cut and the labels repointed, in which Lancers submits at
    least one proposal with `verified_count >= 1`, CrowdWorks writes a new row to
    `application-receipts.jsonl`, and each submission appears in Telegram with title, price and
@@ -2144,10 +2157,13 @@ as `APPLY-REPORT-4`: three adapters, three answers, and the strictest one silent
    Lancers and CrowdWorks are now proven halves of this three-provider gate. Lancers release
    `25e45d35` produced official proposals `27907931` and `27907996`, Telegram messages `71494` and
    `71516`, and later-wake receipt counts of one. CrowdWorks evidence is recorded under
-   `APPLY-CROWDWORKS-7`. Keep the aggregate checkbox open only because Coconala still returns the
-   official account-level application restriction rather than a fresh proposal receipt.
+   `APPLY-CROWDWORKS-7`. Coconala completes the set: natural pass
+   `gig-apply-direct-1789135247565385000-77880` submitted request `5253018` at ¥30,000, confirmed
+   it in authenticated official history (`effect=1`, `readback=1`), and delivered aggregate/event
+   Telegram messages `76957`/`76969`. The following natural pass made effect zero and retained the
+   official history entry, so all three provider halves are now proven.
 
-5. [ ] `APPLY-FIT-5` Widen what the lanes look at, once `APPLY-FIT-4` proves the ones they already
+5. [x] `APPLY-FIT-5` Widen what the lanes look at, once `APPLY-FIT-4` proves the ones they already
    find get applied to. Lancers' twelve `DISCOVERY_QUERIES` are all development nouns and Coconala
    searches the single keyword `AI`, so both lanes only ever *see* the work the old allow-list
    would have admitted. CrowdWorks already derives its search terms from the shared catalogue and
@@ -2155,11 +2171,29 @@ as `APPLY-REPORT-4`: three adapters, three answers, and the strictest one silent
    Storefront owner's file and needs their agreement first. Deliberately after `APPLY-FIT-4`:
    widening discovery before submission is proven only produces more skips to read.
 
-6. [ ] `APPLY-FIT-6` Releases are 1.2 GB each because every one carries its own `node_modules`, 27
+   Accepted by the later, broader implementation already on main. `APPLY-SHARE-1` promoted
+   `listing_catalog.listing_terms()` / `search_terms()` into marketplace-core; Lancers composes
+   those terms with `work_fit.discovery_terms()` and rotates six of 55 terms per wake, while
+   CrowdWorks reads the same catalogue terms. Coconala no longer depends on the narrower proposed
+   catalogue-keyword projection at all: its durable coverage cursor uses the provider's complete
+   newest-first `recruiting=true` stream and advances through every page, so adding catalogue nouns
+   would narrow rather than widen its observable inventory. The successful 80-listing natural pass
+   under `APPLY-FIT-4` proves that broader route reaches actionable work. No new vocabulary or
+   provider-local eligibility rule is added here.
+
+6. [x] `APPLY-FIT-6` Releases are 1.2 GB each because every one carries its own `node_modules`, 27
    were cut on 2026-09-07 alone, and the volume reached 96% full. On 2026-09-01 that surfaced
    inside this lane as `OSError: [Errno 28]` thrown from the planner's own result write, reported
    as `planner_runner_failed` — a disk fault wearing a planner's name. Not this cursor's to fix,
    but it is this cursor's to have measured, and it belongs to whoever owns release cutting.
+
+   Accepted by the later release-owner work recorded under `APPLY-DISK-1` rather than duplicating
+   it here. The cutter now reuses locked dependencies from a sealed byte-identical donor with APFS
+   clone-on-write, or performs a production-only locked install when no donor exists. Release
+   `20260909T205617-2539b51c` proved an automatic main-derived cut with the required Playwright/jsqr
+   closure and install PASS across Apply, Reply, Paid, Storefront and cleanup; focused cutter tests
+   passed 4/4. Current releases remain logically large because they are immutable complete runtime
+   closures, but no longer copy an independently allocated dependency tree for every cut.
 
 ### Shared-component reality, measured 2026-09-07
 
@@ -2202,6 +2236,14 @@ is 4,246 lines -- Coconala alone is twenty-two times that.
 9. [ ] `APPLY-SHARE-3` Adopt `dom_contract.py` in all three, in the order the evidence arrives:
    Lancers once `proposal-form-changes.jsonl` names its selectors, then CrowdWorks, then
    Coconala's 23 in-page `querySelector` calls. Written for this and used by nobody.
+
+   Lancers source adoption is implemented. Its `_one`, `_visible_one` and named form-step recorder
+   now delegate to marketplace-core `dom_contract.py`; callers retain the stable
+   `proposal_form_changed` code while fresh evidence is appended at the existing
+   `proposal-form-changes.jsonl` path in the shared schema with `platform=lancers`. The shared contract and focused
+   Lancers Apply regressions pass 61/61. Keep this atom open until a main-derived natural Lancers
+   wake proves shared-format evidence or a clean proposal transaction, then continue in the fixed
+   CrowdWorks -> Coconala order.
 
 10. [ ] `APPLY-SHARE-4` The remaining single-user modules. `contracts.py` (725 lines, Lancers
     only) and `storefront_kernel.py` (675, Coconala only) are shared in location and private in
