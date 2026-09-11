@@ -2344,7 +2344,7 @@ is 4,246 lines -- Coconala alone is twenty-two times that.
     knowing the platform is evidence; dropping it needs a measurement, not an assumption about
     what somebody else did.
 
-12. [ ] `APPLY-COCONALA-2` Do not reopen the lane until it can be trusted with the account.
+12. [x] `APPLY-COCONALA-2` Do not reopen the lane until it can be trusted with the account.
     Dais 2026-09-07: *"let's wait for coconala and when we open then do a bit slower even though
     we do more."* PASS, all three before a single application is attempted:
     - Coconala's own answer on what lifts the restriction. `APPLY-COCONALA-3`.
@@ -2359,6 +2359,14 @@ is 4,246 lines -- Coconala alone is twenty-two times that.
       share one file-locked `submit-attempt-budget.json`. A 40-worker regression admits exactly 20
       reservations and rejects the remaining 20. This is a real per-wake ceiling, not cadence.
 
+    All three gates preceded reopening. Coconala's authenticated support thread
+    `1a0890dff4cd7456` says the restriction was lifted after the account holder agreed to follow
+    the rules and manners; it is not a timed cooldown, and a repeat may cause another unannounced
+    function restriction or account suspension. The shared hard-prohibition and file-locked
+    20-attempt-budget regressions pass 7/7. Only after those controls and the official lift, the
+    production ledger resumed verified applications on 2026-09-11 at 17:51 JST, proving the
+    provider accepted submissions rather than merely hiding the restriction banner.
+
 13. [x] `APPLY-COCONALA-3` Ask Coconala, because
     the restriction is not visible anywhere in the UI this lane can read: no banner on the
     dashboard, no notice in 通知, nothing in the services list. The only place it appears is the
@@ -2366,11 +2374,11 @@ is 4,246 lines -- Coconala alone is twenty-two times that.
     required email verification, but its fresh verification link immediately returned expired and
     the next form load returned HTTP 403; neither is a submitted ticket. The same registered account
     then sent the inquiry once to the official `support@coconala.com` sender address. Gmail receipt
-    `1a085f3134398e98` proves the outbound question. Dais explicitly removed the external reply from
-    the executable critical path: the answer remains a durable pending readback and must be recorded
-    here when it arrives, without another inquiry or a pause in later marketplace work. Coconala Apply
-    itself remains closed until `APPLY-COCONALA-2` receives that answer; this checkbox proves only that
-    the one authorized inquiry was sent and its pending ownership is durable.
+    `1a085f3134398e98` proves the outbound question. The authenticated reply then arrived in Gmail
+    thread `1a0890dff4cd7456`: Coconala lifted the restriction after receiving the account holder's
+    agreement to follow its rules and manners, while warning that another violation may cause an
+    unannounced function restriction or account suspension. No second inquiry was sent.
+    `APPLY-COCONALA-2` records the controlled reopening and later provider-verified applications.
 
 14. [x] `APPLY-CROWDWORKS-1` CrowdWorks judges posting fitness before applying.
     Measured 2026-09-07, the first five applications after the category allow-list was removed:
