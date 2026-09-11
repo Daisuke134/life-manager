@@ -4010,7 +4010,7 @@ The active implementation TODO is therefore Stage 3 items 9–14 applied to thes
    Adding a marketplace may add selectors/auth/effect/readback code only; it may not fork the planner, producer,
    reviewer, lifecycle, or revenue logic.
 
-3. [ ] byusco `18171890`: invalidate the stale note-only decision, consume the latest request,
+3. [x] byusco `18171890`: invalidate the stale note-only decision, consume the latest request,
    publish the reviewed article to the agreed anicca AI blog through the installed owner, read
    back the public URL, report and formally deliver it, obtain buyer completion, and replay with
    zero effects. The earlier note handoff is not completion. The preserved v8 article contract is
@@ -4028,8 +4028,11 @@ The active implementation TODO is therefore Stage 3 items 9–14 applied to thes
    The installed Paid owner then sent the concise anicca AI URL handoff in the exact Coconala
    room with `effect=1/readback=1/failed=0`, message SHA256
    `1e785b86e51d8969762d63dfd87bbbf77fad429e6cd3cd7a141c26080b62439d`, and formal
-   delivery off. Remaining closure is the buyer's response, formal delivery, transaction
-   completion, and replay-zero; do not republish or resend the handoff while waiting.
+   delivery off. The buyer then explicitly approved formal delivery, the installed owner completed
+   it, and the official-provider terminal receipt now records both transaction and talkroom state as
+   `取引完了` (observed 2026-09-11 20:04 JST). Natural replays after the original URL handoff produced
+   no duplicate delivery effect. The older queue state still says `await_buyer_feedback`, but it is
+   superseded by the hashed official-provider terminal receipt; do not republish, resend, or redeliver.
 4. [ ] LBJ `18130722`: use only the latest explicit buyer approval and latest v98 project-manager
    package. Codex may inspect v98 and repair the generic approval/reviewer code, but must not send
    customer work. A seller acknowledgement must not erase buyer approval. The installed Paid
