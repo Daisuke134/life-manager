@@ -2250,7 +2250,13 @@ is 4,246 lines -- Coconala alone is twenty-two times that.
    same `dom_contract.exactly_one`; callers keep the stable `selector_unobserved` and
    `proposal_form_changed` behavior while failures append `platform=crowdworks`, selector, match
    count and page URL/title to CrowdWorks' `dom-contract-failures.jsonl`. The full CrowdWorks suite
-   passes 87/87. Keep this atom open for main-derived natural CrowdWorks evidence or a clean proposal
+   passes 89/89. The first local verification exposed and then closed a test-isolation defect: direct
+   imports had written fixture IDs `13423472`/`999999999` to the production evidence file at
+   `2026-09-11T15:36:45Z`. Those rows remain append-only but are classified as test fixtures; managed
+   runs now derive the evidence directory from their plist-projected `LIFE_MANAGER_STATE_ROOT`, while
+   direct imports use a process-private temporary directory, and the canonical wrapper exports its
+   fallback state root so direct owner launches remain durable too. Keep this atom open for main-derived
+   natural CrowdWorks evidence after that timestamp or a clean proposal
    transaction, then continue to Coconala as the fixed final provider.
 
 10. [ ] `APPLY-SHARE-4` The remaining single-user modules. `contracts.py` (725 lines, Lancers

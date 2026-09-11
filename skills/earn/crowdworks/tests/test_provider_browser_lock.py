@@ -24,6 +24,13 @@ def test_all_browser_lanes_share_one_provider_lock():
         assert '"$STATE_ROOT/provider-browser.lock"' in source
 
 
+def test_application_owner_exports_its_fallback_state_root_to_dom_evidence():
+    script = ROOT / "skills" / "earn" / "crowdworks" / "scripts" / "application-owner"
+    source = script.read_text(encoding="utf-8")
+    assert 'STATE_ROOT="${LIFE_MANAGER_STATE_ROOT:-$HOME/.local/state/anicca/crowdworks}"' in source
+    assert 'export LIFE_MANAGER_STATE_ROOT="$STATE_ROOT"' in source
+
+
 def test_lock_survives_exec_until_child_exits(tmp_path):
     lock = tmp_path / "provider.lock"
     first_ready = tmp_path / "first-ready"

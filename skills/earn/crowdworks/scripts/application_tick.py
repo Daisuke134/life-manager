@@ -6,9 +6,11 @@ from __future__ import annotations
 from dataclasses import replace
 import importlib.util
 from datetime import date
+import os
 from pathlib import Path
 import re
 import sys
+import tempfile
 from typing import Callable, Mapping
 from urllib.parse import urlsplit
 
@@ -23,7 +25,14 @@ _SHARED_PATH = (
 _SHARED_MODULE_NAME = "anicca_crowdworks_shared_application_transaction"
 _DOM_CONTRACT_PATH = _SHARED_PATH.with_name("dom_contract.py")
 _DOM_CONTRACT_MODULE_NAME = "anicca_crowdworks_shared_dom_contract"
-_EVIDENCE_DIR = Path("~/.local/state/anicca/crowdworks").expanduser()
+_EVIDENCE_FALLBACK = None
+if _state_root := os.environ.get("LIFE_MANAGER_STATE_ROOT"):
+    _EVIDENCE_DIR = Path(_state_root).expanduser()
+else:
+    # Direct imports (notably unit tests) do not own the managed production state root.
+    # Give them process-private evidence that disappears with the importing module/process.
+    _EVIDENCE_FALLBACK = tempfile.TemporaryDirectory(prefix="crowdworks-dom-evidence-")
+    _EVIDENCE_DIR = Path(_EVIDENCE_FALLBACK.name)
 
 
 def _load_shared():

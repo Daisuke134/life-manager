@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 PYTHON="${LIFE_MANAGER_PYTHON:-$HOME/.local/share/life-manager/venv/bin/python}"
 LOCK_PYTHON="${LIFE_MANAGER_LOCK_PYTHON:-/usr/bin/python3}"
 STATE_ROOT="${LIFE_MANAGER_STATE_ROOT:-$HOME/.local/state/anicca/crowdworks}"
+export LIFE_MANAGER_STATE_ROOT="$STATE_ROOT"
 if [[ ! -x "$PYTHON" ]]; then
   echo "Life Manager runtime Python is missing; run scripts/bootstrap.sh first" >&2
   exit 69
