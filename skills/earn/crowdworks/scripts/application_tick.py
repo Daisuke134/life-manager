@@ -21,6 +21,9 @@ _SHARED_PATH = (
     / "application_transaction.py"
 )
 _SHARED_MODULE_NAME = "anicca_crowdworks_shared_application_transaction"
+_DOM_CONTRACT_PATH = _SHARED_PATH.with_name("dom_contract.py")
+_DOM_CONTRACT_MODULE_NAME = "anicca_crowdworks_shared_dom_contract"
+_EVIDENCE_DIR = Path("~/.local/state/anicca/crowdworks").expanduser()
 
 
 def _load_shared():
@@ -36,6 +39,21 @@ def _load_shared():
 
 
 shared = _load_shared()
+
+
+def _load_dom_contract():
+    if _DOM_CONTRACT_MODULE_NAME in sys.modules:
+        return sys.modules[_DOM_CONTRACT_MODULE_NAME]
+    spec = importlib.util.spec_from_file_location(_DOM_CONTRACT_MODULE_NAME, _DOM_CONTRACT_PATH)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("marketplace_dom_contract_unavailable")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[_DOM_CONTRACT_MODULE_NAME] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+dom_contract = _load_dom_contract()
 TickResult = shared.TickResult
 account_lock = shared.account_lock
 load_marketplace_contracts = shared.load_marketplace_contracts
@@ -57,11 +75,27 @@ _PROPOSAL_LIST_URL = "https://crowdworks.jp/e/proposals"
 _EXPIRE_SELECTOR = "#expire_period"
 _FORM_SELECTOR = 'form#new_proposal[action="/proposals"][method="post"]'
 _TABLE_SELECTOR = "body.employee-proposals.employee-proposals-index .applications.section > table.proposals"
-def _one(page: object, selector: str):
+def _one(page: object, selector: str, *, identity_page: object | None = None):
     locator = page.locator(selector)  # type: ignore[attr-defined]
-    if type(count := locator.count()) is not int or count != 1:
-        raise ValueError("selector_unobserved")
-    return locator
+    try:
+        return dom_contract.exactly_one(
+            locator,
+            platform="crowdworks",
+            evidence_dir=_EVIDENCE_DIR,
+            selector=selector,
+            observe=lambda: _page_identity(identity_page if identity_page is not None else page),
+        )
+    except dom_contract.DomContractError:
+        raise ValueError("selector_unobserved") from None
+
+
+def _page_identity(page: object):
+    url = getattr(page, "url", None)
+    title_reader = getattr(page, "title", None)
+    title = title_reader() if callable(title_reader) else None
+    if not isinstance(url, str) and not isinstance(title, str):
+        return None
+    return {"url": url if isinstance(url, str) else None, "title": title if isinstance(title, str) else None}
 def _value(locator: object) -> str:
     if not isinstance(value := locator.input_value(), str):  # type: ignore[attr-defined]
         raise ValueError("field_unobserved")
@@ -105,9 +139,7 @@ def _read_proposal_detail(page: object, proposal_id: str, project_id: str, *, in
         observed["_proposal_text"] = body
     return observed
 def _one_text(page: object, selector: str) -> str:
-    locator = page.locator(selector)  # type: ignore[attr-defined]
-    count = locator.count()
-    value = locator.inner_text() if type(count) is int and count == 1 else None
+    value = _one(page, selector).inner_text()
     if not isinstance(value, str):
         raise ValueError("selector_unobserved")
     return value
@@ -219,40 +251,40 @@ def _submit_application(page: object, opportunity: Mapping[str, object], proposa
         if not isinstance(project_id, str) or not _exact_url(getattr(page, "url", None), "/proposals/new", f"job_offer_id={project_id}"): raise ValueError("route")
         form = _one(page, _FORM_SELECTOR)
         if str(form.get_attribute("method") or "").lower() != "post" or form.get_attribute("action") != "/proposals": raise ValueError("form")
-        job = _one(form, 'input#proposal_job_offer_id[type="hidden"]')
+        job = _one(form, 'input#proposal_job_offer_id[type="hidden"]', identity_page=page)
         if job.get_attribute("type") != "hidden" or _value(job) != project_id: raise ValueError("job")
         mode_controls = (("#proposal_conditions_attributes_0_payment_type_hourly", "hourly"), ("#how_to_present_hourly_contract_amount", "contract_amount")) if pricing_mode == "hourly" else (("#proposal_conditions_attributes_0_payment_type_fixed_price", "fixed_price"), ("#how_to_present_fixed_price_contract_amount", "contract_amount"))
         for selector, expected in (("#without_condition_false", "false"), *mode_controls):
-            item = _one(form, f'input{selector}[type="radio"][value="{expected}"]')
+            item = _one(form, f'input{selector}[type="radio"][value="{expected}"]', identity_page=page)
             if item.get_attribute("type") != "radio" or item.get_attribute("value") != expected or not callable(getattr(item, "check", None)): raise ValueError("payment")
             item.check()
         if pricing_mode == "hourly":
-            amount = _one(form, 'input#hourly_wage_dummy_[type="text"]')
+            amount = _one(form, 'input#hourly_wage_dummy_[type="text"]', identity_page=page)
             amount.fill(str(amount_minor)); amount.blur()
-            if _value(_one(form, 'input#proposal_conditions_attributes_0_hourly_wage_without_sales_tax[type="hidden"]')) != str(amount_minor): raise ValueError("amount")
-            hours = _one(form, 'input#proposal_conditions_attributes_0_hours_limit[type="text"]')
+            if _value(_one(form, 'input#proposal_conditions_attributes_0_hourly_wage_without_sales_tax[type="hidden"]', identity_page=page)) != str(amount_minor): raise ValueError("amount")
+            hours = _one(form, 'input#proposal_conditions_attributes_0_hours_limit[type="text"]', identity_page=page)
             hours.fill(str(weekly_limit_hours)); hours.blur()
             if _value(hours) != str(weekly_limit_hours): raise ValueError("hours")
         else:
-            amount = _one(form, 'input#amount_dummy_[type="text"]')
+            amount = _one(form, 'input#amount_dummy_[type="text"]', identity_page=page)
             amount.fill(str(amount_minor)); amount.blur()
-            if _value(_one(form, 'input#proposal_conditions_attributes_0_milestones_attributes_0_amount_without_sales_tax[type="hidden"]')) != str(amount_minor): raise ValueError("amount")
+            if _value(_one(form, 'input#proposal_conditions_attributes_0_milestones_attributes_0_amount_without_sales_tax[type="hidden"]', identity_page=page)) != str(amount_minor): raise ValueError("amount")
             year, month, day = delivery_due_on.split("-")
             for suffix, expected in (("1i", year), ("2i", month), ("3i", day)):
-                item = _one(form, f'select[id$="deadline_{suffix}"]')
+                item = _one(form, f'select[id$="deadline_{suffix}"]', identity_page=page)
                 selected_value = expected if suffix == "1i" else str(int(expected))
                 item.select_option(selected_value)
                 if _value(item) != selected_value: raise ValueError("due")
-        body = _one(form, "textarea#proposal_conditions_attributes_0_message_attributes_body")
+        body = _one(form, "textarea#proposal_conditions_attributes_0_message_attributes_body", identity_page=page)
         body.fill(proposal_text)
         if _value(body) != proposal_text: raise ValueError("body")
-        expiry = _one(form, 'select#expire_period[name="expire_period"]')
+        expiry = _one(form, 'select#expire_period[name="expire_period"]', identity_page=page)
         if expire_period_days is None and _value(expiry) not in ("", "0"):
             raise ValueError("expiry")
         elif expire_period_days is not None:
             expiry.select_option(str(expire_period_days))
             if _value(expiry) != str(expire_period_days): raise ValueError("expiry")
-        submit = _one(form, 'input[name="commit"][type="submit"]')
+        submit = _one(form, 'input[name="commit"][type="submit"]', identity_page=page)
         if not submit.is_enabled(): raise ValueError("submit")
     except Exception:
         raise shared.SubmissionNotStarted("proposal_form_changed") from None

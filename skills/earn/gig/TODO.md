@@ -2241,9 +2241,17 @@ is 4,246 lines -- Coconala alone is twenty-two times that.
    now delegate to marketplace-core `dom_contract.py`; callers retain the stable
    `proposal_form_changed` code while fresh evidence is appended at the existing
    `proposal-form-changes.jsonl` path in the shared schema with `platform=lancers`. The shared contract and focused
-   Lancers Apply regressions pass 61/61. Keep this atom open until a main-derived natural Lancers
-   wake proves shared-format evidence or a clean proposal transaction, then continue in the fixed
-   CrowdWorks -> Coconala order.
+   Lancers Apply regressions pass 61/61. Main-derived release `e6ff07ae` was installed target-only;
+   natural wake `18d44deb567c5278-87303` then appended two shared-schema rows for project `5600640`
+   with `platform=lancers`, `why=count_not_one`, `found=0`, the exact proposal-list selector and
+   timestamps. That closes the Lancers phase without guessing at a selector.
+
+   CrowdWorks source adoption is implemented next. Its `_one` and `_one_text` now delegate to the
+   same `dom_contract.exactly_one`; callers keep the stable `selector_unobserved` and
+   `proposal_form_changed` behavior while failures append `platform=crowdworks`, selector, match
+   count and page URL/title to CrowdWorks' `dom-contract-failures.jsonl`. The full CrowdWorks suite
+   passes 87/87. Keep this atom open for main-derived natural CrowdWorks evidence or a clean proposal
+   transaction, then continue to Coconala as the fixed final provider.
 
 10. [ ] `APPLY-SHARE-4` The remaining single-user modules. `contracts.py` (725 lines, Lancers
     only) and `storefront_kernel.py` (675, Coconala only) are shared in location and private in
