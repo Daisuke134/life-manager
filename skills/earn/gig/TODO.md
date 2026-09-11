@@ -4069,10 +4069,19 @@ The active implementation TODO is therefore Stage 3 items 9–14 applied to thes
    system message confirms acceptance. The authoritative official-provider terminal receipt records
    transaction and talkroom state as `取引完了` (observed 2026-09-11 21:21 JST). Later natural
    observations have no repeat effect; do not send, report, or deliver again.
-6. [ ] `18184558`: make no guessed seller-side delivery/cancellation action. Observe official
+6. [x] `18184558`: make no guessed seller-side delivery/cancellation action. Observe official
    Coconala cancellation, enter terminal pending replay, prove all effects zero, and close as
    cancelled. The latest buyer message says they contacted Coconala support and asks us to wait for
-   cancellation completion; remain observe-only.
+   cancellation completion; remain observe-only. The official append-only talkroom history records
+   both `運営側で取引をキャンセルしました。` and Coconala's later three-day message-hiding event.
+   Installed release `01698ed4687071d1f8b1e817d6882a3b51d18dc2` reconciled that hash-valid
+   provider history without a seller mutation and wrote the authoritative terminal receipt with
+   transaction and talkroom state `キャンセル`. A completed installed-owner replay left
+   `state.json`, `events.jsonl`, and `project-terminal.json` byte-identical (SHA-256 respectively
+   `534e9b9b0592b509d8d0411e1f79601f3ec4d1c0c4fdcf9df285e6ac83dc9b67`,
+   `010e3bef2c1e36035562cdec38f4838df7f282ab2e382aeb333f37aedb8a4864`, and
+   `c5e1232403fcce9c1274bd66fa8bd80d38ff9bff2233a4c0b849a17dd6e26d9a`) with effect zero.
+   Never send, deliver, or request cancellation in this room again.
 7. [ ] `18180857`: finish the live TikTok campaign and its Google Sheet from the seller-owned
    `@anicca.jp` account. The buyer explicitly accepted proceeding with the seller account, and the
    account owner has handed this project back to the installed Paid owner. Do not use the buyer's
