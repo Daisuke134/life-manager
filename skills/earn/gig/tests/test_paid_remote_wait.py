@@ -483,6 +483,25 @@ def test_concurrent_talkroom_history_persistence_does_not_duplicate_rows(tmp_pat
     assert len([line for line in ledger.read_text(encoding="utf-8").split("\n") if line]) == 1
 
 
+def test_exact_official_cancellation_is_terminal_only_after_complete_history():
+    queue = load("coconala_queue_snapshot")
+    completed = {
+        "history_complete": True,
+        "transaction_state": "unknown",
+        "messages": [{"side": "system", "text": "運営側で取引をキャンセルしました。"}],
+    }
+    pending = {
+        "history_complete": True,
+        "transaction_state": "unknown",
+        "messages": [{"side": "system", "text": "運営側で購入者からの取引のキャンセルリクエストを受け付けました。"}],
+    }
+
+    assert queue.minimize_talkroom_dom(completed, "18184558", "now")["transaction_state"] == "キャンセル"
+    assert queue.minimize_talkroom_dom(pending, "18184558", "now")["transaction_state"] == "unknown"
+    completed["history_complete"] = False
+    assert queue.minimize_talkroom_dom(completed, "18184558", "now")["transaction_state"] == "unknown"
+
+
 def test_paid_reader_preserves_unicode_line_separator_inside_json_string(tmp_path):
     paid = load("paid_direct")
     root = tmp_path / "18214856"

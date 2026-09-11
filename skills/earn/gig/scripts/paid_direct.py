@@ -714,7 +714,9 @@ def observe_orders(args, evidence_dir) -> list[dict[str, Any]]:
     return [dict(item) for item in queue.get("items", []) if isinstance(item, dict)
             and _text(item.get("talkroom_id")) not in MANUAL_ONLY_TALKROOM_IDS
             and item.get("terminal") is not True
-            and _text(item.get("talkroom_state")) not in {"取引完了", "completed", "closed", "terminal"}]
+            and _text(item.get("talkroom_state")) not in {
+                "取引完了", "キャンセル", "completed", "cancelled", "closed", "terminal"
+            }]
 
 
 def _reconcile_absent_talkrooms(args, open_items: list[dict[str, Any]]) -> dict[str, Any]:
@@ -732,6 +734,9 @@ def _reconcile_absent_talkrooms(args, open_items: list[dict[str, Any]]) -> dict[
         try:
             state = _load(state_path)
         except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            continue
+        terminal, _ = project_janitor._terminal_receipt(root, state_path)
+        if terminal is not None:
             continue
         room = _text(state.get("talkroom_id")) if isinstance(state, dict) else ""
         if (not re.fullmatch(r"[0-9]+", room) or room in open_rooms
@@ -763,14 +768,26 @@ def _reconcile_absent_talkrooms(args, open_items: list[dict[str, Any]]) -> dict[
                 env=_fresh_child_env(args, owner=owner),
             )
             observed = {**item, **_row(_load(snapshot), room)}
+            transaction_state = _text(observed.get("transaction_state") or observed.get("talkroom_state"))
+            talkroom_state = _text(observed.get("talkroom_state"))
+            if transaction_state == project_janitor.CANCELLED_STATE:
+                observed["talkroom_state"] = transaction_state
             root = delivery_project.record_queue_selection(
                 args.projects_root, observed, adapter="coconala",
             )
             state_path = root / "state.json"
-            transaction_state = _text(observed.get("transaction_state") or observed.get("talkroom_state"))
             talkroom_state = _text(observed.get("talkroom_state"))
+            if transaction_state == project_janitor.CANCELLED_STATE:
+                project_ledger.append(root, {
+                    "terminal": True,
+                    "terminal_state": "cancelled",
+                    "work_state": "CANCELLED",
+                    "next_action": "terminal_cancelled",
+                    "transaction_state": transaction_state,
+                    "talkroom_state": talkroom_state,
+                }, "official_cancellation_observed")
             terminal_receipt_written = False
-            if transaction_state == project_janitor.COMPLETE_STATE and talkroom_state == project_janitor.COMPLETE_STATE:
+            if transaction_state in project_janitor.TERMINAL_STATES and talkroom_state == transaction_state:
                 terminal_path = root / "project-terminal.json"
                 _write(terminal_path, {
                     "version": 1,
