@@ -1241,6 +1241,14 @@ BUYER_RECENT_MESSAGE_LIMIT = 10
 
 def minimize_talkroom_dom(talkroom: dict[str, Any], talkroom_id: str, observed_at: str) -> dict[str, Any]:
     messages = talkroom.get("messages") if isinstance(talkroom.get("messages"), list) else []
+    # Only Coconala's exact, completed system event closes a cancelled room. A
+    # buyer request or the earlier "request accepted" notice is still pending.
+    officially_cancelled = talkroom.get("history_complete") is True and any(
+        isinstance(message, dict)
+        and message.get("side") == "system"
+        and str(message.get("text") or "").strip() == "運営側で取引をキャンセルしました。"
+        for message in messages
+    )
     latest_actionable = -1
     latest_seller_attachment = -1
     buyer_attachments: list[dict[str, Any]] = []
@@ -1335,7 +1343,9 @@ def minimize_talkroom_dom(talkroom: dict[str, Any], talkroom_id: str, observed_a
     return {
         "talkroom_id": str(talkroom_id),
         "url": f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}" if parsed_url.netloc else None,
-        "transaction_state": talkroom.get("transaction_state") or "unknown",
+        "transaction_state": "キャンセル" if officially_cancelled else (
+            talkroom.get("transaction_state") or "unknown"
+        ),
         # What "unknown" was derived from. A subscription room legitimately has no step bar, so
         # this separates "no step bar" from "a label nothing maps yet" without reading the code -
         # a distinction that cost two deploys to make from the outside.

@@ -23,6 +23,8 @@ import time
 from pathlib import Path
 
 COMPLETE_STATE = "取引完了"
+CANCELLED_STATE = "キャンセル"
+TERMINAL_STATES = frozenset((COMPLETE_STATE, CANCELLED_STATE))
 RECLAIM_DIRS = ("work",)
 ARTIFACT_DIRS = ("artifacts", "delivery", "deliverables")
 IMMUTABLE_ROOT_PARTS = frozenset((".cloak", ".openclaw"))
@@ -110,8 +112,8 @@ def _terminal_receipt(project_dir: Path, state_path: Path) -> tuple[dict | None,
         or receipt.get("project_id") != project_id
         or not isinstance(receipt.get("talkroom_id"), str)
         or not receipt.get("talkroom_id")
-        or receipt.get("transaction_state") != COMPLETE_STATE
-        or receipt.get("talkroom_state") != COMPLETE_STATE
+        or receipt.get("transaction_state") not in TERMINAL_STATES
+        or receipt.get("talkroom_state") != receipt.get("transaction_state")
         or not isinstance(receipt.get("observed_at"), (int, float))
         or isinstance(receipt.get("observed_at"), bool)
         or receipt.get("observed_at", 0) <= 0
