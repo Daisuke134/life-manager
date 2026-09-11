@@ -1052,6 +1052,58 @@ def test_targeted_readback_reclaims_its_stale_owner_before_open(tmp_path, monkey
     ]
 
 
+def test_targeted_readback_retries_default_tab_open_timeout_once(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    calls = []
+    collector_output = {}
+
+    def collector(_args, _mode, output, *_rest):
+        collector_output["path"] = output
+        return ["collector"]
+
+    def run(_command, _step, **_kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise paid.Failure(
+                "targeted_readback",
+                "cdp_default_tab.py open https://coconala.com/talkrooms/1 timed out after 25 seconds",
+            )
+        write_json(collector_output["path"], {"orders": [{"talkroom_id": "1"}]})
+
+    monkeypatch.setattr(paid, "_reclaim_browser_owner", lambda *_args: None)
+    monkeypatch.setattr(paid, "_collector", collector)
+    monkeypatch.setattr(paid, "_run", run)
+    monkeypatch.setattr(paid, "_row", lambda _snapshot, _room: {"talkroom_id": "1"})
+    args = SimpleNamespace(evidence_dir=tmp_path, cdp_lock_dir=tmp_path / "locks")
+
+    assert paid._targeted(args, {"talkroom_id": "1"}, 0)["talkroom_id"] == "1"
+    assert len(calls) == 2
+
+
+def test_orders_observation_retries_default_tab_open_timeout_once(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    calls = []
+    snapshot = tmp_path / "orders-only-snapshot.json"
+
+    monkeypatch.setattr(paid, "_collector", lambda *_args: ["collector"])
+
+    def run(_command, _step):
+        calls.append(1)
+        if len(calls) == 1:
+            raise paid.Failure(
+                "orders_observation",
+                "cdp_default_tab.py open https://coconala.com/mypage timed out after 25 seconds",
+            )
+        write_json(snapshot, {"orders": []})
+
+    monkeypatch.setattr(paid, "_run", run)
+    monkeypatch.setattr(paid.delivery_queue, "build_preliminary", lambda *_args: {"items": []})
+    args = SimpleNamespace(today="2026-09-12")
+
+    assert paid.observe_orders(args, tmp_path) == []
+    assert len(calls) == 2
+
+
 def test_file_presend_reclaims_targeted_owner_before_open(tmp_path, monkeypatch):
     paid = load("paid_direct")
     root = tmp_path / "project"

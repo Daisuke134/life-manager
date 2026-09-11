@@ -310,6 +310,11 @@ def _collector(args, mode, output, evidence, item_path=None, item=None):
                     "--selected-order-input", str(item_path), "--visible-with-screenshot"]
     return command
 
+
+def _default_tab_open_timed_out(error: Failure) -> bool:
+    detail = error.detail
+    return "cdp_default_tab.py" in detail and "open" in detail and "timed out" in detail
+
 def _collect_dm_context(args, item: dict[str, Any], root: Path, base: Path) -> None:
     """Bind the existing pre-purchase DM collector before any semantic paid work."""
     evidence = base / "preflight" / "direct-message.json"
@@ -708,7 +713,7 @@ def observe_orders(args, evidence_dir) -> list[dict[str, Any]]:
         if not any(transient in error.detail for transient in (
             "collector_unhealthy:orders_missing_container",
             "authenticated tab did not finish navigation",
-        )):
+        )) and not _default_tab_open_timed_out(error):
             raise
         _run(command, "orders_observation")
     try: queue = delivery_queue.build_preliminary(_load(snapshot), date.fromisoformat(args.today))
@@ -2044,7 +2049,8 @@ def _targeted(args, item, index):
             "targeted_readback", timeout=TARGETED_READBACK_TIMEOUT_SECONDS, env=environment,
         )
     except Failure as error:
-        if "authenticated tab did not finish navigation" in error.detail:
+        if ("authenticated tab did not finish navigation" in error.detail
+                or _default_tab_open_timed_out(error)):
             _run(
                 _collector(args, "selected-talkroom-only", snapshot, base, item_path, item),
                 "targeted_readback", timeout=TARGETED_READBACK_TIMEOUT_SECONDS, env=environment,
