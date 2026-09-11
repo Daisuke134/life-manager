@@ -7,7 +7,6 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import importlib.util
-import datetime as dt
 import json
 import os
 from pathlib import Path
@@ -22,6 +21,8 @@ from urllib.parse import quote, urlsplit
 
 _SHARED_PATH = Path(__file__).resolve().parents[3] / "_shared" / "marketplace-core" / "scripts" / "application_transaction.py"
 _SHARED_MODULE_NAME = "anicca_lancers_shared_application_transaction"
+_DOM_CONTRACT_PATH = _SHARED_PATH.with_name("dom_contract.py")
+_DOM_CONTRACT_MODULE_NAME = "anicca_lancers_shared_dom_contract"
 CDP_URL = "http://127.0.0.1:9227"
 BROWSER_ATTACH_TIMEOUT_MS = 10_000; CDP_REQUEST_TIMEOUT_SECONDS = 2; MAX_CDP_TARGETS = 32; MAX_CDP_RESPONSE_BYTES = 256 * 1024
 PLATFORM = "lancers"
@@ -44,6 +45,21 @@ def _load_shared():
 
 
 shared = _load_shared()
+
+
+def _load_dom_contract():
+    if _DOM_CONTRACT_MODULE_NAME in sys.modules:
+        return sys.modules[_DOM_CONTRACT_MODULE_NAME]
+    spec = importlib.util.spec_from_file_location(_DOM_CONTRACT_MODULE_NAME, _DOM_CONTRACT_PATH)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("marketplace_dom_contract_unavailable")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[_DOM_CONTRACT_MODULE_NAME] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+dom_contract = _load_dom_contract()
 TickResult = shared.TickResult
 SubmissionNotStarted = shared.SubmissionNotStarted
 account_lock = shared.account_lock
@@ -75,18 +91,13 @@ def _record_form_change(locator: Any, why: str, found: Any = None) -> None:
     7 genuine declines -- the lane was not short of work, it could not fill the form, and nothing
     recorded which field it was.
     """
-    try:
-        row = {
-            "selector": str(locator)[:300],
-            "why": why,
-            "found": found,
-            "observed_at": dt.datetime.now(dt.timezone.utc).isoformat(),
-        }
-        FORM_EVIDENCE.parent.mkdir(parents=True, exist_ok=True)
-        with open(FORM_EVIDENCE, "a", encoding="utf-8") as handle:
-            handle.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
-    except Exception:
-        return
+    dom_contract.record_failure(
+        FORM_EVIDENCE.parent,
+        platform=PLATFORM,
+        selector=str(locator),
+        why=why,
+        found=found,
+    )
 
 
 def _form_changed(where: str, **detail: Any) -> RuntimeError:
@@ -105,27 +116,21 @@ def _form_changed(where: str, **detail: Any) -> RuntimeError:
 
 
 def _one(locator: Any) -> Any:
-    found = _count(locator)
-    if found != 1:
-        _record_form_change(locator, "count_not_one", found)
-        raise RuntimeError("proposal_form_changed")
-    return locator
+    try:
+        return dom_contract.exactly_one(
+            locator, platform=PLATFORM, evidence_dir=FORM_EVIDENCE.parent,
+        )
+    except dom_contract.DomContractError:
+        raise RuntimeError("proposal_form_changed") from None
 
 
 def _visible_one(locator: Any) -> Any:
-    value = _one(locator)
-    # The visibility probe is separated from the verdict on purpose. The old shape re-raised any
-    # RuntimeError before recording, so a locator that threw on is_visible() -- a detached node,
-    # the usual sign that the form was re-rendered -- was the one case that stayed anonymous.
     try:
-        visible = value.is_visible()
-    except Exception:
-        _record_form_change(locator, "visibility_check_failed", None)
+        return dom_contract.visible_one(
+            locator, platform=PLATFORM, evidence_dir=FORM_EVIDENCE.parent,
+        )
+    except dom_contract.DomContractError:
         raise RuntimeError("proposal_form_changed") from None
-    if not visible:
-        _record_form_change(locator, "not_visible", 1)
-        raise RuntimeError("proposal_form_changed")
-    return value
 
 
 def _route(url: Any, path: str, query: Optional[str] = None) -> bool:
