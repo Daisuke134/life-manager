@@ -4058,12 +4058,17 @@ The active implementation TODO is therefore Stage 3 items 9–14 applied to thes
    official-provider terminal receipt now records both transaction and talkroom state as `取引完了`
    (observed 2026-09-12 02:56 JST), after the v98 re-share. The terminal transaction cannot be
    formally delivered again; preserve the earlier ordering defect and replay with zero effects.
-5. [ ] `18183618`: continue the JAIC path without impersonation; use a truthful disclosed-agent
+5. [x] `18183618`: continue the JAIC path without impersonation; use a truthful disclosed-agent
    equivalent, negotiate supported scope, or complete official cancellation when the exact
    provider requirement cannot be performed autonomously. Otherwise obtain completion evidence,
    the four-part report, fresh review, formal delivery, buyer completion, and replay-zero.
-   Current durable v4 is buyer-visible and the latest buyer message is an acknowledgement; do not
-   send another progress message while awaiting the buyer's substantive feedback.
+   Durable v4 was buyer-visible without another progress-message loop. After the account holder's
+   actual interview, the installed owner sent the requested four-part report: continued-use intent,
+   candid experience, recommendation point, and whether a company had been introduced. The buyer
+   declined no required scope, explicitly closed the work and requested formal delivery; the
+   system message confirms acceptance. The authoritative official-provider terminal receipt records
+   transaction and talkroom state as `取引完了` (observed 2026-09-11 21:21 JST). Later natural
+   observations have no repeat effect; do not send, report, or deliver again.
 6. [ ] `18184558`: make no guessed seller-side delivery/cancellation action. Observe official
    Coconala cancellation, enter terminal pending replay, prove all effects zero, and close as
    cancelled. The latest buyer message says they contacted Coconala support and asks us to wait for
