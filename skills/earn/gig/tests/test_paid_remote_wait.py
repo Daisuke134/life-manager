@@ -985,7 +985,7 @@ def test_remote_stage_leaves_coconala_delivery_to_verified_connector(tmp_path):
         assert "code-owned Coconala connector" in prompt
 
 
-def test_paid_clients_use_independent_parallel_readbacks_and_browser_targets(tmp_path, monkeypatch):
+def test_paid_clients_serialize_shared_browser_readbacks_and_keep_independent_targets(tmp_path, monkeypatch):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)
     requirements_sha = paid.paid_remote_result.requirements_digest(root, feedback)
@@ -995,7 +995,8 @@ def test_paid_clients_use_independent_parallel_readbacks_and_browser_targets(tmp
         False, tmp_path / "cdp.py",
     )
 
-    assert paid.PAID_MAX_PARALLEL_READBACKS == paid.PAID_MAX_PARALLEL_PROJECTS
+    assert paid.PAID_MAX_PARALLEL_READBACKS == 1
+    assert paid.PAID_MAX_PARALLEL_PROJECTS > paid.PAID_MAX_PARALLEL_READBACKS
     assert "All independent paid projects run concurrently" in prompt
     assert "serialize every read, mutation, and readback" not in prompt
 
