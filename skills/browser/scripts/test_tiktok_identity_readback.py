@@ -36,6 +36,13 @@ def test_expected_identity_requires_matching_own_profile_navigation():
     assert result["observed_handle"] == "@anicca.jp"
 
 
+def test_readback_expression_supports_current_owned_profile_navigation():
+    module = _load_module()
+
+    assert '[data-e2e="nav-profile"] a[href*="/@"]' in module.READBACK_EXPRESSION
+    assert 'a[data-e2e="nav-profile"][href*="/@"]' in module.READBACK_EXPRESSION
+
+
 def test_public_profile_page_alone_is_not_authentication_proof():
     module = _load_module()
     result = module.classify_readback({
