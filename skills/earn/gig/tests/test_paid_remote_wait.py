@@ -978,6 +978,22 @@ def test_remote_owner_prompt_requires_durable_structured_provider_readback(tmp_p
     assert "atomically write its complete structured output" in prompt
     assert "stdout or truncated tool transport alone is never" in prompt
     assert "Do not repeat a completed provider readback" in prompt
+
+
+def test_remote_owner_prompt_keeps_canonical_target_and_cumulative_work_pending(tmp_path):
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    requirements_sha = paid.paid_remote_result.requirements_digest(root, feedback)
+
+    prompt = paid._repair_prompt(
+        root, tmp_path / "item.json", feedback, requirements_sha,
+        False, tmp_path / "cdp.py",
+    )
+
+    assert "top-level target in every owner evidence JSON must exactly equal" in prompt
+    assert "provider-specific URLs inside official_readback" in prompt
+    assert "completing one bounded wake or candidate batch is progress" in prompt
+    assert "keep both satisfied fields false" in prompt
     assert "write the durable result immediately before any optional exploration" in prompt
     assert "do not exhaustively inspect unrelated historical attachments or messages" in prompt
     assert "write status=blocked and a nonempty blocker in paid-remote-result.json" in prompt
