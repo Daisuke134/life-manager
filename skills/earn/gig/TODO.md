@@ -240,11 +240,16 @@ CrowdWorks/shared suite passes `367/367`, OSS self-contained verification passes
 checks pass, and fresh read-only review reports SHIP with no findings. Full immutable release
 `20260911T223906-0d9253a4` is installed only on `crowdworks-revenue-paid` with install receipt
 `0184c01300f4218831839d60`; shared `current` and sibling labels are unchanged. The release build
-used part of the recovered headroom and the immediate post-install readback shows 6.5 GiB free. The
-new installed SHA has not yet produced its natural terminal, so this is source/install acceptance,
-not proof that either CrowdWorks action completed. The next evidence must be the natural terminal:
-either it reaches the official To-do/Form action and readback, or it records the exact bounded
-provider error while leaving all external effects at zero.
+used part of the recovered headroom and the immediate post-install readback shows 6.5 GiB free.
+Natural run `18d4485fef6f66f0-65110` then started on the installed SHA and terminated in 39 seconds
+instead of hanging indefinitely. It failed before inventory with the exact safe code
+`crowdworks_paid_browser_unavailable`; aggregate effect/readback were `0/0`, so neither Google Form
+nor milestone was retried. Read-only evidence immediately afterward shows CDP HTTP `/json/version`
+and `/json/list` both return 200 in under 20 ms, Chromium PID `33372` still owns `127.0.0.1:9228`,
+and all eight targets expose WebSocket debugger URLs. The remaining boundary is specifically
+Playwright WebSocket attachment to the existing browser, not process absence, logout, Form logic or
+disk pressure. Do not restart the browser: continue with read-only protocol diagnosis or wait for a
+natural owner recovery, then require inventory traversal, official action/readback and replay-zero.
 
 The active atom is **CrowdWorks Paid funded-work acceptance**. Coconala Reply continuous health is
 closed by PR `#5012`, target-only receipt `1d3c873655f62aa5e8957714` and natural failed-zero run
