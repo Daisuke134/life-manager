@@ -135,7 +135,9 @@ PAID_FILE_POLICY_VERSION = "paid-file-build-review-v21"
 MAX_FILE_REVIEW_ITERATIONS = 1
 PAID_REMOTE_WAIT_RECHECK_SECONDS = 3600
 PAID_MAX_PARALLEL_PROJECTS = 8
-PAID_MAX_PARALLEL_READBACKS = PAID_MAX_PARALLEL_PROJECTS
+# The authenticated default browser can create only one new page reliably at a time.
+# Keep project work parallel after each room has its official targeted readback.
+PAID_MAX_PARALLEL_READBACKS = 1
 PAID_TERMINAL_RECONCILES_PER_WAKE = 1
 MANUAL_ONLY_TALKROOM_IDS = frozenset()
 PAID_SOURCE_CENSUS_VERSION = "paid-source-census-v4"
