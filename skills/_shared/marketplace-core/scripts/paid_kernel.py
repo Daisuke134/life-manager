@@ -17,6 +17,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import tempfile
 from typing import Any, Callable, Mapping, Protocol
 
@@ -314,6 +315,9 @@ def main(argv: list[str] | None = None) -> int:
                 "failed": 1, "pending": 0, "failed_step": "provider_inventory",
                 "error_type": type(error).__name__, "items": [],
             }
+            error_detail = str(error).strip()
+            if re.fullmatch(r"[a-z][a-z0-9_]{1,127}", error_detail):
+                result["error_detail"] = error_detail
     _write(args.output.expanduser().resolve(), result)
     return int(result["failed"] > 0)
 
