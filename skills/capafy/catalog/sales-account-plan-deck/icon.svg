@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Sales Account Plan Deck</title>
+  <desc id="desc">A navy presentation card with an amber account-path line and three decision nodes.</desc>
+  <rect width="512" height="512" rx="96" fill="#10243E"/>
+  <rect x="96" y="112" width="320" height="288" rx="28" fill="#EAF2F8"/>
+  <rect x="128" y="148" width="150" height="20" rx="10" fill="#10243E"/>
+  <rect x="128" y="188" width="222" height="12" rx="6" fill="#8EA6B8"/>
+  <path d="M148 318 C202 270 248 332 294 278 S356 254 372 228" fill="none" stroke="#D88934" stroke-linecap="round" stroke-width="18"/>
+  <circle cx="148" cy="318" r="18" fill="#D88934"/>
+  <circle cx="294" cy="278" r="18" fill="#D88934"/>
+  <circle cx="372" cy="228" r="18" fill="#D88934"/>
+</svg>
