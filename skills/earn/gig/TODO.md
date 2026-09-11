@@ -4044,9 +4044,10 @@ The active implementation TODO is therefore Stage 3 items 9–14 applied to thes
    `js-talkroomMessage-220162036`. It performed no effect because this legacy project lacked its
    project-owned `delivery/` workspace. Main and current release
    `608b4b348243cdb62ceead9e54b2126fb629b724` now initialize that workspace idempotently before
-   every file prepare; the complete Paid regression passes 39/39. The next installed-owner wake
-   must resume the existing approved package, formally deliver it once, obtain official readback,
-   and replay with zero duplicate effect.
+   every file prepare; the complete Paid regression passes 39/39. At that point the expected next
+   wake was to resume the approved package, formally deliver it once, obtain official readback,
+   and replay with zero duplicate effect; the later ordering defect and terminal result below
+   supersede that historical expectation.
    The account owner then clarified the required order: the buyer's latest Project Manager share
    request occurred after the earlier URL message, so the package had to be shared again before a
    new approval. The installed owner re-shared the still-live GigaFile URL as a normal message with
