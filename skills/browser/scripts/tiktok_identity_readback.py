@@ -13,7 +13,7 @@ import cdp
 READBACK_EXPRESSION = r"""
 (() => {
   const profileLinks = Array.from(document.querySelectorAll(
-    'header a[href*="/@"], nav a[href*="/@"], [data-e2e="profile-icon"] a[href*="/@"], a[data-e2e="profile-icon"][href*="/@"]'
+    'header a[href*="/@"], nav a[href*="/@"], [data-e2e="profile-icon"] a[href*="/@"], a[data-e2e="profile-icon"][href*="/@"], [data-e2e="nav-profile"] a[href*="/@"], a[data-e2e="nav-profile"][href*="/@"]'
   )).map(node => node.href).filter(Boolean);
   const loginControls = document.querySelectorAll(
     '[data-e2e="top-login-button"], [data-e2e="login-button"], a[href*="/login"], button[data-e2e*="login"]'
