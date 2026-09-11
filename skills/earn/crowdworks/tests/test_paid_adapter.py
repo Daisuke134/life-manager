@@ -172,6 +172,65 @@ def test_adapter_opens_injected_thread_owned_cdp_connection_not_account_browser(
     assert calls == [("timeout", 15_000), ("page_close",), ("runtime_stop",)]
 
 
+def test_connect_existing_cdp_retries_once_with_bounded_timeout(monkeypatch):
+    module = load()
+    calls = []
+
+    class Chromium:
+        def __init__(self, result):
+            self.result = result
+
+        def connect_over_cdp(self, url, *, timeout):
+            calls.append(("connect", url, timeout))
+            if isinstance(self.result, Exception):
+                raise self.result
+            return self.result
+
+    class Runtime:
+        def __init__(self, result):
+            self.chromium = Chromium(result)
+
+        def stop(self):
+            calls.append(("stop",))
+
+    runtimes = iter((Runtime(TimeoutError()), Runtime("browser")))
+    monkeypatch.setattr(module, "sync_playwright", lambda: type(
+        "Starter", (), {"start": lambda self: next(runtimes)})())
+    monkeypatch.setattr(module.time, "sleep", lambda seconds: calls.append(("sleep", seconds)))
+
+    runtime, browser = module._connect_existing_cdp()
+
+    assert browser == "browser"
+    assert runtime.chromium.result == "browser"
+    assert calls == [
+        ("connect", module.account.CDP_URL, 10_000), ("stop",), ("sleep", 0.25),
+        ("connect", module.account.CDP_URL, 10_000),
+    ]
+
+
+def test_connect_existing_cdp_stops_both_failed_runtimes(monkeypatch):
+    module = load()
+    stopped = []
+
+    class Runtime:
+        class Chromium:
+            def connect_over_cdp(self, url, *, timeout):
+                raise TimeoutError
+
+        chromium = Chromium()
+
+        def stop(self):
+            stopped.append(True)
+
+    monkeypatch.setattr(module, "sync_playwright", lambda: type(
+        "Starter", (), {"start": lambda self: Runtime()})())
+    monkeypatch.setattr(module.time, "sleep", lambda _: None)
+
+    with pytest.raises(RuntimeError, match="^crowdworks_paid_browser_unavailable$"):
+        module._connect_existing_cdp()
+    assert stopped == [True, True]
+
+
 def test_active_contract_timeout_has_bounded_stage_specific_name():
     module = load()
 

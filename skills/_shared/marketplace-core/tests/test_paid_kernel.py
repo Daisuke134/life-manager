@@ -228,6 +228,50 @@ def build(argv): return Adapter(), decide
     }
 
 
+def test_cli_preserves_only_secret_free_provider_inventory_error_code(tmp_path: Path) -> None:
+    provider = tmp_path / "provider.py"
+    provider.write_text("""
+class Adapter:
+    def observe_active(self):
+        error = RuntimeError("crowdworks_paid_browser_unavailable")
+        error.paid_error_code = "crowdworks_paid_browser_unavailable"
+        raise error
+    def observe_one(self, work_id): raise AssertionError
+    def context(self, work_id): raise AssertionError
+    def mutate(self, intent): raise AssertionError
+    def readback(self, intent): raise AssertionError
+def decide(row): raise AssertionError
+def build(argv): return Adapter(), decide
+""", encoding="utf-8")
+    output = tmp_path / "result.json"
+    assert paid.main([
+        "--provider-adapter", str(provider), "--state-root", str(tmp_path / "state"),
+        "--output", str(output),
+    ]) == 1
+    result = json.loads(output.read_text(encoding="utf-8"))
+    assert result["error_detail"] == "crowdworks_paid_browser_unavailable"
+
+
+def test_cli_omits_untrusted_snake_case_provider_inventory_detail(tmp_path: Path) -> None:
+    provider = tmp_path / "provider.py"
+    provider.write_text("""
+class Adapter:
+    def observe_active(self): raise RuntimeError("private_client_secret")
+    def observe_one(self, work_id): raise AssertionError
+    def context(self, work_id): raise AssertionError
+    def mutate(self, intent): raise AssertionError
+    def readback(self, intent): raise AssertionError
+def decide(row): raise AssertionError
+def build(argv): return Adapter(), decide
+""", encoding="utf-8")
+    output = tmp_path / "result.json"
+    assert paid.main([
+        "--provider-adapter", str(provider), "--state-root", str(tmp_path / "state"),
+        "--output", str(output),
+    ]) == 1
+    assert "error_detail" not in json.loads(output.read_text(encoding="utf-8"))
+
+
 def test_cli_persists_provider_inventory_wait_as_durable_pending(tmp_path: Path) -> None:
     provider = tmp_path / "provider.py"
     provider.write_text("""
