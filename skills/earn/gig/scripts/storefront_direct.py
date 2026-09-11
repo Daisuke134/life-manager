@@ -624,9 +624,8 @@ def _append_key_once(path: Path, field: str, value: dict) -> bool:
 def _append_proposal_rejection(
     state_dir: Path, *, gap_key: str, rejection: str, proposed_value: object, pass_id: str,
 ) -> None:
-    # Moved to skills/_shared/marketplace-core/scripts/storefront_kernel.py
-    # (append_proposal_rejection) so a second marketplace can reuse this guard; this stays as a
-    # thin alias so every existing call site and test keeps working unchanged.
+    # Implemented in the adjacent storefront_kernel.py.
+    # This stays as a thin alias so every existing call site and test keeps working unchanged.
     return _storefront_kernel().append_proposal_rejection(
         state_dir, gap_key=gap_key, rejection=rejection, proposed_value=proposed_value, pass_id=pass_id,
     )
@@ -1278,17 +1277,13 @@ def _load_capability_families(path: Path) -> tuple[dict[str, str], dict[str, dic
 
 
 def _storefront_kernel():
-    """Reach skills/_shared/marketplace-core/scripts, the same way `_load_catalog_entries` does,
-    and return the shared, platform-neutral storefront_kernel module.
+    """Return the Coconala Storefront kernel adjacent to this adapter.
 
     Several `_`-prefixed functions below (portfolio allocation, mutation-contract sealing and
     validation, official demand scoring, replace-plan rendering, in-flight draft recovery, and
     the proposal-rejection guard) are now thin aliases onto that module, kept here so the rest
     of this ~8,600-line file and its tests keep calling them by the same name unchanged.
     """
-    SHARED_SCRIPTS = SCRIPTS.parent.parent.parent / "_shared" / "marketplace-core" / "scripts"
-    if str(SHARED_SCRIPTS) not in sys.path:
-        sys.path.insert(0, str(SHARED_SCRIPTS))
     import storefront_kernel
     return storefront_kernel
 

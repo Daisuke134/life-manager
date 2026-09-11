@@ -2292,11 +2292,15 @@ is 4,246 lines -- Coconala alone is twenty-two times that.
    provider-level account restriction recorded in `APPLY-COCONALA-1` remains in force; source and
    fail-closed tests close this extraction atom without pretending that restriction is lifted.
 
-10. [ ] `APPLY-SHARE-4` The remaining single-user modules. `contracts.py` (725 lines, Lancers
-    only) and `storefront_kernel.py` (675, Coconala only) are shared in location and private in
-    fact. Either a second platform adopts them or they move back into the adapter that uses them;
-    a module in `_shared` that one lane reads is worse than one that lives where it is used,
-    because it looks like coverage.
+10. [x] `APPLY-SHARE-4` The remaining apparent single-user modules are now truthful.
+    `contracts.py` stays shared because the original inventory counted only direct imports: both
+    Lancers and CrowdWorks call shared `application_transaction.run_transaction(platform=...)`,
+    whose reconciled receipt path invokes `parse_application_receipt` immediately before the
+    ledger writer. Adding another adapter-level validation would only validate the same receipt
+    twice. `storefront_kernel.py` had no second production consumer, so it and its four focused
+    tests moved back to `skills/earn/gig`, next to the only Coconala adapter that imports it. The
+    focused Storefront and shared transaction suites pass, including a CrowdWorks transaction
+    receipt that must satisfy the shared contract before its ledger writer runs.
 
 11. [x] `APPLY-COCONALA-1` ★ **Coconala has restricted this account from applying.** Confirmed
     2026-09-07 on Dais's phone, logged into the same account: the request page shows

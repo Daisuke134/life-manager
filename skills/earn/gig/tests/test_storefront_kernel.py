@@ -1,6 +1,6 @@
-"""Pin the platform-neutral Storefront judgement kernel.
+"""Pin the Coconala Storefront judgement kernel.
 
-Run: python3 -m pytest skills/_shared/marketplace-core/tests/test_storefront_kernel.py
+Run: python3 -m pytest skills/earn/gig/tests/test_storefront_kernel.py
 """
 from __future__ import annotations
 
