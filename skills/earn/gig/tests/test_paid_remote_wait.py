@@ -502,6 +502,51 @@ def test_exact_official_cancellation_is_terminal_only_after_complete_history():
     assert queue.minimize_talkroom_dom(completed, "18184558", "now")["transaction_state"] == "unknown"
 
 
+def test_hidden_cancelled_room_reuses_only_exact_persisted_official_history(tmp_path):
+    queue = load("coconala_queue_snapshot")
+    ledger = tmp_path / "18184558/source/talkroom/messages.jsonl"
+    ledger.parent.mkdir(parents=True)
+    rows = [
+        {"source": "coconala_live_talkroom", "talkroom_id": "18184558", "side": "system",
+         "text": "運営側で取引をキャンセルしました。"},
+        {"source": "coconala_live_talkroom", "talkroom_id": "18184558", "side": "system",
+         "text": "キャンセル後、3日間経過したためメッセージが非表示になりました。"},
+    ]
+    for row in rows:
+        row["content_sha256"] = queue._paid_message_content_sha256(row)
+    ledger.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows))
+
+    receipt = queue.persist_talkroom_history(
+        {"history_complete": True, "messages": []}, "18184558", tmp_path,
+        "18184558", "now",
+    )
+    complete = queue.talkroom_with_persisted_history(
+        {"history_complete": True, "messages": []}, "18184558", tmp_path, "18184558",
+    )
+
+    assert receipt["history_source"] == "persisted_official_cancellation"
+    assert receipt["new_message_count"] == 0
+    assert queue.minimize_talkroom_dom(complete, "18184558", "now")["transaction_state"] == "キャンセル"
+
+
+def test_hidden_pending_cancellation_still_fails_closed(tmp_path):
+    queue = load("coconala_queue_snapshot")
+    ledger = tmp_path / "18184558/source/talkroom/messages.jsonl"
+    ledger.parent.mkdir(parents=True)
+    row = {
+        "source": "coconala_live_talkroom", "talkroom_id": "18184558", "side": "system",
+        "text": "運営側で購入者からの取引のキャンセルリクエストを受け付けました。",
+    }
+    row["content_sha256"] = queue._paid_message_content_sha256(row)
+    ledger.write_text(json.dumps(row, ensure_ascii=False) + "\n")
+
+    with pytest.raises(queue.CollectorUnhealthy, match="talkroom_history_empty"):
+        queue.persist_talkroom_history(
+            {"history_complete": True, "messages": []}, "18184558", tmp_path,
+            "18184558", "now",
+        )
+
+
 def test_paid_reader_preserves_unicode_line_separator_inside_json_string(tmp_path):
     paid = load("paid_direct")
     root = tmp_path / "18214856"

@@ -1386,11 +1386,42 @@ def persist_talkroom_history(
     """Append newly observed raw talkroom messages to the stable project."""
     if talkroom.get("history_complete") is not True:
         raise CollectorUnhealthy("talkroom_history_incomplete")
-    messages = talkroom.get("messages")
-    if not isinstance(messages, list) or not messages:
-        raise CollectorUnhealthy("talkroom_history_empty")
     root = projects_root.expanduser().resolve() / str(project_id)
     ledger = root / "source" / "talkroom" / "messages.jsonl"
+    messages = talkroom.get("messages")
+    if not isinstance(messages, list) or not messages:
+        # Coconala hides every message three days after a completed cancellation.
+        # Reuse the append-only provider capture only when it contains both the
+        # exact official terminal event and the exact later hidden-history event.
+        # Any ordinary empty room still fails closed.
+        persisted = []
+        try:
+            persisted = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
+        except (OSError, json.JSONDecodeError):
+            pass
+        texts = {
+            str(row.get("text") or "").strip()
+            for row in persisted
+            if isinstance(row, dict)
+            and row.get("source") == "coconala_live_talkroom"
+            and str(row.get("talkroom_id") or "") == str(talkroom_id)
+            and row.get("side") == "system"
+            and row.get("content_sha256") == _paid_message_content_sha256(row)
+        }
+        if not {
+            "運営側で取引をキャンセルしました。",
+            "キャンセル後、3日間経過したためメッセージが非表示になりました。",
+        }.issubset(texts):
+            raise CollectorUnhealthy("talkroom_history_empty")
+        _, ledger_sha = _bytes_sha_for_history(ledger)
+        return {
+            "history_complete": True,
+            "history_source": "persisted_official_cancellation",
+            "message_count": len(persisted),
+            "new_message_count": 0,
+            "messages_path": str(ledger),
+            "messages_sha256": ledger_sha,
+        }
     ledger.parent.mkdir(parents=True, exist_ok=True)
     lock_path = ledger.with_suffix(ledger.suffix + ".lock")
     with lock_path.open("a+b") as lock:
