@@ -2364,7 +2364,7 @@ is 4,246 lines -- Coconala alone is twenty-two times that.
     the rules and manners; it is not a timed cooldown, and a repeat may cause another unannounced
     function restriction or account suspension. The shared hard-prohibition and file-locked
     20-attempt-budget regressions pass 7/7. Only after those controls and the official lift, the
-    production ledger resumed verified applications on 2026-09-12 at 01:34 JST, proving the
+    production ledger resumed verified applications on 2026-09-11 at 17:51 JST, proving the
     provider accepted submissions rather than merely hiding the restriction banner.
 
 13. [x] `APPLY-COCONALA-3` Ask Coconala, because
