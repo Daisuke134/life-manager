@@ -4033,28 +4033,31 @@ The active implementation TODO is therefore Stage 3 items 9–14 applied to thes
    `取引完了` (observed 2026-09-11 20:04 JST). Natural replays after the original URL handoff produced
    no duplicate delivery effect. The older queue state still says `await_buyer_feedback`, but it is
    superseded by the hashed official-provider terminal receipt; do not republish, resend, or redeliver.
-4. [ ] LBJ `18130722`: use only the latest explicit buyer approval and latest v98 project-manager
-   package. Codex may inspect v98 and repair the generic approval/reviewer code, but must not send
-   customer work. A seller acknowledgement must not erase buyer approval. The installed Paid
-   owner fresh-reviews v98, formally submits it, reads it back, closes, and proves replay-zero.
+4. [x] LBJ `18130722`: terminal closure with the ordering defect preserved. The latest v98
+   project-manager package was re-shared and read back, but the formal-delivery event occurred
+   before that re-share, so the intended order was not achieved. The provider later made the
+   transaction terminal, making repair impossible; closure means recording that defect and
+   preventing any duplicate customer work or formal-delivery effect, not claiming a clean success.
    Production release `f315f0b6a9e4b429910d5153c72e34d696ae83a5` generated a fresh v16
    decision with `mode=file`, `delivery_stage=formal`, latest seller identity
    `js-talkroomMessage-220162081`, and the preceding explicit buyer approval identity
    `js-talkroomMessage-220162036`. It performed no effect because this legacy project lacked its
    project-owned `delivery/` workspace. Main and current release
    `608b4b348243cdb62ceead9e54b2126fb629b724` now initialize that workspace idempotently before
-   every file prepare; the complete Paid regression passes 39/39. The next installed-owner wake
-   must resume the existing approved package, formally deliver it once, obtain official readback,
-   and replay with zero duplicate effect.
+   every file prepare; the complete Paid regression passes 39/39. At that point the expected next
+   wake was to resume the approved package, formally deliver it once, obtain official readback,
+   and replay with zero duplicate effect; the later ordering defect and terminal result below
+   supersede that historical expectation.
    The account owner then clarified the required order: the buyer's latest Project Manager share
    request occurred after the earlier URL message, so the package had to be shared again before a
    new approval. The installed owner re-shared the still-live GigaFile URL as a normal message with
    no attachment and the formal checkbox off, naming `LBJ_Proposal12_v98.prproj` and the included
    confirmation MP4. Production result: `effect=1/readback=1/failed=0`; the official Coconala DOM
-   contains the re-share message. Current action is now only to await a genuinely newer buyer reply.
-   Do not perform another formal delivery unless that newer buyer reply explicitly approves the
-   re-shared package; the earlier premature formal event remains historical evidence and must not be
-   repeated or represented as this new approval. No newer buyer reply is currently present.
+   contains the re-share message. No newer buyer reply followed, and the earlier formal-delivery
+   ordering defect remains historical evidence rather than a new approval. The authoritative
+   official-provider terminal receipt now records both transaction and talkroom state as `取引完了`
+   (observed 2026-09-12 02:56 JST), after the v98 re-share. The terminal transaction cannot be
+   formally delivered again; preserve the earlier ordering defect and replay with zero effects.
 5. [ ] `18183618`: continue the JAIC path without impersonation; use a truthful disclosed-agent
    equivalent, negotiate supported scope, or complete official cancellation when the exact
    provider requirement cannot be performed autonomously. Otherwise obtain completion evidence,
