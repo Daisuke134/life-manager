@@ -62,6 +62,10 @@ def _google_form_url(value: str) -> bool:
     return google_form.is_google_form_url(value)
 
 
+class CrowdWorksPaidBrowserUnavailable(RuntimeError):
+    paid_error_code = "crowdworks_paid_browser_unavailable"
+
+
 def _connect_existing_cdp() -> tuple[Any, Any]:
     """Connect only; never create, repair, or close the CrowdWorks browser process."""
     for attempt in range(2):
@@ -72,7 +76,7 @@ def _connect_existing_cdp() -> tuple[Any, Any]:
             runtime.stop()
             if attempt == 0:
                 time.sleep(0.25)
-    raise RuntimeError("crowdworks_paid_browser_unavailable") from None
+    raise CrowdWorksPaidBrowserUnavailable("crowdworks_paid_browser_unavailable") from None
 
 
 class CrowdWorksPaidWait(RuntimeError):

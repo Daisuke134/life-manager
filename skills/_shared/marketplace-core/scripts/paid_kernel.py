@@ -315,8 +315,9 @@ def main(argv: list[str] | None = None) -> int:
                 "failed": 1, "pending": 0, "failed_step": "provider_inventory",
                 "error_type": type(error).__name__, "items": [],
             }
-            error_detail = str(error).strip()
-            if re.fullmatch(r"[a-z][a-z0-9_]{1,127}", error_detail):
+            error_detail = getattr(error, "paid_error_code", None)
+            if (isinstance(error_detail, str)
+                    and re.fullmatch(r"[a-z][a-z0-9_]{1,127}", error_detail)):
                 result["error_detail"] = error_detail
     _write(args.output.expanduser().resolve(), result)
     return int(result["failed"] > 0)
