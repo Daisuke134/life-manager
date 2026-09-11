@@ -20,6 +20,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
@@ -89,6 +91,23 @@ def test_recording_never_raises_into_the_lane(tmp_path):
     unwritable = tmp_path / "file-not-a-dir"
     unwritable.write_text("x", encoding="utf-8")
     _Recorder(unwritable).record("5247633", RuntimeError("boom"))
+
+
+def test_raw_cdp_control_count_uses_shared_dom_contract_and_stable_code(tmp_path):
+    effects = object.__new__(application_parent.CdpParentEffects)
+    effects.evidence_dir = tmp_path
+    observed = {"url": "https://coconala.com/offers/add/1", "title": "提案"}
+
+    with pytest.raises(application_parent.ParentContractError,
+                       match="application_form_controls_missing") as caught:
+        effects._require_dom_one('textarea[name="data[Offer][content]"]', 0, observed,
+                                 "application_form_controls_missing")
+
+    assert caught.value.observed == observed
+    row = json.loads((tmp_path / "dom-contract-failures.jsonl").read_text().splitlines()[0])
+    assert (row["platform"], row["selector"], row["found"], row["observed"]) == (
+        "coconala", 'textarea[name="data[Offer][content]"]', 0, observed,
+    )
 
 
 def test_the_listing_page_apply_route_is_recorded_beside_the_failure(tmp_path):

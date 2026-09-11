@@ -32,6 +32,7 @@ from typing import Any, Callable, Optional
 __all__ = [
     "DomContractError",
     "exactly_one",
+    "exactly_one_count",
     "visible_one",
     "record_failure",
     "failures",
@@ -138,6 +139,29 @@ def exactly_one(
                        evidence_path=evidence_path)
         raise DomContractError(name, "count_not_one", found, observed)
     return locator
+
+
+def exactly_one_count(
+    found: Any,
+    *,
+    platform: str,
+    evidence_dir: Path,
+    selector: str,
+    observed: Any = None,
+    evidence_path: Optional[Path] = None,
+) -> None:
+    """Apply the same contract to a count returned by raw-CDP JavaScript."""
+    try:
+        count = int(found)
+    except (TypeError, ValueError):
+        record_failure(evidence_dir, platform=platform, selector=selector,
+                       why="count_failed", observed=observed, evidence_path=evidence_path)
+        raise DomContractError(selector, "count_failed", None, observed) from None
+    if count != 1:
+        record_failure(evidence_dir, platform=platform, selector=selector,
+                       why="count_not_one", found=count, observed=observed,
+                       evidence_path=evidence_path)
+        raise DomContractError(selector, "count_not_one", count, observed)
 
 
 def visible_one(

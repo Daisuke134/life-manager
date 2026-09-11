@@ -28,12 +28,14 @@ def _run_submit_click(
     request_id = "123"
     expected_url = f"https://coconala.com/offers/add/{request_id}"
     modal_state = (
-        {"modal": True, "button": {"x": 30, "y": 40}}
+        {"modal": True, "title_count": 1, "button_count": 1,
+         "button": {"x": 30, "y": 40}, "url": expected_url}
         if modal_present
         else {"modal": False, "url": expected_url, "body": ""}
     )
     states = iter([
-        {"url": expected_url, "button": {"x": 10, "y": 20}},
+        {"url": expected_url, "title": "提案", "match_count": 1,
+         "button": {"x": 10, "y": 20}},
         *([modal_state] if confirm_modal else []),
         *(
             [
@@ -70,7 +72,10 @@ def _run_submit_click(
     async def no_sleep(_seconds):
         return None
 
-    monkeypatch.setattr(application_parent.websockets, "connect", lambda *_args, **_kwargs: _Connection())
+    async def connect(_url):
+        return _Connection()
+
+    monkeypatch.setattr(application_parent, "_cdp_connect", connect)
     monkeypatch.setattr(effects, "_call", call)
     monkeypatch.setattr(effects, "_eval_json", evaluate)
     monkeypatch.setattr(effects, "_screenshot", screenshot)

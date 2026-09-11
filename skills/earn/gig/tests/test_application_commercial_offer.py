@@ -90,9 +90,10 @@ def test_source_navigation_reuses_the_bounded_timeout_retry(monkeypatch) -> None
     async def screenshot(_ws, call_id):
         return b"png", call_id + 1
 
-    monkeypatch.setattr(
-        application_parent.websockets, "connect", lambda *_args, **_kwargs: Connection()
-    )
+    async def connect(_url):
+        return Connection()
+
+    monkeypatch.setattr(application_parent, "_cdp_connect", connect)
     monkeypatch.setattr(effects, "_call", call)
     monkeypatch.setattr(effects, "_navigate_retry_once", retry)
     monkeypatch.setattr(effects, "_navigate", plain_navigation)
