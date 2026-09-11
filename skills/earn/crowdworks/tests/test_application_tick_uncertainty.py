@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from datetime import date
 from pathlib import Path
 import sys
@@ -317,6 +318,41 @@ def test_form_never_opened_raises_submission_not_started_not_uncertain():
 
     assert caught.value.error == "proposal_form_changed"
     assert module._PROPOSAL_LIST_URL not in page.goto_log
+
+
+def test_form_failure_uses_shared_dom_contract_evidence(tmp_path):
+    module = load()
+    module._EVIDENCE_DIR = tmp_path
+    page = _Page(_Fields(), url=f"https://crowdworks.jp/proposals/new?job_offer_id={PROJECT_ID}")
+
+    with pytest.raises(module.shared.SubmissionNotStarted) as caught:
+        _submit(module, page)
+
+    assert caught.value.error == "proposal_form_changed"
+    rows = [json.loads(line) for line in (tmp_path / "dom-contract-failures.jsonl").read_text().splitlines()]
+    assert rows == [{
+        "platform": "crowdworks",
+        "selector": module._FORM_SELECTOR,
+        "why": "count_not_one",
+        "found": 0,
+        "observed": {"url": page.url, "title": None},
+        "observed_at": rows[0]["observed_at"],
+    }]
+
+
+def test_nested_field_failure_records_the_page_identity(tmp_path):
+    module = load()
+    module._EVIDENCE_DIR = tmp_path
+    fields = _Fields()
+    fields.set(module._FORM_SELECTOR, _Field(fields, attrs={"method": "post", "action": "/proposals"}))
+    page = _Page(fields, url=f"https://crowdworks.jp/proposals/new?job_offer_id={PROJECT_ID}")
+
+    with pytest.raises(module.shared.SubmissionNotStarted):
+        _submit(module, page)
+
+    row = json.loads((tmp_path / "dom-contract-failures.jsonl").read_text().splitlines()[0])
+    assert row["selector"] == 'input#proposal_job_offer_id[type="hidden"]'
+    assert row["observed"] == {"url": page.url, "title": None}
 
 
 # 7. The list walk has one implementation and does not reject normal pagination.
