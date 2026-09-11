@@ -1430,6 +1430,31 @@ def persist_talkroom_history(
             talkroom, ledger, talkroom_id, observed_at, messages)
 
 
+def inspect_selected_talkroom_with_history_retry(
+    helper: Path, talkroom_url: str, screenshot_path: Path,
+    project_id: str, projects_root: Path, talkroom_id: str, observed_at: str,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Retry one transient empty selected-talkroom DOM with a fresh tab."""
+    for attempt in range(2):
+        raw_talkroom = inspect_page_with_retry(
+            helper, talkroom_url, TALKROOM_FULL_EXPRESSION, screenshot_path,
+            hidden=False,
+            capture_buyer_attachments=True,
+            attachment_project_root=projects_root.expanduser().resolve() / project_id,
+        )
+        if safe_coconala_url(raw_talkroom.get("url")) != talkroom_url:
+            raise CollectorUnhealthy("selected_talkroom_route_mismatch")
+        try:
+            history = persist_talkroom_history(
+                raw_talkroom, project_id, projects_root, talkroom_id, observed_at,
+            )
+            return raw_talkroom, history
+        except CollectorUnhealthy as error:
+            if str(error) != "collector_unhealthy:talkroom_history_empty" or attempt:
+                raise
+    raise AssertionError("unreachable selected-talkroom retry state")
+
+
 def _persist_talkroom_history_locked(
     talkroom: dict[str, Any], ledger: Path, talkroom_id: str,
     observed_at: str, messages: list[Any],
@@ -3613,19 +3638,12 @@ def main() -> int:
 
         if mode == "selected-talkroom-only":
             talkroom_url = f"https://coconala.com/talkrooms/{talkroom_id}"
-            raw_talkroom = inspect_page_with_retry(
-                args.cdp_helper, talkroom_url, TALKROOM_FULL_EXPRESSION,
+            raw_talkroom, history = inspect_selected_talkroom_with_history_retry(
+                args.cdp_helper, talkroom_url,
                 screenshot(args.evidence_dir / f"talkroom-{safe_name(talkroom_id)}.png"),
-                hidden=False,
-                capture_buyer_attachments=True,
-                attachment_project_root=args.projects_root.expanduser().resolve() / project_id,
+                project_id, args.projects_root, talkroom_id, observed_at,
             )
             source_dom = raw_talkroom
-            if safe_coconala_url(raw_talkroom.get("url")) != talkroom_url:
-                raise CollectorUnhealthy("selected_talkroom_route_mismatch")
-            history = persist_talkroom_history(
-                raw_talkroom, project_id, args.projects_root, talkroom_id, observed_at,
-            )
             complete_talkroom = talkroom_with_persisted_history(
                 raw_talkroom, project_id, args.projects_root, talkroom_id,
             )

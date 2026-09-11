@@ -547,6 +547,37 @@ def test_hidden_pending_cancellation_still_fails_closed(tmp_path):
         )
 
 
+def test_selected_talkroom_retries_one_transient_empty_history(tmp_path, monkeypatch):
+    queue = load("coconala_queue_snapshot")
+    responses = [
+        {"url": "https://coconala.com/talkrooms/1", "history_complete": True, "messages": []},
+        {"url": "https://coconala.com/talkrooms/1", "history_complete": True,
+         "messages": [{"side": "buyer", "text": "ready"}]},
+    ]
+    inspections = []
+
+    def inspect(*_args, **_kwargs):
+        inspections.append(1)
+        return responses.pop(0)
+
+    def persist(talkroom, *_args):
+        if not talkroom["messages"]:
+            raise queue.CollectorUnhealthy("talkroom_history_empty")
+        return {"history_complete": True, "message_count": 1}
+
+    monkeypatch.setattr(queue, "inspect_page_with_retry", inspect)
+    monkeypatch.setattr(queue, "persist_talkroom_history", persist)
+
+    talkroom, history = queue.inspect_selected_talkroom_with_history_retry(
+        tmp_path / "cdp.py", "https://coconala.com/talkrooms/1", tmp_path / "room.png",
+        "1", tmp_path, "1", "now",
+    )
+
+    assert len(inspections) == 2
+    assert talkroom["messages"][0]["text"] == "ready"
+    assert history["message_count"] == 1
+
+
 def test_paid_reader_preserves_unicode_line_separator_inside_json_string(tmp_path):
     paid = load("paid_direct")
     root = tmp_path / "18214856"
