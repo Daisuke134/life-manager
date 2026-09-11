@@ -232,6 +232,20 @@ loginwindow, Aqua, browser or running marketplace owner was stopped or restarted
 recovery evidence, not Paid business acceptance. The active Paid acceptance remains the official
 effect/readback and following replay-zero, not more disk deletion.
 
+PR `#5027`, merged as main `0d9253a4`, closes the browser-connection observability boundary without
+restarting or logging into the browser: Playwright CDP attachment is bounded to 10 seconds with one
+fresh-runtime retry, every failed runtime is stopped, and the provider inventory terminal retains
+only an adapter-declared secret-free error code rather than arbitrary exception text. The related
+CrowdWorks/shared suite passes `367/367`, OSS self-contained verification passes, all exact-head CI
+checks pass, and fresh read-only review reports SHIP with no findings. Full immutable release
+`20260911T223906-0d9253a4` is installed only on `crowdworks-revenue-paid` with install receipt
+`0184c01300f4218831839d60`; shared `current` and sibling labels are unchanged. The release build
+used part of the recovered headroom and the immediate post-install readback shows 6.5 GiB free. The
+new installed SHA has not yet produced its natural terminal, so this is source/install acceptance,
+not proof that either CrowdWorks action completed. The next evidence must be the natural terminal:
+either it reaches the official To-do/Form action and readback, or it records the exact bounded
+provider error while leaving all external effects at zero.
+
 The active atom is **CrowdWorks Paid funded-work acceptance**. Coconala Reply continuous health is
 closed by PR `#5012`, target-only receipt `1d3c873655f62aa5e8957714` and natural failed-zero run
 `18d42f0434e77828-21263`. Lancers project
