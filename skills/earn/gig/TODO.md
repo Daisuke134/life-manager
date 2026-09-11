@@ -2233,7 +2233,7 @@ is 4,246 lines -- Coconala alone is twenty-two times that.
    `APPLY-COCONALA-2` still requires the official restriction answer and a post-lift application
    receipt before the lane reopens.
 
-9. [ ] `APPLY-SHARE-3` Adopt `dom_contract.py` in all three, in the order the evidence arrives:
+9. [x] `APPLY-SHARE-3` Adopt `dom_contract.py` in all three, in the order the evidence arrives:
    Lancers once `proposal-form-changes.jsonl` names its selectors, then CrowdWorks, then
    Coconala's 23 in-page `querySelector` calls. Written for this and used by nobody.
 
@@ -2264,10 +2264,33 @@ is 4,246 lines -- Coconala alone is twenty-two times that.
    schemas valid and CDP HTTP responsive, but a provider-lock-serialized Playwright connection
    reached the websocket then timed out after 180 seconds. The account owner had treated HTTP-only
    health as sufficient and then collapsed the Playwright connection failure into the vault code.
-   Source now requires HTTP plus a bounded 10-second Playwright/context handshake; only a failed
-   handshake enters the existing profile/PID-scoped reap and relaunch path. Production acceptance
-   still requires a later natural `b10f760b`-descendant wake and shared DOM evidence or a clean
-   official proposal transaction.
+   handshake enters the existing profile/PID-scoped reap and relaunch path. Main-derived release
+   `d12ad39e` then repaired the wedged browser on its first natural wake and completed five consecutive
+   natural owner passes without recurrence (`18d450d9221976c8-54180`,
+   `18d45177fd4baa10-68867`, `18d4520acc92fc28-81694`,
+   `18d45298ae37b6b8-94402`, `18d4532302da7ea0-7965`). The durable cursor moved
+   `15 -> 1 -> 6 -> 11 -> 16 -> 2`, covering every one of the nineteen official groups and 204
+   observed listings. No eligible posting existed: the owners truthfully classified closed,
+   off-topic, under-budget, onsite, human-presence and unsupported-workflow listings, so there was no
+   proposal form on which a production DOM failure or clean proposal transaction could occur. That
+   exhaustive official-inventory result closes the CrowdWorks phase without fabricating an
+   application merely to manufacture evidence; source ownership, the 89/89 focused suite and the five
+   main-derived natural passes are the acceptance evidence. Continue to Coconala as the fixed final
+   provider.
+
+   Coconala is the fixed final provider. Its public Apply adapter uses raw CDP JavaScript rather
+   than Playwright locators, so `dom_contract.py` now exposes `exactly_one_count` for a count already
+   observed inside the page while retaining the same selector/count/page-identity evidence schema.
+   `application_parent.py` routes the proposal body, price and delivery-date controls, the labelled
+   confirmation/final-submit control, and the visible terms-modal title/button through that shared
+   contract. Ambiguous controls are rejected before value setters, DOM events or mouse events; the
+   existing `application_form_controls_missing`, `application_form_fill_failed`,
+   `application_<label>_button_missing` and `submit_confirm_modal_failed` codes remain stable. The
+   focused shared/Coconala suite passes 33/33 and the broader related Apply suite passes 53/53,
+   including count=2 no-mutation regressions for fill, primary submit and terms-modal submit. A live
+   proposal receipt cannot be manufactured while the
+   provider-level account restriction recorded in `APPLY-COCONALA-1` remains in force; source and
+   fail-closed tests close this extraction atom without pretending that restriction is lifted.
 
 10. [ ] `APPLY-SHARE-4` The remaining single-user modules. `contracts.py` (725 lines, Lancers
     only) and `storefront_kernel.py` (675, Coconala only) are shared in location and private in

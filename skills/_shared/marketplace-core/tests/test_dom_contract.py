@@ -60,6 +60,22 @@ def test_exactly_one_match_passes_through(tmp_path):
     assert dom.failures(tmp_path) == []
 
 
+def test_exactly_one_count_supports_raw_cdp_observations(tmp_path):
+    observed = {"url": "https://coconala.com/offers/add/1", "title": "提案"}
+    dom.exactly_one_count(1, platform="coconala", evidence_dir=tmp_path,
+                          selector="textarea[name=content]", observed=observed)
+    assert dom.failures(tmp_path) == []
+
+    with pytest.raises(dom.DomContractError) as caught:
+        dom.exactly_one_count(0, platform="coconala", evidence_dir=tmp_path,
+                              selector="textarea[name=content]", observed=observed)
+    row = dom.failures(tmp_path)[0]
+    assert caught.value.found == 0
+    assert (row["platform"], row["selector"], row["why"], row["found"], row["observed"]) == (
+        "coconala", "textarea[name=content]", "count_not_one", 0, observed,
+    )
+
+
 def test_zero_matches_names_the_selector(tmp_path):
     with pytest.raises(dom.DomContractError) as caught:
         _one(tmp_path, count=0, selector="textarea#ProposalDescription")

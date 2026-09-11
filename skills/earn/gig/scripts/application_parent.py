@@ -17,6 +17,7 @@ import contextlib
 import datetime as dt
 import fcntl
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -35,6 +36,20 @@ import application_snapshot as snapshot_contract
 from application_planner import validate_decisions
 from listing_inventory import _cdp_connect
 from market_snapshot import MARKET_FIELDS, parse_market
+
+
+def _load_shared(name: str):
+    path = Path(__file__).resolve().parents[3] / "_shared/marketplace-core/scripts" / f"{name}.py"
+    spec = importlib.util.spec_from_file_location(f"coconala_apply_shared_{name}", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"{name}_unavailable")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+dom_contract = _load_shared("dom_contract")
 
 try:
     import websockets
@@ -763,6 +778,26 @@ class CdpParentEffects:
         finally:
             handle.close()
 
+    def _require_dom_one(
+        self, selector: str, found: object, observed: dict[str, object], stable_code: str
+    ) -> None:
+        """Bridge raw-CDP counts into the shared marketplace DOM contract."""
+        try:
+            dom_contract.exactly_one_count(
+                found,
+                platform="coconala",
+                evidence_dir=self.evidence_dir,
+                selector=selector,
+                observed=observed,
+            )
+        except dom_contract.DomContractError as cause:
+            error = ParentContractError(stable_code)
+            error.observed = observed
+            error.dom_contract = {
+                "selector": cause.selector, "why": cause.why, "found": cause.found,
+            }
+            raise error from None
+
     def recover_wedged_target(self) -> bool:
         """Replace a dead target between candidates instead of losing the rest of the wake.
 
@@ -1202,15 +1237,17 @@ class CdpParentEffects:
                 call_id += 1
             state, call_id = await self._eval_json(
                 ws,
-                """JSON.stringify({url:location.href,title:document.title,
-                  content:document.querySelector('textarea[name="data[Offer][content]"]')?.value||'',
-                  price:document.querySelector('input[name="data[Offer][price]"]')?.value||'',
-                  deliver_date:document.querySelector('input[name="data[Offer][expire_date]"]')?.value||'',
-                  has_content:!!document.querySelector('textarea[name="data[Offer][content]"]'),
-                  has_price:!!document.querySelector('input[name="data[Offer][price]"]'),
-                  has_date:!!document.querySelector('input[name="data[Offer][expire_date]"]'),
-                  price_constraints_text:(document.querySelector('input[name="data[Offer][price]"]')
-                    ?.closest('.bl_form-group')?.innerText||'')})""",
+                """JSON.stringify((()=>{const selectors={
+                  content:'textarea[name="data[Offer][content]"]',
+                  price:'input[name="data[Offer][price]"]',
+                  deliver_date:'input[name="data[Offer][expire_date]"]'};
+                  const nodes=Object.fromEntries(Object.entries(selectors).map(([key,selector])=>
+                    [key,[...document.querySelectorAll(selector)]]));
+                  return {url:location.href,title:document.title,
+                    content:nodes.content[0]?.value||'',price:nodes.price[0]?.value||'',
+                    deliver_date:nodes.deliver_date[0]?.value||'',
+                    dom_counts:Object.fromEntries(Object.entries(nodes).map(([key,value])=>[key,value.length])),
+                    price_constraints_text:(nodes.price[0]?.closest('.bl_form-group')?.innerText||'')};})())""",
                 call_id,
             )
             screenshot, _ = await self._screenshot(ws, call_id)
@@ -1223,14 +1260,22 @@ class CdpParentEffects:
             error.observed = {"url": str(state.get("url") or "")[:300],
                               "title": str(state.get("title") or "")[:150]}
             raise error
-        if not all(state.get(key) is True for key in ("has_content", "has_price", "has_date")):
-            error = ParentContractError("application_form_controls_missing")
-            error.observed = {
-                "url": str(state.get("url") or "")[:300],
-                "title": str(state.get("title") or "")[:150],
-                **{key: bool(state.get(key)) for key in ("has_content", "has_price", "has_date")},
-            }
-            raise error
+        selectors = {
+            "content": 'textarea[name="data[Offer][content]"]',
+            "price": 'input[name="data[Offer][price]"]',
+            "deliver_date": 'input[name="data[Offer][expire_date]"]',
+        }
+        counts = state.get("dom_counts") if isinstance(state.get("dom_counts"), dict) else {}
+        observed = {
+            "url": str(state.get("url") or "")[:300],
+            "title": str(state.get("title") or "")[:150],
+            "has_content": counts.get("content") == 1,
+            "has_price": counts.get("price") == 1,
+            "has_date": counts.get("deliver_date") == 1,
+        }
+        for key, selector in selectors.items():
+            self._require_dom_one(selector, counts.get(key), observed,
+                                  "application_form_controls_missing")
         form_path = self.evidence_dir / f"gig-{self.pass_id}-B2-{request_id}-form.png"
         _atomic_bytes(form_path, screenshot)
         return state
@@ -1303,17 +1348,30 @@ class CdpParentEffects:
           const set=(el,value)=>{{const p=Object.getPrototypeOf(el);
             const d=Object.getOwnPropertyDescriptor(p,'value'); d?.set?.call(el,value);
             el.dispatchEvent(new Event('input',{{bubbles:true}})); el.dispatchEvent(new Event('change',{{bubbles:true}}));}};
-          const content=document.querySelector('textarea[name="data[Offer][content]"]');
-          const price=document.querySelector('input[name="data[Offer][price]"]');
-          const date=document.querySelector('input[name="data[Offer][expire_date]"]');
-          if(!content||!price||!date) return {{ok:false}};
+          const contentNodes=[...document.querySelectorAll('textarea[name="data[Offer][content]"]')];
+          const priceNodes=[...document.querySelectorAll('input[name="data[Offer][price]"]')];
+          const dateNodes=[...document.querySelectorAll('input[name="data[Offer][expire_date]"]')];
+          const counts={{content:contentNodes.length,price:priceNodes.length,deliver_date:dateNodes.length}};
+          const content=contentNodes[0],price=priceNodes[0],date=dateNodes[0];
+          if(Object.values(counts).some(value=>value!==1))
+            return {{ok:false,url:location.href,title:document.title,dom_counts:counts}};
           set(content,{proposal_json}); set(price,{price_json}); set(date,{date_json});
-          return {{ok:true,url:location.href,proposal_text:content.value,price:price.value,deliver_date:date.value}};
+          return {{ok:true,url:location.href,title:document.title,dom_counts:counts,proposal_text:content.value,price:price.value,deliver_date:date.value}};
         }})())"""
         async with await _cdp_connect(self.ws_url) as ws:
             call_id = 1
             await self._call(ws, "Page.enable", {}, call_id)
             state, _ = await self._eval_json(ws, expression, call_id + 1)
+        counts = state.get("dom_counts") if isinstance(state.get("dom_counts"), dict) else {}
+        observed = {"url": str(state.get("url") or "")[:300],
+                    "title": str(state.get("title") or "")[:150]}
+        for key, selector in {
+            "content": 'textarea[name="data[Offer][content]"]',
+            "price": 'input[name="data[Offer][price]"]',
+            "deliver_date": 'input[name="data[Offer][expire_date]"]',
+        }.items():
+            self._require_dom_one(selector, counts.get(key), observed,
+                                  "application_form_fill_failed")
         if state.get("ok") is not True or not _is_expected_offer_form_url(request_id, state.get("url")):
             raise ParentContractError("application_form_fill_failed")
 
@@ -1344,17 +1402,22 @@ class CdpParentEffects:
         const r=e.getBoundingClientRect(),s=getComputedStyle(e);
         return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0
           &&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth;};
-      const page={url:location.href,body:(document.body?.innerText||'').slice(-4000)};
-      const title=[...document.querySelectorAll('*')].find(
+      const page={url:location.href,title:document.title,
+        body:(document.body?.innerText||'').slice(-4000)};
+      const titles=[...document.querySelectorAll('*')].filter(
         e=>visible(e)&&e.children.length===0&&(e.innerText||'').trim()==='投稿前にご確認ください');
-      if(!title) return {modal:false,...page};
+      if(!titles.length) return {modal:false,title_count:0,...page};
+      if(titles.length!==1) return {modal:true,title_count:titles.length,button_count:null,button:null,...page};
+      const title=titles[0];
       const modal=title.closest('.js_components-modal,[role="dialog"]');
-      const btn=modal?[...modal.querySelectorAll('button,a,[role="button"]')]
-        .find(e=>visible(e)&&(e.innerText||'').trim()==='応募する')||null:null;
-      if(!btn) return {modal:true,button:null,...page};
+      const buttons=modal?[...modal.querySelectorAll('button,a,[role="button"]')]
+        .filter(e=>visible(e)&&(e.innerText||'').trim()==='応募する'):[];
+      if(buttons.length!==1) return {modal:true,title_count:1,button_count:buttons.length,button:null,...page};
+      const btn=buttons[0];
       btn.scrollIntoView({block:'center'});
       const r=btn.getBoundingClientRect();
-      return {modal:true,button:{x:r.left+r.width/2,y:r.top+r.height/2},...page};
+      return {modal:true,title_count:1,button_count:1,
+        button:{x:r.left+r.width/2,y:r.top+r.height/2},...page};
     })())"""
 
     async def _confirm_terms_modal(self, ws: Any, request_id: str, call_id: int) -> int:
@@ -1374,6 +1437,16 @@ class CdpParentEffects:
             state, call_id = await self._eval_json(ws, self._TERMS_MODAL_JS, call_id)
             if state.get("modal") is True:
                 modal_seen = True
+                observed = {"url": str(state.get("url") or "")[:300],
+                            "title": str(state.get("title") or "")[:150]}
+                self._require_dom_one(
+                    "visible text=投稿前にご確認ください", state.get("title_count"), observed,
+                    "submit_confirm_modal_failed",
+                )
+                self._require_dom_one(
+                    'visible modal button text=応募する', state.get("button_count"), observed,
+                    "submit_confirm_modal_failed",
+                )
                 button = state.get("button")
                 if isinstance(button, dict):
                     try:
@@ -1430,23 +1503,36 @@ class CdpParentEffects:
                     const text=(e.innerText||e.value||e.getAttribute('aria-label')||'').trim();
                     return usable(e)&&text===""" + json.dumps(label) + """;
                   });
-                  if(!matches.length)return {url:location.href,button:null,controls:controls.map(describe)};
+                  if(matches.length!==1)return {url:location.href,title:document.title,
+                    match_count:matches.length,button:null,controls:controls.map(describe)};
                   const control=matches.find(e=>{
                     const r=e.getBoundingClientRect();
                     return r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth;
                   })||matches[0];
                   control.scrollIntoView({block:'center'}); const r=control.getBoundingClientRect();
                   if(!(r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.top<innerHeight&&r.left<innerWidth))
-                    return {url:location.href,button:null,controls:controls.map(describe)};
-                  return {url:location.href,button:{x:r.left+r.width/2,y:r.top+r.height/2,
+                    return {url:location.href,title:document.title,match_count:matches.length,
+                      button:null,controls:controls.map(describe)};
+                  return {url:location.href,title:document.title,match_count:matches.length,
+                    button:{x:r.left+r.width/2,y:r.top+r.height/2,
                     tag:control.tagName.toLowerCase(),label:(control.innerText||control.value||control.getAttribute('aria-label')||'').trim(),
                     role:control.getAttribute('role')||null,href:control.getAttribute('href')||null}};
                 })())""",
                     call_id,
                 )
-                if _is_expected_offer_form_url(request_id, state.get("url")) and isinstance(state.get("button"), dict):
+                if (_is_expected_offer_form_url(request_id, state.get("url"))
+                        and state.get("match_count") == 1
+                        and isinstance(state.get("button"), dict)):
                     break
                 await asyncio.sleep(0.25)
+            if _is_expected_offer_form_url(request_id, state.get("url")):
+                self._require_dom_one(
+                    f'button,a,[role="button"],input[type="submit"],input[type="button"] text={label}',
+                    state.get("match_count"),
+                    {"url": str(state.get("url") or "")[:300],
+                     "title": str(state.get("title") or "")[:150]},
+                    f"application_{label}_button_missing",
+                )
             if not _is_expected_offer_form_url(request_id, state.get("url")) or not isinstance(state.get("button"), dict):
                 screenshot, _ = await self._screenshot(ws, call_id)
                 prefix = self.evidence_dir / f"gig-{self.pass_id}-B2-{request_id}-{label}-control-missing"
