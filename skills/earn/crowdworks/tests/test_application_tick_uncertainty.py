@@ -355,6 +355,17 @@ def test_nested_field_failure_records_the_page_identity(tmp_path):
     assert row["observed"] == {"url": page.url, "title": None}
 
 
+def test_evidence_uses_managed_state_root_and_isolates_direct_imports(tmp_path, monkeypatch):
+    managed = tmp_path / "managed"
+    monkeypatch.setenv("LIFE_MANAGER_STATE_ROOT", str(managed))
+    assert load()._EVIDENCE_DIR == managed
+
+    monkeypatch.delenv("LIFE_MANAGER_STATE_ROOT")
+    direct = load()
+    assert direct._EVIDENCE_DIR != Path("~/.local/state/anicca/crowdworks").expanduser()
+    assert direct._EVIDENCE_DIR.is_dir()
+
+
 # 7. The list walk has one implementation and does not reject normal pagination.
 def test_list_walk_selectors_are_not_duplicated():
     source = PATH.read_text(encoding="utf-8")
