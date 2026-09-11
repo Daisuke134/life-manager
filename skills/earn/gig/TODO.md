@@ -4033,10 +4033,11 @@ The active implementation TODO is therefore Stage 3 items 9–14 applied to thes
    `取引完了` (observed 2026-09-11 20:04 JST). Natural replays after the original URL handoff produced
    no duplicate delivery effect. The older queue state still says `await_buyer_feedback`, but it is
    superseded by the hashed official-provider terminal receipt; do not republish, resend, or redeliver.
-4. [x] LBJ `18130722`: use only the latest explicit buyer approval and latest v98 project-manager
-   package. Codex may inspect v98 and repair the generic approval/reviewer code, but must not send
-   customer work. A seller acknowledgement must not erase buyer approval. The installed Paid
-   owner fresh-reviews v98, formally submits it, reads it back, closes, and proves replay-zero.
+4. [x] LBJ `18130722`: terminal closure with the ordering defect preserved. The latest v98
+   project-manager package was re-shared and read back, but the formal-delivery event occurred
+   before that re-share, so the intended order was not achieved. The provider later made the
+   transaction terminal, making repair impossible; closure means recording that defect and
+   preventing any duplicate customer work or formal-delivery effect, not claiming a clean success.
    Production release `f315f0b6a9e4b429910d5153c72e34d696ae83a5` generated a fresh v16
    decision with `mode=file`, `delivery_stage=formal`, latest seller identity
    `js-talkroomMessage-220162081`, and the preceding explicit buyer approval identity
