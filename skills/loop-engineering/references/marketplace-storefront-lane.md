@@ -35,7 +35,7 @@ success while earning nothing.
 
 | Need | Already exists |
 |---|---|
-| Platform-neutral decision core: KEEP/IMPROVE/RETIRE/REPLACE, mutation-contract validation and sealing, demand extraction and cluster scoring, replace planning, in-flight-draft detection, prepared-contract recovery, rejection ledger, guard identity | `skills/_shared/marketplace-core/scripts/storefront_kernel.py` — platform is a parameter; the file contains no `coconala` string |
+| Proven Coconala decision recipe: KEEP/IMPROVE/RETIRE/REPLACE, mutation-contract validation and sealing, demand extraction and cluster scoring, replace planning, in-flight-draft detection, prepared-contract recovery, rejection ledger, guard identity | `skills/earn/gig/scripts/storefront_kernel.py` — reuse the behavior when a second real consumer appears, then promote the single implementation to `_shared`; do not pretend one consumer is a shared runtime |
 | Catalogue load and per-platform projection, including the Lancers delivery-day enumeration | `skills/_shared/marketplace-core/scripts/listing_catalog.py` (`project_lancers`, `_lancers_delivery_days`) |
 | What to sell, at what price, per platform — 20 platform-independent listings with per-platform overrides | `skills/gig-work/profile/listings/catalog.json` |
 | Matching exactly one element, and recording what it saw instead of discarding it | `skills/_shared/marketplace-core/scripts/dom_contract.py` (`exactly_one`, `visible_one`) — see `marketplace-apply-lane.md`'s "refuse loudly" rule, which applies here unchanged |

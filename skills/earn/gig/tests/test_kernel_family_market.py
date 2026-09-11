@@ -1,7 +1,7 @@
 """`family_market` reduces a measured demand-evidence row to the public facts a proposal may
 see and cite -- never the query, rationale, or seller wording the same row also carries.
 
-Run: python3 -m pytest skills/_shared/marketplace-core/tests/test_kernel_family_market.py
+Run: python3 -m pytest skills/earn/gig/tests/test_kernel_family_market.py
 """
 from __future__ import annotations
 

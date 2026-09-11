@@ -1,6 +1,6 @@
-"""Pin the platform-neutral Storefront judgement kernel.
+"""Pin the Coconala Storefront judgement kernel.
 
-Run: python3 -m pytest skills/_shared/marketplace-core/tests/test_storefront_kernel.py
+Run: python3 -m pytest skills/earn/gig/tests/test_storefront_kernel.py
 """
 from __future__ import annotations
 
@@ -184,10 +184,9 @@ def test_recent_rejections_cap_at_three_and_three_strike_compares_guard_identity
     assert kernel.three_strike_same_guard(mixed) is None
 
 
-# --- 7. dependency direction: no reach-back into skills/earn/gig, no platform lock-in --------
+# --- 7. dependency direction: local kernel does not reach back into the DOM adapter -----------
 
-def test_kernel_has_no_reach_back_into_gig_and_no_coconala_string():
+def test_kernel_has_no_reach_back_into_storefront_adapter():
     source = MODULE_PATH.read_text(encoding="utf-8")
-    assert "skills/earn/gig" not in source
-    assert "skills.earn.gig" not in source
-    assert "coconala" not in source.lower()
+    assert "import storefront_direct" not in source
+    assert "from storefront_direct" not in source
