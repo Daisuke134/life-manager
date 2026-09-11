@@ -2259,6 +2259,16 @@ is 4,246 lines -- Coconala alone is twenty-two times that.
    natural CrowdWorks evidence after that timestamp or a clean proposal
    transaction, then continue to Coconala as the fixed final provider.
 
+   First installed wake `18d44eec93e81370-11187` on `aeb4ae040` failed before DOM evaluation with
+   `vault_restore_failed` and effect zero. Read-only diagnosis proved the vault JSON and 127 cookie
+   schemas valid and CDP HTTP responsive, but a provider-lock-serialized Playwright connection
+   reached the websocket then timed out after 180 seconds. The account owner had treated HTTP-only
+   health as sufficient and then collapsed the Playwright connection failure into the vault code.
+   Source now requires HTTP plus a bounded 10-second Playwright/context handshake; only a failed
+   handshake enters the existing profile/PID-scoped reap and relaunch path. Production acceptance
+   still requires a later natural `b10f760b`-descendant wake and shared DOM evidence or a clean
+   official proposal transaction.
+
 10. [ ] `APPLY-SHARE-4` The remaining single-user modules. `contracts.py` (725 lines, Lancers
     only) and `storefront_kernel.py` (675, Coconala only) are shared in location and private in
     fact. Either a second platform adopts them or they move back into the adapter that uses them;

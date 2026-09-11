@@ -335,6 +335,11 @@ def _cdp_alive()->bool:
         from urllib.request import urlopen
         with urlopen(f"{CDP_URL}/json/version",timeout=5) as response:return response.status==200
     except Exception:return False
+def _playwright_alive()->bool:
+    try:
+        browser=_browser(CDP_URL)
+        return bool(browser.is_connected()) and bool(browser.contexts)
+    except Exception:return False
 def _unlock()->None:
     for name in ("SingletonLock","SingletonCookie","SingletonSocket"):
         try:(Path(PROFILE_DIR)/name).unlink()
@@ -352,7 +357,7 @@ def _owner()->bool:
     # exit instantly. Both states looked "owned" here, so the loop stayed silently dark from 2026-08-11.
     if pid is not None:
         if not _owned_listener(pid,time.monotonic()+10):return False
-        if _cdp_alive():return True
+        if _cdp_alive() and _playwright_alive():return True
         _reap(pid)
     else:_unlock()
     binary=Path(BROWSER_BINARY)
@@ -364,17 +369,24 @@ def _owner()->bool:
     deadline=time.monotonic()+30
     while time.monotonic()<deadline:
         pid=_listener()
-        if pid is not None and _owned_listener(pid,deadline) and _cdp_alive():return True
+        if pid is not None and _owned_listener(pid,deadline) and _cdp_alive() and _playwright_alive():return True
         time.sleep(.1)
     return False
 def _browser(url:str)->Any:
     if url!=CDP_URL:raise _Error("browser_endpoint_invalid")
     global _RUNTIME,_BROWSER
     if _BROWSER is not None and _BROWSER.is_connected():return _BROWSER
+    runtime=None
     try:
         from playwright.sync_api import sync_playwright
-        _RUNTIME=sync_playwright().start();_BROWSER=_RUNTIME.chromium.connect_over_cdp(CDP_URL);return _BROWSER
-    except Exception:raise _Error("browser_connect_failed") from None
+        runtime=sync_playwright().start();browser=runtime.chromium.connect_over_cdp(CDP_URL,timeout=10_000)
+        if not browser.contexts:raise RuntimeError
+        _RUNTIME,_BROWSER=runtime,browser;return browser
+    except Exception:
+        if runtime is not None:
+            try:runtime.stop()
+            except Exception:pass
+        raise _Error("browser_connect_failed") from None
 def _restore()->Any:
     try:
         saved=json.loads((Path(SESSION_VAULT_DIR)/"auth-state.json").read_text(encoding="utf-8"));allowed={"name","value","domain","path","expires","httpOnly","secure","sameSite"};cookies=[{key:item[key] for key in allowed if key in item} for item in saved.get("cookies",[]) if isinstance(item,Mapping)]
