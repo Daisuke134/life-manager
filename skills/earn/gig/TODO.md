@@ -223,12 +223,14 @@ To-do control only when the owner is naturally free, then retain the exact miles
 fences.
 
 During that wake the host reached 317 MiB free and `tempfile` could not create a working directory.
-Cleanup removed only two unreferenced reproducible releases, Codex temporary/archive data and
-Codex/Claude session transcripts older than two days; active/rollback releases, current sessions,
-credentials, provider state, receipts and browser sessions were preserved. The cleanup recovered
-6.3 GiB at completion; the later readback shows 3.8 GiB free while the long Paid wake and release
-work are active, and the control-plane status command works. This is host recovery evidence, not
-Paid business acceptance.
+Cleanup removed only unreferenced reproducible releases, this owner's clean merged worktrees,
+closed Codex/Claude transcripts, and closed regenerable package/plugin/generated-image caches.
+It did not remove another owner's locked, dirty, unmerged or active worktree. Active/rollback
+releases, the current open session, credentials, provider state, receipts and browser sessions were
+preserved. The final readback shows 12 GiB free, Data volume capacity 94% and inode use 9%; no Mac,
+loginwindow, Aqua, browser or running marketplace owner was stopped or restarted. This is host
+recovery evidence, not Paid business acceptance. The active Paid acceptance remains the official
+effect/readback and following replay-zero, not more disk deletion.
 
 The active atom is **CrowdWorks Paid funded-work acceptance**. Coconala Reply continuous health is
 closed by PR `#5012`, target-only receipt `1d3c873655f62aa5e8957714` and natural failed-zero run
