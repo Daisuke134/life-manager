@@ -138,3 +138,12 @@ def test_every_refusal_is_appended_not_overwritten(tmp_path):
     assert [row["selector"] for row in dom.failures(tmp_path)] == [
         "<Locator selector='a'>", "<Locator selector='b'>", "<Locator selector='c'>"
     ]
+
+
+def test_an_adapter_can_preserve_its_existing_evidence_path(tmp_path):
+    path = tmp_path / "proposal-form-changes.jsonl"
+    with pytest.raises(dom.DomContractError):
+        dom.exactly_one(_Locator(0), platform="lancers", evidence_dir=tmp_path,
+                        evidence_path=path)
+    assert path.exists()
+    assert not (tmp_path / "dom-contract-failures.jsonl").exists()

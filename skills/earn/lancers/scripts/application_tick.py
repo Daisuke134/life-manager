@@ -97,6 +97,7 @@ def _record_form_change(locator: Any, why: str, found: Any = None) -> None:
         selector=str(locator),
         why=why,
         found=found,
+        evidence_path=FORM_EVIDENCE,
     )
 
 
@@ -119,6 +120,7 @@ def _one(locator: Any) -> Any:
     try:
         return dom_contract.exactly_one(
             locator, platform=PLATFORM, evidence_dir=FORM_EVIDENCE.parent,
+            evidence_path=FORM_EVIDENCE,
         )
     except dom_contract.DomContractError:
         raise RuntimeError("proposal_form_changed") from None
@@ -128,6 +130,7 @@ def _visible_one(locator: Any) -> Any:
     try:
         return dom_contract.visible_one(
             locator, platform=PLATFORM, evidence_dir=FORM_EVIDENCE.parent,
+            evidence_path=FORM_EVIDENCE,
         )
     except dom_contract.DomContractError:
         raise RuntimeError("proposal_form_changed") from None

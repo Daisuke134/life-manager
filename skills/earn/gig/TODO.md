@@ -2239,8 +2239,8 @@ is 4,246 lines -- Coconala alone is twenty-two times that.
 
    Lancers source adoption is implemented. Its `_one`, `_visible_one` and named form-step recorder
    now delegate to marketplace-core `dom_contract.py`; callers retain the stable
-   `proposal_form_changed` code while fresh evidence is appended in the shared
-   `dom-contract-failures.jsonl` schema with `platform=lancers`. The shared contract and focused
+   `proposal_form_changed` code while fresh evidence is appended at the existing
+   `proposal-form-changes.jsonl` path in the shared schema with `platform=lancers`. The shared contract and focused
    Lancers Apply regressions pass 61/61. Keep this atom open until a main-derived natural Lancers
    wake proves shared-format evidence or a clean proposal transaction, then continue in the fixed
    CrowdWorks -> Coconala order.

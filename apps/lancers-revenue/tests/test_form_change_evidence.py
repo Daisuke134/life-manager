@@ -53,7 +53,7 @@ def tick(tmp_path, monkeypatch):
 
 
 def _rows(tick):
-    path = tick.FORM_EVIDENCE.parent / "dom-contract-failures.jsonl"
+    path = tick.FORM_EVIDENCE
     if not path.exists():
         return []
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
