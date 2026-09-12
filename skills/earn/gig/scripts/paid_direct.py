@@ -4247,6 +4247,12 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
 def _normalize_builder_result(root: Path, pass_start: float = 0) -> None:
     intent_path, result_path = root / "delivery/paid-remote-intent.json", root / "delivery/paid-remote-result.json"
     intent, result = _load(intent_path), _load(result_path)
+    intent_message = intent.get("customer_message")
+    if not _text(result.get("customer_message")) and isinstance(intent_message, str):
+        message_sha256 = hashlib.sha256(intent_message.encode()).hexdigest()
+        if (intent.get("message_sha256") == message_sha256
+                and result.get("message_sha256") == message_sha256):
+            result["customer_message"] = intent_message
     outcome = result.get("business_outcome")
     remaining = outcome.get("remaining_work") if isinstance(outcome, dict) else None
     remaining_blocker = (remaining[0].strip() if isinstance(remaining, list) and remaining

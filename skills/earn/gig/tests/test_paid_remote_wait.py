@@ -1721,6 +1721,51 @@ def test_completed_remote_result_requires_its_own_customer_message(tmp_path):
     assert paid._reported_remote_cycle(args, item) is None
 
 
+def test_normalize_builder_result_restores_hash_bound_intent_message(tmp_path):
+    paid, root, _feedback, _args, _item = _reported_remote_completion_case(
+        tmp_path, result_message="Current remote completion.",
+    )
+    result_path = root / "delivery" / "paid-remote-result.json"
+    intent_path = root / "delivery" / "paid-remote-intent.json"
+    message = "Current remote completion."
+    message_sha256 = hashlib.sha256(message.encode()).hexdigest()
+    intent = json.loads(intent_path.read_text())
+    intent.update({"customer_message": message, "message_sha256": message_sha256})
+    write_json(intent_path, intent)
+    result = json.loads(result_path.read_text())
+    result.pop("customer_message")
+    result["message_sha256"] = message_sha256
+    write_json(result_path, result)
+
+    paid._normalize_builder_result(root)
+
+    normalized = json.loads(result_path.read_text())
+    assert normalized["customer_message"] == "Current remote completion."
+
+
+def test_normalize_builder_result_does_not_restore_unbound_intent_message(tmp_path):
+    paid, root, _feedback, _args, _item = _reported_remote_completion_case(
+        tmp_path, result_message="Current remote completion.",
+    )
+    result_path = root / "delivery" / "paid-remote-result.json"
+    intent_path = root / "delivery" / "paid-remote-intent.json"
+    message = "Current remote completion."
+    intent = json.loads(intent_path.read_text())
+    intent.update({
+        "customer_message": message,
+        "message_sha256": hashlib.sha256(message.encode()).hexdigest(),
+    })
+    write_json(intent_path, intent)
+    result = json.loads(result_path.read_text())
+    result.pop("customer_message")
+    result["message_sha256"] = "0" * 64
+    write_json(result_path, result)
+
+    paid._normalize_builder_result(root)
+
+    assert "customer_message" not in json.loads(result_path.read_text())
+
+
 def test_current_actionable_remote_work_is_not_hidden_by_prior_completion(tmp_path, monkeypatch):
     paid, _root, _feedback, args, item = _reported_remote_completion_case(
         tmp_path, result_message="Prior remote completion.",
