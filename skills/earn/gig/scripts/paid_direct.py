@@ -11,6 +11,7 @@ HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path: sys.path.insert(0, str(HERE))
 import delivery_project  # noqa: E402
 import delivery_queue  # noqa: E402
+import effect_checkpoint  # noqa: E402
 import paid_admission  # noqa: E402
 import paid_work_evidence  # noqa: E402
 import paid_remote_result  # noqa: E402
@@ -4639,6 +4640,30 @@ def _remote_owner_checkpoint(status: str, root: Path, feedback: str, digest: str
     raise Failure("remote_builder")
 
 
+def _raise_remote_builder_or_progress(progress: Path, before_size: int,
+                                      expected: dict[str, str], error: Exception) -> None:
+    """Keep newly checkpointed self-actionable work resumable after owner validation."""
+    current_checkpoint = False
+    if _regular_file(progress) and progress.stat().st_size > before_size:
+        with progress.open("rb") as handle:
+            handle.seek(before_size)
+            for raw in handle:
+                try:
+                    row = json.loads(raw)
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    continue
+                if (effect_checkpoint.valid_checkpoint(row)
+                        and all(row.get(key) == value for key, value in expected.items())):
+                    current_checkpoint = True
+                    break
+    stage = (
+        "remote_progress"
+        if current_checkpoint
+        else "remote_builder"
+    )
+    raise Failure(stage) from error
+
+
 def _remote_wait_is_fresh(root: Path, feedback: str, digest: str,
                           now: float | None = None) -> bool:
     # A model-authored wait can never prove that the loop has no next action.
@@ -4692,6 +4717,11 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
     progress = root / "delivery" / "paid-remote-progress.jsonl"
     try: _, semantic_contract_sha256 = _semantic_effect_contract(root)
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as error: raise Failure("context_compile") from error
+    progress_contract = {
+        "feedback_sha256": feedback,
+        "requirements_sha256": requirements_sha256,
+        "semantic_contract_sha256": semantic_contract_sha256,
+    }
     repair = base / "remote-repair"
     repair.mkdir(parents=True, exist_ok=True)
     pass_start = time.time()
@@ -4761,10 +4791,10 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
                     root, owner_command, "paid-remote-owner", "remote_builder", effect_owner=True,
                     timeout=PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS,
                 )
-            except Failure:
-                if _regular_file(progress) and progress.stat().st_size > progress_size:
-                    raise Failure("remote_progress")
-                raise
+            except Failure as error:
+                _raise_remote_builder_or_progress(
+                    progress, progress_size, progress_contract, error,
+                )
             _consultation_runner_result(
                 owner_evidence, task_label="paid-remote-owner", task_class=PAID_OWNER_TASK_CLASS,
                 model=PAID_DECISION_MODEL, started_ns=owner_started_ns,
@@ -4790,7 +4820,9 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
                     raise Failure("remote_progress")
                 paid_remote_result.validate_builder(root, feedback, digest, pass_start)
             except (OSError, ValueError, TypeError, json.JSONDecodeError) as error:
-                raise Failure("remote_builder") from error
+                _raise_remote_builder_or_progress(
+                    progress, progress_size, progress_contract, error,
+                )
             builder_required, validation_start = False, pass_start
 
         if verifier_evidence.is_symlink():

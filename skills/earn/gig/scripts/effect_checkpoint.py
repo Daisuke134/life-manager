@@ -12,6 +12,26 @@ REQUIRED = ("effect_key", "target", "payload_sha256", "official_receipt_url",
             "exact_readback", "quality_status", "qualification_sources", "semantic_contract_sha256")
 
 
+def valid_checkpoint(value: object) -> bool:
+    if not isinstance(value, dict) or any(key not in value for key in REQUIRED):
+        return False
+    text_keys = ("effect_key", "target", "payload_sha256", "official_receipt_url",
+                 "semantic_contract_sha256")
+    if any(not isinstance(value[key], str) or not value[key].strip() for key in text_keys):
+        return False
+    if any(len(value[key]) != 64 or any(char not in "0123456789abcdef" for char in value[key])
+           for key in ("payload_sha256", "semantic_contract_sha256")):
+        return False
+    sources = value["qualification_sources"]
+    return (
+        value["exact_readback"] is True
+        and isinstance(value["quality_status"], str)
+        and value["quality_status"] in {"qualified", "qualification", "invalid"}
+        and isinstance(sources, list)
+        and all(isinstance(source, str) and source.strip() for source in sources)
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project-root", required=True, type=Path)
@@ -22,11 +42,7 @@ def main() -> int:
     if root not in source.parents or source.is_symlink() or not source.is_file():
         raise SystemExit("effect JSON must be a regular project-owned file")
     value = json.loads(source.read_text(encoding="utf-8"))
-    if (not isinstance(value, dict) or any(key not in value for key in REQUIRED)
-            or value["exact_readback"] is not True
-            or value["quality_status"] not in {"qualified", "qualification", "invalid"}
-            or not isinstance(value["qualification_sources"], list)
-            or len(str(value["semantic_contract_sha256"])) != 64):
+    if not valid_checkpoint(value):
         raise SystemExit("invalid effect checkpoint")
     ledger = root / "delivery" / "paid-remote-progress.jsonl"
     ledger.parent.mkdir(parents=True, exist_ok=True)
