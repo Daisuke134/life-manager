@@ -2205,6 +2205,29 @@ def test_remote_repair_pending_cannot_be_downgraded_to_answer(tmp_path, monkeypa
     assert paid._remote_mode_required(root, item, feedback) is True
 
 
+def test_decision_prompt_preserves_fresh_remote_repair_mode(tmp_path):
+    paid = load("paid_direct")
+    identity = {"message_id": "m1", "content_sha256": "d" * 64, "side": "buyer"}
+    review = {
+        "state": "REPAIR_PENDING",
+        "mode": "remote",
+        "findings": [{
+            "requirement": "Per-cast controls remain editable.",
+            "repair": "Implement and verify the missing live controls.",
+        }],
+    }
+
+    prompt = paid._decision_prompt(
+        tmp_path / "context.json", "a" * 64, "b" * 64, "c" * 64,
+        identity, identity, pending_review=review,
+    ).decode()
+
+    assert "fresh independent review requires the current cycle to remain actionable" in prompt
+    assert "mode remote" in prompt
+    assert "Implement and verify the missing live controls." in prompt
+    assert "Changing it to answer" in prompt
+
+
 def test_consultation_owner_cannot_overwrite_remote_repair_pending(tmp_path):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)

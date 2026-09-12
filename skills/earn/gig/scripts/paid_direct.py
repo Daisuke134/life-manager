@@ -127,7 +127,7 @@ def _run_private_model_serialized(root: Path, command: list[str], label: str, st
             fcntl.flock(effect_descriptor, fcntl.LOCK_UN)
             os.close(effect_descriptor)
 PAID_DECISION_SCHEMA_VERSION = 4
-PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v20"
+PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v21"
 PAID_DECISION_MODEL = "gpt-5.6-terra"
 PAID_FILE_MODEL = "gpt-5.6-terra"
 PAID_OWNER_TASK_CLASS = "paid-owner-agent"
@@ -1493,7 +1493,8 @@ def _decision_prompt(context: Path, context_sha256: str, feedback: str,
                     requirements: str, identity: dict[str, str],
                     buyer_identity: dict[str, str],
                     operator_policy: dict[str, Any] | None = None,
-                    operator_policy_sha256: str = "") -> bytes:
+                    operator_policy_sha256: str = "",
+                    pending_review: dict[str, Any] | None = None) -> bytes:
     policy_instruction = ""
     if operator_policy:
         policy_instruction = (
@@ -1502,6 +1503,16 @@ def _decision_prompt(context: Path, context_sha256: str, feedback: str,
             f"{json.dumps(operator_policy['directives'], ensure_ascii=False)}. "
             "Treat it as current project authority. It may stop, narrow, transfer, or otherwise constrain seller work, "
             "but it cannot invent buyer approval, authorize formal delivery, or override marketplace safety. "
+        )
+    review_instruction = ""
+    if pending_review:
+        review_mode = _text(pending_review.get("mode"))
+        review_instruction = (
+            "A fresh independent review requires the current cycle to remain actionable in "
+            f"mode {review_mode}. Its bounded findings are "
+            f"{json.dumps(pending_review.get('findings') or [], ensure_ascii=False)}. "
+            f"Keep mode {review_mode} and make required_output and required_effect cover those repairs and fresh verification. "
+            "Changing it to answer, await_buyer, satisfied_noop, or another mode before the repair passes is forbidden. "
         )
     return (
         f"Return one strict JSON semantic decision for the compiled cumulative context {context}. "
@@ -1582,6 +1593,7 @@ def _decision_prompt(context: Path, context_sha256: str, feedback: str,
         "source_authority builder/buyer/account_owner, and archive_required. Never move an asset that is available and "
         "required for the current output into unresolved. unresolved is an array of strings. "
         + policy_instruction
+        + review_instruction
         + "Read the context and its read_these_first files. Do not use a browser or mutate anything."
     ).encode("utf-8")
 
@@ -1635,6 +1647,9 @@ def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, A
     item_snapshot = _file_snapshot(item_path)
     feedback = _text(_load(item_path).get("buyer_feedback_sha256"))
     requirements = paid_remote_result.requirements_digest(root, feedback)
+    pending_review_path = root / "context" / "paid-review-state.json"
+    pending_review_mode = _pending_review_mode(root, feedback)
+    pending_review = _load(pending_review_path) if pending_review_mode else None
     item = _load(item_path)
     talkroom_id = _text(item.get("talkroom_id"))
     identity = _latest_official_identity(root, talkroom_id)
@@ -1653,6 +1668,8 @@ def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, A
     context_snapshot = context.read_bytes()
     context_sha256 = hashlib.sha256(context_snapshot).hexdigest()
     context_inputs = _context_input_snapshot(root, context)
+    if pending_review is not None:
+        context_inputs[str(pending_review_path.resolve())] = _file_snapshot(pending_review_path)
     context_inputs_sha256 = _context_inputs_sha256(context_inputs)
     operator_policy_path, operator_policy, operator_policy_sha256 = _file_operator_policy(
         root, feedback, requirements)
@@ -1668,7 +1685,7 @@ def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, A
     prompt = base / "mode" / "decision.prompt.txt"
     prompt_bytes = _decision_prompt(
         context, context_sha256, feedback, requirements, identity, buyer_identity,
-        operator_policy, operator_policy_sha256)
+        operator_policy, operator_policy_sha256, pending_review)
     prompt_sha256 = hashlib.sha256(prompt_bytes).hexdigest()
     try:
         receipt = None if receipt_path.is_symlink() or not _regular_file(receipt_path) else _load(receipt_path)
@@ -1710,6 +1727,10 @@ def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, A
             raise Failure("paid_work_decision") from error
         runner_proof = _decision_runner_proof(evidence)
         value = _validate_paid_decision(value, feedback, requirements, identity, buyer_identity)
+        if pending_review_mode and (
+                value.get("decision") != "actionable"
+                or value.get("mode") != pending_review_mode):
+            raise ValueError("paid decision changed pending review mode")
         current_bound = {
             str(item_path): item_snapshot,
             str(schema): schema_snapshot,
@@ -1718,6 +1739,10 @@ def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, A
         }
         _revalidate_file_snapshots(current_bound)
         current_context_inputs = _context_input_snapshot(root, context)
+        if pending_review is not None:
+            current_context_inputs[str(pending_review_path.resolve())] = _file_snapshot(
+                pending_review_path,
+            )
         current_policy_path, _current_policy, current_policy_sha256 = _file_operator_policy(
             root, feedback, requirements)
         if current_policy_path is not None:
