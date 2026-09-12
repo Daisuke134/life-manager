@@ -2437,6 +2437,10 @@ async def collect_cdp_events(ws: Any, seconds: float = 2.0) -> list[dict[str, An
     return events
 
 
+def newest_first_messages(talkroom: dict[str, Any]) -> list[tuple[int, Any]]:
+    return list(reversed(list(enumerate(talkroom.get("messages") or []))))
+
+
 async def capture_click_downloads(
     ws: Any, request_id: int, talkroom: dict[str, Any], probe_reference: str | None = None,
     project_root: Path | None = None,
@@ -2463,7 +2467,10 @@ async def capture_click_downloads(
         request_id += 1
         await call(ws, request_id, "Network.enable", {})
         request_id += 1
-        for message_index, message in enumerate(talkroom.get("messages") or []):
+        # Attachment capture has a bounded 45-second envelope. Start with the
+        # newest buyer message so a long historical room cannot spend the whole
+        # budget downloading obsolete files before the current revision assets.
+        for message_index, message in newest_first_messages(talkroom):
             if not isinstance(message, dict) or message.get("side") != "buyer":
                 continue
             for attachment_index, attachment in enumerate(message.get("attachments") or []):

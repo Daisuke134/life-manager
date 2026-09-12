@@ -52,6 +52,15 @@ def test_accumulation_normalizes_legacy_text_only_digest() -> None:
     ).encode()).hexdigest()
 
 
+def test_attachment_capture_prioritizes_newest_buyer_message() -> None:
+    snapshot = load("coconala_queue_snapshot")
+    messages = [{"id": "old"}, {"id": "middle"}, {"id": "new"}]
+
+    ordered = snapshot.newest_first_messages({"messages": messages})
+
+    assert ordered == [(2, messages[2]), (1, messages[1]), (0, messages[0])]
+
+
 def test_talkroom_readback_retries_transient_tab_open_timeout(monkeypatch) -> None:
     snapshot = load("coconala_queue_snapshot")
     attempts = []
