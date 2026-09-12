@@ -127,7 +127,7 @@ def _run_private_model_serialized(root: Path, command: list[str], label: str, st
             fcntl.flock(effect_descriptor, fcntl.LOCK_UN)
             os.close(effect_descriptor)
 PAID_DECISION_SCHEMA_VERSION = 4
-PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v21"
+PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v22"
 PAID_DECISION_MODEL = "gpt-5.6-terra"
 PAID_FILE_MODEL = "gpt-5.6-terra"
 PAID_OWNER_TASK_CLASS = "paid-owner-agent"
@@ -1598,6 +1598,24 @@ def _decision_prompt(context: Path, context_sha256: str, feedback: str,
     ).encode("utf-8")
 
 
+def _bind_pending_review_contract(value: dict[str, Any], pending_review: dict[str, Any],
+                                  mode: str) -> dict[str, Any]:
+    """Make an active repair contract stable across equivalent model wording."""
+    findings = json.dumps(
+        pending_review.get("findings") or [], ensure_ascii=False,
+        sort_keys=True, separators=(",", ":"),
+    )
+    value["required_output"] = (
+        "Resolve every pending fresh-review finding and complete fresh independent "
+        f"verification: {findings}"
+    )
+    value["required_effect"] = (
+        "Apply and officially verify every pending fresh-review repair on the authorized "
+        f"{mode} target: {findings}"
+    )
+    return value
+
+
 def _cached_paid_decision(root: Path, receipt: Any, prompt: Path,
                           prompt_sha256: str, schema_sha256: str, context_sha256: str,
                           context_inputs_sha256: str, feedback: str, requirements: str,
@@ -1731,6 +1749,10 @@ def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, A
                 value.get("decision") != "actionable"
                 or value.get("mode") != pending_review_mode):
             raise ValueError("paid decision changed pending review mode")
+        if pending_review is not None:
+            # Findings are the immutable repair contract. Model paraphrases must not create a
+            # different semantic hash on every wake and restart already-passing verification.
+            value = _bind_pending_review_contract(value, pending_review, pending_review_mode)
         current_bound = {
             str(item_path): item_snapshot,
             str(schema): schema_snapshot,
@@ -1836,6 +1858,7 @@ def _project_identity_snapshot(root: Path, exclude: Path) -> dict[str, tuple[Any
     for path in sorted(root.rglob("*")):
         try:
             if exclude == path or exclude in path.parents: continue
+            if "__pycache__" in path.parts or path.suffix in {".pyc", ".pyo"}: continue
             info = path.lstat()
         except OSError as error: raise Failure("remote_verifier") from error
         snapshot[str(path.relative_to(root))] = (
