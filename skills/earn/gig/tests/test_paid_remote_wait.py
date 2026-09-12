@@ -2228,6 +2228,39 @@ def test_decision_prompt_preserves_fresh_remote_repair_mode(tmp_path):
     assert "Changing it to answer" in prompt
 
 
+def test_pending_review_contract_is_stable_across_model_paraphrases():
+    paid = load("paid_direct")
+    review = {
+        "mode": "remote",
+        "findings": [{"repair": "Implement and verify the missing live controls."}],
+    }
+    first = paid._bind_pending_review_contract({
+        "required_output": "First wording", "required_effect": "First effect",
+    }, review, "remote")
+    second = paid._bind_pending_review_contract({
+        "required_output": "Different wording", "required_effect": "Different effect",
+    }, review, "remote")
+
+    assert first["required_output"] == second["required_output"]
+    assert first["required_effect"] == second["required_effect"]
+    assert "Implement and verify the missing live controls." in first["required_effect"]
+
+
+def test_project_identity_snapshot_ignores_python_bytecode(tmp_path):
+    paid = load("paid_direct")
+    root = tmp_path / "project"
+    verifier = root / "evidence" / "agent-PAID_REMOTE_VERIFY"
+    verifier.mkdir(parents=True)
+    (root / "scripts" / "__pycache__").mkdir(parents=True)
+    (root / "scripts" / "__pycache__" / "adapter.cpython-314.pyc").write_bytes(b"cache")
+    (root / "scripts" / "adapter.py").write_text("pass\n")
+
+    snapshot = paid._project_identity_snapshot(root, verifier)
+
+    assert "scripts/adapter.py" in snapshot
+    assert not any("__pycache__" in path or path.endswith(".pyc") for path in snapshot)
+
+
 def test_consultation_owner_cannot_overwrite_remote_repair_pending(tmp_path):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)
