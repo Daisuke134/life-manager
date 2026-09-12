@@ -4450,6 +4450,15 @@ def _remote_wait_is_fresh(root: Path, feedback: str, digest: str,
 
 def _remote_wait_before_decision(root: Path, item: dict[str, Any],
                                  now: float | None = None) -> bool:
+    # A blocked remote result may outlive the decision prompt that routed the
+    # work.  Never let that transport-level cooldown suppress a fresh semantic
+    # decision after the router, compiled context, or operator policy changes.
+    decision = _load(root / "context" / "paid-work-decision.json")
+    if (decision.get("schema_version") != PAID_DECISION_SCHEMA_VERSION
+            or decision.get("prompt_version") != PAID_DECISION_PROMPT_VERSION
+            or decision.get("decision") != "actionable"
+            or decision.get("mode") != "remote"):
+        return False
     feedback = _text(item.get("buyer_feedback_sha256"))
     intent = _load(root / "delivery" / "paid-remote-intent.json")
     result_path = root / "delivery" / "paid-remote-result.json"
