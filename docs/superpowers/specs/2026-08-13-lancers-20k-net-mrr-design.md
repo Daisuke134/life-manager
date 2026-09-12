@@ -1899,7 +1899,7 @@ provider-neutral architectureと未知市場contractの正本は
 | 完了 | **production browser owner recovery**: manual PID任せをやめ、既存profileと`:9227`をsole reproducible ownerへ束ねる。attach timeout時は専用profileのLancers targetだけをcloseして一度retry | release `65a08a957…`、browser PID=launchd PID `29096`、login ready。Application / Storefront / Work Sync exit 0、Storefront/Work Sync second wake effect 0、self-heal E2E 12.59秒、state/ledger不変 | 完了 |
 | 完了 | **seller proof + public catalog convergence**: 公開portfolio `743964`とpackage `1338228`をApplication判断へ接続し、旧商品5件を受付休止から公式非表示へ収束 | release `add41af43…`、no-fit送信0、旧5件archived、public料金表1件、連続Storefront wake effect 0、Application/ledger/contracts不変 | 完了 |
 | 完了 | **Read-only common inventory**: account identity、login、opportunities、messages、applications、active work、listing、contract、finance/payoutを既存ownersから取得 | fresh source complete、Application/Work Sync/Storefrontが同じauthenticated profileを使用、read-only inventory effect 0 |
-| 完了 | **First-trust profile**: subtitle、自己紹介、職種、稼働状況、基本単価、本人確認、NDA、公開portfolio/package proofを公式readbackし、Coconalaの同一persona avatarを正式profile photo fieldへ一度だけ登録。電話確認はowner指示で対象外 | 公式completion 80→90、写真未登録check消滅、POST 302、公開avatarあり。残る10%は電話確認だけで収益blockerにしない。再実行は写真effect 0 |
+| 完了 | **First-trust profile**: subtitle、自己紹介、職種、稼働状況、基本単価、本人確認、NDA、公開portfolio/package proofを公式readbackし、Coconalaの同一persona avatarを正式profile photo fieldへ一度だけ登録。電話確認は後続でDaisが完了した | 公式completion 80→90、写真未登録check消滅、POST 302、公開avatarあり。電話確認はowner-confirmed complete。次の自然owner passで公式mark/completionを再観測し、それまでは100%を推定しない。再実行は写真effect 0 |
 | 3 | **First-review application canary**: review-bearing、bounded、objective acceptance、credible buyer、non-negative net、再利用可能proofを持つ一件をLunaが個別判断し、common Browser ACIとeffect kernelで送信する | exact project/proposal ID、strategy/profile/proof version、official readback、next replay submit 0 |
 | 4 | **Maximal positive-lifetime-EV acquisition**: 各fresh候補をLunaが個別判断し、別jobは最大並列、同じjobだけlease直列化する。Lancers native自動提案はcandidate-level Luna intent/readbackを証明するまでinventory-only | 全positive-EV候補にdecision、各proposal official ID、dynamic capacity、overbooking 0、duplicate 0、provider throttle時の縮退receipt |
 | 5 | **Negotiate / Contract completion**: buyer-last、Storefront相談、client-originated月額offer、仮払い済みactive contractをcommon Sales stageへ接続する。イベントがない時は正常no-op | message/offer/contract exact ID、ContractReceipt、次wake duplicate reply/承諾 0、存在しないbuyerへのeffect 0 |
@@ -2893,13 +2893,15 @@ buyer selection/reply/fundingであり、Work Syncを5分ごとに継続する�
 
 **USER OUTCOME:** 電話確認を収益blockerにせず、応募前に必要な公開profileを再現可能なLife Manager ownerで完成させる。
 
-**CURRENT TRUTH:** Lancers公式mypageは本人確認、NDA、subtitle、自己紹介、職種、稼働状況、基本単価を完了済みとして扱い、
-未完了checkはprofile photoと電話確認だけ、completion 80%を返した。本人確認はownerが完了済みと確認した。電話確認は不要という
-ownerの明示指示により、Application、Storefront、Negotiate、Paidの停止条件にしない。
+**CURRENT TRUTH:** Lancers公式mypageは本人確認、NDA、subtitle、自己紹介、職種、稼働状況、基本単価を完了済みとして扱った。
+その後DaisはLancers電話確認も完了したと明示した。これはowner-confirmed evidenceであり、次の自然owner passが公式電話確認markと
+completion表示を再観測するまでは公式100%を推定しない。電話確認は完了報告の前後どちらでもApplication、Storefront、Negotiate、Paidの
+停止条件ではない。
 
 **EFFECT:** Coconala own profile `2564121`で使用中の同一persona avatarをLancers公式`UserProfile[image]` fieldへ一度だけ登録した。
 公式POSTは302、公開profile avatarをreadbackし、mypageの「プロフィール写真を登録」は消え、completionは80%から90%へ進んだ。
-残る10%は「電話確認を認証」だけであるため、公式100%とは報告せず、**運用必須profile complete**とする。
+当時残った10%は「電話確認を認証」だけだった。Daisの完了報告後は**owner-confirmed phone verified**、公式mark再観測待ちとする。
+公式readbackが100%を返した時だけ**official profile 100%**へ更新する。
 
 **SYSTEM CONTRACT:** canonical avatarは`skills/gig-work/profile/avatar.jpg`に置く。Application ownerは各production wakeの最初に公式mypageの写真未登録checkを
 read-only確認し、未登録時だけ同assetを既存profile formへ渡す。写真登録済みならeffect 0。新skill、scheduler、DB、browser profileは作らない。
@@ -2910,7 +2912,8 @@ installし、同じSHAのlaunchd Storefront ownerをkickstartした。browser re
 profile_effect_count 0 / portfolio_effect_count 0 / status_effect_count 0`を返した。したがってprofile維持のproduction actorはloopであり、
 初回reload readiness raceは未修正のself-heal gapとして残す。写真、listing、portfolioのblind repeatは0である。
 
-**NEXT DIRECT ACTION:** 表の次atomであるFirst-review application canaryへ進む。電話確認、追加generic listing、profile frameworkは前倒ししない。
+**NEXT DIRECT ACTION:** 表の次atomであるFirst-review application canaryへ進む。同じ自然passで電話確認mark/completionをread-only再観測するが、
+追加generic listingやprofile frameworkを前倒ししない。
 
 ### 18.47 Apply coverage and dependency recovery
 
