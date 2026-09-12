@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Decision Record Consistency Auditor icon</title>
+  <desc id="desc">Two document cards connect to a central comparison mark.</desc>
+  <rect width="256" height="256" rx="48" fill="#102a43"/>
+  <rect x="35" y="53" width="86" height="130" rx="14" fill="#d9e2ec"/>
+  <rect x="135" y="73" width="86" height="130" rx="14" fill="#f0f4f8"/>
+  <path d="M55 82h46M55 104h39M55 126h46M155 102h46M155 124h39M155 146h46" stroke="#486581" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="128" cy="132" r="34" fill="#f6ad55" stroke="#102a43" stroke-width="10"/>
+  <path d="m113 132 10 10 20-22" fill="none" stroke="#102a43" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
