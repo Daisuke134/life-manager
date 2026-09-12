@@ -263,7 +263,11 @@ def blocked_project(tmp_path: Path) -> tuple[Path, str, str]:
             }],
         },
     })
-    write_json(root / "context/paid-work-decision.json", semantic_contract)
+    write_json(root / "context/paid-work-decision.json", {
+        "schema_version": 4,
+        "prompt_version": "paid-semantic-decision-v20",
+        **semantic_contract,
+    })
     return root, feedback, digest
 
 
@@ -1559,6 +1563,19 @@ def test_current_wait_is_reused_before_semantic_decision(tmp_path):
     assert paid._remote_wait_before_decision(
         root, {"buyer_feedback_sha256": feedback}, now=None,
     ) is True
+
+
+def test_stale_router_decision_cannot_reuse_remote_wait(tmp_path):
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    decision_path = root / "context/paid-work-decision.json"
+    decision = json.loads(decision_path.read_text(encoding="utf-8"))
+    decision["prompt_version"] = "paid-semantic-decision-v19"
+    write_json(decision_path, decision)
+
+    assert paid._remote_wait_before_decision(
+        root, {"buyer_feedback_sha256": feedback}, now=None,
+    ) is False
 
 
 def test_newer_exact_cycle_operator_policy_invalidates_remote_wait(tmp_path):
