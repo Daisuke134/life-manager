@@ -255,6 +255,12 @@ def blocked_project(tmp_path: Path) -> tuple[Path, str, str]:
             "required_effect_satisfied": False,
             "required_output_satisfied": False,
             "remaining_work": ["Wait for the provider reply."],
+            "wait_receipt": {
+                "kind": "external_dependency",
+                "responsible_party": "provider",
+                "required_event": "The provider replies to the acknowledged request.",
+                "receipt_refs": ["https://provider.example/status"],
+            },
             "official_receipts": [{
                 "provider": "provider.example",
                 "kind": "inbox_thread_state",
@@ -290,6 +296,35 @@ def test_completed_result_cannot_be_a_wait(tmp_path):
     write_json(result_path, result)
 
     with pytest.raises(ValueError, match="not an external wait"):
+        remote.validate_wait(root, feedback, digest, pass_start=0)
+
+
+def test_self_actionable_candidate_search_cannot_be_a_wait(tmp_path):
+    remote = load("paid_remote_result")
+    root, feedback, digest = blocked_project(tmp_path)
+    result_path = root / "delivery/paid-remote-result.json"
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    result["blocker"] = "The first public candidate lacks a complete ledger."
+    result["business_outcome"]["remaining_work"] = [
+        "Continue public discovery with the next candidate."
+    ]
+    result["business_outcome"].pop("wait_receipt")
+    write_json(result_path, result)
+
+    with pytest.raises(ValueError, match="not a proved external dependency"):
+        remote.validate_wait(root, feedback, digest, pass_start=0)
+
+
+@pytest.mark.parametrize("responsible_party", ["owner", "loop", ""])
+def test_self_owned_wait_party_is_rejected(tmp_path, responsible_party):
+    remote = load("paid_remote_result")
+    root, feedback, digest = blocked_project(tmp_path)
+    result_path = root / "delivery/paid-remote-result.json"
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    result["business_outcome"]["wait_receipt"]["responsible_party"] = responsible_party
+    write_json(result_path, result)
+
+    with pytest.raises(ValueError, match="not a proved external dependency"):
         remote.validate_wait(root, feedback, digest, pass_start=0)
 
 
@@ -883,6 +918,9 @@ def test_paid_direct_maps_verified_authentication_blocker_to_pending(tmp_path):
         "url": "https://provider.example/login",
         "readback": "The provider rendered no authenticated owner view or login form.",
     }]
+    result["business_outcome"]["wait_receipt"]["receipt_refs"] = [
+        "https://provider.example/login"
+    ]
     write_json(result_path, result)
 
     assert paid._remote_owner_checkpoint(
@@ -907,6 +945,9 @@ def test_paid_direct_maps_verified_identity_authentication_blocker_to_pending(
         "url": "https://provider.example/identity",
         "readback": "The official identity surface is not authenticated.",
     }]
+    result["business_outcome"]["wait_receipt"]["receipt_refs"] = [
+        "https://provider.example/identity"
+    ]
     write_json(result_path, result)
 
     assert paid._remote_owner_checkpoint(

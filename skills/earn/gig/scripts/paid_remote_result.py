@@ -244,6 +244,18 @@ def validate_wait(root, feedback, digest, pass_start=0):
         raise ValueError("not an external wait")
     if not isinstance(receipts, list) or not receipts:
         raise ValueError("remote wait receipt missing")
+    wait = outcome.get("wait_receipt")
+    if (not isinstance(wait, dict)
+            or wait.get("kind") != "external_dependency"
+            or wait.get("responsible_party") not in {"buyer", "provider", "third_party"}
+            or not isinstance(wait.get("required_event"), str)
+            or not wait["required_event"].strip()
+            or not isinstance(wait.get("receipt_refs"), list)
+            or not wait["receipt_refs"]
+            or any(not isinstance(ref, str) or not ref.strip()
+                   for ref in wait["receipt_refs"])
+            or len(set(wait["receipt_refs"])) != len(wait["receipt_refs"])):
+        raise ValueError("remote wait is not a proved external dependency")
     readback_present = False
     for receipt in receipts:
         url = receipt.get("url") or receipt.get("official_url") if isinstance(receipt, dict) else None
@@ -266,6 +278,23 @@ def validate_wait(root, feedback, digest, pass_start=0):
         )
     if not readback_present:
         raise ValueError("remote wait readback missing")
+    receipts_by_ref = {}
+    for receipt in receipts:
+        for ref in (receipt.get("effect_key"), receipt.get("url"), receipt.get("official_url")):
+            if isinstance(ref, str) and ref.strip():
+                receipts_by_ref[ref] = receipt
+    for ref in wait["receipt_refs"]:
+        receipt = receipts_by_ref.get(ref)
+        if receipt is None:
+            raise ValueError("external dependency receipt reference missing")
+        if not ((isinstance(receipt.get("readback"), str)
+                 and bool(receipt["readback"].strip()))
+                or (isinstance(receipt.get("result"), str)
+                    and bool(receipt["result"].strip()))
+                or (receipt.get("exact_readback") is True
+                    and isinstance(receipt.get("readback_source"), str)
+                    and bool(receipt["readback_source"].strip()))):
+            raise ValueError("external dependency receipt lacks readback")
     return result
 
 
