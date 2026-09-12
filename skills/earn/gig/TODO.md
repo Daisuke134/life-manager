@@ -8801,21 +8801,25 @@ queue is added. Each owner must also progress independent work concurrently insi
    the natural reconciler is still migrating loaded owners. Free space is about 7.3 GiB. Keep this
    atom open until that natural migration terminates, central GC removes only newly unpinned
    releases, Reply action `529` has one official buyer-visible effect and readback, and replay is
-   zero. Ryu room `18211957` remains excluded from all loop effects.
+   zero. Ryu room `18211957` is owned by Paid itself; it must remain discoverable while its
+   cumulative buyer requirement is fresh, and replay fencing—not a manual exclusion—must keep an
+   already verified customer effect at zero.
 
-   A read-only process audit then found the old Paid release had admitted Ryu room `18211957` to a
-   semantic decision worker because the canonical `MANUAL_ONLY_TALKROOM_IDS` contained only the
-   separate manual room `18211838`. No send was observed, but discovery itself violates the manual
-   ownership boundary. Add `18211957` to that existing discovery-time exclusion and require the next
-   public release to report no Paid worker, send, delivery or replay for that room. Do not edit its
-   project state or evidence; the separate manual Codex owns it.
+   The later authoritative Paid implementation removes the obsolete manual-owner boundary:
+   `MANUAL_ONLY_TALKROOM_IDS` is empty. Paid consumed Ryu's cumulative history, implemented and
+   independently verified the current management-interface repair, sent the exact buyer-visible
+   explanation and updated management/public URLs, and official readback observed that message.
+   Natural replay reports room `18211957` as `completed`, `send_performed=false`,
+   `deduplicated=true`, with formal delivery still off. Do not reintroduce a manual Codex owner or
+   room-specific exclusion. A newer buyer message must produce a new feedback identity and reopen
+   the same Paid project; an unchanged identity must retain zero duplicate effects.
 
    A registry audit found the four Coconala framework owners still pointed to one shared
    legacy OpenClaw state/log root, while their actual marketplace data lives below `~/gig`. This makes
    `lm-loop-run` receipts and cleanup scans cross-lane (the latest receipt even names
    `agent-economy-loop`) and explains why a lane cannot clean its own run boundary truthfully. Change
    only these four registry entries to unique `~/.local/state/life-manager/coconala/{apply,reply,paid,storefront}`
-   roots; leave existing `~/gig/projects`, delivery evidence and Ryu's manual state untouched. The
+   roots; leave existing `~/gig/projects` and delivery evidence untouched. The
    next release must read back four distinct roots and each cleanup receipt's own loop ID before this
    cleanup atom can close.
 
