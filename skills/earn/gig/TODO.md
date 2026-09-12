@@ -567,6 +567,18 @@ Current live Apply acceptance audit:
      `send_performed=false`, `deduplicated=true`, and formal delivery false. This closes the revision
      and replay-zero contract; the aggregate's separate `remote_builder` failure for talkroom
      `18211838` remains the next Paid repair and does not reopen Ryu.
+     The next natural Paid owner completed its bounded research process for `18211838` and produced
+     `horse-racing-tipster-audit-v74-researched.zip`. Its 54,705-row ledger independently recalculates
+     the screened source at 71.6% recovery and therefore correctly refuses to represent it as the
+     contracted 120% result. The owner nevertheless returned `BLOCKED_NON_DELEGABLE` and asked the
+     account owner to provide another candidate's immutable archive. That classification is invalid:
+     public web/repository discovery, archive retrieval, source verification and deterministic
+     batching are delegable Paid-owner work under the existing policy. No buyer effect occurred and
+     the room remains durable `pending`. Invalidate that terminal classification, retain v74 as
+     honest rejection evidence, and have the generic owner resume candidate discovery itself. It may
+     submit a new artifact hash only after fresh review proves the complete source-backed requirement;
+     it must not ask Dais or the buyer to do the research and must never claim an unverified recovery
+     percentage.
    - [x] `COCONALA-PAID-3B` Cover every current client in one aggregate. PASS = every observed room
      appears exactly once as completed, awaiting buyer, or durably retry-owned; `failed=0`; one slow
      client does not prevent another client from progressing. “Observed” does not require a message
