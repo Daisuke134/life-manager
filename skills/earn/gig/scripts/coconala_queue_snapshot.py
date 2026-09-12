@@ -1066,6 +1066,20 @@ def recover_captured_attachment(
     return stored_path, digest, size
 
 
+def persist_captured_attachment(
+    project_root: Path, filename: str, payload: bytes,
+) -> tuple[str, str, int]:
+    """Durably retain one successful browser download before capture continues."""
+    safe_name = safe_filename(filename)
+    digest = hashlib.sha256(payload).hexdigest()
+    source_path = project_root / "source" / "buyer-attachments" / (
+        f"{digest[:12]}-{safe_name}"
+    )
+    if not source_path.is_file() or sha256_file(source_path) != digest:
+        secure_write_bytes(source_path, payload)
+    return str(source_path), digest, len(payload)
+
+
 def buyer_request_identity(manifest: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """What the buyer sent, with our fetch quality taken back out.
 
@@ -2051,14 +2065,9 @@ def persist_latest_paid_buyer_reply(
                 except (ValueError, TypeError):
                     captured_bytes = b""
                 if captured_bytes and len(captured_bytes) <= 16 * 1024 * 1024:
-                    captured_sha256 = hashlib.sha256(captured_bytes).hexdigest()
-                    source_path = project_root / "source" / "buyer-attachments" / (
-                        f"{captured_sha256[:12]}-{filename}"
+                    captured_path, captured_sha256, captured_size = persist_captured_attachment(
+                        project_root, filename, captured_bytes,
                     )
-                    if not source_path.is_file() or sha256_file(source_path) != captured_sha256:
-                        secure_write_bytes(source_path, captured_bytes)
-                    captured_path = str(source_path)
-                    captured_size = len(captured_bytes)
             if captured_path is None:
                 # This pass did not fetch it; an earlier pass may already have.
                 # Asking the disk is what turns "we failed to download" back into
@@ -2642,7 +2651,15 @@ async def capture_click_downloads(
                     attachment["capture_error"] = "attachment_capture_limit"
                     continue
                 attachment["data_base64"] = base64.b64encode(payload).decode("ascii")
-                attachment["size_bytes"] = len(payload)
+                if project_root is not None:
+                    source_path, digest, size = persist_captured_attachment(
+                        project_root, attachment.get("filename"), payload,
+                    )
+                    attachment["source_path"] = source_path
+                    attachment["sha256"] = digest
+                    attachment["size_bytes"] = size
+                else:
+                    attachment["size_bytes"] = len(payload)
                 attachment["capture_error"] = None
                 downloaded.unlink(missing_ok=True)
     return request_id

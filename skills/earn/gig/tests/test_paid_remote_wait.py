@@ -61,6 +61,22 @@ def test_attachment_capture_prioritizes_newest_buyer_message() -> None:
     assert ordered == [(2, messages[2]), (1, messages[1]), (0, messages[0])]
 
 
+def test_successful_attachment_survives_later_capture_timeout(tmp_path: Path) -> None:
+    snapshot = load("coconala_queue_snapshot")
+    payload = b"current buyer revision image"
+
+    stored_path, digest, size = snapshot.persist_captured_attachment(
+        tmp_path, "IMG_6033.jpeg", payload,
+    )
+    # The outer capture can subsequently time out and discard its in-memory
+    # talkroom. A metadata-only retry must still recover the completed download.
+    recovered = snapshot.recover_captured_attachment(tmp_path, "IMG_6033.jpeg")
+
+    assert recovered == (stored_path, digest, size)
+    assert Path(stored_path).read_bytes() == payload
+    assert Path(stored_path).stat().st_mode & 0o777 == 0o600
+
+
 def test_talkroom_readback_retries_transient_tab_open_timeout(monkeypatch) -> None:
     snapshot = load("coconala_queue_snapshot")
     attempts = []
