@@ -2588,6 +2588,44 @@ def test_paid_owners_have_a_long_running_route():
         assert "PAID_OWNER_TASK_CLASS" in inspect.getsource(owner)
 
 
+def test_paid_owner_results_accept_the_paid_owner_task_class(tmp_path):
+    paid = load("paid_direct")
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    result = evidence / "attempt-01.result.json"
+    write_json(result, {"status": "ok", "reviewed_attachments": [], "issues": []})
+
+    def write_summary(label):
+        write_json(evidence / "summary.json", {
+            "status": "success",
+            "task_label": label,
+            "task_class": paid.PAID_OWNER_TASK_CLASS,
+            "escalated": True,
+            "selected_provider": "codex",
+            "selected_model": paid.PAID_DECISION_MODEL,
+            "result_path": str(result),
+        })
+
+    write_summary("paid-file-owner")
+    value, _proof = paid._file_runner_result(
+        evidence,
+        task_label="paid-file-owner",
+        started_ns=None,
+        task_class=paid.PAID_OWNER_TASK_CLASS,
+    )
+    assert value["status"] == "ok"
+
+    write_summary("paid-answer-owner")
+    value = paid._consultation_runner_result(
+        evidence,
+        task_label="paid-answer-owner",
+        task_class=paid.PAID_OWNER_TASK_CLASS,
+        model=paid.PAID_DECISION_MODEL,
+        started_ns=0,
+    )
+    assert value["status"] == "ok"
+
+
 def test_normalize_acceptance_repairs_archive_member_bookkeeping(tmp_path):
     paid = load("paid_direct")
     root = tmp_path / "project"

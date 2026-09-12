@@ -2287,10 +2287,11 @@ def _file_mode(root: Path, item: dict[str, Any]) -> bool:
 
 
 def _file_runner_result(evidence: Path, *, task_label: str,
-                        started_ns: int | None) -> tuple[dict[str, Any], dict[str, str]]:
+                        started_ns: int | None,
+                        task_class: str = "escalation-agent") -> tuple[dict[str, Any], dict[str, str]]:
     summary = _runner_summary(evidence)
     expected = {
-        "status": "success", "task_label": task_label, "task_class": "escalation-agent",
+        "status": "success", "task_label": task_label, "task_class": task_class,
         "escalated": True,
     }
     if (any(summary.get(key) != value for key, value in expected.items())
@@ -3341,6 +3342,7 @@ def _run_isolated_file_owner(args, root: Path, context: Path, prompt_text: str,
                     _write(summary_path, summary)
         owner, _proof = _file_runner_result(
             owner_evidence, task_label="paid-file-owner", started_ns=started,
+            task_class=PAID_OWNER_TASK_CLASS,
         )
         if owner.get("status") != "ok" or step_result_status.status_from_evidence(owner_evidence) != "ok":
             raise Failure("file_builder")
@@ -4332,7 +4334,8 @@ def _consultation_runner_result(evidence: Path, *, task_label: str, task_class: 
     summary = _runner_summary(evidence)
     expected = {"status": "success", "task_label": task_label, "task_class": task_class,
                 }
-    if task_class == "escalation-agent": expected["escalated"] = True
+    if task_class in {"escalation-agent", PAID_OWNER_TASK_CLASS}:
+        expected["escalated"] = True
     if (any(summary.get(key) != value for key, value in expected.items())
             or (summary.get("selected_provider"), summary.get("selected_model")) not in PAID_RUNNER_CANDIDATES):
         raise Failure("remote_verifier" if "verifier" in task_label else "remote_builder")
@@ -4395,7 +4398,7 @@ def _validate_consultation_authorization(root: Path, feedback: str) -> dict[str,
         raise ValueError("invalid consultation authorization")
     owner_dir = root / "evidence" / "agent-PAID_ANSWER_OWNER"
     owner = _consultation_runner_result(owner_dir, task_label="paid-answer-owner",
-                                        task_class="escalation-agent", model=PAID_DECISION_MODEL,
+                                        task_class=PAID_OWNER_TASK_CLASS, model=PAID_DECISION_MODEL,
                                         started_ns=0)
     owner_result_path = _consultation_result_path(owner_dir)
     owner_summary = _runner_summary(owner_dir)
