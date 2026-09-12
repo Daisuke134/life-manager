@@ -126,24 +126,20 @@ inventory check are not completion.
 
 ### Integration boundary with Life Manager cleanup
 
-Cleanup worktree `/private/tmp/lm-aeux06.UXUZao`, branch
-`feat/agent-economy-economic-receipts-20260911`, currently points to pushed commit `66464e37b` and
-contains three additional uncommitted Agent Economy source/test changes. Its branch owns Agent Economy economic
-receipts, the canonical 14-product README, Mobile App Loop wording, removal of external runtime
-dependencies, and Local/Cloud financial/Telegram/state convergence. Gig owns marketplace business
-logic and provider production acceptance.
+Cleanup and Gig now converge through one public `main`; no dirty cleanup worktree, copied commit, or
+second runtime is part of the target architecture. Cleanup owns repository-wide runtime portability,
+release/state/Telegram contracts and removal of external OpenClaw dependencies. Gig owns marketplace
+business judgment, provider adapters and official production acceptance. Every Gig branch starts from
+the latest merged main and therefore consumes the cleanup result through normal history.
 
-- The Cleanup branch and Gig PRs `#4995`/`#4996` have no exact changed-file overlap.
-- Cleanup changes `README.md`, `README.ja.md` and one shared marketplace notification regression test;
-  Gig changes CrowdWorks entrypoints, the generic browser lock, its clean-install regression and this
-  TODO. There is no current semantic conflict.
-- Do not merge from the Cleanup worktree while it is dirty or copy its commits into a Gig branch.
-  Cleanup first commits/pushes/reviews its remaining change and merges its accepted objective to main.
-- Gig then fetches that main, reruns marketplace-core notification, clean-install, registry/doctor and
-  four-lane focused suites, and proves that the 14-loop control plane still points each Gig owner at
-  its intended immutable release/state root.
-- Cleanup's `AE-UX-12` final acceptance consumes the resulting Gig main SHA. The convergence product
-  is one main history and one shared runtime contract, not one giant worktree or a manual file merge.
+- Shared lifecycle, browser/session ownership, effect fencing, receipts, Telegram and immutable-release
+  machinery are reused from main by every loop; Gig does not carry a private copy.
+- Marketplace auth vocabulary, selectors and provider mutations remain thin adapters. Cleanup does not
+  absorb or rewrite this business logic.
+- Changes to `config/loop-registry.json`, `runtime/loop`, shared Telegram/outbox/state code, `README*`, or
+  `skills/_shared/marketplace-core` require focused cross-domain regression before main integration.
+- The convergence product is one main history, one release mechanism and shared components usable by
+  Gig and non-Gig loops; it is not one giant loop process or one global effect owner.
 - If either side later edits `config/loop-registry.json`, `runtime/loop`, shared Telegram/outbox/state
   code, `README*`, or `skills/_shared/marketplace-core`, it records file, intent and acceptance before
   editing; provider selectors and business mutations remain Gig-owned.
@@ -207,7 +203,7 @@ acceptance receipt changes a cell.
 
 | Marketplace | Apply | Reply | Storefront | Paid |
 |---|---|---|---|---|
-| Coconala | **Restriction cause clarified; fresh application acceptance remains open.** Provider support attributes the restriction to an earlier system cancellation caused by client non-contact, not to application cadence. Dais reports the restriction is lifted, so the disproven throttling hypothesis no longer suppresses eligible applications. Natural run `18d3e48749cf7b18-47730` passes with 57 official rows, seven already applied, 50 closed, effect/readback/failed/pending 0 and Telegram `73423`; it proves execution health but finds no open new job and therefore does not prove restored submission. The source change returns this owner from 1,800 to 300 seconds; installed-cadence readback plus a fresh proposal receipt and following replay-zero still gate completion. | **Historical acceptance retained; current owner is failing.** The last saved aggregate observes 174, reads back 159, fails 4 and keeps 11 pending; the installed owner latest terminal is fail. Restriction removal alone does not prove Reply recovery. | **Current owner is failing.** The installed owner latest terminal is fail; historical publication does not prove current Storefront health or revenue. | **Reference acceptance retained; current owner is failing.** `COCONALA-PAID-1` through `3C` prove the five-room receipt chain, formal delivery off and Ryu replay-zero, but the installed owner latest terminal is fail. The support explanation ties the restriction to the earlier missed-client/system-cancellation outcome, making current Paid health a revenue and account-safety requirement. |
+| Coconala | **Restriction cause clarified; fresh application acceptance remains open.** Provider support attributes the restriction to an earlier system cancellation caused by client non-contact, not to application cadence. Dais reports the restriction is lifted, so the disproven throttling hypothesis no longer suppresses eligible applications. Natural run `18d3e48749cf7b18-47730` passes with 57 official rows, seven already applied, 50 closed, effect/readback/failed/pending 0 and Telegram `73423`; it proves execution health but finds no open new job and therefore does not prove restored submission. The source change returns this owner from 1,800 to 300 seconds; installed-cadence readback plus a fresh proposal receipt and following replay-zero still gate completion. | **Historical acceptance retained; current owner is failing.** The last saved aggregate observes 174, reads back 159, fails 4 and keeps 11 pending; the installed owner latest terminal is fail. Restriction removal alone does not prove Reply recovery. | **Current owner is failing.** The installed owner latest terminal is fail; historical publication does not prove current Storefront health or revenue. | **Current liabilities are actively running; aggregate acceptance remains open.** Ryu `18211957` has 168 accumulated requirements, working historic FTP/FTPS access promoted to the private credential SSOT, and v151 deployed with authenticated production, CRUD/restore, desktop/mobile and corrected survey readbacks. PRs `#5062` and `#5063` are on main: each wake re-evaluates blocked paid work, full history precedes credential questions, generic official-target evidence can hand off from owner to a mandatory fresh verifier, and verifier PASS remains required before send. Immutable release `20260912T195344-5de9df6a` exists but is not installed while the prior Paid wake still owns two live workers. No new Ryu message or formal delivery has been sent; completion requires target-only idle apply, fresh verifier PASS, exact talkroom send/readback, aggregate `failed=0`, then replay-zero. |
 | Lancers | **Historical application receipts retained; current owner is failing on a wedged browser.** Natural release `25e45d35` reconciled project `5599521` as proposal `27907931` and project `5599537` as proposal `27907996`, both at JPY 20,000, with Telegram `71494` and `71516` once. Current wakes repeatedly fail on next project `5599538` with `browser_unavailable`: Chromium PID `82502` and its supervisor remain alive, but official CDP `9227/json/version` times out and no listener is usable. The shared browser owner waited only for process exit and never rechecked service health. PR `#4844` puts the generic CDP watchdog in main `1b06dd0f3`; 52 focused tests and fresh review pass, and sealed release `20260910T124525-1b06dd0f` contains the matching read-only source. Production is still unaccepted because activating it requires a target-only Lancers browser-owner transition, which remains prohibited by the current no-browser-restart instruction; Mac, Aqua and loginwindow are not involved. After that boundary is explicitly lifted, PASS still requires a natural application receipt and following replay-zero. | **Runtime PASS, business action incomplete.** The prior aggregate replayed seven message threads at zero duplicate effect, but the live `pyrite` thread requests booking a 30-minute preliminary meeting through its scheduling URL. The seller replied that it would book, yet no scheduling-page submission, Google Calendar event readback or buyer-visible completion receipt is recorded. Reply completion must include the requested reversible browser/calendar action, not only text. | **Current runtime passes, revenue unproven.** Installed release `75fab5a9` has a natural PASS. Catalog/public-readback changes are in main, but state preservation remains only on unmerged `fix/lancers-state-wipe-and-readback-evidence-20260908`; no attributed order or payment exists. | **Current runtime passes; no contract or revenue proof.** Main release `d4022758` removes the accidental Apply proposal-pipeline dependency from Paid while retaining the shared Paid kernel. Its natural terminal at `2026-09-09T15:21:31Z` is PASS with official aggregate observed/actionable/effect/readback/failed/pending all `0`; authenticated contract inventory and finance readback are complete, with zero contract candidates, zero payment history and JPY 0. A real funded contract is still required for delivery, acceptance, payment and replay-zero proof. |
 | CrowdWorks | **Historical fixed-price/hourly effects are real; current continuous acceptance is open.** Natural release `eee05950` retained fixed-price proposal `305126036` and verified hourly proposals `305130945`, `305132604` and `305134017`. Later release `869476b4` verified proposals `305351407` and `305352578`, but also ended intermittent `account_ensure_failed`. Read-only status proves `authenticated=true`; Apply, Reply and Paid instead overlap on the same CDP `:9228`, with observed EPIPE/timeouts. PR `#4995`, merged as main SHA `e75174ee6`, connects all three entrypoints to one crash-safe provider browser lock; lock behavior, clean-install regression and all CrowdWorks tests pass. The installed label still points to sparse release `20260911T082353-e75174ee`, which omits `skills/gig-work/profile`; its natural wakes fail before provider mutation with `commercial_profile_invalid` and effect zero. Dependency-complete release `20260911T082900-e75174ee` exists and contains that profile, but is not installed on Apply. Completion requires a target-only apply of the complete release, a natural PASS/effect with official receipt, and following replay-zero. Fixed-price/one-off work remains eligible; hourly support extends rather than replaces it. | **Working, including contract transition.** Installed/event release `10cc2e01` ended consecutive natural PASS terminals at `2026-09-10T07:23:19Z` and `07:24:53Z`, both with observed/readback 23, failed/pending/effect 0. Exact message redirects verify Effect contract `63570481` and JPY 110 contract `63568785`; Telegram receipts `73406` and `73407` remain delivered once. Shared Reply owns intent/readback/replay-zero; only terms and provider mutation remain in the thin adapter. | **Not implemented.** The storefront owner remains disabled, so there is no listing, inquiry, order or revenue receipt chain. | **Runtime PASS but business lane incomplete.** A fresh natural terminal at `2026-09-10T07:25:47Z` still reports observed 0 and durable pending `official_contract_detail_required`. Paid does not yet ingest the two official contracts. It must normalize `63570481` as work-startable and `63568785` as escrow-waiting, then own delivery/payment without working before escrow. |
 | Mercor | **Submitting, but acceptance-fit policy remains incomplete.** Installed/event release `464216b4` proved ranking, official submission/readback, Telegram-once and replay-zero. The newest verified submission is `Expert Senior SWE` at `2026-09-10T07:51:33+09:00` (not 10:49), listing `list_AAABl9JyG7KVgJVmjv9Dioxa`, with official `2 of 2 steps done`/`100%`/submitted readback and Telegram `72299`. Its AI-agent/Agentforce/Databricks evidence overlaps the verified resume, but its US/Europe location and 10+ years at top US technology companies are strong contradictions. The shared `apply_policy.py` was used; its remaining defect is that weak fit is only ranked later and strong contradictory requirements do not sufficiently lower expected acceptance value. Raw application count is therefore working, but money-maximizing fit is not complete. | **Working.** Installed release `20198997` ended consecutive natural terminals at `2026-09-08T19:49:13Z` and `19:58:31Z` with `observed=78`, `actionable=1`, `effect=0`, `readback=77`, `failed=0`, `pending=1`. Official auth is authenticated; the one actionable human handoff read back existing Telegram receipt `70005` with `attempted=0`, and the outbox remains exactly three delivered rows with attempt count one. | **Not applicable today.** No seller storefront workflow is implemented or evidenced for Mercor. | **Official empty-inventory monitoring, not live-accepted.** Installed release `ec59f8f0` reuses the fresh shared Reply snapshot and its natural terminal passed with `status=ok`, `observed=0`, `failed=0`, `pending=0`; official Contracts are currently empty. No real work item, submission or payout receipt exists. |
@@ -8376,7 +8372,7 @@ This is the authoritative current cursor and supersedes historical incident/reco
 The cleanup owner is handled by another session; its historical checklist remains evidence but is
 not part of this owner's execution queue. Do not advance a disk-cleanup item from this cursor.
 
-**Active atom: `PAR-1`.** Keep the following order unchanged:
+**Active atom: `PAR-4`.** Keep the following order unchanged:
 
 1. [x] `PAR-1` — distinct authenticated BrowserContexts and lease identities for Apply, Reply,
    Storefront and Paid; no sibling-caused `browser_lease_busy`.
@@ -8603,15 +8599,20 @@ queue is added. Each owner must also progress independent work concurrently insi
    - `18128025` (`na_l5`): the latest buyer request is transaction cancellation, not another BUYMA
      artifact. Add one code-owned Coconala cancellation-request adapter with exact-room confirmation
      and replay-zero; do not route cancellation through `remote_resume` or fabricate delivery.
-   - `18211957` (`Ryu0820119`): the distinct buyer revision `js-talkroomMessage-220762342` requested
-     transportation-fee changes using `IMG_5999.png` and `IMG_6001.png`. Public site verification
-     completed, and Paid sent the verification URL with official talkroom readback (`effect=1`,
-     `readback=1`). The fixes select attachments from the current buyer message instead of all 34
-     historical attachments and normalize verifier-owned semantic IDs only after every substantive
-     state, identity, freshness and outcome check passes. Remaining: remove the parent
-     all-preparers-before-any-writer barrier so one slow order cannot delay a prepared reply, and
-     retry `talkroom_history_empty` as a transient hydrated-page readback. Formal delivery stays off
-     unless a new explicit authority condition is satisfied.
+   - `18211957` (`Ryu0820119`): the current buyer message asks why the requested connection details
+     cannot be found in talk history. The 264-row accumulated history does contain the credential
+     record; its FTP and explicit-FTPS authentication work, while certificate hostname verification
+     alone fails. Paid promoted matching records to the private credential SSOT and must never ask for
+     them again. The current contract compiles 168 requirements. v151 is deployed to the authorized
+     production site with authenticated schema/CRUD/restore, HTTPS, desktop/mobile and corrected survey
+     readbacks. The owner then exposed a shared orchestration defect by describing mandatory fresh review
+     as remaining buyer work and omitting generic before/after evidence. Main PRs `#5062` and `#5063`
+     repair history/credential recovery, retry suppression, generic official-target evidence and the
+     owner-to-verifier handoff without weakening the send gate. Release
+     `20260912T195344-5de9df6a` is built but intentionally not installed over the currently live older
+     Paid workers. Remaining: target-only idle apply, let Paid itself run a fresh independent verifier,
+     repair any structured delta, then send exactly one concise review message with exact-room readback;
+     formal delivery stays off until a new explicit authority condition is satisfied.
    - `18214856` (`usa`): remains awaiting buyer after the qualification question. Before any later
      account question or article work, compile the private credential SSOT, installed publication
      skills and existing account receipts; an existing seller-owned account must be used rather
