@@ -1204,6 +1204,8 @@ def test_remote_owner_prompt_has_satisfiable_pre_verifier_outcome_contract(tmp_p
     assert "verification_pending=true, both satisfied fields=true" in prompt
     assert "readback_source, and exact_readback=true" in prompt
     assert "both satisfied fields=false" not in prompt
+    assert "On every owner invocation, run the official adapter now" in prompt
+    assert "never reuse a prior-cycle owner file or verifier-owned evidence" in prompt
 
 
 def test_semantic_router_keeps_public_research_report_in_file_mode(tmp_path):
