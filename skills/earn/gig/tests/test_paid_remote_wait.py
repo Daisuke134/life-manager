@@ -1191,6 +1191,21 @@ def test_remote_owner_prompt_searches_complete_repo_and_valid_shared_tools(tmp_p
     assert str(paid.REPO_ROOT / "skills/browser/with-browser.sh") in prompt
 
 
+def test_remote_owner_prompt_has_satisfiable_pre_verifier_outcome_contract(tmp_path):
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    requirements_sha = paid.paid_remote_result.requirements_digest(root, feedback)
+
+    prompt = paid._repair_prompt(
+        root, tmp_path / "item.json", feedback, requirements_sha,
+        False, tmp_path / "cdp.py",
+    )
+
+    assert "verification_pending=true, both satisfied fields=true" in prompt
+    assert "readback_source, and exact_readback=true" in prompt
+    assert "both satisfied fields=false" not in prompt
+
+
 def test_semantic_router_keeps_public_research_report_in_file_mode(tmp_path):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)
