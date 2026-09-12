@@ -697,6 +697,16 @@ def test_selected_talkroom_retries_one_transient_empty_history(tmp_path, monkeyp
     assert history["message_count"] == 1
 
 
+def test_full_talkroom_capture_expands_past_messages_before_claiming_complete():
+    queue = load("coconala_queue_snapshot")
+
+    assert "過去のメッセージを見る" in queue.TALKROOM_FULL_EXPRESSION
+    assert "historyLoadControl" in queue.TALKROOM_FULL_EXPRESSION
+    assert "if(load){if(!load.disabled)load.click();stable=0;await wait(500);continue}" in queue.TALKROOM_FULL_EXPRESSION
+    assert "historyLoadPresent" in queue.TALKROOM_FULL_EXPRESSION
+    assert "history_complete:stable>=5&&!historyLoadPresent" in queue.TALKROOM_FULL_EXPRESSION
+
+
 def test_paid_reader_preserves_unicode_line_separator_inside_json_string(tmp_path):
     paid = load("paid_direct")
     root = tmp_path / "18214856"
@@ -1802,6 +1812,134 @@ def test_normalizer_restores_feedback_alias_and_canonical_digest(tmp_path):
     assert result["after_state_digest"] == result["observed_digest"] == digest
     assert result["status"] == "ok"
     assert result["verified_after"] is True
+
+
+def test_normalizer_accepts_plural_official_readback_sources(tmp_path):
+    paid = load("paid_direct")
+    root, _feedback, _digest = blocked_project(tmp_path)
+    intent = json.loads((root / "delivery/paid-remote-intent.json").read_text())
+    result_path = root / "delivery/paid-remote-result.json"
+    result = json.loads(result_path.read_text())
+    result["status"] = "ok"
+    result["business_outcome"] = {
+        "required_effect_satisfied": False,
+        "required_output_satisfied": False,
+        "remaining_work": [],
+        "verification_pending": True,
+        "official_receipts": [{"official_url": intent["target"], "exact_readback": True}],
+    }
+    write_json(result_path, result)
+
+    evidence = {
+        "authenticated": True,
+        "target": intent["target"],
+        "requirements_sha256": intent["requirements_sha256"],
+        "message_sha256": intent.get("message_sha256"),
+        "observed_state": intent["desired_state"],
+    }
+    stale = root / "evidence/agent-PAID_REMOTE_OWNER/z-stale.json"
+    write_json(stale, {
+        **evidence,
+        "official_readback": {
+            "exact_readback": True,
+            "official_url": intent["target"],
+            "readback_source": "delivery/stale-readback.json",
+        },
+    })
+    fresh = root / "evidence/agent-PAID_REMOTE_OWNER/a-fresh.json"
+    write_json(fresh, {
+        **evidence,
+        "official_readback": {
+            "exact_readback": True,
+            "official_url": intent["target"],
+            "readback_sources": ["delivery/live-a.json", "delivery/live-b.json"],
+        },
+    })
+    os.utime(stale, (1, 1))
+    os.utime(fresh, (2, 2))
+
+    paid._normalize_builder_result(root)
+
+    normalized = json.loads(result_path.read_text())
+    assert normalized["after_evidence"] == str(fresh.relative_to(root))
+    assert normalized["verified_after"] is True
+
+
+def test_normalizer_does_not_fallback_when_newest_target_readback_is_malformed(tmp_path):
+    paid = load("paid_direct")
+    root, _feedback, _digest = blocked_project(tmp_path)
+    intent = json.loads((root / "delivery/paid-remote-intent.json").read_text())
+    result_path = root / "delivery/paid-remote-result.json"
+    result = json.loads(result_path.read_text())
+    result["status"] = "ok"
+    write_json(result_path, result)
+    evidence = {
+        "authenticated": True,
+        "target": intent["target"],
+        "requirements_sha256": intent["requirements_sha256"],
+        "message_sha256": intent.get("message_sha256"),
+        "observed_state": intent["desired_state"],
+    }
+    old = root / "evidence/agent-PAID_REMOTE_OWNER/z-old.json"
+    write_json(old, {**evidence, "official_readback": {
+        "exact_readback": True,
+        "official_url": intent["target"],
+        "readback_source": "delivery/old.json",
+    }})
+    current = root / "evidence/agent-PAID_REMOTE_OWNER/a-current.json"
+    write_json(current, {**evidence, "official_readback": {
+        "exact_readback": True,
+        "official_url": intent["target"],
+        "readback_sources": [],
+    }})
+    os.utime(old, (1, 1))
+    os.utime(current, (2, 2))
+
+    paid._normalize_builder_result(root)
+
+    normalized = json.loads(result_path.read_text())
+    assert "after_evidence" not in normalized
+    assert normalized.get("verified_after") is not True
+
+
+@pytest.mark.parametrize("current_change", [
+    {"authenticated": False},
+    {"observed_state": {"provider_state": "authentication_lost"}},
+])
+def test_normalizer_does_not_revive_old_success_after_current_state_failure(
+    tmp_path, current_change,
+):
+    paid = load("paid_direct")
+    root, _feedback, _digest = blocked_project(tmp_path)
+    intent = json.loads((root / "delivery/paid-remote-intent.json").read_text())
+    result_path = root / "delivery/paid-remote-result.json"
+    result = json.loads(result_path.read_text())
+    result["status"] = "ok"
+    write_json(result_path, result)
+    evidence = {
+        "authenticated": True,
+        "target": intent["target"],
+        "requirements_sha256": intent["requirements_sha256"],
+        "message_sha256": intent.get("message_sha256"),
+        "observed_state": intent["desired_state"],
+        "official_readback": {
+            "exact_readback": True,
+            "official_url": intent["target"],
+            "readback_source": "delivery/readback.json",
+        },
+    }
+    old = root / "evidence/agent-PAID_REMOTE_OWNER/z-old.json"
+    write_json(old, evidence)
+    current = root / "evidence/agent-PAID_REMOTE_OWNER/a-current.json"
+    write_json(current, {**evidence, **current_change})
+    os.utime(old, (1, 1))
+    os.utime(current, (2, 2))
+
+    paid._normalize_builder_result(root)
+
+    normalized = json.loads(result_path.read_text())
+    assert "after_evidence" not in normalized
+    assert normalized.get("verified_after") is not True
 
 
 def test_paid_project_executor_runs_different_owners_in_parallel():

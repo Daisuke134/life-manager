@@ -4122,7 +4122,7 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
             f"{ownership} {correction}{verifier_contract} Return only the runner schema result.")
 
 
-def _normalize_builder_result(root: Path) -> None:
+def _normalize_builder_result(root: Path, pass_start: float = 0) -> None:
     intent_path, result_path = root / "delivery/paid-remote-intent.json", root / "delivery/paid-remote-result.json"
     intent, result = _load(intent_path), _load(result_path)
     outcome = result.get("business_outcome")
@@ -4144,7 +4144,14 @@ def _normalize_builder_result(root: Path) -> None:
     raw_after_value = _text(result.get("after_evidence"))
     if not raw_after_value:
         owner_evidence = root / "evidence" / "agent-PAID_REMOTE_OWNER"
-        for candidate in sorted(owner_evidence.rglob("*.json"), reverse=True):
+        candidates = sorted(
+            owner_evidence.rglob("*.json"),
+            key=lambda candidate: candidate.stat().st_mtime_ns,
+            reverse=True,
+        )
+        for candidate in candidates:
+            if candidate.stat().st_mtime < pass_start:
+                continue
             try:
                 evidence = _load(candidate)
             except (OSError, ValueError, TypeError, json.JSONDecodeError):
@@ -4158,16 +4165,23 @@ def _normalize_builder_result(root: Path) -> None:
                 and official.get("send_performed") is False
                 and official.get("deduplicated") is True
                 and official.get("exact_customer_message_readback") is True)
+            readback_sources = official.get("readback_sources") if isinstance(official, dict) else None
+            has_readback_source = (isinstance(official, dict)
+                and (bool(_text(official.get("readback_source")))
+                or (isinstance(readback_sources, list) and bool(readback_sources)
+                    and all(bool(_text(source)) for source in readback_sources))))
             official_target_readback = (isinstance(official, dict)
                 and official.get("exact_readback") is True
                 and bool(_text(official.get("official_url")))
-                and bool(_text(official.get("readback_source"))))
-            if (evidence.get("authenticated") is True
-                    and evidence.get("target") == intent.get("target")
+                and has_readback_source)
+            matches_cycle = (evidence.get("target") == intent.get("target")
                     and evidence.get("requirements_sha256") == intent.get("requirements_sha256")
-                    and evidence.get("message_sha256") == intent.get("message_sha256")
-                    and paid_remote_result.canonical_equal(evidence.get("observed_state"), desired)
-                    and (no_effect_wait or official_customer_readback or official_target_readback)):
+                    and evidence.get("message_sha256") == intent.get("message_sha256"))
+            if not matches_cycle:
+                continue
+            current_state_valid = (evidence.get("authenticated") is True
+                and paid_remote_result.canonical_equal(evidence.get("observed_state"), desired))
+            if current_state_valid and (no_effect_wait or official_customer_readback or official_target_readback):
                 raw_after_value = str(candidate.relative_to(root))
                 result["before_evidence"] = raw_after_value
                 result["after_evidence"] = raw_after_value
@@ -4177,6 +4191,9 @@ def _normalize_builder_result(root: Path) -> None:
                     result["blocker"] = remaining_blocker
                 result["verified_after"] = True
                 break
+            # The newest evidence for this exact target is authoritative. A malformed
+            # current readback must fail closed instead of reviving an older success.
+            break
         if not raw_after_value:
             _write(intent_path, intent)
             _write(result_path, result)
@@ -4612,7 +4629,7 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
                 delivery_result = _load(root / "delivery" / "paid-remote-result.json")
                 if _require_semantic_effect_binding(root, intent, delivery_result) != semantic_contract_sha256:
                     raise ValueError("semantic effect contract changed")
-                _normalize_builder_result(root)
+                _normalize_builder_result(root, pass_start)
                 intent = _load(root / "delivery" / "paid-remote-intent.json")
                 digest = _text(intent.get("desired_state_sha256"))
                 checkpoint = _remote_owner_checkpoint(
