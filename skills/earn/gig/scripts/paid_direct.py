@@ -3974,9 +3974,22 @@ def _legacy_paid_mode(root: Path, feedback: str) -> str:
     return _text(mode.get("mode"))
 
 
+def _pending_review_mode(root: Path, feedback: str) -> str:
+    review = _load(root / "context" / "paid-review-state.json")
+    if (review.get("state") != "REPAIR_PENDING"
+            or review.get("buyer_feedback_sha256") != feedback
+            or review.get("requirements_sha256")
+            != paid_remote_result.requirements_digest(root, feedback)):
+        return ""
+    mode = _text(review.get("mode"))
+    return mode if mode in {"file", "remote", "answer"} else ""
+
+
 def _answer_ready(root: Path, item: dict[str, Any]) -> bool:
     try:
         feedback = _text(item.get("buyer_feedback_sha256"))
+        if _pending_review_mode(root, feedback) in {"file", "remote"}:
+            return False
         intent_path = root / "delivery" / "paid-remote-intent.json"
         intent_mode = _text(_load(intent_path).get("mode")) if intent_path.is_file() else ""
         try:
@@ -4008,6 +4021,8 @@ def _remote_revision_required(root: Path, feedback: str) -> bool:
 
 def _remote_mode_required(root: Path, item: dict[str, Any], feedback: str) -> bool:
     """Use legacy remote state only when no current semantic decision is valid."""
+    if _pending_review_mode(root, feedback) == "remote":
+        return True
     try:
         decision = _current_paid_decision(root, item)
         return decision.get("decision") == "actionable" and decision.get("mode") == "remote"

@@ -2183,6 +2183,28 @@ def test_answer_receipt_does_not_close_pending_buyer_artifact():
     }) is True
 
 
+def test_remote_repair_pending_cannot_be_downgraded_to_answer(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    requirements = paid.paid_remote_result.requirements_digest(root, feedback)
+    write_json(root / "context" / "paid-review-state.json", {
+        "version": 1,
+        "state": "REPAIR_PENDING",
+        "mode": "remote",
+        "buyer_feedback_sha256": feedback,
+        "requirements_sha256": requirements,
+        "findings": [{"repair": "Implement the missing live controls."}],
+    })
+    item = {"request_id": root.name, "buyer_feedback_sha256": feedback}
+    monkeypatch.setattr(
+        paid, "_current_paid_decision",
+        lambda *_args: {"decision": "actionable", "mode": "answer"},
+    )
+
+    assert paid._answer_ready(root, item) is False
+    assert paid._remote_mode_required(root, item, feedback) is True
+
+
 def test_successful_external_artifact_receipt_is_reverified():
     paid = load("paid_direct")
     instruction = paid._owner_tool_result_instruction()
