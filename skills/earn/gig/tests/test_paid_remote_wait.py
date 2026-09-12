@@ -2576,6 +2576,7 @@ def test_paid_owners_have_a_long_running_route():
     assert route["timeout_seconds"] == 3600
     assert paid.PAID_FILE_OWNER_TIMEOUT_SECONDS == 3600
     assert paid.PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS > paid.PAID_FILE_OWNER_TIMEOUT_SECONDS
+    assert paid._paid_owner_timeout_args() == ["--timeout-seconds", "3600"]
     assert {
         (candidate["provider"], candidate["model"])
         for candidate in route["candidates"]
@@ -2585,7 +2586,10 @@ def test_paid_owners_have_a_long_running_route():
         paid._run_consultation_review,
         paid._run_remote_repair,
     ):
-        assert "PAID_OWNER_TASK_CLASS" in inspect.getsource(owner)
+        source = inspect.getsource(owner)
+        assert "PAID_OWNER_TASK_CLASS" in source
+        assert "_paid_owner_timeout_args" in source
+        assert "PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS" in source
 
 
 def test_paid_owner_results_accept_the_paid_owner_task_class(tmp_path):

@@ -98,7 +98,8 @@ def _private_model_runner(root: Path, command: list[str], label: str) -> list[st
 
 
 def _run_private_model_serialized(root: Path, command: list[str], label: str, step: str,
-                                  *, effect_owner: bool = False) -> str:
+                                  *, effect_owner: bool = False,
+                                  timeout: float | None = None) -> str:
     """Admit one paid model run at a time, before its runner timeout starts."""
     effect_descriptor = None
     if effect_owner:
@@ -115,7 +116,10 @@ def _run_private_model_serialized(root: Path, command: list[str], label: str, st
     model_descriptor = os.open(model_lock_path, os.O_CREAT | os.O_RDWR, 0o600)
     try:
         fcntl.flock(model_descriptor, fcntl.LOCK_EX)
-        return _run(_private_model_runner(root, command, label), step)
+        private_command = _private_model_runner(root, command, label)
+        if timeout is None:
+            return _run(private_command, step)
+        return _run(private_command, step, timeout=timeout)
     finally:
         fcntl.flock(model_descriptor, fcntl.LOCK_UN)
         os.close(model_descriptor)
@@ -134,6 +138,10 @@ PAID_RUNNER_CANDIDATES = {
     ("claude", "claude-sonnet-5"),
     ("claude-direct", "claude-sonnet-5"),
 }
+
+
+def _paid_owner_timeout_args() -> list[str]:
+    return ["--timeout-seconds", str(PAID_FILE_OWNER_TIMEOUT_SECONDS)]
 PAID_FILE_POLICY_VERSION = "paid-file-build-review-v22"
 MAX_FILE_REVIEW_ITERATIONS = 3
 PAID_REMOTE_WAIT_RECHECK_SECONDS = 3600
@@ -3303,8 +3311,8 @@ def _run_isolated_file_owner(args, root: Path, context: Path, prompt_text: str,
             "--task-class", PAID_OWNER_TASK_CLASS,
             "--prompt-file", str(prompt), "--schema", str(args.runner_schema),
             "--evidence-dir", str(staged_evidence), "--task-label", "paid-file-owner",
-            "--loop", _runner_loop_id(), "--workdir", str(staging), "--timeout-seconds",
-            str(PAID_FILE_OWNER_TIMEOUT_SECONDS),
+            "--loop", _runner_loop_id(), "--workdir", str(staging),
+            *_paid_owner_timeout_args(),
             "--escalation-reason", "One isolated paid owner must build the buyer deliverable",
         ]
         try:
@@ -4481,13 +4489,13 @@ def _run_consultation_review(args, item_path: Path, root: Path, feedback: str, b
                    "--prompt-file", str(owner_prompt), "--schema", str(schema),
                    "--evidence-dir", str(owner_evidence), "--task-label", "paid-answer-owner",
                    "--escalation-reason", "Paid owner composes the exact paid buyer answer",
-                   "--loop", _runner_loop_id(), "--workdir", str(root), "--timeout-seconds", "1800"]
+                   "--loop", _runner_loop_id(), "--workdir", str(root), *_paid_owner_timeout_args()]
         for image in images:
             command += ["--image", str(image)]
         command = _private_model_runner(root, command, "paid-answer-owner")
         project_snapshot = _project_identity_snapshot(root, owner_evidence)
         owner_started_ns = time.time_ns()
-        _run(command, "remote_builder")
+        _run(command, "remote_builder", timeout=PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS)
         if _project_identity_snapshot(root, owner_evidence) != project_snapshot:
             raise Failure("remote_builder")
         owner = _consultation_runner_result(
@@ -4656,11 +4664,12 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
                   "--prompt-file", str(prompt), "--schema", str(args.runner_schema),
                   "--evidence-dir", str(owner_evidence), "--task-label", "paid-remote-owner",
                   "--escalation-reason", "Paid owner mutates the authenticated paid target",
-                  "--loop", _runner_loop_id(), "--workdir", str(root), "--timeout-seconds", "1800"]
+                  "--loop", _runner_loop_id(), "--workdir", str(root), *_paid_owner_timeout_args()]
             progress_size = progress.stat().st_size if _regular_file(progress) else 0
             try:
                 _run_private_model_serialized(
                     root, owner_command, "paid-remote-owner", "remote_builder", effect_owner=True,
+                    timeout=PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS,
                 )
             except Failure:
                 if _regular_file(progress) and progress.stat().st_size > progress_size:
