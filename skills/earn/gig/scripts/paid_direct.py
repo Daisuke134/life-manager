@@ -128,7 +128,7 @@ def _run_private_model_serialized(root: Path, command: list[str], label: str, st
             fcntl.flock(effect_descriptor, fcntl.LOCK_UN)
             os.close(effect_descriptor)
 PAID_DECISION_SCHEMA_VERSION = 4
-PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v22"
+PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v23"
 PAID_DECISION_MODEL = "gpt-5.6-terra"
 PAID_FILE_MODEL = "gpt-5.6-terra"
 PAID_OWNER_TASK_CLASS = "paid-owner-agent"
@@ -982,6 +982,21 @@ def _validate_paid_decision(value: dict[str, Any], feedback: str, requirements: 
             or not _text(value.get("required_output"))
             or not _text(value.get("required_effect"))):
         raise ValueError("paid semantic decision identity mismatch")
+    required_output = _text(value.get("required_output"))
+    required_effect = _text(value.get("required_effect"))
+    protocol_leak = re.compile(
+        r"(?:compiled (?:cumulative )?context|semantic assessment|read[- ]only assessment|"
+        r"\b(?:i(?:'|’)?ll|i will|we will)\s+(?:inspect|read|check|review|analy[sz]e)\b)",
+        re.IGNORECASE,
+    )
+    no_effect = re.compile(
+        r"(?:\bread[- ]only\b|\bno (?:external )?(?:effect|mutation|action)\b|assessment only)",
+        re.IGNORECASE,
+    )
+    if protocol_leak.search(required_output) or protocol_leak.search(required_effect):
+        raise ValueError("paid semantic decision contains agent process narration")
+    if decision == "actionable" and no_effect.search(required_effect):
+        raise ValueError("actionable paid decision requires a buyer-facing effect")
     unresolved = value.get("unresolved")
     if not isinstance(unresolved, list) or any(not isinstance(item, str) for item in unresolved):
         raise ValueError("invalid paid semantic decision unresolved")
@@ -1586,7 +1601,9 @@ def _decision_prompt(context: Path, context_sha256: str, feedback: str,
         "formal_approval_evidence null. Every non-file decision "
         "uses delivery_stage none. Decide explicit approval from "
         "the complete semantic workflow, never from title or keyword matching. required_output and required_effect must "
-        "state the bounded outcome. required_assets must list every buyer-visible screenshot, image, or linked asset "
+        "state the bounded buyer-facing completed outcome. They must never narrate your analysis process, promise to "
+        "inspect/read/check the context later, or describe a read-only/no-effect assessment as actionable work. "
+        "Complete every required context read before returning JSON. required_assets must list every buyer-visible screenshot, image, or linked asset "
         "required for the current bounded output and available for honest verification in this cycle; use [] only when "
         "the current output requires no such media. An asset that can exist only after a future event belongs in "
         "unresolved and in the later required output, not in the current required_assets contract. "
