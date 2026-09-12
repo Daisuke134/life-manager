@@ -333,11 +333,11 @@ def validate_paid_work(
     staying silent, and before that the bootstrap validator that only measured file size.
     A gate that can be forgotten will be forgotten.
 
-    ``allow_fresh_blocked_for_review`` is only a pre-review aperture: it suppresses the
-    one current-BLOCKED contradiction error but grants no delivery authorization.  The
-    production caller must still obtain a fresh exact-artifact review, archive that block
-    with ``resolve_fresh_blocked_after_review()``, and rerun this validator with the
-    default ``False`` before any buyer-visible effect.
+    ``allow_fresh_blocked_for_review`` is only a pre-review aperture: it permits a
+    builder-declared ``BLOCKED_NON_DELEGABLE`` bundle, or suppresses one current-BLOCKED
+    contradiction, solely so a fresh reviewer can decide it. It grants no delivery
+    authorization. The production caller must still obtain a fresh exact-artifact review
+    and rerun this validator with the default ``False`` before any buyer-visible effect.
     """
     root = Path(project_root).expanduser().resolve()
     manifest = Path(manifest_path or root / "delivery" / "paid-work-result.json").expanduser()
@@ -362,7 +362,9 @@ def validate_paid_work(
         payload = {}
         errors.append("paid_work_manifest_not_object")
     review_ready = allow_review_ready and payload.get("status") == "REVIEW_READY"
-    if payload.get("status") != "ok" and not review_ready:
+    blocked_review = (allow_fresh_blocked_for_review
+                      and payload.get("status") == "BLOCKED_NON_DELEGABLE")
+    if payload.get("status") != "ok" and not review_ready and not blocked_review:
         errors.append("paid_work_status_not_ok")
     recorded_root = Path(str(payload.get("project_root") or "")).expanduser()
     try:
@@ -390,7 +392,9 @@ def validate_paid_work(
     if reason:
         errors.append(f"acceptance_{reason}")
     _require_fresh(acceptance, "acceptance", freshness_floor, errors)
-    if payload.get("acceptance_status") != ("REVIEW_READY" if review_ready else "PASS"):
+    expected_acceptance = ("REVIEW_READY" if review_ready else
+                           "BLOCKED_NON_DELEGABLE" if blocked_review else "PASS")
+    if payload.get("acceptance_status") != expected_acceptance:
         errors.append("acceptance_status_not_pass")
     # The builder's two records about the same pass must not contradict each other.
     #
@@ -406,7 +410,7 @@ def validate_paid_work(
     # ★ Fails CLOSED. ★ "The check could not run" is not "the check passed" -- that
     # equivalence is the incident. An unreadable BLOCKED record, an unloadable reader, or
     # a requirements file whose digest cannot be read all refuse the delivery here.
-    else:
+    elif not blocked_review:
         blocked_verdict, _blocked_state = blocked_evidence_verdict(root, requirements)
         if blocked_verdict == BLOCK_FRESH and not allow_fresh_blocked_for_review:
             errors.append("acceptance_pass_contradicts_blocked_evidence")
@@ -419,7 +423,7 @@ def validate_paid_work(
             acceptance_payload = loaded if isinstance(loaded, dict) else {}
         except (OSError, json.JSONDecodeError):
             errors.append("acceptance_evidence_invalid_json")
-    if acceptance_payload.get("status") != ("REVIEW_READY" if review_ready else "PASS"):
+    if acceptance_payload.get("status") != expected_acceptance:
         errors.append("acceptance_evidence_status_not_pass")
     acceptance_delta = acceptance_payload.get("acceptance_delta")
     if not isinstance(acceptance_delta, list) or not any(isinstance(item, str) and item.strip() for item in acceptance_delta):

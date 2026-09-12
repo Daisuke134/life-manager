@@ -1388,17 +1388,19 @@ def _file_reference_images(root: Path, manifest: dict[str, Any], limit: int = 4)
     return images
 
 
-def _file_review_disposition(verdict: Any) -> str:
+def _file_review_disposition(verdict: Any, manifest_status: Any = "") -> str:
     if verdict == "deliverable":
-        return "approve"
+        return ("repair" if manifest_status == "BLOCKED_NON_DELEGABLE" else "approve")
     if verdict == "needs_revision":
         return "repair"
     return "block"
 
 
-def _review_ready_may_ship(verdict: Any, review_ready_allowed: bool, review_round: int) -> bool:
+def _review_ready_may_ship(verdict: Any, review_ready_allowed: bool, review_round: int,
+                           manifest_status: Any) -> bool:
     return (
-        review_ready_allowed
+        manifest_status == "REVIEW_READY"
+        and review_ready_allowed
         and verdict == "undeterminable"
         and review_round == MAX_FILE_REVIEW_ITERATIONS
     )
@@ -3940,13 +3942,19 @@ def _build_and_authorize_file(args, item_path: Path, root: Path, item: dict[str,
         verdict, proof = _file_runner_result(
             verifier_evidence, task_label="paid-file-verifier", started_ns=verifier_started,
         )
-        disposition = _file_review_disposition(verdict.get("verdict"))
+        disposition = _file_review_disposition(verdict.get("verdict"), manifest.get("status"))
         if disposition == "approve" and _text(verdict.get("reason")):
             break
-        finding = _text(verdict.get("reason")) or "The reviewer did not prove the artifact deliverable."
+        if (manifest.get("status") == "BLOCKED_NON_DELEGABLE"
+                and verdict.get("verdict") == "deliverable"):
+            finding = ("The fresh reviewer found no non-delegable blocker. Preserve the reviewed content, "
+                       "replace the blocked declaration with a normal PASS bundle, and do not request human input.")
+        else:
+            finding = _text(verdict.get("reason")) or "The reviewer did not prove the artifact deliverable."
         verdict_path = _consultation_result_path(verifier_evidence)
         _owner_feedback(root, "paid.file_evaluator", [verdict], [verdict_path])
-        if _review_ready_may_ship(verdict.get("verdict"), review_ready_allowed, review_round):
+        if _review_ready_may_ship(
+                verdict.get("verdict"), review_ready_allowed, review_round, manifest.get("status")):
             shipment_basis = "max_review_iterations_review_ready"
             break
         if review_round == MAX_FILE_REVIEW_ITERATIONS:

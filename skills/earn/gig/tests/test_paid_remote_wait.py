@@ -2909,10 +2909,16 @@ def test_queued_paid_project_keeps_parent_pending():
 def test_review_ready_undeterminable_ships_only_at_final_review_round():
     paid = load("paid_direct")
 
-    assert paid._review_ready_may_ship("undeterminable", True, paid.MAX_FILE_REVIEW_ITERATIONS)
-    assert not paid._review_ready_may_ship("undeterminable", False, paid.MAX_FILE_REVIEW_ITERATIONS)
-    assert not paid._review_ready_may_ship("semantic_refusal", True, paid.MAX_FILE_REVIEW_ITERATIONS)
-    assert not paid._review_ready_may_ship("needs_revision", True, paid.MAX_FILE_REVIEW_ITERATIONS)
+    assert paid._review_ready_may_ship(
+        "undeterminable", True, paid.MAX_FILE_REVIEW_ITERATIONS, "REVIEW_READY")
+    assert not paid._review_ready_may_ship(
+        "undeterminable", True, paid.MAX_FILE_REVIEW_ITERATIONS, "BLOCKED_NON_DELEGABLE")
+    assert not paid._review_ready_may_ship(
+        "undeterminable", False, paid.MAX_FILE_REVIEW_ITERATIONS, "REVIEW_READY")
+    assert not paid._review_ready_may_ship(
+        "semantic_refusal", True, paid.MAX_FILE_REVIEW_ITERATIONS, "REVIEW_READY")
+    assert not paid._review_ready_may_ship(
+        "needs_revision", True, paid.MAX_FILE_REVIEW_ITERATIONS, "REVIEW_READY")
     assert paid._shipment_basis_authorized("max_review_iterations_review_ready", "undeterminable")
     assert not paid._shipment_basis_authorized("max_review_iterations_review_ready", "needs_revision")
     assert not paid._shipment_basis_authorized("single_material_review_repaired", "needs_revision")
@@ -3053,6 +3059,14 @@ def test_normalize_acceptance_repairs_archive_member_bookkeeping(tmp_path):
     assert asset["sha256"] == hashlib.sha256(member).hexdigest()
     assert asset["mime_type"] in {"audio/wav", "audio/x-wav"}
     assert isinstance(asset["provenance"], str)
+
+
+def test_fresh_review_cannot_approve_a_still_blocked_manifest():
+    paid = load("paid_direct")
+
+    assert paid._file_review_disposition("deliverable", "BLOCKED_NON_DELEGABLE") == "repair"
+    assert paid._file_review_disposition("deliverable", "ok") == "approve"
+    assert paid._file_review_disposition("needs_revision", "BLOCKED_NON_DELEGABLE") == "repair"
 
 
 def test_run_bounded_does_not_wait_for_grandchild_inherited_pipe():
