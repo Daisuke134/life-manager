@@ -490,6 +490,8 @@ def _reported_remote_cycle(args, item: dict[str, Any]) -> Path | None:
         new_non_answer_work = (isinstance(current_decision, dict)
                                and current_decision.get("decision") == "actionable"
                                and current_decision.get("mode") != "answer")
+        if new_non_answer_work:
+            return None
         if (isinstance(current_decision, dict)
                 and current_decision.get("decision") == "actionable"
                 and current_decision.get("mode") == "answer"
