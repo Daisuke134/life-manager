@@ -16,6 +16,11 @@ offers from measured conversion, and Paid completes accepted work through offici
 readback and replay-zero. A marketplace-specific customer case is evidence for this kernel, not a
 separate architecture or the definition of completion.
 
+The account owner confirms Manledge/Clover `18169985` is closed. It is historical evidence only:
+no remaining outreach count, artifact inspection, reply, delivery, replay, or buyer approval is an
+active TODO, and no owner may reopen or send another effect for that project without a newer explicit
+account-owner instruction.
+
 The business outcome is a money-maximizing, self-improving fleet: every provider continuously seeks
 new attributable net revenue, learns from official application/reply/contract/payment outcomes, and
 improves the shared policy without forking provider copies. Runtime health is necessary but never the
@@ -579,6 +584,14 @@ Current live Apply acceptance audit:
      submit a new artifact hash only after fresh review proves the complete source-backed requirement;
      it must not ask Dais or the buyer to do the research and must never claim an unverified recovery
      percentage.
+     The following old-release wake rebuilt the same v74 lineage and self-reported PASS, but the
+     controller rejected it at `file_contract_review`; the aggregate recorded talkroom `18211838`
+     as failed and produced no buyer effect. Main `4889da268` now routes a builder-declared
+     `BLOCKED_NON_DELEGABLE` bundle through fresh review only, converts a false public-research block
+     into another owner repair/search round, and still rejects that bundle at every normal delivery
+     gate. Its immutable release is being cut by the natural release reconciler; completion requires
+     a main-derived Paid wake, a genuinely qualifying source-backed replacement, exact-room readback,
+     and replay-zero.
    - [x] `COCONALA-PAID-3B` Cover every current client in one aggregate. PASS = every observed room
      appears exactly once as completed, awaiting buyer, or durably retry-owned; `failed=0`; one slow
      client does not prevent another client from progressing. “Observed” does not require a message
@@ -4223,28 +4236,9 @@ The active implementation TODO is therefore Stage 3 items 9–14 applied to thes
       until the buyer explicitly approves the completed campaign output. Then deliver the final
       campaign report once, save exact Coconala/TikTok/Sheet readbacks, and replay the same input to
       prove effect zero and `deduplicated=true`.
-8. [ ] `18169985`: the buyer has now explicitly approved the unchanged @diceai0 account, the
-   shown DM format with a recipient-specific introduction, a total of 100 DMs, and formal
-   delivery with evidence. The buyer then replaced the common body with an explicitly estimated
-   monthly compensation-uplift version. Have the installed owner acknowledge that change once
-   without asking for approval again. Send unique DMs whose opening is personalized from fresh recipient evidence and whose
-   common body exactly preserves the buyer's non-guaranteed estimate plus clickable LOXAD LINE
-   URL. The buyer's explicit `csvは問題ありません` makes the approved 100-row CSV the candidate-
-   selection authority; do not require every eligibility attribute to be independently visible on X.
-   Freshly verify handle/DM reachability/opt-out state and source only the personalized public claim.
-   The historical @5555daisuke5555 qualification sample used superseded copy, does not count toward
-   the revised-copy total, and must not be resent. Send the revised copy to 100 other unique approved
-   CSV candidates. After each effect retain official X Chat readback and a privacy-minimized screenshot.
-   Fresh-review one ZIP containing the 100-row ledger, 100 bound screenshots and hash manifest;
-   formally deliver it, obtain buyer completion, and replay every effect class at zero.
-   Superseding platform constraint: X's official Platform Manipulation and Spam Policy prohibits
-   bulk/high-volume unsolicited direct messages. Production correctly verified @diceai0 and
-   produced zero new outreach effects. The account owner now sets a maximum of one confirmed DM per
-   rolling hour, but pacing is not a policy bypass: send only when a current official candidate
-   profile/post explicitly invites relevant work/business/recruitment DMs. Check the approved CSV in
-   order, bind the opt-in URL and personalized claim, send/read back/checkpoint at most one, then set
-   `retry_not_before` one hour after that receipt. If no candidate has explicit opt-in, stop with a
-   machine-readable exhaustion receipt and zero effect; do not send a scope-change message yet.
+8. [x] `18169985` Manledge/Clover is closed by explicit account-owner instruction. Preserve its
+   historical receipts for shared-kernel regression evidence, but schedule no further X outreach,
+   artifact, Coconala reply, delivery, approval request, or replay work.
 
 ### Stage 3 — generalize the measured Paid owner into a job-doing agent
 
@@ -6366,9 +6360,8 @@ flowchart TB
    natural Project Owner inspect v38 against the new complaint screenshots, complete conversation and accepted
    lineage. If defective, revise naturally; if fresh PASS, send the exact final hash once, obtain official DOM
    readback with formal delivery OFF and prove replay-zero. Do not manually submit or call producer PASS Done.
-10. [ ] Through the same natural owner architecture, fresh-inspect the naturally prepared Manledge v24 without
-   blind regeneration,
-   obtain one complete fresh PASS artifact, exact-room official readback, formal delivery OFF and replay-zero.
+10. [x] Do not resume Manledge/Clover `18169985`; the account owner confirms it was closed earlier.
+    Retain v24 and its receipts as history only, with zero future external effects.
 11. [ ] Through the same natural owner architecture, bind every required byusco screenshot/asset to the article;
     produce a complete fresh PASS or truthful buyer-permitted review-stage disposition, then obtain the matching
     exact-room official readback and replay-zero. Incomplete `REVIEW_READY` is not completed delivery.
@@ -7631,28 +7624,9 @@ a later successful example.
 - [ ] P26 — Resume the same transition after a machine/login restart.
 - [ ] P27 — Persist buyer-wait as an owned state rather than ending the workflow.
 - [ ] P28 — Consume a later buyer reply and resume without Codex/operator execution.
-- [ ] P29 — Resume the existing Manledge liability through the generic Paid owner. A natural
-  replay exposed a generic contract-substitution defect: the current semantic decision requires
-  50 verified individual X approaches (or verified candidate exhaustion with shortage evidence),
-  but the remote owner replaced that outcome with readback of the already-published public post,
-  which explicitly adds zero to the individual-approach count. The verifier contract authenticated
-  only the owner-selected proxy state, not the semantic decision's required effect. Release source
-  now hashes `decision/mode/feedback/requirements/required_output/required_effect/required_assets`
-  into one semantic effect contract and requires the identical digest in owner intent/result,
-  every owner evidence file, verifier result, and verifier evidence. The model retains autonomous
-  tool/account/skill selection; only substitution of an easier proxy outcome is rejected. Direct
-  validation rejects the existing public-post artifacts as `semantic effect contract mismatch`.
-  Immutable release `4917386bf` then ran naturally across nine rooms and rejected Manledge as
-  `remote_builder`; it did not resend the public post or start a replacement owner effect. The
-  next natural pass completed the fresh Sol semantic-decision receipt with the required individual
-  outreach outcome, then started `PAID_REMOTE_OWNER` inside the same project worker under that bound
-  contract. The owner resolved `@selawmqt`, found X Chat blocked by its encryption passcode without
-  resetting it, and selected candidate-specific public replies as the authorized fallback. Its first
-  real effect contacted `@26AnNPNH5Qr8bBK`; official X DOM read back the exact qualification message
-  at `https://x.com/selawmqt/status/2091337871240356062`. The public recruitment post is still
-  excluded from the count. Completion still requires the natural owner to continue to 50 verified
-  individual contacts or verified exhaustion, report the result to the exact Coconala room, and
-  prove replay-zero.
+- [x] P29 — Manledge/Clover `18169985` is closed by explicit account-owner instruction. Its prior
+  effects and contract-substitution incident remain regression evidence only; the generic Paid owner
+  must not resume outreach, report another result, request approval, or create any new external effect.
 - [x] P30 — Resume the existing Haru liability through the generic Paid owner. The live
   `57ac9eb159e0` Paid owner recognized the legacy v26 artifact as already beyond five review
   iterations, performed no v27 build and no additional review, authorized the unchanged artifact
