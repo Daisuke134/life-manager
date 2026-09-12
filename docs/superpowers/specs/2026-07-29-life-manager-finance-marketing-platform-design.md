@@ -58,6 +58,111 @@ cloud gates pass, new finance, marketing-learning, health, and app-generation
 features are frozen except where they are required to preserve an existing loop
 during migration.
 
+### 1.0 Current product boundary — Telegram-only user surface and one shared runtime
+
+The user-facing product has exactly one required interface: **Telegram on a smartphone**.
+Do not build a second consumer mobile app, PWA, web dashboard or CLI onboarding path. Historical
+references in this document to a user-facing panel, web/PWA or Codex client are superseded by this
+section. An internal read-only operator console may project receipts for service operation, but it
+is not a customer prerequisite or a second product surface.
+
+The phone owns conversation, status, alerts, approval, KYC/2FA/interview handoff and temporary live
+browser takeover. The phone does not execute loops. Local or cloud workers continue after the phone
+disconnects. Cloud is complete only when a tenant can turn off every personal computer and every
+retained loop continues from the same durable cursor without duplicate external effects.
+
+All domains share one horizontal runtime before they add a domain kernel. Gig work is one consumer,
+not the owner of generic agent, browser, Telegram, receipt, finance, cleanup or release behavior:
+
+```text
+Life Manager runtime                         shared by every loop
+  tenancy / identity / policy / budget
+  scheduler / queue / lease / retry / resume
+  agent session / model routing / tool contracts
+  browser session / persistent profile / human takeover
+  effect intent / idempotency / official readback / replay-zero
+  Telegram command / approval / progress / final receipt
+  financial events / cost / revenue / payout reconciliation
+  bounded artifacts / cleanup / immutable release / rollback
+
+domain kernel                                shared inside one real domain
+  marketplace / marketing / finance / health / publishing / communication
+
+provider adapter                             thin external-system mechanics
+  authentication / API or DOM / provider state / mutation / provider readback
+
+loop                                         smallest business owner
+  objective / context / model judgment / durable cursor
+
+deployment adapter                           same loop, different host
+  local launchd or cloud queue / local vault or tenant vault / local or Steel browser
+```
+
+Judgment remains with the model. Deterministic shared code owns permissions, arithmetic, leases,
+effect fences, receipts, cleanup and independent verification. A helper moves into a shared layer
+only after at least two real consumers prove identical behavior; do not invent a generic framework
+from one loop or duplicate a shared primitive in each provider.
+
+The canonical ownership target is:
+
+```text
+life-manager/
+├── apps/
+│   ├── telegram-gateway/                 # only customer command surface
+│   ├── control-plane/                    # tenant API, policy, jobs, approvals
+│   └── operator-console/                 # internal read-only receipt projection; optional
+├── loops/
+│   ├── earn/                             # business objectives and durable cursors only
+│   ├── market/                           # discover → qualify → build → canary → promote
+│   ├── health/
+│   ├── marketing/
+│   └── self/                             # improve and spawn objectives
+├── skills/
+│   ├── _shared/
+│   │   ├── runtime/                      # jobs, leases, retry/resume, receipts
+│   │   ├── agents/                       # provider-neutral agent/session/tools
+│   │   ├── browser/                      # local/remote session and takeover contract
+│   │   ├── telegram/                     # command, approval, report, dedupe
+│   │   ├── finance/                      # revenue, cost, payment and payout events
+│   │   ├── artifacts/                    # content-addressed durable handoff
+│   │   ├── cleanup/                      # bounded-output and regenerable-data contract
+│   │   └── marketplace-core/             # Apply/Reply/Storefront/Paid state machines
+│   └── domains/                          # behavior shared by 2+ loops in one domain
+├── providers/
+│   ├── marketplaces/{coconala,lancers,crowdworks,mercor,upwork,freelancer}/
+│   ├── browser/{local,steel}/
+│   ├── agents/{openai,self-hosted}/
+│   ├── messaging/telegram/
+│   └── payments/
+├── runtime/
+│   ├── scheduler/ tenancy/ receipts/ finance/ cleanup/ release/
+│   └── executor/                         # local and cloud implement one contract
+├── config/
+│   ├── loop-registry.json
+│   ├── provider-connectors/
+│   └── tenant-policy/
+└── tests/
+    ├── shared-contracts/ provider-contracts/ replay-zero/
+    └── tenant-isolation/ clean-cloud-bootstrap/
+```
+
+Existing paths remain when moving them would be cosmetic. The target defines ownership, not a
+big-bang directory migration.
+
+Cleanup is horizontal runtime infrastructure, not a Gig feature and not a second orchestration
+framework. Every loop declares bounded scratch/cache/log/artifact retention and marks only
+regenerable data as eligible. The loop wrapper cleans its own completed run; the central cleanup
+owner reclaims host cache and unreferenced immutable releases. Both preserve active runs, loaded or
+open releases, credentials, browser profiles, sessions, wallets, payments, receipts, ledgers,
+unfinished customer work and protected user data. A future loop receives this contract automatically
+through the runtime; it never creates a private janitor or deletes another loop's state.
+
+The cloud target uses the same contracts. OpenAI Agents API may provide managed agent sessions,
+context compaction and subagents; a remote-browser provider such as Steel may provide one persistent
+browser profile per tenant. Life Manager still owns tenant authorization, Telegram identity,
+credential/profile ownership, durable business state, effect fences, finance and cleanup. Neither
+Agents API nor the browser provider becomes the business SSOT.
+
 The current incident release has one required outcome and one deferred option:
 
 ```text
