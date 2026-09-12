@@ -602,20 +602,25 @@ def test_paid_reader_preserves_unicode_line_separator_inside_json_string(tmp_pat
     assert rows[0]["text"] == "hello\u2028world"
 
 
-def test_prior_artifact_candidates_include_only_project_receipt_linked_zips(tmp_path):
+def test_prior_artifact_candidates_include_project_deliverables_and_receipt_linked_files(tmp_path):
     paid = load("paid_direct")
     root = tmp_path / "project"
     delivery_zip = root / "delivery" / "current.zip"
     receipt_zip = root / "deliverables" / "approved" / "final.zip"
     unrelated_zip = root / "deliverables" / "unrelated.zip"
-    for path in (delivery_zip, receipt_zip, unrelated_zip):
+    delivery_xlsx = root / "delivery" / "accepted-v18.xlsx"
+    delivery_csv = root / "delivery" / "accepted-v18-ledger.csv"
+    control_json = root / "delivery" / "paid-work-result.json"
+    for path in (delivery_zip, receipt_zip, unrelated_zip, delivery_xlsx, delivery_csv, control_json):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(path.name.encode())
     write_json(root / "acceptance" / "upload-receipt.json", {
         "status": "uploaded", "artifact": str(receipt_zip),
     })
 
-    assert paid._prior_artifact_candidates(root) == [delivery_zip, receipt_zip]
+    assert paid._prior_artifact_candidates(root) == [
+        delivery_csv, delivery_xlsx, delivery_zip, receipt_zip,
+    ]
 
 
 def test_formal_handoff_does_not_carry_superseded_complaints_forward():
