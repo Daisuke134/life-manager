@@ -2571,6 +2571,14 @@ def test_remote_verifier_accepts_its_single_evidence_reference():
     assert references == [("verifier_evidence", "remote-verifier-evidence.json")]
 
 
+@pytest.mark.parametrize("field", ["buyer_feedback_sha256", "feedback_sha256"])
+def test_remote_verifier_accepts_canonical_feedback_alias(field):
+    paid = load("paid_direct")
+    feedback = "a" * 64
+
+    assert paid._verifier_feedback_sha256({field: feedback}) == feedback
+
+
 def test_remote_owner_cannot_treat_one_invalid_candidate_as_exhaustion():
     source = (SCRIPTS / "paid_direct.py").read_text(encoding="utf-8")
     assert "One invalid, private, unreachable, or unverified candidate is not batch exhaustion" in source

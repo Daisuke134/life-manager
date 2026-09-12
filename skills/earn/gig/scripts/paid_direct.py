@@ -1951,6 +1951,11 @@ def _verifier_evidence_references(result: dict[str, Any]) -> list[tuple[str, str
                       if isinstance(value, str) and value.strip()]
     return references
 
+
+def _verifier_feedback_sha256(result: dict[str, Any]) -> str:
+    return _text(result.get("buyer_feedback_sha256") or result.get("feedback_sha256"))
+
+
 def _validate_managed_verifier(verifier: Path, project_root: Path, intent: dict[str, Any], feedback: str, digest: str,
                                min_evidence_mtime_ns: int | None = None) -> Path:
     try:
@@ -1983,7 +1988,7 @@ def _validate_managed_verifier(verifier: Path, project_root: Path, intent: dict[
         builder_outcome = _validated_owner_outcome_for_verification(delivery_result)
         verifier_outcome = _validated_business_outcome(result)
         if (not isinstance(result, dict) or result.get("verified") is not True
-                or result.get("buyer_feedback_sha256") != feedback or result.get("target") != target
+                or _verifier_feedback_sha256(result) != feedback or result.get("target") != target
                 or result.get("desired_digest", result.get("desired_state_digest")) != digest
                 or result.get("observed_digest") != digest
                 or not paid_remote_result.canonical_equal(result.get("observed_state"), desired)
@@ -2081,7 +2086,7 @@ def _review_failure(verifier: Path, project_root: Path, intent: dict[str, Any], 
         if not isinstance(message, str) or not message.strip(): raise ValueError("invalid customer message")
         message_sha256 = hashlib.sha256(message.encode()).hexdigest()
         if (not isinstance(result, dict) or result.get("verified") is not False
-                or result.get("buyer_feedback_sha256") != feedback
+                or _verifier_feedback_sha256(result) != feedback
                 or result.get("target") != intent.get("target")
                 or result.get("desired_digest", result.get("desired_state_digest")) != digest
                 or result.get("requirements_sha256") != requirements_sha256
