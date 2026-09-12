@@ -174,7 +174,7 @@ SKIP_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 # planner budget on work no decision was ever reached about. An hour is long enough to stop that
 # and short enough that a transient miss is retried the same afternoon.
 UNJUDGED_CACHE_TTL_SECONDS = 60 * 60
-SKIP_CACHE_VERSION = 2
+SKIP_CACHE_VERSION = 3
 
 def _load(name: str, path: Path) -> Any:
     spec = importlib.util.spec_from_file_location(name, path)
@@ -429,7 +429,7 @@ PLANNER_RULES = ("Lancersの公開案件だけを読むapplication-intent planne
     "経験の不確実さ、弱いportfolio、低予算、難易度、広いまたは曖昧なscope、単発、継続性不足、Adobe実績不明、任意の相談を単独のkeyword ruleでskipしない。正確な同分野実績がなくても、確認済みの転用可能な能力で全必須scopeを完遂できるなら案件固有の実行planで応募し、未作成物はplanと明示して捏造しない。"
     "納品可能性を確定した後の優先順は、定期購入・保守・運用、次にsystem・automation・AI・web・高報酬、次にその他の非同期作業。hard prohibition必須案件を継続・AI・高報酬・低予算・簡単そうという理由でsubmit_requiredへ変えない。実行可能な低優先案件を省略しない。submit_requiredを先に並べ、強い順に返す。"
     "既知のbudget_max_minorを超えず、依頼本文にproviderの広い予算帯より狭い具体予算があれば本文の上限を優先する。budgetが応相談・未定でも拒否しない。一律の最低価格や固定上限を設けない。scopeと正のmarginを守りながら競合より少し安い価格と、実行可能な最短納期を選ぶ。"
-    "live call・video meeting・顔出し・音声収録を自発的に約束せず、任意ならLancersメッセージと文書による非同期確認を提案する。必須ならhard_prohibitedにする。"
+    "顔出し・performance・音声収録・電話対応・同期参加そのものが成果物ならmandatory_human_presenceとしてhard_prohibitedにする。契約選考面談・kickoff・通常の進捗確認が非同期成果物に付随するだけなら、Zoom・電話・video meetingが明示的に必須でも拒否せず、shared Telegram human-handoff、Google Calendar、scheduled Life Manager phone callへ回す。任意の相談はLancersメッセージと文書による非同期確認を優先する。"
     "提案文には次の語を含めない: " + ", ".join(FORBIDDEN_TERMS) + "。送信・受注・納品・支払済みと主張しない。\nSNAPSHOT:\n")
 
 def build_planner_prompt(rows: Sequence[Mapping[str, object]], today: date) -> str:

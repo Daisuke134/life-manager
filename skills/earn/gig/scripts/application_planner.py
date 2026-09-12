@@ -64,8 +64,9 @@ def common_marketplace_feasibility_policy() -> str:
   high application-token cost, long advertised duration or unclear ordinary implementation details
   are ranking/price/question inputs, never standalone skip reasons. Skip for economics only when the
   official displayed compensation makes every truthful scoped offer clearly negative after cost.
-- Skip only when the actual required outcome is illegal/scam, requires unavoidable physical/on-site
-  work, mandatory human face/voice/phone/live presence, a legal qualification or immutable identity
+- Skip only when the actual required outcome is illegal/scam, makes acceptance or payment depend on
+  an uncontrolled numeric result, requires unavoidable physical/on-site work, makes human
+  face/voice/phone/live presence the deliverable itself, a legal qualification or immutable identity
   fact that cannot be supplied truthfully, off-platform payment/contact, explicit AI prohibition, or
   scope/deadline/economics the general agent truly cannot complete.
 - Preserve scope fidelity: do not make infeasible work appear feasible by silently replacing the
@@ -282,9 +283,10 @@ def planner_prompt(envelope: dict) -> str:
         "transferable experience and a concrete listing-specific sample/plan, clearly describing unbuilt work as a plan.\n"
         "A connected external account supports only bounded marketplace application, reply, delivery, and official readback. "
         "Do not treat credentials as a reason to accept ongoing account operations, bulk outreach, or browser labor.\n"
-        "Never volunteer or promise a live call, video meeting, face appearance, or voice recording in proposal_text. If live\n"
-        "consultation is optional or only preferred, offer asynchronous requirements gathering through Coconala messages and\n"
-        "documents instead; if it is mandatory, use the applicable hard-prohibition class.\n"
+        "Never volunteer face appearance, performance, voice recording, phone support, or live presence as the buyer-visible deliverable.\n"
+        "A contract-selection interview, kickoff, ordinary progress meeting, or client check-in is allowed: disclose no invented\n"
+        "attendance, route the exact appointment through the shared Telegram human-handoff contract, record it in Google Calendar,\n"
+        "and let Life Manager call the owner at the scheduled time. Optional consultation still prefers asynchronous messages.\n"
         "Use hard_prohibited only when the whole listing requires one hard-prohibition class below. Distinguish required\n"
         "terms from optional, negated, or quoted text; do not route a decision from an isolated phrase. For a hard_prohibited\n"
         "decision, reason_codes[0] must be the exact class key and reason_codes[1] a bounded exact evidence excerpt from the\n"
@@ -294,12 +296,14 @@ def planner_prompt(envelope: dict) -> str:
         f"{hard_prohibition_section}\n"
         "A requested skill, work history, domain experience, portfolio, numeric achievement, prior client result, or tool experience is never a personal-attribute-fabrication prohibition. Even when the listing says it is required, limited, preferred, experienced-only, or asks the applicant to describe it, choose submit_required and answer honestly with verified transferable capability plus a concrete sample/plan. Do not claim the missing experience.\n"
         "A numbered application question or field label such as `5 年代` is not evidence that the buyer requires fabrication. Answer it from verified facts when available. Use mandatory_attribute_fabrication only when the listing requires a specific immutable/current attribute value that conflicts with verified facts or cannot be answered truthfully; the evidence excerpt must include that required value or condition, not merely the field name.\n"
-        "A generic meeting, discussion, interview, consultation, explanation, coordination, or communication requirement is not mandatory_human_presence unless the listing explicitly requires synchronous phone, live voice, live video, face appearance, performance, or human voice recording. Ambiguous modality remains submit_required and the proposal offers asynchronous Coconala messages/documents.\n"
+        "A meeting, discussion, interview, consultation, explanation, coordination, or communication requirement is not mandatory_human_presence when it is a bounded contract-selection, kickoff, progress, or client check-in step attached to an otherwise autonomous deliverable, even when that step explicitly uses phone, live voice, or live video. It is mandatory_human_presence only when synchronous attendance, phone support, performance, face appearance, or voice recording is itself the service/deliverable. Ambiguous modality remains submit_required and prefers asynchronous Coconala messages/documents.\n"
         "Coconala application lane music boundary: generated or prompted music/audio is prohibited as a required deliverable; do not produce music or audio through prompts. An original song, BGM, performance, mix, master, or edited audio deliverable is music_or_audio_production even when generative tools could create it; music software, music research, or writing about music is not music_or_audio_production and remains submit_required only when no other hard-prohibition class applies.\n"
         "Experience uncertainty, weak portfolio, broad scope, low budget, difficulty, unclear production scope, optional consultation, and unverified achievements remain discretionary weaknesses. Missing Adobe experience alone is not a refusal reason, but required desktop-application operation is hard-prohibited.\n\n"
         "狙う仕事の順序: ①software / landing_page / article / strategyとしてcode・file・documentで非同期完結する仕事 "
         "②その他の非同期成果物。継続性より、現在のskillで高品質な完成成果を自律納品できることを優先する。\n"
         "候補探索・採用代行・大量DM・SNS運用・account warming・反復browser入力を主成果とする仕事は選ばない。\n"
+        "納品数など自分で完遂できる数量はよいが、回収率・売上・登録者・再生数・順位・成約数など外部反応に依存する\n"
+        "数値を検収条件または報酬条件として保証する案件は uncontrolled_numeric_outcome として応募しない。\n"
         "低単価の単発でも、非同期で確実に完遂できるなら請けてよい。\n"
         "\n"
         "既知の budget_max_jpy がある案件では、price_jpy は budget_max_jpy を超えない。案件規模と競争状況に合う、\n"

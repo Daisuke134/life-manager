@@ -37,7 +37,7 @@ readback(receipt_id)        -> bool        # the platform's own record, not your
 
 | module | for |
 |---|---|
-| `work_fit.py` | ② `HARD_PROHIBITION_CLASSES` (11) for text, `category_refusal()` for a bare label, `judge()` when the lane has no planner |
+| `work_fit.py` | ② `HARD_PROHIBITION_CLASSES` (12) for text, `category_refusal()` for a bare label, `judge()` when the lane has no planner |
 | `listing_catalog.py` | ① `listing_terms()` / `search_terms()` — what the owner sells, as search nouns |
 | `application_transaction.py` | ⑦ claim → submit → readback, so a crash cannot double-apply |
 | `ledger.py` | ⑦ the receipt record |
