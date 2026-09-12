@@ -4110,13 +4110,39 @@ The active implementation TODO is therefore Stage 3 items 9–14 applied to thes
    completed with `effect=0`, `failed=0`, `deduplicated=true` for talkroom `18180857`.
 
    The continuing 300-pair campaign is now active without another Coconala progress message.
-   Public Paid owner release `89f2b4933` invalidates the old reported-answer checkpoint when a
-   newer account-owner policy requires external work. Its first resumed natural cycle discovered
-   fresh candidate `@riko_t5p307`, sent one qualification DM from `@anicca.jp`, obtained exact
-   official Sent readback at 12:10, repaired and read back the two-cell `@riko_t5p307 / 8/29`
-   Sheet row, and checkpointed the unique effect. Current verified total is 4/300 with 296
-   remaining. The blocked result is a one-hour paced continuation checkpoint, not completion;
-   future wakes continue discovery while suppressing incremental buyer messages.
+   The canonical target is exactly 300 verified unique TikTok Sent + matching Sheet-row pairs;
+   bounded batches are progress, never completion, and every status/evidence surface must use this
+   same cumulative target. Public Paid owner release `89f2b4933` invalidated the old reported-answer
+   checkpoint when a newer account-owner policy required external work. Its first resumed natural
+   cycle discovered fresh candidate `@riko_t5p307`, sent one qualification DM from `@anicca.jp`,
+   obtained exact official Sent readback at 12:10, repaired and read back the two-cell
+   `@riko_t5p307 / 8/29` Sheet row, and checkpointed the unique effect.
+
+   Current verified baseline is **12/300**, with **288 remaining**. The official monthly Sheet has
+   13 recipient rows, but `@shakaijin_` has no matching verified TikTok Sent and therefore is a
+   known non-send row, not campaign credit. The latest bounded candidate preflight attempted 10
+   fresh candidates and found zero eligible; it produced no TikTok DM and no Sheet mutation. The
+   durable policy now forbids repeating that exhausted query/candidate batch and rotates through
+   adult-evidence discovery queries (`社会人`, `会社員`, `30代`, `40代`, `50代`, `主婦`) plus relevant
+   public content. Every candidate still requires public adult evidence and the existing non-live,
+   agency, opt-out, prior-send and route exclusions. Query and cursor state must persist between
+   wakes. A zero-eligible batch is a paced continuation checkpoint, not completion or a reason to
+   message the buyer.
+
+   Public main PR `#5047`, merge `951264f8fecd173a974da7f2bc0b14a08b7ca7a0`, retries one exact
+   transient `collector_unhealthy:talkroom_history_empty` selected-room read once in a fresh owned
+   tab; route mismatch, a second empty read and every uncertain effect remain fail-closed. Focused
+   Paid tests pass 127/127, runtime loop tests 392/392, registry tests 15/15, and all PR checks pass.
+   Immutable release `20260912T085041-951264f8` is cut from that pushed main. The preceding Paid
+   wake terminated naturally and the normal reconciler installed this release on
+   `hf-gig-paid-direct`; no owner was stopped or overlapped. Its first natural terminal still failed
+   closed: aggregate observed/actionable/effect/readback/failed/pending was `6/1/0/4/2/0`, and
+   `18180857` ended at `targeted_readback` with the same empty-history class after the bounded retry.
+   No TikTok DM or Sheet effect occurred. The next atom is therefore to diagnose the retained first
+   and retry receipts, repair only the still-unhealthy selected-room hydration boundary, and require
+   a natural official readback before resuming the next bounded candidate batch. The item remains
+   open until 300/300 pairs, final buyer approval, one formal delivery, exact Coconala/TikTok/Sheet
+   readbacks and replay-zero.
 
    The buyer-visible initial-review package is already sent: v7
    `CKprotect_TikTok_initial_review_v7.zip`, SHA256
