@@ -4116,6 +4116,8 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
         "Never modify paid-remote-intent.json, paid-remote-result.json, paid-answer.json, or any buyer/client surface."
         if verifier else
         "Write project-owned intent/result, authenticated before/after evidence, and a natural Japanese customer_message. "
+        "On every owner invocation, run the official adapter now and write a newly observed owner-owned authenticated "
+        "readback file; never reuse a prior-cycle owner file or verifier-owned evidence as this cycle's before/after evidence. "
         "Once the required official checks are sufficient to decide completion or a proved external dependency, write the durable result immediately before any optional exploration; do not exhaustively inspect unrelated historical attachments or messages. "
         "paid-remote-result.json must include business_outcome with required_effect_satisfied, required_output_satisfied, "
         "remaining_work, and official_receipts. Each completion receipt must contain effect_key, official_url, "
