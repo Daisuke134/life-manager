@@ -121,7 +121,7 @@ def _run_private_model_serialized(root: Path, command: list[str], label: str, st
             fcntl.flock(effect_descriptor, fcntl.LOCK_UN)
             os.close(effect_descriptor)
 PAID_DECISION_SCHEMA_VERSION = 4
-PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v19"
+PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v20"
 PAID_DECISION_MODEL = "gpt-5.6-terra"
 PAID_FILE_MODEL = "gpt-5.6-terra"
 PAID_RUNNER_CANDIDATES = {
@@ -1509,7 +1509,10 @@ def _decision_prompt(context: Path, context_sha256: str, feedback: str,
         "exact question has already been sent and no newer buyer "
         "reply exists. Use file whenever satisfying the request requires a seller-produced local artifact, "
         "including when one absent fact blocks only part of the scope: put only that fact in unresolved and require the "
-        "useful non-blocked portion now rather than delaying the entire artifact. Never invent a document or other "
+        "useful non-blocked portion now rather than delaying the entire artifact. Public-web or public-repository research, "
+        "evidence collection, calculations, and creation of a buyer-visible report are file work, not remote work; a "
+        "downstream code-owned marketplace submission never changes that routing. Choose remote only when fulfilling the "
+        "contract requires mutation of a non-marketplace external system, not merely reading public sources. Never invent a document or other "
         "artifact merely because a detailed answer has several sections: choose answer unless the buyer or accumulated "
         "contract requires a file, or the requested outcome cannot truthfully be delivered as talkroom text. "
         "When the buyer explicitly requires the deliverable contents pasted into the Coconala talkroom and does not also "
