@@ -3946,13 +3946,12 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
         "Never modify paid-remote-intent.json, paid-remote-result.json, paid-answer.json, or any buyer/client surface."
         if verifier else
         "Write project-owned intent/result, authenticated before/after evidence, and a natural Japanese customer_message. "
-        "Once the required official checks are sufficient to decide completion or a blocker, write the durable result immediately before any optional exploration; do not exhaustively inspect unrelated historical attachments or messages. "
+        "Once the required official checks are sufficient to decide completion or a proved external dependency, write the durable result immediately before any optional exploration; do not exhaustively inspect unrelated historical attachments or messages. "
         "paid-remote-result.json must include business_outcome with required_effect_satisfied, required_output_satisfied, "
-        "remaining_work, and official_receipts. remaining_work must always be an array: use a nonempty string array when "
-        "blocked and [] only when no work remains. Set both satisfied fields true only after the complete semantic contract has "
-        "official provider readback; otherwise preserve progress, write status=blocked and a nonempty blocker in paid-remote-result.json, "
-        "and make every wait receipt include nonempty provider, kind, and url or official_url fields, plus either a nonempty readback or both readback_source and exact_readback=true, "
-        "and return blocked without manufacturing a completion result. "
+        "remaining_work, and official_receipts. remaining_work must always be an array. Set both satisfied fields true only "
+        "after the complete semantic contract has official provider readback. Only an external dependency may use status=blocked; "
+        "then use a nonempty remaining_work and the wait_receipt contract below. Self-actionable incomplete work must continue "
+        "or preserve row-level checkpoints and exit without replacing the durable result. Never manufacture completion. "
         "do not submit to Coconala or use formal delivery."
     )
     correction = ""
@@ -4001,8 +4000,9 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
             "paid-remote-result.json; put search, profile, ledger, and other provider-specific URLs inside official_readback or "
             "business_outcome.official_receipts instead of changing the evidence target. "
             "When the accumulated buyer contract has a cumulative numeric target, completing one bounded wake or candidate batch is "
-            "progress, not business completion. Until that cumulative target has official readback, keep both satisfied fields false, "
-            "return status=blocked with nonempty remaining_work, and rely on durable effect checkpoints to resume the next natural wake. "
+            "progress, not business completion. Continue the next batch in the same run. If the runtime boundary interrupts self-actionable "
+            "work, preserve its row-level effect checkpoints and exit without replacing paid-remote-result with a blocked wait; the next "
+            "scheduled wake must resume immediately from those checkpoints. "
             "Compose the outbound payload from the current recipient's claim map. Never reuse another recipient's payload, canned factual "
             "message mode, or exact attribute value. Immediately before send, compare every literal factual value in the exact composer "
             "text with its bound source; if any value differs, do not send that text and instead omit the value or use a concise "
@@ -4016,6 +4016,12 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
             "Missing an exact named skill is not a blocker. Never ask the buyer to supply a seller-owned account, skill, or "
             "setup step that the authorized owner can create. Persist any newly created credential only through the private "
             "credential SSOT contract without exposing its value. "
+            "Before claiming that a deployment or provider credential is missing, search the complete accumulated requirements, "
+            "project-owned full talkroom source, attachments, prior authenticated evidence, and the private credential SSOT for "
+            "credential-shaped records. When an authorized historical record contains the needed fields, import it into the private "
+            "credential SSOT without copying secret values into logs or evidence, then test the provider's documented host, protocol, "
+            "TLS mode, port, and control-panel recovery routes. One rejected transport combination does not prove the credential is "
+            "missing or justify asking the buyer again. Preserve the successful normalized service identity for every future wake. "
             "Resource discovery is not live readiness: inspect the selected skill/session in official UI or API before effect. "
             "All independent paid projects run concurrently for observation, mutation, and readback. Each project owns a "
             "distinct browser target and owner identity and never waits for another project merely because the provider account is shared. "
@@ -4026,6 +4032,12 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
             "to the next authorized candidate until the batch outcome is met or a complete scope-bound exhaustion receipt exists. "
             "Do not finalize a partial batch after a command timeout or interruption; resume every unattempted candidate individually, "
             "and require attempted count to equal intended count before any exhaustion result. "
+            "A blocked paid-remote-result is a cooldown-eligible wait only when an external actor must produce the next event. In that case "
+            "business_outcome must include wait_receipt={kind:'external_dependency', dependency_kind:'authentication'|'buyer_reply'|'provider_reply'|'provider_processing', responsible_party:'buyer'|'provider'|'third_party', "
+            "required_event:'<specific event>', receipt_refs:['<effect_key or official URL from official_receipts>']}, and every referenced receipt must contain "
+            "durable official readback proving that dependency. Public research, another candidate, more implementation, local verification, "
+            "a timeout, or an interrupted batch is self-actionable work, not an external dependency: never write it as blocked; continue it "
+            "in this run or persist its checkpoint for the next immediate wake without a wait cooldown. "
             "Never bypass platform policy, impersonate the buyer, or invent consent. "
             "A matching reusable seller-owned browser identity may serve this project; never infer authorization from login alone. "
             f"Run every leased-browser operation through {code_root / 'skills/browser/with-browser.sh'} <identity> -- <command>, which acquires, exports CDP, "
@@ -4404,16 +4416,10 @@ def _remote_owner_checkpoint(status: str, root: Path, feedback: str, digest: str
 
 def _remote_wait_is_fresh(root: Path, feedback: str, digest: str,
                           now: float | None = None) -> bool:
-    paid_remote_result.validate_wait(root, feedback, digest, pass_start=0)
-    observed_at = (root / "delivery" / "paid-remote-result.json").stat().st_mtime
-    release_manifest = REPO_ROOT / "RELEASE.json"
-    if _regular_file(release_manifest) and release_manifest.stat().st_mtime > observed_at:
-        return False
-    operator_policy = root / "context" / PAID_FILE_OPERATOR_POLICY
-    if _regular_file(operator_policy) and operator_policy.stat().st_mtime > observed_at:
-        return False
-    age = (time.time() if now is None else now) - observed_at
-    return 0 <= age < PAID_REMOTE_WAIT_RECHECK_SECONDS
+    # A model-authored wait can never prove that the loop has no next action.
+    # Re-evaluate every paid project on each scheduled wake; effect receipts and
+    # message hashes provide deduplication without suppressing useful work.
+    return False
 
 
 def _remote_wait_before_decision(root: Path, item: dict[str, Any],
