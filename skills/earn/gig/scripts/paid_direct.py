@@ -1372,6 +1372,17 @@ def _review_ready_may_ship(verdict: Any, review_ready_allowed: bool, review_roun
     )
 
 
+def _review_ready_allowed_by_policy(decision_allowed: bool,
+                                    operator_policy: dict[str, Any]) -> bool:
+    """Let an exact-cycle account-owner policy close the draft-shipment escape hatch."""
+    override = operator_policy.get("review_ready_shipment_allowed")
+    if override is None:
+        return decision_allowed
+    if not isinstance(override, bool):
+        raise Failure("operator_policy")
+    return decision_allowed and override
+
+
 def _shipment_basis_authorized(shipment_basis: Any, verdict: Any) -> bool:
     return (shipment_basis, verdict) in {
         ("reviewer_approved", "deliverable"),
@@ -3454,6 +3465,9 @@ def _build_and_authorize_file(args, item_path: Path, root: Path, item: dict[str,
     review_ready_allowed = _load(root / "context" / "paid-work-decision.json").get("delivery_stage") == "review"
     operator_policy_path, operator_policy, operator_policy_sha256 = _file_operator_policy(
         root, feedback, requirements_sha256,
+    )
+    review_ready_allowed = _review_ready_allowed_by_policy(
+        review_ready_allowed, operator_policy,
     )
     resumed = _resumable_file_bundle(root, stable, feedback)
     review_state_path = root / "context" / "paid-review-state.json"
