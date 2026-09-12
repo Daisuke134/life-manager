@@ -545,7 +545,7 @@ Current live Apply acceptance audit:
 
    Execute the remaining substeps in this order without waiting for another marketplace owner:
 
-   - [ ] `COCONALA-PAID-3A` Finish Ryu's current revision cycle. Paid consumed the cumulative survey,
+   - [x] `COCONALA-PAID-3A` Finish Ryu's current revision cycle. Paid consumed the cumulative survey,
      usage-guide and schedule-display corrections, repaired the public result, and submitted the
      buyer-visible revision as a normal message in room `18211957`; Dais confirmed the live result.
      Formal delivery remains off. The next aggregate wake owns replay-zero proof; Ryu is no longer a
@@ -560,6 +560,13 @@ Current live Apply acceptance audit:
      recognizer must not let a prior completed remote result hide a current `actionable/remote`
      decision; after deployment, Paid itself must complete this newest request, send exactly once,
      read the exact result back, and keep formal delivery off.
+     Release `ab4fc6f1aefe2dae7bcee271fdc7806b2c262795` then completed that newest request through
+     Paid itself: the exact-room writer recorded `effect=1`, `readback=1`, `failed=0`,
+     `send_performed=true`, and both formal-delivery controls false. Its following natural aggregate
+     run `18d4aad83b7f7848-66430` observed Ryu as `completed`, retained official readback, and recorded
+     `send_performed=false`, `deduplicated=true`, and formal delivery false. This closes the revision
+     and replay-zero contract; the aggregate's separate `remote_builder` failure for talkroom
+     `18211838` remains the next Paid repair and does not reopen Ryu.
    - [x] `COCONALA-PAID-3B` Cover every current client in one aggregate. PASS = every observed room
      appears exactly once as completed, awaiting buyer, or durably retry-owned; `failed=0`; one slow
      client does not prevent another client from progressing. “Observed” does not require a message
