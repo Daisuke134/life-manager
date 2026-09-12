@@ -1457,6 +1457,21 @@ def test_remote_verifier_prompt_persists_decision_before_optional_exploration(tm
     assert "do not exhaustively inspect unrelated historical attachments or messages" in prompt
 
 
+def test_remote_verifier_preserves_builder_receipt_identity(tmp_path):
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    requirements_sha = paid.paid_remote_result.requirements_digest(root, feedback)
+
+    prompt = paid._repair_prompt(
+        root, tmp_path / "item.json", feedback, requirements_sha,
+        True, tmp_path / "cdp.py",
+    )
+
+    assert "preserve every builder effect_key and official_url exactly" in prompt
+    assert "never replace them with verifier-specific receipt identities" in prompt
+    assert "Put fresh independent proof in verifier_evidence" in prompt
+
+
 def test_remote_owner_prompt_reconciles_project_effect_receipts_before_mutation(tmp_path):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)
