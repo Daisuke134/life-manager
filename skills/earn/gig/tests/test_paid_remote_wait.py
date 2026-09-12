@@ -349,6 +349,57 @@ def test_self_actionable_candidate_search_cannot_be_a_wait(tmp_path):
         remote.validate_wait(root, feedback, digest, pass_start=0)
 
 
+def test_owner_validation_failure_after_new_checkpoint_resumes_progress(tmp_path):
+    paid = load("paid_direct")
+    progress = tmp_path / "paid-remote-progress.jsonl"
+    contract = {
+        "feedback_sha256": "feedback",
+        "requirements_sha256": "requirements",
+        "semantic_contract_sha256": "semantic",
+        "target": "https://provider.example/work/1",
+    }
+    progress.write_text(json.dumps({
+        **contract,
+        "effect_key": "candidate-readback",
+        "exact_readback": True,
+    }) + "\n", encoding="utf-8")
+
+    with pytest.raises(paid.Failure, match="remote_progress"):
+        paid._raise_remote_builder_or_progress(
+            progress, 0, contract, ValueError("stale result")
+        )
+
+
+def test_owner_validation_failure_without_new_checkpoint_remains_failure(tmp_path):
+    paid = load("paid_direct")
+
+    with pytest.raises(paid.Failure, match="remote_builder"):
+        paid._raise_remote_builder_or_progress(
+            tmp_path / "missing-progress.jsonl", 0, {}, ValueError("invalid result")
+        )
+
+
+def test_stale_checkpoint_cannot_hide_owner_validation_failure(tmp_path):
+    paid = load("paid_direct")
+    progress = tmp_path / "paid-remote-progress.jsonl"
+    progress.write_text(json.dumps({
+        "feedback_sha256": "old-feedback",
+        "requirements_sha256": "requirements",
+        "semantic_contract_sha256": "semantic",
+        "target": "https://provider.example/work/1",
+        "effect_key": "candidate-readback",
+        "exact_readback": True,
+    }) + "\n", encoding="utf-8")
+
+    with pytest.raises(paid.Failure, match="remote_builder"):
+        paid._raise_remote_builder_or_progress(progress, 0, {
+            "feedback_sha256": "current-feedback",
+            "requirements_sha256": "requirements",
+            "semantic_contract_sha256": "semantic",
+            "target": "https://provider.example/work/1",
+        }, ValueError("stale result"))
+
+
 def test_candidate_search_cannot_disguise_itself_as_external_wait(tmp_path):
     remote = load("paid_remote_result")
     root, feedback, digest = blocked_project(tmp_path)
