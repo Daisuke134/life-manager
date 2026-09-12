@@ -4118,6 +4118,14 @@ The active implementation TODO is therefore Stage 3 items 9–14 applied to thes
    obtained exact official Sent readback at 12:10, repaired and read back the two-cell
    `@riko_t5p307 / 8/29` Sheet row, and checkpointed the unique effect.
 
+   Chii's accepted work scope is the whole monthly scouting operation, not DM clicks alone: select
+   suitable TikTok users, plan and personalize the message, send and officially read back each DM,
+   enter each result in the Sheet, then aggregate results and propose evidence-backed improvements.
+   The first delivery floor is 300 verified pairs within the stated monthly 300–500 range. After
+   300/300, give Chii one concise final results/analysis handoff, perform formal delivery once,
+   obtain buyer completion/payment readback, and prove every replay effect zero. Do not send an
+   incremental buyer handoff before that floor merely because a bounded batch finishes.
+
    Current verified baseline is **12/300**, with **288 remaining**. The official monthly Sheet has
    13 recipient rows, but `@shakaijin_` has no matching verified TikTok Sent and therefore is a
    known non-send row, not campaign credit. The latest bounded candidate preflight attempted 10
