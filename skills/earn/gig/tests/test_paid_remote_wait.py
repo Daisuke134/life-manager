@@ -1357,6 +1357,46 @@ def test_file_owner_must_do_public_research_instead_of_blocking():
     assert "a native roundtrip merely because the controller supports it" in source
 
 
+def test_unchanged_blocked_file_is_not_rechecked(monkeypatch, tmp_path):
+    paid = load("paid_direct")
+    state = {
+        "state": "REVIEW_BLOCKED",
+        "mode": "file",
+        "buyer_feedback_sha256": "f" * 64,
+        "requirements_sha256": "r" * 64,
+        "operator_policy_sha256": "p" * 64,
+    }
+    monkeypatch.setattr(
+        paid, "_file_bundle_snapshots",
+        lambda *_args, **_kwargs: pytest.fail("unchanged input must rebuild, not recheck"),
+    )
+
+    assert paid._blocked_file_bundle_for_recheck(
+        tmp_path, state, "f" * 64, "r" * 64, "p" * 64,
+    ) is None
+
+
+def test_changed_blocked_file_context_rechecks_exact_artifact(monkeypatch, tmp_path):
+    paid = load("paid_direct")
+    snapshots = {"artifact": (1, "a" * 64)}
+    monkeypatch.setattr(
+        paid, "_file_bundle_snapshots",
+        lambda *_args, **_kwargs: ({"artifact_path": "candidate.zip"}, snapshots),
+    )
+    state = {
+        "state": "REVIEW_BLOCKED",
+        "mode": "file",
+        "artifact_sha256": "a" * 64,
+        "buyer_feedback_sha256": "old",
+        "requirements_sha256": "r" * 64,
+        "operator_policy_sha256": "p" * 64,
+    }
+
+    assert paid._blocked_file_bundle_for_recheck(
+        tmp_path, state, "new", "r" * 64, "p" * 64,
+    ) == ({"artifact_path": "candidate.zip"}, snapshots)
+
+
 def test_remote_owner_prompt_requires_durable_structured_provider_readback(tmp_path):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)
