@@ -2553,6 +2553,29 @@ def test_paid_runner_contract_matches_runtime_terra_route():
     } <= paid.PAID_RUNNER_CANDIDATES
 
 
+def test_paid_owners_have_a_long_running_route():
+    import inspect
+
+    paid = load("paid_direct")
+    runtime_config = json.loads(
+        (SCRIPTS.parents[3] / "runtime" / "agent-runner" / "config.json").read_text()
+    )
+
+    route = runtime_config["task_classes"][paid.PAID_OWNER_TASK_CLASS]
+    assert route["requires_explicit_escalation"] is True
+    assert route["timeout_seconds"] == 3600
+    assert {
+        (candidate["provider"], candidate["model"])
+        for candidate in route["candidates"]
+    } <= paid.PAID_RUNNER_CANDIDATES
+    for owner in (
+        paid._run_isolated_file_owner,
+        paid._run_consultation_review,
+        paid._run_remote_repair,
+    ):
+        assert "PAID_OWNER_TASK_CLASS" in inspect.getsource(owner)
+
+
 def test_normalize_acceptance_repairs_archive_member_bookkeeping(tmp_path):
     paid = load("paid_direct")
     root = tmp_path / "project"

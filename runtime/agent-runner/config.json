@@ -309,6 +309,24 @@
         }
       ]
     },
+    "paid-owner-agent": {
+      "route": "paid-owner-long-running",
+      "requires_explicit_escalation": true,
+      "token_reservation": 65536,
+      "timeout_seconds": 3600,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct2"
+        },
+        {
+          "provider": "claude-direct",
+          "model": "claude-sonnet-5"
+        }
+      ]
+    },
     "writer-sol-audit": {
       "route": "writer-explicit-sol-audit",
       "requires_explicit_escalation": true,

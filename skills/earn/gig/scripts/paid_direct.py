@@ -124,6 +124,7 @@ PAID_DECISION_SCHEMA_VERSION = 4
 PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v20"
 PAID_DECISION_MODEL = "gpt-5.6-terra"
 PAID_FILE_MODEL = "gpt-5.6-terra"
+PAID_OWNER_TASK_CLASS = "paid-owner-agent"
 PAID_RUNNER_CANDIDATES = {
     ("codex", "gpt-5.6-terra"),
     ("codex", "gpt-5.6-sol"),
@@ -3293,7 +3294,7 @@ def _run_isolated_file_owner(args, root: Path, context: Path, prompt_text: str,
         started = time.time_ns()
         command = [
             "/usr/bin/sandbox-exec", "-f", str(profile), sys.executable, str(args.agent_runner),
-            "--task-class", "escalation-agent",
+            "--task-class", PAID_OWNER_TASK_CLASS,
             "--prompt-file", str(prompt), "--schema", str(args.runner_schema),
             "--evidence-dir", str(staged_evidence), "--task-label", "paid-file-owner",
             "--loop", _runner_loop_id(), "--workdir", str(staging), "--timeout-seconds", "3600",
@@ -4455,7 +4456,7 @@ def _run_consultation_review(args, item_path: Path, root: Path, feedback: str, b
             f"fresh-review issue: {json.dumps(issues, ensure_ascii=False)}. Return blocked only when no safe answer can be sent.",
             encoding="utf-8",
         )
-        command = [sys.executable, str(args.agent_runner), "--task-class", "escalation-agent",
+        command = [sys.executable, str(args.agent_runner), "--task-class", PAID_OWNER_TASK_CLASS,
                    "--prompt-file", str(owner_prompt), "--schema", str(schema),
                    "--evidence-dir", str(owner_evidence), "--task-label", "paid-answer-owner",
                    "--escalation-reason", "Paid owner composes the exact paid buyer answer",
@@ -4469,7 +4470,7 @@ def _run_consultation_review(args, item_path: Path, root: Path, feedback: str, b
         if _project_identity_snapshot(root, owner_evidence) != project_snapshot:
             raise Failure("remote_builder")
         owner = _consultation_runner_result(
-            owner_evidence, task_label="paid-answer-owner", task_class="escalation-agent",
+            owner_evidence, task_label="paid-answer-owner", task_class=PAID_OWNER_TASK_CLASS,
             model=PAID_DECISION_MODEL, started_ns=owner_started_ns,
         )
         try:
@@ -4630,7 +4631,7 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
                 )
             owner_evidence = root / "evidence" / "agent-PAID_REMOTE_OWNER"
             owner_started_ns = time.time_ns()
-            owner_command = [sys.executable, str(args.agent_runner), "--task-class", "escalation-agent",
+            owner_command = [sys.executable, str(args.agent_runner), "--task-class", PAID_OWNER_TASK_CLASS,
                   "--prompt-file", str(prompt), "--schema", str(args.runner_schema),
                   "--evidence-dir", str(owner_evidence), "--task-label", "paid-remote-owner",
                   "--escalation-reason", "Paid owner mutates the authenticated paid target",
@@ -4645,7 +4646,7 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
                     raise Failure("remote_progress")
                 raise
             _consultation_runner_result(
-                owner_evidence, task_label="paid-remote-owner", task_class="escalation-agent",
+                owner_evidence, task_label="paid-remote-owner", task_class=PAID_OWNER_TASK_CLASS,
                 model=PAID_DECISION_MODEL, started_ns=owner_started_ns,
             )
             if _requirements_snapshot(root) != requirements_snapshot:
