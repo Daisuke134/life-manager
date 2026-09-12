@@ -10,6 +10,20 @@ from pathlib import Path
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 SECRET = re.compile(r"(?i)(api[_ -]?key|token|password|secret|bearer)\s*[:=]")
 UNORDERED_ARRAY_KEYS = frozenset(("tags", "keywords"))
+EXTERNAL_WAIT_KINDS = {
+    "authentication": ({"buyer", "provider"}, {
+        "authentication_readback", "login_recovery_readback",
+        "seller_login_recovery_readback", "authenticated_identity_readback",
+        "official_authenticated_identity_readback", "deployment_access_readback",
+    }),
+    "buyer_reply": ({"buyer"}, {"buyer_reply_state", "inbox_thread_state"}),
+    "provider_reply": ({"provider", "third_party"}, {
+        "provider_reply_state", "inbox_thread_state",
+    }),
+    "provider_processing": ({"provider", "third_party"}, {
+        "provider_job_state", "platform_review_state", "payment_settlement_state",
+    }),
+}
 
 
 def _load(path):
@@ -245,9 +259,12 @@ def validate_wait(root, feedback, digest, pass_start=0):
     if not isinstance(receipts, list) or not receipts:
         raise ValueError("remote wait receipt missing")
     wait = outcome.get("wait_receipt")
+    dependency_kind = wait.get("dependency_kind") if isinstance(wait, dict) else None
+    allowed = EXTERNAL_WAIT_KINDS.get(dependency_kind)
     if (not isinstance(wait, dict)
             or wait.get("kind") != "external_dependency"
-            or wait.get("responsible_party") not in {"buyer", "provider", "third_party"}
+            or allowed is None
+            or wait.get("responsible_party") not in allowed[0]
             or not isinstance(wait.get("required_event"), str)
             or not wait["required_event"].strip()
             or not isinstance(wait.get("receipt_refs"), list)
@@ -287,6 +304,8 @@ def validate_wait(root, feedback, digest, pass_start=0):
         receipt = receipts_by_ref.get(ref)
         if receipt is None:
             raise ValueError("external dependency receipt reference missing")
+        if receipt.get("kind") not in allowed[1]:
+            raise ValueError("external dependency receipt kind mismatch")
         if not ((isinstance(receipt.get("readback"), str)
                  and bool(receipt["readback"].strip()))
                 or (isinstance(receipt.get("result"), str)

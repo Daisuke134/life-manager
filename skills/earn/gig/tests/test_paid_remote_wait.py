@@ -257,6 +257,7 @@ def blocked_project(tmp_path: Path) -> tuple[Path, str, str]:
             "remaining_work": ["Wait for the provider reply."],
             "wait_receipt": {
                 "kind": "external_dependency",
+                "dependency_kind": "provider_reply",
                 "responsible_party": "provider",
                 "required_event": "The provider replies to the acknowledged request.",
                 "receipt_refs": ["https://provider.example/status"],
@@ -312,6 +313,30 @@ def test_self_actionable_candidate_search_cannot_be_a_wait(tmp_path):
     write_json(result_path, result)
 
     with pytest.raises(ValueError, match="not a proved external dependency"):
+        remote.validate_wait(root, feedback, digest, pass_start=0)
+
+
+def test_candidate_search_cannot_disguise_itself_as_external_wait(tmp_path):
+    remote = load("paid_remote_result")
+    root, feedback, digest = blocked_project(tmp_path)
+    result_path = root / "delivery/paid-remote-result.json"
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    result["business_outcome"]["official_receipts"] = [{
+        "provider": "public search",
+        "kind": "search_result_readback",
+        "url": "https://search.example/candidate-one",
+        "readback": "The first candidate has no complete ledger.",
+    }]
+    result["business_outcome"]["wait_receipt"] = {
+        "kind": "external_dependency",
+        "dependency_kind": "provider_reply",
+        "responsible_party": "provider",
+        "required_event": "The provider exposes another candidate.",
+        "receipt_refs": ["https://search.example/candidate-one"],
+    }
+    write_json(result_path, result)
+
+    with pytest.raises(ValueError, match="receipt kind mismatch"):
         remote.validate_wait(root, feedback, digest, pass_start=0)
 
 
@@ -882,7 +907,7 @@ def test_wait_accepts_exact_readback_receipt_shape(tmp_path):
     assert remote.validate_wait(root, feedback, digest, pass_start=0)["status"] == "blocked"
 
 
-def test_wait_accepts_legacy_result_as_readback_and_kind(tmp_path):
+def test_wait_rejects_legacy_receipt_without_dependency_kind(tmp_path):
     remote = load("paid_remote_result")
     root, feedback, digest = blocked_project(tmp_path)
     result_path = root / "delivery/paid-remote-result.json"
@@ -894,7 +919,8 @@ def test_wait_accepts_legacy_result_as_readback_and_kind(tmp_path):
     }]
     write_json(result_path, result)
 
-    assert remote.validate_wait(root, feedback, digest, pass_start=0)["status"] == "blocked"
+    with pytest.raises(ValueError, match="receipt kind mismatch"):
+        remote.validate_wait(root, feedback, digest, pass_start=0)
 
 
 def test_paid_direct_maps_valid_blocked_owner_to_pending(tmp_path):
@@ -921,6 +947,7 @@ def test_paid_direct_maps_verified_authentication_blocker_to_pending(tmp_path):
     result["business_outcome"]["wait_receipt"]["receipt_refs"] = [
         "https://provider.example/login"
     ]
+    result["business_outcome"]["wait_receipt"]["dependency_kind"] = "authentication"
     write_json(result_path, result)
 
     assert paid._remote_owner_checkpoint(
@@ -948,6 +975,7 @@ def test_paid_direct_maps_verified_identity_authentication_blocker_to_pending(
     result["business_outcome"]["wait_receipt"]["receipt_refs"] = [
         "https://provider.example/identity"
     ]
+    result["business_outcome"]["wait_receipt"]["dependency_kind"] = "authentication"
     write_json(result_path, result)
 
     assert paid._remote_owner_checkpoint(
@@ -1106,12 +1134,12 @@ def test_remote_owner_prompt_keeps_canonical_target_and_cumulative_work_pending(
     assert "top-level target in every owner evidence JSON must exactly equal" in prompt
     assert "provider-specific URLs inside official_readback" in prompt
     assert "completing one bounded wake or candidate batch is progress" in prompt
-    assert "keep both satisfied fields false" in prompt
+    assert "preserve its row-level effect checkpoints" in prompt
+    assert "without replacing paid-remote-result with a blocked wait" in prompt
     assert "write the durable result immediately before any optional exploration" in prompt
     assert "do not exhaustively inspect unrelated historical attachments or messages" in prompt
-    assert "write status=blocked and a nonempty blocker in paid-remote-result.json" in prompt
-    assert "every wait receipt include nonempty provider, kind, and url or official_url fields" in prompt
-    assert "readback_source and exact_readback=true" in prompt
+    assert "Only an external dependency may use status=blocked" in prompt
+    assert "wait_receipt contract below" in prompt
 
 
 def test_remote_stage_leaves_coconala_delivery_to_verified_connector(tmp_path):
