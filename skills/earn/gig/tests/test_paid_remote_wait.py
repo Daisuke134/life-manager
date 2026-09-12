@@ -1191,6 +1191,20 @@ def test_remote_owner_prompt_searches_complete_repo_and_valid_shared_tools(tmp_p
     assert str(paid.REPO_ROOT / "skills/browser/with-browser.sh") in prompt
 
 
+def test_remote_verifier_prompt_forbids_unproven_executable_help_paths(tmp_path):
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    requirements_sha = paid.paid_remote_result.requirements_digest(root, feedback)
+
+    prompt = paid._repair_prompt(
+        root, tmp_path / "item.json", feedback, requirements_sha,
+        True, tmp_path / "cdp.py",
+    )
+
+    assert "Never invoke a project script with --help" in prompt
+    assert "legacy scripts may ignore --help and write delivery or remote state" in prompt
+
+
 def test_remote_owner_prompt_has_satisfiable_pre_verifier_outcome_contract(tmp_path):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)
