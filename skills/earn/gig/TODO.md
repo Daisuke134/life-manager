@@ -3925,8 +3925,9 @@ liability order below, is:
   report covering the agreed date range, bet types, overall, class, and racecourse breakdowns. Paid must
   bind the specified source records to official results/payouts, fresh-review the complete report, submit
   the buyer-usable artifact once with formal delivery off, read it back, and replay zero. Per the account
-  owner's explicit order, do this immediately after Chii `18180857` reaches its complete 300-pair delivery
-  gate. Re-open the requirement matrix, search the web and relevant public repositories for stronger
+  owner's latest explicit order, Chii `18180857` continues autonomously toward its 300-pair delivery gate
+  while this independent project starts concurrently; neither project performs the other's work or waits
+  for the other's terminal state. Re-open the requirement matrix, search the web and relevant public repositories for stronger
   source/method evidence, rebuild the report, and resubmit a new hash only after every objectively
   verifiable requirement is covered. The existing v7 and a prior buyer-visible send are iteration evidence,
   not permission to classify the current contract as complete or to give up.
