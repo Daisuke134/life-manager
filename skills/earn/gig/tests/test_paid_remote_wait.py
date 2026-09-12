@@ -1721,6 +1721,18 @@ def test_completed_remote_result_requires_its_own_customer_message(tmp_path):
     assert paid._reported_remote_cycle(args, item) is None
 
 
+def test_current_actionable_remote_work_is_not_hidden_by_prior_completion(tmp_path, monkeypatch):
+    paid, _root, _feedback, args, item = _reported_remote_completion_case(
+        tmp_path, result_message="Prior remote completion.",
+    )
+    monkeypatch.setattr(
+        paid, "_current_paid_decision",
+        lambda *_args: {"decision": "actionable", "mode": "remote"},
+    )
+
+    assert paid._reported_remote_cycle(args, item) is None
+
+
 def test_answer_decision_cannot_be_bypassed_by_untyped_remote_result_replay(tmp_path, monkeypatch):
     paid, _root, _feedback, args, item = _reported_remote_completion_case(
         tmp_path, result_message="Current remote completion.",
