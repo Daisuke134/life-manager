@@ -1023,6 +1023,9 @@ def test_file_owner_must_do_public_research_instead_of_blocking():
     assert "paid task owner running inside the production loop, not the foreground supervisor" in source
     assert "Public-web and public-repository research" in source
     assert "BLOCKED_NON_DELEGABLE merely because public facts" in source
+    assert "choose a different candidate or source lineage" in source
+    assert "Preserving an accepted visual lineage never requires preserving a rejected subject" in source
+    assert "a native roundtrip merely because the controller supports it" in source
 
 
 def test_remote_owner_prompt_requires_durable_structured_provider_readback(tmp_path):
