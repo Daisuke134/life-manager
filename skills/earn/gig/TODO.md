@@ -8848,13 +8848,14 @@ queue is added. Each owner must also progress independent work concurrently insi
    migration to a public release containing this change.
 
    **Current business readback.** Cleanup no longer probes GUI/launchctl and release inventory no
-   longer blocks on global `lsof`. Paid room `18223833` has captured the buyer's second
-   budget-document request but still
-   has no seller reply, artifact or official delivery readback. Its worker was blocked behind a
-   redundant shared browser preflight even though the parent had already persisted the same-wake
-   official targeted snapshot. Reuse that snapshot for parallel prepare; retain presend effect
-   fencing and official post-send readback. Close this atom only after the natural installed owner
-   sends the buyer-visible response/artifact and replay produces zero duplicate effect.
+   longer blocks on global `lsof`. Paid room `18223833` captured the buyer's second budget-document
+   request and the owner sent the exact bounded request for the 15 source attachments whose file
+   bodies are unavailable locally. Official talkroom history observes that seller message, and no
+   newer buyer reply exists. The current semantic failover therefore returns `await_buyer`, while
+   prepare records `effect=0`, `readback=1`, `failed=0`; the loop must not resend the same request or
+   wait on this room before progressing unrelated Paid work. A newer buyer attachment/reply must
+   produce a new feedback identity, reopen this same project, build the content-complete prefecture
+   document set and send it once with official readback. Preserve presend fencing and replay-zero.
 
    The next natural release was delayed in central release GC, not by a Coconala lane wait. The
    old cleanup path chmodded every directory, walked every file to count bytes, and then walked the
