@@ -12,6 +12,20 @@ REQUIRED = ("effect_key", "target", "payload_sha256", "official_receipt_url",
             "exact_readback", "quality_status", "qualification_sources", "semantic_contract_sha256")
 
 
+def valid_checkpoint(value: object) -> bool:
+    return (
+        isinstance(value, dict)
+        and all(key in value for key in REQUIRED)
+        and all(str(value[key]).strip() for key in (
+            "effect_key", "target", "payload_sha256", "official_receipt_url",
+        ))
+        and value["exact_readback"] is True
+        and value["quality_status"] in {"qualified", "qualification", "invalid"}
+        and isinstance(value["qualification_sources"], list)
+        and len(str(value["semantic_contract_sha256"])) == 64
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project-root", required=True, type=Path)
@@ -22,11 +36,7 @@ def main() -> int:
     if root not in source.parents or source.is_symlink() or not source.is_file():
         raise SystemExit("effect JSON must be a regular project-owned file")
     value = json.loads(source.read_text(encoding="utf-8"))
-    if (not isinstance(value, dict) or any(key not in value for key in REQUIRED)
-            or value["exact_readback"] is not True
-            or value["quality_status"] not in {"qualified", "qualification", "invalid"}
-            or not isinstance(value["qualification_sources"], list)
-            or len(str(value["semantic_contract_sha256"])) != 64):
+    if not valid_checkpoint(value):
         raise SystemExit("invalid effect checkpoint")
     ledger = root / "delivery" / "paid-remote-progress.jsonl"
     ledger.parent.mkdir(parents=True, exist_ok=True)

@@ -11,6 +11,7 @@ HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path: sys.path.insert(0, str(HERE))
 import delivery_project  # noqa: E402
 import delivery_queue  # noqa: E402
+import effect_checkpoint  # noqa: E402
 import paid_admission  # noqa: E402
 import paid_work_evidence  # noqa: E402
 import paid_remote_result  # noqa: E402
@@ -4651,9 +4652,8 @@ def _raise_remote_builder_or_progress(progress: Path, before_size: int,
                     row = json.loads(raw)
                 except (UnicodeDecodeError, json.JSONDecodeError):
                     continue
-                if (all(row.get(key) == value for key, value in expected.items())
-                        and _text(row.get("effect_key"))
-                        and row.get("exact_readback") is True):
+                if (effect_checkpoint.valid_checkpoint(row)
+                        and all(row.get(key) == value for key, value in expected.items())):
                     current_checkpoint = True
                     break
     stage = (
@@ -4721,7 +4721,6 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
         "feedback_sha256": feedback,
         "requirements_sha256": requirements_sha256,
         "semantic_contract_sha256": semantic_contract_sha256,
-        "target": _text(_load(item_path).get("marketplace_url")),
     }
     repair = base / "remote-repair"
     repair.mkdir(parents=True, exist_ok=True)
