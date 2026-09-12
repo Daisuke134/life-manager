@@ -2498,6 +2498,29 @@ def test_pending_review_contract_is_stable_across_model_paraphrases():
     assert "Implement and verify the missing live controls." in first["required_effect"]
 
 
+def test_pending_review_contract_preserves_singular_reviewer_finding():
+    paid = load("paid_direct")
+    finding = "Replace the incomplete sample with the complete source-proven annual ledger."
+    review = {"mode": "file", "finding": finding}
+
+    prompt = paid._decision_prompt(
+        Path("context.json"), "a" * 64, "b" * 64, "c" * 64,
+        {"message_id": "m1", "content_sha256": "d" * 64, "side": "buyer"},
+        {"message_id": "m1", "content_sha256": "d" * 64, "side": "buyer"},
+        pending_review=review,
+    ).decode()
+    bound = paid._bind_pending_review_contract(
+        {"required_output": "model output", "required_effect": "model effect"},
+        review,
+        "file",
+    )
+
+    assert finding in prompt
+    assert finding in bound["required_output"]
+    assert finding in bound["required_effect"]
+    assert "[]" not in bound["required_output"]
+
+
 def test_project_identity_snapshot_ignores_python_bytecode(tmp_path):
     paid = load("paid_direct")
     root = tmp_path / "project"
