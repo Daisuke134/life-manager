@@ -25,6 +25,8 @@ from gig_paths import BROWSER_DIR, REPO_ROOT, RUNNER_DIR  # noqa: E402
 from gig_disk_guard import disk_headroom_ok  # noqa: E402
 
 DEFAULT_STEP_TIMEOUT_SECONDS = 2100
+PAID_FILE_OWNER_TIMEOUT_SECONDS = 3600
+PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS = PAID_FILE_OWNER_TIMEOUT_SECONDS + 30
 TARGETED_READBACK_TIMEOUT_SECONDS = 180
 TERMINAL_RECONCILIATION_TIMEOUT_SECONDS = 90
 TERMINAL_RECONCILIATION_CLEANUP_TIMEOUT_SECONDS = 15
@@ -187,8 +189,11 @@ def _has_resumption_marker(workspace: Path) -> bool:
 
 
 def _has_runner_diagnostic(workspace: Path) -> bool:
-    return any(path.is_file() and not path.is_symlink()
-               for path in workspace.glob("**/evidence/**/*"))
+    return any(
+        path.is_file() and not path.is_symlink()
+        for pattern in ("**/evidence/**/*", "**/runner-evidence/**/*")
+        for path in workspace.glob(pattern)
+    )
 
 
 @contextmanager
@@ -3297,15 +3302,16 @@ def _run_isolated_file_owner(args, root: Path, context: Path, prompt_text: str,
             "--task-class", PAID_OWNER_TASK_CLASS,
             "--prompt-file", str(prompt), "--schema", str(args.runner_schema),
             "--evidence-dir", str(staged_evidence), "--task-label", "paid-file-owner",
-            "--loop", _runner_loop_id(), "--workdir", str(staging), "--timeout-seconds", "3600",
+            "--loop", _runner_loop_id(), "--workdir", str(staging), "--timeout-seconds",
+            str(PAID_FILE_OWNER_TIMEOUT_SECONDS),
             "--escalation-reason", "One isolated paid owner must build the buyer deliverable",
         ]
         try:
             for owner_round in range(2):
                 try:
-                    _run(command, "file_builder")
+                    _run(command, "file_builder", timeout=PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS)
                 except Failure:
-                    if not (staging / "delivery" / "paid-tool-requests.json").is_file():
+                    if not _has_pending_owner_tool_requests(staging):
                         raise
                 try:
                     executed = _execute_owner_tool_requests(staging, REPO_ROOT)
@@ -3370,6 +3376,18 @@ def _run_isolated_file_owner(args, root: Path, context: Path, prompt_text: str,
             })
             raise
         return started
+
+
+def _has_pending_owner_tool_requests(staging: Path) -> bool:
+    request_path = staging / "delivery" / "paid-tool-requests.json"
+    if not request_path.is_file() or request_path.is_symlink():
+        return False
+    try:
+        value = _load(request_path)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return False
+    requests = value.get("requests") if isinstance(value, dict) else None
+    return value.get("version") == 1 and isinstance(requests, list) and bool(requests)
 
 
 def _execute_owner_tool_requests(staging: Path, code_root: Path) -> int:
