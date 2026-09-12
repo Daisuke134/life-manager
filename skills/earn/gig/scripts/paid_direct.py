@@ -2038,6 +2038,27 @@ def _validate_managed_verifier(verifier: Path, project_root: Path, intent: dict[
     except (AttributeError, OSError, ValueError, TypeError, json.JSONDecodeError) as error:
         raise Failure("remote_verifier") from error
 
+
+def _validate_managed_verifier_or_retry(
+    verifier: Path,
+    project_root: Path,
+    intent: dict[str, Any],
+    feedback: str,
+    digest: str,
+    min_evidence_mtime_ns: int,
+    review_round: int,
+) -> tuple[Path | None, str | None]:
+    try:
+        return (_validate_managed_verifier(
+            verifier, project_root, intent, feedback, digest, min_evidence_mtime_ns,
+        ), None)
+    except Failure as error:
+        if review_round >= 3:
+            raise
+        cause = _text(error.__cause__) if error.__cause__ is not None else ""
+        return (None, cause or "managed verifier contract incomplete")
+
+
 def _review_failure(verifier: Path, project_root: Path, intent: dict[str, Any], feedback: str, digest: str,
                     min_mtime_ns: int | None = None) -> dict[str, Any]:
     """Read a model-owned rejection as repair input, never as effect authorization."""
@@ -4571,6 +4592,7 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
         pass
 
     verifier_path = None
+    verifier_contract_error = None
     for review_round in range(1, 4):
         if builder_required:
             prompt = repair / "owner.prompt.txt"
@@ -4655,10 +4677,17 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
         verifier_path.unlink(missing_ok=True)
         repair.mkdir(parents=True, exist_ok=True)
         prompt = repair / "verifier.prompt.txt"
-        prompt.write_text(
-            _repair_prompt(root, item_path, feedback, requirements_sha256, True, args.cdp_helper),
-            encoding="utf-8",
+        verifier_prompt = _repair_prompt(
+            root, item_path, feedback, requirements_sha256, True, args.cdp_helper,
         )
+        if verifier_contract_error:
+            verifier_prompt += (
+                "\nThe previous verifier run returned OK but its required managed contract failed "
+                f"validation: {verifier_contract_error}. Re-check the live target and write a complete "
+                "agent-PAID_REMOTE_VERIFY/remote-verifier-result.json plus fresh referenced evidence. "
+                "Do not change delivery files or relax any requirement.\n"
+            )
+        prompt.write_text(verifier_prompt, encoding="utf-8")
         delivery_snapshot, verifier_started_ns = _delivery_snapshot(root), time.time_ns()
         project_snapshot = _project_identity_snapshot(root, verifier_evidence)
         # Not --read-only. Its contract is to open the live target and write
@@ -4677,10 +4706,13 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
             raise Failure("remote_verifier")
         semantic_status = step_result_status.status_from_evidence(verifier_evidence)
         if semantic_status == "ok":
-            verifier_path = _validate_managed_verifier(
-                verifier_path, root, intent, feedback, digest, verifier_started_ns,
+            verifier_path, verifier_contract_error = _validate_managed_verifier_or_retry(
+                verifier_path, root, intent, feedback, digest, verifier_started_ns, review_round,
             )
-            break
+            if verifier_path is not None:
+                break
+            builder_required = False
+            continue
         if semantic_status != "blocked":
             raise Failure("remote_verifier")
         rejected = _review_failure(
