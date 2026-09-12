@@ -1505,6 +1505,14 @@ def _revalidate_file_snapshots(snapshots: dict[str, tuple[int, str]]) -> None:
             raise ValueError("bound paid decision input changed")
 
 
+def _review_findings(review: dict[str, Any]) -> list[Any]:
+    findings = review.get("findings")
+    if isinstance(findings, list) and findings:
+        return findings
+    finding = review.get("finding")
+    return [finding] if isinstance(finding, str) and finding.strip() else []
+
+
 def _decision_prompt(context: Path, context_sha256: str, feedback: str,
                     requirements: str, identity: dict[str, str],
                     buyer_identity: dict[str, str],
@@ -1526,7 +1534,7 @@ def _decision_prompt(context: Path, context_sha256: str, feedback: str,
         review_instruction = (
             "A fresh independent review requires the current cycle to remain actionable in "
             f"mode {review_mode}. Its bounded findings are "
-            f"{json.dumps(pending_review.get('findings') or [], ensure_ascii=False)}. "
+            f"{json.dumps(_review_findings(pending_review), ensure_ascii=False)}. "
             f"Keep mode {review_mode} and make required_output and required_effect cover those repairs and fresh verification. "
             "Changing it to answer, await_buyer, satisfied_noop, or another mode before the repair passes is forbidden. "
         )
@@ -1620,7 +1628,7 @@ def _bind_pending_review_contract(value: dict[str, Any], pending_review: dict[st
                                   mode: str) -> dict[str, Any]:
     """Make an active repair contract stable across equivalent model wording."""
     findings = json.dumps(
-        pending_review.get("findings") or [], ensure_ascii=False,
+        _review_findings(pending_review), ensure_ascii=False,
         sort_keys=True, separators=(",", ":"),
     )
     value["required_output"] = (
