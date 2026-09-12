@@ -4016,6 +4016,12 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
             "Missing an exact named skill is not a blocker. Never ask the buyer to supply a seller-owned account, skill, or "
             "setup step that the authorized owner can create. Persist any newly created credential only through the private "
             "credential SSOT contract without exposing its value. "
+            "Before claiming that a deployment or provider credential is missing, search the complete accumulated requirements, "
+            "project-owned full talkroom source, attachments, prior authenticated evidence, and the private credential SSOT for "
+            "credential-shaped records. When an authorized historical record contains the needed fields, import it into the private "
+            "credential SSOT without copying secret values into logs or evidence, then test the provider's documented host, protocol, "
+            "TLS mode, port, and control-panel recovery routes. One rejected transport combination does not prove the credential is "
+            "missing or justify asking the buyer again. Preserve the successful normalized service identity for every future wake. "
             "Resource discovery is not live readiness: inspect the selected skill/session in official UI or API before effect. "
             "All independent paid projects run concurrently for observation, mutation, and readback. Each project owns a "
             "distinct browser target and owner identity and never waits for another project merely because the provider account is shared. "
@@ -4410,16 +4416,10 @@ def _remote_owner_checkpoint(status: str, root: Path, feedback: str, digest: str
 
 def _remote_wait_is_fresh(root: Path, feedback: str, digest: str,
                           now: float | None = None) -> bool:
-    paid_remote_result.validate_wait(root, feedback, digest, pass_start=0)
-    observed_at = (root / "delivery" / "paid-remote-result.json").stat().st_mtime
-    release_manifest = REPO_ROOT / "RELEASE.json"
-    if _regular_file(release_manifest) and release_manifest.stat().st_mtime > observed_at:
-        return False
-    operator_policy = root / "context" / PAID_FILE_OPERATOR_POLICY
-    if _regular_file(operator_policy) and operator_policy.stat().st_mtime > observed_at:
-        return False
-    age = (time.time() if now is None else now) - observed_at
-    return 0 <= age < PAID_REMOTE_WAIT_RECHECK_SECONDS
+    # A model-authored wait can never prove that the loop has no next action.
+    # Re-evaluate every paid project on each scheduled wake; effect receipts and
+    # message hashes provide deduplication without suppressing useful work.
+    return False
 
 
 def _remote_wait_before_decision(root: Path, item: dict[str, Any],

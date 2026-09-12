@@ -1136,6 +1136,8 @@ def test_remote_owner_prompt_keeps_canonical_target_and_cumulative_work_pending(
     assert "completing one bounded wake or candidate batch is progress" in prompt
     assert "preserve its row-level effect checkpoints" in prompt
     assert "without replacing paid-remote-result with a blocked wait" in prompt
+    assert "search the complete accumulated requirements" in prompt
+    assert "One rejected transport combination does not prove the credential is missing" in prompt
     assert "write the durable result immediately before any optional exploration" in prompt
     assert "do not exhaustively inspect unrelated historical attachments or messages" in prompt
     assert "Only an external dependency may use status=blocked" in prompt
@@ -1470,12 +1472,12 @@ def test_selected_talkroom_readback_uses_visible_transport_for_attachments(tmp_p
     assert seen == [False]
 
 
-def test_current_remote_wait_is_fresh(tmp_path):
+def test_current_remote_wait_never_suppresses_next_wake(tmp_path):
     paid = load("paid_direct")
     root, feedback, digest = blocked_project(tmp_path)
     mtime = (root / "delivery/paid-remote-result.json").stat().st_mtime
 
-    assert paid._remote_wait_is_fresh(root, feedback, digest, now=mtime + 10) is True
+    assert paid._remote_wait_is_fresh(root, feedback, digest, now=mtime + 10) is False
 
 
 def test_stale_paid_answer_must_not_hide_current_officially_read_back_remote_completion(tmp_path):
@@ -1645,13 +1647,13 @@ def test_future_dated_remote_wait_is_not_fresh(tmp_path):
     assert paid._remote_wait_is_fresh(root, feedback, digest, now=mtime - 1) is False
 
 
-def test_current_wait_is_reused_before_semantic_decision(tmp_path):
+def test_current_wait_is_rechecked_before_semantic_decision(tmp_path):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)
 
     assert paid._remote_wait_before_decision(
         root, {"buyer_feedback_sha256": feedback}, now=None,
-    ) is True
+    ) is False
 
 
 def test_stale_router_decision_cannot_reuse_remote_wait(tmp_path):
