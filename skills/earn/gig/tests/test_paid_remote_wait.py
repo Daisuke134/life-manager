@@ -227,12 +227,12 @@ def test_failed_paid_workspace_with_runner_evidence_is_preserved(tmp_path: Path)
     with pytest.raises(RuntimeError, match="boom"):
         with paid._project_workspace(root, "paid-source-census-") as raw:
             workspace = Path(raw)
-            evidence = workspace / "evidence" / "attempt-01.stderr.log"
+            evidence = workspace / "runner-evidence" / "attempt-01.stderr.log"
             evidence.parent.mkdir(parents=True)
             evidence.write_text("runner failed before summary\n", encoding="utf-8")
             raise RuntimeError("boom")
     assert workspace is not None and workspace.is_dir()
-    assert (workspace / "evidence" / "attempt-01.stderr.log").is_file()
+    assert (workspace / "runner-evidence" / "attempt-01.stderr.log").is_file()
 
 
 def blocked_project(tmp_path: Path) -> tuple[Path, str, str]:
@@ -2241,6 +2241,16 @@ def test_empty_tool_request_is_consumed_as_no_request(tmp_path):
     assert not request.exists()
 
 
+def test_empty_tool_request_does_not_mask_owner_failure(tmp_path):
+    paid = load("paid_direct")
+    (tmp_path / "delivery").mkdir()
+    (tmp_path / "delivery" / "paid-tool-requests.json").write_text(
+        '{"version":1,"requests":[]}'
+    )
+
+    assert paid._has_pending_owner_tool_requests(tmp_path) is False
+
+
 def test_fresh_owner_staging_tolerates_precreated_context_directory(tmp_path):
     paid = load("paid_direct")
     root, staging = tmp_path / "root", tmp_path / "staging"
@@ -2551,6 +2561,73 @@ def test_paid_runner_contract_matches_runtime_terra_route():
         (candidate["provider"], candidate["model"])
         for candidate in escalation_route
     } <= paid.PAID_RUNNER_CANDIDATES
+
+
+def test_paid_owners_have_a_long_running_route():
+    import inspect
+
+    paid = load("paid_direct")
+    runtime_config = json.loads(
+        (SCRIPTS.parents[3] / "runtime" / "agent-runner" / "config.json").read_text()
+    )
+
+    route = runtime_config["task_classes"][paid.PAID_OWNER_TASK_CLASS]
+    assert route["requires_explicit_escalation"] is True
+    assert route["timeout_seconds"] == 3600
+    assert paid.PAID_FILE_OWNER_TIMEOUT_SECONDS == 3600
+    assert paid.PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS > paid.PAID_FILE_OWNER_TIMEOUT_SECONDS
+    assert paid._paid_owner_timeout_args() == ["--timeout-seconds", "3600"]
+    assert {
+        (candidate["provider"], candidate["model"])
+        for candidate in route["candidates"]
+    } <= paid.PAID_RUNNER_CANDIDATES
+    for owner in (
+        paid._run_isolated_file_owner,
+        paid._run_consultation_review,
+        paid._run_remote_repair,
+    ):
+        source = inspect.getsource(owner)
+        assert "PAID_OWNER_TASK_CLASS" in source
+        assert "_paid_owner_timeout_args" in source
+        assert "PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS" in source
+
+
+def test_paid_owner_results_accept_the_paid_owner_task_class(tmp_path):
+    paid = load("paid_direct")
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    result = evidence / "attempt-01.result.json"
+    write_json(result, {"status": "ok", "reviewed_attachments": [], "issues": []})
+
+    def write_summary(label):
+        write_json(evidence / "summary.json", {
+            "status": "success",
+            "task_label": label,
+            "task_class": paid.PAID_OWNER_TASK_CLASS,
+            "escalated": True,
+            "selected_provider": "codex",
+            "selected_model": paid.PAID_DECISION_MODEL,
+            "result_path": str(result),
+        })
+
+    write_summary("paid-file-owner")
+    value, _proof = paid._file_runner_result(
+        evidence,
+        task_label="paid-file-owner",
+        started_ns=None,
+        task_class=paid.PAID_OWNER_TASK_CLASS,
+    )
+    assert value["status"] == "ok"
+
+    write_summary("paid-answer-owner")
+    value = paid._consultation_runner_result(
+        evidence,
+        task_label="paid-answer-owner",
+        task_class=paid.PAID_OWNER_TASK_CLASS,
+        model=paid.PAID_DECISION_MODEL,
+        started_ns=0,
+    )
+    assert value["status"] == "ok"
 
 
 def test_normalize_acceptance_repairs_archive_member_bookkeeping(tmp_path):

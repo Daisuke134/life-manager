@@ -25,6 +25,8 @@ from gig_paths import BROWSER_DIR, REPO_ROOT, RUNNER_DIR  # noqa: E402
 from gig_disk_guard import disk_headroom_ok  # noqa: E402
 
 DEFAULT_STEP_TIMEOUT_SECONDS = 2100
+PAID_FILE_OWNER_TIMEOUT_SECONDS = 3600
+PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS = PAID_FILE_OWNER_TIMEOUT_SECONDS + 30
 TARGETED_READBACK_TIMEOUT_SECONDS = 180
 TERMINAL_RECONCILIATION_TIMEOUT_SECONDS = 90
 TERMINAL_RECONCILIATION_CLEANUP_TIMEOUT_SECONDS = 15
@@ -96,7 +98,8 @@ def _private_model_runner(root: Path, command: list[str], label: str) -> list[st
 
 
 def _run_private_model_serialized(root: Path, command: list[str], label: str, step: str,
-                                  *, effect_owner: bool = False) -> str:
+                                  *, effect_owner: bool = False,
+                                  timeout: float | None = None) -> str:
     """Admit one paid model run at a time, before its runner timeout starts."""
     effect_descriptor = None
     if effect_owner:
@@ -113,7 +116,10 @@ def _run_private_model_serialized(root: Path, command: list[str], label: str, st
     model_descriptor = os.open(model_lock_path, os.O_CREAT | os.O_RDWR, 0o600)
     try:
         fcntl.flock(model_descriptor, fcntl.LOCK_EX)
-        return _run(_private_model_runner(root, command, label), step)
+        private_command = _private_model_runner(root, command, label)
+        if timeout is None:
+            return _run(private_command, step)
+        return _run(private_command, step, timeout=timeout)
     finally:
         fcntl.flock(model_descriptor, fcntl.LOCK_UN)
         os.close(model_descriptor)
@@ -124,6 +130,7 @@ PAID_DECISION_SCHEMA_VERSION = 4
 PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v20"
 PAID_DECISION_MODEL = "gpt-5.6-terra"
 PAID_FILE_MODEL = "gpt-5.6-terra"
+PAID_OWNER_TASK_CLASS = "paid-owner-agent"
 PAID_RUNNER_CANDIDATES = {
     ("codex", "gpt-5.6-terra"),
     ("codex", "gpt-5.6-sol"),
@@ -131,6 +138,10 @@ PAID_RUNNER_CANDIDATES = {
     ("claude", "claude-sonnet-5"),
     ("claude-direct", "claude-sonnet-5"),
 }
+
+
+def _paid_owner_timeout_args() -> list[str]:
+    return ["--timeout-seconds", str(PAID_FILE_OWNER_TIMEOUT_SECONDS)]
 PAID_FILE_POLICY_VERSION = "paid-file-build-review-v22"
 MAX_FILE_REVIEW_ITERATIONS = 3
 PAID_REMOTE_WAIT_RECHECK_SECONDS = 3600
@@ -186,8 +197,11 @@ def _has_resumption_marker(workspace: Path) -> bool:
 
 
 def _has_runner_diagnostic(workspace: Path) -> bool:
-    return any(path.is_file() and not path.is_symlink()
-               for path in workspace.glob("**/evidence/**/*"))
+    return any(
+        path.is_file() and not path.is_symlink()
+        for pattern in ("**/evidence/**/*", "**/runner-evidence/**/*")
+        for path in workspace.glob(pattern)
+    )
 
 
 @contextmanager
@@ -2281,10 +2295,11 @@ def _file_mode(root: Path, item: dict[str, Any]) -> bool:
 
 
 def _file_runner_result(evidence: Path, *, task_label: str,
-                        started_ns: int | None) -> tuple[dict[str, Any], dict[str, str]]:
+                        started_ns: int | None,
+                        task_class: str = "escalation-agent") -> tuple[dict[str, Any], dict[str, str]]:
     summary = _runner_summary(evidence)
     expected = {
-        "status": "success", "task_label": task_label, "task_class": "escalation-agent",
+        "status": "success", "task_label": task_label, "task_class": task_class,
         "escalated": True,
     }
     if (any(summary.get(key) != value for key, value in expected.items())
@@ -3293,18 +3308,19 @@ def _run_isolated_file_owner(args, root: Path, context: Path, prompt_text: str,
         started = time.time_ns()
         command = [
             "/usr/bin/sandbox-exec", "-f", str(profile), sys.executable, str(args.agent_runner),
-            "--task-class", "escalation-agent",
+            "--task-class", PAID_OWNER_TASK_CLASS,
             "--prompt-file", str(prompt), "--schema", str(args.runner_schema),
             "--evidence-dir", str(staged_evidence), "--task-label", "paid-file-owner",
-            "--loop", _runner_loop_id(), "--workdir", str(staging), "--timeout-seconds", "3600",
+            "--loop", _runner_loop_id(), "--workdir", str(staging),
+            *_paid_owner_timeout_args(),
             "--escalation-reason", "One isolated paid owner must build the buyer deliverable",
         ]
         try:
             for owner_round in range(2):
                 try:
-                    _run(command, "file_builder")
+                    _run(command, "file_builder", timeout=PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS)
                 except Failure:
-                    if not (staging / "delivery" / "paid-tool-requests.json").is_file():
+                    if not _has_pending_owner_tool_requests(staging):
                         raise
                 try:
                     executed = _execute_owner_tool_requests(staging, REPO_ROOT)
@@ -3334,6 +3350,7 @@ def _run_isolated_file_owner(args, root: Path, context: Path, prompt_text: str,
                     _write(summary_path, summary)
         owner, _proof = _file_runner_result(
             owner_evidence, task_label="paid-file-owner", started_ns=started,
+            task_class=PAID_OWNER_TASK_CLASS,
         )
         if owner.get("status") != "ok" or step_result_status.status_from_evidence(owner_evidence) != "ok":
             raise Failure("file_builder")
@@ -3369,6 +3386,18 @@ def _run_isolated_file_owner(args, root: Path, context: Path, prompt_text: str,
             })
             raise
         return started
+
+
+def _has_pending_owner_tool_requests(staging: Path) -> bool:
+    request_path = staging / "delivery" / "paid-tool-requests.json"
+    if not request_path.is_file() or request_path.is_symlink():
+        return False
+    try:
+        value = _load(request_path)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return False
+    requests = value.get("requests") if isinstance(value, dict) else None
+    return value.get("version") == 1 and isinstance(requests, list) and bool(requests)
 
 
 def _execute_owner_tool_requests(staging: Path, code_root: Path) -> int:
@@ -4313,7 +4342,8 @@ def _consultation_runner_result(evidence: Path, *, task_label: str, task_class: 
     summary = _runner_summary(evidence)
     expected = {"status": "success", "task_label": task_label, "task_class": task_class,
                 }
-    if task_class == "escalation-agent": expected["escalated"] = True
+    if task_class in {"escalation-agent", PAID_OWNER_TASK_CLASS}:
+        expected["escalated"] = True
     if (any(summary.get(key) != value for key, value in expected.items())
             or (summary.get("selected_provider"), summary.get("selected_model")) not in PAID_RUNNER_CANDIDATES):
         raise Failure("remote_verifier" if "verifier" in task_label else "remote_builder")
@@ -4376,7 +4406,7 @@ def _validate_consultation_authorization(root: Path, feedback: str) -> dict[str,
         raise ValueError("invalid consultation authorization")
     owner_dir = root / "evidence" / "agent-PAID_ANSWER_OWNER"
     owner = _consultation_runner_result(owner_dir, task_label="paid-answer-owner",
-                                        task_class="escalation-agent", model=PAID_DECISION_MODEL,
+                                        task_class=PAID_OWNER_TASK_CLASS, model=PAID_DECISION_MODEL,
                                         started_ns=0)
     owner_result_path = _consultation_result_path(owner_dir)
     owner_summary = _runner_summary(owner_dir)
@@ -4455,21 +4485,21 @@ def _run_consultation_review(args, item_path: Path, root: Path, feedback: str, b
             f"fresh-review issue: {json.dumps(issues, ensure_ascii=False)}. Return blocked only when no safe answer can be sent.",
             encoding="utf-8",
         )
-        command = [sys.executable, str(args.agent_runner), "--task-class", "escalation-agent",
+        command = [sys.executable, str(args.agent_runner), "--task-class", PAID_OWNER_TASK_CLASS,
                    "--prompt-file", str(owner_prompt), "--schema", str(schema),
                    "--evidence-dir", str(owner_evidence), "--task-label", "paid-answer-owner",
                    "--escalation-reason", "Paid owner composes the exact paid buyer answer",
-                   "--loop", _runner_loop_id(), "--workdir", str(root), "--timeout-seconds", "1800"]
+                   "--loop", _runner_loop_id(), "--workdir", str(root), *_paid_owner_timeout_args()]
         for image in images:
             command += ["--image", str(image)]
         command = _private_model_runner(root, command, "paid-answer-owner")
         project_snapshot = _project_identity_snapshot(root, owner_evidence)
         owner_started_ns = time.time_ns()
-        _run(command, "remote_builder")
+        _run(command, "remote_builder", timeout=PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS)
         if _project_identity_snapshot(root, owner_evidence) != project_snapshot:
             raise Failure("remote_builder")
         owner = _consultation_runner_result(
-            owner_evidence, task_label="paid-answer-owner", task_class="escalation-agent",
+            owner_evidence, task_label="paid-answer-owner", task_class=PAID_OWNER_TASK_CLASS,
             model=PAID_DECISION_MODEL, started_ns=owner_started_ns,
         )
         try:
@@ -4630,22 +4660,23 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
                 )
             owner_evidence = root / "evidence" / "agent-PAID_REMOTE_OWNER"
             owner_started_ns = time.time_ns()
-            owner_command = [sys.executable, str(args.agent_runner), "--task-class", "escalation-agent",
+            owner_command = [sys.executable, str(args.agent_runner), "--task-class", PAID_OWNER_TASK_CLASS,
                   "--prompt-file", str(prompt), "--schema", str(args.runner_schema),
                   "--evidence-dir", str(owner_evidence), "--task-label", "paid-remote-owner",
                   "--escalation-reason", "Paid owner mutates the authenticated paid target",
-                  "--loop", _runner_loop_id(), "--workdir", str(root), "--timeout-seconds", "1800"]
+                  "--loop", _runner_loop_id(), "--workdir", str(root), *_paid_owner_timeout_args()]
             progress_size = progress.stat().st_size if _regular_file(progress) else 0
             try:
                 _run_private_model_serialized(
                     root, owner_command, "paid-remote-owner", "remote_builder", effect_owner=True,
+                    timeout=PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS,
                 )
             except Failure:
                 if _regular_file(progress) and progress.stat().st_size > progress_size:
                     raise Failure("remote_progress")
                 raise
             _consultation_runner_result(
-                owner_evidence, task_label="paid-remote-owner", task_class="escalation-agent",
+                owner_evidence, task_label="paid-remote-owner", task_class=PAID_OWNER_TASK_CLASS,
                 model=PAID_DECISION_MODEL, started_ns=owner_started_ns,
             )
             if _requirements_snapshot(root) != requirements_snapshot:
