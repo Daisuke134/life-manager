@@ -88,42 +88,44 @@ skills/
 
 ### Fixed remaining program order — current platform truth before meta-loop
 
-This list does not replace or reorder the active atomic cursor below. It is the end-to-end program
-that follows it, and its order is fixed as **Apply -> Reply -> Paid -> Storefront -> expansion ->
-meta-loop**. A lane is complete only after a natural installed-owner terminal, exact official effect
-readback, one deduplicated Telegram receipt and a following replay-zero; code presence and an empty
-inventory check are not completion.
+This order supersedes every earlier lane-first narrative. Shared mechanics develop horizontally once,
+while revenue acceptance proceeds vertically by provider. For each provider, complete
+`discover/account -> Apply -> Reply -> Paid -> optional Storefront -> payout/bank receipt` before
+calling that provider complete. A missing Storefront capability is `not_applicable`, never a fake lane;
+a missing funded order keeps Paid unproven while Apply continues acquiring one. Every completed effect
+requires a natural installed-owner terminal, exact official readback, one deduplicated operator receipt
+and a following replay-zero.
 
-1. **Apply.** Restore continuous official applications on Coconala, Lancers and CrowdWorks; preserve
-   Mercor's working submission path but rank for truthful resume fit and expected acceptance value.
-   Activate Freelancer.com and Upwork only after official account/policy state permits it. Prove both
-   fixed-price one-off and hourly opportunities; do not reject feasible general-agent work merely
-   because no named Skill exists.
-2. **Reply.** Close every current buyer event on Coconala, Lancers and CrowdWorks through the shared
-   kernel. A reply may require tools: open an allowed scheduling link, create and read back a calendar
-   event, complete an allowed form, accept exact contract terms, or send a grounded message. Add
-   Mercor/Freelancer/Upwork adapters only against their official in-platform inbox/action surfaces;
-   email is never fabricated as a platform reply.
-3. **Paid.** Keep Coconala's accepted five-room evidence, finish the funded CrowdWorks contract and
-   its payment receipt, then prove Lancers, Mercor, Freelancer.com and Upwork with a real funded work
-   item. Human-produced audio/video/interview steps become typed Telegram handoffs; the loop continues
-   other work instead of blocking the provider queue.
-4. **Storefront.** Prove Coconala and Lancers listings continuously publish, improve and produce
-   attributable orders. Add Storefront only where the provider actually offers a seller catalog;
-   CrowdWorks and Mercor do not receive a fake lane.
-5. **Shared-kernel convergence.** Move lifecycle, context, effect fencing, retry, official readback,
-   reporting and browser/session ownership into `marketplace-core`; leave auth, provider vocabulary,
-   selectors and actual mutations in thin adapters. One shared-kernel change must pass conformance
-   fixtures for every adopted provider without copying a lane.
-6. **Next-platform expansion.** Qualify and add Freelancer.com, Upwork, AudioBabel and the next
-   evidence-backed marketplaces in expected net-revenue order. Each provider moves through
-   discover -> account/profile -> Apply -> Reply -> Paid -> optional Storefront -> bank receipt.
-7. **Marketplace meta-loop.** Let the model discover and qualify platforms, inspect official
+0. **Existing funded liabilities first.** Finish every already-purchased Coconala/CrowdWorks obligation
+   through useful artifact, buyer feedback, formal delivery where authorized, official completion and
+   replay-zero. Current first atom is Coconala `18211838`; Manledge/Clover `18169985` is closed and excluded.
+1. **Coconala vertical acceptance.** Close all remaining Apply, Reply, Paid and Storefront acceptance,
+   then prove payout attribution without reopening completed customer work.
+2. **Lancers vertical acceptance.** Phone verification is complete. Run suitable Apply until a real
+   contract exists, then prove Reply, funded Paid delivery, optional Storefront, payout and replay-zero
+   through the shared kernel rather than building an inventory-free fake Paid proof.
+3. **CrowdWorks vertical acceptance.** Complete the application canary, funded contract, buyer exchange,
+   delivery and payment receipt. CrowdWorks has no seller catalogue, so Storefront is `not_applicable`.
+4. **Mercor vertical acceptance.** Preserve the working application path, rank for truthful fit, route
+   identity/interview-only actions as typed Telegram handoffs, and let the loop own every other step
+   through accepted work and payout. Storefront is `not_applicable`.
+5. **Freelancer.com vertical acceptance.** Recover official account/policy state, then prove Apply,
+   Reply, real funded Paid delivery, payout and replay-zero.
+6. **Upwork vertical acceptance.** Recover official account/policy state, then prove Apply, Reply, real
+   funded Paid delivery, payout and replay-zero.
+7. **Shared-kernel convergence throughout steps 0–6.** Put lifecycle, cumulative context, capability
+   discovery, effect fencing, retry, official readback, reporting and browser/session ownership in
+   `marketplace-core`; keep auth, provider vocabulary, selectors and mutations in thin adapters. Every
+   measured repair lands once in the shared owner and passes every adopted provider's conformance suite
+   before the next provider copies nothing.
+8. **Next-platform expansion.** Qualify and add AudioBabel and the next evidence-backed marketplaces in
+   expected net-revenue order. Each new provider must complete the same vertical receipt chain.
+9. **Marketplace meta-loop.** Let the model discover and qualify platforms, inspect official
    surfaces, call scaffold/build/test/release tools, and promote a new adapter only after real
    acceptance. Deterministic code owns permissions, credentials, effect fences, receipts, rollback
    and budgets; the model owns open-ended market, fit and action judgment. It continuously repairs
    weak existing lanes and discovers new providers rather than exhausting a hardcoded list.
-8. **General revenue meta-loop.** Generalize the same verified harness beyond contract work to new
+10. **General revenue meta-loop.** Generalize the same verified harness beyond contract work to new
    businesses. Completion is Life Manager discovering, building, operating and improving a lawful
    net-positive revenue loop with no Dais/Codex/Claude involvement except explicit identity, KYC,
    irreversible personal spending or physically human deliverables. Revenue targets are objectives,
@@ -311,14 +313,10 @@ ledger links official application or storefront acquisition to contract, accepte
 marketplace fee, payout and bank receipt. No marketplace besides the retained Coconala customer history
 currently has that complete new-revenue chain.
 
-The completed extraction order remains historical evidence: `SHARED-PAID-1` -> `LANCERS-PAID-1` ->
-`CROWDWORKS-PAID-1`. Dais now explicitly changes the controlling lane order to **Apply -> Reply ->
-Paid -> Storefront**. The Apply report, three-provider receipt, discovery-width and release-dependency
-gates are accepted. The active atom is now `APPLY-SHARE-3`: adopt the existing shared DOM contract in
-the evidence-defined provider order. Completed Reply and Paid extraction work is
-not reopened or reimplemented; those owners keep monitoring while Apply creates the upstream contract.
-After Apply acceptance, recheck Reply continuous health, then close real-contract Paid acceptance,
-then finish Storefront coverage and revenue attribution.
+The completed extraction order and the former Apply -> Reply -> Paid -> Storefront cursor below are
+historical evidence. The provider-vertical sequence at the top now controls. Preserve accepted Apply,
+Reply and Paid evidence without reopening or duplicating effects; reuse each result in the applicable
+provider's vertical acceptance.
 
 Apply maximizes truthful eligible applications. It excludes only opportunities whose application or
 delivery would violate provider rules, require a false factual assertion, or require an outcome the
@@ -389,8 +387,8 @@ same-session official readback and a following replay with effect zero.
 
 ## Host safety track and its explicit pause
 
-`PANIC-1` and `PANIC-2` are complete. Dais explicitly changes the controlling order to Apply ->
-Reply -> Paid -> Storefront before the restart-dependent host atoms. `PANIC-3` through `PANIC-6`
+`PANIC-1` and `PANIC-2` are complete. The historical lane-first reorder did not remove the
+restart-dependent host atoms. `PANIC-3` through `PANIC-6`
 remain required and retain their internal order. The measured WindowServer panic remains a real availability risk; this
 reorder states that an OS restart is not a repair for the current Coconala authentication,
 targeted-readback or remote-builder failures. Do not restart Mac, loginwindow or Aqua while Dais is
@@ -427,9 +425,8 @@ readback, so that image defect is closed. The same screenshot exposes `プロン
 the occupation/skill view; do not dismiss that field as stale until a current official public readback
 proves it. The shared commercial source must project the truthful software-engineering, AI-automation,
 training and freelance-work positioning rather than a prompt-engineer-only identity. Fresh Apply operational
-acceptance follows that profile correction. Reply then resumes at `CROWDWORKS-REPLY-ACTION-2` and
-`MERCOR-REPLY-2`; Paid follows Reply, and Storefront follows Paid. This preserves Dais's explicit
-Apply -> Reply -> Paid -> Storefront order.
+acceptance follows that profile correction. This paragraph records the superseded lane-first order;
+the current controlling order is the provider-vertical sequence at the top of this file.
 
 Fresh cross-owner handoff audit:
 
@@ -447,9 +444,9 @@ Fresh cross-owner handoff audit:
   not edit that worktree or its Writer files. Changes to `config/loop-registry.json` or
   `skills/_shared/marketplace-core/` require a fresh overlap comparison, but no current file overlap
   was observed.
-- Dais now explicitly replaces the controlling sequence with Apply -> Reply -> Paid -> Storefront.
-  Promote the existing Apply work and evidence instead of duplicating it; keep completed Reply/Paid
-  extraction and stopped Storefront work recorded, monitored and available for their later turns.
+- Historical order only: Apply -> Reply -> Paid -> Storefront was the controlling sequence at this
+  checkpoint. The current provider-vertical order at the top of this file supersedes it; retain the
+  completed lane evidence without duplicating or reopening effects.
 
 Current read-only stop-point snapshot (no repair authorized in this checkpoint):
 
@@ -3012,9 +3009,8 @@ from the chat, and two of them contradict what this cursor had previously report
 
     This historical message-only acceptance is retained, but it does not close newly observed
     browser actions. Reply owns the buyer event through its requested business outcome, not merely
-    a Japanese text response. The following atoms stay after the controlling Apply acceptance and
-    before real-contract Paid acceptance; they do not change the fixed Apply -> Reply -> Paid ->
-    Storefront order.
+    a Japanese text response. Place the remaining atoms in the applicable provider's vertical slice;
+    this historical section does not override the controlling order at the top.
 
 31a. [x] `CROWDWORKS-REPLY-ACTION-1` Accept the live offered contract through the shared Reply
     lifecycle. Official evidence shows `エフェクト採用` offered fixed reward JPY 12 including tax
@@ -5240,18 +5236,17 @@ Execute top to bottom. A checked diagnostic is evidence, not lane completion.
 
 #### Current cursor and non-skippable order
 
-Operationally the four launchd lanes remain independent and may run concurrently, but development
-completion has exactly one cursor and may not jump forward because a later lane has live customer
-work. Apply remains live and is rechecked in the final four-lane audit. The current non-skippable
-development order is **Paid/Submission → Negotiate → Storefront → four-lane durability → OSS
-third-device acceptance**. A successful example, live PID, local ledger row, Telegram report or
-partial readback never closes a lane while any unchecked acceptance item in that lane remains.
+Operationally the four launchd lanes remain independent and continue earning concurrently. Development
+has one immediate cursor but provider completion is now vertical. The non-skippable order is
+**existing funded liabilities -> Coconala -> Lancers -> CrowdWorks -> Mercor -> Freelancer.com ->
+Upwork -> next-platform expansion -> marketplace meta-loop -> general revenue meta-loop**. Shared
+kernel repairs happen at the first measured defect and are conformance-checked across every adopted
+provider; they are not deferred into a second implementation and do not restart completed effects.
 
-Current truth: Apply has a live verified application path but its final maximal-coverage/replay
-receipt remains part of the four-lane audit. **Paid/Submission is the active development cursor**
-because purchased orders are not reliably receiving context-complete artifacts. Negotiate remains
-live independently but is not complete: total coverage, competitive repricing, bounded terminal
-no-send, replay-zero and a new natural sub-30-minute official reply/estimate proof remain unchecked.
+Current truth: **Coconala Paid `18211838` is the immediate cursor** because purchased work exists and
+the v74 artifact failed contract review without a buyer effect. Other Apply/Reply/Storefront owners
+remain live and may acquire or progress independent revenue work. After current funded liabilities
+close, finish Coconala's vertical acceptance, then advance provider by provider in the order above.
 
 #### Remaining TODO snapshot — authoritative order to the end
 
