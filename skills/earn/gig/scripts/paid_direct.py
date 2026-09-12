@@ -1879,6 +1879,50 @@ def _validated_business_outcome(record: dict[str, Any]) -> dict[str, Any]:
     return outcome
 
 
+def _validated_owner_outcome_for_verification(record: dict[str, Any]) -> dict[str, Any]:
+    """Accept an owner checkpoint that is complete or explicitly awaits review.
+
+    Independent review is a controller gate, not unfinished buyer work.  The
+    verifier remains the only authority that may turn a review checkpoint into
+    a sendable completion.
+    """
+    try:
+        return _validated_business_outcome(record)
+    except ValueError:
+        outcome = record.get("business_outcome") if isinstance(record, dict) else None
+        if (not isinstance(outcome, dict)
+                or outcome.get("verification_pending") is not True
+                or outcome.get("required_effect_satisfied") is not False
+                or outcome.get("required_output_satisfied") is not False
+                or outcome.get("remaining_work") not in ([], None)):
+            raise
+        receipts = outcome.get("official_receipts")
+        if not isinstance(receipts, list) or not receipts:
+            raise ValueError("owner verification checkpoint receipts missing")
+        for receipt in receipts:
+            if (not isinstance(receipt, dict)
+                    or not _text(receipt.get("effect_key"))
+                    or not _text(receipt.get("official_url"))
+                    or receipt.get("exact_readback") is not True
+                    or not _text(receipt.get("readback_source"))):
+                raise ValueError("invalid owner verification checkpoint receipt")
+        return outcome
+
+
+def _normalized_receipt_effect_key(receipt: dict[str, Any]) -> str:
+    existing = _text(receipt.get("effect_key"))
+    if existing:
+        return existing
+    identity = {
+        "kind": _text(receipt.get("kind")),
+        "official_url": _text(receipt.get("official_url")),
+        "readback_source": _text(receipt.get("readback_source")),
+    }
+    encoded = json.dumps(identity, ensure_ascii=False, sort_keys=True,
+                         separators=(",", ":")).encode()
+    return f"official-readback:{hashlib.sha256(encoded).hexdigest()}"
+
+
 def _business_outcomes_match_effects(builder: dict[str, Any], verifier: dict[str, Any]) -> bool:
     def identity(outcome: dict[str, Any]) -> tuple[Any, ...]:
         receipts = outcome.get("official_receipts") if isinstance(outcome, dict) else None
@@ -1936,7 +1980,7 @@ def _validate_managed_verifier(verifier: Path, project_root: Path, intent: dict[
             raise ValueError("builder requirements contract mismatch")
         result = _load(verifier); desired = intent["desired_state"]; target = intent["target"]
         semantic_contract_sha256 = _require_semantic_effect_binding(project_root, intent, delivery_result)
-        builder_outcome = _validated_business_outcome(delivery_result)
+        builder_outcome = _validated_owner_outcome_for_verification(delivery_result)
         verifier_outcome = _validated_business_outcome(result)
         if (not isinstance(result, dict) or result.get("verified") is not True
                 or result.get("buyer_feedback_sha256") != feedback or result.get("target") != target
@@ -1946,7 +1990,11 @@ def _validate_managed_verifier(verifier: Path, project_root: Path, intent: dict[
                 or result.get("requirements_sha256") != requirements_sha256
                 or result.get("message_sha256") != message_sha256):
             raise ValueError("verifier result mismatch")
-        if not _business_outcomes_match_effects(builder_outcome, verifier_outcome):
+        builder_for_match = dict(builder_outcome)
+        if builder_for_match.get("verification_pending") is True:
+            builder_for_match.update(required_effect_satisfied=True,
+                                     required_output_satisfied=True, remaining_work=[])
+        if not _business_outcomes_match_effects(builder_for_match, verifier_outcome):
             raise ValueError("business outcome verifier mismatch")
         attachment = _validated_customer_attachment(project_root, delivery_result.get("customer_attachment"))
         if (intent.get("customer_attachment") != attachment or result.get("customer_attachment") != attachment):
@@ -3952,6 +4000,9 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
         "after the complete semantic contract has official provider readback. Only an external dependency may use status=blocked; "
         "then use a nonempty remaining_work and the wait_receipt contract below. Self-actionable incomplete work must continue "
         "or preserve row-level checkpoints and exit without replacing the durable result. Never manufacture completion. "
+        "Independent verifier approval is a controller gate, never remaining buyer work: do not put it in remaining_work. "
+        "When all owner work and official readbacks are complete but independent review is pending, use status=ok, "
+        "verification_pending=true, both satisfied fields=false, and remaining_work=[]. The controller will launch the verifier. "
         "do not submit to Coconala or use formal delivery."
     )
     correction = ""
@@ -4103,15 +4154,20 @@ def _normalize_builder_result(root: Path) -> None:
             no_effect_wait = (result.get("status") == "blocked" and isinstance(outcome, dict)
                               and outcome.get("required_effect_satisfied") is False
                               and outcome.get("required_output_satisfied") is False)
+            official_customer_readback = (isinstance(official, dict)
+                and official.get("send_performed") is False
+                and official.get("deduplicated") is True
+                and official.get("exact_customer_message_readback") is True)
+            official_target_readback = (isinstance(official, dict)
+                and official.get("exact_readback") is True
+                and bool(_text(official.get("official_url")))
+                and bool(_text(official.get("readback_source"))))
             if (evidence.get("authenticated") is True
                     and evidence.get("target") == intent.get("target")
                     and evidence.get("requirements_sha256") == intent.get("requirements_sha256")
                     and evidence.get("message_sha256") == intent.get("message_sha256")
                     and paid_remote_result.canonical_equal(evidence.get("observed_state"), desired)
-                    and (no_effect_wait or (isinstance(official, dict)
-                         and official.get("send_performed") is False
-                         and official.get("deduplicated") is True
-                         and official.get("exact_customer_message_readback") is True))):
+                    and (no_effect_wait or official_customer_readback or official_target_readback)):
                 raw_after_value = str(candidate.relative_to(root))
                 result["before_evidence"] = raw_after_value
                 result["after_evidence"] = raw_after_value
@@ -4134,12 +4190,16 @@ def _normalize_builder_result(root: Path) -> None:
         outcome = result.get("business_outcome")
         if isinstance(outcome, dict) and isinstance(outcome.get("official_receipts"), list):
             source = _text((after.get("official_readback") or {}).get("provider")) or "official readback"
-            outcome["official_receipts"] = [
+            normalized_receipts = [
                 {"provider": source, "kind": "external_state", "official_url": receipt,
                  "exact_readback": True, "readback_source": raw_after_value}
                 if isinstance(receipt, str) and receipt.startswith("https://") else receipt
                 for receipt in outcome["official_receipts"]
             ]
+            for receipt in normalized_receipts:
+                if isinstance(receipt, dict):
+                    receipt["effect_key"] = _normalized_receipt_effect_key(receipt)
+            outcome["official_receipts"] = normalized_receipts
         if result.get("status") == "completed":
             result["status"] = "ok"
         if result.get("status") == "ok":
