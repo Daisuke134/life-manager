@@ -697,6 +697,16 @@ def test_selected_talkroom_retries_one_transient_empty_history(tmp_path, monkeyp
     assert history["message_count"] == 1
 
 
+def test_full_talkroom_capture_expands_past_messages_before_claiming_complete():
+    queue = load("coconala_queue_snapshot")
+
+    assert "過去のメッセージを見る" in queue.TALKROOM_FULL_EXPRESSION
+    assert "historyLoadControl" in queue.TALKROOM_FULL_EXPRESSION
+    assert "if(load){if(!load.disabled)load.click();stable=0;await wait(500);continue}" in queue.TALKROOM_FULL_EXPRESSION
+    assert "historyLoadPresent" in queue.TALKROOM_FULL_EXPRESSION
+    assert "history_complete:stable>=5&&!historyLoadPresent" in queue.TALKROOM_FULL_EXPRESSION
+
+
 def test_paid_reader_preserves_unicode_line_separator_inside_json_string(tmp_path):
     paid = load("paid_direct")
     root = tmp_path / "18214856"
