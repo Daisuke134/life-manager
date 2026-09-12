@@ -3012,6 +3012,9 @@ def _resumable_file_bundle(root: Path, stable: Path, feedback: str) -> tuple[dic
 def _blocked_file_bundle_for_recheck(
     root: Path,
     review_state: dict[str, Any],
+    feedback: str,
+    requirements_sha256: str,
+    operator_policy_sha256: str | None,
 ) -> tuple[dict[str, Any], dict[str, tuple[int, str]]] | None:
     """Return the exact previously blocked artifact for review before any revision.
 
@@ -3024,6 +3027,10 @@ def _blocked_file_bundle_for_recheck(
     if (not isinstance(review_state, dict)
             or review_state.get("state") != "REVIEW_BLOCKED"
             or review_state.get("mode") != "file"):
+        return None
+    if (review_state.get("buyer_feedback_sha256") == feedback
+            and review_state.get("requirements_sha256") == requirements_sha256
+            and review_state.get("operator_policy_sha256") == operator_policy_sha256):
         return None
     try:
         manifest, snapshots = _file_bundle_snapshots(root, validate_source_census=False)
@@ -3656,11 +3663,21 @@ def _build_and_authorize_file(args, item_path: Path, root: Path, item: dict[str,
         finding = (_text(review_state.get("finding"))
                    or "The prior reviewer could not approve the artifact; revise the same artifact line.")
     if resumed is None:
-        blocked_bundle = _blocked_file_bundle_for_recheck(root, review_state)
+        blocked_bundle = _blocked_file_bundle_for_recheck(
+            root, review_state, feedback, requirements_sha256, operator_policy_sha256,
+        )
         if blocked_bundle is not None:
             resumed = blocked_bundle
             blocked_recheck_finding = (_text(review_state.get("finding"))
                                        or "The prior fresh reviewer could not authorize this exact artifact.")
+        elif (isinstance(review_state, dict)
+              and review_state.get("state") == "REVIEW_BLOCKED"
+              and review_state.get("mode") == "file"
+              and review_state.get("buyer_feedback_sha256") == feedback
+              and review_state.get("requirements_sha256") == requirements_sha256
+              and review_state.get("operator_policy_sha256") == operator_policy_sha256):
+            finding = (_text(review_state.get("finding"))
+                       or "The prior fresh reviewer rejected this artifact; build a corrected replacement.")
     try:
         source_census = _prepare_source_census(args, root, requirements_sha256, code_root)
         bound = _file_immutable_inputs(root, context)
