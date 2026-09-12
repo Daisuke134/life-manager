@@ -2174,6 +2174,8 @@ def test_review_ready_undeterminable_ships_only_at_final_review_round():
     assert not paid._review_ready_may_ship("needs_revision", True, paid.MAX_FILE_REVIEW_ITERATIONS)
     assert paid._shipment_basis_authorized("max_review_iterations_review_ready", "undeterminable")
     assert not paid._shipment_basis_authorized("max_review_iterations_review_ready", "needs_revision")
+    assert not paid._shipment_basis_authorized("single_material_review_repaired", "needs_revision")
+    assert paid.MAX_FILE_REVIEW_ITERATIONS >= 2
 
 
 def test_paid_runner_contract_matches_runtime_terra_route():
