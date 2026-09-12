@@ -2937,8 +2937,14 @@ def _clone_prior_artifact(source: Path, target: Path) -> None:
         shutil.copy2(source, target)
 
 
+_PRIOR_ARTIFACT_SUFFIXES = {
+    ".csv", ".docx", ".html", ".jpeg", ".jpg", ".md", ".mov", ".mp4",
+    ".pdf", ".png", ".pptx", ".svg", ".webm", ".xlsx", ".zip",
+}
+
+
 def _prior_artifact_candidates(root: Path) -> list[Path]:
-    """Return existing ZIPs already bound by project-owned state or receipts."""
+    """Return existing deliverables already bound by project-owned state or receipts."""
     root = root.resolve()
     candidates: list[Path] = []
 
@@ -2950,7 +2956,8 @@ def _prior_artifact_candidates(root: Path) -> list[Path]:
             resolved.relative_to(root)
         except (OSError, ValueError):
             return
-        if resolved.suffix.casefold() == ".zip" and _regular_file(resolved) and resolved not in candidates:
+        if (resolved.suffix.casefold() in _PRIOR_ARTIFACT_SUFFIXES
+                and _regular_file(resolved) and resolved not in candidates):
             candidates.append(resolved)
 
     def visit(value: Any) -> None:
@@ -2960,10 +2967,10 @@ def _prior_artifact_candidates(root: Path) -> list[Path]:
         elif isinstance(value, list):
             for child in value:
                 visit(child)
-        elif isinstance(value, str) and value.casefold().endswith(".zip"):
+        elif isinstance(value, str):
             add(value)
 
-    for path in sorted((root / "delivery").glob("*.zip")):
+    for path in sorted((root / "delivery").iterdir()):
         add(path)
     references = [root / "state.json", root / "context" / "current.json"]
     references.extend(sorted((root / "acceptance").rglob("*.json")))
@@ -3157,7 +3164,10 @@ def _run_isolated_file_owner(args, root: Path, context: Path, prompt_text: str,
             target = prior_dir / candidate.name
             if not target.exists():
                 _clone_prior_artifact(candidate, target)
-        prior_candidates = sorted(prior_dir.glob("*.zip"))
+        prior_candidates = sorted(
+            path for path in prior_dir.iterdir()
+            if path.suffix.casefold() in _PRIOR_ARTIFACT_SUFFIXES and _regular_file(path)
+        )
         prompt = staging / "owner.prompt.txt"
         expected_version = _next_artifact_version(root, prior_candidates)
         isolated_prompt = _rewrite_staging_paths(prompt_text, root, staging)
