@@ -1030,6 +1030,10 @@ def test_file_owner_must_do_public_research_instead_of_blocking():
     assert "BLOCKED_NON_DELEGABLE merely because public facts" in source
     assert "choose a different candidate or source lineage" in source
     assert "Preserving an accepted visual lineage never requires preserving a rejected subject" in source
+    assert "split it into deterministic bounded " in source
+    assert "batches, persist row-level checkpoints" in source
+    assert "persist row-level checkpoints" in source
+    assert "interrupted monolithic fetch is execution feedback" in source
     assert "a native roundtrip merely because the controller supports it" in source
 
 
