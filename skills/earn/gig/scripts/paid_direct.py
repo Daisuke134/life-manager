@@ -3482,7 +3482,9 @@ def _build_and_authorize_file(args, item_path: Path, root: Path, item: dict[str,
     builder_prompt = base / "file" / "builder.prompt.txt"
     builder_prompt.parent.mkdir(parents=True, exist_ok=True)
     owner_instructions = (
-        "You are the sole paid task owner. Work only inside PROJECT_ROOT. Read context/current.json, "
+        "You are the sole paid task owner running inside the production loop, not the foreground supervisor. "
+        "Any policy that assigns research, production, or submission preparation to the paid project owner assigns "
+        "that work to you. Work only inside PROJECT_ROOT. Read context/current.json, "
         "every combined_context.read_these_first file, requirements/live-buyer-reply.json, state.json, and "
         "context/paid-work-decision.json. If context/paid-asset-contract-diff.json or "
         "context/paid-owner-feedback.json exists, read its complete raw structured errors and source fact ids, "
@@ -3508,6 +3510,12 @@ def _build_and_authorize_file(args, item_path: Path, root: Path, item: dict[str,
         "When the semantic decision has unresolved items, produce every useful non-blocked portion now, state the exact "
         "remaining limitation without placeholders or invented facts, and claim PASS only for that bounded required_output; "
         "otherwise satisfy the complete accumulated request. Open/read the artifact and correct omissions before PASS. "
+        "Public-web and public-repository research, public evidence collection, calculations, and ordinary artifact "
+        "production are delegable loop work that you must perform with the available network and CLI tools. Never use "
+        "BLOCKED_NON_DELEGABLE merely because public facts or source records are absent from the staging files, because "
+        "research is lengthy, or because a policy says the foreground supervisor must not do the loop's work. Reserve "
+        "BLOCKED_NON_DELEGABLE for an indispensable secret or private fact unavailable to the loop, a legally required "
+        "account-owner identity act, or a physical human ceremony that no available tool can perform. "
         "When a prior review identifies one defect, derive its failure class, enumerate analogous instances across the "
         "complete source and output, repair every confirmed instance, and add class-wide regression evidence. Never patch "
         "only the named locator while leaving the same defect elsewhere. "

@@ -1017,6 +1017,14 @@ def test_semantic_router_keeps_public_research_report_in_file_mode(tmp_path):
     assert "downstream code-owned marketplace submission never changes that routing" in prompt
 
 
+def test_file_owner_must_do_public_research_instead_of_blocking():
+    source = Path(load("paid_direct").__file__).read_text(encoding="utf-8")
+
+    assert "paid task owner running inside the production loop, not the foreground supervisor" in source
+    assert "Public-web and public-repository research" in source
+    assert "BLOCKED_NON_DELEGABLE merely because public facts" in source
+
+
 def test_remote_owner_prompt_requires_durable_structured_provider_readback(tmp_path):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)
