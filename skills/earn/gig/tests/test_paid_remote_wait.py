@@ -355,13 +355,13 @@ def test_owner_validation_failure_after_new_checkpoint_resumes_progress(tmp_path
     contract = {
         "feedback_sha256": "feedback",
         "requirements_sha256": "requirements",
-        "semantic_contract_sha256": "s" * 64,
+        "semantic_contract_sha256": "a" * 64,
     }
     progress.write_text(json.dumps({
         **contract,
         "effect_key": "candidate-readback",
         "target": "https://research.example/candidate/1",
-        "payload_sha256": "p" * 64,
+        "payload_sha256": "b" * 64,
         "official_receipt_url": "https://research.example/candidate/1",
         "exact_readback": True,
         "quality_status": "qualification",
@@ -389,10 +389,10 @@ def test_stale_checkpoint_cannot_hide_owner_validation_failure(tmp_path):
     progress.write_text(json.dumps({
         "feedback_sha256": "old-feedback",
         "requirements_sha256": "requirements",
-        "semantic_contract_sha256": "s" * 64,
+        "semantic_contract_sha256": "a" * 64,
         "target": "https://research.example/candidate/1",
         "effect_key": "candidate-readback",
-        "payload_sha256": "p" * 64,
+        "payload_sha256": "b" * 64,
         "official_receipt_url": "https://research.example/candidate/1",
         "exact_readback": True,
         "quality_status": "qualification",
@@ -403,7 +403,7 @@ def test_stale_checkpoint_cannot_hide_owner_validation_failure(tmp_path):
         paid._raise_remote_builder_or_progress(progress, 0, {
             "feedback_sha256": "current-feedback",
             "requirements_sha256": "requirements",
-            "semantic_contract_sha256": "s" * 64,
+            "semantic_contract_sha256": "a" * 64,
         }, ValueError("stale result"))
 
 
@@ -416,6 +416,38 @@ def test_non_object_checkpoint_cannot_hide_owner_validation_failure(tmp_path):
         paid._raise_remote_builder_or_progress(
             progress, 0, {}, ValueError("invalid result")
         )
+
+
+@pytest.mark.parametrize("bad_field,bad_value", [
+    ("effect_key", {}),
+    ("quality_status", []),
+    ("qualification_sources", [1]),
+])
+def test_malformed_checkpoint_field_cannot_hide_owner_failure(
+        tmp_path, bad_field, bad_value):
+    paid = load("paid_direct")
+    progress = tmp_path / "paid-remote-progress.jsonl"
+    row = {
+        "feedback_sha256": "feedback",
+        "requirements_sha256": "requirements",
+        "semantic_contract_sha256": "a" * 64,
+        "effect_key": "candidate-readback",
+        "target": "https://research.example/candidate/1",
+        "payload_sha256": "b" * 64,
+        "official_receipt_url": "https://research.example/candidate/1",
+        "exact_readback": True,
+        "quality_status": "qualification",
+        "qualification_sources": ["https://research.example/candidate/1"],
+    }
+    row[bad_field] = bad_value
+    progress.write_text(json.dumps(row) + "\n", encoding="utf-8")
+
+    with pytest.raises(paid.Failure, match="remote_builder"):
+        paid._raise_remote_builder_or_progress(progress, 0, {
+            "feedback_sha256": "feedback",
+            "requirements_sha256": "requirements",
+            "semantic_contract_sha256": "a" * 64,
+        }, ValueError("invalid result"))
 
 
 def test_candidate_search_cannot_disguise_itself_as_external_wait(tmp_path):

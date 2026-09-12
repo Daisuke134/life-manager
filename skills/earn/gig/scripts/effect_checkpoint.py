@@ -13,16 +13,22 @@ REQUIRED = ("effect_key", "target", "payload_sha256", "official_receipt_url",
 
 
 def valid_checkpoint(value: object) -> bool:
+    if not isinstance(value, dict) or any(key not in value for key in REQUIRED):
+        return False
+    text_keys = ("effect_key", "target", "payload_sha256", "official_receipt_url",
+                 "semantic_contract_sha256")
+    if any(not isinstance(value[key], str) or not value[key].strip() for key in text_keys):
+        return False
+    if any(len(value[key]) != 64 or any(char not in "0123456789abcdef" for char in value[key])
+           for key in ("payload_sha256", "semantic_contract_sha256")):
+        return False
+    sources = value["qualification_sources"]
     return (
-        isinstance(value, dict)
-        and all(key in value for key in REQUIRED)
-        and all(str(value[key]).strip() for key in (
-            "effect_key", "target", "payload_sha256", "official_receipt_url",
-        ))
-        and value["exact_readback"] is True
+        value["exact_readback"] is True
+        and isinstance(value["quality_status"], str)
         and value["quality_status"] in {"qualified", "qualification", "invalid"}
-        and isinstance(value["qualification_sources"], list)
-        and len(str(value["semantic_contract_sha256"])) == 64
+        and isinstance(sources, list)
+        and all(isinstance(source, str) and source.strip() for source in sources)
     )
 
 
