@@ -411,6 +411,25 @@ def test_owner_verification_handoff_rejects_actual_remaining_work():
         paid._validated_owner_outcome_for_verification({"business_outcome": outcome})
 
 
+def test_incomplete_ok_verifier_contract_retries_before_failing(monkeypatch, tmp_path):
+    paid = load("paid_direct")
+
+    def incomplete(*_args, **_kwargs):
+        try:
+            raise ValueError("business outcome incomplete")
+        except ValueError as error:
+            raise paid.Failure("remote_verifier") from error
+
+    monkeypatch.setattr(paid, "_validate_managed_verifier", incomplete)
+    args = (tmp_path / "result.json", tmp_path, {}, "a" * 64, "b" * 64, 1)
+
+    verifier, correction = paid._validate_managed_verifier_or_retry(*args, 1)
+    assert verifier is None
+    assert correction == "business outcome incomplete"
+    with pytest.raises(paid.Failure):
+        paid._validate_managed_verifier_or_retry(*args, 3)
+
+
 def test_normalized_official_receipt_gets_stable_effect_identity_for_verifier_match():
     paid = load("paid_direct")
     receipt = {
