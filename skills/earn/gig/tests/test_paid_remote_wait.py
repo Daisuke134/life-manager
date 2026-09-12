@@ -996,6 +996,23 @@ def test_remote_owner_prompt_searches_complete_repo_and_valid_shared_tools(tmp_p
     assert str(paid.REPO_ROOT / "skills/browser/with-browser.sh") in prompt
 
 
+def test_semantic_router_keeps_public_research_report_in_file_mode(tmp_path):
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    identity = {"message_id": "seller-1", "content_sha256": "a" * 64, "side": "seller"}
+    buyer_identity = {"message_id": "buyer-1", "content_sha256": "b" * 64, "side": "buyer"}
+
+    prompt = paid._decision_prompt(
+        root / "context/current.json", "c" * 64, feedback,
+        paid.paid_remote_result.requirements_digest(root, feedback),
+        identity, buyer_identity,
+    ).decode()
+
+    assert "public-repository research" in prompt
+    assert "buyer-visible report are file work, not remote work" in prompt
+    assert "downstream code-owned marketplace submission never changes that routing" in prompt
+
+
 def test_remote_owner_prompt_requires_durable_structured_provider_readback(tmp_path):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)
