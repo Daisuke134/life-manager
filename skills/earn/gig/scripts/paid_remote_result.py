@@ -69,6 +69,10 @@ def _message_sha(message):
     return hashlib.sha256(message.encode()).hexdigest()
 
 
+def _verifier_feedback_sha256(result):
+    return result.get("buyer_feedback_sha256") or result.get("feedback_sha256")
+
+
 def canonical_equal(left, right):
     return _canonical(left) == _canonical(right)
 
@@ -329,7 +333,8 @@ def validate(root, feedback, digest, pass_start, resume=False, verifier=None):
     if not resume and verifier.stat().st_mtime <= after.stat().st_mtime:
         raise ValueError("remote verifier is stale")
     checked = _load(verifier)
-    if checked.get("verified") is not True or checked.get("buyer_feedback_sha256") != feedback \
+    verifier_feedback = _verifier_feedback_sha256(checked)
+    if checked.get("verified") is not True or verifier_feedback != feedback \
             or checked.get("target") != target \
             or checked.get("desired_digest", checked.get("desired_state_digest")) != digest \
             or checked.get("observed_digest") != digest \

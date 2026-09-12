@@ -2898,9 +2898,11 @@ def test_remote_verifier_accepts_multiple_evidence_references():
 @pytest.mark.parametrize("field", ["buyer_feedback_sha256", "feedback_sha256"])
 def test_remote_verifier_accepts_canonical_feedback_alias(field):
     paid = load("paid_direct")
+    remote = load("paid_remote_result")
     feedback = "a" * 64
 
     assert paid._verifier_feedback_sha256({field: feedback}) == feedback
+    assert remote._verifier_feedback_sha256({field: feedback}) == feedback
 
 
 def test_remote_owner_cannot_treat_one_invalid_candidate_as_exhaustion():
