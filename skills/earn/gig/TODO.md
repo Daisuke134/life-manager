@@ -98,7 +98,11 @@ and a following replay-zero.
 
 0. **Existing funded liabilities first.** Finish every already-purchased Coconala/CrowdWorks obligation
    through useful artifact, buyer feedback, formal delivery where authorized, official completion and
-   replay-zero. Current first atom is Coconala `18211838`; Manledge/Clover `18169985` is closed and excluded.
+   replay-zero. Current first atom is Coconala `18211838`: stop the unbounded search for a 100% recovery
+   candidate, correct and re-review the strongest completed 71.6% audit, state the shortfall and work
+   performed honestly, submit it as the formal delivery once, obtain exact-room readback, then prove
+   replay-zero. Preserve its source corpus as input to a later internal Keiba improvement/earning loop;
+   that research no longer blocks this low-value order. Manledge/Clover `18169985` is closed and excluded.
 1. **Coconala vertical acceptance.** Close all remaining Apply, Reply, Paid and Storefront acceptance,
    then prove payout attribution without reopening completed customer work.
 2. **Lancers vertical acceptance.** Phone verification is complete. Run suitable Apply until a real
@@ -118,6 +122,12 @@ and a following replay-zero.
    `marketplace-core`; keep auth, provider vocabulary, selectors and mutations in thin adapters. Every
    measured repair lands once in the shared owner and passes every adopted provider's conformance suite
    before the next provider copies nothing.
+   The shared Apply policy rejects every job whose acceptance or payment depends on an uncontrolled
+   numeric result (for example recovery rate, followers, views, sales, rank or conversions), while
+   retaining jobs with controllable deliverables and quantities. Retainer applications become eligible
+   after the Coconala funded liability closes: contract-selection interviews, kickoff and ordinary
+   progress meetings use one typed Telegram handoff, Google Calendar event and scheduled Life Manager
+   phone call; all research, proposal, scheduling clicks, work, delivery and readback remain loop-owned.
 8. **Next-platform expansion.** Qualify and add AudioBabel and the next evidence-backed marketplaces in
    expected net-revenue order. Each new provider must complete the same vertical receipt chain.
 9. **Marketplace meta-loop.** Let the model discover and qualify platforms, inspect official

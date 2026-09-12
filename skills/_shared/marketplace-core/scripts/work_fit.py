@@ -36,6 +36,7 @@ __all__ = ["HARD_PROHIBITION_CLASSES", "PROHIBITED_CATEGORY_TERMS", "category_re
 # room, or lend a credential it does not have. Everything below follows from that, and nothing
 # below is about quality or preference.
 HARD_PROHIBITION_CLASSES = {
+    "uncontrolled_numeric_outcome": "acceptance or payment requires a numeric result outside the seller's control, such as a guaranteed recovery rate, follower count, sales total, ranking, views, conversions or hiring result. A controllable output count, completed system, published artifact or accurately measured report is not this class",
     # Sharpened 2026-09-08. Dais found 「【動画ブランディング相談】初心者に寄り添い、ニッチな事業の
     # 魅力を一緒に整理してくださる方募集」 unapplied-to. Advising on video, writing a script, planning
     # a channel or organising what a business should say are documents, and this class is about

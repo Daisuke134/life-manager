@@ -227,3 +227,10 @@ def test_selection_interviews_and_progress_meetings_do_not_block_application():
     for allowed in ("selection interview", "kickoff", "progress meeting", "client check-in"):
         assert allowed in text
     assert "must not block the application" in text
+
+
+def test_uncontrolled_results_are_distinct_from_controllable_deliverables():
+    text = fit.HARD_PROHIBITION_CLASSES["uncontrolled_numeric_outcome"]
+    for result in ("recovery rate", "follower count", "sales total", "conversions"):
+        assert result in text
+    assert "controllable output count" in text
