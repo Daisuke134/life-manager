@@ -4174,14 +4174,14 @@ def _normalize_builder_result(root: Path, pass_start: float = 0) -> None:
                 and official.get("exact_readback") is True
                 and bool(_text(official.get("official_url")))
                 and has_readback_source)
-            matches_target = (evidence.get("authenticated") is True
-                    and evidence.get("target") == intent.get("target")
+            matches_cycle = (evidence.get("target") == intent.get("target")
                     and evidence.get("requirements_sha256") == intent.get("requirements_sha256")
-                    and evidence.get("message_sha256") == intent.get("message_sha256")
-                    and paid_remote_result.canonical_equal(evidence.get("observed_state"), desired))
-            if not matches_target:
+                    and evidence.get("message_sha256") == intent.get("message_sha256"))
+            if not matches_cycle:
                 continue
-            if no_effect_wait or official_customer_readback or official_target_readback:
+            current_state_valid = (evidence.get("authenticated") is True
+                and paid_remote_result.canonical_equal(evidence.get("observed_state"), desired))
+            if current_state_valid and (no_effect_wait or official_customer_readback or official_target_readback):
                 raw_after_value = str(candidate.relative_to(root))
                 result["before_evidence"] = raw_after_value
                 result["after_evidence"] = raw_after_value

@@ -1902,6 +1902,46 @@ def test_normalizer_does_not_fallback_when_newest_target_readback_is_malformed(t
     assert normalized.get("verified_after") is not True
 
 
+@pytest.mark.parametrize("current_change", [
+    {"authenticated": False},
+    {"observed_state": {"provider_state": "authentication_lost"}},
+])
+def test_normalizer_does_not_revive_old_success_after_current_state_failure(
+    tmp_path, current_change,
+):
+    paid = load("paid_direct")
+    root, _feedback, _digest = blocked_project(tmp_path)
+    intent = json.loads((root / "delivery/paid-remote-intent.json").read_text())
+    result_path = root / "delivery/paid-remote-result.json"
+    result = json.loads(result_path.read_text())
+    result["status"] = "ok"
+    write_json(result_path, result)
+    evidence = {
+        "authenticated": True,
+        "target": intent["target"],
+        "requirements_sha256": intent["requirements_sha256"],
+        "message_sha256": intent.get("message_sha256"),
+        "observed_state": intent["desired_state"],
+        "official_readback": {
+            "exact_readback": True,
+            "official_url": intent["target"],
+            "readback_source": "delivery/readback.json",
+        },
+    }
+    old = root / "evidence/agent-PAID_REMOTE_OWNER/z-old.json"
+    write_json(old, evidence)
+    current = root / "evidence/agent-PAID_REMOTE_OWNER/a-current.json"
+    write_json(current, {**evidence, **current_change})
+    os.utime(old, (1, 1))
+    os.utime(current, (2, 2))
+
+    paid._normalize_builder_result(root)
+
+    normalized = json.loads(result_path.read_text())
+    assert "after_evidence" not in normalized
+    assert normalized.get("verified_after") is not True
+
+
 def test_paid_project_executor_runs_different_owners_in_parallel():
     paid = load("paid_direct")
     active = 0
