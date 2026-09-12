@@ -1814,6 +1814,54 @@ def test_normalizer_restores_feedback_alias_and_canonical_digest(tmp_path):
     assert result["verified_after"] is True
 
 
+def test_normalizer_accepts_plural_official_readback_sources(tmp_path):
+    paid = load("paid_direct")
+    root, _feedback, _digest = blocked_project(tmp_path)
+    intent = json.loads((root / "delivery/paid-remote-intent.json").read_text())
+    result_path = root / "delivery/paid-remote-result.json"
+    result = json.loads(result_path.read_text())
+    result["status"] = "ok"
+    result["business_outcome"] = {
+        "required_effect_satisfied": False,
+        "required_output_satisfied": False,
+        "remaining_work": [],
+        "verification_pending": True,
+        "official_receipts": [{"official_url": intent["target"], "exact_readback": True}],
+    }
+    write_json(result_path, result)
+
+    evidence = {
+        "authenticated": True,
+        "target": intent["target"],
+        "requirements_sha256": intent["requirements_sha256"],
+        "message_sha256": intent.get("message_sha256"),
+        "observed_state": intent["desired_state"],
+    }
+    write_json(root / "evidence/agent-PAID_REMOTE_OWNER/a-stale.json", {
+        **evidence,
+        "official_readback": {
+            "exact_readback": True,
+            "official_url": intent["target"],
+            "readback_source": "delivery/stale-readback.json",
+        },
+    })
+    fresh = root / "evidence/agent-PAID_REMOTE_OWNER/z-fresh.json"
+    write_json(fresh, {
+        **evidence,
+        "official_readback": {
+            "exact_readback": True,
+            "official_url": intent["target"],
+            "readback_sources": ["delivery/live-a.json", "delivery/live-b.json"],
+        },
+    })
+
+    paid._normalize_builder_result(root)
+
+    normalized = json.loads(result_path.read_text())
+    assert normalized["after_evidence"] == str(fresh.relative_to(root))
+    assert normalized["verified_after"] is True
+
+
 def test_paid_project_executor_runs_different_owners_in_parallel():
     paid = load("paid_direct")
     active = 0

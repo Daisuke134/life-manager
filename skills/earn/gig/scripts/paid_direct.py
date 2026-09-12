@@ -4158,10 +4158,15 @@ def _normalize_builder_result(root: Path) -> None:
                 and official.get("send_performed") is False
                 and official.get("deduplicated") is True
                 and official.get("exact_customer_message_readback") is True)
+            readback_sources = official.get("readback_sources") if isinstance(official, dict) else None
+            has_readback_source = (isinstance(official, dict)
+                and (bool(_text(official.get("readback_source")))
+                or (isinstance(readback_sources, list) and bool(readback_sources)
+                    and all(bool(_text(source)) for source in readback_sources))))
             official_target_readback = (isinstance(official, dict)
                 and official.get("exact_readback") is True
                 and bool(_text(official.get("official_url")))
-                and bool(_text(official.get("readback_source"))))
+                and has_readback_source)
             if (evidence.get("authenticated") is True
                     and evidence.get("target") == intent.get("target")
                     and evidence.get("requirements_sha256") == intent.get("requirements_sha256")
