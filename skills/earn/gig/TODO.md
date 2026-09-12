@@ -3924,7 +3924,12 @@ liability order below, is:
 - [ ] 逃げ因子 `18211838`: replace progress-only research with the contracted reproducible horse-racing
   report covering the agreed date range, bet types, overall, class, and racecourse breakdowns. Paid must
   bind the specified source records to official results/payouts, fresh-review the complete report, submit
-  the buyer-usable artifact once with formal delivery off, read it back, and replay zero.
+  the buyer-usable artifact once with formal delivery off, read it back, and replay zero. Per the account
+  owner's explicit order, do this immediately after Chii `18180857` reaches its complete 300-pair delivery
+  gate. Re-open the requirement matrix, search the web and relevant public repositories for stronger
+  source/method evidence, rebuild the report, and resubmit a new hash only after every objectively
+  verifiable requirement is covered. The existing v7 and a prior buyer-visible send are iteration evidence,
+  not permission to classify the current contract as complete or to give up.
 - [ ] snow990 `18218780`: retrieve the buyer-provided Firestorage TIFF through the existing authenticated
   browser/download path, produce the requested JPG with the shutter opened, dusk-reference perspective,
   and bright visible entrance, fresh-review the actual image, submit it once with formal delivery off,
@@ -4009,6 +4014,14 @@ The active implementation TODO is therefore Stage 3 items 9–14 applied to thes
 5. Keep Coconala, Lancers, CrowdWorks, Upwork, and new marketplaces as thin adapters around this same owner.
    Adding a marketplace may add selectors/auth/effect/readback code only; it may not fork the planner, producer,
    reviewer, lifecycle, or revenue logic.
+6. Before any Paid submission or resubmission, the model builds a claim-level requirement/evidence matrix from
+   the complete contract and newest feedback, researches missing knowledge with the available web, official
+   documentation, source records, and relevant public repositories, and iterates producer -> fresh reviewer ->
+   repair until every objectively verifiable requirement passes. `100%` means full evidenced requirement
+   coverage, not a model confidence score and never a guarantee of subjective buyer satisfaction. Unresolved
+   claims keep the artifact in repair; they cannot be hidden by polished copy or converted into a progress-only
+   submission. After verified buyer feedback, preserve the case as a secret-free evaluation and promote only a
+   provider-neutral lesson that improves the shared planner/producer/reviewer contract for every Paid adapter.
 
 3. [x] byusco `18171890`: invalidate the stale note-only decision, consume the latest request,
    publish the reviewed article to the agreed anicca AI blog through the installed owner, read
