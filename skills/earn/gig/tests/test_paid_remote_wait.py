@@ -668,6 +668,39 @@ def test_formal_approval_survives_later_seller_acknowledgement(tmp_path):
     ) == decision
 
 
+@pytest.mark.parametrize("required_output,required_effect", [
+    (
+        "I’ll inspect the compiled context and return the routing decision.",
+        "Read-only semantic assessment only.",
+    ),
+    (
+        "We will review the buyer files before deciding.",
+        "No external effect.",
+    ),
+])
+def test_actionable_decision_rejects_agent_process_narration(
+    required_output, required_effect,
+):
+    paid = load("paid_direct")
+    identity = {"message_id": "buyer-1", "content_sha256": "c" * 64, "side": "buyer"}
+    decision = {
+        "decision": "actionable",
+        "mode": "file",
+        "feedback_sha256": "a" * 64,
+        "requirements_sha256": "b" * 64,
+        "latest_message_identity": identity,
+        "required_output": required_output,
+        "required_effect": required_effect,
+        "required_assets": [],
+        "delivery_stage": "review",
+        "formal_approval_evidence": None,
+        "unresolved": [],
+    }
+
+    with pytest.raises(ValueError, match="(?:process narration|buyer-facing effect)"):
+        paid._validate_paid_decision(decision, "a" * 64, "b" * 64, identity, identity)
+
+
 def test_initial_purchase_is_buyer_authority_before_first_buyer_message(tmp_path):
     paid = load("paid_direct")
     room = "18250352"
