@@ -372,6 +372,61 @@ def test_business_outcome_accepts_provider_kind_result_as_official_source():
     assert paid._validated_business_outcome({"business_outcome": outcome}) == outcome
 
 
+def test_owner_can_hand_complete_work_to_fresh_verifier_without_claiming_approval():
+    paid = load("paid_direct")
+    outcome = {
+        "required_effect_satisfied": False,
+        "required_output_satisfied": False,
+        "remaining_work": [],
+        "verification_pending": True,
+        "official_receipts": [{
+            "effect_key": "deploy:homepage",
+            "official_url": "https://example.com/live",
+            "exact_readback": True,
+            "readback_source": "delivery/live-readback.json",
+        }],
+    }
+
+    assert paid._validated_owner_outcome_for_verification({"business_outcome": outcome}) == outcome
+    with pytest.raises(ValueError, match="business outcome incomplete"):
+        paid._validated_business_outcome({"business_outcome": outcome})
+
+
+def test_owner_verification_handoff_rejects_actual_remaining_work():
+    paid = load("paid_direct")
+    outcome = {
+        "required_effect_satisfied": False,
+        "required_output_satisfied": False,
+        "remaining_work": ["Deploy the missing page."],
+        "verification_pending": True,
+        "official_receipts": [{
+            "effect_key": "deploy:homepage",
+            "official_url": "https://example.com/live",
+            "exact_readback": True,
+            "readback_source": "delivery/live-readback.json",
+        }],
+    }
+
+    with pytest.raises(ValueError):
+        paid._validated_owner_outcome_for_verification({"business_outcome": outcome})
+
+
+def test_normalized_official_receipt_gets_stable_effect_identity_for_verifier_match():
+    paid = load("paid_direct")
+    receipt = {
+        "kind": "production_readback",
+        "official_url": "https://example.com/live",
+        "readback_source": "delivery/live-readback.json",
+        "exact_readback": True,
+    }
+
+    first = paid._normalized_receipt_effect_key(receipt)
+    second = paid._normalized_receipt_effect_key(dict(reversed(list(receipt.items()))))
+
+    assert first == second
+    assert first.startswith("official-readback:")
+
+
 def test_business_outcome_effect_match_ignores_descriptive_receipt_metadata():
     paid = load("paid_direct")
     builder = {
