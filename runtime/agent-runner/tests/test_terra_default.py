@@ -2,8 +2,17 @@ import json
 import unittest
 from pathlib import Path
 
+from agent_runner import configured_task_classes
+
 
 class TerraDefaultTest(unittest.TestCase):
+    def test_cli_task_classes_come_from_the_runtime_config(self):
+        config_path = Path(__file__).resolve().parents[1] / "config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(set(configured_task_classes(config)), set(config["task_classes"]))
+        self.assertIn("paid-owner-agent", configured_task_classes(config))
+
     def test_codex_provider_uses_managed_current_cli_before_path(self):
         config_path = Path(__file__).resolve().parents[1] / "config.json"
         config = json.loads(config_path.read_text(encoding="utf-8"))

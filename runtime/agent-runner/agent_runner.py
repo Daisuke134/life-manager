@@ -1245,10 +1245,25 @@ def codex_failover_action(
     return "stop"
 
 
+def configured_task_classes(config: dict[str, Any]) -> tuple[str, ...]:
+    task_classes = config.get("task_classes")
+    if (not isinstance(task_classes, dict) or not task_classes
+            or any(not isinstance(name, str) or not name for name in task_classes)):
+        raise ValueError("invalid task classes")
+    return tuple(task_classes)
+
+
 def run() -> int:
+    config_path = Path(os.environ.get("AGENT_RUNNER_CONFIG", HERE / "config.json"))
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        task_classes = configured_task_classes(config)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        print(f"agent-runner: invalid input/config: {error}", file=sys.stderr)
+        return 2
     parser = argparse.ArgumentParser()
     parser.add_argument("--task-class", required=True,
-                        choices=("deterministic", "composition-agent", "reply-semantic-agent", "storefront-proposal-agent", "repeatable-agent", "tool-agent", "browser-lane-agent", "application-lane-agent", "application-intent-planner", "diagnostic-agent", "marketing-agent", "high-value-agent", "escalation-agent", "writer-sol-audit", "writer-repair-agent", "affiliate-marketing-agent", "affiliate-escalation-agent"))
+                        choices=task_classes)
     prompt_source = parser.add_mutually_exclusive_group(required=True)
     prompt_source.add_argument("--prompt-file", type=Path)
     prompt_source.add_argument("--prompt-stdin", action="store_true")
@@ -1268,9 +1283,7 @@ def run() -> int:
     if parsed.task_class in {"composition-agent", "reply-semantic-agent", "storefront-proposal-agent", "application-intent-planner"} and not parsed.prompt_stdin:
         parser.error(f"{parsed.task_class} requires --prompt-stdin")
 
-    config_path = Path(os.environ.get("AGENT_RUNNER_CONFIG", HERE / "config.json"))
     try:
-        config = json.loads(config_path.read_text(encoding="utf-8"))
         schema = json.loads(parsed.schema.read_text(encoding="utf-8"))
         prompt = sys.stdin.read() if parsed.prompt_stdin else parsed.prompt_file.read_text(encoding="utf-8")
         # Fail closed before any provider process starts. Billing begins at
