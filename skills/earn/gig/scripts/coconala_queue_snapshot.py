@@ -4197,6 +4197,7 @@ def main() -> int:
         atomic_json(args.evidence_dir / "inquiries.json", {"observed_at": observed_at, "inquiries": inquiries})
 
         for order in orders:
+            project_id = str(order.get("request_id") or order["talkroom_id"])
             talkroom_screenshot = screenshot(
                 args.evidence_dir / f"talkroom-{safe_name(order['talkroom_id'])}.png"
             )
@@ -4209,6 +4210,7 @@ def main() -> int:
                 # remaining read-only collector pages stay hidden.
                 hidden=False,
                 capture_buyer_attachments=True,
+                attachment_project_root=args.projects_root.expanduser().resolve() / project_id,
             )
             download_probes = [
                 attachment["download_probe"]
@@ -4227,7 +4229,6 @@ def main() -> int:
                         "probes": download_probes,
                     },
                 )
-            project_id = str(order.get("request_id") or order["talkroom_id"])
             history = persist_talkroom_history(
                 raw_talkroom, project_id, args.projects_root,
                 str(order["talkroom_id"]), observed_at,

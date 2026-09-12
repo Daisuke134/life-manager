@@ -3,6 +3,7 @@ from __future__ import annotations
 import fcntl
 import hashlib
 import importlib.util
+import inspect
 import json
 import os
 import sys
@@ -75,6 +76,13 @@ def test_successful_attachment_survives_later_capture_timeout(tmp_path: Path) ->
     assert recovered == (stored_path, digest, size)
     assert Path(stored_path).read_bytes() == payload
     assert Path(stored_path).stat().st_mode & 0o777 == 0o600
+
+
+def test_full_orders_capture_passes_durable_attachment_project_root() -> None:
+    snapshot = load("coconala_queue_snapshot")
+    source = inspect.getsource(snapshot.main)
+
+    assert "attachment_project_root=args.projects_root.expanduser().resolve() / project_id" in source
 
 
 def test_talkroom_readback_retries_transient_tab_open_timeout(monkeypatch) -> None:
