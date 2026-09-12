@@ -2190,6 +2190,22 @@ def test_review_ready_undeterminable_ships_only_at_final_review_round():
     assert paid.MAX_FILE_REVIEW_ITERATIONS >= 2
 
 
+def test_account_owner_policy_can_forbid_review_ready_shipment():
+    paid = load("paid_direct")
+
+    assert paid._review_ready_allowed_by_policy(True, {}) is True
+    assert paid._review_ready_allowed_by_policy(
+        True, {"review_ready_shipment_allowed": False},
+    ) is False
+    assert paid._review_ready_allowed_by_policy(
+        False, {"review_ready_shipment_allowed": True},
+    ) is False
+    with pytest.raises(paid.Failure, match="operator_policy"):
+        paid._review_ready_allowed_by_policy(
+            True, {"review_ready_shipment_allowed": "false"},
+        )
+
+
 def test_paid_runner_contract_matches_runtime_terra_route():
     paid = load("paid_direct")
     runtime_config = json.loads(
