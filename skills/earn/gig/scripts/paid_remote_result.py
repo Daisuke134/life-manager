@@ -73,6 +73,18 @@ def _verifier_feedback_sha256(result):
     return result.get("buyer_feedback_sha256") or result.get("feedback_sha256")
 
 
+def _verifier_evidence_values(result):
+    values = [value for value in (result.get("before_evidence"), result.get("after_evidence")) if value]
+    alias = result.get("verifier_evidence")
+    if not values and isinstance(alias, str) and alias.strip():
+        values = [alias]
+    if not values and isinstance(alias, list):
+        values = [value for value in alias if isinstance(value, str) and value.strip()]
+    if not values and isinstance(result.get("evidence"), list):
+        values = result["evidence"]
+    return values
+
+
 def canonical_equal(left, right):
     return _canonical(left) == _canonical(right)
 
@@ -342,13 +354,18 @@ def validate(root, feedback, digest, pass_start, resume=False, verifier=None):
             or checked.get("requirements_sha256") != requirements_sha256 \
             or checked.get("message_sha256") != message_sha256:
         raise ValueError("remote verifier mismatch")
-    verifier_evidence = [value for value in (checked.get("before_evidence"), checked.get("after_evidence")) if value]
-    if not verifier_evidence and isinstance(checked.get("evidence"), list):
-        verifier_evidence = checked["evidence"]
+    verifier_evidence = _verifier_evidence_values(checked)
     if not verifier_evidence:
         raise ValueError("verifier evidence missing")
     for value in verifier_evidence:
-        evidence = _inside(verifier.parent, value)
+        raw = Path(value)
+        if raw.is_absolute():
+            evidence = raw.resolve()
+        elif raw.parts[:2] == ("evidence", "agent-PAID_REMOTE_VERIFY"):
+            evidence = (root / raw).resolve()
+        else:
+            evidence = (verifier.parent / raw).resolve()
+        evidence.relative_to(verifier.parent)
         if not evidence.is_file():
             raise ValueError("verifier evidence missing or escapes managed directory")
         metadata = _load(evidence)
