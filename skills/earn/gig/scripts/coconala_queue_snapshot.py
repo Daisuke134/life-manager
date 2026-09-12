@@ -1066,6 +1066,20 @@ def recover_captured_attachment(
     return stored_path, digest, size
 
 
+def persist_captured_attachment(
+    project_root: Path, filename: str, payload: bytes,
+) -> tuple[str, str, int]:
+    """Durably retain one successful browser download before capture continues."""
+    safe_name = safe_filename(filename)
+    digest = hashlib.sha256(payload).hexdigest()
+    source_path = project_root / "source" / "buyer-attachments" / (
+        f"{digest[:12]}-{safe_name}"
+    )
+    if not source_path.is_file() or sha256_file(source_path) != digest:
+        secure_write_bytes(source_path, payload)
+    return str(source_path), digest, len(payload)
+
+
 def buyer_request_identity(manifest: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """What the buyer sent, with our fetch quality taken back out.
 
@@ -2051,14 +2065,9 @@ def persist_latest_paid_buyer_reply(
                 except (ValueError, TypeError):
                     captured_bytes = b""
                 if captured_bytes and len(captured_bytes) <= 16 * 1024 * 1024:
-                    captured_sha256 = hashlib.sha256(captured_bytes).hexdigest()
-                    source_path = project_root / "source" / "buyer-attachments" / (
-                        f"{captured_sha256[:12]}-{filename}"
+                    captured_path, captured_sha256, captured_size = persist_captured_attachment(
+                        project_root, filename, captured_bytes,
                     )
-                    if not source_path.is_file() or sha256_file(source_path) != captured_sha256:
-                        secure_write_bytes(source_path, captured_bytes)
-                    captured_path = str(source_path)
-                    captured_size = len(captured_bytes)
             if captured_path is None:
                 # This pass did not fetch it; an earlier pass may already have.
                 # Asking the disk is what turns "we failed to download" back into
@@ -2437,6 +2446,10 @@ async def collect_cdp_events(ws: Any, seconds: float = 2.0) -> list[dict[str, An
     return events
 
 
+def newest_first_messages(talkroom: dict[str, Any]) -> list[tuple[int, Any]]:
+    return list(reversed(list(enumerate(talkroom.get("messages") or []))))
+
+
 async def capture_click_downloads(
     ws: Any, request_id: int, talkroom: dict[str, Any], probe_reference: str | None = None,
     project_root: Path | None = None,
@@ -2463,7 +2476,10 @@ async def capture_click_downloads(
         request_id += 1
         await call(ws, request_id, "Network.enable", {})
         request_id += 1
-        for message_index, message in enumerate(talkroom.get("messages") or []):
+        # Attachment capture has a bounded 45-second envelope. Start with the
+        # newest buyer message so a long historical room cannot spend the whole
+        # budget downloading obsolete files before the current revision assets.
+        for message_index, message in newest_first_messages(talkroom):
             if not isinstance(message, dict) or message.get("side") != "buyer":
                 continue
             for attachment_index, attachment in enumerate(message.get("attachments") or []):
@@ -2635,7 +2651,15 @@ async def capture_click_downloads(
                     attachment["capture_error"] = "attachment_capture_limit"
                     continue
                 attachment["data_base64"] = base64.b64encode(payload).decode("ascii")
-                attachment["size_bytes"] = len(payload)
+                if project_root is not None:
+                    source_path, digest, size = persist_captured_attachment(
+                        project_root, attachment.get("filename"), payload,
+                    )
+                    attachment["source_path"] = source_path
+                    attachment["sha256"] = digest
+                    attachment["size_bytes"] = size
+                else:
+                    attachment["size_bytes"] = len(payload)
                 attachment["capture_error"] = None
                 downloaded.unlink(missing_ok=True)
     return request_id
@@ -4173,6 +4197,7 @@ def main() -> int:
         atomic_json(args.evidence_dir / "inquiries.json", {"observed_at": observed_at, "inquiries": inquiries})
 
         for order in orders:
+            project_id = str(order.get("request_id") or order["talkroom_id"])
             talkroom_screenshot = screenshot(
                 args.evidence_dir / f"talkroom-{safe_name(order['talkroom_id'])}.png"
             )
@@ -4185,6 +4210,7 @@ def main() -> int:
                 # remaining read-only collector pages stay hidden.
                 hidden=False,
                 capture_buyer_attachments=True,
+                attachment_project_root=args.projects_root.expanduser().resolve() / project_id,
             )
             download_probes = [
                 attachment["download_probe"]
@@ -4203,7 +4229,6 @@ def main() -> int:
                         "probes": download_probes,
                     },
                 )
-            project_id = str(order.get("request_id") or order["talkroom_id"])
             history = persist_talkroom_history(
                 raw_talkroom, project_id, args.projects_root,
                 str(order["talkroom_id"]), observed_at,

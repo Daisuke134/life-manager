@@ -3,6 +3,7 @@ from __future__ import annotations
 import fcntl
 import hashlib
 import importlib.util
+import inspect
 import json
 import os
 import sys
@@ -50,6 +51,38 @@ def test_accumulation_normalizes_legacy_text_only_digest() -> None:
     assert digest == hashlib.sha256(json.dumps(
         [canonical], ensure_ascii=False, separators=(",", ":"),
     ).encode()).hexdigest()
+
+
+def test_attachment_capture_prioritizes_newest_buyer_message() -> None:
+    snapshot = load("coconala_queue_snapshot")
+    messages = [{"id": "old"}, {"id": "middle"}, {"id": "new"}]
+
+    ordered = snapshot.newest_first_messages({"messages": messages})
+
+    assert ordered == [(2, messages[2]), (1, messages[1]), (0, messages[0])]
+
+
+def test_successful_attachment_survives_later_capture_timeout(tmp_path: Path) -> None:
+    snapshot = load("coconala_queue_snapshot")
+    payload = b"current buyer revision image"
+
+    stored_path, digest, size = snapshot.persist_captured_attachment(
+        tmp_path, "IMG_6033.jpeg", payload,
+    )
+    # The outer capture can subsequently time out and discard its in-memory
+    # talkroom. A metadata-only retry must still recover the completed download.
+    recovered = snapshot.recover_captured_attachment(tmp_path, "IMG_6033.jpeg")
+
+    assert recovered == (stored_path, digest, size)
+    assert Path(stored_path).read_bytes() == payload
+    assert Path(stored_path).stat().st_mode & 0o777 == 0o600
+
+
+def test_full_orders_capture_passes_durable_attachment_project_root() -> None:
+    snapshot = load("coconala_queue_snapshot")
+    source = inspect.getsource(snapshot.main)
+
+    assert "attachment_project_root=args.projects_root.expanduser().resolve() / project_id" in source
 
 
 def test_talkroom_readback_retries_transient_tab_open_timeout(monkeypatch) -> None:
