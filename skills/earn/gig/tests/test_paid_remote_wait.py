@@ -2871,6 +2871,16 @@ def test_remote_verifier_accepts_its_single_evidence_reference():
     assert references == [("verifier_evidence", "remote-verifier-evidence.json")]
 
 
+def test_remote_verifier_accepts_multiple_evidence_references():
+    paid = load("paid_direct")
+    result = {"verifier_evidence": ["first.json", "second.json"]}
+
+    assert paid._verifier_evidence_references(result) == [
+        ("verifier_evidence", "first.json"),
+        ("verifier_evidence", "second.json"),
+    ]
+
+
 @pytest.mark.parametrize("field", ["buyer_feedback_sha256", "feedback_sha256"])
 def test_remote_verifier_accepts_canonical_feedback_alias(field):
     paid = load("paid_direct")

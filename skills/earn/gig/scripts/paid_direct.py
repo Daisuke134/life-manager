@@ -2010,6 +2010,9 @@ def _verifier_evidence_references(result: dict[str, Any]) -> list[tuple[str, str
     single = result.get("verifier_evidence")
     if not references and isinstance(single, str) and single.strip():
         references = [("verifier_evidence", single)]
+    if not references and isinstance(single, list):
+        references = [("verifier_evidence", value) for value in single
+                      if isinstance(value, str) and value.strip()]
     if not references and isinstance(result.get("evidence"), list):
         references = [("evidence", value) for value in result["evidence"]
                       if isinstance(value, str) and value.strip()]
@@ -2073,7 +2076,13 @@ def _validate_managed_verifier(verifier: Path, project_root: Path, intent: dict[
             raise ValueError("verifier evidence missing")
         observed = False; now_ns = time.time_ns(); evidence_records = []
         for field, raw_path in references:
-            evidence_path = (managed / raw_path if not Path(raw_path).is_absolute() else Path(raw_path)).resolve()
+            relative = Path(raw_path)
+            if relative.is_absolute():
+                evidence_path = relative.resolve()
+            elif relative.parts[:2] == ("evidence", "agent-PAID_REMOTE_VERIFY"):
+                evidence_path = (project_root / relative).resolve()
+            else:
+                evidence_path = (managed / relative).resolve()
             evidence_path.relative_to(managed)
             mtime_ns = evidence_path.stat().st_mtime_ns if evidence_path.is_file() else 0
             if (not evidence_path.is_file() or (min_evidence_mtime_ns is not None
