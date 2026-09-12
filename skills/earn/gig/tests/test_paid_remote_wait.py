@@ -2205,6 +2205,29 @@ def test_remote_repair_pending_cannot_be_downgraded_to_answer(tmp_path, monkeypa
     assert paid._remote_mode_required(root, item, feedback) is True
 
 
+def test_consultation_owner_cannot_overwrite_remote_repair_pending(tmp_path):
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    requirements = paid.paid_remote_result.requirements_digest(root, feedback)
+    review = {
+        "version": 1,
+        "state": "REPAIR_PENDING",
+        "mode": "remote",
+        "buyer_feedback_sha256": feedback,
+        "requirements_sha256": requirements,
+        "findings": [{"repair": "Implement the missing live controls."}],
+    }
+    write_json(root / "context" / "paid-review-state.json", review)
+
+    with pytest.raises(paid.Failure, match="remote_builder"):
+        paid._run_consultation_review(None, tmp_path / "item.json", root, feedback, tmp_path)
+
+    assert json.loads((root / "context" / "paid-review-state.json").read_text()) == review
+    assert inspect.getsource(paid._run_consultation_review).count(
+        '_pending_review_mode(root, feedback) in {"file", "remote"}'
+    ) == 2
+
+
 def test_successful_external_artifact_receipt_is_reverified():
     paid = load("paid_direct")
     instruction = paid._owner_tool_result_instruction()

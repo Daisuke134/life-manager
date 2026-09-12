@@ -4445,6 +4445,8 @@ def _validate_consultation_authorization(root: Path, feedback: str) -> dict[str,
 
 
 def _run_consultation_review(args, item_path: Path, root: Path, feedback: str, base: Path) -> Path:
+    if _pending_review_mode(root, feedback) in {"file", "remote"}:
+        raise Failure("remote_builder")
     context = root / "context" / "current.json"
     context.parent.mkdir(parents=True, exist_ok=True)
     _run([sys.executable, str(args.context_compiler), "--project-root", str(root),
@@ -4529,6 +4531,8 @@ def _run_consultation_review(args, item_path: Path, root: Path, feedback: str, b
 
     if _requirements_snapshot(root) != requirements_snapshot or _consultation_attachments(root)[0] != expected:
         raise Failure("requirements_toctou")
+    if _pending_review_mode(root, feedback) in {"file", "remote"}:
+        raise Failure("remote_builder")
     target = _text(_load(item_path).get("marketplace_url"))
     if target != f"https://coconala.com/talkrooms/{_text(_load(item_path).get('talkroom_id'))}":
         raise Failure("remote_builder")
