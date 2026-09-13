@@ -129,8 +129,11 @@ about 1,480 cookies and creating the target, but the collector killed the helper
 The caller now grants 75 seconds, inside the existing 180-second targeted-readback budget, without
 adding retries or another browser implementation. Paid verification passes 170/170, browser ownership
 verification passes 43 tests plus 6 subtests, runtime-loop verification passes 395/395, and registry
-verification passes 15/15. This merged change is not yet installed because the current `8448cc62`
-wake remains live; install only after it exits naturally.
+verification passes 15/15. PR `#5127`, merge SHA `29b33d09de...`, also normalizes equivalent Paid
+effect-checkpoint evidence without accepting alias conflicts or changed duplicate effects; its focused
+acceptance passes 14/14 and fresh read-only review reports SHIP. Main-derived release
+`20260913T163707-29b33d09` is cut but not installed because the current `8448cc62` wake remains live;
+install only after it exits naturally, then resume each independent client owner.
 
 The independent current liabilities are:
 
@@ -159,9 +162,11 @@ The independent current liabilities are:
   milestone completion surface, and `63568785` waits for an unambiguous official application date.
   Remaining effects are the two CrowdWorks milestone completion reports, official delivery readback,
   payment readback and replay-zero, plus evidence-based resolution of the third contract's date.
-- **Host pressure:** no pressure marker is active and filesystem free space is about 3 GiB. Cleanup is
-  not the current gate. Codex/cloud sessions and protected browser, memory, state and credential stores
-  remain untouched.
+- **Host pressure:** filesystem free space fell to about 176 MiB while creating another full worktree.
+  Two clean, main-merged, Codex-owned temporary worktrees were removed through Git's managed-worktree
+  path, recovering enough space to create the current latest-main worktree; current free space is about
+  488 MiB. This is active operational pressure but not evidence that old OpenClaw cleanup regressed.
+  Codex/cloud sessions and protected browser, memory, state and credential stores remain untouched.
 
 The release-weight defect is closed in source by PR `#5106`, merge SHA `5aecc6bb5...`. The measured root
 `node_modules` was about 792 MiB / 98,660 files and `apps/life-manager/node_modules` about 332 MiB, while
@@ -221,6 +226,11 @@ operator receipt and a following replay-zero.
    after the Coconala funded liability closes: contract-selection interviews, kickoff and ordinary
    progress meetings use one typed Telegram handoff, Google Calendar event and scheduled Life Manager
    phone call; all research, proposal, scheduling clicks, work, delivery and readback remain loop-owned.
+   The current implementation cursor is one repository-owned TikTok single-recipient transport for Chii:
+   model judgment owns candidate qualification and recipient-specific copy, while deterministic shared code
+   owns authenticated identity validation, one send, exact official readback and deduplication. This replaces
+   generated project-local browser scripts; the campaign cursor, paired Sheet receipt and bounded batch runner
+   follow on the same shared boundary.
 3. **Next-platform expansion.** Qualify and add AudioBabel and the next evidence-backed marketplaces in
    expected net-revenue order. Each new provider must complete the same vertical receipt chain.
 4. **Marketplace meta-loop.** Let the model discover and qualify platforms, inspect official
