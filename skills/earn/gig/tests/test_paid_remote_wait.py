@@ -2605,6 +2605,50 @@ def test_answer_decision_cannot_be_bypassed_by_untyped_remote_result_replay(tmp_
     assert paid._reported_remote_cycle(args, item) is None
 
 
+def test_answer_reuses_unchanged_verified_remote_result(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    root = tmp_path / "project"
+    (root / "delivery").mkdir(parents=True)
+    feedback = "a" * 64
+    requirements = "b" * 64
+    message = "検証済みの成果をご確認ください。"
+    message_sha = hashlib.sha256(message.encode()).hexdigest()
+    monkeypatch.setattr(paid, "_current_paid_decision", lambda *_args: {
+        "decision": "actionable", "mode": "answer",
+    })
+    monkeypatch.setattr(paid, "_validated_reusable_remote_answer", lambda *_args: {
+        "message": message, "message_sha256": message_sha,
+        "requirements_sha256": requirements, "attachment": None,
+    })
+
+    assert paid._reuse_verified_remote_answer(
+        root, {"buyer_feedback_sha256": feedback}, feedback,
+    ) is True
+    answer = json.loads((root / "delivery" / "paid-answer.json").read_text())
+    assert answer == {
+        "version": 1, "status": "answer", "message": message,
+        "requirements_sha256": requirements, "message_sha256": message_sha,
+    }
+
+
+def test_reused_answer_fails_closed_when_decision_changes(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    monkeypatch.setattr(paid, "_answer_ready", lambda *_args: False)
+    monkeypatch.setattr(
+        paid, "_validated_reusable_remote_answer",
+        lambda *_args: pytest.fail("stale proof must not be inspected after decision change"),
+    )
+
+    with pytest.raises(paid.Failure, match="requirements_toctou"):
+        paid._validated_reused_answer_at_effect(tmp_path, {}, "a" * 64)
+
+
+def test_prepare_does_not_resume_superseded_remote_contract_after_reuse():
+    paid = load("paid_direct")
+    source = inspect.getsource(paid._prepare_one)
+    assert "if reused_verified_remote_answer:\n            pass\n        elif consultation_answer:" in source
+
+
 def test_remote_wait_expires_after_recheck_interval(tmp_path):
     paid = load("paid_direct")
     root, feedback, digest = blocked_project(tmp_path)

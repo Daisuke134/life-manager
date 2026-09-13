@@ -4295,6 +4295,94 @@ def _answer_ready(root: Path, item: dict[str, Any]) -> bool:
         return False
 
 
+def _validated_reusable_remote_answer(root: Path, feedback: str) -> dict[str, Any]:
+    """Validate old remote content proof without reinterpreting its superseded effect contract."""
+    root = root.resolve()
+    requirements_sha256 = paid_remote_result.requirements_digest(root, feedback)
+    intent = _load(root / "delivery" / "paid-remote-intent.json")
+    result = _load(root / "delivery" / "paid-remote-result.json")
+    managed = root / "evidence" / "agent-PAID_REMOTE_VERIFY"
+    verifier_path = managed / "remote-verifier-result.json"
+    if (managed.is_symlink() or not managed.is_dir() or verifier_path.is_symlink()
+            or not verifier_path.is_file()):
+        raise ValueError("invalid reusable verifier root")
+    _validate_verifier_runner(managed, "ok")
+    verifier = _load(verifier_path)
+    message = _text(result.get("customer_message"))
+    message_sha256 = hashlib.sha256(message.encode()).hexdigest()
+    desired = intent.get("desired_state")
+    digest = _text(intent.get("desired_state_sha256"))
+    attachment = _validated_customer_attachment(root, result.get("customer_attachment"))
+    if (intent.get("mode") != "remote" or not isinstance(desired, dict) or not message
+            or result.get("status") != "ok" or result.get("verified_after") is not True
+            or intent.get("buyer_feedback_sha256") != feedback
+            or result.get("buyer_feedback_sha256") != feedback
+            or intent.get("requirements_sha256") != requirements_sha256
+            or result.get("requirements_sha256") != requirements_sha256
+            or intent.get("message_sha256") != message_sha256
+            or result.get("message_sha256") != message_sha256
+            or result.get("target") != intent.get("target")
+            or result.get("authenticated") is not True
+            or paid_remote_result._sha(desired) != digest
+            or result.get("desired_digest") != digest or result.get("observed_digest") != digest
+            or result.get("after_state_digest") != digest
+            or not paid_remote_result.canonical_equal(result.get("observed_state"), desired)
+            or verifier.get("verified") is not True
+            or _verifier_feedback_sha256(verifier) != feedback
+            or verifier.get("target") != intent.get("target")
+            or verifier.get("desired_digest", verifier.get("desired_state_digest")) != digest
+            or verifier.get("observed_digest") != digest
+            or verifier.get("requirements_sha256") != requirements_sha256
+            or verifier.get("message_sha256") != message_sha256
+            or not paid_remote_result.canonical_equal(verifier.get("observed_state"), desired)
+            or intent.get("customer_attachment") != attachment
+            or verifier.get("customer_attachment") != attachment):
+        raise ValueError("reusable remote proof mismatch")
+    owner_root = (root / "evidence" / "agent-PAID_REMOTE_OWNER").resolve()
+    for field in ("before_evidence", "after_evidence"):
+        evidence_path = (root / _text(result.get(field))).resolve()
+        evidence_path.relative_to(owner_root)
+        if evidence_path.is_symlink() or not evidence_path.is_file():
+            raise ValueError("reusable remote evidence missing")
+        evidence = _load(evidence_path)
+        if (evidence.get("target") != intent.get("target")
+                or evidence.get("authenticated") is not True
+                or evidence.get("requirements_sha256") != requirements_sha256
+                or evidence.get("message_sha256") != message_sha256):
+            raise ValueError("reusable remote evidence mismatch")
+        if (field == "after_evidence"
+                and not paid_remote_result.canonical_equal(evidence.get("observed_state"), desired)):
+            raise ValueError("reusable remote after evidence mismatch")
+    return {"message": message, "message_sha256": message_sha256,
+            "requirements_sha256": requirements_sha256, "attachment": attachment}
+
+
+def _reuse_verified_remote_answer(root: Path, item: dict[str, Any], feedback: str) -> bool:
+    """Reuse an unchanged, independently verified remote delivery as the buyer answer."""
+    try:
+        decision = _current_paid_decision(root, item)
+        if decision.get("decision") != "actionable" or decision.get("mode") != "answer":
+            return False
+        proof = _validated_reusable_remote_answer(root, feedback)
+        _write(root / "delivery" / "paid-answer.json", {
+            "version": 1,
+            "status": "answer",
+            "message": proof["message"],
+            "requirements_sha256": proof["requirements_sha256"],
+            "message_sha256": proof["message_sha256"],
+        })
+        return True
+    except (AttributeError, OSError, ValueError, TypeError, json.JSONDecodeError, Failure):
+        return False
+
+
+def _validated_reused_answer_at_effect(root: Path, item: dict[str, Any],
+                                       feedback: str) -> dict[str, Any]:
+    if not _answer_ready(root, item):
+        raise Failure("requirements_toctou")
+    return _validated_reusable_remote_answer(root, feedback)
+
+
 def _remote_revision_required(root: Path, feedback: str) -> bool:
     state = _load(root / "state.json")
     cycle, live = state.get("active_feedback_cycle"), state.get("live_system_delivery")
@@ -5301,9 +5389,12 @@ def _prepare_one(args, item_path: Path, output: Path) -> int:
             _write(output, {**prepared, "project_root": str(root), "_paid_prepare_status": "prepared"})
             return 0
         delivery = root / "delivery"; intent_path = delivery / "paid-remote-intent.json"
-        consultation_answer = _answer_ready(root, item)
+        reused_verified_remote_answer = _reuse_verified_remote_answer(root, item, feedback)
+        consultation_answer = _answer_ready(root, item) and not reused_verified_remote_answer
         verifier = None; repaired = False
-        if consultation_answer:
+        if reused_verified_remote_answer:
+            pass
+        elif consultation_answer:
             try:
                 _validate_consultation_authorization(root, feedback)
                 verifier = _consultation_result_path(root / "evidence" / "agent-PAID_ANSWER_VERIFY")
@@ -5329,6 +5420,7 @@ def _prepare_one(args, item_path: Path, output: Path) -> int:
         intent = _load(intent_path); digest = _text(intent.get("desired_state_sha256"))
         prepared = {**item, "project_root": str(root), "remote_repaired": repaired,
                     "requirements_sha256": paid_remote_result.requirements_digest(root, feedback),
+                    "reused_verified_remote_answer": reused_verified_remote_answer,
                     "formal_approval_evidence": semantic.get("formal_approval_evidence"),
                     "latest_buyer_message_identity": _latest_official_buyer_identity(root, room)}
         authorization = _remote_formal_authorization(
@@ -5723,7 +5815,9 @@ def _write_one(args, item_path: Path, output: Path) -> int:
         delivery = root / "delivery"; intent_path = delivery / "paid-remote-intent.json"
         intent = _load(intent_path); digest = _text(intent.get("desired_state_sha256"))
         consultation_expected = None
-        if _answer_ready(root, item):
+        reused_proof = None
+        if (_answer_ready(root, item)
+                and prepared.get("reused_verified_remote_answer") is not True):
             expected, _, _ = _consultation_attachments(root)
             consultation_expected = expected
             reviewed = intent.get("desired_state", {}).get("reviewed_attachments")
@@ -5732,6 +5826,8 @@ def _write_one(args, item_path: Path, output: Path) -> int:
                 raise Failure("requirements_toctou")
         if consultation_expected is not None:
             _validate_consultation_authorization(root, feedback)
+        elif prepared.get("reused_verified_remote_answer") is True:
+            reused_proof = _validated_reused_answer_at_effect(root, item, feedback)
         else:
             verifier = resolve_managed_verifier(root, feedback, digest)
             paid_remote_result.resume(root, feedback, digest, verifier)
@@ -5739,6 +5835,11 @@ def _write_one(args, item_path: Path, output: Path) -> int:
         try: answer_payload = json.loads(answer_before.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as error: raise Failure("answer_snapshot") from error
         if not isinstance(answer_payload, dict) or not _text(answer_payload.get("message")): raise Failure("answer_snapshot")
+        if (reused_proof is not None
+                and (answer_payload.get("message") != reused_proof["message"]
+                     or answer_payload.get("message_sha256") != reused_proof["message_sha256"]
+                     or answer_payload.get("requirements_sha256") != reused_proof["requirements_sha256"])):
+            raise Failure("answer_toctou")
         customer_attachment = None
         if consultation_expected is None:
             remote_result = _load(root / "delivery" / "paid-remote-result.json")

@@ -64,10 +64,19 @@ class TerraDefaultTest(unittest.TestCase):
                         {"provider": "codex", "model": "gpt-5.6-terra",
                          "effort": "high", "profile_alias": "acct2"},
                     ]
+                if name == "paid-owner-agent":
+                    expected = [
+                        {"provider": "codex", "model": "gpt-5.6-terra",
+                         "effort": "medium", "profile_alias": "acct2",
+                         "timeout_seconds": 180},
+                        {"provider": "codex", "model": "gpt-5.6-luna",
+                         "effort": "medium", "profile_alias": "acct2",
+                         "timeout_seconds": 180},
+                    ]
                 # Every executable class now carries a working Claude fallback so a
                 # codex quota outage cannot idle a money lane.
                 fallback = {"provider": "claude-direct", "model": "claude-sonnet-5"}
-                if fallback not in expected:
+                if name != "paid-owner-agent" and fallback not in expected:
                     expected.append(fallback)
                 self.assertEqual(candidates, expected)
 
