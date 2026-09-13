@@ -2246,6 +2246,9 @@ def persist_purchased_offer_brief(
     }
 
 
+DEFAULT_TAB_OPEN_TIMEOUT_SECONDS = 75
+
+
 class DefaultTab:
     def __init__(
         self,
@@ -2283,7 +2286,7 @@ class DefaultTab:
                 result = subprocess.run(
                     arguments,
                     stdin=subprocess.DEVNULL, capture_output=True, text=True,
-                    timeout=25, check=True,
+                    timeout=DEFAULT_TAB_OPEN_TIMEOUT_SECONDS, check=True,
                 )
             except subprocess.CalledProcessError as error:
                 detail = error.stderr or error.stdout or ""
@@ -2312,7 +2315,9 @@ class DefaultTab:
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, bufsize=1,
         )
-        if self.process.stdout is None or not select.select([self.process.stdout], [], [], 25)[0]:
+        if self.process.stdout is None or not select.select(
+            [self.process.stdout], [], [], DEFAULT_TAB_OPEN_TIMEOUT_SECONDS
+        )[0]:
             self._stop_process()
             raise RuntimeError("failed to open authenticated hidden target: timed out")
         line = self.process.stdout.readline()

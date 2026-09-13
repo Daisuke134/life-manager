@@ -112,6 +112,25 @@ def test_talkroom_readback_retries_transient_tab_open_timeout(monkeypatch) -> No
     assert len(attempts) == 2
 
 
+def test_default_tab_open_budget_covers_context_creation_and_cookie_seed(monkeypatch) -> None:
+    snapshot = load("coconala_queue_snapshot")
+    timeouts = []
+
+    def run(*_args, **kwargs):
+        timeouts.append(kwargs["timeout"])
+        return __import__("subprocess").CompletedProcess(
+            [], 0, stdout='{"ok":true,"target_id":"tab","ws":"ws://tab"}\n', stderr="",
+        )
+
+    monkeypatch.setattr(snapshot.subprocess, "run", run)
+    tab = snapshot.DefaultTab(Path("helper"), "https://example.test", owner="paid-room")
+    tab.__enter__()
+    tab.target_id = ""
+
+    assert timeouts == [snapshot.DEFAULT_TAB_OPEN_TIMEOUT_SECONDS]
+    assert snapshot.DEFAULT_TAB_OPEN_TIMEOUT_SECONDS > 40
+
+
 def test_talkroom_readback_retries_hidden_helper_transport_timeout(monkeypatch) -> None:
     snapshot = load("coconala_queue_snapshot")
     attempts = []
