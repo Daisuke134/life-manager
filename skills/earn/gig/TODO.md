@@ -123,6 +123,22 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   Contract parallelism may be enabled only after each worker receives an isolated browser context/lease
   with lifecycle and effect-fence acceptance; the provider-wide browser lock remains the outer guard.
 
+- **CrowdWorks Paid worker context isolation is merged and deployed; host admission remains the
+  current runtime gate.** PR `#5170`, merge SHA `b9999dd1b7...`, removes Paid's implicit use of the
+  persistent browser context. Every worker clones authenticated state into one owned context; normal
+  navigation, retry pages, proposal lookup, Google Form page/POST and the mobile contract surface stay
+  inside that context. Setup failures close the new context before ownership transfer, and public
+  operations retain their final cleanup. The focused CrowdWorks plus shared Paid suite passes 113 tests,
+  all PR checks pass and fresh read-only review says ship. Immutable release
+  `20260914T055408-b9999dd1` is installed only on `crowdworks-revenue-paid`; runtime readback reports
+  `loaded-idle` and installed SHA `b9999dd1b7...`. Production remains `--max-workers 1`: three isolated
+  synthetic workers prove state separation, but the live no-navigation probe still observed at least
+  one Playwright teardown longer than 30 seconds under host overload. Therefore parallel contract
+  effects are not yet enabled or claimed. The next acceptance is one naturally admitted current-release
+  wake that refreshes official inventory, advances each funded contract independently, records official
+  completion/readback, and then proves replay-zero. This is a reusable worker-ownership rule for every
+  marketplace adapter, not a client-specific Ryu or CrowdWorks workaround.
+
 - **Shared browser entry and operator-brake convergence are complete on main.** PR `#5159`, merge
   SHA `2668376830...`, changes BrowserContext acquisition to reserve under the ledger lock, perform
   provider CDP work outside it, and finalize by token compare-and-swap. Slow cookie seeding for one
@@ -223,7 +239,10 @@ continues independently.
    Ryu waits only as a dormant per-client cursor for a new official buyer event; Chii is excluded. A
    buyer owner never waits for another buyer. First accept the terminal production receipts from the
    shared BrowserContext/operator-brake release and repair the next measured shared or adapter blocker;
-   do not reopen Ryu or invent a client-specific completion gate.
+   do not reopen Ryu or invent a client-specific completion gate. Ryu's ordinary handoff is complete;
+   formal delivery remains dormant until a genuinely new buyer message explicitly approves closure.
+   The current executable cursor is the next admitted terminal receipt for each Coconala lane while
+   CrowdWorks funded liabilities progress independently from installed release `b9999dd1b7...`.
 2. Finish each next provider vertically while all installed lanes remain live: Lancers, CrowdWorks,
    Mercor, Freelancer.com, Upwork, then evidence-ranked new platforms. Missing Storefront is
    `not_applicable`; missing contract leaves Paid open but never pauses Apply.
