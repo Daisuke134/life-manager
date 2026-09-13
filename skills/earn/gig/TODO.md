@@ -9554,6 +9554,20 @@ missing contract leaves Paid waiting but never pauses Apply.
 - [ ] `CW-03` Prove Apply, Reply and Paid effects plus replay-zero; prove Storefront or `not_applicable`.
 - [ ] `CW-04` Record attributable withdrawable revenue and platform conversion metrics.
 - [ ] `MER-01` Verify the installed Mercor Apply/Reply session generation.
+- [ ] `MER-01A` Remove the current host-admission blocker before attributing a Mercor wake to auth.
+  The newest observed Apply wake stops at `memory_admission_deferred` before marketplace work begins;
+  admission failure and provider authentication are separate incidents.
+- [ ] `MER-01B` Reproduce one naturally admitted Mercor wake and trace browser-context input -> page-ready
+  URL -> authenticated official readback -> atomic context writeback. Current evidence is mixed: an auth
+  readback reaches `/home?tab=applications`, another page-ready receipt is redirected to `/login`, and the
+  latest writeback remains `authenticated_readback_required`.
+- [ ] `MER-01C` Repair the shared provider/account session owner rather than adding a Mercor-only login
+  script. Persist the complete supported encrypted browser context, including cookies, localStorage,
+  IndexedDB and sessionStorage; publish a new generation only after final authenticated-page readback.
+- [ ] `MER-01D` Prove two natural wakes restore the same authenticated generation with zero login effects,
+  followed by one eligible application, official submission readback and replay-zero. Provider expiry,
+  revocation, KYC or a device challenge triggers bounded automatic recovery; it is not described as a
+  literally immortal login.
 - [ ] `MER-02` Prove eligible application and reply effects with official readback and replay-zero.
 - [ ] `MER-03` Prove Telegram/Calendar interview handoff and automatic resume after the human action.
 - [ ] `MER-04` Track offer, work and payout to attributable revenue.
@@ -9579,6 +9593,15 @@ missing contract leaves Paid waiting but never pauses Apply.
   net revenue, cycle time, conversion and withdrawable cash.
 - [ ] `CORE-06` Add an eval corpus from real successes and failures; every policy/prompt change must beat
   the current baseline without reducing safety, truthfulness or duplicate-effect performance.
+- [ ] `CORE-07` Standardize durable browser identity for every provider/account: encrypted context ID,
+  generation fingerprint, compare-and-swap writeback, authenticated-page receipt, expiry reason and
+  recovery cursor. Never commit reusable auth state to Git.
+- [ ] `CORE-08` Instrument `context_restore_success`, `login_redirect_rate`, `auth_bootstrap_count`,
+  `last_official_effect_at` and `time_to_recovery`; repeated login or a stale official effect automatically
+  creates one repair work item instead of requiring Dais or a Codex chat to notice it.
+- [ ] `CORE-09` Make `lm-loop status` bounded and indexed so status inspection never serializes an entire
+  large event/thread history. The current status path can itself hang while the owner continues running,
+  which hides incidents and increases babysitting.
 
 ### D. Self-healing and recursive improvement meta-loop
 
@@ -9640,6 +9663,15 @@ Official contract references:
 - https://developers.openai.com/api/docs/guides/agents-api/overview
 - https://developers.openai.com/api/docs/guides/agents-api/quickstart
 
+Browser continuity references:
+
+- https://playwright.dev/docs/auth — reuse authenticated storage state, wait for the final authenticated
+  page before saving it, keep state outside source control, and explicitly handle sessionStorage because
+  Playwright does not persist it automatically.
+- https://docs.browserbase.com/platform/browser/core-features/contexts — a stable browser Context ID can
+  persist a Chromium user-data directory across sessions, including cookies, local/session storage,
+  IndexedDB, service workers and preferences. Persist and sync the context at session end.
+
 ### F. Product vision, public narrative and YC Winter 2027
 
 The durable company sentence is: **Life Manager is an AI that manages your life better than you ever
@@ -9647,13 +9679,16 @@ can.** The first pain is the excruciating stagnation caused when a person knows 
 cannot continuously convert intent into action. The first wedge is measurable agency: earn money, build
 relationships, maintain health and logistics, and complete commitments through verified proactive action.
 
-The long-term direction is a consent-based manager of all life. A shared dynamic world model and ontology
-represent living beings, goals, relationships, resources, constraints and observed outcomes. Synthetic
-simulation evaluates possible interventions before real effects. Continuous official feedback updates the
-model and policy. `No interface` means ambient, proactive help with explicit authorization, revocation,
-auditability and guardian authority where a being cannot consent; it never means covert surveillance,
-involuntary control or claiming omniscience. “God-like” describes ubiquity and proactive care as a metaphor,
-not a current capability or authority claim.
+The long-term direction is an ambient manager of all life. A beneficiary does not need to learn a new UI,
+know the Life Manager name, repeatedly log in, hold a credential, or supervise routine work. A shared
+operational life graph represents living beings, goals, relationships, resources, constraints, provenance
+and observed outcomes; domain world models simulate candidate interventions before bounded real effects.
+This is **zero interface and zero routine human loop for the beneficiary**, not zero accountability in the
+infrastructure. Identity, delegated/guardian/institutional authority, revocation and audit remain machine-
+managed safety properties wherever actions affect rights, money, privacy or physical safety. Unknown or
+non-consenting beings receive only non-invasive observation and public-good protection until legitimate
+authority exists. “God”, Buddha and Ultraman Cosmos describe the intended qualities—ubiquity, compassion,
+minimum intrusion, protection and de-escalation—not omniscience, ownership of a life, or authority to coerce.
 
 - [ ] `VISION-01` Reach the first truthful `$10k MRR` gate from official contract, payout and bank-receipt
   evidence; do not treat applications, forecasts or GMV as MRR.
@@ -9672,7 +9707,56 @@ not a current capability or authority claim.
   human-benefit constraints and canary evidence before it influences real-world effects.
 - [ ] `VISION-08` Add cross-domain planning while retaining domain-specific effect fences, permissions,
   provenance and official readback.
+- [ ] `VISION-09` Build the operational life graph incrementally from competency questions and verified
+  facts. Reuse Palantir's semantic-plus-action pattern without depending on Palantir or building a universal
+  ontology first; every fact retains source, observation time, confidence and authority.
+- [ ] `VISION-10` Implement the proven cognition loop: perceive -> retrieve memory -> reflect -> plan ->
+  act -> verify. Borrow the Generative Agents memory scoring pattern and Letta-style durable
+  state/channel binding while keeping real effects in Life Manager's own ledger.
+- [ ] `VISION-11` Use domain models rather than one speculative universe model: physical/action simulation
+  follows Genie/Cosmos research; non-human understanding starts from sensor and bioacoustic work such as
+  NatureLM-audio, Project CETI and Wild Me. All begin in shadow mode with measurable calibration.
+- [ ] `VISION-12` Optimize agent programs against explicit metrics with DSPy-style evaluation and retain
+  Langfuse/OpenTelemetry-compatible traces. A self-edit is promoted only when offline eval, canary effect,
+  official readback, replay-zero, safety and realized benefit all beat the baseline.
+- [ ] `AMBIENT-01` Make the hosted experience Telegram-first, then channel-agnostic and eventually
+  zero-attention: beneficiary state arrives through existing authorized devices, services, institutions or
+  guardians; Life Manager proactively acts and reports only meaningful outcomes.
+- [ ] `AMBIENT-02` Remove repeated credential handling from the beneficiary experience. Provider sessions
+  restore, refresh and recover automatically; only an unavoidable external KYC/challenge is surfaced as a
+  typed, minimal, expiring handoff.
+- [ ] `DEF-01` Add a non-lethal protection domain to the life graph: protected being, threat, shelter, aid,
+  evacuation, ceasefire, humanitarian corridor, evidence, authority and outcome.
+- [ ] `DEF-02` Build bounded defensive loops for early warning, cyber defense, disaster response,
+  evacuation, logistics, casualty prevention, ceasefire monitoring, humanitarian aid and de-escalation.
+- [ ] `DEF-03` Evaluate conflict interventions in synthetic/shadow environments before any deployment;
+  measure lives protected, harm prevented, false alarms, discrimination, escalation risk and recovery.
+- [ ] `DEF-04` Exclude autonomous lethal targeting and irreversible coercive force. Any such decision
+  remains under identifiable human/legal command with timely intervention and deactivation. This follows
+  the ICRC position that unpredictable autonomous weapons and systems targeting human beings should be
+  ruled out: https://www.icrc.org/en/document/icrc-position-autonomous-weapon-systems
+- [ ] `DEF-05` Present the defense mission publicly as Ultraman-Cosmos-style protection and reconciliation:
+  prevent wars and protect life, never maximize force or silently claim sovereign authority.
 - [ ] `YCW27-01` Maintain a weekly YC evidence packet: product demo, active users, verified revenue,
   growth, retention, autonomy rate, human-intervention rate, failure recovery time and customer stories.
 - [ ] `YCW27-02` Prepare the Winter 2027 application and demo from measured evidence; submit when the
   official application window permits and continue shipping measurable progress afterward.
+
+Research adopted by the roadmap (patterns, not new runtime dependencies):
+
+- Palantir Ontology: https://www.palantir.com/docs/foundry/ontology/overview — join semantic objects,
+  links and properties to governed actions/functions rather than treating a graph as passive documentation.
+- Generative Agents: https://arxiv.org/abs/2304.03442 — observation, relevance/importance/recency-based
+  memory retrieval, reflection and planning produce more coherent long-running behavior.
+- Letta stateful agents: https://docs.letta.com/guides/agents/overview — durable agent state and stable
+  conversation/channel identity outlive one model turn.
+- Genie 3 and NVIDIA Cosmos: https://deepmind.google/discover/blog/genie-3-a-new-frontier-for-world-models/
+  and https://developer.nvidia.com/cosmos — interactive and physical world models support simulation, but
+  their limitations make shadow evaluation safer than direct control.
+- NatureLM-audio, Project CETI and Wild Me:
+  https://earthspecies.github.io/naturelm-audio/ , https://www.projectceti.org/ and
+  https://www.wildme.org/ — non-human life management begins with measured sensing, individual
+  identification and validated communication research, not assumed universal understanding.
+- DSPy, Langfuse and OpenTelemetry GenAI conventions: https://dspy.ai/ ,
+  https://langfuse.com/docs and https://opentelemetry.io/docs/specs/semconv/gen-ai/ — optimize against
+  metrics and retain interoperable traces/evaluation evidence for self-healing and self-improvement.
