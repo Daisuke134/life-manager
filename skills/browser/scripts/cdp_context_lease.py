@@ -70,6 +70,22 @@ def _max_contexts():
     return limit
 
 
+def _cookie_domains():
+    raw = os.environ.get("CLOAK_CONTEXT_COOKIE_DOMAINS", "")
+    return tuple(
+        value.strip().lower().lstrip(".")
+        for value in raw.split(",")
+        if value.strip().lstrip(".")
+    )
+
+
+def _cookie_in_scope(cookie, domains):
+    if not domains:
+        return True
+    domain = str(cookie.get("domain") or "").strip().lower().lstrip(".")
+    return any(domain == allowed or domain.endswith("." + allowed) for allowed in domains)
+
+
 def _acquire_url(argv):
     if len(argv) > 3 and isinstance(argv[3], str) and not argv[3].startswith("--"):
         return argv[3]
@@ -479,6 +495,9 @@ def acquire(task, url="about:blank", no_seed=False):
                 cookie for cookie in cookies
                 if _normalized_cookie_domain(cookie.get("domain")) not in overlay_domains
             ] + overlay_cookies
+        cookie_domains = _cookie_domains()
+        if cookie_domains:
+            cookies = [cookie for cookie in cookies if _cookie_in_scope(cookie, cookie_domains)]
 
         (ctx,) = asyncio.run(_calls([("Target.createBrowserContext", {})]))
         ctx_id = ctx["browserContextId"]
