@@ -3366,6 +3366,26 @@ def test_paid_admission_orders_project_scoped_priority_without_excluding_others(
     assert [item["talkroom_id"] for item in admitted] == ["102", "101"]
 
 
+def test_account_owner_delegation_is_removed_from_active_paid_items(tmp_path):
+    paid = load("paid_direct")
+    project = tmp_path / "101"
+    project.mkdir(parents=True)
+    write_json(project / "state.json", {"talkroom_id": "101"})
+    write_json(project / "context/paid-priority.json", {
+        "version": 1,
+        "priority": 100,
+        "delegated": True,
+        "authorized_by": "account_owner",
+        "reason": "transferred_to_separate_agent_no_duplicate_paid_effect",
+    })
+    args = SimpleNamespace(projects_root=tmp_path)
+    delegated = {"talkroom_id": "101"}
+    active = {"talkroom_id": "102"}
+
+    assert paid._paid_project_is_delegated(args, delegated)
+    assert paid._paid_active_items(args, [delegated, active]) == [active]
+
+
 def test_queued_paid_project_keeps_parent_pending():
     paid = load("paid_direct")
     rows = {
