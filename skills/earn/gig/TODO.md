@@ -9504,3 +9504,175 @@ KPI projection while exposing provider-specific failures quickly enough to earn 
 10. [ ] **Public product and mission:** update README and the Life Manager page with the concise
     position, “AI that manages your life better than you ever can,” the initial stagnation problem,
     phone-only roadmap, and long-term manager-of-all-life vision without delaying live revenue proof.
+
+## Atomic execution ledger — current canonical checklist
+
+This ledger makes the order above executable. It supersedes broader prose as the source of the next
+action, but does not serialize already-installed providers or independent clients: they continue to run
+concurrently. The implementation cursor is `COC-01`. Completed Ryu, Chii-excluded, 逃げ因子 and
+Manledge/Clover work is not part of this ledger.
+
+### A. Coconala vertical revenue proof
+
+- [ ] `COC-01` Commit and push the reviewed continuous/retainer Apply diff. Current evidence: fresh
+  review verdict `ship`; broad suite passed 1,265 tests before the last bounded fixes and the post-fix
+  focused suite passed 25 tests. This is not production evidence.
+- [ ] `COC-02` Rebase the feature branch on current public `main`, rerun the affected suite and obtain
+  a fresh read-only `ship` review for the final diff.
+- [ ] `COC-03` Create the public PR and merge it only after all acceptance checks pass.
+- [ ] `COC-04` Build one main-derived immutable release; install it on Coconala Apply only through the
+  repository release path; verify installed SHA and owner configuration.
+- [ ] `COC-05` Observe a naturally admitted authenticated Apply wake without bypassing host admission.
+- [ ] `COC-06` Prove the Apply budget keeps 19 one-off slots plus one continuous slot without shard
+  over-allocation.
+- [ ] `COC-07` Submit one eligible continuous application through the existing Apply lane; retain the
+  exact official application readback.
+- [ ] `COC-08` Replay the same continuous work item and prove effect zero/deduplicated true.
+- [ ] `COC-09` Observe one natural Reply wake with exact official readback and replay-zero.
+- [ ] `COC-10` Observe one natural Paid wake with independent client progress, exact official readback
+  and replay-zero. Ryu stays dormant unless a new buyer event appears.
+- [ ] `COC-11` Observe one natural Storefront wake with official inventory/analytics readback and
+  replay-zero.
+- [ ] `COC-12` If a continuous job requires a meeting, send one typed Telegram handoff, create the
+  Calendar event, trigger the scheduled Life Manager call and resume the same work item afterward.
+- [ ] `COC-13` Record the first attributable continuous contract, accepted delivery, payout and
+  withdrawable-cash receipt in the shared revenue ledger.
+
+### B. Next platform slices
+
+For every provider below, keep other providers live. `Storefront` may close as `not_applicable`; a
+missing contract leaves Paid waiting but never pauses Apply.
+
+- [ ] `LAN-01` Verify the existing phone-verified Lancers session and account identity.
+- [ ] `LAN-02` Prove one eligible Apply effect, official readback and replay-zero.
+- [ ] `LAN-03` Prove Reply consumes one fresh counterparty event exactly once.
+- [ ] `LAN-04` Prove Paid advances a real contract through delivery, acceptance and payout observation.
+- [ ] `LAN-05` Prove Storefront or record an evidenced `not_applicable` capability.
+- [ ] `LAN-06` Record attributable withdrawable revenue and platform conversion metrics.
+- [ ] `CW-01` Verify CrowdWorks authenticated inventory and the deployed isolated Paid context.
+- [ ] `CW-02` Finish each current funded liability independently with official delivery readback.
+- [ ] `CW-03` Prove Apply, Reply and Paid effects plus replay-zero; prove Storefront or `not_applicable`.
+- [ ] `CW-04` Record attributable withdrawable revenue and platform conversion metrics.
+- [ ] `MER-01` Verify the installed Mercor Apply/Reply session generation.
+- [ ] `MER-02` Prove eligible application and reply effects with official readback and replay-zero.
+- [ ] `MER-03` Prove Telegram/Calendar interview handoff and automatic resume after the human action.
+- [ ] `MER-04` Track offer, work and payout to attributable revenue.
+- [ ] `FRE-01` Census Freelancer.com authentication, supported capabilities and official readback pages.
+- [ ] `FRE-02` Implement only missing thin-adapter operations against the shared kernel.
+- [ ] `FRE-03` Prove every supported lane with an official effect, readback and replay-zero.
+- [ ] `FRE-04` Record attributable withdrawable revenue and conversion metrics.
+- [ ] `UPW-01` Census the existing Upwork path and remove duplicated lifecycle behavior in favor of the
+  shared contracts.
+- [ ] `UPW-02` Prove every supported lane with an official effect, readback and replay-zero.
+- [ ] `UPW-03` Record attributable withdrawable revenue and conversion metrics.
+
+### C. Shared kernel and collective learning
+
+- [ ] `CORE-01` Compare the completed Coconala and Lancers slices; extract only lifecycle behavior
+  proven duplicated by both.
+- [ ] `CORE-02` Run adapter conformance for every adopted provider after each shared repair.
+- [ ] `CORE-03` Normalize application, reply, contract, delivery, payout, failure and recovery receipts
+  into one versioned vocabulary.
+- [ ] `CORE-04` Keep raw conversations, credentials, artifacts, cursors and effect state scoped to one
+  provider/account/client; expose only normalized outcomes to collective learning.
+- [ ] `CORE-05` Project official receipts into one revenue ledger with gross revenue, fees, direct cost,
+  net revenue, cycle time, conversion and withdrawable cash.
+- [ ] `CORE-06` Add an eval corpus from real successes and failures; every policy/prompt change must beat
+  the current baseline without reducing safety, truthfulness or duplicate-effect performance.
+
+### D. Self-healing and recursive improvement meta-loop
+
+- [ ] `META-01` Observe every owner through structured events, traces, official receipts, resource use,
+  latency and revenue outcome; runtime success alone is never a business pass.
+- [ ] `META-02` Convert an unexplained failure or KPI regression into one durable, tenant-scoped
+  engineering work item with the smallest reproducible evidence bundle.
+- [ ] `META-03` Let a Codex agent inspect the real call path plus official docs and relevant OSS code,
+  propose the smallest shared or adapter-local repair and preserve the external-effect fence.
+- [ ] `META-04` Run deterministic tests for tools/bookkeeping plus model evals for judgment; compare with
+  the prior production baseline and reject a regression.
+- [ ] `META-05` Merge, release and canary the repair; require official provider readback and replay-zero,
+  then automatically resume only the failed work item.
+- [ ] `META-06` Rank improvement work by expected incremental net revenue divided by engineering and
+  runtime cost; measure the realized lift and keep or revert from evidence.
+- [ ] `META-07` Search official web, X and GitHub sources daily for new marketplaces and business models.
+- [ ] `META-08` Score each opportunity for expected net revenue, time-to-cash, policy fit, automation
+  ratio, account risk, human burden and reusable capability overlap.
+- [ ] `META-09` For the best opportunity, generate only a thin provider adapter, capability fixture and
+  evaluation; do not generate a copied lane.
+- [ ] `META-10` Promote a new platform only after one real official effect, exact readback, replay-zero
+  and attributable revenue observation; feed the result back into scoring.
+
+Observability tells the system what happened. Evals determine whether a proposed change is actually
+better. The effect/receipt ledger protects reality from duplicate or fabricated success. The meta-loop
+joins them into `observe -> reproduce -> repair -> evaluate -> canary -> verify -> resume -> measure`.
+Open-ended diagnosis, opportunity selection and proposal quality remain model judgments; deterministic
+code is limited to tools, schemas, arithmetic, leases, effects, readback and bookkeeping.
+
+### E. OpenAI Agents API and phone-only hosted product
+
+The Agents API is the OpenAI-managed Codex harness: an agent has a model, instructions, tools and MCP;
+an environment supplies an optional sandbox/computer; a durable session receives inputs and emits events
+and items. OpenAI manages session execution, orchestration, context compaction and recovery. It can run
+commands, edit files, use skills/MCP, produce artifacts, steer active work and delegate subtasks. It is
+billed separately at API model/tool/container rates and requires an application API key with the documented
+Agents and Responses permissions. It is not supplied by a ChatGPT subscription alone.
+
+- [ ] `API-01` Confirm project access with a bounded OpenAI-hosted session using the current public SDK;
+  save session/turn IDs and verify an actual artifact, not only a completed event.
+- [ ] `API-02` Create one durable Life Manager session per tenant/objective and persist its mapping in
+  the business cursor.
+- [ ] `API-03` Connect Telegram input/output to session events; reconnect by reading saved session items
+  before retrying a disconnected stream.
+- [ ] `API-04` Keep application function-tool responders available independently of a phone connection.
+- [ ] `API-05` Attach repository skills, files and MCP tools to the hosted environment; download durable
+  artifacts before session cleanup.
+- [ ] `API-06` Bind one isolated Steel browser identity to each tenant/provider/account. Add a full VM
+  only for a provider whose measured flow cannot run in the browser sandbox.
+- [ ] `API-07` Preserve Life Manager's scheduler, durable cursor, authorization, stable effect key,
+  official provider readback, revenue ledger and Telegram handoff outside the Agents API session.
+- [ ] `API-08` Prove disconnect recovery, long-running work, tool-result submission, duplicate input
+  reconciliation and tenant isolation.
+- [ ] `API-09` Ship subscription onboarding so the normal user needs only a phone and Telegram; local
+  execution remains an optional deployment of the same code.
+
+Official contract references:
+
+- https://developers.openai.com/api/docs/guides/agents-api/overview
+- https://developers.openai.com/api/docs/guides/agents-api/quickstart
+
+### F. Product vision, public narrative and YC Winter 2027
+
+The durable company sentence is: **Life Manager is an AI that manages your life better than you ever
+can.** The first pain is the excruciating stagnation caused when a person knows the life they want but
+cannot continuously convert intent into action. The first wedge is measurable agency: earn money, build
+relationships, maintain health and logistics, and complete commitments through verified proactive action.
+
+The long-term direction is a consent-based manager of all life. A shared dynamic world model and ontology
+represent living beings, goals, relationships, resources, constraints and observed outcomes. Synthetic
+simulation evaluates possible interventions before real effects. Continuous official feedback updates the
+model and policy. `No interface` means ambient, proactive help with explicit authorization, revocation,
+auditability and guardian authority where a being cannot consent; it never means covert surveillance,
+involuntary control or claiming omniscience. “God-like” describes ubiquity and proactive care as a metaphor,
+not a current capability or authority claim.
+
+- [ ] `VISION-01` Reach the first truthful `$10k MRR` gate from official contract, payout and bank-receipt
+  evidence; do not treat applications, forecasts or GMV as MRR.
+- [ ] `VISION-02` Test growth changes against net revenue, retention, margin and user benefit. Treat 10x
+  weekly/monthly growth as an ambition, never a guaranteed schedule or replacement for evidence.
+- [ ] `VISION-03` After the revenue and meta-loop gates, update root README, `apps/life-manager/README.md`
+  and the public Life Manager page from one canonical product narrative.
+- [ ] `VISION-04` Publish the current loop catalog by capability and list supported platforms beneath
+  Gig Work instead of presenting each provider as a separate product loop.
+- [ ] `VISION-05` Publish an evidence-labelled roadmap: local autonomous loops -> Telegram-only hosted
+  tenant -> self-healing/self-improving marketplace meta-loop -> whole-life manager -> consent-based
+  manager-of-all-life research.
+- [ ] `VISION-06` Add a minimal world-state ontology only after multiple life domains require the same
+  entities/relations; reuse established standards before defining custom types.
+- [ ] `VISION-07` Add counterfactual/synthetic user simulation in shadow mode; require offline eval lift,
+  human-benefit constraints and canary evidence before it influences real-world effects.
+- [ ] `VISION-08` Add cross-domain planning while retaining domain-specific effect fences, permissions,
+  provenance and official readback.
+- [ ] `YCW27-01` Maintain a weekly YC evidence packet: product demo, active users, verified revenue,
+  growth, retention, autonomy rate, human-intervention rate, failure recovery time and customer stories.
+- [ ] `YCW27-02` Prepare the Winter 2027 application and demo from measured evidence; submit when the
+  official application window permits and continue shipping measurable progress afterward.
