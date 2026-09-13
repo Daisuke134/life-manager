@@ -9368,3 +9368,76 @@ queue is added. Each owner must also progress independent work concurrently insi
 - [x] Repair live managed-loop identity for Apply and Reply. Apply planner now records Account 2 `gpt-5.6-luna`, loop `hf-gig-apply-direct`, status success; its production wake exits `ok` after observing 119 postings and checkpointing three B2 turns. Reply semantic now records Account 2 `gpt-5.6-luna`, loop `hf-gig-reply-detector`, status success while the 30-second/two-worker owner remains continuous.
 - [x] Repair Storefront last-known-good analytics and transient inventory handling. Production official readback observes all 14 public services, 483 views, 3 favorites and 0 purchases; the wake exits completed/effect 0 with Telegram messageId `39544`.
 - [x] Add exact, fail-closed cleanup candidates for closed `~/.cache/codex-runtimes` and `~/.cache/whisper`. Both require exact path matching, reject symlinks, and pass two lsof checks; open Whisper cache is preserved. `54 passed`.
+
+## Current authoritative checkpoint — platform slices after shared-kernel repair
+
+This section supersedes older open-item snapshots above when they conflict. Historical evidence stays
+in place; it is not an active queue.
+
+### Closed or excluded Coconala client work
+
+- [x] Ryu `18211957`: Paid owns the room, compiles the complete 264-row history and recovered
+  credentials, implements and independently verifies the requested management/public-site repair,
+  sends the explanation and updated URLs once, and observes that exact seller message in the
+  official room. Natural replay is `completed`, `send_performed=false`, and `deduplicated=true`.
+  Formal delivery remains off because the buyer has not explicitly authorized transaction closure;
+  a genuinely new buyer message creates a new feedback identity and reopens the same project.
+- [x] `18211838` (逃げ因子): closed. Do not reopen or use it as an acceptance blocker.
+- [x] Chii `18180857`: removed from the active platform cursor. Preserve the truthful 12/300
+  evidence and formal-delivery-off state; never fabricate DMs, recipients, Sheet rows, or receipts.
+- [x] Manledge/Clover: closed and removed from the active cursor.
+
+### Shared browser/context repair now in production
+
+- [x] Public main PR `#5170` isolates CrowdWorks Paid BrowserContexts and prevents mobile-context
+  cleanup from invalidating another worker. Production uses immutable release
+  `20260914T055408-b9999dd1`; focused and broad checks pass.
+- [x] Public main PR `#5171` gives parked BrowserContexts an exact provider-scoped session-vault
+  generation fingerprint. A refreshed login replaces only stale idle contexts; active contexts stay
+  untouched, absent vault evidence fails closed, and vault read/replace is atomic under the same
+  lock. Gig and Mercor broad verification passes (`1270 passed`).
+- [x] Immutable release `20260914T062345-1c9cb26b` is installed on Coconala Apply, Reply, Paid and
+  Storefront plus Mercor Apply/Reply. Reply intentionally uses shared CDP `:9222` with up to four
+  client-scoped BrowserContexts; Apply/Paid/Storefront use Gig CDP `:9223`. Both paths inject the
+  same provider-scoped Coconala vault, so this is parallel sharding rather than split authentication.
+- [ ] Observe one naturally admitted wake for each updated lane after host CPU pressure clears.
+  Acceptance is event SHA `1c9cb26...`, authenticated context-generation replacement where stale,
+  no sibling context loss, exact official readback, and replay-zero. Resource admission may defer a
+  wake; it must not be bypassed or misreported as a marketplace failure.
+
+### Remaining execution order to revenue
+
+The shared kernel stays horizontal; revenue proof is completed as a vertical platform slice. This
+keeps one implementation of leases, work items, retries, effect fences, readback, observability and
+KPI projection while exposing provider-specific failures quickly enough to earn money.
+
+1. [ ] **Coconala:** obtain natural post-release proof for Apply, Reply, Paid and Storefront; enable
+   continuous applications; prove one eligible continuous application, meeting handoff through
+   Telegram/Calendar when required, buyer reply, paid-order progression, listing improvement,
+   official readback and replay-zero. Already closed clients are not reopened.
+2. [ ] **Lancers:** use completed phone verification, then prove Apply -> Reply -> Paid -> Storefront
+   (where supported) with exact effects, official readback, replay-zero and revenue observation.
+3. [ ] **CrowdWorks:** run the same four outcome states through the shared kernel and the deployed
+   Paid context isolation; close each provider-specific capability gap without copying the kernel.
+4. [ ] **Mercor:** prove Apply and Reply from the deployed shared context generation, then minimal
+   human meeting/interview handoff through Telegram and Calendar, followed by paid outcome tracking.
+5. [ ] **Freelancer.com:** add only its connector/policy/UI adapter and prove the full supported
+   revenue path through the shared work-item and effect contracts.
+6. [ ] **Upwork:** route its existing path through the same shared contracts, then prove the full
+   supported revenue path and revenue observation.
+7. [ ] **New-platform meta-loop:** search official web/X/GitHub sources, score opportunities by
+   expected profit and automation fit, generate a thin provider adapter, run contract/effect/eval
+   gates, merge through public main, deploy an immutable release, and monitor revenue. Capability
+   failures create resumable engineering work items; the repair loop diagnoses, patches, evaluates,
+   deploys and resumes without a human or Codex chat becoming the production owner.
+8. [ ] **Phone-only cloud product:** keep Telegram as the first universal interface; move isolated
+   browser/computer sessions, long-running agent sessions, secrets and audit receipts to tenant-bound
+   cloud workers. A user needs only a phone. OpenAI Agents API is an orchestration/session option,
+   not a replacement for provider adapters, deterministic effect fences, official readback or
+   tenant isolation.
+9. [ ] **Revenue gates:** maintain one truthful ledger from application through withdrawable cash.
+   Reach `$10k MRR`, then optimize compounding growth from measured conversion, margin, cycle time
+   and retention; targets never substitute for observed paid revenue.
+10. [ ] **Public product and mission:** update README and the Life Manager page with the concise
+    position, “AI that manages your life better than you ever can,” the initial stagnation problem,
+    phone-only roadmap, and long-term manager-of-all-life vision without delaying live revenue proof.
