@@ -9405,6 +9405,31 @@ in place; it is not an active queue.
   no sibling context loss, exact official readback, and replay-zero. Resource admission may defer a
   wake; it must not be bypassed or misreported as a marketplace failure.
 
+### Shared concurrency and self-healing contract
+
+The Ryu delay was head-of-line blocking at the shared browser entrance, not a broken Paid deliverable.
+The current Paid owner advances up to eight independent client projects in completion order; each client
+owns an isolated BrowserContext and lock, while operations for the same client remain serialized. One
+slow, expired or wedged room therefore cannot hold unrelated rooms or platforms behind a batch barrier.
+
+The provider-neutral kernel keeps the following contract for every current and future platform:
+
+- claim work by `tenant/account/client/task`, only up to the available global and per-tenant slots;
+- increment a monotonic attempt fence on every claim, and accept heartbeat/completion/failure only from
+  the current owner and fence;
+- keep the stable external-effect idempotency key separate from the attempt fence, reconcile the official
+  provider state before retry, and never blind-retry an uncertain external effect;
+- requeue an expired lease with bounded backoff and jitter, preserve the prior evidence, and stop only the
+  failed work item rather than a sibling client or platform;
+- keep browser/session/state ownership provider- and account-scoped, while raw buyer context, credentials,
+  artifacts and mutable effect state remain client-scoped;
+- promote a repair to shared code only after a regression proves that an unrelated item completes while
+  another item times out, plus exact official readback and replay-zero for the repaired item.
+
+This is the minimum design evidenced by the concrete worker/claim implementations in Hatchet, River,
+Temporal, etcd and Graphile Worker. Life Manager reuses its existing database, lease, intent and outbox
+rails instead of adding one of those orchestration systems as a dependency.
+
 ### Remaining execution order to revenue
 
 The shared kernel stays horizontal; revenue proof is completed as a vertical platform slice. This
