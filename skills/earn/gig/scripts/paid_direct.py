@@ -6614,4 +6614,12 @@ def main(argv=None) -> int:
     _write(args.output, result)
     return rc
 
-if __name__ == "__main__": raise SystemExit(main())
+if __name__ == "__main__":
+    exit_code = main()
+    # Python 3.14 can spend minutes traversing this finite worker's large imported object
+    # graph during interpreter finalization. All subprocesses, pools, leases, receipts and
+    # browser cleanup are already closed explicitly by main(), so flush user-visible streams
+    # and leave without turning garbage collection into a cross-wake lock.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(exit_code)
