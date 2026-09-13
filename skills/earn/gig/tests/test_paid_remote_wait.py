@@ -1765,6 +1765,22 @@ def test_decision_prompt_scopes_required_assets_to_current_bounded_output(tmp_pa
     assert "Do not hide a required asset only in unresolved" not in prompt
 
 
+def test_decision_prompt_allows_formal_delivery_for_explicit_buyer_closure(tmp_path):
+    paid = load("paid_direct")
+
+    prompt = paid._decision_prompt(
+        tmp_path / "context.json",
+        "a" * 64,
+        "b" * 64,
+        "c" * 64,
+        {"message_id": "seller-1", "content_sha256": "d" * 64, "side": "seller"},
+        {"message_id": "buyer-1", "content_sha256": "e" * 64, "side": "buyer"},
+    ).decode()
+
+    assert "explicitly ends the transaction and promises payment" in prompt
+    assert "do not require the buyer to review a later corrective copy" in prompt
+
+
 def test_decision_prompt_keeps_live_system_revisions_remote_and_url_only(tmp_path):
     paid = load("paid_direct")
 
