@@ -5980,6 +5980,23 @@ def _paid_queue_priority(args, item: dict[str, Any]) -> tuple[int, int, str, str
     return owner_rank, repair_rank, _text(item.get("delivery_date")) or "9999-12-31", _text(item.get("talkroom_id"))
 
 
+def _paid_project_is_delegated(args, item: dict[str, Any]) -> bool:
+    """Keep an explicitly delegated project observable without running duplicate effects."""
+    try:
+        policy = _load(_paid_project_root(args, item) / "context" / "paid-priority.json")
+    except (Failure, OSError, ValueError, TypeError, json.JSONDecodeError):
+        return False
+    return (
+        policy.get("version") == 1
+        and policy.get("authorized_by") == "account_owner"
+        and policy.get("delegated") is True
+    )
+
+
+def _paid_active_items(args, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [item for item in items if not _paid_project_is_delegated(args, item)]
+
+
 def _disk_gate_reason() -> str | None:
     """Return a durable reason when pressure forbids starting another paid item."""
     try:
@@ -6162,13 +6179,20 @@ def run_once(args, output: Path) -> int:
         rows: dict[str, dict[str, Any]] = {}
         actionable = 0
         failed = effect = readback = 0; failed_step = ""
+        delegated_items = [item for item in items if _paid_project_is_delegated(args, item)]
+        for item in delegated_items:
+            room = _text(item.get("talkroom_id"))
+            rows[room] = {"talkroom_id": room, "status": "delegated",
+                          "send_performed": False, "deduplicated": True,
+                          "formal_delivery_checkbox": False}
+        active_items = _paid_active_items(args, items)
         targeted_items = []
         with ThreadPoolExecutor(
             max_workers=PAID_MAX_PARALLEL_READBACKS, thread_name_prefix="paid-refresh",
         ) as refresh_executor:
             refresh_jobs = [
                 (item, refresh_executor.submit(_targeted, args, item, index))
-                for index, item in enumerate(items)
+                for index, item in enumerate(active_items)
             ]
             for original, job in refresh_jobs:
                 room = _text(original.get("talkroom_id"))
