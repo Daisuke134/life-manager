@@ -18,7 +18,7 @@ from runtime.loop.loop_cleanup import gc_releases
 
 
 def host_cleanup_command(root: Path, home: Path, state_dir=None) -> list[str]:
-    state_dir = state_dir or home / ".local/state/life-manager/life-manager-disk-cleanup"
+    state_dir = state_dir or home / ".local/state/life-manager/state"
     return [sys.executable, str(root / "skills/self/disk-cleanup/disk_cleanup.py"),
             "--home", str(home), "--state-dir",
             str(state_dir)]
@@ -106,8 +106,8 @@ def main() -> int:
         return 0 if result["ok"] else 1
     try:
         cleanup_state = Path(os.environ.get(
-            "LIFE_MANAGER_STATE_ROOT",
-            home / ".local/state/life-manager/life-manager-disk-cleanup",
+            "LIFE_MANAGER_HOST_STATE_DIR",
+            home / ".local/state/life-manager/state",
         )).expanduser()
         host_process = subprocess.run(
             host_cleanup_command(ROOT, home, cleanup_state),

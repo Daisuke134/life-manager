@@ -19,6 +19,7 @@ MANIFEST_PATH = GIG_ROOT / "config" / "launchd-jobs.json"
 SELF_BUILD_PATH = GIG_ROOT.parents[1] / "life-manager" / "self-build-daily.sh"
 SHARED_GUARD_PATH = GIG_ROOT.parents[2] / "runtime" / "host" / "disk_admission.py"
 WRITER_DAILY_PATH = GIG_ROOT.parents[1] / "writer-agent" / "article-daily.sh"
+DISK_CLEANUP_PATH = GIG_ROOT.parents[2] / "skills" / "self" / "disk-cleanup" / "disk_cleanup.py"
 
 
 @pytest.fixture(autouse=True)
@@ -45,6 +46,18 @@ def _load_reply_detector():
     spec = importlib.util.spec_from_file_location("gig_reply_detector_disk_guard_test", path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_disk_cleanup():
+    cleanup_dir = str(DISK_CLEANUP_PATH.parent)
+    if cleanup_dir not in sys.path:
+        sys.path.insert(0, cleanup_dir)
+    spec = importlib.util.spec_from_file_location("gig_disk_cleanup_convergence_test", DISK_CLEANUP_PATH)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -412,7 +425,7 @@ def test_browser_script_preflights_before_profile_and_chromium_with_fixed_policy
     chromium = script.index("chromium_bin=")
     assert guard < profile < chromium
     assert "GIG_DISK_HEADROOM_KIB=524288" in script
-    assert 'GIG_HOST_STATE_DIR="$HOME/.openclaw/state"' in script
+    assert 'GIG_HOST_STATE_DIR="$HOME/.local/state/life-manager/state"' in script
     assert 'GIG_STATE_DIR="$HOME/gig"' in script
     assert 'runtime/host/browser_port_owner.py' in script
     assert '--owner hf-gig-browser' in script
@@ -460,10 +473,14 @@ def test_writer_article_daily_already_has_media_preflight_and_bounded_stop_paths
     # signal the preflight above already resolves (and GIG_IGNORE_DISK_PRESSURE_BLOCK can waive)
     # before any provider starts, so it must not abort an already-running, expensive model pass
     # mid-flight. disk-writers.stop is the harder stop and still interrupts a running pass.
-    assert 'BOUNDED_EXEC_STOP_PATHS="$HOME/.openclaw/state/disk-writers.stop"' in script
     assert (
-        'BOUNDED_EXEC_STOP_PATHS="$HOME/.openclaw/state/disk-writers.stop:'
-        '$HOME/.openclaw/state/disk-pressure.block"'
+        'BOUNDED_EXEC_STOP_PATHS="${LIFE_MANAGER_HOST_STATE_DIR:-'
+        '$HOME/.local/state/life-manager/state}/disk-writers.stop"'
+    ) in script
+    assert (
+        'BOUNDED_EXEC_STOP_PATHS="${LIFE_MANAGER_HOST_STATE_DIR:-'
+        '$HOME/.local/state/life-manager/state}/disk-writers.stop:'
+        '${LIFE_MANAGER_HOST_STATE_DIR:-$HOME/.local/state/life-manager/state}/disk-pressure.block"'
     ) not in script
 
 
@@ -587,9 +604,11 @@ def test_browser_stop_flag_blocks_before_profile_or_chromium(tmp_path, flag_name
     profile = tmp_path / "browser-profile"
     chromium_marker = tmp_path / "chromium-started"
     hostile_state = tmp_path / "hostile-state"
-    (home / ".openclaw" / "state").mkdir(parents=True)
+    (home / ".local" / "state" / "life-manager" / "state").mkdir(parents=True)
     hostile_state.mkdir()
-    (home / ".openclaw" / "state" / flag_name).write_text("tier=4\n", encoding="utf-8")
+    (home / ".local" / "state" / "life-manager" / "state" / flag_name).write_text(
+        "tier=4\n", encoding="utf-8"
+    )
     chromium = (
         home / ".cloakbrowser" / "chromium-999.0.0" / "Chromium.app" / "Contents"
         / "MacOS" / "Chromium"
@@ -730,7 +749,9 @@ def test_coconala_browser_has_a_finite_renderer_process_limit():
 
 
 def test_browser_launcher_restores_vault_after_cdp_is_ready(tmp_path):
-    (tmp_path / ".openclaw" / "state").mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".local" / "state" / "life-manager" / "state").mkdir(
+        parents=True, exist_ok=True
+    )
     (tmp_path / "gig" / "state").mkdir(parents=True, exist_ok=True)
     browser = (
         tmp_path / ".cloakbrowser" / "chromium-145.0.0.0"
@@ -783,3 +804,71 @@ def test_browser_launcher_restores_vault_after_cdp_is_ready(tmp_path):
 
     assert result.returncode == 7
     assert marker.read_text(encoding="utf-8") == f"restored:{port}"
+
+
+def test_browser_ignores_legacy_pressure_marker_and_obeys_canonical_cleanup(
+    tmp_path, monkeypatch,
+):
+    canonical = tmp_path / ".local/state/life-manager/state"
+    legacy = tmp_path / ".openclaw/state"
+    canonical.mkdir(parents=True)
+    legacy.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "gig").mkdir()
+    (legacy / "disk-pressure.block").write_text("stale\n", encoding="utf-8")
+
+    browser = (
+        tmp_path / ".cloakbrowser/chromium-145.0.0.0/Chromium.app/Contents/MacOS/Chromium"
+    )
+    browser.parent.mkdir(parents=True)
+    starts = tmp_path / "browser-starts"
+    browser.write_text(
+        "#!/bin/sh\nprintf 'started\\n' >> \"$BROWSER_STARTS\"\nexit 7\n",
+        encoding="utf-8",
+    )
+    browser.chmod(0o755)
+    env = {
+        **os.environ,
+        "HOME": str(tmp_path),
+        "BROWSER_STARTS": str(starts),
+        "GIG_BROWSER_PORT": "19224",
+        "GIG_BROWSER_PORT_OWNED": "1",
+        "GIG_BROWSER_PROFILE": str(tmp_path / "profile"),
+        "GIG_BROWSER_TLS_COMPAT": "off",
+    }
+
+    legacy_only = subprocess.run(
+        ["/bin/bash", str(GIG_BROWSER_PATH)], env=env,
+        text=True, capture_output=True, timeout=10,
+    )
+    assert legacy_only.returncode == 7
+    assert starts.read_text(encoding="utf-8").count("started") == 1
+
+    pressure = canonical / "disk-pressure.block"
+    pressure.write_text("current\n", encoding="utf-8")
+    blocked = subprocess.run(
+        ["/bin/bash", str(GIG_BROWSER_PATH)], env=env,
+        text=True, capture_output=True, timeout=10,
+    )
+    assert blocked.returncode == 1
+    assert starts.read_text(encoding="utf-8").count("started") == 1
+
+    cleanup = _load_disk_cleanup()
+    monkeypatch.setattr(
+        cleanup,
+        "collect_host_inventory",
+        lambda **_kwargs: {"coverage": {"mount_count": 0, "root_count": 0, "gaps": []}},
+    )
+    cleanup.HostDiskGovernor(
+        home=tmp_path,
+        state_dir=canonical,
+        lsof=lambda _path: "confirmed-closed",
+        usage=lambda: (12 * 1024**3, 100 * 1024**3),
+    ).run_once()
+    assert not pressure.exists()
+    resumed = subprocess.run(
+        ["/bin/bash", str(GIG_BROWSER_PATH)], env=env,
+        text=True, capture_output=True, timeout=10,
+    )
+    assert resumed.returncode == 7
+    assert starts.read_text(encoding="utf-8").count("started") == 2
+    assert (legacy / "disk-pressure.block").exists()
