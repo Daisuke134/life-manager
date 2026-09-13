@@ -35,6 +35,12 @@ locked worktree -> focused test -> merged main -> immutable release -> lm-loop a
   `~/.../skills` source tree.
 - Credentials, state, logs, ledgers, receipts, sessions, browser profiles,
   evidence, and duplicate fences live outside Git and immutable releases.
+- Keep releases thin: export committed runtime code, and link generated dependencies
+  to one immutable content-addressed bundle per lockfile/platform key. Never copy the
+  same `node_modules`, virtualenv, model, browser binary, Git history, test fixture,
+  or mutable state into every release. Before changing this boundary, measure physical
+  bytes and inode growth, not logical `du` size; copy-on-write and hard links can make
+  logical totals misleading.
 - Local/self-hosted and Cloud/hosted are host adapters for one Product Loop,
   never separate business implementations. Share the loop ID, objective,
   domain kernel, provider adapter, effect fence, receipt vocabulary, Telegram
@@ -171,7 +177,8 @@ one threshold or watchdog must not treat them as interchangeable.
   violations 0. Process success never substitutes for payment, message,
   publication, application, or trade readback.
 - Cleanup replay has errors 0 and protected deletions 0 and preserves every
-  loaded release, active run, receipt, ledger, credential, and session.
+  loaded release, active run, referenced dependency bundle, receipt, ledger,
+  credential, and session.
 - 500-loop scale, clean-user install, reboot recovery, natural pass, official
   effect separation, gitleaks, and replay-zero pass.
 - The worktree is clean, merged, and unused before its owner unlocks and removes
