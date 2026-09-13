@@ -194,12 +194,14 @@ def test_inventory_does_not_retry_non_transient_collector_failure(monkeypatch, t
 def test_read_thread_retries_only_pre_effect_navigation_timeout(monkeypatch, tmp_path):
     attempts = []
     closed = []
+    owners = []
 
     class Browser:
         raw = {"messages": [{"message_id": "m1"}]}
 
-        def __init__(self, *_args, **_kwargs):
+        def __init__(self, *_args, **kwargs):
             attempts.append(self)
+            owners.append(kwargs.get("owner"))
 
         def __enter__(self):
             return self
@@ -224,6 +226,7 @@ def test_read_thread_retries_only_pre_effect_navigation_timeout(monkeypatch, tmp
 
     assert len(attempts) == 2
     assert closed == attempts
+    assert owners == ["coconala-reply-12", "coconala-reply-12"]
     assert context["conversation"][-1]["message_id"] == "m1"
     assert bounded["last_sender"] == "buyer"
 

@@ -92,6 +92,12 @@ class CoconalaReplyAdapter:
         self._raw_threads: dict[str, dict[str, Any]] = {}
         self._receipts: dict[str, dict[str, str]] = {}
 
+    @staticmethod
+    def _thread_owner(thread_id: str) -> str:
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", thread_id):
+            raise RuntimeError("coconala_thread_identity_invalid")
+        return f"coconala-reply-{thread_id}"
+
     def _read_inventory(self) -> list[dict[str, Any]]:
         transient = {
             "collector_unhealthy:inbox_coverage_incomplete",
@@ -116,6 +122,7 @@ class CoconalaReplyAdapter:
             try:
                 with reply_browser.CoconalaCdpReplyBrowser(
                     self.cdp_helper, url, hidden=True, background=False,
+                    owner=self._thread_owner(thread_id),
                 ) as browser:
                     result = browser.read_before()
                     if not isinstance(browser.raw, dict):
@@ -134,6 +141,7 @@ class CoconalaReplyAdapter:
         url = f"https://coconala.com/mypage/direct_message/{thread_id}"
         with reply_browser.CoconalaCdpReplyBrowser(
             self.cdp_helper, url, hidden=True, background=False,
+            owner=self._thread_owner(thread_id),
         ) as browser:
             context, _before = browser.read_before()
             if _event_id(context) != expected_event:
@@ -215,6 +223,7 @@ class CoconalaReplyAdapter:
         url = f"https://coconala.com/mypage/direct_message/{thread_id}"
         with reply_browser.CoconalaCdpReplyBrowser(
             self.cdp_helper, url, hidden=True, background=False,
+            owner=self._thread_owner(thread_id),
         ) as browser:
             context, _bounded = browser._read()
             applications = browser._find_verified_applications(
