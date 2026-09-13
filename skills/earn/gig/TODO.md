@@ -93,6 +93,23 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   and must retry the retained candidate only after host admission permits a normal wake, then require
   official submission readback and replay-zero.
 
+- **Lancers pre-submit safety is restored and deployed.** PR `#5169`, merge SHA
+  `935fc5fde6...`, repairs the regression where `safety_verifier` remained in the public function
+  contract but was no longer called before the external application effect. Every eligible candidate
+  now receives an independent fail-closed review before submission. Unsupported claims about past
+  clients, results, professional history, qualifications, tool history, people or money must be
+  grounded in the seller proof or explicitly framed as future work/no direct history; rejection
+  evidence must be a literal 1–240 character substring of the proposal. A rejection skips only that
+  candidate and does not block later candidates in the same wake; malformed or unavailable safety
+  output records `safety_check_failed` and cannot reach the submitter. The focused suite passes 43
+  tests plus four boundary subtests, the broader fresh reviewer passes 212 tests plus 17 subtests and
+  says ship. Immutable release `20260914T052339-935fc5fd` is installed only on
+  `lancers-revenue-application`; launchd readback and `origin/main` both resolve to the full merge SHA.
+  No application or revenue success is claimed yet: the next admitted natural wake must prove official
+  application readback and replay-zero. CrowdWorks, Mercor, Freelancer.com and Upwork must reuse this
+  policy contract at their own existing effect boundary before their Apply lane can be called complete;
+  do not duplicate a second scheduler, browser pool or platform-specific safety framework.
+
 - **Shared browser entry and operator-brake convergence are complete on main.** PR `#5159`, merge
   SHA `2668376830...`, changes BrowserContext acquisition to reserve under the ledger lock, perform
   provider CDP work outside it, and finalize by token compare-and-swap. Slow cookie seeding for one
@@ -684,13 +701,16 @@ The shared foundation improves horizontally while revenue proof closes verticall
 owners and client owners still run concurrently; this numbering chooses the engineering cursor and never
 serializes independent production work.
 
-1. **Existing funded liabilities:** finish Ryu formal delivery, continue Chii's verified DM/Sheet pairs,
-   and close the three current CrowdWorks contracts. Each client has its own worker and cumulative context.
+1. **Existing funded liabilities:** close the three current CrowdWorks contracts. Each client has its
+   own worker and cumulative context. Ryu is dormant until a genuinely new buyer message explicitly
+   approves formal closure; Chii is excluded at the verified 12/300 state. Neither is active work.
 2. **Coconala vertical proof:** make Apply, Reply, Paid and Storefront continuously healthy, then prove a
    new application, contract, delivery, payout attribution and replay-zero without reopening completed work.
-3. **Lancers vertical proof:** phone verification is complete. Keep Apply active until a real contract,
-   complete every buyer event and requested scheduling action, deliver through shared Paid, prove payout,
-   and connect Storefront only where the official provider surface supports it.
+   One-off and continuous/retainer listings use the same four lanes; there is no fifth continuous-job loop.
+3. **Lancers vertical proof:** phone verification and the restored pre-submit safety deployment are complete.
+   Keep Apply active until a real officially read-back application and contract, complete every buyer event
+   and requested scheduling action, deliver through shared Paid, prove payout, and connect Storefront only
+   where the official provider surface supports it.
 4. **CrowdWorks vertical proof:** retain existing Apply/Reply receipts, finish the current funded Paid
    lifecycle and payout, and record Storefront as `not_applicable` unless an official seller-listing
    capability is observed.
