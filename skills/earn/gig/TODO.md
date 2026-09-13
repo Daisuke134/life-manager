@@ -63,10 +63,11 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   fresh review says ship. Immutable release `20260914T043239-78e0963d` is current. Production Apply
   is installed from that release and, at host load `129.67` on 10 logical CPUs, terminated as
   `memory_admission_deferred` with exit `75`; Reply is also installed from the same release and its
-  first wake produced the same exit-`75` deferred terminal. Paid then naturally became idle and was
-  reconciled to the same release without interrupting its prior effect. Storefront was still executing
-  an older wake and was safely skipped by loaded-idle reconciliation; install it from the current
-  release only after that wake naturally becomes idle. This repairs
+  first wake produced the same exit-`75` deferred terminal. Paid and Storefront then naturally became
+  idle and were reconciled to the same release without interrupting their prior effects. All four
+  Coconala lanes now have an installed-release readback at `78e0963d7f...`; each has produced an
+  exit-`75` `memory_admission_deferred` terminal under the same host overload without starting a
+  provider mutation. This repairs
   admission amplification for all finite platform loops, not a Coconala-client special case. It does
   not claim business-lane acceptance or revenue: each lane still needs its next admitted terminal
   receipt when host capacity is available.
