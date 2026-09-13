@@ -22,6 +22,7 @@ SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO_ROOT="$(cd "${LIFE_MANAGER_SOURCE_REPO:-$SCRIPT_ROOT}" && pwd)"
 LOOPS_ROOT="${LOOPS_ROOT:-$HOME/loops}"
 RELEASES="$LOOPS_ROOT/releases"
+DEPENDENCY_BUNDLES="$LOOPS_ROOT/dependency-bundles"
 CURRENT="$LOOPS_ROOT/current"
 # state root is intentionally not resolved here (see RELEASE.json note below)
 KEEP="${LOOPS_KEEP_RELEASES:-1}"
@@ -33,6 +34,7 @@ NPM_NODE_BIN="${NPM_NODE_BIN:-}"
 CUT_LOCK="$LOOPS_ROOT/.release-cut.lock"
 DEST=""
 BUILD_COMPLETE=0
+DEPENDENCY_BUILD=""
 
 die() { echo "cut-loop-release: $*" >&2; exit 1; }
 
@@ -116,6 +118,10 @@ cleanup() {
   if [ -n "$DEST" ] && [ -d "$DEST" ] && [ "$BUILD_COMPLETE" -ne 1 ]; then
     find "$DEST" -type d -exec chmod u+w {} + 2>/dev/null || true
     find "$DEST" -depth -delete 2>/dev/null || true
+  fi
+  if [ -n "$DEPENDENCY_BUILD" ] && [ -d "$DEPENDENCY_BUILD" ]; then
+    find "$DEPENDENCY_BUILD" -type d -exec chmod u+w {} + 2>/dev/null || true
+    find "$DEPENDENCY_BUILD" -depth -delete 2>/dev/null || true
   fi
   find "$CUT_LOCK" -depth -delete 2>/dev/null || true
   exit "$status"
@@ -228,7 +234,7 @@ if [ "$ARCHIVE_RC" -ne 0 ]; then
   die "export of $SHORT failed"
 fi
 
-reuse_locked_dependencies() {
+matching_locked_dependencies() {
   local package_dir="$1" relative donor donor_package
   relative="${package_dir#"$DEST"}"
   for donor in "$RELEASES"/*; do
@@ -238,11 +244,54 @@ reuse_locked_dependencies() {
     [ -d "$donor_package/node_modules" ] || continue
     [ -f "$donor_package/node_modules/.package-lock.json" ] || continue
     cmp -s "$package_dir/package-lock.json" "$donor_package/package-lock.json" || continue
-    cp -cR "$donor_package/node_modules" "$package_dir/node_modules" || return 1
-    return 0
+    printf '%s\n' "$donor_package/node_modules"
+    return
   done
   return 1
 }
+
+link_locked_dependencies() {
+  local package_dir="$1" relative key bundle build donor_modules
+  relative="${package_dir#"$DEST"}"
+  key="$({
+    printf '%s\0' 'npm-ci --omit=dev --ignore-scripts' "$(uname -s)" "$(uname -m)"
+    cat "$package_dir/package.json" "$package_dir/package-lock.json"
+  } | shasum -a 256 | awk '{print $1}')" || return 1
+  bundle="$DEPENDENCY_BUNDLES/npm-$key"
+  if [ ! -f "$bundle/.complete" ] || [ ! -f "$bundle/node_modules/.package-lock.json" ]; then
+    if [ -e "$bundle" ]; then
+      find "$bundle" -type d -exec chmod u+w {} + 2>/dev/null || return 1
+      find "$bundle" -depth -delete || return 1
+    fi
+    build="$DEPENDENCY_BUNDLES/.build-$key-$$"
+    DEPENDENCY_BUILD="$build"
+    mkdir -p "$build" || return 1
+    cp "$package_dir/package.json" "$package_dir/package-lock.json" "$build/" || return 1
+    if donor_modules="$(matching_locked_dependencies "$package_dir")"; then
+      cp -alR "$donor_modules" "$build/node_modules" || return 1
+    elif [ -n "$NPM_BIN" ]; then
+      if [ -n "$NPM_NODE_BIN" ]; then
+        (cd "$build" && "$NPM_NODE_BIN" "$NPM_BIN" ci --omit=dev --ignore-scripts) || return 1
+      else
+        (cd "$build" && "$NPM_BIN" ci --omit=dev --ignore-scripts) || return 1
+      fi
+    else
+      return 1
+    fi
+    [ -f "$build/node_modules/.package-lock.json" ] || return 1
+    printf '%s\n' "$key" >"$build/.complete" || return 1
+    mv "$build" "$bundle" || return 1
+    DEPENDENCY_BUILD="$bundle"
+    chmod -R a-w "$bundle" || return 1
+    DEPENDENCY_BUILD=""
+  fi
+  if [ -e "$package_dir/node_modules" ] || [ -L "$package_dir/node_modules" ]; then
+    find "$package_dir/node_modules" -depth -delete || return 1
+  fi
+  ln -s "$bundle/node_modules" "$package_dir/node_modules" || return 1
+}
+
+mkdir -p "$DEPENDENCY_BUNDLES" || die "cannot create dependency bundle root"
 
 for package_dir in "$DEST" "$DEST/runtime/compute-proxy" "$DEST/runtime/agentmail" "$DEST/apps/life-manager" \
   "$DEST/skills/earn/x402-sell" "$DEST/services/x402-endpoint"; do
@@ -253,26 +302,8 @@ for package_dir in "$DEST" "$DEST/runtime/compute-proxy" "$DEST/runtime/agentmai
     fi
     continue
   fi
-  if [ -n "$FULL_CLONE_DONOR" ] && [ -d "$package_dir/node_modules" ]; then
-    donor_package="$FULL_CLONE_DONOR$relative"
-    if [ -f "$package_dir/node_modules/.package-lock.json" ] \
-      && [ -f "$donor_package/package-lock.json" ] \
-      && cmp -s "$package_dir/package-lock.json" "$donor_package/package-lock.json"; then
-      continue
-    fi
-    find "$package_dir/node_modules" -depth -delete || die "cannot replace stale cloned dependencies"
-  fi
-  if reuse_locked_dependencies "$package_dir"; then
-    continue
-  fi
-  [ -n "$NPM_BIN" ] || die "npm is required to build locked runtime dependencies"
-  if [ -n "$NPM_NODE_BIN" ]; then
-    (cd "$package_dir" && "$NPM_NODE_BIN" "$NPM_BIN" ci --omit=dev --ignore-scripts) || \
-      die "locked dependency build failed in $package_dir"
-  else
-    (cd "$package_dir" && "$NPM_BIN" ci --omit=dev --ignore-scripts) || \
-      die "locked dependency build failed in $package_dir"
-  fi
+  link_locked_dependencies "$package_dir" || \
+    die "locked dependency bundle failed in $package_dir"
 done
 
 cat >"$DEST/RELEASE.json" <<EOF

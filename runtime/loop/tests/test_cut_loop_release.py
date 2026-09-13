@@ -24,7 +24,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             agents = root / "agents"
             agents.mkdir()
             npm = root / "npm"
-            npm.write_text("#!/bin/sh\nmkdir -p node_modules\n")
+            npm.write_text("#!/bin/sh\nmkdir -p node_modules\nprintf '{}\\n' > node_modules/.package-lock.json\n")
             npm.chmod(0o755)
 
             result = subprocess.run(
@@ -58,7 +58,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             current = loops / "current"
             current.symlink_to(previous)
             npm = root / "npm"
-            npm.write_text("#!/bin/sh\nmkdir -p node_modules\n")
+            npm.write_text("#!/bin/sh\nmkdir -p node_modules\nprintf '{}\\n' > node_modules/.package-lock.json\n")
             npm.chmod(0o755)
 
             result = subprocess.run(
@@ -84,57 +84,59 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertTrue((releases[0] / "RELEASE.json").is_file())
             self.assertIn("current unchanged", result.stdout)
 
-    def test_release_reuses_matching_sealed_dependencies(self):
+    def test_release_reuses_one_content_addressed_dependency_bundle(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             loops = root / "loops"
-            donor = loops / "releases" / "donor"
-            for relative in DEPENDENCY_ROOTS:
-                package = donor / relative
-                package.mkdir(parents=True, exist_ok=True)
-                (package / "package-lock.json").write_bytes(
-                    (ROOT / relative / "package-lock.json").read_bytes()
-                )
-                modules = package / "node_modules"
-                modules.mkdir()
-                (modules / ".package-lock.json").write_text("{}\n")
-                (modules / "donor-marker").write_text("sealed")
-            (donor / "RELEASE.json").write_text(
-                '{"sha":"%s","release_paths":"ALL"}\n' % ("a" * 40)
-            )
-            (loops / "current").symlink_to(donor)
+            calls = root / "npm.calls"
             npm = root / "npm"
-            npm.write_text("#!/bin/sh\nexit 99\n")
+            npm.write_text(
+                f'#!/bin/sh\nprintf "%s\\n" "$PWD" >> "{calls}"\n'
+                'mkdir -p node_modules\nprintf "{}\\n" > node_modules/.package-lock.json\n'
+                'printf "sealed\\n" > node_modules/bundle-marker\n'
+            )
             npm.chmod(0o755)
             agents = root / "agents"
             agents.mkdir()
 
+            env = {
+                **os.environ,
+                "LOOPS_ROOT": str(loops),
+                "LOOPS_KEEP_RELEASES": "2",
+                "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint",
+                "LOOPS_ACTIVATE_CURRENT": "0",
+                "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
+                "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
+                "NPM_BIN": str(npm),
+            }
+            first = subprocess.run(
+                ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
+                cwd=ROOT, env=env, capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(first.returncode, 0, first.stderr)
+            first_release = next((loops / "releases").iterdir())
+            first_targets = {
+                relative: (first_release / relative / "node_modules").resolve()
+                for relative in DEPENDENCY_ROOTS
+            }
+            npm.write_text("#!/bin/sh\nexit 99\n")
+
             result = subprocess.run(
                 ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
-                cwd=ROOT,
-                env={
-                    **os.environ,
-                    "LOOPS_ROOT": str(loops),
-                    "LOOPS_KEEP_RELEASES": "2",
-                    "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint",
-                    "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
-                    "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
-                    "NPM_BIN": str(npm),
-                },
-                capture_output=True,
-                text=True,
-                check=False,
+                cwd=ROOT, env=env, capture_output=True, text=True, check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
-            release = (loops / "current").resolve()
-            self.assertTrue(all(
-                path.is_symlink() or path.stat().st_mode & 0o222 == 0
-                for path in [release, *release.rglob("*")]
-            ))
+            releases = sorted((loops / "releases").iterdir())
+            self.assertEqual(len(releases), 2)
+            release = releases[-1]
+            self.assertEqual(len(calls.read_text().splitlines()), len(DEPENDENCY_ROOTS))
             for relative in DEPENDENCY_ROOTS:
+                modules = release / relative / "node_modules"
+                self.assertTrue(modules.is_symlink())
+                self.assertEqual(modules.resolve(), first_targets[relative])
                 self.assertEqual(
-                    (release / relative / "node_modules/donor-marker").read_text(), "sealed"
+                    (modules / "bundle-marker").read_text(), "sealed\n"
                 )
 
     def test_release_ignores_an_empty_matching_dependency_cache(self):
@@ -159,7 +161,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             result = subprocess.run(
                 ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
                 cwd=ROOT,
-                env={**os.environ, "LOOPS_ROOT": str(loops), "LOOPS_KEEP_RELEASES": "2", "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"), "NPM_BIN": str(npm)},
+                env={**os.environ, "LOOPS_ROOT": str(loops), "LOOPS_KEEP_RELEASES": "2", "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint", "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"), "NPM_BIN": str(npm)},
                 capture_output=True, text=True, check=False,
             )
 
@@ -173,7 +175,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             npm = root / "npm"
             npm.write_text(
                 f'#!/bin/sh\nprintf "%s|%s\\n" "$PWD" "$*" >> "{calls}"\n'
-                'mkdir -p node_modules\n')
+                'mkdir -p node_modules\nprintf "{}\\n" > node_modules/.package-lock.json\n')
             npm.chmod(0o755)
             agents = root / "agents"
             agents.mkdir()
@@ -184,6 +186,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     **os.environ,
                     "LOOPS_ROOT": str(root / "loops"),
                     "LOOPS_KEEP_RELEASES": "1",
+                    "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint",
                     "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
                     "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
                     "NPM_BIN": str(npm),
@@ -196,12 +199,16 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             recorded = calls.read_text().splitlines()
             self.assertEqual(len(recorded), len(DEPENDENCY_ROOTS))
-            self.assertTrue(recorded[0].endswith("|ci --omit=dev --ignore-scripts"))
-            self.assertIn("/runtime/compute-proxy|ci --omit=dev --ignore-scripts", recorded[1])
-            self.assertIn("/runtime/agentmail|ci --omit=dev --ignore-scripts", recorded[2])
-            self.assertIn("/apps/life-manager|ci --omit=dev --ignore-scripts", recorded[3])
-            self.assertIn("/skills/earn/x402-sell|ci --omit=dev --ignore-scripts", recorded[4])
-            self.assertIn("/services/x402-endpoint|ci --omit=dev --ignore-scripts", recorded[5])
+            self.assertTrue(all(
+                line.endswith("|ci --omit=dev --ignore-scripts") for line in recorded
+            ))
+            bundles = list((root / "loops/dependency-bundles").glob("npm-*"))
+            self.assertEqual(len(bundles), len(DEPENDENCY_ROOTS))
+            release = next((root / "loops/releases").iterdir())
+            self.assertTrue(all(
+                (release / relative / "node_modules").is_symlink()
+                for relative in DEPENDENCY_ROOTS
+            ))
 
     def test_reconciler_pins_captured_main_sha_when_origin_moves_during_cut(self):
         with tempfile.TemporaryDirectory() as directory:
