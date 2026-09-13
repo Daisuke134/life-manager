@@ -86,15 +86,22 @@ skills/
 └── earn/gig/TODO.md                       # fixed execution order and measured acceptance evidence
 ```
 
-### Fixed remaining program order — current platform truth before meta-loop
+### Fixed remaining execution graph — every platform and client runs in parallel
 
-This order supersedes every earlier lane-first narrative. Shared mechanics develop horizontally once,
-while revenue acceptance proceeds vertically by provider. For each provider, complete
-`discover/account -> Apply -> Reply -> Paid -> optional Storefront -> payout/bank receipt` before
-calling that provider complete. A missing Storefront capability is `not_applicable`, never a fake lane;
-a missing funded order keeps Paid unproven while Apply continues acquiring one. Every completed effect
-requires a natural installed-owner terminal, exact official readback, one deduplicated operator receipt
-and a following replay-zero.
+This graph supersedes every earlier lane-first or sequential-provider narrative. All providers run at the
+same time, and every client inside a provider has one isolated owner that runs independently from every
+other client. A client owner receives only that client's cumulative conversation, requirements, artifacts,
+credentials scoped to that job, effects and receipts. It never scans, waits for, reasons about, or mutates
+another client's state. Providers and clients share implementation, tools and learned policy through
+`marketplace-core`; they never share buyer context or mutable job state. A buyer reply, KYC, interview or
+provider throttle blocks only its own owner. One failure never delays another owner or provider.
+
+Each owner advances its own `discover/account -> Apply -> Reply -> Paid -> optional Storefront ->
+payout/bank receipt` lifecycle as soon as its local prerequisites exist. Therefore Apply may keep acquiring
+work while unrelated Paid owners deliver existing contracts. A missing Storefront capability is
+`not_applicable`, never a fake lane; a missing funded order keeps only that provider's Paid proof open while
+its Apply owner continues. Every completed effect requires an exact official readback, one deduplicated
+operator receipt and a following replay-zero.
 
 0. **Existing funded liabilities first.** Finish every already-purchased Coconala/CrowdWorks obligation
    through useful artifact, buyer feedback, formal delivery where authorized, official completion and
@@ -108,21 +115,21 @@ and a following replay-zero.
    Preserve the source corpus as input to a later internal Keiba improvement/earning loop; that research no
    longer blocks this order. Continue with the remaining already-funded Coconala/CrowdWorks liabilities.
    Manledge/Clover `18169985` is closed and excluded.
-1. **Coconala vertical acceptance.** Close all remaining Apply, Reply, Paid and Storefront acceptance,
-   then prove payout attribution without reopening completed customer work.
-2. **Lancers vertical acceptance.** Phone verification is complete. Run suitable Apply until a real
-   contract exists, then prove Reply, funded Paid delivery, optional Storefront, payout and replay-zero
-   through the shared kernel rather than building an inventory-free fake Paid proof.
-3. **CrowdWorks vertical acceptance.** Complete the application canary, funded contract, buyer exchange,
-   delivery and payment receipt. CrowdWorks has no seller catalogue, so Storefront is `not_applicable`.
-4. **Mercor vertical acceptance.** Preserve the working application path, rank for truthful fit, route
-   identity/interview-only actions as typed Telegram handoffs, and let the loop own every other step
-   through accepted work and payout. Storefront is `not_applicable`.
-5. **Freelancer.com vertical acceptance.** Recover official account/policy state, then prove Apply,
-   Reply, real funded Paid delivery, payout and replay-zero.
-6. **Upwork vertical acceptance.** Recover official account/policy state, then prove Apply, Reply, real
-   funded Paid delivery, payout and replay-zero.
-7. **Shared-kernel convergence throughout steps 0–6.** Put lifecycle, cumulative context, capability
+1. **Parallel platform owners — all active together.** None of these rows waits for the preceding row:
+   - **Coconala:** close remaining Apply, Reply, Paid and Storefront acceptance, then prove payout
+     attribution without reopening completed customer work.
+   - **Lancers:** phone verification is complete. Apply until a real contract exists, then prove Reply,
+     funded Paid delivery, optional Storefront, payout and replay-zero.
+   - **CrowdWorks:** complete the application canary, funded contract, buyer exchange, delivery and payment
+     receipt. Storefront is `not_applicable`.
+   - **Mercor:** preserve the working application path, rank for truthful fit, route identity/interview-only
+     actions as typed Telegram handoffs, and let the owner perform every other step. Storefront is
+     `not_applicable`.
+   - **Freelancer.com:** recover official account/policy state and prove Apply, Reply, funded Paid delivery,
+     payout and replay-zero.
+   - **Upwork:** recover official account/policy state and prove Apply, Reply, funded Paid delivery, payout
+     and replay-zero.
+2. **Shared-kernel convergence runs concurrently with every platform owner.** Put lifecycle, cumulative context, capability
    discovery, effect fencing, retry, official readback, reporting and browser/session ownership in
    `marketplace-core`; keep auth, provider vocabulary, selectors and mutations in thin adapters. Every
    measured repair lands once in the shared owner and passes every adopted provider's conformance suite
@@ -133,14 +140,14 @@ and a following replay-zero.
    after the Coconala funded liability closes: contract-selection interviews, kickoff and ordinary
    progress meetings use one typed Telegram handoff, Google Calendar event and scheduled Life Manager
    phone call; all research, proposal, scheduling clicks, work, delivery and readback remain loop-owned.
-8. **Next-platform expansion.** Qualify and add AudioBabel and the next evidence-backed marketplaces in
+3. **Next-platform expansion.** Qualify and add AudioBabel and the next evidence-backed marketplaces in
    expected net-revenue order. Each new provider must complete the same vertical receipt chain.
-9. **Marketplace meta-loop.** Let the model discover and qualify platforms, inspect official
+4. **Marketplace meta-loop.** Let the model discover and qualify platforms, inspect official
    surfaces, call scaffold/build/test/release tools, and promote a new adapter only after real
    acceptance. Deterministic code owns permissions, credentials, effect fences, receipts, rollback
    and budgets; the model owns open-ended market, fit and action judgment. It continuously repairs
    weak existing lanes and discovers new providers rather than exhausting a hardcoded list.
-10. **General revenue meta-loop.** Generalize the same verified harness beyond contract work to new
+5. **General revenue meta-loop.** Generalize the same verified harness beyond contract work to new
    businesses. Completion is Life Manager discovering, building, operating and improving a lawful
    net-positive revenue loop with no Dais/Codex/Claude involvement except explicit identity, KYC,
    irreversible personal spending or physically human deliverables. Revenue targets are objectives,
