@@ -1418,6 +1418,32 @@ def test_remote_owner_policy_can_require_formal_delivery_and_manual(tmp_path):
     assert authorization["request_id"] == root.name
 
 
+def test_decision_prompt_keeps_owner_authorized_remote_formal_work_in_remote_mode(tmp_path):
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    requirements_sha = paid.paid_remote_result.requirements_digest(root, feedback)
+    policy = {
+        "version": 1,
+        "authorized_by": "account_owner",
+        "request_id": root.name,
+        "buyer_feedback_sha256": feedback,
+        "requirements_sha256": requirements_sha,
+        "formal_delivery_after_remote": True,
+        "directives": ["Formally deliver the verified remote result exactly once."],
+    }
+    identity = {"message_id": "seller-1", "content_sha256": "a" * 64, "side": "seller"}
+    buyer_identity = {"message_id": "buyer-1", "content_sha256": "b" * 64, "side": "buyer"}
+
+    prompt = paid._decision_prompt(
+        root / "context/current.json", "c" * 64, feedback, requirements_sha,
+        identity, buyer_identity, policy, "d" * 64,
+    ).decode()
+
+    assert "formal_delivery_after_remote=true authorizes" in prompt
+    assert "Keep the semantic decision actionable with mode remote" in prompt
+    assert "do not downgrade it to answer, await buyer approval" in prompt
+
+
 def test_formal_browser_accepts_only_hash_bound_exact_cycle_owner_override(tmp_path):
     browser = load("coconala_formal_delivery_browser")
     root = tmp_path / "18211957"

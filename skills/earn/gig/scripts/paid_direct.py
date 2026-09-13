@@ -1570,12 +1570,20 @@ def _decision_prompt(context: Path, context_sha256: str, feedback: str,
                     pending_review: dict[str, Any] | None = None) -> bytes:
     policy_instruction = ""
     if operator_policy:
+        formal_after_remote = operator_policy.get("formal_delivery_after_remote") is True
         policy_instruction = (
             "The account owner supplied an exact-cycle operator policy with SHA256 "
             f"{operator_policy_sha256}: "
             f"{json.dumps(operator_policy['directives'], ensure_ascii=False)}. "
             "Treat it as current project authority. It may stop, narrow, transfer, or otherwise constrain seller work, "
-            "but it cannot invent buyer approval, authorize formal delivery, or override marketplace safety. "
+            + (
+                "and formal_delivery_after_remote=true authorizes the downstream code-owned connector to submit "
+                "the verified remote result as formal delivery exactly once. Keep the semantic decision actionable "
+                "with mode remote until owner work, independent verification, and that marketplace handoff finish; "
+                "do not downgrade it to answer, await buyer approval, or add a confirmation gate. "
+                if formal_after_remote else
+                "but it cannot invent buyer approval, authorize formal delivery, or override marketplace safety. "
+            )
         )
     review_instruction = ""
     if pending_review:
