@@ -27,6 +27,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GUARD="${AI_BROWSER_GUARD:-$HERE/browser-guard.sh}"
 REGISTRY="${AI_BROWSER_REGISTRY:-$HOME/.config/ai/registry/browsers.toml}"
 KEEPALIVE="$HERE/cdp_persistent_context.py"
+LAUNCHCTL_SAFE="${LIFE_MANAGER_LAUNCHCTL_SAFE:-$HERE/../../bin/launchctl-safe}"
 CLOAK_PY="${CLOAK_PYTHON:-${LIFE_MANAGER_PYTHON:-$HOME/.local/share/life-manager/venv/bin/python}}"
 LOG="${PROVISION_BROWSER_LOG:-$HOME/.local/state/life-manager/provision-browser/logs/provision-browser.log}"
 LAUNCH_WAIT="${PROVISION_BROWSER_WAIT:-120}"
@@ -43,6 +44,7 @@ $HOME/.cloak/profiles/gig-daily-driver"
 
 [ -x "$GUARD" ] || fail "browser-guard.sh not found at $GUARD"
 [ -f "$KEEPALIVE" ] || fail "persistent-context owner script missing: $KEEPALIVE"
+[ -x "$LAUNCHCTL_SAFE" ] || fail "launchctl-safe not found at $LAUNCHCTL_SAFE"
 [ -x "$CLOAK_PY" ] || fail "CloakBrowser runtime missing: $CLOAK_PY"
 
 # ---- registry lookup (same minimal TOML read browser-guard.sh uses; registry stays the SSOT) ----
@@ -112,14 +114,16 @@ launch() {
   fi
   mkdir -p "$profile" 2>/dev/null || true
   clear_stale_singletons
-  launchctl remove "$LABEL" 2>/dev/null || true
+  "$LAUNCHCTL_SAFE" remove "$LABEL" 2>/dev/null
+  remove_rc=$?
+  [ "$remove_rc" -eq 75 ] && return 75
   sleep 1
   # --port 0 = let the kernel hand us a genuinely free port; Chromium writes the real one into
   # DevToolsActivePort, which the guard reads. This is why no port is ever hardcoded again.
-  if ! launchctl submit -l "$LABEL" -o "$LOG" -e "$LOG" -- \
-      "$CLOAK_PY" "$KEEPALIVE" --profile "$profile" --port 0; then
-    return 1
-  fi
+  "$LAUNCHCTL_SAFE" submit -l "$LABEL" -o "$LOG" -e "$LOG" -- \
+    "$CLOAK_PY" "$KEEPALIVE" --profile "$profile" --port 0
+  submit_rc=$?
+  [ "$submit_rc" -eq 0 ] || return "$submit_rc"
   log "submitted persistent-context owner label=$LABEL profile=$profile port=dynamic"
 }
 
@@ -127,7 +131,10 @@ if reachable; then
   log "ALIVE on :$(live_port)"
 else
   log "not reachable -> launching dedicated provisioning browser"
-  launch || fail "launchctl could not submit $LABEL"
+  launch
+  launch_rc=$?
+  [ "$launch_rc" -eq 75 ] && exit 75
+  [ "$launch_rc" -eq 0 ] || fail "launchctl could not submit $LABEL"
   waited=0
   until reachable; do
     if [ "$waited" -ge "$LAUNCH_WAIT" ]; then
