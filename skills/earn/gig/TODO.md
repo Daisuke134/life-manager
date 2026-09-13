@@ -112,49 +112,48 @@ evidence for concurrency, not delivery evidence. Ryu remains open until exact-ro
 This infrastructure state does not change the required topology: every provider and every client owner is
 an independent concurrent worker, never a sequential queue.
 
-The currently loaded Paid process still runs release `20260913T132205-47f074f3`. PR `#5113` routes the target-specific
-browser provisioner's `remove` and `submit` operations through `bin/launchctl-safe`; focused browser
-tests pass 12/12 and fresh read-only review reports `ship`. This closes the Ryu-specific raw-launchctl
-startup failure without creating another browser implementation. A live Paid wake starts separate Ryu
-`18211957` and Chii `18180857` workers under one controller, proving client-level parallel dispatch.
-The current source release is `bf2756e00cd0eade4b985578ca26f914900e8223`, but activation correctly
-defers while the old Paid process and its independent client workers are live. PR `#5115`, merge SHA
-`5469f573b...`, makes an exact-cycle `formal_delivery_after_remote=true` policy authoritative through
-remote repair, verifier and formal handoff instead of allowing the semantic router to invent another
-buyer-approval wait. PR `#5117`, merge SHA `bf2756e00...`, makes official paired receipts authoritative
-over a seller-authored numeric completion claim; the full Paid suite passes 167/167. When the current
-wake terminates, activate that release for only `hf-gig-paid-direct`, verify the loaded argv/SHA, and let
-the next wake apply both fixes. Do not interrupt or duplicate the currently live client effects.
-The same wake produces the following current cursor; these are independent atoms and neither waits for
-the other:
+The current Coconala Paid owner is installed from main-derived release
+`20260913T153643-8448cc62`. PR `#5122`, merge SHA `fbdd8cd926...`, accepts customer attachments only
+inside the exact project and lets Ryu's independent verifier consume fresh managed evidence without
+treating seller supplemental files as buyer proof. That verifier now passes against the retained Ryu
+artifact set. PR `#5123`, merge SHA `8448cc62bc...`, fixes nested provider browsers inheriting the outer
+Coconala target-ownership ledger. The measured Chii failure was not missing search capability: the
+TikTok identity readback created a target on the TikTok CDP, recorded it in the inherited Coconala
+ledger, and then failed to close it after the other endpoint pruned the row. The installed release
+contains the identity-specific ledger repair; its natural wake is live and has started independent
+Chii and other-client workers. No result from that active wake is accepted before its terminal receipt.
 
-- **Ryu `18211957`:** the owner proves authenticated production access and exercises mobile/desktop
-  create, update, order, publication, delete and restore flows. The independent verifier then rejects
-  delivery because the public HTTPS page still contains the old `服装は脱がせてくれましたか？`
-  wording, two textareas where the buyer requested selectable controls, and the public 13-image buyer
-  reference block. Formal delivery remains unsent. The next owner wake consumes this exact three-item
-  verifier delta. PR `#5115` closes the generic routing defect in source. The next new-release owner
-  deploys the corrections, reruns independent verification, submits once with
-  `正式な納品` enabled, reads back `納品確認待ち`, and proves replay-zero.
-- **Chii `18180857`:** the authorized `@anicca.jp` TikTok identity and the private Google Sheet are
-  both readable; Google Sheets API readback observes 12 verified unique DM/Sheet pairs. Candidate
-  `@123xxx2002` passes the current profile/recipient preflight, but the attempted durable preflight
-  process exits without a receipt. The owner writes a new intent but leaves the prior result digest,
-  so the controller correctly rejects `semantic effect contract mismatch`; no DM or Sheet mutation is
-  claimed. PR `#5117` closes the generic numeric-evidence defect in source. The next new-release wake
-  must write one matching intent/result contract, run the candidate operation in
-  the owned foreground process, checkpoint TikTok and Sheet exact readbacks as one pair, and continue
-  from 12 toward 300 without inventing the earlier 300-complete claim.
-- **Host pressure:** regenerable caches, unused package releases, merged clean worktrees and old Ryu
-  working builds are reclaimed without deleting Codex/cloud sessions, protected browser state, memory,
-  ledgers or credentials. The durable pressure marker is absent and filesystem free space is about
-  5.2 GiB, so money owners run normally; cleanup remains a shared foundation concern, not a client queue.
-- **CrowdWorks Paid:** normal account login is restored and authenticated readback passes. Official
-  inventory contains three funded contracts; two expose one unique Google Form each and one exposes no
-  form. PR `#5116`, merge SHA `d10838067...`, changes that unsupported third contract into an item-local
-  `buyer_task_detail_required` wait instead of aborting the entire provider inventory. The installed
-  Paid owner now runs the matching immutable release `20260913T141015-d1083806`; its first wake is live,
-  so the older `provider_inventory` failure remains historical until this PID writes a terminal result.
+PR `#5124`, merge SHA `16a66a5b09...`, closes the next Ryu readback boundary in source. A fresh
+BrowserContext may legitimately spend one bounded CDP phase creating the context and another seeding
+about 1,480 cookies and creating the target, but the collector killed the helper after 25 seconds.
+The caller now grants 75 seconds, inside the existing 180-second targeted-readback budget, without
+adding retries or another browser implementation. Paid verification passes 170/170, browser ownership
+verification passes 43 tests plus 6 subtests, runtime-loop verification passes 395/395, and registry
+verification passes 15/15. This merged change is not yet installed because the current `8448cc62`
+wake remains live; install only after it exits naturally.
+
+The independent current liabilities are:
+
+- **Ryu `18211957`:** formal delivery remains unproved. The retained managed verifier passes, but the
+  last terminal stopped before its owner worker at `targeted_readback` when the 25-second caller budget
+  expired. After `16a66a5b09...` is installed, the room owner must re-read only room `18211957`, reuse
+  the verified production revision and manual, submit exactly once with `正式な納品` enabled, read back
+  `納品確認待ち`, and then replay with effect zero.
+- **Chii `18180857`:** the official ledger proves 12 valid TikTok DM/Sheet pairs; the seller-authored
+  300-complete message is not evidence and remains rejected. The prior wake failed at `remote_builder`
+  because of the nested target-ledger bug. The repaired natural wake is live. Completion remains fresh
+  official `@anicca.jp` identity readback, eligible-recipient discovery, one-by-one DM plus Sheet paired
+  receipts, continued progress toward the contracted 300, reply/contract tracking, and no duplicate send.
+- **CrowdWorks Paid:** official inventory contains three funded contracts. Confirmed, contract-bound
+  Google Form receipts already exist for `63583795`/milestone `13801638` and
+  `63570481`/milestone `13798056`; those forms must never be posted again. The latest terminal observes
+  all three items: `63583795` fails contract-detail timeout, `63570481` fails while exposing the official
+  milestone completion surface, and `63568785` waits for an unambiguous official application date.
+  Remaining effects are the two CrowdWorks milestone completion reports, official delivery readback,
+  payment readback and replay-zero, plus evidence-based resolution of the third contract's date.
+- **Host pressure:** no pressure marker is active and filesystem free space is about 3 GiB. Cleanup is
+  not the current gate. Codex/cloud sessions and protected browser, memory, state and credential stores
+  remain untouched.
 
 The release-weight defect is closed in source by PR `#5106`, merge SHA `5aecc6bb5...`. The measured root
 `node_modules` was about 792 MiB / 98,660 files and `apps/life-manager/node_modules` about 332 MiB, while
@@ -444,52 +443,41 @@ that provider's hourly form; it never suppresses its fixed-price or one-off inve
 normalizes each accepted contract and payout through the same work-item lifecycle regardless of how
 the marketplace priced the application.
 
-### Remaining execution summary — references the atomic cursors; does not reorder them
+### Remaining execution summary — authoritative order
 
-1. **Apply:** close Coconala's official account restriction path, wire its shared fitness policy and
-   hard per-pass ceiling, then obtain the missing official Coconala application/Telegram/replay-zero
-   evidence that closes the three-provider `APPLY-FIT-4` gate. Keep Lancers and CrowdWorks applying
-   to permitted fixed-price, one-off and hourly work while preserving their verified receipts.
-2. **Apply shared completion:** widen discovery only after that gate, adopt shared DOM contracts from
-   measured failures, consolidate the remaining duplicated Apply modules, and close the owner-aware
-   disk-pressure atoms without bypassing release safety.
-3. **Reply:** obtain fresh natural health and complete official event coverage for Coconala, Lancers,
-   CrowdWorks and Mercor through the already extracted shared Reply kernel. Every buyer event is
-   replied to, estimated, durably deferred or handed off exactly once, with Telegram and replay-zero.
-4. **Paid:** retain Coconala as the accepted reference; keep Lancers, CrowdWorks and Mercor monitoring
-   official contracts, then close each provider only on a real contract's build/submission, official
-   acceptance/payment readback and replay-zero. Empty inventory is monitoring proof, not revenue.
-5. **Storefront:** restore Coconala's current owner health, integrate the existing Lancers
-   state/readback branch, add the thin CrowdWorks storefront adapter where the provider supports a
-   seller listing, and attribute listing changes through inquiry, order and net cash.
-6. **Fleet expansion and canon:** add Freelancer.com and later marketplaces as thin adapters, prove
-   all four lanes where the provider supports them, finish the deferred `PANIC-3`–`PANIC-6` maintenance
-   gates in their existing order, then canonicalize the measured method in
-   `skills/loop-development/SKILL.md`. A provider without storefront capability records that typed
-   absence instead of inventing a fake lane.
+The shared foundation improves horizontally while revenue proof closes vertically by platform. Platform
+owners and client owners still run concurrently; this numbering chooses the engineering cursor and never
+serializes independent production work.
 
-Why this new order is fixed:
+1. **Existing funded liabilities:** finish Ryu formal delivery, continue Chii's verified DM/Sheet pairs,
+   and close the three current CrowdWorks contracts. Each client has its own worker and cumulative context.
+2. **Coconala vertical proof:** make Apply, Reply, Paid and Storefront continuously healthy, then prove a
+   new application, contract, delivery, payout attribution and replay-zero without reopening completed work.
+3. **Lancers vertical proof:** phone verification is complete. Keep Apply active until a real contract,
+   complete every buyer event and requested scheduling action, deliver through shared Paid, prove payout,
+   and connect Storefront only where the official provider surface supports it.
+4. **CrowdWorks vertical proof:** retain existing Apply/Reply receipts, finish the current funded Paid
+   lifecycle and payout, and record Storefront as `not_applicable` unless an official seller-listing
+   capability is observed.
+5. **Mercor vertical proof:** preserve working Apply/Reply, reject strongly contradictory opportunities,
+   route only identity/interview/media actions through typed Telegram handoffs, and prove the first real
+   contract, delivery and payout. Storefront remains `not_applicable`.
+6. **Freelancer.com and Upwork:** recover official account and policy state, then prove Apply -> Reply ->
+   Paid -> payout and Storefront only where supported. Do not enable unsafe or identity-uncertain actions.
+7. **New-platform meta loop:** search Web/X for revenue platforms, qualify expected net value and policy,
+   generate only thin provider adapters, run conformance/canary acceptance, and promote only after an
+   official effect, readback and replay-zero. Shared kernels, browser ownership, receipts, Telegram and CFO
+   reporting are reused rather than regenerated.
+8. **Phone-only hosted product:** move the same kernel to tenant-isolated cloud browser/computer sessions
+   with Telegram as the only required UI. KYC, interviews and person-bound media remain minimal-human
+   handoffs; every other supported action stays autonomous.
+9. **Revenue gate:** count only attributable accepted payouts and bank receipts toward USD 10K MRR. Runtime
+   PASS, application count and empty-inventory monitoring are not revenue. Scale toward the larger target
+   only by cloning a verified profitable lifecycle, including selling the hosted Life Manager product.
 
-1. `PANIC-1` and `PANIC-2` close the immediate host-pressure boundary before more browser work.
-   They do not prove that macOS can never restart, but the sustained live workload now stays inside
-   finite browser/process contracts.
-2. Close Apply first because zero applications guarantee zero new contracts for Reply and Paid.
-   PASS is a fresh official application readback plus Telegram receipt and following replay-zero on
-   Coconala, Lancers and CrowdWorks; Mercor retains its already proven application path.
-3. Recheck Reply next across Coconala, Lancers, CrowdWorks and Mercor. Existing shared-kernel and
-   provider effects remain valid, but every installed owner must end a fresh natural terminal and
-   represent every official buyer event exactly once.
-4. Close Paid after Reply. Coconala's reference acceptance and the shared adapters remain valid;
-   Lancers, CrowdWorks and Mercor stay live monitors until a real contract proves delivery, official
-   readback, acceptance/payment and replay-zero.
-5. Finish Storefront last: restore Coconala continuous health, integrate the existing Lancers
-   state/readback branch, add only a thin CrowdWorks adapter, and bind listing changes to attributable
-   inquiry, order and net-cash receipts.
-6. Perform `PANIC-3` through `PANIC-6` last in their unchanged internal order. The macOS
-   update/reboot runs only while Dais is physically available; until then no Mac, loginwindow or Aqua
-   restart is authorized.
-7. Canonicalize `loop-development/SKILL.md` last from measured four-lane behavior; writing the canon
-   earlier would preserve guesses rather than the implementation that actually passed.
+`PANIC-3` through `PANIC-6` retain their own internal order but do not block these non-restart revenue
+actions. Canonicalize `loop-development/SKILL.md` only from behavior that has passed the real platform
+lifecycle; do not preserve guesses as framework code.
 
 Zero live contracts never permits skipping an adapter atom or checking it complete. It proves only
 the empty official inventory path. The atom stays open until a real contract produces submission,
