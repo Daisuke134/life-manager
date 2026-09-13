@@ -36,6 +36,24 @@ def write_json(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+def write_official_buyer(root: Path, talkroom_id: str, message_id: str = "buyer-approval") -> dict:
+    row = {
+        "version": 1, "source": "coconala_live_talkroom", "talkroom_id": talkroom_id,
+        "message_id": message_id, "observed_at": "2026-09-13T00:00:00Z",
+        "side": "buyer", "sent_at": None, "text": "修正内容を確認しました。正式納品してください。",
+        "attachments": [],
+    }
+    canonical = {key: row[key] for key in ("side", "sent_at", "text", "attachments")}
+    row["content_sha256"] = hashlib.sha256(json.dumps(
+        canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode()).hexdigest()
+    ledger = root / "source/talkroom/messages.jsonl"
+    ledger.parent.mkdir(parents=True, exist_ok=True)
+    ledger.write_text(json.dumps(row, ensure_ascii=False) + "\n", encoding="utf-8")
+    write_json(root / "state.json", {"talkroom_id": talkroom_id})
+    return {"message_id": message_id, "content_sha256": row["content_sha256"], "side": "buyer"}
+
+
 def test_accumulation_normalizes_legacy_text_only_digest() -> None:
     snapshot = load("coconala_queue_snapshot")
     text = "Legacy buyer requirement"
@@ -1428,7 +1446,11 @@ def test_remote_owner_policy_can_require_formal_delivery_and_manual(tmp_path):
         root, tmp_path / "item.json", feedback, requirements_sha,
         False, tmp_path / "cdp.py",
     )
-    authorization = paid._remote_formal_authorization(root, feedback, requirements_sha)
+    approval = write_official_buyer(root, root.name)
+    authorization = paid._remote_formal_authorization(
+        root, feedback, requirements_sha,
+        {"formal_approval_evidence": approval, "latest_buyer_message_identity": approval},
+    )
 
     assert "formal delivery with the checkbox on" in prompt
     assert "practical buyer-facing update manual as customer_attachment" in prompt
@@ -1458,9 +1480,9 @@ def test_decision_prompt_keeps_owner_authorized_remote_formal_work_in_remote_mod
         identity, buyer_identity, policy, "d" * 64,
     ).decode()
 
-    assert "formal_delivery_after_remote=true authorizes" in prompt
-    assert "Keep the semantic decision actionable with mode remote" in prompt
-    assert "do not downgrade it to answer, await buyer approval" in prompt
+    assert "formal_delivery_after_remote=true requests formal delivery" in prompt
+    assert "latest buyer message explicitly approves formal closure" in prompt
+    assert "normal review message with formal delivery off" in prompt
 
 
 def test_decision_prompt_rejects_seller_claim_when_numeric_receipts_are_partial(tmp_path):
@@ -1478,8 +1500,8 @@ def test_decision_prompt_rejects_seller_claim_when_numeric_receipts_are_partial(
     assert "seller-authored total is never completion proof" in prompt
 
 
-def test_formal_browser_accepts_only_hash_bound_exact_cycle_owner_override(tmp_path):
-    browser = load("coconala_formal_delivery_browser")
+def test_remote_formal_authorization_requires_latest_explicit_buyer_approval(tmp_path):
+    paid = load("paid_direct")
     root = tmp_path / "18211957"
     policy_path = root / "context/paid-file-operator-policy.json"
     feedback, requirements = "a" * 64, "b" * 64
@@ -1492,22 +1514,86 @@ def test_formal_browser_accepts_only_hash_bound_exact_cycle_owner_override(tmp_p
         "formal_delivery_after_remote": True,
         "directives": ["Formally deliver once."],
     })
-    digest = hashlib.sha256(policy_path.read_bytes()).hexdigest()
-    queue = {
-        "buyer_feedback_sha256": feedback,
-        "requirements_sha256": requirements,
-        "account_owner_formal_authorization": {
-            "authorized_by": "account_owner",
-            "request_id": root.name,
-            "buyer_feedback_sha256": feedback,
-            "requirements_sha256": requirements,
-            "policy_sha256": digest,
-        },
+    approval = write_official_buyer(root, root.name)
+    assert paid._remote_formal_authorization(root, feedback, requirements, {}) is None
+    assert paid._remote_formal_authorization(root, feedback, requirements, {
+        "formal_approval_evidence": approval,
+        "latest_buyer_message_identity": approval,
+    }) is not None
+    assert paid._remote_formal_authorization(root, feedback, requirements, {
+        "formal_approval_evidence": {**approval, "message_id": "forged"},
+        "latest_buyer_message_identity": {**approval, "message_id": "newer"},
+    }) is None
+
+
+def test_remote_semantic_decision_can_reach_formal_only_with_latest_buyer_approval():
+    paid = load("paid_direct")
+    approval = {"message_id": "buyer-approval", "content_sha256": "c" * 64, "side": "buyer"}
+    value = {
+        "decision": "actionable", "mode": "remote",
+        "feedback_sha256": "a" * 64, "requirements_sha256": "b" * 64,
+        "latest_message_identity": approval,
+        "required_output": "Submit the verified live revision for formal closure.",
+        "required_effect": "Formally deliver the buyer-approved live revision.",
+        "required_assets": [], "delivery_stage": "formal",
+        "formal_approval_evidence": approval, "unresolved": [],
     }
 
-    assert browser._account_owner_formal_ready(queue, root) is True
-    queue["account_owner_formal_authorization"]["policy_sha256"] = "c" * 64
-    assert browser._account_owner_formal_ready(queue, root) is False
+    assert paid._validate_paid_decision(
+        value, "a" * 64, "b" * 64, approval, approval,
+    ) == value
+    with pytest.raises(ValueError, match="current buyer approval evidence"):
+        paid._validate_paid_decision(
+            {**value, "formal_approval_evidence": {**approval, "message_id": "forged"}},
+            "a" * 64, "b" * 64, approval, approval,
+        )
+
+
+def test_formal_approval_rejects_parent_symlink_ledger(tmp_path):
+    paid = load("paid_direct")
+    browser = load("coconala_formal_delivery_browser")
+    root = tmp_path / "18211957"
+    outside = tmp_path / "outside"
+    approval = write_official_buyer(outside, root.name)
+    root.mkdir()
+    (root / "source").symlink_to(outside / "source", target_is_directory=True)
+    write_json(root / "state.json", {"talkroom_id": root.name})
+    item = {
+        "talkroom_id": root.name, "formal_approval_evidence": approval,
+        "latest_buyer_message_identity": approval,
+    }
+
+    assert paid._explicit_buyer_formal_approval(root, item) is False
+    assert browser._formal_approval_is_official(item, root) is False
+
+
+def test_formal_browser_rejects_account_owner_override_without_buyer_approval(tmp_path):
+    browser = load("coconala_formal_delivery_browser")
+    root = tmp_path / "18211957"
+    artifact = root / "delivery/manual.txt"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("manual", encoding="utf-8")
+    acceptance = root / "acceptance/result.json"
+    write_json(acceptance, {"status": "PASS"})
+    digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    evidence = {
+        "artifact_path": str(artifact), "artifact_version": "remote-formal",
+        "acceptance_evidence_path": str(acceptance), "acceptance_status": "PASS",
+        "acceptance_delta": ["verified"], "package_sha256": digest,
+    }
+    queue = {
+        "delivery_action": "formal", "formal_delivery_checkbox": True,
+        "talkroom_id": root.name, "request_id": root.name,
+        "marketplace_url": f"https://coconala.com/talkrooms/{root.name}",
+        "delivery_evidence": evidence,
+        "account_owner_formal_authorization": {"authorized_by": "account_owner"},
+    }
+    manifest = {**evidence, "status": "ok", "project_root": str(root)}
+    queue_path, manifest_path = tmp_path / "queue.json", tmp_path / "manifest.json"
+    write_json(queue_path, queue); write_json(manifest_path, manifest)
+
+    with pytest.raises(ValueError, match="formal_buyer_approval_evidence_required"):
+        browser.validate_queue_contract(queue_path, manifest_path, root)
 
 
 def test_formal_browser_preserves_verified_remote_message_with_manual_attachment(tmp_path):
@@ -1534,12 +1620,15 @@ def test_formal_browser_preserves_verified_remote_message_with_manual_attachment
         "acceptance_delta": delta, "package_sha256": digest,
     }
     custom = "管理画面：https://example.test/admin 公開確認：https://example.test/"
+    approval = write_official_buyer(root, root.name)
     queue = {
         "delivery_action": "formal", "formal_delivery_checkbox": True,
         "request_id": root.name, "talkroom_id": root.name,
         "marketplace_url": f"https://coconala.com/talkrooms/{root.name}",
         "buyer_feedback_sha256": feedback, "requirements_sha256": requirements,
         "delivery_evidence": evidence,
+        "formal_approval_evidence": approval,
+        "latest_buyer_message_identity": approval,
         "account_owner_formal_authorization": {
             "authorized_by": "account_owner", "request_id": root.name,
             "buyer_feedback_sha256": feedback, "requirements_sha256": requirements,
@@ -1578,12 +1667,15 @@ def test_remote_formal_effect_uses_formal_browser_and_exact_room_readback(tmp_pa
         "buyer_feedback_sha256": feedback, "requirements_sha256": requirements,
         "formal_delivery_after_remote": True, "directives": ["Formally deliver once."],
     })
-    authorization = paid._remote_formal_authorization(root, feedback, requirements)
     prepared = {
         "talkroom_id": root.name, "request_id": root.name,
         "buyer_feedback_sha256": feedback, "requirements_sha256": requirements,
-        "project_root": str(root), "account_owner_formal_authorization": authorization,
+        "project_root": str(root),
     }
+    approval = write_official_buyer(root, root.name)
+    prepared.update({"formal_approval_evidence": approval, "latest_buyer_message_identity": approval})
+    authorization = paid._remote_formal_authorization(root, feedback, requirements, prepared)
+    prepared["account_owner_formal_authorization"] = authorization
     item_path, output = tmp_path / "item.json", tmp_path / "output.json"
     write_json(item_path, prepared)
     row = {**prepared, "talkroom_state": "取引中", "formal_delivery_observed": False}
@@ -1672,10 +1764,13 @@ def test_remote_formal_effect_refuses_result_swap_after_presend(tmp_path, monkey
         "buyer_feedback_sha256": feedback, "requirements_sha256": requirements,
         "formal_delivery_after_remote": True, "directives": ["Formally deliver once."],
     })
-    authorization = paid._remote_formal_authorization(root, feedback, requirements)
     prepared = {"talkroom_id": root.name, "request_id": root.name,
                 "buyer_feedback_sha256": feedback, "requirements_sha256": requirements,
-                "project_root": str(root), "account_owner_formal_authorization": authorization}
+                "project_root": str(root)}
+    approval = write_official_buyer(root, root.name)
+    prepared.update({"formal_approval_evidence": approval, "latest_buyer_message_identity": approval})
+    authorization = paid._remote_formal_authorization(root, feedback, requirements, prepared)
+    prepared["account_owner_formal_authorization"] = authorization
     item_path, output = tmp_path / "item.json", tmp_path / "output.json"
     write_json(item_path, prepared)
     row = {**prepared, "talkroom_state": "取引中", "formal_delivery_observed": False}

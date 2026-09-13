@@ -931,7 +931,20 @@ def _official_content_sha256(row: dict[str, Any]) -> str:
 
 def _official_message_rows(root: Path, talkroom_id: str) -> list[dict[str, Any]]:
     path = root / "source" / "talkroom" / "messages.jsonl"
-    if path.is_symlink() or not _regular_file(path):
+    try:
+        resolved_root = root.resolve(strict=True)
+        path.resolve(strict=True).relative_to(resolved_root)
+        relative = path.relative_to(root)
+    except (OSError, ValueError):
+        raise Failure("paid_work_decision")
+    current = root
+    if root.is_symlink():
+        raise Failure("paid_work_decision")
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            raise Failure("paid_work_decision")
+    if not _regular_file(path):
         raise Failure("paid_work_decision")
     try:
         lock_path = path.with_suffix(path.suffix + ".lock")
@@ -1013,8 +1026,10 @@ def _validate_paid_decision(value: dict[str, Any], feedback: str, requirements: 
     delivery_stage = value.get("delivery_stage")
     if decision == "actionable" and mode == "file" and delivery_stage not in {"formal", "review"}:
         raise ValueError("file decision requires formal or review delivery stage")
-    if (decision != "actionable" or mode != "file") and delivery_stage != "none":
-        raise ValueError("non-file decision requires none delivery stage")
+    if decision == "actionable" and mode == "remote" and delivery_stage not in {"formal", "none"}:
+        raise ValueError("remote decision requires formal or none delivery stage")
+    if (decision != "actionable" or mode == "answer") and delivery_stage != "none":
+        raise ValueError("non-delivery decision requires none delivery stage")
     approval = value.get("formal_approval_evidence")
     if delivery_stage == "formal":
         current_buyer = buyer_identity or identity
@@ -1124,10 +1139,31 @@ def _file_operator_policy(root: Path, feedback: str,
     return path, policy, digest
 
 
+def _explicit_buyer_formal_approval(root: Path, item: dict[str, Any]) -> bool:
+    approval = item.get("formal_approval_evidence")
+    try:
+        latest = _latest_official_buyer_identity(
+            root, _text(item.get("talkroom_id") or root.name),
+        )
+    except Failure:
+        return False
+    return bool(
+        isinstance(approval, dict)
+        and isinstance(latest, dict)
+        and approval == latest
+        and approval.get("side") == "buyer"
+        and _text(approval.get("message_id"))
+        and re.fullmatch(r"[0-9a-f]{64}", _text(approval.get("content_sha256")))
+    )
+
+
 def _remote_formal_authorization(root: Path, feedback: str,
-                                 requirements_sha256: str) -> dict[str, str] | None:
+                                 requirements_sha256: str,
+                                 item: dict[str, Any]) -> dict[str, str] | None:
+    """Allow the formal route only after the latest buyer explicitly approves it."""
     path, policy, digest = _file_operator_policy(root, feedback, requirements_sha256)
-    if path is None or policy.get("formal_delivery_after_remote") is not True:
+    if (path is None or policy.get("formal_delivery_after_remote") is not True
+            or not _explicit_buyer_formal_approval(root, item)):
         return None
     return {
         "authorized_by": "account_owner",
@@ -1594,10 +1630,9 @@ def _decision_prompt(context: Path, context_sha256: str, feedback: str,
             f"{json.dumps(operator_policy['directives'], ensure_ascii=False)}. "
             "Treat it as current project authority. It may stop, narrow, transfer, or otherwise constrain seller work, "
             + (
-                "and formal_delivery_after_remote=true authorizes the downstream code-owned connector to submit "
-                "the verified remote result as formal delivery exactly once. Keep the semantic decision actionable "
-                "with mode remote until owner work, independent verification, and that marketplace handoff finish; "
-                "do not downgrade it to answer, await buyer approval, or add a confirmation gate. "
+                "and formal_delivery_after_remote=true requests formal delivery only after the latest buyer message "
+                "explicitly approves formal closure. Until then, keep mode remote so the downstream connector sends "
+                "the verified result as a normal review message with formal delivery off, then await the buyer. "
                 if formal_after_remote else
                 "but it cannot invent buyer approval, authorize formal delivery, or override marketplace safety. "
             )
@@ -1685,9 +1720,10 @@ def _decision_prompt(context: Path, context_sha256: str, feedback: str,
         "required marketplace action to honor that closure; do not require the buyer to review a later corrective copy "
         "before the seller can close as requested. In either case formal_approval_evidence must exactly equal "
         "latest_buyer_message_identity. A later seller acknowledgement does not erase that approval; any later buyer "
-        "message becomes the new buyer identity and requires a new semantic decision. Every non-formal decision uses "
-        "formal_approval_evidence null. Every non-file decision "
-        "uses delivery_stage none. Decide explicit approval from "
+        "message becomes the new buyer identity and requires a new semantic decision. A verified remote result may use "
+        "mode remote with delivery_stage formal only after that exact approval; before approval it uses delivery_stage none "
+        "and the connector sends an ordinary review message with formal delivery off. Every non-formal decision uses "
+        "formal_approval_evidence null. Answer mode uses delivery_stage none. Decide explicit approval from "
         "the complete semantic workflow, never from title or keyword matching. required_output and required_effect must "
         "state the bounded buyer-facing completed outcome. They must never narrate your analysis process, promise to "
         "inspect/read/check the context later, or describe a read-only/no-effect assessment as actionable work. "
@@ -5289,9 +5325,11 @@ def _prepare_one(args, item_path: Path, output: Path) -> int:
                 repaired = True
         intent = _load(intent_path); digest = _text(intent.get("desired_state_sha256"))
         prepared = {**item, "project_root": str(root), "remote_repaired": repaired,
-                    "requirements_sha256": paid_remote_result.requirements_digest(root, feedback)}
+                    "requirements_sha256": paid_remote_result.requirements_digest(root, feedback),
+                    "formal_approval_evidence": semantic.get("formal_approval_evidence"),
+                    "latest_buyer_message_identity": _latest_official_buyer_identity(root, room)}
         authorization = _remote_formal_authorization(
-            root, feedback, prepared["requirements_sha256"],
+            root, feedback, prepared["requirements_sha256"], prepared,
         )
         if authorization is not None:
             result = _load(root / "delivery" / "paid-remote-result.json")
@@ -5514,7 +5552,7 @@ def _write_remote_formal_effect(args, item_path: Path, output: Path,
         root = _paid_project_root(args, prepared)
         feedback = _text(prepared.get("buyer_feedback_sha256"))
         requirements_sha256 = _text(prepared.get("requirements_sha256"))
-        authorization = _remote_formal_authorization(root, feedback, requirements_sha256)
+        authorization = _remote_formal_authorization(root, feedback, requirements_sha256, prepared)
         if authorization is None or prepared.get("account_owner_formal_authorization") != authorization:
             raise Failure("remote_formal_authorization")
         intent_path = root / "delivery" / "paid-remote-intent.json"
@@ -5585,7 +5623,7 @@ def _write_remote_formal_effect(args, item_path: Path, output: Path,
         if disk_reason is not None:
             return _write_disk_pending(output, room, disk_reason, "before_remote_formal_effect")
         if (any(_file_snapshot(path) != snapshot for path, snapshot in verified_inputs.items())
-                or _remote_formal_authorization(root, feedback, requirements_sha256) != authorization):
+                or _remote_formal_authorization(root, feedback, requirements_sha256, prepared) != authorization):
             raise Failure("remote_formal_toctou")
         paid_remote_result.resume(root, feedback, digest, verifier_path)
         process = _run_bounded([
