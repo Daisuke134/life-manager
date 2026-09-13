@@ -59,6 +59,18 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   Codex-only. The regression suite proves a fast client advances while an earlier slow client remains
   blocked; 284 tests and 34 subtests pass. Immutable release
   `20260914T001037-6631c328` is installed and running on `hf-gig-paid-direct`.
+- **The shared runtime regression is repaired on main, but final multi-lane production acceptance remains
+  open.** PRs `#5152`, `#5154`, `#5155`, `#5156` and `#5157` bound orders observation, accept only a
+  fresh complete official snapshot fallback, classify the outer bounded timeout, avoid Python 3.14
+  finalization stalls, retry a transient brake probe and skip the probe process entirely when the brake
+  file is absent. PR `#5153` binds Apply, Storefront and Paid to the canonical Gig browser on CDP `9223`
+  and its authenticated profile. Release `20260914T010732-e6d6ba9b` is installed for Paid, Storefront
+  and Apply; the old Apply wake was allowed to finish before replacement. Paid now starts independent
+  workers for four talkrooms without a global client barrier, and Ryu remains replay-zero. The remaining
+  measured limit is browser capacity: those workers and Storefront can still contend inside one browser
+  profile. Completion requires provider/account BrowserContext shards with a bounded per-shard mutation
+  queue, followed by terminal production receipts for all four lanes. Do not describe this as all lanes
+  complete before those receipts exist.
 - **Shared TikTok transport is merged but not the active cursor.** The model qualifies a real candidate and writes truthful,
   recipient-specific copy. Deterministic shared code binds the exact recipient, sends once, performs
   official readback, appends one paired campaign receipt and never retries an uncertain send. The
@@ -84,11 +96,14 @@ completed work. The new order removes those completed prerequisites without inte
 client owner. The current cursor is Coconala vertical revenue proof while funded CrowdWorks work
 continues independently.
 
-1. Close active funded liabilities concurrently: CrowdWorks funded milestone/delivery/payment effects.
-   Ryu waits only as a dormant per-client cursor for a new official buyer event; Chii is excluded.
-   A buyer owner never waits for another buyer.
-2. Finish Coconala vertically across Apply, Reply, Paid and Storefront, including one-off plus retainer
-   applications and attributable payout evidence.
+1. Finish the shared browser concurrency boundary: shard authenticated BrowserContexts by
+   provider/account, keep each client owner independent, serialize only mutations within one shard, and
+   prove a slow readback cannot delay another client or lane. Keep the existing effect fence and
+   reconcile-before-retry contract.
+2. Close active funded liabilities concurrently and finish Coconala vertically across Apply, Reply,
+   Paid and Storefront, including one-off plus retainer applications and attributable payout evidence.
+   Ryu waits only as a dormant per-client cursor for a new official buyer event; Chii is excluded. A
+   buyer owner never waits for another buyer.
 3. Finish each next provider vertically while all installed lanes remain live: Lancers, CrowdWorks,
    Mercor, Freelancer.com, Upwork, then evidence-ranked new platforms. Missing Storefront is
    `not_applicable`; missing contract leaves Paid open but never pauses Apply.
