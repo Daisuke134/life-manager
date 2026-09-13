@@ -146,7 +146,7 @@ def test_default_tab_open_budget_covers_context_creation_and_cookie_seed(monkeyp
     tab.target_id = ""
 
     assert timeouts == [snapshot.DEFAULT_TAB_OPEN_TIMEOUT_SECONDS]
-    assert snapshot.DEFAULT_TAB_OPEN_TIMEOUT_SECONDS > 40
+    assert snapshot.DEFAULT_TAB_OPEN_TIMEOUT_SECONDS > 147
 
 
 def test_paid_controller_outlives_selected_room_cleanup_budget() -> None:

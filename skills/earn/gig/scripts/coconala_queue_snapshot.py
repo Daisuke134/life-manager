@@ -2246,7 +2246,10 @@ def persist_purchased_offer_brief(
     }
 
 
-DEFAULT_TAB_OPEN_TIMEOUT_SECONDS = 75
+# A cold acquire can verify and dispose an unhealthy parked context, create and
+# seed a replacement, then create the caller's working target. Its bounded CDP
+# phases total over 120s before process-start overhead under host contention.
+DEFAULT_TAB_OPEN_TIMEOUT_SECONDS = 160
 # The helper's close path can spend 20s on Target.closeTarget and about 12s
 # checking/parking the authenticated context. close-owned additionally spends
 # 20s listing targets and 20s per owned target (production allows two).
