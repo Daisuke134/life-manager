@@ -19,6 +19,7 @@ mkdir -p "$STATE_ROOT"; chmod 700 "$STATE_ROOT"
 export CLOAK_CDP_BASE_URL="http://127.0.0.1:9222"
 export CLOAK_SESSION_VAULT_FILE="$HOME/.cloak/vault/job-search-daily/auth-state.json"
 export CLOAK_SESSION_VAULT_WRITEBACK_FILE="$HOME/.local/state/anicca/job-search/mercor/application/auth-overlay.json"
+export CLOAK_CONTEXT_COOKIE_DOMAINS="mercor.com"
 export AI_BROWSER_HOLDER_PID=$$
 
 park() {
