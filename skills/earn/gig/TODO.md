@@ -14,6 +14,14 @@ observation, replies, and estimates; do not present it as a separate Negotiate l
 This section is the current execution SSOT and supersedes contradictory historical checkpoints below.
 Historical receipts remain evidence; their old cursors do not reopen completed work.
 
+- **Reply client isolation is merged and installed.** PR `#5162`, merge SHA `2fe142f696...`,
+  runs up to four Coconala client workers concurrently and gives every talkroom its own
+  `coconala-reply-<thread>` browser owner, including estimate reads and nested fresh-context
+  readback. The same client/effect remains serialized by its durable effect fence. Release
+  `20260914T022717-2fe142f6` is installed and the owner is running. This closes the known
+  shared-owner serialization defect; the first terminal production receipt from this release and
+  the remaining Apply/Paid/Storefront receipts are still required before Coconala is called complete.
+
 - **Shared browser entry and operator-brake convergence are complete on main.** PR `#5159`, merge
   SHA `2668376830...`, changes BrowserContext acquisition to reserve under the ledger lock, perform
   provider CDP work outside it, and finalize by token compare-and-swap. Slow cookie seeding for one
@@ -80,9 +88,9 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   and its authenticated profile. Release `20260914T010732-e6d6ba9b` is installed for Paid, Storefront
   and Apply; the old Apply wake was allowed to finish before replacement. Paid now starts independent
   workers for four talkrooms without a global client barrier, and Ryu remains replay-zero. The remaining
-  measured limit is browser capacity: those workers and Storefront can still contend inside one browser
-  profile. Completion requires provider/account BrowserContext shards with a bounded per-shard mutation
-  queue, followed by terminal production receipts for all four lanes. Do not describe this as all lanes
+  measured limit was browser-owner serialization. PRs `#5159`, `#5160` and `#5162` now provide
+  two-phase context leases, one shared operator brake and per-client Reply browser owners. Completion
+  now requires terminal production receipts for all four lanes. Do not describe this as all lanes
   complete before those receipts exist.
 - **Shared TikTok transport is merged but not the active cursor.** The model qualifies a real candidate and writes truthful,
   recipient-specific copy. Deterministic shared code binds the exact recipient, sends once, performs
