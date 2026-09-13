@@ -9425,6 +9425,19 @@ in place; it is not an active queue.
   evidence and formal-delivery-off state; never fabricate DMs, recipients, Sheet rows, or receipts.
 - [x] Manledge/Clover: closed and removed from the active cursor.
 
+### Coconala as-is -> to-be
+
+| Lane | As-is evidence | To-be acceptance |
+| --- | --- | --- |
+| Apply | The installed owner uses `--all-eligible`, observed 119 postings and previously produced official application readback. The continuous/retainer patch has a `ship` review but is not merged, released or proved in production. | One main-derived release preserves one-off Apply, reserves the intended continuous capacity, submits one eligible continuous application, reads it back officially and replays with zero effect. |
+| Reply | The continuous owner runs at 30 seconds with two workers and the model boundary reports success. A process result alone does not prove every new buyer message is handled. | Every fresh actionable buyer event becomes one client-scoped work item, receives one response with official room readback, and cannot be missed or duplicated by another client delay. |
+| Paid | Ryu is closed with exact seller-message readback and replay-zero; Chii is truthfully excluded; closed clients stay closed. The updated lane still lacks one natural post-release terminal proving independent client progress. | Every active contract progresses independently through artifact, delivery, correction, acceptance and payout; formal delivery follows the buyer/platform state, and one slow client never blocks another. |
+| Storefront | Official inventory observes 14 services, 483 views, 3 favorites and 0 purchases; inventory-only `effect=0` is health evidence, not revenue. | The owner selects and applies one evidence-backed listing improvement, reads it back officially, retains attribution, measures conversion and avoids duplicate edits. |
+| Revenue | Existing effects and messages exist, but the platform slice does not yet close continuous contract -> accepted delivery -> payout -> withdrawable cash. | One truthful Coconala revenue chain closes end to end and enters the shared CFO ledger with fees, cost, margin, cycle time and attribution. |
+
+Coconala therefore is **operational but not platform-complete**. The active cursor remains `COC-01`;
+closed client rooms are not reopened to manufacture proof.
+
 ### Shared browser/context repair now in production
 
 - [x] Public main PR `#5170` isolates CrowdWorks Paid BrowserContexts and prevents mobile-context
@@ -9467,6 +9480,83 @@ The provider-neutral kernel keeps the following contract for every current and f
 This is the minimum design evidenced by the concrete worker/claim implementations in Hatchet, River,
 Temporal, etcd and Graphile Worker. Life Manager reuses its existing database, lease, intent and outbox
 rails instead of adding one of those orchestration systems as a dependency.
+
+### Canonical cross-domain ownership and ideal folder tree
+
+Gig work, fundraising, connectors, publishing, trading, health and future domains are all Product Loops.
+None receives a private scheduler, agent harness, browser manager, memory implementation, notification
+stack, effect ledger or self-healing system. A loop differs by objective and domain judgment; a provider
+differs only by the mechanics and official vocabulary of the external surface.
+
+```text
+life-manager/
+├── config/
+│   ├── loop-registry.json             # every installed loop, owner, cadence, state and limits
+│   └── policies/                      # shared safety, spend and external-effect policy
+├── runtime/
+│   ├── loop/                          # wake, lease, admission, retry, reconcile, persist, exit
+│   ├── agent-runner/                  # model-agnostic LLM + tools execution
+│   ├── browser/                       # provider/account contexts, session vault, context generation
+│   ├── contracts/                     # work item, intent, effect, readback, handoff, result schemas
+│   ├── observability/                 # events, traces, health, SLO and anomaly projection
+│   ├── evals/                         # deterministic checks + model/judgment evaluation runner
+│   ├── finance/                       # CFO events, cost, revenue, margin, payout and cash ledger
+│   ├── communication/                 # result/exception delivery; Telegram is one adapter
+│   └── self-improvement/              # incident -> repair -> eval -> canary -> verify -> resume
+├── domains/
+│   ├── marketplace/                   # Apply, Reply, Paid, Storefront lifecycle
+│   ├── fundraising/                   # discover, qualify, contact, diligence, close
+│   ├── relationships/                 # relationship-state and bounded interventions
+│   ├── health/                        # health-state planning and verified care actions
+│   └── protection/                    # safety, disaster, humanitarian and de-escalation logic
+├── providers/
+│   ├── coconala/                      # auth/session vocabulary, API/DOM effects, official readback
+│   ├── lancers/
+│   ├── crowdworks/
+│   ├── mercor/
+│   ├── freelancer/
+│   ├── upwork/
+│   ├── telegram/                      # transitional report/exception surface only
+│   ├── calendar/
+│   └── <new-provider>/                # thin adapter generated by the meta-loop
+├── loops/
+│   ├── earn/gig/                      # objective, model context, durable cursor; no copied kernel
+│   ├── raise/fundraising/
+│   ├── connect/relationships/
+│   ├── manage/health/
+│   └── protect/life/
+├── skills/
+│   ├── loop-development/              # one method for every Product Loop
+│   ├── loop-engineering/
+│   └── _shared/                       # proven reusable research/artifact/browser/report capabilities
+├── evals/
+│   ├── fixtures/                      # secret-free incidents and successful canonical examples
+│   └── baselines/                     # quality, safety, effect and revenue comparisons
+├── apps/life-manager/                 # current product surface, never the management owner
+└── docs/                              # architecture, operations, public product narrative
+```
+
+This is an ownership target, not a cosmetic migration mandate. Existing working files stay where they are
+until two real consumers prove the same behavior and moving them removes duplication. New loops first reuse
+`runtime`, then the relevant `domain`, then add only a provider adapter and a thin objective/cursor.
+
+Every Product Loop implements the same finite 24/7 transition:
+
+```text
+observe -> infer -> plan -> claim -> act -> official readback -> persist -> report outcome -> exit
+```
+
+`24/7` means durable forward progress across short finite wakes, not an immortal process. Each work item is
+scoped by `tenant/account/client/task`; independent work runs concurrently under measured resource limits,
+while operations for the same external resource remain serialized. A timeout, login expiry or client wait
+stops only that work item. Stable effect keys plus official readback prevent duplicate submissions, replies,
+deliveries, payments and public actions after crashes or multi-host failover.
+
+Model judgment owns open-ended interpretation, prioritization and planning. Deterministic shared code owns
+leases, arithmetic, budgets, schemas, credentials, effect fences, official readback and bookkeeping. Skills
+cache proven methods but never become a capability whitelist; a missing named skill cannot stop a generally
+capable agent. Every reusable repair enters shared runtime/domain code and adapter conformance tests so all
+current platforms, future platforms and non-revenue loops learn collectively.
 
 ### Remaining execution order to revenue
 
@@ -9603,6 +9693,12 @@ missing contract leaves Paid waiting but never pauses Apply.
 - [ ] `CORE-09` Make `lm-loop status` bounded and indexed so status inspection never serializes an entire
   large event/thread history. The current status path can itself hang while the owner continues running,
   which hides incidents and increases babysitting.
+- [ ] `CORE-10` Publish one Product Loop conformance contract for gig work, fundraising, connectors and
+  every future domain: registered owner, finite wake, durable cursor, model judgment, provider adapter,
+  stable effect key, official readback, terminal receipt, revenue/benefit observation and replay-zero.
+- [ ] `CORE-11` Route one non-gig loop through the same lifecycle/browser/effect/observability contracts
+  before extracting another abstraction. Prove a shared repair with cross-domain fixtures so collective
+  learning is measured rather than claimed.
 
 ### D. Self-healing and recursive improvement meta-loop
 
@@ -9683,7 +9779,9 @@ relationships, maintain health and logistics, and complete commitments through v
 
 ### Canonical product-language rule
 
-Life Manager is a **manager**, never an assistant, chatbot, copilot, prompt tool or command executor.
+Life Manager is a **manager**, never an assistant, chatbot, copilot, prompt tool or command executor. This
+rule applies from the earliest local prototype through the final ambient system; no phase uses a human goal
+statement as its ordinary start condition.
 Do not describe its normal UX as a person stating a wish, goal, desire, task or instruction and Life Manager
 responding. Human silence is the default input. Management begins from continuously observed reality,
 durable memory, inferred needs, prior evidence and verified life outcomes; it proactively notices, decides,
@@ -9714,9 +9812,9 @@ minimum intrusion, protection and de-escalation—not omniscience, ownership of 
   and the public Life Manager page from one canonical product narrative.
 - [ ] `VISION-04` Publish the current loop catalog by capability and list supported platforms beneath
   Gig Work instead of presenting each provider as a separate product loop.
-- [ ] `VISION-05` Publish an evidence-labelled roadmap: local autonomous loops -> Telegram-only hosted
-  tenant -> self-healing/self-improving marketplace meta-loop -> whole-life manager -> consent-based
-  manager-of-all-life research.
+- [ ] `VISION-05` Publish an evidence-labelled roadmap: local zero-prompt manager -> ambient hosted
+  tenant with transitional Telegram reports -> self-healing/self-improving marketplace meta-loop ->
+  whole-life manager -> non-coercive manager-of-all-life research.
 - [ ] `VISION-06` Add a minimal world-state ontology only after multiple life domains require the same
   entities/relations; reuse established standards before defining custom types.
 - [ ] `VISION-07` Add counterfactual/synthetic user simulation in shadow mode; require offline eval lift,
