@@ -276,9 +276,8 @@ class EntryDispatchTest(unittest.TestCase):
         root=Path('/release'); home=Path('/home')
         apply=command_for('hf-gig-apply-direct',root,home)
         storefront=command_for('hf-gig-storefront-direct',root,home)
-        guard = [sys.executable, '/release/runtime/host/memory_admission.py']
-        self.assertEqual(apply[:2], guard)
-        self.assertEqual(storefront[:2], guard)
+        self.assertNotIn('/release/runtime/host/memory_admission.py', apply)
+        self.assertNotIn('/release/runtime/host/memory_admission.py', storefront)
         self.assertIn('--all-eligible',apply)
         self.assertEqual(storefront[-4:],['--effect','--auto-cadence','--full-interval-seconds','60'])
 

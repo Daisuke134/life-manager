@@ -6,8 +6,7 @@ PYTHON="${HF_GIG_PYTHON:-$(command -v python3)}"
 GIG_ROOT="${GIG_STATE_DIR:-$HOME/gig}"
 export CLOAK_TARGET_OWNERS_FILE="${CLOAK_TARGET_OWNERS_FILE:-$HOME/.cloak/vault/gig-target-owners.json}"
 
-exec "$PYTHON" "$ROOT/runtime/host/memory_admission.py" \
-  "$PYTHON" "$ROOT/skills/earn/gig/scripts/gig_disk_guard.py" \
+exec "$PYTHON" "$ROOT/skills/earn/gig/scripts/gig_disk_guard.py" \
   "$PYTHON" "$ROOT/skills/earn/gig/scripts/paid_direct.py" \
   --output "$GIG_ROOT/evidence/paid-direct-live/latest.json" \
   --evidence-dir "$GIG_ROOT/evidence/paid-direct-live" \

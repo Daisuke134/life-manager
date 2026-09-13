@@ -19,6 +19,9 @@ from runtime.loop.macos_loop_registry import validate_registry
 from runtime.loop.runtime_event import append_runtime_event, build_runtime_event, build_runtime_start_event
 
 
+HOST_ADMISSION = Path(__file__).resolve().parents[1] / "host/memory_admission.py"
+
+
 def prepare_loop_run(registry: dict, loop_id: str, release_root: Path, *,
                      active_run_ids: set[str], now: float | None = None,
                      state_root: str | None = None,
@@ -74,6 +77,12 @@ def _runtime_limit(entry: dict) -> int | None:
     if entry.get("cadence") == {"keep_alive": True}:
         return None
     return entry.get("runtime_timeout_seconds", 3600)
+
+
+def _host_admitted_command(command: list[str], entry: dict) -> list[str]:
+    if _runtime_limit(entry) is None:
+        return command
+    return [sys.executable, str(HOST_ADMISSION), *command]
 
 
 def _memory_admission_deferred(path: Path, started_ns: int) -> bool:
@@ -174,7 +183,7 @@ def main(argv: list[str] | None = None) -> int:
             memory_receipt = scratch / "memory-admission.json"
             started_ns = time.time_ns()
             return_code = _run_entrypoint(
-                command,
+                _host_admitted_command(command, entry),
                 env={
                     **os.environ,
                     "LIFE_MANAGER_RELEASE_ROOT": str(release_root),
