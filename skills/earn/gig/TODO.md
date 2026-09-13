@@ -112,11 +112,19 @@ evidence for concurrency, not delivery evidence. Ryu remains open until exact-ro
 This infrastructure state does not change the required topology: every provider and every client owner is
 an independent concurrent worker, never a sequential queue.
 
-The current Paid release is `20260913T132205-47f074f3`. PR `#5113` routes the target-specific
+The currently loaded Paid process still runs release `20260913T132205-47f074f3`. PR `#5113` routes the target-specific
 browser provisioner's `remove` and `submit` operations through `bin/launchctl-safe`; focused browser
 tests pass 12/12 and fresh read-only review reports `ship`. This closes the Ryu-specific raw-launchctl
 startup failure without creating another browser implementation. A live Paid wake starts separate Ryu
 `18211957` and Chii `18180857` workers under one controller, proving client-level parallel dispatch.
+The current source release is `bf2756e00cd0eade4b985578ca26f914900e8223`, but activation correctly
+defers while the old Paid process and its independent client workers are live. PR `#5115`, merge SHA
+`5469f573b...`, makes an exact-cycle `formal_delivery_after_remote=true` policy authoritative through
+remote repair, verifier and formal handoff instead of allowing the semantic router to invent another
+buyer-approval wait. PR `#5117`, merge SHA `bf2756e00...`, makes official paired receipts authoritative
+over a seller-authored numeric completion claim; the full Paid suite passes 167/167. When the current
+wake terminates, activate that release for only `hf-gig-paid-direct`, verify the loaded argv/SHA, and let
+the next wake apply both fixes. Do not interrupt or duplicate the currently live client effects.
 The same wake produces the following current cursor; these are independent atoms and neither waits for
 the other:
 
@@ -125,24 +133,28 @@ the other:
   delivery because the public HTTPS page still contains the old `服装は脱がせてくれましたか？`
   wording, two textareas where the buyer requested selectable controls, and the public 13-image buyer
   reference block. Formal delivery remains unsent. The next owner wake consumes this exact three-item
-  verifier delta, deploys the corrections, reruns independent verification, submits once with
+  verifier delta. PR `#5115` closes the generic routing defect in source. The next new-release owner
+  deploys the corrections, reruns independent verification, submits once with
   `正式な納品` enabled, reads back `納品確認待ち`, and proves replay-zero.
 - **Chii `18180857`:** the authorized `@anicca.jp` TikTok identity and the private Google Sheet are
   both readable; Google Sheets API readback observes 12 verified unique DM/Sheet pairs. Candidate
   `@123xxx2002` passes the current profile/recipient preflight, but the attempted durable preflight
   process exits without a receipt. The owner writes a new intent but leaves the prior result digest,
   so the controller correctly rejects `semantic effect contract mismatch`; no DM or Sheet mutation is
-  claimed. The next wake must write one matching intent/result contract, run the candidate operation in
+  claimed. PR `#5117` closes the generic numeric-evidence defect in source. The next new-release wake
+  must write one matching intent/result contract, run the candidate operation in
   the owned foreground process, checkpoint TikTok and Sheet exact readbacks as one pair, and continue
   from 12 toward 300 without inventing the earlier 300-complete claim.
 - **Host pressure:** regenerable caches, unused package releases, merged clean worktrees and old Ryu
   working builds are reclaimed without deleting Codex/cloud sessions, protected browser state, memory,
   ledgers or credentials. The durable pressure marker is absent and filesystem free space is about
-  11 GiB, so money owners run normally; cleanup remains a shared foundation concern, not a client queue.
-- **CrowdWorks Paid:** the current terminal is `provider_inventory` failure. The dedicated Chromium
-  later answers its configured CDP `:9228`, so the next natural Paid wake must distinguish the observed
-  browser-connect race from a contract-DOM parse failure, produce a secret-free exact error code, and
-  recover without restarting the Mac or shared browsers.
+  5.2 GiB, so money owners run normally; cleanup remains a shared foundation concern, not a client queue.
+- **CrowdWorks Paid:** normal account login is restored and authenticated readback passes. Official
+  inventory contains three funded contracts; two expose one unique Google Form each and one exposes no
+  form. PR `#5116`, merge SHA `d10838067...`, changes that unsupported third contract into an item-local
+  `buyer_task_detail_required` wait instead of aborting the entire provider inventory. The installed
+  Paid owner now runs the matching immutable release `20260913T141015-d1083806`; its first wake is live,
+  so the older `provider_inventory` failure remains historical until this PID writes a terminal result.
 
 The release-weight defect is closed in source by PR `#5106`, merge SHA `5aecc6bb5...`. The measured root
 `node_modules` was about 792 MiB / 98,660 files and `apps/life-manager/node_modules` about 332 MiB, while
