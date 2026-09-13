@@ -1761,6 +1761,40 @@ def _cached_paid_decision(root: Path, receipt: Any, prompt: Path,
     return validated
 
 
+def _stable_cached_paid_decision(root: Path, receipt: Any, schema_sha256: str,
+                                 context_inputs_sha256: str, feedback: str,
+                                 requirements: str, identity: dict[str, str],
+                                 buyer_identity: dict[str, str],
+                                 operator_policy_sha256: str) -> dict[str, Any]:
+    """Reuse a proved decision when only compiled runtime context changed.
+
+    Delivery receipts and other seller-owned runtime events may change the compiled
+    prompt without changing the buyer message, accumulated requirements, source inputs,
+    or policy. Re-running the semantic model in that case can paraphrase the same
+    outcome and create a different contract digest, reopening completed owner work.
+    """
+    if (not isinstance(receipt, dict)
+            or receipt.get("schema_version") != PAID_DECISION_SCHEMA_VERSION
+            or receipt.get("prompt_version") != PAID_DECISION_PROMPT_VERSION
+            or receipt.get("schema_sha256") != schema_sha256
+            or receipt.get("context_inputs_sha256") != context_inputs_sha256
+            or receipt.get("operator_policy_sha256", "") != operator_policy_sha256
+            or not isinstance(receipt.get("runner"), dict)):
+        raise ValueError("stale paid decision receipt")
+    evidence = root / "evidence" / "agent-PAID_WORK_DECISION"
+    runner = receipt["runner"]
+    if _decision_runner_proof(evidence) != runner:
+        raise ValueError("tampered paid decision evidence")
+    validated = _validate_paid_decision(
+        _load(_consultation_result_path(evidence)), feedback, requirements,
+        identity, buyer_identity,
+    )
+    cached_value = {key: receipt.get(key) for key in PAID_DECISION_FIELDS}
+    if validated != cached_value:
+        raise ValueError("paid decision result does not match receipt")
+    return validated
+
+
 def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, Any]:
     item_snapshot = _file_snapshot(item_path)
     feedback = _text(_load(item_path).get("buyer_feedback_sha256"))
@@ -1811,6 +1845,13 @@ def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, A
                                      schema_sha256, context_sha256, context_inputs_sha256,
                                      feedback, requirements, identity, buyer_identity,
                                      operator_policy_sha256)
+    except (AttributeError, Failure, OSError, ValueError, TypeError, json.JSONDecodeError):
+        pass
+    try:
+        return _stable_cached_paid_decision(
+            root, receipt, schema_sha256, context_inputs_sha256, feedback,
+            requirements, identity, buyer_identity, operator_policy_sha256,
+        )
     except (AttributeError, Failure, OSError, ValueError, TypeError, json.JSONDecodeError):
         pass
 

@@ -2937,6 +2937,46 @@ def test_pending_review_contract_is_stable_across_model_paraphrases():
     assert "Implement and verify the missing live controls." in first["required_effect"]
 
 
+def test_stable_decision_cache_ignores_compiled_runtime_context_churn(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    identity = {"message_id": "m1", "content_sha256": "d" * 64, "side": "buyer"}
+    value = {
+        "decision": "actionable", "mode": "remote",
+        "feedback_sha256": "a" * 64, "requirements_sha256": "b" * 64,
+        "latest_message_identity": identity,
+        "required_output": "Deliver the completed provider outcome.",
+        "required_effect": "Publish and verify the provider outcome.",
+        "required_assets": [], "delivery_stage": "none",
+        "formal_approval_evidence": None, "unresolved": [],
+    }
+    evidence = tmp_path / "evidence/agent-PAID_WORK_DECISION"
+    result = evidence / "attempt-01.result.json"
+    write_json(result, value)
+    runner = {"status": "success"}
+    receipt = {
+        "schema_version": paid.PAID_DECISION_SCHEMA_VERSION,
+        "prompt_version": paid.PAID_DECISION_PROMPT_VERSION,
+        "schema_sha256": "c" * 64,
+        "context_inputs_sha256": "e" * 64,
+        "operator_policy_sha256": "f" * 64,
+        "runner": runner,
+        **value,
+    }
+    monkeypatch.setattr(paid, "_decision_runner_proof", lambda _path: runner)
+    monkeypatch.setattr(paid, "_consultation_result_path", lambda _path: result)
+
+    assert paid._stable_cached_paid_decision(
+        tmp_path, receipt, "c" * 64, "e" * 64, "a" * 64,
+        "b" * 64, identity, identity, "f" * 64,
+    ) == value
+
+    with pytest.raises(ValueError, match="stale paid decision receipt"):
+        paid._stable_cached_paid_decision(
+            tmp_path, receipt, "c" * 64, "0" * 64, "a" * 64,
+            "b" * 64, identity, identity, "f" * 64,
+        )
+
+
 def test_pending_remote_review_contract_discards_model_formal_delivery_conflict():
     paid = load("paid_direct")
     review = {
