@@ -16,6 +16,7 @@ the same trick as Playwright's storageState ("reuse this state and start already
 """
 import asyncio
 import contextlib
+from concurrent.futures import ThreadPoolExecutor
 import fcntl
 import json
 import os
@@ -953,6 +954,31 @@ def gc(idle_min=45, max_reaps=None, priority_task=None):
         )
 
 
+def _dispose_candidate(item):
+    task, held = item
+    try:
+        asyncio.run(_calls([(
+            "Target.disposeBrowserContext",
+            {"browserContextId": held["context_id"]},
+        )]))
+        disposed = True
+    except Exception:
+        # Run the authoritative fallback in this same worker so a slow or wedged
+        # inventory probe cannot serialize the other claimed contexts.
+        disposed = _browser_context_exists(held.get("context_id")) is False
+    return task, held, disposed
+
+
+def _dispose_candidates(candidates):
+    if not candidates:
+        return []
+    # max_reaps bounds candidates when the caller selects a batch; the hard ceiling
+    # also keeps an unbounded maintenance GC from opening an unbounded number of sockets.
+    workers = min(8, len(candidates))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        return list(executor.map(_dispose_candidate, candidates.items()))
+
+
 def _gc_owned(idle_min=45, max_reaps=None, priority_task=None):
     """A loop killed with -9 never releases. Reap whatever it left holding.
 
@@ -996,13 +1022,7 @@ def _gc_owned(idle_min=45, max_reaps=None, priority_task=None):
             candidates = dict(ordered[:max(0, int(max_reaps))])
 
     reaped = []
-    for task, held in candidates.items():
-        disposed = False
-        try:
-            asyncio.run(_calls([("Target.disposeBrowserContext", {"browserContextId": held["context_id"]})]))
-            disposed = True
-        except Exception:
-            disposed = _browser_context_exists(held.get("context_id")) is False
+    for task, held, disposed in _dispose_candidates(candidates):
         with _ledger_lock():
             leases = _leases()
             current = leases.get(task)

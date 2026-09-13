@@ -1,9 +1,11 @@
 """Provisioning expiry must free abandoned admission rows before a new acquire."""
 from __future__ import annotations
 
+import asyncio
 import importlib.util
 import json
 import os
+import threading
 import time
 from pathlib import Path
 
@@ -158,3 +160,42 @@ def test_unexpired_live_provisioning_is_not_reclaimed(monkeypatch, tmp_path):
     else:
         raise AssertionError("live provisioning was reclaimed")
     assert module._leases()["task"]["context_id"] == "context"
+
+
+def test_gc_disposes_eight_candidates_concurrently(monkeypatch, tmp_path):
+    module = load_module()
+    leases_file = tmp_path / "leases.json"
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases_file))
+    leases_file.write_text(json.dumps({
+        f"task-{index}": {
+            "context_id": f"context-{index}",
+            "target_id": f"target-{index}",
+            "token": "a" * 32,
+            "generation": 1,
+            "pid": None,
+            "ts": 0,
+        }
+        for index in range(8)
+    }), encoding="utf-8")
+    active = 0
+    maximum = 0
+    counter_lock = threading.Lock()
+
+    async def slow_dispose(pairs, timeout=None):
+        nonlocal active, maximum
+        with counter_lock:
+            active += 1
+            maximum = max(maximum, active)
+        await asyncio.sleep(0.1)
+        with counter_lock:
+            active -= 1
+        return [{}]
+
+    monkeypatch.setattr(module, "_calls", slow_dispose)
+    started = time.monotonic()
+    result = module.gc(idle_min=0, max_reaps=8)
+    elapsed = time.monotonic() - started
+
+    assert len(result["reaped"]) == 8
+    assert maximum > 1
+    assert elapsed < 2.0
