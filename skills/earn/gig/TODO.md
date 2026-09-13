@@ -14,13 +14,23 @@ observation, replies, and estimates; do not present it as a separate Negotiate l
 This section is the current execution SSOT and supersedes contradictory historical checkpoints below.
 Historical receipts remain evidence; their old cursors do not reopen completed work.
 
-- **Reply client isolation is merged and installed.** PR `#5162`, merge SHA `2fe142f696...`,
+- **Reply client isolation is merged and production-proved.** PR `#5162`, merge SHA `2fe142f696...`,
   runs up to four Coconala client workers concurrently and gives every talkroom its own
   `coconala-reply-<thread>` browser owner, including estimate reads and nested fresh-context
   readback. The same client/effect remains serialized by its durable effect fence. Release
-  `20260914T022717-2fe142f6` is installed and the owner is running. This closes the known
-  shared-owner serialization defect; the first terminal production receipt from this release and
-  the remaining Apply/Paid/Storefront receipts are still required before Coconala is called complete.
+  A production run held four distinct client owners simultaneously and later ended `status=ok`,
+  `failed=0`; Ryu remained replay-zero. This closes the known shared-owner serialization defect.
+
+- **Browser admission amplification and cross-provider cookie fan-out are repaired on main.** PR
+  `#5164`, merge SHA `3fc66d8f0c...`, makes stale-context GC singleflight and detached from the
+  browser alive path, reaps at most one stale row only when capacity is full, and never reaps or
+  delays an existing task lease. The measured alive path is `0.07s`. PR `#5165`, merge SHA
+  `3cec1b70c0...`, lets each provider declare its cookie domain allowlist; all four Coconala lanes
+  now seed only `coconala.com` cookies. A live production-vault probe fell from 1,541 cross-provider
+  cookies and a greater-than-45-second timeout to 57 cookies and a `0.68s` acquire/release cycle.
+  Immutable release `20260914T030715-3cec1b70` is installed on all four Coconala lanes and they run
+  concurrently. Final Coconala acceptance remains open: the new Apply, Paid and Storefront natural
+  runs must write terminal receipts; prior low-disk and older-release receipts do not close this gate.
 
 - **Shared browser entry and operator-brake convergence are complete on main.** PR `#5159`, merge
   SHA `2668376830...`, changes BrowserContext acquisition to reserve under the ledger lock, perform
