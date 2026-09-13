@@ -5312,6 +5312,39 @@ the v74 artifact failed contract review without a buyer effect. Other Apply/Repl
 remain live and may acquire or progress independent revenue work. After current funded liabilities
 close, finish Coconala's vertical acceptance, then advance provider by provider in the order above.
 
+**Current measured Paid checkpoint.** The loaded immutable release is public main `0c19a983d8`.
+One natural pass observes six rooms and dispatches independent room owners; a failure in one room does
+not serialize another room's model work. The pass is not healthy yet: `effect=0`, `readback=2`,
+`failed=2`, `pending=2`.
+
+1. [ ] Ryu `18211957` — formally deliver only after the same room owner closes the fresh verifier's
+   four exact deltas. Production still contains the rejected clothing wording, free-text reception
+   explanation and phone fields instead of selectable controls, and the buyer-reference survey
+   gallery. Independent authenticated mobile/desktop management CRUD is also unproved. The verifier
+   correctly returns `quality_mismatch`; the defect is that this result ends at `remote_verifier`
+   instead of durably returning the deltas to the Ryu owner. Repair that verifier-to-owner transition,
+   redeploy the corrections, obtain a fresh PASS, attach the hash-bound update manual, send once with
+   the formal-delivery checkbox ON, read `納品確認待ち` from exact official room `18211957`, then prove
+   a natural replay produces zero duplicate message, attachment and formal-delivery effects.
+2. [ ] Chii `18180857` — replace the one-shot remote-effect completion model with a recurring-contract
+   ledger. The room is still `取引中`, formal delivery is false, and the current pass reports a
+   deduplicated zero effect after one officially read-back TikTok DM. That is correct per-recipient
+   dedupe but incorrect contract completion for the agreed 300–500 DMs/month. Persist contract period,
+   target count, completed count, candidate cursor, recipient effect/readback keys and next wake;
+   automatically search and qualify the next recipient, send the DM, update the spreadsheet, continue
+   until the period target or truthful reachable exhaustion, and only then prepare formal delivery.
+3. [ ] Bound owner context and skill discovery across every lane. Keep the small shared constitution,
+   room-local compact durable memory and capability metadata sticky; resolve relevant skills through
+   the existing shared resource resolver and load only the selected `SKILL.md` just in time. Never dump
+   the repository-wide skill inventory or another buyer's history into an owner context. Skills remain
+   reusable capability caches, not hidden authority or duplicated platform implementations.
+
+These three atoms supersede the stale statement that `18211838` alone is the immediate cursor. That
+room has prior formal-delivery evidence and must remain deduplicated; it may continue only genuinely
+new buyer work. The current development order is Ryu closure, recurring-contract/Chii continuation,
+bounded skill retrieval, then the remaining Coconala Paid aggregate gate below. Independent live room
+owners and the other three revenue lanes continue concurrently throughout.
+
 #### Remaining TODO snapshot — authoritative order to the end
 
 Do not advance the development cursor until every unchecked item in the current stage has official
@@ -6902,10 +6935,12 @@ and resumes both projects without manual customer work.
      or attachment is officially visible for the latest buyer request.
    - [x] X-post project `18171850`: approved v1 was attached and officially read back with formal
      delivery OFF.
-   - [ ] New TikTok project `18180857`: the natural loop sent and officially read back its first concise
-     start-material request with formal delivery OFF. Prove the unchanged buyer state replays with zero
-     effect, then consume the buyer's materials and continue the same project lane through real work and
-     delivery without Codex becoming the customer-work owner.
+   - [ ] New TikTok project `18180857`: the natural loop has one officially read-back individual TikTok
+     DM and the unchanged state replays with zero duplicate effect. Do not confuse that per-recipient
+     replay proof with completion of the recurring 300–500-DM monthly contract. Add the shared recurring
+     contract ledger described in the current checkpoint, then let this same project owner qualify the
+     next recipient, send, update the spreadsheet and continue through the monthly target or truthful
+     reachable exhaustion without Codex becoming the customer-work owner.
    - [ ] Review-article project `18171890`: do not represent v4 as a publishable completed article.
      Repair the generic acceptance boundary so missing contract-required screenshots, firsthand-use
      passages and required human editing cannot pass merely because the draft lists them as unresolved;
