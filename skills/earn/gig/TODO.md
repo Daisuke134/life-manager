@@ -71,6 +71,13 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   admission amplification for all finite platform loops, not a Coconala-client special case. It does
   not claim business-lane acceptance or revenue: each lane still needs its next admitted terminal
   receipt when host capacity is available.
+  Production rollout is also cross-platform rather than Coconala-only: loaded-idle reconciliation
+  installed the release on 109 additional finite owners with zero apply failures, including Lancers
+  Storefront/Negotiate/Paid/Work-sync, CrowdWorks Apply/Report and Mercor Apply/Reply/Paid. The only
+  measured marketplace owners still on an older release are the currently running Lancers Apply and
+  Telegram-report plus CrowdWorks Reply and Paid; reconcile each after its current wake naturally
+  becomes idle. The Lancers and shared marketplace browser keep-alives intentionally do not use finite
+  host admission and must not be restarted merely to align release SHAs.
 
 - **Shared browser entry and operator-brake convergence are complete on main.** PR `#5159`, merge
   SHA `2668376830...`, changes BrowserContext acquisition to reserve under the ledger lock, perform
