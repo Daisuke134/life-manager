@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import pwd
 import re
@@ -102,7 +103,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         maximum_load = float(os.environ.get("LIFE_MANAGER_MAX_LOAD_PER_CPU", "2"))
     except ValueError:
         return 64
-    if not 1 <= minimum <= 100 or maximum_load <= 0:
+    if (not 1 <= minimum <= 100 or not math.isfinite(maximum_load)
+            or maximum_load <= 0):
         return 64
     while True:
         available = memory_free_percent()
@@ -119,7 +121,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "reason": "memory_headroom_low", "free_percent": available,
                 "minimum_free_percent": minimum,
             })
-        elif load is None:
+        elif load is None or not math.isfinite(load):
             _write_receipt({
                 "status": "deferred", "effect": 0,
                 "reason": "cpu_headroom_unavailable",

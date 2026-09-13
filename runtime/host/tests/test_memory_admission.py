@@ -121,6 +121,21 @@ class MemoryAdmissionTests(unittest.TestCase):
                 self.assertEqual(MODULE.main(["/usr/bin/true"]), 75)
             self.assertEqual(json.loads(receipt.read_text())["reason"], "cpu_headroom_unavailable")
 
+    def test_non_finite_cpu_measurement_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            receipt = Path(temporary) / "memory.json"
+            with (
+                patch.dict(os.environ, {"LIFE_MANAGER_MEMORY_RECEIPT": str(receipt)}, clear=True),
+                patch.object(MODULE, "memory_free_percent", return_value=43),
+                patch.object(MODULE, "load_per_cpu", return_value=float("nan")),
+            ):
+                self.assertEqual(MODULE.main(["/usr/bin/true"]), 75)
+            self.assertEqual(json.loads(receipt.read_text())["reason"], "cpu_headroom_unavailable")
+
+    def test_non_finite_cpu_threshold_is_invalid(self):
+        with patch.dict(os.environ, {"LIFE_MANAGER_MAX_LOAD_PER_CPU": "NaN"}, clear=True):
+            self.assertEqual(MODULE.main(["/usr/bin/true"]), 64)
+
     def test_wait_mode_rechecks_cpu_until_it_recovers(self):
         with tempfile.TemporaryDirectory() as temporary:
             receipt = Path(temporary) / "memory.json"
