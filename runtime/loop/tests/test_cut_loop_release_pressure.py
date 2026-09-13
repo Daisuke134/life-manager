@@ -70,7 +70,7 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             self.assertTrue((release / "runtime/loop/runtime_event.py").is_file())
             self.assertTrue((release / "RELEASE.json").is_file())
 
-    def test_pressure_flag_allows_apfs_clone_of_verified_complete_ancestor(self) -> None:
+    def test_pressure_flag_allows_hardlink_copy_of_verified_complete_ancestor(self) -> None:
         with tempfile.TemporaryDirectory() as raw_home:
             home = Path(raw_home)
             repo = home / "repo"
@@ -129,6 +129,12 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             self.assertFalse((release / "old.txt").exists())
             self.assertEqual((release / "new.txt").read_text(), "new\n")
             self.assertEqual((release / "node_modules/runtime-marker").read_text(), "preserved\n")
+            self.assertEqual(
+                (release / "node_modules/runtime-marker").stat().st_ino,
+                (donor / "node_modules/runtime-marker").stat().st_ino,
+            )
+            self.assertEqual((donor / "old.txt").read_text(), "old\n")
+            self.assertEqual((donor / "node_modules/runtime-marker").stat().st_mode & 0o222, 0)
             self.assertFalse((release / "node_modules/node_modules").exists())
             self.assertEqual(json.loads((release / "RELEASE.json").read_text())["release_paths"], "ALL")
 

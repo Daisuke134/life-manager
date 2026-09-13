@@ -44,9 +44,9 @@ esac
 SHA="$(git -C "$REPO_ROOT" rev-parse "$REF" 2>/dev/null)" || die "cannot resolve ref '$REF'"
 SHORT="${SHA:0:8}"
 
-# A complete immutable release on APFS is an efficient source snapshot: clonefile shares its
-# unchanged blocks, then Git replaces only tracked source. This is also the only bounded way to
-# advance a dependency-complete multi-GiB release while the host is under disk pressure.
+# A complete immutable release is an efficient source snapshot: hard links share its unchanged
+# regular files, then Git unlinks and replaces every tracked source path. This avoids allocating a
+# clonefile inode for every dependency while the host is under disk pressure.
 FULL_CLONE_DONOR=""
 FULL_CLONE_DONOR_SHA=""
 if [ -z "$RELEASE_PATHS" ] && [ -f "$CURRENT/RELEASE.json" ]; then
@@ -114,7 +114,7 @@ cleanup() {
   local status=$?
   trap - EXIT INT TERM HUP
   if [ -n "$DEST" ] && [ -d "$DEST" ] && [ "$BUILD_COMPLETE" -ne 1 ]; then
-    chmod -R u+w "$DEST" 2>/dev/null || true
+    find "$DEST" -type d -exec chmod u+w {} + 2>/dev/null || true
     find "$DEST" -depth -delete 2>/dev/null || true
   fi
   find "$CUT_LOCK" -depth -delete 2>/dev/null || true
@@ -199,7 +199,7 @@ if [ -n "$RELEASE_PATHS" ]; then
 fi
 if [ "${#ARCHIVE_PATHS[@]}" -eq 0 ] && [ -n "$FULL_CLONE_DONOR" ]; then
   rmdir "$DEST" || die "new release directory is not empty"
-  cp -cR "$FULL_CLONE_DONOR" "$DEST" || die "APFS release clone failed"
+  cp -alR "$FULL_CLONE_DONOR" "$DEST" || die "hard-link release copy failed"
   find "$DEST" -type d -exec chmod u+w {} + || die "cannot make cloned directories writable"
   rm -f "$DEST/RELEASE.json" || die "cannot remove cloned release manifest"
   while IFS= read -r -d '' tracked_path; do
