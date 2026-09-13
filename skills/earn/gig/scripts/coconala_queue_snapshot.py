@@ -2247,6 +2247,7 @@ def persist_purchased_offer_brief(
 
 
 DEFAULT_TAB_OPEN_TIMEOUT_SECONDS = 75
+DEFAULT_TAB_CLOSE_TIMEOUT_SECONDS = 30
 
 
 class DefaultTab:
@@ -2357,8 +2358,9 @@ class DefaultTab:
         if self.hidden:
             self._stop_process()
         elif self.target_id:
+            closed = False
             try:
-                subprocess.run(
+                result = subprocess.run(
                     [
                         "python3",
                         str(self.helper),
@@ -2368,12 +2370,29 @@ class DefaultTab:
                         self.owner,
                     ],
                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL, timeout=10, check=False,
+                    stderr=subprocess.DEVNULL, timeout=DEFAULT_TAB_CLOSE_TIMEOUT_SECONDS,
+                    check=False,
                 )
+                closed = result.returncode == 0
             except (OSError, subprocess.TimeoutExpired):
-                # DOM capture is already complete. A stale temporary target is
-                # cleanup debt, not evidence that the authenticated read failed.
-                pass
+                closed = False
+            if closed:
+                return
+            # A navigation retry must never create a second target while the first
+            # target or its ownership row remains. Reconcile this owner before the
+            # exception can reach inspect_page_with_retry; otherwise the retry fails
+            # as browser_tab_limit and every provider/client stalls behind cleanup debt.
+            try:
+                reclaimed = subprocess.run(
+                    ["python3", str(self.helper), "close-owned", "--owner", self.owner],
+                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL, timeout=DEFAULT_TAB_CLOSE_TIMEOUT_SECONDS,
+                    check=False,
+                )
+            except (OSError, subprocess.TimeoutExpired) as error:
+                raise RuntimeError("failed to reclaim browser owner after tab close") from error
+            if reclaimed.returncode != 0:
+                raise RuntimeError("failed to reclaim browser owner after tab close")
 
 
 async def call(

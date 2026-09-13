@@ -149,6 +149,39 @@ def test_default_tab_open_budget_covers_context_creation_and_cookie_seed(monkeyp
     assert snapshot.DEFAULT_TAB_OPEN_TIMEOUT_SECONDS > 40
 
 
+def test_default_tab_reclaims_owner_before_navigation_retry(monkeypatch) -> None:
+    snapshot = load("coconala_queue_snapshot")
+    calls = []
+
+    def run(arguments, **_kwargs):
+        calls.append(arguments)
+        if arguments[2] == "close":
+            raise __import__("subprocess").TimeoutExpired(arguments, 30)
+        return __import__("subprocess").CompletedProcess(arguments, 0)
+
+    monkeypatch.setattr(snapshot.subprocess, "run", run)
+    tab = snapshot.DefaultTab(Path("helper"), "https://example.test", owner="paid-room")
+    tab.target_id = "first-target"
+
+    tab.__exit__()
+
+    assert [arguments[2] for arguments in calls] == ["close", "close-owned"]
+    assert calls[-1][-1] == "paid-room"
+
+
+def test_default_tab_refuses_retry_when_owner_reclaim_fails(monkeypatch) -> None:
+    snapshot = load("coconala_queue_snapshot")
+    monkeypatch.setattr(
+        snapshot.subprocess, "run",
+        lambda arguments, **_kwargs: __import__("subprocess").CompletedProcess(arguments, 1),
+    )
+    tab = snapshot.DefaultTab(Path("helper"), "https://example.test", owner="paid-room")
+    tab.target_id = "first-target"
+
+    with pytest.raises(RuntimeError, match="failed to reclaim browser owner"):
+        tab.__exit__()
+
+
 def test_talkroom_readback_retries_hidden_helper_transport_timeout(monkeypatch) -> None:
     snapshot = load("coconala_queue_snapshot")
     attempts = []
