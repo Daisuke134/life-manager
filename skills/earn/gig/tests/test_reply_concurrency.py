@@ -1735,6 +1735,95 @@ def test_supervise_slow_workers_overlap_and_claim_second_before_first_finishes(t
     assert first_finished.is_set()
 
 
+def test_supervise_shutdown_does_not_drain_durable_backlog(tmp_path):
+    """A release handoff finishes active work and leaves queued work to SQLite replay."""
+    args = _supervisor_args(tmp_path)
+    database = outbox.ConnectorOutbox(args.database, args.manifest)
+    for index, identity in enumerate(("a" * 64, "b" * 64, "c" * 64), start=101):
+        database.enqueue(
+            event_key=outbox.coconala_inbox_event_key(str(index), identity),
+            thread_id=str(index),
+            thread_url=f"https://coconala.com/mypage/direct_message/{index}",
+            observed_at=1_755_555_200 + index,
+        )
+    stop = asyncio.Event()
+    started = []
+
+    async def probe():
+        return {"inquiries": [], "captured_at": "2026-08-19T00:00:00+00:00"}
+
+    async def worker(item):
+        started.append(item["thread_id"])
+        stop.set()
+        await asyncio.sleep(0.01)
+        return {"status": "completed"}
+
+    async def reconcile():
+        return None
+
+    asyncio.run(detector.supervise_replies(
+        args, probe=probe, worker=worker, reconcile=reconcile, stop=stop,
+    ))
+
+    assert 1 <= len(started) <= 2
+    assert set(started).issubset({"101", "102", "103"})
+
+
+def test_continuous_reporter_stays_alive_for_late_active_worker_report(tmp_path, monkeypatch):
+    """SIGTERM cannot retire the reporter before the active worker reports."""
+    persisted = []
+
+    async def supervise(_args, *, stop, report, **_kwargs):
+        stop.set()
+        await asyncio.sleep(0)
+        await report(tmp_path / "late.json", {"status": "completed", "run_id": "late"})
+
+    monkeypatch.setattr(detector, "supervise_replies", supervise)
+    monkeypatch.setattr(
+        detector, "_persist_continuous_worker_report",
+        lambda _args, path, result: persisted.append((path, result)),
+    )
+    monkeypatch.setattr(detector, "_prune_continuous_evidence", lambda _path: None)
+    args = _supervisor_args(tmp_path)
+
+    result = asyncio.run(detector._run_continuous_runtime(args, tmp_path / "evidence"))
+
+    assert result["status"] == "stopped"
+    assert persisted == [(tmp_path / "late.json", {"status": "completed", "run_id": "late"})]
+
+
+def test_supervise_shutdown_does_not_enqueue_late_identity_rebind(tmp_path):
+    """A finishing worker cannot strand a rebound after consumers stop."""
+    args = _supervisor_args(tmp_path)
+    database = outbox.ConnectorOutbox(args.database, args.manifest)
+    old_identity = "a" * 64
+    _seed_pending_inbox_event(database, old_identity)
+    stop = asyncio.Event()
+    dispatched = []
+
+    async def probe():
+        return {"inquiries": [], "captured_at": "2026-08-19T00:00:00+00:00"}
+
+    async def worker(item):
+        dispatched.append(item)
+        stop.set()
+        return {
+            "status": "pending",
+            "errors": ["targeted_inbox_identity_changed"],
+            "current_identity_sha256": "b" * 64,
+            "current_last_message_side": "buyer",
+        }
+
+    async def reconcile():
+        return None
+
+    asyncio.run(detector.supervise_replies(
+        args, probe=probe, worker=worker, reconcile=reconcile, stop=stop,
+    ))
+
+    assert len(dispatched) == 1
+
+
 def test_head_snapshot_collector_has_a_bounded_process_timeout(tmp_path, monkeypatch):
     calls = []
     snapshot = tmp_path / "head-snapshot.json"
