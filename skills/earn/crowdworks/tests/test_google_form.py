@@ -43,11 +43,8 @@ def test_short_form_route_gets_bounded_wait_for_exact_official_viewform(tmp_path
         def __init__(self): self.page = Page()
         def new_page(self): return self.page
 
-    class Browser:
-        contexts = [Context()]
-
     with pytest.raises(RuntimeError, match="answer-stop"):
-        module.submit_once(browser=Browser(), state_root=tmp_path,
+        module.submit_once(context=Context(), state_root=tmp_path,
                            url="https://forms.gle/short",
                            url_sha256=__import__("hashlib").sha256(b"https://forms.gle/short").hexdigest(),
                            answer_fields=lambda page: (_ for _ in ()).throw(RuntimeError("answer-stop")))
@@ -66,11 +63,8 @@ def test_non_google_redirect_fails_closed_with_sanitized_host(tmp_path):
     class Context:
         def new_page(self): return Page()
 
-    class Browser:
-        contexts = [Context()]
-
     with pytest.raises(RuntimeError, match=r"google_form_route_invalid:accounts\.google\.com"):
-        module.submit_once(browser=Browser(), state_root=tmp_path,
+        module.submit_once(context=Context(), state_root=tmp_path,
                            url="https://forms.gle/short",
                            url_sha256=__import__("hashlib").sha256(b"https://forms.gle/short").hexdigest(),
                            answer_fields=lambda page: [])

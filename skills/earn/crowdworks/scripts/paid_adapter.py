@@ -117,6 +117,7 @@ class CrowdWorksPaidAdapter:
                  state_path: Path | None = None, candidate_profile: Path | None = None,
                  provider_profile: Mapping[str, Any] | None = None,
                  connection_factory: Callable[[], tuple[Any, Any]] | None = None,
+                 context_factory: Callable[[Any, Any], Any] | None = None,
                  application_receipts_path: Path = DEFAULT_APPLICATION_RECEIPTS):
         if not isinstance(account_id, str) or not account_id.strip():
             raise ValueError("crowdworks_account_id_invalid")
@@ -126,6 +127,8 @@ class CrowdWorksPaidAdapter:
         self.candidate_profile = Path(candidate_profile) if candidate_profile is not None else None
         self.provider_profile = dict(provider_profile) if provider_profile is not None else None
         self.connection_factory = connection_factory or _connect_existing_cdp
+        self._requires_isolation = context_factory is None
+        self.context_factory = context_factory or self._isolated_context
         self.application_receipts_path = Path(application_receipts_path).expanduser()
         self._local = threading.local()
         self._cache_lock = threading.Lock()
@@ -173,8 +176,27 @@ class CrowdWorksPaidAdapter:
             self.runtime.stop()
             self.runtime = self.browser = None
             raise RuntimeError("crowdworks_paid_browser_unavailable")
-        self.page = contexts[0].new_page()
-        self.page.set_default_timeout(15_000)
+        try:
+            self.owned_context = self.context_factory(self.browser, contexts[0])
+            if self._requires_isolation and self.owned_context is contexts[0]:
+                raise RuntimeError("crowdworks_paid_browser_state_invalid")
+            self.page = self.owned_context.new_page()
+            self.page.set_default_timeout(15_000)
+        except Exception:
+            if self.owned_context is not None and self.owned_context is not contexts[0]:
+                try: self.owned_context.close()
+                except Exception: pass
+            self.owned_context = None
+            self.runtime.stop()
+            self.runtime = self.browser = None
+            raise
+
+    @staticmethod
+    def _isolated_context(browser: Any, source_context: Any) -> Any:
+        state = source_context.storage_state()
+        if not isinstance(state, Mapping) or not isinstance(state.get("cookies"), list):
+            raise RuntimeError("crowdworks_paid_browser_state_invalid")
+        return browser.new_context(storage_state=json.loads(json.dumps(state)))
 
     @staticmethod
     def _goto(page: Any, url: str, stage: str) -> None:
@@ -191,7 +213,9 @@ class CrowdWorksPaidAdapter:
         try:
             self._goto(self.page, url, "contract")
         except CrowdWorksPaidContractTimeout:
-            context = self.owned_context or self.browser.contexts[0]
+            context = self.owned_context
+            if context is None:
+                raise RuntimeError("crowdworks_paid_browser_state_invalid")
             self.page.close()
             self.page = context.new_page()
             self.page.set_default_timeout(15_000)
@@ -203,10 +227,10 @@ class CrowdWorksPaidAdapter:
 
     def _switch_to_narrow_contract(self, work_id: str) -> None:
         """Clone auth into a short-lived mobile context without changing shared cookies."""
-        contexts = getattr(self.browser, "contexts", ())
-        if len(contexts) != 1:
+        source_context = self.owned_context
+        if source_context is None:
             raise RuntimeError("crowdworks_paid_browser_unavailable")
-        state = contexts[0].storage_state()
+        state = source_context.storage_state()
         if not isinstance(state, Mapping) or not isinstance(state.get("cookies"), list):
             raise RuntimeError("crowdworks_paid_browser_state_invalid")
         copied = json.loads(json.dumps(state))
@@ -216,19 +240,33 @@ class CrowdWorksPaidAdapter:
                     and str(cookie.get("domain") or "").lstrip(".") == "crowdworks.jp"):
                 cookie["value"] = "sp"
                 found_device = True
-        self.owned_context = self.browser.new_context(
+        mobile_context = self.browser.new_context(
             storage_state=copied, viewport={"width": 390, "height": 844}, is_mobile=True,
             user_agent=("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) "
                         "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 "
                         "Mobile/15E148 Safari/604.1"))
-        if not found_device:
-            self.owned_context.add_cookies([{"name": "mobylette_device", "value": "sp",
+        try:
+            if not found_device:
+                mobile_context.add_cookies([{"name": "mobylette_device", "value": "sp",
                                              "domain": "crowdworks.jp", "path": "/",
                                              "secure": True, "sameSite": "None"}])
-        if self.page is not None:
-            self.page.close()
-        self.page = self.owned_context.new_page()
-        self.page.set_default_timeout(15_000)
+            mobile_page = mobile_context.new_page()
+            mobile_page.set_default_timeout(15_000)
+        except Exception:
+            mobile_context.close()
+            raise
+        old_page = self.page
+        self.page = mobile_page
+        self.owned_context = mobile_context
+        if old_page is not None:
+            try:
+                old_page.close()
+            except Exception:
+                pass
+        try:
+            source_context.close()
+        except Exception:
+            pass
         self._goto_contract(work_id)
 
     @staticmethod
@@ -288,8 +326,7 @@ class CrowdWorksPaidAdapter:
         try:
             return self._detail_once(basic)
         except PlaywrightTimeoutError:
-            contexts = getattr(self.browser, "contexts", ())
-            context = self.owned_context or (contexts[0] if len(contexts) == 1 else None)
+            context = self.owned_context
             if context is None:
                 raise CrowdWorksPaidContractTimeout() from None
             self.page.close()
@@ -344,7 +381,9 @@ class CrowdWorksPaidAdapter:
                 "proposal_id": proposal_id, "application_date": application_date}
 
     def _proposal_application_date(self, proposal_id: str) -> str | None:
-        proposal = self.browser.contexts[0].new_page()
+        if self.owned_context is None:
+            raise RuntimeError("crowdworks_paid_browser_state_invalid")
+        proposal = self.owned_context.new_page()
         try:
             try:
                 self._goto(proposal, f"https://crowdworks.jp/proposals/{proposal_id}", "proposal")
@@ -560,7 +599,7 @@ class CrowdWorksPaidAdapter:
         if self.state_path is None:
             raise RuntimeError("crowdworks_paid_state_unavailable")
         return google_form.submit_once(
-            browser=self.browser, state_root=self.state_path, url=form_url, url_sha256=form_sha256,
+            context=self.owned_context, state_root=self.state_path, url=form_url, url_sha256=form_sha256,
             answer_fields=lambda page: self._form_fields(page, item),
             binding=self._form_binding(item, form_sha256),
         )
