@@ -74,9 +74,9 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   Production rollout is also cross-platform rather than Coconala-only: loaded-idle reconciliation
   installed the release on 109 additional finite owners with zero apply failures, including Lancers
   Storefront/Negotiate/Paid/Work-sync, CrowdWorks Apply/Paid/Report and Mercor Apply/Reply/Paid. The only
-  measured finite marketplace owners still on an older release are the currently running Lancers Apply
-  and CrowdWorks Reply; reconcile each after its current wake naturally
-  becomes idle. The Lancers and shared marketplace browser keep-alives intentionally do not use finite
+  measured finite marketplace owner still on an older release is the currently running Lancers Apply;
+  reconcile it after its current wake naturally becomes idle. The Lancers and shared marketplace browser
+  keep-alives intentionally do not use finite
   host admission and must not be restarted merely to align release SHAs.
 
 - **Shared browser entry and operator-brake convergence are complete on main.** PR `#5159`, merge
