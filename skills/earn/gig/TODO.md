@@ -16,14 +16,18 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
 
 - **Completed and excluded:** Manledge/Clover `18169985` and 逃げ因子 `18211838`. Never resend,
   replace or re-audit either delivery without a genuinely new buyer event.
-- **Coconala Paid is not fully complete.** Ryu `18211957` remains open until the exact official
-  talkroom proves formal delivery and a following replay proves zero duplicate effect. Chii
+- **Coconala Paid has no active delivery blocker.** Ryu `18211957` received the verified ordinary
+  review message and `colors-hachioji-update-manual-v187.md`; official talkroom readback proves the
+  seller message, attachment, transaction state `取引中`, and `正式な納品` unchecked. A replay produced
+  effect zero and failed closed at `requirements_toctou` because the successful send changed the
+  conversation hash. Formal delivery remains a future buyer-event action and is forbidden until the
+  latest official buyer message explicitly approves closure. Chii
   `18180857` is excluded from the main development cursor, Paid aggregate completion gate and USD
   10,000 MRR plan by Dais's explicit decision. Retain the historical truth—**12/300** official
   TikTok-DM/Sheet pairs and **288 unproved**—but do not spend this program's engineering or operator
   time advancing, rediscovering, messaging or formally delivering it. An unsupported completion
   claim never becomes revenue evidence.
-- **Ryu's product work and independent verification pass; the buyer review handoff remains open.**
+- **Ryu's product work, independent verification and ordinary review handoff pass.**
   Authenticated admin/API/public readbacks and mobile/desktop survey readbacks pass, and the latest
   independent verifier classifies the result as `pass`. Two controller attempts nevertheless stopped
   before the marketplace effect: the first exposed unstable semantic-contract identity, and the second
@@ -45,9 +49,13 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   official-room read first hit `browser_tab_limit`, and the retry then failed closed as
   `failed to reclaim browser owner after tab close` while several isolated client contexts were
   concurrently loading. A post-exit same-owner reconciliation reports zero residual owned targets.
-  Therefore Ryu is not submitted, not formally delivered, and not complete. The active shared defect
-  is bounded CDP control-plane saturation/cleanup observability under concurrent clients; repair it
-  without serializing clients or weakening effect fences, then perform the one ordinary review send.
+  PR `#5146` and follow-up PR `#5148` then made verified-result reuse strict, Codex-only for the Paid
+  owner, and skipped the stale remote-resume branch after reuse. Immutable release
+  `20260913T235645-426fb097` sent the ordinary review exactly once. Official readback proves the exact
+  target, seller message and manual attachment while formal delivery remains off. The shared remaining
+  defect is the aggregate batch barrier: each client must progress independently through
+  read -> decide -> effect -> readback under a bounded browser pool, rather than waiting for every
+  client's decision before any ready effect can run.
 - **Shared TikTok transport is merged but not the active cursor.** The model qualifies a real candidate and writes truthful,
   recipient-specific copy. Deterministic shared code binds the exact recipient, sends once, performs
   official readback, appends one paired campaign receipt and never retries an uncertain send. The
@@ -68,27 +76,30 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
 The remaining revenue order is:
 
 **Order-change record.** The old first item was host-state/browser restoration. Its canonical-state
-release and a natural Paid wake are now proved, so retaining it as the cursor would repeat completed
-work. The new order removes that completed prerequisite and promotes the former second item without
-interrupting any active client owner. The current cursor is Ryu ordinary review submission while the independent
-CrowdWorks funded owner continues concurrently.
+release and Ryu ordinary-review effect are now proved, so retaining either as the cursor would repeat
+completed work. The new order removes those completed prerequisites without interrupting any active
+client owner. The current cursor is Coconala vertical revenue proof while funded CrowdWorks work
+continues independently.
 
-1. Close active funded liabilities concurrently: Ryu ordinary-review-message proof, subsequent buyer
-   approval and only then formal-delivery proof, plus CrowdWorks funded
-   milestone/delivery/payment effects. Chii is excluded and does not gate this step. A buyer owner
-   never waits for another buyer.
+1. Close active funded liabilities concurrently: CrowdWorks funded milestone/delivery/payment effects.
+   Ryu waits only as a dormant per-client cursor for a new official buyer event; Chii is excluded.
+   A buyer owner never waits for another buyer.
 2. Finish Coconala vertically across Apply, Reply, Paid and Storefront, including one-off plus retainer
    applications and attributable payout evidence.
-3. Finish each next provider vertically while all installed lanes remain live: Lancers, CrowdWorks,
+3. Remove the Paid aggregate batch barrier and run each client as an independent completion-order
+   pipeline under a bounded browser worker pool, isolated browser context/session, per-job timeout,
+   queue backpressure and reconcile-before-retry. Cache semantic decisions only by immutable
+   client/context/requirements/policy hashes. Keep Paid agent routes Codex-only.
+4. Finish each next provider vertically while all installed lanes remain live: Lancers, CrowdWorks,
    Mercor, Freelancer.com, Upwork, then evidence-ranked new platforms. Missing Storefront is
    `not_applicable`; missing contract leaves Paid open but never pauses Apply.
-4. Extract only proven duplicated lifecycle behavior into `marketplace-core`; provider authentication,
+5. Extract only proven duplicated lifecycle behavior into `marketplace-core`; provider authentication,
    vocabulary, selectors, mutations and official readback remain thin adapters. Every repair is tested
    against all adopted providers so a new platform never copies a lane.
-5. Enable the marketplace meta-loop to discover opportunities on the web/X, qualify expected net
+6. Enable the marketplace meta-loop to discover opportunities on the web/X, qualify expected net
    revenue and policy fit, scaffold a thin adapter, test/release it and promote it only after a real
    official effect plus replay-zero.
-6. Deliver Telegram-only multi-tenant operation on the **OpenAI Agents API**. Life Manager creates and
+7. Deliver Telegram-only multi-tenant operation on the **OpenAI Agents API**. Life Manager creates and
    retains one isolated durable agent session per tenant/objective, streams or receives webhook progress,
    and resumes/steers the same session without requiring a local computer. Use an OpenAI-hosted environment
    by default for code, files, skills, MCP and artifacts; use a self-hosted environment only when a private
