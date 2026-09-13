@@ -36,6 +36,18 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   formal closure. The correct next effect is exactly one ordinary Coconala review message with the
   verified URLs and manual while `正式な納品` remains off, followed by exact-room readback and replay-zero.
   Only a later latest buyer message that explicitly approves closure may authorize formal delivery.
+  PR `#5140`, merge SHA `46f5714295...`, enforces that rule in both semantic routing and the
+  final browser click: account-owner policy cannot substitute for an exact latest official buyer
+  approval, forged or symlinked provenance fails closed, and focused Paid acceptance passes 179/179.
+  PR `#5141`, merge SHA `0c9d5664e7...`, makes a failed navigation reclaim only that client's
+  owned tab before retry, with focused acceptance at 181/181 and fresh review passing. Release
+  `20260913T214925-0c9d5664` is installed. Its observed run still produced **effect zero**: Ryu's
+  official-room read first hit `browser_tab_limit`, and the retry then failed closed as
+  `failed to reclaim browser owner after tab close` while several isolated client contexts were
+  concurrently loading. A post-exit same-owner reconciliation reports zero residual owned targets.
+  Therefore Ryu is not submitted, not formally delivered, and not complete. The active shared defect
+  is bounded CDP control-plane saturation/cleanup observability under concurrent clients; repair it
+  without serializing clients or weakening effect fences, then perform the one ordinary review send.
 - **Shared TikTok transport is merged but not the active cursor.** The model qualifies a real candidate and writes truthful,
   recipient-specific copy. Deterministic shared code binds the exact recipient, sends once, performs
   official readback, appends one paired campaign receipt and never retries an uncertain send. The
@@ -58,7 +70,7 @@ The remaining revenue order is:
 **Order-change record.** The old first item was host-state/browser restoration. Its canonical-state
 release and a natural Paid wake are now proved, so retaining it as the cursor would repeat completed
 work. The new order removes that completed prerequisite and promotes the former second item without
-interrupting any active client owner. The current cursor is Ryu formal delivery while the independent
+interrupting any active client owner. The current cursor is Ryu ordinary review submission while the independent
 CrowdWorks funded owner continues concurrently.
 
 1. Close active funded liabilities concurrently: Ryu ordinary-review-message proof, subsequent buyer
