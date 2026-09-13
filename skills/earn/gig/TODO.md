@@ -98,11 +98,16 @@ and a following replay-zero.
 
 0. **Existing funded liabilities first.** Finish every already-purchased Coconala/CrowdWorks obligation
    through useful artifact, buyer feedback, formal delivery where authorized, official completion and
-   replay-zero. Current first atom is Coconala `18211838`: stop the unbounded search for a 100% recovery
-   candidate, correct and re-review the strongest completed 71.6% audit, state the shortfall and work
-   performed honestly, submit it as the formal delivery once, obtain exact-room readback, then prove
-   replay-zero. Preserve its source corpus as input to a later internal Keiba improvement/earning loop;
-   that research no longer blocks this low-value order. Manledge/Clover `18169985` is closed and excluded.
+   replay-zero. Coconala `18211838` is formally delivered: production release `e73ae9625...` selected
+   `actionable/file/formal` with the exact buyer closure identity, submitted the verified audit package
+   (`e7d30d71...`, 54,705 rows, honest 71.6% recovery) with `formal_delivery_checkbox=true`, and exact-room
+   readback changed to `納品確認待ち / 納品送付` with the formal control and send button disabled. Do not
+   withdraw, replace, or resend this pending formal delivery. The next natural Paid read must record it as
+   completed/replay-zero; separately repair the shared owner/controller boundary so artifact builders never
+   perform marketplace effects or lose their temporary effect receipt before controller verification.
+   Preserve the source corpus as input to a later internal Keiba improvement/earning loop; that research no
+   longer blocks this order. Continue with the remaining already-funded Coconala/CrowdWorks liabilities.
+   Manledge/Clover `18169985` is closed and excluded.
 1. **Coconala vertical acceptance.** Close all remaining Apply, Reply, Paid and Storefront acceptance,
    then prove payout attribution without reopening completed customer work.
 2. **Lancers vertical acceptance.** Phone verification is complete. Run suitable Apply until a real
@@ -3965,16 +3970,14 @@ liability order below, is:
   the authorized accounts, create and publish the contracted article with the required affiliate placement,
   verify the live article URL, submit that URL once, obtain exact-room readback, and replay zero. It must
   never ask the buyer again for an account, skill, login availability, or fact already in compiled context.
-- [ ] 逃げ因子 `18211838`: replace progress-only research with the contracted reproducible horse-racing
-  report covering the agreed date range, bet types, overall, class, and racecourse breakdowns. Paid must
-  bind the specified source records to official results/payouts, fresh-review the complete report, submit
-  the buyer-usable artifact once with formal delivery off, read it back, and replay zero. Per the account
-  owner's latest explicit order, Chii `18180857` continues autonomously toward its 300-pair delivery gate
-  while this independent project starts concurrently; neither project performs the other's work or waits
-  for the other's terminal state. Re-open the requirement matrix, search the web and relevant public repositories for stronger
-  source/method evidence, rebuild the report, and resubmit a new hash only after every objectively
-  verifiable requirement is covered. The existing v7 and a prior buyer-visible send are iteration evidence,
-  not permission to classify the current contract as complete or to give up.
+- [x] 逃げ因子 `18211838`: production Paid formally submitted the strongest reproducible audit after the
+  buyer explicitly ended the transaction and promised payment. The delivered package hash is
+  `e7d30d71d86766eafe96ff08fe07fa1d1a81018d704b735a5381e9571a3bf00c`; its 54,705-row ledger recomputes
+  stake 28,427,400 yen, return 20,351,860 yen, and 71.5924% recovery, stated honestly as 71.6% rather than
+  the requested 100%/120%. The effect receipt observed `send_performed=true`, `sent=true`, and
+  `formal_delivery_checkbox=true`; exact-room readback is `納品確認待ち / 納品送付` with mutation controls
+  disabled. Preserve this as the one formal delivery and never replace or resend it. Chii `18180857`
+  remains an independent funded liability and continues through its own 300-pair delivery gate.
 - [ ] snow990 `18218780`: retrieve the buyer-provided Firestorage TIFF through the existing authenticated
   browser/download path, produce the requested JPG with the shutter opened, dusk-reference perspective,
   and bright visible entrance, fresh-review the actual image, submit it once with formal delivery off,
