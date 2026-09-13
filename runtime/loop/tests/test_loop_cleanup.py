@@ -230,7 +230,8 @@ class LoopCleanupTest(unittest.TestCase):
             (root / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
             result = subprocess.run(
                 [sys.executable, "-m", "runtime.loop.lm_loop_run", "job", str(root)],
-                cwd=Path(__file__).parents[3], env={**os.environ, "HOME": str(home)}, check=False)
+                cwd=Path(__file__).parents[3], env={**os.environ, "HOME": str(home),
+                                                    "LIFE_MANAGER_MAX_LOAD_PER_CPU": "100000"}, check=False)
             self.assertEqual(result.returncode, exit_code)
             event = json.loads((home / "state/events.jsonl").read_text().splitlines()[-1])
             return validate_runtime_event(event)
@@ -263,6 +264,7 @@ class LoopCleanupTest(unittest.TestCase):
             environment = {
                 **os.environ,
                 "HOME": str(home),
+                "LIFE_MANAGER_MAX_LOAD_PER_CPU": "100000",
                 "LIFE_MANAGER_RELEASE_ROOT": "",
                 "LIFE_MANAGER_REPO": "source-sentinel",
             }
@@ -294,7 +296,8 @@ class LoopCleanupTest(unittest.TestCase):
             (root/'RELEASE.json').write_text(json.dumps({'sha':'a'*40}))
             wrapper=subprocess.Popen(
                 [sys.executable,'-m','runtime.loop.lm_loop_run','job',str(root)],
-                cwd=Path(__file__).parents[3],env={**os.environ,'HOME':str(home)})
+                cwd=Path(__file__).parents[3],env={**os.environ,'HOME':str(home),
+                                                   'LIFE_MANAGER_MAX_LOAD_PER_CPU':'100000'})
             for _ in range(50):
                 if pid_file.exists():break
                 time.sleep(0.02)
@@ -323,7 +326,8 @@ class LoopCleanupTest(unittest.TestCase):
             (root / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
             wrapper = subprocess.Popen(
                 [sys.executable, "-m", "runtime.loop.lm_loop_run", "job", str(root)],
-                cwd=Path(__file__).parents[3], env={**os.environ, "HOME": str(home)})
+                cwd=Path(__file__).parents[3], env={**os.environ, "HOME": str(home),
+                                                    "LIFE_MANAGER_MAX_LOAD_PER_CPU": "100000"})
             try:
                 for _ in range(100):
                     if started.exists():
