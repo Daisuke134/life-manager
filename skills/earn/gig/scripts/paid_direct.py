@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Iterator
+from urllib.parse import urlsplit
 HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path: sys.path.insert(0, str(HERE))
 import delivery_project  # noqa: E402
@@ -72,11 +73,43 @@ def _deny_reads(paths: list[str]) -> str:
     return "".join(f"(deny file-read* (subpath {json.dumps(path)}))\n" for path in paths)
 
 
+def _shared_browser_denies() -> str:
+    """Remove the authenticated Coconala daily-driver from model-owned processes."""
+    endpoint = urlsplit(os.environ.get("CLOAK_CDP_BASE_URL", "http://127.0.0.1:9222"))
+    if endpoint.hostname not in {"localhost", "127.0.0.1", "::1"} or endpoint.port is None:
+        raise ValueError("shared CDP endpoint must be loopback with an explicit port")
+    vault = Path(os.environ.get(
+        "CLOAK_SESSION_VAULT_FILE", "~/.cloak/vault/daily-driver/auth-state.json",
+    )).expanduser().resolve()
+    leases = Path(os.environ.get(
+        "CLOAK_CONTEXT_LEASES_FILE", "~/.cloak/vault/leases.json",
+    )).expanduser().resolve()
+    target_owners = Path(os.environ.get(
+        "CLOAK_TARGET_OWNERS_FILE", "~/.cloak/vault/target-owners.json",
+    )).expanduser().resolve()
+    profile_candidates = {
+        Path(os.environ.get(
+            "CDP_DAILY_DRIVER_PROFILE", "~/.cloak/profiles/gig-daily-driver",
+        )).expanduser().resolve(),
+        Path("~/.cloak/profiles/gig-daily-driver").expanduser().resolve(),
+        Path("~/.cloak/profiles/daily-driver").expanduser().resolve(),
+    }
+    return (
+        f'(deny network-outbound (remote tcp "*:{endpoint.port}"))\n'
+        + _deny_reads([
+            str(vault.parent), str(leases), str(target_owners),
+            *(str(path) for path in profile_candidates),
+        ])
+    )
+
+
+def _model_sandbox_header() -> str:
+    return "(version 1)\n(allow default)\n" + _shared_browser_denies()
+
+
 def _private_model_runner(root: Path, command: list[str], label: str) -> list[str]:
     """Run a project-root model with buyer credential files unreadable at the OS boundary."""
     restricted = [str(path) for path in restricted_attachment_paths(root)]
-    if not restricted:
-        return command
     read_only = "--read-only" in command
     if read_only:
         # macOS rejects a second Seatbelt profile inside sandbox-exec. Keep the
@@ -89,7 +122,7 @@ def _private_model_runner(root: Path, command: list[str], label: str) -> list[st
     profile = root / "context" / f".{label}-private-data.sb"
     profile.parent.mkdir(parents=True, exist_ok=True)
     profile.write_text(
-        "(version 1)\n(allow default)\n"
+        _model_sandbox_header()
         + _deny_reads(restricted)
         + "".join(f"(deny file-write* (subpath {json.dumps(path)}))\n" for path in write_denies),
         encoding="utf-8",
@@ -1282,8 +1315,8 @@ def _prepare_blind_output_audit(
                 shutil.copyfile(source, runtime / sibling)
         profile = isolated / "blind-only.sb"
         profile.write_text(
-            "(version 1)\n(allow default)\n"
-            f"(deny file-read* (subpath {json.dumps(str(root.resolve().parent))}))\n"
+            _model_sandbox_header()
+            + f"(deny file-read* (subpath {json.dumps(str(root.resolve().parent))}))\n"
             f"(deny file-read* (subpath {json.dumps(str(REPO_ROOT))}))\n"
             + _deny_reads(_operator_denied_paths())
             + f"(deny file-write* (subpath {json.dumps(str(root.resolve().parent))}))\n",
@@ -2626,8 +2659,8 @@ def _prepare_source_census(args, root: Path, requirements_sha256: str, code_root
         quoted_releases = json.dumps(str(code_root.resolve().parent))
         quoted_checkout = json.dumps(str(REPO_ROOT))
         profile.write_text(
-            "(version 1)\n(allow default)\n"
-            f"(deny file-read* (subpath {quoted_projects}))\n"
+            _model_sandbox_header()
+            + f"(deny file-read* (subpath {quoted_projects}))\n"
             f"(deny file-read* (subpath {quoted_live_evidence}))\n"
             f"(deny file-read* (subpath {quoted_delivery_evidence}))\n"
             f"(deny file-read* (subpath {quoted_releases}))\n"
@@ -3397,8 +3430,8 @@ def _run_isolated_file_owner(args, root: Path, context: Path, prompt_text: str,
         staged_evidence = staging / "runner-evidence"
         profile = staging / "owner-only.sb"
         profile.write_text(
-            "(version 1)\n(allow default)\n"
-            f"(deny file-read* (subpath {json.dumps(str(root.resolve()))}))\n"
+            _model_sandbox_header()
+            + f"(deny file-read* (subpath {json.dumps(str(root.resolve()))}))\n"
             f"(deny file-write* (subpath {json.dumps(str(root.resolve()))}))\n",
             encoding="utf-8",
         )
@@ -4146,13 +4179,11 @@ def _remote_mode_required(root: Path, item: dict[str, Any], feedback: str) -> bo
         return _legacy_paid_mode(root, feedback) == "remote" or _remote_revision_required(root, feedback)
 
 def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: str,
-                   verifier: bool, cdp_helper: Path,
+                   verifier: bool, _cdp_helper: Path,
                    review_delta: list[dict[str, str]] | None = None) -> str:
     code_root = REPO_ROOT
     semantic_contract, semantic_contract_sha256 = _semantic_effect_contract(root)
     role = "fresh read-only remote reviewer" if verifier else "paid remote owner"
-    suffix = "remote-verifier" if verifier else "remote-builder"
-    tab_owner = f"{os.environ.get('CLOAK_BROWSER_OWNER', f'paid-direct-{root.name}')}-{suffix}"
     mutation = "Never mutate, click submit, or send anything." if verifier else "Mutate only the authenticated target when required, idempotently."
     target_contract = (
         f"Read builder-owned {root / 'delivery/paid-remote-intent.json'} and "
@@ -4292,9 +4323,10 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
             "account handle/profile URL in official DOM while that wrapper owns the lease. Bind the observed account/member identity to the matching authorization before reading or mutating it, "
             "and fail closed rather than reuse another client's session or evidence. "
             "Never use Hermes or gig_pass.sh. "
-            f"When no authorized registered identity matches, use the existing CloakBrowser daily-driver with a self-owned default-context tab: "
-            f"{cdp_helper} open <url> --background --owner {tab_owner}; close that exact target tab and never navigate an existing foreground tab. "
-            "Invoke the helper with python3, never python. "
+            "The shared daily-driver CDP and its session vault are unavailable in this stage because they contain the "
+            "marketplace account. Use only a resource-resolver-selected target-specific browser identity through "
+            "with-browser.sh. When none exists, provision or recover a target-specific identity with the existing "
+            "browser resource tools; never fall back to the shared daily driver. "
             "Before any external mutation, reconcile all project-owned external-effect receipts with current official "
             "provider and matching bookkeeping readback. Never repeat an effect whose receipt is already verified; "
             "instead carry that verified effect into the canonical desired and observed state. "
@@ -4917,7 +4949,9 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
               "--evidence-dir", str(verifier_evidence), "--task-label", "paid-remote-verifier",
               "--escalation-reason", "Fresh model independently verifies the paid live target",
               "--loop", _runner_loop_id(), "--workdir", str(root), "--timeout-seconds", "1800"]
-        _run_private_model_serialized(root, verifier_command, "paid-remote-verifier", "remote_verifier")
+        _run_private_model_serialized(
+            root, verifier_command, "paid-remote-verifier", "remote_verifier",
+        )
         if (_requirements_snapshot(root) != requirements_snapshot
                 or _delivery_snapshot(root) != delivery_snapshot
                 or _project_identity_snapshot(root, verifier_evidence) != project_snapshot):

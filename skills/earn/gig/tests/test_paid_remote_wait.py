@@ -192,6 +192,46 @@ def test_paid_failure_preserves_machine_readable_step_and_diagnostic_detail() ->
     assert str(error) == "isolated_file_owner"
 
 
+def test_remote_owner_sandbox_removes_shared_marketplace_browser(tmp_path, monkeypatch) -> None:
+    paid = load("paid_direct")
+    root = tmp_path / "project"
+    root.mkdir()
+    vault = tmp_path / "daily-driver-auth.json"
+    leases = tmp_path / "daily-driver-leases.json"
+    target_owners = tmp_path / "daily-driver-target-owners.json"
+    profile_root = tmp_path / "gig-daily-driver-profile"
+    monkeypatch.setenv("CLOAK_CDP_BASE_URL", "http://127.0.0.1:9222")
+    monkeypatch.setenv("CLOAK_SESSION_VAULT_FILE", str(vault))
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases))
+    monkeypatch.setenv("CLOAK_TARGET_OWNERS_FILE", str(target_owners))
+    monkeypatch.setenv("CDP_DAILY_DRIVER_PROFILE", str(profile_root))
+
+    wrapped = paid._private_model_runner(root, [sys.executable, "owner.py"], "paid-remote-owner")
+
+    assert wrapped[:3] == ["/usr/bin/sandbox-exec", "-f", str(root / "context/.paid-remote-owner-private-data.sb")]
+    profile = (root / "context/.paid-remote-owner-private-data.sb").read_text(encoding="utf-8")
+    assert '(deny network-outbound (remote tcp "*:9222"))' in profile
+    assert str(vault.parent) in profile
+    assert str(leases) in profile
+    assert str(target_owners) in profile
+    assert str(profile_root) in profile
+
+
+def test_remote_owner_prompt_forbids_shared_daily_driver_fallback(tmp_path) -> None:
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    requirements_sha = paid.paid_remote_result.requirements_digest(root, feedback)
+
+    prompt = paid._repair_prompt(
+        root, tmp_path / "item.json", feedback, requirements_sha,
+        False, tmp_path / "cdp.py",
+    )
+
+    assert "shared daily-driver CDP and its session vault are unavailable" in prompt
+    assert "never fall back to the shared daily driver" in prompt
+    assert "resource-resolver-selected target-specific browser identity" in prompt
+
+
 def test_paid_subprocess_failure_preserves_bounded_stderr() -> None:
     paid = load("paid_direct")
     with pytest.raises(paid.Failure) as caught:
