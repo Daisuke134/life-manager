@@ -16,6 +16,7 @@ the same trick as Playwright's storageState ("reuse this state and start already
 """
 import asyncio
 import contextlib
+from concurrent.futures import ThreadPoolExecutor
 import fcntl
 import json
 import os
@@ -329,6 +330,38 @@ def _browser_context_exists(context_id):
     return context_id in context_ids
 
 
+_PROVISIONING_TIMEOUT_SECONDS = 120
+
+
+def _provisioning_expired(held, now=None):
+    if not isinstance(held, dict) or held.get("provisioning") is not True:
+        return False
+    now = time.time() if now is None else now
+    deadline = held.get("provisioning_deadline")
+    if not isinstance(deadline, (int, float)) or isinstance(deadline, bool):
+        started = held.get("provisioning_started_at", held.get("ts"))
+        if not isinstance(started, (int, float)) or isinstance(started, bool):
+            return False
+        deadline = started + _PROVISIONING_TIMEOUT_SECONDS
+    return now >= deadline
+
+
+def _lease_is_stale(held, now, idle_min=None):
+    """Dead/expired rows are reclaimable immediately; normal rows retain idle GC."""
+    if not isinstance(held, dict):
+        return False
+    if held.get("cleanup_pending") is True:
+        return True
+    if held.get("parked") is True:
+        return False
+    if held.get("provisioning") is True:
+        return _provisioning_expired(held, now) or _pid_alive(held.get("pid")) is False
+    return (
+        _pid_alive(held.get("pid")) is False
+        or (idle_min is not None and now - held.get("ts", 0) > idle_min * 60)
+    )
+
+
 def _new_slot_blocked(task):
     with _ledger_lock():
         leases = _leases()
@@ -336,15 +369,25 @@ def _new_slot_blocked(task):
 
 
 def _recover_capacity_if_needed(task, wait_seconds=25.0):
-    """Reap one stale row only when admission would otherwise fail."""
-    if not _new_slot_blocked(task):
+    """Reap a bounded stale batch when this task or capacity needs recovery."""
+    with _ledger_lock():
+        leases = _leases()
+        held = leases.get(task)
+        needs_reap = _lease_is_stale(held, time.time())
+        blocked = task not in leases and len(leases) >= _max_contexts()
+    if not needs_reap and not blocked:
         return
-    result = gc(idle_min=45, max_reaps=1)
+    result = gc(idle_min=45, max_reaps=8, priority_task=task)
     if result.get("skipped") != "gc_already_running":
         return
     deadline = time.monotonic() + wait_seconds
     while time.monotonic() < deadline:
-        if not _new_slot_blocked(task):
+        with _ledger_lock():
+            leases = _leases()
+            held = leases.get(task)
+            needs_reap = _lease_is_stale(held, time.time())
+            blocked = task not in leases and len(leases) >= _max_contexts()
+        if not needs_reap and not blocked:
             return
         time.sleep(0.1)
 
@@ -461,12 +504,17 @@ def acquire(task, url="about:blank", no_seed=False):
             _save(leases)
 
         reservation_token = secrets.token_hex(16)
+        provisioning_started_at = time.time()
         leases[task] = {
             "provisioning": True,
             "token": reservation_token,
             "generation": 1,
             "pid": current_holder,
-            "ts": int(time.time()),
+            "ts": int(provisioning_started_at),
+            "provisioning_started_at": provisioning_started_at,
+            "provisioning_deadline": (
+                provisioning_started_at + _PROVISIONING_TIMEOUT_SECONDS
+            ),
         }
         _save(leases)
 
@@ -572,6 +620,8 @@ def acquire(task, url="about:blank", no_seed=False):
                     leases.pop(task, None)
                 else:
                     reserved.pop("provisioning", None)
+                    reserved.pop("provisioning_started_at", None)
+                    reserved.pop("provisioning_deadline", None)
                     reserved["cleanup_pending"] = True
                     reserved["context_id"] = ctx_id
                     reserved["ts"] = 0
@@ -889,7 +939,7 @@ def park(task, token=None, generation=None):
         }
 
 
-def gc(idle_min=45, max_reaps=None):
+def gc(idle_min=45, max_reaps=None, priority_task=None):
     with _gc_singleflight() as acquired:
         if not acquired:
             return {
@@ -899,10 +949,37 @@ def gc(idle_min=45, max_reaps=None):
                 "cleanup_pending": [],
                 "skipped": "gc_already_running",
             }
-        return _gc_owned(idle_min, max_reaps=max_reaps)
+        return _gc_owned(
+            idle_min, max_reaps=max_reaps, priority_task=priority_task
+        )
 
 
-def _gc_owned(idle_min=45, max_reaps=None):
+def _dispose_candidate(item):
+    task, held = item
+    try:
+        asyncio.run(_calls([(
+            "Target.disposeBrowserContext",
+            {"browserContextId": held["context_id"]},
+        )]))
+        disposed = True
+    except Exception:
+        # Run the authoritative fallback in this same worker so a slow or wedged
+        # inventory probe cannot serialize the other claimed contexts.
+        disposed = _browser_context_exists(held.get("context_id")) is False
+    return task, held, disposed
+
+
+def _dispose_candidates(candidates):
+    if not candidates:
+        return []
+    # max_reaps bounds candidates when the caller selects a batch; the hard ceiling
+    # also keeps an unbounded maintenance GC from opening an unbounded number of sockets.
+    workers = min(8, len(candidates))
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        return list(executor.map(_dispose_candidate, candidates.items()))
+
+
+def _gc_owned(idle_min=45, max_reaps=None, priority_task=None):
     """A loop killed with -9 never releases. Reap whatever it left holding.
 
     gc used to read+dispose+save without the ledger lock -- the only such path in this
@@ -933,26 +1010,19 @@ def _gc_owned(idle_min=45, max_reaps=None):
         candidates = {
             task: dict(held)
             for task, held in leases.items()
-            if held.get("cleanup_pending") is True
-            or (
-                held.get("parked") is not True
-                and (
-                    now - held.get("ts", 0) > idle_min * 60
-                    or _pid_alive(held.get("pid")) is False
-                )
-            )
+            if _lease_is_stale(held, now, idle_min)
         }
         if max_reaps is not None:
-            candidates = dict(list(candidates.items())[:max(0, int(max_reaps))])
+            ordered = list(candidates.items())
+            if priority_task in candidates:
+                ordered.insert(0, ordered.pop(next(
+                    index for index, item in enumerate(ordered)
+                    if item[0] == priority_task
+                )))
+            candidates = dict(ordered[:max(0, int(max_reaps))])
 
     reaped = []
-    for task, held in candidates.items():
-        disposed = False
-        try:
-            asyncio.run(_calls([("Target.disposeBrowserContext", {"browserContextId": held["context_id"]})]))
-            disposed = True
-        except Exception:
-            disposed = _browser_context_exists(held.get("context_id")) is False
+    for task, held, disposed in _dispose_candidates(candidates):
         with _ledger_lock():
             leases = _leases()
             current = leases.get(task)
@@ -965,16 +1035,7 @@ def _gc_owned(idle_min=45, max_reaps=None):
                     or current.get("token") == held.get("token")
                 )
             )
-            still_stale = same_lease and (
-                current.get("cleanup_pending") is True
-                or (
-                    current.get("parked") is not True
-                    and (
-                        now - current.get("ts", 0) > idle_min * 60
-                        or _pid_alive(current.get("pid")) is False
-                    )
-                )
-            )
+            still_stale = same_lease and _lease_is_stale(current, now, idle_min)
             if still_stale and disposed:
                 leases.pop(task, None)
                 _save(leases)
