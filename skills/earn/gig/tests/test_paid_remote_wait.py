@@ -373,6 +373,47 @@ def test_completed_result_cannot_be_a_wait(tmp_path):
         remote.validate_wait(root, feedback, digest, pass_start=0)
 
 
+def test_quality_rejection_without_redundant_desired_digest_returns_repair_delta(
+        tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    root, feedback, digest = blocked_project(tmp_path)
+    customer_message = "The provider work is ready for independent review."
+    message_sha = hashlib.sha256(customer_message.encode()).hexdigest()
+    intent_path = root / "delivery/paid-remote-intent.json"
+    result_path = root / "delivery/paid-remote-result.json"
+    intent = json.loads(intent_path.read_text(encoding="utf-8"))
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    intent["message_sha256"] = message_sha
+    result.update({"customer_message": customer_message, "message_sha256": message_sha})
+    write_json(intent_path, intent)
+    write_json(result_path, result)
+    verifier = root / "evidence/agent-PAID_REMOTE_VERIFY/remote-verifier-result.json"
+    delta = [{
+        "requirement": "Use a selectable control.",
+        "expected": "A select element.",
+        "observed": "A textarea element.",
+        "evidence": "Fresh official page readback.",
+        "repair": "Replace the textarea and redeploy.",
+    }]
+    write_json(verifier, {
+        "version": 1,
+        "status": "blocked",
+        "verified": False,
+        "classification": "quality_mismatch",
+        "feedback_sha256": feedback,
+        "requirements_sha256": intent["requirements_sha256"],
+        "semantic_contract_sha256": intent["semantic_contract_sha256"],
+        "message_sha256": message_sha,
+        "target": intent["target"],
+        "delta": delta,
+    })
+    monkeypatch.setattr(paid, "_validate_verifier_runner", lambda *_args: None)
+
+    assert paid._review_failure(verifier, root, intent, feedback, digest) == {
+        "classification": "quality_mismatch", "delta": delta,
+    }
+
+
 def test_self_actionable_candidate_search_cannot_be_a_wait(tmp_path):
     remote = load("paid_remote_result")
     root, feedback, digest = blocked_project(tmp_path)
