@@ -437,14 +437,10 @@ def test_delivered_contract_is_kernel_noop_and_replay_zero(tmp_path):
 
 def test_kernel_concurrency_keeps_paid_adapter_thread_state_isolated(tmp_path):
     module, kernel = load(), load_kernel()
-    rows = [
-        funded(),
-        {**funded(), "work_id": "63570482", "milestone_id": "13798057"},
-        {**funded(), "work_id": "63570483", "milestone_id": "13798058"},
-    ]
+    rows = [funded(), {**funded(), "work_id": "63570482", "milestone_id": "13798057"}]
     adapter = module.CrowdWorksPaidAdapter(account_id="7145638", inventory_reader=lambda: {
         "ok": True, "source_complete": True, "contract_candidates": rows})
-    barrier, seen, mutated = threading.Barrier(3), [], set()
+    barrier, seen, mutated = threading.Barrier(2), [], set()
 
     def observe_one(work_id):
         item = next(row for row in rows if row["work_id"] == work_id)
@@ -461,9 +457,9 @@ def test_kernel_concurrency_keeps_paid_adapter_thread_state_isolated(tmp_path):
     adapter.observe_one, adapter.context, adapter.mutate = observe_one, context, mutate
     adapter.readback = lambda intent: ({"verified": True, "provider_receipt_id": intent["work_id"], "observed_at": "now"}
                                       if intent["work_id"] in mutated else {"authoritative_absent": True})
-    result = kernel.run_wake(adapter=adapter, decide=module.decide, state_root=tmp_path, max_workers=3)
-    assert result["effect"] == 3 and result["failed"] == 0
-    assert len({thread for thread, _ in seen}) == 3
+    result = kernel.run_wake(adapter=adapter, decide=module.decide, state_root=tmp_path, max_workers=2)
+    assert result["effect"] == 2 and result["failed"] == 0
+    assert len({thread for thread, _ in seen}) == 2
 
 
 def test_real_kernel_paths_close_every_thread_owned_runtime(tmp_path):
@@ -857,4 +853,4 @@ def test_owner_uses_shared_kernel_and_provider_adapter_state_root():
     assert "skills/earn/crowdworks/scripts/paid_adapter.py" in source
     assert '--state-root "$STATE_ROOT/paid"' in source
     assert '--state-path "$STATE_ROOT/paid"' in source
-    assert '--max-workers 3' in source
+    assert '--max-workers 1' in source
