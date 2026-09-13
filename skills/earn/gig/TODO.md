@@ -53,6 +53,22 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   has crossed the former 45-second failure boundary and remains in progress. A terminal official
   receipt, not process survival, is still required before this item is accepted as production-pass.
 
+- **Finite loop admission now follows host capacity across every provider.** PR `#5168`, merge SHA
+  `78e0963d7f...`, extends the one shared host-admission boundary from memory-only to memory plus
+  normalized one-minute CPU load. Every finite registry wake passes through it exactly once; service
+  and keep-alive owners are deliberately excluded so overload never causes browser/service restart
+  thrash. The implementation is stdlib-only, fails closed for unavailable or non-finite observations,
+  and returns `75`, `deferred`, `effect=0`, `cpu_headroom_low` before provider or browser work. Focused
+  integration passes 123 tests, the broad runtime/host suite passes 439 tests plus 464 subtests, and
+  fresh review says ship. Immutable release `20260914T043239-78e0963d` is current. Production Apply
+  is installed from that release and, at host load `129.67` on 10 logical CPUs, terminated as
+  `memory_admission_deferred` with exit `75`; Reply is also installed from the same release. Paid and
+  Storefront were still executing an older wake and were safely skipped by loaded-idle reconciliation;
+  install them from the current release only after those wakes naturally become idle. This repairs
+  admission amplification for all finite platform loops, not a Coconala-client special case. It does
+  not claim business-lane acceptance or revenue: each lane still needs its next admitted terminal
+  receipt when host capacity is available.
+
 - **Shared browser entry and operator-brake convergence are complete on main.** PR `#5159`, merge
   SHA `2668376830...`, changes BrowserContext acquisition to reserve under the ledger lock, perform
   provider CDP work outside it, and finalize by token compare-and-swap. Slow cookie seeding for one
