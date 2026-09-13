@@ -672,20 +672,27 @@ class ApplicationLoopHolTests(unittest.TestCase):
 
     def test_malformed_safety_result_fails_closed_before_submit(self):
         application_loop = _load_deployed_loop()
-        with tempfile.TemporaryDirectory() as directory:
-            result = application_loop.run_loop(
-                state_path=Path(directory) / "application.json",
-                evidence_root=Path(directory) / "evidence",
-                discoverer=lambda **_kwargs: {"ok": True, "error": None, "opportunities": [_opportunity("6000001")]},
-                planner=lambda *_args: {"decisions": [_eligible_decision("6000001")]},
-                safety_verifier=lambda *_args: {"safe_to_submit": True},
-                submitter=lambda **_kwargs: self.fail("submitter_called"),
-                clock=lambda: datetime(2026, 8, 13, 12, 0, tzinfo=timezone.utc),
-            )
+        malformed = (
+            {"safe_to_submit": True},
+            {"safe_to_submit": False, "reason": "unsupported_claim", "blocker_evidence": "   "},
+            {"safe_to_submit": False, "reason": "unsupported_claim", "blocker_evidence": "あ" * 241},
+            {"safe_to_submit": False, "reason": "unsupported_claim", "blocker_evidence": "対象チャネルは2つ 月8本"},
+        )
+        for safety_result in malformed:
+            with self.subTest(safety_result=safety_result), tempfile.TemporaryDirectory() as directory:
+                result = application_loop.run_loop(
+                    state_path=Path(directory) / "application.json",
+                    evidence_root=Path(directory) / "evidence",
+                    discoverer=lambda **_kwargs: {"ok": True, "error": None, "opportunities": [_opportunity("6000001")]},
+                    planner=lambda *_args: {"decisions": [_eligible_decision("6000001")]},
+                    safety_verifier=lambda *_args, value=safety_result: value,
+                    submitter=lambda **_kwargs: self.fail("submitter_called"),
+                    clock=lambda: datetime(2026, 8, 13, 12, 0, tzinfo=timezone.utc),
+                )
 
-        self.assertFalse(result["ok"])
-        self.assertEqual(result["error"], "safety_check_failed")
-        self.assertEqual(result["decision_reports"][0]["outcome"], "failed")
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["error"], "safety_check_failed")
+            self.assertEqual(result["decision_reports"][0]["outcome"], "failed")
 
     def test_one_bad_budget_row_does_not_discard_two_good_rows(self):
         # skills/earn/lancers/scripts/application_loop.py::_filter_claimed_rows used to

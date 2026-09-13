@@ -519,9 +519,9 @@ def _safety_outcome(row: Mapping[str, object], decision: Mapping[str, object], e
             raise ValueError
         if safe is True and reason == "approved" and blocker is None:
             return "approved"
-        if safe is False and reason not in {"approved", "uncertain"} and isinstance(blocker, str) and blocker:
+        if safe is False and reason not in {"approved", "uncertain"} and isinstance(blocker, str) and blocker.strip() and len(blocker) <= 240:
             source = str(decision.get("proposal_text") or "") if reason == "unsupported_claim" else str(row.get("description") or "")
-            if _public_excerpt(blocker, source):
+            if blocker in source:
                 return "rejected"
     except Exception:
         pass
