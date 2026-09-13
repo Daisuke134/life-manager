@@ -2239,7 +2239,6 @@ def _review_failure(verifier: Path, project_root: Path, intent: dict[str, Any], 
         if (not isinstance(result, dict) or result.get("verified") is not False
                 or _verifier_feedback_sha256(result) != feedback
                 or result.get("target") != intent.get("target")
-                or result.get("desired_digest", result.get("desired_state_digest")) != digest
                 or result.get("requirements_sha256") != requirements_sha256
                 or result.get("message_sha256") != message_sha256):
             raise ValueError("verifier rejection identity mismatch")
