@@ -2312,8 +2312,11 @@ def _targeted(args, item, index):
             "targeted_readback", timeout=TARGETED_READBACK_TIMEOUT_SECONDS, env=environment,
         )
     except Failure as error:
-        if ("authenticated tab did not finish navigation" in error.detail
-                or _default_tab_open_timed_out(error)):
+        fresh_snapshot = snapshot.is_file() and snapshot.stat().st_mtime_ns > started_ns
+        if not fresh_snapshot:
+            # This is an official read-only observation. A transient collector exit before its
+            # atomic snapshot must not silently remove one funded client from the whole wake.
+            _reclaim_browser_owner(args, f"paid-direct-{room}")
             _run(
                 _collector(args, "selected-talkroom-only", snapshot, base, item_path, item),
                 "targeted_readback", timeout=TARGETED_READBACK_TIMEOUT_SECONDS, env=environment,

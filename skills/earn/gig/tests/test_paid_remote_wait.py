@@ -1974,6 +1974,33 @@ def test_targeted_readback_retries_default_tab_open_timeout_once(tmp_path, monke
     assert len(calls) == 2
 
 
+def test_targeted_readback_retries_once_when_collector_exits_before_snapshot(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    calls = []
+    reclaimed = []
+    collector_output = {}
+
+    def collector(_args, _mode, output, *_rest):
+        collector_output["path"] = output
+        return ["collector"]
+
+    def run(_command, _step, **_kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise paid.Failure("targeted_readback", "collector exited before source coverage")
+        write_json(collector_output["path"], {"orders": [{"talkroom_id": "18211957"}]})
+
+    monkeypatch.setattr(paid, "_reclaim_browser_owner", lambda _args, owner: reclaimed.append(owner))
+    monkeypatch.setattr(paid, "_collector", collector)
+    monkeypatch.setattr(paid, "_run", run)
+    monkeypatch.setattr(paid, "_row", lambda _snapshot, _room: {"talkroom_id": "18211957"})
+    args = SimpleNamespace(evidence_dir=tmp_path, cdp_lock_dir=tmp_path / "locks")
+
+    assert paid._targeted(args, {"talkroom_id": "18211957"}, 0)["talkroom_id"] == "18211957"
+    assert calls == [1, 1]
+    assert reclaimed == ["paid-direct-18211957", "paid-direct-18211957"]
+
+
 def test_orders_observation_retries_default_tab_open_timeout_once(tmp_path, monkeypatch):
     paid = load("paid_direct")
     calls = []
