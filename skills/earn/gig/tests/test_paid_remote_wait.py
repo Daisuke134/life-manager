@@ -1350,6 +1350,237 @@ def test_remote_owner_prompt_includes_exact_cycle_account_owner_policy(tmp_path)
     assert "account-owner policy" in prompt
 
 
+def test_remote_owner_policy_can_require_formal_delivery_and_manual(tmp_path):
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    requirements_sha = paid.paid_remote_result.requirements_digest(root, feedback)
+    write_json(root / "context/paid-file-operator-policy.json", {
+        "version": 1,
+        "authorized_by": "account_owner",
+        "request_id": root.name,
+        "buyer_feedback_sha256": feedback,
+        "requirements_sha256": requirements_sha,
+        "formal_delivery_after_remote": True,
+        "directives": ["Formally deliver the verified remote result exactly once."],
+    })
+
+    prompt = paid._repair_prompt(
+        root, tmp_path / "item.json", feedback, requirements_sha,
+        False, tmp_path / "cdp.py",
+    )
+    authorization = paid._remote_formal_authorization(root, feedback, requirements_sha)
+
+    assert "formal delivery with the checkbox on" in prompt
+    assert "practical buyer-facing update manual as customer_attachment" in prompt
+    assert authorization is not None
+    assert authorization["authorized_by"] == "account_owner"
+    assert authorization["request_id"] == root.name
+
+
+def test_formal_browser_accepts_only_hash_bound_exact_cycle_owner_override(tmp_path):
+    browser = load("coconala_formal_delivery_browser")
+    root = tmp_path / "18211957"
+    policy_path = root / "context/paid-file-operator-policy.json"
+    feedback, requirements = "a" * 64, "b" * 64
+    write_json(policy_path, {
+        "version": 1,
+        "authorized_by": "account_owner",
+        "request_id": root.name,
+        "buyer_feedback_sha256": feedback,
+        "requirements_sha256": requirements,
+        "formal_delivery_after_remote": True,
+        "directives": ["Formally deliver once."],
+    })
+    digest = hashlib.sha256(policy_path.read_bytes()).hexdigest()
+    queue = {
+        "buyer_feedback_sha256": feedback,
+        "requirements_sha256": requirements,
+        "account_owner_formal_authorization": {
+            "authorized_by": "account_owner",
+            "request_id": root.name,
+            "buyer_feedback_sha256": feedback,
+            "requirements_sha256": requirements,
+            "policy_sha256": digest,
+        },
+    }
+
+    assert browser._account_owner_formal_ready(queue, root) is True
+    queue["account_owner_formal_authorization"]["policy_sha256"] = "c" * 64
+    assert browser._account_owner_formal_ready(queue, root) is False
+
+
+def test_formal_browser_preserves_verified_remote_message_with_manual_attachment(tmp_path):
+    browser = load("coconala_formal_delivery_browser")
+    root = tmp_path / "18211957"
+    feedback, requirements = "a" * 64, "b" * 64
+    policy_path = root / "context/paid-file-operator-policy.json"
+    write_json(policy_path, {
+        "version": 1, "authorized_by": "account_owner", "request_id": root.name,
+        "buyer_feedback_sha256": feedback, "requirements_sha256": requirements,
+        "formal_delivery_after_remote": True, "directives": ["Formally deliver once."],
+    })
+    artifact = root / "evidence/update-manual.txt"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("更新手順", encoding="utf-8")
+    acceptance = root / "acceptance/remote.json"
+    write_json(acceptance, {"status": "PASS"})
+    digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    delta = ["Production update and manual verified."]
+    evidence = {
+        "project_root": str(root), "requirements_path": str(root / "requirements/live.json"),
+        "artifact_path": str(artifact), "artifact_version": "remote-formal",
+        "acceptance_evidence_path": str(acceptance), "acceptance_status": "PASS",
+        "acceptance_delta": delta, "package_sha256": digest,
+    }
+    custom = "管理画面：https://example.test/admin 公開確認：https://example.test/"
+    queue = {
+        "delivery_action": "formal", "formal_delivery_checkbox": True,
+        "request_id": root.name, "talkroom_id": root.name,
+        "marketplace_url": f"https://coconala.com/talkrooms/{root.name}",
+        "buyer_feedback_sha256": feedback, "requirements_sha256": requirements,
+        "delivery_evidence": evidence,
+        "account_owner_formal_authorization": {
+            "authorized_by": "account_owner", "request_id": root.name,
+            "buyer_feedback_sha256": feedback, "requirements_sha256": requirements,
+            "policy_sha256": hashlib.sha256(policy_path.read_bytes()).hexdigest(),
+        },
+    }
+    manifest = {**evidence, "status": "ok", "customer_message": custom,
+                "remote_formal_delivery": True}
+    queue_path, manifest_path = tmp_path / "queue.json", tmp_path / "manifest.json"
+    write_json(queue_path, queue); write_json(manifest_path, manifest)
+
+    contract = browser.validate_queue_contract(queue_path, manifest_path, root)
+
+    assert contract["message"] == custom
+    assert contract["linked_asset_delivery"] is False
+
+
+def test_remote_formal_effect_uses_formal_browser_and_exact_room_readback(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    root = tmp_path / "projects" / "18211957"
+    feedback, requirements = "a" * 64, "b" * 64
+    manual = root / "evidence" / "update-manual.txt"
+    manual.parent.mkdir(parents=True)
+    manual.write_text("管理画面の更新手順", encoding="utf-8")
+    manual_sha = hashlib.sha256(manual.read_bytes()).hexdigest()
+    write_json(root / "requirements/live-buyer-reply.json", {"feedback_sha256": feedback})
+    write_json(root / "delivery/paid-remote-result.json", {
+        "customer_message": "更新と公開確認が完了しました。操作手順を添付します。",
+        "customer_attachment": {"path": str(manual), "filename": manual.name, "sha256": manual_sha},
+    })
+    write_json(root / "delivery/paid-remote-intent.json", {"desired_state_sha256": "d" * 64})
+    verifier = root / "evidence" / "agent-PAID_REMOTE_VERIFY" / "remote-verifier-result.json"
+    write_json(verifier, {"verified": True})
+    write_json(root / "context/paid-file-operator-policy.json", {
+        "version": 1, "authorized_by": "account_owner", "request_id": root.name,
+        "buyer_feedback_sha256": feedback, "requirements_sha256": requirements,
+        "formal_delivery_after_remote": True, "directives": ["Formally deliver once."],
+    })
+    authorization = paid._remote_formal_authorization(root, feedback, requirements)
+    prepared = {
+        "talkroom_id": root.name, "request_id": root.name,
+        "buyer_feedback_sha256": feedback, "requirements_sha256": requirements,
+        "project_root": str(root), "account_owner_formal_authorization": authorization,
+    }
+    item_path, output = tmp_path / "item.json", tmp_path / "output.json"
+    write_json(item_path, prepared)
+    row = {**prepared, "talkroom_state": "取引中", "formal_delivery_observed": False}
+    commands = []
+
+    monkeypatch.setattr(paid, "_paid_project_root", lambda *_args: root)
+    monkeypatch.setattr(paid.paid_remote_result, "requirements_digest", lambda *_args: requirements)
+    resumes = []
+    monkeypatch.setattr(paid, "resolve_managed_verifier", lambda *_args: verifier)
+    monkeypatch.setattr(paid.paid_remote_result, "resume", lambda *_args: resumes.append(_args))
+    monkeypatch.setattr(paid, "_reclaim_browser_owner", lambda *_args: None)
+    monkeypatch.setattr(paid, "_fresh_child_env", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(paid, "_collector", lambda _args, _mode, output_path, *_rest: ["collector", str(output_path)])
+    monkeypatch.setattr(paid, "_row", lambda *_args: row)
+    monkeypatch.setattr(paid, "_effect_gate_reason", lambda *_args: None)
+    monkeypatch.setattr(paid.reconcile_paid_delivery, "reconcile", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(paid, "_reported_formal_cycle", lambda *_args: root)
+
+    def fake_run(command, _step, **_kwargs):
+        if command[0] == "collector":
+            write_json(Path(command[1]), {})
+        return ""
+
+    monkeypatch.setattr(paid, "_run", fake_run)
+    monkeypatch.setattr(
+        paid, "_run_bounded",
+        lambda command: commands.append(command) or SimpleNamespace(
+            returncode=0, stdout='{"ok":true,"evidence":{"send_performed":true,"deduplicated":false}}', stderr="",
+        ),
+    )
+    args = SimpleNamespace(
+        evidence_dir=tmp_path / "evidence", formal_browser=tmp_path / "formal.py",
+        cdp_helper=tmp_path / "cdp.py",
+    )
+
+    assert paid._write_remote_formal_effect(args, item_path, output, prepared) == 0
+    result = json.loads(output.read_text(encoding="utf-8"))
+    assert result["status"] == "completed"
+    assert result["effect"] == 1
+    assert result["item"]["formal_delivery_checkbox"] is True
+    assert "--manifest" in commands[0]
+    assert len(resumes) == 2
+
+
+def test_remote_formal_effect_refuses_result_swap_after_presend(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    root = tmp_path / "projects" / "18211957"
+    feedback, requirements = "a" * 64, "b" * 64
+    manual = root / "evidence" / "manual.txt"
+    manual.parent.mkdir(parents=True)
+    manual.write_text("verified manual", encoding="utf-8")
+    manual_sha = hashlib.sha256(manual.read_bytes()).hexdigest()
+    write_json(root / "requirements/live-buyer-reply.json", {"feedback_sha256": feedback})
+    write_json(root / "delivery/paid-remote-intent.json", {"desired_state_sha256": "d" * 64})
+    result_path = root / "delivery/paid-remote-result.json"
+    write_json(result_path, {"customer_message": "verified", "customer_attachment": {
+        "path": str(manual), "filename": manual.name, "sha256": manual_sha,
+    }})
+    verifier = root / "evidence/agent-PAID_REMOTE_VERIFY/remote-verifier-result.json"
+    write_json(verifier, {"verified": True})
+    write_json(root / "context/paid-file-operator-policy.json", {
+        "version": 1, "authorized_by": "account_owner", "request_id": root.name,
+        "buyer_feedback_sha256": feedback, "requirements_sha256": requirements,
+        "formal_delivery_after_remote": True, "directives": ["Formally deliver once."],
+    })
+    authorization = paid._remote_formal_authorization(root, feedback, requirements)
+    prepared = {"talkroom_id": root.name, "request_id": root.name,
+                "buyer_feedback_sha256": feedback, "requirements_sha256": requirements,
+                "project_root": str(root), "account_owner_formal_authorization": authorization}
+    item_path, output = tmp_path / "item.json", tmp_path / "output.json"
+    write_json(item_path, prepared)
+    row = {**prepared, "talkroom_state": "取引中", "formal_delivery_observed": False}
+    monkeypatch.setattr(paid, "_paid_project_root", lambda *_args: root)
+    monkeypatch.setattr(paid.paid_remote_result, "requirements_digest", lambda *_args: requirements)
+    monkeypatch.setattr(paid, "resolve_managed_verifier", lambda *_args: verifier)
+    monkeypatch.setattr(paid.paid_remote_result, "resume", lambda *_args: None)
+    monkeypatch.setattr(paid, "_reclaim_browser_owner", lambda *_args: None)
+    monkeypatch.setattr(paid, "_fresh_child_env", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(paid, "_collector", lambda _args, _mode, path, *_rest: ["collector", str(path)])
+    monkeypatch.setattr(paid, "_row", lambda *_args: row)
+    monkeypatch.setattr(paid, "_effect_gate_reason", lambda *_args: None)
+
+    def swap_after_presend(command, _step, **_kwargs):
+        write_json(Path(command[1]), {})
+        if "presend" in str(command[1]):
+            write_json(result_path, {"customer_message": "swapped"})
+        return ""
+
+    monkeypatch.setattr(paid, "_run", swap_after_presend)
+    monkeypatch.setattr(paid, "_run_bounded", lambda *_args: pytest.fail("browser must not run"))
+    args = SimpleNamespace(evidence_dir=tmp_path / "evidence", formal_browser=tmp_path / "formal.py",
+                           cdp_helper=tmp_path / "cdp.py")
+
+    assert paid._write_remote_formal_effect(args, item_path, output, prepared) == 1
+    failed = json.loads(output.read_text(encoding="utf-8"))
+    assert failed["failed_step"] == "remote_formal_toctou"
+
+
 def test_remote_owner_prompt_searches_complete_repo_and_valid_shared_tools(tmp_path):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)

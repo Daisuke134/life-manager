@@ -1107,6 +1107,20 @@ def _file_operator_policy(root: Path, feedback: str,
     return path, policy, digest
 
 
+def _remote_formal_authorization(root: Path, feedback: str,
+                                 requirements_sha256: str) -> dict[str, str] | None:
+    path, policy, digest = _file_operator_policy(root, feedback, requirements_sha256)
+    if path is None or policy.get("formal_delivery_after_remote") is not True:
+        return None
+    return {
+        "authorized_by": "account_owner",
+        "request_id": root.name,
+        "buyer_feedback_sha256": feedback,
+        "requirements_sha256": requirements_sha256,
+        "policy_sha256": digest,
+    }
+
+
 def _file_review_images(root: Path, artifact_sha256: str, finding: str = "",
                         limit: int = 12) -> list[Path]:
     """Create artifact-bound visual inputs for the fresh native-vision reviewer."""
@@ -4240,6 +4254,8 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
     operator_policy_path, operator_policy, operator_policy_sha256 = _file_operator_policy(
         root, feedback, requirements_sha256,
     )
+    remote_formal = bool(operator_policy_path is not None
+                         and operator_policy.get("formal_delivery_after_remote") is True)
     operator_instruction = (
         "" if operator_policy_path is None else
         f"Read and obey the exact-cycle account-owner policy {operator_policy_path} with SHA256 "
@@ -4258,7 +4274,11 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
             "At this remote owner/verifier stage, required_output_satisfied means the buyer-requested remote output exists, "
             "has official provider readback, and its accurate customer_message is ready for the downstream code-owned Coconala connector; "
             "it does not mean the Coconala message is already sent. That connector runs only after owner and verifier PASS, "
-            "then enforces formal delivery off and reads back the exact seller message. Never open or mutate Coconala in this stage. "
+            + ("then performs the exact-cycle account-owner-authorized formal delivery with the checkbox on and reads back the exact room. "
+               "Create one practical buyer-facing update manual as customer_attachment under verifier-readable project evidence; bind its path, filename, and SHA256 in intent/result/evidence. "
+               if remote_formal else
+               "then enforces formal delivery off and reads back the exact seller message. ")
+            + "Never open or mutate Coconala in this stage. "
             "Never require or guess a fixed Coconala profile ID: a buyer profile link inside a talkroom is not the seller identity, "
             "and Coconala session/send authorization belongs to the code-owned Coconala connector. "
             f"{operator_instruction}"
@@ -5178,6 +5198,14 @@ def _prepare_one(args, item_path: Path, output: Path) -> int:
         intent = _load(intent_path); digest = _text(intent.get("desired_state_sha256"))
         prepared = {**item, "project_root": str(root), "remote_repaired": repaired,
                     "requirements_sha256": paid_remote_result.requirements_digest(root, feedback)}
+        authorization = _remote_formal_authorization(
+            root, feedback, prepared["requirements_sha256"],
+        )
+        if authorization is not None:
+            result = _load(root / "delivery" / "paid-remote-result.json")
+            if _validated_customer_attachment(root, result.get("customer_attachment")) is None:
+                raise Failure("remote_formal_attachment")
+            prepared["account_owner_formal_authorization"] = authorization
         _write(output, {**prepared, "_paid_prepare_status": "prepared"})
         return 0
     except (AttributeError, Failure, OSError, ValueError, TypeError, json.JSONDecodeError) as error:
@@ -5385,6 +5413,127 @@ def _write_file_effect(args, item_path: Path, output: Path, prepared: dict[str, 
                         "effect": sent_effect, "readback": 0})
         return 1
 
+
+def _write_remote_formal_effect(args, item_path: Path, output: Path,
+                                prepared: dict[str, Any]) -> int:
+    """Formally close a verified live-system delivery under one exact-cycle owner policy."""
+    room = _text(prepared.get("talkroom_id")); sent_effect = 0
+    try:
+        root = _paid_project_root(args, prepared)
+        feedback = _text(prepared.get("buyer_feedback_sha256"))
+        requirements_sha256 = _text(prepared.get("requirements_sha256"))
+        authorization = _remote_formal_authorization(root, feedback, requirements_sha256)
+        if authorization is None or prepared.get("account_owner_formal_authorization") != authorization:
+            raise Failure("remote_formal_authorization")
+        intent_path = root / "delivery" / "paid-remote-intent.json"
+        result_path = root / "delivery" / "paid-remote-result.json"
+        intent = _load(intent_path)
+        digest = _text(intent.get("desired_state_sha256"))
+        verifier_path = resolve_managed_verifier(root, feedback, digest)
+        paid_remote_result.resume(root, feedback, digest, verifier_path)
+        remote_result = _load(result_path)
+        attachment = _validated_customer_attachment(root, remote_result.get("customer_attachment"))
+        if attachment is None:
+            raise Failure("remote_formal_attachment")
+        message = _text(remote_result.get("customer_message"))
+        if not message:
+            raise Failure("remote_formal_message")
+        verified_inputs = {
+            path: _file_snapshot(path)
+            for path in (intent_path, result_path, verifier_path)
+        }
+
+        acceptance = root / "acceptance" / "paid-remote-formal-acceptance.json"
+        acceptance_delta = [
+            "The independently verified production update and practical update manual are ready for the buyer.",
+        ]
+        _write(acceptance, {
+            "version": 1, "status": "PASS", "acceptance_delta": acceptance_delta,
+            "buyer_feedback_sha256": feedback, "requirements_sha256": requirements_sha256,
+            "artifact_sha256": attachment["sha256"],
+        })
+        manifest = root / "delivery" / "paid-remote-formal-manifest.json"
+        manifest_value = {
+            "status": "ok", "project_root": str(root),
+            "requirements_path": str(root / "requirements" / "live-buyer-reply.json"),
+            "artifact_path": attachment["path"], "artifact_version": "remote-formal",
+            "acceptance_evidence_path": str(acceptance), "acceptance_status": "PASS",
+            "acceptance_delta": acceptance_delta, "package_sha256": attachment["sha256"],
+            "customer_message": message, "required_assets": [], "artifact_assets": [],
+            "remote_formal_delivery": True,
+        }
+        _write(manifest, manifest_value)
+
+        base = args.evidence_dir / "paid-direct" / room
+        presend = base / "presend" / "selected-talkroom-snapshot.json"
+        _reclaim_browser_owner(args, f"paid-direct-{room}")
+        environment = _fresh_child_env(args, owner=f"paid-direct-{room}")
+        _run(
+            _collector(args, "selected-talkroom-only", presend, presend.parent, item_path, prepared),
+            "presend_readback", env=environment,
+        )
+        row = _row(_load(presend), room)
+        if (_text(row.get("buyer_feedback_sha256")) != feedback
+                or paid_remote_result.requirements_digest(root, feedback) != requirements_sha256
+                or row.get("formal_delivery_observed", row.get("formal_delivery_confirmed")) is not False):
+            raise Failure("presend_readback")
+        evidence = {key: manifest_value[key] for key in (
+            "project_root", "requirements_path", "artifact_path", "artifact_version",
+            "acceptance_evidence_path", "acceptance_status", "acceptance_delta", "package_sha256",
+        )}
+        browser_item = base / "remote-formal" / f"queue-{os.getpid()}-{time.time_ns()}.json"
+        cadence = {
+            **prepared, **row, "delivery_action": "formal", "formal_delivery_checkbox": True,
+            "delivery_evidence": evidence, "account_owner_formal_authorization": authorization,
+        }
+        _write(browser_item, cadence)
+        browser_evidence = base / "remote-formal-browser" / attachment["sha256"][:12]
+        browser_started = time.time()
+        disk_reason = _effect_gate_reason(args)
+        if disk_reason is not None:
+            return _write_disk_pending(output, room, disk_reason, "before_remote_formal_effect")
+        if (any(_file_snapshot(path) != snapshot for path, snapshot in verified_inputs.items())
+                or _remote_formal_authorization(root, feedback, requirements_sha256) != authorization):
+            raise Failure("remote_formal_toctou")
+        paid_remote_result.resume(root, feedback, digest, verifier_path)
+        process = _run_bounded([
+            sys.executable, str(args.formal_browser), "--queue-item", str(browser_item),
+            "--manifest", str(manifest), "--project-root", str(root),
+            "--evidence-dir", str(browser_evidence), "--ledger", str(root / "events.jsonl"),
+            "--default-tab-helper", str(args.cdp_helper),
+        ])
+        if process.returncode:
+            raise Failure("remote_formal_browser")
+        browser = _json_line(process.stdout, "remote_formal_browser")
+        if browser.get("ok") is not True or not isinstance(browser.get("evidence"), dict):
+            raise Failure("remote_formal_browser")
+        sent_effect = int(browser["evidence"].get("send_performed") is True)
+        reconcile_paid_delivery.reconcile(root, browser_evidence, browser_item, min_mtime=browser_started)
+        final = base / "official-readback" / "selected-talkroom-snapshot.json"
+        _run(_collector(args, "selected-talkroom-only", final, final.parent, browser_item, cadence),
+             "official_readback")
+        official = _row(_load(final), room)
+        if (_text(official.get("buyer_feedback_sha256")) != feedback
+                or _reported_formal_cycle(args, official) != root):
+            raise Failure("official_readback")
+        item = {
+            "talkroom_id": room, "send_performed": browser["evidence"].get("send_performed") is True,
+            "deduplicated": browser["evidence"].get("deduplicated") is True,
+            "formal_delivery_checkbox": True, "remote_repaired": prepared.get("remote_repaired") is True,
+            "evidence_paths": {"manifest": str(manifest), "presend_readback": str(presend),
+                               "browser": str(browser_evidence), "official_readback": str(final)},
+        }
+        _write(output, {"status": "completed", "effect": int(item["send_performed"]),
+                        "readback": 1, "failed": 0, "item": item})
+        return 0
+    except (AttributeError, Failure, OSError, ValueError, TypeError, json.JSONDecodeError,
+            reconcile_paid_delivery.ReconcileError) as error:
+        _write(output, {"status": "failed", "talkroom_id": room, "failed": 1,
+                        "failed_step": error.step if isinstance(error, Failure) else "remote_formal_delivery",
+                        "error_type": type(error).__name__, "error_detail": str(error)[:500],
+                        "effect": sent_effect, "readback": 0})
+        return 1
+
 def _write_one(args, item_path: Path, output: Path) -> int:
     room = ""
     sent_effect = 0
@@ -5434,6 +5583,8 @@ def _write_one(args, item_path: Path, output: Path) -> int:
         requirements_sha256 = _text(prepared.get("requirements_sha256"))
         if paid_remote_result.requirements_digest(root, feedback) != requirements_sha256:
             raise Failure("requirements_toctou")
+        if prepared.get("account_owner_formal_authorization") is not None:
+            return _write_remote_formal_effect(args, item_path, output, prepared)
         answer_path = root / "delivery" / "paid-answer.json"
         answer_before = answer_path.read_bytes()
         delivery = root / "delivery"; intent_path = delivery / "paid-remote-intent.json"
