@@ -319,11 +319,15 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct2"
+          "profile_alias": "acct2",
+          "timeout_seconds": 180
         },
         {
-          "provider": "claude-direct",
-          "model": "claude-sonnet-5"
+          "provider": "codex",
+          "model": "gpt-5.6-luna",
+          "effort": "medium",
+          "profile_alias": "acct2",
+          "timeout_seconds": 180
         }
       ]
     },
