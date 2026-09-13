@@ -2247,7 +2247,13 @@ def persist_purchased_offer_brief(
 
 
 DEFAULT_TAB_OPEN_TIMEOUT_SECONDS = 75
-DEFAULT_TAB_CLOSE_TIMEOUT_SECONDS = 30
+# The helper's close path can spend 20s on Target.closeTarget and about 12s
+# checking/parking the authenticated context. close-owned additionally spends
+# 20s listing targets and 20s per owned target (production allows two).
+# Parent deadlines must outlive those bounded child deadlines; otherwise the parent
+# kills successful self-recovery halfway through and turns browser load into a leak.
+DEFAULT_TAB_CLOSE_TIMEOUT_SECONDS = 35
+DEFAULT_TAB_RECLAIM_TIMEOUT_SECONDS = 85
 
 
 class DefaultTab:
@@ -2369,8 +2375,8 @@ class DefaultTab:
                         "--owner",
                         self.owner,
                     ],
-                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL, timeout=DEFAULT_TAB_CLOSE_TIMEOUT_SECONDS,
+                    stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                    timeout=DEFAULT_TAB_CLOSE_TIMEOUT_SECONDS,
                     check=False,
                 )
                 closed = result.returncode == 0
@@ -2385,14 +2391,17 @@ class DefaultTab:
             try:
                 reclaimed = subprocess.run(
                     ["python3", str(self.helper), "close-owned", "--owner", self.owner],
-                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL, timeout=DEFAULT_TAB_CLOSE_TIMEOUT_SECONDS,
+                    stdin=subprocess.DEVNULL, capture_output=True, text=True,
+                    timeout=DEFAULT_TAB_RECLAIM_TIMEOUT_SECONDS,
                     check=False,
                 )
             except (OSError, subprocess.TimeoutExpired) as error:
                 raise RuntimeError("failed to reclaim browser owner after tab close") from error
             if reclaimed.returncode != 0:
-                raise RuntimeError("failed to reclaim browser owner after tab close")
+                detail = (reclaimed.stderr or reclaimed.stdout or "helper exit 1").strip()
+                raise RuntimeError(
+                    f"failed to reclaim browser owner after tab close: {detail[-240:]}"
+                )
 
 
 async def call(
