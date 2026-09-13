@@ -32,6 +32,17 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   concurrently. Final Coconala acceptance remains open: the new Apply, Paid and Storefront natural
   runs must write terminal receipts; prior low-disk and older-release receipts do not close this gate.
 
+- **Abandoned per-client leases now converge as one bounded shared repair.** PR `#5166`, merge SHA
+  `55444de36e...`, gives every provisioning reservation a 120-second deadline. Before admission, the
+  shared lease manager detects a dead holder or expired reservation, prioritizes the requested owner,
+  and reuses the existing singleflight plus identity/token CAS to reap up to eight stale contexts in
+  parallel outside the ledger lock. Focused and broader browser/Paid acceptance pass 52 and 295 tests;
+  fresh review says ship. Immutable release `20260914T034426-55444de3` is installed on all four lanes.
+  Its first Reply wake reduced the retained ledger from 12 rows to five in one pass and then to four
+  current-owner rows; the seven old dead-PID rows disappeared, and new reservations carry explicit
+  deadlines. This proves batch self-healing rather than per-client manual cleanup. Terminal lane
+  receipts and end-to-end cadence remain the current Coconala acceptance gate.
+
 - **Shared browser entry and operator-brake convergence are complete on main.** PR `#5159`, merge
   SHA `2668376830...`, changes BrowserContext acquisition to reserve under the ledger lock, perform
   provider CDP work outside it, and finalize by token compare-and-swap. Slow cookie seeding for one
