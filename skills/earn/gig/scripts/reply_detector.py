@@ -30,6 +30,7 @@ from gig_paths import BROWSER_DIR, RUNNER_DIR  # noqa: E402
 from gig_disk_guard import disk_headroom_ok  # noqa: E402
 from no_contact_policy import load_registry, match_thread  # noqa: E402
 from requested_estimate import SEMANTIC_PROMPT_VERSION  # noqa: E402
+from operator_brake import status as shared_operator_brake_status  # noqa: E402
 
 try:
     from connector_outbox import ConnectorOutbox, coconala_inbox_event_key
@@ -313,22 +314,9 @@ def _operator_brake_status(
         "GIG_OPERATOR_BRAKE_FILE",
         str(Path.home() / ".openclaw/state/gig-work/reply.operator.brake"),
     )
-    try:
-        if not brake.is_file():
-            return "failed"
-        completed = subprocess.run(
-            [str(brake), "status"],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=timeout,
-            check=False,
-            env=environment,
-        )
-    except Exception:
-        return "failed"
-    return {0: "held", 1: "free"}.get(completed.returncode, "failed")
+    return shared_operator_brake_status(
+        brake, timeout=timeout, environment=environment,
+    )
 
 
 def _telegram_report(args: Any, events: Path, command: str) -> str:

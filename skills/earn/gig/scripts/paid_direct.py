@@ -25,6 +25,7 @@ from telegram_outbox import TelegramOutbox, dispatch_one  # noqa: E402
 from telegram_report import GigTelegramTransport  # noqa: E402
 from gig_paths import BROWSER_DIR, REPO_ROOT, RUNNER_DIR  # noqa: E402
 from gig_disk_guard import disk_headroom_ok  # noqa: E402
+from operator_brake import status as shared_operator_brake_status  # noqa: E402
 
 DEFAULT_STEP_TIMEOUT_SECONDS = 2100
 ORDERS_OBSERVATION_TIMEOUT_SECONDS = 120
@@ -6144,24 +6145,7 @@ def _lock(path: Path) -> Iterator[bool]:
 
 def _operator_brake_status(path: Path | None = None) -> str:
     """Use the shared expiring brake contract; an expired record is not a held brake."""
-    if path is not None and not path.exists():
-        return "free"
-    environment = os.environ.copy()
-    if path is not None:
-        environment["GIG_OPERATOR_BRAKE_FILE"] = str(path)
-    for attempt in range(2):
-        try:
-            completed = subprocess.run(
-                [str(HERE / "gig_brake.sh"), "status"], stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                timeout=5, check=False, env=environment,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            if attempt == 0:
-                continue
-            return "failed"
-        return {0: "held", 1: "free"}.get(completed.returncode, "failed")
-    return "failed"
+    return shared_operator_brake_status(HERE / "gig_brake.sh", path=path)
 
 def _unique_orders(items: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
     """Keep only the freshest observation for each structural talkroom identity."""

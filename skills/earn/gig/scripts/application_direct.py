@@ -28,6 +28,7 @@ from telegram_outbox import TelegramOutbox, dispatch_one
 from apply_telegram_report import ApplyTelegramTransport
 from gig_paths import BROWSER_DIR, RUNNER_DIR
 from gig_release import pin_release_for_process
+from operator_brake import status as shared_operator_brake_status
 
 
 HERE = Path(__file__).resolve().parent
@@ -368,17 +369,7 @@ def _operator_brake_status(
     script: Path, *, timeout: float = 5.0,
 ) -> str:
     """Return free/held, or fail closed when the existing brake is unknowable."""
-    try:
-        if not script.is_file():
-            return "failed"
-        completed = subprocess.run(
-            [str(script), "status"], stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-            timeout=timeout, check=False,
-        )
-    except Exception:
-        return "failed"
-    return {0: "held", 1: "free"}.get(completed.returncode, "failed")
+    return shared_operator_brake_status(script, timeout=timeout)
 
 
 def _run_parent(
