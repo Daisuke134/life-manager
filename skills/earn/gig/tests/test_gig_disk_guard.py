@@ -683,7 +683,7 @@ def test_negotiate_ignores_preventive_flags_but_keeps_a_real_disk_floor():
     assert environment["GIG_DISK_HEADROOM_KIB"] == "524288"
 
 
-def test_writer_lanes_render_from_immutable_release_and_life_manager_state():
+def test_legacy_gig_manifest_does_not_own_writer_lanes():
     import importlib.util
 
     release_path = Path("/release")
@@ -695,36 +695,9 @@ def test_writer_lanes_render_from_immutable_release_and_life_manager_state():
     manifest, table = release.settings(release_path)
     writer = [job for job in manifest["jobs"] if job.get("env_profile") == "writer"]
 
-    # Was 14. Five writer lanes (report, opportunity-response, opportunity-discovery,
-    # money-sync, claim) migrated off this legacy launchd manifest onto loop-registry.json
-    # between 2026-09-04 and 2026-09-07 (see test_gig_release.py's
-    # test_migrated_writer_*_is_not_owned_by_legacy_manifest, which cover all five and already
-    # pass). The remaining nine (creator, resume, zenn-retry, healthcheck, sales-measure,
-    # craft-train, self-improve, audit-7day, learn-whitelist) are still rendered from here.
-    assert len(writer) == 9
-    for job in writer:
-        rendered = release.plist_for(job, table)
-        assert rendered["EnvironmentVariables"]["ARTICLE_ROOT"] == (
-            "/release/skills/writer-agent"
-        )
-        assert rendered["EnvironmentVariables"]["ARTICLE_STATE_DIR"] == (
-            str(Path.home() / ".local/state/life-manager/writer")
-        )
-        assert rendered["EnvironmentVariables"]["LIFE_MANAGER_DISK_HEADROOM_KIB"] == "524288"
-        assert rendered["EnvironmentVariables"]["LIFE_MANAGER_HOST_STATE_DIR"] == (
-            str(Path.home() / ".local/state/life-manager/state")
-        )
-        assert rendered["EnvironmentVariables"]["LIFE_MANAGER_PRODUCER_STATE_DIR"] == (
-            str(Path.home() / ".local/state/life-manager/writer")
-        )
-        assert rendered["ProgramArguments"][1].endswith(
-            "/runtime/host/disk_admission.py"
-        )
-        assert all("profitable-claude" not in value for value in rendered["ProgramArguments"])
-        if "StartCalendarInterval" in job:
-            assert rendered["StartCalendarInterval"] == job["StartCalendarInterval"]
-        else:
-            assert "StartCalendarInterval" not in rendered
+    # Every writer owner has moved to config/loop-registry.json. The legacy Gig release
+    # manifest must not regain a second writer implementation or launchd owner.
+    assert writer == []
 
     for job in manifest["jobs"]:
         rendered = release.plist_for(job, table)

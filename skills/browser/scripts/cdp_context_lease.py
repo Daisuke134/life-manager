@@ -293,11 +293,25 @@ def _browser_context_exists(context_id):
 
 
 def acquire(task, url="about:blank", no_seed=False):
+    reservation_token = None
+    current_holder = _holder_pid()
     with _ledger_lock():
         leases = _leases()
         held = leases.get(task)
+        if held and held.get("provisioning") is True:
+            if _pid_alive(held.get("pid")) is not False:
+                raise RuntimeError("lease_busy")
+            if held.get("context_id"):
+                held["provisioning"] = False
+                held["cleanup_pending"] = True
+                held["ts"] = 0
+                held["pid"] = None
+                leases[task] = held
+            else:
+                leases.pop(task, None)
+            _save(leases)
+            held = leases.get(task)
         parked = bool(held) and held.get("parked") is True
-        current_holder = _holder_pid()
         holder_pid_state = _pid_alive(held.get("pid")) if held and not parked else None
         if (held and not parked and held.get("pid") != current_holder
                 and holder_pid_state is not False
@@ -385,7 +399,22 @@ def acquire(task, url="about:blank", no_seed=False):
             leases.pop(parked_task, None)
             _save(leases)
 
-        cookies = []
+        reservation_token = secrets.token_hex(16)
+        leases[task] = {
+            "provisioning": True,
+            "token": reservation_token,
+            "generation": 1,
+            "pid": current_holder,
+            "ts": int(time.time()),
+        }
+        _save(leases)
+
+    # Context creation and cookie seeding can take tens of seconds. The ledger lock
+    # protects only admission/finalization; holding it here serializes every unrelated
+    # task behind one slow browser operation.
+    cookies = []
+    ctx_id = None
+    try:
         vault_path = _vault_path()
         if not no_seed and os.path.exists(vault_path):
             with open(vault_path, encoding="utf-8") as handle:
@@ -408,6 +437,15 @@ def acquire(task, url="about:blank", no_seed=False):
 
         (ctx,) = asyncio.run(_calls([("Target.createBrowserContext", {})]))
         ctx_id = ctx["browserContextId"]
+        with _ledger_lock():
+            leases = _leases()
+            reserved = leases.get(task)
+            if not (reserved and reserved.get("provisioning") is True
+                    and reserved.get("token") == reservation_token):
+                raise RuntimeError("lease_reservation_lost")
+            reserved["context_id"] = ctx_id
+            leases[task] = reserved
+            _save(leases)
 
         calls = []
         if cookies:
@@ -442,9 +480,41 @@ def acquire(task, url="about:blank", no_seed=False):
             "generation": 1,
             "pid": _holder_pid(),
         }
-        leases[task] = lease
-        _save(leases)
+        with _ledger_lock():
+            leases = _leases()
+            reserved = leases.get(task)
+            if not (reserved and reserved.get("provisioning") is True
+                    and reserved.get("token") == reservation_token):
+                raise RuntimeError("lease_reservation_lost")
+            leases[task] = lease
+            _save(leases)
         return {"ok": True, "reused": False, **lease}
+    except Exception:
+        disposed = ctx_id is None
+        if ctx_id is not None:
+            try:
+                asyncio.run(_calls([(
+                    "Target.disposeBrowserContext", {"browserContextId": ctx_id}
+                )]))
+                disposed = True
+            except Exception:
+                disposed = _browser_context_exists(ctx_id) is False
+        with _ledger_lock():
+            leases = _leases()
+            reserved = leases.get(task)
+            if (reserved and reserved.get("provisioning") is True
+                    and reserved.get("token") == reservation_token):
+                if disposed:
+                    leases.pop(task, None)
+                else:
+                    reserved.pop("provisioning", None)
+                    reserved["cleanup_pending"] = True
+                    reserved["context_id"] = ctx_id
+                    reserved["ts"] = 0
+                    reserved["pid"] = None
+                    leases[task] = reserved
+                _save(leases)
+        raise
 
 
 def _fence_matches(held, token, generation):
@@ -811,6 +881,10 @@ def gc(idle_min=45):
                 current is not None
                 and current.get("context_id") == held.get("context_id")
                 and current.get("target_id") == held.get("target_id")
+                and (
+                    held.get("provisioning") is not True
+                    or current.get("token") == held.get("token")
+                )
             )
             still_stale = same_lease and (
                 current.get("cleanup_pending") is True
