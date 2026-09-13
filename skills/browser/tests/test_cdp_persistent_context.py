@@ -239,12 +239,81 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
         for effect in (
             'mkdir -p "$profile"',
             "clear_stale_singletons",
-            'launchctl remove "$LABEL"',
+            '"$LAUNCHCTL_SAFE" remove "$LABEL"',
             "sleep 1",
-            "launchctl submit",
+            '"$LAUNCHCTL_SAFE" submit',
         ):
             self.assertLess(preflight, launch.index(effect))
         self.assertIn('"$CLOAK_PY" "$KEEPALIVE" --profile "$profile" --port 0 --preflight-only', launch)
+
+    def test_launcher_uses_guarded_launchctl_control_plane(self) -> None:
+        text = ENSURE.read_text(encoding="utf-8")
+        self.assertIn('LAUNCHCTL_SAFE="${LIFE_MANAGER_LAUNCHCTL_SAFE:-', text)
+        self.assertNotIn('\n  launchctl remove ', text)
+        self.assertNotIn('\n  if ! launchctl submit ', text)
+
+    def test_launcher_stops_when_launchctl_preflight_rejects_remove(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            home = root / "home"
+            profile = home / ".cloak/profiles/test"
+            registry = root / "browsers.toml"
+            registry.write_text(
+                f'[[identity]]\nid = "test:browser"\nprofile = "{profile}"\n',
+                encoding="utf-8",
+            )
+            calls = root / "launchctl.calls"
+            guard_calls = root / "guard.calls"
+            launchctl_safe = root / "launchctl-safe"
+            launchctl_safe.write_text(
+                "#!/bin/sh\n"
+                f"printf '%s\\n' \"$1\" >> {calls}\n"
+                '[ "$1" = remove ] && exit 75\n'
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            guard = root / "browser-guard.sh"
+            guard.write_text(
+                f"#!/bin/sh\nprintf '%s\\n' \"$1\" >> {guard_calls}\n"
+                '[ "$1" = status ] && printf \'%s\\n\' '
+                "'{\"identities\":[{\"reachable\":false}]}'\n",
+                encoding="utf-8",
+            )
+            runtime = root / "python"
+            runtime.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            for executable in (launchctl_safe, guard, runtime):
+                executable.chmod(0o755)
+            completed = subprocess.run(
+                ["bash", str(ENSURE), "test:browser"],
+                env={**os.environ, "HOME": str(home), "AI_BROWSER_GUARD": str(guard),
+                     "AI_BROWSER_REGISTRY": str(registry), "CLOAK_PYTHON": str(runtime),
+                     "LIFE_MANAGER_LAUNCHCTL_SAFE": str(launchctl_safe)},
+                capture_output=True, text=True, check=False, timeout=15,
+            )
+            self.assertEqual(completed.returncode, 75, completed.stderr)
+            self.assertEqual(calls.read_text(encoding="utf-8").splitlines(), ["remove"])
+            self.assertEqual(guard_calls.read_text(encoding="utf-8").splitlines(), ["status"])
+
+            calls.unlink()
+            guard_calls.unlink()
+            launchctl_safe.write_text(
+                "#!/bin/sh\n"
+                f"printf '%s\\n' \"$1\" >> {calls}\n"
+                '[ "$1" = submit ] && exit 75\n'
+                "exit 0\n",
+                encoding="utf-8",
+            )
+            launchctl_safe.chmod(0o755)
+            completed = subprocess.run(
+                ["bash", str(ENSURE), "test:browser"],
+                env={**os.environ, "HOME": str(home), "AI_BROWSER_GUARD": str(guard),
+                     "AI_BROWSER_REGISTRY": str(registry), "CLOAK_PYTHON": str(runtime),
+                     "LIFE_MANAGER_LAUNCHCTL_SAFE": str(launchctl_safe)},
+                capture_output=True, text=True, check=False, timeout=15,
+            )
+            self.assertEqual(completed.returncode, 75, completed.stderr)
+            self.assertEqual(calls.read_text(encoding="utf-8").splitlines(), ["remove", "submit"])
+            self.assertEqual(guard_calls.read_text(encoding="utf-8").splitlines(), ["status"])
 
     def test_missing_symlink_or_unreadable_guard_has_no_cloak_import(self) -> None:
         for kind in ("missing", "symlink", "unreadable"):
