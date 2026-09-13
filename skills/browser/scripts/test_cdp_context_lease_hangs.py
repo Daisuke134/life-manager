@@ -467,6 +467,7 @@ def test_park_keeps_context_and_next_acquire_rotates_fence(monkeypatch, tmp_path
     monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(tmp_path / "leases.json"))
     monkeypatch.setattr(module, "target_responds", lambda _ws: True)
     monkeypatch.setattr(module, "_holder_pid", lambda: 222)
+    monkeypatch.setattr(module, "_seed_material", lambda *_args: ([], [], "same-seed"))
     lease = {
         "context_id": "ctx",
         "target_id": "target",
@@ -475,6 +476,7 @@ def test_park_keeps_context_and_next_acquire_rotates_fence(monkeypatch, tmp_path
         "token": "old-token",
         "generation": 1,
         "pid": 111,
+        "seed_fingerprint": "same-seed",
     }
     module._save({"mercor": lease})
 
@@ -490,6 +492,56 @@ def test_park_keeps_context_and_next_acquire_rotates_fence(monkeypatch, tmp_path
     assert acquired["token"] != "old-token"
     assert acquired["pid"] == 222
     assert "parked" not in module._leases()["mercor"]
+
+
+def test_acquire_replaces_parked_context_after_scoped_vault_state_changes(monkeypatch, tmp_path):
+    module = load_module()
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(tmp_path / "leases.json"))
+    monkeypatch.setattr(module, "_seed_material", lambda *_args: ([], [], "new-seed"))
+    module._save({"coconala": {
+        "context_id": "old-context", "target_id": "old-target", "ws": "ws://old-target",
+        "ts": 1, "token": "old-token", "generation": 1, "pid": None,
+        "parked": True, "seed_fingerprint": "old-seed",
+    }})
+    disposed = []
+
+    async def dispose_then_create(pairs, timeout=None):
+        results = []
+        for method, params in pairs:
+            if method == "Target.disposeBrowserContext":
+                disposed.append(params["browserContextId"]); results.append({})
+            elif method == "Target.createBrowserContext":
+                results.append({"browserContextId": "new-context"})
+            elif method == "Target.createTarget":
+                results.append({"targetId": "new-target"})
+        return results
+
+    monkeypatch.setattr(module, "_calls", dispose_then_create)
+    result = module.acquire("coconala", "https://coconala.com/mypage/dashboard")
+
+    assert disposed == ["old-context"]
+    assert result["reused"] is False
+    assert result["context_id"] == "new-context"
+    assert result["seed_fingerprint"] == "new-seed"
+
+
+def test_scoped_seed_fingerprint_ignores_unrelated_provider_cookie_changes(monkeypatch, tmp_path):
+    module = load_module()
+    vault = tmp_path / "vault.json"
+    monkeypatch.setenv("CLOAK_SESSION_VAULT_FILE", str(vault))
+    monkeypatch.setenv("CLOAK_CONTEXT_COOKIE_DOMAINS", "coconala.com")
+    vault.write_text(json.dumps({"cookies": [
+        {"name": "session", "domain": ".coconala.com", "value": "same"},
+        {"name": "other", "domain": ".google.com", "value": "before"},
+    ]}), encoding="utf-8")
+    first = module._seed_material("https://coconala.com/mypage/dashboard")[2]
+    vault.write_text(json.dumps({"cookies": [
+        {"name": "session", "domain": ".coconala.com", "value": "same"},
+        {"name": "other", "domain": ".google.com", "value": "after"},
+    ]}), encoding="utf-8")
+    second = module._seed_material("https://coconala.com/mypage/dashboard")[2]
+
+    assert first == second
 
 
 def test_gc_does_not_reap_a_parked_context_for_age_or_missing_pid(monkeypatch, tmp_path):

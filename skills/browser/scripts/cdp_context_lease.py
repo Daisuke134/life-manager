@@ -18,6 +18,7 @@ import asyncio
 import contextlib
 from concurrent.futures import ThreadPoolExecutor
 import fcntl
+import hashlib
 import json
 import os
 import secrets
@@ -396,6 +397,7 @@ def acquire(task, url="about:blank", no_seed=False):
     # Routine browser admission must not wait for whole-ledger maintenance. At the
     # actual capacity boundary, however, reclaim one stale row (or briefly wait for the
     # existing single-flight reaper) so this same wake can make forward progress.
+    cookies, overlay_origins, seed_fingerprint = _seed_material(url, no_seed)
     _recover_capacity_if_needed(task)
     reservation_token = None
     current_holder = _holder_pid()
@@ -416,13 +418,14 @@ def acquire(task, url="about:blank", no_seed=False):
             _save(leases)
             held = leases.get(task)
         parked = bool(held) and held.get("parked") is True
+        seed_changed = parked and held.get("seed_fingerprint") != seed_fingerprint
         holder_pid_state = _pid_alive(held.get("pid")) if held and not parked else None
         if (held and not parked and held.get("pid") != current_holder
                 and holder_pid_state is not False
                 and held.get("cleanup_pending") is not True):
             raise RuntimeError("lease_busy")
         holder_dead = bool(held) and not parked and holder_pid_state is False
-        if held and (holder_dead or held.get("cleanup_pending") is True or not target_responds(
+        if held and (seed_changed or holder_dead or held.get("cleanup_pending") is True or not target_responds(
             held.get("ws") or _page_ws(held.get("target_id") or "")
         )):
             # Dead holder (confirmed via the free, local pid check -- no need to spend up
@@ -521,32 +524,8 @@ def acquire(task, url="about:blank", no_seed=False):
     # Context creation and cookie seeding can take tens of seconds. The ledger lock
     # protects only admission/finalization; holding it here serializes every unrelated
     # task behind one slow browser operation.
-    cookies = []
     ctx_id = None
     try:
-        vault_path = _vault_path()
-        if not no_seed and os.path.exists(vault_path):
-            with open(vault_path, encoding="utf-8") as handle:
-                cookies = json.load(handle).get("cookies", [])
-        overlay_path = _vault_writeback_path()
-        overlay_origins = []
-        if not no_seed and overlay_path != vault_path and os.path.exists(overlay_path):
-            with open(overlay_path, encoding="utf-8") as handle:
-                overlay = json.load(handle)
-            overlay_cookies = overlay.get("cookies", [])
-            overlay_origins = overlay.get("origins", [])
-            overlay_domains = {
-                _normalized_cookie_domain(cookie.get("domain"))
-                for cookie in overlay_cookies if isinstance(cookie, dict)
-            }
-            cookies = [
-                cookie for cookie in cookies
-                if _normalized_cookie_domain(cookie.get("domain")) not in overlay_domains
-            ] + overlay_cookies
-        cookie_domains = _cookie_domains()
-        if cookie_domains:
-            cookies = [cookie for cookie in cookies if _cookie_in_scope(cookie, cookie_domains)]
-
         (ctx,) = asyncio.run(_calls([("Target.createBrowserContext", {})]))
         ctx_id = ctx["browserContextId"]
         with _ledger_lock():
@@ -588,6 +567,7 @@ def acquire(task, url="about:blank", no_seed=False):
             "ts": int(time.time()),
             "cookies_seeded": len(cookies),
             "storage_origins_seeded": storage_origins_seeded,
+            "seed_fingerprint": seed_fingerprint,
             "token": secrets.token_hex(16),
             "generation": 1,
             "pid": _holder_pid(),
@@ -690,6 +670,49 @@ def _normalized_origin(value):
     )
     netloc = parsed.hostname.lower() if default_port else f"{parsed.hostname.lower()}:{parsed.port}"
     return f"{parsed.scheme}://{netloc}"
+
+
+def _seed_material(target_url, no_seed=False):
+    """Load exactly what a new context receives and bind parked reuse to that state."""
+    cookies = []
+    origins = []
+    vault_path = _vault_path()
+    if not no_seed and os.path.exists(vault_path):
+        with open(vault_path, encoding="utf-8") as handle:
+            payload = json.load(handle)
+        if isinstance(payload, dict):
+            cookies = payload.get("cookies", [])
+            origins = payload.get("origins", [])
+    overlay_path = _vault_writeback_path()
+    if not no_seed and overlay_path != vault_path and os.path.exists(overlay_path):
+        with open(overlay_path, encoding="utf-8") as handle:
+            overlay = json.load(handle)
+        if isinstance(overlay, dict):
+            overlay_cookies = overlay.get("cookies", [])
+            overlay_origins = overlay.get("origins", [])
+            overlay_domains = {
+                _normalized_cookie_domain(cookie.get("domain"))
+                for cookie in overlay_cookies if isinstance(cookie, dict)
+            }
+            cookies = [
+                cookie for cookie in cookies if isinstance(cookie, dict)
+                and _normalized_cookie_domain(cookie.get("domain")) not in overlay_domains
+            ] + [cookie for cookie in overlay_cookies if isinstance(cookie, dict)]
+            origins = overlay_origins
+    cookies = [cookie for cookie in cookies if isinstance(cookie, dict)]
+    cookie_domains = _cookie_domains()
+    if cookie_domains:
+        cookies = [cookie for cookie in cookies if _cookie_in_scope(cookie, cookie_domains)]
+    target_origin = _normalized_origin(target_url)
+    scoped_origins = [
+        row for row in origins if isinstance(row, dict)
+        and _normalized_origin(row.get("origin")) == target_origin
+    ] if isinstance(origins, list) else []
+    fingerprint = hashlib.sha256(json.dumps(
+        {"cookies": cookies, "origins": scoped_origins, "no_seed": bool(no_seed)},
+        ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode()).hexdigest()
+    return cookies, origins if isinstance(origins, list) else [], fingerprint
 
 
 def _has_web_storage_for_origin(target_url, origins):
