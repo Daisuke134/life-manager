@@ -110,6 +110,19 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   policy contract at their own existing effect boundary before their Apply lane can be called complete;
   do not duplicate a second scheduler, browser pool or platform-specific safety framework.
 
+- **CrowdWorks Paid's current stop is host admission, not a dead browser.** The latest business
+  aggregate still says `crowdworks_paid_browser_unavailable`, but its timestamp and event lineage bind
+  it to old release `651d4343...`. After `78e0963d7f...` was installed, the next five Paid wakes all
+  terminated before the entrypoint as exit `75` / `memory_admission_deferred`; they did not reproduce
+  the browser error. Read-only production probes prove Chromium is listening on CDP `:9228`, `/json/version`
+  succeeds, and the managed Playwright runtime attaches in about three seconds with one context and one
+  page. Do not restart or reauthenticate the browser. The next accepted evidence is a naturally admitted
+  current-release Paid wake that replaces the stale aggregate and resumes the three official contracts.
+  Paid remains deliberately `--max-workers 1`: commit `c4d85f8025` introduced that serialization after
+  real shared-browser contention. Raising it on the strength of synthetic thread-local tests is rejected.
+  Contract parallelism may be enabled only after each worker receives an isolated browser context/lease
+  with lifecycle and effect-fence acceptance; the provider-wide browser lock remains the outer guard.
+
 - **Shared browser entry and operator-brake convergence are complete on main.** PR `#5159`, merge
   SHA `2668376830...`, changes BrowserContext acquisition to reserve under the ledger lock, perform
   provider CDP work outside it, and finalize by token compare-and-swap. Slow cookie seeding for one
