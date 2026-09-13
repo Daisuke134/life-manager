@@ -23,11 +23,26 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   TikTok-DM/Sheet pairs and **288 unproved**—but do not spend this program's engineering or operator
   time advancing, rediscovering, messaging or formally delivering it. An unsupported completion
   claim never becomes revenue evidence.
+- **Ryu repair is now past the semantic and browser-discovery failures.** Public main
+  `0368cc89c4...` binds a fresh pending remote-review contract before generic validation, so model
+  wording cannot turn unfinished remote work into premature formal delivery. The full Paid remote
+  suite passes 171/171; immutable release `20260913T180728-0368cc89` is installed only on
+  `hf-gig-paid-direct`. Its natural run saved `actionable/remote/none` with no formal approval
+  evidence, proving the former `non-file decision requires none delivery stage` failure is closed.
+  The owner then deployed the v180/v181 management changes, verified authenticated NEWS API
+  create/update/order/publication/delete/restore, and produced the practical update manual. The
+  remaining exact effect is mobile and desktop administration UI exercise plus public HTTPS
+  reflection, independent verification, one formal Coconala delivery with `正式な納品` enabled,
+  exact-room readback and replay-zero. The dedicated identity
+  `colors-hachioji:owner-18211957` is now resolver-visible for both
+  `browser_administration_ui` and `authenticated_administration_and_production_deployment`; its
+  isolated browser is live and lease-free. Do not ask the buyer for credentials already present in
+  the private SSOT, and do not send an incomplete progress message.
 - **Shared TikTok transport is merged but not the active cursor.** The model qualifies a real candidate and writes truthful,
   recipient-specific copy. Deterministic shared code binds the exact recipient, sends once, performs
   official readback, appends one paired campaign receipt and never retries an uncertain send. The
   code remains reusable evidence for a future opted-in campaign; no Chii-specific continuation is active.
-- **Host-state convergence is the current prerequisite repair.** Browser and central cleanup use
+- **Host-state convergence is complete and installed.** Browser and central cleanup use
   `~/.local/state/life-manager/state`; the retired `.openclaw/state` pressure marker is ignored.
   Acceptance proves legacy-only marker permits launch, canonical marker blocks before profile use,
   canonical cleanup removes it, and launch resumes. This repair applies to every marketplace owner,
@@ -42,23 +57,27 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
 
 The remaining revenue order is:
 
-1. Restore the shared authenticated browser from the canonical host-state repair and prove one natural
-   Paid wake from the immutable main release.
-2. Close active funded liabilities concurrently: Ryu formal-delivery proof and CrowdWorks funded
+**Order-change record.** The old first item was host-state/browser restoration. Its canonical-state
+release and a natural Paid wake are now proved, so retaining it as the cursor would repeat completed
+work. The new order removes that completed prerequisite and promotes the former second item without
+interrupting any active client owner. The current cursor is Ryu formal delivery while the independent
+CrowdWorks funded owner continues concurrently.
+
+1. Close active funded liabilities concurrently: Ryu formal-delivery proof and CrowdWorks funded
    milestone/delivery/payment effects. Chii is excluded and does not gate this step. A buyer owner
    never waits for another buyer.
-3. Finish Coconala vertically across Apply, Reply, Paid and Storefront, including one-off plus retainer
+2. Finish Coconala vertically across Apply, Reply, Paid and Storefront, including one-off plus retainer
    applications and attributable payout evidence.
-4. Finish each next provider vertically while all installed lanes remain live: Lancers, CrowdWorks,
+3. Finish each next provider vertically while all installed lanes remain live: Lancers, CrowdWorks,
    Mercor, Freelancer.com, Upwork, then evidence-ranked new platforms. Missing Storefront is
    `not_applicable`; missing contract leaves Paid open but never pauses Apply.
-5. Extract only proven duplicated lifecycle behavior into `marketplace-core`; provider authentication,
+4. Extract only proven duplicated lifecycle behavior into `marketplace-core`; provider authentication,
    vocabulary, selectors, mutations and official readback remain thin adapters. Every repair is tested
    against all adopted providers so a new platform never copies a lane.
-6. Enable the marketplace meta-loop to discover opportunities on the web/X, qualify expected net
+5. Enable the marketplace meta-loop to discover opportunities on the web/X, qualify expected net
    revenue and policy fit, scaffold a thin adapter, test/release it and promote it only after a real
    official effect plus replay-zero.
-7. Deliver Telegram-only multi-tenant operation on the **OpenAI Agents API**. Life Manager creates and
+6. Deliver Telegram-only multi-tenant operation on the **OpenAI Agents API**. Life Manager creates and
    retains one isolated durable agent session per tenant/objective, streams or receives webhook progress,
    and resumes/steers the same session without requiring a local computer. Use an OpenAI-hosted environment
    by default for code, files, skills, MCP and artifacts; use a self-hosted environment only when a private
