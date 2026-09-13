@@ -12,6 +12,32 @@ REQUIRED = ("effect_key", "target", "payload_sha256", "official_receipt_url",
             "exact_readback", "quality_status", "qualification_sources", "semantic_contract_sha256")
 
 
+def _same_json(left: object, right: object) -> bool:
+    encode = lambda value: json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return encode(left) == encode(right)
+
+
+def prepare_checkpoint(value: object) -> object:
+    """Copy equivalent verified fields into the flat durable-ledger contract."""
+    if not isinstance(value, dict):
+        return value
+    prepared = dict(value)
+    official = value.get("official_readback")
+    official = official if isinstance(official, dict) else {}
+    missing = object()
+    aliases = {
+        "payload_sha256": value["message_sha256"] if "message_sha256" in value else missing,
+        "official_receipt_url": official["official_url"] if "official_url" in official else missing,
+        "exact_readback": official["exact_readback"] if "exact_readback" in official else missing,
+    }
+    for field, alias in aliases.items():
+        if field in value and alias is not missing and not _same_json(value[field], alias):
+            raise ValueError(f"conflicting checkpoint field: {field}")
+        if field not in prepared and alias is not missing:
+            prepared[field] = alias
+    return prepared
+
+
 def valid_checkpoint(value: object) -> bool:
     if not isinstance(value, dict) or any(key not in value for key in REQUIRED):
         return False
@@ -41,7 +67,7 @@ def main() -> int:
     source = args.effect_json.resolve()
     if root not in source.parents or source.is_symlink() or not source.is_file():
         raise SystemExit("effect JSON must be a regular project-owned file")
-    value = json.loads(source.read_text(encoding="utf-8"))
+    value = prepare_checkpoint(json.loads(source.read_text(encoding="utf-8")))
     if not valid_checkpoint(value):
         raise SystemExit("invalid effect checkpoint")
     ledger = root / "delivery" / "paid-remote-progress.jsonl"
@@ -52,17 +78,22 @@ def main() -> int:
     matches = [row for row in existing if row.get("effect_key") == value["effect_key"]]
     revision = value.get("classification_revision") is True
     if matches and not revision:
+        if not _same_json(matches[-1], value):
+            raise SystemExit("duplicate effect checkpoint differs from durable receipt")
         print(json.dumps({"status": "already_checkpointed", "effect_key": value["effect_key"]}))
         return 0
     if revision:
+        value["record_type"] = "classification_revision"
+        if matches and _same_json(matches[-1], value):
+            print(json.dumps({"status": "already_checkpointed", "effect_key": value["effect_key"]}))
+            return 0
         if not matches or not str(value.get("revision_reason") or "").strip():
             raise SystemExit("classification revision requires an existing effect and reason")
         prior = matches[-1]
         immutable = ("target", "payload_sha256", "official_receipt_url", "exact_readback",
                      "semantic_contract_sha256")
-        if any(value.get(key) != prior.get(key) for key in immutable):
+        if any(not _same_json(value.get(key), prior.get(key)) for key in immutable):
             raise SystemExit("classification revision cannot change effect identity")
-        value["record_type"] = "classification_revision"
     elif matches:
         raise SystemExit("duplicate effect checkpoint")
     with ledger.open("a", encoding="utf-8") as handle:

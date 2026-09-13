@@ -4897,6 +4897,8 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
                     "verify each claimed effect again on the official target, and checkpoint only the exact readbacks before new mutations. "
                     "Immediately after every official exact readback, write one project-owned effect JSON and run "
                     f"python3 {HERE / 'effect_checkpoint.py'} --project-root {root} --effect-json <path>. "
+                    "The checkpoint tool flattens message_sha256 to payload_sha256 and official_readback.official_url/"
+                    "exact_readback to the equivalent ledger fields; do not reread its source or duplicate those fields. "
                     "Checkpoint before searching for the next target or composing the final result. quality_status is "
                     "For long X recon, use the production x_collect.py --output path so every completed query is "
                     "atomically durable; do not redirect its final stdout to a zero-byte file that loses the whole pass on timeout. "
