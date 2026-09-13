@@ -485,11 +485,18 @@ def _validated_customer_attachment(root: Path, value: Any) -> dict[str, str] | N
     if (raw.is_symlink() or not _regular_file(raw) or Path(filename).name != filename
             or raw.name != filename or not re.fullmatch(r"[0-9a-f]{64}", digest)):
         raise ValueError("invalid customer attachment")
-    evidence_raw = root / "evidence"
-    if evidence_raw.is_symlink() or not evidence_raw.is_dir():
+    allowed_roots = []
+    for name in ("evidence", "delivery"):
+        candidate = root / name
+        if candidate.is_symlink():
+            raise ValueError("invalid customer attachment root")
+        if candidate.is_dir():
+            allowed_roots.append(candidate.resolve())
+    if not allowed_roots:
         raise ValueError("invalid customer attachment root")
-    path = raw.resolve(); evidence = evidence_raw.resolve()
-    path.relative_to(evidence)
+    path = raw.resolve()
+    if not any(path.is_relative_to(allowed) for allowed in allowed_roots):
+        raise ValueError("customer attachment outside project delivery roots")
     if hashlib.sha256(path.read_bytes()).hexdigest() != digest:
         raise ValueError("customer attachment hash mismatch")
     return {"path": str(path), "filename": filename, "sha256": digest}
@@ -2105,7 +2112,10 @@ def _verifier_evidence_references(result: dict[str, Any]) -> list[tuple[str, str
     if not references and isinstance(result.get("evidence"), list):
         references = [("evidence", value) for value in result["evidence"]
                       if isinstance(value, str) and value.strip()]
-    return references
+    project_owned = {"acceptance", "context", "delivery", "requirements"}
+    return [(field, value) for field, value in references
+            if Path(value).is_absolute() or not Path(value).parts
+            or Path(value).parts[0] not in project_owned]
 
 
 def _verifier_feedback_sha256(result: dict[str, Any]) -> str:
