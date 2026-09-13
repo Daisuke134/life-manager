@@ -101,6 +101,8 @@ def test_effect_gate_uses_expiring_brake_contract(monkeypatch, tmp_path, brake_s
 
 def test_operator_brake_retries_one_transient_probe_timeout(monkeypatch, tmp_path):
     paid = _load_paid()
+    brake = tmp_path / "operator.brake"
+    brake.write_text("owner=test\nreason=test\nraised_at=1\nexpires_at=2\n")
     calls = []
 
     def run(*_args, **_kwargs):
@@ -111,8 +113,18 @@ def test_operator_brake_retries_one_transient_probe_timeout(monkeypatch, tmp_pat
 
     monkeypatch.setattr(paid.subprocess, "run", run)
 
-    assert paid._operator_brake_status(tmp_path / "operator.brake") == "free"
+    assert paid._operator_brake_status(brake) == "free"
     assert calls == [1, 1]
+
+
+def test_operator_brake_absent_does_not_spawn_probe(monkeypatch, tmp_path):
+    paid = _load_paid()
+    monkeypatch.setattr(
+        paid.subprocess, "run",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("must not spawn")),
+    )
+
+    assert paid._operator_brake_status(tmp_path / "operator.brake") == "free"
 
 
 def test_active_clients_finish_before_absent_room_maintenance(tmp_path, monkeypatch):
