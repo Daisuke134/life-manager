@@ -84,6 +84,15 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   installed and runtime-proved on every implemented revenue lane for those providers; normal business
   success still requires later admitted runs after host load falls below the configured threshold.
 
+- **The next Lancers revenue effect is retained, not lost.** Its last pre-admission normal Apply
+  run observed one eligible project, official project id `5601059`, and stopped before submission
+  with `browser_connect_failed`; no application effect was claimed. A fresh read-only probe now proves
+  the Lancers keep-alive browser at CDP `127.0.0.1:9227` is live and returns its Chrome/WebSocket
+  version endpoint. This classifies the prior failure as host-overload transport loss rather than a
+  durable login or browser-owner failure. The current Apply owner is installed from `78e0963d7f...`
+  and must retry the retained candidate only after host admission permits a normal wake, then require
+  official submission readback and replay-zero.
+
 - **Shared browser entry and operator-brake convergence are complete on main.** PR `#5159`, merge
   SHA `2668376830...`, changes BrowserContext acquisition to reserve under the ledger lock, perform
   provider CDP work outside it, and finalize by token compare-and-swap. Slow cookie seeding for one
