@@ -2173,8 +2173,9 @@ def test_orders_observation_retries_default_tab_open_timeout_once(tmp_path, monk
 
     monkeypatch.setattr(paid, "_collector", lambda *_args: ["collector"])
 
-    def run(_command, _step):
+    def run(_command, _step, **kwargs):
         calls.append(1)
+        assert kwargs["timeout"] == paid.ORDERS_OBSERVATION_TIMEOUT_SECONDS
         if len(calls) == 1:
             raise paid.Failure(
                 "orders_observation",
@@ -2188,6 +2189,33 @@ def test_orders_observation_retries_default_tab_open_timeout_once(tmp_path, monk
 
     assert paid.observe_orders(args, tmp_path) == []
     assert len(calls) == 2
+
+
+def test_orders_observation_reuses_recent_official_snapshot_after_timeout(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    snapshot = tmp_path / "orders-only-snapshot.json"
+    write_json(snapshot, {
+        "collector_mode": "orders-only",
+        "read_only": True,
+        "open_orders_list_observed": True,
+        "source_receipt": {"source": "orders", "coverage_complete": True},
+        "orders": [],
+    })
+    calls = []
+    monkeypatch.setattr(paid, "_collector", lambda *_args: ["collector"])
+    monkeypatch.setattr(
+        paid, "_run",
+        lambda *_args, **_kwargs: (
+            calls.append(1),
+            (_ for _ in ()).throw(paid.Failure(
+                "orders_observation", "cdp_default_tab.py open timed out",
+            )),
+        )[-1],
+    )
+    monkeypatch.setattr(paid.delivery_queue, "build_preliminary", lambda *_args: {"items": []})
+
+    assert paid.observe_orders(SimpleNamespace(today="2026-09-14"), tmp_path) == []
+    assert calls == [1]
 
 
 def test_file_presend_reclaims_targeted_owner_before_open(tmp_path, monkeypatch):
