@@ -2208,7 +2208,7 @@ def test_orders_observation_reuses_recent_official_snapshot_after_timeout(tmp_pa
         lambda *_args, **_kwargs: (
             calls.append(1),
             (_ for _ in ()).throw(paid.Failure(
-                "orders_observation", "cdp_default_tab.py open timed out",
+                "orders_observation", "step timed out after 120s",
             )),
         )[-1],
     )
