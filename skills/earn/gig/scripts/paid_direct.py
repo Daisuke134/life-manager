@@ -29,7 +29,10 @@ from gig_disk_guard import disk_headroom_ok  # noqa: E402
 DEFAULT_STEP_TIMEOUT_SECONDS = 2100
 PAID_FILE_OWNER_TIMEOUT_SECONDS = 3600
 PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS = PAID_FILE_OWNER_TIMEOUT_SECONDS + 30
-TARGETED_READBACK_TIMEOUT_SECONDS = 180
+# A selected-room collector includes page inspection plus a bounded 35s close and,
+# when that close fails under CDP load, an 85s same-owner reclaim. The controller
+# must outlive the child cleanup or it recreates the very owner leak the child fixes.
+TARGETED_READBACK_TIMEOUT_SECONDS = 360
 TERMINAL_RECONCILIATION_TIMEOUT_SECONDS = 90
 TERMINAL_RECONCILIATION_CLEANUP_TIMEOUT_SECONDS = 15
 DM_CONTEXT_TIMEOUT_SECONDS = 180

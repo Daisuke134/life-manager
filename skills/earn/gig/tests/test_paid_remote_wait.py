@@ -149,6 +149,17 @@ def test_default_tab_open_budget_covers_context_creation_and_cookie_seed(monkeyp
     assert snapshot.DEFAULT_TAB_OPEN_TIMEOUT_SECONDS > 40
 
 
+def test_paid_controller_outlives_selected_room_cleanup_budget() -> None:
+    paid = load("paid_direct")
+    snapshot = load("coconala_queue_snapshot")
+
+    assert paid.TARGETED_READBACK_TIMEOUT_SECONDS > (
+        snapshot.DEFAULT_TAB_OPEN_TIMEOUT_SECONDS
+        + snapshot.DEFAULT_TAB_CLOSE_TIMEOUT_SECONDS
+        + snapshot.DEFAULT_TAB_RECLAIM_TIMEOUT_SECONDS
+    )
+
+
 def test_default_tab_reclaims_owner_before_navigation_retry(monkeypatch) -> None:
     snapshot = load("coconala_queue_snapshot")
     calls = []
