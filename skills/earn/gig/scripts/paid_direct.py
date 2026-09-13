@@ -6147,15 +6147,19 @@ def _operator_brake_status(path: Path | None = None) -> str:
     environment = os.environ.copy()
     if path is not None:
         environment["GIG_OPERATOR_BRAKE_FILE"] = str(path)
-    try:
-        completed = subprocess.run(
-            [str(HERE / "gig_brake.sh"), "status"], stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-            timeout=5, check=False, env=environment,
-        )
-    except Exception:
-        return "failed"
-    return {0: "held", 1: "free"}.get(completed.returncode, "failed")
+    for attempt in range(2):
+        try:
+            completed = subprocess.run(
+                [str(HERE / "gig_brake.sh"), "status"], stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                timeout=5, check=False, env=environment,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            if attempt == 0:
+                continue
+            return "failed"
+        return {0: "held", 1: "free"}.get(completed.returncode, "failed")
+    return "failed"
 
 def _unique_orders(items: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], int]:
     """Keep only the freshest observation for each structural talkroom identity."""
