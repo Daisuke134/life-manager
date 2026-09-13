@@ -14,7 +14,7 @@ fi
 # Target IDs are unique only within one CDP endpoint. Keep each registered browser's
 # ownership ledger separate so a GC reading another endpoint cannot prune this command's tab.
 IDENTITY_KEY="$(printf '%s' "$IDENTITY" | shasum -a 256 | awk '{print $1}')"
-export CLOAK_TARGET_OWNERS_FILE="${CLOAK_TARGET_OWNERS_FILE:-$HOME/.cloak/vault/target-owners/$IDENTITY_KEY.json}"
+export CLOAK_TARGET_OWNERS_FILE="$HOME/.cloak/vault/target-owners/$IDENTITY_KEY.json"
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GUARD="${AI_BROWSER_GUARD:-$HERE/browser-guard.sh}"
