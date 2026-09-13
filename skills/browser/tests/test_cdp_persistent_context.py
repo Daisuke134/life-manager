@@ -203,6 +203,7 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
                 env={**os.environ, "AI_BROWSER_GUARD": str(guard),
                      "AI_ENSURE_PROVISION_BROWSER": str(ensure),
                      "BROWSER_WAIT_SECONDS": "1", "HOME": str(root / "home"),
+                     "CLOAK_TARGET_OWNERS_FILE": str(root / "outer-loop-targets.json"),
                      "EXPECTED_TARGET_OWNERS": str(target_owners)},
                 capture_output=True, text=True, check=False, timeout=15,
             )
