@@ -6144,6 +6144,8 @@ def _lock(path: Path) -> Iterator[bool]:
 
 def _operator_brake_status(path: Path | None = None) -> str:
     """Use the shared expiring brake contract; an expired record is not a held brake."""
+    if path is not None and not path.exists():
+        return "free"
     environment = os.environ.copy()
     if path is not None:
         environment["GIG_OPERATOR_BRAKE_FILE"] = str(path)
