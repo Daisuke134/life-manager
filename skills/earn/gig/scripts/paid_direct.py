@@ -147,9 +147,9 @@ PAID_FILE_POLICY_VERSION = "paid-file-build-review-v22"
 MAX_FILE_REVIEW_ITERATIONS = 3
 PAID_REMOTE_WAIT_RECHECK_SECONDS = 3600
 PAID_MAX_PARALLEL_PROJECTS = 8
-# The authenticated default browser can create only one new page reliably at a time.
-# Keep project work parallel after each room has its official targeted readback.
-PAID_MAX_PARALLEL_READBACKS = 1
+# Every client owns an isolated browser context and lock, so independent official
+# readbacks run concurrently while operations for the same owner stay serialized.
+PAID_MAX_PARALLEL_READBACKS = PAID_MAX_PARALLEL_PROJECTS
 PAID_TERMINAL_RECONCILES_PER_WAKE = 1
 MANUAL_ONLY_TALKROOM_IDS = frozenset()
 PAID_SOURCE_CENSUS_VERSION = "paid-source-census-v4"
@@ -5511,7 +5511,11 @@ def _effect_process_diagnostic(process: Any) -> dict[str, Any]:
 
 def _fresh_child_env(args, owner=None):
     env = {key: value for key, value in os.environ.items() if key != "GIG_CDP_LOCK_HELD"}
-    env["CDP_LOCK_DIR"] = str(args.cdp_lock_dir)
+    lock_dir = Path(args.cdp_lock_dir)
+    if owner:
+        owner_key = hashlib.sha256(owner.encode("utf-8")).hexdigest()[:16]
+        lock_dir = lock_dir.parent / f"{lock_dir.name}.{owner_key}"
+    env["CDP_LOCK_DIR"] = str(lock_dir)
     if owner:
         env["CLOAK_BROWSER_OWNER"] = owner
     return env

@@ -1483,7 +1483,7 @@ def test_remote_stage_leaves_coconala_delivery_to_verified_connector(tmp_path):
         assert "code-owned Coconala connector" in prompt
 
 
-def test_paid_clients_serialize_shared_browser_readbacks_and_keep_independent_targets(tmp_path, monkeypatch):
+def test_paid_clients_parallelize_browser_readbacks_and_keep_independent_targets(tmp_path, monkeypatch):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)
     requirements_sha = paid.paid_remote_result.requirements_digest(root, feedback)
@@ -1493,8 +1493,7 @@ def test_paid_clients_serialize_shared_browser_readbacks_and_keep_independent_ta
         False, tmp_path / "cdp.py",
     )
 
-    assert paid.PAID_MAX_PARALLEL_READBACKS == 1
-    assert paid.PAID_MAX_PARALLEL_PROJECTS > paid.PAID_MAX_PARALLEL_READBACKS
+    assert paid.PAID_MAX_PARALLEL_READBACKS == paid.PAID_MAX_PARALLEL_PROJECTS
     assert "All independent paid projects run concurrently" in prompt
     assert "serialize every read, mutation, and readback" not in prompt
 
@@ -2742,7 +2741,13 @@ def test_paid_child_env_scopes_browser_owner_by_talkroom(tmp_path):
     env = paid._fresh_child_env(args, owner="paid-direct-18183618")
 
     assert env["CLOAK_BROWSER_OWNER"] == "paid-direct-18183618"
+    assert env["CDP_LOCK_DIR"] != str(args.cdp_lock_dir)
     assert "GIG_CDP_LOCK_HELD" not in env
+
+    same_owner = paid._fresh_child_env(args, owner="paid-direct-18183618")
+    other_owner = paid._fresh_child_env(args, owner="paid-direct-18211957")
+    assert same_owner["CDP_LOCK_DIR"] == env["CDP_LOCK_DIR"]
+    assert other_owner["CDP_LOCK_DIR"] != env["CDP_LOCK_DIR"]
 
 
 def test_paid_browser_owners_are_scoped_by_talkroom():
