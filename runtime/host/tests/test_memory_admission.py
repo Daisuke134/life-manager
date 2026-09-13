@@ -33,6 +33,7 @@ class MemoryAdmissionTests(unittest.TestCase):
                     "LIFE_MANAGER_MIN_MEMORY_FREE_PERCENT": "15",
                 }, clear=True),
                 patch.object(MODULE, "memory_free_percent", return_value=9),
+                patch.object(MODULE, "load_per_cpu", return_value=0.5),
                 patch.object(MODULE.os, "execvpe") as execute,
             ):
                 self.assertEqual(MODULE.main(["/usr/bin/true"]), 75)
@@ -51,6 +52,7 @@ class MemoryAdmissionTests(unittest.TestCase):
                     "LIFE_MANAGER_MIN_MEMORY_FREE_PERCENT": "15",
                 }, clear=True),
                 patch.object(MODULE, "memory_free_percent", return_value=43),
+                patch.object(MODULE, "load_per_cpu", return_value=0.5),
                 patch.object(MODULE.os, "execvpe", side_effect=SystemExit) as execute,
             ):
                 with self.assertRaises(SystemExit):
@@ -59,6 +61,7 @@ class MemoryAdmissionTests(unittest.TestCase):
             row = json.loads(receipt.read_text(encoding="utf-8"))
             self.assertEqual(row["status"], "pass")
             self.assertEqual(row["free_percent"], 43)
+            self.assertEqual(row["reason"], "host_headroom_ok")
 
     def test_unavailable_measurement_fails_closed(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -68,6 +71,7 @@ class MemoryAdmissionTests(unittest.TestCase):
                     "LIFE_MANAGER_MEMORY_RECEIPT": str(receipt),
                 }, clear=True),
                 patch.object(MODULE, "memory_free_percent", return_value=None),
+                patch.object(MODULE, "load_per_cpu", return_value=0.5),
             ):
                 self.assertEqual(MODULE.main(["/usr/bin/true"]), 75)
             row = json.loads(receipt.read_text(encoding="utf-8"))
@@ -81,6 +85,7 @@ class MemoryAdmissionTests(unittest.TestCase):
                     "LIFE_MANAGER_MEMORY_RECEIPT": str(receipt),
                 }, clear=True),
                 patch.object(MODULE, "memory_free_percent", side_effect=[9, 43]),
+                patch.object(MODULE, "load_per_cpu", return_value=0.5),
                 patch.object(MODULE.time, "sleep") as sleep,
                 patch.object(MODULE.os, "execvpe", side_effect=SystemExit) as execute,
             ):
@@ -88,6 +93,62 @@ class MemoryAdmissionTests(unittest.TestCase):
                     MODULE.main(["--wait-seconds", "30", "--", "/usr/bin/true"])
             sleep.assert_called_once_with(30)
             self.assertEqual(execute.call_args.args[0], "/usr/bin/true")
+            self.assertEqual(json.loads(receipt.read_text())["status"], "pass")
+
+    def test_high_cpu_load_defers_without_executing_child(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            receipt = Path(temporary) / "memory.json"
+            with (
+                patch.dict(os.environ, {"LIFE_MANAGER_MEMORY_RECEIPT": str(receipt)}, clear=True),
+                patch.object(MODULE, "memory_free_percent", return_value=43),
+                patch.object(MODULE, "load_per_cpu", return_value=14.6),
+                patch.object(MODULE.os, "execvpe") as execute,
+            ):
+                self.assertEqual(MODULE.main(["/usr/bin/true"]), 75)
+            execute.assert_not_called()
+            row = json.loads(receipt.read_text())
+            self.assertEqual(row["reason"], "cpu_headroom_low")
+            self.assertEqual(row["effect"], 0)
+
+    def test_cpu_measurement_unavailable_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            receipt = Path(temporary) / "memory.json"
+            with (
+                patch.dict(os.environ, {"LIFE_MANAGER_MEMORY_RECEIPT": str(receipt)}, clear=True),
+                patch.object(MODULE, "memory_free_percent", return_value=43),
+                patch.object(MODULE, "load_per_cpu", return_value=None),
+            ):
+                self.assertEqual(MODULE.main(["/usr/bin/true"]), 75)
+            self.assertEqual(json.loads(receipt.read_text())["reason"], "cpu_headroom_unavailable")
+
+    def test_non_finite_cpu_measurement_fails_closed(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            receipt = Path(temporary) / "memory.json"
+            with (
+                patch.dict(os.environ, {"LIFE_MANAGER_MEMORY_RECEIPT": str(receipt)}, clear=True),
+                patch.object(MODULE, "memory_free_percent", return_value=43),
+                patch.object(MODULE, "load_per_cpu", return_value=float("nan")),
+            ):
+                self.assertEqual(MODULE.main(["/usr/bin/true"]), 75)
+            self.assertEqual(json.loads(receipt.read_text())["reason"], "cpu_headroom_unavailable")
+
+    def test_non_finite_cpu_threshold_is_invalid(self):
+        with patch.dict(os.environ, {"LIFE_MANAGER_MAX_LOAD_PER_CPU": "NaN"}, clear=True):
+            self.assertEqual(MODULE.main(["/usr/bin/true"]), 64)
+
+    def test_wait_mode_rechecks_cpu_until_it_recovers(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            receipt = Path(temporary) / "memory.json"
+            with (
+                patch.dict(os.environ, {"LIFE_MANAGER_MEMORY_RECEIPT": str(receipt)}, clear=True),
+                patch.object(MODULE, "memory_free_percent", return_value=43),
+                patch.object(MODULE, "load_per_cpu", side_effect=[3.0, 0.5]),
+                patch.object(MODULE.time, "sleep") as sleep,
+                patch.object(MODULE.os, "execvpe", side_effect=SystemExit),
+            ):
+                with self.assertRaises(SystemExit):
+                    MODULE.main(["--wait-seconds", "30", "--", "/usr/bin/true"])
+            sleep.assert_called_once_with(30)
             self.assertEqual(json.loads(receipt.read_text())["status"], "pass")
 
 

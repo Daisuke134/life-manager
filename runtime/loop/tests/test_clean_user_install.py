@@ -250,7 +250,6 @@ class CleanUserInstallTest(unittest.TestCase):
         )
         self.assertEqual(
             result.stdout.strip(),
-            f"{ROOT}/runtime/host/memory_admission.py /bin/echo "
             f"{ROOT}/skills/earn/gig/scripts/gig_disk_guard.py /bin/echo "
             f"{ROOT}/skills/earn/gig/scripts/paid_direct.py "
             "--output /home/owner/gig/evidence/paid-direct-live/latest.json "

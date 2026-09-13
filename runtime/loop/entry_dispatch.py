@@ -60,21 +60,18 @@ def command_for(loop_id: str, root: Path, home: Path) -> list[str]:
             str(root / "ops/symphony/WORKFLOW.money-printer.md"),
         ]
     python = sys.executable
-    memory_guard = [python, str(root / "runtime/host/memory_admission.py")]
     fixed = {
         "money-printer-symphony-bridge": [
             "/opt/homebrew/bin/node",
             str(root / "apps/life-manager/scripts/money-printer-symphony-bridge.js"),
         ],
         "hf-gig-apply-direct": [
-            *memory_guard,
             python, str(root / "skills/earn/gig/scripts/gig_disk_guard.py"),
             python, str(root / "skills/earn/gig/scripts/application_direct.py"),
             "--all-eligible", "--planner-runner",
             str(root / "runtime/agent-runner/agent_runner.py"),
         ],
         "hf-gig-storefront-direct": [
-            *memory_guard,
             python, str(root / "skills/earn/gig/scripts/gig_disk_guard.py"),
             python, str(root / "skills/earn/gig/scripts/storefront_direct.py"),
             "--effect", "--auto-cadence", "--full-interval-seconds", "60",

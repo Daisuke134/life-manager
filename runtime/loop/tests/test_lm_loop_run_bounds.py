@@ -4,7 +4,8 @@ import sys
 import time
 
 from runtime.loop.lm_loop_run import (
-    _memory_admission_deferred, _run_entrypoint, _runtime_limit, _terminal_outcome,
+    HOST_ADMISSION, _host_admitted_command, _memory_admission_deferred,
+    _run_entrypoint, _runtime_limit, _terminal_outcome,
 )
 
 
@@ -23,6 +24,13 @@ def test_scheduled_wake_can_declare_a_longer_finite_safety_limit():
 
 def test_continuous_owner_has_no_scheduled_wake_deadline():
     assert _runtime_limit({"cadence": {"keep_alive": True}}) is None
+
+
+def test_only_finite_wakes_use_the_shared_host_admission():
+    command = ["/bin/true"]
+    assert _host_admitted_command(command, {"cadence": {"keep_alive": True}}) is command
+    assert _host_admitted_command(command, {"cadence": {"start_interval_seconds": 60}}) == [
+        sys.executable, str(HOST_ADMISSION), "/bin/true"]
 
 
 def test_memory_admission_exit_is_deferred_not_failed():
