@@ -1444,6 +1444,21 @@ def test_decision_prompt_keeps_owner_authorized_remote_formal_work_in_remote_mod
     assert "do not downgrade it to answer, await buyer approval" in prompt
 
 
+def test_decision_prompt_rejects_seller_claim_when_numeric_receipts_are_partial(tmp_path):
+    paid = load("paid_direct")
+    identity = {"message_id": "seller-1", "content_sha256": "a" * 64, "side": "seller"}
+    buyer_identity = {"message_id": "buyer-1", "content_sha256": "b" * 64, "side": "buyer"}
+
+    prompt = paid._decision_prompt(
+        tmp_path / "context/current.json", "c" * 64, "d" * 64, "e" * 64,
+        identity, buyer_identity,
+    ).decode()
+
+    assert "paired official provider ledger proves only 12" in prompt
+    assert "classify it actionable remote and continue from 12" in prompt
+    assert "seller-authored total is never completion proof" in prompt
+
+
 def test_formal_browser_accepts_only_hash_bound_exact_cycle_owner_override(tmp_path):
     browser = load("coconala_formal_delivery_browser")
     root = tmp_path / "18211957"
