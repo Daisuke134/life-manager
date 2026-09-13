@@ -9493,9 +9493,10 @@ KPI projection while exposing provider-specific failures quickly enough to earn 
    gates, merge through public main, deploy an immutable release, and monitor revenue. Capability
    failures create resumable engineering work items; the repair loop diagnoses, patches, evaluates,
    deploys and resumes without a human or Codex chat becoming the production owner.
-8. [ ] **Phone-only cloud product:** keep Telegram as the first universal interface; move isolated
-   browser/computer sessions, long-running agent sessions, secrets and audit receipts to tenant-bound
-   cloud workers. A user needs only a phone. OpenAI Agents API is an orchestration/session option,
+8. [ ] **Ambient cloud manager:** move isolated browser/computer sessions, long-running agent sessions,
+   secrets and audit receipts to tenant-bound cloud workers. Telegram is only the first transition channel
+   for result reports and unavoidable exception handoffs; no message or prompt starts ordinary management.
+   OpenAI Agents API is an orchestration/session option,
    not a replacement for provider adapters, deterministic effect fences, official readback or
    tenant isolation.
 9. [ ] **Revenue gates:** maintain one truthful ledger from application through withdrawable cash.
@@ -9655,8 +9656,9 @@ Agents and Responses permissions. It is not supplied by a ChatGPT subscription a
   official provider readback, revenue ledger and Telegram handoff outside the Agents API session.
 - [ ] `API-08` Prove disconnect recovery, long-running work, tool-result submission, duplicate input
   reconciliation and tenant isolation.
-- [ ] `API-09` Ship subscription onboarding so the normal user needs only a phone and Telegram; local
-  execution remains an optional deployment of the same code.
+- [ ] `API-09` Ship the transition product so ordinary management starts and continues without a user
+  prompt. Telegram reports outcomes and unavoidable exceptions; local execution remains an optional
+  deployment of the same code. Later channels and ambient infrastructure remove the phone dependency.
 
 Official contract references:
 
@@ -9679,11 +9681,25 @@ can.** The first pain is the excruciating stagnation caused when a person knows 
 cannot continuously convert intent into action. The first wedge is measurable agency: earn money, build
 relationships, maintain health and logistics, and complete commitments through verified proactive action.
 
+### Canonical product-language rule
+
+Life Manager is a **manager**, never an assistant, chatbot, copilot, prompt tool or command executor.
+Do not describe its normal UX as a person stating a wish, goal, desire, task or instruction and Life Manager
+responding. Human silence is the default input. Management begins from continuously observed reality,
+durable memory, inferred needs, prior evidence and verified life outcomes; it proactively notices, decides,
+acts, checks the result and continues without being summoned. Telegram, a phone and any future UI are
+temporary reporting and exceptional-intervention surfaces, never the product's control loop or prerequisite.
+
+The canonical story is: **the person says nothing; Life Manager notices that life is not moving toward a
+better state and responsibly moves it forward.** If a description can be rewritten as “the person asks and
+the AI helps,” it describes an assistant and must not be used for Life Manager.
+
 The long-term direction is an ambient manager of all life. A beneficiary does not need to learn a new UI,
 know the Life Manager name, repeatedly log in, hold a credential, or supervise routine work. A shared
 operational life graph represents living beings, goals, relationships, resources, constraints, provenance
 and observed outcomes; domain world models simulate candidate interventions before bounded real effects.
-This is **zero interface and zero routine human loop for the beneficiary**, not zero accountability in the
+This is **zero prompt, zero interface and zero routine human loop for the beneficiary**, not zero
+accountability in the
 infrastructure. Identity, delegated/guardian/institutional authority, revocation and audit remain machine-
 managed safety properties wherever actions affect rights, money, privacy or physical safety. Unknown or
 non-consenting beings receive only non-invasive observation and public-good protection until legitimate
@@ -9719,9 +9735,13 @@ minimum intrusion, protection and de-escalation—not omniscience, ownership of 
 - [ ] `VISION-12` Optimize agent programs against explicit metrics with DSPy-style evaluation and retain
   Langfuse/OpenTelemetry-compatible traces. A self-edit is promoted only when offline eval, canary effect,
   official readback, replay-zero, safety and realized benefit all beat the baseline.
-- [ ] `AMBIENT-01` Make the hosted experience Telegram-first, then channel-agnostic and eventually
-  zero-attention: beneficiary state arrives through existing authorized devices, services, institutions or
-  guardians; Life Manager proactively acts and reports only meaningful outcomes.
+- [ ] `AMBIENT-01` Make management zero-prompt from its first hosted version. Beneficiary state arrives
+  through existing authorized devices, services, institutions or guardians; Life Manager proactively acts
+  and reports only meaningful outcomes. Telegram is a transitional report/exception channel, not an input
+  requirement, activation step or source of goals.
+- [ ] `AMBIENT-01A` Add a product-language regression check for README, website, pitch and onboarding:
+  reject stories whose causal sequence begins with a user prompt, command, wish or task request; require
+  observe -> infer -> act -> verify -> continue with the human absent from the ordinary loop.
 - [ ] `AMBIENT-02` Remove repeated credential handling from the beneficiary experience. Provider sessions
   restore, refresh and recover automatically; only an unavoidable external KYC/challenge is surfaced as a
   typed, minimal, expiring handoff.

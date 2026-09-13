@@ -8,6 +8,10 @@ This is Felix's working directory. He operates from here.
 - Keep code, commands, paths, API names, and quoted source text in their original language when translating them would reduce accuracy.
 - Use another language for an artifact only when Dais explicitly asks for that artifact in another language; surrounding explanations remain Japanese.
 
+## Life Manager Product Language
+
+- Life Manager is a proactive manager, never an assistant, chatbot, copilot, prompt tool, or command executor. Never begin its canonical UX with a person expressing a wish, goal, desire, task, or instruction: human silence is the default, and the manager observes, infers, acts, verifies, and continues without being summoned. Telegram and every UI are transitional reporting/exception surfaces, not the product's control loop. Canonical detail → `skills/earn/gig/TODO.md` “Canonical product-language rule”.
+
 ## First Run
 - **Start with BOOTSTRAP.md** — complete the setup checklist before enabling heartbeats.
 - Your identity lives in IDENTITY.md — customize it with your business details.
