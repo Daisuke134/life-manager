@@ -78,6 +78,11 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   Coconala, Lancers, CrowdWorks or Mercor marketplace owner remains on an older release. The Lancers
   and shared marketplace browser keep-alives intentionally do not use finite host admission and must
   not be restarted merely to align release SHAs.
+  Targeted production wakes then prove the boundary beyond Coconala: Lancers Apply, Storefront,
+  Negotiate and Paid; CrowdWorks Apply, Reply and Paid; and Mercor Apply, Reply and Paid all record
+  the current release with exit `75` and `memory_admission_deferred`. Thus overload admission is
+  installed and runtime-proved on every implemented revenue lane for those providers; normal business
+  success still requires later admitted runs after host load falls below the configured threshold.
 
 - **Shared browser entry and operator-brake convergence are complete on main.** PR `#5159`, merge
   SHA `2668376830...`, changes BrowserContext acquisition to reserve under the ledger lock, perform
