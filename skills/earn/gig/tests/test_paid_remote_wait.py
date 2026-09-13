@@ -2643,6 +2643,12 @@ def test_reused_answer_fails_closed_when_decision_changes(tmp_path, monkeypatch)
         paid._validated_reused_answer_at_effect(tmp_path, {}, "a" * 64)
 
 
+def test_prepare_does_not_resume_superseded_remote_contract_after_reuse():
+    paid = load("paid_direct")
+    source = inspect.getsource(paid._prepare_one)
+    assert "if reused_verified_remote_answer:\n            pass\n        elif consultation_answer:" in source
+
+
 def test_remote_wait_expires_after_recheck_interval(tmp_path):
     paid = load("paid_direct")
     root, feedback, digest = blocked_project(tmp_path)
