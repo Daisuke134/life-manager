@@ -84,6 +84,7 @@ const LEGACY_LITERAL_FIXTURES = new Set([
   "runtime/migrate-legacy-lateness-state.py",
   "runtime/migrate-legacy-warmup-flip-state.py",
   "skills/earn/hl-trade/tests/test_reconcile.py",
+  "skills/earn/gig/tests/test_gig_disk_guard.py",
 ]);
 
 // A tracked image is product source, not a build artifact, when a tracked JSON contract declares
