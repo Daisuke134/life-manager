@@ -288,7 +288,17 @@ class CrowdWorksPaidAdapter:
         try:
             return self._detail_once(basic)
         except PlaywrightTimeoutError:
-            raise CrowdWorksPaidContractTimeout() from None
+            contexts = getattr(self.browser, "contexts", ())
+            context = self.owned_context or (contexts[0] if len(contexts) == 1 else None)
+            if context is None:
+                raise CrowdWorksPaidContractTimeout() from None
+            self.page.close()
+            self.page = context.new_page()
+            self.page.set_default_timeout(15_000)
+            try:
+                return self._detail_once(basic)
+            except PlaywrightTimeoutError:
+                raise CrowdWorksPaidContractTimeout() from None
 
     def _detail_once(self, basic: Mapping[str, Any]) -> dict[str, Any]:
         work_id = _text(basic.get("work_id"))
