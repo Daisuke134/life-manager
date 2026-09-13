@@ -226,11 +226,12 @@ operator receipt and a following replay-zero.
    after the Coconala funded liability closes: contract-selection interviews, kickoff and ordinary
    progress meetings use one typed Telegram handoff, Google Calendar event and scheduled Life Manager
    phone call; all research, proposal, scheduling clicks, work, delivery and readback remain loop-owned.
-   The current implementation cursor is one repository-owned TikTok single-recipient transport for Chii:
-   model judgment owns candidate qualification and recipient-specific copy, while deterministic shared code
-   owns authenticated identity validation, one send, exact official readback and deduplication. This replaces
-   generated project-local browser scripts; the campaign cursor, paired Sheet receipt and bounded batch runner
-   follow on the same shared boundary.
+   The repository-owned TikTok single-recipient transport is implemented and acceptance-reviewed: model
+   judgment owns candidate qualification and recipient-specific copy, while deterministic shared code owns
+   authenticated identity validation, exact recipient-header binding, a durable effect fence, one send and
+   exact official readback. Paid owners are directed to this shared transport and forbidden to generate a
+   project-local copy. The current implementation cursor is the campaign cursor, paired Sheet receipt and
+   bounded batch runner on the same shared boundary.
 3. **Next-platform expansion.** Qualify and add AudioBabel and the next evidence-backed marketplaces in
    expected net-revenue order. Each new provider must complete the same vertical receipt chain.
 4. **Marketplace meta-loop.** Let the model discover and qualify platforms, inspect official
