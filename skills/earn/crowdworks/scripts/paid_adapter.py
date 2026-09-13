@@ -315,10 +315,10 @@ class CrowdWorksPaidAdapter:
             application_date = self._receipt_application_date(title, proposal_id)
         links = self.page.locator('a[href]').evaluate_all("nodes => nodes.map(a => a.href).filter(Boolean)")
         form_urls = sorted({link for link in links if isinstance(link, str) and _google_form_url(link)})
-        if match is None or len(form_urls) != 1:
+        if match is None or len(form_urls) > 1:
             raise RuntimeError("crowdworks_paid_task_unavailable")
         return {"work_id": work_id, "title": title, "client": client, "provider_state": state,
-                "milestone_id": match.group(1), "form_url": form_urls[0],
+                "milestone_id": match.group(1), "form_url": form_urls[0] if form_urls else None,
                 "proposal_id": proposal_id, "application_date": application_date}
 
     def _proposal_application_date(self, proposal_id: str) -> str | None:

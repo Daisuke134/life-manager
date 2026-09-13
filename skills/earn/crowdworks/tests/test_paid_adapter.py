@@ -83,6 +83,23 @@ def test_funded_contract_without_labeled_official_application_date_waits_truthfu
     assert action["reason"] == "official_application_date_required"
 
 
+def test_funded_contract_without_google_form_waits_without_blocking_inventory():
+    module = load()
+    contract = {**funded(), "work_id": "63568785", "form_url": None}
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", inventory_reader=lambda: {
+            "ok": True, "source_complete": True, "contract_candidates": [contract, funded()],
+        },
+    )
+
+    rows = adapter.observe_active()
+    action = module.decide({"context": {"contract": contract}})
+
+    assert [row["work_id"] for row in rows] == ["63568785", "63570481"]
+    assert action["action"] == "wait"
+    assert action["reason"] == "buyer_task_detail_required"
+
+
 def test_exact_verified_apply_receipt_is_jst_application_date_fallback(tmp_path):
     module = load()
     receipt = {"record_type": "application_receipt", "platform": "crowdworks", "status": "verified",
