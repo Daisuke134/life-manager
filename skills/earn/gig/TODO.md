@@ -9558,6 +9558,26 @@ cache proven methods but never become a capability whitelist; a missing named sk
 capable agent. Every reusable repair enters shared runtime/domain code and adapter conformance tests so all
 current platforms, future platforms and non-revenue loops learn collectively.
 
+### OSS code evidence for scalable, robust owners
+
+Life Manager learns concrete concurrency and recovery semantics from the following source code. These are
+design references, not runtime dependencies; adopting all five frameworks would duplicate the existing
+SQLite, lease, intent and outbox rails and make the fleet harder to operate.
+
+| OSS code inspected | Concrete pattern | Life Manager adoption | Deliberately not copied |
+| --- | --- | --- | --- |
+| [Hatchet `scheduler.go` at `315d43a`](https://github.com/hatchet-dev/hatchet/blob/315d43a72fd771b049b304b865a81dbab98c466c/pkg/repository/scheduler.go) | Atomically reserve and commit a run slot while respecting `maxRuns`, including concurrent schedulers | Atomic host/tenant admission and bounded client workers; never prepare an unbounded batch before capacity exists | Hatchet service/database as a second scheduler |
+| [River unique-job implementation at `a4cf56f`](https://github.com/riverqueue/river/blob/a4cf56f7233ce1a84a4dc188d91bd09399522763/internal/dbunique/db_unique.go) | Derive durable uniqueness from job identity and selected states | Stable business/effect keys remain constant across process attempts and prevent duplicate work/effects | River/Postgres dependency and uniqueness as provider truth |
+| [Graphile Worker `getJobs.ts` at `4cda192`](https://github.com/graphile/worker/blob/4cda192c5df254392a1dff350e5d73f7d2c18a85/src/sql/getJobs.ts) | Claim ready rows with `SKIP LOCKED`, so one slow worker does not block independent jobs | Completion-order claims and per-work-item leases; unrelated clients/platforms continue while one waits | Postgres solely to replace the existing durable queue |
+| [Temporal Go retry policy at `b9f176d`](https://github.com/temporalio/sdk-go/blob/b9f176df7ab02c974d8dbd8d68efc02ffe0006b8/internal/common/backoff/retrypolicy.go) | Explicit retry policy with bounded backoff and non-retryable failure classes | Persist next eligibility, separate transient failure from auth/policy/human wait, and resume from durable state | An immortal process, blind retries or Temporal before measured need |
+| [etcd v3 lease client at `9ba96c8`](https://github.com/etcd-io/etcd/blob/9ba96c87c013bb5e6ec1311857565c39a10dcd5d/client/v3/lease.go) | Lease identity, TTL and KeepAlive make ownership expiry observable | Owner/fence tokens reject late completion from an expired attempt and allow bounded reclamation | Treating a heartbeat as business success or adding an etcd cluster locally |
+
+The common lesson is not “make everything parallel.” It is **parallelize independent work, serialize the
+same external resource, bound concurrency before admission, fence stale owners, persist progress, and verify
+every real-world effect from the provider**. This prevents both head-of-line blocking and duplicate money-
+affecting actions. The acceptance gate remains the Life Manager regression: one item times out while an
+unrelated item completes, then the repaired item resumes with exact official readback and replay-zero.
+
 ### Remaining execution order to revenue
 
 The shared kernel stays horizontal; revenue proof is completed as a vertical platform slice. This
@@ -9565,8 +9585,10 @@ keeps one implementation of leases, work items, retries, effect fences, readback
 KPI projection while exposing provider-specific failures quickly enough to earn money.
 
 1. [ ] **Coconala:** obtain natural post-release proof for Apply, Reply, Paid and Storefront; enable
-   continuous applications; prove one eligible continuous application, meeting handoff through
-   Telegram/Calendar when required, buyer reply, paid-order progression, listing improvement,
+   continuous applications; prove the first eligible continuous application and then apply to the full
+   profitable eligible set under measured account/resource limits. For every meeting, create a Google
+   Calendar event containing the direct join link and make the Life Manager call five minutes before it;
+   also prove buyer reply, paid-order progression, listing improvement,
    official readback and replay-zero. Already closed clients are not reopened.
 2. [ ] **Lancers:** use completed phone verification, then prove Apply -> Reply -> Paid -> Storefront
    (where supported) with exact effects, official readback, replay-zero and revenue observation.
@@ -9614,18 +9636,24 @@ Manledge/Clover work is not part of this ledger.
 - [ ] `COC-04` Build one main-derived immutable release; install it on Coconala Apply only through the
   repository release path; verify installed SHA and owner configuration.
 - [ ] `COC-05` Observe a naturally admitted authenticated Apply wake without bypassing host admission.
-- [ ] `COC-06` Prove the Apply budget keeps 19 one-off slots plus one continuous slot without shard
-  over-allocation.
-- [ ] `COC-07` Submit one eligible continuous application through the existing Apply lane; retain the
-  exact official application readback.
+- [ ] `COC-06` Prove the initial Apply allocation keeps 19 one-off slots plus one continuous acceptance
+  slot without shard over-allocation. This is a rollout split, not a permanent continuous-application cap.
+- [ ] `COC-07` Submit the first eligible continuous application through the existing Apply lane and retain
+  exact official application readback; then enable full profitable-set traversal for both one-off and
+  continuous opportunities under platform policy, account risk, spend and measured resource limits.
+- [ ] `COC-07A` Continuously allocate application capacity by expected net revenue, acceptance probability,
+  recurring value, time-to-cash, delivery cost and account risk. Maximize qualified applications and
+  expected profit rather than reserving a fixed one-off/continuous ratio or maximizing raw count.
 - [ ] `COC-08` Replay the same continuous work item and prove effect zero/deduplicated true.
 - [ ] `COC-09` Observe one natural Reply wake with exact official readback and replay-zero.
 - [ ] `COC-10` Observe one natural Paid wake with independent client progress, exact official readback
   and replay-zero. Ryu stays dormant unless a new buyer event appears.
 - [ ] `COC-11` Observe one natural Storefront wake with official inventory/analytics readback and
   replay-zero.
-- [ ] `COC-12` If a continuous job requires a meeting, send one typed Telegram handoff, create the
-  Calendar event, trigger the scheduled Life Manager call and resume the same work item afterward.
+- [ ] `COC-12` For every continuous-job meeting, complete the scheduling action, create a Google Calendar
+  event with the exact time, counterparty, context and direct join link, verify it from Calendar, call Dais
+  five minutes before start, and resume the same work item afterward. Telegram is an optional duplicate
+  exception/result notice, not the reminder's source of truth.
 - [ ] `COC-13` Record the first attributable continuous contract, accepted delivery, payout and
   withdrawable-cash receipt in the shared revenue ledger.
 
