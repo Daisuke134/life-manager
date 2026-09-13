@@ -96,6 +96,17 @@ another client's state. Providers and clients share implementation, tools and le
 `marketplace-core`; they never share buyer context or mutable job state. A buyer reply, KYC, interview or
 provider throttle blocks only its own owner. One failure never delays another owner or provider.
 
+The first production concurrency defect is closed on main by PR `#5101`, merge SHA `66ef16cf4...`.
+Paid official talkroom readbacks and project owners now both admit eight concurrent clients. Every browser
+child derives a stable owner-specific CDP lock while the existing context lease creates an isolated
+BrowserContext for that owner: the same owner remains serialized, but different talkrooms no longer queue
+behind one global browser lock. The full Paid suite passes 157/157 and fresh review also passes the existing
+BrowserContext/owner tests. Main-derived sparse release `20260913T095832-66ef16cf` is installed for Paid.
+Paid remains deliberately unloaded until the next item-0 controller-boundary repair prevents an artifact
+builder from performing or retrying a marketplace effect; the brief install probe was stopped at PID
+`30360`, recorded only `entrypoint_exit_143`, and produced no external-effect receipt. This local safety
+hold never serializes or pauses another client owner, lane or platform.
+
 Each owner advances its own `discover/account -> Apply -> Reply -> Paid -> optional Storefront ->
 payout/bank receipt` lifecycle as soon as its local prerequisites exist. Therefore Apply may keep acquiring
 work while unrelated Paid owners deliver existing contracts. A missing Storefront capability is
