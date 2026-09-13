@@ -1,4 +1,6 @@
 import os
+import json
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -67,6 +69,68 @@ class CutLoopReleasePressureTest(unittest.TestCase):
             release = (loops / "current").resolve()
             self.assertTrue((release / "runtime/loop/runtime_event.py").is_file())
             self.assertTrue((release / "RELEASE.json").is_file())
+
+    def test_pressure_flag_allows_apfs_clone_of_verified_complete_ancestor(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_home:
+            home = Path(raw_home)
+            repo = home / "repo"
+            origin = home / "origin.git"
+            repo.mkdir()
+            subprocess.run(["git", "init", "--bare", str(origin)], check=True, capture_output=True)
+            subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.email", "release-test@example.invalid"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.name", "Release Test"], cwd=repo, check=True)
+            subprocess.run(["git", "remote", "add", "origin", str(origin)], cwd=repo, check=True)
+            (repo / "bin").mkdir()
+            shutil.copy2(Path(__file__).resolve().parents[3] / "bin/cut-loop-release.sh",
+                         repo / "bin/cut-loop-release.sh")
+            cleanup = repo / "runtime/loop/central_cleanup.py"
+            cleanup.parent.mkdir(parents=True)
+            cleanup.write_text("raise SystemExit(0)\n", encoding="utf-8")
+            (repo / "old.txt").write_text("old\n", encoding="utf-8")
+            (repo / "package.json").write_text('{"name":"release-test","version":"1.0.0"}\n', encoding="utf-8")
+            package_lock = '{"name":"release-test","version":"1.0.0","lockfileVersion":3,"packages":{}}\n'
+            (repo / "package-lock.json").write_text(package_lock, encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-m", "old"], cwd=repo, check=True, capture_output=True)
+            old_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+            subprocess.run(["git", "push", "-u", "origin", "main"], cwd=repo, check=True, capture_output=True)
+
+            loops = home / "loops"
+            donor = loops / "releases/donor"
+            donor.mkdir(parents=True)
+            (donor / "old.txt").write_text("old\n", encoding="utf-8")
+            dependency = donor / "node_modules/runtime-marker"
+            dependency.parent.mkdir()
+            dependency.write_text("preserved\n", encoding="utf-8")
+            (donor / "node_modules/.package-lock.json").write_text(package_lock, encoding="utf-8")
+            shutil.copy2(repo / "package.json", donor / "package.json")
+            shutil.copy2(repo / "package-lock.json", donor / "package-lock.json")
+            (donor / "RELEASE.json").write_text(json.dumps({
+                "sha": old_sha, "release_paths": "ALL",
+            }) + "\n", encoding="utf-8")
+            subprocess.run(["chmod", "-R", "a-w", str(donor)], check=True)
+            (loops / "current").symlink_to(donor)
+
+            (repo / "old.txt").unlink()
+            (repo / "new.txt").write_text("new\n", encoding="utf-8")
+            subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-m", "new"], cwd=repo, check=True, capture_output=True)
+            subprocess.run(["git", "push", "origin", "main"], cwd=repo, check=True, capture_output=True)
+            result, _ = self.run_cut(
+                repo, home, "", LOOPS_ACTIVATE_CURRENT="0", LOOPS_KEEP_RELEASES="2",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            releases = [candidate for candidate in (loops / "releases").iterdir()
+                        if candidate != donor]
+            self.assertEqual(len(releases), 1)
+            release = releases[0]
+            self.assertFalse((release / "old.txt").exists())
+            self.assertEqual((release / "new.txt").read_text(), "new\n")
+            self.assertEqual((release / "node_modules/runtime-marker").read_text(), "preserved\n")
+            self.assertFalse((release / "node_modules/node_modules").exists())
+            self.assertEqual(json.loads((release / "RELEASE.json").read_text())["release_paths"], "ALL")
 
     def test_pressure_flag_rejects_whitespace_only_paths_before_release_write(self) -> None:
         repo = Path(__file__).resolve().parents[3]

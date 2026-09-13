@@ -32,6 +32,7 @@ NPM_BIN="${NPM_BIN:-$(command -v npm 2>/dev/null || true)}"
 NPM_NODE_BIN="${NPM_NODE_BIN:-}"
 CUT_LOCK="$LOOPS_ROOT/.release-cut.lock"
 DEST=""
+BUILD_COMPLETE=0
 
 die() { echo "cut-loop-release: $*" >&2; exit 1; }
 
@@ -43,42 +44,76 @@ esac
 SHA="$(git -C "$REPO_ROOT" rev-parse "$REF" 2>/dev/null)" || die "cannot resolve ref '$REF'"
 SHORT="${SHA:0:8}"
 
+# A complete immutable release on APFS is an efficient source snapshot: clonefile shares its
+# unchanged blocks, then Git replaces only tracked source. This is also the only bounded way to
+# advance a dependency-complete multi-GiB release while the host is under disk pressure.
+FULL_CLONE_DONOR=""
+FULL_CLONE_DONOR_SHA=""
+if [ -z "$RELEASE_PATHS" ] && [ -f "$CURRENT/RELEASE.json" ]; then
+  FULL_CLONE_DONOR="$(cd "$CURRENT" 2>/dev/null && pwd -P || true)"
+  RELEASES_REAL="$(cd "$RELEASES" 2>/dev/null && pwd -P || true)"
+  case "$FULL_CLONE_DONOR" in
+    "$RELEASES_REAL"/*) ;;
+    *) FULL_CLONE_DONOR="" ;;
+  esac
+  if [ -n "$FULL_CLONE_DONOR" ]; then
+    read -r FULL_CLONE_DONOR_SHA FULL_CLONE_DONOR_PATHS < <(
+      python3 - "$FULL_CLONE_DONOR/RELEASE.json" <<'PY'
+import json, sys
+try:
+    value = json.load(open(sys.argv[1], encoding="utf-8"))
+    print(value.get("sha", ""), value.get("release_paths", ""))
+except (OSError, ValueError, TypeError):
+    print("", "")
+PY
+    )
+    if [ "$FULL_CLONE_DONOR_PATHS" != "ALL" ] \
+      || ! git -C "$REPO_ROOT" cat-file -e "$FULL_CLONE_DONOR_SHA^{commit}" 2>/dev/null \
+      || ! git -C "$REPO_ROOT" merge-base --is-ancestor "$FULL_CLONE_DONOR_SHA" "$SHA" 2>/dev/null; then
+      FULL_CLONE_DONOR=""
+      FULL_CLONE_DONOR_SHA=""
+    fi
+  fi
+fi
+
 # The central disk governor owns this flag and clears it only after recovery.
 # Full exports are large producers and always defer. An explicitly sparse export may proceed only
 # when its tracked tar payload is measured below the bounded recovery ceiling before locks or mkdir.
 PRESSURE_FILE="${LIFE_MANAGER_DISK_PRESSURE_FILE:-${LIFE_MANAGER_HOST_STATE_DIR:-$HOME/.local/state/life-manager/state}/disk-pressure.block}"
 if [ -f "$PRESSURE_FILE" ]; then
   read -r -a PRESSURE_ARCHIVE_PATHS <<<"$RELEASE_PATHS"
-  if [ "${#PRESSURE_ARCHIVE_PATHS[@]}" -eq 0 ]; then
+  if [ "${#PRESSURE_ARCHIVE_PATHS[@]}" -eq 0 ] && [ -z "$FULL_CLONE_DONOR" ]; then
     echo "cut-loop-release: disk pressure is active; full release build deferred" >&2
     exit 75
   fi
-  PRESSURE_HAS_BIN=0
-  PRESSURE_HAS_SHARED=0
-  for path in "${PRESSURE_ARCHIVE_PATHS[@]}"; do
-    [ "$path" = "bin" ] && PRESSURE_HAS_BIN=1
-    [ "$path" = "skills/_shared" ] && PRESSURE_HAS_SHARED=1
-  done
-  if [ "$PRESSURE_HAS_BIN" -eq 1 ] && [ "$PRESSURE_HAS_SHARED" -eq 0 ]; then
-    PRESSURE_ARCHIVE_PATHS+=("skills/_shared")
-  fi
-  PRESSURE_MAX_ARCHIVE_BYTES="${LOOPS_PRESSURE_MAX_ARCHIVE_BYTES:-268435456}"
-  [[ "$PRESSURE_MAX_ARCHIVE_BYTES" =~ ^[1-9][0-9]*$ ]] || die "invalid pressure archive ceiling"
-  if ! PRESSURE_ARCHIVE_BYTES="$(git -C "$REPO_ROOT" archive --format=tar "$SHA" -- \
-      "${PRESSURE_ARCHIVE_PATHS[@]}" | wc -c | tr -d '[:space:]')"; then
-    die "cannot measure sparse release under disk pressure"
-  fi
-  [[ "$PRESSURE_ARCHIVE_BYTES" =~ ^[0-9]+$ ]] || die "invalid sparse release measurement"
-  if [ "$PRESSURE_ARCHIVE_BYTES" -gt "$PRESSURE_MAX_ARCHIVE_BYTES" ]; then
-    echo "cut-loop-release: disk pressure is active; sparse release exceeds bounded ceiling" >&2
-    exit 75
+  if [ "${#PRESSURE_ARCHIVE_PATHS[@]}" -gt 0 ]; then
+    PRESSURE_HAS_BIN=0
+    PRESSURE_HAS_SHARED=0
+    for path in "${PRESSURE_ARCHIVE_PATHS[@]}"; do
+      [ "$path" = "bin" ] && PRESSURE_HAS_BIN=1
+      [ "$path" = "skills/_shared" ] && PRESSURE_HAS_SHARED=1
+    done
+    if [ "$PRESSURE_HAS_BIN" -eq 1 ] && [ "$PRESSURE_HAS_SHARED" -eq 0 ]; then
+      PRESSURE_ARCHIVE_PATHS+=("skills/_shared")
+    fi
+    PRESSURE_MAX_ARCHIVE_BYTES="${LOOPS_PRESSURE_MAX_ARCHIVE_BYTES:-268435456}"
+    [[ "$PRESSURE_MAX_ARCHIVE_BYTES" =~ ^[1-9][0-9]*$ ]] || die "invalid pressure archive ceiling"
+    if ! PRESSURE_ARCHIVE_BYTES="$(git -C "$REPO_ROOT" archive --format=tar "$SHA" -- \
+        "${PRESSURE_ARCHIVE_PATHS[@]}" | wc -c | tr -d '[:space:]')"; then
+      die "cannot measure sparse release under disk pressure"
+    fi
+    [[ "$PRESSURE_ARCHIVE_BYTES" =~ ^[0-9]+$ ]] || die "invalid sparse release measurement"
+    if [ "$PRESSURE_ARCHIVE_BYTES" -gt "$PRESSURE_MAX_ARCHIVE_BYTES" ]; then
+      echo "cut-loop-release: disk pressure is active; sparse release exceeds bounded ceiling" >&2
+      exit 75
+    fi
   fi
 fi
 
 cleanup() {
   local status=$?
   trap - EXIT INT TERM HUP
-  if [ -n "$DEST" ] && [ -d "$DEST" ] && [ ! -f "$DEST/RELEASE.json" ]; then
+  if [ -n "$DEST" ] && [ -d "$DEST" ] && [ "$BUILD_COMPLETE" -ne 1 ]; then
     chmod -R u+w "$DEST" 2>/dev/null || true
     find "$DEST" -depth -delete 2>/dev/null || true
   fi
@@ -162,10 +197,29 @@ if [ -n "$RELEASE_PATHS" ]; then
     ARCHIVE_PATHS+=("runtime/browser")
   fi
 fi
-if [ "${#ARCHIVE_PATHS[@]}" -eq 0 ]; then
+if [ "${#ARCHIVE_PATHS[@]}" -eq 0 ] && [ -n "$FULL_CLONE_DONOR" ]; then
+  rmdir "$DEST" || die "new release directory is not empty"
+  cp -cR "$FULL_CLONE_DONOR" "$DEST" || die "APFS release clone failed"
+  find "$DEST" -type d -exec chmod u+w {} + || die "cannot make cloned directories writable"
+  rm -f "$DEST/RELEASE.json" || die "cannot remove cloned release manifest"
+  while IFS= read -r -d '' tracked_path; do
+    case "/$tracked_path/" in
+      *"/../"*) die "unsafe tracked path in donor" ;;
+    esac
+    tracked_target="$DEST/$tracked_path"
+    if [ -e "$tracked_target" ] || [ -L "$tracked_target" ]; then
+      find "$tracked_target" -depth -delete || die "cannot replace cloned tracked path"
+    fi
+  done < <(git -C "$REPO_ROOT" ls-tree -rz --name-only "$FULL_CLONE_DONOR_SHA")
   git -C "$REPO_ROOT" archive --format=tar "$SHA" | tar -x -C "$DEST"
   ARCHIVE_RC=$?
 else
+  FULL_CLONE_DONOR=""
+fi
+if [ "${#ARCHIVE_PATHS[@]}" -eq 0 ] && [ -z "$FULL_CLONE_DONOR" ]; then
+  git -C "$REPO_ROOT" archive --format=tar "$SHA" | tar -x -C "$DEST"
+  ARCHIVE_RC=$?
+elif [ "${#ARCHIVE_PATHS[@]}" -gt 0 ]; then
   git -C "$REPO_ROOT" archive --format=tar "$SHA" -- "${ARCHIVE_PATHS[@]}" | tar -x -C "$DEST"
   ARCHIVE_RC=$?
 fi
@@ -192,7 +246,22 @@ reuse_locked_dependencies() {
 
 for package_dir in "$DEST" "$DEST/runtime/compute-proxy" "$DEST/runtime/agentmail" "$DEST/apps/life-manager" \
   "$DEST/skills/earn/x402-sell" "$DEST/services/x402-endpoint"; do
-  [ -f "$package_dir/package.json" ] && [ -f "$package_dir/package-lock.json" ] || continue
+  relative="${package_dir#"$DEST"}"
+  if ! { [ -f "$package_dir/package.json" ] && [ -f "$package_dir/package-lock.json" ]; }; then
+    if [ -n "$FULL_CLONE_DONOR" ] && [ -d "$package_dir/node_modules" ]; then
+      find "$package_dir/node_modules" -depth -delete || die "cannot remove obsolete cloned dependencies"
+    fi
+    continue
+  fi
+  if [ -n "$FULL_CLONE_DONOR" ] && [ -d "$package_dir/node_modules" ]; then
+    donor_package="$FULL_CLONE_DONOR$relative"
+    if [ -f "$package_dir/node_modules/.package-lock.json" ] \
+      && [ -f "$donor_package/package-lock.json" ] \
+      && cmp -s "$package_dir/package-lock.json" "$donor_package/package-lock.json"; then
+      continue
+    fi
+    find "$package_dir/node_modules" -depth -delete || die "cannot replace stale cloned dependencies"
+  fi
   if reuse_locked_dependencies "$package_dir"; then
     continue
   fi
@@ -217,6 +286,7 @@ cat >"$DEST/RELEASE.json" <<EOF
   "release_paths": "${ARCHIVE_PATHS[*]:-ALL}"
 }
 EOF
+BUILD_COMPLETE=1
 
 chmod -R a-w "$DEST" 2>/dev/null || true
 

@@ -116,6 +116,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     **os.environ,
                     "LOOPS_ROOT": str(loops),
                     "LOOPS_KEEP_RELEASES": "2",
+                    "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint",
                     "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
                     "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
                     "NPM_BIN": str(npm),
