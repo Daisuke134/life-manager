@@ -176,8 +176,9 @@ def validate_queue_contract(
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if not read_only and (queue.get("delivery_action") != "formal" or queue.get("formal_delivery_checkbox") is not True):
         raise ValueError("queue_not_formal")
+    root = project_root.expanduser().resolve()
     if not read_only:
-        if not _formal_approval_ready(queue):
+        if not (_formal_approval_ready(queue) or _account_owner_formal_ready(queue, root)):
             raise ValueError("formal_buyer_approval_evidence_required")
     # B4 (spec section CC'): a subscription room (room_contract_kind, A5) has no 正式な納品
     # checkbox and no 納品確認待ち step to submit through. delivery_cadence.delivery_decision
@@ -208,7 +209,6 @@ def validate_queue_contract(
     evidence = queue.get("delivery_evidence")
     if not isinstance(evidence, dict) or manifest.get("status") != "ok" or manifest.get("acceptance_status") != "PASS":
         raise ValueError("formal_manifest_not_accepted")
-    root = project_root.expanduser().resolve()
     if not root.is_dir() or Path(str(manifest.get("project_root") or "")).expanduser().resolve() != root:
         raise ValueError("formal_project_root_mismatch")
     for key in ("artifact_path", "artifact_version", "acceptance_evidence_path", "acceptance_status", "acceptance_delta", "package_sha256"):
@@ -265,8 +265,14 @@ def validate_queue_contract(
     ):
         raise ValueError("google_doc_link_invalid")
     linked_asset_delivery = _linked_asset_delivery(evidence)
-    message = str(manifest.get("customer_message") or "").strip() if linked_asset_delivery else delivery_message(
-        artifact.name, delta, google_doc_link,
+    verified_remote_message = (
+        manifest.get("remote_formal_delivery") is True
+        and _account_owner_formal_ready(queue, root)
+    )
+    message = (
+        str(manifest.get("customer_message") or "").strip()
+        if linked_asset_delivery or verified_remote_message
+        else delivery_message(artifact.name, delta, google_doc_link)
     )
     if not message:
         raise ValueError("message_invalid")
@@ -300,6 +306,37 @@ def _formal_approval_ready(queue: dict[str, Any]) -> bool:
         and approval.get("side") == "buyer"
         and str(approval.get("message_id") or "").strip()
         and re.fullmatch(r"[0-9a-f]{64}", str(approval.get("content_sha256") or ""))
+    )
+
+
+def _account_owner_formal_ready(queue: dict[str, Any], root: Path) -> bool:
+    """Accept one exact-cycle owner override without weakening ordinary delivery."""
+    authorization = queue.get("account_owner_formal_authorization")
+    if not isinstance(authorization, dict) or set(authorization) != {
+        "authorized_by", "request_id", "buyer_feedback_sha256",
+        "requirements_sha256", "policy_sha256",
+    }:
+        return False
+    policy_path = root / "context" / "paid-file-operator-policy.json"
+    try:
+        if policy_path.is_symlink() or not policy_path.is_file():
+            return False
+        content = policy_path.read_bytes()
+        policy = json.loads(content)
+    except (OSError, ValueError, TypeError):
+        return False
+    return bool(
+        authorization.get("authorized_by") == "account_owner"
+        and authorization.get("request_id") == root.name
+        and authorization.get("buyer_feedback_sha256") == queue.get("buyer_feedback_sha256")
+        and authorization.get("requirements_sha256") == queue.get("requirements_sha256")
+        and authorization.get("policy_sha256") == hashlib.sha256(content).hexdigest()
+        and policy.get("version") == 1
+        and policy.get("authorized_by") == "account_owner"
+        and str(policy.get("request_id") or "") == root.name
+        and policy.get("buyer_feedback_sha256") == authorization.get("buyer_feedback_sha256")
+        and policy.get("requirements_sha256") == authorization.get("requirements_sha256")
+        and policy.get("formal_delivery_after_remote") is True
     )
 
 
