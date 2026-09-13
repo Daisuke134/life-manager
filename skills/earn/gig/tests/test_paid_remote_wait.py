@@ -1609,6 +1609,29 @@ def test_remote_formal_effect_uses_formal_browser_and_exact_room_readback(tmp_pa
     assert len(resumes) == 2
 
 
+def test_customer_attachment_accepts_project_delivery_but_rejects_outside_project(tmp_path):
+    paid = load("paid_direct")
+    root = tmp_path / "projects" / "18211957"
+    manual = root / "delivery" / "update-manual.md"
+    manual.parent.mkdir(parents=True)
+    manual.write_text("verified customer instructions", encoding="utf-8")
+    value = {
+        "path": str(manual),
+        "filename": manual.name,
+        "sha256": hashlib.sha256(manual.read_bytes()).hexdigest(),
+    }
+
+    assert paid._validated_customer_attachment(root, value) == value
+
+    outside = tmp_path / "outside.md"
+    outside.write_text("must not be attached", encoding="utf-8")
+    with pytest.raises(ValueError):
+        paid._validated_customer_attachment(root, {
+            "path": str(outside), "filename": outside.name,
+            "sha256": hashlib.sha256(outside.read_bytes()).hexdigest(),
+        })
+
+
 def test_remote_formal_effect_refuses_result_swap_after_presend(tmp_path, monkeypatch):
     paid = load("paid_direct")
     root = tmp_path / "projects" / "18211957"
@@ -3482,6 +3505,18 @@ def test_remote_verifier_accepts_multiple_evidence_references():
         ("verifier_evidence", "second.json"),
     ]
     assert remote._verifier_evidence_values(result) == ["first.json", "second.json"]
+
+
+def test_remote_verifier_ignores_owner_delivery_supplements():
+    paid = load("paid_direct")
+    result = {"verifier_evidence": [
+        "fresh-verifier-readback.json",
+        "delivery/owner-readback.json",
+    ]}
+
+    assert paid._verifier_evidence_references(result) == [
+        ("verifier_evidence", "fresh-verifier-readback.json"),
+    ]
 
 
 @pytest.mark.parametrize("field", ["buyer_feedback_sha256", "feedback_sha256"])
