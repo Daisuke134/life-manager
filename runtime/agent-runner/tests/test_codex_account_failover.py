@@ -157,14 +157,13 @@ class CodexProfileBoundaryTest(unittest.TestCase):
                 status = agent_runner.run()
             return status, calls
 
-    def test_escalation_route_has_account_two_then_cross_provider_fallback(self):
+    def test_escalation_route_is_codex_only(self):
         config = json.loads((ROOT / "config.json").read_text())
         candidates = config["task_classes"]["escalation-agent"]["candidates"]
         self.assertEqual(
             [(row["provider"], row["model"], row.get("profile_alias")) for row in candidates],
             [
                 ("codex", "gpt-5.6-terra", "acct2"),
-                ("claude-direct", "claude-sonnet-5", None),
             ],
         )
 

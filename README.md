@@ -2,7 +2,8 @@
 <!-- startup-context-digest: f61cbb3cd2878abfb67756de2b23e816070aa3d991c71f748b2dfe1dbd3180d6 -->
 # Life Manager
 
-**Life Manager is a proactive general agent that manages your body, mind, and money.** It turns goals into
+**Life Manager is an AI that manages your life better than you ever can.** It is a proactive general agent that
+manages your body, mind, and money. It turns goals into
 completed real-world actions, acts within delegated boundaries, verifies what happened, and reports the result
 in plain language with evidence in Telegram. Its mission is to make dependable care and agency continuously
 available and end suffering for humans and, ultimately, all living beings.
@@ -214,6 +215,14 @@ boundaries. It also adapts useful design ideas from
 [Steel](https://github.com/steel-dev/steel-browser) for the hosted browser backend. Existing Life Manager
 `EffectIntent` and `ConnectorOutbox` rails remain the only path for irreversible money actions. The completion
 signal is an official `banked` receipt—not an application, click, model claim, contract, or pending balance.
+
+The roadmap extends that verified loop recursively: observe failures and outcomes, isolate one owner, repair or
+improve the shared implementation with Codex, evaluate it against recorded provider evidence, and promote it
+through an immutable release. The marketplace meta-loop discovers and validates new providers and adds only a
+thin adapter. Local and hosted execution share this core; Telegram is the first phone-only interface, while the
+long-term direction is proactive management that needs progressively less interface and serves humans first and
+ultimately all living beings. Self-healing never means blind self-modification: every change remains fenced by
+tests, independent evidence, official readback, rollback, and tenant isolation.
 
 ## Money Printer — cross-loop control room
 

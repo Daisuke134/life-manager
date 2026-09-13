@@ -2,7 +2,7 @@
 """Recover verified paid remote answers through existing delivery boundaries."""
 from __future__ import annotations
 import argparse, errno, fcntl, hashlib, json, mimetypes, os, re, shutil, signal, stat, subprocess, sys, tempfile, threading, time, zipfile
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
 from datetime import date, datetime
 from pathlib import Path
@@ -6277,6 +6277,12 @@ def _paid_project_executor() -> ThreadPoolExecutor:
     )
 
 
+def _completed_paid_readbacks(refresh_jobs):
+    """Yield each client when its own readback finishes, independent of peer latency."""
+    for job in as_completed(refresh_jobs):
+        yield job, refresh_jobs[job]
+
+
 def _reported_paid_row(args, item: dict[str, Any]) -> dict[str, Any] | None:
     room = _text(item.get("talkroom_id"))
     effect_policy = _account_owner_observe_only(args, item)
@@ -6383,83 +6389,74 @@ def run_once(args, output: Path) -> int:
                           "send_performed": False, "deduplicated": True,
                           "formal_delivery_checkbox": False}
         active_items = _paid_active_items(args, items)
-        targeted_items = []
+        executor = _paid_project_executor()
+        jobs = {}
+        disk_blocked_reason: str | None = None
         with ThreadPoolExecutor(
             max_workers=PAID_MAX_PARALLEL_READBACKS, thread_name_prefix="paid-refresh",
         ) as refresh_executor:
-            refresh_jobs = [
-                (item, refresh_executor.submit(_targeted, args, item, index))
+            refresh_jobs = {
+                refresh_executor.submit(_targeted, args, item, index): item
                 for index, item in enumerate(active_items)
-            ]
-            for original, job in refresh_jobs:
+            }
+            # Advance each client as soon as its own official readback completes. A slow or
+            # broken talkroom must not hold ready clients behind a batch-wide barrier.
+            for refresh_job, original in _completed_paid_readbacks(refresh_jobs):
                 room = _text(original.get("talkroom_id"))
                 try:
-                    targeted_items.append(job.result())
+                    item = refresh_job.result()
                 except (Failure, OSError, ValueError, TypeError, json.JSONDecodeError) as error:
                     step = error.step if isinstance(error, Failure) else "targeted_readback"
                     failed, failed_step = failed + 1, step
                     rows[room] = {"talkroom_id": room, "status": "failed", "failed_step": step,
                                   "error_detail": str(error)[:500]}
-        work_candidates = []
-        for item in targeted_items:
-            room = _text(item.get("talkroom_id"))
-            if item.get("_paid_targeted_status") == "pending":
-                rows[room] = {"talkroom_id": room, "status": "pending",
-                              "reason": "browser_lease_busy",
-                              "browser_lease_owner": item.get("browser_lease_owner")}
-                continue
-            reported = _reported_paid_row(args, item)
-            if reported is not None:
-                rows[room] = reported
-                readback += 1
-            else:
-                work_candidates.append(item)
-        admitted_items = _admitted_paid_projects(args, work_candidates)
-        admitted_rooms = {_text(item.get("talkroom_id")) for item in admitted_items}
-        for item in work_candidates:
-            room = _text(item.get("talkroom_id"))
-            if room not in admitted_rooms:
-                rows[room] = {"talkroom_id": room, "status": "queued"}
-
-        executor = _paid_project_executor()
-        jobs = []
-        disk_blocked_reason: str | None = None
-        for item in admitted_items:
-            room = _text(item.get("talkroom_id"))
-            if disk_blocked_reason is None:
-                disk_blocked_reason = _effect_gate_reason(args)
-            if disk_blocked_reason is not None:
-                rows[room] = _parent_disk_block(
-                    args, room, item, disk_blocked_reason, "before_project_queue_mutation",
-                )
-                if rows[room].get("status") == "failed":
-                    failed, failed_step = failed + 1, "disk_checkpoint"
-                continue
-            room = _text(item.get("talkroom_id"))
-            try:
-                delivery_project.record_queue_selection(
-                    args.projects_root, item, adapter="coconala",
-                )
-                resolved = _recoverable(args, item)
+                    continue
+                room = _text(item.get("talkroom_id"))
+                if item.get("_paid_targeted_status") == "pending":
+                    rows[room] = {"talkroom_id": room, "status": "pending",
+                                  "reason": "browser_lease_busy",
+                                  "browser_lease_owner": item.get("browser_lease_owner")}
+                    continue
+                reported = _reported_paid_row(args, item)
+                if reported is not None:
+                    rows[room] = reported
+                    readback += 1
+                    continue
+                if not _admitted_paid_projects(args, [item]):
+                    rows[room] = {"talkroom_id": room, "status": "queued"}
+                    continue
+                if disk_blocked_reason is None:
+                    disk_blocked_reason = _effect_gate_reason(args)
+                if disk_blocked_reason is not None:
+                    rows[room] = _parent_disk_block(
+                        args, room, item, disk_blocked_reason, "before_project_queue_mutation",
+                    )
+                    if rows[room].get("status") == "failed":
+                        failed, failed_step = failed + 1, "disk_checkpoint"
+                    continue
+                try:
+                    delivery_project.record_queue_selection(
+                        args.projects_root, item, adapter="coconala",
+                    )
+                    resolved = _recoverable(args, item)
+                    if resolved is None:
+                        root = _paid_project_root(args, item)
+                        if _answer_ready(root, item):
+                            resolved = _recoverable(args, item)
+                        elif (root.is_dir() and not root.is_symlink()
+                              and (root / "requirements" / "live-buyer-reply.json").is_file()
+                              and re.fullmatch(r"[0-9a-f]{64}", _text(item.get("buyer_feedback_sha256")))):
+                            root.resolve().relative_to(args.projects_root.resolve())
+                            resolved = (root.resolve(), None)
+                except (Failure, OSError, ValueError, TypeError, json.JSONDecodeError) as error:
+                    step = error.step if isinstance(error, Failure) else "context_compile"
+                    failed, failed_step = failed + 1, step
+                    rows[room] = {"talkroom_id": room, "status": "failed", "failed_step": step}
+                    continue
                 if resolved is None:
-                    root = _paid_project_root(args, item)
-                    if _answer_ready(root, item):
-                        resolved = _recoverable(args, item)
-                    elif (root.is_dir() and not root.is_symlink()
-                          and (root / "requirements" / "live-buyer-reply.json").is_file()
-                          and re.fullmatch(r"[0-9a-f]{64}", _text(item.get("buyer_feedback_sha256")))):
-                        root.resolve().relative_to(args.projects_root.resolve())
-                        # Decision generation belongs to the project worker. It revalidates after
-                        # DM collection, so doing it here only serializes independent projects and
-                        # can become stale before the worker starts.
-                        resolved = (root.resolve(), None)
-            except (Failure, OSError, ValueError, TypeError, json.JSONDecodeError) as error:
-                step = error.step if isinstance(error, Failure) else "context_compile"
-                failed, failed_step = failed + 1, step
-                rows[room] = {"talkroom_id": room, "status": "failed", "failed_step": step}
-                continue
-            if resolved is None: rows[room] = {"talkroom_id": room, "status": "pending"}; continue
-            root, _ = resolved; private = {key: item[key] for key in (
+                    rows[room] = {"talkroom_id": room, "status": "pending"}
+                    continue
+                root, _ = resolved; private = {key: item[key] for key in (
                 "request_id", "contract_id", "talkroom_id", "title", "marketplace_url", "talkroom_url",
                 "buyer_feedback_sha256", "buyer_feedback_stage", "buyer_feedback_pending_artifact",
                 "buyer_feedback_identity_sha256", "buyer_feedback_message_identities",
@@ -6471,28 +6468,30 @@ def run_once(args, output: Path) -> int:
                 "formal_delivery_control_disabled", "buyer_visible_artifact_observed",
                 "room_contract_kind", "price_jpy", "price_source", "buyer",
             ) if key in item}
-            private.update(project_root=str(root))
-            if disk_blocked_reason is None:
-                disk_blocked_reason = _effect_gate_reason(args)
-            if disk_blocked_reason is not None:
-                rows[room] = _parent_disk_block(
-                    args, room, item, disk_blocked_reason, "before_paid_item",
+                private.update(project_root=str(root))
+                if disk_blocked_reason is None:
+                    disk_blocked_reason = _effect_gate_reason(args)
+                if disk_blocked_reason is not None:
+                    rows[room] = _parent_disk_block(
+                        args, room, item, disk_blocked_reason, "before_paid_item",
+                    )
+                    if rows[room].get("status") == "failed":
+                        failed, failed_step = failed + 1, "disk_checkpoint"
+                    continue
+                item_file = args.evidence_dir / "paid-direct" / "items" / f"item-{room}.json"
+                effect_file = item_file.with_name(item_file.stem + "-result.json")
+                _write(item_file, private)
+                actionable += 1
+                prepared_file = item_file.with_name(item_file.stem + "-prepared.json")
+                effect_file.unlink(missing_ok=True); prepared_file.unlink(missing_ok=True)
+                _reclaim_paid_tabs(args, room)
+                job = executor.submit(
+                    _run_paid_item, args, room, item_file, prepared_file, effect_file,
                 )
-                if rows[room].get("status") == "failed":
-                    failed, failed_step = failed + 1, "disk_checkpoint"
-                continue
-            item_file = args.evidence_dir / "paid-direct" / "items" / f"item-{room}.json"
-            effect_file = item_file.with_name(item_file.stem + "-result.json")
-            _write(item_file, private)
-            actionable += 1
-            prepared_file = item_file.with_name(item_file.stem + "-prepared.json")
-            effect_file.unlink(missing_ok=True); prepared_file.unlink(missing_ok=True)
-            _reclaim_paid_tabs(args, room)
-            jobs.append((room, executor.submit(
-                _run_paid_item, args, room, item_file, prepared_file, effect_file,
-            )))
+                jobs[job] = room
         executor.shutdown(wait=True)
-        for room, job in jobs:
+        for job in as_completed(jobs):
+            room = jobs[job]
             try:
                 row, item_effect, item_readback, item_failed, item_step = job.result()
             finally:
