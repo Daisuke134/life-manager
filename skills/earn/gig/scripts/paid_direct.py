@@ -27,6 +27,8 @@ from gig_paths import BROWSER_DIR, REPO_ROOT, RUNNER_DIR  # noqa: E402
 from gig_disk_guard import disk_headroom_ok  # noqa: E402
 
 DEFAULT_STEP_TIMEOUT_SECONDS = 2100
+ORDERS_OBSERVATION_TIMEOUT_SECONDS = 120
+ORDERS_SNAPSHOT_MAX_AGE_SECONDS = 600
 PAID_FILE_OWNER_TIMEOUT_SECONDS = 3600
 PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS = PAID_FILE_OWNER_TIMEOUT_SECONDS + 30
 # A selected-room collector includes page inspection plus a bounded 35s close and,
@@ -767,15 +769,32 @@ def _reported_formal_cycle(args, item: dict[str, Any]) -> Path | None:
 def observe_orders(args, evidence_dir) -> list[dict[str, Any]]:
     snapshot = evidence_dir / "orders-only-snapshot.json"
     command = _collector(args, "orders-only", snapshot, evidence_dir)
+    def recent_snapshot() -> bool:
+        try:
+            value = _load(snapshot)
+            source = value.get("source_receipt") or {}
+            return (not snapshot.is_symlink() and snapshot.is_file()
+                    and time.time() - snapshot.stat().st_mtime <= ORDERS_SNAPSHOT_MAX_AGE_SECONDS
+                    and value.get("collector_mode") == "orders-only"
+                    and value.get("read_only") is True
+                    and value.get("open_orders_list_observed") is True
+                    and source.get("source") == "orders"
+                    and source.get("coverage_complete") is True)
+        except (AttributeError, OSError, TypeError, ValueError, json.JSONDecodeError):
+            return False
     try:
-        _run(command, "orders_observation")
+        _run(command, "orders_observation", timeout=ORDERS_OBSERVATION_TIMEOUT_SECONDS)
     except Failure as error:
         if not any(transient in error.detail for transient in (
             "collector_unhealthy:orders_missing_container",
             "authenticated tab did not finish navigation",
         )) and not _default_tab_open_timed_out(error):
             raise
-        _run(command, "orders_observation")
+        # The collector publishes its official snapshot atomically before optional trailing
+        # browser cleanup. Reuse a recent verified observation instead of blocking every
+        # client behind a second long browser attempt.
+        if not recent_snapshot():
+            _run(command, "orders_observation", timeout=ORDERS_OBSERVATION_TIMEOUT_SECONDS)
     try: queue = delivery_queue.build_preliminary(_load(snapshot), date.fromisoformat(args.today))
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as error: raise Failure("orders_observation") from error
     return [dict(item) for item in queue.get("items", []) if isinstance(item, dict)
