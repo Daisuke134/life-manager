@@ -2944,6 +2944,25 @@ def test_paid_project_executor_runs_different_owners_in_parallel():
     assert maximum == 2
 
 
+def test_paid_readbacks_advance_in_completion_order_without_peer_barrier():
+    paid = load("paid_direct")
+    release_slow = threading.Event()
+
+    def slow():
+        assert release_slow.wait(timeout=2)
+        return "slow"
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        slow_job = executor.submit(slow)
+        fast_job = executor.submit(lambda: "fast")
+        completed = paid._completed_paid_readbacks({slow_job: "slow", fast_job: "fast"})
+        job, owner = next(completed)
+        assert owner == "fast"
+        assert job.result() == "fast"
+        release_slow.set()
+        assert list(completed)[0][1] == "slow"
+
+
 def test_paid_model_runner_runs_different_projects_in_parallel(tmp_path, monkeypatch):
     paid = load("paid_direct")
     projects = tmp_path / "gig" / "projects"
@@ -3725,6 +3744,7 @@ def test_paid_runner_contract_matches_runtime_terra_route():
         (candidate["provider"], candidate["model"])
         for candidate in escalation_route
     } <= paid.PAID_RUNNER_CANDIDATES
+    assert all(candidate["provider"] == "codex" for candidate in escalation_route)
 
 
 def test_paid_owners_have_a_long_running_route():

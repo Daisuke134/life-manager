@@ -73,10 +73,10 @@ class TerraDefaultTest(unittest.TestCase):
                          "effort": "medium", "profile_alias": "acct2",
                          "timeout_seconds": 180},
                     ]
-                # Every executable class now carries a working Claude fallback so a
-                # codex quota outage cannot idle a money lane.
+                # Paid and explicit escalation stay Codex-only. Other executable
+                # classes retain their existing cross-provider fallback contract.
                 fallback = {"provider": "claude-direct", "model": "claude-sonnet-5"}
-                if name != "paid-owner-agent" and fallback not in expected:
+                if name not in {"paid-owner-agent", "escalation-agent"} and fallback not in expected:
                     expected.append(fallback)
                 self.assertEqual(candidates, expected)
 
