@@ -43,6 +43,16 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   deadlines. This proves batch self-healing rather than per-client manual cleanup. Terminal lane
   receipts and end-to-end cadence remain the current Coconala acceptance gate.
 
+- **Storefront now gives the shared repair its real bounded budget.** PR `#5167`, merge SHA
+  `fd520f25e5...`, removes Storefront's obsolete 45-second caller deadline and uses the same
+  160-second lease-command budget already used by Apply. This is not a second lease manager or a
+  Storefront-specific recovery path: Storefront still calls the one shared BrowserContext lease,
+  whose provisioning deadline, batch GC and parallel disposal remain authoritative. The focused
+  Storefront contract and 111 related tests pass and fresh review says ship. Immutable release
+  `20260914T035721-fd520f25` is installed only on `hf-gig-storefront-direct`; its first natural run
+  has crossed the former 45-second failure boundary and remains in progress. A terminal official
+  receipt, not process survival, is still required before this item is accepted as production-pass.
+
 - **Shared browser entry and operator-brake convergence are complete on main.** PR `#5159`, merge
   SHA `2668376830...`, changes BrowserContext acquisition to reserve under the ledger lock, perform
   provider CDP work outside it, and finalize by token compare-and-swap. Slow cookie seeding for one
