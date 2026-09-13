@@ -127,6 +127,7 @@ def test_proposal_timeout_falls_through_to_verified_receipt_lookup():
 
     adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
     adapter.browser = Browser()
+    adapter.owned_context = adapter.browser.contexts[0]
     adapter._goto = lambda *args: (_ for _ in ()).throw(module.CrowdWorksPaidProposalTimeout())
 
     assert adapter._proposal_application_date("305139864") is None
@@ -181,12 +182,99 @@ def test_adapter_opens_injected_thread_owned_cdp_connection_not_account_browser(
     module.account._browser = lambda *_: (_ for _ in ()).throw(AssertionError("global browser forbidden"))
     try:
         adapter = module.CrowdWorksPaidAdapter(account_id="7145638",
-            connection_factory=lambda: (Runtime(), Browser()))
+            connection_factory=lambda: (Runtime(), Browser()),
+            context_factory=lambda _browser, source: source)
         adapter._open()
         adapter.close()
     finally:
         module.account._browser = original
     assert calls == [("timeout", 15_000), ("page_close",), ("runtime_stop",)]
+
+
+def test_default_open_clones_auth_into_owned_context_and_closes_it():
+    module = load()
+    calls = []
+    auth_state = {"cookies": [{"name": "session", "value": "private"}], "origins": []}
+
+    class Page:
+        def set_default_timeout(self, timeout): calls.append(("timeout", timeout))
+        def close(self): calls.append(("page_close",))
+
+    class SourceContext:
+        def storage_state(self): return auth_state
+        def new_page(self): raise AssertionError("persistent_context_page_forbidden")
+
+    class OwnedContext:
+        def new_page(self): return Page()
+        def close(self): calls.append(("context_close",))
+
+    class Browser:
+        contexts = [SourceContext()]
+        def new_context(self, **kwargs):
+            calls.append(("new_context", kwargs["storage_state"] is not auth_state, kwargs["storage_state"] == auth_state))
+            return OwnedContext()
+
+    class Runtime:
+        def stop(self): calls.append(("runtime_stop",))
+
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()))
+    adapter._open()
+    adapter.close()
+
+    assert calls == [
+        ("new_context", True, True), ("timeout", 15_000), ("page_close",),
+        ("context_close",), ("runtime_stop",),
+    ]
+
+
+def test_three_workers_never_open_a_page_in_the_persistent_context():
+    module = load()
+    lock, created, seen = threading.Lock(), [], []
+    barrier = threading.Barrier(3)
+
+    class Page:
+        def set_default_timeout(self, _timeout): pass
+        def close(self): pass
+
+    class SourceContext:
+        def storage_state(self): return {"cookies": [], "origins": []}
+        def new_page(self): raise AssertionError("persistent_context_page_forbidden")
+
+    class OwnedContext:
+        def __init__(self, identity): self.identity = identity
+        def new_page(self): return Page()
+        def close(self): pass
+
+    class Browser:
+        contexts = [SourceContext()]
+        def new_context(self, **_kwargs):
+            with lock:
+                context = OwnedContext(len(created) + 1)
+                created.append(context)
+                return context
+
+    class Runtime:
+        chromium = None
+        def stop(self): pass
+
+    browser = Browser()
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", connection_factory=lambda: (Runtime(), browser))
+
+    def worker():
+        adapter._open()
+        barrier.wait(timeout=3)
+        seen.append(adapter.owned_context.identity)
+        adapter.close()
+
+    threads = [threading.Thread(target=worker) for _ in range(3)]
+    for thread in threads: thread.start()
+    for thread in threads: thread.join(timeout=5)
+
+    assert not any(thread.is_alive() for thread in threads)
+    assert sorted(seen) == [1, 2, 3]
+    assert len({id(context) for context in created}) == 3
 
 
 def test_connect_existing_cdp_retries_once_with_bounded_timeout(monkeypatch):
@@ -270,7 +358,8 @@ def test_active_contract_timeout_has_bounded_stage_specific_name():
             pass
 
     adapter = module.CrowdWorksPaidAdapter(account_id="7145638",
-        connection_factory=lambda: (Runtime(), Browser()))
+        connection_factory=lambda: (Runtime(), Browser()),
+        context_factory=lambda _browser, source: source)
     with pytest.raises(module.CrowdWorksPaidActiveContractsTimeout) as error:
         adapter._list_contracts()
     assert str(error.value) == ""
@@ -309,7 +398,8 @@ def test_active_contract_dom_timeout_has_same_safe_stage_code():
             pass
 
     adapter = module.CrowdWorksPaidAdapter(
-        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()))
+        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()),
+        context_factory=lambda _browser, source: source)
     with pytest.raises(module.CrowdWorksPaidActiveContractsTimeout) as error:
         adapter._list_contracts()
     assert error.value.paid_error_code == "crowdworks_paid_active_contracts_timeout"
@@ -358,6 +448,7 @@ def test_contract_detail_dom_timeout_retries_once_on_fresh_page():
 
     adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
     adapter.browser = Browser()
+    adapter.owned_context = adapter.browser.contexts[0]
     adapter.page = Page()
     attempts = iter((module.PlaywrightTimeoutError("provider text"), funded()))
     adapter._detail_once = lambda *_: (
@@ -405,7 +496,8 @@ def test_contract_navigation_timeout_retries_once_on_fresh_page():
             pass
 
     adapter = module.CrowdWorksPaidAdapter(
-        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()))
+        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()),
+        context_factory=lambda _browser, source: source)
     adapter._goto_contract("63570481")
     assert [call[0] for call in calls] == ["timeout", "goto", "close", "timeout", "goto"]
     assert not pages
@@ -510,7 +602,9 @@ def test_real_kernel_paths_close_every_thread_owned_runtime(tmp_path):
 
     def adapter_for(rows):
         adapter = module.CrowdWorksPaidAdapter(account_id="7145638",
-            connection_factory=lambda: (Runtime(), Browser()), state_path=tmp_path / "receipts")
+            connection_factory=lambda: (Runtime(), Browser()),
+            context_factory=lambda _browser, source: source,
+            state_path=tmp_path / "receipts")
         adapter._list_contracts = lambda: rows
         adapter._detail = lambda row: (adapter._open(), dict(row))[1]
         return adapter
@@ -738,6 +832,7 @@ def test_narrow_contract_clones_auth_and_changes_only_isolated_device_cookie():
 
     class BaseContext:
         def storage_state(self): return canonical
+        def close(self): pass
 
     class MobileContext:
         def new_page(self): return Page()
@@ -751,6 +846,7 @@ def test_narrow_contract_clones_auth_and_changes_only_isolated_device_cookie():
 
     adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
     adapter.browser = Browser()
+    adapter.owned_context = adapter.browser.contexts[0]
     adapter.page = Page()
     adapter._goto_contract = lambda work_id: received.append({"work_id": work_id})
 
