@@ -5326,6 +5326,10 @@ not serialize another room's model work. The pass is not healthy yet: `effect=0`
    redeploy the corrections, obtain a fresh PASS, attach the hash-bound update manual, send once with
    the formal-delivery checkbox ON, read `納品確認待ち` from exact official room `18211957`, then prove
    a natural replay produces zero duplicate message, attachment and formal-delivery effects.
+   Public main `32210cfb81` removes the rejection-only redundant digest gate while retaining every
+   PASS authorization check. Its loaded immutable release naturally preserves the current remote
+   decision and starts the Ryu repair owner with all four verifier deltas; this proves repair
+   resumption, not completed correction, verifier PASS, formal delivery, or replay-zero.
 2. [ ] Chii `18180857` — replace the one-shot remote-effect completion model with a recurring-contract
    ledger. The room is still `取引中`, formal delivery is false, and the current pass reports a
    deduplicated zero effect after one officially read-back TikTok DM. That is correct per-recipient
@@ -5333,6 +5337,14 @@ not serialize another room's model work. The pass is not healthy yet: `effect=0`
    target count, completed count, candidate cursor, recipient effect/readback keys and next wake;
    automatically search and qualify the next recipient, send the DM, update the spreadsheet, continue
    until the period target or truthful reachable exhaustion, and only then prepare formal delivery.
+   The newest exact-room snapshot contains a seller message claiming 300 DMs are complete, but the
+   authoritative effect/Sheet evidence does not prove 300 verified pairs and the same snapshot still
+   labels the room `one_shot`. Never convert that unsupported message into campaign credit or formal
+   delivery. The resumed owner correctly rejects the old one-recipient completion result and requires
+   300, then fails safely because a global CDP target registry is pruned by another endpoint during
+   TikTok adapter cleanup. Public main `1f0ceb05f4` scopes target ownership to the registered browser
+   identity; deploy it after the current immutable run exits, repeat the official identity readback,
+   reconcile the real cumulative pair count, and continue only the missing recipients.
 3. [ ] Bound owner context and skill discovery across every lane. Keep the small shared constitution,
    room-local compact durable memory and capability metadata sticky; resolve relevant skills through
    the existing shared resource resolver and load only the selected `SKILL.md` just in time. Never dump
