@@ -176,8 +176,8 @@ def test_acquire_reaps_only_one_stale_row_at_capacity(monkeypatch, tmp_path):
     })
     calls = []
 
-    def fake_gc(idle_min=45, max_reaps=None):
-        calls.append((idle_min, max_reaps))
+    def fake_gc(idle_min=45, max_reaps=None, priority_task=None):
+        calls.append((idle_min, max_reaps, priority_task))
         leases = module._leases()
         leases.pop("dead-a")
         module._save(leases)
@@ -187,7 +187,7 @@ def test_acquire_reaps_only_one_stale_row_at_capacity(monkeypatch, tmp_path):
 
     module._recover_capacity_if_needed("new-task")
 
-    assert calls == [(45, 1)]
+    assert calls == [(45, 8, "new-task")]
     assert list(module._leases()) == ["dead-b"]
 
 
