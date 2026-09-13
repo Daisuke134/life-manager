@@ -59,9 +59,21 @@ The remaining revenue order is:
 6. Enable the marketplace meta-loop to discover opportunities on the web/X, qualify expected net
    revenue and policy fit, scaffold a thin adapter, test/release it and promote it only after a real
    official effect plus replay-zero.
-7. Deliver Telegram-only multi-tenant operation: one isolated cloud browser/computer identity and
-   credential boundary per user, long-running managed agent sessions, typed human handoffs and payout
-   attribution. A smartphone with Telegram is the user interface; a local computer is not required.
+7. Deliver Telegram-only multi-tenant operation on the **OpenAI Agents API**. Life Manager creates and
+   retains one isolated durable agent session per tenant/objective, streams or receives webhook progress,
+   and resumes/steers the same session without requiring a local computer. Use an OpenAI-hosted environment
+   by default for code, files, skills, MCP and artifacts; use a self-hosted environment only when a private
+   network or custom compute is required. The Agents API owns managed Codex harness sessions,
+   orchestration, context compaction, recovery and sandbox provisioning. It does **not** replace Life
+   Manager's scheduler, durable business cursor, effect fence, official provider readback, revenue ledger,
+   tenant authorization or Telegram handoff, and it does not by itself provide a persistent authenticated
+   marketplace browser identity. Keep Steel or the equivalent cloud-browser adapter as the per-user
+   authenticated browser hand; add a full VM only for providers that truly require a desktop. A smartphone
+   with Telegram is the user interface; ChatGPT UI and a local computer are not required. Application API
+   access and API/container billing are separate deployment prerequisites, never inferred from a ChatGPT
+   subscription. Official sources:
+   - https://developers.openai.com/api/docs/guides/agents-api/overview
+   - https://developers.openai.com/api/docs/guides/agents-api/quickstart
 
 The near-term commercial target is USD 10,000 MRR. It is a target, not a completion claim: only
 official contracts, accepted delivery, payout and bank receipts count. Growth targets never authorize
