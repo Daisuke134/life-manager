@@ -18,16 +18,15 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   replace or re-audit either delivery without a genuinely new buyer event.
 - **Coconala Paid is not fully complete.** Ryu `18211957` remains open until the exact official
   talkroom proves formal delivery and a following replay proves zero duplicate effect. Chii
-  `18180857` has **12/300** official TikTok-DM/Sheet pairs and **288 remaining**. The campaign has
-  no verified preselected list of 300 recipients; the latest inspected candidate is private and has
-  no DM control, so it earns no campaign credit. A seller-authored completion claim, invented handle,
-  unsent DM or fabricated Sheet row is never revenue evidence.
-- **Shared TikTok transport is merged.** The model qualifies a real candidate and writes truthful,
+  `18180857` is excluded from the main development cursor, Paid aggregate completion gate and USD
+  10,000 MRR plan by Dais's explicit decision. Retain the historical truth—**12/300** official
+  TikTok-DM/Sheet pairs and **288 unproved**—but do not spend this program's engineering or operator
+  time advancing, rediscovering, messaging or formally delivering it. An unsupported completion
+  claim never becomes revenue evidence.
+- **Shared TikTok transport is merged but not the active cursor.** The model qualifies a real candidate and writes truthful,
   recipient-specific copy. Deterministic shared code binds the exact recipient, sends once, performs
   official readback, appends one paired campaign receipt and never retries an uncertain send. The
-  immediate implementation cursor is persistent candidate discovery/cursor, paired Sheet readback and
-  a bounded multi-recipient batch that continues in one wake until success budget, official cooldown,
-  challenge or finite runtime budget.
+  code remains reusable evidence for a future opted-in campaign; no Chii-specific continuation is active.
 - **Host-state convergence is the current prerequisite repair.** Browser and central cleanup use
   `~/.local/state/life-manager/state`; the retired `.openclaw/state` pressure marker is ignored.
   Acceptance proves legacy-only marker permits launch, canonical marker blocks before profile use,
@@ -45,9 +44,9 @@ The remaining revenue order is:
 
 1. Restore the shared authenticated browser from the canonical host-state repair and prove one natural
    Paid wake from the immutable main release.
-2. Close existing funded liabilities concurrently: Ryu formal-delivery proof, Chii 12 -> 300 genuine
-   paired effects, and CrowdWorks funded milestone/delivery/payment effects. A buyer owner never waits
-   for another buyer.
+2. Close active funded liabilities concurrently: Ryu formal-delivery proof and CrowdWorks funded
+   milestone/delivery/payment effects. Chii is excluded and does not gate this step. A buyer owner
+   never waits for another buyer.
 3. Finish Coconala vertically across Apply, Reply, Paid and Storefront, including one-off plus retainer
    applications and attributable payout evidence.
 4. Finish each next provider vertically while all installed lanes remain live: Lancers, CrowdWorks,
