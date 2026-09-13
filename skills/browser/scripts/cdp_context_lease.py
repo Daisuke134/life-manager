@@ -89,6 +89,10 @@ def _vault_lock_path():
     return _vault_writeback_path() + ".lock"
 
 
+def _gc_lock_path():
+    return _leases_path() + ".gc.lock"
+
+
 @contextlib.contextmanager
 def _ledger_lock():
     lock_path = _ledger_lock_path()
@@ -110,6 +114,23 @@ def _vault_lock():
         fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
         try:
             yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+@contextlib.contextmanager
+def _gc_singleflight():
+    """Let at most one slow context reaper run for a lease ledger."""
+    path = _gc_lock_path()
+    os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+    with open(path, "a+", encoding="utf-8") as handle:
+        try:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            yield False
+            return
+        try:
+            yield True
         finally:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
@@ -292,7 +313,31 @@ def _browser_context_exists(context_id):
     return context_id in context_ids
 
 
+def _new_slot_blocked(task):
+    with _ledger_lock():
+        leases = _leases()
+        return task not in leases and len(leases) >= _max_contexts()
+
+
+def _recover_capacity_if_needed(task, wait_seconds=25.0):
+    """Reap one stale row only when admission would otherwise fail."""
+    if not _new_slot_blocked(task):
+        return
+    result = gc(idle_min=45, max_reaps=1)
+    if result.get("skipped") != "gc_already_running":
+        return
+    deadline = time.monotonic() + wait_seconds
+    while time.monotonic() < deadline:
+        if not _new_slot_blocked(task):
+            return
+        time.sleep(0.1)
+
+
 def acquire(task, url="about:blank", no_seed=False):
+    # Routine browser admission must not wait for whole-ledger maintenance. At the
+    # actual capacity boundary, however, reclaim one stale row (or briefly wait for the
+    # existing single-flight reaper) so this same wake can make forward progress.
+    _recover_capacity_if_needed(task)
     reservation_token = None
     current_holder = _holder_pid()
     with _ledger_lock():
@@ -825,7 +870,20 @@ def park(task, token=None, generation=None):
         }
 
 
-def gc(idle_min=45):
+def gc(idle_min=45, max_reaps=None):
+    with _gc_singleflight() as acquired:
+        if not acquired:
+            return {
+                "ok": True,
+                "reaped": [],
+                "still_held": [],
+                "cleanup_pending": [],
+                "skipped": "gc_already_running",
+            }
+        return _gc_owned(idle_min, max_reaps=max_reaps)
+
+
+def _gc_owned(idle_min=45, max_reaps=None):
     """A loop killed with -9 never releases. Reap whatever it left holding.
 
     gc used to read+dispose+save without the ledger lock -- the only such path in this
@@ -865,6 +923,8 @@ def gc(idle_min=45):
                 )
             )
         }
+        if max_reaps is not None:
+            candidates = dict(list(candidates.items())[:max(0, int(max_reaps))])
 
     reaped = []
     for task, held in candidates.items():

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import contextlib
 import time
 from pathlib import Path
 
@@ -144,6 +145,65 @@ def test_gc_does_not_remove_a_new_provisioning_reservation(monkeypatch, tmp_path
 
     assert "gig-task" not in result["reaped"]
     assert module._leases()["gig-task"]["token"] == "b" * 32
+
+
+def test_gc_returns_immediately_when_another_reaper_owns_singleflight(monkeypatch):
+    module = load_module()
+
+    @contextlib.contextmanager
+    def busy():
+        yield False
+
+    monkeypatch.setattr(module, "_gc_singleflight", busy)
+    monkeypatch.setattr(module, "_gc_owned", lambda _idle: (_ for _ in ()).throw(
+        AssertionError("busy gc must not inspect or mutate the ledger")
+    ))
+
+    result = module.gc(idle_min=45)
+
+    assert result["ok"] is True
+    assert result["skipped"] == "gc_already_running"
+
+
+def test_acquire_reaps_only_one_stale_row_at_capacity(monkeypatch, tmp_path):
+    module = load_module()
+    leases_file = tmp_path / "leases.json"
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases_file))
+    monkeypatch.setenv("CLOAK_BROWSER_MAX_CONTEXTS", "2")
+    _write_leases(leases_file, {
+        "dead-a": {"context_id": "c1", "target_id": "t1", "ts": 0, "pid": -1},
+        "dead-b": {"context_id": "c2", "target_id": "t2", "ts": 0, "pid": -1},
+    })
+    calls = []
+
+    def fake_gc(idle_min=45, max_reaps=None):
+        calls.append((idle_min, max_reaps))
+        leases = module._leases()
+        leases.pop("dead-a")
+        module._save(leases)
+        return {"ok": True, "reaped": ["dead-a"]}
+
+    monkeypatch.setattr(module, "gc", fake_gc)
+
+    module._recover_capacity_if_needed("new-task")
+
+    assert calls == [(45, 1)]
+    assert list(module._leases()) == ["dead-b"]
+
+
+def test_existing_task_reuse_never_waits_for_capacity_gc(monkeypatch, tmp_path):
+    module = load_module()
+    leases_file = tmp_path / "leases.json"
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases_file))
+    monkeypatch.setenv("CLOAK_BROWSER_MAX_CONTEXTS", "1")
+    _write_leases(leases_file, {
+        "same-task": {"context_id": "c1", "target_id": "t1", "ts": 0, "pid": 1},
+    })
+    monkeypatch.setattr(module, "gc", lambda **_kwargs: (_ for _ in ()).throw(
+        AssertionError("reuse does not need a new slot")
+    ))
+
+    module._recover_capacity_if_needed("same-task", wait_seconds=0)
 
 
 def test_heartbeat_lease_not_found_reason_carries_ledger_mtime(monkeypatch, tmp_path):
