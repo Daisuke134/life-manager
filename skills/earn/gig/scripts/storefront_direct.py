@@ -36,6 +36,7 @@ from gig_paths import (  # noqa: E402
 )
 from gig_disk_guard import disk_headroom_ok  # noqa: E402
 import evidence_gc  # noqa: E402
+from operator_brake import status as shared_operator_brake_status  # noqa: E402
 
 DEFAULT_STATE = STATE_DIR / "storefront-direct"
 DEFAULT_BRAKE = HOST_STATE_DIR / "gig-work" / "storefront.operator.brake"
@@ -548,23 +549,7 @@ def _persist_receipt(args: argparse.Namespace, output: Path, row: dict) -> dict:
 
 
 def _operator_brake_status(path: Path | None = None) -> str:
-    environment = os.environ.copy()
-    if path is not None:
-        environment["GIG_OPERATOR_BRAKE_FILE"] = str(path)
-        try:
-            if not path.exists():
-                return "free"
-        except OSError:
-            return "failed"
-    try:
-        completed = subprocess.run(
-            [str(SCRIPTS / "gig_brake.sh"), "status"], stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-            timeout=5, check=False, env=environment,
-        )
-    except Exception:
-        return "failed"
-    return {0: "held", 1: "free"}.get(completed.returncode, "failed")
+    return shared_operator_brake_status(SCRIPTS / "gig_brake.sh", path=path)
 
 
 def _effect_gate_reason(args: argparse.Namespace) -> str | None:
