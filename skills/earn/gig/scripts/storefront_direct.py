@@ -41,6 +41,7 @@ from operator_brake import status as shared_operator_brake_status  # noqa: E402
 DEFAULT_STATE = STATE_DIR / "storefront-direct"
 DEFAULT_BRAKE = HOST_STATE_DIR / "gig-work" / "storefront.operator.brake"
 DEFAULT_LEASE = BROWSER_DIR / "scripts" / "cdp_context_lease.py"
+LEASE_COMMAND_TIMEOUT_SECONDS = 160
 DEFAULT_TAB = BROWSER_DIR / "scripts" / "cdp_default_tab.py"
 DEFAULT_ENSURE_BROWSER = BROWSER_DIR / "ensure_browser.sh"
 DEFAULT_RUNNER = RUNNER_DIR / "agent_runner.py"
@@ -3617,7 +3618,10 @@ def _lease(script: Path, command: str, task: str, lease: dict | None = None) -> 
     argv = [sys.executable, str(script), command, task]
     if lease is not None:
         argv.extend(("--token", str(lease["token"]), "--generation", str(lease["generation"])))
-    completed = subprocess.run(argv, capture_output=True, text=True, check=False, timeout=45)
+    completed = subprocess.run(
+        argv, capture_output=True, text=True, check=False,
+        timeout=LEASE_COMMAND_TIMEOUT_SECONDS,
+    )
     try:
         result = json.loads(completed.stdout)
     except json.JSONDecodeError as error:
