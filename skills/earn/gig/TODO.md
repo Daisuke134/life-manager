@@ -218,13 +218,16 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   Acceptance proves legacy-only marker permits launch, canonical marker blocks before profile use,
   canonical cleanup removes it, and launch resumes. This repair applies to every marketplace owner,
   not only Chii.
-- **Continuous/retainer applications are eligible now.** They use the same Apply -> Reply -> Paid
+- **Continuous/retainer applications are the current implementation cursor.** They use the same Apply -> Reply -> Paid
   lifecycle and are not a fifth lane. Apply may target one-off and continuous work concurrently.
   The loop performs discovery, fit assessment, proposal, scheduling clicks, delivery and readback.
   Only identity/KYC, interview, kickoff or an unavoidable live meeting becomes a typed Telegram
   handoff; the loop creates the Google Calendar event and Life Manager calls the human at that time.
   Numeric-outcome promises outside the loop's control remain ineligible; contracts for controllable
   deliverables and quantities remain eligible.
+  The feature branch now has the shared ULID/source contract and the complete eligibility/planner/
+  intent/form/readback vertical slice under review; it is not production-enabled until review, main
+  merge, immutable release, one official application readback and replay-zero all pass.
 
 - **The shared Coconala browser session is authenticated again.** A read-only CDP census found the
   canonical Gig browser on `:9223` reachable but its retained official page redirected to
@@ -282,6 +285,41 @@ continues independently.
 The near-term commercial target is USD 10,000 MRR. It is a target, not a completion claim: only
 official contracts, accepted delivery, payout and bank receipts count. Growth targets never authorize
 fabricated work, spam, platform-policy violations or guaranteed outcomes.
+
+## Ideal user experience — phone and Telegram only
+
+The user never operates a marketplace dashboard, terminal, local repository or agent session. They open
+one existing Telegram chat and state an outcome such as `今月の手取り収益を増やして`. Life Manager then
+runs discovery, application, reply, production, delivery, payout reconciliation and improvement in the
+background and reports only decisions or verified outcomes that matter.
+
+```mermaid
+flowchart LR
+  U[Phone + Telegram] --> G[One Life Manager conversation]
+  G --> O[Durable tenant objective and policy]
+  O --> A[OpenAI hosted agent session]
+  A --> B[Per-tenant Steel browser or full VM only when required]
+  B --> M[Marketplace adapters]
+  M --> E[Official effect and readback]
+  E --> R[Revenue ledger + CFO]
+  R --> G
+  M -->|KYC, interview, unavoidable live action only| H[Typed Telegram handoff]
+  H --> C[Calendar + scheduled call]
+  C --> M
+```
+
+Normal progress is quiet and autonomous. Telegram sends one deduplicated message for a verified contract,
+delivery, payout, material failure/recovery or genuinely human-only action. A handoff message contains one
+clear action button, deadline, provider/client identity and consequence; after the user acts, the same work
+item resumes automatically. Every success message links the official receipt and reports attributable net
+revenue. The user can say `止めて`, `上限を月5万円に`, `この案件は断って`, or `証拠を見せて`; the durable
+business cursor changes without opening a second interface.
+
+Local and cloud use the same loop and adapter code. Local requires a computer, Codex access and Telegram.
+Hosted operation requires only the Life Manager subscription and Telegram: the Agents API supplies durable
+agent execution, while the per-tenant browser/VM preserves authenticated marketplace identity. The eventual
+no-interface direction is roadmap, not a current capability claim; Telegram remains the first complete,
+accessible interface.
 
 The Manledge delivery is no longer the active program cursor. The active product objective is a
 public, website-neutral, no-human revenue agent whose four installed owners run continuously:
