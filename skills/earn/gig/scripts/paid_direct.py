@@ -28,7 +28,7 @@ from gig_disk_guard import disk_headroom_ok  # noqa: E402
 
 DEFAULT_STEP_TIMEOUT_SECONDS = 2100
 ORDERS_OBSERVATION_TIMEOUT_SECONDS = 120
-ORDERS_SNAPSHOT_MAX_AGE_SECONDS = 600
+ORDERS_SNAPSHOT_MAX_AGE_SECONDS = 1800
 PAID_FILE_OWNER_TIMEOUT_SECONDS = 3600
 PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS = PAID_FILE_OWNER_TIMEOUT_SECONDS + 30
 # A selected-room collector includes page inspection plus a bounded 35s close and,
@@ -367,6 +367,10 @@ def _collector(args, mode, output, evidence, item_path=None, item=None):
 def _default_tab_open_timed_out(error: Failure) -> bool:
     detail = error.detail
     return "cdp_default_tab.py" in detail and "open" in detail and "timed out" in detail
+
+
+def _bounded_step_timed_out(error: Failure) -> bool:
+    return "step timed out after" in error.detail
 
 def _collect_dm_context(args, item: dict[str, Any], root: Path, base: Path) -> None:
     """Bind the existing pre-purchase DM collector before any semantic paid work."""
@@ -788,7 +792,7 @@ def observe_orders(args, evidence_dir) -> list[dict[str, Any]]:
         if not any(transient in error.detail for transient in (
             "collector_unhealthy:orders_missing_container",
             "authenticated tab did not finish navigation",
-        )) and not _default_tab_open_timed_out(error):
+        )) and not _default_tab_open_timed_out(error) and not _bounded_step_timed_out(error):
             raise
         # The collector publishes its official snapshot atomically before optional trailing
         # browser cleanup. Reuse a recent verified observation instead of blocking every
