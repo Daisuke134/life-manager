@@ -105,12 +105,24 @@ BrowserContext/owner tests. Main-derived sparse release `20260913T095832-66ef16c
 The controller boundary repair is merged by PR `#5103`, merge SHA `1d034e50...`: every model-owned
 process is denied the shared daily-driver CDP and credential/profile vault while each provider/client
 owner keeps its own resolver-provisioned browser identity. Focused acceptance passes 182/182 and fresh
-review passes. Production Paid is nevertheless unloaded because the fleet reconciler returned its sparse
-install to the older complete current release; the attempted wake ended before any external effect. A
-low-space full-release export then started the legacy multi-GiB copy path and was stopped before it could
-fill the disk. The active release repair advances the complete immutable release by an APFS copy-on-write
-clone of the current verified ancestor. This infrastructure hold does not change the required topology:
-every provider and every client owner remains an independent concurrent worker, never a sequential queue.
+review passes. Paid now runs from sparse release `20260913T112553-f9acf180`; one observed wake created
+independent effect workers for `18211838`, `18211957` and `18223833`, and the Ryu worker created its own
+`paid-remote-owner`. That run ended before an atomic prepared/result receipt was written, so it is execution
+evidence for concurrency, not delivery evidence. Ryu remains open until exact-room formal-delivery readback.
+This infrastructure state does not change the required topology: every provider and every client owner is
+an independent concurrent worker, never a sequential queue.
+
+The release-weight defect is closed in source by PR `#5106`, merge SHA `5aecc6bb5...`. The measured root
+`node_modules` was about 792 MiB / 98,660 files and `apps/life-manager/node_modules` about 332 MiB, while
+the tracked shared runtime subset compressed to about 4 MiB. Repeating generated dependencies inside every
+immutable release was therefore not useful isolation. `cut-loop-release.sh` now stores one immutable,
+content-addressed dependency bundle per OS/architecture/Node/npm/package/lock identity and symlinks each
+release to it; release GC removes only orphan bundles. Focused cutter acceptance passes 16/16 and fresh
+read-only review reports no finding. A targeted restart of only `hf-gig-browser` also proved that accumulated
+renderer processes, not old OpenClaw source, held most live pressure: free space recovered to about 7.7 GiB
+and swap use fell by about 8.5 GiB while the same authenticated profile returned on CDP `9223`. The new
+cutter still needs a main-derived production release and fleet readback; the reconciler stays stopped until
+that cut is verified, so it cannot recreate the old copies meanwhile.
 
 Each owner advances its own `discover/account -> Apply -> Reply -> Paid -> optional Storefront ->
 payout/bank receipt` lifecycle as soon as its local prerequisites exist. Therefore Apply may keep acquiring
@@ -193,6 +205,14 @@ the latest merged main and therefore consumes the cleanup result through normal 
   `skills/_shared/marketplace-core` require focused cross-domain regression before main integration.
 - The convergence product is one main history, one release mechanism and shared components usable by
   Gig and non-Gig loops; it is not one giant loop process or one global effect owner.
+- Old OpenClaw dependency cleanup is already merged and is not reopened by disk pressure. Generated
+  dependency bundles and browser-process retention are runtime distribution/lifecycle concerns owned by
+  the shared loop foundation, not another legacy-cleanup branch.
+- `loop-development/SKILL.md` is the mandatory entry point for loop changes and now contains the thin-release,
+  content-addressed-dependency rule. `building-agents` is mandatory only when code is about to add or change
+  agent judgment, routing, tools, memory or self-improvement. Do not inject both full skills into every
+  production wake: skills are selected method references, while executable capabilities stay in the shared
+  kernel and thin adapters.
 - If either side later edits `config/loop-registry.json`, `runtime/loop`, shared Telegram/outbox/state
   code, `README*`, or `skills/_shared/marketplace-core`, it records file, intent and acceptance before
   editing; provider selectors and business mutations remain Gig-owned.
