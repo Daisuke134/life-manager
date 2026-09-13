@@ -355,7 +355,7 @@ class CrowdWorksReplyAdapter:
         if self.state_path is None:
             raise RuntimeError("google_form_state_unavailable")
         return google_form.submit_once(
-            browser=self.browser, state_root=self.state_path.parent, url=url, url_sha256=url_sha256,
+            context=self.browser.contexts[0], state_root=self.state_path.parent, url=url, url_sha256=url_sha256,
             answer_fields=lambda form: self._question_answers(
                 self._form_items(form.evaluate("window.FB_PUBLIC_LOAD_DATA_ && window.FB_PUBLIC_LOAD_DATA_[1][1]"))),
         )

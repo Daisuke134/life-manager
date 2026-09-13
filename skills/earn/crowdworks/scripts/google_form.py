@@ -69,7 +69,7 @@ def bound_receipt(state_root: Path, binding: Mapping[str, Any]) -> Mapping[str, 
     return receipt
 
 
-def submit_once(*, browser: Any, state_root: Path, url: str, url_sha256: str,
+def submit_once(*, context: Any, state_root: Path, url: str, url_sha256: str,
                 answer_fields: Callable[[Any], list[tuple[str, str]]],
                 binding: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
     if not is_google_form_url(url) or hashlib.sha256(url.encode()).hexdigest() != url_sha256:
@@ -90,7 +90,9 @@ def submit_once(*, browser: Any, state_root: Path, url: str, url_sha256: str,
             if isinstance(receipt, Mapping) and receipt.get("status") == "prepared":
                 raise RuntimeError("google_form_submission_uncertain")
             raise RuntimeError("google_form_receipt_invalid")
-    form = browser.contexts[0].new_page()
+    if context is None:
+        raise RuntimeError("google_form_context_unavailable")
+    form = context.new_page()
     try:
         form.goto(url, wait_until="domcontentloaded", timeout=20_000)
         form.wait_for_timeout(3_000)
@@ -136,7 +138,7 @@ def submit_once(*, browser: Any, state_root: Path, url: str, url_sha256: str,
         if immutable_binding is not None:
             prepared["binding"] = immutable_binding
         write_json(path, prepared)
-        response = browser.contexts[0].request.post(action, data=urlencode(fields), headers={
+        response = context.request.post(action, data=urlencode(fields), headers={
             "Content-Type": "application/x-www-form-urlencoded", "Referer": form.url,
         }, timeout=30_000)
         body = response.text()

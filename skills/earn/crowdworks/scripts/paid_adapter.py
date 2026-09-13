@@ -245,16 +245,28 @@ class CrowdWorksPaidAdapter:
             user_agent=("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) "
                         "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 "
                         "Mobile/15E148 Safari/604.1"))
-        if not found_device:
-            mobile_context.add_cookies([{"name": "mobylette_device", "value": "sp",
-                                         "domain": "crowdworks.jp", "path": "/",
-                                         "secure": True, "sameSite": "None"}])
-        if self.page is not None:
-            self.page.close()
-        source_context.close()
+        try:
+            if not found_device:
+                mobile_context.add_cookies([{"name": "mobylette_device", "value": "sp",
+                                             "domain": "crowdworks.jp", "path": "/",
+                                             "secure": True, "sameSite": "None"}])
+            mobile_page = mobile_context.new_page()
+            mobile_page.set_default_timeout(15_000)
+        except Exception:
+            mobile_context.close()
+            raise
+        old_page = self.page
+        self.page = mobile_page
         self.owned_context = mobile_context
-        self.page = self.owned_context.new_page()
-        self.page.set_default_timeout(15_000)
+        if old_page is not None:
+            try:
+                old_page.close()
+            except Exception:
+                pass
+        try:
+            source_context.close()
+        except Exception:
+            pass
         self._goto_contract(work_id)
 
     @staticmethod
@@ -587,7 +599,7 @@ class CrowdWorksPaidAdapter:
         if self.state_path is None:
             raise RuntimeError("crowdworks_paid_state_unavailable")
         return google_form.submit_once(
-            browser=self.browser, state_root=self.state_path, url=form_url, url_sha256=form_sha256,
+            context=self.owned_context, state_root=self.state_path, url=form_url, url_sha256=form_sha256,
             answer_fields=lambda page: self._form_fields(page, item),
             binding=self._form_binding(item, form_sha256),
         )

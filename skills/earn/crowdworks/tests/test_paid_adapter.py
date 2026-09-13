@@ -858,6 +858,53 @@ def test_narrow_contract_clones_auth_and_changes_only_isolated_device_cookie():
     assert received[1] == {"work_id": "63570481"}
 
 
+def test_narrow_contract_closes_new_context_when_cookie_setup_fails():
+    module = load()
+    events = []
+
+    class SourceContext:
+        def storage_state(self): return {"cookies": [], "origins": []}
+
+    class MobileContext:
+        def add_cookies(self, cookies): raise RuntimeError("cookie-failed")
+        def close(self): events.append("mobile-close")
+
+    class Browser:
+        def new_context(self, **kwargs): return MobileContext()
+
+    source = SourceContext()
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.browser = Browser()
+    adapter.owned_context = source
+
+    with pytest.raises(RuntimeError, match="cookie-failed"):
+        adapter._switch_to_narrow_contract("63570481")
+
+    assert events == ["mobile-close"]
+    assert adapter.owned_context is source
+
+
+def test_paid_form_uses_only_the_worker_owned_context(tmp_path, monkeypatch):
+    module = load()
+    owned = object()
+    seen = []
+
+    class Browser:
+        @property
+        def contexts(self): raise AssertionError("persistent context accessed")
+
+    monkeypatch.setattr(module.google_form, "submit_once",
+                        lambda **kwargs: seen.append(kwargs) or {"confirmation_sha256": "ok"})
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)
+    adapter.browser = Browser()
+    adapter.owned_context = owned
+
+    adapter._submit_form_once(funded())
+
+    assert seen[0]["context"] is owned
+    assert "browser" not in seen[0]
+
+
 def test_paid_form_receipts_are_isolated_by_contract_binding(tmp_path):
     module = load()
     binding = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)._form_binding(
