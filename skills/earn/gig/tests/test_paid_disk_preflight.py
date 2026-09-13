@@ -99,6 +99,22 @@ def test_effect_gate_uses_expiring_brake_contract(monkeypatch, tmp_path, brake_s
     assert seen == [path]
 
 
+def test_operator_brake_retries_one_transient_probe_timeout(monkeypatch, tmp_path):
+    paid = _load_paid()
+    calls = []
+
+    def run(*_args, **_kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise paid.subprocess.TimeoutExpired("gig_brake", 5)
+        return SimpleNamespace(returncode=1)
+
+    monkeypatch.setattr(paid.subprocess, "run", run)
+
+    assert paid._operator_brake_status(tmp_path / "operator.brake") == "free"
+    assert calls == [1, 1]
+
+
 def test_active_clients_finish_before_absent_room_maintenance(tmp_path, monkeypatch):
     paid = _load_paid()
     active_refresh_started = threading.Event()
