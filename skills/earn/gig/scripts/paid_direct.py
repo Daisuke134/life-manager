@@ -5392,7 +5392,9 @@ def _prepare_one(args, item_path: Path, output: Path) -> int:
         reused_verified_remote_answer = _reuse_verified_remote_answer(root, item, feedback)
         consultation_answer = _answer_ready(root, item) and not reused_verified_remote_answer
         verifier = None; repaired = False
-        if consultation_answer:
+        if reused_verified_remote_answer:
+            pass
+        elif consultation_answer:
             try:
                 _validate_consultation_authorization(root, feedback)
                 verifier = _consultation_result_path(root / "evidence" / "agent-PAID_ANSWER_VERIFY")
