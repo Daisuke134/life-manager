@@ -1701,6 +1701,10 @@ def _bind_pending_review_contract(value: dict[str, Any], pending_review: dict[st
         _review_findings(pending_review), ensure_ascii=False,
         sort_keys=True, separators=(",", ":"),
     )
+    value["decision"] = "actionable"
+    value["mode"] = mode
+    value["delivery_stage"] = "review" if mode == "file" else "none"
+    value["formal_approval_evidence"] = None
     value["required_output"] = (
         "Resolve every pending fresh-review finding and complete fresh independent "
         f"verification: {findings}"
@@ -1840,15 +1844,16 @@ def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, A
         except Failure as error:
             raise Failure("paid_work_decision") from error
         runner_proof = _decision_runner_proof(evidence)
+        if pending_review is not None:
+            # The fresh verifier's findings are authoritative for this repair cycle. Bind that
+            # already-known contract before generic validation so model wording cannot turn
+            # unfinished remote repair into premature marketplace formal delivery.
+            value = _bind_pending_review_contract(value, pending_review, pending_review_mode)
         value = _validate_paid_decision(value, feedback, requirements, identity, buyer_identity)
         if pending_review_mode and (
                 value.get("decision") != "actionable"
                 or value.get("mode") != pending_review_mode):
             raise ValueError("paid decision changed pending review mode")
-        if pending_review is not None:
-            # Findings are the immutable repair contract. Model paraphrases must not create a
-            # different semantic hash on every wake and restart already-passing verification.
-            value = _bind_pending_review_contract(value, pending_review, pending_review_mode)
         current_bound = {
             str(item_path): item_snapshot,
             str(schema): schema_snapshot,

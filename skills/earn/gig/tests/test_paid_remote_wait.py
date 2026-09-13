@@ -2910,6 +2910,32 @@ def test_pending_review_contract_is_stable_across_model_paraphrases():
     assert "Implement and verify the missing live controls." in first["required_effect"]
 
 
+def test_pending_remote_review_contract_discards_model_formal_delivery_conflict():
+    paid = load("paid_direct")
+    review = {
+        "mode": "remote",
+        "findings": [{"repair": "Implement and verify the missing live controls."}],
+    }
+    value = paid._bind_pending_review_contract({
+        "decision": "actionable",
+        "mode": "remote",
+        "delivery_stage": "formal",
+        "formal_approval_evidence": {
+            "message_id": "older-buyer-message",
+            "content_sha256": "a" * 64,
+            "side": "buyer",
+        },
+        "required_output": "Premature formal delivery",
+        "required_effect": "Submit formal delivery now",
+    }, review, "remote")
+
+    assert value["decision"] == "actionable"
+    assert value["mode"] == "remote"
+    assert value["delivery_stage"] == "none"
+    assert value["formal_approval_evidence"] is None
+    assert "Implement and verify the missing live controls." in value["required_effect"]
+
+
 def test_pending_review_contract_preserves_singular_reviewer_finding():
     paid = load("paid_direct")
     finding = "Replace the incomplete sample with the complete source-proven annual ledger."
