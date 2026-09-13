@@ -332,6 +332,36 @@ def test_acquire_seeds_provider_overlay_after_shared_base(monkeypatch, tmp_path)
     }
 
 
+def test_acquire_seeds_only_configured_provider_cookie_domains(monkeypatch, tmp_path):
+    module = load_module()
+    leases_file = tmp_path / "leases.json"
+    vault_file = tmp_path / "auth-state.json"
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases_file))
+    monkeypatch.setenv("CLOAK_SESSION_VAULT_FILE", str(vault_file))
+    monkeypatch.setenv("CLOAK_CONTEXT_COOKIE_DOMAINS", "coconala.com")
+    vault_file.write_text(json.dumps({"cookies": [
+        {"name": "keep-root", "domain": ".coconala.com", "value": "a"},
+        {"name": "keep-sub", "domain": "api.coconala.com", "value": "b"},
+        {"name": "drop", "domain": ".google.com", "value": "c"},
+    ]}), encoding="utf-8")
+    calls_seen = []
+
+    async def create_context_and_target(pairs, timeout=None):
+        calls_seen.append(pairs)
+        if pairs == [("Target.createBrowserContext", {})]:
+            return [{"browserContextId": "new-context"}]
+        return [{}, {"targetId": "new-target"}]
+
+    monkeypatch.setattr(module, "_calls", create_context_and_target)
+
+    result = module.acquire("coconala-task", url="https://coconala.com/message")
+
+    assert result["cookies_seeded"] == 2
+    assert [cookie["name"] for cookie in calls_seen[1][0][1]["cookies"]] == [
+        "keep-root", "keep-sub",
+    ]
+
+
 def test_commit_cookies_also_commits_only_declared_web_storage(monkeypatch, tmp_path):
     module = load_module()
     leases_file = tmp_path / "leases.json"

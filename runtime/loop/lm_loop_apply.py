@@ -100,6 +100,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str) -> b
                 Path.home() / ".cloak/vault/gig-daily-driver/auth-state.json"
             ),
             "GIG_CDP_HEALTH_URL": "http://127.0.0.1:9223/json/version",
+            "CLOAK_CONTEXT_COOKIE_DOMAINS": "coconala.com",
         })
     if loop_id == "hf-gig-apply-direct":
         value["EnvironmentVariables"]["CLOAK_CONTEXT_PARK_ON_IDLE"] = "1"
@@ -117,6 +118,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str) -> b
             ),
             "CLOAK_CONTEXT_PARK_ON_IDLE": "1",
             "GIG_CDP_HEALTH_URL": "http://127.0.0.1:9222/json/version",
+            "CLOAK_CONTEXT_COOKIE_DOMAINS": "coconala.com",
         })
     if loop_id == "life-manager-cfo-hourly":
         value["EnvironmentVariables"]["LIFE_MANAGER_ENV_FILE"] = str(
