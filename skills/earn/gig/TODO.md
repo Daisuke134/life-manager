@@ -23,21 +23,17 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   TikTok-DM/Sheet pairs and **288 unproved**—but do not spend this program's engineering or operator
   time advancing, rediscovering, messaging or formally delivering it. An unsupported completion
   claim never becomes revenue evidence.
-- **Ryu repair is now past the semantic and browser-discovery failures.** Public main
-  `0368cc89c4...` binds a fresh pending remote-review contract before generic validation, so model
-  wording cannot turn unfinished remote work into premature formal delivery. The full Paid remote
-  suite passes 171/171; immutable release `20260913T180728-0368cc89` is installed only on
-  `hf-gig-paid-direct`. Its natural run saved `actionable/remote/none` with no formal approval
-  evidence, proving the former `non-file decision requires none delivery stage` failure is closed.
-  The owner then deployed the v180/v181 management changes, verified authenticated NEWS API
-  create/update/order/publication/delete/restore, and produced the practical update manual. The
-  remaining exact effect is mobile and desktop administration UI exercise plus public HTTPS
-  reflection, independent verification, one formal Coconala delivery with `正式な納品` enabled,
-  exact-room readback and replay-zero. The dedicated identity
-  `colors-hachioji:owner-18211957` is now resolver-visible for both
-  `browser_administration_ui` and `authenticated_administration_and_production_deployment`; its
-  isolated browser is live and lease-free. Do not ask the buyer for credentials already present in
-  the private SSOT, and do not send an incomplete progress message.
+- **Ryu's product work and independent verification pass; formal marketplace delivery remains open.**
+  Authenticated admin/API/public readbacks and mobile/desktop survey readbacks pass, and the latest
+  independent verifier classifies the result as `pass`. Two controller attempts nevertheless stopped
+  before the marketplace effect: the first exposed unstable semantic-contract identity, and the second
+  overlapped a scheduled owner that changed the same project's evidence snapshot. No customer message
+  was sent. PR `#5138`, merge SHA `129b00fd42...`, fixes the shared cause by reusing a proved Paid
+  decision when requirements, buyer identity, policy, schema and runner evidence are unchanged; malformed
+  or symlinked cache files fail closed. The focused Paid suite passes 176/176 and fresh review passes.
+  Immutable release `20260913T205246-129b00fd` is installed on `hf-gig-paid-direct`; its first natural
+  run owns the next attempt. Remaining acceptance is exactly one Coconala send with `正式な納品` enabled,
+  exact-room official readback and a following replay with zero duplicate effect.
 - **Shared TikTok transport is merged but not the active cursor.** The model qualifies a real candidate and writes truthful,
   recipient-specific copy. Deterministic shared code binds the exact recipient, sends once, performs
   official readback, appends one paired campaign receipt and never retries an uncertain send. The
@@ -114,6 +110,14 @@ new attributable net revenue, learns from official application/reply/contract/pa
 improves the shared policy without forking provider copies. Runtime health is necessary but never the
 goal by itself; the terminal measure is new official contract, accepted delivery, payout and bank
 receipt evidence.
+
+Collective learning is cross-platform, while customer state is strictly isolated. Every provider feeds
+normalized, official outcome receipts into the same failure taxonomy, eligibility/ranking policy,
+proposal and delivery evaluators, retry rules and regression fixtures. A proved general repair is promoted
+once in `marketplace-core` and adapter-conformance-tested for Coconala, Lancers, CrowdWorks, Mercor,
+Freelancer.com, Upwork and future adapters. Raw conversations, credentials, artifacts, mutable cursors and
+effect fences remain scoped to one provider/account/client/job owner and are never training context for a
+different client. Thus all platforms improve together without leaking one buyer's context into another.
 
 ## End state — one marketplace money-printer kernel
 
