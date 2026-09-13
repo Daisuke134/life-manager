@@ -395,14 +395,29 @@ class LmLoopApplyTest(unittest.TestCase):
             str(Path.home() / ".cloak/profiles/affiliate/impact-en"),
         )
 
-    def test_storefront_plist_uses_daily_driver_auth_vault(self):
-        value = registry()
-        value["loops"]["hf-gig-storefront-direct"] = value["loops"].pop("example")
-        rendered = plistlib.loads(build_apply_plan(value, self.root, SHA)[0]["plist_bytes"])
-        self.assertEqual(
-            rendered["EnvironmentVariables"]["CLOAK_SESSION_VAULT_FILE"],
-            str(Path.home() / ".cloak/vault/gig-daily-driver/auth-state.json"),
-        )
+    def test_gig_effect_lanes_use_the_gig_browser_and_auth_vault(self):
+        for loop_id in (
+            "hf-gig-apply-direct", "hf-gig-storefront-direct", "hf-gig-paid-direct",
+        ):
+            with self.subTest(loop_id=loop_id):
+                value = registry()
+                value["loops"][loop_id] = value["loops"].pop("example")
+                rendered = plistlib.loads(
+                    build_apply_plan(value, self.root, SHA)[0]["plist_bytes"]
+                )
+                environment = rendered["EnvironmentVariables"]
+                self.assertEqual(environment["CLOAK_CDP_BASE_URL"], "http://127.0.0.1:9223")
+                self.assertEqual(environment["CDP_DAILY_DRIVER_PORT"], "9223")
+                self.assertEqual(
+                    environment["CDP_DAILY_DRIVER_PROFILE"],
+                    str(Path.home() / ".cloak/profiles/gig-daily-driver"),
+                )
+                self.assertEqual(
+                    environment["CLOAK_SESSION_VAULT_FILE"],
+                    str(Path.home() / ".cloak/vault/gig-daily-driver/auth-state.json"),
+                )
+                self.assertEqual(environment["GIG_CDP_HEALTH_URL"],
+                                 "http://127.0.0.1:9223/json/version")
 
     def test_apply_parks_authenticated_context_between_natural_wakes(self):
         value = registry()
