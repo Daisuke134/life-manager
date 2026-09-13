@@ -87,19 +87,19 @@ class CrowdWorksPaidWait(RuntimeError):
 
 
 class CrowdWorksPaidActiveContractsTimeout(RuntimeError):
-    pass
+    paid_error_code = "crowdworks_paid_active_contracts_timeout"
 
 
 class CrowdWorksPaidContractTimeout(RuntimeError):
-    pass
+    paid_error_code = "crowdworks_paid_contract_timeout"
 
 
 class CrowdWorksPaidProposalTimeout(RuntimeError):
-    pass
+    paid_error_code = "crowdworks_paid_proposal_timeout"
 
 
 class CrowdWorksPaidMilestoneTimeout(RuntimeError):
-    pass
+    paid_error_code = "crowdworks_paid_milestone_timeout"
 
 
 _TIMEOUTS = {
@@ -246,6 +246,12 @@ class CrowdWorksPaidAdapter:
         return result
 
     def _list_contracts(self) -> list[dict[str, str]]:
+        try:
+            return self._list_contracts_once()
+        except PlaywrightTimeoutError:
+            raise CrowdWorksPaidActiveContractsTimeout() from None
+
+    def _list_contracts_once(self) -> list[dict[str, str]]:
         self._open()
         self._goto(self.page, ACTIVE_CONTRACTS_URL, "active_contracts")
         parsed = urlsplit(str(self.page.url))
@@ -279,6 +285,12 @@ class CrowdWorksPaidAdapter:
         return result
 
     def _detail(self, basic: Mapping[str, Any]) -> dict[str, Any]:
+        try:
+            return self._detail_once(basic)
+        except PlaywrightTimeoutError:
+            raise CrowdWorksPaidContractTimeout() from None
+
+    def _detail_once(self, basic: Mapping[str, Any]) -> dict[str, Any]:
         work_id = _text(basic.get("work_id"))
         self._goto_contract(work_id)
         body = _text(self.page.locator("body").inner_text(), "crowdworks_paid_contract_unavailable")

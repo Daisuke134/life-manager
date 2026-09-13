@@ -274,7 +274,65 @@ def test_active_contract_timeout_has_bounded_stage_specific_name():
     with pytest.raises(module.CrowdWorksPaidActiveContractsTimeout) as error:
         adapter._list_contracts()
     assert str(error.value) == ""
+    assert error.value.paid_error_code == "crowdworks_paid_active_contracts_timeout"
     adapter.close()
+
+
+def test_active_contract_dom_timeout_has_same_safe_stage_code():
+    module = load()
+
+    class Locator:
+        def evaluate_all(self, *_):
+            raise module.PlaywrightTimeoutError("untrusted provider text")
+
+    class Page:
+        url = module.ACTIVE_CONTRACTS_URL
+
+        def set_default_timeout(self, timeout):
+            pass
+
+        def goto(self, *args, **kwargs):
+            pass
+
+        def locator(self, *_):
+            return Locator()
+
+    class Context:
+        def new_page(self):
+            return Page()
+
+    class Browser:
+        contexts = [Context()]
+
+    class Runtime:
+        def stop(self):
+            pass
+
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()))
+    with pytest.raises(module.CrowdWorksPaidActiveContractsTimeout) as error:
+        adapter._list_contracts()
+    assert error.value.paid_error_code == "crowdworks_paid_active_contracts_timeout"
+    adapter.close()
+
+
+def test_contract_detail_dom_timeout_has_safe_contract_stage_code():
+    module = load()
+
+    class Locator:
+        def inner_text(self):
+            raise module.PlaywrightTimeoutError("untrusted provider text")
+
+    class Page:
+        def locator(self, *_):
+            return Locator()
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda *_: None
+    with pytest.raises(module.CrowdWorksPaidContractTimeout) as error:
+        adapter._detail(funded())
+    assert error.value.paid_error_code == "crowdworks_paid_contract_timeout"
 
 
 def test_contract_navigation_timeout_retries_once_on_fresh_page():
