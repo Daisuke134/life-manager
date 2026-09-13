@@ -335,6 +335,39 @@ def test_contract_detail_dom_timeout_has_safe_contract_stage_code():
     assert error.value.paid_error_code == "crowdworks_paid_contract_timeout"
 
 
+def test_contract_detail_dom_timeout_retries_once_on_fresh_page():
+    module = load()
+    calls = []
+
+    class Page:
+        def set_default_timeout(self, timeout):
+            calls.append(("timeout", timeout))
+
+        def close(self):
+            calls.append(("close",))
+
+    fresh = Page()
+
+    class Context:
+        def new_page(self):
+            calls.append(("new_page",))
+            return fresh
+
+    class Browser:
+        contexts = [Context()]
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.browser = Browser()
+    adapter.page = Page()
+    attempts = iter((module.PlaywrightTimeoutError("provider text"), funded()))
+    adapter._detail_once = lambda *_: (
+        (_ for _ in ()).throw(value) if isinstance((value := next(attempts)), Exception) else value
+    )
+
+    assert adapter._detail(funded()) == funded()
+    assert calls == [("close",), ("new_page",), ("timeout", 15_000)]
+
+
 def test_contract_navigation_timeout_retries_once_on_fresh_page():
     module = load()
     calls = []
