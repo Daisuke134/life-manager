@@ -305,6 +305,7 @@ class CoconalaReplyAdapter:
             raise RuntimeError("coconala_estimate_url_invalid")
         with self.estimate_browser_factory(
             self.cdp_helper, thread_url, estimate_url, hidden,
+            self._thread_owner(str(intent["thread_id"])),
         ) as browser:
             browser.semantic_context_required = True
             context, observation = browser.read_thread_context()
@@ -351,6 +352,7 @@ class CoconalaReplyAdapter:
         offer_date = date.fromisoformat(str(payload.get("_offer_date") or ""))
         with self.estimate_browser_factory(
             self.cdp_helper, thread_url, estimate_url, False,
+            self._thread_owner(str(intent["thread_id"])),
         ) as browser:
             browser.semantic_context_required = True
             context, before = browser.read_thread_context()

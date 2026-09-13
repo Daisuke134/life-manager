@@ -150,17 +150,24 @@ class EstimateFormRefused(RuntimeError):
 class CoconalaEstimateBrowser:
     """One tab held from fresh thread read through final submit/readback."""
 
-    def __init__(self, helper: Path | None, thread_url: str, estimate_url: str, *, hidden: bool = False):
+    def __init__(
+        self, helper: Path | None, thread_url: str, estimate_url: str, *,
+        hidden: bool = False, owner: str | None = None,
+    ):
         default_helper = BROWSER_DIR / "scripts" / "cdp_default_tab.py"
         self.helper, self.thread_url, self.estimate_url = Path(helper or os.environ.get("GIG_CDP_HELPER", default_helper)), thread_url, estimate_url
         self.hidden = hidden
+        self.owner = owner
         self.tab: Any = None
         self.final_clicks = 0
         self.network: list[dict[str, Any]] = []
         self.semantic_context_required = False
 
     def __enter__(self):
-        self.tab = collector.DefaultTab(self.helper, self.thread_url, hidden=self.hidden, background=not self.hidden)
+        self.tab = collector.DefaultTab(
+            self.helper, self.thread_url, hidden=self.hidden,
+            background=not self.hidden, owner=self.owner,
+        )
         self.tab.__enter__()
         return self
 
@@ -221,7 +228,10 @@ class CoconalaEstimateBrowser:
 
     def fresh_thread_context(self, expected_own_user_path: str) -> dict[str, Any]:
         """Re-read the thread in a separate tab without disturbing confirmation."""
-        with collector.DefaultTab(self.helper, self.thread_url, hidden=True, background=True) as tab:
+        with collector.DefaultTab(
+            self.helper, self.thread_url, hidden=True, background=True,
+            owner=self.owner,
+        ) as tab:
             raw = asyncio.run(collector.inspect_message_page(
                 tab.ws, collector.DIRECT_MESSAGE_EXPRESSION, self.thread_url,
             ))
