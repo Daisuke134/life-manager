@@ -52,10 +52,13 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   PR `#5146` and follow-up PR `#5148` then made verified-result reuse strict, Codex-only for the Paid
   owner, and skipped the stale remote-resume branch after reuse. Immutable release
   `20260913T235645-426fb097` sent the ordinary review exactly once. Official readback proves the exact
-  target, seller message and manual attachment while formal delivery remains off. The shared remaining
-  defect is the aggregate batch barrier: each client must progress independently through
-  read -> decide -> effect -> readback under a bounded browser pool, rather than waiting for every
-  client's decision before any ready effect can run.
+  target, seller message and manual attachment while formal delivery remains off. PR `#5150`, merge
+  SHA `6631c3281c...`, removes the aggregate readback barrier: each client now progresses in completion
+  order through read -> decide -> effect -> readback under the existing bounded readback/project pools,
+  isolated owner, effect fence and official readback. Explicit escalation and Paid owner execution are
+  Codex-only. The regression suite proves a fast client advances while an earlier slow client remains
+  blocked; 284 tests and 34 subtests pass. Immutable release
+  `20260914T001037-6631c328` is installed and running on `hf-gig-paid-direct`.
 - **Shared TikTok transport is merged but not the active cursor.** The model qualifies a real candidate and writes truthful,
   recipient-specific copy. Deterministic shared code binds the exact recipient, sends once, performs
   official readback, appends one paired campaign receipt and never retries an uncertain send. The
@@ -86,20 +89,16 @@ continues independently.
    A buyer owner never waits for another buyer.
 2. Finish Coconala vertically across Apply, Reply, Paid and Storefront, including one-off plus retainer
    applications and attributable payout evidence.
-3. Remove the Paid aggregate batch barrier and run each client as an independent completion-order
-   pipeline under a bounded browser worker pool, isolated browser context/session, per-job timeout,
-   queue backpressure and reconcile-before-retry. Cache semantic decisions only by immutable
-   client/context/requirements/policy hashes. Keep Paid agent routes Codex-only.
-4. Finish each next provider vertically while all installed lanes remain live: Lancers, CrowdWorks,
+3. Finish each next provider vertically while all installed lanes remain live: Lancers, CrowdWorks,
    Mercor, Freelancer.com, Upwork, then evidence-ranked new platforms. Missing Storefront is
    `not_applicable`; missing contract leaves Paid open but never pauses Apply.
-5. Extract only proven duplicated lifecycle behavior into `marketplace-core`; provider authentication,
+4. Extract only proven duplicated lifecycle behavior into `marketplace-core`; provider authentication,
    vocabulary, selectors, mutations and official readback remain thin adapters. Every repair is tested
    against all adopted providers so a new platform never copies a lane.
-6. Enable the marketplace meta-loop to discover opportunities on the web/X, qualify expected net
+5. Enable the marketplace meta-loop to discover opportunities on the web/X, qualify expected net
    revenue and policy fit, scaffold a thin adapter, test/release it and promote it only after a real
    official effect plus replay-zero.
-7. Deliver Telegram-only multi-tenant operation on the **OpenAI Agents API**. Life Manager creates and
+6. Deliver Telegram-only multi-tenant operation on the **OpenAI Agents API**. Life Manager creates and
    retains one isolated durable agent session per tenant/objective, streams or receives webhook progress,
    and resumes/steers the same session without requiring a local computer. Use an OpenAI-hosted environment
    by default for code, files, skills, MCP and artifacts; use a self-hosted environment only when a private
