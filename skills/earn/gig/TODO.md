@@ -23,7 +23,7 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   TikTok-DM/Sheet pairs and **288 unproved**—but do not spend this program's engineering or operator
   time advancing, rediscovering, messaging or formally delivering it. An unsupported completion
   claim never becomes revenue evidence.
-- **Ryu's product work and independent verification pass; formal marketplace delivery remains open.**
+- **Ryu's product work and independent verification pass; the buyer review handoff remains open.**
   Authenticated admin/API/public readbacks and mobile/desktop survey readbacks pass, and the latest
   independent verifier classifies the result as `pass`. Two controller attempts nevertheless stopped
   before the marketplace effect: the first exposed unstable semantic-contract identity, and the second
@@ -31,9 +31,11 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   was sent. PR `#5138`, merge SHA `129b00fd42...`, fixes the shared cause by reusing a proved Paid
   decision when requirements, buyer identity, policy, schema and runner evidence are unchanged; malformed
   or symlinked cache files fail closed. The focused Paid suite passes 176/176 and fresh review passes.
-  Immutable release `20260913T205246-129b00fd` is installed on `hf-gig-paid-direct`; its first natural
-  run owns the next attempt. Remaining acceptance is exactly one Coconala send with `正式な納品` enabled,
-  exact-room official readback and a following replay with zero duplicate effect.
+  Immutable release `20260913T205246-129b00fd` was installed on `hf-gig-paid-direct`, but its first
+  natural run was stopped before effect after the account owner clarified the buyer has not approved
+  formal closure. The correct next effect is exactly one ordinary Coconala review message with the
+  verified URLs and manual while `正式な納品` remains off, followed by exact-room readback and replay-zero.
+  Only a later latest buyer message that explicitly approves closure may authorize formal delivery.
 - **Shared TikTok transport is merged but not the active cursor.** The model qualifies a real candidate and writes truthful,
   recipient-specific copy. Deterministic shared code binds the exact recipient, sends once, performs
   official readback, appends one paired campaign receipt and never retries an uncertain send. The
@@ -59,7 +61,8 @@ work. The new order removes that completed prerequisite and promotes the former 
 interrupting any active client owner. The current cursor is Ryu formal delivery while the independent
 CrowdWorks funded owner continues concurrently.
 
-1. Close active funded liabilities concurrently: Ryu formal-delivery proof and CrowdWorks funded
+1. Close active funded liabilities concurrently: Ryu ordinary-review-message proof, subsequent buyer
+   approval and only then formal-delivery proof, plus CrowdWorks funded
    milestone/delivery/payment effects. Chii is excluded and does not gate this step. A buyer owner
    never waits for another buyer.
 2. Finish Coconala vertically across Apply, Reply, Paid and Storefront, including one-off plus retainer

@@ -178,7 +178,7 @@ def validate_queue_contract(
         raise ValueError("queue_not_formal")
     root = project_root.expanduser().resolve()
     if not read_only:
-        if not (_formal_approval_ready(queue) or _account_owner_formal_ready(queue, root)):
+        if not (_formal_approval_ready(queue) and _formal_approval_is_official(queue, root)):
             raise ValueError("formal_buyer_approval_evidence_required")
     # B4 (spec section CC'): a subscription room (room_contract_kind, A5) has no 正式な納品
     # checkbox and no 納品確認待ち step to submit through. delivery_cadence.delivery_decision
@@ -267,7 +267,7 @@ def validate_queue_contract(
     linked_asset_delivery = _linked_asset_delivery(evidence)
     verified_remote_message = (
         manifest.get("remote_formal_delivery") is True
-        and _account_owner_formal_ready(queue, root)
+        and _formal_approval_ready(queue)
     )
     message = (
         str(manifest.get("customer_message") or "").strip()
@@ -309,35 +309,54 @@ def _formal_approval_ready(queue: dict[str, Any]) -> bool:
     )
 
 
-def _account_owner_formal_ready(queue: dict[str, Any], root: Path) -> bool:
-    """Accept one exact-cycle owner override without weakening ordinary delivery."""
-    authorization = queue.get("account_owner_formal_authorization")
-    if not isinstance(authorization, dict) or set(authorization) != {
-        "authorized_by", "request_id", "buyer_feedback_sha256",
-        "requirements_sha256", "policy_sha256",
-    }:
-        return False
-    policy_path = root / "context" / "paid-file-operator-policy.json"
+def _formal_approval_is_official(queue: dict[str, Any], root: Path) -> bool:
+    """Bind the approval identity to the latest buyer row in official talkroom history."""
+    path = root / "source" / "talkroom" / "messages.jsonl"
     try:
-        if policy_path.is_symlink() or not policy_path.is_file():
-            return False
-        content = policy_path.read_bytes()
-        policy = json.loads(content)
-    except (OSError, ValueError, TypeError):
+        resolved_root = root.resolve(strict=True)
+        path.resolve(strict=True).relative_to(resolved_root)
+        relative = path.relative_to(root)
+    except (OSError, ValueError):
         return False
-    return bool(
-        authorization.get("authorized_by") == "account_owner"
-        and authorization.get("request_id") == root.name
-        and authorization.get("buyer_feedback_sha256") == queue.get("buyer_feedback_sha256")
-        and authorization.get("requirements_sha256") == queue.get("requirements_sha256")
-        and authorization.get("policy_sha256") == hashlib.sha256(content).hexdigest()
-        and policy.get("version") == 1
-        and policy.get("authorized_by") == "account_owner"
-        and str(policy.get("request_id") or "") == root.name
-        and policy.get("buyer_feedback_sha256") == authorization.get("buyer_feedback_sha256")
-        and policy.get("requirements_sha256") == authorization.get("requirements_sha256")
-        and policy.get("formal_delivery_after_remote") is True
-    )
+    current = root
+    if root.is_symlink():
+        return False
+    for part in relative.parts:
+        current = current / part
+        if current.is_symlink():
+            return False
+    if not path.is_file():
+        return False
+    try:
+        rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()
+                if line.strip()]
+    except (OSError, json.JSONDecodeError, TypeError):
+        return False
+    talkroom_id = str(queue.get("talkroom_id") or "").strip()
+    for row in reversed(rows):
+        if not isinstance(row, dict) or row.get("side") != "buyer":
+            continue
+        canonical = {
+            "side": row.get("side"), "sent_at": row.get("sent_at"),
+            "text": str(row.get("text") or ""), "attachments": row.get("attachments"),
+        }
+        digest = hashlib.sha256(json.dumps(
+            canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        ).encode("utf-8")).hexdigest()
+        identity = {
+            "message_id": str(row.get("message_id") or "").strip(),
+            "content_sha256": str(row.get("content_sha256") or "").strip(),
+            "side": "buyer",
+        }
+        return bool(
+            row.get("version") == 1
+            and row.get("source") == "coconala_live_talkroom"
+            and str(row.get("talkroom_id") or "").strip() == talkroom_id
+            and identity["message_id"]
+            and identity["content_sha256"] == digest
+            and queue.get("formal_approval_evidence") == identity
+        )
+    return False
 
 
 def _linked_asset_delivery(evidence: dict[str, Any]) -> bool:
