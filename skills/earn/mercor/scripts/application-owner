@@ -30,6 +30,7 @@ fi
 export CLOAK_CDP_BASE_URL="$CDP"
 export CLOAK_SESSION_VAULT_FILE="$HOME/.cloak/vault/job-search-daily/auth-state.json"
 export CLOAK_SESSION_VAULT_WRITEBACK_FILE="$STATE_ROOT/auth-overlay.json"
+export CLOAK_CONTEXT_COOKIE_DOMAINS="mercor.com"
 export AI_BROWSER_HOLDER_PID=$$
 
 park_lease() {

@@ -137,6 +137,20 @@ def _vault_lock():
 
 
 @contextlib.contextmanager
+def _seed_locks():
+    """Freeze base and overlay vaults while one context chooses and installs its seed."""
+    with contextlib.ExitStack() as stack:
+        for path in sorted({_vault_path(), _vault_writeback_path()}):
+            lock_path = path + ".lock"
+            os.makedirs(os.path.dirname(lock_path), mode=0o700, exist_ok=True)
+            handle = stack.enter_context(open(lock_path, "a+", encoding="utf-8"))
+            os.chmod(lock_path, 0o600)
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            stack.callback(fcntl.flock, handle.fileno(), fcntl.LOCK_UN)
+        yield
+
+
+@contextlib.contextmanager
 def _gc_singleflight():
     """Let at most one slow context reaper run for a lease ledger."""
     path = _gc_lock_path()
@@ -394,6 +408,11 @@ def _recover_capacity_if_needed(task, wait_seconds=25.0):
 
 
 def acquire(task, url="about:blank", no_seed=False):
+    with _seed_locks():
+        return _acquire_with_seed_locked(task, url=url, no_seed=no_seed)
+
+
+def _acquire_with_seed_locked(task, url="about:blank", no_seed=False):
     # Routine browser admission must not wait for whole-ledger maintenance. At the
     # actual capacity boundary, however, reclaim one stale row (or briefly wait for the
     # existing single-flight reaper) so this same wake can make forward progress.
@@ -418,7 +437,8 @@ def acquire(task, url="about:blank", no_seed=False):
             _save(leases)
             held = leases.get(task)
         parked = bool(held) and held.get("parked") is True
-        seed_changed = parked and held.get("seed_fingerprint") != seed_fingerprint
+        seed_changed = (parked and seed_fingerprint is not None
+                        and held.get("seed_fingerprint") != seed_fingerprint)
         holder_pid_state = _pid_alive(held.get("pid")) if held and not parked else None
         if (held and not parked and held.get("pid") != current_holder
                 and holder_pid_state is not False
@@ -677,14 +697,16 @@ def _seed_material(target_url, no_seed=False):
     cookies = []
     origins = []
     vault_path = _vault_path()
-    if not no_seed and os.path.exists(vault_path):
+    vault_exists = os.path.exists(vault_path)
+    if not no_seed and vault_exists:
         with open(vault_path, encoding="utf-8") as handle:
             payload = json.load(handle)
         if isinstance(payload, dict):
             cookies = payload.get("cookies", [])
             origins = payload.get("origins", [])
     overlay_path = _vault_writeback_path()
-    if not no_seed and overlay_path != vault_path and os.path.exists(overlay_path):
+    overlay_exists = overlay_path != vault_path and os.path.exists(overlay_path)
+    if not no_seed and overlay_exists:
         with open(overlay_path, encoding="utf-8") as handle:
             overlay = json.load(handle)
         if isinstance(overlay, dict):
@@ -711,7 +733,7 @@ def _seed_material(target_url, no_seed=False):
     fingerprint = hashlib.sha256(json.dumps(
         {"cookies": cookies, "origins": scoped_origins, "no_seed": bool(no_seed)},
         ensure_ascii=False, sort_keys=True, separators=(",", ":"),
-    ).encode()).hexdigest()
+    ).encode()).hexdigest() if no_seed or vault_exists or overlay_exists else None
     return cookies, origins if isinstance(origins, list) else [], fingerprint
 
 
@@ -992,14 +1014,21 @@ def _dispose_candidate(item):
     return task, held, disposed
 
 
-def _dispose_candidates(candidates):
+def _dispose_candidates(candidates, priority_task=None):
     if not candidates:
         return []
+    results = []
+    remaining = dict(candidates)
+    if priority_task in remaining:
+        results.append(_dispose_candidate((priority_task, remaining.pop(priority_task))))
+    if not remaining:
+        return results
     # max_reaps bounds candidates when the caller selects a batch; the hard ceiling
     # also keeps an unbounded maintenance GC from opening an unbounded number of sockets.
-    workers = min(8, len(candidates))
+    workers = min(8, len(remaining))
     with ThreadPoolExecutor(max_workers=workers) as executor:
-        return list(executor.map(_dispose_candidate, candidates.items()))
+        results.extend(executor.map(_dispose_candidate, remaining.items()))
+    return results
 
 
 def _gc_owned(idle_min=45, max_reaps=None, priority_task=None):
@@ -1045,7 +1074,7 @@ def _gc_owned(idle_min=45, max_reaps=None, priority_task=None):
             candidates = dict(ordered[:max(0, int(max_reaps))])
 
     reaped = []
-    for task, held, disposed in _dispose_candidates(candidates):
+    for task, held, disposed in _dispose_candidates(candidates, priority_task=priority_task):
         with _ledger_lock():
             leases = _leases()
             current = leases.get(task)

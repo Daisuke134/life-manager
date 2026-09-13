@@ -27,9 +27,12 @@ Google passkey and Apple-ID-SMS are NOT solvable in-browser; earn accounts must 
 with app-based 2FA, never Dais's passkey-locked Google.
 """
 import asyncio
+import contextlib
 from concurrent.futures import ThreadPoolExecutor
+import fcntl
 import json
 import os
+import shutil
 import sys
 import time
 import urllib.request
@@ -42,6 +45,18 @@ VAULT_DIR = os.path.expanduser(os.environ.get("SESSION_VAULT_DIR", "~/.cloak/vau
 VAULT = os.path.join(VAULT_DIR, "auth-state.json")
 TOTP_SECRETS = os.path.join(VAULT_DIR, "totp-secrets.json")  # {"@coconala": "BASE32SECRET", ...}, chmod 600
 KEEP_BACKUPS = 8
+
+
+@contextlib.contextmanager
+def _vault_lock():
+    os.makedirs(VAULT_DIR, exist_ok=True)
+    with open(VAULT + ".lock", "a+", encoding="utf-8") as handle:
+        os.chmod(VAULT + ".lock", 0o600)
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 try:
     import websockets
@@ -178,26 +193,28 @@ def dump():
         # never overwrite a good vault with an empty snapshot from a half-dead browser
         return {"ok": False, "reason": "browser returned zero cookies; vault left untouched"}
 
-    cookies, degraded_sites = _guard_degraded_site_cookies(cookies)
-
     try:
         local_storage = _run(_localstorage("read"))
     except Exception:
         local_storage = {}
 
-    os.makedirs(VAULT_DIR, exist_ok=True)
-    if os.path.exists(VAULT):
-        os.replace(VAULT, os.path.join(VAULT_DIR, f"auth-state.{int(os.path.getmtime(VAULT))}.json"))
-        backups = sorted(f for f in os.listdir(VAULT_DIR) if f.startswith("auth-state.") and f != "auth-state.json")
-        for old in backups[:-KEEP_BACKUPS]:
-            os.remove(os.path.join(VAULT_DIR, old))
+    with _vault_lock():
+        cookies, degraded_sites = _guard_degraded_site_cookies(cookies)
+        if os.path.exists(VAULT):
+            backup = os.path.join(VAULT_DIR, f"auth-state.{int(os.path.getmtime(VAULT))}.json")
+            shutil.copy2(VAULT, backup)
+            backups = sorted(f for f in os.listdir(VAULT_DIR)
+                             if f.startswith("auth-state.") and f != "auth-state.json")
+            for old in backups[:-KEEP_BACKUPS]:
+                os.remove(os.path.join(VAULT_DIR, old))
 
-    payload = {"ts": int(time.time()), "cookies": cookies, "localStorage": local_storage}
-    tmp = VAULT + ".tmp"
-    with open(tmp, "w") as f:
-        json.dump(payload, f)
-    os.replace(tmp, VAULT)
-    os.chmod(VAULT, 0o600)  # cookies + tokens are credentials
+        payload = {"ts": int(time.time()), "cookies": cookies, "localStorage": local_storage}
+        tmp = f"{VAULT}.{os.getpid()}.tmp"
+        with open(tmp, "w") as f:
+            json.dump(payload, f)
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, VAULT)
+        os.chmod(VAULT, 0o600)  # cookies + tokens are credentials
 
     domains = sorted({c.get("domain", "") for c in cookies})
     result = {"ok": True, "cookies": len(cookies), "domains": len(domains),

@@ -19,6 +19,37 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import session_vault as sv  # noqa: E402
 
 
+def test_dump_keeps_prior_vault_present_until_atomic_replacement(monkeypatch, tmp_path):
+    vault = tmp_path / "auth-state.json"
+    vault.write_text(json.dumps({"cookies": [_cookie("old", ".coconala.com")]}), encoding="utf-8")
+    monkeypatch.setattr(sv, "VAULT_DIR", str(tmp_path))
+    monkeypatch.setattr(sv, "VAULT", str(vault))
+    calls = 0
+
+    def run(coro):
+        nonlocal calls
+        coro.close()
+        calls += 1
+        return {"cookies": [_cookie("new", ".coconala.com")]} if calls == 1 else {}
+
+    original_replace = os.replace
+    destinations = []
+
+    def replace(source, destination):
+        destinations.append(destination)
+        assert destination == str(vault)
+        assert vault.exists()
+        original_replace(source, destination)
+
+    monkeypatch.setattr(sv, "_run", run)
+    monkeypatch.setattr(sv.os, "replace", replace)
+
+    assert sv.dump()["ok"] is True
+    assert destinations == [str(vault)]
+    assert json.loads(vault.read_text())["cookies"][0]["name"] == "new"
+    assert list(tmp_path.glob("auth-state.*.json"))
+
+
 def _cookie(name, domain):
     return {"name": name, "domain": domain, "value": "x"}
 

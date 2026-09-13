@@ -544,6 +544,43 @@ def test_scoped_seed_fingerprint_ignores_unrelated_provider_cookie_changes(monke
     assert first == second
 
 
+def test_missing_vault_never_replaces_an_authenticated_parked_context(monkeypatch, tmp_path):
+    module = load_module()
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(tmp_path / "leases.json"))
+    monkeypatch.setenv("CLOAK_SESSION_VAULT_FILE", str(tmp_path / "missing.json"))
+    monkeypatch.setattr(module, "target_responds", lambda _ws: True)
+    module._save({"coconala": {
+        "context_id": "authenticated", "target_id": "target", "ws": "ws://target",
+        "ts": 1, "token": "old-token", "generation": 1, "pid": None,
+        "parked": True, "seed_fingerprint": "known-auth",
+    }})
+
+    result = module.acquire("coconala", "https://coconala.com/mypage/dashboard")
+
+    assert result["reused"] is True
+    assert result["context_id"] == "authenticated"
+
+
+def test_acquire_keeps_seed_locks_through_the_complete_inner_operation(monkeypatch):
+    module = load_module()
+    events = []
+
+    @module.contextlib.contextmanager
+    def locked():
+        events.append("lock-enter")
+        try:
+            yield
+        finally:
+            events.append("lock-exit")
+
+    monkeypatch.setattr(module, "_seed_locks", locked)
+    monkeypatch.setattr(module, "_acquire_with_seed_locked",
+                        lambda *args, **kwargs: events.append("inner") or {"ok": True})
+
+    assert module.acquire("task") == {"ok": True}
+    assert events == ["lock-enter", "inner", "lock-exit"]
+
+
 def test_gc_does_not_reap_a_parked_context_for_age_or_missing_pid(monkeypatch, tmp_path):
     module = load_module()
     monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(tmp_path / "leases.json"))
