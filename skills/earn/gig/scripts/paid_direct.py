@@ -893,6 +893,16 @@ def _regular_file(path: Path) -> bool:
     try: return stat.S_ISREG(path.lstat().st_mode)
     except OSError: return False
 
+
+def _load_paid_decision_receipt(path: Path) -> dict[str, Any] | None:
+    if path.is_symlink() or not _regular_file(path):
+        return None
+    try:
+        value = _load(path)
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return None
+    return value if isinstance(value, dict) else None
+
 def _runner_summary(managed: Path) -> dict[str, Any]:
     managed = managed.resolve()
     summary_path = managed / "summary.json"
@@ -1781,7 +1791,11 @@ def _stable_cached_paid_decision(root: Path, receipt: Any, schema_sha256: str,
             or receipt.get("operator_policy_sha256", "") != operator_policy_sha256
             or not isinstance(receipt.get("runner"), dict)):
         raise ValueError("stale paid decision receipt")
-    evidence = root / "evidence" / "agent-PAID_WORK_DECISION"
+    evidence_root = root / "evidence"
+    evidence = evidence_root / "agent-PAID_WORK_DECISION"
+    if (evidence_root.is_symlink() or not evidence_root.is_dir()
+            or evidence.is_symlink() or not evidence.is_dir()):
+        raise ValueError("missing paid decision evidence")
     runner = receipt["runner"]
     if _decision_runner_proof(evidence) != runner:
         raise ValueError("tampered paid decision evidence")
@@ -1839,8 +1853,8 @@ def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, A
         context, context_sha256, feedback, requirements, identity, buyer_identity,
         operator_policy, operator_policy_sha256, pending_review)
     prompt_sha256 = hashlib.sha256(prompt_bytes).hexdigest()
+    receipt = _load_paid_decision_receipt(receipt_path)
     try:
-        receipt = None if receipt_path.is_symlink() or not _regular_file(receipt_path) else _load(receipt_path)
         return _cached_paid_decision(root, receipt, prompt, prompt_sha256,
                                      schema_sha256, context_sha256, context_inputs_sha256,
                                      feedback, requirements, identity, buyer_identity,

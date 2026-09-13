@@ -2977,6 +2977,36 @@ def test_stable_decision_cache_ignores_compiled_runtime_context_churn(tmp_path, 
         )
 
 
+def test_stable_decision_cache_rejects_symlinked_evidence(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (tmp_path / "evidence").mkdir()
+    (tmp_path / "evidence/agent-PAID_WORK_DECISION").symlink_to(outside)
+    receipt = {
+        "schema_version": paid.PAID_DECISION_SCHEMA_VERSION,
+        "prompt_version": paid.PAID_DECISION_PROMPT_VERSION,
+        "schema_sha256": "c" * 64,
+        "context_inputs_sha256": "e" * 64,
+        "operator_policy_sha256": "f" * 64,
+        "runner": {},
+    }
+
+    with pytest.raises(ValueError, match="missing paid decision evidence"):
+        paid._stable_cached_paid_decision(
+            tmp_path, receipt, "c" * 64, "e" * 64, "a" * 64,
+            "b" * 64, {}, {}, "f" * 64,
+        )
+
+
+def test_malformed_paid_decision_receipt_falls_back_to_fresh_decision(tmp_path):
+    paid = load("paid_direct")
+    receipt = tmp_path / "paid-work-decision.json"
+    receipt.write_text("{not json", encoding="utf-8")
+
+    assert paid._load_paid_decision_receipt(receipt) is None
+
+
 def test_pending_remote_review_contract_discards_model_formal_delivery_conflict():
     paid = load("paid_direct")
     review = {
