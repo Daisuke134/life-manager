@@ -75,7 +75,7 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   installed the release on 109 additional finite owners with zero apply failures, including Lancers
   Storefront/Negotiate/Paid/Work-sync, CrowdWorks Apply/Paid/Report and Mercor Apply/Reply/Paid. The only
   measured finite marketplace owners still on an older release are the currently running Lancers Apply
-  and Telegram-report plus CrowdWorks Reply; reconcile each after its current wake naturally
+  and CrowdWorks Reply; reconcile each after its current wake naturally
   becomes idle. The Lancers and shared marketplace browser keep-alives intentionally do not use finite
   host admission and must not be restarted merely to align release SHAs.
 
