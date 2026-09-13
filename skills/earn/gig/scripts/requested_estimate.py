@@ -1662,9 +1662,14 @@ def _estimate_items(snapshot: Any) -> list[dict[str, Any]]:
     ]
 
 
-def _default_browser_factory(helper: Path | None, thread_url: str, estimate_url: str, hidden: bool):
+def _default_browser_factory(
+    helper: Path | None, thread_url: str, estimate_url: str,
+    hidden: bool, owner: str | None = None,
+):
     browser_module = _load_local("coconala_estimate_browser")
-    return browser_module.CoconalaEstimateBrowser(helper, thread_url, estimate_url, hidden=hidden)
+    return browser_module.CoconalaEstimateBrowser(
+        helper, thread_url, estimate_url, hidden=hidden, owner=owner,
+    )
 
 
 def _card_time(card: dict[str, Any]) -> int | None:

@@ -92,6 +92,12 @@ class CoconalaReplyAdapter:
         self._raw_threads: dict[str, dict[str, Any]] = {}
         self._receipts: dict[str, dict[str, str]] = {}
 
+    @staticmethod
+    def _thread_owner(thread_id: str) -> str:
+        if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", thread_id):
+            raise RuntimeError("coconala_thread_identity_invalid")
+        return f"coconala-reply-{thread_id}"
+
     def _read_inventory(self) -> list[dict[str, Any]]:
         transient = {
             "collector_unhealthy:inbox_coverage_incomplete",
@@ -116,6 +122,7 @@ class CoconalaReplyAdapter:
             try:
                 with reply_browser.CoconalaCdpReplyBrowser(
                     self.cdp_helper, url, hidden=True, background=False,
+                    owner=self._thread_owner(thread_id),
                 ) as browser:
                     result = browser.read_before()
                     if not isinstance(browser.raw, dict):
@@ -134,6 +141,7 @@ class CoconalaReplyAdapter:
         url = f"https://coconala.com/mypage/direct_message/{thread_id}"
         with reply_browser.CoconalaCdpReplyBrowser(
             self.cdp_helper, url, hidden=True, background=False,
+            owner=self._thread_owner(thread_id),
         ) as browser:
             context, _before = browser.read_before()
             if _event_id(context) != expected_event:
@@ -215,6 +223,7 @@ class CoconalaReplyAdapter:
         url = f"https://coconala.com/mypage/direct_message/{thread_id}"
         with reply_browser.CoconalaCdpReplyBrowser(
             self.cdp_helper, url, hidden=True, background=False,
+            owner=self._thread_owner(thread_id),
         ) as browser:
             context, _bounded = browser._read()
             applications = browser._find_verified_applications(
@@ -296,6 +305,7 @@ class CoconalaReplyAdapter:
             raise RuntimeError("coconala_estimate_url_invalid")
         with self.estimate_browser_factory(
             self.cdp_helper, thread_url, estimate_url, hidden,
+            self._thread_owner(str(intent["thread_id"])),
         ) as browser:
             browser.semantic_context_required = True
             context, observation = browser.read_thread_context()
@@ -342,6 +352,7 @@ class CoconalaReplyAdapter:
         offer_date = date.fromisoformat(str(payload.get("_offer_date") or ""))
         with self.estimate_browser_factory(
             self.cdp_helper, thread_url, estimate_url, False,
+            self._thread_owner(str(intent["thread_id"])),
         ) as browser:
             browser.semantic_context_required = True
             context, before = browser.read_thread_context()

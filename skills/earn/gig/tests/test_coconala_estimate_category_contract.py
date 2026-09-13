@@ -1,5 +1,6 @@
 import importlib.util
 import unittest
+from unittest import mock
 from pathlib import Path
 
 
@@ -11,6 +12,39 @@ SPEC.loader.exec_module(browser)
 
 
 class CategoryTypeContractTests(unittest.TestCase):
+    def test_main_and_nested_tabs_keep_the_same_client_owner(self):
+        owners = []
+
+        class Tab:
+            ws = "ws://example"
+
+            def __init__(self, *_args, **kwargs):
+                owners.append(kwargs.get("owner"))
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return None
+
+        async def inspect(*_args, **_kwargs):
+            return {"own_user_path": "/users/me", "messages": []}
+
+        instance = browser.CoconalaEstimateBrowser(
+            None, "https://coconala.com/mypage/direct_message/12",
+            "https://coconala.com/direct_offers/add/12",
+            owner="coconala-reply-12",
+        )
+        with mock.patch.object(browser.collector, "DefaultTab", Tab), \
+             mock.patch.object(browser.collector, "inspect_message_page", inspect), \
+             mock.patch.object(browser.collector, "validate_page_identity"), \
+             mock.patch.object(browser.collector, "direct_thread_head_projection", return_value={}):
+            instance.__enter__()
+            instance.fresh_thread_context("/users/me")
+            instance.__exit__()
+
+        self.assertEqual(owners, ["coconala-reply-12", "coconala-reply-12"])
+
     def test_required_shape_proves_visible_row_in_both_paths(self):
         required = (
             "state.row_present&&!state.control_disabled&&!state.row_hidden"

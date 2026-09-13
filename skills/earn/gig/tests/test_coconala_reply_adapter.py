@@ -194,12 +194,14 @@ def test_inventory_does_not_retry_non_transient_collector_failure(monkeypatch, t
 def test_read_thread_retries_only_pre_effect_navigation_timeout(monkeypatch, tmp_path):
     attempts = []
     closed = []
+    owners = []
 
     class Browser:
         raw = {"messages": [{"message_id": "m1"}]}
 
-        def __init__(self, *_args, **_kwargs):
+        def __init__(self, *_args, **kwargs):
             attempts.append(self)
+            owners.append(kwargs.get("owner"))
 
         def __enter__(self):
             return self
@@ -224,6 +226,7 @@ def test_read_thread_retries_only_pre_effect_navigation_timeout(monkeypatch, tmp
 
     assert len(attempts) == 2
     assert closed == attempts
+    assert owners == ["coconala-reply-12", "coconala-reply-12"]
     assert context["conversation"][-1]["message_id"] == "m1"
     assert bounded["last_sender"] == "buyer"
 
@@ -526,6 +529,7 @@ def test_estimate_mutation_uses_provider_ceremony_and_caches_official_receipt(mo
 
 
 def test_estimate_readback_finds_existing_official_card_without_mutation(monkeypatch, tmp_path):
+    factory_calls = []
     class Browser:
         semantic_context_required = False
         def __enter__(self): return self
@@ -546,9 +550,11 @@ def test_estimate_readback_finds_existing_official_card_without_mutation(monkeyp
     adapter = adapter_module.CoconalaReplyAdapter(
         state_root=tmp_path, inventory_reader=lambda: [],
         thread_reader=lambda _thread: ({}, {}), sender=lambda *_args: {},
-        estimate_composer=object(), estimate_browser_factory=lambda *_args: Browser(),
+        estimate_composer=object(),
+        estimate_browser_factory=lambda *args: factory_calls.append(args) or Browser(),
     )
     assert adapter.readback(_estimate_intent())["provider_receipt_id"] == "/mypage/direct_offers/55"
+    assert factory_calls[0][-1] == "coconala-reply-12"
 
 
 def test_estimate_post_click_unknown_returns_for_reconciliation_without_retry_signal(monkeypatch, tmp_path):

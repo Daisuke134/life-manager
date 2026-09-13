@@ -578,6 +578,7 @@ class CoconalaCdpReplyBrowser:
         verify_timeout_seconds: float = 10.0,
         hidden: bool = False,
         background: bool = True,
+        owner: str | None = None,
     ):
         self.helper = helper
         self.thread_url = thread_url
@@ -585,6 +586,7 @@ class CoconalaCdpReplyBrowser:
         self.verify_timeout_seconds = verify_timeout_seconds
         self.hidden = hidden
         self.background = background
+        self.owner = owner
         self.tab: Any = None
         self.before: dict[str, Any] | None = None
         self.outgoing_hash = ""
@@ -601,6 +603,7 @@ class CoconalaCdpReplyBrowser:
             self.thread_url,
             hidden=self.hidden,
             background=self.background and not self.hidden,
+            owner=self.owner,
         )
         self.tab.__enter__()
         return self
