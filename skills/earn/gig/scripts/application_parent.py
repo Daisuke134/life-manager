@@ -120,7 +120,11 @@ def _publish_instant_work_events(ledger_path: Path, pass_id: str) -> None:
 _CLOSED_DETAIL_CATEGORY = "募集終了"
 DEFAULT_DISCOVERY_SHARDS = 4
 DEFAULT_DISCOVERY_TIMEOUT_SECONDS = 600.0
-LEASE_COMMAND_TIMEOUT_SECONDS = 35
+# A cold BrowserContext acquire can legitimately spend separate bounded CDP
+# phases creating the context, seeding the authenticated vault, and creating
+# its first target.  This runs outside the global ledger lock, so allowing the
+# proven cold-start envelope does not serialize another client or lane.
+LEASE_COMMAND_TIMEOUT_SECONDS = 160
 
 
 class ReadbackScanTimeout(ParentContractError):

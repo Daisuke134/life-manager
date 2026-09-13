@@ -14,6 +14,19 @@ observation, replies, and estimates; do not present it as a separate Negotiate l
 This section is the current execution SSOT and supersedes contradictory historical checkpoints below.
 Historical receipts remain evidence; their old cursors do not reopen completed work.
 
+- **Shared browser entry and operator-brake convergence are complete on main.** PR `#5159`, merge
+  SHA `2668376830...`, changes BrowserContext acquisition to reserve under the ledger lock, perform
+  provider CDP work outside it, and finalize by token compare-and-swap. Slow cookie seeding for one
+  client therefore no longer holds the global entrance; failed provisioning leaves a reclaimable
+  tombstone instead of an untracked browser context. PR `#5160`, merge SHA `e023f3cc33...`, replaces
+  four copied brake probes with one fail-closed shared component used by Apply, Reply, Paid and
+  Storefront. The absent-brake hot path is process-free; transient probe failure gets one bounded
+  retry. Focused acceptance passes 301 tests and fresh review says ship. Immutable release
+  `20260914T015046-e023f3cc` is installed on Apply, Storefront and Paid and their independent
+  production runs overlap. Reply is draining its previous continuous workers before the same
+  immutable migration. These facts prove the shared concurrency boundary and deployment, but not
+  yet terminal business success for all four lanes.
+
 - **Completed and excluded:** Manledge/Clover `18169985` and 逃げ因子 `18211838`. Never resend,
   replace or re-audit either delivery without a genuinely new buyer event.
 - **Coconala Paid has no active delivery blocker.** Ryu `18211957` received the verified ordinary
@@ -96,24 +109,22 @@ completed work. The new order removes those completed prerequisites without inte
 client owner. The current cursor is Coconala vertical revenue proof while funded CrowdWorks work
 continues independently.
 
-1. Finish the shared browser concurrency boundary: shard authenticated BrowserContexts by
-   provider/account, keep each client owner independent, serialize only mutations within one shard, and
-   prove a slow readback cannot delay another client or lane. Keep the existing effect fence and
-   reconcile-before-retry contract.
-2. Close active funded liabilities concurrently and finish Coconala vertically across Apply, Reply,
+1. Close active funded liabilities concurrently and finish Coconala vertically across Apply, Reply,
    Paid and Storefront, including one-off plus retainer applications and attributable payout evidence.
    Ryu waits only as a dormant per-client cursor for a new official buyer event; Chii is excluded. A
-   buyer owner never waits for another buyer.
-3. Finish each next provider vertically while all installed lanes remain live: Lancers, CrowdWorks,
+   buyer owner never waits for another buyer. First accept the terminal production receipts from the
+   shared BrowserContext/operator-brake release and repair the next measured shared or adapter blocker;
+   do not reopen Ryu or invent a client-specific completion gate.
+2. Finish each next provider vertically while all installed lanes remain live: Lancers, CrowdWorks,
    Mercor, Freelancer.com, Upwork, then evidence-ranked new platforms. Missing Storefront is
    `not_applicable`; missing contract leaves Paid open but never pauses Apply.
-4. Extract only proven duplicated lifecycle behavior into `marketplace-core`; provider authentication,
+3. Extract only proven duplicated lifecycle behavior into `marketplace-core`; provider authentication,
    vocabulary, selectors, mutations and official readback remain thin adapters. Every repair is tested
    against all adopted providers so a new platform never copies a lane.
-5. Enable the marketplace meta-loop to discover opportunities on the web/X, qualify expected net
+4. Enable the marketplace meta-loop to discover opportunities on the web/X, qualify expected net
    revenue and policy fit, scaffold a thin adapter, test/release it and promote it only after a real
    official effect plus replay-zero.
-6. Deliver Telegram-only multi-tenant operation on the **OpenAI Agents API**. Life Manager creates and
+5. Deliver Telegram-only multi-tenant operation on the **OpenAI Agents API**. Life Manager creates and
    retains one isolated durable agent session per tenant/objective, streams or receives webhook progress,
    and resumes/steers the same session without requiring a local computer. Use an OpenAI-hosted environment
    by default for code, files, skills, MCP and artifacts; use a self-hosted environment only when a private

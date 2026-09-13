@@ -2110,6 +2110,8 @@ async def supervise_replies(
         await report(path, result)
 
     async def enqueue_work(work: dict[str, Any]) -> None:
+        if stop.is_set():
+            return
         event_key = work["event_key"]
         if event_key in in_flight:
             return
@@ -2218,7 +2220,10 @@ async def supervise_replies(
                     immediate_after_overrun = True
 
     async def consumer() -> None:
-        while not stop.is_set() or not dispatch.empty():
+        # Durable work is rebuilt from SQLite after a restart.  On shutdown,
+        # finish only the item already owned by this consumer; do not make a
+        # release wait for the whole in-memory backlog.
+        while not stop.is_set():
             try:
                 _, _, work = await asyncio.wait_for(dispatch.get(), timeout=0.1)
             except asyncio.TimeoutError:
@@ -2273,9 +2278,15 @@ async def supervise_replies(
     reconcile_task = asyncio.create_task(reconciler(), name="gig-reply-reconciler")
     try:
         await producer_task
-        await dispatch.join()
     finally:
         stop.set()
+        while True:
+            try:
+                _, _, queued = dispatch.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+            in_flight.discard(queued["event_key"])
+            dispatch.task_done()
         await dispatch.join()
         await asyncio.gather(*consumer_tasks, reconcile_task, return_exceptions=True)
 
@@ -2311,6 +2322,7 @@ async def _run_continuous_runtime(args: Any, evidence: Path) -> dict[str, Any]:
             pass
     probe_number = 0
     report_queue: asyncio.Queue[tuple[Path, dict[str, Any]]] = asyncio.Queue()
+    reporter_done = asyncio.Event()
 
     async def enqueue_report(path: Path, result: dict[str, Any]) -> None:
         # A stale supervisor work item can lose its binding before the worker
@@ -2322,7 +2334,10 @@ async def _run_continuous_runtime(args: Any, evidence: Path) -> dict[str, Any]:
         await report_queue.put((path, result))
 
     async def reporter() -> None:
-        while not stop.is_set() or not report_queue.empty():
+        # The shutdown signal stops new dispatch, but active workers can still
+        # enqueue their terminal report.  Stay alive until the supervisor has
+        # returned and every such report has been persisted.
+        while not reporter_done.is_set() or not report_queue.empty():
             try:
                 path, result = await asyncio.wait_for(report_queue.get(), timeout=0.1)
             except asyncio.TimeoutError:
@@ -2402,6 +2417,7 @@ async def _run_continuous_runtime(args: Any, evidence: Path) -> dict[str, Any]:
                 pass
         stop.set()
         await report_queue.join()
+        reporter_done.set()
         await reporter_task
     return {"status": "stopped", "workers": 2, "poll_seconds": args.poll_seconds}
 
