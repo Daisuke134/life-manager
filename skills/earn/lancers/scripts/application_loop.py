@@ -115,8 +115,23 @@ PUBLIC_SOFTWARE_PROOF = {
     "description": "API、scheduler、worker、Postgres、object store、Telegram reporting、公式readback付き外部action loopを同一repositoryで実装したMIT公開のpersonal managerです。",
 }
 PLANNER_TASK_CLASS = "application-intent-planner"
+SAFETY_TASK_CLASS = "diagnostic-agent"
 ESCALATION_REASON = "application decision and client-facing proposal text come from this single call"
 PLANNER_TIMEOUT_SECONDS = 420
+SAFETY_REASONS = frozenset({
+    "approved", "live_interaction_required", "physical_presence_required",
+    "personal_identity_required", "recording_required", "unsupported_claim",
+    "other_policy_blocker", "uncertain",
+})
+SAFETY_SCHEMA = {
+    "type": "object", "additionalProperties": False,
+    "required": ["safe_to_submit", "reason", "blocker_evidence"],
+    "properties": {
+        "safe_to_submit": {"type": "boolean"},
+        "reason": {"type": "string", "enum": sorted(SAFETY_REASONS)},
+        "blocker_evidence": {"type": ["string", "null"], "maxLength": 240},
+    },
+}
 DEFAULT_STATE_PATH = Path.home() / ".local/state/anicca/lancers/application.json"
 DEFAULT_EVIDENCE_ROOT = Path.home() / ".local/state/anicca/lancers/planner"
 DEFAULT_EVIDENCE_DIR = DEFAULT_EVIDENCE_ROOT
@@ -166,7 +181,7 @@ ID_RE = re.compile(r"^[0-9]+$")
 KANA_RE = re.compile(r"[ぁ-ゖァ-ヺ]")
 FORBIDDEN_TERMS = ("receipt", "gate", "agent", "model", "browser", "token", "prompt", "internal id", "レシート", "ゲート", "エージェント", "モデル", "ブラウザ", "トークン", "プロンプト", "内部ID")
 FORBIDDEN_RE = re.compile("|".join(re.escape(term).replace(r"\ ", r"[ _]") for term in FORBIDDEN_TERMS), re.IGNORECASE)
-RETAIN_EVIDENCE_ERRORS = frozenset({"planner_runner_failed", "planner_contract_invalid"})
+RETAIN_EVIDENCE_ERRORS = frozenset({"planner_runner_failed", "planner_contract_invalid", "safety_check_failed"})
 SKIP_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 # A row the planner declined to judge is not a row it refused. Measured 2026-09-07: 15 of the
 # reports in eight consecutive wakes were `invalid` and they were the same postings each time --
@@ -469,6 +484,48 @@ def invoke_planner(prompt: str, evidence_dir: Path) -> Mapping[str, object]:
 
 def _default_planner(prompt: str, evidence: Path) -> Mapping[str, object]:
     return invoke_planner(prompt, evidence)
+
+def _safety_prompt(row: Mapping[str, object], decision: Mapping[str, object]) -> str:
+    policy = (
+        "次の公開Lancers案件と応募判断をread-onlyで独立審査する。週次MTG、Zoom面談、ライブ通話、"
+        "現地参加、本人固有の身元・声・顔、収録が成果物として必須なら拒否する。提案文中の顧客実績、"
+        "売上効果、専門職歴、資格、tool利用歴、人数・金額などの過去事実はseller_proofで裏付けられるか、"
+        "未経験・今後の実行planとして明示されていなければunsupported_claimで拒否する。"
+        "safe_to_submit=trueは明確に安全な場合だけ。拒否時blocker_evidenceは、unsupported_claimなら"
+        "proposal_textから、それ以外なら公開descriptionから240文字以内の完全一致引用にする。"
+        "曖昧ならreason=uncertain。指定JSONだけを返す。\n"
+    )
+    payload = {
+        "public_opportunity": {key: row.get(key) for key in PUBLIC_FIELDS},
+        "seller_proof": _seller_proof(),
+        "primary_decision": decision,
+    }
+    return policy + json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+def _default_safety_verifier(prompt: str, evidence_dir: Path) -> Mapping[str, object]:
+    schema_path = evidence_dir.parent / "safety.schema.json"
+    schema_path.write_text(json.dumps(SAFETY_SCHEMA, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    os.chmod(schema_path, 0o600)
+    return _invoke_agent(prompt, evidence_dir, SAFETY_TASK_CLASS, schema_path, "lancers-submission-safety")
+
+def _safety_outcome(row: Mapping[str, object], decision: Mapping[str, object], evidence_dir: Path,
+                    verifier: Optional[Callable[..., object]]) -> str:
+    try:
+        value = (verifier or _default_safety_verifier)(_safety_prompt(row, decision), evidence_dir)
+        if not isinstance(value, Mapping) or set(value) != {"safe_to_submit", "reason", "blocker_evidence"}:
+            raise ValueError
+        safe, reason, blocker = value["safe_to_submit"], value["reason"], value["blocker_evidence"]
+        if not isinstance(safe, bool) or reason not in SAFETY_REASONS:
+            raise ValueError
+        if safe is True and reason == "approved" and blocker is None:
+            return "approved"
+        if safe is False and reason not in {"approved", "uncertain"} and isinstance(blocker, str) and blocker.strip() and len(blocker) <= 240:
+            source = str(decision.get("proposal_text") or "") if reason == "unsupported_claim" else str(row.get("description") or "")
+            if blocker in source:
+                return "rejected"
+    except Exception:
+        pass
+    return "failed"
 
 def _safe_proposal(value: object, ids: Sequence[str]) -> bool:
     if not isinstance(value, str) or not 200 <= len(value) <= 3000: return False
@@ -812,12 +869,23 @@ def _plan_and_submit(rows: Sequence[Mapping[str, object]], today: date, evidence
         return _batch_summary(ApplicationLoopResult(True, reason="no_eligible_project", decision_reports=tuple(reports)), observed_count, 0, (), ())
     if submitter is None and len(eligible) > 1:
         eligible = _rank_eligible_by_buyer_quality(eligible)
-    verified, blocked = [], []
+    verified, blocked, safety_rejected = [], [], []
     unresolved: list[ApplicationLoopResult] = []
     reports_by_id = {str(report["project_id"]): report for report in reports}
     for row, decision in eligible:
         project_id, proposal = str(row["external_id"]), str(decision["proposal_text"])
         amount, due = int(decision["price_jpy"]), str(decision["deliver_date"])
+        safety = _safety_outcome(row, decision, evidence / f"safety-{project_id}", safety_verifier)
+        if safety == "rejected":
+            safety_rejected.append(project_id)
+            reports_by_id[project_id]["outcome"] = "skipped"
+            reports_by_id[project_id]["error"] = "safety_rejected"
+            continue
+        if safety != "approved":
+            reports_by_id[project_id]["outcome"] = "failed"
+            reports_by_id[project_id]["error"] = "safety_check_failed"
+            unresolved.append(ApplicationLoopResult(False, error="safety_check_failed", project_id=project_id))
+            continue
         try:
             value = application_tick.run_live_tick(project_id=project_id, proposal_text=proposal, proposed_amount_minor=amount, delivery_due_on=due, state_path=state_path, title=str(row.get("title") or "") or None) if submitter is None else _submit(submitter, row, proposal, amount, due, state_path)
             current = _tick_result(value, project_id)
@@ -838,7 +906,9 @@ def _plan_and_submit(rows: Sequence[Mapping[str, object]], today: date, evidence
     if unresolved:
         current = unresolved[0]
         return _batch_summary(replace(current, decision_reports=tuple(reports)), observed_count, len(eligible), verified, blocked, unresolved_project_id=current.project_id, submitted=any(item.submitted for item in verified))
-    final = replace(verified[-1], decision_reports=tuple(reports)) if verified else ApplicationLoopResult(True, reason="provider_terminal_blocked", project_id=blocked[-1] if blocked else None, decision_reports=tuple(reports))
+    final = (replace(verified[-1], decision_reports=tuple(reports)) if verified else
+             ApplicationLoopResult(True, reason="provider_terminal_blocked", project_id=blocked[-1], decision_reports=tuple(reports)) if blocked else
+             ApplicationLoopResult(True, reason="safety_rejected", project_id=safety_rejected[-1] if safety_rejected else None, decision_reports=tuple(reports)))
     return _batch_summary(final, observed_count, len(eligible), verified, blocked, ok=True, submitted=any(item.submitted for item in verified))
 
 def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH, evidence_root: Optional[Path] = None, discoverer: Optional[Callable[..., Mapping[str, object]]] = None, planner: Optional[Callable[..., object]] = None, safety_verifier: Optional[Callable[..., object]] = None, submitter: Optional[Callable[..., object]] = None, clock: Optional[Callable[[], object]] = None, discovery: Optional[Callable[..., Mapping[str, object]]] = None, now: Optional[Callable[[], object]] = None, evidence_dir: Optional[Path] = None, output_stream: Optional[TextIO] = None, query: Optional[str] = None, timeout: float = 20.0) -> dict[str, object]:

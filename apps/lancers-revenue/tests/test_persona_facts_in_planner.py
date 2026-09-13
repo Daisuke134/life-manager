@@ -75,7 +75,8 @@ def test_a_missing_profile_does_not_break_the_lane():
     assert facts["age"] and facts["base"] and facts["citizenship"]
 
 
-def test_live_calls_are_still_prohibited():
-    """Dais's standing rule: no human in the loop. A remote meeting is still a refusal."""
+def test_live_calls_are_refused_only_when_they_are_the_deliverable():
+    """Selection and kickoff use minimal HITL; synchronous work itself remains prohibited."""
     assert "mandatory_human_presence" in loop.HARD_PROHIBITION_CLASSES
-    assert "必須ならhard_prohibitedにする" in loop.PLANNER_RULES
+    assert "同期参加そのものが成果物ならmandatory_human_presenceとしてhard_prohibitedにする" in loop.PLANNER_RULES
+    assert "契約選考面談・kickoff・通常の進捗確認" in loop.PLANNER_RULES
