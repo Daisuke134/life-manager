@@ -21,6 +21,19 @@ import reply_transcript  # noqa: E402
 from test_storefront_root import _bundle as _storefront_bundle  # noqa: E402
 
 
+def test_lease_command_budget_includes_bounded_batch_recovery(monkeypatch, tmp_path):
+    observed = {}
+
+    def run(argv, **kwargs):
+        observed.update(kwargs)
+        return SimpleNamespace(returncode=0, stdout='{"ok":true}')
+
+    monkeypatch.setattr(direct.subprocess, "run", run)
+    direct._lease(tmp_path / "lease.py", "acquire", "storefront")
+
+    assert observed["timeout"] == direct.LEASE_COMMAND_TIMEOUT_SECONDS == 160
+
+
 def test_storefront_proposal_runner_class_is_accepted_and_toolless(tmp_path):
     runner_dir = SCRIPTS.parents[3] / "runtime/agent-runner"
     sys.path.insert(0, str(runner_dir))
