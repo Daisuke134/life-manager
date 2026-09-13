@@ -1,4 +1,5 @@
 import builtins
+import hashlib
 import importlib.util
 import json
 import os
@@ -192,12 +193,17 @@ class CdpPersistentContextPreflightTests(unittest.TestCase):
             )
             guard.chmod(0o755)
             ensure.chmod(0o755)
+            target_owners = root / "home/.cloak/vault/target-owners" / (
+                hashlib.sha256(b"buyma:test").hexdigest() + ".json"
+            )
             completed = subprocess.run(
                 ["bash", str(ENSURE.with_name("with-browser.sh")), "buyma:test", "--",
-                 "sh", "-c", 'test "$CDP" = http://127.0.0.1:54321'],
+                 "sh", "-c", 'test "$CDP" = http://127.0.0.1:54321 && '
+                 'test "$CLOAK_TARGET_OWNERS_FILE" = "$EXPECTED_TARGET_OWNERS"'],
                 env={**os.environ, "AI_BROWSER_GUARD": str(guard),
                      "AI_ENSURE_PROVISION_BROWSER": str(ensure),
-                     "BROWSER_WAIT_SECONDS": "1"},
+                     "BROWSER_WAIT_SECONDS": "1", "HOME": str(root / "home"),
+                     "EXPECTED_TARGET_OWNERS": str(target_owners)},
                 capture_output=True, text=True, check=False, timeout=15,
             )
             self.assertEqual(completed.returncode, 0, completed.stderr)
