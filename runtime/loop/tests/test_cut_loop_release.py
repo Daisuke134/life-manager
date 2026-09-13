@@ -38,6 +38,8 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
                     "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
                     "NPM_BIN": str(npm),
+                    "NPM_VERSION": "test",
+                    "NPM_NODE_VERSION": "test",
                 },
                 capture_output=True,
                 text=True,
@@ -71,6 +73,8 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "LOOPS_ACTIVATE_CURRENT": "0",
                     "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
                     "NPM_BIN": str(npm),
+                    "NPM_VERSION": "test",
+                    "NPM_NODE_VERSION": "test",
                 },
                 capture_output=True,
                 text=True,
@@ -108,6 +112,8 @@ class CutLoopReleaseTest(unittest.TestCase):
                 "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
                 "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
                 "NPM_BIN": str(npm),
+                "NPM_VERSION": "test",
+                "NPM_NODE_VERSION": "test",
             }
             first = subprocess.run(
                 ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
@@ -161,12 +167,99 @@ class CutLoopReleaseTest(unittest.TestCase):
             result = subprocess.run(
                 ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
                 cwd=ROOT,
-                env={**os.environ, "LOOPS_ROOT": str(loops), "LOOPS_KEEP_RELEASES": "2", "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint", "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"), "NPM_BIN": str(npm)},
+                env={**os.environ, "LOOPS_ROOT": str(loops), "LOOPS_KEEP_RELEASES": "2", "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint", "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"), "NPM_BIN": str(npm), "NPM_VERSION": "test", "NPM_NODE_VERSION": "test"},
                 capture_output=True, text=True, check=False,
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(len(calls.read_text().splitlines()), len(DEPENDENCY_ROOTS))
+
+    def test_release_prunes_only_unreferenced_dependency_bundles(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            loops = root / "loops"
+            releases = loops / "releases"
+            retained = releases / "retained"
+            retained.mkdir(parents=True)
+            bundles = loops / "dependency-bundles"
+            referenced = bundles / "npm-referenced"
+            orphan = bundles / "npm-orphan"
+            for bundle in (referenced, orphan):
+                (bundle / "node_modules").mkdir(parents=True)
+                (bundle / ".complete").write_text("key\n")
+            (retained / "node_modules").symlink_to(referenced / "node_modules")
+            (retained / "RELEASE.json").write_text(
+                '{"sha":"%s","release_paths":"runtime/loop"}\n' % ("a" * 40)
+            )
+
+            result = subprocess.run(
+                ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
+                cwd=ROOT,
+                env={
+                    **os.environ,
+                    "LOOPS_ROOT": str(loops),
+                    "LOOPS_KEEP_RELEASES": "2",
+                    "LOOPS_RELEASE_PATHS": "runtime/loop",
+                    "LOOPS_ACTIVATE_CURRENT": "0",
+                    "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(referenced.is_dir())
+            self.assertFalse(orphan.exists())
+
+    def test_matching_symlinked_donor_creates_a_self_contained_bundle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            loops = root / "loops"
+            source_bundle = loops / "dependency-bundles/npm-old"
+            modules = source_bundle / "node_modules"
+            modules.mkdir(parents=True)
+            (source_bundle / ".complete").write_text("old\n")
+            (modules / ".package-lock.json").write_text("{}\n")
+            marker = modules / "marker"
+            marker.write_text("sealed\n")
+            donor = loops / "releases/donor"
+            donor.mkdir(parents=True)
+            for name in ("package.json", "package-lock.json"):
+                (donor / name).write_bytes((ROOT / name).read_bytes())
+            (donor / "node_modules").symlink_to(modules)
+            (donor / "RELEASE.json").write_text(
+                '{"sha":"%s","release_paths":"ALL"}\n' % ("a" * 40)
+            )
+            npm = root / "npm"
+            npm.write_text("#!/bin/sh\nexit 99\n")
+            npm.chmod(0o755)
+
+            result = subprocess.run(
+                ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
+                cwd=ROOT,
+                env={
+                    **os.environ,
+                    "LOOPS_ROOT": str(loops),
+                    "LOOPS_KEEP_RELEASES": "2",
+                    "LOOPS_RELEASE_PATHS": "package.json package-lock.json",
+                    "LOOPS_ACTIVATE_CURRENT": "0",
+                    "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
+                    "NPM_BIN": str(npm),
+                    "NPM_VERSION": "new",
+                    "NPM_NODE_VERSION": "new",
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            release = next(p for p in (loops / "releases").iterdir() if p != donor)
+            target = (release / "node_modules").resolve()
+            self.assertNotEqual(target, modules.resolve())
+            self.assertFalse(target.is_symlink())
+            self.assertEqual((target / "marker").stat().st_ino, marker.stat().st_ino)
 
     def test_release_builds_locked_root_and_agentmail_dependencies(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -190,6 +283,8 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
                     "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
                     "NPM_BIN": str(npm),
+                    "NPM_VERSION": "test",
+                    "NPM_NODE_VERSION": "test",
                 },
                 capture_output=True,
                 text=True,

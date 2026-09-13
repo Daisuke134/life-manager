@@ -35,6 +35,8 @@ CUT_LOCK="$LOOPS_ROOT/.release-cut.lock"
 DEST=""
 BUILD_COMPLETE=0
 DEPENDENCY_BUILD=""
+DEPENDENCY_RELATIVES=("" "runtime/compute-proxy" "runtime/agentmail" "apps/life-manager" \
+  "skills/earn/x402-sell" "services/x402-endpoint")
 
 die() { echo "cut-loop-release: $*" >&2; exit 1; }
 
@@ -147,6 +149,29 @@ prune_releases_after() {
     die "safe release pruning failed"
 }
 
+prune_dependency_bundles() {
+  local bundle release relative link referenced
+  [ -d "$DEPENDENCY_BUNDLES" ] || return 0
+  for bundle in "$DEPENDENCY_BUNDLES"/npm-*; do
+    [ -d "$bundle" ] || continue
+    referenced=0
+    for release in "$RELEASES"/*; do
+      [ -d "$release" ] || continue
+      for relative in "${DEPENDENCY_RELATIVES[@]}"; do
+        link="$release/${relative:+$relative/}node_modules"
+        if [ -L "$link" ] && [ "$(readlink "$link")" = "$bundle/node_modules" ]; then
+          referenced=1
+          break 2
+        fi
+      done
+    done
+    if [ "$referenced" -eq 0 ]; then
+      find "$bundle" -type d -exec chmod u+w {} + || return 1
+      find "$bundle" -depth -delete || return 1
+    fi
+  done
+}
+
 # A release nobody else can fetch is not reproducible, and the acceptance bar this house already
 # applies to the gig lanes is that the installed SHA is an ancestor of origin/main.
 if ! git -C "$REPO_ROOT" cat-file -e "$SHA^{commit}" 2>/dev/null; then
@@ -169,6 +194,7 @@ DEST="$RELEASES/$(date +%Y%m%dT%H%M%S)-$SHORT"
 # Keep current plus rollback capacity; the new export becomes the next retained generation.
 PRE_KEEP=$((KEEP > 1 ? KEEP - 1 : 1))
 prune_releases_after "$PRE_KEEP"
+prune_dependency_bundles || die "safe dependency bundle pruning failed"
 # Only the release dir: each loop's state dir belongs to that loop's job, and creating a shared
 # empty one here would advertise a location nothing actually writes to.
 mkdir -p "$DEST" || die "cannot create $DEST"
@@ -243,19 +269,37 @@ matching_locked_dependencies() {
     donor_package="$donor$relative"
     [ -d "$donor_package/node_modules" ] || continue
     [ -f "$donor_package/node_modules/.package-lock.json" ] || continue
+    cmp -s "$package_dir/package.json" "$donor_package/package.json" || continue
     cmp -s "$package_dir/package-lock.json" "$donor_package/package-lock.json" || continue
-    printf '%s\n' "$donor_package/node_modules"
+    (cd "$donor_package/node_modules" && pwd -P)
     return
   done
   return 1
 }
 
 link_locked_dependencies() {
-  local package_dir="$1" relative key bundle build donor_modules
+  local package_dir="$1" relative key bundle build donor_modules node_version npm_version
   relative="${package_dir#"$DEST"}"
+  if [ -n "${NPM_NODE_VERSION:-}" ]; then
+    node_version="$NPM_NODE_VERSION"
+  elif [ -n "$NPM_NODE_BIN" ]; then
+    node_version="$("$NPM_NODE_BIN" --version)" || return 1
+  else
+    node_version="$(node --version)" || return 1
+  fi
+  if [ -n "${NPM_VERSION:-}" ]; then
+    npm_version="$NPM_VERSION"
+  elif [ -n "$NPM_NODE_BIN" ]; then
+    npm_version="$("$NPM_NODE_BIN" "$NPM_BIN" --version)" || return 1
+  else
+    npm_version="$("$NPM_BIN" --version)" || return 1
+  fi
   key="$({
-    printf '%s\0' 'npm-ci --omit=dev --ignore-scripts' "$(uname -s)" "$(uname -m)"
-    cat "$package_dir/package.json" "$package_dir/package-lock.json"
+    printf 'command\0%s\0os\0%s\0arch\0%s\0node\0%s\0npm\0%s\0' \
+      'npm-ci --omit=dev --ignore-scripts' "$(uname -s)" "$(uname -m)" \
+      "$node_version" "$npm_version"
+    printf 'package-json\0'; shasum -a 256 <"$package_dir/package.json"
+    printf 'package-lock\0'; shasum -a 256 <"$package_dir/package-lock.json"
   } | shasum -a 256 | awk '{print $1}')" || return 1
   bundle="$DEPENDENCY_BUNDLES/npm-$key"
   if [ ! -f "$bundle/.complete" ] || [ ! -f "$bundle/node_modules/.package-lock.json" ]; then
@@ -293,8 +337,8 @@ link_locked_dependencies() {
 
 mkdir -p "$DEPENDENCY_BUNDLES" || die "cannot create dependency bundle root"
 
-for package_dir in "$DEST" "$DEST/runtime/compute-proxy" "$DEST/runtime/agentmail" "$DEST/apps/life-manager" \
-  "$DEST/skills/earn/x402-sell" "$DEST/services/x402-endpoint"; do
+for relative in "${DEPENDENCY_RELATIVES[@]}"; do
+  package_dir="$DEST/${relative:+$relative}"
   relative="${package_dir#"$DEST"}"
   if ! { [ -f "$package_dir/package.json" ] && [ -f "$package_dir/package-lock.json" ]; }; then
     if [ -n "$FULL_CLONE_DONOR" ] && [ -d "$package_dir/node_modules" ]; then
@@ -329,6 +373,7 @@ if [ "$ACTIVATE_CURRENT" = "1" ]; then
 
   # Keep a few older releases so rollback is a symlink move rather than a rebuild.
   prune_releases_after "$KEEP"
+  prune_dependency_bundles || die "safe dependency bundle pruning failed"
   echo "current -> $(readlink "$CURRENT")  ($PROVENANCE)"
 else
   echo "release -> $DEST  ($PROVENANCE; current unchanged)"
