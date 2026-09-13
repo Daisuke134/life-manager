@@ -9,6 +9,64 @@ The four lanes run from `~/gig/releases/life-manager/<sha>/`, cut from `main` by
 Current lane names are **Apply, Reply, Storefront, Paid**. `Reply` owns buyer-message
 observation, replies, and estimates; do not present it as a separate Negotiate lane.
 
+## Current authoritative checkpoint
+
+This section is the current execution SSOT and supersedes contradictory historical checkpoints below.
+Historical receipts remain evidence; their old cursors do not reopen completed work.
+
+- **Completed and excluded:** Manledge/Clover `18169985` and 逃げ因子 `18211838`. Never resend,
+  replace or re-audit either delivery without a genuinely new buyer event.
+- **Coconala Paid is not fully complete.** Ryu `18211957` remains open until the exact official
+  talkroom proves formal delivery and a following replay proves zero duplicate effect. Chii
+  `18180857` has **12/300** official TikTok-DM/Sheet pairs and **288 remaining**. The campaign has
+  no verified preselected list of 300 recipients; the latest inspected candidate is private and has
+  no DM control, so it earns no campaign credit. A seller-authored completion claim, invented handle,
+  unsent DM or fabricated Sheet row is never revenue evidence.
+- **Shared TikTok transport is merged.** The model qualifies a real candidate and writes truthful,
+  recipient-specific copy. Deterministic shared code binds the exact recipient, sends once, performs
+  official readback, appends one paired campaign receipt and never retries an uncertain send. The
+  immediate implementation cursor is persistent candidate discovery/cursor, paired Sheet readback and
+  a bounded multi-recipient batch that continues in one wake until success budget, official cooldown,
+  challenge or finite runtime budget.
+- **Host-state convergence is the current prerequisite repair.** Browser and central cleanup use
+  `~/.local/state/life-manager/state`; the retired `.openclaw/state` pressure marker is ignored.
+  Acceptance proves legacy-only marker permits launch, canonical marker blocks before profile use,
+  canonical cleanup removes it, and launch resumes. This repair applies to every marketplace owner,
+  not only Chii.
+- **Continuous/retainer applications are eligible now.** They use the same Apply -> Reply -> Paid
+  lifecycle and are not a fifth lane. Apply may target one-off and continuous work concurrently.
+  The loop performs discovery, fit assessment, proposal, scheduling clicks, delivery and readback.
+  Only identity/KYC, interview, kickoff or an unavoidable live meeting becomes a typed Telegram
+  handoff; the loop creates the Google Calendar event and Life Manager calls the human at that time.
+  Numeric-outcome promises outside the loop's control remain ineligible; contracts for controllable
+  deliverables and quantities remain eligible.
+
+The remaining revenue order is:
+
+1. Restore the shared authenticated browser from the canonical host-state repair and prove one natural
+   Paid wake from the immutable main release.
+2. Close existing funded liabilities concurrently: Ryu formal-delivery proof, Chii 12 -> 300 genuine
+   paired effects, and CrowdWorks funded milestone/delivery/payment effects. A buyer owner never waits
+   for another buyer.
+3. Finish Coconala vertically across Apply, Reply, Paid and Storefront, including one-off plus retainer
+   applications and attributable payout evidence.
+4. Finish each next provider vertically while all installed lanes remain live: Lancers, CrowdWorks,
+   Mercor, Freelancer.com, Upwork, then evidence-ranked new platforms. Missing Storefront is
+   `not_applicable`; missing contract leaves Paid open but never pauses Apply.
+5. Extract only proven duplicated lifecycle behavior into `marketplace-core`; provider authentication,
+   vocabulary, selectors, mutations and official readback remain thin adapters. Every repair is tested
+   against all adopted providers so a new platform never copies a lane.
+6. Enable the marketplace meta-loop to discover opportunities on the web/X, qualify expected net
+   revenue and policy fit, scaffold a thin adapter, test/release it and promote it only after a real
+   official effect plus replay-zero.
+7. Deliver Telegram-only multi-tenant operation: one isolated cloud browser/computer identity and
+   credential boundary per user, long-running managed agent sessions, typed human handoffs and payout
+   attribution. A smartphone with Telegram is the user interface; a local computer is not required.
+
+The near-term commercial target is USD 10,000 MRR. It is a target, not a completion claim: only
+official contracts, accepted delivery, payout and bank receipts count. Growth targets never authorize
+fabricated work, spam, platform-policy violations or guaranteed outcomes.
+
 The Manledge delivery is no longer the active program cursor. The active product objective is a
 public, website-neutral, no-human revenue agent whose four installed owners run continuously:
 Apply acquires suitable work, Reply handles every buyer event and estimate, Storefront improves

@@ -29,14 +29,14 @@ class LoopCleanupTest(unittest.TestCase):
         command = host_cleanup_command(Path('/release'), Path('/home'))
         self.assertEqual(command[-4:], [
             '--home', '/home', '--state-dir',
-            '/home/.local/state/life-manager/life-manager-disk-cleanup',
+            '/home/.local/state/life-manager/state',
         ])
 
     def test_host_cleanup_accepts_registry_projected_state_root(self):
         command = host_cleanup_command(
-            Path('/release'), Path('/home'), Path('/state/life-manager-disk-cleanup')
+            Path('/release'), Path('/home'), Path('/state/life-manager')
         )
-        self.assertEqual(command[-1], '/state/life-manager-disk-cleanup')
+        self.assertEqual(command[-1], '/state/life-manager')
 
     def test_host_cleanup_error_cannot_be_reported_as_success(self):
         self.assertFalse(host_cleanup_ok(0, {"errors": 1, "protected_deletions": 0}))

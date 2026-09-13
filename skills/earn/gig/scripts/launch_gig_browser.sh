@@ -8,7 +8,7 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PAT
 # preflight in the executable so the next natural browser start is protected
 # without reloading (and evicting) the shared authenticated session.
 GIG_DISK_HEADROOM_KIB=524288
-GIG_HOST_STATE_DIR="$HOME/.openclaw/state"
+GIG_HOST_STATE_DIR="$HOME/.local/state/life-manager/state"
 GIG_STATE_DIR="$HOME/gig"
 unset GIG_IGNORE_DISK_PRESSURE_BLOCK GIG_IGNORE_DISK_WRITERS_STOP
 unset DISK_CONTROL_STATE_DIR OPENCLAW_STATE_DIR LIFE_MANAGER_HOST_STATE_DIR
