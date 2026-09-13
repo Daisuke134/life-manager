@@ -226,6 +226,17 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   Numeric-outcome promises outside the loop's control remain ineligible; contracts for controllable
   deliverables and quantities remain eligible.
 
+- **The shared Coconala browser session is authenticated again.** A read-only CDP census found the
+  canonical Gig browser on `:9223` reachable but its retained official page redirected to
+  `https://coconala.com/login`. The existing shared `session_vault` relogin path—not a new client or
+  lane-specific login implementation—used the private credential SSOT, reached the official
+  `/mypage/dashboard`, and immediately banked the refreshed session into the canonical Gig vault.
+  A separate keepalive readback returns `logged_out=false` for the dashboard. This restores the one
+  authentication prerequisite shared by Apply, Reply, Paid and Storefront. It does not claim a lane
+  effect: host CPU admission is still deferring finite work at measured load per CPU above the shared
+  limit, while macOS `memory_pressure -Q` reports 29% free. Do not bypass admission, restart the
+  browser, or relogin again; accept the next naturally admitted lane receipts from this refreshed vault.
+
 The remaining revenue order is:
 
 **Order-change record.** The old first item was host-state/browser restoration. Its canonical-state
