@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import tempfile
@@ -17,6 +18,39 @@ DEPENDENCY_ROOTS = (
 
 
 class CutLoopReleaseTest(unittest.TestCase):
+    def test_release_builds_immutable_bytecode_for_its_runtime_python(self):
+        with tempfile.TemporaryDirectory() as directory:
+            loops = Path(directory) / "loops"
+            result = subprocess.run(
+                ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
+                cwd=ROOT,
+                env={
+                    **os.environ,
+                    "LOOPS_ROOT": str(loops),
+                    "LOOPS_RELEASE_PATHS": "runtime",
+                    "LOOPS_ACTIVATE_CURRENT": "0",
+                    "LIFE_MANAGER_DISK_PRESSURE_FILE": str(Path(directory) / "no-pressure"),
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            release = next((loops / "releases").iterdir())
+            manifest = json.loads((release / "RELEASE.json").read_text())
+            runtime_python = Path(manifest["runtime_python"])
+            tag = manifest["runtime_python_cache_tag"]
+            caches = list(release.glob(f"runtime/**/__pycache__/*.{tag}.pyc"))
+            self.assertTrue(caches)
+            self.assertEqual(int.from_bytes(caches[0].read_bytes()[4:8], "little"), 3)
+            self.assertFalse(release.stat().st_mode & 0o200)
+            self.assertTrue(runtime_python.is_absolute() and os.access(runtime_python, os.X_OK))
+            actual_tag = subprocess.check_output(
+                [str(runtime_python), "-c", "import sys; print(sys.implementation.cache_tag)"],
+                text=True,
+            ).strip()
+            self.assertEqual(tag, actual_tag)
+
     def test_connector_sparse_release_includes_shared_browser_runtime(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

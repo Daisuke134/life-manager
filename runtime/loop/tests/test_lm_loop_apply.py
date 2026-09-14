@@ -7,6 +7,7 @@ import shutil
 import shlex
 import stat
 import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -159,9 +160,45 @@ class LmLoopApplyTest(unittest.TestCase):
         value = plistlib.loads(first[0]["plist_bytes"])
         self.assertEqual(value["ProgramArguments"], [
             str(self.root.resolve() / "bin/lm-loop-run"), "example", str(self.root.resolve())])
+        self.assertEqual(
+            value["EnvironmentVariables"]["LIFE_MANAGER_RUNTIME_PYTHON"],
+            str(Path(sys.executable).resolve()),
+        )
         self.assertEqual(value["StartInterval"], 60)
         self.assertNotIn("Umask", value)
         self.assertEqual(value["EnvironmentVariables"]["LIFE_MANAGER_RELEASE_SHA"], SHA)
+
+    def test_release_runtime_python_cache_tag_must_match(self):
+        manifest = self.root / "RELEASE.json"
+        manifest.write_text(json.dumps({
+            "sha": SHA,
+            "runtime_python": str(Path(sys.executable).resolve()),
+            "runtime_python_cache_tag": "wrong-cache-tag",
+        }))
+        with self.assertRaisesRegex(ValueError, "cache tag mismatch"):
+            build_apply_plan(registry(), self.root, SHA)
+
+    def test_release_runtime_python_is_projected_to_the_runner(self):
+        tag = sys.implementation.cache_tag
+        cache = self.root / "runtime/loop/__pycache__" / f"lm_loop_run.{tag}.pyc"
+        cache.parent.mkdir(parents=True)
+        cache.write_bytes(b"sealed")
+        (self.root / "RELEASE.json").write_text(json.dumps({
+            "sha": SHA,
+            "runtime_python": str(Path(sys.executable).resolve()),
+            "runtime_python_cache_tag": tag,
+        }))
+        rendered = plistlib.loads(build_apply_plan(
+            registry(), self.root, SHA
+        )[0]["plist_bytes"])
+        self.assertEqual(
+            rendered["EnvironmentVariables"]["LIFE_MANAGER_RUNTIME_PYTHON"],
+            str(Path(sys.executable).resolve()),
+        )
+        self.assertIn(
+            '"${LIFE_MANAGER_RUNTIME_PYTHON:-python3}"',
+            (Path(__file__).resolve().parents[3] / "bin/lm-loop-run").read_text(),
+        )
 
     def test_alpaca_plist_declares_local_deployment(self):
         value = registry()

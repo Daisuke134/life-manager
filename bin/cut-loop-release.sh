@@ -31,6 +31,7 @@ RELEASE_PATHS="${LOOPS_RELEASE_PATHS:-}"
 ACTIVATE_CURRENT="${LOOPS_ACTIVATE_CURRENT:-1}"
 NPM_BIN="${NPM_BIN:-$(command -v npm 2>/dev/null || true)}"
 NPM_NODE_BIN="${NPM_NODE_BIN:-}"
+RUNTIME_PYTHON="${LOOPS_RUNTIME_PYTHON:-$(command -v python3 2>/dev/null || true)}"
 CUT_LOCK="$LOOPS_ROOT/.release-cut.lock"
 DEST=""
 BUILD_COMPLETE=0
@@ -350,6 +351,16 @@ for relative in "${DEPENDENCY_RELATIVES[@]}"; do
     die "locked dependency bundle failed in $package_dir"
 done
 
+RUNTIME_PYTHON="$("$RUNTIME_PYTHON" -c 'import pathlib,sys; print(pathlib.Path(sys.executable).resolve())')" \
+  || die "runtime python identity unavailable"
+[ -x "$RUNTIME_PYTHON" ] || die "runtime python is unavailable"
+RUNTIME_PYTHON_CACHE_TAG="$("$RUNTIME_PYTHON" -c 'import sys; print(sys.implementation.cache_tag)')" \
+  || die "runtime python cache tag unavailable"
+if [ -d "$DEST/runtime" ]; then
+  "$RUNTIME_PYTHON" -m compileall -q -f --invalidation-mode checked-hash \
+    -s "$DEST" "$DEST/runtime" || die "runtime bytecode build failed"
+fi
+
 cat >"$DEST/RELEASE.json" <<EOF
 {
   "sha": "$SHA",
@@ -358,6 +369,8 @@ cat >"$DEST/RELEASE.json" <<EOF
   "cut_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "repo": "$(git -C "$REPO_ROOT" remote get-url origin 2>/dev/null)",
   "state_root": "${LOOPS_STATE_ROOT:-set per loop by its launchd job, not by this release}",
+  "runtime_python": "$RUNTIME_PYTHON",
+  "runtime_python_cache_tag": "$RUNTIME_PYTHON_CACHE_TAG",
   "release_paths": "${ARCHIVE_PATHS[*]:-ALL}"
 }
 EOF
