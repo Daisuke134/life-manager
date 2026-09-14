@@ -11,17 +11,16 @@ runtime/provider readback before acting; conversation claims are not completion 
 
 - Repository: `/Users/anicca/Projects/life-manager-main`, remote `Daisuke134/life-manager`.
 - Runtime implementation worktree: `/private/tmp/lm-runtime-admission-reservations-20260914`, branch
-  `fix/runtime-admission-reservations-20260914`, upstream of the same name. Pushed HEAD is `9e275ed0a9`.
-  The worktree is dirty in `runtime/host/resource_admission.py`,
-  `runtime/host/tests/test_resource_admission.py`, and `runtime/loop/lm_loop_run.py`. These uncommitted
-  changes replace the v2 JSON admission store with stdlib SQLite and cancel durable waiters for retired or
-  missing owners. Do not discard, overwrite, or blindly switch this worktree.
-- Pushed Phase 2 commits are `479435f804` (durable reservations), `3181bbd03c` (durable waiter dispatch),
-  and `9e275ed0a9` (contract tests). The earlier JSON version passed 40 focused tests, 55 host tests, 428 loop
-  tests, and 15 registry tests, but its 500-enqueue benchmark took 35.93 seconds. The uncommitted SQLite
-  replacement reduced that benchmark to 1.69 seconds and passed the 40 focused tests before the latest
-  `cancel_durable` addition. Tests after that latest addition, full review, commit, PR, merge, release, and
-  production proof are all still open.
+  `fix/runtime-admission-reservations-20260914`, upstream of the same name. Pushed clean HEAD is
+  `4ac009092fdebcec225d5516a9de444e6a15f5f7`; PR `#5193` is merged at main
+  `3fbe75546d720add1bfa465731ddc94353b662b5`. Preserve this worktree until production activation and natural
+  proof finish; do not delete or reuse it for another task.
+- Phase 2 replaces the v2 JSON scan with stdlib SQLite, adds durable FIFO reservations, child-PID claim
+  handoff, same-owner/crash recovery, exact loaded-idle dispatch, retired/missing-owner cancellation, a
+  default-v1 mixed-release gate and `lm-loop admission-v2-enable`. Final evidence is 500 sequential enqueues in
+  1.872 seconds, 39/39 simultaneous enqueues persisted, 69 host tests, 464 loop tests plus 470 subtests, 67
+  registry tests plus 100 subtests, exact stdlib CI discovery 434 tests, fresh read-only `ship`, and GitHub CI
+  8/8 PASS. Earlier JSON 500-enqueue evidence was 35.93 seconds.
 - Spec worktree: `/private/tmp/lm-coconala-retained-attachments`, branch
   `docs/coconala-current-cursor-20260914`. This file is the current remaining-work SSOT. Its eventual canonical
   name/location must be derived from repository conventions and references, then migrated once without
@@ -31,9 +30,11 @@ runtime/provider readback before acting; conversation claims are not completion 
 - Account migration is open: identify the account 1 Codex auth/provider profile through the credential SSOT,
   prove one bounded invocation, then roll only the intended Life Manager Codex routes forward. Preserve all
   Codex/cloud sessions and unrelated providers.
-- First safe action: fetch, inspect HEAD/upstream/status/diff in both worktrees, preserve the runtime dirty
-  changes, run the focused tests and 500-waiter benchmark after `cancel_durable`, and continue the current
-  runtime item below. Do not start with Coconala browser effects while shared admission cannot make progress.
+- First safe action: keep admission protocol at `1`, observe old-release finite owners ending naturally, and
+  repeatedly reconcile only newly loaded-idle labels to immutable release
+  `/Users/anicca/loops/releases/20260915T025232-3fbe7554`. Never restart a running sibling. Enable protocol `2`
+  only when every finite label has exact current loaded argv and legacy owners/tickets plus SQLite work are
+  idle; then prove natural fairness/recovery before Coconala browser effects.
 
 ## Outcome
 
@@ -86,6 +87,14 @@ docs/
 
 ### Shared host/runtime
 
+- PR `#5193`, main SHA `3fbe75546d720add1bfa465731ddc94353b662b5`, is merged and published as
+  immutable release `/Users/anicca/loops/releases/20260915T025232-3fbe7554`. The safe two-stage rollout keeps
+  protocol `1` until every finite label is exact-loaded from this capability-2 release. Initial loaded-idle
+  reconciliation completed with failures 0: deterministic had 53 eligible results, 44 changes and nine
+  snapshot-race running skips; shared-agent-runner changed 33 labels. A later targeted pass moved Coconala
+  Storefront to the new release and skipped running Paid. Apply, Reply and Paid remain live on `6a901db5` and
+  must end naturally. Current admission readback is protocol `1`, owners `3`, legacy tickets `5`; v2 activation,
+  natural fairness, recovery, replay-zero and 24-hour proof remain open.
 - PR `#5192`, main SHA `6a901db5011da29a05ef91422c7ee745c8fa6e51`, is the compatibility-first
   admission rollout. It preserves future-version durable tickets during mixed-release convergence and records
   the exact bounded admission reason instead of collapsing every deferral to `host_admission_deferred`.
@@ -94,11 +103,10 @@ docs/
   `2026-09-14T14:02:40.631497+00:00` with
   `host_admission_deferred:memory_headroom_unavailable`. It did not observe or reply to Ryu. This proves precise
   classification, not recovery or client completion.
-- Durable fairness is deliberately still open. The next runtime change must use lock-protected
-  `queued -> dispatch_reserved -> claimed -> running -> released` state, monotonic sequence, reservation lease
-  recovery and out-of-lock target kickstart. A reservation consumes capacity; post-claim deferral requeues at
-  its original sequence. This prevents repeated short wakes or one long owner from starving the fleet while
-  preserving effect fences.
+- Durable fairness implementation is merged, but production activation and natural proof are still open. The
+  lock-protected path is `queued -> dispatch_reserved -> claimed -> running -> released`, with monotonic
+  sequence, reservation lease recovery, child-PID ownership and out-of-lock target kickstart. Protocol `1`
+  remains the correct production mode during mixed-release convergence.
 
 - PR `#5184`, main SHA `b8de9bf2d230514587bb455f59a3e866ec27f658`, fixes scheduled resource
   admission. Busy wakes attempt once, retain no ticket, write effect-zero deferred state and exit `75`.
@@ -255,12 +263,12 @@ independent production effects.
 - [ ] Keep producing terminal receipts for at least 24 hours without human restart or babysitting.
 - [x] Verify mixed-release compatibility and land the first durable reservation/dispatcher contract as pushed
   commits `479435f804`, `3181bbd03c`, and `9e275ed0a9` on the dedicated Phase 2 branch.
-- [ ] Finish the minimal SQLite replacement already present in the dirty Phase 2 worktree. Run focused tests
-  after the latest `cancel_durable` change and retain the bounded 500-waiter benchmark as scalability evidence.
-- [ ] Inspect the entire Phase 2 diff, run the host/loop/registry suites, obtain one fresh read-only review of
-  the exact commit, then commit and push without losing the dirty work.
-- [ ] Open the Phase 2 PR, merge only after its acceptance evidence passes, build one immutable main-derived
-  release, and reconcile only loaded-idle targets without restarting siblings.
+- [x] Finish the SQLite replacement, including retired/missing-owner cancellation, bounded 500-waiter evidence
+  and 39 simultaneous durable enqueues.
+- [x] Inspect the entire Phase 2 diff, run host/loop/registry and stdlib CI suites, obtain fresh read-only
+  `ship` on exact commit `4ac009092f`, then commit and push without losing the original dirty work.
+- [x] Merge PR `#5193`, build immutable main-derived release `20260915T025232-3fbe7554`, and reconcile only
+  loaded-idle targets with failures 0; running siblings were skipped and not restarted.
 - [ ] Prove with natural production wakes that a sleeping queue head does not idle capacity, a crashed
   dispatcher is reclaimed, retired/missing owners cannot block the queue, one resource class cannot starve
   another, and an uncertain external effect is never replayed.
