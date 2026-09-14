@@ -350,6 +350,17 @@ def _is_expected_application_form_url(request_id: object, url: object) -> bool:
         return False
     return all(key == "_t" and value for key, value in parse_qsl(parsed.query, keep_blank_values=True))
 
+
+def _retainer_application_is_officially_applied(
+    request_id: object, *, url: object, title: object
+) -> bool:
+    """Bind a retainer success to its exact listing, never to a same-title card."""
+    return (
+        _is_retainer_request(request_id)
+        and _is_expected_application_form_url(request_id, url)
+        and str(title or "").strip() == "応募内容を確認する | ココナラ"
+    )
+
 def _utc_now() -> str:
     return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -2050,6 +2061,25 @@ class CdpParentEffects:
             retainer_observed = set(extract_retainer_ids(retainer_page.get("hrefs") or []))
             observed.update(retainer_observed)
             urls.append(RETAINER_APPLIED_URL)
+            # The applied-retainer index identifies rows by a different talkroom ULID.
+            # Re-open each exact listing application URL: Coconala changes that page's
+            # title only after this listing has been applied to.  This preserves the
+            # listing ULID identity without guessing from a same-title card.
+            for request_id in sorted(retainer_expected):
+                exact_url = _application_form_url(request_id)
+                call_id = await self._navigate_retry_once(ws, exact_url, call_id)
+                exact_page, call_id = await self._eval_json(
+                    ws,
+                    "JSON.stringify({url:location.href,title:document.title})",
+                    call_id,
+                )
+                if _retainer_application_is_officially_applied(
+                    request_id,
+                    url=exact_page.get("url"),
+                    title=exact_page.get("title"),
+                ):
+                    observed.add(request_id)
+                urls.append(exact_url)
         sort_key = lambda value: (0, int(value)) if value.isdigit() else (1, value)
         payload = {
             "source": "code_owned_cdp_readback",

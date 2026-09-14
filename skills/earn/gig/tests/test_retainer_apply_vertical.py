@@ -105,6 +105,17 @@ def test_retainer_confirmation_requires_exact_canonical_ulid() -> None:
     ]
     assert readback.extract_retainer_ids(same_title_without_exact_link) == []
     assert not hasattr(readback, "match_retainer_ids_by_title")
+    exact_url = f"https://coconala.com/job_matching/outsources/{ULID}/apply"
+    assert parent._retainer_application_is_officially_applied(
+        ULID, url=exact_url, title="応募内容を確認する | ココナラ"
+    )
+    assert not parent._retainer_application_is_officially_applied(
+        ULID, url=exact_url, title="応募する | ココナラ"
+    )
+    assert not parent._retainer_application_is_officially_applied(
+        ULID, url=f"https://coconala.com/job_matching/outsources/{'0' * 26}/apply",
+        title="応募内容を確認する | ココナラ",
+    )
 
 
 def test_retainer_is_evaluated_by_the_same_capability_gate_not_bucket_refused() -> None:
