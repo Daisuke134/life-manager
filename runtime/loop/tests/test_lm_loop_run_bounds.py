@@ -9,8 +9,6 @@ import time
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from runtime.host import resource_admission as admission
 from runtime.loop.lm_loop_run import (
     _dispatch_reserved, _host_admission_deferred, _resource_class, _run_admitted, _run_entrypoint,
@@ -18,11 +16,19 @@ from runtime.loop.lm_loop_run import (
 )
 
 
-@pytest.fixture(autouse=True)
-def durable_protocol_v2(monkeypatch):
-    monkeypatch.setattr(
-        "runtime.loop.lm_loop_run.durable_protocol_version", lambda: 2,
+_PROTOCOL_PATCHER = None
+
+
+def setup_module():
+    global _PROTOCOL_PATCHER
+    _PROTOCOL_PATCHER = patch(
+        "runtime.loop.lm_loop_run.durable_protocol_version", return_value=2,
     )
+    _PROTOCOL_PATCHER.start()
+
+
+def teardown_module():
+    _PROTOCOL_PATCHER.stop()
 
 
 def test_scheduled_wakes_have_a_finite_one_hour_safety_limit():
