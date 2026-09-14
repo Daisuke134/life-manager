@@ -304,18 +304,18 @@ independent production effects.
 - [ ] Keep Storefront published where supported and measure official demand.
 - [ ] Attribute accepted payout and bank receipt to its originating application and contract.
 
-### 3. Lancers vertical proof
-
-- [x] Phone verification.
-- [ ] Restore durable browser availability and persistent authentication.
-- [ ] Prove Apply -> Reply -> contract -> Paid -> payout; Storefront only if officially supported.
-
-### 4. CrowdWorks vertical proof
+### 3. CrowdWorks vertical proof
 
 - [ ] Close the three existing active contracts first through independent per-client workers.
 - [ ] Prove exact delivery readback, payout attribution and replay-zero for each existing contract.
 - [ ] Keep Apply and Reply healthy, finish Paid and payout, and mark Storefront `not_applicable` unless an
   official listing surface is observed.
+
+### 4. Lancers vertical proof
+
+- [x] Phone verification.
+- [ ] Restore durable browser availability and persistent authentication.
+- [ ] Prove Apply -> Reply -> contract -> Paid -> payout; Storefront only if officially supported.
 
 ### 5. Mercor vertical proof
 
