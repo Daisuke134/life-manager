@@ -59,9 +59,13 @@ docs/
   process-identity probe from the shared admission critical section. It snapshots all identities once outside
   the lock, fails closed on snapshot failure and preserves rows created during the snapshot. Race tests,
   100-ticket scale coverage, 47 host tests, all CI and a fresh read-only review pass.
-- Immutable release `/Users/anicca/loops/releases/20260914T180355-3e7b7771` is current. Loaded-idle rollout
-  reconciled 57 deterministic and 40 shared-agent-runner labels with zero failures; running owners were
-  skipped and not restarted.
+- PR `#5187`, main SHA `59bd6cddaf2768a98da6373480043672db657713`, makes explicit-loop
+  reconciliation read only the requested launchd labels instead of enumerating the full fleet. Production
+  read-only latency fell from about 37 seconds to 1.4--2.4 seconds; 70 tests plus 30 subtests, all CI and a
+  fresh read-only review pass.
+- Immutable release `/Users/anicca/loops/releases/20260914T183900-59bd6cdd` is current. The preceding
+  `3e7b7771` loaded-idle rollout reconciled 57 deterministic and 40 shared-agent-runner labels with zero
+  failures; target-only convergence to `59bd6cdd` has begun and running owners are skipped, not restarted.
 - Idle rollout succeeded cumulatively for 96 label installs with zero reconcile failures. The latest
   convergence pass updated 11 deterministic and 12 shared-agent-runner labels; old-release running owners
   were skipped, not restarted, and continue draining naturally.
@@ -71,14 +75,17 @@ docs/
 - Read-only process sampling confirmed that the legacy drain, rather than the new release, caused the long
   wait: Paid PID `6856` and Apply PID `42143` spent every sampled stack in blocking `flock` on the shared
   `control.lock`. Paid then exited naturally, reconciled to `3e7b7771`, and its first natural new-release wake
-  ended with bounded `host_admission_deferred`. Apply PID `42143` remains the only Coconala lane on that old
-  blocking path. New-release Reply and Storefront wakes continue to terminate without retaining waiters.
+  ended with bounded `host_admission_deferred`. Apply PID `42143` subsequently acquired the agent resource and
+  now runs its real `application_direct.py --all-eligible` child; it is no longer blocked on `flock` but remains
+  on old release `d74258a8` until that business run ends naturally.
 - Coconala Reply is installed on `b8de9bf2`. Two natural wakes independently ended exit `75`,
   `host_admission_deferred`, loaded-idle, with no retained new-release ticket. Contention safety passes;
   later natural resume and official business readback remain open.
-- Coconala Storefront is installed on `b8de9bf2`. Two natural new-release wakes independently ended exit `75`,
+- Coconala Storefront is installed on `b8de9bf2`. Repeated natural wakes independently ended exit `75`,
   `host_admission_deferred`, loaded-idle, with no retained legacy ticket or owner. Contention safety passes;
-  later natural resume and official listing readback remain open.
+  the latest run saved its terminal receipt at `2026-09-14T09:39:11Z`, then remained briefly live in Python
+  module-import/dyld shutdown work. It must finish naturally before target reconciliation; later natural resume
+  and official listing readback remain open.
 - The legacy queue is draining rather than growing: read-only polls measured `19`, `18`, `11`, then `10`
   retained tickets. Current memory admission itself passes at
   `free_percent=31` against `minimum_free_percent=15`; the remaining backlog is legacy process/ticket drain,
@@ -89,7 +96,8 @@ docs/
 - Disk availability recovered from `1.1 GiB` to `4.0 GiB`. Only clean, unused, regenerable external clones,
   main-contained temporary clones, three completed merged worktrees/branches/owned leases, and one missing-worktree
   registration were removed. Codex/cloud sessions, credentials, browser profiles, memory, state, ledgers,
-  receipts, active evidence and other agents' worktrees were untouched.
+  receipts, active evidence and other agents' worktrees were untouched. The retained legacy ticket count later
+  fell to `7`; zero remains the completion gate.
 
 ### Coconala
 
@@ -126,10 +134,12 @@ independent production effects.
 - [x] Recover safe disk headroom and remove proved-obsolete artifacts.
 - [x] Deploy nonblocking admission release to idle fleet.
 - [x] Prove repeated safe contention deferral on Coconala Reply.
-- [ ] Let the legacy global-lock queue drain naturally. Paid and Storefront finished; Apply PID `42143`
-  remains a confirmed blocking `flock` waiter.
-- [ ] Reconcile each newly idle owner to current `3e7b7771` without restarting siblings. Paid and Reply are
-  current; Apply remains. Storefront safely stays on `b8de9bf2` until its current run finishes.
+- [ ] Let the legacy global-lock queue drain naturally. Paid drained; Apply PID `42143` acquired the agent
+  resource and is executing its business child. Storefront has a terminal receipt but its process is still
+  finishing naturally.
+- [ ] Reconcile each newly idle owner to current `59bd6cdd` without restarting siblings. Paid and Reply are on
+  the prior safe runtime; Apply remains on `d74258a8` and Storefront on `b8de9bf2` until their current processes
+  finish. Target checks now complete in 1.4--2.4 seconds and safely skip both running owners.
 - [ ] Prove each lane defers under contention without a retained ticket or external effect.
   Reply, Storefront and Paid pass; Apply remains.
 - [ ] Prove pressure recovery: a later natural wake acquires, resumes durable progress and writes terminal
