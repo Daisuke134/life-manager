@@ -30,12 +30,11 @@ runtime/provider readback before acting; conversation claims are not completion 
 - Account migration is open: identify the account 1 Codex auth/provider profile through the credential SSOT,
   prove one bounded invocation, then roll only the intended Life Manager Codex routes forward. Preserve all
   Codex/cloud sessions and unrelated providers.
-- First safe action: keep admission protocol at `1` while the autonomous release reconciler converges every
-  loaded-idle label to immutable release `/Users/anicca/loops/releases/20260915T061515-b8cff053`. Do not
-  manually chase idle windows and never restart a running sibling. Current readback is legacy tickets `0` and
-  live owners `2` (`f7-silence-check`, `affiliate-source-refresh`). Enable protocol `2` only when every finite
-  label has exact current loaded argv and legacy owners plus SQLite queue/reservations are idle; then prove
-  natural fairness/recovery before Coconala browser effects.
+- First safe action: keep admission protocol at `1` and do not treat release convergence alone as recovery.
+  Implement the approved fundamental scalability repair from latest `origin/main` in a new leased worktree:
+  preserve independent lane owners, partition host capacity so maintenance cannot starve revenue, restore
+  project-scoped Paid concurrency and attachment retention, then prove the four-lane Coconala canary before
+  activating corrected protocol `2`. Never restart a running sibling or edit the Capafy shared checkout.
 
 ## Outcome
 
@@ -84,6 +83,197 @@ skills/
 docs/
 ```
 
+## Fundamental scalability repair
+
+### 1. Overview — what failed and why temporary fixes did not hold
+
+The intended Loop Engineering contract is still authoritative: platforms and the four marketplace lanes
+remain independent owners; each lane advances independent applications, talkrooms, listings or orders with
+bounded workers; only the same exact provider resource/effect is serialized. Shared runtime owns resource
+accounting, model routing, browser leases, receipts and recovery, but it must not become a business queue that
+allows one lane or maintenance owner to pause an unrelated lane.
+
+The current failure is architectural, not one Coconala selector bug. The fleet first allowed too many heavy
+wakes to run concurrently and exhausted CPU, memory, browser and disk resources. The response added one global
+finite admission ceiling. That protected the host from unbounded fan-out, but it also allowed unrelated
+maintenance owners to consume every slot. Revenue wakes then terminated safely before provider code, so the
+system changed from "work until the host crashes" to "do no work while reporting bounded deferrals." Later
+release/reconciler fixes improved individual boundaries but did not restore the primary invariant: every funded
+client and active buyer thread must keep making durable progress while unrelated work continues.
+
+Observed evidence for this failure class:
+
+| Boundary | Current evidence | Why it prevents revenue |
+|---|---|---|
+| Fleet | 165 registered loops; host load remained about 192--222 with more than 100 runnable and zombie processes in observed snapshots | Many cadence-aligned Python/browser wakes compete before useful work begins |
+| Host | macOS displayed application-memory exhaustion; ChatGPT and multiple Chromium processes consumed multi-gigabyte memory; disk reached 99% | Startup, browser and memory probes stall or time out |
+| Permission | A Python 3.14 cross-application data-access prompt was visible | A runtime child may wait for an unresolved TCC decision instead of producing a receipt |
+| Admission | Protocol `1`, total finite capacity `3`; observed slots were owned by non-Coconala maintenance/work owners while Coconala repeatedly returned `resource_control_busy`, `resource_capacity_busy` or `memory_headroom_unavailable` | A global safety primitive became a cross-lane wait and violated outer parallelism |
+| Release | Current is `b8cff053`; all four Coconala lanes remained installed from `3fbe7554`; the current reconciler had a running receipt but no terminal result | Safety fixes exist in main but have not reached the revenue owners |
+| Paid | Latest provider-level summary failed at `orders_observation` with `observed=0`, `effect=0`, `readback=0`, `failed=1`; later wakes stopped at admission | Paid has no current order inventory or buyer-visible progress |
+| Inner parallelism | Paid implementation still states one order per pass because evidence paths are lane-global, while the Paid recipe requires project-scoped concurrent orders | One client can monopolize or block the lane; evidence cannot safely coexist |
+| Retained context | A Coconala room received a review ZIP acknowledging 15 attachments and was later asked to upload the same attachments again | Durable attachment references and verified bytes were not carried into the next decision |
+| Contract execution | A CrowdWorks buyer supplied a work link after contract acceptance while the reply/upload form remained empty | Contract acquisition did not create a durable fulfillment work item that reached submit/readback |
+
+### 2. As-Is / To-Be
+
+```mermaid
+flowchart LR
+  subgraph ASIS[AS-IS: safe starvation]
+    A[165 cadence wakes] --> H[Shared host pressure]
+    H --> G[One global 3-slot admission]
+    M[Maintenance and reporting] --> G
+    G -->|busy| AP[Apply exits 75]
+    G -->|busy| RP[Reply exits 75]
+    G -->|busy| PD[Paid exits 75]
+    G -->|busy| SF[Storefront exits 75]
+    PD --> O[No orders observation\nNo client worker\nNo official effect]
+  end
+```
+
+```mermaid
+flowchart TD
+  subgraph TOBE[TO-BE: independent lanes, bounded item concurrency]
+    L[launchd on-demand wakes] --> AP2[Apply owner]
+    L --> RP2[Reply owner]
+    L --> PD2[Paid owner]
+    L --> SF2[Storefront owner]
+
+    C[Shared host capacity broker] --> AP2
+    C --> RP2
+    C --> PD2
+    C --> SF2
+    C --> MM[Maintenance uses borrowable capacity only]
+
+    PD2 --> Q[Per-order durable queue]
+    Q --> C1[Client A project worker]
+    Q --> C2[Client B project worker]
+    Q --> CN[Client N project worker]
+
+    C1 --> B[Paid-owned authenticated BrowserContext]
+    C2 --> B
+    CN --> B
+    B --> F[Same-resource effect fence]
+    F --> E[Provider mutation]
+    E --> R[Same-session official readback]
+    R --> T[Project terminal receipt + replay-zero]
+  end
+```
+
+TO-BE preserves the existing independent launchd owners. It does not add a fifth business scheduler or one
+global marketplace queue. The shared host broker performs resource accounting only. Every revenue lane owns a
+non-stealable minimum budget; maintenance may borrow unused capacity but is preemptible and may never consume a
+funded-client guarantee. Within a lane, workqueue fairness, per-item backoff and project-scoped claims bound
+physical concurrency without destroying logical concurrency.
+
+Every client/order owns its own state, run namespace, attachment registry, artifact, effect intent, lease,
+heartbeat, terminal receipt and official readback. Artifact building, reasoning and reconciliation may proceed
+concurrently. Only the short authenticated mutation against the same provider resource is serialized. A browser
+lease may delay that mutation without changing an unrelated client to failed or blocking its non-browser work.
+
+launchd remains an on-demand alarm. Every wake performs one bounded durable transition and exits. Long waits are
+persisted as `next_eligible_at`; they do not retain a Python process, browser tab, admission slot or Telegram
+send. Runtime health uses process identity plus heartbeat plus durable progress, never PID existence alone.
+
+### 3. Non-negotiable architecture and ownership contracts
+
+1. `runtime/loop` MUST remain the only lifecycle, admission, retry, receipt and recovery implementation.
+2. Each platform/lane MUST keep an independent owner, state root, BrowserContext and lease identity. No sibling
+   lane may wait for or restart another lane.
+3. Host admission MUST enforce a measured hard ceiling and independent reserved minimums. Maintenance,
+   reporting, Telegram, cleanup and discovery MUST be borrow-only and preemptible.
+4. Every work item MUST remain visible when deferred. Capacity may change `next_eligible_at`; it MUST NOT drop
+   the item, hide it from aggregates or turn it into a successful no-op.
+5. Paid MUST use project-scoped claims and bounded concurrent workers. Lane-global evidence files and a
+   lane-wide order lock MUST NOT define the unit of work.
+6. Retained official attachment references and verified bytes MUST be cumulative. Missing local bytes trigger
+   internal official recovery; the buyer MUST NOT be asked again for an attachment already received.
+7. Browser memory MUST be owner-accounted. Context/tab cleanup is owner-scoped; no global Chromium, GUI,
+   WindowServer, loginwindow or host restart is a valid recovery action.
+8. A memory probe timeout MUST be classified separately from observed low memory. Both remain effect-zero, but
+   only measured pressure may drive capacity reduction. Control-plane probes and TCC preflight remain bounded.
+9. Release handoff MUST be terminal-driven per label. A completed owner moves to the next compatible immutable
+   release before its next wake; the fleet must not depend on a reconciler finding a tiny idle polling window.
+10. Completion MUST be buyer-visible/provider-visible effect plus official readback and replay-zero. Scheduling,
+    PID, start receipt, queue selection, draft, click or Telegram report is not progress.
+11. A funded client or fresh buyer event that has no official seller progress for two intended cadences MUST
+    trigger a shared repair event, reclaim only stale owned resources, prioritize that item and continue without
+    human babysitting.
+12. Local and hosted variants MUST use this same logical loop, schema, recipe, effect fence and tests. Only the
+    host supervisor, durable store, secret store and browser transport may differ.
+13. Every continuation MUST read the active goal before repository work and verify expected worktree path,
+    branch, upstream, commit floor, lease and dirty state. A shared checkout or mismatched branch is read-only
+    and MUST fail closed before edits. Missing files in that checkout MUST NOT be treated as absent from
+    `origin/main`.
+
+### 4. Acceptance criteria and test matrix
+
+| # | Acceptance criterion | Required test/evidence |
+|---|---|---|
+| 1 | One slow or failed lane cannot alter another lane's schedule, state, BrowserContext or progress | `test_one_lane_failure_does_not_pause_siblings` plus four concurrent natural wakes |
+| 2 | Maintenance cannot consume a revenue lane's reserved minimum; unused capacity remains borrowable | `test_maintenance_capacity_is_borrow_only` and saturated-host canary |
+| 3 | Global host load remains bounded without converting pressure into fleet-wide revenue starvation | `test_partitioned_admission_preserves_revenue_progress` plus measured CPU/memory/process trend |
+| 4 | Different Paid orders own different namespaces and run concurrently; the same order is stingy/exactly-once | `test_paid_orders_use_project_scoped_concurrent_claims` |
+| 5 | One blocked Paid order remains represented while another order reaches official readback | `test_blocked_paid_order_does_not_block_ready_order` |
+| 6 | A previously received attachment is never requested again; missing bytes use internal recovery | `test_retained_attachment_is_recovered_without_buyer_reask` using the observed 15-attachment case |
+| 7 | A contracted CrowdWorks instruction becomes a fulfillment item and reaches submit/readback | `test_contract_instruction_creates_fulfillment_work_item` plus exact provider receipt |
+| 8 | Probe timeout, real low memory, TCC denial and TCC pending are distinct terminal reasons | `test_host_preflight_failure_classes_remain_distinct` |
+| 9 | Terminal release handoff updates one exact idle label without restarting siblings or losing state | `test_terminal_release_handoff_is_label_scoped` plus loaded argv/readback |
+| 10 | Every active client independently covers its newest buyer event, official effect and replay-zero | Client-by-client official matrix for Ryu, both Kokoro contracts, Chii and Atsugi |
+| 11 | Apply, Reply, Paid and Storefront continue across reboot and one owner crash | Four-lane reboot/fault-injection canary |
+| 12 | The same contracts hold at fleet scale | 500-loop admission test, 24-hour canary, then seven-day soak with zero starvation and zero duplicate effects |
+| 13 | A handover resumes only in its named worktree/branch and refuses the Capafy/shared checkout | `test_handover_worktree_route_fails_closed` plus HEAD/upstream/dirty-state receipt |
+
+E2E judgment:
+
+| Item | Value |
+|---|---|
+| UI change | None in the shared runtime repair; provider UI is the official effect/readback surface |
+| Maestro | Not applicable; required E2E is natural launchd wake plus real provider readback because this is a macOS/background marketplace system |
+
+### 5. Boundaries
+
+- DO NOT replace the four lane owners with one monolithic business scheduler.
+- DO NOT create Coconala-, CrowdWorks-, Lancers- or Mercor-specific admission/retry/receipt frameworks.
+- DO NOT raise global concurrency or create more browser processes as a substitute for ownership and fairness.
+- DO NOT kill unrelated processes, global Chromium, ChatGPT/Codex, the GUI session or the host to pass a test.
+- DO NOT weaken effect fences, official readback, formal-delivery authorization, attachment integrity or
+  replay-zero to increase throughput.
+- DO NOT mix Capafy work, its branch or its dirty files into this workstream.
+- DO NOT activate admission protocol `2` until its capacity model satisfies the lane-independence and
+  maintenance-borrow-only contracts above.
+
+### 6. Execution order and rollout rule
+
+Order change reason: the previous cursor was fleet convergence -> protocol `2` activation -> natural fairness
+proof -> Coconala. Live evidence now proves the current global admission semantics can starve every revenue
+lane. Activating them unchanged would make the regression durable. The new cursor repairs the shared capacity
+and per-client progress invariants before activation while leaving independent provider effects uninterrupted.
+
+Old order:
+
+```text
+finish release convergence -> activate protocol 2 -> prove fairness -> resume Coconala
+```
+
+New order:
+
+```text
+freeze protocol 1
+-> capture three production regression fixtures
+-> partition host capacity and remove maintenance/revenue coupling
+-> restore project-scoped Paid concurrency and attachment retention
+-> prove Coconala four-lane/client canary
+-> activate the corrected protocol 2
+-> 24-hour and seven-day fleet proof
+-> continue platform revenue order
+```
+
+Current cursor: specification is approved and recorded; no runtime implementation or production mutation is
+authorized by this document update. The next implementation starts from latest `origin/main` in a new leased
+worktree. The merged admission worktree remains immutable evidence, the spec branch owns this file, and the
+Capafy shared checkout is forbidden.
+
 ## Current measured state
 
 ### Shared host/runtime
@@ -99,10 +289,13 @@ docs/
   no orphan Git children, and `control_plane_exempt` wrote an effect-zero host receipt. The first natural wake
   of the final `b8cff053` release is currently running; its two route summaries, terminal receipt and resulting
   exact fleet mismatch count remain open and must be read back before protocol activation.
-- Admission remains protocol `1`. Fresh filesystem readback shows legacy tickets `0` and two live legacy owners:
-  `f7-silence-check` PID `94503` and `affiliate-source-refresh` PID `29867`. They must end naturally and be
-  reconciled by the autonomous owner. The prior `mismatch=38`, `owners=3`, `tickets=4` snapshot is historical,
-  not current truth; a new exact mismatch count is required after the active reconciler wake terminates.
+- Admission remains protocol `1`. The latest read-only snapshot observed three live owners
+  (`affiliate-source-refresh`, `writer-opportunity-response`, `job-search-daily`) and one legacy ticket
+  (`article-resume`). Host load was about `192`, memory-free readback was `30%`, and the data volume was `99%`
+  full with about `2.7 GiB` available. All four Coconala owners remained installed from `3fbe7554`; Apply was
+  loaded-idle with last exit `75`, while Reply, Paid and Storefront had running wrappers and last exit `75`.
+  The `b8cff053` release reconciler still had only a running event, not a terminal summary. These observations
+  supersede the earlier owners `2` / tickets `0` snapshot but may change naturally; re-read before mutation.
 - PR `#5193`, main SHA `3fbe75546d720add1bfa465731ddc94353b662b5`, is merged and published as
   immutable release `/Users/anicca/loops/releases/20260915T025232-3fbe7554`. The safe two-stage rollout keeps
   protocol `1` until every finite label is exact-loaded from this capability-2 release. Initial loaded-idle
@@ -256,51 +449,49 @@ independent production effects.
 
 ### 1. Shared runtime production convergence and account 1 cutover — current cursor
 
-- [x] Recover safe disk headroom and remove proved-obsolete artifacts.
-- [x] Deploy nonblocking admission release to idle fleet.
-- [x] Prove repeated safe contention deferral on Coconala Reply.
-- [x] Merge and deploy PR `#5189`; prove one natural Paid wake reaches a bounded terminal receipt without
-  pre-admission recursive cleanup.
-- [x] Remove per-wake Python source recompilation from immutable releases with release-built checked-hash
-  bytecode, a pinned interpreter and apply-time cache attestation (PR `#5191`).
-- [x] Replace per-wake fleet process enumeration with native Darwin process-start identity while preserving the
-  legacy `ps lstart` format and PID-reuse discrimination (PR `#5191`).
-- [ ] Prove each lane defers under contention without a retained ticket or external effect.
-  Reply, Storefront and Paid pass; Apply remains.
-- [ ] Prove pressure recovery: a later natural wake acquires, resumes durable progress and writes terminal
-  business receipt plus official readback.
-- [ ] Prove queue drains to zero, fleet-wide starvation does not recur, and no duplicate external effect occurs.
-- [ ] Keep producing terminal receipts for at least 24 hours without human restart or babysitting.
-- [x] Verify mixed-release compatibility and land the first durable reservation/dispatcher contract as pushed
-  commits `479435f804`, `3181bbd03c`, and `9e275ed0a9` on the dedicated Phase 2 branch.
-- [x] Finish the SQLite replacement, including retired/missing-owner cancellation, bounded 500-waiter evidence
-  and 39 simultaneous durable enqueues.
-- [x] Inspect the entire Phase 2 diff, run host/loop/registry and stdlib CI suites, obtain fresh read-only
-  `ship` on exact commit `4ac009092f`, then commit and push without losing the original dirty work.
-- [x] Merge PR `#5193`, build immutable main-derived release `20260915T025232-3fbe7554`, and reconcile only
-  loaded-idle targets with failures 0; running siblings were skipped and not restarted.
-- [x] Replace manual idle-window chasing with the fleet-wide autonomous release reconciler (PRs `#5194`--`#5199`):
-  both provider routes, loaded-idle only, control-plane admission exemption, local-first convergence, bounded
-  optimized fetch and release-pinned Python are deployed in `20260915T061515-b8cff053`.
-- [ ] Let the active natural `b8cff053` reconciler wake finish. Record both route summaries, its terminal receipt,
-  all changed/skipped/failure counts and a fresh exact finite-label mismatch count. A running PID or install
-  receipt alone is not completion.
-- [ ] Let the remaining two legacy owners (`f7-silence-check`, `affiliate-source-refresh`) end naturally and
-  verify the reconciler updates them without a manual restart. Legacy tickets are already zero.
-- [ ] Activate admission protocol `2` only after every finite label has exact current loaded argv, legacy owners
-  are zero, tickets remain zero, and SQLite queue/reservations are idle. Use the existing atomic
-  `lm-loop admission-v2-enable` gate; do not force it.
-- [ ] Prove with natural production wakes that a sleeping queue head does not idle capacity, a crashed
-  dispatcher is reclaimed, retired/missing owners cannot block the queue, one resource class cannot starve
-  another, and an uncertain external effect is never replayed.
+- [ ] Create one new leased implementation worktree from latest `origin/main` for this repair. Do not write in
+  the merged admission snapshot, the divergent spec worktree, the shared Capafy checkout or an active release.
+- [ ] Preserve three secret-free production regression fixtures before changing behavior:
+  1. all four Coconala lanes repeatedly terminate before provider work while unrelated owners hold global
+     capacity;
+  2. a retained 15-attachment Coconala contract is incorrectly sent a re-upload request;
+  3. an accepted CrowdWorks contract with a supplied work link never becomes a submitted fulfillment effect.
+- [ ] Replace the fleet-wide fungible three-slot rule with shared hierarchical accounting: measured host hard
+  ceiling, non-stealable lane/platform minimums, per-item limits, and maintenance/reporting/Telegram capacity
+  that is borrow-only and preemptible. Preserve effect-zero fail-closed behavior without cross-lane starvation.
+- [ ] Add bounded owner heartbeat and durable-progress leases. A live PID without heartbeat/progress cannot
+  retain capacity forever; recovery may reclaim only the exact owned claim after process-identity verification.
+- [ ] Separate memory probe timeout, real memory pressure, disk pressure and TCC permission state. Apply
+  owner-scoped browser/context/tab limits and recovery; never use global browser or host restart.
+- [ ] Convert Paid from one-order-per-pass lane-global evidence to project-scoped durable work items and bounded
+  concurrent consumers. Serialize only the same exact order/effect and the short authenticated mutation.
+- [ ] Make retained attachment references cumulative across wakes. Reuse verified bytes; recover missing bytes
+  from the official source; prohibit buyer re-requests for already received files.
+- [ ] Make contract acceptance/instructions create durable fulfillment work immediately so the CrowdWorks case
+  and future providers cannot stop between contract and delivery.
+- [ ] Replace idle-window polling as the release convergence dependency with label-scoped terminal handoff.
+  Prove next wake uses the compatible current release without restarting a running owner or sibling.
+- [ ] Re-run Coconala Apply, Reply, Paid and Storefront concurrently under saturated maintenance load. Prove one
+  owner crash, timeout or blocked client does not change the other lanes' schedules, states or effects.
+- [ ] Only after the contracts above pass, activate the corrected protocol `2` with legacy owners/tickets and
+  SQLite reservations idle. Prove FIFO within each lane, sleeping-head dispatch, crash recovery, cross-class
+  progress, uncertain-effect reconciliation and duplicate effect zero.
+- [ ] Produce continuous terminal receipts and real official progress for 24 hours, then seven days, including
+  reboot recovery and measured browser/CPU/memory/process ceilings. Any progress regression fails the rollout
+  and restores the last proven release.
 - [ ] Switch only the intended Life Manager Codex provider routes from account 2 to account 1 after resolving
   their current owner and credential profile. Prove one bounded account 1 invocation and receipt before the
   targeted rollout; do not delete or overwrite either account's sessions.
 
+Completed foundation retained as evidence: disk-headroom recovery; off-critical-path cleanup; checked-hash
+bytecode and pinned interpreter; native Darwin process identity; SQLite durable reservations/dispatcher;
+mixed-release compatibility; PR `#5193` and immutable `3fbe7554`; release-reconciler PRs `#5194`--`#5199` and
+immutable `b8cff053`. These are supporting components, not proof that revenue progress is restored.
+
 ### 2. Coconala vertical revenue proof
 
-- [ ] After protocol `2` activation and its natural fairness/recovery proof, let the next natural Paid and Reply
-  wakes finish and persist terminal receipts; process start alone is not a client effect.
+- [ ] During the corrected shared-runtime canary, let natural Paid and Reply wakes finish and persist terminal
+  receipts while unrelated maintenance is saturated; process start alone is not a client effect.
 - [ ] Obtain one authenticated `orders-only` observation and replace the retained candidate set above with the
   exact official active-order set.
 - [ ] For every active order, obtain a `selected-talkroom-only` head readback and store newest buyer-event and
@@ -335,7 +526,9 @@ independent production effects.
 
 ### 3. CrowdWorks vertical proof
 
-- [ ] Close the three existing active contracts first through independent per-client workers.
+- [ ] Close the three existing active contracts first through independent per-client workers. The observed
+  contract with a supplied Google Docs work link must progress from instruction read to real artifact,
+  provider submission and official readback; an empty reply/upload form is unfinished.
 - [ ] Prove exact delivery readback, payout attribution and replay-zero for each existing contract.
 - [ ] Keep Apply and Reply healthy, finish Paid and payout, and mark Storefront `not_applicable` unless an
   official listing surface is observed.
