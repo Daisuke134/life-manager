@@ -64,6 +64,9 @@ docs/
 - Coconala Reply is installed on `b8de9bf2`. Two natural wakes independently ended exit `75`,
   `host_admission_deferred`, loaded-idle, with no retained new-release ticket. Contention safety passes;
   later natural resume and official business readback remain open.
+- Coconala Storefront is installed on `b8de9bf2`. Its first natural new-release wake ended exit `75`,
+  `host_admission_deferred`, loaded-idle, with no retained legacy ticket or owner. Contention safety passes;
+  later natural resume and official listing readback remain open.
 - Latest legacy queue count is `20`, with one live owner immediately after the latest idle convergence pass.
   Current memory admission itself passes at
   `free_percent=31` against `minimum_free_percent=15`; the remaining backlog is legacy process/ticket drain,
@@ -111,6 +114,7 @@ independent production effects.
 - [ ] Reconcile each newly idle owner to `b8de9bf2` without restarting siblings. Storefront is reconciled;
   Paid and Apply remain.
 - [ ] Prove each lane defers under contention without a retained ticket or external effect.
+  Reply and Storefront pass; Paid and Apply remain.
 - [ ] Prove pressure recovery: a later natural wake acquires, resumes durable progress and writes terminal
   business receipt plus official readback.
 - [ ] Prove queue drains to zero, fleet-wide starvation does not recur, and no duplicate external effect occurs.
