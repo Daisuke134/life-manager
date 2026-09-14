@@ -9481,6 +9481,36 @@ This is the minimum design evidenced by the concrete worker/claim implementation
 Temporal, etcd and Graphile Worker. Life Manager reuses its existing database, lease, intent and outbox
 rails instead of adding one of those orchestration systems as a dependency.
 
+### Recent Paid regression — plain root cause and permanent lesson
+
+Paid already knew how to inspect a room, build work, send and read the result back. The regression came from
+changing concurrency around that working business path without first removing every old batch/entrance
+assumption:
+
+1. The aggregate owner waited for earlier room observation/readback before letting a completed room advance.
+   One slow room therefore delayed an unrelated ready room.
+2. BrowserContext acquisition performed slow provider work, including oversized cross-provider cookie
+   seeding, while shared entrance work was still serialized. One acquire exceeded 45 seconds with 1,541
+   cookies although the provider needed only 57.
+3. Stale-context cleanup ran on the alive/acquire path and multiple waiting owners amplified the same cleanup
+   pressure instead of one singleflight repair owning it.
+4. Legacy caller deadlines such as Storefront's 45 seconds were shorter than the shared lease operation's
+   real bounded budget. A healthy but congested operation was classified as broken, abandoned reservations
+   accumulated, and later owners had more cleanup to perform.
+5. The host admitted finite work despite extreme load, so extra retries increased contention. Runtime
+   liveness was being confused with marketplace progress.
+
+The correction is shared rather than Ryu- or Paid-specific: completion-order per-client workers, isolated
+BrowserContexts, two-phase reserve/provision/finalize with token compare-and-swap, provider cookie allowlists,
+singleflight bounded stale repair, explicit reservation expiry, one host-admission gate, stable effect keys,
+official reconciliation and replay-zero. Same-client effects stay serialized; unrelated clients and
+platforms continue independently.
+
+Permanent rule: never add worker parallelism by only increasing a worker count. First enumerate every shared
+resource and prove its owner, capacity, critical-section duration, timeout hierarchy, cleanup owner, expiry,
+fencing token and official-effect contract. A concurrency change ships only when tests prove a slow, crashed
+and expired item cannot block or duplicate an unrelated item, followed by natural production receipts.
+
 ### Canonical cross-domain ownership and ideal folder tree
 
 Gig work, fundraising, connectors, publishing, trading, health and future domains are all Product Loops.
@@ -9727,6 +9757,22 @@ missing contract leaves Paid waiting but never pauses Apply.
 - [ ] `CORE-11` Route one non-gig loop through the same lifecycle/browser/effect/observability contracts
   before extracting another abstraction. Prove a shared repair with cross-domain fixtures so collective
   learning is measured rather than claimed.
+- [ ] `SCALE-01` Run the registry/control-plane acceptance with 500 finite Product Loops. Prove inventory,
+  desired/observed reconciliation and status remain bounded by loops plus unique state files, never repeated
+  full-history parsing per loop.
+- [ ] `SCALE-02` Run a mixed-load conformance fixture with at least 100 independent work items across
+  multiple tenants/providers: one slow, one expired, one crashed, one auth-blocked and one uncertain-effect
+  item while the remaining eligible items continue to terminal receipts within declared capacity.
+- [ ] `SCALE-03` Prove global, per-tenant, per-provider and per-account admission never exceed measured
+  browser/CPU/memory limits; overload produces durable deferred work with effect zero, not retry storms,
+  browser restarts or sibling cancellation.
+- [ ] `SCALE-04` Crash after effect intent, after provider mutation and before local receipt; on every replay,
+  reconcile official state first and prove duplicate applications, replies, deliveries, payments and public
+  mutations are all zero.
+- [ ] `SCALE-05` Promote a scaling change only after focused regression, 100-item mixed load, 500-loop
+  control-plane acceptance, clean install/reboot recovery, natural canary receipts and fleet observability.
+  Capacity values come from measurements and are versioned; a synthetic pass never authorizes unbounded live
+  concurrency.
 
 ### D. Self-healing and recursive improvement meta-loop
 
