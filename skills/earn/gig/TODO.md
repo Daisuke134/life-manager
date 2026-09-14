@@ -65,7 +65,7 @@ docs/
   later natural resume and official business readback remain open.
 - Latest legacy queue count is `22`. Coconala Paid PID `6856`, Apply PID `42143` and Storefront PID `60168`
   remain on older releases and must end naturally before target-only loaded-idle reconciliation.
-- Disk availability recovered from `1.1 GiB` to `3.6 GiB`. Only clean, unused, regenerable external clones,
+- Disk availability recovered from `1.1 GiB` to `3.8 GiB`. Only clean, unused, regenerable external clones,
   main-contained temporary clones, one completed merged worktree/branch/owned lease, and one missing-worktree
   registration were removed. Codex/cloud sessions, credentials, browser profiles, memory, state, ledgers,
   receipts, active evidence and other agents' worktrees were untouched.
