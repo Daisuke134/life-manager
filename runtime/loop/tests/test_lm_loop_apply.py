@@ -216,6 +216,10 @@ class LmLoopApplyTest(unittest.TestCase):
             '"${LIFE_MANAGER_RUNTIME_PYTHON:-python3}"',
             (Path(__file__).resolve().parents[3] / "bin/lm-loop-run").read_text(),
         )
+        self.assertIn(
+            '"${LIFE_MANAGER_RUNTIME_PYTHON:-python3}"',
+            (Path(__file__).resolve().parents[3] / "bin/lm-loop").read_text(),
+        )
 
     def test_alpaca_plist_declares_local_deployment(self):
         value = registry()
