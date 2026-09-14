@@ -344,6 +344,20 @@ class CutLoopReleaseTest(unittest.TestCase):
             root = Path(directory)
             fake_bin = root / "bin"
             fake_bin.mkdir()
+            loops = root / "loops"
+            release = loops / "releases" / "current-release"
+            (release / "bin").mkdir(parents=True)
+            (loops / "current").symlink_to(release)
+            (release / "RELEASE.json").write_text(
+                '{"sha":"%s","release_paths":"ALL"}\n' % ("a" * 40)
+            )
+            reconcile_calls = root / "reconcile.calls"
+            lm_loop = release / "bin" / "lm-loop"
+            lm_loop.write_text(
+                "#!/bin/sh\n"
+                f"printf '%s\\n' \"$*\" >> {reconcile_calls}\n"
+            )
+            lm_loop.chmod(0o755)
             fake_git = fake_bin / "git"
             fetch_args = root / "fetch.args"
             fake_git.write_text(
@@ -360,7 +374,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     **os.environ,
                     "PATH": f"{fake_bin}:{os.environ['PATH']}",
                     "LIFE_MANAGER_SOURCE_REPO": str(root),
-                    "LOOPS_ROOT": str(root / "loops"),
+                    "LOOPS_ROOT": str(loops),
                     "LIFE_MANAGER_RELEASE_FETCH_TIMEOUT_SECONDS": "1",
                 },
                 capture_output=True,
@@ -375,6 +389,10 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertIn(
                 "--negotiation-tip=refs/remotes/origin/main", fetch_args.read_text()
             )
+            self.assertEqual(reconcile_calls.read_text().splitlines(), [
+                "reconcile shared-agent-runner --loaded-idle-only",
+                "reconcile deterministic --loaded-idle-only",
+            ])
 
     def test_reconciler_pins_captured_main_sha_when_origin_moves_during_cut(self):
         with tempfile.TemporaryDirectory() as directory:
