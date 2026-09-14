@@ -785,6 +785,10 @@ serializes independent production work.
    `lm-oss-audit.BTVr7U`, `letta-code`) had no open process or uncommitted change and were removed;
    they are recoverable by cloning their upstreams again. Codex/cloud sessions, credentials, `~/.cloak`,
    memory, durable ledgers, receipts, active-run evidence and registered/locked worktrees were untouched.
+   The merged, clean resource-admission development worktree and its `codex-root` lease were then removed,
+   its merged local branch was deleted, and one already-missing Mercor worktree registration was pruned;
+   availability increased again to `3.2 GiB`. This cleanup removes obsolete development surfaces without
+   deleting production evidence or another agent's work.
 2. **Shared runtime production convergence:** let pre-fix blocking owners drain naturally; reconcile each
    loaded-idle remainder to `b8de9bf2d2...`; prove admission contention ends quickly with an effect-zero
    terminal receipt, later natural wakes resume durable progress, ticket count does not grow, sibling lanes
