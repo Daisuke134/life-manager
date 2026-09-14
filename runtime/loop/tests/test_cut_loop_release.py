@@ -402,7 +402,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(cutter_arg.read_text().strip(), captured_sha)
             self.assertEqual((root / "origin.sha").read_text().strip(), "c" * 40)
             reconciles = calls.read_text().splitlines()
-            self.assertEqual(len(reconciles), 3)
+            self.assertEqual(len(reconciles), 2)
             self.assertTrue(
                 all(line.startswith(f"{new_release.resolve()}|") for line in reconciles),
                 reconciles,
@@ -410,9 +410,8 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(
                 [line.split("|", 1)[1] for line in reconciles],
                 [
-                    "reconcile shared-agent-runner --loaded-idle-only --loop-id hf-gig-apply-direct",
-                    "reconcile shared-agent-runner --include-running --loop-id hf-gig-reply-detector",
-                    "reconcile deterministic --loaded-idle-only --loop-id hf-gig-storefront-direct --loop-id hf-gig-paid-direct --loop-id life-manager-disk-cleanup",
+                    "reconcile shared-agent-runner --loaded-idle-only",
+                    "reconcile deterministic --loaded-idle-only",
                 ],
             )
 
@@ -470,7 +469,7 @@ class CutLoopReleaseTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertFalse(cutter_called.exists())
-            self.assertEqual(len(calls.read_text().splitlines()), 3)
+            self.assertEqual(len(calls.read_text().splitlines()), 2)
 
 
 if __name__ == "__main__":
