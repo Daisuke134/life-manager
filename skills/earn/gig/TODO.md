@@ -36,6 +36,11 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   ticket. Coconala Paid PID `6856` and Apply PID `42143` were still resident in their old
   blocking acquire paths at the latest readback and must terminate naturally before target-only
   loaded-idle reconciliation.
+  Coconala Reply's old PID ended naturally and target-only reconciliation installed `b8de9bf2`
+  successfully (`install_event_id=ef95d124026888bceaaf0037`) without touching a sibling. Its first
+  natural new-release wake PID `62154` retained no admission ticket. Under the still-high host load its
+  first minute was spent importing Python modules before admission, so bounded deferred-terminal
+  acceptance remains open until that exact PID exits and its new-release terminal receipt is read back.
 
 - **Current cursor: restore Coconala Apply discovery and effect reconciliation.** Ryu `18211957`
   already has the ordinary reply and manual attachment in official readback and remains dormant until a
