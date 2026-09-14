@@ -38,7 +38,7 @@ class _Page:
 
 def _settle(observations, seconds=1.0):
     page = _Page(observations)
-    settler = application_parent.CdpParentEffects._settle_on_offer_form
+    settler = application_parent.CdpParentEffects._settle_on_application_form
     target = type("T", (), {"_eval_json": page.eval_json})()
     asyncio.run(settler(target, object(), "5256493", 1, seconds=seconds))
     return page

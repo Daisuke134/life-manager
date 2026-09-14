@@ -986,7 +986,7 @@ class CdpParentEffects:
         await self._call(ws, "Page.navigate", {"url": url}, call_id)
         return await self._ready(ws, call_id + 1)
 
-    async def _settle_on_offer_form(
+    async def _settle_on_application_form(
         self, ws: Any, request_id: str, call_id: int, *, seconds: float = 8.0
     ) -> int:
         """Wait until the document is the one we navigated to, not the one we are leaving.
@@ -1010,7 +1010,7 @@ class CdpParentEffects:
                 call_id,
             )
             if (
-                _is_expected_offer_form_url(request_id, state.get("url"))
+                _is_expected_application_form_url(request_id, state.get("url"))
                 and state.get("ready") in {"interactive", "complete"}
             ):
                 return call_id
@@ -1368,7 +1368,7 @@ class CdpParentEffects:
             await self._call(ws, "Page.enable", {}, call_id)
             if navigate:
                 call_id = await self._navigate(ws, expected_url, call_id + 1)
-                call_id = await self._settle_on_offer_form(ws, request_id, call_id + 1)
+                call_id = await self._settle_on_application_form(ws, request_id, call_id + 1)
             else:
                 call_id += 1
             state, call_id = await self._eval_json(
@@ -1425,6 +1425,7 @@ class CdpParentEffects:
             await self._call(ws, "Page.enable", {}, call_id)
             if navigate:
                 call_id = await self._navigate(ws, expected_url, call_id + 1)
+                call_id = await self._settle_on_application_form(ws, request_id, call_id + 1)
             else:
                 call_id += 1
             state, call_id = await self._eval_json(

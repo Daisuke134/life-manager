@@ -150,6 +150,33 @@ def test_retainer_exact_readback_waits_past_the_previous_document(tmp_path, monk
     assert call_id == 12
 
 
+def test_retainer_form_waits_past_the_previous_document(tmp_path, monkeypatch) -> None:
+    effects = parent.CdpParentEffects(
+        ws_url="ws://example.test/devtools/page/1",
+        evidence_dir=tmp_path / "evidence",
+        ledger_path=tmp_path / "ledger.jsonl",
+        pass_id="retainer-test",
+    )
+    states = iter([
+        {"url": "https://coconala.com/", "ready": "complete"},
+        {
+            "url": f"https://coconala.com/job_matching/outsources/{ULID}/apply",
+            "ready": "complete",
+        },
+    ])
+
+    async def fake_eval(_ws, _expression, call_id):
+        return next(states), call_id + 1
+
+    async def no_sleep(_seconds):
+        return None
+
+    monkeypatch.setattr(effects, "_eval_json", fake_eval)
+    monkeypatch.setattr(parent.asyncio, "sleep", no_sleep)
+    call_id = asyncio.run(effects._settle_on_application_form(object(), ULID, 20))
+    assert call_id == 22
+
+
 def test_retainer_is_evaluated_by_the_same_capability_gate_not_bucket_refused() -> None:
     result = eligibility.evaluate_application(
         "非同期の文章作成を継続します", "納品と改善案を作成します",
