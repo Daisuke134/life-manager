@@ -101,6 +101,32 @@ def test_release_of_an_undisposable_context_keeps_cleanup_tombstone(monkeypatch,
     assert saved["gig-task"]["cleanup_pending"] is True
 
 
+def test_slow_release_does_not_hold_shared_ledger_lock(monkeypatch, tmp_path):
+    module = load_module()
+    leases_file = tmp_path / "leases.json"
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases_file))
+    leases_file.write_text(json.dumps({
+        "slow": {
+            "context_id": "slow-context", "target_id": "slow-target",
+            "ws": "ws://slow", "ts": 1, "token": "s" * 32, "generation": 1,
+        },
+        "sibling": {
+            "context_id": "sibling-context", "target_id": "sibling-target",
+            "ws": "ws://sibling", "ts": 1, "token": "f" * 32, "generation": 1,
+        },
+    }), encoding="utf-8")
+
+    async def dispose_while_sibling_heartbeats(_pairs, timeout=None):
+        result = module.heartbeat("sibling", token="f" * 32, generation=1)
+        assert result["ok"] is True
+        return [{}]
+
+    monkeypatch.setattr(module, "_calls", dispose_while_sibling_heartbeats)
+    assert module.release("slow", token="s" * 32, generation=1)["ok"] is True
+    assert "slow" not in module._leases()
+    assert "sibling" in module._leases()
+
+
 def test_acquire_does_not_orphan_an_undisposable_dead_context(monkeypatch, tmp_path):
     module = load_module()
     leases_file = tmp_path / "leases.json"
@@ -492,6 +518,30 @@ def test_park_keeps_context_and_next_acquire_rotates_fence(monkeypatch, tmp_path
     assert acquired["token"] != "old-token"
     assert acquired["pid"] == 222
     assert "parked" not in module._leases()["mercor"]
+
+
+def test_slow_park_probe_does_not_hold_shared_ledger_lock(monkeypatch, tmp_path):
+    module = load_module()
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(tmp_path / "leases.json"))
+    module._save({
+        "slow": {
+            "context_id": "slow-context", "target_id": "slow-target",
+            "ws": "ws://slow", "ts": 1, "token": "s" * 32, "generation": 1,
+        },
+        "sibling": {
+            "context_id": "sibling-context", "target_id": "sibling-target",
+            "ws": "ws://sibling", "ts": 1, "token": "f" * 32, "generation": 1,
+        },
+    })
+
+    def probe_while_sibling_heartbeats(_ws):
+        result = module.heartbeat("sibling", token="f" * 32, generation=1)
+        assert result["ok"] is True
+        return True
+
+    monkeypatch.setattr(module, "target_responds", probe_while_sibling_heartbeats)
+    assert module.park("slow", token="s" * 32, generation=1)["ok"] is True
+    assert module._leases()["slow"]["parked"] is True
 
 
 def test_acquire_replaces_parked_context_after_scoped_vault_state_changes(monkeypatch, tmp_path):
