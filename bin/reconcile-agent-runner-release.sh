@@ -25,7 +25,8 @@ if [ -z "$runtime_python" ] || [ ! -f "$timeout_runner" ]; then
   exit 69
 fi
 "$runtime_python" "$timeout_runner" --grace-seconds 15 "$fetch_timeout_seconds" \
-  git -C "$SOURCE_REPO" fetch --quiet origin main
+  git -C "$SOURCE_REPO" fetch --quiet --no-tags --no-auto-maintenance \
+    --negotiation-tip=refs/remotes/origin/main origin main
 main_sha="$(git -C "$SOURCE_REPO" rev-parse origin/main)"
 current_sha="$(jq -r '.sha // ""' "$CURRENT/RELEASE.json" 2>/dev/null || true)"
 current_paths="$(jq -r '.release_paths // ""' "$CURRENT/RELEASE.json" 2>/dev/null || true)"
