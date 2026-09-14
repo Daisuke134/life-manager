@@ -4,9 +4,8 @@ inventory_status.py — deterministic answer to "does the drain-only loop have A
 work to do right now?", so the daily loop (and the health signal) can tell three states
 apart that the old "did published.jsonl grow?" proxy could NOT:
 
-  PUBLISHABLE  — there is a ready inventory item (LISTING + icon + skill dir) whose title
-                 is not yet on the server, and the 5-slot cap is open. The loop SHOULD run
-                 the publish flow. (Also covers a REVIEW_REJECTED item that needs a retry.)
+  PUBLISHABLE  — there is one bounded external transition to execute: recover an offline
+                 Agent in place, resume/retry an existing version, or publish ready inventory.
   DRAINED      — every ready inventory title is already online. Nothing to publish. This is
                  HEALTHY IDLE, not a failure — do not alarm, do not burn a self-fix.
   CAP_FULL     — >=5 unlisted (draft/under_review) agents already occupy the publish cap.
@@ -41,7 +40,8 @@ FEATURES = os.environ.get("CAPAFY_FEATURES_DIR") or str(STATE_HOME / "features")
 SKILLS = os.environ.get("CAPAFY_SKILLS_ROOT") or str(REPO_ROOT / "skills")
 CATALOG = os.environ.get("CAPAFY_CATALOG_DIR") or str(REPO_ROOT / "skills/capafy/catalog")
 
-ONLINE = {"online", "approved"}
+ONLINE = {"online"}
+READY_TO_PUBLISH = {"approved", "pending_online", "audit_passed_pending_online"}
 # Capafy's create endpoint counts rejected agents toward its five-unlisted-agent
 # limit as well as drafts and submissions under review.  Treating a rejection as
 # a free slot made the drainer select a fresh catalog item that publish-init could
@@ -50,6 +50,7 @@ ONLINE = {"online", "approved"}
 # capacity accounting so the handoff mirrors the server's actual admission rule.
 UNLISTED = {"draft", "under_review", "review_rejected"}
 REJECTED = {"review_rejected", "banned"}
+RECOVERABLE = {"offline", "user_offline", "user_delisted", "taken_down"}
 CAP = 5
 
 
@@ -57,7 +58,7 @@ def normalize_agents(agents):
     """Return sanitized rows and deterministic five-slot counts from server truth."""
     normalized = []
     counts = {"total": len(agents), "listed": 0, "occupied": 0, "free": None,
-              "retry": 0, "blocked": 0, "unknown": 0}
+              "retry": 0, "recover": 0, "ready_publish": 0, "blocked": 0, "unknown": 0}
     structurally_valid = True
     for agent in agents:
         if not isinstance(agent, dict):
@@ -73,6 +74,9 @@ def normalize_agents(agents):
         if status in ONLINE:
             lifecycle = "listed"
             counts["listed"] += 1
+        elif status in READY_TO_PUBLISH:
+            lifecycle = "ready_publish"
+            counts["ready_publish"] += 1
         elif status in UNLISTED:
             # A rejected agent is still retryable, but it also consumes one of
             # the platform's unlisted slots until Capafy releases it.
@@ -83,6 +87,13 @@ def normalize_agents(agents):
         elif status == "banned":
             lifecycle = "blocked"
             counts["blocked"] += 1
+        elif status in RECOVERABLE:
+            # A delisted Agent keeps its identity, sales, card, package and keys.
+            # Capafy restores it through Creator Workspace -> Create New Version;
+            # this does not consume a new-Agent slot and must not poison the
+            # entire inventory as SERVER_UNREADABLE.
+            lifecycle = "recover"
+            counts["recover"] += 1
         else:
             lifecycle = "unknown"
             structurally_valid = False
@@ -105,7 +116,8 @@ def normalize_agents(agents):
     return {"readable": structurally_valid, "counts": counts, "agents": normalized}
 
 
-def allocate_action(normalized, retries, publishable, resumable_drafts=None):
+def allocate_action(normalized, retries, publishable, resumable_drafts=None, recoveries=None,
+                    ready_to_publish=None):
     """Choose at most one stable action without performing any platform write.
 
     An exact-title repository draft can be resumed in place even when all five
@@ -114,6 +126,8 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None):
     compatible for callers that only provide retry/fresh candidates.
     """
     resumable_drafts = resumable_drafts or []
+    recoveries = recoveries or []
+    ready_to_publish = ready_to_publish or []
     if not normalized.get("readable"):
         return {"verdict": "SERVER_UNREADABLE"}
     occupied = (normalized.get("counts") or {}).get("occupied")
@@ -129,6 +143,26 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None):
             "reason": "resume exact-title repository draft",
             "action": "resume_draft",
             "action_key": f"resume:{item['agent_id']}",
+            "item": item,
+        }
+    if ready_to_publish:
+        item = min(ready_to_publish, key=lambda row: (str(row.get("agent_id") or ""), str(row.get("title") or "")))
+        return {
+            "verdict": "PUBLISHABLE",
+            "reason": "approved manual version needs Test Run and publish",
+            "action": "test_and_publish",
+            "action_key": f"publish:{item['agent_id']}",
+            "item": item,
+        }
+    # Recovery creates a copied version under the same Agent ID, so it remains
+    # valid even when the five slots for new Agents are full.
+    if recoveries:
+        item = min(recoveries, key=lambda row: (str(row.get("agent_id") or ""), str(row.get("title") or "")))
+        return {
+            "verdict": "PUBLISHABLE",
+            "reason": "offline Agent needs copied replacement version",
+            "action": "recover_delisted",
+            "action_key": f"recover:{item['agent_id']}",
             "item": item,
         }
     # Capafy permits at most five simultaneous draft/under-review submissions.
@@ -259,6 +293,8 @@ def main():
     online_titles = {(a.get("name") or "").strip() for a in agents if a.get("agentStatus") in ONLINE}
     unlisted = [a for a in agents if a.get("agentStatus") in UNLISTED]
     rejected = [a for a in agents if a.get("agentStatus") in REJECTED]
+    recoverable = [a for a in agents if a.get("agentStatus") in RECOVERABLE]
+    ready_to_publish = [a for a in agents if a.get("agentStatus") in READY_TO_PUBLISH]
 
     # In-flight titles = agents already submitted and awaiting review, or a half-saved draft
     # (draft/under_review). An inventory item whose title is already in-flight must NOT count as
@@ -307,7 +343,17 @@ def main():
         {key: item[key] for key in ("feature", "title", "icon", "listing", "skill", "source")}
         for item in publishable
     ]
-    v = allocate_action(normalized, retry_items, fresh_items, resumable_drafts)
+    recovery_items = [
+        {"agent_id": str(agent.get("agentId")), "title": (agent.get("name") or "").strip()}
+        for agent in recoverable
+    ]
+    ready_publish_items = [
+        {"agent_id": str(agent.get("agentId")), "title": (agent.get("name") or "").strip()}
+        for agent in ready_to_publish
+    ]
+    v = allocate_action(
+        normalized, retry_items, fresh_items, resumable_drafts, recovery_items, ready_publish_items
+    )
 
     v.update({
         "online_count": len(online_titles),

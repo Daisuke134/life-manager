@@ -31,12 +31,30 @@ monitoring/deferred work.
 1. **Five simultaneous submissions**: use the reconciled inventory verdict. Draft and under-review
    agents occupy the five slots. A `PUBLISHABLE` `resume_draft` for an exact-title repository
    `draft` may proceed at occupied=5, preserving that exact `agent_id`; completing it does not
-   create a sixth Agent. `under_review` remains wait-only. If occupied is 5, STOP and report
+   create a sixth Agent. A `recover_delisted` action also proceeds at occupied=5 because Capafy's
+   Creator Workspace creates a copied version under the existing Agent ID. `under_review` remains
+   wait-only. If occupied is 5, STOP and report
    "cap full, N listed" for both fresh and retry work when no resumable draft exists. Once a slot
    is free, prefer an in-place REVIEW_REJECTED repair over creating a fresh agent. Never create a
    sixth submission.
-2. **Pick next inventory item** (prefer a REJECTED retry over a fresh publish):
-   a. If reconcile flagged a `REVIEW_REJECTED` inventory item (e.g. O9 youtube) whose skill
+2. **Execute the authoritative inventory action**:
+   a. For `test_and_publish`, open the approved version for the exact `agent_id`, run **Test Run**
+      with its saved test input, and require a completed non-error response. Then use the manual
+      publish control exactly once and require official `publish-list` readback to become `online`.
+      If Test Run returns an LLM/provider error, do not publish: record the sanitized provider code,
+      leave the version ready, and let key-health/self-fix repair it on a later wake. Never infer
+      runtime health from approval alone.
+   b. For `recover_delisted`, open `/developer/agent/<agent_id>` in the owned CloakBrowser tab,
+      click **Create New Version / 新しいバージョンを作成**, and verify the same Agent ID now has
+      a draft whose card, package, and hosted keys were copied. In the fourth card submenu,
+      **Version / バージョン**, select **Manual Publish / このバージョンを手動公開** and provide
+      a factual change note. In **Pricing / 価格設定**, select **No Free Trial / 無料トライアルなし**
+      for every plan, saving after each plan so React state cannot drop a rapid second click.
+      Confirm the preview lists no free-trial days/requests, save, submit for review, and require
+      official `publish-list` readback for that same ID to become `under_review`. Never rebuild or
+      upload the package in this recovery path. Stop after this one bounded submission; a later
+      wake handles `pending_online` by Test Run and manual publish.
+   c. If reconcile flagged a `REVIEW_REJECTED` inventory item (e.g. O9 youtube) whose skill
       dir + icon + LISTING still exist → RE-PUBLISH it. **First check remote-status**
       (`vendor/capafy-publisher/packager.py publish-remote-status --agent-id <ID>` →
       `.latest_version.platform_status`/`.is_confirmed_skills`/`.is_confirmed_config_keys`).
@@ -45,7 +63,7 @@ monitoring/deferred work.
       `publish-init --selections-file` create a new version under the same Agent ID.
       Then complete CP1 if `is_confirmed_skills` is not already true, and continue with
       `publish_finish.sh`. Never point CP3 at the stale rejected package.
-   b. Else the next canonical `skills/capafy/catalog/*/{SKILL.md,LISTING.md,icon.svg}` (legacy
+   d. Else the next canonical `skills/capafy/catalog/*/{SKILL.md,LISTING.md,icon.svg}` (legacy
       `$LIFE_MANAGER_STATE_HOME/features/capafy-*` remains readable during migration) whose title
       is not online, in-flight, or rejected under an existing Agent ID.
    If neither → STOP, report "inventory empty (all items online); bottleneck = need NEW
