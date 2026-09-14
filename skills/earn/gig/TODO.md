@@ -39,8 +39,11 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   Coconala Reply's old PID ended naturally and target-only reconciliation installed `b8de9bf2`
   successfully (`install_event_id=ef95d124026888bceaaf0037`) without touching a sibling. Its first
   natural new-release wake PID `62154` retained no admission ticket. Under the still-high host load its
-  first minute was spent importing Python modules before admission, so bounded deferred-terminal
-  acceptance remains open until that exact PID exits and its new-release terminal receipt is read back.
+  first minute was spent importing Python modules before admission. That exact PID then exited naturally:
+  terminal event `f4a14f9116ee021ab3bfdb59`, run `18d51f8f54840dc8-62154`, records release
+  `b8de9bf2`, status `blocked` and blocker `host_admission_deferred`; launchd is loaded-idle and the
+  fleet ticket count stayed `25`. Reply therefore passes the production contention/defer atom. Its later
+  natural resume, official readback and replay-zero atoms remain open until an agent slot is available.
 
 - **Current cursor: restore Coconala Apply discovery and effect reconciliation.** Ryu `18211957`
   already has the ordinary reply and manual attachment in official readback and remains dormant until a
