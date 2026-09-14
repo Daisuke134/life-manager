@@ -158,6 +158,11 @@ def _resource_class(entry: dict) -> str:
         "agent" if entry["provider_route"] == "shared-agent-runner" else "deterministic")
 
 
+def _admission_class(entry: dict) -> str:
+    """Revenue work owns capacity; every other finite wake borrows idle capacity."""
+    return entry.get("admission_class", "borrow")
+
+
 def _host_admission_deferred(path: Path, started_ns: int) -> str | None:
     try:
         if path.stat().st_mtime_ns < started_ns:
@@ -363,10 +368,12 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         for signum in (signal.SIGTERM, signal.SIGINT):
             previous[signum] = signal.signal(signum, interrupt_wait)
         resource_class = _resource_class(entry)
+        admission_class = _admission_class(entry)
         try:
             durable = durable_protocol_version() == 2
             ticket, admission_reason = (
-                enqueue_durable_resource(resource_class, loop_id)
+                enqueue_durable_resource(
+                    resource_class, loop_id, admission_class=admission_class)
                 if durable else (None, "legacy")
             )
         except (OSError, RuntimeError):
@@ -399,7 +406,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             return 75
         try:
             claim, admission_reason = (
-                claim_durable_resource(resource_class, loop_id)
+                claim_durable_resource(
+                    resource_class, loop_id, admission_class=admission_class)
                 if durable else try_acquire_resource(
                     resource_class, loop_id, retain_ticket=False, required_protocol=1)
             )

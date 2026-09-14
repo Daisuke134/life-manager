@@ -436,6 +436,56 @@ def test_stale_owner_recovery_reserves_sleeping_fifo_head(tmp_path, monkeypatch)
     assert admission.reserve_available(now=100, lease_seconds=30) == ["sleeping-head"]
 
 
+def test_revenue_waiter_gets_released_slot_before_older_borrow_waiter(
+        tmp_path, monkeypatch):
+    """Maintenance may borrow idle capacity but cannot starve funded client work."""
+    isolated(tmp_path, monkeypatch)
+    admission.activate_durable_v2()
+    admission.enqueue_durable("agent", "running-maintenance", admission_class="borrow")
+    running, reason = admission.claim_durable(
+        "agent", "running-maintenance", admission_class="borrow")
+    assert running is not None and reason == "acquired"
+
+    admission.enqueue_durable("agent", "older-maintenance", admission_class="borrow")
+    admission.enqueue_durable("agent", "coconala-paid", admission_class="revenue")
+
+    assert admission.release_and_reserve(
+        running, now=100, lease_seconds=30) == ["coconala-paid"]
+
+
+def test_revenue_priority_applies_across_resource_classes(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_RUNS", "1")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS", "1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable("agent", "older-agent-maintenance")
+    admission.enqueue_durable(
+        "deterministic", "crowdworks-paid", admission_class="revenue")
+
+    assert admission.reserve_available(now=100, lease_seconds=30) == [
+        "crowdworks-paid"
+    ]
+
+
+def test_crashed_revenue_claim_keeps_priority_when_requeued(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.activate_durable_v2()
+    admission.enqueue_durable("agent", "older-maintenance")
+    admission.enqueue_durable(
+        "agent", "coconala-paid", admission_class="revenue")
+    claim, reason = admission.claim_durable(
+        "agent", "coconala-paid", admission_class="revenue")
+    assert claim is not None and reason == "acquired"
+    row = json.loads(claim.read_text())
+    admission.atomic_json(claim, {
+        **row, "pid": 999_999_999, "process_start": "dead",
+    })
+
+    assert admission.reserve_available(now=100, lease_seconds=30) == [
+        "coconala-paid"
+    ]
+
+
 def test_stale_pre_handoff_claim_returns_to_original_fifo_position(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     admission.enqueue_durable("agent", "first")
