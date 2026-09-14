@@ -789,6 +789,11 @@ serializes independent production work.
    its merged local branch was deleted, and one already-missing Mercor worktree registration was pruned;
    availability increased again to `3.2 GiB`. This cleanup removes obsolete development surfaces without
    deleting production evidence or another agent's work.
+   Five additional unregistered, clean temporary Life Manager clones whose exact HEADs are ancestors of
+   `origin/main` were removed (`lm-paid-progress-contract-P61fsO`, `lm-remote-formal-20260913`,
+   `lm-paid-message-contract-n5bV83`, `lm-gig-outcome-policy-Sy6F7t`,
+   `lm-apfs-release-clone-waKbOj`), increasing availability to `3.6 GiB`. Candidates whose HEAD containment
+   could not be proved were retained.
 2. **Shared runtime production convergence:** let pre-fix blocking owners drain naturally; reconcile each
    loaded-idle remainder to `b8de9bf2d2...`; prove admission contention ends quickly with an effect-zero
    terminal receipt, later natural wakes resume durable progress, ticket count does not grow, sibling lanes
