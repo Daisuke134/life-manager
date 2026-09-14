@@ -41,7 +41,7 @@ LEDGER = os.environ.get("CAPAFY_PUBLISHED_LEDGER") or str(
     STATE_HOME / "state/capafy-autopublish/published.jsonl"
 )
 
-ONLINE = {"online", "approved"}          # agentStatus values that mean "live / listed"
+ONLINE = {"online"}                      # only publicly live/listed; approved still needs manual publish
 REJECTED = {"review_rejected", "banned"} # need attention / retry
 DRAFT = {"draft"}                        # created but never submitted → orphan stub, surface it
 

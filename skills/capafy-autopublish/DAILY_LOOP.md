@@ -31,8 +31,8 @@ monitoring/deferred work.
 1. **Five simultaneous submissions**: use the reconciled inventory verdict. Draft and under-review
    agents occupy the five slots. A `PUBLISHABLE` `resume_draft` for an exact-title repository
    `draft` may proceed at occupied=5, preserving that exact `agent_id`; completing it does not
-   create a sixth Agent. A `recover_delisted` action also proceeds at occupied=5 because Capafy's
-   Creator Workspace creates a copied version under the existing Agent ID. `under_review` remains
+   create a sixth Agent. `recover_delisted` and `test_and_publish` also proceed at occupied=5
+   because both operate under the existing Agent ID. `under_review` remains
    wait-only. If occupied is 5, STOP and report
    "cap full, N listed" for both fresh and retry work when no resumable draft exists. Once a slot
    is free, prefer an in-place REVIEW_REJECTED repair over creating a fresh agent. Never create a
@@ -44,6 +44,8 @@ monitoring/deferred work.
       If Test Run returns an LLM/provider error, do not publish: record the sanitized provider code,
       leave the version ready, and let key-health/self-fix repair it on a later wake. Never infer
       runtime health from approval alone.
+      After the official `online` readback, record/report that one effect and STOP; do not continue
+      into Steps 3–7 because this action has no listing/skill/icon inputs.
    b. For `recover_delisted`, open `/developer/agent/<agent_id>` in the owned CloakBrowser tab,
       click **Create New Version / 新しいバージョンを作成**, and verify the same Agent ID now has
       a draft whose card, package, and hosted keys were copied. In the fourth card submenu,
@@ -54,6 +56,7 @@ monitoring/deferred work.
       official `publish-list` readback for that same ID to become `under_review`. Never rebuild or
       upload the package in this recovery path. Stop after this one bounded submission; a later
       wake handles `pending_online` by Test Run and manual publish.
+      After the official `under_review` readback, report and STOP; do not continue into Steps 3–7.
    c. If reconcile flagged a `REVIEW_REJECTED` inventory item (e.g. O9 youtube) whose skill
       dir + icon + LISTING still exist → RE-PUBLISH it. **First check remote-status**
       (`vendor/capafy-publisher/packager.py publish-remote-status --agent-id <ID>` →
@@ -68,7 +71,8 @@ monitoring/deferred work.
       is not online, in-flight, or rejected under an existing Agent ID.
    If neither → STOP, report "inventory empty (all items online); bottleneck = need NEW
    inventory — the interactive Opus session must add a fresh proven-niche listing".
-3. **Lint**: `scripts/lint_listing.py <LISTING.md>` → must PASS. If FAIL → STOP, report the failure.
+3. **For `resume_draft`, `retry_existing`, or `create_fresh` only — Lint**:
+   `scripts/lint_listing.py <LISTING.md>` → must PASS. If FAIL → STOP, report the failure.
 4. **Sanity re-read** (you, Sonnet): open the LISTING + SKILL.md; confirm against BEST_PRACTICES.md
    §6 (no overclaim: no browse/scrape/live/retrieval/posts/sends/guarantee). If anything reads like
    an overclaim the linter missed → STOP, report it. (This is your cheap adversary pass.)
