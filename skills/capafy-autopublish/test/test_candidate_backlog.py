@@ -62,6 +62,16 @@ def test_platform_match_advances_backlog_without_creating_another_candidate(tmp_
     assert second["items"][0]["state"] == "submitted"
 
 
+def test_manual_publish_approval_is_not_misreported_as_listed(tmp_path: Path) -> None:
+    module = load_module()
+    features, icons = candidate_tree(tmp_path)
+
+    backlog = module.refresh_backlog({}, inventory("approved"), features, icons, "2026-08-22T13:00:00Z")
+
+    assert backlog["items"][0]["platform_state"] == "approved"
+    assert backlog["items"][0]["state"] == "submitted"
+
+
 def test_incomplete_candidate_is_not_ready(tmp_path: Path) -> None:
     module = load_module()
     features, icons = candidate_tree(tmp_path)
