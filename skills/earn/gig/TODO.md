@@ -14,6 +14,20 @@ observation, replies, and estimates; do not present it as a separate Negotiate l
 This section is the current execution SSOT and supersedes contradictory historical checkpoints below.
 Historical receipts remain evidence; their old cursors do not reopen completed work.
 
+- **Capafy handoff is complete and is not this program's cursor.** The Capafy owner has received the
+  merged host-admission repair evidence (PR `#5174`, fix commit `1236e5a024`, main merge SHA
+  `e8e8a2b264...`, production release `20260914T102828-e8e8a2b2`) and owns Capafy-specific business
+  effects and receipts. This program must not duplicate or overwrite that work. Its active cursor is
+  Coconala vertical acceptance below.
+- **Current Coconala acceptance observation uses the host-admission release.** Apply, Reply, Paid and
+  Storefront are installed from `e8e8a2b264...`. Their observed admission receipts passed with real
+  memory headroom, and the prior observed PIDs (`20734`, `28566`, `28840`, `30991`) have exited. The
+  aggregate `lm-loop status all` read timed out while the shared runtime-event ledger was contended,
+  so no terminal business result is inferred from PID disappearance. The next action is to read each
+  lane's terminal receipt and official effect receipt independently, then repair only the first
+  measured shared-runtime or Coconala-adapter blocker. Old `memory_admission_deferred` events from an
+  earlier `event_release_sha` are historical and do not prove a regression in the installed release.
+
 - **Reply client isolation is merged and installed.** PR `#5162`, merge SHA `2fe142f696...`,
   runs up to four Coconala client workers concurrently and gives every talkroom its own
   `coconala-reply-<thread>` browser owner, including estimate reads and nested fresh-context
