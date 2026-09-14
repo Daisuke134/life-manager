@@ -51,6 +51,15 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   measured 8.8 MB Reply ledger duplicate check completes in about `0.034s` on the current host. Production acceptance
   remains open until this repair is merged, released,
   installed without interrupting active owners, and followed by natural terminal receipts.
+- **The next measured browser repair is the remainder of acquire admission, not another adapter retry.**
+  Repaired-release Reply failed `failed to open authenticated hidden target: timed out`; Storefront
+  independently recorded `lease_acquire_failed:TimeoutError: Target.createBrowserContext did not answer
+  within 20.0s`. Official CDP `/json/version` and `/json/list` still answered in `0.028s` and `0.003s`,
+  so browser-process liveness is not the missing proof. Source inspection confirms `acquire()` still
+  performs target probe and stale/capacity context disposal while holding the fleet ledger lock, and
+  `acquire()` holds the shared seed-vault locks around the whole provision/reuse path. Those remaining
+  network-I/O critical sections must be reduced to snapshot/fenced-finalize phases before retrying the
+  four lanes; increasing timeouts or restarting the browser would preserve the serialization defect.
 
 - **Reply client isolation is merged and installed.** PR `#5162`, merge SHA `2fe142f696...`,
   runs up to four Coconala client workers concurrently and gives every talkroom its own
