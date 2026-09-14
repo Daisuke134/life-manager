@@ -85,6 +85,20 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   exists yet. Storefront alone still runs the older `833b55b6c966...` release. Therefore source merge and
   immutable release are complete while Storefront idle-only convergence, four natural terminal receipts,
   official effect/readback and replay-zero remain open.
+  The first repaired-release terminals are failures, not acceptance. Apply run
+  `18d5157361bafd38-29959` ended `entrypoint_exit_1`: its exact refresh evidence shows the lease helper
+  timed out at the caller's 160-second boundary, after a process sample found Python still spending
+  about 100 seconds importing under host saturation. It preserved 54 prepared intents as unconfirmed
+  and produced zero marketplace effects. Paid run `18d516570261a640-34557` also ended
+  `entrypoint_exit_1`; its latest business receipt is `failed_step=orders_observation`, `effect=0`,
+  `readback=0`. At the same observation the host measured load averages above 150 and about 26.5 GiB
+  of 27.6 GiB swap in use while `memory_pressure` still reported 31% free, proving that the current
+  percentage-only memory gate admits work during severe runnable/swap saturation. Do not undo the
+  per-owner CDP repair or merely raise browser timeouts. The next shared-runtime acceptance is a
+  bounded resource-class admission/queue that lets already-admitted owners finish, prevents a wake
+  stampede, resumes deferred owners naturally, and never turns host load into permanent fleet-wide
+  starvation. Coordinate this host-level atom with the existing Capafy runtime owner; do not create
+  a Coconala-only scheduler.
 
 - **Reply client isolation is merged and installed.** PR `#5162`, merge SHA `2fe142f696...`,
   runs up to four Coconala client workers concurrently and gives every talkroom its own
