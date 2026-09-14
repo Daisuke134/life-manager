@@ -431,6 +431,114 @@ def _collect_dm_context(args, item: dict[str, Any], root: Path, base: Path) -> N
             raise Failure("dm_context")
 
 
+def _buyer_attachment_recovery_pending(root: Path) -> bool:
+    """Keep every known buyer file inside collector recovery until bytes exist.
+
+    A filename and an official message reference prove that the buyer already sent
+    the file. Missing local bytes are therefore a transport-recovery job, not a
+    missing buyer input that the semantic agent may ask for again.
+    """
+    ledger = root / "source" / "talkroom" / "messages.jsonl"
+    try:
+        rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
+    except FileNotFoundError:
+        rows = []
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return True
+    talkroom_dir = root / "source" / "buyer-attachments"
+    dm_attachment_dir = root / "source" / "dm" / "attachments"
+
+    def verified_by_name(filename: str, directory: Path) -> bool:
+        digests: set[str] = set()
+        suffix = f"-{filename}"
+        if directory.is_symlink():
+            return False
+        try:
+            candidates = list(directory.iterdir())
+        except OSError:
+            return False
+        for raw in candidates:
+            if raw.is_symlink() or not _regular_file(raw) or not raw.name.endswith(suffix):
+                continue
+            prefix = raw.name[:-len(suffix)]
+            if not re.fullmatch(r"[0-9a-f]{12}", prefix):
+                continue
+            try:
+                digest = _file_snapshot(raw)[1]
+            except (OSError, ValueError):
+                continue
+            if digest.startswith(prefix):
+                digests.add(digest)
+        return len(digests) == 1
+
+    talkroom_attachments: list[tuple[str, str]] = []
+    for row in rows:
+        if not isinstance(row, dict) or row.get("side") != "buyer":
+            continue
+        for attachment in row.get("attachments", []) if isinstance(row.get("attachments"), list) else []:
+            if not isinstance(attachment, dict) or not _text(attachment.get("reference")):
+                continue
+            filename = _text(attachment.get("filename"))
+            reference = _text(attachment.get("reference"))
+            if not filename or Path(filename).name != filename:
+                return True
+            talkroom_attachments.append((reference, filename))
+    talkroom_name_counts = {
+        filename: sum(1 for _, candidate in talkroom_attachments if candidate == filename)
+        for _, filename in talkroom_attachments
+    }
+    if any(talkroom_name_counts[filename] != 1 or not verified_by_name(filename, talkroom_dir)
+           for _, filename in talkroom_attachments):
+        return True
+
+    dm_dir = root / "source" / "dm"
+    if dm_dir.is_symlink() or dm_attachment_dir.is_symlink():
+        return True
+    try:
+        dm_attachment_root = dm_attachment_dir.resolve()
+        dm_attachment_root.relative_to(root.resolve())
+    except (OSError, ValueError):
+        return True
+    try:
+        manifests = [path for path in dm_dir.iterdir()
+                     if re.fullmatch(r"thread-[A-Za-z0-9_-]+-full\.json", path.name)]
+    except OSError:
+        manifests = []
+    for manifest in manifests:
+        if manifest.is_symlink() or not _regular_file(manifest):
+            return True
+        try:
+            document = _load(manifest)
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            return True
+        index = document.get("attachment_index") if isinstance(document, dict) else None
+        if not isinstance(index, list):
+            return True
+        for attachment in index:
+            if not isinstance(attachment, dict) or attachment.get("side") not in {"buyer", None, "unknown"}:
+                continue
+            if not _text(attachment.get("url")):
+                continue
+            filename, digest = _text(attachment.get("filename")), _text(attachment.get("sha256"))
+            raw = Path(_text(attachment.get("path")))
+            if (attachment.get("error") or not filename or Path(filename).name != filename
+                    or not re.fullmatch(r"[0-9a-f]{64}", digest)
+                    or raw.is_symlink() or not _regular_file(raw)):
+                return True
+            try:
+                resolved = raw.resolve()
+                resolved.relative_to(dm_attachment_root)
+            except (OSError, ValueError):
+                return True
+            try:
+                actual_digest = _file_snapshot(resolved)[1]
+            except (OSError, ValueError):
+                return True
+            if resolved.name != f"{digest[:12]}-{filename}" or actual_digest != digest:
+                return True
+    return False
+
+
 def _run_paid_preflight(args, command: list[str]) -> str:
     lock_path = args.cdp_lock_dir.parent / ".paid-preflight-browser.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
@@ -5339,6 +5447,18 @@ def _prepare_one(args, item_path: Path, output: Path) -> int:
         if _text(preflight_row.get("buyer_feedback_sha256")) != feedback: raise Failure("remote_resume")
         diagnostic_stage = "dm_context"
         _collect_dm_context(args, {**item, **preflight_row}, root, base)
+        if _buyer_attachment_recovery_pending(root):
+            _write(output, {
+                "status": "pending",
+                "talkroom_id": room,
+                "effect": 0,
+                "readback": 1,
+                "failed": 0,
+                "failed_step": None,
+                "blocker": "buyer_attachment_recovery_pending",
+                "_paid_prepare_status": "pending",
+            })
+            return 0
         diagnostic_stage = "external_wait_resume"
         try:
             if _remote_wait_before_decision(root, item):

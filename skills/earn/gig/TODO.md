@@ -14,6 +14,19 @@ observation, replies, and estimates; do not present it as a separate Negotiate l
 This section is the current execution SSOT and supersedes contradictory historical checkpoints below.
 Historical receipts remain evidence; their old cursors do not reopen completed work.
 
+- **Current cursor: recover buyer-supplied context before any new buyer question.** Ryu `18211957`
+  already has the ordinary reply and manual attachment in official readback and remains dormant until a
+  genuinely new buyer event; formal delivery is still off. Kokoro `18223833` proves a shared Paid defect:
+  the official talkroom ledger records 15 buyer attachments, but their current requirement rows have no
+  local source path or hash and the seller incorrectly asked the buyer to upload them again. Paid must
+  classify every official buyer attachment without verified local bytes as
+  `buyer_attachment_recovery_pending`, retry the provider collector, and never expose that transport gap
+  to semantic ask-buyer. This contract applies to every Paid client and provider adapter. After source
+  merge/release/natural receipt, finish Coconala one-off Apply source recovery, then enable the separate
+  parallel retainer Apply owner; the existing code-level A3 retainer refusal contradicts the later
+  eligible-retainer product decision and remains open until removed and proved by official application
+  readback.
+
 - **Capafy handoff is complete and is not this program's cursor.** The Capafy owner has received the
   merged host-admission repair evidence (PR `#5174`, fix commit `1236e5a024`, main merge SHA
   `e8e8a2b264...`, production release `20260914T102828-e8e8a2b2`) and owns Capafy-specific business
