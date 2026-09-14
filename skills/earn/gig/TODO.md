@@ -61,6 +61,10 @@ docs/
 - Legacy root cause is proved: blocking waiters retained one process and ticket per wake; a waiter could hold
   the global control lock while an unbounded `/bin/ps ... lstart=` identity probe stalled every resource
   class. The new release bounds that probe to two seconds and fails conservatively as live.
+- Current read-only process sampling confirms the remaining legacy drain, rather than a new-release
+  regression: Paid PID `6856` and Apply PID `42143` spend every sampled stack in blocking `flock` on the
+  shared `control.lock`; 19 legacy processes currently have that lock file open. New-release Reply and
+  Storefront wakes continue to terminate without retaining another waiter.
 - Coconala Reply is installed on `b8de9bf2`. Two natural wakes independently ended exit `75`,
   `host_admission_deferred`, loaded-idle, with no retained new-release ticket. Contention safety passes;
   later natural resume and official business readback remain open.
@@ -114,7 +118,8 @@ independent production effects.
 - [x] Recover safe disk headroom and remove proved-obsolete artifacts.
 - [x] Deploy nonblocking admission release to idle fleet.
 - [x] Prove repeated safe contention deferral on Coconala Reply.
-- [ ] Let legacy Paid and Apply owners finish naturally. Storefront finished naturally.
+- [ ] Let the legacy global-lock queue drain naturally; Paid PID `6856` and Apply PID `42143` are confirmed
+  blocking `flock` waiters. Storefront finished naturally.
 - [ ] Reconcile each newly idle owner to `b8de9bf2` without restarting siblings. Storefront is reconciled;
   Paid and Apply remain.
 - [ ] Prove each lane defers under contention without a retained ticket or external effect.
