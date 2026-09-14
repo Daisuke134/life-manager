@@ -4,6 +4,37 @@ This file contains only current truth and remaining work. Completed incident det
 history through commit `e2b30b8e10`; it must not be copied back into the active TODO. Evidence lives in
 durable runtime ledgers and receipts, not in duplicated historical checklists.
 
+## Account 1 restart cursor
+
+This is the only restart cursor for the next Codex session. Re-check every value against Git and official
+runtime/provider readback before acting; conversation claims are not completion evidence.
+
+- Repository: `/Users/anicca/Projects/life-manager-main`, remote `Daisuke134/life-manager`.
+- Runtime implementation worktree: `/private/tmp/lm-runtime-admission-reservations-20260914`, branch
+  `fix/runtime-admission-reservations-20260914`, upstream of the same name. Pushed HEAD is `9e275ed0a9`.
+  The worktree is dirty in `runtime/host/resource_admission.py`,
+  `runtime/host/tests/test_resource_admission.py`, and `runtime/loop/lm_loop_run.py`. These uncommitted
+  changes replace the v2 JSON admission store with stdlib SQLite and cancel durable waiters for retired or
+  missing owners. Do not discard, overwrite, or blindly switch this worktree.
+- Pushed Phase 2 commits are `479435f804` (durable reservations), `3181bbd03c` (durable waiter dispatch),
+  and `9e275ed0a9` (contract tests). The earlier JSON version passed 40 focused tests, 55 host tests, 428 loop
+  tests, and 15 registry tests, but its 500-enqueue benchmark took 35.93 seconds. The uncommitted SQLite
+  replacement reduced that benchmark to 1.69 seconds and passed the 40 focused tests before the latest
+  `cancel_durable` addition. Tests after that latest addition, full review, commit, PR, merge, release, and
+  production proof are all still open.
+- Spec worktree: `/private/tmp/lm-coconala-retained-attachments`, branch
+  `docs/coconala-current-cursor-20260914`. This file is the current remaining-work SSOT. Its eventual canonical
+  name/location must be derived from repository conventions and references, then migrated once without
+  creating a second live TODO.
+- Ryu and Coconala are not complete. No current official readback proves that the newest Ryu buyer event is
+  covered by a later seller submission. Never report completion from a historical message or local state.
+- Account migration is open: identify the account 1 Codex auth/provider profile through the credential SSOT,
+  prove one bounded invocation, then roll only the intended Life Manager Codex routes forward. Preserve all
+  Codex/cloud sessions and unrelated providers.
+- First safe action: fetch, inspect HEAD/upstream/status/diff in both worktrees, preserve the runtime dirty
+  changes, run the focused tests and 500-waiter benchmark after `cancel_durable`, and continue the current
+  runtime item below. Do not start with Coconala browser effects while shared admission cannot make progress.
+
 ## Outcome
 
 Life Manager autonomously earns attributable revenue across Coconala, Lancers, CrowdWorks, Mercor,
@@ -186,7 +217,9 @@ do that.
 - Latest durable Reply snapshot observed 179 talkrooms: 164 have official replay-zero/closed/no-reply
   readback, while 15 remain nonterminal (`pending=5`, `failed=10`). The ten failures are predominantly
   historical CDP context-creation timeouts; a fresh admitted Reply wake must reconcile them independently.
-  Ryu's already verified reply is not resent.
+  A historical Ryu seller effect exists, but a newer buyer event is reported and is not covered by a later
+  officially verified seller effect. Reconcile the newest digest before deciding whether to send; never resend
+  a confirmed effect and never suppress a genuinely newer request.
 - Coconala is not revenue-complete until Apply, Reply, Paid, Storefront and payout attribution all have fresh
   official effect/readback and replay-zero receipts.
 
@@ -195,7 +228,7 @@ do that.
 Platform/client owners remain concurrent. This list selects the engineering cursor; it does not serialize
 independent production effects.
 
-### 1. Shared runtime production convergence — current cursor
+### 1. Shared runtime production convergence and account 1 cutover — current cursor
 
 - [x] Recover safe disk headroom and remove proved-obsolete artifacts.
 - [x] Deploy nonblocking admission release to idle fleet.
@@ -220,16 +253,20 @@ independent production effects.
   business receipt plus official readback.
 - [ ] Prove queue drains to zero, fleet-wide starvation does not recur, and no duplicate external effect occurs.
 - [ ] Keep producing terminal receipts for at least 24 hours without human restart or babysitting.
-- [ ] Wait only for mixed-release compatibility convergence; verify all scheduled admission writers understand
-  the future ticket schema before enabling durable reservations.
-- [ ] Add the minimal transactional reservation state machine to the shared admission store with monotonic FIFO
-  sequence, total/class capacity accounting and lease expiry recovery.
-- [ ] Add the dispatcher transition that reserves capacity under lock, validates the current registry label,
-  then performs target-only `launchctl-safe` kickstart outside the lock without `-k`.
-- [ ] Preserve original sequence when a claimed wake defers after admission; never delete or overwrite an
-  unknown-version owner ticket.
-- [ ] Prove with focused regressions that a sleeping queue head does not idle capacity, a crashed dispatcher is
-  reclaimed, one resource class cannot starve another, and an uncertain external effect is never replayed.
+- [x] Verify mixed-release compatibility and land the first durable reservation/dispatcher contract as pushed
+  commits `479435f804`, `3181bbd03c`, and `9e275ed0a9` on the dedicated Phase 2 branch.
+- [ ] Finish the minimal SQLite replacement already present in the dirty Phase 2 worktree. Run focused tests
+  after the latest `cancel_durable` change and retain the bounded 500-waiter benchmark as scalability evidence.
+- [ ] Inspect the entire Phase 2 diff, run the host/loop/registry suites, obtain one fresh read-only review of
+  the exact commit, then commit and push without losing the dirty work.
+- [ ] Open the Phase 2 PR, merge only after its acceptance evidence passes, build one immutable main-derived
+  release, and reconcile only loaded-idle targets without restarting siblings.
+- [ ] Prove with natural production wakes that a sleeping queue head does not idle capacity, a crashed
+  dispatcher is reclaimed, retired/missing owners cannot block the queue, one resource class cannot starve
+  another, and an uncertain external effect is never replayed.
+- [ ] Switch only the intended Life Manager Codex provider routes from account 2 to account 1 after resolving
+  their current owner and credential profile. Prove one bounded account 1 invocation and receipt before the
+  targeted rollout; do not delete or overwrite either account's sessions.
 
 ### 2. Coconala vertical revenue proof
 
@@ -267,41 +304,38 @@ independent production effects.
 - [ ] Keep Storefront published where supported and measure official demand.
 - [ ] Attribute accepted payout and bank receipt to its originating application and contract.
 
-### 3. Existing CrowdWorks funded liabilities
-
-- [ ] Close the three active contracts through independent per-client workers.
-- [ ] Prove exact delivery readback, payout attribution and replay-zero for each.
-
-### 4. Lancers vertical proof
+### 3. Lancers vertical proof
 
 - [x] Phone verification.
 - [ ] Restore durable browser availability and persistent authentication.
 - [ ] Prove Apply -> Reply -> contract -> Paid -> payout; Storefront only if officially supported.
 
-### 5. CrowdWorks platform proof
+### 4. CrowdWorks vertical proof
 
+- [ ] Close the three existing active contracts first through independent per-client workers.
+- [ ] Prove exact delivery readback, payout attribution and replay-zero for each existing contract.
 - [ ] Keep Apply and Reply healthy, finish Paid and payout, and mark Storefront `not_applicable` unless an
   official listing surface is observed.
 
-### 6. Mercor vertical proof
+### 5. Mercor vertical proof
 
 - [ ] Stop repeated login by retaining and observing authenticated state.
 - [ ] Prove Apply -> Reply -> interview handoff -> contract -> Paid -> payout.
 - [ ] Storefront is `not_applicable`.
 
-### 7. Freelancer.com and Upwork
+### 6. Freelancer.com and Upwork
 
 - [ ] Recover official account/policy state and prove Apply -> Reply -> Paid -> payout on each.
 - [ ] Implement Storefront only where an official provider surface supports it.
 
-### 8. New-platform meta loop
+### 7. New-platform meta loop
 
 - [ ] Search Web/X daily, qualify policy/automation/expected net value and select profitable platforms.
 - [ ] Generate thin adapters against the shared conformance contract.
 - [ ] Canary, verify official effect/readback/replay-zero and promote only passing adapters.
 - [ ] Feed failures to self-heal and successful patterns to shared skills/evals.
 
-### 9. Recursive self-healing and self-improvement
+### 8. Recursive self-healing and self-improvement
 
 - [ ] Detect missed replies/deliveries, auth expiry, browser faults, resource starvation and revenue regressions
   from events, metrics and receipts.
@@ -309,7 +343,7 @@ independent production effects.
   promote or roll back, and preserve a terminal repair receipt without Dais or Codex babysitting.
 - [ ] Rank improvements by verified revenue impact and safely improve existing loops as well as build new ones.
 
-### 10. Phone-only hosted Life Manager
+### 9. Phone-only hosted Life Manager
 
 - [ ] Run the same kernel in tenant-isolated cloud browser/computer sessions.
 - [ ] Use Telegram as the only required initial UI; local computers are unnecessary.
@@ -317,12 +351,22 @@ independent production effects.
   identity, authorization, revocation and audit inside the service boundary.
 - [ ] Start subscription billing and prove tenant isolation, reliability and unit economics.
 
-### 11. Revenue and YC gate
+### 10. Revenue and YC gate
 
 - [ ] Count only attributable accepted contracts, payouts and bank receipts.
 - [ ] Reach verified USD 10K MRR by cloning profitable end-to-end lifecycles and selling the hosted product.
 - [ ] Publish accurate traction, retention, margin and automation metrics in README and the product site.
 - [ ] Apply to YC Winter 2027 as a solo founder with measured evidence, not projections.
+
+### 11. Documentation and obsolete-artifact convergence
+
+- [ ] Derive the canonical program-spec name and location from current repository conventions and inbound
+  references; migrate this SSOT once and replace every old live pointer with one reference to it.
+- [ ] Delete only proved-obsolete duplicate specs, completed temporary artifacts, unused clean clones and
+  regenerable caches after exact reference/owner checks. Preserve Codex/cloud sessions, credentials, browser
+  profiles, durable memory/state/ledgers/receipts, active evidence, and other owners' worktrees.
+- [ ] Prove the surviving tree has one execution SSOT, no broken references, a clean owning branch, and remote
+  recovery evidence before removing any local handover path.
 
 ## Completion gate
 
