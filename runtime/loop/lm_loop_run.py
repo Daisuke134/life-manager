@@ -12,14 +12,17 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from typing import Callable
 
 from runtime.loop.loop_cleanup import cleanup_run_root
 from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path
 from runtime.loop.macos_loop_registry import validate_registry
 from runtime.loop.runtime_event import append_runtime_event, build_runtime_event, build_runtime_start_event
+from runtime.host.memory_admission import memory_free_percent
+from runtime.host.resource_admission import acquire as acquire_resource, release as release_resource
 
 
-HOST_ADMISSION = Path(__file__).resolve().parents[1] / "host/memory_admission.py"
+EXEC_GATE = Path(__file__).resolve().parents[1] / "host/exec_gate.py"
 
 
 def prepare_loop_run(registry: dict, loop_id: str, release_root: Path, *,
@@ -79,13 +82,12 @@ def _runtime_limit(entry: dict) -> int | None:
     return entry.get("runtime_timeout_seconds", 3600)
 
 
-def _host_admitted_command(command: list[str], entry: dict) -> list[str]:
-    if _runtime_limit(entry) is None:
-        return command
-    return [sys.executable, str(HOST_ADMISSION), *command]
+def _resource_class(entry: dict) -> str:
+    return entry.get("resource_class") or (
+        "agent" if entry["provider_route"] == "shared-agent-runner" else "deterministic")
 
 
-def _memory_admission_deferred(path: Path, started_ns: int) -> bool:
+def _host_admission_deferred(path: Path, started_ns: int) -> bool:
     try:
         if path.stat().st_mtime_ns < started_ns:
             return False
@@ -95,31 +97,62 @@ def _memory_admission_deferred(path: Path, started_ns: int) -> bool:
     return value.get("status") == "deferred" and value.get("effect") == 0
 
 
-def _terminal_outcome(return_code: int, *, memory_deferred: bool = False
+def _terminal_outcome(return_code: int, *, host_deferred: bool = False
                       ) -> tuple[bool, bool, str | None]:
     if return_code == 0:
         return True, False, None
-    if return_code == 75 and memory_deferred:
-        return False, True, "memory_admission_deferred"
+    if host_deferred and return_code in {75, 124, 137, 143}:
+        return False, True, "host_admission_deferred"
     return False, False, f"entrypoint_exit_{return_code}"
 
 
 def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                     timeout_seconds: float | None = None,
-                    termination_grace_seconds: float = 15) -> int:
-    process = subprocess.Popen(command, start_new_session=True, env=env)
+                    termination_grace_seconds: float = 15,
+                    cancelled: Callable[[], bool] = lambda: False) -> int:
+    watched = (signal.SIGTERM, signal.SIGINT)
     previous = {}
+    process = None
+    pending = []
+    stopping = False
 
     def forward(signum, _frame):
-        if process.poll() is None:
+        nonlocal stopping
+        stopping = True
+        if process is None:
+            pending.append(signum)
+        elif process.poll() is None:
             try:
                 os.killpg(process.pid, signum)
             except ProcessLookupError:
                 pass
 
-    for signum in (signal.SIGTERM, signal.SIGINT):
+    for signum in watched:
         previous[signum] = signal.signal(signum, forward)
+    if cancelled() or pending:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
+        return 75
+    read_fd, write_fd = os.pipe()
     try:
+        process = subprocess.Popen(
+            [sys.executable, str(EXEC_GATE), str(read_fd), *command],
+            start_new_session=True, env=env, pass_fds=(read_fd,))
+        os.close(read_fd)
+        if cancelled() or pending or stopping:
+            os.close(write_fd)
+            for signum in pending:
+                forward(signum, None)
+            process.wait()
+            return 75
+        try:
+            os.write(write_fd, b"G")
+        except BrokenPipeError:
+            if stopping:
+                process.wait()
+                return 75
+            raise
+        os.close(write_fd)
         try:
             return_code = process.wait(timeout=timeout_seconds)
         except subprocess.TimeoutExpired:
@@ -135,9 +168,88 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                 process.wait()
             return 124
     finally:
+        for descriptor in (read_fd, write_fd):
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
         for signum, handler in previous.items():
             signal.signal(signum, handler)
     return return_code if return_code >= 0 else 128 - return_code
+
+
+def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, str],
+                  receipt: Path) -> int:
+    limit = _runtime_limit(entry)
+    if limit is None:
+        _atomic_json(receipt, {"status": "pass", "effect": 0,
+                              "reason": "continuous_owner_exempt"})
+        return _run_entrypoint(command, env=env, timeout_seconds=None)
+    try:
+        minimum_free = int(os.environ.get("LIFE_MANAGER_MIN_MEMORY_FREE_PERCENT", "15"))
+    except ValueError:
+        return 64
+    if not 1 <= minimum_free <= 100:
+        return 64
+    claim = None
+    interrupted = False
+    previous = {}
+
+    def interrupt_wait(_signum, _frame):
+        nonlocal interrupted
+        interrupted = True
+
+    try:
+        for signum in (signal.SIGTERM, signal.SIGINT):
+            previous[signum] = signal.signal(signum, interrupt_wait)
+        available = memory_free_percent()
+        if interrupted:
+            _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                  "reason": "resource_admission_interrupted"})
+            return 75
+        if available is None or available < minimum_free:
+            _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                         "reason": "memory_headroom_unavailable" if available is None
+                         else "memory_headroom_low"})
+            return 75
+        try:
+            claim = acquire_resource(_resource_class(entry), loop_id, lambda: interrupted)
+        except InterruptedError:
+            _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                  "reason": "resource_admission_interrupted"})
+            return 75
+        except (OSError, RuntimeError):
+            _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                  "reason": "resource_admission_unavailable"})
+            return 75
+        available = memory_free_percent()
+        if interrupted:
+            _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                  "reason": "resource_admission_interrupted"})
+            return 75
+        if available is None or available < minimum_free:
+            _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                         "reason": "memory_headroom_unavailable" if available is None
+                         else "memory_headroom_low"})
+            return 75
+        _atomic_json(receipt, {"status": "pass", "effect": 0,
+                              "reason": "resource_slot_acquired",
+                              "resource_class": _resource_class(entry)})
+        return_code = _run_entrypoint(
+            command, env=env, timeout_seconds=limit, cancelled=lambda: interrupted)
+        if return_code == 75 and interrupted:
+            _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                  "reason": "resource_admission_interrupted"})
+        return return_code
+    finally:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
+        if claim is not None:
+            try:
+                release_resource(claim)
+            except (OSError, RuntimeError) as error:
+                print(f"lm-loop-run: resource release deferred to stale recovery: {error}",
+                      file=sys.stderr)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -180,27 +292,20 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"lm-loop-run: start event failed: {error}", file=sys.stderr)
             scratch = reset_loop_scratch(loop_state_root, loop_id)
         try:
-            memory_receipt = scratch / "memory-admission.json"
+            host_receipt = scratch / "host-admission.json"
             started_ns = time.time_ns()
-            return_code = _run_entrypoint(
-                _host_admitted_command(command, entry),
-                env={
-                    **os.environ,
-                    "LIFE_MANAGER_RELEASE_ROOT": str(release_root),
-                    "TMPDIR": f"{scratch}/",
-                    "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
-                    "LIFE_MANAGER_MEMORY_RECEIPT": str(memory_receipt),
-                },
-                timeout_seconds=_runtime_limit(entry),
-            )
-            memory_deferred = _memory_admission_deferred(memory_receipt, started_ns)
+            return_code = _run_admitted(command, entry, loop_id, {
+                **os.environ, "LIFE_MANAGER_RELEASE_ROOT": str(release_root),
+                "TMPDIR": f"{scratch}/", "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
+            }, host_receipt)
+            host_deferred = _host_admission_deferred(host_receipt, started_ns)
         finally:
             # Scratch is never evidence. Every loop owns and removes its temporary
             # downloads, package caches, and build products when its pass ends.
             shutil.rmtree(scratch, ignore_errors=True)
         try:
             succeeded, deferred, blocker = _terminal_outcome(
-                return_code, memory_deferred=memory_deferred)
+                return_code, host_deferred=host_deferred)
             event = build_runtime_event(
                 loop_id=loop_id, domain=entry["domain"], run_id=run_id,
                 release_sha=manifest["sha"], provider=entry["provider_route"],
