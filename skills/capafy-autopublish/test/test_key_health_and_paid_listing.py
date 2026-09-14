@@ -23,7 +23,8 @@ CANONICAL_PAID_ONLY_FILES = (
 
 
 class KeyHealthGateTest(unittest.TestCase):
-    def run_gate(self, key_response, enable_alert=False, credits_remaining=9):
+    def run_gate(self, key_response, enable_alert=False, credits_remaining=9,
+                 management_key="", healed_key_response=None, hard_cap="50"):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             fake_bin = root / "bin"
@@ -34,7 +35,17 @@ class KeyHealthGateTest(unittest.TestCase):
                 """#!/bin/sh
 printf '%s\\n' "$*" >> "$FAKE_CURL_CALLS"
 case "$*" in
-  *https://openrouter.ai/api/v1/key*) printf '%s\\n' "$FAKE_KEY_RESPONSE" ;;
+  *-X\\ PATCH*https://openrouter.ai/api/v1/keys/*)
+    : > "$FAKE_PATCH_MARKER"
+    printf '%s\\n' '{"data":{"limit":15,"limit_reset":"daily"}}'
+    ;;
+  *https://openrouter.ai/api/v1/key*)
+    if [ -f "$FAKE_PATCH_MARKER" ]; then
+      printf '%s\\n' "$FAKE_HEALED_KEY_RESPONSE"
+    else
+      printf '%s\\n' "$FAKE_KEY_RESPONSE"
+    fi
+    ;;
   *https://openrouter.ai/api/v1/credits*) printf '%s\\n' "$FAKE_CREDITS_RESPONSE" ;;
   *https://openrouter.ai/api/v1/chat/completions*) printf '%s\\n' '{"choices":[{"message":{"content":"ok"}}]}' ;;
   *) exit 1 ;;
@@ -45,31 +56,38 @@ esac
             fake_curl.chmod(fake_curl.stat().st_mode | stat.S_IXUSR)
             alert_calls = root / "openclaw-calls.txt"
             if enable_alert:
-                fake_openclaw = fake_bin / "openclaw"
-                fake_openclaw.write_text(
+                fake_sender = fake_bin / "send-telegram.sh"
+                fake_sender.write_text(
                     """#!/bin/sh
 printf '%s\\n' "$*" >> "$FAKE_OPENCLAW_CALLS"
 exit 0
 """,
                     encoding="utf-8",
                 )
-                fake_openclaw.chmod(fake_openclaw.stat().st_mode | stat.S_IXUSR)
+                fake_sender.chmod(fake_sender.stat().st_mode | stat.S_IXUSR)
             env = os.environ.copy()
             env.update(
                 {
                     "PATH": f"{fake_bin}:{env['PATH']}",
                     "CAPAFY_HOST_OPENROUTER_KEY": "key-must-not-print",
                     "FAKE_KEY_RESPONSE": json.dumps(key_response),
+                    "FAKE_HEALED_KEY_RESPONSE": json.dumps(
+                        healed_key_response or key_response
+                    ),
+                    "FAKE_PATCH_MARKER": str(root / "patched"),
                     "FAKE_CREDITS_RESPONSE": json.dumps(
                         {"data": {"total_credits": credits_remaining, "total_usage": 0}}
                     ),
                     "FAKE_CURL_CALLS": str(calls),
                     "FAKE_OPENCLAW_CALLS": str(alert_calls),
                     "LIFE_MANAGER_STATE_HOME": str(root / "state"),
+                    "CAPAFY_OPENROUTER_MANAGEMENT_KEY": management_key,
+                    "CAPAFY_KEY_DAILY_HARD_CAP_USD": hard_cap,
                 }
             )
             if enable_alert:
                 env["TELEGRAM_ALERT_CHAT_ID"] = "test-chat"
+                env["CAPAFY_TELEGRAM_SENDER"] = str(fake_sender)
             else:
                 env.pop("TELEGRAM_ALERT_CHAT_ID", None)
             result = subprocess.run(
@@ -110,8 +128,54 @@ exit 0
         )
         output = result.stdout + result.stderr
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("key_limit_below_request_headroom", output)
+        self.assertIn("key_limit_self_heal_failed", output)
         self.assertNotIn("https://openrouter.ai/api/v1/chat/completions", call_text)
+
+    def test_low_key_headroom_self_heals_then_runs_live_probe(self):
+        result, call_text, _, _ = self.run_gate(
+            {"data": {"limit": 10, "limit_remaining": 1.50,
+                      "usage_daily": 8.50, "limit_reset": "daily"}},
+            credits_remaining=20,
+            management_key="management-key-must-not-print",
+            healed_key_response={"data": {"limit": 15, "limit_remaining": 6.50,
+                                          "usage_daily": 8.50,
+                                          "limit_reset": "daily"}},
+        )
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 0, output)
+        self.assertIn("KEY_SELF_HEAL=OK", output)
+        self.assertIn("-X PATCH", call_text)
+        self.assertIn("https://openrouter.ai/api/v1/chat/completions", call_text)
+        self.assertNotIn("management-key-must-not-print", output)
+
+    def test_exhausted_key_self_heals_then_runs_live_probe(self):
+        result, call_text, _, _ = self.run_gate(
+            {"data": {"limit": 10, "limit_remaining": 0,
+                      "usage_daily": 10, "limit_reset": "daily"}},
+            credits_remaining=20,
+            management_key="management-key-must-not-print",
+            healed_key_response={"data": {"limit": 20, "limit_remaining": 10,
+                                          "usage_daily": 10,
+                                          "limit_reset": "daily"}},
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("KEY_SELF_HEAL=OK", result.stdout)
+        self.assertIn("-X PATCH", call_text)
+        self.assertIn("https://openrouter.ai/api/v1/chat/completions", call_text)
+
+    def test_self_heal_fails_closed_at_configured_hard_cap(self):
+        result, call_text, _, _ = self.run_gate(
+            {"data": {"limit": 50, "limit_remaining": 1.50,
+                      "usage_daily": 48.50, "limit_reset": "daily"}},
+            credits_remaining=100,
+            management_key="management-key-must-not-print",
+            hard_cap="100",
+        )
+        output = result.stdout + result.stderr
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("key_limit_self_heal_cap_reached", output)
+        self.assertNotIn("-X PATCH", call_text)
+        self.assertNotIn("management-key-must-not-print", output)
 
     def test_balance_below_default_safety_floor_blocks(self):
         result, _, _, _ = self.run_gate(
@@ -129,7 +193,7 @@ exit 0
         self.assertIn("key_limit_exhausted", output)
         self.assertNotIn("key-must-not-print", output)
         self.assertEqual(len(alert_text.splitlines()), 1)
-        self.assertIn("telegram", alert_text)
+        self.assertIn("test-chat", alert_text)
         self.assertNotIn("key-must-not-print", alert_text)
         self.assertEqual(marker_count, 1)
 
