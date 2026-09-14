@@ -79,7 +79,7 @@ docs/
 - Coconala Storefront is installed on `b8de9bf2`. Two natural new-release wakes independently ended exit `75`,
   `host_admission_deferred`, loaded-idle, with no retained legacy ticket or owner. Contention safety passes;
   later natural resume and official listing readback remain open.
-- The legacy queue is draining rather than growing: read-only polls measured `19`, `18`, then `11`
+- The legacy queue is draining rather than growing: read-only polls measured `19`, `18`, `11`, then `10`
   retained tickets. Current memory admission itself passes at
   `free_percent=31` against `minimum_free_percent=15`; the remaining backlog is legacy process/ticket drain,
   not evidence of current physical-memory rejection. Coconala Storefront PID `60168` ended naturally and
@@ -128,8 +128,8 @@ independent production effects.
 - [x] Prove repeated safe contention deferral on Coconala Reply.
 - [ ] Let the legacy global-lock queue drain naturally. Paid and Storefront finished; Apply PID `42143`
   remains a confirmed blocking `flock` waiter.
-- [ ] Reconcile each newly idle owner to current `3e7b7771` without restarting siblings. Paid is current;
-  Apply remains. Reply and Storefront safely stay on `b8de9bf2` until their current runs finish.
+- [ ] Reconcile each newly idle owner to current `3e7b7771` without restarting siblings. Paid and Reply are
+  current; Apply remains. Storefront safely stays on `b8de9bf2` until its current run finishes.
 - [ ] Prove each lane defers under contention without a retained ticket or external effect.
   Reply, Storefront and Paid pass; Apply remains.
 - [ ] Prove pressure recovery: a later natural wake acquires, resumes durable progress and writes terminal
