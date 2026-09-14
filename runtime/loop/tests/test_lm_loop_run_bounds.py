@@ -347,7 +347,7 @@ def test_dispatch_reserved_kicks_only_current_loaded_idle_label(tmp_path):
     }
     (current / "config/loop-registry.json").write_text(json.dumps({
         "schema_version": 2, "loops": {"example": row}}))
-    plist = {"ProgramArguments": [sys.executable, "-m", "runtime.loop.lm_loop_run",
+    plist = {"ProgramArguments": [str(current.resolve() / "bin/lm-loop-run"),
                                    "example", str(current.resolve())]}
     (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps(plist))
     outputs = [
@@ -420,7 +420,7 @@ def test_dispatch_reserved_rejects_stale_loaded_release_prefix(tmp_path):
     (current / "config/loop-registry.json").write_text(json.dumps({
         "schema_version": 2, "loops": {"example": row},
     }))
-    expected = [sys.executable, "-m", "runtime.loop.lm_loop_run",
+    expected = [str(current.resolve() / "bin/lm-loop-run"),
                 "example", str(current.resolve())]
     (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
         "ProgramArguments": expected,
@@ -438,6 +438,108 @@ def test_dispatch_reserved_rejects_stale_loaded_release_prefix(tmp_path):
 
     cancel.assert_called_once_with("example")
     assert run.call_count == 1
+
+
+def test_dispatch_reserved_keeps_running_owner_reservation(tmp_path):
+    current = tmp_path / "release"
+    agents = tmp_path / "agents"
+    (current / "config").mkdir(parents=True)
+    agents.mkdir()
+    row = {
+        "label": "ai.anicca.example", "domain": "earn", "entrypoint": "bin/example",
+        "cadence": {"start_interval_seconds": 300}, "effect_class": "message",
+        "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic",
+    }
+    (current / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": row},
+    }))
+    expected = [str(current.resolve() / "bin/lm-loop-run"),
+                "example", str(current.resolve())]
+    (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
+        "ProgramArguments": expected,
+    }))
+    observed = subprocess.CompletedProcess(
+        [], 0, "arguments = {\n" + "\n".join(expected) + "\n}\nstate = running",
+    )
+
+    with (patch("runtime.loop.lm_loop_run.cancel_durable_resource") as cancel,
+          patch("runtime.loop.lm_loop_run.subprocess.run", return_value=observed) as run):
+        assert _dispatch_reserved(
+            ["example"], current=current, agents_dir=agents,
+        ) == []
+
+    cancel.assert_not_called()
+    assert run.call_count == 1
+
+
+def test_dispatch_reserved_rejects_loaded_output_without_explicit_idle_state(tmp_path):
+    current = tmp_path / "release"
+    agents = tmp_path / "agents"
+    (current / "config").mkdir(parents=True)
+    agents.mkdir()
+    row = {
+        "label": "ai.anicca.example", "domain": "earn", "entrypoint": "bin/example",
+        "cadence": {"start_interval_seconds": 300}, "effect_class": "message",
+        "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic",
+    }
+    (current / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": row},
+    }))
+    expected = [str(current.resolve() / "bin/lm-loop-run"),
+                "example", str(current.resolve())]
+    (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
+        "ProgramArguments": expected,
+    }))
+    observed = subprocess.CompletedProcess(
+        [], 0, "arguments = {\n" + "\n".join(expected) + "\n}\nruns = 1",
+    )
+
+    with (patch("runtime.loop.lm_loop_run.cancel_durable_resource") as cancel,
+          patch("runtime.loop.lm_loop_run.subprocess.run", return_value=observed) as run):
+        assert _dispatch_reserved(
+            ["example"], current=current, agents_dir=agents,
+        ) == []
+
+    cancel.assert_called_once_with("example")
+    assert run.call_count == 1
+
+
+def test_dispatch_reserved_rejects_noncanonical_installed_argv(tmp_path):
+    current = tmp_path / "release"
+    agents = tmp_path / "agents"
+    (current / "config").mkdir(parents=True)
+    agents.mkdir()
+    row = {
+        "label": "ai.anicca.example", "domain": "earn", "entrypoint": "bin/example",
+        "cadence": {"start_interval_seconds": 300}, "effect_class": "message",
+        "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic",
+    }
+    (current / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": row},
+    }))
+    prefixed = [sys.executable, "-m", "runtime.loop.lm_loop_run",
+                "example", str(current.resolve())]
+    (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
+        "ProgramArguments": prefixed,
+    }))
+
+    with (patch("runtime.loop.lm_loop_run.cancel_durable_resource") as cancel,
+          patch("runtime.loop.lm_loop_run.subprocess.run") as run):
+        assert _dispatch_reserved(
+            ["example"], current=current, agents_dir=agents,
+        ) == []
+
+    cancel.assert_called_once_with("example")
+    run.assert_not_called()
 
 
 def test_dispatch_reserved_cancels_owner_with_missing_plist(tmp_path):

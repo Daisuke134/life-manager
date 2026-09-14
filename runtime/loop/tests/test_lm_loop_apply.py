@@ -9,6 +9,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -2315,7 +2316,8 @@ class LmLoopApplyTest(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, "does not support durable admission v2"):
             lm_loop.activate_current(
-                current, release_b, self.root / "apply.lock", protocol_version=2,
+                current, release_b, self.root / "apply.lock",
+                protocol_reader=lambda: 2,
             )
 
         self.assertEqual(current.resolve(), release_a)
@@ -2326,8 +2328,34 @@ class LmLoopApplyTest(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "does not support durable admission v2"):
             apply_live(
                 release, self.root / "LaunchAgents", self.root / "launchctl-safe",
-                protocol_version=2,
+                protocol_reader=lambda: 2,
             )
+
+    def test_protocol_transition_excludes_activation_while_apply_is_open(self):
+        current = self.root / "current"
+        attempted = self.root / "exclusive-attempted"
+        marker = self.root / "exclusive-acquired"
+        runner = (
+            "from pathlib import Path; "
+            "from runtime.loop.lm_loop import _protocol_transition_lock; "
+            f"current=Path({str(current)!r}); attempted=Path({str(attempted)!r}); "
+            f"marker=Path({str(marker)!r}); attempted.write_text('yes'); "
+            "\nwith _protocol_transition_lock(current, exclusive=True): marker.write_text('yes')"
+        )
+
+        with lm_loop._protocol_transition_lock(current, exclusive=False):
+            process = subprocess.Popen(
+                [sys.executable, "-c", runner], cwd=str(Path(__file__).parents[3]),
+                env={**os.environ, "PYTHONPATH": "."},
+            )
+            deadline = time.monotonic() + 5
+            while not attempted.exists() and time.monotonic() < deadline:
+                time.sleep(.01)
+            self.assertTrue(attempted.exists())
+            self.assertFalse(marker.exists())
+
+        self.assertEqual(process.wait(timeout=5), 0)
+        self.assertEqual(marker.read_text(), "yes")
 
 
 if __name__ == "__main__":

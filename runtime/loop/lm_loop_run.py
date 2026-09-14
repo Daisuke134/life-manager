@@ -298,8 +298,8 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
         except (OSError, ValueError, plistlib.InvalidFileException):
             cancel(loop_id)
             continue
-        if (not isinstance(arguments, list) or len(arguments) < 2
-                or arguments[-2:] != [loop_id, str(root)]):
+        expected = [str(root / "bin/lm-loop-run"), loop_id, str(root)]
+        if arguments != expected:
             cancel(loop_id)
             continue
         service = f"gui/{os.getuid()}/{label}"
@@ -307,8 +307,13 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
             observed = subprocess.run(
                 [str(safe), "print", service], capture_output=True, text=True,
                 check=False, timeout=10)
-            if (observed.returncode != 0 or _loaded_arguments(observed.stdout) != arguments
-                    or re.search(r"\bstate\s*=\s*running\b", observed.stdout)):
+            if observed.returncode != 0 or _loaded_arguments(observed.stdout) != expected:
+                cancel(loop_id)
+                continue
+            if (re.search(r"\bstate\s*=\s*running\b", observed.stdout)
+                    or re.search(r"\bpid\s*=\s*[1-9][0-9]*\b", observed.stdout)):
+                continue
+            if not re.search(r"\bstate\s*=\s*(?:not running|waiting)\b", observed.stdout):
                 cancel(loop_id)
                 continue
             kicked = subprocess.run(
