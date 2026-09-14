@@ -14,18 +14,33 @@ observation, replies, and estimates; do not present it as a separate Negotiate l
 This section is the current execution SSOT and supersedes contradictory historical checkpoints below.
 Historical receipts remain evidence; their old cursors do not reopen completed work.
 
-- **Current cursor: recover buyer-supplied context before any new buyer question.** Ryu `18211957`
+- **Current cursor: restore Coconala Apply discovery and effect reconciliation.** Ryu `18211957`
   already has the ordinary reply and manual attachment in official readback and remains dormant until a
-  genuinely new buyer event; formal delivery is still off. Kokoro `18223833` proves a shared Paid defect:
-  the official talkroom ledger records 15 buyer attachments, but their current requirement rows have no
-  local source path or hash and the seller incorrectly asked the buyer to upload them again. Paid must
-  classify every official buyer attachment without verified local bytes as
-  `buyer_attachment_recovery_pending`, retry the provider collector, and never expose that transport gap
-  to semantic ask-buyer. This contract applies to every Paid client and provider adapter. After source
-  merge/release/natural receipt, finish Coconala one-off Apply source recovery, then enable the separate
-  parallel retainer Apply owner; the existing code-level A3 retainer refusal contradicts the later
-  eligible-retainer product decision and remains open until removed and proved by official application
-  readback.
+  genuinely new buyer event; formal delivery is still off and duplicate seller replies are forbidden.
+  Kokoro `18223833` exposed a shared Paid defect: official attachment references survived, but their bytes
+  did not. PR `#5183`, merge SHA `d74258a8ce...`, and immutable release
+  `20260914T153359-d74258a8` now fail closed as `buyer_attachment_recovery_pending` before semantic
+  ask-buyer whenever any officially referenced buyer attachment lacks verified local bytes. The contract
+  scans the append-only talkroom ledger plus every pre-purchase DM manifest and verifies source root,
+  filename hash prefix and content digest; focused Paid/Coconala acceptance passes `229/229`. Production
+  acceptance remains open until the old in-flight Paid owner exits naturally, the installed release
+  converges, Kokoro retains effect zero without another upload request, and the collector stores all 15
+  verified files before work resumes.
+
+- **Apply one-off and continuous/retainer are implemented but neither is currently accepted in
+  production.** PR `#5173`, merge SHA `03fd32af01...`, enabled `retainer:new`, retainer proposal terms,
+  the shared effect fence and exact applied-tab readback. They remain two source buckets inside the same
+  Apply lifecycle rather than two unrelated business implementations. The installed Apply release
+  `6a9f3aa485...` is currently running; its latest completed natural wake ended
+  `entrypoint_exit_1` after refresh returned source exit `1`, with observed/actionable/effect/readback
+  `0/0/0/0`. The same receipt retained 54 `prepared_unconfirmed` intents whose irreversible attempt began
+  but whose official outcome is unresolved. Therefore the next atomic work is: (1) let the current owner
+  terminate naturally; (2) identify the exact refresh child failure rather than infer it from the wrapper;
+  (3) reconcile every uncertain intent through official applied-state readback before any retry; (4) prove
+  both `single:new` and `retainer:new` discovery; and (5) prove at least one eligible application in each
+  bucket with exact official readback and a following replay-zero receipt. Split lifecycle labels only if
+  measured head-of-line blocking remains after the shared source/effect repair; do not duplicate proposal,
+  fit, fence, Calendar, Telegram or receipt code.
 
 - **Capafy handoff is complete and is not this program's cursor.** The Capafy owner has received the
   merged host-admission repair evidence (PR `#5174`, fix commit `1236e5a024`, main merge SHA
