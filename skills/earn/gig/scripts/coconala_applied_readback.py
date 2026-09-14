@@ -105,45 +105,6 @@ def _parse_offer_fields(text: object) -> dict[str, object]:
     return result
 
 
-def match_retainer_ids_by_title(
-    cards: list[object],
-    expected_titles: dict[str, str],
-) -> tuple[set[str], list[dict[str, str]]]:
-    """Bind a hidden listing ULID only when its applied-card title is unique."""
-    indexed: dict[str, list[dict[str, str]]] = {}
-    for raw in cards:
-        if not isinstance(raw, dict):
-            continue
-        title = _normalized_title(raw.get("title"))
-        talkroom_url = str(raw.get("talkroom_url") or "")
-        if not title or not talkroom_url:
-            continue
-        indexed.setdefault(title, []).append({
-            "title": title,
-            "talkroom_url": talkroom_url,
-        })
-    matched: set[str] = set()
-    observations: list[dict[str, str]] = []
-    for request_id, raw_title in expected_titles.items():
-        title = _normalized_title(raw_title)
-        candidates = indexed.get(title, [])
-        if (
-            not _valid_identity(request_id)
-            or request_id.isdigit()
-            or len(candidates) != 1
-        ):
-            continue
-        matched.add(request_id)
-        observations.append({
-            "request_id": request_id,
-            "bucket": "retainer",
-            "offer_url": candidates[0]["talkroom_url"],
-            "title": title,
-            "identity_binding": "exact_title_unique",
-        })
-    return matched, observations
-
-
 def extract_request_id(detail: dict[str, Any]) -> str | None:
     """Recover the request identity exposed by Coconala's offer-edit page."""
     hidden = str(detail.get("hidden_request_id") or "").strip()
@@ -510,11 +471,6 @@ async def capture_readback(
             retainer_ids = set(
                 extract_retainer_ids(retainer_page.get("hrefs") or [])
             )
-            title_ids, title_observations = match_retainer_ids_by_title(
-                retainer_page.get("cards") or [],
-                expected_retainer_titles or {},
-            )
-            retainer_ids.update(title_ids)
             observed_ids.update(retainer_ids)
             observed_urls.append(RETAINER_APPLIED_URL)
             observations.extend(
@@ -528,9 +484,7 @@ async def capture_readback(
                     "title": "",
                 }
                 for request_id in sorted(retainer_ids)
-                if request_id not in title_ids
             )
-            observations.extend(title_observations)
     screenshot_path.parent.mkdir(parents=True, exist_ok=True)
     screenshot_path.write_bytes(base64.b64decode(encoded))
     return {

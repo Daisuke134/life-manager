@@ -955,45 +955,6 @@ async def submit_application(
         )
 
 
-async def submit_retainer_application(
-    ws_url: str,
-    outsource_ulid: str,
-    screenshot_path: Path,
-    evidence_path: Path,
-    *,
-    listing_title: str | None = None,
-    wait_seconds: float = 2.5,
-    opportunity_brief: str | None = None,
-) -> dict[str, object]:
-    """Perform the measured confirmation/checkbox/final-button sequence once."""
-    request_id = str(outsource_ulid).strip()
-    if RETAINER_ULID_PATTERN.fullmatch(request_id) is None:
-        raise ValueError("outsource_ulid_invalid")
-    with _target_operation_lock(ws_url):
-        async with websockets.connect(ws_url, ping_interval=None, open_timeout=10, max_size=40 * 1024 * 1024) as ws:
-            cid = 1
-            await _call(ws, "Page.enable", {}, cid); cid += 1
-            state = await _call(ws, "Runtime.evaluate", {"expression": """JSON.stringify((()=>{const pick=t=>[...document.querySelectorAll('button,[role="button"]')].filter(b=>b.offsetParent!==null&&(b.innerText||'').trim()===t);const b=pick('確認画面に進む');if(b.length!==1)return {ok:false,error:'confirm_button_missing'};const r=b[0].getBoundingClientRect();return {ok:true,x:r.left+r.width/2,y:r.top+r.height/2};})())""", "returnByValue": True}, cid); cid += 1
-            initial = json.loads(state.get("result", {}).get("result", {}).get("value", "{}"))
-            if initial.get("ok") is not True:
-                raise RuntimeError("retainer_application_confirm_button_missing")
-            cid = await _mouse_click(ws, float(initial["x"]), float(initial["y"]), cid)
-            await asyncio.sleep(wait_seconds)
-            state = await _call(ws, "Runtime.evaluate", {"expression": """JSON.stringify((()=>{const body=document.body?.innerText||'';const checks=[...document.querySelectorAll('input[type="checkbox"]')].filter(x=>x.offsetParent!==null);const buttons=[...document.querySelectorAll('button,[role="button"]')].filter(b=>b.offsetParent!==null&&(b.innerText||'').trim()==='応募する');if(!body.includes('まだ投稿は完了していません')||checks.length!==1||buttons.length!==1||!buttons[0].disabled)return {ok:false,error:'confirmation_state_invalid'};checks[0].click();if(buttons[0].disabled)return {ok:false,error:'checkbox_not_enabled'};const r=buttons[0].getBoundingClientRect();return {ok:true,x:r.left+r.width/2,y:r.top+r.height/2};})())""", "returnByValue": True}, cid); cid += 1
-            final = json.loads(state.get("result", {}).get("result", {}).get("value", "{}"))
-            if final.get("ok") is not True:
-                raise RuntimeError("retainer_application_confirmation_invalid")
-            cid = await _mouse_click(ws, float(final["x"]), float(final["y"]), cid)
-            shot = await _call(ws, "Page.captureScreenshot", {"format": "png"}, cid)
-            encoded = shot.get("result", {}).get("data")
-            if not encoded:
-                raise RuntimeError("retainer_application_submit_screenshot_missing")
-    evidence = {"request_id": request_id, "submitted_click_dispatched": True, "listing_title": listing_title or None}
-    _atomic_write(screenshot_path, base64.b64decode(encoded))
-    _atomic_write(evidence_path, (json.dumps(evidence, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8"))
-    return evidence
-
-
 def _open_application_main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--ws", required=True)
@@ -1055,32 +1016,6 @@ def _open_retainer_application_main(argv: list[str]) -> int:
             args.request_id,
             args.screenshot,
             args.evidence,
-        ))
-    except Exception as error:
-        print(json.dumps({
-            "ok": False,
-            "error": f"{type(error).__name__}:{error}",
-        }, ensure_ascii=False, separators=(",", ":")), file=sys.stderr)
-        return 1
-    print(json.dumps({"ok": True, **result}, ensure_ascii=False, separators=(",", ":")))
-    return 0
-
-
-def _submit_retainer_application_main(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--ws", required=True)
-    parser.add_argument("--request-id", required=True)
-    parser.add_argument("--screenshot", required=True, type=Path)
-    parser.add_argument("--evidence", required=True, type=Path)
-    parser.add_argument("--listing-title")
-    args = parser.parse_args(argv)
-    try:
-        result = asyncio.run(submit_retainer_application(
-            args.ws,
-            args.request_id,
-            args.screenshot,
-            args.evidence,
-            listing_title=args.listing_title,
         ))
     except Exception as error:
         print(json.dumps({

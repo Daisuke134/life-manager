@@ -27,6 +27,7 @@ gate = load("b2_result_gate")
 fence = load("application_effect_fence")
 readback = load("coconala_applied_readback")
 direct = load("application_direct")
+nav = load("cdp_nav_snapshot")
 
 
 def _snapshot() -> dict[str, object]:
@@ -90,6 +91,20 @@ def test_retainer_commit_uses_the_existing_effect_fence_and_exact_readback(tmp_p
     assert effects.exact_id_readback_ids == [ULID]
     assert results[0]["application"]["bucket"] == "retainer"
     assert results[0]["application"]["weekly_days"] == "WEEK_THREE"
+
+
+def test_retainer_submit_has_no_effect_fence_bypass() -> None:
+    assert not hasattr(nav, "submit_retainer_application")
+    assert not hasattr(nav, "_submit_retainer_application_main")
+
+
+def test_retainer_confirmation_requires_exact_canonical_ulid() -> None:
+    same_title_without_exact_link = [
+        "https://coconala.com/job_matching/outsources",
+        "https://coconala.com/job_matching/outsources/not-an-id",
+    ]
+    assert readback.extract_retainer_ids(same_title_without_exact_link) == []
+    assert not hasattr(readback, "match_retainer_ids_by_title")
 
 
 def test_retainer_is_evaluated_by_the_same_capability_gate_not_bucket_refused() -> None:

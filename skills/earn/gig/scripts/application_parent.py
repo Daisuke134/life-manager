@@ -38,7 +38,6 @@ from coconala_applied_readback import (
     RETAINER_APPLIED_URL,
     _wait_for_retainer_page,
     extract_retainer_ids,
-    match_retainer_ids_by_title,
 )
 from listing_inventory import _cdp_connect
 from market_snapshot import MARKET_FIELDS, parse_market
@@ -2049,8 +2048,6 @@ class CdpParentEffects:
             ):
                 raise ParentContractError("retainer_official_readback_route_invalid")
             retainer_observed = set(extract_retainer_ids(retainer_page.get("hrefs") or []))
-            title_ids, _ = match_retainer_ids_by_title(retainer_page.get("cards") or [], titles)
-            retainer_observed.update(title_ids)
             observed.update(retainer_observed)
             urls.append(RETAINER_APPLIED_URL)
         sort_key = lambda value: (0, int(value)) if value.isdigit() else (1, value)
