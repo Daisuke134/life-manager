@@ -2,6 +2,7 @@ import json
 import os
 import signal
 import plistlib
+import sqlite3
 import subprocess
 import sys
 import time
@@ -535,10 +536,20 @@ def test_wrapper_sigkill_keeps_effect_child_claim_live(tmp_path, monkeypatch):
         )
         assert admission.process_start(child_pid)
 
-        _, reason = admission.enqueue_durable("agent", "example")
-        assert reason == "capacity_busy"
+        queued, reason = admission.enqueue_durable("agent", "example")
+        assert queued is None and reason == "owner_busy"
+        with sqlite3.connect(admission_root / "admission-v2.sqlite3") as connection:
+            assert connection.execute("SELECT COUNT(*) FROM queue").fetchone()[0] == 0
         duplicate, reason = admission.claim_durable("agent", "example")
-        assert duplicate is None and reason == "owner_busy"
+        assert duplicate is None and reason == "ticket_missing"
+        os.killpg(child_pid, signal.SIGTERM)
+        deadline = time.monotonic() + 5
+        while admission.process_start(child_pid) and time.monotonic() < deadline:
+            time.sleep(.01)
+        assert not admission.process_start(child_pid)
+        assert admission.reserve_available() == []
+        with sqlite3.connect(admission_root / "admission-v2.sqlite3") as connection:
+            assert connection.execute("SELECT COUNT(*) FROM queue").fetchone()[0] == 0
     finally:
         if wrapper.poll() is None:
             wrapper.kill()

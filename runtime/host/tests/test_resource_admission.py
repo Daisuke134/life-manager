@@ -417,6 +417,26 @@ def test_stale_pre_handoff_claim_returns_to_original_fifo_position(tmp_path, mon
     ]
 
 
+def test_same_owner_resume_recovers_pre_handoff_sequence_before_new_insert(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable("agent", "first")
+    claim, reason = admission.claim_durable("agent", "first")
+    assert claim is not None and reason == "acquired"
+    admission.enqueue_durable("agent", "second")
+    row = json.loads(claim.read_text())
+    admission.atomic_json(claim, {
+        **row, "pid": 999_999_999, "process_start": "dead", "phase": "claimed",
+    })
+
+    ticket, reason = admission.enqueue_durable("agent", "first")
+
+    assert ticket is not None and reason == "ready"
+    assert durable_rows(tmp_path, "queue") == [
+        {"sequence": 1, "owner_id": "first", "resource_class": "agent"},
+        {"sequence": 2, "owner_id": "second", "resource_class": "agent"},
+    ]
+
+
 def test_transfer_claim_tracks_child_while_controller_can_release(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     admission.enqueue_durable("agent", "first")

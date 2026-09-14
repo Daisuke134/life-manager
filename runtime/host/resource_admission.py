@@ -332,15 +332,20 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
         except BlockingIOError:
             return None, "control_busy"
         with _database(database) as connection:
+            available, _ = _durable_capacity(
+                connection, owners, resource_class, time.time() if now is None else now,
+                starts, snapshot_started_ns)
+            if any(item.get("owner_id") == owner_id for item in (
+                    _row(path) or {} for path in owners.glob("*.json"))):
+                connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
+                connection.execute("DELETE FROM queue WHERE owner_id=?", (owner_id,))
+                return None, "owner_busy"
             connection.execute("INSERT OR IGNORE INTO queue(owner_id,resource_class) VALUES(?,?)",
                                (owner_id, resource_class))
             row = connection.execute(
                 "SELECT sequence,resource_class FROM queue WHERE owner_id=?", (owner_id,)).fetchone()
             if row is None or row[1] != resource_class:
                 raise RuntimeError("durable owner resource class changed")
-            available, _ = _durable_capacity(
-                connection, owners, resource_class, time.time() if now is None else now,
-                starts, snapshot_started_ns)
             head = connection.execute(
                 "SELECT owner_id FROM queue WHERE resource_class=? ORDER BY sequence LIMIT 1",
                 (resource_class,)).fetchone()
