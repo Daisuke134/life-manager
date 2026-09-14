@@ -9686,7 +9686,10 @@ Manledge/Clover work is not part of this ledger.
   checkpoint was load average `114.80 / 101.15 / 94.07`; the owner returned to `loaded-idle` with no
   residual PID. This proves the new release and shared admission gate, but does not close the required
   admitted/authenticated canary. Do not weaken the threshold, kill Codex/cloud sessions or restart a
-  browser to manufacture this proof; accept the next natural capacity-admitted wake.
+  browser to manufacture this proof; accept the next natural capacity-admitted wake. A second natural
+  run `18d50aa51383a3a0-93019` also terminated cleanly at `2026-09-14T01:09:07Z` with exit `75`, the
+  same blocker and no provider effect while load remained `88.29 / 91.31 / 91.65`. This confirms
+  scheduler continuity and bounded retry, not admission success.
 - [ ] `COC-06` Prove the initial Apply allocation keeps 19 one-off slots plus one continuous acceptance
   slot without shard over-allocation. This is a rollout split, not a permanent continuous-application cap.
 - [ ] `COC-07` Submit the first eligible continuous application through the existing Apply lane and retain
