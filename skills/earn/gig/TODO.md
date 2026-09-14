@@ -779,10 +779,12 @@ The shared foundation improves horizontally while revenue proof closes verticall
 owners and client owners still run concurrently; this numbering chooses the engineering cursor and never
 serializes independent production work.
 
-1. **Immediate host headroom recovery:** the latest filesystem readback has only `1.1 GiB` available.
-   Reclaim only measured, regenerable caches and expired run artifacts; never delete Codex/cloud sessions,
-   credentials, `~/.cloak`, memory, durable ledgers, receipts or active-run evidence. Prove the reclaimed
-   paths are outside every protected/active owner before deletion, then record before/after bytes.
+1. [x] **Immediate host headroom recovery:** filesystem availability recovered from `1.1 GiB` to
+   `3.1 GiB`. Five clean, unused and unregistered external-research clones under `/private/tmp`
+   (`generative_agents`, `browser-pool-code.9yu66b`, `lm-concurrency-hatchet`,
+   `lm-oss-audit.BTVr7U`, `letta-code`) had no open process or uncommitted change and were removed;
+   they are recoverable by cloning their upstreams again. Codex/cloud sessions, credentials, `~/.cloak`,
+   memory, durable ledgers, receipts, active-run evidence and registered/locked worktrees were untouched.
 2. **Shared runtime production convergence:** let pre-fix blocking owners drain naturally; reconcile each
    loaded-idle remainder to `b8de9bf2d2...`; prove admission contention ends quickly with an effect-zero
    terminal receipt, later natural wakes resume durable progress, ticket count does not grow, sibling lanes
