@@ -1,5 +1,7 @@
+import json
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -17,6 +19,32 @@ DEPENDENCY_ROOTS = (
 
 
 class CutLoopReleaseTest(unittest.TestCase):
+    def test_release_builds_immutable_bytecode_for_its_runtime_python(self):
+        with tempfile.TemporaryDirectory() as directory:
+            loops = Path(directory) / "loops"
+            result = subprocess.run(
+                ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
+                cwd=ROOT,
+                env={
+                    **os.environ,
+                    "LOOPS_ROOT": str(loops),
+                    "LOOPS_RELEASE_PATHS": "runtime",
+                    "LOOPS_ACTIVATE_CURRENT": "0",
+                    "LIFE_MANAGER_DISK_PRESSURE_FILE": str(Path(directory) / "no-pressure"),
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            release = next((loops / "releases").iterdir())
+            tag = sys.implementation.cache_tag
+            self.assertTrue(list(release.glob(f"runtime/**/__pycache__/*.{tag}.pyc")))
+            self.assertFalse(release.stat().st_mode & 0o200)
+            manifest = json.loads((release / "RELEASE.json").read_text())
+            self.assertEqual(manifest["runtime_python"], str(Path(sys.executable).resolve()))
+            self.assertEqual(manifest["runtime_python_cache_tag"], tag)
+
     def test_connector_sparse_release_includes_shared_browser_runtime(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

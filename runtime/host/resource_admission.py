@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import fcntl
 import hashlib
 import json
@@ -9,15 +10,61 @@ import os
 import pwd
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
 from typing import Callable
 
 
+class _ProcBsdInfo(ctypes.Structure):
+    """Darwin's fixed PROC_PIDTBSDINFO record (sys/proc_info.h)."""
+
+    _fields_ = [
+        ("identity", ctypes.c_uint32 * 12),
+        ("command", ctypes.c_char * 16),
+        ("name", ctypes.c_char * 32),
+        ("nfiles", ctypes.c_uint32),
+        ("pgid", ctypes.c_uint32),
+        ("pjobc", ctypes.c_uint32),
+        ("terminal_device", ctypes.c_uint32),
+        ("terminal_process_group", ctypes.c_uint32),
+        ("nice", ctypes.c_int32),
+        ("started_seconds", ctypes.c_uint64),
+        ("started_microseconds", ctypes.c_uint64),
+    ]
+
+
+def _darwin_process_start(pid: int) -> str | None:
+    try:
+        libproc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
+        proc_pidinfo = libproc.proc_pidinfo
+        proc_pidinfo.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_uint64,
+                                 ctypes.c_void_p, ctypes.c_int]
+        proc_pidinfo.restype = ctypes.c_int
+        value = _ProcBsdInfo()
+        size = ctypes.sizeof(value)
+        read = proc_pidinfo(pid, 3, 0, ctypes.byref(value), size)
+    except (AttributeError, OSError):
+        return None
+    if read != size or value.identity[3] != pid or value.started_seconds <= 0:
+        return None
+    started = time.localtime(value.started_seconds)
+    weekdays = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
+    months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    return (f"{weekdays[started.tm_wday]} {months[started.tm_mon - 1]} "
+            f"{started.tm_mday:2d} {started.tm_hour:02d}:{started.tm_min:02d}:"
+            f"{started.tm_sec:02d} {started.tm_year:04d}")
+
+
 def process_start(pid: int) -> str | None:
     ps = shutil.which("ps")
-    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0 or not ps:
+    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
+        return None
+    if sys.platform == "darwin":
+        return _darwin_process_start(pid)
+    if not ps:
         return None
     try:
         result = subprocess.run(
@@ -93,12 +140,17 @@ def _pid_exists(pid: int) -> bool:
     return True
 
 
-def _live(path: Path, starts: dict[int, str] | None = None,
-          snapshot_started_ns: int | None = None) -> bool:
+def _live(path: Path, starts: dict[int, str | None] | None = None,
+          snapshot_started_ns: int | None = None, *, probe_missing: bool = False) -> bool:
     value = _row(path)
     if not value or not isinstance(value.get("pid"), int):
         return False
-    actual = process_start(value["pid"]) if starts is None else starts.get(value["pid"])
+    if starts is None:
+        actual = process_start(value["pid"])
+    else:
+        if probe_missing and value["pid"] not in starts:
+            starts[value["pid"]] = process_start(value["pid"])
+        actual = starts.get(value["pid"])
     if actual is not None:
         if actual == value.get("process_start"):
             return True
@@ -142,10 +194,7 @@ def try_acquire(resource_class: str, owner_id: str, *,
             fcntl.flock(descriptor, fcntl.LOCK_UN)
 
         snapshot_started_ns = time.time_ns()
-        starts = process_starts()
-        started = starts.get(os.getpid()) if starts is not None else None
-        if not started:
-            started = process_start(os.getpid())
+        started = process_start(os.getpid())
         if not started:
             raise RuntimeError("process identity unavailable")
         try:
@@ -155,10 +204,10 @@ def try_acquire(resource_class: str, owner_id: str, *,
             )
         except BlockingIOError:
             return None, "control_busy"
-        live_starts = starts if starts is not None else {}
+        live_starts: dict[int, str | None] = {os.getpid(): started}
         owner_rows = []
         for path in owners.glob("*.json"):
-            if not _live(path, live_starts, snapshot_started_ns):
+            if not _live(path, live_starts, snapshot_started_ns, probe_missing=True):
                 path.unlink(missing_ok=True); continue
             owner_rows.append(_row(path) or {})
         if any(row.get("owner_id") == owner_id for row in owner_rows):
@@ -177,7 +226,7 @@ def try_acquire(resource_class: str, owner_id: str, *,
             ) >= class_limit:
                 return None, "capacity_busy"
             for candidate in sorted(tickets.glob(f"{resource_class}-*.json")):
-                if _live(candidate, live_starts, snapshot_started_ns):
+                if _live(candidate, live_starts, snapshot_started_ns, probe_missing=True):
                     return None, "fifo_wait"
                 candidate.unlink(missing_ok=True)
             claim = owners / f"{digest}-{os.getpid()}.json"
@@ -205,7 +254,7 @@ def try_acquire(resource_class: str, owner_id: str, *,
 
         head = None
         for candidate in sorted(tickets.glob(f"{resource_class}-*.json")):
-            if _live(candidate, live_starts, snapshot_started_ns):
+            if _live(candidate, live_starts, snapshot_started_ns, probe_missing=True):
                 head = candidate
                 break
             candidate.unlink(missing_ok=True)

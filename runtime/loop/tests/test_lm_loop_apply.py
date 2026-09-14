@@ -7,6 +7,7 @@ import shutil
 import shlex
 import stat
 import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -159,6 +160,10 @@ class LmLoopApplyTest(unittest.TestCase):
         value = plistlib.loads(first[0]["plist_bytes"])
         self.assertEqual(value["ProgramArguments"], [
             str(self.root.resolve() / "bin/lm-loop-run"), "example", str(self.root.resolve())])
+        self.assertEqual(
+            value["EnvironmentVariables"]["LIFE_MANAGER_RUNTIME_PYTHON"],
+            str(Path(sys.executable).resolve()),
+        )
         self.assertEqual(value["StartInterval"], 60)
         self.assertNotIn("Umask", value)
         self.assertEqual(value["EnvironmentVariables"]["LIFE_MANAGER_RELEASE_SHA"], SHA)

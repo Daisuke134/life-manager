@@ -7,6 +7,7 @@ import os
 import plistlib
 import re
 import shutil
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -29,7 +30,8 @@ def _is_immutable_release_working_directory(value: object) -> bool:
     return isinstance(value, str) and bool(_IMMUTABLE_RELEASE_WORKING_DIRECTORY.search(value))
 
 
-def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str) -> bytes:
+def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
+           runtime_python: Path | None = None) -> bytes:
     executable = str(release_root / entry["entrypoint"])
     loop_runner = str(release_root / "bin/lm-loop-run")
     state_root = os.path.expanduser(entry["state_root"])
@@ -51,6 +53,9 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str) -> b
             "LIFE_MANAGER_RELEASE_SHA": release_sha,
             "LIFE_MANAGER_STATE_ROOT": state_root,
             "LIFE_MANAGER_LOG_ROOT": log_root,
+            "LIFE_MANAGER_RUNTIME_PYTHON": str(
+                runtime_python or Path(sys.executable).resolve()
+            ),
         },
         "StandardOutPath": str(Path(log_root) / "launchd.out.log"),
         "StandardErrorPath": str(Path(log_root) / "launchd.err.log"),
@@ -230,6 +235,14 @@ def build_apply_plan(registry: dict, release_root: Path, release_sha: str) -> li
         raise ValueError("release manifest missing or invalid") from exc
     if manifest.get("sha") != release_sha:
         raise ValueError("release manifest SHA mismatch")
+    runtime_python_value = manifest.get("runtime_python")
+    runtime_python = (
+        Path(runtime_python_value)
+        if isinstance(runtime_python_value, str) and Path(runtime_python_value).is_absolute()
+        else Path(sys.executable).resolve()
+    )
+    if not runtime_python.is_file() or not os.access(runtime_python, os.X_OK):
+        raise ValueError("release runtime python missing or not executable")
     loop_runner = release_root / "bin/lm-loop-run"
     if not loop_runner.is_file() or not os.access(loop_runner, os.X_OK):
         raise ValueError("release loop runner missing or not executable")
@@ -251,7 +264,9 @@ def build_apply_plan(registry: dict, release_root: Path, release_sha: str) -> li
         plan.append({
             "loop_id": loop_id,
             "label": entry["label"],
-            "plist_bytes": _plist(loop_id, entry, release_root, release_sha),
+            "plist_bytes": _plist(
+                loop_id, entry, release_root, release_sha, runtime_python
+            ),
             "expected_arguments": [str(loop_runner), loop_id, str(release_root)],
             "release_sha": release_sha,
         })
