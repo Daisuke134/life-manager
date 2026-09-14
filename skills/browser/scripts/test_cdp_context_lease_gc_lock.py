@@ -17,6 +17,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import contextlib
+import threading
 import time
 from pathlib import Path
 
@@ -50,15 +51,61 @@ def test_gc_does_not_clobber_a_concurrent_heartbeat_write(monkeypatch, tmp_path)
     async def dispose_then_race(pairs, timeout=None):
         # gc holds the lock only for the read and the per-row finalize; dispose (this
         # call) happens outside it. A concurrent heartbeat lands right here.
-        module.heartbeat("gig-task", token="a" * 32, generation=1)
+        heartbeat = module.heartbeat("gig-task", token="a" * 32, generation=1)
+        assert heartbeat == {"ok": False, "reason": "context_cleanup_pending"}
         return [{}]
 
     monkeypatch.setattr(module, "_calls", dispose_then_race)
     result = module.gc(idle_min=45)
 
-    assert "gig-task" not in result["reaped"]
-    saved = json.loads(leases_file.read_text(encoding="utf-8"))
-    assert saved["gig-task"]["context_id"] == "c1"
+    assert "gig-task" in result["reaped"]
+    assert "gig-task" not in module._leases()
+
+
+def test_gc_claim_prevents_acquire_from_returning_context_being_disposed(monkeypatch, tmp_path):
+    module = load_module()
+    leases_file = tmp_path / "leases.json"
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases_file))
+    _write_leases(leases_file, {"gig-task": {
+        "context_id": "old-context", "target_id": "old-target",
+        "ws": "ws://old-target", "ts": 0, "pid": 99999999,
+        "token": "a" * 32, "generation": 1,
+    }})
+    dispose_started = threading.Event()
+    allow_dispose = threading.Event()
+
+    async def dispose_then_create(pairs, timeout=None):
+        method = pairs[0][0]
+        if method == "Target.disposeBrowserContext":
+            dispose_started.set()
+            assert allow_dispose.wait(2)
+            return [{}]
+        if method == "Target.createBrowserContext":
+            return [{"browserContextId": "new-context"}]
+        if method == "Target.createTarget":
+            return [{"targetId": "new-target"}]
+        return [{} for _pair in pairs]
+
+    monkeypatch.setattr(module, "_calls", dispose_then_create)
+    monkeypatch.setattr(module, "_seed_material", lambda *_args: ([], {}, None))
+    gc_thread = threading.Thread(target=lambda: module.gc(idle_min=45))
+    gc_thread.start()
+    assert dispose_started.wait(2)
+    assert module._leases()["gig-task"]["cleanup_pending"] is True
+
+    acquired = {}
+    acquire_thread = threading.Thread(
+        target=lambda: acquired.update(module.acquire("gig-task", no_seed=True))
+    )
+    acquire_thread.start()
+    time.sleep(0.05)
+    assert acquire_thread.is_alive()
+    allow_dispose.set()
+    gc_thread.join(2)
+    acquire_thread.join(2)
+
+    assert acquired["context_id"] == "new-context"
+    assert acquired["context_id"] != "old-context"
 
 
 def test_gc_removes_a_row_that_is_still_stale(monkeypatch, tmp_path):

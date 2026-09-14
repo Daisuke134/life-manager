@@ -111,6 +111,11 @@ def _gc_lock_path():
     return _leases_path() + ".gc.lock"
 
 
+def _task_acquire_lock_path(task):
+    digest = hashlib.sha256(task.encode()).hexdigest()
+    return os.path.join(os.path.dirname(_leases_path()), "operations", f"acquire-{digest}.lock")
+
+
 @contextlib.contextmanager
 def _ledger_lock():
     lock_path = _ledger_lock_path()
@@ -138,7 +143,7 @@ def _vault_lock():
 
 @contextlib.contextmanager
 def _seed_locks():
-    """Freeze base and overlay vaults while one context chooses and installs its seed."""
+    """Freeze base and overlay vaults only while one acquire snapshots its seed."""
     with contextlib.ExitStack() as stack:
         for path in sorted({_vault_path(), _vault_writeback_path()}):
             lock_path = path + ".lock"
@@ -148,6 +153,20 @@ def _seed_locks():
             fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
             stack.callback(fcntl.flock, handle.fileno(), fcntl.LOCK_UN)
         yield
+
+
+@contextlib.contextmanager
+def _task_acquire_lock(task):
+    """Serialize one logical owner without blocking unrelated browser owners."""
+    path = _task_acquire_lock_path(task)
+    os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+    with open(path, "a+", encoding="utf-8") as handle:
+        os.chmod(path, 0o600)
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 @contextlib.contextmanager
@@ -393,30 +412,114 @@ def _recover_capacity_if_needed(task, wait_seconds=25.0):
     if not needs_reap and not blocked:
         return
     result = gc(idle_min=45, max_reaps=8, priority_task=task)
-    if result.get("skipped") != "gc_already_running":
-        return
-    deadline = time.monotonic() + wait_seconds
-    while time.monotonic() < deadline:
-        with _ledger_lock():
-            leases = _leases()
-            held = leases.get(task)
-            needs_reap = _lease_is_stale(held, time.time())
-            blocked = task not in leases and len(leases) >= _max_contexts()
-        if not needs_reap and not blocked:
-            return
-        time.sleep(0.1)
+    if result.get("skipped") == "gc_already_running":
+        deadline = time.monotonic() + wait_seconds
+        while time.monotonic() < deadline:
+            with _ledger_lock():
+                leases = _leases()
+                held = leases.get(task)
+                needs_reap = _lease_is_stale(held, time.time())
+                blocked = task not in leases and len(leases) >= _max_contexts()
+            if not needs_reap and not blocked:
+                return
+            time.sleep(0.1)
+    if _new_slot_blocked(task):
+        _evict_parked_capacity()
 
 
 def acquire(task, url="about:blank", no_seed=False):
-    with _seed_locks():
-        return _acquire_with_seed_locked(task, url=url, no_seed=no_seed)
+    with _task_acquire_lock(task):
+        with _seed_locks():
+            seed_material = _seed_material(url, no_seed)
+        return _acquire_with_seed_material(task, url, seed_material)
 
 
-def _acquire_with_seed_locked(task, url="about:blank", no_seed=False):
+def _same_identity(current, snapshot):
+    return bool(current) and all(
+        current.get(key) == snapshot.get(key)
+        for key in ("token", "generation", "context_id", "target_id")
+    )
+
+
+def _same_lease(current, snapshot):
+    return _same_identity(current, snapshot) and (
+        current.get("cleanup_pending") == snapshot.get("cleanup_pending")
+    )
+
+
+def _dispose_snapshot(task, snapshot):
+    with _ledger_lock():
+        leases = _leases()
+        current = leases.get(task)
+        if not _same_lease(current, snapshot):
+            raise RuntimeError("lease_reservation_lost")
+        current["cleanup_pending"] = True
+        current["pid"] = None
+        leases[task] = current
+        _save(leases)
+        snapshot = dict(current)
+    disposed = False
+    error = None
+    target_id = snapshot.get("target_id") or snapshot.get("context_id") or task
+    operation_path = _operation_lock_path(target_id)
+    os.makedirs(os.path.dirname(operation_path), mode=0o700, exist_ok=True)
+    with open(operation_path, "a+", encoding="utf-8") as operation_lock:
+        fcntl.flock(operation_lock.fileno(), fcntl.LOCK_EX)
+        try:
+            asyncio.run(_calls([(
+                "Target.disposeBrowserContext",
+                {"browserContextId": snapshot.get("context_id")},
+            )]))
+            disposed = True
+        except Exception as caught:
+            error = caught
+            disposed = _browser_context_exists(snapshot.get("context_id")) is False
+        finally:
+            fcntl.flock(operation_lock.fileno(), fcntl.LOCK_UN)
+    with _ledger_lock():
+        leases = _leases()
+        current = leases.get(task)
+        if _same_lease(current, snapshot):
+            if disposed:
+                leases.pop(task, None)
+            else:
+                current["cleanup_pending"] = True
+                current["cleanup_error_type"] = type(error).__name__
+                current["ts"] = 0
+                current["pid"] = None
+                leases[task] = current
+            _save(leases)
+    if not disposed:
+        raise RuntimeError("context_cleanup_pending") from error
+
+
+def _evict_parked_capacity():
+    with _gc_singleflight() as acquired:
+        if not acquired:
+            return {"skipped": "gc_already_running"}
+        with _ledger_lock():
+            leases = _leases()
+            parked_rows = [
+                (name, row) for name, row in leases.items()
+                if row.get("parked") is True
+            ]
+            if not parked_rows:
+                return {"ok": False, "reason": "browser_context_limit"}
+            victim, row = min(parked_rows, key=lambda item: (item[1].get("ts", 0), item[0]))
+            row["cleanup_pending"] = True
+            row["pid"] = None
+            leases[victim] = row
+            _save(leases)
+            snapshot = dict(row)
+        _dispose_snapshot(victim, snapshot)
+        return {"ok": True, "reaped": [victim]}
+
+
+def _acquire_with_seed_material(task, url, seed_material):
     # Routine browser admission must not wait for whole-ledger maintenance. At the
     # actual capacity boundary, however, reclaim one stale row (or briefly wait for the
     # existing single-flight reaper) so this same wake can make forward progress.
-    cookies, overlay_origins, seed_fingerprint = _seed_material(url, no_seed)
+    cookies, overlay_origins, seed_fingerprint = seed_material
     _recover_capacity_if_needed(task)
     reservation_token = None
     current_holder = _holder_pid()
@@ -445,36 +548,26 @@ def _acquire_with_seed_locked(task, url="about:blank", no_seed=False):
                 and held.get("cleanup_pending") is not True):
             raise RuntimeError("lease_busy")
         holder_dead = bool(held) and not parked and holder_pid_state is False
-        if held and (seed_changed or holder_dead or held.get("cleanup_pending") is True or not target_responds(
+        held = dict(held) if held else None
+
+    if held:
+        invalid_without_probe = (
+            seed_changed or holder_dead or held.get("cleanup_pending") is True
+        )
+        healthy = False if invalid_without_probe else target_responds(
             held.get("ws") or _page_ws(held.get("target_id") or "")
-        )):
-            # Dead holder (confirmed via the free, local pid check -- no need to spend up
-            # to target_responds()'s 6s network round trip proving what os.kill() already
-            # answered) or dead renderer. Drop the whole context so the next block builds a
-            # fresh one; waiting out target_responds() here -- or worse, leaving the row for
-            # gc's idle_min window -- let a provably-dead holder's leaked context sit open
-            # and degrade the shared browser for every other lane in the meantime (measured
-            # 2026-09-05: job-search-daily's dead pid 55895 sat in the ledger for 26 wakes
-            # of an unrelated task, gig-storefront-direct, timing out on acquire, until a
-            # manual `gc --idle-min 0` reaped it).
-            try:
-                asyncio.run(_calls([(
-                    "Target.disposeBrowserContext",
-                    {"browserContextId": held.get("context_id")},
-                )]))
-            except Exception as error:
-                if _browser_context_exists(held.get("context_id")) is not False:
-                    held["cleanup_pending"] = True
-                    held["cleanup_error_type"] = type(error).__name__
-                    held["ts"] = 0
-                    held["pid"] = None
-                    leases[task] = held
-                    _save(leases)
-                    raise RuntimeError("context_cleanup_pending") from error
-            leases.pop(task, None)
-            _save(leases)
+        )
+        if not healthy:
+            _dispose_snapshot(task, held)
             held = None
-        if held:  # one task owns one durable fence until release
+
+    if held:
+        with _ledger_lock():
+            leases = _leases()
+            current = leases.get(task)
+            if not _same_lease(current, held):
+                raise RuntimeError("lease_reservation_lost")
+            held = current
             changed = False
             if held.pop("parked", None) is True:
                 held["token"] = secrets.token_hex(16)
@@ -499,32 +592,10 @@ def _acquire_with_seed_locked(task, url="about:blank", no_seed=False):
                 _save(leases)
             return {"ok": True, "reused": True, **held}
 
+    with _ledger_lock():
+        leases = _leases()
         if len(leases) >= _max_contexts():
-            parked_rows = [
-                (name, row) for name, row in leases.items()
-                if row.get("parked") is True
-            ]
-            if not parked_rows:
-                raise RuntimeError("browser_context_limit")
-            parked_task, parked = min(
-                parked_rows,
-                key=lambda item: (item[1].get("ts", 0), item[0]),
-            )
-            try:
-                asyncio.run(_calls([(
-                    "Target.disposeBrowserContext",
-                    {"browserContextId": parked.get("context_id")},
-                )]))
-            except Exception as error:
-                if _browser_context_exists(parked.get("context_id")) is not False:
-                    parked["cleanup_pending"] = True
-                    parked["cleanup_error_type"] = type(error).__name__
-                    parked["ts"] = 0
-                    leases[parked_task] = parked
-                    _save(leases)
-                    raise RuntimeError("context_cleanup_pending") from error
-            leases.pop(parked_task, None)
-            _save(leases)
+            raise RuntimeError("browser_context_limit")
 
         reservation_token = secrets.token_hex(16)
         provisioning_started_at = time.time()
@@ -656,6 +727,8 @@ def heartbeat(task, token=None, generation=None):
             return {"ok": False, "reason": f"lease_not_found ledger_mtime={ledger_mtime}"}
         if not _fence_matches(held, token, generation):
             return {"ok": False, "reason": "lease_fence_mismatch"}
+        if held.get("cleanup_pending") is True:
+            return {"ok": False, "reason": "context_cleanup_pending"}
         held["ts"] = int(time.time())
         held["pid"] = _holder_pid()  # same holder proving liveness again; keep pid current
         leases[task] = held
@@ -917,6 +990,11 @@ def commit_cookies(
 
 
 def release(task, token=None, generation=None):
+    with _task_acquire_lock(task):
+        return _release_locked(task, token=token, generation=generation)
+
+
+def _release_locked(task, token=None, generation=None):
     with _ledger_lock():
         leases = _leases()
         held = leases.get(task)
@@ -924,6 +1002,10 @@ def release(task, token=None, generation=None):
             return {"ok": True, "note": f"{task} held no context"}
         if not _fence_matches(held, token, generation):
             return {"ok": False, "reason": "lease_fence_mismatch"}
+        held["cleanup_pending"] = True
+        held["pid"] = None
+        leases[task] = held
+        _save(leases)
         held = dict(held)
 
     # CDP can take its full network deadline. Never make unrelated acquire/heartbeat/
@@ -976,6 +1058,11 @@ def release(task, token=None, generation=None):
 
 
 def park(task, token=None, generation=None):
+    with _task_acquire_lock(task):
+        return _park_locked(task, token=token, generation=generation)
+
+
+def _park_locked(task, token=None, generation=None):
     """Return ownership while keeping a healthy authenticated context for the next wake."""
     with _ledger_lock():
         leases = _leases()
@@ -993,11 +1080,7 @@ def park(task, token=None, generation=None):
     with _ledger_lock():
         leases = _leases()
         current = leases.get(task)
-        if not current or not (
-            _fence_matches(current, held.get("token"), held.get("generation"))
-            and current.get("context_id") == held.get("context_id")
-            and current.get("target_id") == held.get("target_id")
-        ):
+        if not _same_lease(current, held):
             return {"ok": False, "reason": "lease_fence_mismatch"}
         current["parked"] = True
         current["pid"] = None
@@ -1072,9 +1155,8 @@ def _gc_owned(idle_min=45, max_reaps=None, priority_task=None):
     is *still* stale -- a concurrent heartbeat or re-acquire between read and finalize
     survives untouched.
 
-    Accepted edge: a 45-min-stale row re-acquired via acquire's reuse path during the
-    dispose window survives with a dead context; the next acquire's target_responds
-    check detects the corpse and rebuilds it (self-healing, reviewer-accepted).
+    GC claims stale rows with cleanup_pending before disposal, so acquire cannot return
+    a context while GC is physically destroying it.
 
     Pid-liveness fast path: idle_min alone means a holder killed with -9 can sit in the
     ledger for up to idle_min before this reaps it, even though acquire()/heartbeat()
@@ -1100,6 +1182,17 @@ def _gc_owned(idle_min=45, max_reaps=None, priority_task=None):
                     if item[0] == priority_task
                 )))
             candidates = dict(ordered[:max(0, int(max_reaps))])
+        # Claim each physical victim before releasing the ledger lock. An acquire
+        # holding an older snapshot then loses its CAS; a later acquire fails closed
+        # instead of returning a context this GC is destroying.
+        for task in candidates:
+            current = leases.get(task)
+            if current is not None:
+                current["cleanup_pending"] = True
+                current["pid"] = None
+                leases[task] = current
+        if candidates:
+            _save(leases)
 
     reaped = []
     for task, held, disposed in _dispose_candidates(candidates, priority_task=priority_task):

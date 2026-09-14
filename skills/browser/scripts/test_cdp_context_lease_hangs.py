@@ -18,6 +18,7 @@ import asyncio
 import importlib.util
 import json
 import sys
+import threading
 
 import pytest
 import time
@@ -117,6 +118,8 @@ def test_slow_release_does_not_hold_shared_ledger_lock(monkeypatch, tmp_path):
     }), encoding="utf-8")
 
     async def dispose_while_sibling_heartbeats(_pairs, timeout=None):
+        same = module.heartbeat("slow", token="s" * 32, generation=1)
+        assert same == {"ok": False, "reason": "context_cleanup_pending"}
         result = module.heartbeat("sibling", token="f" * 32, generation=1)
         assert result["ok"] is True
         return [{}]
@@ -544,6 +547,49 @@ def test_slow_park_probe_does_not_hold_shared_ledger_lock(monkeypatch, tmp_path)
     assert module._leases()["slow"]["parked"] is True
 
 
+def test_park_fails_if_gc_claims_context_during_probe(monkeypatch, tmp_path):
+    module = load_module()
+    leases_file = tmp_path / "leases.json"
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases_file))
+    module._save({"client": {
+        "context_id": "context-1", "target_id": "target-1",
+        "ws": "ws://target-1", "token": "a" * 32,
+        "generation": 1, "pid": 99999999, "ts": 0,
+    }})
+    probe_started = threading.Event()
+    allow_probe = threading.Event()
+    dispose_started = threading.Event()
+    allow_dispose = threading.Event()
+
+    def slow_probe(_ws):
+        probe_started.set()
+        assert allow_probe.wait(2)
+        return True
+
+    async def slow_dispose(_pairs, timeout=None):
+        dispose_started.set()
+        assert allow_dispose.wait(2)
+        return [{}]
+
+    monkeypatch.setattr(module, "target_responds", slow_probe)
+    monkeypatch.setattr(module, "_calls", slow_dispose)
+    parked = {}
+    park_thread = threading.Thread(
+        target=lambda: parked.update(module.park("client", "a" * 32, 1))
+    )
+    park_thread.start()
+    assert probe_started.wait(2)
+    gc_thread = threading.Thread(target=lambda: module.gc(idle_min=45))
+    gc_thread.start()
+    assert dispose_started.wait(2)
+    allow_probe.set()
+    park_thread.join(2)
+
+    assert parked == {"ok": False, "reason": "lease_fence_mismatch"}
+    allow_dispose.set()
+    gc_thread.join(2)
+
+
 def test_acquire_replaces_parked_context_after_scoped_vault_state_changes(monkeypatch, tmp_path):
     module = load_module()
     monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(tmp_path / "leases.json"))
@@ -611,12 +657,12 @@ def test_missing_vault_never_replaces_an_authenticated_parked_context(monkeypatc
     assert result["context_id"] == "authenticated"
 
 
-def test_acquire_keeps_seed_locks_through_the_complete_inner_operation(monkeypatch):
+def test_acquire_releases_seed_locks_before_the_inner_operation(monkeypatch):
     module = load_module()
     events = []
 
     @module.contextlib.contextmanager
-    def locked():
+    def locked(*_args):
         events.append("lock-enter")
         try:
             yield
@@ -624,11 +670,74 @@ def test_acquire_keeps_seed_locks_through_the_complete_inner_operation(monkeypat
             events.append("lock-exit")
 
     monkeypatch.setattr(module, "_seed_locks", locked)
-    monkeypatch.setattr(module, "_acquire_with_seed_locked",
+    monkeypatch.setattr(module, "_seed_material", lambda *_args: ([], {}, None))
+    monkeypatch.setattr(module, "_task_acquire_lock", locked)
+    monkeypatch.setattr(module, "_acquire_with_seed_material",
                         lambda *args, **kwargs: events.append("inner") or {"ok": True})
 
     assert module.acquire("task") == {"ok": True}
-    assert events == ["lock-enter", "inner", "lock-exit"]
+    assert events == [
+        "lock-enter", "lock-enter", "lock-exit", "inner", "lock-exit"
+    ]
+
+
+def test_slow_acquire_probe_does_not_hold_shared_ledger_lock(monkeypatch, tmp_path):
+    module = load_module()
+    leases_file = tmp_path / "leases.json"
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases_file))
+    module._save({
+        "client": {
+            "context_id": "context-1", "target_id": "target-1",
+            "ws": "ws://target-1", "token": "a" * 32,
+            "generation": 1, "parked": True, "pid": None, "ts": 1,
+        },
+        "sibling": {
+            "context_id": "context-2", "target_id": "target-2",
+                "ws": "ws://target-2", "token": "f" * 32,
+                "generation": 1, "pid": None, "ts": 1, "parked": True,
+        },
+    })
+    monkeypatch.setattr(module, "_seed_material", lambda *_args: ([], {}, None))
+
+    def probe_while_sibling_heartbeats(_ws):
+        assert module.heartbeat("sibling", token="f" * 32, generation=1)["ok"]
+        return True
+
+    monkeypatch.setattr(module, "target_responds", probe_while_sibling_heartbeats)
+    assert module.acquire("client")["reused"] is True
+
+
+def test_slow_acquire_dispose_does_not_hold_shared_ledger_lock(monkeypatch, tmp_path):
+    module = load_module()
+    leases_file = tmp_path / "leases.json"
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases_file))
+    module._save({
+        "client": {
+            "context_id": "context-1", "target_id": "target-1",
+            "ws": "ws://target-1", "token": "a" * 32,
+            "generation": 1, "cleanup_pending": True, "pid": None, "ts": 0,
+        },
+        "sibling": {
+            "context_id": "context-2", "target_id": "target-2",
+            "ws": "ws://target-2", "token": "f" * 32,
+            "generation": 1, "pid": None, "ts": 1, "parked": True,
+        },
+    })
+    monkeypatch.setattr(module, "_seed_material", lambda *_args: ([], {}, None))
+
+    async def dispose_while_sibling_heartbeats(pairs, timeout=None):
+        if pairs[0][0] == "Target.disposeBrowserContext":
+            same = module.heartbeat("client", token="a" * 32, generation=1)
+            assert same == {"ok": False, "reason": "context_cleanup_pending"}
+            assert module.heartbeat("sibling", token="f" * 32, generation=1)["ok"]
+            return [{}]
+        if pairs[0][0] == "Target.createBrowserContext":
+            return [{"browserContextId": "context-3"}]
+        return [{"targetId": "target-3"}]
+
+    monkeypatch.setattr(module, "_calls", dispose_while_sibling_heartbeats)
+    result = module.acquire("client", no_seed=True)
+    assert result["context_id"] == "context-3"
 
 
 def test_gc_does_not_reap_a_parked_context_for_age_or_missing_pid(monkeypatch, tmp_path):

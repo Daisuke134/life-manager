@@ -60,6 +60,23 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   `acquire()` holds the shared seed-vault locks around the whole provision/reuse path. Those remaining
   network-I/O critical sections must be reduced to snapshot/fenced-finalize phases before retrying the
   four lanes; increasing timeouts or restarting the browser would preserve the serialization defect.
+  The source repair now replaces the global acquire serialization with a per-task lock, holds vault
+  locks only while snapshotting seed material, probes/disposes outside the ledger lock, and reuses the
+  existing GC singleflight plus token/generation/context/target CAS for stale and capacity eviction.
+  Fresh review then found one same-task race: an old `release()` could snapshot a parked context,
+  wait in disposal, and destroy that context after `acquire()` rotated its fence for reuse. The
+  repair now applies the same per-task lock to acquire, park and release; unrelated task owners remain
+  parallel. A second fresh review found that GC/capacity disposal also needed an atomic claim before
+  physical disposal. GC and eviction now persist `cleanup_pending` under the ledger lock, reuse CAS
+  includes that claim, and heartbeat fails closed once disposal owns the context. A final park-specific
+  review found its finalize path still used the narrower legacy comparison; park now uses the same
+  complete CAS and cannot report success after GC claims its context. The focused `test_cdp*.py` glob
+  passes `72/72`, including deterministic release/reacquire, GC/reacquire and GC/park races, sibling
+  heartbeat during slow acquire probe and disposal, and direct proof that both ledger and vault locks
+  are free during browser provisioning. Every physical disposal path now persists the same claim first;
+  same-owner heartbeat fails closed during release or acquire cleanup while sibling heartbeat remains
+  available.
+  Merge, immutable release, idle-only rollout and natural four-lane business receipts remain open.
 
 - **Reply client isolation is merged and installed.** PR `#5162`, merge SHA `2fe142f696...`,
   runs up to four Coconala client workers concurrently and gives every talkroom its own
