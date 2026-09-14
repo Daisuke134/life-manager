@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
+import re
 import signal
 import subprocess
 import sys
@@ -14,21 +14,21 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from runtime.loop.loop_cleanup import cleanup_run_root
 from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path
+from runtime.loop.loop_cleanup import remove_owned_tree
 from runtime.loop.macos_loop_registry import validate_registry
 from runtime.loop.runtime_event import append_runtime_event, build_runtime_event, build_runtime_start_event
 from runtime.host.memory_admission import memory_free_percent
+from runtime.host.resource_admission import process_start
 from runtime.host.resource_admission import release as release_resource, try_acquire as try_acquire_resource
 
 
 EXEC_GATE = Path(__file__).resolve().parents[1] / "host/exec_gate.py"
+SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 
 
-def prepare_loop_run(registry: dict, loop_id: str, release_root: Path, *,
-                     active_run_ids: set[str], now: float | None = None,
-                     state_root: str | None = None,
-                     log_root: str | None = None) -> tuple[list[str], dict]:
+def build_loop_command(registry: dict, loop_id: str, release_root: Path) -> list[str]:
+    """Validate and build argv without doing housekeeping on the wake path."""
     validate_registry(registry)
     entry = registry["loops"].get(loop_id)
     if not isinstance(entry, dict):
@@ -36,31 +36,89 @@ def prepare_loop_run(registry: dict, loop_id: str, release_root: Path, *,
     executable = release_root.resolve() / entry["entrypoint"]
     if not executable.is_file() or not os.access(executable, os.X_OK):
         raise ValueError(f"entrypoint missing or not executable: {entry['entrypoint']}")
-    totals = {"evaluated_runs": 0, "removed_runs": 0, "reclaimed_bytes": 0,
-              "preserved_runs": 0, "protected_deletions": 0, "errors": 0}
-    seen = set()
-    for value in (state_root or entry["state_root"], log_root or entry["log_root"]):
-        root = Path(os.path.expanduser(value)).resolve()
-        if root in seen:
-            continue
-        seen.add(root)
-        result = cleanup_run_root(root, entry["cleanup"], active_run_ids, now=now)
-        for key in totals:
-            totals[key] += result[key]
     command = [str(executable)]
     if entry.get("adapter") == "python":
         command.insert(0, sys.executable)
     command.extend(entry.get("command", []))
-    return command, totals
+    return command
 
 
-def reset_loop_scratch(state_root: Path, loop_id: str) -> Path:
-    """Private scratch dir per loop, wiped every run so subprocess temp files cannot leak."""
-    scratch = state_root / "loop-tmp" / loop_id
-    if scratch.is_dir() and not scratch.is_symlink():
-        shutil.rmtree(scratch, ignore_errors=True)
-    scratch.mkdir(parents=True, exist_ok=True, mode=0o700)
-    return scratch
+def reset_loop_scratch(state_root: Path, loop_id: str, run_id: str) -> tuple[Path, int, int]:
+    """Create private per-run scratch without scanning a previous wake's tree."""
+    if (not SAFE_RUN_ID.fullmatch(loop_id) or loop_id in {".", ".."}
+            or not SAFE_RUN_ID.fullmatch(run_id) or run_id in {".", ".."}):
+        raise ValueError("unsafe run id")
+    identity = process_start(os.getpid())
+    if identity is None:
+        raise RuntimeError("scratch owner identity unavailable")
+    state_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    root = state_root.resolve()
+    flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
+    root_fd = os.open(root, flags)
+    loop_tmp_fd = parent_fd = run_fd = -1
+    run_created = False
+    run_verified = False
+    try:
+        try:
+            os.mkdir("loop-tmp", mode=0o700, dir_fd=root_fd)
+        except FileExistsError:
+            pass
+        loop_tmp_fd = os.open("loop-tmp", flags, dir_fd=root_fd)
+        try:
+            os.mkdir(loop_id, mode=0o700, dir_fd=loop_tmp_fd)
+        except FileExistsError:
+            pass
+        try:
+            parent_fd = os.open(loop_id, flags, dir_fd=loop_tmp_fd)
+        except OSError as error:
+            raise ValueError("unsafe loop scratch root") from error
+        os.mkdir(run_id, mode=0o700, dir_fd=parent_fd)
+        run_created = True
+        created_stat = os.stat(run_id, dir_fd=parent_fd, follow_symlinks=False)
+        run_fd = os.open(run_id, flags, dir_fd=parent_fd)
+        opened_stat = os.fstat(run_fd)
+        if ((created_stat.st_dev, created_stat.st_ino) !=
+                (opened_stat.st_dev, opened_stat.st_ino)):
+            raise RuntimeError("scratch inode changed during creation")
+        run_verified = True
+        try:
+            owner_fd = os.open(
+                ".owner.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                | getattr(os, "O_NOFOLLOW", 0), 0o600, dir_fd=run_fd)
+            with os.fdopen(owner_fd, "w", encoding="utf-8") as handle:
+                json.dump({"pid": os.getpid(), "process_start": identity}, handle,
+                          sort_keys=True, separators=(",", ":"))
+                handle.write("\n"); handle.flush(); os.fsync(handle.fileno())
+            marker_fd = os.open(
+                ".terminal-unrecorded", os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                | getattr(os, "O_NOFOLLOW", 0), 0o600, dir_fd=run_fd)
+            os.close(marker_fd)
+            os.fsync(run_fd)
+        except Exception:
+            raise
+        scratch = root / "loop-tmp" / loop_id / run_id
+        return scratch, parent_fd, run_fd
+    except Exception:
+        if run_created and run_verified and parent_fd >= 0 and run_fd >= 0:
+            try:
+                remove_owned_tree(parent_fd, run_fd, run_id)
+            except OSError:
+                pass
+        if run_fd >= 0:
+            os.close(run_fd)
+        if parent_fd >= 0:
+            os.close(parent_fd)
+        raise
+    finally:
+        if loop_tmp_fd >= 0:
+            os.close(loop_tmp_fd)
+        os.close(root_fd)
+
+
+def unprotect_loop_scratch(run_fd: int) -> None:
+    """Allow cleanup only after the terminal receipt has been persisted."""
+    os.unlink(".terminal-unrecorded", dir_fd=run_fd)
+    os.fsync(run_fd)
 
 
 def _atomic_json(path: Path, value: dict) -> None:
@@ -269,20 +327,14 @@ def main(argv: list[str] | None = None) -> int:
             raise ValueError(f"unknown loop id: {loop_id}")
         loop_state_root = Path(os.path.expanduser(
             os.environ.get("LIFE_MANAGER_STATE_ROOT", entry["state_root"])))
-        loop_log_root = os.path.expanduser(
-            os.environ.get("LIFE_MANAGER_LOG_ROOT", entry["log_root"]))
         current = Path("~/loops/current").expanduser()
         item_lock = _label_apply_lock_path(current, entry["label"])
         with _apply_lock(current, item_lock):
-            active = {value for value in os.environ.get("LIFE_MANAGER_ACTIVE_RUN_IDS", "").split(",") if value}
-            command, cleanup = prepare_loop_run(
-                registry, loop_id, release_root, active_run_ids=active, now=time.time(),
-                state_root=str(loop_state_root), log_root=loop_log_root)
-            receipt = loop_state_root / "cleanup-latest.json"
-            _atomic_json(receipt, {"version": 1, "loop_id": loop_id,
-                                  "release_sha": manifest["sha"], **cleanup})
+            command = build_loop_command(registry, loop_id, release_root)
             run_id = os.environ.get("LIFE_MANAGER_RUN_ID") or f"{time.time_ns():x}-{os.getpid()}"
             event_path = loop_state_root / "events.jsonl"
+            scratch, scratch_parent_fd, scratch_fd = reset_loop_scratch(
+                loop_state_root, loop_id, run_id)
             try:
                 append_runtime_event(event_path, build_runtime_start_event(
                     loop_id=loop_id, domain=entry["domain"], run_id=run_id,
@@ -291,19 +343,14 @@ def main(argv: list[str] | None = None) -> int:
                 ))
             except (OSError, ValueError) as error:
                 print(f"lm-loop-run: start event failed: {error}", file=sys.stderr)
-            scratch = reset_loop_scratch(loop_state_root, loop_id)
-        try:
-            host_receipt = scratch / "host-admission.json"
-            started_ns = time.time_ns()
-            return_code = _run_admitted(command, entry, loop_id, {
-                **os.environ, "LIFE_MANAGER_RELEASE_ROOT": str(release_root),
-                "TMPDIR": f"{scratch}/", "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
-            }, host_receipt)
-            host_deferred = _host_admission_deferred(host_receipt, started_ns)
-        finally:
-            # Scratch is never evidence. Every loop owns and removes its temporary
-            # downloads, package caches, and build products when its pass ends.
-            shutil.rmtree(scratch, ignore_errors=True)
+        host_receipt = scratch / "host-admission.json"
+        started_ns = time.time_ns()
+        return_code = _run_admitted(command, entry, loop_id, {
+            **os.environ, "LIFE_MANAGER_RELEASE_ROOT": str(release_root),
+            "TMPDIR": f"{scratch}/", "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
+        }, host_receipt)
+        host_deferred = _host_admission_deferred(host_receipt, started_ns)
+        terminal_saved = False
         try:
             succeeded, deferred, blocker = _terminal_outcome(
                 return_code, host_deferred=host_deferred)
@@ -315,8 +362,16 @@ def main(argv: list[str] | None = None) -> int:
                 evidence_scheme="lm-loop",
             )
             append_runtime_event(event_path, event)
+            terminal_saved = True
         except (OSError, ValueError) as error:
             print(f"lm-loop-run: terminal event failed: {error}", file=sys.stderr)
+        try:
+            if terminal_saved:
+                unprotect_loop_scratch(scratch_fd)
+                remove_owned_tree(scratch_parent_fd, scratch_fd, run_id)
+        finally:
+            os.close(scratch_fd)
+            os.close(scratch_parent_fd)
     except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as error:
         print(f"lm-loop-run: {error}", file=sys.stderr); return 78
     return return_code

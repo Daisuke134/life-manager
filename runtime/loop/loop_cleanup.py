@@ -7,12 +7,68 @@ import json
 import os
 import re
 import shutil
+import stat
 import time
 from pathlib import Path
 
 
 PROTECTED_NAME = re.compile(r"receipt|ledger|credential|session|wallet|payment", re.I)
 RELEASE_NAME = re.compile(r"\d{8}T\d{6}-[0-9a-f]{8,40}\Z")
+
+
+def _clear_owned_directory(directory_fd: int) -> bool:
+    """Clear entries only while each inspected inode remains at the same name."""
+    flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
+    for name in os.listdir(directory_fd):
+        try:
+            before = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+            if stat.S_ISDIR(before.st_mode):
+                child_fd = os.open(name, flags, dir_fd=directory_fd)
+                try:
+                    opened = os.fstat(child_fd)
+                    if ((opened.st_dev, opened.st_ino) !=
+                            (before.st_dev, before.st_ino)
+                            or not _clear_owned_directory(child_fd)):
+                        return False
+                    current = os.stat(name, dir_fd=directory_fd,
+                                      follow_symlinks=False)
+                    if ((current.st_dev, current.st_ino) !=
+                            (opened.st_dev, opened.st_ino)):
+                        return False
+                    os.rmdir(name, dir_fd=directory_fd)
+                finally:
+                    os.close(child_fd)
+            else:
+                current = os.stat(name, dir_fd=directory_fd,
+                                  follow_symlinks=False)
+                if ((current.st_dev, current.st_ino) !=
+                        (before.st_dev, before.st_ino)):
+                    return False
+                os.unlink(name, dir_fd=directory_fd)
+        except FileNotFoundError:
+            continue
+    return True
+
+
+def remove_owned_tree(parent_fd: int, opened_fd: int, name: str) -> bool:
+    """Rename and remove only the directory inode already opened by its owner."""
+    expected = os.fstat(opened_fd)
+    trash = f"{name}.gc-trash.{os.getpid()}.{time.time_ns():x}"
+    os.replace(name, trash, src_dir_fd=parent_fd, dst_dir_fd=parent_fd)
+    flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
+    trash_fd = os.open(trash, flags, dir_fd=parent_fd)
+    try:
+        actual = os.fstat(trash_fd)
+        if ((actual.st_dev, actual.st_ino) != (expected.st_dev, expected.st_ino)
+                or not _clear_owned_directory(trash_fd)):
+            return False
+        current = os.stat(trash, dir_fd=parent_fd, follow_symlinks=False)
+        if (current.st_dev, current.st_ino) != (expected.st_dev, expected.st_ino):
+            return False
+        os.rmdir(trash, dir_fd=parent_fd)
+        return True
+    finally:
+        os.close(trash_fd)
 
 
 def _tree_bytes(path: Path) -> int:

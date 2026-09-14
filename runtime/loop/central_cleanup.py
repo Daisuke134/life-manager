@@ -8,13 +8,126 @@ import os
 import plistlib
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from runtime.loop.loop_cleanup import gc_releases
+from runtime.loop.loop_cleanup import gc_releases, remove_owned_tree
+from runtime.host.resource_admission import process_starts
+
+
+def installed_state_roots(agents_dir: Path) -> set[Path]:
+    roots = set()
+    for plist_path in agents_dir.glob("ai.anicca.*.plist"):
+        try:
+            with plist_path.open("rb") as handle:
+                plist = plistlib.load(handle)
+            if not isinstance(plist, dict):
+                continue
+            environment = plist.get("EnvironmentVariables") or {}
+            if not isinstance(environment, dict):
+                continue
+            value = environment.get("LIFE_MANAGER_STATE_ROOT")
+            if isinstance(value, str) and value:
+                roots.add(Path(value).expanduser().resolve())
+        except (OSError, ValueError, plistlib.InvalidFileException):
+            continue
+    return roots
+
+
+def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
+               starts: dict[int, str] | None = None) -> dict[str, int | bool]:
+    """Delete only crashed per-run scratch whose process identity is provably stale."""
+    started_ns = time.time_ns() if snapshot_started_ns is None else snapshot_started_ns
+    identities = process_starts() if starts is None else starts
+    result: dict[str, int | bool] = {
+        "evaluated": 0, "removed": 0, "preserved": 0, "errors": 0,
+        "identity_snapshot_available": identities is not None,
+    }
+    flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    for root in roots:
+        root_fd = scratch_fd = -1
+        try:
+            root_fd = os.open(root.resolve(), flags)
+            scratch_fd = os.open("loop-tmp", flags, dir_fd=root_fd)
+            loop_names = os.listdir(scratch_fd)
+        except FileNotFoundError:
+            continue
+        except OSError:
+            result["errors"] += 1
+            continue
+        finally:
+            if root_fd >= 0:
+                os.close(root_fd)
+        try:
+            for loop_name in loop_names:
+                loop_fd = -1
+                try:
+                    loop_fd = os.open(loop_name, flags, dir_fd=scratch_fd)
+                    run_names = os.listdir(loop_fd)
+                except OSError:
+                    continue
+                try:
+                    for run_name in run_names:
+                        run_fd = owner_fd = -1
+                        try:
+                            run_fd = os.open(run_name, flags, dir_fd=loop_fd)
+                            owner_fd = os.open(
+                                ".owner.json", os.O_RDONLY | nofollow, dir_fd=run_fd)
+                        except OSError:
+                            for descriptor in (owner_fd, run_fd):
+                                if descriptor >= 0:
+                                    os.close(descriptor)
+                            continue
+                        result["evaluated"] += 1
+                        try:
+                            try:
+                                os.stat(".terminal-unrecorded", dir_fd=run_fd,
+                                        follow_symlinks=False)
+                            except FileNotFoundError:
+                                pass
+                            else:
+                                result["preserved"] += 1
+                                continue
+                            owner_stat = os.fstat(owner_fd)
+                            owner_bytes = b""
+                            while chunk := os.read(owner_fd, 65536):
+                                owner_bytes += chunk
+                            owner = json.loads(owner_bytes)
+                            if not isinstance(owner, dict):
+                                raise ValueError("owner must be an object")
+                            pid, expected = owner.get("pid"), owner.get("process_start")
+                            if (not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0
+                                    or not isinstance(expected, str) or not expected):
+                                raise ValueError("invalid owner identity")
+                            if identities is None or owner_stat.st_mtime_ns >= started_ns:
+                                result["preserved"] += 1
+                                continue
+                            actual = identities.get(pid)
+                            if actual is not None and actual == expected:
+                                result["preserved"] += 1
+                                continue
+                            if remove_owned_tree(loop_fd, run_fd, run_name):
+                                result["removed"] += 1
+                            else:
+                                result["errors"] += 1
+                                result["preserved"] += 1
+                        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+                            result["errors"] += 1
+                            result["preserved"] += 1
+                        finally:
+                            for descriptor in (owner_fd, run_fd):
+                                if descriptor >= 0:
+                                    os.close(descriptor)
+                finally:
+                    os.close(loop_fd)
+        finally:
+            os.close(scratch_fd)
+    return result
 
 
 def host_cleanup_command(root: Path, home: Path, state_dir=None) -> list[str]:
@@ -122,8 +235,13 @@ def main() -> int:
                             keep=int(os.environ.get("LIFE_MANAGER_RELEASE_KEEP", "1")))
     except (OSError, ValueError) as error:
         print(json.dumps({"ok": False, "error": str(error)}, sort_keys=True)); return 1
-    result.update({"ok": result["errors"] == 0 and host_ok,
+    snapshot_started_ns = time.time_ns()
+    scratch_result = scratch_gc(
+        installed_state_roots(agents), snapshot_started_ns=snapshot_started_ns,
+        starts=process_starts())
+    result.update({"ok": result["errors"] == 0 and host_ok and scratch_result["errors"] == 0,
                    "host_cleanup": host_result,
+                   "scratch_cleanup": scratch_result,
                    "idle_reconcile": [],
                    "shared_cache_candidates": 0, "orphan_candidates": 0})
     print(json.dumps(result, sort_keys=True, separators=(",", ":")))
