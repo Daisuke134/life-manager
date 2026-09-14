@@ -185,6 +185,49 @@ def _durable_paths() -> tuple[Path, Path, Path, Path]:
     return root, owners, tickets, root / "admission-v2.sqlite3"
 
 
+def durable_protocol_version() -> int:
+    path = state_root() / "protocol.json"
+    if not path.is_file():
+        return 1
+    value = _row(path)
+    if not value or value.get("version") not in {1, 2}:
+        raise RuntimeError("invalid durable admission protocol")
+    return int(value["version"])
+
+
+def activate_durable_v2() -> None:
+    """Atomically enable v2 only after every legacy admission owner drains."""
+    if durable_protocol_version() == 2:
+        return
+    root, owners, tickets, database = _durable_paths()
+    starts, snapshot_started_ns = _identity_snapshot(owners, tickets)
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        if durable_protocol_version() == 2:
+            return
+        for path in owners.glob("*.json"):
+            if _live(path, starts, snapshot_started_ns):
+                raise RuntimeError("legacy admission is not idle")
+            path.unlink(missing_ok=True)
+        for path in tickets.glob("*.json"):
+            row = _row(path)
+            if row and row.get("version", 1) == 1:
+                if _live(path, starts, snapshot_started_ns):
+                    raise RuntimeError("legacy admission is not idle")
+                path.unlink(missing_ok=True)
+        if list(tickets.glob("*.json")):
+            raise RuntimeError("legacy admission is not idle")
+        with _database(database) as connection:
+            queued = connection.execute("SELECT COUNT(*) FROM queue").fetchone()[0]
+            reserved = connection.execute("SELECT COUNT(*) FROM reservations").fetchone()[0]
+            if queued or reserved:
+                raise RuntimeError("durable admission is not idle")
+        atomic_json(root / "protocol.json", {"version": 2})
+    finally:
+        os.close(descriptor)
+
+
 def _digest(owner_id: str) -> str:
     return hashlib.sha256(owner_id.encode()).hexdigest()
 
@@ -238,9 +281,18 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                       snapshot_started_ns: int) -> tuple[bool, list[dict[str, object]]]:
     live = []
     for path in owners.glob("*.json"):
+        row = _row(path) or {}
         if _live(path, starts, snapshot_started_ns):
-            live.append(_row(path) or {})
+            live.append(row)
         else:
+            if (row.get("version") == 2 and row.get("phase", "claimed") == "claimed"
+                    and isinstance(row.get("sequence"), int)
+                    and not isinstance(row.get("sequence"), bool)
+                    and isinstance(row.get("owner_id"), str) and row["owner_id"]
+                    and row.get("resource_class") in {"agent", "deterministic"}):
+                connection.execute(
+                    "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
+                    (row["sequence"], row["owner_id"], row["resource_class"]))
             path.unlink(missing_ok=True)
     connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (now,))
     reserved = [dict(zip(("owner_id", "resource_class", "sequence", "lease_until"), row))
@@ -250,7 +302,7 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
     total, per_class = _limits(resource_class)
     available = (len(occupied) < total and sum(
         row.get("resource_class") == resource_class for row in occupied) < per_class)
-    return available, reserved
+    return available, occupied
 
 
 def _legacy_waiter_exists(tickets: Path, resource_class: str,
@@ -320,7 +372,7 @@ def claim_durable(resource_class: str, owner_id: str, *,
             if row is None or row[1] != resource_class:
                 return None, "ticket_missing"
             instant = time.time() if now is None else now
-            available, _ = _durable_capacity(
+            available, occupied = _durable_capacity(
                 connection, owners, resource_class, instant, starts, snapshot_started_ns)
             reservation = connection.execute(
                 "SELECT resource_class,lease_until FROM reservations WHERE owner_id=?",
@@ -333,6 +385,11 @@ def claim_durable(resource_class: str, owner_id: str, *,
             if any(item.get("owner_id") == owner_id for item in (
                     _row(path) or {} for path in owners.glob("*.json"))):
                 return None, "owner_busy"
+            total, per_class = _limits(resource_class)
+            if reserved and (len(occupied) > total or sum(
+                    item.get("resource_class") == resource_class for item in occupied
+            ) > per_class):
+                return None, "capacity_busy"
             if not reserved and (not available or _legacy_waiter_exists(
                     tickets, resource_class, starts, snapshot_started_ns)):
                 return None, "capacity_busy"
@@ -341,10 +398,46 @@ def claim_durable(resource_class: str, owner_id: str, *,
             claim = owners / f"{_digest(owner_id)}-{os.getpid()}.json"
             atomic_json(claim, {"version": 2, "pid": os.getpid(),
                         "process_start": started, "owner_id": owner_id,
-                        "resource_class": resource_class, "sequence": row[0]})
+                        "resource_class": resource_class, "sequence": row[0],
+                        "phase": "claimed"})
             connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
             connection.execute("DELETE FROM queue WHERE owner_id=?", (owner_id,))
             return claim, "acquired"
+    finally:
+        os.close(descriptor)
+
+
+def _controlled_by(value: dict[str, object], pid: int, started: str) -> bool:
+    return bool(
+        (value.get("pid") == pid and value.get("process_start") == started)
+        or (value.get("controller_pid") == pid
+            and value.get("controller_process_start") == started)
+    )
+
+
+def transfer_durable(claim: Path, child_pid: int) -> None:
+    """Make the gated effect child, not its wrapper, the live slot owner."""
+    controller_pid = os.getpid()
+    controller_start = process_start(controller_pid)
+    child_start = process_start(child_pid)
+    if not controller_start or not child_start:
+        raise RuntimeError("resource claim handoff identity unavailable")
+    root, _, _, _ = _durable_paths()
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        value = _row(claim)
+        if (not value or value.get("phase", "claimed") != "claimed"
+                or not _controlled_by(value, controller_pid, controller_start)):
+            raise RuntimeError("resource claim handoff ownership mismatch")
+        atomic_json(claim, {
+            **value,
+            "pid": child_pid,
+            "process_start": child_start,
+            "controller_pid": controller_pid,
+            "controller_process_start": controller_start,
+            "phase": "running",
+        })
     finally:
         os.close(descriptor)
 
@@ -442,8 +535,8 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                         lease_seconds: int = 60) -> list[str]:
     """Release one claim and reserve newly available capacity for queued owners."""
     value = _row(claim)
-    if (not value or value.get("pid") != os.getpid()
-            or value.get("process_start") != process_start(os.getpid())):
+    started = process_start(os.getpid())
+    if not value or not started or not _controlled_by(value, os.getpid(), started):
         raise RuntimeError("resource claim ownership mismatch")
     root, owners, tickets, database = _durable_paths()
     starts, snapshot_started_ns = _identity_snapshot(owners, tickets)
@@ -472,7 +565,8 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
 
 
 def try_acquire(resource_class: str, owner_id: str, *,
-                retain_ticket: bool = True) -> tuple[Path | None, str]:
+                retain_ticket: bool = True,
+                required_protocol: int | None = None) -> tuple[Path | None, str]:
     """Atomically claim a slot; live waiters are served FIFO within each class."""
     if resource_class not in {"agent", "deterministic"} or not owner_id:
         raise RuntimeError("invalid resource identity")
@@ -500,6 +594,9 @@ def try_acquire(resource_class: str, owner_id: str, *,
             )
         except BlockingIOError:
             return None, "control_busy"
+        observed_protocol = durable_protocol_version()
+        if required_protocol is not None and observed_protocol != required_protocol:
+            return None, "protocol_changed"
         live_starts: dict[int, str | None] = {os.getpid(): started}
         owner_rows = []
         for path in owners.glob("*.json"):
@@ -508,6 +605,17 @@ def try_acquire(resource_class: str, owner_id: str, *,
             owner_rows.append(_row(path) or {})
         if any(row.get("owner_id") == owner_id for row in owner_rows):
             return None, "owner_busy"
+        reserved_rows = []
+        if observed_protocol == 2:
+            with _database(root / "admission-v2.sqlite3") as connection:
+                connection.execute(
+                    "DELETE FROM reservations WHERE lease_until <= ?", (time.time(),))
+                reserved_rows = [
+                    {"owner_id": row[0], "resource_class": row[1]}
+                    for row in connection.execute(
+                        "SELECT owner_id,resource_class FROM reservations")
+                ]
+        occupied = owner_rows + reserved_rows
 
         digest = hashlib.sha256(owner_id.encode()).hexdigest()
         if not retain_ticket:
@@ -517,8 +625,8 @@ def try_acquire(resource_class: str, owner_id: str, *,
                 else "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS",
                 1 if resource_class == "agent" else 2,
             )
-            if len(owner_rows) >= total_limit or sum(
-                row.get("resource_class") == resource_class for row in owner_rows
+            if len(occupied) >= total_limit or sum(
+                row.get("resource_class") == resource_class for row in occupied
             ) >= class_limit:
                 return None, "capacity_busy"
             for candidate in sorted(tickets.glob(f"{resource_class}-*.json")):
@@ -550,8 +658,8 @@ def try_acquire(resource_class: str, owner_id: str, *,
             else "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS",
             1 if resource_class == "agent" else 2,
         )
-        if len(owner_rows) >= total_limit or sum(
-            row.get("resource_class") == resource_class for row in owner_rows
+        if len(occupied) >= total_limit or sum(
+            row.get("resource_class") == resource_class for row in occupied
         ) >= class_limit:
             return None, "capacity_busy"
 
@@ -595,7 +703,7 @@ def acquire(resource_class: str, owner_id: str,
 
 def release(claim: Path) -> None:
     value = _row(claim)
-    if (not value or value.get("pid") != os.getpid()
-            or value.get("process_start") != process_start(os.getpid())):
+    started = process_start(os.getpid())
+    if not value or not started or not _controlled_by(value, os.getpid(), started):
         raise RuntimeError("resource claim ownership mismatch")
     claim.unlink()

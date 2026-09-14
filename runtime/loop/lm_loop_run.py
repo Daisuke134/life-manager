@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Callable
 
 from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path
+from runtime.loop.lm_loop_apply import _loaded_arguments
 from runtime.loop.loop_cleanup import remove_owned_tree
 from runtime.loop.macos_loop_registry import validate_registry
 from runtime.loop.runtime_event import append_runtime_event, build_runtime_event, build_runtime_start_event
@@ -24,10 +25,14 @@ from runtime.host.resource_admission import (
     cancel_durable as cancel_durable_resource,
     claim_durable as claim_durable_resource,
     defer_durable as defer_durable_resource,
+    durable_protocol_version,
     enqueue_durable as enqueue_durable_resource,
     process_start,
+    release as release_resource,
     release_and_reserve as release_and_reserve_resource,
     reserve_available as reserve_available_resource,
+    transfer_durable as transfer_durable_resource,
+    try_acquire as try_acquire_resource,
 )
 
 
@@ -180,7 +185,8 @@ def _terminal_outcome(return_code: int, *, host_deferred: str | None = None
 def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
                     timeout_seconds: float | None = None,
                     termination_grace_seconds: float = 15,
-                    cancelled: Callable[[], bool] = lambda: False) -> int:
+                    cancelled: Callable[[], bool] = lambda: False,
+                    on_started: Callable[[int], None] = lambda _pid: None) -> int:
     watched = (signal.SIGTERM, signal.SIGINT)
     previous = {}
     process = None
@@ -210,6 +216,18 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
             [sys.executable, str(EXEC_GATE), str(read_fd), *command],
             start_new_session=True, env=env, pass_fds=(read_fd,))
         os.close(read_fd)
+        if cancelled() or pending or stopping:
+            os.close(write_fd)
+            for signum in pending:
+                forward(signum, None)
+            process.wait()
+            return 75
+        try:
+            on_started(process.pid)
+        except BaseException:
+            os.close(write_fd)
+            process.wait()
+            raise
         if cancelled() or pending or stopping:
             os.close(write_fd)
             for signum in pending:
@@ -261,30 +279,37 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
         return []
     safe = root / "bin/launchctl-safe"
     started = []
+
+    def cancel(loop_id: str) -> None:
+        try:
+            cancel_durable_resource(loop_id)
+        except (OSError, RuntimeError):
+            pass
+
     for loop_id in loop_ids:
         entry = registry["loops"].get(loop_id)
         if not isinstance(entry, dict) or entry.get("cadence", {}).get("keep_alive"):
-            try:
-                cancel_durable_resource(loop_id)
-            except (OSError, RuntimeError):
-                pass
+            cancel(loop_id)
             continue
         label = entry["label"]
         plist = installed / f"{label}.plist"
         try:
             arguments = plistlib.loads(plist.read_bytes()).get("ProgramArguments")
         except (OSError, ValueError, plistlib.InvalidFileException):
+            cancel(loop_id)
             continue
         if (not isinstance(arguments, list) or len(arguments) < 2
                 or arguments[-2:] != [loop_id, str(root)]):
+            cancel(loop_id)
             continue
         service = f"gui/{os.getuid()}/{label}"
         try:
             observed = subprocess.run(
                 [str(safe), "print", service], capture_output=True, text=True,
                 check=False, timeout=10)
-            if (observed.returncode != 0 or str(root) not in observed.stdout
+            if (observed.returncode != 0 or _loaded_arguments(observed.stdout) != arguments
                     or re.search(r"\bstate\s*=\s*running\b", observed.stdout)):
+                cancel(loop_id)
                 continue
             kicked = subprocess.run(
                 [str(safe), "kickstart", service], capture_output=True, text=True,
@@ -316,6 +341,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         return 64
     claim = None
     claim_started_child = False
+    durable = False
     dispatch_after_release: list[str] = []
     interrupted = False
     previous = {}
@@ -329,35 +355,45 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             previous[signum] = signal.signal(signum, interrupt_wait)
         resource_class = _resource_class(entry)
         try:
-            ticket, admission_reason = enqueue_durable_resource(resource_class, loop_id)
+            durable = durable_protocol_version() == 2
+            ticket, admission_reason = (
+                enqueue_durable_resource(resource_class, loop_id)
+                if durable else (None, "legacy")
+            )
         except (OSError, RuntimeError):
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
             return 75
-        if ticket is None:
+        if durable and ticket is None:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": f"resource_{admission_reason}"})
             return 75
         available = memory_free_percent()
         if interrupted:
-            try:
-                defer_durable_resource(loop_id)
-            except (OSError, RuntimeError):
-                pass
+            if durable:
+                try:
+                    defer_durable_resource(loop_id)
+                except (OSError, RuntimeError):
+                    pass
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_interrupted"})
             return 75
         if available is None or available < minimum_free:
-            try:
-                defer_durable_resource(loop_id)
-            except (OSError, RuntimeError):
-                pass
+            if durable:
+                try:
+                    defer_durable_resource(loop_id)
+                except (OSError, RuntimeError):
+                    pass
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                          "reason": "memory_headroom_unavailable" if available is None
                          else "memory_headroom_low"})
             return 75
         try:
-            claim, admission_reason = claim_durable_resource(resource_class, loop_id)
+            claim, admission_reason = (
+                claim_durable_resource(resource_class, loop_id)
+                if durable else try_acquire_resource(
+                    resource_class, loop_id, retain_ticket=False, required_protocol=1)
+            )
         except (OSError, RuntimeError):
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
@@ -365,7 +401,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         if claim is None:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": f"resource_{admission_reason}"})
-            if not interrupted:
+            if durable and not interrupted:
                 _dispatch_reserved(reserve_available_resource())
             return 75
         available = memory_free_percent()
@@ -385,9 +421,15 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_interrupted"})
             return 75
-        claim_started_child = True
+
+        def transfer_claim(child_pid: int) -> None:
+            nonlocal claim_started_child
+            transfer_durable_resource(claim, child_pid)
+            claim_started_child = True
+
         return_code = _run_entrypoint(
-            command, env=env, timeout_seconds=limit, cancelled=lambda: interrupted)
+            command, env=env, timeout_seconds=limit, cancelled=lambda: interrupted,
+            on_started=transfer_claim)
         if return_code == 75 and interrupted:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_interrupted"})
@@ -397,9 +439,12 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             signal.signal(signum, handler)
         if claim is not None:
             try:
-                dispatch_after_release = release_and_reserve_resource(
-                    claim, requeue=not claim_started_child,
-                    reserve=claim_started_child)
+                if durable:
+                    dispatch_after_release = release_and_reserve_resource(
+                        claim, requeue=not claim_started_child,
+                        reserve=claim_started_child)
+                else:
+                    release_resource(claim)
             except (OSError, RuntimeError) as error:
                 print(f"lm-loop-run: resource release deferred to stale recovery: {error}",
                       file=sys.stderr)

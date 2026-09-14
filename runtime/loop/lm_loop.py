@@ -25,6 +25,7 @@ from runtime.loop.lm_loop_apply import (
 )
 from runtime.loop.lm_loop_lifecycle import lifecycle, lifecycle_one
 from runtime.loop.runtime_event import append_runtime_event, build_install_event, validate_runtime_event
+from runtime.host.resource_admission import activate_durable_v2, durable_protocol_version
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -411,14 +412,26 @@ def _retire_labels(registry: dict, agents_dir: Path, launchctl_safe: Path,
     return results
 
 
+def _supports_durable_admission_v2(release_root: Path) -> bool:
+    try:
+        value = json.loads(
+            (release_root / "config/runtime-capabilities.json").read_text(encoding="utf-8")
+        )
+    except (OSError, ValueError, json.JSONDecodeError):
+        return False
+    return isinstance(value, dict) and value.get("resource_admission") == 2
+
+
 def activate_current(current: Path, release_root: Path,
-                     lock_path: Path | None = None) -> None:
+                     lock_path: Path | None = None, *, protocol_version: int = 1) -> None:
     current = Path(current).expanduser()
     release_root = Path(release_root).expanduser()
     with _apply_lock(current, lock_path):
         release_root = release_root.resolve(strict=True)
         if not release_root.is_dir():
             raise ValueError("release root is not a directory")
+        if protocol_version == 2 and not _supports_durable_admission_v2(release_root):
+            raise RuntimeError("target release does not support durable admission v2")
         current.parent.mkdir(parents=True, exist_ok=True)
         swap = current.with_name(current.name + ".swap")
         swap.unlink(missing_ok=True)
@@ -429,14 +442,44 @@ def activate_current(current: Path, release_root: Path,
             swap.unlink(missing_ok=True)
 
 
+def activate_durable_admission_live(
+        registry: dict, release_root: Path, launchctl_safe: Path, *,
+        current: Path | None = None) -> dict[str, object]:
+    """Enable v2 only when every finite owner is loaded from this release."""
+    validate_registry(registry)
+    release_root = release_root.resolve(strict=True)
+    if not _supports_durable_admission_v2(release_root):
+        raise RuntimeError("release does not support durable admission v2")
+    current = Path(current or "~/loops/current").expanduser()
+    with _apply_lock(current, None):
+        preflight_rc, detail = _safe_launchctl(launchctl_safe, ["preflight"])
+        if preflight_rc:
+            raise RuntimeError(f"launchctl-safe preflight failed: {detail.strip()}")
+        verified = 0
+        for loop_id, entry in sorted(registry["loops"].items()):
+            if entry.get("cadence", {}).get("keep_alive"):
+                continue
+            expected = [str(release_root / "bin/lm-loop-run"), loop_id, str(release_root)]
+            rc, printed = _safe_launchctl(
+                launchctl_safe, ["print", f"gui/{os.getuid()}/{entry['label']}"])
+            if rc != 0 or _loaded_arguments(printed) != expected:
+                raise RuntimeError(f"{loop_id}: loaded argv is not v2-capable")
+            verified += 1
+        activate_durable_v2()
+    return {"ok": True, "protocol": 2, "verified_finite_labels": verified}
+
+
 def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                target: str | None = None, *, current: Path | None = None,
                lock_path: Path | None = None,
                preserve_unloaded: bool = False,
                skip_busy: bool = False,
                reload_running: bool = False,
+               protocol_version: int = 1,
                event_writer=append_runtime_event) -> list[dict]:
     release_root = release_root.resolve()
+    if protocol_version == 2 and not _supports_durable_admission_v2(release_root):
+        raise RuntimeError("target release does not support durable admission v2")
     current = Path(current or "~/loops/current").expanduser()
     registry = json.loads((release_root / "config/loop-registry.json").read_text())
     manifest = json.loads((release_root / "RELEASE.json").read_text())
@@ -580,9 +623,12 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
 
 def main(argv: list[str] | None = None) -> int:
     args = argv or sys.argv[1:]
-    commands = {"apply", "doctor", "reconcile", "start", "stop", "restart", "status", "watch"}
+    commands = {
+        "admission-v2-enable", "apply", "doctor", "reconcile",
+        "start", "stop", "restart", "status", "watch",
+    }
     if not args or args[0] not in commands:
-        print("usage: lm-loop apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
@@ -607,11 +653,32 @@ def main(argv: list[str] | None = None) -> int:
         try:
             results = apply_live(
                 release_root, agents_dir, launchctl_safe,
-                target=target)
+                target=target, protocol_version=durable_protocol_version())
         except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
             print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True))
             return 1
         print(json.dumps(results, indent=2, sort_keys=True))
+        return 0
+    if command == "admission-v2-enable":
+        if len(args) != 1:
+            print(json.dumps({"ok": False, "error": "admission-v2-enable accepts no arguments"}))
+            return 2
+        release_root = Path(os.environ.get(
+            "LIFE_MANAGER_RELEASE_ROOT", "~/loops/current")).expanduser().resolve(strict=True)
+        launchctl_safe = Path(os.environ.get(
+            "LIFE_MANAGER_LAUNCHCTL_SAFE", str(release_root / "bin/launchctl-safe")
+        )).expanduser()
+        try:
+            release_registry = validate_registry(json.loads(
+                (release_root / "config/loop-registry.json").read_text(encoding="utf-8")
+            ))
+            result = activate_durable_admission_live(
+                release_registry, release_root, launchctl_safe,
+            )
+        except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True))
+            return 1
+        print(json.dumps(result, indent=2, sort_keys=True))
         return 0
     registry = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))
     if command == "reconcile":
@@ -708,7 +775,8 @@ def main(argv: list[str] | None = None) -> int:
                     preserve_unloaded=row["launchd_state"] == "unloaded",
                     skip_busy=(loaded_idle_only and
                                row["loop_id"] not in explicitly_reloadable),
-                    reload_running=row["launchd_state"] == "loaded-running"))
+                    reload_running=row["launchd_state"] == "loaded-running",
+                    protocol_version=durable_protocol_version()))
             except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
                 failed.append({"loop_id": row["loop_id"], "error": str(exc)})
         print(json.dumps({

@@ -7,6 +7,8 @@ import sqlite3
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from runtime.host import resource_admission as admission
 
 
@@ -41,6 +43,84 @@ def test_one_shot_busy_attempt_does_not_leave_a_ticket(tmp_path, monkeypatch):
     assert blocked is None and reason == "capacity_busy"
     assert not list((tmp_path / "tickets").glob("*.json"))
     admission.release(first)
+
+
+def test_durable_protocol_defaults_v1_and_activates_only_when_idle(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    assert admission.durable_protocol_version() == 1
+    claim, reason = admission.try_acquire("agent", "legacy", retain_ticket=False)
+    assert claim is not None and reason == "acquired"
+
+    with pytest.raises(RuntimeError, match="legacy admission is not idle"):
+        admission.activate_durable_v2()
+
+    admission.release(claim)
+    admission.activate_durable_v2()
+    assert admission.durable_protocol_version() == 2
+
+
+def test_durable_protocol_activation_is_replay_safe_after_queue_starts(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.activate_durable_v2()
+    admission.enqueue_durable("agent", "queued")
+
+    admission.activate_durable_v2()
+
+    assert admission.durable_protocol_version() == 2
+    assert [row["owner_id"] for row in durable_rows(tmp_path, "queue")] == ["queued"]
+
+
+def test_v2_reservation_blocks_compatibility_v1_claim(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.activate_durable_v2()
+    admission.enqueue_durable("agent", "v2-first")
+    instant = time.time()
+    assert admission.reserve_available(
+        now=instant, lease_seconds=30,
+    ) == ["v2-first"]
+
+    legacy, reason = admission.try_acquire(
+        "agent", "v1-later", retain_ticket=False,
+    )
+
+    assert legacy is None and reason == "capacity_busy"
+    claim, reason = admission.claim_durable("agent", "v2-first", now=instant + 1)
+    assert claim is not None and reason == "acquired"
+
+
+def test_v1_claim_refuses_protocol_flip_inside_control_lock(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.activate_durable_v2()
+
+    claim, reason = admission.try_acquire(
+        "agent", "late-v1", retain_ticket=False, required_protocol=1,
+    )
+
+    assert claim is None and reason == "protocol_changed"
+    assert not list((tmp_path / "owners").glob("*.json"))
+
+
+def test_reserved_v2_claim_refuses_unexpected_legacy_capacity_overlap(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.activate_durable_v2()
+    admission.enqueue_durable("agent", "v2-first")
+    instant = time.time()
+    assert admission.reserve_available(
+        now=instant, lease_seconds=30,
+    ) == ["v2-first"]
+    admission.atomic_json(tmp_path / "owners/legacy.json", {
+        "version": 1,
+        "pid": os.getpid(),
+        "process_start": admission.process_start(os.getpid()),
+        "owner_id": "unexpected-legacy",
+        "resource_class": "agent",
+    })
+
+    claim, reason = admission.claim_durable(
+        "agent", "v2-first", now=instant + 1,
+    )
+
+    assert claim is None and reason == "capacity_busy"
 
 
 def test_unknown_future_ticket_is_preserved_and_ignored(tmp_path, monkeypatch):
@@ -317,6 +397,47 @@ def test_stale_owner_recovery_reserves_sleeping_fifo_head(tmp_path, monkeypatch)
     admission.enqueue_durable("agent", "sleeping-head")
     admission.enqueue_durable("agent", "later-wake")
     assert admission.reserve_available(now=100, lease_seconds=30) == ["sleeping-head"]
+
+
+def test_stale_pre_handoff_claim_returns_to_original_fifo_position(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable("agent", "first")
+    claim, reason = admission.claim_durable("agent", "first")
+    assert claim is not None and reason == "acquired"
+    row = json.loads(claim.read_text())
+    admission.atomic_json(claim, {
+        **row, "pid": 999_999_999, "process_start": "dead", "phase": "claimed",
+    })
+
+    admission.enqueue_durable("agent", "second")
+
+    assert durable_rows(tmp_path, "queue") == [
+        {"sequence": 1, "owner_id": "first", "resource_class": "agent"},
+        {"sequence": 2, "owner_id": "second", "resource_class": "agent"},
+    ]
+
+
+def test_transfer_claim_tracks_child_while_controller_can_release(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable("agent", "first")
+    claim, reason = admission.claim_durable("agent", "first")
+    assert claim is not None and reason == "acquired"
+    controller_start = admission.process_start(os.getpid())
+
+    def process_identity(pid):
+        return "child-start" if pid == 4242 else controller_start
+
+    with patch.object(admission, "process_start", side_effect=process_identity):
+        admission.transfer_durable(claim, 4242)
+        row = json.loads(claim.read_text())
+        assert row["pid"] == 4242
+        assert row["process_start"] == "child-start"
+        assert row["controller_pid"] == os.getpid()
+        assert row["controller_process_start"] == controller_start
+        assert row["phase"] == "running"
+        admission.release_and_reserve(claim, reserve=False)
+
+    assert not claim.exists()
 
 
 def test_cancel_retired_owner_removes_queue_and_reservation(tmp_path, monkeypatch):

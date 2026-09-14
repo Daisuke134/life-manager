@@ -381,7 +381,7 @@ chmod -R a-w "$DEST" 2>/dev/null || true
 if [ "$ACTIVATE_CURRENT" = "1" ]; then
   # Use the same host-wide owner lock as `lm-loop apply` while replacing `current` atomically.
   PYTHONPATH="$SCRIPT_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
-    python3 -c 'import sys; from pathlib import Path; from runtime.loop.lm_loop import activate_current; activate_current(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]))' \
+    python3 -c 'import sys; from pathlib import Path; from runtime.host.resource_admission import durable_protocol_version; from runtime.loop.lm_loop import activate_current; activate_current(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), protocol_version=durable_protocol_version())' \
     "$CURRENT" "$DEST" "$LOOPS_ROOT/.apply.lock" || die "could not activate current release"
 
   # Keep a few older releases so rollback is a symlink move rather than a rebuild.
