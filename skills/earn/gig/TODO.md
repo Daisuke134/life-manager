@@ -14,6 +14,19 @@ observation, replies, and estimates; do not present it as a separate Negotiate l
 This section is the current execution SSOT and supersedes contradictory historical checkpoints below.
 Historical receipts remain evidence; their old cursors do not reopen completed work.
 
+- **Shared runtime process-stampede repair is merged; production drain remains open.** The first
+  resource-admission implementation called a blocking FIFO acquire from every scheduled launchd wake.
+  Under capacity contention, each wake remained resident as a Python process plus ticket instead of
+  writing a bounded deferred terminal, so host load exceeded 130 and unrelated revenue lanes starved.
+  PR `#5184`, merge SHA `b8de9bf2d2...`, changes scheduled wakes to one nonblocking attempt: control-lock,
+  capacity, owner and FIFO contention produce an effect-zero deferred receipt and exit `75`; the next
+  natural launchd wake retries from durable state. One-shot attempts never create, overwrite or delete a
+  waiter's ticket; unavailable PID identity probes fail conservatively as live. Focused acceptance passes
+  `25/25` and fresh read-only review says ship. Immutable release
+  `20260914T160401-b8de9bf2` is current. Production acceptance remains open until old-release waiters drain,
+  installed argv converge without sibling restarts, ticket count stops growing, host load recovers, and
+  natural wakes resume durable progress plus official effect readback for every affected lane.
+
 - **Current cursor: restore Coconala Apply discovery and effect reconciliation.** Ryu `18211957`
   already has the ordinary reply and manual attachment in official readback and remains dormant until a
   genuinely new buyer event; formal delivery is still off and duplicate seller replies are forbidden.
