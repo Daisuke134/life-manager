@@ -63,8 +63,11 @@ docs/
 - Coconala Reply is installed on `b8de9bf2`. Two natural wakes independently ended exit `75`,
   `host_admission_deferred`, loaded-idle, with no retained new-release ticket. Contention safety passes;
   later natural resume and official business readback remain open.
-- Latest legacy queue count is `22`. Coconala Paid PID `6856`, Apply PID `42143` and Storefront PID `60168`
-  remain on older releases and must end naturally before target-only loaded-idle reconciliation.
+- Latest legacy queue count is `20`, with three live owners. Current memory admission itself passes at
+  `free_percent=31` against `minimum_free_percent=15`; the remaining backlog is legacy process/ticket drain,
+  not evidence of current physical-memory rejection. Coconala Paid PID `6856`, Apply PID `42143` and
+  Storefront PID `60168` remain on older releases and must end naturally before target-only loaded-idle
+  reconciliation.
 - Disk availability recovered from `1.1 GiB` to `3.8 GiB`. Only clean, unused, regenerable external clones,
   main-contained temporary clones, one completed merged worktree/branch/owned lease, and one missing-worktree
   registration were removed. Codex/cloud sessions, credentials, browser profiles, memory, state, ledgers,
@@ -78,7 +81,8 @@ docs/
 - Exactly 54 application intents are `prepared_unconfirmed`. Frozen source result:
   `gig-apply-direct-1789367873154753000-28060`; sorted IDs `5207298` through `5267876`; newline-list SHA-256
   `cd0610bb8daaf78c11ffd143a4688fad30edeff34188725aaa6867d935b8b2e5`. Reconcile every member
-  against the official applied state before retry.
+  against the official applied state before retry. Retained official readbacks match zero of these 54 IDs,
+  so none can be confirmed or safely retired without one fresh authenticated official-history scan.
 - PR `#5183`, main SHA `d74258a8ce25a834e1fff31b7e3dc01ac0b816ba`, makes Paid fail closed as
   `buyer_attachment_recovery_pending` instead of asking a buyer to re-upload when official attachment
   references exist but verified bytes are missing. Kokoro resumes only after all 15 files are verified.
