@@ -212,7 +212,9 @@ def activate_durable_v2() -> None:
             path.unlink(missing_ok=True)
         for path in tickets.glob("*.json"):
             row = _row(path)
-            if row and row.get("version", 1) == 1:
+            if not row:
+                path.unlink(missing_ok=True)
+            elif row.get("version", 1) == 1:
                 if _live(path, starts, snapshot_started_ns):
                     raise RuntimeError("legacy admission is not idle")
                 path.unlink(missing_ok=True)

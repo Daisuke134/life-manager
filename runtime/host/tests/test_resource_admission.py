@@ -70,6 +70,32 @@ def test_durable_protocol_activation_is_replay_safe_after_queue_starts(tmp_path,
     assert [row["owner_id"] for row in durable_rows(tmp_path, "queue")] == ["queued"]
 
 
+def test_durable_protocol_activation_removes_malformed_legacy_ticket(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    ticket = tmp_path / "tickets/agent-broken.json"
+    ticket.parent.mkdir(parents=True)
+    ticket.write_text("{")
+
+    admission.activate_durable_v2()
+
+    assert admission.durable_protocol_version() == 2
+    assert not ticket.exists()
+
+
+def test_durable_protocol_activation_preserves_unknown_future_ticket(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    ticket = tmp_path / "tickets/agent-future.json"
+    admission.atomic_json(ticket, {
+        "version": 3, "owner_id": "future", "resource_class": "agent",
+    })
+
+    with pytest.raises(RuntimeError, match="legacy admission is not idle"):
+        admission.activate_durable_v2()
+
+    assert ticket.exists()
+    assert admission.durable_protocol_version() == 1
+
+
 def test_v2_reservation_blocks_compatibility_v1_claim(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     admission.activate_durable_v2()
