@@ -41,6 +41,16 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   `ae5bf68305cc6a4ac72415ba` prove the installed SHA. This is rollout evidence only: the active
   cursor remains the first terminal repaired-release receipt plus official effect/readback and a
   replay-zero receipt for every applicable lane.
+- **The repaired browser path exposed a second shared runtime bottleneck before terminal write.** The
+  Reply business child exited, but `lm-loop-run` remained inside `append_runtime_event()` while holding
+  the per-ledger lock and rebuilding every JSON object in an 8,833,864-byte, 18,077-row runtime ledger.
+  This is shared control-plane debt, not a Coconala adapter failure. The minimal source repair preserves
+  the existing JSONL, rotation and event-ID contract while byte-filtering by the requested ID and decoding
+  only matching candidate rows instead of calling `json.loads()` for every historical row. Runtime-focused
+  acceptance passes `25/25`, including corrupt partial, spaced valid and Unicode-escaped JSON rows; the
+  measured 8.8 MB Reply ledger duplicate check completes in about `0.034s` on the current host. Production acceptance
+  remains open until this repair is merged, released,
+  installed without interrupting active owners, and followed by natural terminal receipts.
 
 - **Reply client isolation is merged and installed.** PR `#5162`, merge SHA `2fe142f696...`,
   runs up to four Coconala client workers concurrently and gives every talkroom its own

@@ -1,9 +1,12 @@
 import gzip
+import json
 import os
 import tempfile
 import unittest
 from unittest import mock
 from pathlib import Path
+
+from runtime.loop import runtime_event
 
 from runtime.loop.runtime_event import (
     append_runtime_event,
@@ -36,6 +39,42 @@ class RuntimeEventTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "events.jsonl"
             append_runtime_event(path, BASE)
+            append_runtime_event(path, BASE)
+            self.assertEqual(len(path.read_text().splitlines()), 1)
+
+    def test_duplicate_scan_parses_only_matching_candidate_rows(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "events.jsonl"
+            for index in range(1000):
+                append_runtime_event(path, {**BASE, "event_id": f"{index:024x}"})
+            append_runtime_event(path, BASE)
+            with mock.patch.object(
+                runtime_event.json, "loads", wraps=runtime_event.json.loads
+            ) as loads:
+                append_runtime_event(path, BASE)
+            self.assertEqual(loads.call_count, 1)
+            self.assertEqual(len(path.read_text().splitlines()), 1001)
+
+    def test_corrupt_partial_row_does_not_suppress_retry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "events.jsonl"
+            path.write_bytes(f'{{"event_id":"{BASE["event_id"]}"'.encode())
+            append_runtime_event(path, BASE)
+            lines = path.read_text().splitlines()
+            self.assertEqual(json.loads(lines[-1]), BASE)
+
+    def test_unicode_escaped_event_id_is_still_deduplicated(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "events.jsonl"
+            encoded = json.dumps(BASE).replace(BASE["event_id"], "\\u0061" * 24)
+            path.write_text(encoded + "\n", encoding="utf-8")
+            append_runtime_event(path, BASE)
+            self.assertEqual(len(path.read_text().splitlines()), 1)
+
+    def test_spaced_valid_json_row_is_still_deduplicated(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "events.jsonl"
+            path.write_text(json.dumps(BASE) + "\n", encoding="utf-8")
             append_runtime_event(path, BASE)
             self.assertEqual(len(path.read_text().splitlines()), 1)
 
