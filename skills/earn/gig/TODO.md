@@ -33,12 +33,17 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   Apply lifecycle rather than two unrelated business implementations. The installed Apply release
   `6a9f3aa485...` is currently running; its latest completed natural wake ended
   `entrypoint_exit_1` after refresh returned source exit `1`, with observed/actionable/effect/readback
-  `0/0/0/0`. The same receipt retained 54 `prepared_unconfirmed` intents whose irreversible attempt began
-  but whose official outcome is unresolved. Therefore the next atomic work is: (1) let the current owner
-  terminate naturally; (2) identify the exact refresh child failure rather than infer it from the wrapper;
-  (3) reconcile every uncertain intent through official applied-state readback before any retry; (4) prove
-  both `single:new` and `retainer:new` discovery; and (5) prove at least one eligible application in each
-  bucket with exact official readback and a following replay-zero receipt. Split lifecycle labels only if
+  `0/0/0/0`. Direct run-directory evidence from passes ending `30371`, `41848` and `78678` identifies the
+  first failure boundary: `cdp_context_lease.py acquire` exceeded its 160-second caller deadline before
+  marketplace observation. At the same readback, host load average was about 140 and the installed Apply
+  SHA still predated the merged host-admission repair. This is not evidence of a Coconala login, selector or
+  fit-decision defect. The same receipt retained 54 `prepared_unconfirmed` intents whose irreversible
+  attempt began but whose official outcome is unresolved. Therefore the next atomic work is: (1) let the
+  current owner terminate naturally; (2) converge Apply to the already merged shared host-admission release
+  without restarting a sibling; (3) reconcile every uncertain intent through official applied-state
+  readback before any retry; (4) prove both `single:new` and `retainer:new` discovery; and (5) prove at least
+  one eligible application in each bucket with exact official readback and a following replay-zero receipt.
+  Split lifecycle labels only if
   measured head-of-line blocking remains after the shared source/effect repair; do not duplicate proposal,
   fit, fence, Calendar, Telegram or receipt code.
 
