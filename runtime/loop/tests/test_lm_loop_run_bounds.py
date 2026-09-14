@@ -132,6 +132,29 @@ def test_acquired_slot_keeps_the_full_entrypoint_runtime_budget(tmp_path):
     dispatch.assert_called_once_with(["next"])
 
 
+def test_release_reconciler_bypasses_data_plane_admission(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "deterministic", "runtime_timeout_seconds": 900}
+    receipt = tmp_path / "receipt"
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent") as memory,
+          patch("runtime.loop.lm_loop_run.durable_protocol_version") as protocol,
+          patch("runtime.loop.lm_loop_run.try_acquire_resource") as acquire,
+          patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0) as run):
+        assert _run_admitted(
+            ["/bin/true"], entry, "life-manager-release-reconciler", {}, receipt,
+        ) == 0
+
+    memory.assert_not_called()
+    protocol.assert_not_called()
+    acquire.assert_not_called()
+    run.assert_called_once_with(["/bin/true"], env={}, timeout_seconds=900)
+    assert json.loads(receipt.read_text()) == {
+        "effect": 0,
+        "reason": "control_plane_exempt",
+        "status": "pass",
+    }
+
+
 def test_v1_protocol_uses_legacy_nonretaining_admission(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner"}
