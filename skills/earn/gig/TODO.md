@@ -30,11 +30,12 @@ runtime/provider readback before acting; conversation claims are not completion 
 - Account migration is open: identify the account 1 Codex auth/provider profile through the credential SSOT,
   prove one bounded invocation, then roll only the intended Life Manager Codex routes forward. Preserve all
   Codex/cloud sessions and unrelated providers.
-- First safe action: keep admission protocol at `1`, observe old-release finite owners ending naturally, and
-  repeatedly reconcile only newly loaded-idle labels to immutable release
-  `/Users/anicca/loops/releases/20260915T025232-3fbe7554`. Never restart a running sibling. Enable protocol `2`
-  only when every finite label has exact current loaded argv and legacy owners/tickets plus SQLite work are
-  idle; then prove natural fairness/recovery before Coconala browser effects.
+- First safe action: keep admission protocol at `1` while the autonomous release reconciler converges every
+  loaded-idle label to immutable release `/Users/anicca/loops/releases/20260915T061515-b8cff053`. Do not
+  manually chase idle windows and never restart a running sibling. Current readback is legacy tickets `0` and
+  live owners `2` (`f7-silence-check`, `affiliate-source-refresh`). Enable protocol `2` only when every finite
+  label has exact current loaded argv and legacy owners plus SQLite queue/reservations are idle; then prove
+  natural fairness/recovery before Coconala browser effects.
 
 ## Outcome
 
@@ -87,6 +88,21 @@ docs/
 
 ### Shared host/runtime
 
+- PRs `#5194` through `#5199` are merged. Current main is
+  `b8cff053255f840cc02405c886bd4974005586cc`, published as full immutable release
+  `/Users/anicca/loops/releases/20260915T061515-b8cff053`. The release reconciler now covers both complete
+  provider routes, changes only loaded-idle labels, skips running and unloaded labels, runs outside saturated
+  data-plane admission, reconciles the local complete release before any remote fetch, bounds fetch with the
+  existing portable process-group timeout, narrows Git negotiation to `origin/main`, and uses the release-pinned
+  Python for its nested `lm-loop` CLI. Each PR passed its focused tests and GitHub CI 8/8. Production proved the
+  old unbounded fetch could run beyond ten minutes, the bounded replacement emitted `entrypoint_exit_124` with
+  no orphan Git children, and `control_plane_exempt` wrote an effect-zero host receipt. The first natural wake
+  of the final `b8cff053` release is currently running; its two route summaries, terminal receipt and resulting
+  exact fleet mismatch count remain open and must be read back before protocol activation.
+- Admission remains protocol `1`. Fresh filesystem readback shows legacy tickets `0` and two live legacy owners:
+  `f7-silence-check` PID `94503` and `affiliate-source-refresh` PID `29867`. They must end naturally and be
+  reconciled by the autonomous owner. The prior `mismatch=38`, `owners=3`, `tickets=4` snapshot is historical,
+  not current truth; a new exact mismatch count is required after the active reconciler wake terminates.
 - PR `#5193`, main SHA `3fbe75546d720add1bfa465731ddc94353b662b5`, is merged and published as
   immutable release `/Users/anicca/loops/releases/20260915T025232-3fbe7554`. The safe two-stage rollout keeps
   protocol `1` until every finite label is exact-loaded from this capability-2 release. Initial loaded-idle
@@ -249,14 +265,6 @@ independent production effects.
   bytecode, a pinned interpreter and apply-time cache attestation (PR `#5191`).
 - [x] Replace per-wake fleet process enumeration with native Darwin process-start identity while preserving the
   legacy `ps lstart` format and PID-reuse discrimination (PR `#5191`).
-- [ ] Prove on natural production wakes that launch-to-start remains bounded under pressure and disk-cleanup no
-  longer loses its recovery wake before the start receipt.
-- [ ] Let the legacy global-lock queue drain naturally. Paid drained; Apply PID `42143` acquired the agent
-  resource and is executing its business child. Storefront has a terminal receipt but its process is still
-  finishing naturally.
-- [ ] Reconcile each newly idle owner to current `3a21ba28` without restarting siblings. Reply and disk-cleanup
-  are installed current. Apply remains on `d74258a8`; Paid on `0a7b8c8b`; Storefront on `59bd6cdd` until their
-  observed running wakes finish. Target checks remain bounded and running owners are never interrupted.
 - [ ] Prove each lane defers under contention without a retained ticket or external effect.
   Reply, Storefront and Paid pass; Apply remains.
 - [ ] Prove pressure recovery: a later natural wake acquires, resumes durable progress and writes terminal
@@ -271,6 +279,17 @@ independent production effects.
   `ship` on exact commit `4ac009092f`, then commit and push without losing the original dirty work.
 - [x] Merge PR `#5193`, build immutable main-derived release `20260915T025232-3fbe7554`, and reconcile only
   loaded-idle targets with failures 0; running siblings were skipped and not restarted.
+- [x] Replace manual idle-window chasing with the fleet-wide autonomous release reconciler (PRs `#5194`--`#5199`):
+  both provider routes, loaded-idle only, control-plane admission exemption, local-first convergence, bounded
+  optimized fetch and release-pinned Python are deployed in `20260915T061515-b8cff053`.
+- [ ] Let the active natural `b8cff053` reconciler wake finish. Record both route summaries, its terminal receipt,
+  all changed/skipped/failure counts and a fresh exact finite-label mismatch count. A running PID or install
+  receipt alone is not completion.
+- [ ] Let the remaining two legacy owners (`f7-silence-check`, `affiliate-source-refresh`) end naturally and
+  verify the reconciler updates them without a manual restart. Legacy tickets are already zero.
+- [ ] Activate admission protocol `2` only after every finite label has exact current loaded argv, legacy owners
+  are zero, tickets remain zero, and SQLite queue/reservations are idle. Use the existing atomic
+  `lm-loop admission-v2-enable` gate; do not force it.
 - [ ] Prove with natural production wakes that a sleeping queue head does not idle capacity, a crashed
   dispatcher is reclaimed, retired/missing owners cannot block the queue, one resource class cannot starve
   another, and an uncertain external effect is never replayed.
@@ -280,8 +299,8 @@ independent production effects.
 
 ### 2. Coconala vertical revenue proof
 
-- [ ] Finish the currently running Paid wake and persist its terminal receipt; process start alone is not a
-  client effect.
+- [ ] After protocol `2` activation and its natural fairness/recovery proof, let the next natural Paid and Reply
+  wakes finish and persist terminal receipts; process start alone is not a client effect.
 - [ ] Obtain one authenticated `orders-only` observation and replace the retained candidate set above with the
   exact official active-order set.
 - [ ] For every active order, obtain a `selected-talkroom-only` head readback and store newest buyer-event and
