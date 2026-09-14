@@ -64,7 +64,7 @@ docs/
 - Coconala Reply is installed on `b8de9bf2`. Two natural wakes independently ended exit `75`,
   `host_admission_deferred`, loaded-idle, with no retained new-release ticket. Contention safety passes;
   later natural resume and official business readback remain open.
-- Coconala Storefront is installed on `b8de9bf2`. Its first natural new-release wake ended exit `75`,
+- Coconala Storefront is installed on `b8de9bf2`. Two natural new-release wakes independently ended exit `75`,
   `host_admission_deferred`, loaded-idle, with no retained legacy ticket or owner. Contention safety passes;
   later natural resume and official listing readback remain open.
 - Latest legacy queue count is `20`, with one live owner immediately after the latest idle convergence pass.
