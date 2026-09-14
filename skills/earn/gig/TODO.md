@@ -63,7 +63,11 @@ docs/
   reconciliation read only the requested launchd labels instead of enumerating the full fleet. Production
   read-only latency fell from about 37 seconds to 1.4--2.4 seconds; 70 tests plus 30 subtests, all CI and a
   fresh read-only review pass.
-- Immutable release `/Users/anicca/loops/releases/20260914T183900-59bd6cdd` is current. The preceding
+- PR `#5188`, main SHA `d80e7359127a9bc591463ee4b6b3ea2528f8639a`, removes synchronous evidence
+  garbage collection from Apply's revenue-critical path. The observed old run spent about 28 minutes scanning
+  412 MiB and reclaimed zero bytes because it was below the 400 MiB high watermark. GC now has an independent
+  six-hour deterministic owner, and active evidence is protected by a PID plus process-start-identity pin.
+- Immutable release `/Users/anicca/loops/releases/20260914T191705-d80e7359` is current. The preceding
   `3e7b7771` loaded-idle rollout reconciled 57 deterministic and 40 shared-agent-runner labels with zero
   failures; target-only convergence to `59bd6cdd` has begun and running owners are skipped, not restarted.
 - Idle rollout succeeded cumulatively for 96 label installs with zero reconcile failures. The latest
@@ -78,7 +82,8 @@ docs/
   ended with bounded `host_admission_deferred`. Apply PID `42143` subsequently acquired the agent resource and
   now runs its real `application_direct.py --all-eligible` child; it is no longer blocked on `flock` but remains
   on old release `d74258a8` until that business run ends naturally.
-- Coconala Reply is installed on `b8de9bf2`. Two natural wakes independently ended exit `75`,
+- Coconala Reply and Paid are installed on current `d80e7359` and are executing natural wakes. Their previous
+  wakes independently ended exit `75`,
   `host_admission_deferred`, loaded-idle, with no retained new-release ticket. Contention safety passes;
   later natural resume and official business readback remain open.
 - Coconala Storefront is installed on current `59bd6cdd`. Its first natural current-release wake
@@ -97,6 +102,9 @@ docs/
   registration were removed. Codex/cloud sessions, credentials, browser profiles, memory, state, ledgers,
   receipts, active evidence and other agents' worktrees were untouched. The retained legacy ticket count later
   fell to `7`; zero remains the completion gate.
+- The dedicated `hf-gig-apply-evidence-gc` owner is installed on `d80e7359`, loaded-idle with exit `0` and a
+  six-hour cadence. Apply PID `42143` remains on `d74258a8` and continues its pre-deployment business run; it
+  is not interrupted. Storefront likewise remains running on `59bd6cdd` until its wake ends naturally.
 
 ### Coconala
 
@@ -136,9 +144,9 @@ independent production effects.
 - [ ] Let the legacy global-lock queue drain naturally. Paid drained; Apply PID `42143` acquired the agent
   resource and is executing its business child. Storefront has a terminal receipt but its process is still
   finishing naturally.
-- [ ] Reconcile each newly idle owner to current `59bd6cdd` without restarting siblings. Storefront is current;
-  Paid and Reply are on the prior safe runtime, and Apply remains on `d74258a8` until its current business run
-  finishes. Target checks complete in 1.4--2.4 seconds and safely skip running owners.
+- [ ] Reconcile each newly idle owner to current `d80e7359` without restarting siblings. Paid and Reply are
+  current. Apply remains on `d74258a8` and Storefront on `59bd6cdd` until their current runs finish. Target
+  checks complete in 1.4--2.4 seconds and safely skip running owners.
 - [ ] Prove each lane defers under contention without a retained ticket or external effect.
   Reply, Storefront and Paid pass; Apply remains.
 - [ ] Prove pressure recovery: a later natural wake acquires, resumes durable progress and writes terminal
