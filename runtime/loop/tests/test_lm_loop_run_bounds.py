@@ -1,6 +1,7 @@
 import json
 import os
 import signal
+import plistlib
 import subprocess
 import sys
 import time
@@ -8,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from runtime.loop.lm_loop_run import (
-    _host_admission_deferred, _resource_class, _run_admitted, _run_entrypoint,
+    _dispatch_reserved, _host_admission_deferred, _resource_class, _run_admitted, _run_entrypoint,
     _runtime_limit, _terminal_outcome,
 )
 
@@ -78,13 +79,18 @@ def test_acquired_slot_keeps_the_full_entrypoint_runtime_budget(tmp_path):
     claim = tmp_path / "claim"
     claim.write_text("owned")
     with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
-          patch("runtime.loop.lm_loop_run.try_acquire_resource",
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
                 return_value=(claim, "acquired")),
-          patch("runtime.loop.lm_loop_run.release_resource") as release,
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=["next"]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved") as dispatch,
           patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0) as run):
         assert _run_admitted(["/bin/true"], entry, "example", {}, tmp_path / "receipt") == 0
     assert run.call_args.kwargs["timeout_seconds"] == 123
-    release.assert_called_once_with(claim)
+    release.assert_called_once_with(claim, requeue=False, reserve=True)
+    dispatch.assert_called_once_with(["next"])
 
 
 def test_busy_resource_admission_defers_without_waiting_or_starting_child(tmp_path):
@@ -92,13 +98,20 @@ def test_busy_resource_admission_defers_without_waiting_or_starting_child(tmp_pa
              "provider_route": "shared-agent-runner"}
     receipt = tmp_path / "receipt"
     with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
-          patch("runtime.loop.lm_loop_run.try_acquire_resource",
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "capacity_busy")) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
                 return_value=(None, "capacity_busy")) as acquire,
+          patch("runtime.loop.lm_loop_run.reserve_available_resource",
+                return_value=[]) as reserve,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved") as dispatch,
           patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
         started = time.monotonic()
         assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
     assert time.monotonic() - started < 0.5
-    acquire.assert_called_once_with("agent", "example", retain_ticket=False)
+    enqueue.assert_called_once_with("agent", "example")
+    acquire.assert_called_once_with("agent", "example")
+    reserve.assert_called_once_with(); dispatch.assert_called_once_with([])
     run.assert_not_called()
     assert json.loads(receipt.read_text()) == {
         "effect": 0,
@@ -112,7 +125,7 @@ def test_unavailable_admission_becomes_deferred_receipt(tmp_path):
              "provider_route": "shared-agent-runner"}
     receipt = tmp_path / "receipt"
     with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
-          patch("runtime.loop.lm_loop_run.try_acquire_resource",
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                 side_effect=RuntimeError),
           patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
         assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
@@ -125,7 +138,7 @@ def test_invalid_memory_threshold_fails_closed(tmp_path):
              "provider_route": "shared-agent-runner"}
     for value in ("0", "-1", "101"):
         with (patch.dict(os.environ, {"LIFE_MANAGER_MIN_MEMORY_FREE_PERCENT": value}),
-              patch("runtime.loop.lm_loop_run.try_acquire_resource") as acquire,
+              patch("runtime.loop.lm_loop_run.enqueue_durable_resource") as acquire,
               patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
             assert _run_admitted(["/bin/true"], entry, "example", {}, tmp_path / value) == 64
         acquire.assert_not_called(); run.assert_not_called()
@@ -165,9 +178,12 @@ def test_signal_after_pass_receipt_cannot_start_effect_child(tmp_path):
             os.kill(os.getpid(), signal.SIGTERM)
 
     with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
-          patch("runtime.loop.lm_loop_run.try_acquire_resource",
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
                 return_value=(claim, "acquired")),
-          patch("runtime.loop.lm_loop_run.release_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]),
           patch("runtime.loop.lm_loop_run._atomic_json", side_effect=write_then_stop),
           patch("runtime.loop.lm_loop_run.subprocess.Popen") as launch):
         assert _run_admitted(["/bin/true"], entry, "example", {}, tmp_path / "receipt") == 75
@@ -184,11 +200,77 @@ def test_signal_during_memory_probe_defers_before_child(tmp_path):
 
     receipt = tmp_path / "receipt"
     with (patch("runtime.loop.lm_loop_run.memory_free_percent", side_effect=interrupted_probe),
-          patch("runtime.loop.lm_loop_run.try_acquire_resource") as acquire,
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource") as acquire,
           patch("runtime.loop.lm_loop_run.subprocess.Popen") as launch):
         assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
-    acquire.assert_not_called(); launch.assert_not_called()
+    enqueue.assert_called_once(); acquire.assert_not_called(); launch.assert_not_called()
     assert json.loads(receipt.read_text())["reason"] == "resource_admission_interrupted"
+
+
+def test_memory_deferral_preserves_queue_and_releases_reservation(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner"}
+    receipt = tmp_path / "receipt"
+    with (patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "capacity_busy")),
+          patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=None),
+          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource") as claim):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+    defer.assert_called_once_with("example")
+    claim.assert_not_called()
+    assert json.loads(receipt.read_text())["reason"] == "memory_headroom_unavailable"
+
+
+def test_post_claim_memory_deferral_requeues_without_dispatch(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner"}
+    claim = tmp_path / "claim"
+    with (patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.memory_free_percent", side_effect=[50, 10]),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved") as dispatch,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, tmp_path / "receipt") == 75
+    release.assert_called_once_with(claim, requeue=True, reserve=False)
+    dispatch.assert_not_called(); run.assert_not_called()
+
+
+def test_dispatch_reserved_kicks_only_current_loaded_idle_label(tmp_path):
+    current = tmp_path / "release"
+    agents = tmp_path / "agents"
+    (current / "config").mkdir(parents=True)
+    (current / "bin").mkdir(); agents.mkdir()
+    safe = current / "bin/launchctl-safe"; safe.write_text("safe")
+    row = {
+        "label": "ai.anicca.example", "domain": "earn", "entrypoint": "bin/example",
+        "cadence": {"start_interval_seconds": 300}, "effect_class": "message",
+        "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic",
+    }
+    (current / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": row}}))
+    plist = {"ProgramArguments": [sys.executable, "-m", "runtime.loop.lm_loop_run",
+                                   "example", str(current.resolve())]}
+    (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps(plist))
+    outputs = [
+        subprocess.CompletedProcess([], 0, f"state = not running\n{current.resolve()}"),
+        subprocess.CompletedProcess([], 0, ""),
+        subprocess.CompletedProcess([], 0, "state = running"),
+    ]
+    with patch("runtime.loop.lm_loop_run.subprocess.run", side_effect=outputs) as run:
+        assert _dispatch_reserved(["example"], current=current, agents_dir=agents) == ["example"]
+    commands = [call.args[0][1] for call in run.call_args_list]
+    assert commands == ["print", "kickstart", "print"]
+    assert "-k" not in run.call_args_list[1].args[0]
 
 
 def test_real_child_receives_sigterm_after_atomic_handoff(tmp_path):

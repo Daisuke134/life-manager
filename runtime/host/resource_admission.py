@@ -366,8 +366,82 @@ def claim_durable(resource_class: str, owner_id: str, *,
         os.close(descriptor)
 
 
+def defer_durable(owner_id: str) -> bool:
+    """Return only this owner's dispatch reservation to its existing queue position."""
+    if not owner_id:
+        raise RuntimeError("invalid resource identity")
+    root, _, _, reservations = _durable_paths()
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return False
+        path = reservations / f"{_digest(owner_id)}.json"
+        row = _row(path)
+        if not row or row.get("version") != 2 or row.get("owner_id") != owner_id:
+            return False
+        path.unlink()
+        return True
+    finally:
+        os.close(descriptor)
+
+
+def _reserve_locked(owners: Path, tickets: Path, reservations: Path, *,
+                    instant: float, lease_seconds: int,
+                    starts: dict[int, str | None],
+                    snapshot_started_ns: int) -> list[str]:
+    dispatched = []
+    for resource_class in ("agent", "deterministic"):
+        while True:
+            available, _ = _durable_capacity(
+                owners, reservations, resource_class, instant,
+                starts, snapshot_started_ns)
+            candidates = sorted(
+                (item for item in _v2_rows(tickets)
+                 if item[1].get("resource_class") == resource_class
+                 and isinstance(item[1].get("sequence"), int)
+                 and not (reservations / f"{_digest(str(item[1].get('owner_id')))}.json").exists()),
+                key=lambda item: item[1]["sequence"])
+            if (not available or not candidates
+                    or _legacy_waiter_exists(
+                        tickets, resource_class, starts, snapshot_started_ns)):
+                break
+            _, row = candidates[0]
+            owner_id = str(row["owner_id"])
+            atomic_json(reservations / f"{_digest(owner_id)}.json", {
+                "version": 2, "state": "dispatch_reserved",
+                "sequence": row["sequence"], "owner_id": owner_id,
+                "resource_class": resource_class,
+                "lease_until": instant + lease_seconds,
+            })
+            dispatched.append(owner_id)
+    return dispatched
+
+
+def reserve_available(*, now: float | None = None,
+                      lease_seconds: int = 60) -> list[str]:
+    """Reserve every currently free slot without requiring a releasing owner."""
+    root, owners, tickets, reservations = _durable_paths()
+    starts, snapshot_started_ns = _identity_snapshot(owners, tickets)
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return []
+        return _reserve_locked(
+            owners, tickets, reservations,
+            instant=time.time() if now is None else now,
+            lease_seconds=lease_seconds, starts=starts,
+            snapshot_started_ns=snapshot_started_ns)
+    finally:
+        os.close(descriptor)
+
+
 def release_and_reserve(claim: Path, *, requeue: bool = False,
-                        now: float | None = None, lease_seconds: int = 60) -> list[str]:
+                        reserve: bool = True, now: float | None = None,
+                        lease_seconds: int = 60) -> list[str]:
     """Release one claim and reserve newly available capacity for queued owners."""
     value = _row(claim)
     if (not value or value.get("pid") != os.getpid()
@@ -390,31 +464,12 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                         "resource_class": value["resource_class"]})
         claim.unlink()
         dispatched = []
-        for resource_class in ("agent", "deterministic"):
-            while True:
-                available, _ = _durable_capacity(
-                    owners, reservations, resource_class, instant,
-                    starts, snapshot_started_ns)
-                candidates = sorted(
-                    (item for item in _v2_rows(tickets)
-                     if item[1].get("resource_class") == resource_class
-                     and isinstance(item[1].get("sequence"), int)
-                     and not (reservations / f"{_digest(str(item[1].get('owner_id')))}.json").exists()),
-                    key=lambda item: item[1]["sequence"])
-                if (not available or not candidates
-                        or _legacy_waiter_exists(
-                            tickets, resource_class, starts, snapshot_started_ns)):
-                    break
-                _, row = candidates[0]
-                owner_id = str(row["owner_id"])
-                atomic_json(reservations / f"{_digest(owner_id)}.json", {
-                    "version": 2, "state": "dispatch_reserved",
-                    "sequence": row["sequence"], "owner_id": owner_id,
-                    "resource_class": resource_class,
-                    "lease_until": instant + lease_seconds,
-                })
-                dispatched.append(owner_id)
-        return dispatched
+        if not reserve:
+            return dispatched
+        return _reserve_locked(
+            owners, tickets, reservations, instant=instant,
+            lease_seconds=lease_seconds, starts=starts,
+            snapshot_started_ns=snapshot_started_ns)
     finally:
         os.close(descriptor)
 

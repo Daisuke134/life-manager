@@ -266,3 +266,29 @@ def test_legacy_agent_waiter_does_not_starve_deterministic_queue(tmp_path, monke
     })
     ticket, reason = admission.enqueue_durable("deterministic", "new-deterministic")
     assert ticket is not None and reason == "ready"
+
+
+def test_memory_defer_releases_only_its_reservation(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="2")
+    first, _ = admission.try_acquire("agent", "first", retain_ticket=False)
+    admission.enqueue_durable("agent", "second")
+    admission.enqueue_durable("deterministic", "other")
+    reserved = admission.release_and_reserve(first, now=100, lease_seconds=30)
+    assert set(reserved) == {"second", "other"}
+
+    assert admission.defer_durable("second") is True
+    rows = [json.loads(path.read_text()) for path in (tmp_path / "reservations").glob("*.json")]
+    assert [row["owner_id"] for row in rows] == ["other"]
+    ticket, reason = admission.enqueue_durable("agent", "second", now=101)
+    assert ticket is not None and reason == "ready"
+
+
+def test_stale_owner_recovery_reserves_sleeping_fifo_head(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.atomic_json(tmp_path / "owners" / "stale.json", {
+        "version": 1, "pid": 999_999_999, "process_start": "dead",
+        "owner_id": "stale", "resource_class": "agent",
+    })
+    admission.enqueue_durable("agent", "sleeping-head")
+    admission.enqueue_durable("agent", "later-wake")
+    assert admission.reserve_available(now=100, lease_seconds=30) == ["sleeping-head"]
