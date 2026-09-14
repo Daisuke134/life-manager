@@ -345,7 +345,12 @@ class CutLoopReleaseTest(unittest.TestCase):
             fake_bin = root / "bin"
             fake_bin.mkdir()
             fake_git = fake_bin / "git"
-            fake_git.write_text("#!/bin/sh\nsleep 10\n")
+            fetch_args = root / "fetch.args"
+            fake_git.write_text(
+                "#!/bin/sh\n"
+                f"printf '%s\\n' \"$*\" > {fetch_args}\n"
+                "sleep 10\n"
+            )
             fake_git.chmod(0o755)
 
             result = subprocess.run(
@@ -365,6 +370,11 @@ class CutLoopReleaseTest(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 124, result.stderr)
+            self.assertIn("--no-tags", fetch_args.read_text())
+            self.assertIn("--no-auto-maintenance", fetch_args.read_text())
+            self.assertIn(
+                "--negotiation-tip=refs/remotes/origin/main", fetch_args.read_text()
+            )
 
     def test_reconciler_pins_captured_main_sha_when_origin_moves_during_cut(self):
         with tempfile.TemporaryDirectory() as directory:
