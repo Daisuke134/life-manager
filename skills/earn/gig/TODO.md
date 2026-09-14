@@ -9435,7 +9435,7 @@ in place; it is not an active queue.
 | Storefront | Official inventory observes 14 services, 483 views, 3 favorites and 0 purchases; inventory-only `effect=0` is health evidence, not revenue. | The owner selects and applies one evidence-backed listing improvement, reads it back officially, retains attribution, measures conversion and avoids duplicate edits. |
 | Revenue | Existing effects and messages exist, but the platform slice does not yet close continuous contract -> accepted delivery -> payout -> withdrawable cash. | One truthful Coconala revenue chain closes end to end and enters the shared CFO ledger with fees, cost, margin, cycle time and attribution. |
 
-Coconala therefore is **operational but not platform-complete**. The active cursor is `COC-02`;
+Coconala therefore is **operational but not platform-complete**. The active cursor is `COC-03`;
 closed client rooms are not reopened to manufacture proof.
 
 ### Shared browser/context repair now in production
@@ -9652,7 +9652,7 @@ KPI projection while exposing provider-specific failures quickly enough to earn 
 
 This ledger makes the order above executable. It supersedes broader prose as the source of the next
 action, but does not serialize already-installed providers or independent clients: they continue to run
-concurrently. The implementation cursor is `COC-02`. Completed Ryu, Chii-excluded, 逃げ因子 and
+  concurrently. The implementation cursor is `COC-03`. Completed Ryu, Chii-excluded, 逃げ因子 and
 Manledge/Clover work is not part of this ledger.
 
 ### A. Coconala vertical revenue proof
@@ -9661,8 +9661,14 @@ Manledge/Clover work is not part of this ledger.
   `origin/feat/coconala-retainer-apply-enable-20260914`; the related suite passes 60 tests, the complete
   Gig suite passes 1,266 tests, compile/schema/diff checks pass and the worktree is clean after commit.
   This is source evidence, not production evidence; final fresh review remains `COC-02`.
-- [ ] `COC-02` Rebase the feature branch on current public `main`, rerun the affected suite and obtain
-  a fresh read-only `ship` review for the final diff.
+- [x] `COC-02` Rebase the feature branch on current public `main`, rerun the affected suite and obtain
+  a fresh read-only `ship` review for the final diff. Branch HEAD `93ee1bd6c2` is based directly on
+  public main `1c9cb26bb` (`behind=0`). The final focused suite passes 40 tests and the complete Gig
+  suite passes 1,270 tests. The repair removes the import-callable submit bypass, forbids same-title
+  success attribution, binds confirmation to the exact listing ULID and official applied-page title,
+  and waits past Coconala's measured old-document navigation race at both form entry and readback.
+  Fresh read-only Astra review says `ship`; a provider title change remains a safe false-negative and
+  must be measured by the production canary in `COC-05`–`COC-08`, never converted into a blind retry.
 - [ ] `COC-03` Create the public PR and merge it only after all acceptance checks pass.
 - [ ] `COC-04` Build one main-derived immutable release; install it on Coconala Apply only through the
   repository release path; verify installed SHA and owner configuration.
