@@ -119,6 +119,13 @@ docs/
   releases cannot write adjacent bytecode, so every wake recompiles shared runtime modules under host pressure.
   Disk-cleanup separately exited `78` before its start receipt because `process_start()` could not obtain the
   owner identity. These are the next shared-runtime cursor; neither is a Coconala-specific selector problem.
+- PR `#5191` is merged at main `3a21ba280931757fbfd9adb4f3695ec36ab48b47` and release
+  `20260914T220710-3a21ba28` is current. It builds checked-hash bytecode before sealing each immutable release,
+  records and pins the exact runtime Python, verifies its cache tag during apply, obtains Darwin process-start
+  identity through native `proc_pidinfo`, and removes fleet-wide `ps` enumeration from every admission wake.
+  Fresh Astra review returned `ship`; the exact head passed 492 tests plus 470 subtests and every required CI
+  check. Reply and disk-cleanup reconciled while idle; Apply, Paid and Storefront were observed running and were
+  deliberately left on their installed releases to drain naturally.
 
 ### Coconala
 
@@ -157,18 +164,18 @@ independent production effects.
 - [x] Prove repeated safe contention deferral on Coconala Reply.
 - [x] Merge and deploy PR `#5189`; prove one natural Paid wake reaches a bounded terminal receipt without
   pre-admission recursive cleanup.
-- [ ] Remove per-wake Python source recompilation from immutable releases using a release-built, immutable
-  bytecode cache or an equivalently measured native packaging path; prove launch-to-start is bounded under
-  pressure without moving mutable cache work back onto the wake path.
-- [ ] Replace the per-wake full-process identity dependency with a bounded durable identity source that still
-  distinguishes PID reuse and fails closed; disk-cleanup must not lose its own recovery wake when `ps` is slow.
+- [x] Remove per-wake Python source recompilation from immutable releases with release-built checked-hash
+  bytecode, a pinned interpreter and apply-time cache attestation (PR `#5191`).
+- [x] Replace per-wake fleet process enumeration with native Darwin process-start identity while preserving the
+  legacy `ps lstart` format and PID-reuse discrimination (PR `#5191`).
+- [ ] Prove on natural production wakes that launch-to-start remains bounded under pressure and disk-cleanup no
+  longer loses its recovery wake before the start receipt.
 - [ ] Let the legacy global-lock queue drain naturally. Paid drained; Apply PID `42143` acquired the agent
   resource and is executing its business child. Storefront has a terminal receipt but its process is still
   finishing naturally.
-- [ ] Reconcile each newly idle owner to current `0a7b8c8b` without restarting siblings. Paid, Reply,
-  Apply-evidence-GC and disk-cleanup are installed current. Apply remains on `d74258a8` and Storefront on
-  `59bd6cdd` until their current runs finish. Target
-  checks complete in 1.4--2.4 seconds and safely skip running owners.
+- [ ] Reconcile each newly idle owner to current `3a21ba28` without restarting siblings. Reply and disk-cleanup
+  are installed current. Apply remains on `d74258a8`; Paid on `0a7b8c8b`; Storefront on `59bd6cdd` until their
+  observed running wakes finish. Target checks remain bounded and running owners are never interrupted.
 - [ ] Prove each lane defers under contention without a retained ticket or external effect.
   Reply, Storefront and Paid pass; Apply remains.
 - [ ] Prove pressure recovery: a later natural wake acquires, resumes durable progress and writes terminal
