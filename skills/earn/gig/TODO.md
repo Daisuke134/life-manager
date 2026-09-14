@@ -69,6 +69,11 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   Split lifecycle labels only if
   measured head-of-line blocking remains after the shared source/effect repair; do not duplicate proposal,
   fit, fence, Calendar, Telegram or receipt code.
+  The exact uncertain set is frozen from result
+  `gig-apply-direct-1789367873154753000-28060`: `54` sorted IDs from `5207298` through `5267876`,
+  newline-list SHA-256 `cd0610bb8daaf78c11ffd143a4688fad30edeff34188725aaa6867d935b8b2e5`.
+  Official reconciliation must consume this set before any member is eligible for another submission;
+  a fresh discovery result must not silently replace or retry it.
 
 - **Capafy handoff is complete and is not this program's cursor.** The Capafy owner has received the
   merged host-admission repair evidence (PR `#5174`, fix commit `1236e5a024`, main merge SHA
