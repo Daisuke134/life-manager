@@ -924,35 +924,50 @@ def release(task, token=None, generation=None):
             return {"ok": True, "note": f"{task} held no context"}
         if not _fence_matches(held, token, generation):
             return {"ok": False, "reason": "lease_fence_mismatch"}
-        lock_path = _operation_lock_path(held["target_id"])
-        os.makedirs(os.path.dirname(lock_path), exist_ok=True)
-        with open(lock_path, "a+", encoding="utf-8") as operation_lock:
-            fcntl.flock(operation_lock.fileno(), fcntl.LOCK_EX)
-            dispose_note = None
-            disposed = False
-            try:
-                asyncio.run(_calls([(
-                    "Target.disposeBrowserContext",
-                    {"browserContextId": held["context_id"]},
-                )]))
-                disposed = True
-            except Exception as e:
-                disposed = _browser_context_exists(held.get("context_id")) is False
-                if not disposed:
-                    # Keep a durable tombstone. Dropping this row would make the live
-                    # browser context unreachable to gc, so every later wake could leak
-                    # another renderer while this one survived forever.
-                    held["cleanup_pending"] = True
-                    held["cleanup_error_type"] = type(e).__name__
-                    held["ts"] = 0
-                    held["pid"] = None
-                    leases[task] = held
-                    dispose_note = f"context_left_for_gc: {type(e).__name__}"
-            finally:
-                fcntl.flock(operation_lock.fileno(), fcntl.LOCK_UN)
-        if disposed:
+        held = dict(held)
+
+    # CDP can take its full network deadline. Never make unrelated acquire/heartbeat/
+    # park callers queue behind that I/O; the operation lock protects this target and
+    # the token/generation/context compare below protects the ledger finalization.
+    lock_path = _operation_lock_path(held["target_id"])
+    os.makedirs(os.path.dirname(lock_path), exist_ok=True)
+    with open(lock_path, "a+", encoding="utf-8") as operation_lock:
+        fcntl.flock(operation_lock.fileno(), fcntl.LOCK_EX)
+        dispose_note = None
+        disposed = False
+        try:
+            asyncio.run(_calls([(
+                "Target.disposeBrowserContext",
+                {"browserContextId": held["context_id"]},
+            )]))
+            disposed = True
+        except Exception as e:
+            disposed = _browser_context_exists(held.get("context_id")) is False
+            if not disposed:
+                dispose_note = f"context_left_for_gc: {type(e).__name__}"
+        finally:
+            fcntl.flock(operation_lock.fileno(), fcntl.LOCK_UN)
+
+    with _ledger_lock():
+        leases = _leases()
+        current = leases.get(task)
+        same_lease = bool(current) and (
+            _fence_matches(current, held.get("token"), held.get("generation"))
+            and current.get("context_id") == held.get("context_id")
+            and current.get("target_id") == held.get("target_id")
+        )
+        if same_lease and disposed:
             leases.pop(task, None)
-        _save(leases)
+            _save(leases)
+        elif same_lease and not disposed:
+            # Keep a durable tombstone. Dropping this row would make the live context
+            # unreachable to gc, so every later wake could leak another renderer.
+            current["cleanup_pending"] = True
+            current["cleanup_error_type"] = dispose_note.rsplit(": ", 1)[-1]
+            current["ts"] = 0
+            current["pid"] = None
+            leases[task] = current
+            _save(leases)
         result = {"ok": True, "released": task, "context_id": held["context_id"]}
         if dispose_note:
             result["note"] = dispose_note
@@ -969,18 +984,31 @@ def park(task, token=None, generation=None):
             return {"ok": True, "note": f"{task} held no context"}
         if not _fence_matches(held, token, generation):
             return {"ok": False, "reason": "lease_fence_mismatch"}
-        if not target_responds(held.get("ws") or _page_ws(held.get("target_id") or "")):
-            return {"ok": False, "reason": "target_unhealthy"}
-        held["parked"] = True
-        held["pid"] = None
-        held["ts"] = int(time.time())
-        leases[task] = held
+        held = dict(held)
+
+    # A renderer probe is bounded but still network I/O. Probe without the fleet-wide
+    # ledger lock, then finalize only if this exact lease identity still owns the row.
+    if not target_responds(held.get("ws") or _page_ws(held.get("target_id") or "")):
+        return {"ok": False, "reason": "target_unhealthy"}
+    with _ledger_lock():
+        leases = _leases()
+        current = leases.get(task)
+        if not current or not (
+            _fence_matches(current, held.get("token"), held.get("generation"))
+            and current.get("context_id") == held.get("context_id")
+            and current.get("target_id") == held.get("target_id")
+        ):
+            return {"ok": False, "reason": "lease_fence_mismatch"}
+        current["parked"] = True
+        current["pid"] = None
+        current["ts"] = int(time.time())
+        leases[task] = current
         _save(leases)
         return {
             "ok": True,
             "parked": task,
-            "context_id": held["context_id"],
-            "target_id": held["target_id"],
+            "context_id": current["context_id"],
+            "target_id": current["target_id"],
         }
 
 
