@@ -1,5 +1,9 @@
 # Anicca EARN — full state + TODO (everything), 2026-06-28
 
+> Capafy の現在状態、8 loop構成、運用UX、$10k MRRゲート、残TODOの正本は
+> `2026-09-14-capafy-10k-mrr-operating-spec.md`。この文書の2026-06-28時点の収益状態で
+> Capafyの現況を上書きしない。
+
 The two money paths Dais defined + the economy layer they bootstrap. All status = LIVE-VERIFIED this
 session (I curled/settled each myself). Pairs with the master architecture spec
 `2026-06-28-anicca-master-architecture-one-repo-credential-gating.md`.
