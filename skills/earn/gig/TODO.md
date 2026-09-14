@@ -9435,7 +9435,7 @@ in place; it is not an active queue.
 | Storefront | Official inventory observes 14 services, 483 views, 3 favorites and 0 purchases; inventory-only `effect=0` is health evidence, not revenue. | The owner selects and applies one evidence-backed listing improvement, reads it back officially, retains attribution, measures conversion and avoids duplicate edits. |
 | Revenue | Existing effects and messages exist, but the platform slice does not yet close continuous contract -> accepted delivery -> payout -> withdrawable cash. | One truthful Coconala revenue chain closes end to end and enters the shared CFO ledger with fees, cost, margin, cycle time and attribution. |
 
-Coconala therefore is **operational but not platform-complete**. The active cursor is `COC-04`;
+Coconala therefore is **operational but not platform-complete**. The active cursor is `COC-05`;
 closed client rooms are not reopened to manufacture proof.
 
 ### Shared browser/context repair now in production
@@ -9652,7 +9652,7 @@ KPI projection while exposing provider-specific failures quickly enough to earn 
 
 This ledger makes the order above executable. It supersedes broader prose as the source of the next
 action, but does not serialize already-installed providers or independent clients: they continue to run
-  concurrently. The implementation cursor is `COC-04`. Completed Ryu, Chii-excluded, 逃げ因子 and
+  concurrently. The implementation cursor is `COC-05`. Completed Ryu, Chii-excluded, 逃げ因子 and
 Manledge/Clover work is not part of this ledger.
 
 ### A. Coconala vertical revenue proof
@@ -9673,8 +9673,12 @@ Manledge/Clover work is not part of this ledger.
   `#5173` is squash-merged through the required admin-first path as main SHA `03fd32af018c92d3d42a1c652a3a1a221a866ed3`.
   GitHub reported no configured branch checks; the acceptance evidence is the 1,270-test Gig suite,
   clean diff and fresh read-only `ship` review recorded in `COC-02`.
-- [ ] `COC-04` Build one main-derived immutable release; install it on Coconala Apply only through the
-  repository release path; verify installed SHA and owner configuration.
+- [x] `COC-04` Build one main-derived immutable release; install it on Coconala Apply only through the
+  repository release path; verify installed SHA and owner configuration. Canonical
+  `bin/cut-loop-release.sh origin/main` produced `20260914T095539-03fd32af`; targeted `lm-loop apply`
+  changed only `hf-gig-apply-direct` with install event `13f2796f922dc7111fc15965`. `lm-loop status`
+  and `launchctl-safe print gui/501/ai.anicca.hf-gig-apply-direct` both read back exact release SHA
+  `03fd32af018c92d3d42a1c652a3a1a221a866ed3`, exact immutable argv/state root and `loaded-idle`.
 - [ ] `COC-05` Observe a naturally admitted authenticated Apply wake without bypassing host admission.
 - [ ] `COC-06` Prove the initial Apply allocation keeps 19 one-off slots plus one continuous acceptance
   slot without shard over-allocation. This is a rollout split, not a permanent continuous-application cap.
