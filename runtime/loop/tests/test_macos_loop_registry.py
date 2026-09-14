@@ -209,7 +209,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
             script,
         )
         self.assertIn(
-            "reconcile shared-agent-runner --include-running "
+            "reconcile shared-agent-runner --loaded-idle-only "
             "--loop-id hf-gig-reply-detector",
             script,
         )

@@ -411,7 +411,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                 [line.split("|", 1)[1] for line in reconciles],
                 [
                     "reconcile shared-agent-runner --loaded-idle-only --loop-id hf-gig-apply-direct",
-                    "reconcile shared-agent-runner --include-running --loop-id hf-gig-reply-detector",
+                    "reconcile shared-agent-runner --loaded-idle-only --loop-id hf-gig-reply-detector",
                     "reconcile deterministic --loaded-idle-only --loop-id hf-gig-storefront-direct --loop-id hf-gig-paid-direct --loop-id life-manager-disk-cleanup",
                 ],
             )
