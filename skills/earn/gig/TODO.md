@@ -68,8 +68,8 @@ docs/
   not evidence of current physical-memory rejection. Coconala Paid PID `6856`, Apply PID `42143` and
   Storefront PID `60168` remain on older releases and must end naturally before target-only loaded-idle
   reconciliation.
-- Disk availability recovered from `1.1 GiB` to `3.8 GiB`. Only clean, unused, regenerable external clones,
-  main-contained temporary clones, one completed merged worktree/branch/owned lease, and one missing-worktree
+- Disk availability recovered from `1.1 GiB` to `4.0 GiB`. Only clean, unused, regenerable external clones,
+  main-contained temporary clones, three completed merged worktrees/branches/owned leases, and one missing-worktree
   registration were removed. Codex/cloud sessions, credentials, browser profiles, memory, state, ledgers,
   receipts, active evidence and other agents' worktrees were untouched.
 
