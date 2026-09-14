@@ -41,13 +41,10 @@ if [ "$release_sha" != "$release_sha_target" ] || [ "$release_paths" != "ALL" ];
 fi
 
 status=0
-if ! LIFE_MANAGER_RELEASE_ROOT="$RELEASE_ROOT" "$RELEASE_ROOT/bin/lm-loop" reconcile shared-agent-runner --loaded-idle-only --loop-id hf-gig-apply-direct; then
+if ! LIFE_MANAGER_RELEASE_ROOT="$RELEASE_ROOT" "$RELEASE_ROOT/bin/lm-loop" reconcile shared-agent-runner --loaded-idle-only; then
   status=1
 fi
-if ! LIFE_MANAGER_RELEASE_ROOT="$RELEASE_ROOT" "$RELEASE_ROOT/bin/lm-loop" reconcile shared-agent-runner --loaded-idle-only --loop-id hf-gig-reply-detector; then
-  status=1
-fi
-if ! LIFE_MANAGER_RELEASE_ROOT="$RELEASE_ROOT" "$RELEASE_ROOT/bin/lm-loop" reconcile deterministic --loaded-idle-only --loop-id hf-gig-storefront-direct --loop-id hf-gig-paid-direct --loop-id life-manager-disk-cleanup; then
+if ! LIFE_MANAGER_RELEASE_ROOT="$RELEASE_ROOT" "$RELEASE_ROOT/bin/lm-loop" reconcile deterministic --loaded-idle-only; then
   status=1
 fi
 exit "$status"
