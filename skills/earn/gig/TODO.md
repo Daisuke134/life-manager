@@ -43,7 +43,12 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   terminal event `f4a14f9116ee021ab3bfdb59`, run `18d51f8f54840dc8-62154`, records release
   `b8de9bf2`, status `blocked` and blocker `host_admission_deferred`; launchd is loaded-idle and the
   fleet ticket count stayed `25`. Reply therefore passes the production contention/defer atom. Its later
-  natural resume, official readback and replay-zero atoms remain open until an agent slot is available.
+  natural wake repeated the same contract at `2026-09-14T07:40:07Z`: release `b8de9bf2`, exit `75`,
+  `host_admission_deferred`, loaded-idle and no retained new-release ticket. This proves repeatable safe
+  contention deferral, not only a one-off. Natural resume, official readback and replay-zero remain open
+  until an agent slot is available. A temporary no-change bootstrap worktree was removed after CPU census
+  showed the load spike was dominated by existing Codex/Chrome/WindowServer processes rather than the three
+  new-release runners; do not add a speculative pre-import framework without contrary measured evidence.
 
 - **Current cursor: restore Coconala Apply discovery and effect reconciliation.** Ryu `18211957`
   already has the ordinary reply and manual attachment in official readback and remains dormant until a
