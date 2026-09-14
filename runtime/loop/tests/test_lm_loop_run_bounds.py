@@ -37,10 +37,10 @@ def test_resource_class_is_explicit_or_provider_default():
 
 
 def test_memory_admission_exit_is_deferred_not_failed():
-    assert _terminal_outcome(75, host_deferred=True) == (
-        False, True, "host_admission_deferred")
-    assert _terminal_outcome(124, host_deferred=True) == (
-        False, True, "host_admission_deferred")
+    assert _terminal_outcome(75, host_deferred="resource_capacity_busy") == (
+        False, True, "host_admission_deferred:resource_capacity_busy")
+    assert _terminal_outcome(124, host_deferred="memory_headroom_low") == (
+        False, True, "host_admission_deferred:memory_headroom_low")
     assert _terminal_outcome(75) == (False, False, "entrypoint_exit_75")
     assert _terminal_outcome(1) == (False, False, "entrypoint_exit_1")
 
@@ -48,8 +48,14 @@ def test_memory_admission_exit_is_deferred_not_failed():
 def test_memory_deferral_requires_a_fresh_matching_receipt(tmp_path):
     receipt = tmp_path / "memory.json"
     started = time.time_ns()
-    receipt.write_text(json.dumps({"status": "deferred", "effect": 0}))
-    assert _host_admission_deferred(receipt, started)
+    receipt.write_text(json.dumps({
+        "status": "deferred", "effect": 0, "reason": "capacity_busy",
+    }))
+    assert _host_admission_deferred(receipt, started) == "capacity_busy"
+    receipt.write_text(json.dumps({
+        "status": "deferred", "effect": 0, "reason": "x" * 128,
+    }))
+    assert _host_admission_deferred(receipt, started) == "unknown"
     receipt.write_text(json.dumps({"status": "pass", "effect": 0}))
     assert not _host_admission_deferred(receipt, started)
 

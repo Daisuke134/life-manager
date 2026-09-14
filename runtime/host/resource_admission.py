@@ -226,7 +226,11 @@ def try_acquire(resource_class: str, owner_id: str, *,
             ) >= class_limit:
                 return None, "capacity_busy"
             for candidate in sorted(tickets.glob(f"{resource_class}-*.json")):
-                if _live(candidate, live_starts, snapshot_started_ns, probe_missing=True):
+                value = _row(candidate)
+                if value and value.get("version", 1) != 1:
+                    continue
+                if _live(candidate, live_starts, snapshot_started_ns,
+                         probe_missing=True):
                     return None, "fifo_wait"
                 candidate.unlink(missing_ok=True)
             claim = owners / f"{digest}-{os.getpid()}.json"
@@ -235,7 +239,10 @@ def try_acquire(resource_class: str, owner_id: str, *,
                         "resource_class": resource_class})
             return claim, "acquired"
 
-        matches = list(tickets.glob(f"{resource_class}-*-{digest}.json"))
+        matches = [
+            path for path in tickets.glob(f"{resource_class}-*-{digest}.json")
+            if (_row(path) or {}).get("version", 1) == 1
+        ]
         ticket = matches[0] if matches else tickets / (
             f"{resource_class}-{time.time_ns():020d}-{digest}.json")
         atomic_json(ticket, {"version": 1, "pid": os.getpid(),
@@ -254,6 +261,9 @@ def try_acquire(resource_class: str, owner_id: str, *,
 
         head = None
         for candidate in sorted(tickets.glob(f"{resource_class}-*.json")):
+            value = _row(candidate)
+            if value and value.get("version", 1) != 1:
+                continue
             if _live(candidate, live_starts, snapshot_started_ns, probe_missing=True):
                 head = candidate
                 break
