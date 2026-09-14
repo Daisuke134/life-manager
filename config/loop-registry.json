@@ -889,6 +889,35 @@
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/bounty"
     },
+    "hf-gig-apply-evidence-gc": {
+      "adapter": "python",
+      "cadence": {
+        "start_interval_seconds": 21600
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "command": [
+        "--state-dir",
+        "~/gig",
+        "--evidence-root",
+        "~/gig/apply-direct",
+        "--high-water-bytes",
+        "419430400",
+        "--low-water-bytes",
+        "262144000",
+        "--quiet"
+      ],
+      "domain": "earn",
+      "effect_class": "none",
+      "entrypoint": "skills/earn/gig/scripts/evidence_gc.py",
+      "label": "ai.anicca.hf-gig-apply-evidence-gc",
+      "log_root": "~/.local/state/life-manager/coconala/apply-evidence-gc/logs",
+      "provider_route": "deterministic",
+      "runtime_timeout_seconds": 3600,
+      "state_root": "~/.local/state/life-manager/coconala/apply-evidence-gc"
+    },
     "hf-gig-apply-direct": {
       "cadence": {
         "start_interval_seconds": 300
