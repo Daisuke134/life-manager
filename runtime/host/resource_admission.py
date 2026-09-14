@@ -30,6 +30,32 @@ def process_start(pid: int) -> str | None:
     return value if result.returncode == 0 and value else None
 
 
+def process_starts() -> dict[int, str] | None:
+    """Read every process identity once, outside the admission lock."""
+    ps = shutil.which("ps")
+    if not ps:
+        return None
+    try:
+        result = subprocess.run(
+            [ps, "-axo", "pid=,lstart="], capture_output=True,
+            text=True, check=False, timeout=2,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    values: dict[int, str] = {}
+    for line in result.stdout.splitlines():
+        parts = line.strip().split(maxsplit=1)
+        if len(parts) != 2:
+            continue
+        try:
+            values[int(parts[0])] = parts[1]
+        except ValueError:
+            continue
+    return values
+
+
 def state_root() -> Path:
     configured = os.environ.get("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT")
     if configured:
@@ -59,18 +85,32 @@ def _row(path: Path) -> dict[str, object] | None:
     return value if isinstance(value, dict) else None
 
 
-def _live(path: Path) -> bool:
-    value = _row(path)
-    if not value or not isinstance(value.get("pid"), int):
-        return False
-    actual = process_start(value["pid"])
-    if actual is not None:
-        return actual == value.get("process_start")
+def _pid_exists(pid: int) -> bool:
     try:
-        os.kill(value["pid"], 0)
+        os.kill(pid, 0)
     except (OSError, TypeError):
         return False
     return True
+
+
+def _live(path: Path, starts: dict[int, str] | None = None,
+          snapshot_started_ns: int | None = None) -> bool:
+    value = _row(path)
+    if not value or not isinstance(value.get("pid"), int):
+        return False
+    actual = process_start(value["pid"]) if starts is None else starts.get(value["pid"])
+    if actual is not None:
+        if actual == value.get("process_start"):
+            return True
+        try:
+            changed_after_snapshot = (
+                snapshot_started_ns is not None
+                and path.stat().st_mtime_ns >= snapshot_started_ns
+            )
+        except OSError:
+            changed_after_snapshot = True
+        return changed_after_snapshot and _pid_exists(value["pid"])
+    return _pid_exists(value["pid"])
 
 
 def _capacity(name: str, default: int) -> int:
@@ -94,6 +134,20 @@ def try_acquire(resource_class: str, owner_id: str, *,
         path.mkdir(parents=True, exist_ok=True, mode=0o700); os.chmod(path, 0o700)
     descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
     try:
+        if not retain_ticket:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return None, "control_busy"
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+
+        snapshot_started_ns = time.time_ns()
+        starts = process_starts()
+        started = starts.get(os.getpid()) if starts is not None else None
+        if not started:
+            started = process_start(os.getpid())
+        if not started:
+            raise RuntimeError("process identity unavailable")
         try:
             fcntl.flock(
                 descriptor,
@@ -101,9 +155,10 @@ def try_acquire(resource_class: str, owner_id: str, *,
             )
         except BlockingIOError:
             return None, "control_busy"
+        live_starts = starts if starts is not None else {}
         owner_rows = []
         for path in owners.glob("*.json"):
-            if not _live(path):
+            if not _live(path, live_starts, snapshot_started_ns):
                 path.unlink(missing_ok=True); continue
             owner_rows.append(_row(path) or {})
         if any(row.get("owner_id") == owner_id for row in owner_rows):
@@ -122,12 +177,9 @@ def try_acquire(resource_class: str, owner_id: str, *,
             ) >= class_limit:
                 return None, "capacity_busy"
             for candidate in sorted(tickets.glob(f"{resource_class}-*.json")):
-                if _live(candidate):
+                if _live(candidate, live_starts, snapshot_started_ns):
                     return None, "fifo_wait"
                 candidate.unlink(missing_ok=True)
-            started = process_start(os.getpid())
-            if not started:
-                raise RuntimeError("process identity unavailable")
             claim = owners / f"{digest}-{os.getpid()}.json"
             atomic_json(claim, {"version": 1, "pid": os.getpid(),
                         "process_start": started, "owner_id": owner_id,
@@ -137,9 +189,6 @@ def try_acquire(resource_class: str, owner_id: str, *,
         matches = list(tickets.glob(f"{resource_class}-*-{digest}.json"))
         ticket = matches[0] if matches else tickets / (
             f"{resource_class}-{time.time_ns():020d}-{digest}.json")
-        started = process_start(os.getpid())
-        if not started:
-            raise RuntimeError("process identity unavailable")
         atomic_json(ticket, {"version": 1, "pid": os.getpid(),
                     "process_start": started, "owner_id": owner_id})
 
@@ -156,7 +205,7 @@ def try_acquire(resource_class: str, owner_id: str, *,
 
         head = None
         for candidate in sorted(tickets.glob(f"{resource_class}-*.json")):
-            if _live(candidate):
+            if _live(candidate, live_starts, snapshot_started_ns):
                 head = candidate
                 break
             candidate.unlink(missing_ok=True)
