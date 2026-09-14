@@ -200,6 +200,23 @@ def build_install_event(*, loop_id: str, domain: str, release_sha: str,
     })
 
 
+def _contains_event_id(fd: int, event_id: str) -> bool:
+    """Parse only rows that can contain the requested event ID."""
+    needle = event_id.encode()
+    os.lseek(fd, 0, os.SEEK_SET)
+    with os.fdopen(os.dup(fd), "rb") as reader:
+        for line in reader:
+            if needle not in line and b"\\u" not in line:
+                continue
+            try:
+                existing = json.loads(line)
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            if isinstance(existing, dict) and existing.get("event_id") == event_id:
+                return True
+    return False
+
+
 def append_runtime_event(path: Path, event: dict) -> None:
     validate_runtime_event(event)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -209,15 +226,13 @@ def append_runtime_event(path: Path, event: dict) -> None:
         os.fchmod(fd, 0o600)
         fcntl.flock(fd, fcntl.LOCK_EX)
         rotate_jsonl_locked(fd, path)
-        os.lseek(fd, 0, os.SEEK_SET)
-        with os.fdopen(os.dup(fd), "r", encoding="utf-8", errors="replace") as reader:
-            for line in reader:
-                try:
-                    existing = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if isinstance(existing, dict) and existing.get("event_id") == event["event_id"]:
-                    return
+        if _contains_event_id(fd, event["event_id"]):
+            return
+        size = os.fstat(fd).st_size
+        if size:
+            os.lseek(fd, -1, os.SEEK_END)
+            if os.read(fd, 1) != b"\n":
+                os.write(fd, b"\n")
         os.write(fd, data)
         os.fsync(fd)
     finally:

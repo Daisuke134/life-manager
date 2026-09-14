@@ -32,6 +32,34 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   `58/58`; production acceptance still requires natural terminal and official effect receipts from
   the repaired release. Old `memory_admission_deferred` events from an earlier `event_release_sha`
   are historical and do not prove a regression in the installed release.
+- **The shared CDP lock repair is merged and installed on all four Coconala owners.** PR `#5175`
+  merged as `833b55b6c966...` and immutable release `20260914T120134-833b55b6` is the current
+  production source. Reply and Storefront moved first and started natural wakes from that release.
+  Apply and Paid were left on their in-flight older wakes until both terminated naturally with
+  `entrypoint_exit_1`; they were then reconciled individually without restarting a sibling. Apply
+  install event `3718b3c61149d5c77714931f` and Paid install event
+  `ae5bf68305cc6a4ac72415ba` prove the installed SHA. This is rollout evidence only: the active
+  cursor remains the first terminal repaired-release receipt plus official effect/readback and a
+  replay-zero receipt for every applicable lane.
+- **The repaired browser path exposed a second shared runtime bottleneck before terminal write.** The
+  Reply business child exited, but `lm-loop-run` remained inside `append_runtime_event()` while holding
+  the per-ledger lock and rebuilding every JSON object in an 8,833,864-byte, 18,077-row runtime ledger.
+  This is shared control-plane debt, not a Coconala adapter failure. The minimal source repair preserves
+  the existing JSONL, rotation and event-ID contract while byte-filtering by the requested ID and decoding
+  only matching candidate rows instead of calling `json.loads()` for every historical row. Runtime-focused
+  acceptance passes `25/25`, including corrupt partial, spaced valid and Unicode-escaped JSON rows; the
+  measured 8.8 MB Reply ledger duplicate check completes in about `0.034s` on the current host. Production acceptance
+  remains open until this repair is merged, released,
+  installed without interrupting active owners, and followed by natural terminal receipts.
+- **The next measured browser repair is the remainder of acquire admission, not another adapter retry.**
+  Repaired-release Reply failed `failed to open authenticated hidden target: timed out`; Storefront
+  independently recorded `lease_acquire_failed:TimeoutError: Target.createBrowserContext did not answer
+  within 20.0s`. Official CDP `/json/version` and `/json/list` still answered in `0.028s` and `0.003s`,
+  so browser-process liveness is not the missing proof. Source inspection confirms `acquire()` still
+  performs target probe and stale/capacity context disposal while holding the fleet ledger lock, and
+  `acquire()` holds the shared seed-vault locks around the whole provision/reuse path. Those remaining
+  network-I/O critical sections must be reduced to snapshot/fenced-finalize phases before retrying the
+  four lanes; increasing timeouts or restarting the browser would preserve the serialization defect.
 
 - **Reply client isolation is merged and installed.** PR `#5162`, merge SHA `2fe142f696...`,
   runs up to four Coconala client workers concurrently and gives every talkroom its own
