@@ -67,7 +67,13 @@ docs/
   garbage collection from Apply's revenue-critical path. The observed old run spent about 28 minutes scanning
   412 MiB and reclaimed zero bytes because it was below the 400 MiB high watermark. GC now has an independent
   six-hour deterministic owner, and active evidence is protected by a PID plus process-start-identity pin.
-- Immutable release `/Users/anicca/loops/releases/20260914T191705-d80e7359` is current. The preceding
+- PR `#5189`, merge SHA `0a7b8c8b75899137bf28236e3c2e47fe1a3a0a91`, removes recursive run-tree
+  cleanup from every business wake. Per-run scratch is created through state-root-anchored directory FDs;
+  terminal evidence is protected before business execution; only exact PID plus process-start identities are
+  reclaimed by the central owner. Ancestor symlink, run replacement, terminal-write failure and no-clobber
+  races are covered. Targeted 45 tests, the 425-test runtime suite, all CI and fresh Terra architecture review
+  pass.
+- Immutable release `/Users/anicca/loops/releases/20260914T211512-0a7b8c8b` is current. The preceding
   `3e7b7771` loaded-idle rollout reconciled 57 deterministic and 40 shared-agent-runner labels with zero
   failures; target-only convergence to `59bd6cdd` has begun and running owners are skipped, not restarted.
 - Idle rollout succeeded cumulatively for 96 label installs with zero reconcile failures. The latest
@@ -105,6 +111,14 @@ docs/
 - The dedicated `hf-gig-apply-evidence-gc` owner is installed on `d80e7359`, loaded-idle with exit `0` and a
   six-hour cadence. Apply PID `42143` remains on `d74258a8` and continues its pre-deployment business run; it
   is not interrupted. Storefront likewise remains running on `59bd6cdd` until its wake ends naturally.
+- Target rollout of `0a7b8c8b` succeeded for Paid, Reply, Apply-evidence-GC and disk-cleanup without restarting
+  a running owner. Paid then started from launchd without a kick and wrote a start receipt followed 16.3 seconds
+  later by an effect-zero `host_admission_deferred` terminal receipt. It retained no admission ticket.
+- A second shared startup bottleneck is now measured rather than inferred: Paid took about 149.7 seconds from
+  launch to its start receipt while a one-second stack sample remained in Python import/compile. Immutable
+  releases cannot write adjacent bytecode, so every wake recompiles shared runtime modules under host pressure.
+  Disk-cleanup separately exited `78` before its start receipt because `process_start()` could not obtain the
+  owner identity. These are the next shared-runtime cursor; neither is a Coconala-specific selector problem.
 
 ### Coconala
 
@@ -141,11 +155,19 @@ independent production effects.
 - [x] Recover safe disk headroom and remove proved-obsolete artifacts.
 - [x] Deploy nonblocking admission release to idle fleet.
 - [x] Prove repeated safe contention deferral on Coconala Reply.
+- [x] Merge and deploy PR `#5189`; prove one natural Paid wake reaches a bounded terminal receipt without
+  pre-admission recursive cleanup.
+- [ ] Remove per-wake Python source recompilation from immutable releases using a release-built, immutable
+  bytecode cache or an equivalently measured native packaging path; prove launch-to-start is bounded under
+  pressure without moving mutable cache work back onto the wake path.
+- [ ] Replace the per-wake full-process identity dependency with a bounded durable identity source that still
+  distinguishes PID reuse and fails closed; disk-cleanup must not lose its own recovery wake when `ps` is slow.
 - [ ] Let the legacy global-lock queue drain naturally. Paid drained; Apply PID `42143` acquired the agent
   resource and is executing its business child. Storefront has a terminal receipt but its process is still
   finishing naturally.
-- [ ] Reconcile each newly idle owner to current `d80e7359` without restarting siblings. Paid and Reply are
-  current. Apply remains on `d74258a8` and Storefront on `59bd6cdd` until their current runs finish. Target
+- [ ] Reconcile each newly idle owner to current `0a7b8c8b` without restarting siblings. Paid, Reply,
+  Apply-evidence-GC and disk-cleanup are installed current. Apply remains on `d74258a8` and Storefront on
+  `59bd6cdd` until their current runs finish. Target
   checks complete in 1.4--2.4 seconds and safely skip running owners.
 - [ ] Prove each lane defers under contention without a retained ticket or external effect.
   Reply, Storefront and Paid pass; Apply remains.
