@@ -1009,6 +1009,63 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(report["eligible"], 1)
         self.assertEqual(report["skipped_running"], ["running"])
 
+    def test_target_reconcile_snapshots_only_requested_loop(self):
+        release = self._release("release-target").resolve()
+        row = {
+            "classification": "managed",
+            "provider_route": "deterministic",
+            "launchd_state": "loaded-idle",
+            "installed_release_sha": "b" * 40,
+            "loop_id": "example",
+        }
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "targeted_snapshot", return_value=[row]) as targeted,
+            patch.object(lm_loop, "snapshot",
+                         side_effect=AssertionError("fleet snapshot")),
+            patch.object(lm_loop, "apply_live", return_value=[{"ok": True}]),
+            patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release)}),
+            redirect_stdout(io.StringIO()),
+        ):
+            self.assertEqual(lm_loop.main([
+                "reconcile", "deterministic", "--loaded-idle-only",
+                "--loop-id", "example",
+            ]), 0)
+
+        self.assertEqual(targeted.call_args.args[1], {"example"})
+
+    def test_targeted_snapshot_never_lists_fleet(self):
+        value = registry()
+        value["loops"]["example"]["provider_route"] = "deterministic"
+        launchctl_calls = []
+        safe_calls = []
+
+        def launchctl(*args):
+            launchctl_calls.append(args)
+            return '"ai.anicca.unrelated" => enabled\n'
+
+        def safe(_executable, args):
+            safe_calls.append(args)
+            return 0, "state = waiting\nlast exit code = 0\n"
+
+        with (
+            patch.object(lm_loop, "_launchctl", side_effect=launchctl),
+            patch.object(lm_loop, "_safe_launchctl", side_effect=safe),
+            patch.object(lm_loop, "_release_from_plist", return_value="b" * 40),
+            patch.object(lm_loop, "_last_event", return_value=None),
+        ):
+            rows = lm_loop.targeted_snapshot(
+                value, {"example"}, Path("/release/bin/launchctl-safe"))
+
+        self.assertEqual(launchctl_calls, [
+            ("print-disabled", f"gui/{os.getuid()}"),
+        ])
+        self.assertEqual(safe_calls, [[
+            "print", f"gui/{os.getuid()}/{value['loops']['example']['label']}",
+        ]])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["launchd_state"], "loaded-idle")
+
     def test_release_reconciler_does_not_starve_unproven_scheduled_release(self):
         release = self._release("release-a").resolve()
         value = two_loop_registry()
@@ -1094,7 +1151,7 @@ class LmLoopApplyTest(unittest.TestCase):
 
         with (
             patch.object(lm_loop, "ROOT", release),
-            patch.object(lm_loop, "snapshot", return_value=rows),
+            patch.object(lm_loop, "targeted_snapshot", return_value=rows),
             patch.object(lm_loop, "apply_live", side_effect=record_apply),
             patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release)}),
             redirect_stdout(io.StringIO()),
@@ -1145,7 +1202,7 @@ class LmLoopApplyTest(unittest.TestCase):
 
         with (
             patch.object(lm_loop, "ROOT", release),
-            patch.object(lm_loop, "snapshot", return_value=rows),
+            patch.object(lm_loop, "targeted_snapshot", return_value=rows),
             patch.object(lm_loop, "apply_live", side_effect=record_apply),
             patch.dict(os.environ, {
                 "LIFE_MANAGER_RELEASE_ROOT": str(release),
@@ -1184,7 +1241,7 @@ class LmLoopApplyTest(unittest.TestCase):
 
         with (
             patch.object(lm_loop, "ROOT", release),
-            patch.object(lm_loop, "snapshot", return_value=rows),
+            patch.object(lm_loop, "targeted_snapshot", return_value=rows),
             patch.object(lm_loop, "apply_live", side_effect=record_apply),
             patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release)}),
             redirect_stdout(io.StringIO()) as output,
@@ -1225,7 +1282,7 @@ class LmLoopApplyTest(unittest.TestCase):
 
         with (
             patch.object(lm_loop, "ROOT", release),
-            patch.object(lm_loop, "snapshot", return_value=rows),
+            patch.object(lm_loop, "targeted_snapshot", return_value=rows),
             patch.object(lm_loop, "apply_live", side_effect=record_apply),
             patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release)}),
             redirect_stdout(io.StringIO()),

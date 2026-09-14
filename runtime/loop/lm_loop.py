@@ -284,6 +284,43 @@ def _safe_launchctl(executable: Path, args: list[str]) -> tuple[int, str]:
         return result.returncode, output.read()
 
 
+def targeted_snapshot(registry: dict, targets: set[str],
+                      launchctl_safe: Path) -> list[dict]:
+    """Read only explicitly requested services; never list the whole fleet."""
+    disabled = parse_disabled(_launchctl("print-disabled", f"gui/{os.getuid()}"))
+    plist_dir = Path.home() / "Library/LaunchAgents"
+    rows = []
+    for loop_id in sorted(targets):
+        entry = registry["loops"][loop_id]
+        label = entry["label"]
+        rc, detail = _safe_launchctl(
+            launchctl_safe, ["print", f"gui/{os.getuid()}/{label}"])
+        absent = rc != 0 and bool(re.search(
+            r"(?i)(?:could not find service|service not found|\babsent\b)", detail))
+        if rc != 0 and not absent:
+            raise RuntimeError(f"{label}: targeted launchd readback failed: {detail.strip()}")
+        loaded = {}
+        if rc == 0:
+            pid = re.search(r"\bpid\s*=\s*([1-9][0-9]*)\b", detail)
+            last_exit = re.search(r"\blast exit code\s*=\s*(-?[0-9]+)\b", detail)
+            loaded[label] = {
+                "pid": pid.group(1) if pid else None,
+                "last_exit": last_exit.group(1) if last_exit else None,
+            }
+        plist_path = plist_dir / f"{label}.plist"
+        event = _last_event(
+            _state_root_from_plist(plist_path, entry["state_root"]), loop_id)
+        selected_registry = {**registry, "loops": {loop_id: entry}}
+        rows.extend(status_rows(
+            selected_registry,
+            loaded=loaded,
+            disabled={label: disabled.get(label, False)},
+            events={loop_id: event} if event else {},
+            installed_releases={label: _release_from_plist(plist_path)},
+        ))
+    return rows
+
+
 @contextmanager
 def _apply_lock(current: Path, lock_path: Path | None):
     lock_path = Path(lock_path or current.parent / ".apply.lock").expanduser()
@@ -632,7 +669,9 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
         release_root = Path(os.environ.get("LIFE_MANAGER_RELEASE_ROOT", ROOT)).expanduser().resolve(strict=True)
         current_sha = json.loads((release_root / "RELEASE.json").read_text()).get("sha")
-        rows = snapshot(registry, "all")
+        rows = (targeted_snapshot(
+            registry, requested_ids, release_root / "bin/launchctl-safe")
+            if requested_ids else snapshot(registry, "all"))
         automatic_release_reconciler = (
             os.environ.get("LIFE_MANAGER_LOOP_ID") == "life-manager-release-reconciler"
         )
