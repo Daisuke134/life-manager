@@ -9680,6 +9680,13 @@ Manledge/Clover work is not part of this ledger.
   and `launchctl-safe print gui/501/ai.anicca.hf-gig-apply-direct` both read back exact release SHA
   `03fd32af018c92d3d42a1c652a3a1a221a866ed3`, exact immutable argv/state root and `loaded-idle`.
 - [ ] `COC-05` Observe a naturally admitted authenticated Apply wake without bypassing host admission.
+  First natural wake from installed SHA `03fd32af018c92d3d42a1c652a3a1a221a866ed3`, run
+  `18d50a5110f71468-90446`, started and terminated normally with exit `75`, blocker
+  `memory_admission_deferred`, effect unknown/zero before provider mutation. Host readback at the same
+  checkpoint was load average `114.80 / 101.15 / 94.07`; the owner returned to `loaded-idle` with no
+  residual PID. This proves the new release and shared admission gate, but does not close the required
+  admitted/authenticated canary. Do not weaken the threshold, kill Codex/cloud sessions or restart a
+  browser to manufacture this proof; accept the next natural capacity-admitted wake.
 - [ ] `COC-06` Prove the initial Apply allocation keeps 19 one-off slots plus one continuous acceptance
   slot without shard over-allocation. This is a rollout split, not a permanent continuous-application cap.
 - [ ] `COC-07` Submit the first eligible continuous application through the existing Apply lane and retain
