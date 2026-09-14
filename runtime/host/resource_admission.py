@@ -19,10 +19,13 @@ def process_start(pid: int) -> str | None:
     ps = shutil.which("ps")
     if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0 or not ps:
         return None
-    result = subprocess.run(
-        [ps, "-p", str(pid), "-o", "lstart="], capture_output=True,
-        text=True, check=False,
-    )
+    try:
+        result = subprocess.run(
+            [ps, "-p", str(pid), "-o", "lstart="], capture_output=True,
+            text=True, check=False, timeout=2,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
     value = result.stdout.strip()
     return value if result.returncode == 0 and value else None
 
@@ -58,7 +61,16 @@ def _row(path: Path) -> dict[str, object] | None:
 
 def _live(path: Path) -> bool:
     value = _row(path)
-    return bool(value and process_start(value.get("pid")) == value.get("process_start"))
+    if not value or not isinstance(value.get("pid"), int):
+        return False
+    actual = process_start(value["pid"])
+    if actual is not None:
+        return actual == value.get("process_start")
+    try:
+        os.kill(value["pid"], 0)
+    except (OSError, TypeError):
+        return False
+    return True
 
 
 def _capacity(name: str, default: int) -> int:
@@ -71,7 +83,8 @@ def _capacity(name: str, default: int) -> int:
     return value
 
 
-def try_acquire(resource_class: str, owner_id: str) -> tuple[Path | None, str]:
+def try_acquire(resource_class: str, owner_id: str, *,
+                retain_ticket: bool = True) -> tuple[Path | None, str]:
     """Atomically claim a slot; live waiters are served FIFO within each class."""
     if resource_class not in {"agent", "deterministic"} or not owner_id:
         raise RuntimeError("invalid resource identity")
@@ -81,7 +94,13 @@ def try_acquire(resource_class: str, owner_id: str) -> tuple[Path | None, str]:
         path.mkdir(parents=True, exist_ok=True, mode=0o700); os.chmod(path, 0o700)
     descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
     try:
-        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        try:
+            fcntl.flock(
+                descriptor,
+                fcntl.LOCK_EX | (fcntl.LOCK_NB if not retain_ticket else 0),
+            )
+        except BlockingIOError:
+            return None, "control_busy"
         owner_rows = []
         for path in owners.glob("*.json"):
             if not _live(path):
@@ -91,6 +110,30 @@ def try_acquire(resource_class: str, owner_id: str) -> tuple[Path | None, str]:
             return None, "owner_busy"
 
         digest = hashlib.sha256(owner_id.encode()).hexdigest()
+        if not retain_ticket:
+            total_limit = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 3)
+            class_limit = _capacity(
+                "LIFE_MANAGER_HOST_MAX_AGENT_RUNS" if resource_class == "agent"
+                else "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS",
+                1 if resource_class == "agent" else 2,
+            )
+            if len(owner_rows) >= total_limit or sum(
+                row.get("resource_class") == resource_class for row in owner_rows
+            ) >= class_limit:
+                return None, "capacity_busy"
+            for candidate in sorted(tickets.glob(f"{resource_class}-*.json")):
+                if _live(candidate):
+                    return None, "fifo_wait"
+                candidate.unlink(missing_ok=True)
+            started = process_start(os.getpid())
+            if not started:
+                raise RuntimeError("process identity unavailable")
+            claim = owners / f"{digest}-{os.getpid()}.json"
+            atomic_json(claim, {"version": 1, "pid": os.getpid(),
+                        "process_start": started, "owner_id": owner_id,
+                        "resource_class": resource_class})
+            return claim, "acquired"
+
         matches = list(tickets.glob(f"{resource_class}-*-{digest}.json"))
         ticket = matches[0] if matches else tickets / (
             f"{resource_class}-{time.time_ns():020d}-{digest}.json")
