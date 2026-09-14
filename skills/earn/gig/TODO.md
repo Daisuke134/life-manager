@@ -36,6 +36,12 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   ticket. Coconala Paid PID `6856` and Apply PID `42143` were still resident in their old
   blocking acquire paths at the latest readback and must terminate naturally before target-only
   loaded-idle reconciliation.
+  A later production stall proved the legacy lock chain exactly: with no deterministic owner, FIFO-head
+  PID `747` (`life-manager-financial-report`, old `05d0ac22`) held the global control lock while waiting
+  for child `/bin/ps -p 747 -o lstart=`; every other sampled legacy waiter was blocked in `flock()`. After
+  that probe ended naturally, PID `747` immediately became the deterministic owner and queue progress
+  resumed. This is the failure class closed by `b8de9bf2`'s two-second identity-probe bound and conservative
+  live fallback; no process was killed or restarted during the proof.
   Coconala Reply's old PID ended naturally and target-only reconciliation installed `b8de9bf2`
   successfully (`install_event_id=ef95d124026888bceaaf0037`) without touching a sibling. Its first
   natural new-release wake PID `62154` retained no admission ticket. Under the still-high host load its
