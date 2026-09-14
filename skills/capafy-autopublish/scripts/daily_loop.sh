@@ -59,7 +59,7 @@ echo "=== $TS daily_loop start ===" >> "$LOG"
 # Paid buyers can keep using already-listed Agents even when there is no new
 # inventory. Check host funding before the healthy-idle exit so an exhausted
 # key cannot remain invisible until the next publication attempt.
-if ! KEY_HEALTH="$($AUTO/scripts/key_health_gate.sh 5.00 2>&1)"; then
+if ! KEY_HEALTH="$($AUTO/scripts/key_health_gate.sh 2>&1)"; then
   echo "$TS $KEY_HEALTH" >> "$LOG"
   echo "=== $TS daily_loop done rc=1 (HOST_KEY_UNHEALTHY — paid-user service at risk; marker NOT touched) ===" >> "$LOG"
   exit 1

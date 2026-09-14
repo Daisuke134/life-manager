@@ -20,10 +20,16 @@ CANONICAL_PAID_ONLY_FILES = (
     AUTO / "references" / "pricing.md",
     AUTO.parent / "capafy" / "catalog" / "youtube-script-writer" / "LISTING.md",
 )
+KEY_GATE_CALL_SITES = (
+    AUTO / "scripts" / "daily_loop.sh",
+    AUTO / "scripts" / "publish_prepare.sh",
+    AUTO / "scripts" / "publish_finish.sh",
+    AUTO.parent / "self" / "capafy-loop" / "capafy-loop-healthcheck.sh",
+)
 
 
 class KeyHealthGateTest(unittest.TestCase):
-    def run_gate(self, key_response, enable_alert=False, credits_remaining=9,
+    def run_gate(self, key_response, enable_alert=False, credits_remaining=25,
                  management_key="", healed_key_response=None, hard_cap="50"):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -179,10 +185,43 @@ exit 0
 
     def test_balance_below_default_safety_floor_blocks(self):
         result, _, _, _ = self.run_gate(
-            {"data": {"limit_remaining": 10}}, credits_remaining=4.99
+            {"data": {"limit_remaining": 10}}, credits_remaining=19.99
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("balance_too_low", result.stdout + result.stderr)
+
+    def test_balance_at_default_safety_floor_runs_live_probe(self):
+        result, call_text, _, _ = self.run_gate(
+            {"data": {"limit_remaining": 10}}, credits_remaining=20
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("https://openrouter.ai/api/v1/chat/completions", call_text)
+
+    def test_production_call_sites_do_not_override_the_safety_floor(self):
+        for path in KEY_GATE_CALL_SITES:
+            with self.subTest(path=path):
+                text = path.read_text(encoding="utf-8")
+                self.assertNotRegex(text, r"key_health_gate\.sh[\"']?\s+5\.00")
+                self.assertNotRegex(text, r"\$KEY_GATE[\"']?\s+5\.00")
+
+    def test_warning_and_block_alerts_have_distinct_truthful_messages(self):
+        warning, _, warning_text, warning_markers = self.run_gate(
+            {"data": {"limit_remaining": 10}},
+            credits_remaining=24.99,
+            enable_alert=True,
+        )
+        self.assertEqual(warning.returncode, 0, warning.stdout + warning.stderr)
+        self.assertIn("approaching the publishing safety floor", warning_text)
+        self.assertEqual(warning_markers, 1)
+
+        blocked, _, blocked_text, blocked_markers = self.run_gate(
+            {"data": {"limit_remaining": 10}},
+            credits_remaining=19.99,
+            enable_alert=True,
+        )
+        self.assertNotEqual(blocked.returncode, 0)
+        self.assertIn("Publishing is blocked until funding recovers", blocked_text)
+        self.assertEqual(blocked_markers, 1)
 
     def test_exhausted_key_calls_deduped_alert_without_printing_key(self):
         result, _, alert_text, marker_count = self.run_gate(

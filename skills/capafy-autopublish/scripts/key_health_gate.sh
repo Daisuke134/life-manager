@@ -14,7 +14,7 @@
 #   3. POST /chat/completions with Capafy's max_tokens=128000 -> must return 200 + content
 # NEVER prints the key. Exits 0 = healthy (publish may proceed), 1 = block (fail-closed).
 #
-# Usage: key_health_gate.sh [min_remaining_usd]   (default 5.00)
+# Usage: key_health_gate.sh [min_remaining_usd]   (default 20.00)
 #
 # FUNDING ALERT (#21, 2026-07-19): the gate is fail-closed but was SILENT — when the balance
 # ran low the loop just stopped publishing and user never knew a top-up was needed. This gate now
@@ -24,7 +24,12 @@
 # at-most-once-per-calendar-day so a daily loop can't spam. Never prints the key.
 set -uo pipefail
 
-MIN="${1:-5.00}"
+# Keep the host wallet above OpenRouter's configured auto-top-up threshold.  A
+# $5 floor was too low in production: Capafy could submit several independent
+# 128k admissions before a $10 refill settled, and delisted two healthy Agents
+# after a transient 402.  The provider account is configured to refill $50
+# below $20, so fail closed at the same boundary.
+MIN="${1:-20.00}"
 # Capafy currently asks OpenRouter to admit up to 128k completion tokens. At
 # Sonnet 4.6's $15/M completion price that is $1.92 before prompt cost. Require
 # enough per-key daily headroom for one worst-case admission, not merely > $0.
@@ -45,17 +50,23 @@ PY
   exit 1
 }
 # Warn while still passing but getting low, so user tops up BEFORE an outage.
-ALERT_CUSHION="${CAPAFY_FUNDING_ALERT_USD:-5.00}"
+ALERT_CUSHION="${CAPAFY_FUNDING_ALERT_USD:-25.00}"
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-$HOME/.local/state/life-manager}"
 STATE_DIR="$LIFE_MANAGER_STATE_HOME/state"
 mkdir -p "$STATE_DIR" 2>/dev/null || true
 
 # alert_user <remaining> <reason> — one telegram/day max (dedup marker keyed by date).
 alert_user() {
-  local remain="$1" reason="$2"
-  local marker="$STATE_DIR/.capafy-funding-alert-$(date +%Y-%m-%d)"
+  local remain="$1" reason="$2" severity
+  case "$reason" in
+    BLOCKED*) severity="blocked" ;;
+    *) severity="warning" ;;
+  esac
+  local marker="$STATE_DIR/.capafy-funding-alert-${severity}-$(date +%Y-%m-%d)"
   [ -f "$marker" ] && return 0   # already alerted today
-  local msg="⚠️ Capafy host LLM key funding ${reason}: OpenRouter remaining \$${remain} (block threshold \$${MIN}, warn <\$${ALERT_CUSHION}). Publishing will stall until topped up. Top up (user only, no auto-charge): https://openrouter.ai/settings/credits"
+  local impact="Funding is approaching the publishing safety floor."
+  [ "$severity" = "blocked" ] && impact="Publishing is blocked until funding recovers."
+  local msg="⚠️ Capafy host LLM key funding ${reason}: OpenRouter remaining \$${remain} (block threshold \$${MIN}, warn <\$${ALERT_CUSHION}). ${impact} Verify auto top-up and its payment receipt, or top up manually: https://openrouter.ai/settings/credits"
   local sender="${CAPAFY_TELEGRAM_SENDER:-$(cd -- "$(dirname -- "$0")/../.." && pwd)/_shared/send-telegram.sh}"
   if [ -x "$sender" ] && [ -n "${TELEGRAM_ALERT_CHAT_ID:-}" ]; then
     "$sender" "$msg" "$TELEGRAM_ALERT_CHAT_ID" >/dev/null 2>&1 \

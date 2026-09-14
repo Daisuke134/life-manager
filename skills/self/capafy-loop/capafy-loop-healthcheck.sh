@@ -23,7 +23,7 @@ mkdir -p "$(dirname "$LOG")"
 # scheduler freshness. The gate performs a bounded per-key limit repair and
 # verifies it with a live request; provider failure must not restart the owner.
 KEY_GATE="$RELEASE_ROOT/skills/capafy-autopublish/scripts/key_health_gate.sh"
-if ! KEY_HEALTH="$(bash "$KEY_GATE" 5.00 2>&1)"; then
+if ! KEY_HEALTH="$(bash "$KEY_GATE" 2>&1)"; then
   echo "$(date '+%F %T') provider admission unhealthy; no owner restart; $KEY_HEALTH" >>"$LOG"
   exit 0
 fi
