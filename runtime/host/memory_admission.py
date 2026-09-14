@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Defer new loop work while host memory or CPU headroom is unsafe."""
+"""Defer new loop work while macOS memory headroom is unsafe."""
 
 from __future__ import annotations
 
 import json
-import math
 import os
 import pwd
 import re
@@ -41,16 +40,6 @@ def memory_free_percent() -> int | None:
     if result.returncode != 0:
         return None
     return parse_free_percent(result.stdout)
-
-
-def load_per_cpu() -> float | None:
-    try:
-        cpus = os.cpu_count()
-        if not cpus:
-            return None
-        return os.getloadavg()[0] / cpus
-    except (AttributeError, OSError):
-        return None
 
 
 def _receipt_path() -> Path:
@@ -100,15 +89,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 64
     try:
         minimum = int(os.environ.get("LIFE_MANAGER_MIN_MEMORY_FREE_PERCENT", "15"))
-        maximum_load = float(os.environ.get("LIFE_MANAGER_MAX_LOAD_PER_CPU", "2"))
     except ValueError:
         return 64
-    if (not 1 <= minimum <= 100 or not math.isfinite(maximum_load)
-            or maximum_load <= 0):
+    if not 1 <= minimum <= 100:
         return 64
     while True:
         available = memory_free_percent()
-        load = load_per_cpu()
         if available is None:
             _write_receipt({
                 "status": "deferred", "effect": 0,
@@ -121,27 +107,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "reason": "memory_headroom_low", "free_percent": available,
                 "minimum_free_percent": minimum,
             })
-        elif load is None or not math.isfinite(load):
-            _write_receipt({
-                "status": "deferred", "effect": 0,
-                "reason": "cpu_headroom_unavailable",
-                "maximum_load_per_cpu": maximum_load,
-            })
-        elif load > maximum_load:
-            _write_receipt({
-                "status": "deferred", "effect": 0,
-                "reason": "cpu_headroom_low", "load_per_cpu": load,
-                "maximum_load_per_cpu": maximum_load,
-            })
         else:
             break
         if not wait_seconds:
             return 75
         time.sleep(wait_seconds)
     _write_receipt({
-        "status": "pass", "effect": 0, "reason": "host_headroom_ok",
+        "status": "pass", "effect": 0, "reason": "memory_headroom_ok",
         "free_percent": available, "minimum_free_percent": minimum,
-        "load_per_cpu": load, "maximum_load_per_cpu": maximum_load,
     })
     os.execvpe(command[0], command, os.environ)
     return 70
