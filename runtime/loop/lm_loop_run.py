@@ -21,6 +21,7 @@ from runtime.loop.macos_loop_registry import validate_registry
 from runtime.loop.runtime_event import append_runtime_event, build_runtime_event, build_runtime_start_event
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.resource_admission import (
+    cancel_durable as cancel_durable_resource,
     claim_durable as claim_durable_resource,
     defer_durable as defer_durable_resource,
     enqueue_durable as enqueue_durable_resource,
@@ -263,6 +264,10 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
     for loop_id in loop_ids:
         entry = registry["loops"].get(loop_id)
         if not isinstance(entry, dict) or entry.get("cadence", {}).get("keep_alive"):
+            try:
+                cancel_durable_resource(loop_id)
+            except (OSError, RuntimeError):
+                pass
             continue
         label = entry["label"]
         plist = installed / f"{label}.plist"

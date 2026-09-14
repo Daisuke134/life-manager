@@ -3,6 +3,8 @@ import fcntl
 import hashlib
 import json
 import time
+import sqlite3
+from pathlib import Path
 from unittest.mock import patch
 
 from runtime.host import resource_admission as admission
@@ -11,6 +13,12 @@ from runtime.host import resource_admission as admission
 def isolated(tmp_path, monkeypatch, total="1"):
     monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path))
     monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", total)
+
+
+def durable_rows(root, table):
+    with sqlite3.connect(root / "admission-v2.sqlite3") as connection:
+        columns = [row[1] for row in connection.execute(f"PRAGMA table_info({table})")]
+        return [dict(zip(columns, row)) for row in connection.execute(f"SELECT * FROM {table}")]
 
 
 def test_slot_releases_for_next_owner(tmp_path, monkeypatch):
@@ -214,23 +222,20 @@ def test_durable_waiter_survives_process_lifetime_and_is_reserved_fifo(tmp_path,
     first, _ = admission.try_acquire("agent", "first", retain_ticket=False)
     ticket, reason = admission.enqueue_durable("agent", "second")
     assert ticket is not None and reason == "capacity_busy"
-    row = json.loads(ticket.read_text())
-    assert row == {
-        "owner_id": "second", "resource_class": "agent",
-        "sequence": 1, "state": "queued", "version": 2,
-    }
+    assert durable_rows(tmp_path, "queue") == [{
+        "sequence": 1, "owner_id": "second", "resource_class": "agent",
+    }]
 
     reserved = admission.release_and_reserve(first, now=100, lease_seconds=30)
     assert reserved == ["second"]
-    reservation_path = tmp_path / "reservations" / f"{hashlib.sha256(b'second').hexdigest()}.json"
-    reservation = json.loads(reservation_path.read_text())
+    reservation = durable_rows(tmp_path, "reservations")[0]
     assert reservation["sequence"] == 1 and reservation["lease_until"] == 130
 
     third, reason = admission.enqueue_durable("agent", "third", now=101)
     assert third is not None and reason == "capacity_busy"
     claim, reason = admission.claim_durable("agent", "second", now=102)
     assert claim is not None and reason == "acquired"
-    assert not reservation_path.exists()
+    assert durable_rows(tmp_path, "reservations") == []
 
 
 def test_expired_reservation_returns_to_original_fifo_position(tmp_path, monkeypatch):
@@ -253,8 +258,28 @@ def test_post_claim_deferral_requeues_original_sequence(tmp_path, monkeypatch):
     claim, reason = admission.claim_durable("deterministic", "first")
     assert claim is not None and reason == "acquired"
     admission.release_and_reserve(claim, requeue=True)
-    queued = json.loads(ticket.read_text())
-    assert queued["sequence"] == 1 and queued["state"] == "queued"
+    assert durable_rows(tmp_path, "queue")[0]["sequence"] == 1
+
+
+def test_post_claim_requeue_commits_before_claim_is_removed(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable("deterministic", "first")
+    claim, reason = admission.claim_durable("deterministic", "first")
+    assert claim is not None and reason == "acquired"
+    observed = []
+    original_unlink = Path.unlink
+
+    def observe_committed_queue(path, *args, **kwargs):
+        if path == claim:
+            observed.extend(durable_rows(tmp_path, "queue"))
+        return original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", observe_committed_queue)
+    admission.release_and_reserve(claim, requeue=True, reserve=False)
+
+    assert observed == [{
+        "sequence": 1, "owner_id": "first", "resource_class": "deterministic",
+    }]
 
 
 def test_legacy_agent_waiter_does_not_starve_deterministic_queue(tmp_path, monkeypatch):
@@ -277,7 +302,7 @@ def test_memory_defer_releases_only_its_reservation(tmp_path, monkeypatch):
     assert set(reserved) == {"second", "other"}
 
     assert admission.defer_durable("second") is True
-    rows = [json.loads(path.read_text()) for path in (tmp_path / "reservations").glob("*.json")]
+    rows = durable_rows(tmp_path, "reservations")
     assert [row["owner_id"] for row in rows] == ["other"]
     ticket, reason = admission.enqueue_durable("agent", "second", now=101)
     assert ticket is not None and reason == "ready"
@@ -292,3 +317,21 @@ def test_stale_owner_recovery_reserves_sleeping_fifo_head(tmp_path, monkeypatch)
     admission.enqueue_durable("agent", "sleeping-head")
     admission.enqueue_durable("agent", "later-wake")
     assert admission.reserve_available(now=100, lease_seconds=30) == ["sleeping-head"]
+
+
+def test_cancel_retired_owner_removes_queue_and_reservation(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable("agent", "retired")
+    admission.reserve_available(now=100, lease_seconds=30)
+    assert admission.cancel_durable("retired") is True
+    assert durable_rows(tmp_path, "queue") == []
+    assert durable_rows(tmp_path, "reservations") == []
+
+
+def test_five_hundred_durable_waiters_remain_bounded(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    started = time.monotonic()
+    for index in range(500):
+        assert admission.enqueue_durable("agent", f"loop-{index:03d}")[0] is not None
+    assert len(durable_rows(tmp_path, "queue")) == 500
+    assert time.monotonic() - started < 15

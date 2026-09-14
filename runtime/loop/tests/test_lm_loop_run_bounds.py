@@ -273,6 +273,45 @@ def test_dispatch_reserved_kicks_only_current_loaded_idle_label(tmp_path):
     assert "-k" not in run.call_args_list[1].args[0]
 
 
+def test_dispatch_reserved_cancels_missing_registry_owner(tmp_path):
+    current = tmp_path / "release"
+    agents = tmp_path / "agents"
+    (current / "config").mkdir(parents=True)
+    agents.mkdir()
+    (current / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {},
+    }))
+
+    with (patch("runtime.loop.lm_loop_run.cancel_durable_resource") as cancel,
+          patch("runtime.loop.lm_loop_run.subprocess.run") as run):
+        assert _dispatch_reserved(
+            ["retired"], current=current, agents_dir=agents,
+        ) == []
+
+    cancel.assert_called_once_with("retired")
+    run.assert_not_called()
+
+
+def test_dispatch_reserved_tolerates_missing_owner_cancel_failure(tmp_path):
+    current = tmp_path / "release"
+    agents = tmp_path / "agents"
+    (current / "config").mkdir(parents=True)
+    agents.mkdir()
+    (current / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {},
+    }))
+
+    with (patch("runtime.loop.lm_loop_run.cancel_durable_resource",
+                side_effect=OSError("admission unavailable")) as cancel,
+          patch("runtime.loop.lm_loop_run.subprocess.run") as run):
+        assert _dispatch_reserved(
+            ["retired"], current=current, agents_dir=agents,
+        ) == []
+
+    cancel.assert_called_once_with("retired")
+    run.assert_not_called()
+
+
 def test_real_child_receives_sigterm_after_atomic_handoff(tmp_path):
     ready = tmp_path / "ready"
     child = (
