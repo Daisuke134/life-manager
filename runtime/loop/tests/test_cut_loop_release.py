@@ -1,7 +1,6 @@
 import json
 import os
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -38,14 +37,19 @@ class CutLoopReleaseTest(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             release = next((loops / "releases").iterdir())
-            tag = sys.implementation.cache_tag
+            manifest = json.loads((release / "RELEASE.json").read_text())
+            runtime_python = Path(manifest["runtime_python"])
+            tag = manifest["runtime_python_cache_tag"]
             caches = list(release.glob(f"runtime/**/__pycache__/*.{tag}.pyc"))
             self.assertTrue(caches)
             self.assertEqual(int.from_bytes(caches[0].read_bytes()[4:8], "little"), 3)
             self.assertFalse(release.stat().st_mode & 0o200)
-            manifest = json.loads((release / "RELEASE.json").read_text())
-            self.assertEqual(manifest["runtime_python"], str(Path(sys.executable).resolve()))
-            self.assertEqual(manifest["runtime_python_cache_tag"], tag)
+            self.assertTrue(runtime_python.is_absolute() and os.access(runtime_python, os.X_OK))
+            actual_tag = subprocess.check_output(
+                [str(runtime_python), "-c", "import sys; print(sys.implementation.cache_tag)"],
+                text=True,
+            ).strip()
+            self.assertEqual(tag, actual_tag)
 
     def test_connector_sparse_release_includes_shared_browser_runtime(self):
         with tempfile.TemporaryDirectory() as directory:
