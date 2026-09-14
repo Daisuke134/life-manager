@@ -52,6 +52,10 @@ def test_memory_deferral_requires_a_fresh_matching_receipt(tmp_path):
         "status": "deferred", "effect": 0, "reason": "capacity_busy",
     }))
     assert _host_admission_deferred(receipt, started) == "capacity_busy"
+    receipt.write_text(json.dumps({
+        "status": "deferred", "effect": 0, "reason": "x" * 128,
+    }))
+    assert _host_admission_deferred(receipt, started) == "unknown"
     receipt.write_text(json.dumps({"status": "pass", "effect": 0}))
     assert not _host_admission_deferred(receipt, started)
 

@@ -1,5 +1,6 @@
 import os
 import fcntl
+import hashlib
 import json
 import time
 from unittest.mock import patch
@@ -36,12 +37,17 @@ def test_one_shot_busy_attempt_does_not_leave_a_ticket(tmp_path, monkeypatch):
 
 def test_unknown_future_ticket_is_preserved_and_ignored(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
-    future = tmp_path / "tickets/deterministic-00000000000000000001-future.json"
+    digest = hashlib.sha256(b"next").hexdigest()
+    future = tmp_path / f"tickets/deterministic-00000000000000000001-{digest}.json"
     admission.atomic_json(future, {
         "version": 2, "owner_id": "future", "sequence": 1,
     })
     claim, reason = admission.try_acquire(
         "deterministic", "next", retain_ticket=False)
+    assert claim and reason == "acquired" and future.exists()
+    admission.release(claim)
+
+    claim, reason = admission.try_acquire("deterministic", "next")
     assert claim and reason == "acquired" and future.exists()
     admission.release(claim)
 

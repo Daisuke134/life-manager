@@ -155,7 +155,9 @@ def _host_admission_deferred(path: Path, started_ns: int) -> str | None:
     if value.get("status") != "deferred" or value.get("effect") != 0:
         return None
     reason = value.get("reason")
-    return reason if isinstance(reason, str) and SAFE_RUN_ID.fullmatch(reason) else "unknown"
+    prefix = "host_admission_deferred:"
+    return (reason if isinstance(reason, str) and SAFE_RUN_ID.fullmatch(reason)
+            and len(prefix) + len(reason) <= 128 else "unknown")
 
 
 def _terminal_outcome(return_code: int, *, host_deferred: str | None = None
