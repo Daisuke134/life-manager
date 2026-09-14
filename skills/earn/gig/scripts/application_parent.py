@@ -1018,6 +1018,29 @@ class CdpParentEffects:
                 return call_id
             await asyncio.sleep(0.25)
 
+    async def _settle_retainer_application_readback(
+        self, ws: Any, request_id: str, call_id: int, *, seconds: float = 8.0
+    ) -> tuple[dict[str, object], int]:
+        """Wait past the previous document until the exact listing shows applied."""
+        deadline = asyncio.get_running_loop().time() + seconds
+        state: dict[str, object] = {}
+        while True:
+            state, call_id = await self._eval_json(
+                ws,
+                "JSON.stringify({url:location.href,title:document.title,ready:document.readyState})",
+                call_id,
+            )
+            if (
+                state.get("ready") in {"interactive", "complete"}
+                and _retainer_application_is_officially_applied(
+                    request_id, url=state.get("url"), title=state.get("title")
+                )
+            ):
+                return state, call_id
+            if asyncio.get_running_loop().time() >= deadline:
+                return state, call_id
+            await asyncio.sleep(0.25)
+
     async def _navigate_retry_once(self, ws: Any, url: str, call_id: int) -> int:
         """Retry ONE hung navigate before giving up on it.
 
@@ -2068,10 +2091,8 @@ class CdpParentEffects:
             for request_id in sorted(retainer_expected):
                 exact_url = _application_form_url(request_id)
                 call_id = await self._navigate_retry_once(ws, exact_url, call_id)
-                exact_page, call_id = await self._eval_json(
-                    ws,
-                    "JSON.stringify({url:location.href,title:document.title})",
-                    call_id,
+                exact_page, call_id = await self._settle_retainer_application_readback(
+                    ws, request_id, call_id
                 )
                 if _retainer_application_is_officially_applied(
                     request_id,

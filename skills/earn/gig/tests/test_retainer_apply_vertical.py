@@ -4,6 +4,7 @@ import importlib.util
 import inspect
 import json
 import sys
+import asyncio
 from pathlib import Path
 
 
@@ -116,6 +117,37 @@ def test_retainer_confirmation_requires_exact_canonical_ulid() -> None:
         ULID, url=f"https://coconala.com/job_matching/outsources/{'0' * 26}/apply",
         title="応募内容を確認する | ココナラ",
     )
+
+
+def test_retainer_exact_readback_waits_past_the_previous_document(tmp_path, monkeypatch) -> None:
+    effects = parent.CdpParentEffects(
+        ws_url="ws://example.test/devtools/page/1",
+        evidence_dir=tmp_path / "evidence",
+        ledger_path=tmp_path / "ledger.jsonl",
+        pass_id="retainer-test",
+    )
+    states = iter([
+        {"url": parent.RETAINER_APPLIED_URL, "title": "応募・スカウト管理", "ready": "complete"},
+        {
+            "url": f"https://coconala.com/job_matching/outsources/{ULID}/apply",
+            "title": "応募内容を確認する | ココナラ",
+            "ready": "complete",
+        },
+    ])
+
+    async def fake_eval(_ws, _expression, call_id):
+        return next(states), call_id + 1
+
+    async def no_sleep(_seconds):
+        return None
+
+    monkeypatch.setattr(effects, "_eval_json", fake_eval)
+    monkeypatch.setattr(parent.asyncio, "sleep", no_sleep)
+    state, call_id = asyncio.run(
+        effects._settle_retainer_application_readback(object(), ULID, 10)
+    )
+    assert state["title"] == "応募内容を確認する | ココナラ"
+    assert call_id == 12
 
 
 def test_retainer_is_evaluated_by_the_same_capability_gate_not_bucket_refused() -> None:
