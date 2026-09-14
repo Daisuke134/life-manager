@@ -26,6 +26,13 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   `20260914T160401-b8de9bf2` is current. Production acceptance remains open until old-release waiters drain,
   installed argv converge without sibling restarts, ticket count stops growing, host load recovers, and
   natural wakes resume durable progress plus official effect readback for every affected lane.
+  Production rollout has safely converged 73 idle labels to that release (`43` deterministic and `30`
+  shared-agent-runner, with no reconcile failures). Running old-release owners were deliberately not
+  restarted. During the first 30-second drain observation, admission tickets decreased from `24` to `23`
+  rather than growing, while host load remained about `142–154`; this is promising drain evidence, not
+  yet 24/7 acceptance. Coconala Paid PID `6856` and Apply PID `42143` were still resident in their old
+  blocking acquire paths at the latest readback and must terminate naturally before target-only
+  loaded-idle reconciliation.
 
 - **Current cursor: restore Coconala Apply discovery and effect reconciliation.** Ryu `18211957`
   already has the ordinary reply and manual attachment in official readback and remains dormant until a
@@ -745,29 +752,39 @@ The shared foundation improves horizontally while revenue proof closes verticall
 owners and client owners still run concurrently; this numbering chooses the engineering cursor and never
 serializes independent production work.
 
-1. **Existing funded liabilities:** finish Ryu formal delivery, continue Chii's verified DM/Sheet pairs,
-   and close the three current CrowdWorks contracts. Each client has its own worker and cumulative context.
-2. **Coconala vertical proof:** make Apply, Reply, Paid and Storefront continuously healthy, then prove a
+1. **Shared runtime production convergence:** let pre-fix blocking owners drain naturally; reconcile each
+   loaded-idle remainder to `b8de9bf2d2...`; prove admission contention ends quickly with an effect-zero
+   terminal receipt, later natural wakes resume durable progress, ticket count does not grow, sibling lanes
+   are not restarted, and official effects remain duplicate-free. This is the fleet-wide prerequisite, not
+   a Coconala-only workaround.
+2. **Coconala vertical proof:** make Apply (both `single:new` and `retainer:new`), Reply, Paid and Storefront
+   continuously healthy; first reconcile all 54 `prepared_unconfirmed` application intents through official
+   applied-state readback, then prove a
    new application, contract, delivery, payout attribution and replay-zero without reopening completed work.
-3. **Lancers vertical proof:** phone verification is complete. Keep Apply active until a real contract,
+   Ryu `18211957` already has the requested ordinary reply plus attachment in official readback and is now a
+   dormant per-client cursor until a genuinely new buyer event; formal delivery stays off. Chii is excluded
+   from this program cursor. Kokoro resumes only after all 15 retained buyer attachments are locally verified.
+3. **Existing CrowdWorks funded liabilities:** close the three current contracts through independent
+   per-client workers, official delivery readback, payout attribution and replay-zero.
+4. **Lancers vertical proof:** phone verification is complete. Keep Apply active until a real contract,
    complete every buyer event and requested scheduling action, deliver through shared Paid, prove payout,
    and connect Storefront only where the official provider surface supports it.
-4. **CrowdWorks vertical proof:** retain existing Apply/Reply receipts, finish the current funded Paid
+5. **CrowdWorks platform proof:** retain existing Apply/Reply receipts, finish the current funded Paid
    lifecycle and payout, and record Storefront as `not_applicable` unless an official seller-listing
    capability is observed.
-5. **Mercor vertical proof:** preserve working Apply/Reply, reject strongly contradictory opportunities,
+6. **Mercor vertical proof:** preserve working Apply/Reply, reject strongly contradictory opportunities,
    route only identity/interview/media actions through typed Telegram handoffs, and prove the first real
    contract, delivery and payout. Storefront remains `not_applicable`.
-6. **Freelancer.com and Upwork:** recover official account and policy state, then prove Apply -> Reply ->
+7. **Freelancer.com and Upwork:** recover official account and policy state, then prove Apply -> Reply ->
    Paid -> payout and Storefront only where supported. Do not enable unsafe or identity-uncertain actions.
-7. **New-platform meta loop:** search Web/X for revenue platforms, qualify expected net value and policy,
+8. **New-platform meta loop:** search Web/X for revenue platforms, qualify expected net value and policy,
    generate only thin provider adapters, run conformance/canary acceptance, and promote only after an
    official effect, readback and replay-zero. Shared kernels, browser ownership, receipts, Telegram and CFO
    reporting are reused rather than regenerated.
-8. **Phone-only hosted product:** move the same kernel to tenant-isolated cloud browser/computer sessions
+9. **Phone-only hosted product:** move the same kernel to tenant-isolated cloud browser/computer sessions
    with Telegram as the only required UI. KYC, interviews and person-bound media remain minimal-human
    handoffs; every other supported action stays autonomous.
-9. **Revenue gate:** count only attributable accepted payouts and bank receipts toward USD 10K MRR. Runtime
+10. **Revenue gate:** count only attributable accepted payouts and bank receipts toward USD 10K MRR. Runtime
    PASS, application count and empty-inventory monitoring are not revenue. Scale toward the larger target
    only by cloning a verified profitable lifecycle, including selling the hosted Life Manager product.
 
