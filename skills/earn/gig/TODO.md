@@ -455,11 +455,11 @@ independent production effects.
 
 ### 1. Shared runtime production convergence and account 1 cutover — current cursor
 
-- [ ] Reuse `/private/tmp/lm-runtime-admission-reservations-20260914` for this same admission repair. Re-check
+- [x] Reuse `/private/tmp/lm-runtime-admission-reservations-20260914` for this same admission repair. Re-check
   clean/merged/no-open-PR/no-open-process/lease-owner conditions, renew the stale lease HEAD, and fast-forward
   its branch to latest `origin/main` before editing. Do not create another worktree or write in the divergent
   spec worktree, shared Capafy checkout or an active release.
-- [ ] Preserve three secret-free production regression fixtures before changing behavior:
+- [ ] **Current cursor:** preserve three secret-free production regression fixtures before changing behavior:
   1. all four Coconala lanes repeatedly terminate before provider work while unrelated owners hold global
      capacity;
   2. a retained 15-attachment Coconala contract is incorrectly sent a re-upload request;
