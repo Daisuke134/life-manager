@@ -80,6 +80,80 @@ def test_attachment_capture_prioritizes_newest_buyer_message() -> None:
     assert ordered == [(2, messages[2]), (1, messages[1]), (0, messages[0])]
 
 
+def test_known_buyer_attachment_without_bytes_stays_in_transport_recovery(tmp_path: Path) -> None:
+    paid = load("paid_direct")
+    ledger = tmp_path / "source" / "talkroom" / "messages.jsonl"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text(json.dumps({"side": "buyer", "attachments": [{
+        "filename": "already-sent.xlsx", "reference": "message:123:attachment:0",
+    }]}) + "\n", encoding="utf-8")
+
+    assert paid._buyer_attachment_recovery_pending(tmp_path) is True
+
+
+def test_verified_buyer_attachment_leaves_transport_recovery(tmp_path: Path) -> None:
+    paid = load("paid_direct")
+    payload = b"buyer supplied workbook"
+    source = tmp_path / "source" / "buyer-attachments" / "file.xlsx"
+    source.parent.mkdir(parents=True)
+    digest = hashlib.sha256(payload).hexdigest()
+    source = source.with_name(f"{digest[:12]}-file.xlsx")
+    source.write_bytes(payload)
+    ledger = tmp_path / "source" / "talkroom" / "messages.jsonl"
+    ledger.parent.mkdir(parents=True, exist_ok=True)
+    ledger.write_text(json.dumps({"side": "buyer", "attachments": [{
+        "filename": "file.xlsx", "reference": "message:123:attachment:0",
+    }]}) + "\n", encoding="utf-8")
+
+    assert paid._buyer_attachment_recovery_pending(tmp_path) is False
+
+
+def test_older_unfetched_buyer_attachment_cannot_hide_behind_latest_requirements(tmp_path: Path) -> None:
+    paid = load("paid_direct")
+    ledger = tmp_path / "source" / "talkroom" / "messages.jsonl"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text("\n".join([
+        json.dumps({"side": "buyer", "attachments": [{
+            "filename": "old.pdf", "reference": "message:1:attachment:0",
+        }]}),
+        json.dumps({"side": "seller", "attachments": [{"filename": "delivery.zip"}]}),
+        json.dumps({"side": "buyer", "attachments": []}),
+    ]) + "\n", encoding="utf-8")
+    requirements = tmp_path / "requirements" / "live-buyer-reply.json"
+    requirements.parent.mkdir(parents=True)
+    requirements.write_text(json.dumps({"attachments": []}), encoding="utf-8")
+
+    assert paid._buyer_attachment_recovery_pending(tmp_path) is True
+
+
+def test_unfetched_direct_message_attachment_stays_in_transport_recovery(tmp_path: Path) -> None:
+    paid = load("paid_direct")
+    manifest = tmp_path / "source" / "dm" / "thread-123-full.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text(json.dumps({"attachment_index": [{
+        "side": "buyer", "url": "https://coconala.com/uploaded_files/view/1",
+        "filename": "brief.docx", "error": "http_503",
+    }]}), encoding="utf-8")
+
+    assert paid._buyer_attachment_recovery_pending(tmp_path) is True
+
+
+def test_same_filename_from_dm_cannot_satisfy_talkroom_reference(tmp_path: Path) -> None:
+    paid = load("paid_direct")
+    payload = b"different source"
+    digest = hashlib.sha256(payload).hexdigest()
+    dm_file = tmp_path / "source" / "dm" / "attachments" / f"{digest[:12]}-brief.pdf"
+    dm_file.parent.mkdir(parents=True)
+    dm_file.write_bytes(payload)
+    ledger = tmp_path / "source" / "talkroom" / "messages.jsonl"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text(json.dumps({"side": "buyer", "attachments": [{
+        "filename": "brief.pdf", "reference": "message:talkroom:attachment:0",
+    }]}) + "\n", encoding="utf-8")
+
+    assert paid._buyer_attachment_recovery_pending(tmp_path) is True
+
+
 def test_successful_attachment_survives_later_capture_timeout(tmp_path: Path) -> None:
     snapshot = load("coconala_queue_snapshot")
     payload = b"current buyer revision image"
