@@ -32,6 +32,15 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   `58/58`; production acceptance still requires natural terminal and official effect receipts from
   the repaired release. Old `memory_admission_deferred` events from an earlier `event_release_sha`
   are historical and do not prove a regression in the installed release.
+- **The shared CDP lock repair is merged and installed on all four Coconala owners.** PR `#5175`
+  merged as `833b55b6c966...` and immutable release `20260914T120134-833b55b6` is the current
+  production source. Reply and Storefront moved first and started natural wakes from that release.
+  Apply and Paid were left on their in-flight older wakes until both terminated naturally with
+  `entrypoint_exit_1`; they were then reconciled individually without restarting a sibling. Apply
+  install event `3718b3c61149d5c77714931f` and Paid install event
+  `ae5bf68305cc6a4ac72415ba` prove the installed SHA. This is rollout evidence only: the active
+  cursor remains the first terminal repaired-release receipt plus official effect/readback and a
+  replay-zero receipt for every applicable lane.
 
 - **Reply client isolation is merged and installed.** PR `#5162`, merge SHA `2fe142f696...`,
   runs up to four Coconala client workers concurrently and gives every talkroom its own
