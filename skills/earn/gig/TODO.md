@@ -67,13 +67,13 @@ docs/
 - Coconala Storefront is installed on `b8de9bf2`. Two natural new-release wakes independently ended exit `75`,
   `host_admission_deferred`, loaded-idle, with no retained legacy ticket or owner. Contention safety passes;
   later natural resume and official listing readback remain open.
-- Latest legacy queue count is `20`, with one live owner immediately after the latest idle convergence pass.
-  Current memory admission itself passes at
+- The latest measured legacy queue count is `20`, with one live owner immediately after the latest idle
+  convergence pass. Current memory admission itself passes at
   `free_percent=31` against `minimum_free_percent=15`; the remaining backlog is legacy process/ticket drain,
   not evidence of current physical-memory rejection. Coconala Storefront PID `60168` ended naturally and
-  the lane is installed on `b8de9bf2`; its first new-release wake retained no legacy ticket or owner and is
-  still awaiting a terminal event under host load around `159`. Paid PID `6856` and Apply PID `42143`
-  remain on older releases and must end naturally before target-only loaded-idle reconciliation.
+  the lane is installed on `b8de9bf2`; two new-release wakes ended with bounded terminal deferral and retained
+  no legacy ticket or owner. Paid PID `6856` and Apply PID `42143` remain live on older releases and must end
+  naturally before target-only loaded-idle reconciliation.
 - Disk availability recovered from `1.1 GiB` to `4.0 GiB`. Only clean, unused, regenerable external clones,
   main-contained temporary clones, three completed merged worktrees/branches/owned leases, and one missing-worktree
   registration were removed. Codex/cloud sessions, credentials, browser profiles, memory, state, ledgers,
