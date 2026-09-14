@@ -280,14 +280,23 @@ def _database(path: Path) -> sqlite3.Connection:
     return connection
 
 
-def _limits(resource_class: str) -> tuple[int, int]:
+def _limits(resource_class: str, admission_class: str = "borrow") -> tuple[int, int]:
     total = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 3)
+    if admission_class == "revenue":
+        return total, _capacity("LIFE_MANAGER_HOST_MAX_REVENUE_RUNS", total)
     per_class = _capacity(
         "LIFE_MANAGER_HOST_MAX_AGENT_RUNS" if resource_class == "agent"
         else "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS",
         1 if resource_class == "agent" else 2,
     )
     return total, per_class
+
+
+def _uses_limited_capacity(row: dict[str, object], resource_class: str,
+                           admission_class: str) -> bool:
+    if admission_class == "revenue":
+        return row.get("admission_class", "borrow") == "revenue"
+    return row.get("resource_class") == resource_class
 
 
 def _identity_snapshot(*directories: Path) -> tuple[dict[int, str | None], int]:
@@ -299,6 +308,7 @@ def _identity_snapshot(*directories: Path) -> tuple[dict[int, str | None], int]:
 
 
 def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_class: str,
+                      admission_class: str,
                       now: float, starts: dict[int, str | None],
                       snapshot_started_ns: int) -> tuple[bool, list[dict[str, object]]]:
     live = []
@@ -320,13 +330,19 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                     (row["owner_id"], row.get("admission_class", "borrow")))
             path.unlink(missing_ok=True)
     connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (now,))
-    reserved = [dict(zip(("owner_id", "resource_class", "sequence", "lease_until"), row))
-                for row in connection.execute(
-                    "SELECT owner_id,resource_class,sequence,lease_until FROM reservations")]
+    reserved = [dict(zip(("owner_id", "resource_class", "sequence", "lease_until",
+                          "admission_class"), row))
+                for row in connection.execute("""
+                    SELECT r.owner_id,r.resource_class,r.sequence,r.lease_until,
+                           COALESCE(p.admission_class,'borrow')
+                    FROM reservations r
+                    LEFT JOIN priorities p ON p.owner_id=r.owner_id
+                """)]
     occupied = live + reserved
-    total, per_class = _limits(resource_class)
+    total, per_class = _limits(resource_class, admission_class)
     available = (len(occupied) < total and sum(
-        row.get("resource_class") == resource_class for row in occupied) < per_class)
+        _uses_limited_capacity(row, resource_class, admission_class)
+        for row in occupied) < per_class)
     return available, occupied
 
 
@@ -358,7 +374,8 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
             return None, "control_busy"
         with _database(database) as connection:
             available, _ = _durable_capacity(
-                connection, owners, resource_class, time.time() if now is None else now,
+                connection, owners, resource_class, admission_class,
+                time.time() if now is None else now,
                 starts, snapshot_started_ns)
             if any(item.get("owner_id") == owner_id for item in (
                     _row(path) or {} for path in owners.glob("*.json"))):
@@ -419,7 +436,8 @@ def claim_durable(resource_class: str, owner_id: str, *,
                 return None, "ticket_missing"
             instant = time.time() if now is None else now
             available, occupied = _durable_capacity(
-                connection, owners, resource_class, instant, starts, snapshot_started_ns)
+                connection, owners, resource_class, admission_class, instant,
+                starts, snapshot_started_ns)
             reservation = connection.execute(
                 "SELECT resource_class,lease_until FROM reservations WHERE owner_id=?",
                 (owner_id,)).fetchone()
@@ -435,9 +453,10 @@ def claim_durable(resource_class: str, owner_id: str, *,
             if any(item.get("owner_id") == owner_id for item in (
                     _row(path) or {} for path in owners.glob("*.json"))):
                 return None, "owner_busy"
-            total, per_class = _limits(resource_class)
+            total, per_class = _limits(resource_class, admission_class)
             if reserved and (len(occupied) > total or sum(
-                    item.get("resource_class") == resource_class for item in occupied
+                    _uses_limited_capacity(item, resource_class, admission_class)
+                    for item in occupied
             ) > per_class):
                 return None, "capacity_busy"
             if not reserved and (not available or _legacy_waiter_exists(
@@ -540,11 +559,13 @@ def _reserve_locked(connection: sqlite3.Connection, owners: Path, tickets: Path,
                     snapshot_started_ns: int) -> list[str]:
     dispatched = []
     while True:
+        connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (instant,))
+        for resource_class in ("agent", "deterministic"):
+            _durable_capacity(
+                connection, owners, resource_class, "borrow", instant,
+                starts, snapshot_started_ns)
         candidates = []
         for resource_class in ("agent", "deterministic"):
-            available, _ = _durable_capacity(
-                connection, owners, resource_class, instant,
-                starts, snapshot_started_ns)
             candidate = connection.execute("""
                 SELECT q.owner_id,q.sequence,
                        COALESCE(p.admission_class,'borrow') FROM queue q
@@ -554,9 +575,13 @@ def _reserve_locked(connection: sqlite3.Connection, owners: Path, tickets: Path,
                 ORDER BY CASE COALESCE(p.admission_class,'borrow')
                     WHEN 'revenue' THEN 0 ELSE 1 END, q.sequence LIMIT 1
             """, (resource_class,)).fetchone()
-            if (available and candidate and not _legacy_waiter_exists(
-                    tickets, resource_class, starts, snapshot_started_ns)):
+            if candidate:
                 owner_id, sequence, admission_class = candidate
+                available, _ = _durable_capacity(
+                    connection, owners, resource_class, admission_class, instant,
+                    starts, snapshot_started_ns)
+            if (candidate and available and not _legacy_waiter_exists(
+                    tickets, resource_class, starts, snapshot_started_ns)):
                 candidates.append((
                     0 if admission_class == "revenue" else 1,
                     sequence, owner_id, resource_class,
