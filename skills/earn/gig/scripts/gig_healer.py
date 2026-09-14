@@ -205,7 +205,7 @@ def _diagnose(
                     or ""
                 )
                 if re.fullmatch(
-                    r"(?:\d+|[0-9A-HJKMNP-TV-Z]{26})",
+                    r"(?:\d+|[0-7][0-9A-HJKMNP-TV-Z]{25})",
                     request_id,
                 ):
                     candidate_ids.add(request_id)

@@ -1,0 +1,255 @@
+from __future__ import annotations
+
+import importlib.util
+import inspect
+import json
+import sys
+from pathlib import Path
+
+
+SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+sys.path.insert(0, str(SCRIPTS))
+ULID = "01KYPJ0M0ACF4DBAFSJVFN9K24"
+
+
+def load(name: str):
+    spec = importlib.util.spec_from_file_location(f"retainer_vertical_{name}", SCRIPTS / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+parent = load("application_parent")
+planner = load("application_planner")
+eligibility = load("application_eligibility")
+gate = load("b2_result_gate")
+fence = load("application_effect_fence")
+readback = load("coconala_applied_readback")
+direct = load("application_direct")
+
+
+def _snapshot() -> dict[str, object]:
+    return parent.snapshot_contract.build_envelope({
+        "pass_id": "retainer-test",
+        "lease_fence": {"task": "retainer-test", "token": "1" * 32, "generation": 1},
+        "observed_at": "2026-09-14T00:00:00Z",
+        "objective": {"target_applications": 1, "max_applications": 1, "required_search_source_ids": ["retainer:new"]},
+        "search_sources": [{
+            "source_id": "retainer:new", "url": "https://coconala.com/job_matching/outsources",
+            "page_index": 1, "card_request_ids": [ULID], "has_next": False, "exhausted": True,
+            "screenshot_sha256": "a" * 64, "dom_sha256": "b" * 64,
+        }],
+        "request_details": [{
+            "request_id": ULID,
+            "canonical_url": f"https://coconala.com/job_matching/outsources/{ULID}",
+            "title": "継続開発支援", "category": "IT・プログラミング",
+            "visible_text": "募集内容\n非同期で継続する開発支援をお願いします。",
+            "accepting_applications": True, "budget_min_jpy": None, "budget_max_jpy": None,
+            "applicants_count": 0, "contracted_count": 0, "applicants": [],
+            "observed_at": "2026-09-14T00:00:00Z",
+        }],
+        "already_applied_ids": [],
+    })
+
+
+def _decision() -> dict[str, object]:
+    return {"decisions": [{
+        "request_id": ULID, "business_class": "submit_required", "reason_codes": [],
+        "proposal_text": "継続開発支援の目的と優先順位を整理し、毎週の実装、検証、記録まで責任を持って進めます。" * 5,
+        "price_jpy": 120_000, "deliver_date": "2026-10-01",
+        "work_frequency": "WEEK_THREE", "weekly_hours_min": 12, "weekly_hours_max": 18,
+    }]}
+
+
+def test_retainer_terms_are_required_and_bound_to_the_durable_intent() -> None:
+    decision = _decision()
+    assert planner.validate_decisions(_snapshot(), decision) == []
+    intent = fence.intent_payload(
+        request_id=ULID, snapshot_sha256="2" * 64,
+        proposal_text=decision["decisions"][0]["proposal_text"], price_jpy=120_000,
+        deliver_date="2026-10-01", lease_fence={"task": "retainer-test", "token": "1" * 32, "generation": 1},
+        retainer_terms={"work_frequency": "WEEK_THREE", "weekly_hours_min": 12, "weekly_hours_max": 18},
+    )
+    assert intent["version"] == 3
+    assert fence.validate_intent(intent) == []
+    changed = dict(intent)
+    changed["retainer_terms"] = {**intent["retainer_terms"], "weekly_hours_max": 19}
+    assert "retainer_terms_sha256_mismatch" in fence.validate_intent(changed)
+
+
+def test_retainer_commit_uses_the_existing_effect_fence_and_exact_readback(tmp_path, monkeypatch) -> None:
+    snapshot = _snapshot()
+    effects = parent.FixtureEffects(snapshot, {"official_applied_ids": [ULID]})
+    monkeypatch.setattr(parent.gig_disk_guard, "disk_headroom_ok", lambda: True)
+
+    results = parent.commit_decisions(snapshot, _decision(), store=fence.IntentStore(tmp_path), effects=effects)
+
+    assert results[0]["status"] == "confirmed"
+    assert effects.click_count == 2
+    assert effects.exact_id_readback_ids == [ULID]
+    assert results[0]["application"]["bucket"] == "retainer"
+    assert results[0]["application"]["weekly_days"] == "WEEK_THREE"
+
+
+def test_retainer_is_evaluated_by_the_same_capability_gate_not_bucket_refused() -> None:
+    result = eligibility.evaluate_application(
+        "非同期の文章作成を継続します", "納品と改善案を作成します",
+        bucket="retainer", market={"client_order_rate": 80},
+    )
+    assert result["allowed"] is True
+    assert "retainer_applications_disabled" not in result["reason_codes"]
+
+    without_single_market_card = eligibility.evaluate_application(
+        "非同期の文章作成を継続します", "納品と改善案を作成します",
+        bucket="retainer", market=None,
+    )
+    assert without_single_market_card["allowed"] is True
+    assert "market_snapshot_missing" not in without_single_market_card["reason_codes"]
+
+
+def test_context_requires_the_retainer_source_and_target() -> None:
+    context = gate.build_context({
+        "apply_skip_thresholds": {"min_budget_jpy": 0}, "max_apply_per_pass": 20,
+        "target_apply_per_pass": 19, "target_retainer_apply_per_pass": 1,
+    }, Path("/nonexistent-applied.jsonl"))
+    assert context["target_applications"] == 19
+    assert context["target_retainer_applications"] == 1
+    assert context["max_applications"] == 20
+    assert "retainer:new" in context["required_search_source_ids"]
+    assert parent.CdpSnapshotCollector._source_url("retainer:new") == (
+        "https://coconala.com/job_matching/outsources"
+    )
+
+
+def test_retainer_identity_survives_applied_exclusion_projection() -> None:
+    assert parent.snapshot_applied_ids({"20", ULID, "dm-20"}) == ["20", ULID]
+
+
+def test_quota_reserves_one_retainer_slot_across_shards_and_source_anchors() -> None:
+    required = ["single:new", "retainer:new", "single:category:a", "single:keyword"]
+    plan = parent._source_capacity_plan(required, batch=20)
+    assert plan["retainer:new"] == 1
+    assert sum(plan.values()) == 20
+    assert sum(plan[source] for source in required if source != "retainer:new") == 19
+    # Shards receive the same global source allocations, not a fresh 20-slot budget.
+    assert sum(plan[source] for source in required[:2]) + sum(plan[source] for source in required[2:]) == 20
+    details = [
+        {"request_id": str(index), "budget_max_jpy": index}
+        for index in range(25)
+    ] + [{"request_id": ULID, "budget_max_jpy": 999}]
+    bounded = parent._bounded_application_details(details, batch=20)
+    assert sum(str(row["request_id"]).isdigit() for row in bounded) == 19
+    assert [row["request_id"] for row in bounded if not str(row["request_id"]).isdigit()] == [ULID]
+
+
+def test_retainer_does_not_satisfy_the_single_cursor_target(tmp_path) -> None:
+    result_path = tmp_path / "result.json"
+    result_path.write_text(json.dumps({
+        "current_b2": {"search_sources": [], "inspected_requests": []},
+        "applications": [{"request_id": ULID}],
+    }), encoding="utf-8")
+    summary_path = tmp_path / "summary.json"
+    summary_path.write_text(json.dumps({
+        "status": "success", "task_label": "gig-B2", "result_path": str(result_path),
+    }), encoding="utf-8")
+    context_path = tmp_path / "context.json"
+    context_path.write_text(json.dumps({
+        "target_applications": 1, "target_retainer_applications": 1,
+        "required_search_source_ids": ["single:new", "retainer:new"],
+    }), encoding="utf-8")
+    assert gate.next_search_cursor(summary_path, context_path)["source_id"] == "single:new"
+
+
+def test_retainer_title_binding_is_durable_and_hydration_helper_is_shared(tmp_path) -> None:
+    first = parent.CdpParentEffects(
+        ws_url="ws://example.test/devtools/page/1", evidence_dir=tmp_path / "phase-evidence",
+        ledger_path=tmp_path / "ledger.jsonl", pass_id="retainer-test",
+    )
+    first._persist_retainer_title(ULID, {"title": "継続開発支援"})
+    restarted = parent.CdpParentEffects(
+        ws_url="ws://example.test/devtools/page/2", evidence_dir=tmp_path / "phase-reconcile-evidence",
+        ledger_path=tmp_path / "ledger.jsonl", pass_id="retainer-test",
+    )
+    assert restarted._fresh_details == {}
+    assert restarted._retainer_titles({ULID}) == {ULID: "継続開発支援"}
+    assert inspect.getsource(parent._wait_for_retainer_page) == inspect.getsource(
+        readback._wait_for_retainer_page
+    )
+
+
+def test_direct_wrapper_accepts_retainer_lifecycle_observation() -> None:
+    fields = {
+        "page_state": "present", "accepting_control": "present",
+        "deadline_state": "future", "deadline_value": None, "form_state": "present",
+    }
+    canonical_url = f"https://coconala.com/job_matching/outsources/{ULID}"
+    digest = parent._lifecycle_digest(ULID, canonical_url, **fields)
+    payload = {
+        "version": 1, "raw_request_ids": [ULID], "already_applied_ids": [],
+        "quarantined_ids": [], "filtered_results": [],
+        "lifecycle_results": [{
+            "request_id": ULID, "title": "継続開発支援", "canonical_url": canonical_url,
+            "observed_at": "2026-09-14T00:00:00Z", "lifecycle_sha256": digest, **fields,
+        }],
+    }
+    assert direct._validated_observations(payload) == payload
+
+
+def test_fence_rejects_cross_bucket_versions_and_noncanonical_ulids() -> None:
+    base = {
+        "snapshot_sha256": "2" * 64,
+        "proposal_text": "提案内容です。" * 100,
+        "price_jpy": 10_000,
+        "deliver_date": "2026-10-01",
+        "lease_fence": {"task": "retainer-test", "token": "1" * 32, "generation": 1},
+    }
+    assert "retainer_terms_required" in _fence_error(lambda: fence.intent_payload(request_id=ULID, **base))
+    assert "retainer_terms_for_single_forbidden" in _fence_error(lambda: fence.intent_payload(
+        request_id="123", retainer_terms={"work_frequency": "WEEK_ONE", "weekly_hours_min": 1, "weekly_hours_max": 2}, **base
+    ))
+    assert "request_id_invalid" in _fence_error(lambda: fence.intent_payload(request_id="8" + ULID[1:], **base))
+    retainer = fence.intent_payload(
+        request_id=ULID, retainer_terms={"work_frequency": "WEEK_ONE", "weekly_hours_min": 1, "weekly_hours_max": 2}, **base
+    )
+    old_retainer = {key: value for key, value in retainer.items() if key not in {"retainer_terms", "retainer_terms_sha256"}}
+    old_retainer["version"] = 2
+    old_retainer["cas"] = fence.build_cas(ULID, base["snapshot_sha256"], fence.proposal_sha256(base["proposal_text"]), 10_000, "2026-10-01")
+    assert "retainer_intent_version_invalid" in fence.validate_intent(old_retainer)
+    numeric_v3 = dict(retainer)
+    numeric_v3["request_id"] = "123"
+    numeric_v3["cas"] = fence.build_cas(
+        "123", base["snapshot_sha256"], fence.proposal_sha256(base["proposal_text"]),
+        10_000, "2026-10-01", numeric_v3["retainer_terms_sha256"],
+    )
+    assert "single_intent_version_invalid" in fence.validate_intent(numeric_v3)
+    noncanonical = "8" + ULID[1:]
+    assert parent._is_retainer_request(noncanonical) is False
+    assert gate._valid_request_id(noncanonical) is False
+    assert readback._valid_identity(noncanonical) is False
+
+
+def _fence_error(operation):
+    try:
+        operation()
+    except fence.IntentFenceError as error:
+        return str(error)
+    return ""
+
+
+def test_decision_schema_has_disjoint_single_and_retainer_shapes() -> None:
+    from jsonschema import Draft202012Validator
+
+    schema = json.loads((SCRIPTS.parent / "schemas" / "application_decisions.schema.json").read_text(encoding="utf-8"))
+    validator = Draft202012Validator(schema)
+    single = {key: value for key, value in _decision()["decisions"][0].items() if key not in {
+        "work_frequency", "weekly_hours_min", "weekly_hours_max"
+    }}
+    single["request_id"] = "123"
+    assert not list(validator.iter_errors({"decisions": [single]}))
+    assert list(validator.iter_errors({"decisions": [{**single, "work_frequency": None}]}))
+    retainer = _decision()["decisions"][0]
+    assert not list(validator.iter_errors({"decisions": [retainer]}))
+    assert list(validator.iter_errors({"decisions": [{
+        key: value for key, value in retainer.items() if key != "weekly_hours_max"
+    }]}))

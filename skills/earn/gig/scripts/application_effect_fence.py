@@ -24,7 +24,8 @@ from provider_adapter import EffectIntent
 from provider_authorization import AuthorizationDecision, AuthorizationState
 
 
-VERSION = 2
+VERSION = 3
+PREVIOUS_VERSION = 2
 LEGACY_VERSION = 1
 PREPARED = "prepared"
 CONFIRMED = "confirmed"
@@ -40,11 +41,20 @@ _LEGACY_FIELDS = frozenset({
     "version", "state", "request_id", "snapshot_sha256", "proposal_sha256",
     "price_jpy", "deliver_date", "lease_fence", "cas",
 })
-_FIELDS = _LEGACY_FIELDS | {"effect_phase"}
+_FIELDS_V2 = _LEGACY_FIELDS | {"effect_phase"}
+_RETAINER_TERMS_FIELDS = frozenset({
+    "work_frequency", "weekly_hours_min", "weekly_hours_max",
+})
+_FIELDS = _FIELDS_V2 | {"retainer_terms", "retainer_terms_sha256"}
 _LEASE_FIELDS = frozenset({"task", "token", "generation"})
 _HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 _HEX_32 = re.compile(r"^[0-9a-f]{32}$")
 _DATE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
+_RETAINER_ULID = re.compile(r"^[0-7][0-9A-HJKMNP-TV-Z]{25}$")
+_RETAINER_FREQUENCIES = frozenset({
+    "WEEK_ONE", "WEEK_TWO", "WEEK_THREE", "WEEK_FOUR", "WEEK_FIVE",
+    "BIWEEKLY", "MONTH_ONE",
+})
 _AUTONOMOUS_AUTHORIZATION_STATES = frozenset({
     AuthorizationState.APPROVED_API,
     AuthorizationState.APPROVED_BROWSER,
@@ -101,8 +111,10 @@ def build_cas(
     proposal_hash: str,
     price_jpy: int,
     deliver_date: str,
+    retainer_terms_sha256: str | None = None,
 ) -> str:
-    return f"{request_id}:{snapshot_sha256}:{proposal_hash}:{price_jpy}:{deliver_date}"
+    base = f"{request_id}:{snapshot_sha256}:{proposal_hash}:{price_jpy}:{deliver_date}"
+    return base if retainer_terms_sha256 is None else f"{base}:{retainer_terms_sha256}"
 
 
 def default_root() -> Path:
@@ -111,8 +123,8 @@ def default_root() -> Path:
 
 def _request_id(value: object) -> str:
     result = str(value).strip()
-    if not result.isdigit():
-        raise IntentFenceError("request_id_must_be_decimal")
+    if not (result.isdigit() or _RETAINER_ULID.fullmatch(result)):
+        raise IntentFenceError("request_id_invalid")
     return result
 
 
@@ -134,6 +146,29 @@ def _date(value: object) -> str:
     if not _DATE.fullmatch(result):
         raise IntentFenceError("deliver_date_must_be_yyyy_mm_dd")
     return result
+
+
+def _retainer_terms(value: object) -> dict[str, object]:
+    if not isinstance(value, dict) or set(value) != _RETAINER_TERMS_FIELDS:
+        raise IntentFenceError("retainer_terms_fields_invalid")
+    frequency = value["work_frequency"]
+    minimum = value["weekly_hours_min"]
+    maximum = value["weekly_hours_max"]
+    if frequency not in _RETAINER_FREQUENCIES:
+        raise IntentFenceError("retainer_work_frequency_invalid")
+    if isinstance(minimum, bool) or not isinstance(minimum, int) or minimum < 0:
+        raise IntentFenceError("retainer_weekly_hours_min_invalid")
+    if (
+        isinstance(maximum, bool)
+        or not isinstance(maximum, int)
+        or maximum < minimum
+    ):
+        raise IntentFenceError("retainer_weekly_hours_max_invalid")
+    return {
+        "work_frequency": frequency,
+        "weekly_hours_min": minimum,
+        "weekly_hours_max": maximum,
+    }
 
 
 def _lease_fence(value: object) -> dict[str, object]:
@@ -159,6 +194,7 @@ def intent_payload(
     price_jpy: object,
     deliver_date: object,
     lease_fence: object,
+    retainer_terms: object | None = None,
     state: str = PREPARED,
     effect_phase: str = PRE_EFFECT,
 ) -> dict[str, object]:
@@ -176,7 +212,12 @@ def intent_payload(
     if effect_phase not in _EFFECT_PHASES:
         raise IntentFenceError("effect_phase_invalid")
     proposal_hash = proposal_sha256(proposal)
-    return {
+    is_retainer = _RETAINER_ULID.fullmatch(request) is not None
+    if is_retainer and retainer_terms is None:
+        raise IntentFenceError("retainer_terms_required")
+    if not is_retainer and retainer_terms is not None:
+        raise IntentFenceError("retainer_terms_for_single_forbidden")
+    base = {
         "version": VERSION,
         "state": state,
         "effect_phase": effect_phase,
@@ -186,7 +227,24 @@ def intent_payload(
         "price_jpy": price,
         "deliver_date": date,
         "lease_fence": fence,
-        "cas": build_cas(request, snapshot, proposal_hash, price, date),
+    }
+    if not is_retainer:
+        # Preserve the existing single-offer shape and CAS exactly, including
+        # replay of already-durable version-2 intents.
+        return {
+            **base,
+            "version": PREVIOUS_VERSION,
+            "cas": build_cas(request, snapshot, proposal_hash, price, date),
+        }
+    terms = _retainer_terms(retainer_terms)
+    terms_hash = hashlib.sha256(
+        json.dumps(terms, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return {
+        **base,
+        "retainer_terms": terms,
+        "retainer_terms_sha256": terms_hash,
+        "cas": build_cas(request, snapshot, proposal_hash, price, date, terms_hash),
     }
 
 
@@ -195,7 +253,11 @@ def validate_intent(value: object) -> list[str]:
     if not isinstance(value, dict):
         return ["intent_must_be_object"]
     version = value.get("version")
-    expected_fields = _LEGACY_FIELDS if version == LEGACY_VERSION else _FIELDS
+    expected_fields = (
+        _LEGACY_FIELDS if version == LEGACY_VERSION
+        else _FIELDS_V2 if version == PREVIOUS_VERSION
+        else _FIELDS
+    )
     actual = set(value)
     missing = sorted(expected_fields - actual)
     additional = sorted(actual - expected_fields)
@@ -205,20 +267,34 @@ def validate_intent(value: object) -> list[str]:
         errors.append("intent_additional:" + ",".join(additional))
     if errors:
         return errors
-    if version not in {LEGACY_VERSION, VERSION}:
+    if version not in {LEGACY_VERSION, PREVIOUS_VERSION, VERSION}:
         errors.append("intent_version_invalid")
     if value["state"] not in _STATES:
         errors.append("intent_state_invalid")
-    if version == VERSION and value["effect_phase"] not in _EFFECT_PHASES:
+    if version in {PREVIOUS_VERSION, VERSION} and value["effect_phase"] not in _EFFECT_PHASES:
         errors.append("intent_effect_phase_invalid")
     try:
         request = _request_id(value["request_id"])
+        is_retainer = _RETAINER_ULID.fullmatch(request) is not None
+        if is_retainer and version != VERSION:
+            errors.append("retainer_intent_version_invalid")
+        if not is_retainer and version == VERSION:
+            errors.append("single_intent_version_invalid")
         snapshot = _sha256(value["snapshot_sha256"], "snapshot_sha256")
         proposal = _sha256(value["proposal_sha256"], "proposal_sha256")
         price = _price(value["price_jpy"])
         date = _date(value["deliver_date"])
         _lease_fence(value["lease_fence"])
-        if value["cas"] != build_cas(request, snapshot, proposal, price, date):
+        terms_hash = None
+        if version == VERSION:
+            terms = _retainer_terms(value["retainer_terms"])
+            terms_hash = str(value["retainer_terms_sha256"])
+            calculated_terms_hash = hashlib.sha256(
+                json.dumps(terms, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            if terms_hash != calculated_terms_hash:
+                errors.append("retainer_terms_sha256_mismatch")
+        if value["cas"] != build_cas(request, snapshot, proposal, price, date, terms_hash):
             errors.append("intent_cas_mismatch")
     except IntentFenceError as error:
         errors.append(str(error))
@@ -228,7 +304,7 @@ def validate_intent(value: object) -> list[str]:
 def is_pre_effect(intent: dict[str, object]) -> bool:
     """Only versioned intents can prove that no irreversible attempt started."""
     return (
-        intent.get("version") == VERSION
+        intent.get("version") in {PREVIOUS_VERSION, VERSION}
         and intent.get("state") == PREPARED
         and intent.get("effect_phase") == PRE_EFFECT
     )

@@ -9,20 +9,11 @@ import unicodedata
 from typing import Any
 
 
-# A3 (2026-07-30). Coconala's 継続 (retainer) listings escalate to a synchronous
-# 三者面談 before any money moves -- observed live on 【長期・在宅】SNS投稿・更新サポ
-# ートスタッフ募集 (希望報酬 ¥1,500/時), which reached 「三者面談の候補日時が届きまし
-# た」 while reading, in its own text, as pure asynchronous chat work. No wording
-# in a brief distinguishes the ones that will do this from the ones that will not,
-# so the refusal is on the contract shape and not on the prose: 単発 (one-off) is
-# the only bucket this loop may apply into.
-#
-# This lives beside the synchronous-presence patterns on purpose. There is exactly
-# one place that can permit a submission, so a prompt cannot argue past it and a
-# target of zero cannot be quietly re-counted.
-APPLICABLE_BUCKETS: frozenset[str] = frozenset({"single"})
-REFUSED_BUCKETS: frozenset[str] = frozenset({"retainer"})
-RETAINER_APPLICATIONS_DISABLED = "retainer_applications_disabled"
+# Both marketplace contract shapes share the same Apply -> Reply -> Paid lifecycle.
+# A retainer is not a policy exemption: the ordinary synchronous-presence and
+# role checks below still reject a listing whose required deliverable needs a human.
+APPLICABLE_BUCKETS: frozenset[str] = frozenset({"single", "retainer"})
+REFUSED_BUCKETS: frozenset[str] = frozenset()
 BUCKET_UNRECOGNIZED = "application_bucket_unrecognized"
 
 
@@ -223,9 +214,7 @@ def evaluate_application(
     )
 
     reason_codes: list[str] = []
-    if bucket in REFUSED_BUCKETS:
-        reason_codes.append(RETAINER_APPLICATIONS_DISABLED)
-    elif bucket not in APPLICABLE_BUCKETS:
+    if bucket not in APPLICABLE_BUCKETS:
         reason_codes.append(BUCKET_UNRECOGNIZED)
     if synchronous_signals:
         reason_codes.append("synchronous_live_presence_required")
@@ -234,9 +223,14 @@ def evaluate_application(
             "buyer_participant_seller_provider_role_mismatch"
         )
     threshold = min_client_order_rate()
-    market_codes, ranking_codes, client_order_rate = _client_order_rate_codes(
-        market, threshold
-    )
+    if bucket == "retainer":
+        # Coconala Assist listings do not render the single-request client order-rate
+        # card. Its absence is the official retainer shape, not a failed observation.
+        market_codes, ranking_codes, client_order_rate = [], [], None
+    else:
+        market_codes, ranking_codes, client_order_rate = _client_order_rate_codes(
+            market, threshold
+        )
     reason_codes.extend(market_codes)
 
     return {

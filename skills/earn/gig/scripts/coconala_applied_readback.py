@@ -29,7 +29,7 @@ RETAINER_APPLIED_URL = (
 )
 LOAD_TIMEOUT_SECONDS = 30
 RETAINER_HYDRATION_TIMEOUT_SECONDS = 5
-RETAINER_ULID_PATTERN = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
+RETAINER_ULID_PATTERN = re.compile(r"[0-7][0-9A-HJKMNP-TV-Z]{25}")
 
 # Exit contract.  A failure to READ the applied page and a failure to APPLY are
 # different facts and the pass must never confuse them: only the second one says
@@ -80,7 +80,7 @@ def extract_retainer_ids(hrefs: list[object]) -> list[str]:
         if parsed.hostname not in {"coconala.com", "www.coconala.com"}:
             continue
         match = re.fullmatch(
-            r"/job_matching/outsources/([0-9A-HJKMNP-TV-Z]{26})/?",
+            r"/job_matching/outsources/([0-7][0-9A-HJKMNP-TV-Z]{25})/?",
             parsed.path,
         )
         if match:
