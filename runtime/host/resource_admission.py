@@ -18,6 +18,9 @@ from pathlib import Path
 from typing import Callable
 
 
+ADMISSION_CLASSES = {"borrow", "revenue"}
+
+
 class _ProcBsdInfo(ctypes.Structure):
     """Darwin's fixed PROC_PIDTBSDINFO record (sys/proc_info.h)."""
 
@@ -268,6 +271,10 @@ def _database(path: Path) -> sqlite3.Connection:
             sequence INTEGER NOT NULL UNIQUE,
             lease_until REAL NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS priorities (
+            owner_id TEXT PRIMARY KEY,
+            admission_class TEXT NOT NULL CHECK(admission_class IN ('borrow','revenue'))
+        );
         PRAGMA user_version=2;
     """)
     return connection
@@ -308,6 +315,9 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                 connection.execute(
                     "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
                     (row["sequence"], row["owner_id"], row["resource_class"]))
+                connection.execute(
+                    "INSERT OR IGNORE INTO priorities(owner_id,admission_class) VALUES(?,?)",
+                    (row["owner_id"], row.get("admission_class", "borrow")))
             path.unlink(missing_ok=True)
     connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (now,))
     reserved = [dict(zip(("owner_id", "resource_class", "sequence", "lease_until"), row))
@@ -334,9 +344,11 @@ def _legacy_waiter_exists(tickets: Path, resource_class: str,
 
 
 def enqueue_durable(resource_class: str, owner_id: str, *,
+                    admission_class: str = "borrow",
                     now: float | None = None) -> tuple[Path | None, str]:
     """Persist a process-independent FIFO position for a scheduled owner."""
-    if resource_class not in {"agent", "deterministic"} or not owner_id:
+    if (resource_class not in {"agent", "deterministic"} or not owner_id
+            or admission_class not in ADMISSION_CLASSES):
         raise RuntimeError("invalid resource identity")
     root, owners, tickets, database = _durable_paths()
     starts, snapshot_started_ns = _identity_snapshot(owners, tickets)
@@ -352,16 +364,27 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                     _row(path) or {} for path in owners.glob("*.json"))):
                 connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
                 connection.execute("DELETE FROM queue WHERE owner_id=?", (owner_id,))
+                connection.execute("DELETE FROM priorities WHERE owner_id=?", (owner_id,))
                 return None, "owner_busy"
             connection.execute("INSERT OR IGNORE INTO queue(owner_id,resource_class) VALUES(?,?)",
                                (owner_id, resource_class))
-            row = connection.execute(
-                "SELECT sequence,resource_class FROM queue WHERE owner_id=?", (owner_id,)).fetchone()
-            if row is None or row[1] != resource_class:
+            connection.execute(
+                "INSERT OR IGNORE INTO priorities(owner_id,admission_class) VALUES(?,?)",
+                (owner_id, admission_class))
+            row = connection.execute("""
+                SELECT q.sequence,q.resource_class,p.admission_class
+                FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
+                WHERE q.owner_id=?
+            """, (owner_id,)).fetchone()
+            if row is None or row[1:] != (resource_class, admission_class):
                 raise RuntimeError("durable owner resource class changed")
-            head = connection.execute(
-                "SELECT owner_id FROM queue WHERE resource_class=? ORDER BY sequence LIMIT 1",
-                (resource_class,)).fetchone()
+            head = connection.execute("""
+                SELECT q.owner_id FROM queue q
+                LEFT JOIN priorities p ON p.owner_id=q.owner_id
+                WHERE q.resource_class=?
+                ORDER BY CASE COALESCE(p.admission_class,'borrow')
+                    WHEN 'revenue' THEN 0 ELSE 1 END, q.sequence LIMIT 1
+            """, (resource_class,)).fetchone()
             ready = (available and not _legacy_waiter_exists(
                          tickets, resource_class, starts, snapshot_started_ns)
                      and head and head[0] == owner_id)
@@ -371,6 +394,7 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
 
 
 def claim_durable(resource_class: str, owner_id: str, *,
+                  admission_class: str = "borrow",
                   now: float | None = None) -> tuple[Path | None, str]:
     """Convert this owner's queued/reserved v2 position into a live claim."""
     root, owners, tickets, database = _durable_paths()
@@ -385,9 +409,13 @@ def claim_durable(resource_class: str, owner_id: str, *,
         except BlockingIOError:
             return None, "control_busy"
         with _database(database) as connection:
-            row = connection.execute(
-                "SELECT sequence,resource_class FROM queue WHERE owner_id=?", (owner_id,)).fetchone()
-            if row is None or row[1] != resource_class:
+            row = connection.execute("""
+                SELECT q.sequence,q.resource_class,
+                       COALESCE(p.admission_class,'borrow')
+                FROM queue q LEFT JOIN priorities p ON p.owner_id=q.owner_id
+                WHERE q.owner_id=?
+            """, (owner_id,)).fetchone()
+            if row is None or row[1:] != (resource_class, admission_class):
                 return None, "ticket_missing"
             instant = time.time() if now is None else now
             available, occupied = _durable_capacity(
@@ -397,9 +425,13 @@ def claim_durable(resource_class: str, owner_id: str, *,
                 (owner_id,)).fetchone()
             reserved = bool(reservation and reservation[0] == resource_class
                             and reservation[1] > instant)
-            head = connection.execute(
-                "SELECT owner_id FROM queue WHERE resource_class=? ORDER BY sequence LIMIT 1",
-                (resource_class,)).fetchone()
+            head = connection.execute("""
+                SELECT q.owner_id FROM queue q
+                LEFT JOIN priorities p ON p.owner_id=q.owner_id
+                WHERE q.resource_class=?
+                ORDER BY CASE COALESCE(p.admission_class,'borrow')
+                    WHEN 'revenue' THEN 0 ELSE 1 END, q.sequence LIMIT 1
+            """, (resource_class,)).fetchone()
             if any(item.get("owner_id") == owner_id for item in (
                     _row(path) or {} for path in owners.glob("*.json"))):
                 return None, "owner_busy"
@@ -417,9 +449,11 @@ def claim_durable(resource_class: str, owner_id: str, *,
             atomic_json(claim, {"version": 2, "pid": os.getpid(),
                         "process_start": started, "owner_id": owner_id,
                         "resource_class": resource_class, "sequence": row[0],
+                        "admission_class": admission_class,
                         "phase": "claimed"})
             connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
             connection.execute("DELETE FROM queue WHERE owner_id=?", (owner_id,))
+            connection.execute("DELETE FROM priorities WHERE owner_id=?", (owner_id,))
             return claim, "acquired"
     finally:
         os.close(descriptor)
@@ -492,6 +526,7 @@ def cancel_durable(owner_id: str) -> bool:
             return False
         with _database(database) as connection:
             connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
+            connection.execute("DELETE FROM priorities WHERE owner_id=?", (owner_id,))
             changed = connection.execute(
                 "DELETE FROM queue WHERE owner_id=?", (owner_id,)).rowcount
         return changed == 1
@@ -504,26 +539,35 @@ def _reserve_locked(connection: sqlite3.Connection, owners: Path, tickets: Path,
                     starts: dict[int, str | None],
                     snapshot_started_ns: int) -> list[str]:
     dispatched = []
-    for resource_class in ("agent", "deterministic"):
-        while True:
+    while True:
+        candidates = []
+        for resource_class in ("agent", "deterministic"):
             available, _ = _durable_capacity(
                 connection, owners, resource_class, instant,
                 starts, snapshot_started_ns)
             candidate = connection.execute("""
-                SELECT q.owner_id,q.sequence FROM queue q
+                SELECT q.owner_id,q.sequence,
+                       COALESCE(p.admission_class,'borrow') FROM queue q
                 LEFT JOIN reservations r ON r.owner_id=q.owner_id
+                LEFT JOIN priorities p ON p.owner_id=q.owner_id
                 WHERE q.resource_class=? AND r.owner_id IS NULL
-                ORDER BY q.sequence LIMIT 1
+                ORDER BY CASE COALESCE(p.admission_class,'borrow')
+                    WHEN 'revenue' THEN 0 ELSE 1 END, q.sequence LIMIT 1
             """, (resource_class,)).fetchone()
-            if (not available or not candidate
-                    or _legacy_waiter_exists(
-                        tickets, resource_class, starts, snapshot_started_ns)):
-                break
-            owner_id, sequence = candidate
-            connection.execute(
-                "INSERT INTO reservations(owner_id,resource_class,sequence,lease_until) VALUES(?,?,?,?)",
-                (owner_id, resource_class, sequence, instant + lease_seconds))
-            dispatched.append(owner_id)
+            if (available and candidate and not _legacy_waiter_exists(
+                    tickets, resource_class, starts, snapshot_started_ns)):
+                owner_id, sequence, admission_class = candidate
+                candidates.append((
+                    0 if admission_class == "revenue" else 1,
+                    sequence, owner_id, resource_class,
+                ))
+        if not candidates:
+            break
+        _, sequence, owner_id, resource_class = min(candidates)
+        connection.execute(
+            "INSERT INTO reservations(owner_id,resource_class,sequence,lease_until) VALUES(?,?,?,?)",
+            (owner_id, resource_class, sequence, instant + lease_seconds))
+        dispatched.append(owner_id)
     return dispatched
 
 
@@ -570,6 +614,9 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                 connection.execute(
                     "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
                     (sequence, value["owner_id"], value["resource_class"]))
+                connection.execute(
+                    "INSERT OR IGNORE INTO priorities(owner_id,admission_class) VALUES(?,?)",
+                    (value["owner_id"], value.get("admission_class", "borrow")))
         claim.unlink()
         if not reserve:
             return []

@@ -16,6 +16,30 @@ locked worktree -> focused test -> merged main -> immutable release -> lm-loop a
                                                            +-> mutable private state outside release
 ```
 
+## Session routing and skill boundary
+
+- Before repository work, read the active persistent goal and its named paths.
+  A goal-named worktree takes priority. Otherwise inspect registered worktrees,
+  leases, branches, upstreams, dirty state, open PRs, and live users to find a
+  safe same-task continuation. Never create a duplicate worktree for the same
+  task. Create one from fresh `origin/main` only when no safe continuation
+  exists; a shared checkout or mismatched branch remains read-only.
+- Start development with the applicable Superpowers process skill, then use
+  this repository skill for Life Manager-specific contracts. Codex plugin skills
+  are development-time tools; Life Manager runtime loads only repository-owned
+  skills from its immutable release. Generalize reusable learning here with a
+  pressure test; never make production depend on `~/.codex`, plugin caches, or
+  another agent's home directory.
+- One independent workstream owns one worktree, branch, and lease. Parallel
+  sessions must not share the same worktree, branch, mutable state, browser
+  profile, or CDP port. Give each session exact files and runtime owners. If two
+  tasks need one mutable resource or external effect, serialize the exact shared
+  effect; keep every unrelated workstream parallel and integrate through main.
+- For uncertain implementation practice, inspect the existing implementation
+  and local clones before prose documentation, then confirm unstable interfaces
+  in primary sources. Do not clone a duplicate repository; fetch or inspect the
+  existing clone, and add a new clone only when the code is not already present.
+
 ## Before editing
 
 1. Read the current spec, registry row, entrypoint, state path, loaded plist

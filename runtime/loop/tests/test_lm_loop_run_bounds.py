@@ -7,12 +7,12 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 from runtime.host import resource_admission as admission
 from runtime.loop.lm_loop_run import (
-    _dispatch_reserved, _host_admission_deferred, _resource_class, _run_admitted, _run_entrypoint,
-    _runtime_limit, _terminal_outcome,
+    _admission_class, _dispatch_reserved, _host_admission_deferred, _resource_class,
+    _run_admitted, _run_entrypoint, _runtime_limit, _terminal_outcome,
 )
 
 
@@ -52,6 +52,13 @@ def test_resource_class_is_explicit_or_provider_default():
     assert _resource_class({"provider_route": "shared-agent-runner"}) == "agent"
     assert _resource_class({"provider_route": "deterministic"}) == "deterministic"
     assert _resource_class({"provider_route": "deterministic", "resource_class": "agent"}) == "agent"
+
+
+def test_revenue_admission_requires_an_explicit_registry_contract():
+    assert _admission_class({"domain": "earn"}) == "borrow"
+    assert _admission_class({
+        "domain": "earn", "admission_class": "revenue",
+    }) == "revenue"
 
 
 def test_memory_admission_exit_is_deferred_not_failed():
@@ -227,8 +234,8 @@ def test_busy_resource_admission_defers_without_waiting_or_starting_child(tmp_pa
         started = time.monotonic()
         assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
     assert time.monotonic() - started < 0.5
-    enqueue.assert_called_once_with("agent", "example")
-    acquire.assert_called_once_with("agent", "example")
+    enqueue.assert_called_once_with("agent", "example", admission_class="borrow")
+    acquire.assert_called_once_with("agent", "example", admission_class="borrow")
     reserve.assert_called_once_with(); dispatch.assert_called_once_with([])
     run.assert_not_called()
     assert json.loads(receipt.read_text()) == {
@@ -236,6 +243,41 @@ def test_busy_resource_admission_defers_without_waiting_or_starting_child(tmp_pa
         "reason": "resource_capacity_busy",
         "status": "deferred",
     }
+
+
+def test_all_coconala_lanes_enter_revenue_admission(tmp_path):
+    registry = json.loads(
+        (Path(__file__).parents[3] / "config/loop-registry.json").read_text()
+    )["loops"]
+    loop_ids = (
+        "hf-gig-apply-direct",
+        "hf-gig-reply-detector",
+        "hf-gig-paid-direct",
+        "hf-gig-storefront-direct",
+    )
+    assert all(registry[loop_id].get("admission_class") == "revenue"
+               for loop_id in loop_ids)
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "capacity_busy")) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(None, "capacity_busy")) as claim,
+          patch("runtime.loop.lm_loop_run.reserve_available_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        for loop_id in loop_ids:
+            assert _run_admitted(
+                ["/bin/true"], registry[loop_id], loop_id, {},
+                tmp_path / f"{loop_id}.json",
+            ) == 75
+
+    assert enqueue.call_args_list == [
+        call("agent", loop_id, admission_class="revenue") for loop_id in loop_ids
+    ]
+    assert claim.call_args_list == [
+        call("agent", loop_id, admission_class="revenue") for loop_id in loop_ids
+    ]
+    run.assert_not_called()
 
 
 def test_unavailable_admission_becomes_deferred_receipt(tmp_path):

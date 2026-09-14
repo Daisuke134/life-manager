@@ -919,6 +919,7 @@
       "state_root": "~/.local/state/life-manager/coconala/apply-evidence-gc"
     },
     "hf-gig-apply-direct": {
+      "admission_class": "revenue",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -975,6 +976,7 @@
       "state_root": "~/.openclaw"
     },
     "hf-gig-paid-direct": {
+      "admission_class": "revenue",
       "adapter": "exec",
       "cadence": {
         "start_interval_seconds": 300
@@ -994,6 +996,7 @@
       "state_root": "~/.local/state/life-manager/coconala/paid"
     },
     "hf-gig-reply-detector": {
+      "admission_class": "revenue",
       "adapter": "exec",
       "cadence": {
         "start_interval_seconds": 300
@@ -1013,6 +1016,7 @@
       "state_root": "~/.local/state/life-manager/coconala/reply"
     },
     "hf-gig-storefront-direct": {
+      "admission_class": "revenue",
       "cadence": {
         "start_interval_seconds": 60
       },
