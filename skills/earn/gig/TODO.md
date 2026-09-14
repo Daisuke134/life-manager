@@ -67,9 +67,10 @@ docs/
 - Latest legacy queue count is `20`, with one live owner immediately after the latest idle convergence pass.
   Current memory admission itself passes at
   `free_percent=31` against `minimum_free_percent=15`; the remaining backlog is legacy process/ticket drain,
-  not evidence of current physical-memory rejection. Coconala Paid PID `6856`, Apply PID `42143` and
-  Storefront PID `60168` remain on older releases and must end naturally before target-only loaded-idle
-  reconciliation.
+  not evidence of current physical-memory rejection. Coconala Storefront PID `60168` ended naturally and
+  the lane is installed on `b8de9bf2`; its first new-release wake retained no legacy ticket or owner and is
+  still awaiting a terminal event under host load around `159`. Paid PID `6856` and Apply PID `42143`
+  remain on older releases and must end naturally before target-only loaded-idle reconciliation.
 - Disk availability recovered from `1.1 GiB` to `4.0 GiB`. Only clean, unused, regenerable external clones,
   main-contained temporary clones, three completed merged worktrees/branches/owned leases, and one missing-worktree
   registration were removed. Codex/cloud sessions, credentials, browser profiles, memory, state, ledgers,
@@ -106,8 +107,9 @@ independent production effects.
 - [x] Recover safe disk headroom and remove proved-obsolete artifacts.
 - [x] Deploy nonblocking admission release to idle fleet.
 - [x] Prove repeated safe contention deferral on Coconala Reply.
-- [ ] Let legacy Paid, Apply and Storefront owners finish naturally.
-- [ ] Reconcile each newly idle owner to `b8de9bf2` without restarting siblings.
+- [ ] Let legacy Paid and Apply owners finish naturally. Storefront finished naturally.
+- [ ] Reconcile each newly idle owner to `b8de9bf2` without restarting siblings. Storefront is reconciled;
+  Paid and Apply remain.
 - [ ] Prove each lane defers under contention without a retained ticket or external effect.
 - [ ] Prove pressure recovery: a later natural wake acquires, resumes durable progress and writes terminal
   business receipt plus official readback.
