@@ -97,6 +97,10 @@ docs/
 - PR `#5183`, main SHA `d74258a8ce25a834e1fff31b7e3dc01ac0b816ba`, makes Paid fail closed as
   `buyer_attachment_recovery_pending` instead of asking a buyer to re-upload when official attachment
   references exist but verified bytes are missing. Kokoro resumes only after all 15 files are verified.
+- Latest durable Reply snapshot observed 179 talkrooms: 164 have official replay-zero/closed/no-reply
+  readback, while 15 remain nonterminal (`pending=5`, `failed=10`). The ten failures are predominantly
+  historical CDP context-creation timeouts; a fresh admitted Reply wake must reconcile them independently.
+  Ryu's already verified reply is not resent.
 - Coconala is not revenue-complete until Apply, Reply, Paid, Storefront and payout attribution all have fresh
   official effect/readback and replay-zero receipts.
 
