@@ -81,11 +81,10 @@ docs/
 - Coconala Reply is installed on `b8de9bf2`. Two natural wakes independently ended exit `75`,
   `host_admission_deferred`, loaded-idle, with no retained new-release ticket. Contention safety passes;
   later natural resume and official business readback remain open.
-- Coconala Storefront is installed on `b8de9bf2`. Repeated natural wakes independently ended exit `75`,
-  `host_admission_deferred`, loaded-idle, with no retained legacy ticket or owner. Contention safety passes;
-  the latest run saved its terminal receipt at `2026-09-14T09:39:11Z`, then remained briefly live in Python
-  module-import/dyld shutdown work. It must finish naturally before target reconciliation; later natural resume
-  and official listing readback remain open.
+- Coconala Storefront is installed on current `59bd6cdd`. Its first natural current-release wake
+  `18d526f7b56f7b80-33558` emitted started and bounded terminal `host_admission_deferred` receipts in 16.6
+  seconds with no external effect. Target reconciliation applied exactly this idle label with zero failures;
+  later natural resource acquisition, official listing readback and replay-zero remain open.
 - The legacy queue is draining rather than growing: read-only polls measured `19`, `18`, `11`, then `10`
   retained tickets. Current memory admission itself passes at
   `free_percent=31` against `minimum_free_percent=15`; the remaining backlog is legacy process/ticket drain,
@@ -137,9 +136,9 @@ independent production effects.
 - [ ] Let the legacy global-lock queue drain naturally. Paid drained; Apply PID `42143` acquired the agent
   resource and is executing its business child. Storefront has a terminal receipt but its process is still
   finishing naturally.
-- [ ] Reconcile each newly idle owner to current `59bd6cdd` without restarting siblings. Paid and Reply are on
-  the prior safe runtime; Apply remains on `d74258a8` and Storefront on `b8de9bf2` until their current processes
-  finish. Target checks now complete in 1.4--2.4 seconds and safely skip both running owners.
+- [ ] Reconcile each newly idle owner to current `59bd6cdd` without restarting siblings. Storefront is current;
+  Paid and Reply are on the prior safe runtime, and Apply remains on `d74258a8` until its current business run
+  finishes. Target checks complete in 1.4--2.4 seconds and safely skip running owners.
 - [ ] Prove each lane defers under contention without a retained ticket or external effect.
   Reply, Storefront and Paid pass; Apply remains.
 - [ ] Prove pressure recovery: a later natural wake acquires, resumes durable progress and writes terminal
