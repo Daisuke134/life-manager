@@ -175,25 +175,6 @@ def _capacity(name: str, default: int) -> int:
     return value
 
 
-def _ticket_ttl_ns() -> int:
-    name = "LIFE_MANAGER_RESOURCE_TICKET_TTL_SECONDS"
-    try:
-        seconds = int(os.environ.get(name, "900"))
-    except ValueError as error:
-        raise RuntimeError(f"invalid duration: {name}") from error
-    if not 1 <= seconds <= 86_400:
-        raise RuntimeError(f"invalid duration: {name}")
-    return seconds * 1_000_000_000
-
-
-def _durable_ticket_live(value: dict[str, object] | None, now_ns: int) -> bool:
-    if not value or value.get("version") != 2 or not value.get("owner_id"):
-        return False
-    last_seen_ns = value.get("last_seen_ns")
-    return (isinstance(last_seen_ns, int) and last_seen_ns <= now_ns
-            and now_ns - last_seen_ns <= _ticket_ttl_ns())
-
-
 def try_acquire(resource_class: str, owner_id: str, *,
                 retain_ticket: bool = True) -> tuple[Path | None, str]:
     """Atomically claim a slot; live waiters are served FIFO within each class."""
@@ -234,33 +215,6 @@ def try_acquire(resource_class: str, owner_id: str, *,
 
         digest = hashlib.sha256(owner_id.encode()).hexdigest()
         if not retain_ticket:
-            now_ns = time.time_ns()
-            queued: list[Path] = []
-            own_ticket = None
-            for candidate in sorted(tickets.glob(f"{resource_class}-*.json")):
-                value = _row(candidate)
-                if value and value.get("version") == 2:
-                    if not _durable_ticket_live(value, now_ns):
-                        candidate.unlink(missing_ok=True)
-                        continue
-                    queued.append(candidate)
-                    if value.get("owner_id") == owner_id:
-                        own_ticket = candidate
-                    continue
-                if _live(candidate, live_starts, snapshot_started_ns,
-                         probe_missing=True):
-                    queued.append(candidate)
-                else:
-                    candidate.unlink(missing_ok=True)
-            if own_ticket is None:
-                own_ticket = tickets / (
-                    f"{resource_class}-{now_ns:020d}-{digest}.json")
-            atomic_json(own_ticket, {
-                "version": 2, "owner_id": owner_id, "last_seen_ns": now_ns,
-            })
-            if own_ticket not in queued:
-                queued.append(own_ticket)
-            queued.sort()
             total_limit = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 3)
             class_limit = _capacity(
                 "LIFE_MANAGER_HOST_MAX_AGENT_RUNS" if resource_class == "agent"
@@ -271,13 +225,18 @@ def try_acquire(resource_class: str, owner_id: str, *,
                 row.get("resource_class") == resource_class for row in owner_rows
             ) >= class_limit:
                 return None, "capacity_busy"
-            if queued[0] != own_ticket:
-                return None, "fifo_wait"
+            for candidate in sorted(tickets.glob(f"{resource_class}-*.json")):
+                value = _row(candidate)
+                if value and value.get("version", 1) != 1:
+                    continue
+                if _live(candidate, live_starts, snapshot_started_ns,
+                         probe_missing=True):
+                    return None, "fifo_wait"
+                candidate.unlink(missing_ok=True)
             claim = owners / f"{digest}-{os.getpid()}.json"
             atomic_json(claim, {"version": 1, "pid": os.getpid(),
                         "process_start": started, "owner_id": owner_id,
                         "resource_class": resource_class})
-            own_ticket.unlink(missing_ok=True)
             return claim, "acquired"
 
         matches = list(tickets.glob(f"{resource_class}-*-{digest}.json"))
@@ -299,6 +258,9 @@ def try_acquire(resource_class: str, owner_id: str, *,
 
         head = None
         for candidate in sorted(tickets.glob(f"{resource_class}-*.json")):
+            value = _row(candidate)
+            if value and value.get("version", 1) != 1:
+                continue
             if _live(candidate, live_starts, snapshot_started_ns, probe_missing=True):
                 head = candidate
                 break
