@@ -71,8 +71,8 @@ docs/
 - Coconala Storefront is installed on `b8de9bf2`. Two natural new-release wakes independently ended exit `75`,
   `host_admission_deferred`, loaded-idle, with no retained legacy ticket or owner. Contention safety passes;
   later natural resume and official listing readback remain open.
-- The latest measured legacy queue count is `20`, with one live owner immediately after the latest idle
-  convergence pass. Current memory admission itself passes at
+- The legacy queue is draining rather than growing: the latest read-only polls measured `19`, then `18`
+  retained tickets. Current memory admission itself passes at
   `free_percent=31` against `minimum_free_percent=15`; the remaining backlog is legacy process/ticket drain,
   not evidence of current physical-memory rejection. Coconala Storefront PID `60168` ended naturally and
   the lane is installed on `b8de9bf2`; two new-release wakes ended with bounded terminal deferral and retained
