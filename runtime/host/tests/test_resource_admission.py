@@ -207,3 +207,62 @@ def test_cancel_after_claim_releases_slot(tmp_path, monkeypatch):
     claim, reason = admission.try_acquire("deterministic", "next")
     assert claim is not None and reason == "acquired"
     admission.release(claim)
+
+
+def test_durable_waiter_survives_process_lifetime_and_is_reserved_fifo(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    first, _ = admission.try_acquire("agent", "first", retain_ticket=False)
+    ticket, reason = admission.enqueue_durable("agent", "second")
+    assert ticket is not None and reason == "capacity_busy"
+    row = json.loads(ticket.read_text())
+    assert row == {
+        "owner_id": "second", "resource_class": "agent",
+        "sequence": 1, "state": "queued", "version": 2,
+    }
+
+    reserved = admission.release_and_reserve(first, now=100, lease_seconds=30)
+    assert reserved == ["second"]
+    reservation_path = tmp_path / "reservations" / f"{hashlib.sha256(b'second').hexdigest()}.json"
+    reservation = json.loads(reservation_path.read_text())
+    assert reservation["sequence"] == 1 and reservation["lease_until"] == 130
+
+    third, reason = admission.enqueue_durable("agent", "third", now=101)
+    assert third is not None and reason == "capacity_busy"
+    claim, reason = admission.claim_durable("agent", "second", now=102)
+    assert claim is not None and reason == "acquired"
+    assert not reservation_path.exists()
+
+
+def test_expired_reservation_returns_to_original_fifo_position(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    first, _ = admission.try_acquire("agent", "first", retain_ticket=False)
+    admission.enqueue_durable("agent", "second")
+    admission.enqueue_durable("agent", "third")
+    admission.release_and_reserve(first, now=100, lease_seconds=10)
+
+    claim, reason = admission.claim_durable("agent", "third", now=111)
+    assert claim is None and reason == "fifo_wait"
+    claim, reason = admission.claim_durable("agent", "second", now=111)
+    assert claim is not None and reason == "acquired"
+
+
+def test_post_claim_deferral_requeues_original_sequence(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    ticket, reason = admission.enqueue_durable("deterministic", "first")
+    assert ticket is not None and reason == "ready"
+    claim, reason = admission.claim_durable("deterministic", "first")
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, requeue=True)
+    queued = json.loads(ticket.read_text())
+    assert queued["sequence"] == 1 and queued["state"] == "queued"
+
+
+def test_legacy_agent_waiter_does_not_starve_deterministic_queue(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="2")
+    started = admission.process_start(os.getpid())
+    admission.atomic_json(tmp_path / "tickets" / "agent-00000000000000000001-old.json", {
+        "version": 1, "pid": os.getpid(), "process_start": started,
+        "owner_id": "old-agent",
+    })
+    ticket, reason = admission.enqueue_durable("deterministic", "new-deterministic")
+    assert ticket is not None and reason == "ready"
