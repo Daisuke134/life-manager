@@ -126,6 +126,10 @@ docs/
   Fresh Astra review returned `ship`; the exact head passed 492 tests plus 470 subtests and every required CI
   check. Reply and disk-cleanup reconciled while idle; Apply, Paid and Storefront were observed running and were
   deliberately left on their installed releases to drain naturally.
+- Reply's first observed natural wake on `3a21ba28` launched successfully but terminated at
+  `2026-09-14T13:11:39.278302+00:00` with `host_admission_deferred`, exit `75`, and external effect zero.
+  Therefore release startup identity/bytecode is shipped, but natural pressure recovery is not yet proved and
+  the 15 nonterminal talkrooms have not advanced on this wake.
 
 ### Coconala
 
