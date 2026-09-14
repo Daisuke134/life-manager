@@ -55,15 +55,17 @@ docs/
 
 - PR `#5184`, main SHA `b8de9bf2d230514587bb455f59a3e866ec27f658`, fixes scheduled resource
   admission. Busy wakes attempt once, retain no ticket, write effect-zero deferred state and exit `75`.
-- Idle rollout succeeded for 73 labels with zero reconcile failures. Old-release running owners were not
-  restarted and continue draining naturally.
+- Idle rollout succeeded cumulatively for 96 label installs with zero reconcile failures. The latest
+  convergence pass updated 11 deterministic and 12 shared-agent-runner labels; old-release running owners
+  were skipped, not restarted, and continue draining naturally.
 - Legacy root cause is proved: blocking waiters retained one process and ticket per wake; a waiter could hold
   the global control lock while an unbounded `/bin/ps ... lstart=` identity probe stalled every resource
   class. The new release bounds that probe to two seconds and fails conservatively as live.
 - Coconala Reply is installed on `b8de9bf2`. Two natural wakes independently ended exit `75`,
   `host_admission_deferred`, loaded-idle, with no retained new-release ticket. Contention safety passes;
   later natural resume and official business readback remain open.
-- Latest legacy queue count is `20`, with three live owners. Current memory admission itself passes at
+- Latest legacy queue count is `20`, with one live owner immediately after the latest idle convergence pass.
+  Current memory admission itself passes at
   `free_percent=31` against `minimum_free_percent=15`; the remaining backlog is legacy process/ticket drain,
   not evidence of current physical-memory rejection. Coconala Paid PID `6856`, Apply PID `42143` and
   Storefront PID `60168` remain on older releases and must end naturally before target-only loaded-idle
