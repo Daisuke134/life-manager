@@ -9,6 +9,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -79,6 +80,22 @@ class LmLoopApplyTest(unittest.TestCase):
                 redirect_stdout(io.StringIO()):
             self.assertEqual(lm_loop.main(["apply", "--all"]), 0)
         self.assertIsNone(apply.call_args.kwargs["target"])
+
+    def test_admission_v2_enable_cli_uses_release_registry_and_reports_receipt(self):
+        (self.root / "config").mkdir()
+        (self.root / "config/loop-registry.json").write_text(json.dumps(registry()))
+        receipt = {"ok": True, "protocol": 2, "verified_finite_labels": 1}
+        with (patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(self.root),
+                "LIFE_MANAGER_LAUNCHCTL_SAFE": str(self.root / "bin/launchctl-safe"),
+        }, clear=True),
+              patch.object(lm_loop, "activate_durable_admission_live",
+                           return_value=receipt) as activate,
+              redirect_stdout(io.StringIO()) as output):
+            self.assertEqual(lm_loop.main(["admission-v2-enable"]), 0)
+
+        self.assertEqual(json.loads(output.getvalue()), receipt)
+        self.assertEqual(activate.call_args.args[0], registry())
 
     def tearDown(self):
         self.temp.cleanup()
@@ -2247,6 +2264,98 @@ class LmLoopApplyTest(unittest.TestCase):
 
         self.assertEqual(current.resolve(), release_a)
         self.assertFalse((self.root / "current.swap").exists())
+
+    def test_admission_v2_activation_requires_exact_loaded_finite_argv(self):
+        (self.root / "config").mkdir()
+        (self.root / "config/runtime-capabilities.json").write_text(json.dumps({
+            "resource_admission": 2,
+        }))
+        release = self.root.resolve()
+        expected = [str(release / "bin/lm-loop-run"), "example", str(release)]
+        stale = [*expected[:-1], f"{self.root}-stale"]
+
+        with (patch.object(lm_loop, "_safe_launchctl", return_value=(
+                0, "arguments = {\n" + "\n".join(stale) + "\n}\n")),
+              patch.object(lm_loop, "activate_durable_v2") as activate):
+            with self.assertRaisesRegex(RuntimeError, "loaded argv is not v2-capable"):
+                lm_loop.activate_durable_admission_live(
+                    registry(), self.root, self.root / "bin/launchctl-safe",
+                    current=self.root / "current",
+                )
+
+        activate.assert_not_called()
+
+    def test_admission_v2_activation_verifies_all_finite_labels_then_flips(self):
+        (self.root / "config").mkdir()
+        (self.root / "config/runtime-capabilities.json").write_text(json.dumps({
+            "resource_admission": 2,
+        }))
+        release = self.root.resolve()
+        expected = [str(release / "bin/lm-loop-run"), "example", str(release)]
+
+        def launchctl(_safe, args):
+            if args == ["preflight"]:
+                return 0, "ok"
+            return 0, "arguments = {\n" + "\n".join(expected) + "\n}\n"
+
+        with (patch.object(lm_loop, "_safe_launchctl", side_effect=launchctl),
+              patch.object(lm_loop, "activate_durable_v2") as activate):
+            result = lm_loop.activate_durable_admission_live(
+                registry(), self.root, self.root / "bin/launchctl-safe",
+                current=self.root / "current",
+            )
+
+        self.assertEqual(result, {"ok": True, "protocol": 2, "verified_finite_labels": 1})
+        activate.assert_called_once_with()
+
+    def test_activate_current_rejects_old_release_while_protocol_v2(self):
+        release_a = self._release("release-a").resolve()
+        release_b = self._release("release-b").resolve()
+        current = self.root / "current"
+        current.symlink_to(release_a)
+
+        with self.assertRaisesRegex(RuntimeError, "does not support durable admission v2"):
+            lm_loop.activate_current(
+                current, release_b, self.root / "apply.lock",
+                protocol_reader=lambda: 2,
+            )
+
+        self.assertEqual(current.resolve(), release_a)
+
+    def test_apply_live_rejects_old_release_while_protocol_v2(self):
+        release = self._release("old-release").resolve()
+
+        with self.assertRaisesRegex(RuntimeError, "does not support durable admission v2"):
+            apply_live(
+                release, self.root / "LaunchAgents", self.root / "launchctl-safe",
+                protocol_reader=lambda: 2,
+            )
+
+    def test_protocol_transition_excludes_activation_while_apply_is_open(self):
+        current = self.root / "current"
+        attempted = self.root / "exclusive-attempted"
+        marker = self.root / "exclusive-acquired"
+        runner = (
+            "from pathlib import Path; "
+            "from runtime.loop.lm_loop import _protocol_transition_lock; "
+            f"current=Path({str(current)!r}); attempted=Path({str(attempted)!r}); "
+            f"marker=Path({str(marker)!r}); attempted.write_text('yes'); "
+            "\nwith _protocol_transition_lock(current, exclusive=True): marker.write_text('yes')"
+        )
+
+        with lm_loop._protocol_transition_lock(current, exclusive=False):
+            process = subprocess.Popen(
+                [sys.executable, "-c", runner], cwd=str(Path(__file__).parents[3]),
+                env={**os.environ, "PYTHONPATH": "."},
+            )
+            deadline = time.monotonic() + 5
+            while not attempted.exists() and time.monotonic() < deadline:
+                time.sleep(.01)
+            self.assertTrue(attempted.exists())
+            self.assertFalse(marker.exists())
+
+        self.assertEqual(process.wait(timeout=5), 0)
+        self.assertEqual(marker.read_text(), "yes")
 
 
 if __name__ == "__main__":

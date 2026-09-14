@@ -9,6 +9,7 @@ import json
 import os
 import pwd
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -175,8 +176,415 @@ def _capacity(name: str, default: int) -> int:
     return value
 
 
+def _durable_paths() -> tuple[Path, Path, Path, Path]:
+    root = state_root()
+    owners, tickets = root / "owners", root / "tickets"
+    for path in (root, owners, tickets):
+        path.mkdir(parents=True, exist_ok=True, mode=0o700)
+        os.chmod(path, 0o700)
+    return root, owners, tickets, root / "admission-v2.sqlite3"
+
+
+def durable_protocol_version() -> int:
+    path = state_root() / "protocol.json"
+    if not path.is_file():
+        return 1
+    value = _row(path)
+    if not value or value.get("version") not in {1, 2}:
+        raise RuntimeError("invalid durable admission protocol")
+    return int(value["version"])
+
+
+def activate_durable_v2() -> None:
+    """Atomically enable v2 only after every legacy admission owner drains."""
+    if durable_protocol_version() == 2:
+        return
+    root, owners, tickets, database = _durable_paths()
+    starts, snapshot_started_ns = _identity_snapshot(owners, tickets)
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        if durable_protocol_version() == 2:
+            return
+        for path in owners.glob("*.json"):
+            if _live(path, starts, snapshot_started_ns):
+                raise RuntimeError("legacy admission is not idle")
+            path.unlink(missing_ok=True)
+        for path in tickets.glob("*.json"):
+            row = _row(path)
+            if not row:
+                path.unlink(missing_ok=True)
+            elif row.get("version", 1) == 1:
+                if _live(path, starts, snapshot_started_ns):
+                    raise RuntimeError("legacy admission is not idle")
+                path.unlink(missing_ok=True)
+        if list(tickets.glob("*.json")):
+            raise RuntimeError("legacy admission is not idle")
+        with _database(database) as connection:
+            queued = connection.execute("SELECT COUNT(*) FROM queue").fetchone()[0]
+            reserved = connection.execute("SELECT COUNT(*) FROM reservations").fetchone()[0]
+            if queued or reserved:
+                raise RuntimeError("durable admission is not idle")
+        atomic_json(root / "protocol.json", {"version": 2})
+    finally:
+        os.close(descriptor)
+
+
+def _digest(owner_id: str) -> str:
+    return hashlib.sha256(owner_id.encode()).hexdigest()
+
+
+def _acquire_bounded(descriptor: int, timeout_seconds: float = 5.0) -> bool:
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return True
+        except BlockingIOError:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            time.sleep(min(0.01, remaining))
+
+
+def _database(path: Path) -> sqlite3.Connection:
+    connection = sqlite3.connect(path, timeout=0)
+    os.chmod(path, 0o600)
+    connection.execute("PRAGMA journal_mode=DELETE")
+    connection.execute("PRAGMA synchronous=FULL")
+    version = connection.execute("PRAGMA user_version").fetchone()[0]
+    if version not in {0, 2}:
+        connection.close()
+        raise RuntimeError("unsupported durable admission schema")
+    connection.executescript("""
+        CREATE TABLE IF NOT EXISTS queue (
+            sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+            owner_id TEXT NOT NULL UNIQUE,
+            resource_class TEXT NOT NULL CHECK(resource_class IN ('agent','deterministic'))
+        );
+        CREATE TABLE IF NOT EXISTS reservations (
+            owner_id TEXT PRIMARY KEY,
+            resource_class TEXT NOT NULL,
+            sequence INTEGER NOT NULL UNIQUE,
+            lease_until REAL NOT NULL
+        );
+        PRAGMA user_version=2;
+    """)
+    return connection
+
+
+def _limits(resource_class: str) -> tuple[int, int]:
+    total = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 3)
+    per_class = _capacity(
+        "LIFE_MANAGER_HOST_MAX_AGENT_RUNS" if resource_class == "agent"
+        else "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS",
+        1 if resource_class == "agent" else 2,
+    )
+    return total, per_class
+
+
+def _identity_snapshot(*directories: Path) -> tuple[dict[int, str | None], int]:
+    snapshot_started_ns = time.time_ns()
+    pids = {row.get("pid") for directory in directories for _, row in (
+        (path, _row(path) or {}) for path in directory.glob("*.json"))
+        if isinstance(row.get("pid"), int)}
+    return {pid: process_start(pid) for pid in pids}, snapshot_started_ns
+
+
+def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_class: str,
+                      now: float, starts: dict[int, str | None],
+                      snapshot_started_ns: int) -> tuple[bool, list[dict[str, object]]]:
+    live = []
+    for path in owners.glob("*.json"):
+        row = _row(path) or {}
+        if _live(path, starts, snapshot_started_ns):
+            live.append(row)
+        else:
+            if (row.get("version") == 2 and row.get("phase", "claimed") == "claimed"
+                    and isinstance(row.get("sequence"), int)
+                    and not isinstance(row.get("sequence"), bool)
+                    and isinstance(row.get("owner_id"), str) and row["owner_id"]
+                    and row.get("resource_class") in {"agent", "deterministic"}):
+                connection.execute(
+                    "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
+                    (row["sequence"], row["owner_id"], row["resource_class"]))
+            path.unlink(missing_ok=True)
+    connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (now,))
+    reserved = [dict(zip(("owner_id", "resource_class", "sequence", "lease_until"), row))
+                for row in connection.execute(
+                    "SELECT owner_id,resource_class,sequence,lease_until FROM reservations")]
+    occupied = live + reserved
+    total, per_class = _limits(resource_class)
+    available = (len(occupied) < total and sum(
+        row.get("resource_class") == resource_class for row in occupied) < per_class)
+    return available, occupied
+
+
+def _legacy_waiter_exists(tickets: Path, resource_class: str,
+                          starts: dict[int, str | None],
+                          snapshot_started_ns: int) -> bool:
+    for path in tickets.glob(f"{resource_class}-*.json"):
+        row = _row(path)
+        if not row or row.get("version", 1) != 1:
+            continue
+        if _live(path, starts, snapshot_started_ns):
+            return True
+        path.unlink(missing_ok=True)
+    return False
+
+
+def enqueue_durable(resource_class: str, owner_id: str, *,
+                    now: float | None = None) -> tuple[Path | None, str]:
+    """Persist a process-independent FIFO position for a scheduled owner."""
+    if resource_class not in {"agent", "deterministic"} or not owner_id:
+        raise RuntimeError("invalid resource identity")
+    root, owners, tickets, database = _durable_paths()
+    starts, snapshot_started_ns = _identity_snapshot(owners, tickets)
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        if not _acquire_bounded(descriptor):
+            return None, "control_busy"
+        with _database(database) as connection:
+            available, _ = _durable_capacity(
+                connection, owners, resource_class, time.time() if now is None else now,
+                starts, snapshot_started_ns)
+            if any(item.get("owner_id") == owner_id for item in (
+                    _row(path) or {} for path in owners.glob("*.json"))):
+                connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
+                connection.execute("DELETE FROM queue WHERE owner_id=?", (owner_id,))
+                return None, "owner_busy"
+            connection.execute("INSERT OR IGNORE INTO queue(owner_id,resource_class) VALUES(?,?)",
+                               (owner_id, resource_class))
+            row = connection.execute(
+                "SELECT sequence,resource_class FROM queue WHERE owner_id=?", (owner_id,)).fetchone()
+            if row is None or row[1] != resource_class:
+                raise RuntimeError("durable owner resource class changed")
+            head = connection.execute(
+                "SELECT owner_id FROM queue WHERE resource_class=? ORDER BY sequence LIMIT 1",
+                (resource_class,)).fetchone()
+            ready = (available and not _legacy_waiter_exists(
+                         tickets, resource_class, starts, snapshot_started_ns)
+                     and head and head[0] == owner_id)
+        return database, "ready" if ready else ("capacity_busy" if not available else "fifo_wait")
+    finally:
+        os.close(descriptor)
+
+
+def claim_durable(resource_class: str, owner_id: str, *,
+                  now: float | None = None) -> tuple[Path | None, str]:
+    """Convert this owner's queued/reserved v2 position into a live claim."""
+    root, owners, tickets, database = _durable_paths()
+    starts, snapshot_started_ns = _identity_snapshot(owners, tickets)
+    started = process_start(os.getpid())
+    if not started:
+        raise RuntimeError("process identity unavailable")
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return None, "control_busy"
+        with _database(database) as connection:
+            row = connection.execute(
+                "SELECT sequence,resource_class FROM queue WHERE owner_id=?", (owner_id,)).fetchone()
+            if row is None or row[1] != resource_class:
+                return None, "ticket_missing"
+            instant = time.time() if now is None else now
+            available, occupied = _durable_capacity(
+                connection, owners, resource_class, instant, starts, snapshot_started_ns)
+            reservation = connection.execute(
+                "SELECT resource_class,lease_until FROM reservations WHERE owner_id=?",
+                (owner_id,)).fetchone()
+            reserved = bool(reservation and reservation[0] == resource_class
+                            and reservation[1] > instant)
+            head = connection.execute(
+                "SELECT owner_id FROM queue WHERE resource_class=? ORDER BY sequence LIMIT 1",
+                (resource_class,)).fetchone()
+            if any(item.get("owner_id") == owner_id for item in (
+                    _row(path) or {} for path in owners.glob("*.json"))):
+                return None, "owner_busy"
+            total, per_class = _limits(resource_class)
+            if reserved and (len(occupied) > total or sum(
+                    item.get("resource_class") == resource_class for item in occupied
+            ) > per_class):
+                return None, "capacity_busy"
+            if not reserved and (not available or _legacy_waiter_exists(
+                    tickets, resource_class, starts, snapshot_started_ns)):
+                return None, "capacity_busy"
+            if not reserved and (head is None or head[0] != owner_id):
+                return None, "fifo_wait"
+            claim = owners / f"{_digest(owner_id)}-{os.getpid()}.json"
+            atomic_json(claim, {"version": 2, "pid": os.getpid(),
+                        "process_start": started, "owner_id": owner_id,
+                        "resource_class": resource_class, "sequence": row[0],
+                        "phase": "claimed"})
+            connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
+            connection.execute("DELETE FROM queue WHERE owner_id=?", (owner_id,))
+            return claim, "acquired"
+    finally:
+        os.close(descriptor)
+
+
+def _controlled_by(value: dict[str, object], pid: int, started: str) -> bool:
+    return bool(
+        (value.get("pid") == pid and value.get("process_start") == started)
+        or (value.get("controller_pid") == pid
+            and value.get("controller_process_start") == started)
+    )
+
+
+def transfer_durable(claim: Path, child_pid: int) -> None:
+    """Make the gated effect child, not its wrapper, the live slot owner."""
+    controller_pid = os.getpid()
+    controller_start = process_start(controller_pid)
+    child_start = process_start(child_pid)
+    if not controller_start or not child_start:
+        raise RuntimeError("resource claim handoff identity unavailable")
+    root, _, _, _ = _durable_paths()
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        value = _row(claim)
+        if (not value or value.get("phase", "claimed") != "claimed"
+                or not _controlled_by(value, controller_pid, controller_start)):
+            raise RuntimeError("resource claim handoff ownership mismatch")
+        atomic_json(claim, {
+            **value,
+            "pid": child_pid,
+            "process_start": child_start,
+            "controller_pid": controller_pid,
+            "controller_process_start": controller_start,
+            "phase": "running",
+        })
+    finally:
+        os.close(descriptor)
+
+
+def defer_durable(owner_id: str) -> bool:
+    """Return only this owner's dispatch reservation to its existing queue position."""
+    if not owner_id:
+        raise RuntimeError("invalid resource identity")
+    root, _, _, database = _durable_paths()
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return False
+        with _database(database) as connection:
+            changed = connection.execute(
+                "DELETE FROM reservations WHERE owner_id=?", (owner_id,)).rowcount
+        return changed == 1
+    finally:
+        os.close(descriptor)
+
+
+def cancel_durable(owner_id: str) -> bool:
+    """Remove a queue entry only after the current registry proves it retired."""
+    if not owner_id:
+        raise RuntimeError("invalid resource identity")
+    root, _, _, database = _durable_paths()
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return False
+        with _database(database) as connection:
+            connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
+            changed = connection.execute(
+                "DELETE FROM queue WHERE owner_id=?", (owner_id,)).rowcount
+        return changed == 1
+    finally:
+        os.close(descriptor)
+
+
+def _reserve_locked(connection: sqlite3.Connection, owners: Path, tickets: Path, *,
+                    instant: float, lease_seconds: int,
+                    starts: dict[int, str | None],
+                    snapshot_started_ns: int) -> list[str]:
+    dispatched = []
+    for resource_class in ("agent", "deterministic"):
+        while True:
+            available, _ = _durable_capacity(
+                connection, owners, resource_class, instant,
+                starts, snapshot_started_ns)
+            candidate = connection.execute("""
+                SELECT q.owner_id,q.sequence FROM queue q
+                LEFT JOIN reservations r ON r.owner_id=q.owner_id
+                WHERE q.resource_class=? AND r.owner_id IS NULL
+                ORDER BY q.sequence LIMIT 1
+            """, (resource_class,)).fetchone()
+            if (not available or not candidate
+                    or _legacy_waiter_exists(
+                        tickets, resource_class, starts, snapshot_started_ns)):
+                break
+            owner_id, sequence = candidate
+            connection.execute(
+                "INSERT INTO reservations(owner_id,resource_class,sequence,lease_until) VALUES(?,?,?,?)",
+                (owner_id, resource_class, sequence, instant + lease_seconds))
+            dispatched.append(owner_id)
+    return dispatched
+
+
+def reserve_available(*, now: float | None = None,
+                      lease_seconds: int = 60) -> list[str]:
+    """Reserve every currently free slot without requiring a releasing owner."""
+    root, owners, tickets, database = _durable_paths()
+    starts, snapshot_started_ns = _identity_snapshot(owners, tickets)
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return []
+        with _database(database) as connection:
+            return _reserve_locked(
+                connection, owners, tickets,
+                instant=time.time() if now is None else now,
+                lease_seconds=lease_seconds, starts=starts,
+                snapshot_started_ns=snapshot_started_ns)
+    finally:
+        os.close(descriptor)
+
+
+def release_and_reserve(claim: Path, *, requeue: bool = False,
+                        reserve: bool = True, now: float | None = None,
+                        lease_seconds: int = 60) -> list[str]:
+    """Release one claim and reserve newly available capacity for queued owners."""
+    value = _row(claim)
+    started = process_start(os.getpid())
+    if not value or not started or not _controlled_by(value, os.getpid(), started):
+        raise RuntimeError("resource claim ownership mismatch")
+    root, owners, tickets, database = _durable_paths()
+    starts, snapshot_started_ns = _identity_snapshot(owners, tickets)
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        instant = time.time() if now is None else now
+        if requeue and value.get("version") == 2:
+            sequence = value.get("sequence")
+            if not isinstance(sequence, int):
+                raise RuntimeError("durable claim sequence missing")
+            with _database(database) as connection:
+                connection.execute(
+                    "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
+                    (sequence, value["owner_id"], value["resource_class"]))
+        claim.unlink()
+        if not reserve:
+            return []
+        with _database(database) as connection:
+            return _reserve_locked(
+                connection, owners, tickets, instant=instant,
+                lease_seconds=lease_seconds, starts=starts,
+                snapshot_started_ns=snapshot_started_ns)
+    finally:
+        os.close(descriptor)
+
+
 def try_acquire(resource_class: str, owner_id: str, *,
-                retain_ticket: bool = True) -> tuple[Path | None, str]:
+                retain_ticket: bool = True,
+                required_protocol: int | None = None) -> tuple[Path | None, str]:
     """Atomically claim a slot; live waiters are served FIFO within each class."""
     if resource_class not in {"agent", "deterministic"} or not owner_id:
         raise RuntimeError("invalid resource identity")
@@ -204,6 +612,9 @@ def try_acquire(resource_class: str, owner_id: str, *,
             )
         except BlockingIOError:
             return None, "control_busy"
+        observed_protocol = durable_protocol_version()
+        if required_protocol is not None and observed_protocol != required_protocol:
+            return None, "protocol_changed"
         live_starts: dict[int, str | None] = {os.getpid(): started}
         owner_rows = []
         for path in owners.glob("*.json"):
@@ -212,6 +623,17 @@ def try_acquire(resource_class: str, owner_id: str, *,
             owner_rows.append(_row(path) or {})
         if any(row.get("owner_id") == owner_id for row in owner_rows):
             return None, "owner_busy"
+        reserved_rows = []
+        if observed_protocol == 2:
+            with _database(root / "admission-v2.sqlite3") as connection:
+                connection.execute(
+                    "DELETE FROM reservations WHERE lease_until <= ?", (time.time(),))
+                reserved_rows = [
+                    {"owner_id": row[0], "resource_class": row[1]}
+                    for row in connection.execute(
+                        "SELECT owner_id,resource_class FROM reservations")
+                ]
+        occupied = owner_rows + reserved_rows
 
         digest = hashlib.sha256(owner_id.encode()).hexdigest()
         if not retain_ticket:
@@ -221,8 +643,8 @@ def try_acquire(resource_class: str, owner_id: str, *,
                 else "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS",
                 1 if resource_class == "agent" else 2,
             )
-            if len(owner_rows) >= total_limit or sum(
-                row.get("resource_class") == resource_class for row in owner_rows
+            if len(occupied) >= total_limit or sum(
+                row.get("resource_class") == resource_class for row in occupied
             ) >= class_limit:
                 return None, "capacity_busy"
             for candidate in sorted(tickets.glob(f"{resource_class}-*.json")):
@@ -254,8 +676,8 @@ def try_acquire(resource_class: str, owner_id: str, *,
             else "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS",
             1 if resource_class == "agent" else 2,
         )
-        if len(owner_rows) >= total_limit or sum(
-            row.get("resource_class") == resource_class for row in owner_rows
+        if len(occupied) >= total_limit or sum(
+            row.get("resource_class") == resource_class for row in occupied
         ) >= class_limit:
             return None, "capacity_busy"
 
@@ -299,7 +721,7 @@ def acquire(resource_class: str, owner_id: str,
 
 def release(claim: Path) -> None:
     value = _row(claim)
-    if (not value or value.get("pid") != os.getpid()
-            or value.get("process_start") != process_start(os.getpid())):
+    started = process_start(os.getpid())
+    if not value or not started or not _controlled_by(value, os.getpid(), started):
         raise RuntimeError("resource claim ownership mismatch")
     claim.unlink()

@@ -2,8 +2,13 @@ import os
 import fcntl
 import hashlib
 import json
+import multiprocessing
 import time
+import sqlite3
+from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from runtime.host import resource_admission as admission
 
@@ -11,6 +16,22 @@ from runtime.host import resource_admission as admission
 def isolated(tmp_path, monkeypatch, total="1"):
     monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path))
     monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", total)
+
+
+def durable_rows(root, table):
+    with sqlite3.connect(root / "admission-v2.sqlite3") as connection:
+        columns = [row[1] for row in connection.execute(f"PRAGMA table_info({table})")]
+        return [dict(zip(columns, row)) for row in connection.execute(f"SELECT * FROM {table}")]
+
+
+def enqueue_after_barrier(root, index, barrier, results):
+    os.environ["LIFE_MANAGER_RESOURCE_ADMISSION_ROOT"] = str(root)
+    os.environ["LIFE_MANAGER_HOST_MAX_FINITE_RUNS"] = "3"
+    os.environ["LIFE_MANAGER_HOST_MAX_AGENT_RUNS"] = "1"
+    os.environ["LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS"] = "2"
+    barrier.wait(timeout=10)
+    ticket, reason = admission.enqueue_durable("agent", f"loop-{index:03d}")
+    results.put((ticket is not None, reason))
 
 
 def test_slot_releases_for_next_owner(tmp_path, monkeypatch):
@@ -33,6 +54,110 @@ def test_one_shot_busy_attempt_does_not_leave_a_ticket(tmp_path, monkeypatch):
     assert blocked is None and reason == "capacity_busy"
     assert not list((tmp_path / "tickets").glob("*.json"))
     admission.release(first)
+
+
+def test_durable_protocol_defaults_v1_and_activates_only_when_idle(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    assert admission.durable_protocol_version() == 1
+    claim, reason = admission.try_acquire("agent", "legacy", retain_ticket=False)
+    assert claim is not None and reason == "acquired"
+
+    with pytest.raises(RuntimeError, match="legacy admission is not idle"):
+        admission.activate_durable_v2()
+
+    admission.release(claim)
+    admission.activate_durable_v2()
+    assert admission.durable_protocol_version() == 2
+
+
+def test_durable_protocol_activation_is_replay_safe_after_queue_starts(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.activate_durable_v2()
+    admission.enqueue_durable("agent", "queued")
+
+    admission.activate_durable_v2()
+
+    assert admission.durable_protocol_version() == 2
+    assert [row["owner_id"] for row in durable_rows(tmp_path, "queue")] == ["queued"]
+
+
+def test_durable_protocol_activation_removes_malformed_legacy_ticket(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    ticket = tmp_path / "tickets/agent-broken.json"
+    ticket.parent.mkdir(parents=True)
+    ticket.write_text("{")
+
+    admission.activate_durable_v2()
+
+    assert admission.durable_protocol_version() == 2
+    assert not ticket.exists()
+
+
+def test_durable_protocol_activation_preserves_unknown_future_ticket(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    ticket = tmp_path / "tickets/agent-future.json"
+    admission.atomic_json(ticket, {
+        "version": 3, "owner_id": "future", "resource_class": "agent",
+    })
+
+    with pytest.raises(RuntimeError, match="legacy admission is not idle"):
+        admission.activate_durable_v2()
+
+    assert ticket.exists()
+    assert admission.durable_protocol_version() == 1
+
+
+def test_v2_reservation_blocks_compatibility_v1_claim(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.activate_durable_v2()
+    admission.enqueue_durable("agent", "v2-first")
+    instant = time.time()
+    assert admission.reserve_available(
+        now=instant, lease_seconds=30,
+    ) == ["v2-first"]
+
+    legacy, reason = admission.try_acquire(
+        "agent", "v1-later", retain_ticket=False,
+    )
+
+    assert legacy is None and reason == "capacity_busy"
+    claim, reason = admission.claim_durable("agent", "v2-first", now=instant + 1)
+    assert claim is not None and reason == "acquired"
+
+
+def test_v1_claim_refuses_protocol_flip_inside_control_lock(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.activate_durable_v2()
+
+    claim, reason = admission.try_acquire(
+        "agent", "late-v1", retain_ticket=False, required_protocol=1,
+    )
+
+    assert claim is None and reason == "protocol_changed"
+    assert not list((tmp_path / "owners").glob("*.json"))
+
+
+def test_reserved_v2_claim_refuses_unexpected_legacy_capacity_overlap(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.activate_durable_v2()
+    admission.enqueue_durable("agent", "v2-first")
+    instant = time.time()
+    assert admission.reserve_available(
+        now=instant, lease_seconds=30,
+    ) == ["v2-first"]
+    admission.atomic_json(tmp_path / "owners/legacy.json", {
+        "version": 1,
+        "pid": os.getpid(),
+        "process_start": admission.process_start(os.getpid()),
+        "owner_id": "unexpected-legacy",
+        "resource_class": "agent",
+    })
+
+    claim, reason = admission.claim_durable(
+        "agent", "v2-first", now=instant + 1,
+    )
+
+    assert claim is None and reason == "capacity_busy"
 
 
 def test_unknown_future_ticket_is_preserved_and_ignored(tmp_path, monkeypatch):
@@ -207,3 +332,213 @@ def test_cancel_after_claim_releases_slot(tmp_path, monkeypatch):
     claim, reason = admission.try_acquire("deterministic", "next")
     assert claim is not None and reason == "acquired"
     admission.release(claim)
+
+
+def test_durable_waiter_survives_process_lifetime_and_is_reserved_fifo(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    first, _ = admission.try_acquire("agent", "first", retain_ticket=False)
+    ticket, reason = admission.enqueue_durable("agent", "second")
+    assert ticket is not None and reason == "capacity_busy"
+    assert durable_rows(tmp_path, "queue") == [{
+        "sequence": 1, "owner_id": "second", "resource_class": "agent",
+    }]
+
+    reserved = admission.release_and_reserve(first, now=100, lease_seconds=30)
+    assert reserved == ["second"]
+    reservation = durable_rows(tmp_path, "reservations")[0]
+    assert reservation["sequence"] == 1 and reservation["lease_until"] == 130
+
+    third, reason = admission.enqueue_durable("agent", "third", now=101)
+    assert third is not None and reason == "capacity_busy"
+    claim, reason = admission.claim_durable("agent", "second", now=102)
+    assert claim is not None and reason == "acquired"
+    assert durable_rows(tmp_path, "reservations") == []
+
+
+def test_expired_reservation_returns_to_original_fifo_position(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    first, _ = admission.try_acquire("agent", "first", retain_ticket=False)
+    admission.enqueue_durable("agent", "second")
+    admission.enqueue_durable("agent", "third")
+    admission.release_and_reserve(first, now=100, lease_seconds=10)
+
+    claim, reason = admission.claim_durable("agent", "third", now=111)
+    assert claim is None and reason == "fifo_wait"
+    claim, reason = admission.claim_durable("agent", "second", now=111)
+    assert claim is not None and reason == "acquired"
+
+
+def test_post_claim_deferral_requeues_original_sequence(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    ticket, reason = admission.enqueue_durable("deterministic", "first")
+    assert ticket is not None and reason == "ready"
+    claim, reason = admission.claim_durable("deterministic", "first")
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, requeue=True)
+    assert durable_rows(tmp_path, "queue")[0]["sequence"] == 1
+
+
+def test_post_claim_requeue_commits_before_claim_is_removed(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable("deterministic", "first")
+    claim, reason = admission.claim_durable("deterministic", "first")
+    assert claim is not None and reason == "acquired"
+    observed = []
+    original_unlink = Path.unlink
+
+    def observe_committed_queue(path, *args, **kwargs):
+        if path == claim:
+            observed.extend(durable_rows(tmp_path, "queue"))
+        return original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", observe_committed_queue)
+    admission.release_and_reserve(claim, requeue=True, reserve=False)
+
+    assert observed == [{
+        "sequence": 1, "owner_id": "first", "resource_class": "deterministic",
+    }]
+
+
+def test_legacy_agent_waiter_does_not_starve_deterministic_queue(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="2")
+    started = admission.process_start(os.getpid())
+    admission.atomic_json(tmp_path / "tickets" / "agent-00000000000000000001-old.json", {
+        "version": 1, "pid": os.getpid(), "process_start": started,
+        "owner_id": "old-agent",
+    })
+    ticket, reason = admission.enqueue_durable("deterministic", "new-deterministic")
+    assert ticket is not None and reason == "ready"
+
+
+def test_memory_defer_releases_only_its_reservation(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="2")
+    first, _ = admission.try_acquire("agent", "first", retain_ticket=False)
+    admission.enqueue_durable("agent", "second")
+    admission.enqueue_durable("deterministic", "other")
+    reserved = admission.release_and_reserve(first, now=100, lease_seconds=30)
+    assert set(reserved) == {"second", "other"}
+
+    assert admission.defer_durable("second") is True
+    rows = durable_rows(tmp_path, "reservations")
+    assert [row["owner_id"] for row in rows] == ["other"]
+    ticket, reason = admission.enqueue_durable("agent", "second", now=101)
+    assert ticket is not None and reason == "ready"
+
+
+def test_stale_owner_recovery_reserves_sleeping_fifo_head(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.atomic_json(tmp_path / "owners" / "stale.json", {
+        "version": 1, "pid": 999_999_999, "process_start": "dead",
+        "owner_id": "stale", "resource_class": "agent",
+    })
+    admission.enqueue_durable("agent", "sleeping-head")
+    admission.enqueue_durable("agent", "later-wake")
+    assert admission.reserve_available(now=100, lease_seconds=30) == ["sleeping-head"]
+
+
+def test_stale_pre_handoff_claim_returns_to_original_fifo_position(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable("agent", "first")
+    claim, reason = admission.claim_durable("agent", "first")
+    assert claim is not None and reason == "acquired"
+    row = json.loads(claim.read_text())
+    admission.atomic_json(claim, {
+        **row, "pid": 999_999_999, "process_start": "dead", "phase": "claimed",
+    })
+
+    admission.enqueue_durable("agent", "second")
+
+    assert durable_rows(tmp_path, "queue") == [
+        {"sequence": 1, "owner_id": "first", "resource_class": "agent"},
+        {"sequence": 2, "owner_id": "second", "resource_class": "agent"},
+    ]
+
+
+def test_same_owner_resume_recovers_pre_handoff_sequence_before_new_insert(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable("agent", "first")
+    claim, reason = admission.claim_durable("agent", "first")
+    assert claim is not None and reason == "acquired"
+    admission.enqueue_durable("agent", "second")
+    row = json.loads(claim.read_text())
+    admission.atomic_json(claim, {
+        **row, "pid": 999_999_999, "process_start": "dead", "phase": "claimed",
+    })
+
+    ticket, reason = admission.enqueue_durable("agent", "first")
+
+    assert ticket is not None and reason == "ready"
+    assert durable_rows(tmp_path, "queue") == [
+        {"sequence": 1, "owner_id": "first", "resource_class": "agent"},
+        {"sequence": 2, "owner_id": "second", "resource_class": "agent"},
+    ]
+
+
+def test_transfer_claim_tracks_child_while_controller_can_release(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable("agent", "first")
+    claim, reason = admission.claim_durable("agent", "first")
+    assert claim is not None and reason == "acquired"
+    controller_start = admission.process_start(os.getpid())
+
+    def process_identity(pid):
+        return "child-start" if pid == 4242 else controller_start
+
+    with patch.object(admission, "process_start", side_effect=process_identity):
+        admission.transfer_durable(claim, 4242)
+        row = json.loads(claim.read_text())
+        assert row["pid"] == 4242
+        assert row["process_start"] == "child-start"
+        assert row["controller_pid"] == os.getpid()
+        assert row["controller_process_start"] == controller_start
+        assert row["phase"] == "running"
+        admission.release_and_reserve(claim, reserve=False)
+
+    assert not claim.exists()
+
+
+def test_cancel_retired_owner_removes_queue_and_reservation(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable("agent", "retired")
+    admission.reserve_available(now=100, lease_seconds=30)
+    assert admission.cancel_durable("retired") is True
+    assert durable_rows(tmp_path, "queue") == []
+    assert durable_rows(tmp_path, "reservations") == []
+
+
+def test_five_hundred_durable_waiters_remain_bounded(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    started = time.monotonic()
+    for index in range(500):
+        assert admission.enqueue_durable("agent", f"loop-{index:03d}")[0] is not None
+    assert len(durable_rows(tmp_path, "queue")) == 500
+    assert time.monotonic() - started < 15
+
+
+def test_simultaneous_durable_waiters_all_persist(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="3")
+    admission.activate_durable_v2()
+    context = multiprocessing.get_context("spawn")
+    barrier = context.Barrier(40)
+    results = context.Queue()
+    processes = [
+        context.Process(target=enqueue_after_barrier, args=(
+            tmp_path, index, barrier, results,
+        ))
+        for index in range(39)
+    ]
+    try:
+        for process in processes:
+            process.start()
+        barrier.wait(timeout=10)
+        for process in processes:
+            process.join(timeout=10)
+        outcomes = [results.get(timeout=2) for _ in processes]
+        assert all(process.exitcode == 0 for process in processes)
+        assert all(persisted for persisted, _ in outcomes)
+        assert len(durable_rows(tmp_path, "queue")) == 39
+    finally:
+        for process in processes:
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=5)
