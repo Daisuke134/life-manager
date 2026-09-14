@@ -55,29 +55,37 @@ docs/
 
 - PR `#5184`, main SHA `b8de9bf2d230514587bb455f59a3e866ec27f658`, fixes scheduled resource
   admission. Busy wakes attempt once, retain no ticket, write effect-zero deferred state and exit `75`.
+- PR `#5186`, main SHA `3e7b77714d92e179806970d353f7c9db2f8dfed6`, removes every external
+  process-identity probe from the shared admission critical section. It snapshots all identities once outside
+  the lock, fails closed on snapshot failure and preserves rows created during the snapshot. Race tests,
+  100-ticket scale coverage, 47 host tests, all CI and a fresh read-only review pass.
+- Immutable release `/Users/anicca/loops/releases/20260914T180355-3e7b7771` is current. Loaded-idle rollout
+  reconciled 57 deterministic and 40 shared-agent-runner labels with zero failures; running owners were
+  skipped and not restarted.
 - Idle rollout succeeded cumulatively for 96 label installs with zero reconcile failures. The latest
   convergence pass updated 11 deterministic and 12 shared-agent-runner labels; old-release running owners
   were skipped, not restarted, and continue draining naturally.
 - Legacy root cause is proved: blocking waiters retained one process and ticket per wake; a waiter could hold
   the global control lock while an unbounded `/bin/ps ... lstart=` identity probe stalled every resource
   class. The new release bounds that probe to two seconds and fails conservatively as live.
-- Current read-only process sampling confirms the remaining legacy drain, rather than a new-release
-  regression: Paid PID `6856` and Apply PID `42143` spend every sampled stack in blocking `flock` on the
-  shared `control.lock`; 19 legacy processes currently have that lock file open. New-release Reply and
-  Storefront wakes continue to terminate without retaining another waiter.
+- Read-only process sampling confirmed that the legacy drain, rather than the new release, caused the long
+  wait: Paid PID `6856` and Apply PID `42143` spent every sampled stack in blocking `flock` on the shared
+  `control.lock`. Paid then exited naturally, reconciled to `3e7b7771`, and its first natural new-release wake
+  ended with bounded `host_admission_deferred`. Apply PID `42143` remains the only Coconala lane on that old
+  blocking path. New-release Reply and Storefront wakes continue to terminate without retaining waiters.
 - Coconala Reply is installed on `b8de9bf2`. Two natural wakes independently ended exit `75`,
   `host_admission_deferred`, loaded-idle, with no retained new-release ticket. Contention safety passes;
   later natural resume and official business readback remain open.
 - Coconala Storefront is installed on `b8de9bf2`. Two natural new-release wakes independently ended exit `75`,
   `host_admission_deferred`, loaded-idle, with no retained legacy ticket or owner. Contention safety passes;
   later natural resume and official listing readback remain open.
-- The legacy queue is draining rather than growing: the latest read-only polls measured `19`, then `18`
+- The legacy queue is draining rather than growing: read-only polls measured `19`, `18`, then `11`
   retained tickets. Current memory admission itself passes at
   `free_percent=31` against `minimum_free_percent=15`; the remaining backlog is legacy process/ticket drain,
   not evidence of current physical-memory rejection. Coconala Storefront PID `60168` ended naturally and
   the lane is installed on `b8de9bf2`; two new-release wakes ended with bounded terminal deferral and retained
-  no legacy ticket or owner. Paid PID `6856` and Apply PID `42143` remain live on older releases and must end
-  naturally before target-only loaded-idle reconciliation.
+  no legacy ticket or owner. Paid is now reconciled; Apply PID `42143` remains live on an older release and
+  must end naturally before target-only loaded-idle reconciliation.
 - Disk availability recovered from `1.1 GiB` to `4.0 GiB`. Only clean, unused, regenerable external clones,
   main-contained temporary clones, three completed merged worktrees/branches/owned leases, and one missing-worktree
   registration were removed. Codex/cloud sessions, credentials, browser profiles, memory, state, ledgers,
@@ -118,12 +126,12 @@ independent production effects.
 - [x] Recover safe disk headroom and remove proved-obsolete artifacts.
 - [x] Deploy nonblocking admission release to idle fleet.
 - [x] Prove repeated safe contention deferral on Coconala Reply.
-- [ ] Let the legacy global-lock queue drain naturally; Paid PID `6856` and Apply PID `42143` are confirmed
-  blocking `flock` waiters. Storefront finished naturally.
-- [ ] Reconcile each newly idle owner to `b8de9bf2` without restarting siblings. Storefront is reconciled;
-  Paid and Apply remain.
+- [ ] Let the legacy global-lock queue drain naturally. Paid and Storefront finished; Apply PID `42143`
+  remains a confirmed blocking `flock` waiter.
+- [ ] Reconcile each newly idle owner to current `3e7b7771` without restarting siblings. Paid is current;
+  Apply remains. Reply and Storefront safely stay on `b8de9bf2` until their current runs finish.
 - [ ] Prove each lane defers under contention without a retained ticket or external effect.
-  Reply and Storefront pass; Paid and Apply remain.
+  Reply, Storefront and Paid pass; Apply remains.
 - [ ] Prove pressure recovery: a later natural wake acquires, resumes durable progress and writes terminal
   business receipt plus official readback.
 - [ ] Prove queue drains to zero, fleet-wide starvation does not recur, and no duplicate external effect occurs.
