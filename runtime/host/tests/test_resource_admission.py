@@ -24,14 +24,51 @@ def test_slot_releases_for_next_owner(tmp_path, monkeypatch):
     admission.release(second)
 
 
-def test_one_shot_busy_attempt_does_not_leave_a_ticket(tmp_path, monkeypatch):
+def test_one_shot_busy_attempt_retains_durable_fifo_intent(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     first, _ = admission.try_acquire("deterministic", "first")
     blocked, reason = admission.try_acquire(
         "deterministic", "second", retain_ticket=False)
     assert blocked is None and reason == "capacity_busy"
-    assert not list((tmp_path / "tickets").glob("*.json"))
+    tickets = list((tmp_path / "tickets").glob("*.json"))
+    assert len(tickets) == 1
+    assert json.loads(tickets[0].read_text())["owner_id"] == "second"
     admission.release(first)
+
+
+def test_durable_one_shot_intents_are_fifo_across_wakes(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    holder, _ = admission.try_acquire("deterministic", "holder")
+    assert holder
+    assert admission.try_acquire(
+        "deterministic", "first", retain_ticket=False)[1] == "capacity_busy"
+    assert admission.try_acquire(
+        "deterministic", "second", retain_ticket=False)[1] == "capacity_busy"
+    admission.release(holder)
+    blocked, reason = admission.try_acquire(
+        "deterministic", "second", retain_ticket=False)
+    assert blocked is None and reason == "fifo_wait"
+    first, reason = admission.try_acquire(
+        "deterministic", "first", retain_ticket=False)
+    assert first and reason == "acquired"
+    admission.release(first)
+    second, reason = admission.try_acquire(
+        "deterministic", "second", retain_ticket=False)
+    assert second and reason == "acquired"
+    admission.release(second)
+
+
+def test_expired_durable_intent_does_not_starve_next_wake(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_TICKET_TTL_SECONDS", "1")
+    stale = tmp_path / "tickets/deterministic-00000000000000000001-stale.json"
+    admission.atomic_json(stale, {
+        "version": 2, "owner_id": "stale", "last_seen_ns": time.time_ns() - 2_000_000_000,
+    })
+    claim, reason = admission.try_acquire(
+        "deterministic", "next", retain_ticket=False)
+    assert claim and reason == "acquired" and not stale.exists()
+    admission.release(claim)
 
 
 def test_one_shot_control_lock_contention_returns_immediately(tmp_path, monkeypatch):

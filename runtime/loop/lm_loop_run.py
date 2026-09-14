@@ -145,22 +145,25 @@ def _resource_class(entry: dict) -> str:
         "agent" if entry["provider_route"] == "shared-agent-runner" else "deterministic")
 
 
-def _host_admission_deferred(path: Path, started_ns: int) -> bool:
+def _host_admission_deferred(path: Path, started_ns: int) -> str | None:
     try:
         if path.stat().st_mtime_ns < started_ns:
-            return False
+            return None
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, TypeError, ValueError, json.JSONDecodeError):
-        return False
-    return value.get("status") == "deferred" and value.get("effect") == 0
+        return None
+    if value.get("status") != "deferred" or value.get("effect") != 0:
+        return None
+    reason = value.get("reason")
+    return reason if isinstance(reason, str) and SAFE_RUN_ID.fullmatch(reason) else "unknown"
 
 
-def _terminal_outcome(return_code: int, *, host_deferred: bool = False
+def _terminal_outcome(return_code: int, *, host_deferred: str | None = None
                       ) -> tuple[bool, bool, str | None]:
     if return_code == 0:
         return True, False, None
     if host_deferred and return_code in {75, 124, 137, 143}:
-        return False, True, "host_admission_deferred"
+        return False, True, f"host_admission_deferred:{host_deferred}"
     return False, False, f"entrypoint_exit_{return_code}"
 
 
