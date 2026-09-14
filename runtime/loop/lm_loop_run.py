@@ -19,7 +19,7 @@ from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path
 from runtime.loop.macos_loop_registry import validate_registry
 from runtime.loop.runtime_event import append_runtime_event, build_runtime_event, build_runtime_start_event
 from runtime.host.memory_admission import memory_free_percent
-from runtime.host.resource_admission import acquire as acquire_resource, release as release_resource
+from runtime.host.resource_admission import release as release_resource, try_acquire as try_acquire_resource
 
 
 EXEC_GATE = Path(__file__).resolve().parents[1] / "host/exec_gate.py"
@@ -213,14 +213,15 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                          else "memory_headroom_low"})
             return 75
         try:
-            claim = acquire_resource(_resource_class(entry), loop_id, lambda: interrupted)
-        except InterruptedError:
-            _atomic_json(receipt, {"status": "deferred", "effect": 0,
-                                  "reason": "resource_admission_interrupted"})
-            return 75
+            claim, admission_reason = try_acquire_resource(
+                _resource_class(entry), loop_id, retain_ticket=False)
         except (OSError, RuntimeError):
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
+            return 75
+        if claim is None:
+            _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                  "reason": f"resource_{admission_reason}"})
             return 75
         available = memory_free_percent()
         if interrupted:

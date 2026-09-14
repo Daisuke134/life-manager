@@ -66,13 +66,14 @@ def test_entrypoint_timeout_terminates_its_process_group():
     assert time.monotonic() - started < 2
 
 
-def test_admission_wait_does_not_consume_entrypoint_runtime_budget(tmp_path):
+def test_acquired_slot_keeps_the_full_entrypoint_runtime_budget(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner", "runtime_timeout_seconds": 123}
     claim = tmp_path / "claim"
     claim.write_text("owned")
     with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
-          patch("runtime.loop.lm_loop_run.acquire_resource", return_value=claim),
+          patch("runtime.loop.lm_loop_run.try_acquire_resource",
+                return_value=(claim, "acquired")),
           patch("runtime.loop.lm_loop_run.release_resource") as release,
           patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0) as run):
         assert _run_admitted(["/bin/true"], entry, "example", {}, tmp_path / "receipt") == 0
@@ -80,16 +81,37 @@ def test_admission_wait_does_not_consume_entrypoint_runtime_budget(tmp_path):
     release.assert_called_once_with(claim)
 
 
-def test_interrupted_admission_becomes_deferred_receipt(tmp_path):
+def test_busy_resource_admission_defers_without_waiting_or_starting_child(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner"}
     receipt = tmp_path / "receipt"
     with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
-          patch("runtime.loop.lm_loop_run.acquire_resource", side_effect=InterruptedError),
+          patch("runtime.loop.lm_loop_run.try_acquire_resource",
+                return_value=(None, "capacity_busy")) as acquire,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        started = time.monotonic()
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+    assert time.monotonic() - started < 0.5
+    acquire.assert_called_once_with("agent", "example", retain_ticket=False)
+    run.assert_not_called()
+    assert json.loads(receipt.read_text()) == {
+        "effect": 0,
+        "reason": "resource_capacity_busy",
+        "status": "deferred",
+    }
+
+
+def test_unavailable_admission_becomes_deferred_receipt(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner"}
+    receipt = tmp_path / "receipt"
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.try_acquire_resource",
+                side_effect=RuntimeError),
           patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
         assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
     run.assert_not_called()
-    assert json.loads(receipt.read_text())["reason"] == "resource_admission_interrupted"
+    assert json.loads(receipt.read_text())["reason"] == "resource_admission_unavailable"
 
 
 def test_invalid_memory_threshold_fails_closed(tmp_path):
@@ -97,7 +119,7 @@ def test_invalid_memory_threshold_fails_closed(tmp_path):
              "provider_route": "shared-agent-runner"}
     for value in ("0", "-1", "101"):
         with (patch.dict(os.environ, {"LIFE_MANAGER_MIN_MEMORY_FREE_PERCENT": value}),
-              patch("runtime.loop.lm_loop_run.acquire_resource") as acquire,
+              patch("runtime.loop.lm_loop_run.try_acquire_resource") as acquire,
               patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
             assert _run_admitted(["/bin/true"], entry, "example", {}, tmp_path / value) == 64
         acquire.assert_not_called(); run.assert_not_called()
@@ -137,7 +159,8 @@ def test_signal_after_pass_receipt_cannot_start_effect_child(tmp_path):
             os.kill(os.getpid(), signal.SIGTERM)
 
     with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
-          patch("runtime.loop.lm_loop_run.acquire_resource", return_value=claim),
+          patch("runtime.loop.lm_loop_run.try_acquire_resource",
+                return_value=(claim, "acquired")),
           patch("runtime.loop.lm_loop_run.release_resource"),
           patch("runtime.loop.lm_loop_run._atomic_json", side_effect=write_then_stop),
           patch("runtime.loop.lm_loop_run.subprocess.Popen") as launch):
@@ -155,7 +178,7 @@ def test_signal_during_memory_probe_defers_before_child(tmp_path):
 
     receipt = tmp_path / "receipt"
     with (patch("runtime.loop.lm_loop_run.memory_free_percent", side_effect=interrupted_probe),
-          patch("runtime.loop.lm_loop_run.acquire_resource") as acquire,
+          patch("runtime.loop.lm_loop_run.try_acquire_resource") as acquire,
           patch("runtime.loop.lm_loop_run.subprocess.Popen") as launch):
         assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
     acquire.assert_not_called(); launch.assert_not_called()
