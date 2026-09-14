@@ -58,7 +58,7 @@ THREAD_URL_TEMPLATE = "https://coconala.com/mypage/job_matching/job_talkroom/{}"
 
 # Crockford base32 without I, L, O and U: a ULID, which is what a retainer listing
 # and its application thread are keyed by. A digits-only id is a 単発 request.
-RETAINER_ID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
+RETAINER_ID = re.compile(r"[0-7][0-9A-HJKMNP-TV-Z]{25}")
 
 # Statuses read off the live tab on 2026-07-30. Anything terminal is not work:
 # messaging a client who already passed on us is noise, not follow-through.

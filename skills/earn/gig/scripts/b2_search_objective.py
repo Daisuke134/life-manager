@@ -14,7 +14,7 @@ from typing import Any
 from urllib.parse import parse_qsl, urlsplit
 
 
-_RETAINER_ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
+_RETAINER_ULID = re.compile(r"[0-7][0-9A-HJKMNP-TV-Z]{25}")
 _CATEGORY_PATH = re.compile(r"/requests/categories/\d+")
 _MARKET_REFRESH_CURSOR = {
     "source_id": "single:new",

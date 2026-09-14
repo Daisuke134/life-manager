@@ -113,5 +113,5 @@ def test_eval_json_goes_through_the_retrying_connect():
 
 def test_apply_parent_reuses_the_retrying_connect():
     source = (SCRIPTS / "application_parent.py").read_text(encoding="utf-8")
-    assert source.count("async with await _cdp_connect(self.ws_url)") == 6
+    assert source.count("async with await _cdp_connect(self.ws_url)") == 9
     assert "async with websockets.connect(" not in source

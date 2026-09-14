@@ -34,6 +34,11 @@ import application_effect_fence as fence
 import gig_disk_guard
 import application_snapshot as snapshot_contract
 from application_planner import validate_decisions
+from coconala_applied_readback import (
+    RETAINER_APPLIED_URL,
+    _wait_for_retainer_page,
+    extract_retainer_ids,
+)
 from listing_inventory import _cdp_connect
 from market_snapshot import MARKET_FIELDS, parse_market
 
@@ -140,6 +145,7 @@ class ReadbackScanTimeout(ParentContractError):
 
 
 _REQUEST_URL = re.compile(r"^/requests/([0-9]+)$")
+_RETAINER_ID = re.compile(r"^[0-7][0-9A-HJKMNP-TV-Z]{25}$")
 _APPLIED_OFFERS_URL = "https://coconala.com/mypage/job_matching/applied/offers"
 
 _APPLIED_OFFERS_PATH = "/mypage/job_matching/applied/offers"
@@ -309,6 +315,51 @@ def submit_landed(url: object, body: object = None) -> bool:
     if parsed.hostname not in _COCONALA_HOSTS:
         return False
     return parsed.path.rstrip("/") == _APPLIED_OFFERS_PATH
+
+
+def _is_retainer_request(request_id: object) -> bool:
+    return _RETAINER_ID.fullmatch(str(request_id or "")) is not None
+
+
+def _bucket_for_request(request_id: object) -> str:
+    return "retainer" if _is_retainer_request(request_id) else "single"
+
+
+def _application_form_url(request_id: object) -> str:
+    value = str(request_id)
+    if _is_retainer_request(value):
+        return f"https://coconala.com/job_matching/outsources/{value}/apply"
+    return f"https://coconala.com/offers/add/{value}"
+
+
+def _is_expected_application_form_url(request_id: object, url: object) -> bool:
+    if not isinstance(url, str):
+        return False
+    parsed = urlsplit(url)
+    expected_path = (
+        f"/job_matching/outsources/{request_id}/apply"
+        if _is_retainer_request(request_id)
+        else f"/offers/add/{request_id}"
+    )
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in _COCONALA_HOSTS
+        or parsed.path.rstrip("/") != expected_path
+        or parsed.fragment
+    ):
+        return False
+    return all(key == "_t" and value for key, value in parse_qsl(parsed.query, keep_blank_values=True))
+
+
+def _retainer_application_is_officially_applied(
+    request_id: object, *, url: object, title: object
+) -> bool:
+    """Bind a retainer success to its exact listing, never to a same-title card."""
+    return (
+        _is_retainer_request(request_id)
+        and _is_expected_application_form_url(request_id, url)
+        and str(title or "").strip() == "応募内容を確認する | ココナラ"
+    )
 
 def _utc_now() -> str:
     return dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -579,7 +630,10 @@ class ParentEffects(Protocol):
 
     def adjust_offer_price(self, request_id: str, price_jpy: int) -> int: ...
 
-    def fill_form(self, request_id: str, proposal_text: str, price_jpy: int, deliver_date: str) -> None: ...
+    def fill_form(
+        self, request_id: str, proposal_text: str, price_jpy: int,
+        deliver_date: str, retainer_terms: dict[str, object] | None = None,
+    ) -> None: ...
 
     def readback_form(self, request_id: str) -> dict[str, object]: ...
 
@@ -614,19 +668,8 @@ def _page_index(url: str) -> int:
 
 
 def _is_expected_offer_form_url(request_id: str, url: object) -> bool:
-    """Accept Coconala's cache-busting `_t` query, but no identity-changing route."""
-    if not isinstance(url, str):
-        return False
-    parsed = urlsplit(url)
-    if (
-        parsed.scheme != "https"
-        or parsed.hostname not in {"coconala.com", "www.coconala.com"}
-        or parsed.path.rstrip("/") != f"/offers/add/{request_id}"
-        or parsed.fragment
-    ):
-        return False
-    query = parse_qsl(parsed.query, keep_blank_values=True)
-    return all(key == "_t" and value for key, value in query)
+    """Compatibility alias for the shared single/retainer form route fence."""
+    return _is_expected_application_form_url(request_id, url)
 
 
 def _mouse_click_event_params(x: float, y: float) -> tuple[dict[str, object], ...]:
@@ -766,6 +809,55 @@ class CdpParentEffects:
         self.ws_recycler: Any = None
         self._target_lock_handle: Any = None
 
+    @property
+    def _retainer_title_bindings_path(self) -> Path:
+        # The ledger directory is stable across the initial phase, delayed reconcile,
+        # and later launchd wakes. Phase evidence directories are intentionally not.
+        return self.ledger_path.parent / "retainer-title-bindings.json"
+
+    def _persist_retainer_title(self, request_id: str, detail: dict[str, object]) -> None:
+        if not _is_retainer_request(request_id):
+            return
+        title = str(detail.get("title") or "").strip()
+        if not title:
+            return
+        bindings: dict[str, str] = {}
+        try:
+            raw = json.loads(self._retainer_title_bindings_path.read_text(encoding="utf-8"))
+            if isinstance(raw, dict):
+                bindings = {
+                    key: value for key, value in raw.items()
+                    if _is_retainer_request(key) and isinstance(value, str) and value.strip()
+                }
+        except FileNotFoundError:
+            pass
+        except (OSError, json.JSONDecodeError):
+            raise ParentContractError("retainer_title_bindings_invalid") from None
+        bindings[request_id] = title
+        _atomic_json(self._retainer_title_bindings_path, bindings)
+
+    def _retainer_titles(self, expected_ids: set[str]) -> dict[str, str]:
+        bindings: dict[str, str] = {}
+        try:
+            raw = json.loads(self._retainer_title_bindings_path.read_text(encoding="utf-8"))
+            if isinstance(raw, dict):
+                bindings = {
+                    request_id: str(raw.get(request_id) or "").strip()
+                    for request_id in expected_ids
+                    if _is_retainer_request(request_id) and str(raw.get(request_id) or "").strip()
+                }
+        except FileNotFoundError:
+            pass
+        except (OSError, json.JSONDecodeError):
+            raise ParentContractError("retainer_title_bindings_invalid") from None
+        # A fresh reread is useful, but it is never the only title binding.  The file
+        # survives a worker restart and final reconciliation in a new effects object.
+        for request_id in expected_ids:
+            fresh = self._fresh_details.get(request_id)
+            if isinstance(fresh, dict) and str(fresh.get("title") or "").strip():
+                bindings[request_id] = str(fresh["title"]).strip()
+        return bindings
+
     def _acquire_target_lock(self) -> None:
         path = _target_lock_path(self.ws_url)
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -894,7 +986,7 @@ class CdpParentEffects:
         await self._call(ws, "Page.navigate", {"url": url}, call_id)
         return await self._ready(ws, call_id + 1)
 
-    async def _settle_on_offer_form(
+    async def _settle_on_application_form(
         self, ws: Any, request_id: str, call_id: int, *, seconds: float = 8.0
     ) -> int:
         """Wait until the document is the one we navigated to, not the one we are leaving.
@@ -918,12 +1010,35 @@ class CdpParentEffects:
                 call_id,
             )
             if (
-                _is_expected_offer_form_url(request_id, state.get("url"))
+                _is_expected_application_form_url(request_id, state.get("url"))
                 and state.get("ready") in {"interactive", "complete"}
             ):
                 return call_id
             if asyncio.get_running_loop().time() >= deadline:
                 return call_id
+            await asyncio.sleep(0.25)
+
+    async def _settle_retainer_application_readback(
+        self, ws: Any, request_id: str, call_id: int, *, seconds: float = 8.0
+    ) -> tuple[dict[str, object], int]:
+        """Wait past the previous document until the exact listing shows applied."""
+        deadline = asyncio.get_running_loop().time() + seconds
+        state: dict[str, object] = {}
+        while True:
+            state, call_id = await self._eval_json(
+                ws,
+                "JSON.stringify({url:location.href,title:document.title,ready:document.readyState})",
+                call_id,
+            )
+            if (
+                state.get("ready") in {"interactive", "complete"}
+                and _retainer_application_is_officially_applied(
+                    request_id, url=state.get("url"), title=state.get("title")
+                )
+            ):
+                return state, call_id
+            if asyncio.get_running_loop().time() >= deadline:
+                return state, call_id
             await asyncio.sleep(0.25)
 
     async def _navigate_retry_once(self, ws: Any, url: str, call_id: int) -> int:
@@ -1099,7 +1214,11 @@ class CdpParentEffects:
         raise ParentContractError("detail_category_missing")
 
     async def _detail_async(self, request_id: str) -> dict[str, object]:
-        request_url = f"https://coconala.com/requests/{request_id}"
+        request_url = (
+            f"https://coconala.com/job_matching/outsources/{request_id}"
+            if _is_retainer_request(request_id)
+            else f"https://coconala.com/requests/{request_id}"
+        )
         async with await _cdp_connect(self.ws_url) as ws:
             call_id = 1
             await self._call(ws, "Page.enable", {}, call_id)
@@ -1115,7 +1234,7 @@ class CdpParentEffects:
                   )].map(e=>(e.innerText||'').trim()).find(Boolean)||null;
                   const title=(document.querySelector('h1')?.innerText||document.title||'').trim();
                   const control=[...document.querySelectorAll('button,a,[role="button"]')]
-                    .find(e=>visible(e)&&(e.innerText||'').trim()==='応募する')||null;
+                    .find(e=>visible(e)&&['応募する','応募に進む'].includes((e.innerText||'').trim()))||null;
                   const accepting_control=!!control;
                   // The route Coconala itself points the apply button at. Only its existence was
                   // ever read, so when /offers/add/<id> stopped working there was no way to tell a
@@ -1159,7 +1278,9 @@ class CdpParentEffects:
         if accepting_control not in _LIFECYCLE_ALLOWED[1]: accepting_control = "present" if page.get("accepting") is True else "absent"
         deadline_value = page.get("deadline_value")
         if not isinstance(deadline_value, str) or re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", deadline_value) is None: deadline_value = None
-        if deadline_value is None:
+        if _is_retainer_request(request_id):
+            deadline_state = "future"
+        elif deadline_value is None:
             deadline_state = "unknown"
         else:
             try:
@@ -1170,7 +1291,10 @@ class CdpParentEffects:
         form_state = None
         if structured and page_state == "present":
             try:
-                await self._form_state_async(request_id, navigate=True)
+                if _is_retainer_request(request_id):
+                    await self._retainer_form_state_async(request_id, navigate=True)
+                else:
+                    await self._form_state_async(request_id, navigate=True)
             except Exception as error:
                 form_state = "absent" if str(error) in {"application_form_redirected", "application_form_controls_missing"} else "unknown"
                 # Written beside the lifecycle row, never inside it: that row is content-hashed
@@ -1186,8 +1310,15 @@ class CdpParentEffects:
             category = self._category_from_text(text, page.get("category"))
         except ParentContractError:
             if accepting:
-                raise
-            category = _CLOSED_DETAIL_CATEGORY
+                if _is_retainer_request(request_id):
+                    category = next(
+                        (line.strip() for line in text.splitlines() if line.strip()),
+                        _CLOSED_DETAIL_CATEGORY,
+                    )
+                else:
+                    raise
+            else:
+                category = _CLOSED_DETAIL_CATEGORY
         market = parse_market(text, now=time.time())
         result = {
             "request_id": request_id,
@@ -1225,6 +1356,7 @@ class CdpParentEffects:
     def reextract_detail(self, request_id: str) -> dict[str, object]:
         detail = asyncio.run(self._detail_async(request_id))
         self._fresh_details[request_id] = detail
+        self._persist_retainer_title(request_id, detail)
         return detail
 
     async def _form_state_async(
@@ -1236,7 +1368,7 @@ class CdpParentEffects:
             await self._call(ws, "Page.enable", {}, call_id)
             if navigate:
                 call_id = await self._navigate(ws, expected_url, call_id + 1)
-                call_id = await self._settle_on_offer_form(ws, request_id, call_id + 1)
+                call_id = await self._settle_on_application_form(ws, request_id, call_id + 1)
             else:
                 call_id += 1
             state, call_id = await self._eval_json(
@@ -1284,6 +1416,122 @@ class CdpParentEffects:
         _atomic_bytes(form_path, screenshot)
         return state
 
+    async def _retainer_form_state_async(
+        self, request_id: str, *, navigate: bool
+    ) -> dict[str, object]:
+        expected_url = _application_form_url(request_id)
+        async with await _cdp_connect(self.ws_url) as ws:
+            call_id = 1
+            await self._call(ws, "Page.enable", {}, call_id)
+            if navigate:
+                call_id = await self._navigate(ws, expected_url, call_id + 1)
+                call_id = await self._settle_on_application_form(ws, request_id, call_id + 1)
+            else:
+                call_id += 1
+            state, call_id = await self._eval_json(
+                ws,
+                """JSON.stringify((()=>{
+                  const frequencyValues=%s;
+                  const compensation=[...document.querySelectorAll('input[type="number"][name="desiredCompensation"]')];
+                  const message=[...document.querySelectorAll('textarea[placeholder="応募メッセージを入力してください"]')];
+                  const hoursStart=[...document.querySelectorAll('input[name="weeklyWorkingHoursStart"]')];
+                  const hoursEnd=[...document.querySelectorAll('input[name="weeklyWorkingHoursEnd"]')];
+                  const frequency=[...document.querySelectorAll('select')].filter(s=>
+                    frequencyValues.every(value=>[...s.options].some(o=>o.value===value)));
+                  const confirm=[...document.querySelectorAll('button,[role="button"]')].filter(b=>
+                    b.offsetParent!==null&&(b.innerText||'').trim()==='確認画面に進む');
+                  return {url:location.href,title:document.title,
+                    compensation:compensation[0]?.value||'',message:message[0]?.value||'',
+                    weekly_hours_min:hoursStart[0]?.value||'',weekly_hours_max:hoursEnd[0]?.value||'',
+                    work_frequency:frequency[0]?.value||'',
+                    dom_counts:{compensation:compensation.length,message:message.length,
+                      weekly_hours_min:hoursStart.length,weekly_hours_max:hoursEnd.length,
+                      work_frequency:frequency.length,confirm:confirm.length}};
+                })())""" % json.dumps(sorted({
+                    "WEEK_ONE", "WEEK_TWO", "WEEK_THREE", "WEEK_FOUR", "WEEK_FIVE",
+                    "BIWEEKLY", "MONTH_ONE",
+                })),
+                call_id,
+            )
+            screenshot, _ = await self._screenshot(ws, call_id)
+        if not _is_expected_application_form_url(request_id, state.get("url")):
+            raise ParentContractError("retainer_application_form_redirected")
+        selectors = {
+            "compensation": 'input[type="number"][name="desiredCompensation"]',
+            "message": 'textarea[placeholder="応募メッセージを入力してください"]',
+            "weekly_hours_min": 'input[name="weeklyWorkingHoursStart"]',
+            "weekly_hours_max": 'input[name="weeklyWorkingHoursEnd"]',
+            "work_frequency": "select with Coconala official frequency options",
+            "confirm": 'button text="確認画面に進む"',
+        }
+        counts = state.get("dom_counts") if isinstance(state.get("dom_counts"), dict) else {}
+        observed = {"url": str(state.get("url") or "")[:300], "title": str(state.get("title") or "")[:150]}
+        for key, selector in selectors.items():
+            self._require_dom_one(selector, counts.get(key), observed, "retainer_application_form_controls_missing")
+        _atomic_bytes(
+            self.evidence_dir / f"gig-{self.pass_id}-B2-{request_id}-retainer-form.png",
+            screenshot,
+        )
+        return state
+
+    async def _fill_retainer_async(
+        self, request_id: str, proposal_text: str, price_jpy: int, terms: dict[str, object]
+    ) -> None:
+        expected_url = _application_form_url(request_id)
+        payload = json.dumps({
+            "proposal_text": proposal_text,
+            "price_jpy": str(price_jpy),
+            "work_frequency": terms["work_frequency"],
+            "weekly_hours_min": str(terms["weekly_hours_min"]),
+            "weekly_hours_max": str(terms["weekly_hours_max"]),
+        }, ensure_ascii=False)
+        expression = """JSON.stringify((()=>{
+          const values=%s;
+          const set=(el,value)=>{const d=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el),'value');d?.set?.call(el,value);el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));};
+          const compensation=[...document.querySelectorAll('input[type="number"][name="desiredCompensation"]')];
+          const message=[...document.querySelectorAll('textarea[placeholder="応募メッセージを入力してください"]')];
+          const minimum=[...document.querySelectorAll('input[name="weeklyWorkingHoursStart"]')];
+          const maximum=[...document.querySelectorAll('input[name="weeklyWorkingHoursEnd"]')];
+          const frequency=[...document.querySelectorAll('select')].filter(s=>[...s.options].some(o=>o.value===values.work_frequency));
+          const counts={compensation:compensation.length,message:message.length,weekly_hours_min:minimum.length,weekly_hours_max:maximum.length,work_frequency:frequency.length};
+          if(Object.values(counts).some(value=>value!==1))return {ok:false,url:location.href,title:document.title,dom_counts:counts};
+          set(compensation[0],values.price_jpy);set(message[0],values.proposal_text);set(minimum[0],values.weekly_hours_min);set(maximum[0],values.weekly_hours_max);set(frequency[0],values.work_frequency);
+          return {ok:true,url:location.href,title:document.title,dom_counts:counts,proposal_text:message[0].value,price:compensation[0].value,weekly_hours_min:minimum[0].value,weekly_hours_max:maximum[0].value,work_frequency:frequency[0].value};
+        })())""" % payload
+        async with await _cdp_connect(self.ws_url) as ws:
+            call_id = 1
+            await self._call(ws, "Page.enable", {}, call_id)
+            state, _ = await self._eval_json(ws, expression, call_id + 1)
+        if state.get("ok") is not True or not _is_expected_application_form_url(request_id, state.get("url")):
+            raise ParentContractError("retainer_application_form_fill_failed")
+
+    async def _submit_retainer_async(self, request_id: str) -> tuple[dict[str, object], bytes]:
+        """Confirm the exact final checkbox/button sequence; success remains readback-only."""
+        async with await _cdp_connect(self.ws_url) as ws:
+            call_id = 1
+            await self._call(ws, "Page.enable", {}, call_id)
+            call_id += 1
+            state, call_id = await self._eval_json(
+                ws,
+                """JSON.stringify((()=>{const visible=e=>e&&e.offsetParent!==null;const body=document.body?.innerText||'';const checks=[...document.querySelectorAll('input[type="checkbox"]')].filter(visible);const buttons=[...document.querySelectorAll('button,[role="button"]')].filter(b=>visible(b)&&(b.innerText||'').trim()==='応募する');return {url:location.href,title:document.title,confirmation:body.includes('まだ投稿は完了していません'),checkbox_count:checks.length,apply_count:buttons.length,apply_disabled:buttons[0]?.disabled===true};})())""",
+                call_id,
+            )
+            if (
+                state.get("confirmation") is not True
+                or state.get("checkbox_count") != 1
+                or state.get("apply_count") != 1
+                or state.get("apply_disabled") is not True
+            ):
+                raise ParentContractError("retainer_application_confirmation_invalid")
+            toggled, call_id = await self._eval_json(
+                ws,
+                """JSON.stringify((()=>{const checks=[...document.querySelectorAll('input[type="checkbox"]')].filter(e=>e.offsetParent!==null);if(checks.length!==1)return {ok:false};checks[0].click();const buttons=[...document.querySelectorAll('button,[role="button"]')].filter(b=>b.offsetParent!==null&&(b.innerText||'').trim()==='応募する');return {ok:buttons.length===1&&!buttons[0].disabled};})())""",
+                call_id,
+            )
+            if toggled.get("ok") is not True:
+                raise ParentContractError("retainer_application_checkbox_failed")
+        return await self._click_button_async(request_id, "応募する")
+
     def _record_form_failure(
         self, request_id: str, error: BaseException, control: dict[str, str] | None = None
     ) -> None:
@@ -1308,15 +1556,19 @@ class CdpParentEffects:
 
     def open_form(self, request_id: str) -> None:
         self._form_state_async_result = asyncio.run(
-            self._form_state_async(request_id, navigate=True)
+            self._retainer_form_state_async(request_id, navigate=True)
+            if _is_retainer_request(request_id)
+            else self._form_state_async(request_id, navigate=True)
         )
 
     def adjust_offer_price(self, request_id: str, price_jpy: int) -> int:
         state = self._form_state_async_result
-        if not isinstance(state, dict) or not _is_expected_offer_form_url(
+        if not isinstance(state, dict) or not _is_expected_application_form_url(
             request_id, state.get("url")
         ):
             raise ParentContractError("official_offer_price_bounds_unobserved")
+        if _is_retainer_request(request_id):
+            return price_jpy
         return _price_within_official_bounds(
             price_jpy, state.get("price_constraints_text")
         )
@@ -1379,10 +1631,27 @@ class CdpParentEffects:
         if state.get("ok") is not True or not _is_expected_offer_form_url(request_id, state.get("url")):
             raise ParentContractError("application_form_fill_failed")
 
-    def fill_form(self, request_id: str, proposal_text: str, price_jpy: int, deliver_date: str) -> None:
+    def fill_form(
+        self, request_id: str, proposal_text: str, price_jpy: int,
+        deliver_date: str, retainer_terms: dict[str, object] | None = None,
+    ) -> None:
+        if _is_retainer_request(request_id):
+            if retainer_terms is None:
+                raise ParentContractError("retainer_terms_missing")
+            asyncio.run(self._fill_retainer_async(request_id, proposal_text, price_jpy, retainer_terms))
+            return
         asyncio.run(self._fill_async(request_id, proposal_text, price_jpy, deliver_date))
 
     def readback_form(self, request_id: str) -> dict[str, object]:
+        if _is_retainer_request(request_id):
+            state = asyncio.run(self._retainer_form_state_async(request_id, navigate=False))
+            return {
+                "proposal_text": state.get("message"),
+                "price_jpy": int(re.sub(r"[^0-9]", "", str(state.get("compensation") or "")) or 0) or None,
+                "work_frequency": state.get("work_frequency"),
+                "weekly_hours_min": int(re.sub(r"[^0-9]", "", str(state.get("weekly_hours_min") or "")) or 0),
+                "weekly_hours_max": int(re.sub(r"[^0-9]", "", str(state.get("weekly_hours_max") or "")) or 0),
+            }
         state = asyncio.run(self._form_state_async(request_id, navigate=False))
         raw_price = str(state.get("price") or "")
         digits = re.sub(r"[^0-9]", "", raw_price)
@@ -1484,7 +1753,7 @@ class CdpParentEffects:
     async def _click_button_async(
         self, request_id: str, label: str, settle_predicate=None, confirm_modal: bool = False
     ) -> tuple[dict[str, object], bytes]:
-        expected_url = f"https://coconala.com/offers/add/{request_id}"
+        expected_url = _application_form_url(request_id)
         async with await _cdp_connect(self.ws_url) as ws:
             call_id = 1
             await self._call(ws, "Page.enable", {}, call_id)
@@ -1524,12 +1793,12 @@ class CdpParentEffects:
                 })())""",
                     call_id,
                 )
-                if (_is_expected_offer_form_url(request_id, state.get("url"))
+                if (_is_expected_application_form_url(request_id, state.get("url"))
                         and state.get("match_count") == 1
                         and isinstance(state.get("button"), dict)):
                     break
                 await asyncio.sleep(0.25)
-            if _is_expected_offer_form_url(request_id, state.get("url")):
+            if _is_expected_application_form_url(request_id, state.get("url")):
                 self._require_dom_one(
                     f'button,a,[role="button"],input[type="submit"],input[type="button"] text={label}',
                     state.get("match_count"),
@@ -1537,7 +1806,7 @@ class CdpParentEffects:
                      "title": str(state.get("title") or "")[:150]},
                     f"application_{label}_button_missing",
                 )
-            if not _is_expected_offer_form_url(request_id, state.get("url")) or not isinstance(state.get("button"), dict):
+            if not _is_expected_application_form_url(request_id, state.get("url")) or not isinstance(state.get("button"), dict):
                 screenshot, _ = await self._screenshot(ws, call_id)
                 prefix = self.evidence_dir / f"gig-{self.pass_id}-B2-{request_id}-{label}-control-missing"
                 _atomic_json(prefix.with_suffix(".json"), {
@@ -1590,9 +1859,25 @@ class CdpParentEffects:
         return after, screenshot
 
     def click_confirm(self, request_id: str) -> None:
-        self._click_button_async_result = asyncio.run(self._click_button_async(request_id, "確認する"))
+        self._click_button_async_result = asyncio.run(
+            self._click_button_async(
+                request_id,
+                "確認画面に進む" if _is_retainer_request(request_id) else "確認する",
+            )
+        )
 
     def click_submit(self, request_id: str) -> None:
+        if _is_retainer_request(request_id):
+            after, last_screenshot = asyncio.run(self._submit_retainer_async(request_id))
+            del after
+            # The file records only that the final guarded click was dispatched;
+            # authoritative_exact_id_readback remains the success proof.
+            path = self.evidence_dir / f"gig-{self.pass_id}-B2-{request_id}-submitted.png"
+            _atomic_bytes(path, last_screenshot)
+            self._submitted_paths[request_id] = path
+            # Coconala does not expose a stable post-click landing contract for this
+            # shape. The canonical applied-retainer readback below is the only success proof.
+            return
         # A submit is irreversible. If the landing is not observed, the outcome is unknown;
         # leave PREPARED for authoritative readback instead of clicking the same intent again.
         after, last_screenshot = asyncio.run(
@@ -1609,7 +1894,8 @@ class CdpParentEffects:
         _atomic_bytes(path, last_screenshot)
 
     async def _official_readback_async(
-        self, expected_ids: set[str], max_pages: int | None = None
+        self, expected_ids: set[str], max_pages: int | None = None,
+        *, include_retainer_history: bool = False,
     ) -> tuple[dict[str, object], bytes]:
         # Only a search for specific ids paginates past page 1. official_ids_for_snapshot
         # calls this with an empty expected_ids to build the pre-snapshot exclusion set on
@@ -1619,8 +1905,10 @@ class CdpParentEffects:
         # is exactly the case that was stuck on page 1 forever (§FG'). The override exists
         # for the quarantine-release batch, whose absence proof must cover the WHOLE
         # history (~450 applications > 10 pages); the live per-candidate default stays put.
+        single_expected = {value for value in expected_ids if value.isdigit()}
+        retainer_expected = {value for value in expected_ids if _is_retainer_request(value)}
         if max_pages is None:
-            max_pages = _APPLIED_OFFERS_MAX_PAGES if expected_ids else 1
+            max_pages = _APPLIED_OFFERS_MAX_PAGES if single_expected else 1
         async with await _cdp_connect(self.ws_url) as ws:
             call_id = 1
             await self._call(ws, "Page.enable", {}, call_id)
@@ -1724,7 +2012,7 @@ class CdpParentEffects:
                     raise ParentContractError("official_readback_offer_urls_missing")
                 cards_seen += len(urls)
                 for offer_url in urls:
-                    if expected_ids and expected_ids.issubset(observed):
+                    if single_expected and single_expected.issubset(observed):
                         break
                     if not isinstance(offer_url, str) or re.fullmatch(
                         r"https://(?:www\.)?coconala\.com/mypage/offers/[0-9]+", offer_url
@@ -1752,7 +2040,7 @@ class CdpParentEffects:
                                 break
                     if request_id.isdigit():
                         observed.add(request_id)
-                if expected_ids and expected_ids.issubset(observed):
+                if single_expected and single_expected.issubset(observed):
                     break
                 next_url = _strict_next_page(
                     str(page.get("url") or ""), page.get("next_href"), path=_APPLIED_OFFERS_PATH
@@ -1772,7 +2060,7 @@ class CdpParentEffects:
                         raise
                     raise ReadbackScanTimeout(str(error)) from error
         assert first_page is not None
-        if truncated and expected_ids and not expected_ids.issubset(observed):
+        if truncated and single_expected and not single_expected.issubset(observed):
             # An exhausted page budget with a next link remaining proves NOTHING about
             # absence. Plain False here is the duplicate-application path: the release
             # tool would clear an already-applied id, and the PREPARED reconcile would
@@ -1780,19 +2068,54 @@ class CdpParentEffects:
             raise ReadbackScanTimeout(
                 f"official_readback_truncated_after_{pages_walked}_pages_next_page_remains"
             )
+        urls = [_APPLIED_OFFERS_URL]
+        if retainer_expected or include_retainer_history:
+            call_id = await self._navigate_retry_once(ws, RETAINER_APPLIED_URL, call_id)
+            titles = self._retainer_titles(retainer_expected)
+            retainer_page, call_id = await _wait_for_retainer_page(
+                ws, call_id, expected_titles=titles
+            )
+            parsed = urlsplit(str(retainer_page.get("url") or ""))
+            if (
+                parsed.hostname not in _COCONALA_HOSTS
+                or parsed.path.rstrip("/") != urlsplit(RETAINER_APPLIED_URL).path
+                or retainer_page.get("not_found") is True
+            ):
+                raise ParentContractError("retainer_official_readback_route_invalid")
+            retainer_observed = set(extract_retainer_ids(retainer_page.get("hrefs") or []))
+            observed.update(retainer_observed)
+            urls.append(RETAINER_APPLIED_URL)
+            # The applied-retainer index identifies rows by a different talkroom ULID.
+            # Re-open each exact listing application URL: Coconala changes that page's
+            # title only after this listing has been applied to.  This preserves the
+            # listing ULID identity without guessing from a same-title card.
+            for request_id in sorted(retainer_expected):
+                exact_url = _application_form_url(request_id)
+                call_id = await self._navigate_retry_once(ws, exact_url, call_id)
+                exact_page, call_id = await self._settle_retainer_application_readback(
+                    ws, request_id, call_id
+                )
+                if _retainer_application_is_officially_applied(
+                    request_id,
+                    url=exact_page.get("url"),
+                    title=exact_page.get("title"),
+                ):
+                    observed.add(request_id)
+                urls.append(exact_url)
+        sort_key = lambda value: (0, int(value)) if value.isdigit() else (1, value)
         payload = {
             "source": "code_owned_cdp_readback",
             "observed_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
             "pass_id": self.pass_id,
             "url": _APPLIED_OFFERS_URL,
-            "urls": [_APPLIED_OFFERS_URL],
+            "urls": urls,
             "title": first_page.get("title"),
             "observed": True,
             "not_found": False,
-            "request_ids": sorted(observed, key=int),
-            "expected_ids": sorted(expected_ids, key=int),
-            "expected_request_ids": sorted(expected_ids, key=int),
-            "applied_page_absent_request_ids": sorted(expected_ids - observed, key=int),
+            "request_ids": sorted(observed, key=sort_key),
+            "expected_ids": sorted(expected_ids, key=sort_key),
+            "expected_request_ids": sorted(expected_ids, key=sort_key),
+            "applied_page_absent_request_ids": sorted(expected_ids - observed, key=sort_key),
             "pages_walked": pages_walked,
             "cards_seen": cards_seen,
             "has_next_page": has_next_page,
@@ -1803,10 +2126,15 @@ class CdpParentEffects:
         return payload, first_screenshot
 
     def _official_readback(
-        self, expected_ids: set[str], path: Path, max_pages: int | None = None
+        self, expected_ids: set[str], path: Path, max_pages: int | None = None,
+        *, include_retainer_history: bool = False,
     ) -> set[str]:
         payload, screenshot = asyncio.run(
-            self._official_readback_async(expected_ids, max_pages=max_pages)
+            self._official_readback_async(
+                expected_ids,
+                max_pages=max_pages,
+                include_retainer_history=include_retainer_history,
+            )
         )
         screenshot_path = path.with_suffix(".png")
         _atomic_bytes(screenshot_path, screenshot)
@@ -1824,7 +2152,10 @@ class CdpParentEffects:
 
     def official_ids_for_snapshot(self) -> list[str]:
         path = self.evidence_dir / "parent-B2-applied-history-before-snapshot.json"
-        return sorted(self._official_readback(set(), path), key=int)
+        return sorted(
+            self._official_readback(set(), path, include_retainer_history=True),
+            key=lambda value: (0, int(value)) if value.isdigit() else (1, value),
+        )
 
     def applied_ids_for_exclusion(self) -> list[str]:
         """Everything not worth inspecting again: what the site shows plus what we sent.
@@ -1855,11 +2186,11 @@ class CdpParentEffects:
                     previous_expected, previous_observed = [], []
                 prior_expected = {
                     str(value) for value in previous_expected
-                    if str(value).isdigit()
+                    if str(value).isdigit() or _is_retainer_request(value)
                 }
                 prior_observed = {
                     str(value) for value in previous_observed
-                    if str(value).isdigit()
+                    if str(value).isdigit() or _is_retainer_request(value)
                 }
                 prior_verified = prior_expected & prior_observed
         except (OSError, json.JSONDecodeError):
@@ -1883,12 +2214,15 @@ class CdpParentEffects:
         if not isinstance(payload, dict):
             raise ParentContractError("final_exact_readback_artifact_invalid")
         payload["pass_id"] = self.pass_id
-        payload["expected_ids"] = sorted(combined_expected, key=int)
-        payload["request_ids"] = sorted(combined_observed, key=int)
+        sort_key = lambda value: (0, int(value)) if value.isdigit() else (1, value)
+        payload["expected_ids"] = sorted(combined_expected, key=sort_key)
+        payload["request_ids"] = sorted(combined_observed, key=sort_key)
         _atomic_json(path, payload)
         missing = combined_expected - combined_observed
         if missing:
-            raise ParentContractError("final_exact_readback_missing:" + ",".join(sorted(missing, key=int)))
+            raise ParentContractError(
+                "final_exact_readback_missing:" + ",".join(sorted(missing, key=sort_key))
+            )
 
     def canonical_ledger_append(self, row: dict[str, object]) -> None:
         request_id = str(row["request_id"])
@@ -1904,7 +2238,7 @@ class CdpParentEffects:
             "ts": int(time.time()),
             "pass_id": self.pass_id,
             "requestId": request_id,
-            "bucket": "single",
+            "bucket": str(row.get("bucket") or _bucket_for_request(request_id)),
             "status": "applied",
             "category": row["category"],
             "category_source": "dom",
@@ -1969,6 +2303,8 @@ DEEP_SOURCE_ID = "single:new"
 # every other source returned 406 between them, and no listing arrives anywhere before
 # it arrives there.
 DEEP_SOURCE_SHARE = 0.5
+SINGLE_APPLICATION_QUOTA = 19
+RETAINER_APPLICATION_QUOTA = 1
 
 
 def _source_capacity_plan(required: list[str], *, batch: int) -> dict[str, int]:
@@ -1990,14 +2326,39 @@ def _source_capacity_plan(required: list[str], *, batch: int) -> dict[str, int]:
     Page one of ?sort=new offers 40 listings in a single load, so reading it deep costs
     no extra page loads -- it is the same request with a larger slice taken.
     """
-    plan = {source_id: 1 for source_id in required}
+    plan = {source_id: 0 for source_id in required}
     if not plan:
         return plan
-    deep_id = DEEP_SOURCE_ID if DEEP_SOURCE_ID in plan else str(required[0])
-    # Fill the batch exactly when the program fits inside it; otherwise reserve a fixed
-    # share, and let the caller's running clamp keep the total inside MAX_BATCH.
-    plan[deep_id] = max(1, batch - len(plan) + 1, int(batch * DEEP_SOURCE_SHARE))
+    bounded_batch = min(snapshot_contract.MAX_BATCH, max(0, batch))
+    retainer_sources = [source_id for source_id in required if source_id == "retainer:new"]
+    retainer_budget = min(RETAINER_APPLICATION_QUOTA, bounded_batch) if retainer_sources else 0
+    for source_id in retainer_sources:
+        plan[source_id] = retainer_budget
+    single_budget = min(SINGLE_APPLICATION_QUOTA, bounded_batch - retainer_budget)
+    single_sources = [source_id for source_id in required if source_id != "retainer:new"]
+    if not single_sources or not single_budget:
+        return plan
+    deep_id = DEEP_SOURCE_ID if DEEP_SOURCE_ID in plan else single_sources[0]
+    # One source-scoped anchor per source only while quota permits it.  The remaining
+    # single slots stay on the measured newest-first source; a later source can never
+    # consume the retainer reservation.
+    anchors = [deep_id, *(source_id for source_id in single_sources if source_id != deep_id)]
+    for source_id in anchors[:single_budget]:
+        plan[source_id] = 1
+    plan[deep_id] += single_budget - min(single_budget, len(anchors))
     return plan
+
+
+def _bounded_application_details(
+    details: list[dict[str, object]], *, batch: int
+) -> list[dict[str, object]]:
+    """Keep 19 decimal requests and one ULID request; buckets cannot borrow slots."""
+    ranked = sorted(details, key=_candidate_rank_key)
+    single = [row for row in ranked if str(row.get("request_id") or "").isdigit()]
+    retainer = [row for row in ranked if _is_retainer_request(row.get("request_id"))]
+    retainer_limit = min(RETAINER_APPLICATION_QUOTA, max(0, batch))
+    single_limit = min(SINGLE_APPLICATION_QUOTA, max(0, batch - retainer_limit))
+    return [*single[:single_limit], *retainer[:retainer_limit]]
 
 
 HIGH_VALUE_BUDGET_JPY = 50_000
@@ -2114,6 +2475,8 @@ class CdpSnapshotCollector:
     def _source_url(source_id: str) -> str:
         if source_id == "single:new":
             return "https://coconala.com/requests?sort=new&recruiting=true"
+        if source_id == "retainer:new":
+            return "https://coconala.com/job_matching/outsources"
         if source_id == "single:keyword":
             return "https://coconala.com/requests?keyword=AI&recruiting=true"
         prefix = "single:category:"
@@ -2185,16 +2548,28 @@ class CdpSnapshotCollector:
                 | self.excluded_request_ids
                 | prior_inspected_ids
             )
-            plan = _source_capacity_plan(
-                [str(value) for value in required], batch=snapshot_contract.MAX_BATCH
+            configured_batch = self.objective.get("max_applications", snapshot_contract.MAX_BATCH)
+            if isinstance(configured_batch, bool) or not isinstance(configured_batch, int):
+                raise ParentContractError("snapshot_max_applications_invalid")
+            application_batch = min(snapshot_contract.MAX_BATCH, max(0, configured_batch))
+            override_plan = getattr(self, "_source_capacity_override", None)
+            plan = (
+                dict(override_plan)
+                if isinstance(override_plan, dict)
+                else _source_capacity_plan([str(value) for value in required], batch=application_batch)
             )
+            if set(plan) != {str(value) for value in required} or not all(
+                isinstance(capacity, int) and not isinstance(capacity, bool) and capacity >= 0
+                for capacity in plan.values()
+            ):
+                raise ParentContractError("source_capacity_plan_invalid")
             for raw_source_id in required:
                 source_id = str(raw_source_id)
                 # Never exceed the contract's batch, but always observe every required
                 # source: a source seen with zero remaining room is observed and
                 # contributes nothing, which is a full batch, not an unobserved source.
                 source_capacity = min(
-                    plan[source_id], max(0, snapshot_contract.MAX_BATCH - len(details))
+                    plan[source_id], max(0, application_batch - len(details))
                 )
                 page_url: str | None = cursor_url if source_id == cursor_source else self._source_url(source_id)
                 source_ids: list[str] = []
@@ -2323,7 +2698,7 @@ class CdpSnapshotCollector:
         # Preserve every candidate and spend the application cap in deterministic
         # high-value-first order. The planner receives this order, but the parent also
         # restores it at commit time because model output order is not authoritative.
-        details.sort(key=_candidate_rank_key)
+        details = _bounded_application_details(details, batch=application_batch)
         collector = {
             "pass_id": self.pass_id,
             "lease_fence": lease_fence,
@@ -2355,6 +2730,11 @@ class CdpSnapshotCollector:
             if cursor_source not in set(required):
                 raise ParentContractError("cursor_source_not_required")
         collection_required = [cursor_source] if cursor_source is not None else required
+        configured_batch = self.objective.get("max_applications", snapshot_contract.MAX_BATCH)
+        if isinstance(configured_batch, bool) or not isinstance(configured_batch, int):
+            raise ParentContractError("snapshot_max_applications_invalid")
+        application_batch = min(snapshot_contract.MAX_BATCH, max(0, configured_batch))
+        full_capacity_plan = _source_capacity_plan(required, batch=application_batch)
         with self.effects.target_lock():
             widest = getattr(self.effects, "applied_ids_for_exclusion", None)
             already_applied = widest() if callable(widest) else self.effects.official_ids_for_snapshot()
@@ -2380,6 +2760,9 @@ class CdpSnapshotCollector:
                 shard.effects = shard_effects
                 shard.discovery_effect_factory = None
                 shard.objective = {**self.objective, "required_search_source_ids": shards[index]}
+                shard._source_capacity_override = {
+                    source_id: full_capacity_plan[source_id] for source_id in shards[index]
+                }
                 shard.cursor_contract = effective_cursor if cursor_source in shards[index] else None
                 shard.source_artifacts = {}
                 shard.raw_request_ids = set()
@@ -2487,7 +2870,9 @@ class CdpSnapshotCollector:
             if failures:
                 raise ParentContractError("discovery_all_shards_timeout")
             raise ParentContractError("shard_sources_incomplete")
-        details = sorted(details_by_id.values(), key=_candidate_rank_key)[:snapshot_contract.MAX_BATCH]
+        details = _bounded_application_details(
+            list(details_by_id.values()), batch=application_batch
+        )
         kept = {str(detail["request_id"]) for detail in details}
         sources = []
         seen_card_ids: set[str] = set()
@@ -2536,6 +2921,15 @@ def _fresh_detail(snapshot_detail: dict[str, object], fresh: object) -> bool:
 def _offer_matches_readback(decision: dict[str, object], readback: object) -> bool:
     if not isinstance(readback, dict):
         return False
+    request_id = decision.get("request_id")
+    if _is_retainer_request(request_id):
+        return (
+            readback.get("proposal_text") == decision["proposal_text"]
+            and readback.get("price_jpy") == decision["price_jpy"]
+            and readback.get("work_frequency") == decision.get("work_frequency")
+            and readback.get("weekly_hours_min") == decision.get("weekly_hours_min")
+            and readback.get("weekly_hours_max") == decision.get("weekly_hours_max")
+        )
     return (
         readback.get("proposal_text") == decision["proposal_text"]
         and readback.get("price_jpy") == decision["price_jpy"]
@@ -2544,20 +2938,21 @@ def _offer_matches_readback(decision: dict[str, object], readback: object) -> bo
 
 
 def _application_row(detail: dict[str, object], decision: dict[str, object]) -> dict[str, object]:
-    """The old B2 application shape is projected only from exact-ID confirmation."""
+    """Project the exact readback-confirmed application without changing its bucket."""
+    retainer = _is_retainer_request(detail["request_id"])
     return {
         "request_id": detail["request_id"],
-        "bucket": "single",
+        "bucket": "retainer" if retainer else "single",
         "category": detail["category"],
         "title": detail["title"],
         "price_jpy": decision["price_jpy"],
         "pricing_basis": PRICING_BASIS,
         "deliver_date": decision["deliver_date"],
         "url": detail["canonical_url"],
-        "compensation_type": None,
-        "weekly_days": None,
-        "weekly_hours_min": None,
-        "weekly_hours_max": None,
+        "compensation_type": "recurring" if retainer else None,
+        "weekly_days": decision.get("work_frequency") if retainer else None,
+        "weekly_hours_min": decision.get("weekly_hours_min") if retainer else None,
+        "weekly_hours_max": decision.get("weekly_hours_max") if retainer else None,
     }
 
 
@@ -2565,19 +2960,21 @@ def _application_row_from_intent(
     detail: dict[str, object], intent: dict[str, object],
 ) -> dict[str, object]:
     """Project a prior fenced offer during reconciliation, never a new judgment."""
+    retainer = _is_retainer_request(detail["request_id"])
+    terms = intent.get("retainer_terms") if isinstance(intent.get("retainer_terms"), dict) else {}
     return {
         "request_id": detail["request_id"],
-        "bucket": "single",
+        "bucket": "retainer" if retainer else "single",
         "category": detail["category"],
         "title": detail["title"],
         "price_jpy": intent["price_jpy"],
         "pricing_basis": PRICING_BASIS,
         "deliver_date": intent["deliver_date"],
         "url": detail["canonical_url"],
-        "compensation_type": None,
-        "weekly_days": None,
-        "weekly_hours_min": None,
-        "weekly_hours_max": None,
+        "compensation_type": "recurring" if retainer else None,
+        "weekly_days": terms.get("work_frequency") if retainer else None,
+        "weekly_hours_min": terms.get("weekly_hours_min") if retainer else None,
+        "weekly_hours_max": terms.get("weekly_hours_max") if retainer else None,
     }
 
 
@@ -2841,6 +3238,14 @@ def commit_decisions(
                     price_jpy=decision["price_jpy"],
                     deliver_date=decision["deliver_date"],
                     lease_fence=snapshot["lease_fence"],
+                    retainer_terms=(
+                        {
+                            "work_frequency": decision["work_frequency"],
+                            "weekly_hours_min": decision["weekly_hours_min"],
+                            "weekly_hours_max": decision["weekly_hours_max"],
+                        }
+                        if _is_retainer_request(request_id) else None
+                    ),
                 )
                 fence._durable_replace(store.intent_path(request_id), intent)
                 phase = "open_form"
@@ -2862,6 +3267,14 @@ def commit_decisions(
                             price_jpy=adjusted_price,
                             deliver_date=decision["deliver_date"],
                             lease_fence=snapshot["lease_fence"],
+                            retainer_terms=(
+                                {
+                                    "work_frequency": decision["work_frequency"],
+                                    "weekly_hours_min": decision["weekly_hours_min"],
+                                    "weekly_hours_max": decision["weekly_hours_max"],
+                                }
+                                if _is_retainer_request(request_id) else None
+                            ),
                         )
                         fence._durable_replace(store.intent_path(request_id), intent)
                     phase = "fill_form"
@@ -2870,6 +3283,14 @@ def commit_decisions(
                         str(decision["proposal_text"]),
                         int(decision["price_jpy"]),
                         str(decision["deliver_date"]),
+                        (
+                            {
+                                "work_frequency": decision["work_frequency"],
+                                "weekly_hours_min": decision["weekly_hours_min"],
+                                "weekly_hours_max": decision["weekly_hours_max"],
+                            }
+                            if _is_retainer_request(request_id) else None
+                        ),
                     )
                     phase = "form_readback"
                     if not _offer_matches_readback(decision, effects.readback_form(request_id)):
@@ -3198,13 +3619,18 @@ class FixtureEffects:
         text = constraints.get(request_id, "") if isinstance(constraints, dict) else ""
         return _price_within_official_bounds(price_jpy, text)
 
-    def fill_form(self, request_id: str, proposal_text: str, price_jpy: int, deliver_date: str) -> None:
+    def fill_form(
+        self, request_id: str, proposal_text: str, price_jpy: int,
+        deliver_date: str, retainer_terms: dict[str, object] | None = None,
+    ) -> None:
         self.fill_count += 1
         self._filled[request_id] = {
             "proposal_text": proposal_text,
             "price_jpy": price_jpy,
             "deliver_date": deliver_date,
         }
+        if retainer_terms is not None:
+            self._filled[request_id].update(retainer_terms)
 
     def readback_form(self, request_id: str) -> dict[str, object]:
         override = (self.fixture.get("form_readbacks") or {}).get(request_id)
@@ -3329,7 +3755,11 @@ def load_ineligible_cache(
     clock = time.time() if now is None else now
     valid: dict[str, dict[str, object]] = {}
     for request_id, value in entries.items():
-        if not isinstance(request_id, str) or not request_id.isdigit() or not isinstance(value, dict):
+        if (
+            not isinstance(request_id, str)
+            or not (request_id.isdigit() or _is_retainer_request(request_id))
+            or not isinstance(value, dict)
+        ):
             continue
         content_sha256 = value.get("content_sha256")
         reasons = value.get("reason_codes")
@@ -4390,10 +4820,11 @@ def snapshot_applied_ids(identifiers: object) -> list[str]:
     """
     if not isinstance(identifiers, (list, tuple, set)):
         return []
-    return sorted(
-        {str(value) for value in identifiers if str(value).isdigit()},
-        key=int,
-    )
+    values = {
+        str(value) for value in identifiers
+        if str(value).isdigit() or _is_retainer_request(value)
+    }
+    return sorted(values, key=lambda value: (0, int(value)) if value.isdigit() else (1, value))
 
 
 def cdp_wedged_row(row: dict[str, object]) -> bool:

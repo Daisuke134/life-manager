@@ -26,6 +26,14 @@ _ROOT_FIELDS = frozenset({"decisions"})
 _DECISION_FIELDS = frozenset({
     "request_id", "business_class", "reason_codes", "proposal_text", "price_jpy", "deliver_date",
 })
+_RETAINER_DECISION_FIELDS = _DECISION_FIELDS | frozenset({
+    "work_frequency", "weekly_hours_min", "weekly_hours_max",
+})
+RETAINER_WORK_FREQUENCIES = frozenset({
+    "WEEK_ONE", "WEEK_TWO", "WEEK_THREE", "WEEK_FOUR", "WEEK_FIVE",
+    "BIWEEKLY", "MONTH_ONE",
+})
+_RETAINER_ID = re.compile(r"[0-7][0-9A-HJKMNP-TV-Z]{25}")
 _DATE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
 BUSINESS_CLASSES = frozenset({"submit_required", "hard_prohibited"})
 def _work_fit():
@@ -138,12 +146,19 @@ def validate_decisions(
     detail_by_id = {item["request_id"]: item for item in snapshot["request_details"]}
     actual_ids: list[str] = []
     for index, row in enumerate(rows):
-        if not _keys_equal(row, _DECISION_FIELDS, f"decision[{index}]", errors):
+        expected_fields = (
+            _RETAINER_DECISION_FIELDS
+            if isinstance(row, dict) and _RETAINER_ID.fullmatch(str(row.get("request_id") or ""))
+            else _DECISION_FIELDS
+        )
+        if not _keys_equal(row, expected_fields, f"decision[{index}]", errors):
             continue
         assert isinstance(row, dict)
         request_id = row["request_id"]
         actual_ids.append(str(request_id))
-        if not isinstance(request_id, str) or not request_id.isdigit():
+        if not isinstance(request_id, str) or not (
+            request_id.isdigit() or _RETAINER_ID.fullmatch(request_id)
+        ):
             errors.append(f"decision[{index}]_request_id_invalid")
         business_class = row["business_class"]
         if business_class not in BUSINESS_CLASSES:
@@ -195,6 +210,22 @@ def validate_decisions(
                     dt.date.fromisoformat(date)
                 except ValueError:
                     errors.append(f"decision[{index}]_submit_required_date_invalid")
+            if _RETAINER_ID.fullmatch(str(request_id or "")):
+                frequency = row["work_frequency"]
+                hours_min = row["weekly_hours_min"]
+                hours_max = row["weekly_hours_max"]
+                if frequency not in RETAINER_WORK_FREQUENCIES:
+                    errors.append(f"decision[{index}]_retainer_work_frequency_invalid")
+                if (
+                    isinstance(hours_min, bool) or not isinstance(hours_min, int)
+                    or hours_min < 0
+                ):
+                    errors.append(f"decision[{index}]_retainer_weekly_hours_min_invalid")
+                if (
+                    isinstance(hours_max, bool) or not isinstance(hours_max, int)
+                    or hours_max < hours_min if isinstance(hours_min, int) and not isinstance(hours_min, bool) else True
+                ):
+                    errors.append(f"decision[{index}]_retainer_weekly_hours_max_invalid")
         else:
             if not isinstance(reasons, list) or not reasons:
                 errors.append(f"decision[{index}]_hard_prohibited_reason_required")
@@ -221,6 +252,11 @@ def validate_decisions(
                         )
             if proposal is not None or price is not None or date is not None:
                 errors.append(f"decision[{index}]_hard_prohibited_offer_must_be_null")
+            if _RETAINER_ID.fullmatch(str(request_id or "")) and any(
+                row[field] is not None
+                for field in ("work_frequency", "weekly_hours_min", "weekly_hours_max")
+            ):
+                errors.append(f"decision[{index}]_hard_prohibited_retainer_terms_must_be_null")
     if len(set(actual_ids)) != len(actual_ids):
         errors.append("decision_request_ids_duplicate")
     # The model owns the judgment and semantic priority for each immutable request
@@ -256,7 +292,10 @@ def planner_prompt(envelope: dict) -> str:
         "For every request, make your own feasibility judgment from its actual visible details. Do not claim\n"
         "that anything was opened, filled, clicked, submitted, verified, or saved. Return JSON that matches\n"
         "the supplied schema exactly, with one decision for every request ID. Order the decision rows for execution: first\n"
-        "Every decision object has exactly these six fields: request_id, business_class, reason_codes, proposal_text, price_jpy, deliver_date.\n"
+        "A single-work decision has exactly these six fields: request_id, business_class, reason_codes, proposal_text, price_jpy, deliver_date. "
+        "A retainer decision (ULID request_id) additionally has work_frequency, weekly_hours_min, weekly_hours_max. "
+        "work_frequency is one of WEEK_ONE, WEEK_TWO, WEEK_THREE, WEEK_FOUR, WEEK_FIVE, BIWEEKLY, MONTH_ONE. "
+        "For a feasible retainer choose those terms from the listing; for hard_prohibited set all three to null.\n"
         "submit_required coding, AI, system, automation, and other high-reward work; within that group prefer higher expected\n"
         "reward, then place every other submit_required row. Never omit lower-priority feasible work. Put hard_prohibited rows\n"
         "after submit_required rows. If more than 20 rows are feasible, the first 20 submit_required rows must be the strongest\n"
@@ -300,7 +339,7 @@ def planner_prompt(envelope: dict) -> str:
         "Coconala application lane music boundary: generated or prompted music/audio is prohibited as a required deliverable; do not produce music or audio through prompts. An original song, BGM, performance, mix, master, or edited audio deliverable is music_or_audio_production even when generative tools could create it; music software, music research, or writing about music is not music_or_audio_production and remains submit_required only when no other hard-prohibition class applies.\n"
         "Experience uncertainty, weak portfolio, broad scope, low budget, difficulty, unclear production scope, optional consultation, and unverified achievements remain discretionary weaknesses. Missing Adobe experience alone is not a refusal reason, but required desktop-application operation is hard-prohibited.\n\n"
         "狙う仕事の順序: ①software / landing_page / article / strategyとしてcode・file・documentで非同期完結する仕事 "
-        "②その他の非同期成果物。継続性より、現在のskillで高品質な完成成果を自律納品できることを優先する。\n"
+        "②その他の非同期成果物。単発・継続を問わず、現在のskillで高品質な完成成果を自律納品できることを優先する。\n"
         "候補探索・採用代行・大量DM・SNS運用・account warming・反復browser入力を主成果とする仕事は選ばない。\n"
         "納品数など自分で完遂できる数量はよいが、回収率・売上・登録者・再生数・順位・成約数など外部反応に依存する\n"
         "数値を検収条件または報酬条件として保証する案件は uncontrolled_numeric_outcome として応募しない。\n"

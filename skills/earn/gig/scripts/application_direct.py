@@ -23,6 +23,7 @@ from b2_result_gate import (
     next_search_cursor,
 )
 from b2_search_objective import checkpoint, finish, wake_plan
+from application_snapshot import SnapshotContractError, canonical_request_url
 import evidence_gc
 from telegram_outbox import TelegramOutbox, dispatch_one
 from apply_telegram_report import ApplyTelegramTransport
@@ -80,7 +81,10 @@ def _official_open_scan_prep(prep: dict[str, Any]) -> dict[str, Any]:
     thresholds["min_contracted_to_skip"] = 0
     return {
         **prep,
-        "target_apply_per_pass": DIRECT_MAX_APPLICATIONS,
+        # One continuous opportunity shares the existing 20-attempt Apply budget;
+        # it is not a separate lane or scheduler.
+        "target_apply_per_pass": DIRECT_MAX_APPLICATIONS - 1,
+        "target_retainer_apply_per_pass": 1,
         "max_apply_per_pass": DIRECT_MAX_APPLICATIONS,
         "category_order": [],
         "apply_skip_thresholds": thresholds,
@@ -555,7 +559,7 @@ def _validated_observations(payload: Any) -> dict[str, Any] | None:
     lifecycle_ids = set()
     for row in payload["lifecycle_results"]:
         request_id = row.get("request_id") if isinstance(row, dict) else None
-        if not isinstance(request_id, str) or not request_id.isdigit() or request_id in lifecycle_ids or not isinstance(row.get("title"), str): return None
+        if not isinstance(request_id, str) or not _valid_b2_request_id(request_id) or request_id in lifecycle_ids or not isinstance(row.get("title"), str): return None
         lifecycle_ids.add(request_id)
         if row.get("status") == "unknown" and row.get("reason_codes") in (["lifecycle_observation_invalid"], ["lifecycle_shard_conflict"]) and not any(key in row for key in ("canonical_url", "page_state", "accepting_control", "deadline_state", "deadline_value", "form_state", "lifecycle_sha256")): continue
         fields = ("page_state", "accepting_control", "deadline_state", "deadline_value", "form_state")
@@ -565,7 +569,10 @@ def _validated_observations(payload: Any) -> dict[str, Any] | None:
             try: deadline = dt.date.fromisoformat(row["deadline_value"])
             except (TypeError, ValueError): return None
             if deadline.isoformat() != row["deadline_value"] or row["deadline_state"] != ("expired" if deadline < dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).date() else "future"): return None
-        canonical_url = f"https://coconala.com/requests/{request_id}"
+        try:
+            canonical_url = canonical_request_url(str(row.get("canonical_url") or ""), request_id=request_id)
+        except SnapshotContractError:
+            return None
         if row.get("canonical_url") != canonical_url or row.get("lifecycle_sha256") != hashlib.sha256(json.dumps({"request_id": request_id, "canonical_url": canonical_url, **{key: row[key] for key in fields}}, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest(): return None
         expected = {"page_state": "present", "accepting_control": "present", "deadline_state": "future", "form_state": "present"}
         reasons = [f"{key}:{row[key]}" for key, value in expected.items() if row[key] != value]
@@ -1058,7 +1065,7 @@ def _finish(
             intent = _load(path)
             if (
                 not isinstance(intent, dict)
-                or intent.get("version") != 2
+                or intent.get("version") not in {2, 3}
                 or intent.get("state") != "prepared"
                 or intent.get("effect_phase") != "irreversible_attempt_started"
             ):

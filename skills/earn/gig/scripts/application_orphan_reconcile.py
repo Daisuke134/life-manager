@@ -22,7 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import coconala_applied_readback as readback
 
 
-RETAINER_ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
+RETAINER_ULID = re.compile(r"[0-7][0-9A-HJKMNP-TV-Z]{25}")
 
 
 def _title(value: object) -> str:
@@ -41,7 +41,7 @@ def candidate_from_evidence(path: Path) -> dict[str, str]:
     parsed = urlsplit(str(payload.get("url") or ""))
     single = re.fullmatch(r"/requests/(\d+)/?", parsed.path)
     retainer = re.fullmatch(
-        r"/job_matching/outsources/([0-9A-HJKMNP-TV-Z]{26})/?",
+        r"/job_matching/outsources/([0-7][0-9A-HJKMNP-TV-Z]{25})/?",
         parsed.path,
     )
     if parsed.hostname not in {"coconala.com", "www.coconala.com"} or not (

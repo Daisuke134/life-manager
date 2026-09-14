@@ -350,6 +350,7 @@ def main():
             "experiments_due": experiments_due,
             "active_strategy_experiment": active_strategy_experiment,
             "max_apply_per_pass": int(strategy["max_apply_per_pass"]),
+            "target_retainer_apply_per_pass": 1,
             "category_order": category_order,
             "category_source": category.get("decided_by") or "fallback",
             "experiment_freeze": freeze,
@@ -374,6 +375,7 @@ def main():
             "experiments_due": [],
             "active_strategy_experiment": None,
             "max_apply_per_pass": MAX_APPLICATIONS_PER_HOUR,
+            "target_retainer_apply_per_pass": 1,
             # X8c: even the crash-safe path names a category order. A pass that reaches
             # here has no measured ranking, so it says so rather than implying one.
             "category_order": list(FALLBACK["priority_categories"]),

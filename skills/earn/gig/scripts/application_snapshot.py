@@ -30,6 +30,8 @@ _REQUEST_PATHS = (
     re.compile(r"^/requests/([0-9]+)$"),
     re.compile(r"^/job_matching/requests/([0-9]+)$"),
 )
+_RETAINER_PATH = re.compile(r"^/job_matching/outsources/([0-7][0-9A-HJKMNP-TV-Z]{25})$")
+_RETAINER_ULID = re.compile(r"^[0-7][0-9A-HJKMNP-TV-Z]{25}$")
 _TRACKING_QUERY_KEYS = frozenset({"fbclid", "gclid", "ref"})
 
 _ROOT_FIELDS = frozenset({
@@ -74,9 +76,23 @@ def sha256_json(value: object) -> str:
 
 def canonical_request_id(value: object) -> str:
     request_id = str(value).strip()
-    if not request_id.isdigit():
+    if not (request_id.isdigit() or _RETAINER_ULID.fullmatch(request_id)):
         raise SnapshotContractError("request_id_must_be_decimal")
     return request_id
+
+
+def _identity_sort_key(identity: str) -> tuple[int, int | str]:
+    """Sort legacy numeric IDs before retainer ULIDs without changing either form."""
+    return (0, int(identity)) if identity.isdigit() else (1, identity)
+
+
+def _is_canonical_identity(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+    try:
+        return canonical_request_id(value) == value
+    except SnapshotContractError:
+        return False
 
 
 def canonical_request_url(value: object, *, request_id: object | None = None) -> str:
@@ -86,16 +102,23 @@ def canonical_request_url(value: object, *, request_id: object | None = None) ->
     if parsed.hostname.lower().removeprefix("www.") != "coconala.com":
         raise SnapshotContractError("request_url_host_invalid")
     found_id = None
+    retainer = False
     for pattern in _REQUEST_PATHS:
         matched = pattern.fullmatch(parsed.path.rstrip("/"))
         if matched:
             found_id = matched.group(1)
             break
     if found_id is None:
+        matched = _RETAINER_PATH.fullmatch(parsed.path.rstrip("/"))
+        if matched:
+            found_id = matched.group(1)
+            retainer = True
+    if found_id is None:
         raise SnapshotContractError("request_url_path_invalid")
     if request_id is not None and found_id != canonical_request_id(request_id):
         raise SnapshotContractError("request_url_identity_mismatch")
-    return f"https://coconala.com/requests/{found_id}"
+    path = f"/job_matching/outsources/{found_id}" if retainer else f"/requests/{found_id}"
+    return f"https://coconala.com{path}"
 
 
 def canonical_source_url(value: object) -> str:
@@ -105,7 +128,7 @@ def canonical_source_url(value: object) -> str:
     if parsed.hostname.lower().removeprefix("www.") != "coconala.com":
         raise SnapshotContractError("source_url_host_invalid")
     path = parsed.path.rstrip("/") or "/"
-    if path != "/requests":
+    if path not in {"/requests", "/job_matching/outsources"}:
         raise SnapshotContractError("source_url_path_invalid")
     query = [
         (key, item)
@@ -412,7 +435,7 @@ def build_envelope(collector: object) -> dict[str, object]:
         },
         "search_sources": sources,
         "request_details": details,
-        "already_applied_ids": sorted(set(already_applied), key=lambda item: int(item)),
+        "already_applied_ids": sorted(set(already_applied), key=_identity_sort_key),
     }
     envelope["snapshot_sha256"] = sha256_json(envelope)
     errors = validate_snapshot(envelope)
@@ -503,7 +526,10 @@ def validate_snapshot(envelope: object) -> list[str]:
                 errors.append("source_card_ids_invalid")
             else:
                 ids = source["card_request_ids"]
-                if not all(isinstance(item, str) and item.isdigit() for item in ids) or len(set(ids)) != len(ids):
+                if not all(
+                    _is_canonical_identity(item)
+                    for item in ids
+                ) or len(set(ids)) != len(ids):
                     errors.append("source_card_ids_invalid")
                 card_ids.extend(ids)
             if not isinstance(source["has_next"], bool) or not isinstance(source["exhausted"], bool) or source["has_next"] == source["exhausted"]:
@@ -527,7 +553,7 @@ def validate_snapshot(envelope: object) -> list[str]:
             assert isinstance(detail, dict)
             request_id = detail["request_id"]
             detail_ids.append(str(request_id))
-            if not isinstance(request_id, str) or not request_id.isdigit():
+            if not _is_canonical_identity(request_id):
                 errors.append("detail_request_id_invalid")
             try:
                 if detail["canonical_url"] != canonical_request_url(detail["canonical_url"], request_id=request_id):
@@ -562,7 +588,14 @@ def validate_snapshot(envelope: object) -> list[str]:
             all_cards = [identifier for source in sources for identifier in source.get("card_request_ids", [])]
             if set(all_cards) != set(detail_ids):
                 errors.append("card_detail_identity_incomplete")
-    if not isinstance(applied, list) or not all(isinstance(item, str) and item.isdigit() for item in applied) or len(set(applied)) != len(applied):
+    if (
+        not isinstance(applied, list)
+        or not all(
+            _is_canonical_identity(item)
+            for item in applied
+        )
+        or len(set(applied)) != len(applied)
+    ):
         errors.append("already_applied_ids_invalid")
     snapshot_without_hash = {key: value for key, value in envelope.items() if key != "snapshot_sha256"}
     if not isinstance(envelope["snapshot_sha256"], str) or envelope["snapshot_sha256"] != sha256_json(snapshot_without_hash):

@@ -24,7 +24,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 import application_orphan_reconcile as orphan
 
 
-IDENTITY = re.compile(r"(?:\d+|[0-9A-HJKMNP-TV-Z]{26})")
+IDENTITY = re.compile(r"(?:\d+|[0-7][0-9A-HJKMNP-TV-Z]{25})")
 LEASE_SCRIPT = (
     Path(__file__).resolve().parents[2]
     / "_shared"

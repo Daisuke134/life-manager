@@ -62,7 +62,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 _NORMALIZE = Path(__file__).resolve().parent / "normalize_applied.py"
-_RETAINER_ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
+_RETAINER_ULID = re.compile(r"[0-7][0-9A-HJKMNP-TV-Z]{25}")
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:

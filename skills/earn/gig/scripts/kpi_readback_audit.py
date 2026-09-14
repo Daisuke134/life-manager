@@ -26,7 +26,7 @@ HASH_KEYS = {
     "storefront_readback", "storefront_contract", "apply_readback", "applied.jsonl",
     "settlement_projection",
 }
-ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
+ULID = re.compile(r"[0-7][0-9A-HJKMNP-TV-Z]{25}")
 SHA256 = re.compile(r"[0-9a-f]{64}")
 
 

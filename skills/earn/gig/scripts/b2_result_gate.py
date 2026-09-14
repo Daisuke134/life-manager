@@ -23,7 +23,7 @@ class ContractError(ValueError):
     """The frozen policy input is absent or malformed."""
 
 
-_RETAINER_ULID = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
+_RETAINER_ULID = re.compile(r"[0-7][0-9A-HJKMNP-TV-Z]{25}")
 
 
 def _valid_request_id(value: Any) -> bool:
@@ -98,6 +98,11 @@ def build_context(prep: dict[str, Any], applied_path: Path) -> dict[str, Any]:
         for value in (prep.get("category_order") or [])
         if str(value).strip()
     ]
+    _integer(prep.get("max_apply_per_pass"), "max_apply_per_pass", minimum=1)
+    # One continuous application has its own source, form, and readback.  It is a
+    # reserved slot, never an interchangeable twentieth single-offer application.
+    target_retainer = 1
+    target_single = 19
     return {
         "version": 7,
         # Dais 2026-08-06: quantity IS the strategy. Many posters never pick anyone --
@@ -105,21 +110,9 @@ def build_context(prep: dict[str, Any], applied_path: Path) -> dict[str, Any]:
         # with no winner -- so hit-rate per application is structurally low and the only
         # lever that compounds is applying to every eligible fresh job, every pass.
         # Tunable through passprep (target_apply_per_pass); the parent contract caps at 20.
-        "target_applications": min(
-            20, max(1, _integer(
-                prep.get("target_apply_per_pass") if prep.get("target_apply_per_pass") is not None else 8,
-                "target_apply_per_pass", minimum=1,
-            ))
-        ),
-        # A3 (2026-07-30): frozen at zero. 継続 listings escalate to a synchronous
-        # 三者面談 before money moves, so every retainer application buys a
-        # human-in-the-loop. The submit itself is refused in code by
-        # application_eligibility; this number only stops the gate from demanding
-        # a retainer the browser can no longer produce.
-        "target_retainer_applications": 0,
-        "max_applications": min(
-            20, max(8, _integer(prep.get("max_apply_per_pass"), "max_apply_per_pass", minimum=1))
-        ),
+        "target_applications": target_single,
+        "target_retainer_applications": target_retainer,
+        "max_applications": 20,
         "min_budget_jpy": _integer(
             thresholds.get("min_budget_jpy"), "min_budget_jpy", minimum=0
         ),
@@ -145,6 +138,7 @@ def build_context(prep: dict[str, Any], applied_path: Path) -> dict[str, Any]:
         # model call spent on an outcome that cannot happen.
         "required_search_source_ids": [
             "single:new",
+            *("retainer:new",),
             *(f"single:category:{category}" for category in categories),
             *(("single:keyword",) if categories else ()),
         ],
@@ -438,11 +432,12 @@ def next_search_cursor(
         "target_retainer_applications",
         minimum=0,
     )
+    verified_single_count = sum(1 for request_id in application_ids if request_id.isdigit())
     verified_retainer_count = sum(
         1 for request_id in application_ids if not request_id.isdigit()
     )
     if (
-        len(application_ids) >= target
+        verified_single_count >= target
         and verified_retainer_count < target_retainer
         and "retainer:new" in required
     ):
@@ -567,6 +562,8 @@ def continuation_state(
             "marketplace_live_dom_url_mismatch",
         }
         or error.startswith("application_count_mismatch:")
+        or error.startswith("application_single_count_mismatch:")
+        or error.startswith("application_retainer_count_mismatch:")
         or error.startswith("under_target_inspection_quantity_too_low:")
         or error.startswith("search_source_")
         or error.startswith("search_sources_")
@@ -587,6 +584,7 @@ def continuation_state(
         minimum=0,
     )
     verified = _verified_pass_application_ids(ledger_path, pass_id)
+    verified_singles = {request_id for request_id in verified if request_id.isdigit()}
     verified_retainers = {
         request_id for request_id in verified if not request_id.isdigit()
     }
@@ -595,7 +593,7 @@ def continuation_state(
         "retainer_search_not_exhausted",
     }
     recoverable_retainer = (
-        len(verified) >= target
+        len(verified_singles) >= target
         and len(verified_retainers) < target_retainer
         and any(error in retainer_recoverable_errors for error in errors)
         and all(
@@ -607,7 +605,7 @@ def continuation_state(
         )
     )
     allowed = (
-        recoverable_volume and len(verified) < target
+        recoverable_volume and len(verified_singles) < target
     ) or recoverable_retainer
     return allowed, len(verified), target
 
@@ -623,6 +621,8 @@ _SHORTFALL_ERROR_PREFIXES = (
     "under_target_search_not_exhausted",
     "under_target_inspection_quantity_too_low:",
     "application_count_mismatch:",
+    "application_single_count_mismatch:",
+    "application_retainer_count_mismatch:",
 )
 # EVIDENCE DEFECT = a per-source evidence-binding diagnostic. Measured 2026-08-07:
 # all 57-61 of these per pass come from one filename collision, not from a category
@@ -1168,11 +1168,24 @@ def validate_result(
         for request_id in application_ids
         if request_id not in carried_application_ids
     ]
-    remaining_capacity = max(
-        0,
-        max_applications - len(carried_application_ids),
+    carried_single_ids = {
+        request_id for request_id in carried_application_ids if request_id.isdigit()
+    }
+    carried_retainer_ids = carried_application_ids - carried_single_ids
+    new_eligible_single_ids = [
+        request_id for request_id in new_eligible_ids if request_id.isdigit()
+    ]
+    new_eligible_retainer_ids = [
+        request_id for request_id in new_eligible_ids if not request_id.isdigit()
+    ]
+    expected_single_applications = min(
+        len(new_eligible_single_ids), max(0, target_applications - len(carried_single_ids))
     )
-    expected_applications = min(len(new_eligible_ids), remaining_capacity)
+    expected_retainer_applications = min(
+        len(new_eligible_retainer_ids),
+        max(0, target_retainer_applications - len(carried_retainer_ids)),
+    )
+    expected_applications = expected_single_applications + expected_retainer_applications
     recovered_new_application_ids = (
         same_pass_verified_ids
         & set(new_eligible_ids)
@@ -1180,6 +1193,20 @@ def validate_result(
     )
     effective_new_application_ids = set(new_application_ids)
     effective_new_application_ids.update(recovered_new_application_ids)
+    effective_new_single_ids = {
+        request_id for request_id in effective_new_application_ids if request_id.isdigit()
+    }
+    effective_new_retainer_ids = effective_new_application_ids - effective_new_single_ids
+    if len(effective_new_single_ids) != expected_single_applications:
+        errors.append(
+            "application_single_count_mismatch:"
+            f"expected={expected_single_applications}:actual={len(effective_new_single_ids)}"
+        )
+    if len(effective_new_retainer_ids) != expected_retainer_applications:
+        errors.append(
+            "application_retainer_count_mismatch:"
+            f"expected={expected_retainer_applications}:actual={len(effective_new_retainer_ids)}"
+        )
     if len(effective_new_application_ids) != expected_applications:
         errors.append(
             "application_count_mismatch:"
@@ -1193,6 +1220,7 @@ def validate_result(
         for request_id in cumulative_application_ids
         if not request_id.isdigit()
     }
+    cumulative_single_ids = cumulative_application_ids - cumulative_retainer_ids
 
     required_source_ids_ordered = [
         str(value)
@@ -1313,7 +1341,7 @@ def validate_result(
         for request_id in eligible_ids
         if not request_id.isdigit()
     }
-    if len(cumulative_application_ids) < target_applications:
+    if len(cumulative_single_ids) < target_applications:
         if source_ids != required_source_ids or not all_sources_exhausted:
             new_inspected_count = len(set(seen) - prior_inspected_request_ids)
             if (
@@ -1333,7 +1361,7 @@ def validate_result(
     # decides, rather than a deletion someone has to re-derive to reverse.
     if (
         target_retainer_applications > 0
-        and len(cumulative_application_ids) >= target_applications
+        and len(cumulative_single_ids) >= target_applications
     ):
         if "retainer:new" not in source_ids:
             errors.append("retainer_search_evidence_missing")

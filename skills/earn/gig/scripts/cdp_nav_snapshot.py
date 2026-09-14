@@ -26,7 +26,6 @@ from __future__ import annotations
 import argparse, asyncio, base64, fcntl, hashlib, json, os, re, sys, subprocess, time, urllib.request
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
-from typing import NoReturn
 from urllib.parse import urlparse
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
@@ -50,7 +49,7 @@ APPLICATION_CONFIRM_SELECTOR = (
     '#OfferAddForm button[type="submit"],'
     'form[action^="/offers/add/"] button[type="submit"]'
 )
-RETAINER_ULID_PATTERN = re.compile(r"[0-9A-HJKMNP-TV-Z]{26}")
+RETAINER_ULID_PATTERN = re.compile(r"[0-7][0-9A-HJKMNP-TV-Z]{25}")
 
 
 def _cdp_base():
@@ -554,62 +553,37 @@ async def open_application_form(
     return evidence
 
 
-def _refuse_retainer_application(
-    outsource_ulid: str,
-    evidence_path: Path,
-) -> NoReturn:
-    """Refuse a 継続 application in code, and leave the refusal on disk.
-
-    A3 (2026-07-30). Retainer listings reach a synchronous 三者面談 before money
-    moves, so applying into that bucket buys a human-in-the-loop on every deal.
-    The refusal is taken here, before the websocket is opened, because the only
-    fully safe click is the one whose browser was never connected. It is written
-    down rather than dropped so a pass that "did nothing about a retainer" can be
-    told apart from a pass that never saw one.
-    """
-    outsource_ulid = str(outsource_ulid).strip()
-    if RETAINER_ULID_PATTERN.fullmatch(outsource_ulid) is None:
-        raise ValueError("outsource_ulid_invalid")
-    opportunity_url = (
-        "https://coconala.com/job_matching/outsources/"
-        f"{outsource_ulid}"
-    )
-    # No page is opened for a retainer, so there is no market to observe. The gate
-    # refuses on the bucket alone; the explicit None keeps that honest instead of
-    # letting a retainer refusal masquerade as a market it never read.
-    verdict = evaluate_application("", "", bucket="retainer", market=None)
-    _write_eligibility_evidence(
-        evidence_path,
-        request_id=outsource_ulid,
-        bucket="retainer",
-        opportunity_url=opportunity_url,
-        brief_text="",
-        proposal_text="",
-        verdict=verdict,
-        market=None,
-    )
-    reasons = verdict.get("reason_codes")
-    reason = (
-        ",".join(str(item) for item in reasons)
-        if isinstance(reasons, list)
-        else "unknown"
-    )
-    raise RuntimeError(f"application_eligibility_rejected:{reason}")
-
-
 async def open_retainer_application_form(
     ws_url: str,
     outsource_ulid: str,
     screenshot_path: Path,
     evidence_path: Path,
-) -> NoReturn:
-    """Refuse to open the 継続 application form (A3): 単発 is the only path.
-
-    Filling a form whose submit can only be refused is browser time and model
-    tokens bought for an outcome that cannot happen, so the entrance is closed at
-    the same gate the submit uses.
-    """
-    _refuse_retainer_application(outsource_ulid, evidence_path)
+) -> dict[str, object]:
+    """Open and prove the measured retainer form before any irreversible click."""
+    request_id = str(outsource_ulid).strip()
+    if RETAINER_ULID_PATTERN.fullmatch(request_id) is None:
+        raise ValueError("outsource_ulid_invalid")
+    expected_url = f"https://coconala.com/job_matching/outsources/{request_id}/apply"
+    async with websockets.connect(ws_url, ping_interval=None, open_timeout=10, max_size=40 * 1024 * 1024) as ws:
+        cid = 1
+        await _call(ws, "Page.enable", {}, cid); cid += 1
+        await ws.send(json.dumps({"id": cid, "method": "Page.navigate", "params": {"url": expected_url}})); cid += 1
+        loaded, cid = await _wait_for_load(ws, asyncio.get_event_loop().time() + LOAD_TIMEOUT_SECS, cid)
+        if not loaded:
+            raise RuntimeError("retainer_application_form_navigation_timeout")
+        state = await _call(ws, "Runtime.evaluate", {"expression": """JSON.stringify((()=>{const options=['WEEK_ONE','WEEK_TWO','WEEK_THREE','WEEK_FOUR','WEEK_FIVE','BIWEEKLY','MONTH_ONE'];const frequency=[...document.querySelectorAll('select')].filter(s=>options.every(v=>[...s.options].some(o=>o.value===v)));const count=s=>document.querySelectorAll(s).length;return {url:location.href,title:document.title,counts:{compensation:count('input[type="number"][name="desiredCompensation"]'),frequency:frequency.length,hours_start:count('input[name="weeklyWorkingHoursStart"]'),hours_end:count('input[name="weeklyWorkingHoursEnd"]'),message:count('textarea[placeholder="応募メッセージを入力してください"]'),confirm:[...document.querySelectorAll('button,[role="button"]')].filter(b=>b.offsetParent!==null&&(b.innerText||'').trim()==='確認画面に進む').length}})())""", "returnByValue": True}, cid); cid += 1
+        raw = state.get("result", {}).get("result", {}).get("value", "") or ""
+        form = json.loads(raw)
+        if form.get("url") != expected_url or any(value != 1 for value in form.get("counts", {}).values()):
+            raise RuntimeError("retainer_application_form_controls_missing")
+        shot = await _call(ws, "Page.captureScreenshot", {"format": "png"}, cid)
+        encoded = shot.get("result", {}).get("data")
+        if not encoded:
+            raise RuntimeError("retainer_application_form_screenshot_missing")
+    evidence = {"request_id": request_id, "url": expected_url, "title": form.get("title"), "form_verified": True, "fields": form["counts"]}
+    _atomic_write(screenshot_path, base64.b64decode(encoded))
+    _atomic_write(evidence_path, (json.dumps(evidence, ensure_ascii=False, separators=(",", ":")) + "\n").encode("utf-8"))
+    return evidence
 
 
 async def _mouse_click(ws, x: float, y: float, cid: int) -> int:
@@ -981,22 +955,6 @@ async def submit_application(
         )
 
 
-async def submit_retainer_application(
-    ws_url: str,
-    outsource_ulid: str,
-    screenshot_path: Path,
-    evidence_path: Path,
-    *,
-    listing_title: str | None = None,
-    wait_seconds: float = 2.5,
-    opportunity_brief: str | None = None,
-) -> NoReturn:
-    """Refuse a 継続 submit (A3). The subcommand survives so a stale caller --
-    an older prompt, a queued repair, an operator's shell -- gets a legible,
-    recorded refusal instead of a missing command it might route around."""
-    _refuse_retainer_application(outsource_ulid, evidence_path)
-
-
 def _open_application_main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--ws", required=True)
@@ -1069,32 +1027,6 @@ def _open_retainer_application_main(argv: list[str]) -> int:
     return 0
 
 
-def _submit_retainer_application_main(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--ws", required=True)
-    parser.add_argument("--request-id", required=True)
-    parser.add_argument("--screenshot", required=True, type=Path)
-    parser.add_argument("--evidence", required=True, type=Path)
-    parser.add_argument("--listing-title")
-    args = parser.parse_args(argv)
-    try:
-        result = asyncio.run(submit_retainer_application(
-            args.ws,
-            args.request_id,
-            args.screenshot,
-            args.evidence,
-            listing_title=args.listing_title,
-        ))
-    except Exception as error:
-        print(json.dumps({
-            "ok": False,
-            "error": f"{type(error).__name__}:{error}",
-        }, ensure_ascii=False, separators=(",", ":")), file=sys.stderr)
-        return 1
-    print(json.dumps({"ok": True, **result}, ensure_ascii=False, separators=(",", ":")))
-    return 0
-
-
 def _observe_main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--ws", required=True)
@@ -1120,7 +1052,10 @@ def _observe_main(argv: list[str]) -> int:
 
 
 def main() -> int:
-    if len(sys.argv) > 1 and sys.argv[1] in {"open-application", "submit-application"}:
+    if len(sys.argv) > 1 and sys.argv[1] in {
+        "open-application", "submit-application",
+        "open-retainer-application", "submit-retainer-application",
+    }:
         # LIVE-1: these former model-facing commands split form-open/fill/submit
         # across an untrusted process.  They stay fail-closed for stale callers, but
         # no longer parse arguments or connect to a websocket before refusing.
@@ -1129,10 +1064,6 @@ def main() -> int:
             "error": "parent_owned_application_boundary",
         }, ensure_ascii=False, separators=(",", ":")), file=sys.stderr)
         return 2
-    if len(sys.argv) > 1 and sys.argv[1] == "open-retainer-application":
-        return _open_retainer_application_main(sys.argv[2:])
-    if len(sys.argv) > 1 and sys.argv[1] == "submit-retainer-application":
-        return _submit_retainer_application_main(sys.argv[2:])
     if len(sys.argv) > 1 and sys.argv[1] == "probe-session":
         parser = argparse.ArgumentParser()
         parser.add_argument("--url", required=True)
@@ -1160,8 +1091,7 @@ def main() -> int:
             "       cdp_nav_snapshot.py "
             "<pass_id> <seq> <label> <url> [action_note]\n\n"
             "commands:\n"
-            "  open-retainer-application  REFUSED (A3): 継続 applications are disabled\n"
-            "  submit-retainer-application REFUSED (A3): 継続 applications are disabled\n"
+            "  application commands are parent-owned; direct invocation is refused\n"
             "  observe           navigate one leased target and capture evidence\n"
             "  probe-session     verify an authenticated session in a hidden target"
         )
