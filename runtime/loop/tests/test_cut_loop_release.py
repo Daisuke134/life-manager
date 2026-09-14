@@ -389,10 +389,10 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertIn(
                 "--negotiation-tip=refs/remotes/origin/main", fetch_args.read_text()
             )
-            self.assertEqual(reconcile_calls.read_text().splitlines(), [
-                "reconcile shared-agent-runner --loaded-idle-only",
-                "reconcile deterministic --loaded-idle-only",
-            ])
+            self.assertFalse(
+                reconcile_calls.exists(),
+                "a pre-fetch release must never be applied after current can move",
+            )
 
     def test_reconciler_pins_captured_main_sha_when_origin_moves_during_cut(self):
         with tempfile.TemporaryDirectory() as directory:

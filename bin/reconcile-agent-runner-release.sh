@@ -39,6 +39,10 @@ reconcile_release() {
   return "$status"
 }
 
+"$runtime_python" "$timeout_runner" --grace-seconds 15 "$fetch_timeout_seconds" \
+  git -C "$SOURCE_REPO" fetch --quiet --no-tags --no-auto-maintenance \
+    --negotiation-tip=refs/remotes/origin/main origin main
+main_sha="$(git -C "$SOURCE_REPO" rev-parse origin/main)"
 initial_release_root="$(cd "$CURRENT" 2>/dev/null && pwd -P || true)"
 current_sha=""
 current_paths=""
@@ -48,19 +52,6 @@ if [ -n "$initial_release_root" ]; then
 fi
 current_complete=0
 [ "$current_paths" = "ALL" ] && current_complete=1
-initial_reconciled=0
-initial_status=0
-if [ "$current_complete" -eq 1 ] && [ -x "$initial_release_root/bin/lm-loop" ]; then
-  if ! reconcile_release "$initial_release_root"; then
-    initial_status=1
-  fi
-  initial_reconciled=1
-fi
-
-"$runtime_python" "$timeout_runner" --grace-seconds 15 "$fetch_timeout_seconds" \
-  git -C "$SOURCE_REPO" fetch --quiet --no-tags --no-auto-maintenance \
-    --negotiation-tip=refs/remotes/origin/main origin main
-main_sha="$(git -C "$SOURCE_REPO" rev-parse origin/main)"
 release_sha_target="$main_sha"
 
 # The public specs and the Gig progress ledger are not runtime inputs. Re-exporting the complete
@@ -89,7 +80,4 @@ if [ "$release_sha" != "$release_sha_target" ] || [ "$release_paths" != "ALL" ];
   exit 1
 fi
 
-if [ "$initial_reconciled" -eq 1 ] && [ "$RELEASE_ROOT" = "$initial_release_root" ]; then
-  exit "$initial_status"
-fi
 reconcile_release "$RELEASE_ROOT"
