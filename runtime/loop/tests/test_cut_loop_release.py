@@ -39,7 +39,9 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             release = next((loops / "releases").iterdir())
             tag = sys.implementation.cache_tag
-            self.assertTrue(list(release.glob(f"runtime/**/__pycache__/*.{tag}.pyc")))
+            caches = list(release.glob(f"runtime/**/__pycache__/*.{tag}.pyc"))
+            self.assertTrue(caches)
+            self.assertEqual(int.from_bytes(caches[0].read_bytes()[4:8], "little"), 3)
             self.assertFalse(release.stat().st_mode & 0o200)
             manifest = json.loads((release / "RELEASE.json").read_text())
             self.assertEqual(manifest["runtime_python"], str(Path(sys.executable).resolve()))

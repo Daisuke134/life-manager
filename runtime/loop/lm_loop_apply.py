@@ -7,6 +7,7 @@ import os
 import plistlib
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -243,6 +244,26 @@ def build_apply_plan(registry: dict, release_root: Path, release_sha: str) -> li
     )
     if not runtime_python.is_file() or not os.access(runtime_python, os.X_OK):
         raise ValueError("release runtime python missing or not executable")
+    expected_cache_tag = manifest.get("runtime_python_cache_tag")
+    if expected_cache_tag is not None:
+        if not isinstance(expected_cache_tag, str) or not expected_cache_tag:
+            raise ValueError("release runtime python cache tag is invalid")
+        try:
+            completed = subprocess.run(
+                [str(runtime_python), "-c",
+                 "import sys; print(sys.implementation.cache_tag)"],
+                capture_output=True, text=True, check=False, timeout=5,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise ValueError("release runtime python cannot report its cache tag") from error
+        if completed.returncode != 0 or completed.stdout.strip() != expected_cache_tag:
+            raise ValueError("release runtime python cache tag mismatch")
+        runner_cache = (
+            release_root / "runtime/loop/__pycache__"
+            / f"lm_loop_run.{expected_cache_tag}.pyc"
+        )
+        if not runner_cache.is_file():
+            raise ValueError("release runtime bytecode cache is incomplete")
     loop_runner = release_root / "bin/lm-loop-run"
     if not loop_runner.is_file() or not os.access(loop_runner, os.X_OK):
         raise ValueError("release loop runner missing or not executable")
