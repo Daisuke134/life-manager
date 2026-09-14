@@ -234,6 +234,19 @@ def _digest(owner_id: str) -> str:
     return hashlib.sha256(owner_id.encode()).hexdigest()
 
 
+def _acquire_bounded(descriptor: int, timeout_seconds: float = 5.0) -> bool:
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return True
+        except BlockingIOError:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            time.sleep(min(0.01, remaining))
+
+
 def _database(path: Path) -> sqlite3.Connection:
     connection = sqlite3.connect(path, timeout=0)
     os.chmod(path, 0o600)
@@ -329,9 +342,7 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
     starts, snapshot_started_ns = _identity_snapshot(owners, tickets)
     descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
     try:
-        try:
-            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
+        if not _acquire_bounded(descriptor):
             return None, "control_busy"
         with _database(database) as connection:
             available, _ = _durable_capacity(

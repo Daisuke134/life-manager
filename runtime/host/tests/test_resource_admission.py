@@ -2,6 +2,7 @@ import os
 import fcntl
 import hashlib
 import json
+import multiprocessing
 import time
 import sqlite3
 from pathlib import Path
@@ -21,6 +22,16 @@ def durable_rows(root, table):
     with sqlite3.connect(root / "admission-v2.sqlite3") as connection:
         columns = [row[1] for row in connection.execute(f"PRAGMA table_info({table})")]
         return [dict(zip(columns, row)) for row in connection.execute(f"SELECT * FROM {table}")]
+
+
+def enqueue_after_barrier(root, index, barrier, results):
+    os.environ["LIFE_MANAGER_RESOURCE_ADMISSION_ROOT"] = str(root)
+    os.environ["LIFE_MANAGER_HOST_MAX_FINITE_RUNS"] = "3"
+    os.environ["LIFE_MANAGER_HOST_MAX_AGENT_RUNS"] = "1"
+    os.environ["LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS"] = "2"
+    barrier.wait(timeout=10)
+    ticket, reason = admission.enqueue_durable("agent", f"loop-{index:03d}")
+    results.put((ticket is not None, reason))
 
 
 def test_slot_releases_for_next_owner(tmp_path, monkeypatch):
@@ -502,3 +513,32 @@ def test_five_hundred_durable_waiters_remain_bounded(tmp_path, monkeypatch):
         assert admission.enqueue_durable("agent", f"loop-{index:03d}")[0] is not None
     assert len(durable_rows(tmp_path, "queue")) == 500
     assert time.monotonic() - started < 15
+
+
+def test_simultaneous_durable_waiters_all_persist(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="3")
+    admission.activate_durable_v2()
+    context = multiprocessing.get_context("spawn")
+    barrier = context.Barrier(40)
+    results = context.Queue()
+    processes = [
+        context.Process(target=enqueue_after_barrier, args=(
+            tmp_path, index, barrier, results,
+        ))
+        for index in range(39)
+    ]
+    try:
+        for process in processes:
+            process.start()
+        barrier.wait(timeout=10)
+        for process in processes:
+            process.join(timeout=10)
+        outcomes = [results.get(timeout=2) for _ in processes]
+        assert all(process.exitcode == 0 for process in processes)
+        assert all(persisted for persisted, _ in outcomes)
+        assert len(durable_rows(tmp_path, "queue")) == 39
+    finally:
+        for process in processes:
+            if process.is_alive():
+                process.terminate()
+                process.join(timeout=5)
