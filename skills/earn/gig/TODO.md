@@ -79,11 +79,12 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   `20260914T131809-6a9f3aa4` is current. Targeted `loaded-idle-only` reconciliation installed Apply
   from that release (`install_event_id=693dc472a4efe40d24c605f1`) and correctly skipped running Reply,
   Paid and Storefront without interruption. Paid later terminated naturally and was independently
-  reconciled while idle (`install_event_id=00464047457d35001059a202`). Apply has naturally started PID
-  `29959` from the repaired release, but no terminal event from that SHA exists yet; Reply and Storefront
-  still run the older `833b55b6c966...` release. Therefore merge/release are complete while natural terminal, later
-  idle-only convergence, official effect/readback and replay-zero remain open.
-  Merge, immutable release, idle-only rollout and natural four-lane business receipts remain open.
+  reconciled while idle (`install_event_id=00464047457d35001059a202`). Reply then terminated naturally
+  and was reconciled independently (`install_event_id=1a291dbe46004762fe4b738b`). Apply, Paid and Reply
+  are now installed and naturally running from the repaired release, but no terminal event from that SHA
+  exists yet. Storefront alone still runs the older `833b55b6c966...` release. Therefore source merge and
+  immutable release are complete while Storefront idle-only convergence, four natural terminal receipts,
+  official effect/readback and replay-zero remain open.
 
 - **Reply client isolation is merged and installed.** PR `#5162`, merge SHA `2fe142f696...`,
   runs up to four Coconala client workers concurrently and gives every talkroom its own
