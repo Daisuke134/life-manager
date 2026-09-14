@@ -11,7 +11,7 @@
 # It does three REAL checks against OpenRouter (no dry-run):
 #   1. GET /key -> per-key limit_remaining must be null (unlimited) or > 0
 #   2. GET /credits -> remaining = total_credits - total_usage (must be >= threshold)
-#   3. POST /chat/completions anthropic/claude-sonnet-4.6 max_tokens=5 -> must return 200 + content
+#   3. POST /chat/completions with Capafy's max_tokens=128000 -> must return 200 + content
 # NEVER prints the key. Exits 0 = healthy (publish may proceed), 1 = block (fail-closed).
 #
 # Usage: key_health_gate.sh [min_remaining_usd]   (default 5.00)
@@ -29,6 +29,21 @@ MIN="${1:-5.00}"
 # Sonnet 4.6's $15/M completion price that is $1.92 before prompt cost. Require
 # enough per-key daily headroom for one worst-case admission, not merely > $0.
 REQUEST_HEADROOM="${CAPAFY_REQUEST_HEADROOM_USD:-2.25}"
+SELF_HEAL_RESERVE="${CAPAFY_KEY_SELF_HEAL_RESERVE_USD:-10.00}"
+SELF_HEAL_HARD_CAP="$(python3 - "${CAPAFY_KEY_DAILY_HARD_CAP_USD:-50.00}" <<'PY'
+import math, sys
+try:
+    configured = float(sys.argv[1])
+except ValueError:
+    raise SystemExit(1)
+if not math.isfinite(configured) or configured <= 0:
+    raise SystemExit(1)
+print(min(configured, 50.0))
+PY
+)" || {
+  echo "KEY_HEALTH=FAIL reason=invalid_key_daily_hard_cap"
+  exit 1
+}
 # Warn while still passing but getting low, so user tops up BEFORE an outage.
 ALERT_CUSHION="${CAPAFY_FUNDING_ALERT_USD:-5.00}"
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-$HOME/.local/state/life-manager}"
@@ -41,7 +56,7 @@ alert_user() {
   local marker="$STATE_DIR/.capafy-funding-alert-$(date +%Y-%m-%d)"
   [ -f "$marker" ] && return 0   # already alerted today
   local msg="⚠️ Capafy host LLM key funding ${reason}: OpenRouter remaining \$${remain} (block threshold \$${MIN}, warn <\$${ALERT_CUSHION}). Publishing will stall until topped up. Top up (user only, no auto-charge): https://openrouter.ai/settings/credits"
-  local sender="$(cd -- "$(dirname -- "$0")/../.." && pwd)/_shared/send-telegram.sh"
+  local sender="${CAPAFY_TELEGRAM_SENDER:-$(cd -- "$(dirname -- "$0")/../.." && pwd)/_shared/send-telegram.sh}"
   if [ -x "$sender" ] && [ -n "${TELEGRAM_ALERT_CHAT_ID:-}" ]; then
     "$sender" "$msg" "$TELEGRAM_ALERT_CHAT_ID" >/dev/null 2>&1 \
       && touch "$marker"
@@ -55,8 +70,13 @@ if [ -z "$KEY" ]; then
   echo "KEY_HEALTH=FAIL reason=CAPAFY_HOST_OPENROUTER_KEY missing"; exit 1
 fi
 
-KEY_LIMIT_REMAINING="$(curl -s --max-time 20 https://openrouter.ai/api/v1/key \
-  -H "Authorization: Bearer $KEY" | python3 -c '
+read_key_info() {
+  curl -s --max-time 20 https://openrouter.ai/api/v1/key \
+    -H "Authorization: Bearer $KEY"
+}
+
+KEY_INFO="$(read_key_info)"
+KEY_LIMIT_REMAINING="$(printf '%s' "$KEY_INFO" | python3 -c '
 import json, math, sys
 try:
     data = json.load(sys.stdin).get("data")
@@ -77,18 +97,74 @@ except Exception:
     print("ERR")
 ' 2>/dev/null)"
 
+heal_key_limit() {
+  local management current usage desired key_hash healed
+  management="${CAPAFY_OPENROUTER_MANAGEMENT_KEY:-}"
+  if [ -z "$management" ]; then
+    management="$(grep '^CAPAFY_OPENROUTER_MANAGEMENT_KEY=' "$LIFE_MANAGER_STATE_HOME/.env" 2>/dev/null | cut -d= -f2-)"
+  fi
+  [ -n "$management" ] || return 2
+  current="$(printf '%s' "$KEY_INFO" | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"].get("limit") or 0)' 2>/dev/null)" || return 3
+  usage="$(printf '%s' "$KEY_INFO" | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"].get("usage_daily") or 0)' 2>/dev/null)" || return 3
+  desired="$(python3 - "$current" "$usage" "$SELF_HEAL_RESERVE" "$SELF_HEAL_HARD_CAP" <<'PY'
+import math, sys
+current, usage, reserve, hard_cap = map(float, sys.argv[1:])
+desired = min(hard_cap, max(current + reserve, usage + reserve))
+if not all(map(math.isfinite, (current, usage, reserve, hard_cap))) or desired <= current:
+    raise SystemExit(1)
+print(f"{desired:.2f}")
+PY
+)" || return 4
+  key_hash="$(python3 - "$KEY" <<'PY'
+import hashlib, sys
+print(hashlib.sha256(sys.argv[1].encode()).hexdigest())
+PY
+)" || return 3
+  curl -s --max-time 20 -X PATCH \
+    "https://openrouter.ai/api/v1/keys/$key_hash" \
+    -H "Authorization: Bearer $management" \
+    -H "Content-Type: application/json" \
+    --data "{\"limit\":$desired,\"limit_reset\":\"daily\"}" >/dev/null || return 5
+  KEY_INFO="$(read_key_info)"
+  healed="$(printf '%s' "$KEY_INFO" | python3 -c '
+import json,sys
+d=json.load(sys.stdin).get("data", {})
+r=d.get("limit_remaining")
+print(r if isinstance(r, (int,float)) and not isinstance(r,bool) else "ERR")
+' 2>/dev/null)" || return 6
+  python3 - "$healed" "$REQUEST_HEADROOM" <<'PY' || return 6
+import sys
+raise SystemExit(0 if float(sys.argv[1]) >= float(sys.argv[2]) else 1)
+PY
+  KEY_LIMIT_REMAINING="$healed"
+  echo "KEY_SELF_HEAL=OK daily_limit=\$$desired remaining=\$$healed"
+}
+
 case "$KEY_LIMIT_REMAINING" in
   0)
-    alert_user "unknown" "BLOCKED (per-key limit exhausted)"
-    echo "KEY_HEALTH=FAIL reason=key_limit_exhausted"; exit 1 ;;
+    heal_key_limit
+    heal_rc=$?
+    if [ "$heal_rc" -ne 0 ]; then
+      alert_user "unknown" "BLOCKED (per-key limit exhausted; self-heal failed)"
+      echo "KEY_HEALTH=FAIL reason=key_limit_exhausted self_heal_code=$heal_rc"
+      exit 1
+    fi ;;
   UNLIMITED) ;;
   ''|ERR) echo "KEY_HEALTH=FAIL reason=key_read_failed"; exit 1 ;;
   *)
     HEADROOM_OK="$(python3 -c "print('1' if float('$KEY_LIMIT_REMAINING')>=float('$REQUEST_HEADROOM') else '0')" 2>/dev/null)"
     if [ "$HEADROOM_OK" != "1" ]; then
-      alert_user "$KEY_LIMIT_REMAINING" "BLOCKED (per-key limit below one request)"
-      echo "KEY_HEALTH=FAIL reason=key_limit_below_request_headroom remaining=\$$KEY_LIMIT_REMAINING required=\$$REQUEST_HEADROOM"
-      exit 1
+      heal_key_limit
+      heal_rc=$?
+      if [ "$heal_rc" -ne 0 ]; then
+        alert_user "$KEY_LIMIT_REMAINING" "BLOCKED (per-key limit self-heal failed)"
+        if [ "$heal_rc" -eq 4 ]; then
+          echo "KEY_HEALTH=FAIL reason=key_limit_self_heal_cap_reached remaining=\$$KEY_LIMIT_REMAINING hard_cap=\$$SELF_HEAL_HARD_CAP"
+        else
+          echo "KEY_HEALTH=FAIL reason=key_limit_self_heal_failed code=$heal_rc remaining=\$$KEY_LIMIT_REMAINING required=\$$REQUEST_HEADROOM"
+        fi
+        exit 1
+      fi
     fi ;;
 esac
 
@@ -122,7 +198,7 @@ fi
 
 PROBE="$(curl -s --max-time 30 https://openrouter.ai/api/v1/chat/completions \
   -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
-  -d '{"model":"anthropic/claude-sonnet-4.6","messages":[{"role":"user","content":"say ok"}],"max_tokens":5}' \
+  -d '{"model":"anthropic/claude-sonnet-4.6","messages":[{"role":"user","content":"say ok"}],"max_tokens":128000}' \
   | python3 -c "
 import sys,json
 try:

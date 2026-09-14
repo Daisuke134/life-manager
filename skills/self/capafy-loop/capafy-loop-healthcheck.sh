@@ -19,6 +19,18 @@ STALE_SECONDS=$((30 * 60 * 60))
 ATTEMPT_GRACE_SECONDS=$((2 * 60 * 60))
 mkdir -p "$(dirname "$LOG")"
 
+# Provider admission is checked on every five-minute wake, independently of
+# scheduler freshness. The gate performs a bounded per-key limit repair and
+# verifies it with a live request; provider failure must not restart the owner.
+KEY_GATE="$RELEASE_ROOT/skills/capafy-autopublish/scripts/key_health_gate.sh"
+if ! KEY_HEALTH="$(bash "$KEY_GATE" 5.00 2>&1)"; then
+  echo "$(date '+%F %T') provider admission unhealthy; no owner restart; $KEY_HEALTH" >>"$LOG"
+  exit 0
+fi
+case "$KEY_HEALTH" in
+  *KEY_SELF_HEAL=OK*) echo "$(date '+%F %T') provider admission self-healed; $KEY_HEALTH" >>"$LOG" ;;
+esac
+
 OWNER_STATUS="$(launchctl print "$DOMAIN/$LABEL" 2>/dev/null)" || OWNER_STATUS=""
 
 now="$(date +%s)"
