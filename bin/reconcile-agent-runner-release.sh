@@ -5,6 +5,7 @@ set -euo pipefail
 SOURCE_REPO="${LIFE_MANAGER_SOURCE_REPO:-$HOME/Projects/life-manager-main}"
 LOOPS_ROOT="${LOOPS_ROOT:-$HOME/loops}"
 CURRENT="$LOOPS_ROOT/current"
+SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
 fetch_timeout_seconds="${LIFE_MANAGER_RELEASE_FETCH_TIMEOUT_SECONDS:-600}"
 case "$fetch_timeout_seconds" in
@@ -17,12 +18,13 @@ if [ "$fetch_timeout_seconds" -lt 1 ]; then
   printf 'agent-runner reconcile refused: invalid fetch timeout\n' >&2
   exit 64
 fi
-timeout_bin="$(command -v gtimeout || command -v timeout || true)"
-if [ -z "$timeout_bin" ]; then
-  printf 'agent-runner reconcile refused: timeout utility unavailable\n' >&2
+runtime_python="${LIFE_MANAGER_RUNTIME_PYTHON:-$(command -v python3 || true)}"
+timeout_runner="$SCRIPT_ROOT/runtime/run-with-timeout.py"
+if [ -z "$runtime_python" ] || [ ! -f "$timeout_runner" ]; then
+  printf 'agent-runner reconcile refused: portable timeout unavailable\n' >&2
   exit 69
 fi
-"$timeout_bin" --signal=TERM --kill-after=15s "${fetch_timeout_seconds}s" \
+"$runtime_python" "$timeout_runner" --grace-seconds 15 "$fetch_timeout_seconds" \
   git -C "$SOURCE_REPO" fetch --quiet origin main
 main_sha="$(git -C "$SOURCE_REPO" rev-parse origin/main)"
 current_sha="$(jq -r '.sha // ""' "$CURRENT/RELEASE.json" 2>/dev/null || true)"
