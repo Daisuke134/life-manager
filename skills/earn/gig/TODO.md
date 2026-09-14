@@ -26,9 +26,11 @@ effects, prevents duplicates, heals failures and improves itself. The first meas
 - Never fake applications, messages, delivery, spreadsheets, revenue or readback.
 - Do not apply for work whose required numerical outcome cannot be delivered within the paid scope. Prefer
   concrete artifacts and services whose completion is controllable.
-- Ryu `18211957` already has the requested ordinary reply and attachment in official readback. Do not resend;
-  wait for a genuinely new buyer event. Formal delivery remains off without the required buyer state.
-- Chii is outside this program cursor. Completed excluded work must not be reopened.
+- A historical seller message is never proof that a talkroom is currently handled. Completion requires the
+  newest official buyer event to be covered by a later seller effect and official readback. If durable
+  `next_action` conflicts with a newer buyer-event digest, the buyer event wins and the item returns to work.
+- Chii remains an active paid contract until the official room and the truthful DM-result ledger prove the
+  contracted outcome. Never invent recipients, sends or spreadsheet rows.
 
 ## Shared architecture
 
@@ -52,6 +54,20 @@ docs/
 ## Current measured state
 
 ### Shared host/runtime
+
+- PR `#5192`, main SHA `6a901db5011da29a05ef91422c7ee745c8fa6e51`, is the compatibility-first
+  admission rollout. It preserves future-version durable tickets during mixed-release convergence and records
+  the exact bounded admission reason instead of collapsing every deferral to `host_admission_deferred`.
+  Its exact head passed 31 focused tests, 493 runtime tests plus 470 subtests, all CI and fresh read-only review.
+- The first targeted Paid wake on `6a901db5` started normally and terminated without an external effect at
+  `2026-09-14T14:02:40.631497+00:00` with
+  `host_admission_deferred:memory_headroom_unavailable`. It did not observe or reply to Ryu. This proves precise
+  classification, not recovery or client completion.
+- Durable fairness is deliberately still open. The next runtime change must use lock-protected
+  `queued -> dispatch_reserved -> claimed -> running -> released` state, monotonic sequence, reservation lease
+  recovery and out-of-lock target kickstart. A reservation consumes capacity; post-claim deferral requeues at
+  its original sequence. This prevents repeated short wakes or one long owner from starving the fleet while
+  preserving effect fences.
 
 - PR `#5184`, main SHA `b8de9bf2d230514587bb455f59a3e866ec27f658`, fixes scheduled resource
   admission. Busy wakes attempt once, retain no ticket, write effect-zero deferred state and exit `75`.
@@ -133,6 +149,24 @@ docs/
 
 ### Coconala
 
+#### Current active-client inventory
+
+This is the retained official-state candidate set, not a claim that every newest message has been handled.
+The next admitted Paid/Reply observation must refresh each row from the official talkroom before any completion
+claim. One buyer may own multiple independent contracts.
+
+| Buyer | Talkroom | Retained official state | Current unresolved condition |
+|---|---:|---|---|
+| Ryu0820119 | `18211957` | `取引中` | A newer buyer message is reported after the historical confirmed seller effect. The current state is internally inconsistent: `next_action=await_buyer_feedback` while `buyer_feedback_pending_artifact=true`. Re-observe the newest message, perform the requested ordinary submission, then verify a later seller effect. Formal delivery stays off unless the buyer authorizes that state. |
+| こころ支援 NPO法人まくとぅー | `18223833` | `取引中` | The retained ledger says the prior seller effect was confirmed and is awaiting buyer feedback. Refresh the official head and retained attachments; do not ask again for files already retained. |
+| こころ支援 NPO法人まくとぅー | `18250352` | `取引中` | Separate active contract. The retained ledger says the prior effect was confirmed and awaits feedback; refresh independently and preserve this room's own context. |
+| Chii【CK protect】 | `18180857` | `取引中` | Buyer feedback is pending while the lane says `await_buyer_feedback`. Establish the truthful completed/target DM count from official/account evidence, continue only permitted real sends, update the real result ledger, and reply from that evidence. |
+| あつぎ | `18171850` | `取引中`, formal delivery confirmed | Buyer feedback is pending after delivery. Observe the newest feedback, revise/reply if requested, and verify the later seller effect; otherwise remain at buyer acceptance. |
+
+`逃げ因子` talkroom `18211838` is excluded because retained official state is `取引完了`. Historical
+projects with `unknown` state are not promoted into the active set; an authenticated orders observation must
+do that.
+
 - Apply one-off `single:new` and continuous `retainer:new` are implemented through the same lifecycle.
 - Shared browser acquisition is already repaired by merged PR `#5175` (`833b55b6`) and PR `#5177`
   (`6a9f3aa4`): slow CDP I/O stays outside the ledger lock and unrelated owners acquire under distinct
@@ -186,9 +220,43 @@ independent production effects.
   business receipt plus official readback.
 - [ ] Prove queue drains to zero, fleet-wide starvation does not recur, and no duplicate external effect occurs.
 - [ ] Keep producing terminal receipts for at least 24 hours without human restart or babysitting.
+- [ ] Wait only for mixed-release compatibility convergence; verify all scheduled admission writers understand
+  the future ticket schema before enabling durable reservations.
+- [ ] Add the minimal transactional reservation state machine to the shared admission store with monotonic FIFO
+  sequence, total/class capacity accounting and lease expiry recovery.
+- [ ] Add the dispatcher transition that reserves capacity under lock, validates the current registry label,
+  then performs target-only `launchctl-safe` kickstart outside the lock without `-k`.
+- [ ] Preserve original sequence when a claimed wake defers after admission; never delete or overwrite an
+  unknown-version owner ticket.
+- [ ] Prove with focused regressions that a sleeping queue head does not idle capacity, a crashed dispatcher is
+  reclaimed, one resource class cannot starve another, and an uncertain external effect is never replayed.
 
 ### 2. Coconala vertical revenue proof
 
+- [ ] Finish the currently running Paid wake and persist its terminal receipt; process start alone is not a
+  client effect.
+- [ ] Obtain one authenticated `orders-only` observation and replace the retained candidate set above with the
+  exact official active-order set.
+- [ ] For every active order, obtain a `selected-talkroom-only` head readback and store newest buyer-event and
+  newest seller-effect digests independently.
+- [ ] Fix the shared queue reducer so a newer unhandled buyer digest always overrides stale
+  `await_buyer_feedback`; retain one regression fixture covering the Ryu-shaped contradiction.
+- [ ] Route each active talkroom to an independent work item and effect fence; one blocked room must not block
+  any sibling room.
+- [ ] Ryu `18211957`: observe the newest buyer request, generate the requested ordinary submission from retained
+  context/artifacts, send once, and prove a later seller effect in official readback. Do not toggle formal
+  delivery without buyer authorization.
+- [ ] Kokoro `18223833`: refresh the official head and all retained attachment references; recover missing bytes
+  locally and continue without asking the buyer to resend known files.
+- [ ] Kokoro `18250352`: refresh and process independently from `18223833`; prove its own terminal receipt and
+  official effect.
+- [ ] Chii `18180857`: read the truthful sent-count ledger, identify the remaining eligible real TikTok targets,
+  execute only permitted real DMs at provider-safe cadence, persist each official result, and report the real
+  total. Never fabricate work.
+- [ ] Atsugi `18171850`: reconcile the newest post-delivery feedback, perform any required revision/reply once,
+  and return to verified buyer-acceptance wait.
+- [ ] Re-run all five active work items and prove newest-buyer-digest coverage, official readback and replay-zero
+  independently for each.
 - [ ] Reconcile all 54 uncertain application intents against official applied history.
 - [ ] Restore authenticated discovery for both `single:new` and `retainer:new`.
 - [ ] Submit every eligible high-fit one-off and continuous application; verify each officially; replay zero.
