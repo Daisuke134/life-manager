@@ -31,10 +31,11 @@ runtime/provider readback before acting; conversation claims are not completion 
   prove one bounded invocation, then roll only the intended Life Manager Codex routes forward. Preserve all
   Codex/cloud sessions and unrelated providers.
 - First safe action: keep admission protocol at `1` and do not treat release convergence alone as recovery.
-  Implement the approved fundamental scalability repair from latest `origin/main` in a new leased worktree:
-  preserve independent lane owners, partition host capacity so maintenance cannot starve revenue, restore
-  project-scoped Paid concurrency and attachment retention, then prove the four-lane Coconala canary before
-  activating corrected protocol `2`. Never restart a running sibling or edit the Capafy shared checkout.
+  Continue the approved fundamental scalability repair in the existing clean runtime-admission worktree after
+  renewing its same-owner/task lease and fast-forwarding it to latest `origin/main`; do not create a duplicate
+  worktree. Preserve independent lane owners, partition host capacity so maintenance cannot starve revenue,
+  restore project-scoped Paid concurrency and attachment retention, then prove the four-lane Coconala canary
+  before activating corrected protocol `2`. Never restart a running sibling or edit the Capafy shared checkout.
 
 ## Outcome
 
@@ -240,6 +241,8 @@ E2E judgment:
 - DO NOT weaken effect fences, official readback, formal-delivery authorization, attachment integrity or
   replay-zero to increase throughput.
 - DO NOT mix Capafy work, its branch or its dirty files into this workstream.
+- DO NOT create another implementation worktree while the existing runtime-admission worktree is clean,
+  same-task owned, process-free, PR-free and safely fast-forwardable to `origin/main`.
 - DO NOT activate admission protocol `2` until its capacity model satisfies the lane-independence and
   maintenance-borrow-only contracts above.
 
@@ -270,9 +273,12 @@ freeze protocol 1
 ```
 
 Current cursor: specification is approved and recorded; no runtime implementation or production mutation is
-authorized by this document update. The next implementation starts from latest `origin/main` in a new leased
-worktree. The merged admission worktree remains immutable evidence, the spec branch owns this file, and the
-Capafy shared checkout is forbidden.
+authorized by this document update. The next implementation reuses
+`/private/tmp/lm-runtime-admission-reservations-20260914`: re-check the six lifecycle conditions, renew its
+`codex-root` / `runtime-admission-reservations-phase2` lease with the actual HEAD, then fast-forward the clean
+branch to latest `origin/main`. The pushed merged commit remains remote evidence, the spec branch owns this
+file, and the Capafy shared checkout is forbidden. Create a replacement only if the existing owner/task cannot
+be safely continued; never create one merely because the branch is behind main.
 
 ## Current measured state
 
@@ -449,8 +455,10 @@ independent production effects.
 
 ### 1. Shared runtime production convergence and account 1 cutover — current cursor
 
-- [ ] Create one new leased implementation worktree from latest `origin/main` for this repair. Do not write in
-  the merged admission snapshot, the divergent spec worktree, the shared Capafy checkout or an active release.
+- [ ] Reuse `/private/tmp/lm-runtime-admission-reservations-20260914` for this same admission repair. Re-check
+  clean/merged/no-open-PR/no-open-process/lease-owner conditions, renew the stale lease HEAD, and fast-forward
+  its branch to latest `origin/main` before editing. Do not create another worktree or write in the divergent
+  spec worktree, shared Capafy checkout or an active release.
 - [ ] Preserve three secret-free production regression fixtures before changing behavior:
   1. all four Coconala lanes repeatedly terminate before provider work while unrelated owners hold global
      capacity;
