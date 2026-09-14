@@ -903,6 +903,7 @@
       "label": "ai.anicca.hf-gig-apply-direct",
       "log_root": "~/.local/state/life-manager/coconala/apply/logs",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/coconala/apply"
     },
     "hf-gig-browser": {
@@ -960,6 +961,7 @@
       "label": "ai.anicca.hf-gig-paid-direct",
       "log_root": "~/.local/state/life-manager/coconala/paid/logs",
       "provider_route": "deterministic",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/coconala/paid"
     },
     "hf-gig-reply-detector": {
@@ -978,6 +980,7 @@
       "label": "ai.anicca.hf-gig-reply-detector",
       "log_root": "~/.local/state/life-manager/coconala/reply/logs",
       "provider_route": "shared-agent-runner",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/coconala/reply"
     },
     "hf-gig-storefront-direct": {
@@ -994,6 +997,7 @@
       "label": "ai.anicca.hf-gig-storefront-direct",
       "log_root": "~/.local/state/life-manager/coconala/storefront/logs",
       "provider_route": "deterministic",
+      "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/coconala/storefront"
     },
     "hf-reddit-loop-daily": {

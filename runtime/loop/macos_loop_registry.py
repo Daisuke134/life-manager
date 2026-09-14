@@ -15,7 +15,7 @@ FIELDS = {
     "label", "domain", "entrypoint", "cadence", "effect_class", "state_root",
     "log_root", "cleanup", "provider_route",
 }
-OPTIONAL_FIELDS = {"adapter", "browser_owner", "command", "runtime_timeout_seconds"}
+OPTIONAL_FIELDS = {"adapter", "browser_owner", "command", "runtime_timeout_seconds", "resource_class"}
 SECRET_FIELD = re.compile(r"token|secret|password|credential|auth|api.?key", re.I)
 LAUNCHD_LABEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
@@ -58,6 +58,8 @@ def validate_registry(registry: dict) -> dict:
             _fail(f"{loop_id}: invalid effect_class")
         if row["provider_route"] not in ROUTES:
             _fail(f"{loop_id}: invalid provider_route")
+        if row.get("resource_class") not in {None, "agent", "deterministic"}:
+            _fail(f"{loop_id}: invalid resource_class")
         adapter_present = "adapter" in row
         command_present = "command" in row
         if adapter_present != command_present:
@@ -195,6 +197,7 @@ def loop_json_schema() -> dict:
                 "additionalProperties": False,
             },
             "provider_route": {"type": "string", "enum": sorted(ROUTES)},
+            "resource_class": {"type": "string", "enum": ["agent", "deterministic"]},
             "runtime_timeout_seconds": positive_integer,
             "adapter": {"type": "string", "enum": ["exec", "python"]},
             "command": {

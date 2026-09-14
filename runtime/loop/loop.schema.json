@@ -181,6 +181,13 @@
       ],
       "type": "string"
     },
+    "resource_class": {
+      "enum": [
+        "agent",
+        "deterministic"
+      ],
+      "type": "string"
+    },
     "runtime_timeout_seconds": {
       "minimum": 1,
       "type": "integer"
