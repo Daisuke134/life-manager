@@ -339,6 +339,33 @@ class CutLoopReleaseTest(unittest.TestCase):
                 for relative in DEPENDENCY_ROOTS
             ))
 
+    def test_reconciler_bounds_origin_fetch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fake_bin = root / "bin"
+            fake_bin.mkdir()
+            fake_git = fake_bin / "git"
+            fake_git.write_text("#!/bin/sh\nsleep 10\n")
+            fake_git.chmod(0o755)
+
+            result = subprocess.run(
+                ["/bin/bash", str(ROOT / "bin/reconcile-agent-runner-release.sh")],
+                cwd=ROOT,
+                env={
+                    **os.environ,
+                    "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                    "LIFE_MANAGER_SOURCE_REPO": str(root),
+                    "LOOPS_ROOT": str(root / "loops"),
+                    "LIFE_MANAGER_RELEASE_FETCH_TIMEOUT_SECONDS": "1",
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=5,
+            )
+
+            self.assertEqual(result.returncode, 124, result.stderr)
+
     def test_reconciler_pins_captured_main_sha_when_origin_moves_during_cut(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
