@@ -41,12 +41,85 @@ def test_one_shot_control_lock_contention_returns_immediately(tmp_path, monkeypa
     try:
         fcntl.flock(descriptor, fcntl.LOCK_EX)
         started = time.monotonic()
-        claim, reason = admission.try_acquire(
-            "agent", "one-shot", retain_ticket=False)
+        with patch.object(admission, "process_starts",
+                          side_effect=AssertionError("probe ran while lock busy")):
+            claim, reason = admission.try_acquire(
+                "agent", "one-shot", retain_ticket=False)
         assert claim is None and reason == "control_busy"
         assert time.monotonic() - started < 0.5
     finally:
         os.close(descriptor)
+
+
+def test_process_snapshot_runs_once_outside_control_lock(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    observed = []
+
+    def snapshot():
+        descriptor = os.open(tmp_path / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            observed.append("outside")
+        finally:
+            os.close(descriptor)
+        return {os.getpid(): admission.process_start(os.getpid())}
+
+    with patch.object(admission, "process_starts", side_effect=snapshot) as probe:
+        claim, reason = admission.try_acquire("deterministic", "one-shot")
+    assert claim is not None and reason == "acquired"
+    assert observed == ["outside"] and probe.call_count == 1
+    admission.release(claim)
+
+
+def test_snapshot_avoids_per_record_identity_processes(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="2")
+    started = admission.process_start(os.getpid())
+    for index in range(100):
+        admission.atomic_json(
+            tmp_path / f"tickets/agent-{index:020d}-live-{index}.json",
+            {"pid": os.getpid(), "process_start": started},
+        )
+    with patch.object(admission, "process_starts",
+                      return_value={os.getpid(): started}) as snapshot:
+        with patch.object(admission, "process_start",
+                          side_effect=AssertionError("per-record probe")):
+            claim, reason = admission.try_acquire("agent", "new")
+    assert claim is None and reason == "fifo_wait"
+    assert snapshot.call_count == 1
+
+
+def test_failed_snapshot_never_falls_back_to_per_record_processes(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="2")
+    started = admission.process_start(os.getpid())
+    for index in range(25):
+        admission.atomic_json(
+            tmp_path / f"tickets/agent-{index:020d}-live-{index}.json",
+            {"pid": os.getpid(), "process_start": started},
+        )
+    with patch.object(admission, "process_starts", return_value=None):
+        with patch.object(admission, "process_start", return_value=started) as probe:
+            claim, reason = admission.try_acquire("agent", "new")
+    assert claim is None and reason == "fifo_wait"
+    assert probe.call_count == 1
+
+
+def test_row_created_during_snapshot_is_kept_live(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    owner = tmp_path / "owners/new-owner.json"
+    actual_start = admission.process_start(os.getpid())
+
+    def stale_snapshot():
+        admission.atomic_json(
+            owner,
+            {"pid": os.getpid(), "process_start": actual_start,
+             "owner_id": "new-owner", "resource_class": "deterministic"},
+        )
+        return {os.getpid(): "stale snapshot identity"}
+
+    with patch.object(admission, "process_starts", side_effect=stale_snapshot):
+        claim, reason = admission.try_acquire("deterministic", "next")
+    assert claim is None and reason == "capacity_busy"
+    assert owner.exists()
 
 
 def test_one_shot_never_overwrites_or_removes_live_fifo_ticket(tmp_path, monkeypatch):
