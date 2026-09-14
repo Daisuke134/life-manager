@@ -107,7 +107,7 @@ Observed evidence for this failure class:
 | Boundary | Current evidence | Why it prevents revenue |
 |---|---|---|
 | Fleet | 165 registered loops; host load remained about 192--222 with more than 100 runnable and zombie processes in observed snapshots | Many cadence-aligned Python/browser wakes compete before useful work begins |
-| Host | macOS displayed application-memory exhaustion; ChatGPT and multiple Chromium processes consumed multi-gigabyte memory; disk reached 99% | Startup, browser and memory probes stall or time out |
+| Host | macOS displayed application-memory exhaustion; ChatGPT and multiple Chromium processes consumed multi-gigabyte memory; disk reached 99%. Fresh owner-level RSS showed TikTok Chromium about 2.6 GiB, daily-driver about 1.8 GiB and gig-daily-driver about 0.6 GiB. CrowdWorks had two Chromium roots for the same profile/port `9228`, only one listener, and `/json/version` timed out. Three two-day-old orphaned Capafy Google Chrome headless process groups were terminated owner-scoped while their profiles were preserved. | Startup, browser and memory probes stall or time out; duplicated or orphaned browser owners retain memory after their useful work ends |
 | Permission | A Python 3.14 cross-application data-access prompt was visible | A runtime child may wait for an unresolved TCC decision instead of producing a receipt |
 | Admission | Protocol `1`, total finite capacity `3`; observed slots were owned by non-Coconala maintenance/work owners while Coconala repeatedly returned `resource_control_busy`, `resource_capacity_busy` or `memory_headroom_unavailable` | A global safety primitive became a cross-lane wait and violated outer parallelism |
 | Release | Current is `b8cff053`; all four Coconala lanes remained installed from `3fbe7554`; the current reconciler had a running receipt but no terminal result | Safety fixes exist in main but have not reached the revenue owners |
@@ -470,7 +470,10 @@ independent production effects.
 - [ ] Add bounded owner heartbeat and durable-progress leases. A live PID without heartbeat/progress cannot
   retain capacity forever; recovery may reclaim only the exact owned claim after process-identity verification.
 - [ ] Separate memory probe timeout, real memory pressure, disk pressure and TCC permission state. Apply
-  owner-scoped browser/context/tab limits and recovery; never use global browser or host restart.
+  owner-scoped browser/context/tab limits and recovery; never use global browser or host restart. Require every
+  spawned browser child/process group to remain attached to one durable owner receipt and be reaped on every
+  terminal path. Retain regression fixtures for the orphaned Capafy Chrome groups and the duplicate/wedged
+  CrowdWorks `9228` roots.
 - [ ] Convert Paid from one-order-per-pass lane-global evidence to project-scoped durable work items and bounded
   concurrent consumers. Serialize only the same exact order/effect and the short authenticated mutation.
 - [ ] Make retained attachment references cumulative across wakes. Reuse verified bytes; recover missing bytes
