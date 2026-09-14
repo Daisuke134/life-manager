@@ -110,9 +110,9 @@ docs/
   snapshot-race running skips; shared-agent-runner changed 33 labels. A later targeted pass moved Coconala
   Apply, Reply, Paid and Storefront to the new release after each old wake ended naturally. Repeated current-SHA
   natural wakes now write bounded effect-zero `host_admission_deferred:resource_control_busy` terminal events;
-  they do not yet prove business recovery or official provider readback. Fleet convergence reduced finite
-  installed mismatches from 51 to 38. Current admission readback is protocol `1`, owners `3`, legacy tickets
-  `4`; v2 activation, natural fairness, recovery, replay-zero and 24-hour proof remain open.
+  they do not yet prove business recovery or official provider readback. That rollout snapshot reduced finite
+  installed mismatches from 51 to 38 and observed protocol `1`, owners `3`, legacy tickets `4`; those counts are
+  historical. V2 activation, natural fairness, recovery, replay-zero and 24-hour proof remain open.
 - PR `#5192`, main SHA `6a901db5011da29a05ef91422c7ee745c8fa6e51`, is the compatibility-first
   admission rollout. It preserves future-version durable tickets during mixed-release convergence and records
   the exact bounded admission reason instead of collapsing every deferral to `host_admission_deferred`.
