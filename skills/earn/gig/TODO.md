@@ -76,8 +76,13 @@ docs/
 ### Coconala
 
 - Apply one-off `single:new` and continuous `retainer:new` are implemented through the same lifecycle.
+- Shared browser acquisition is already repaired by merged PR `#5175` (`833b55b6`) and PR `#5177`
+  (`6a9f3aa4`): slow CDP I/O stays outside the ledger lock and unrelated owners acquire under distinct
+  task locks. The current `b8de9bf2` release contains that exact main implementation. Latest read-only
+  health is `/json/version` in `0.025s`, `/json/list` in `0.017s`, and one lease against capacity `16`.
 - Latest discovery failed before observation at the shared CDP lease boundary; this is not proof of empty
-  inventory, logout or selector failure.
+  inventory, logout or selector failure. Its 160-second timeout occurred on release `6a9f3aa4`; current
+  health does not prove recovery until a later natural Apply wake completes official readback.
 - Exactly 54 application intents are `prepared_unconfirmed`. Frozen source result:
   `gig-apply-direct-1789367873154753000-28060`; sorted IDs `5207298` through `5267876`; newline-list SHA-256
   `cd0610bb8daaf78c11ffd143a4688fad30edeff34188725aaa6867d935b8b2e5`. Reconcile every member
