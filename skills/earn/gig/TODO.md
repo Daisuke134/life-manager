@@ -30,7 +30,10 @@ Historical receipts remain evidence; their old cursors do not reopen completed w
   shared-agent-runner, with no reconcile failures). Running old-release owners were deliberately not
   restarted. During the first 30-second drain observation, admission tickets decreased from `24` to `23`
   rather than growing, while host load remained about `142–154`; this is promising drain evidence, not
-  yet 24/7 acceptance. Coconala Paid PID `6856` and Apply PID `42143` were still resident in their old
+  yet 24/7 acceptance. A later exact ticket-directory census found `26`; a following one-minute sample
+  held `26/26/26/26/26/26`, so there was no new growth during that window but also no completed dequeue.
+  Ticket contents map to pre-convergence processes; the only observed `b8de9bf2` runner had no retained
+  ticket. Coconala Paid PID `6856` and Apply PID `42143` were still resident in their old
   blocking acquire paths at the latest readback and must terminate naturally before target-only
   loaded-idle reconciliation.
 
