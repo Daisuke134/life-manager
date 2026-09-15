@@ -77,7 +77,7 @@ provider/state/browserを触らない。handoff receiptができるまで、未�
 | 5 | `MARKET-02` CrowdWorksを閉じる | 4 ownerが旧release、直近に30秒 `Page.goto` timeout、account/profile failure | 候補受入後に作る新releaseの自然terminal、公式応募/契約receiptまたはtruthful not-applicable、重複0 |
 | 6 | `MARKET-03` Mercorを閉じる | logged_out / CDP handshake timeout履歴、human gate・payment receipt未確認 | stale lease再発なし、Application/Reply/Paidがtyped terminal、必要なhuman gate再開、公式receipt |
 | 7 | `MARKET-04` Coconalaを別ownerから受け取る | 他workstreamがbrowser/account/TODOを所有中 | 4 laneごとの公式応募・購入・納品receipt、buyer readback、replay-zero |
-| 8 | `CONTROL-01` registry外Browser provisionerを分類する | `lm-loop doctor` が unmanaged provisionerを1件報告 | 所有者・release・state・readbackを登録し、doctorのunmanaged 0（稼働中profileは止めない） |
+| 8 | `CONTROL-01` registry外Browser provisionerを分類する | 過去snapshotでは`lm-loop doctor`がunmanaged provisionerを1件報告したが、今回のread-only plist/state確認では現物を再確認できていない | loaded状態を再確認し、所有者・release・state・readbackを登録する。稼働中profileは止めず、doctorのunmanaged 0を実測する |
 | 9 | `LOCAL-01/02` 14 Product Loopのcompletion manifestを埋める | manifest契約はcandidateに実装済みだが、各loopの実測evidence接続が未完 | unknown 0、未対応はtyped state、成功は公式receiptだけ、内部ログとTelegramを分離 |
 | 10 | `CLOUD-01..04` local→cloud昇格 | tenant分離・cloud Browser・phone-only canary未実装/未実測 | local gate全PASS後、同じcontractでcloud canary、公式readback、replay-zero |
 | 11 | `INT-99` 全受入後に一度だけmain統合・immutable release化 | 候補は未統合で、本番selectorは `172d3f2e` のまま | rows 1〜10が全PASS、mainへ一度だけPR/merge、13 ownerを同じSHAへ反映、production readback |
@@ -183,10 +183,11 @@ subtests PASS、Lancers timeout suiteは163 tests + 30 subtests PASSです。
 admission release記録がmainへ入りました。`~/loops/current`はPR #5255由来のreleaseを指し、
 PR #5256はまだrelease化されていません。ownerのinstalled/event SHAも混在しているため、
 release drift gateは未完了です。
-また、`lm-loop doctor`はregistry外の稼働中label
-`ai.anicca.provision-browser.colors-hachioji.owner-18211957`を1件報告しています。
-これは別のBrowser provisionerがprofileを使用中のため、停止・削除せず、所有者登録または
-安全なhandoffを完了するまでlocal gateを閉じます。
+また、過去の`lm-loop doctor` snapshotはregistry外の稼働中label
+`ai.anicca.provision-browser.colors-hachioji.owner-18211957`を1件報告していました。
+今回のread-only確認では対応するLaunchAgent plistとstate参照を再確認できず、loaded launchd状態も
+まだ未取得です。したがって停止・削除・推測登録は行わず、現物のowner/release/state/readbackを
+取得するまでlocal gateを閉じます。
 
 順序変更記録: 旧順序ではpending処理（`PROD-01-F`）をrelease統一（`PROD-01-H`）より先に置いて
 いましたが、Browser競合を増やさず全ownerを同一immutable SHAへ揃える方が安全で、後続wakeの再現性も
