@@ -834,6 +834,12 @@ def test_owner_validation_failure_after_new_checkpoint_resumes_progress(tmp_path
         paid._raise_remote_builder_or_progress(
             progress, 0, contract, ValueError("stale result")
         )
+    assert paid._continue_remote_owner_after_invalid_result(
+        progress, 0, contract, 1, 3
+    ) is True
+    assert paid._continue_remote_owner_after_invalid_result(
+        progress, 0, contract, 3, 3
+    ) is False
 
 
 def test_owner_validation_failure_without_new_checkpoint_remains_failure(tmp_path):
