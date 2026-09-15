@@ -12,6 +12,14 @@ lets the model make the next correct decision while preserving the evidence and 
 cannot be reconstructed cheaply. Summaries are derived data; source records and official receipts
 remain authoritative.
 
+## Master catalog route
+
+Read this skill first. Then consult the pinned **[Awesome Harness Engineering](https://github.com/ai-boost/awesome-harness-engineering)**
+snapshot (`692a1a681c464de22a5e9b947bd081808600b0b3`) under Context Delivery & Compaction and Memory
+& State. Read only those entries needed for the current decision, then use
+`references/source-notes.md` for the exact cloned code. The catalog is discovery material, not a
+second memory store or a prompt payload to inject wholesale.
+
 ## When to use
 
 - A prompt is too large, a session is compacted, or tool output is flooding the model.

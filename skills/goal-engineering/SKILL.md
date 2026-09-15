@@ -12,6 +12,14 @@ what result counts, what resources are allowed, and when the loop must stop. Rec
 means proposing and measuring bounded changes to a goal or skill—not allowing the agent to rewrite
 its constitution, permissions, identity, or evidence rules.
 
+## Master catalog route
+
+Read this skill first. Then consult the pinned **[Awesome Harness Engineering](https://github.com/ai-boost/awesome-harness-engineering)**
+snapshot (`692a1a681c464de22a5e9b947bd081808600b0b3`) under Planning & Task Decomposition,
+Permissions & Authorization, Human-in-the-Loop, and Generators & Meta-Harnesses. Read
+`references/source-notes.md` for the pinned lifecycle/self-evolution code. The catalog informs goal
+design; it does not grant permission, define Life Manager policy, or authorize self-modification.
+
 ## When to use
 
 - A loop has an aspiration but no measurable finish line or owner.

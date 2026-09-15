@@ -9,6 +9,14 @@ Loop engineering is the control system that keeps an agent useful across time. O
 router prevents a lane from inventing what another lane already owns. This file routes; release and
 launchd work still requires the focused `loop-development` subskill.
 
+## Master catalog route
+
+Read this skill first. Then consult the pinned **[Awesome Harness Engineering](https://github.com/ai-boost/awesome-harness-engineering)**
+snapshot (`692a1a681c464de22a5e9b947bd081808600b0b3`) for Agent Loop, Planning & Task Decomposition,
+Task Runners & Orchestration, Human-in-the-Loop, and Evals & Verification. Use the chapter as a
+decision map, then read `references/source-notes.md` and the pinned implementation path it names.
+Do not introduce a second runner because the catalog lists another framework.
+
 ```text
 observe -> reconstruct goal/context -> model chooses -> bounded effect
   -> official verify -> append facts/receipt -> schedule next wake

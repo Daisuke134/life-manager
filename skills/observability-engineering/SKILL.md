@@ -12,6 +12,14 @@ truth. Emit stable, privacy-safe lifecycle events and traces for the model, tool
 effects, and readbacks. Keep business receipts in the durable ledger; use traces to find why a result
 happened.
 
+## Master catalog route
+
+Read this skill first. Then consult the pinned **[Awesome Harness Engineering](https://github.com/ai-boost/awesome-harness-engineering)**
+snapshot (`692a1a681c464de22a5e9b947bd081808600b0b3`) under Observability & Tracing, Debugging &
+Developer Experience, and Verification & CI. The specialized [Awesome Agent Observability](https://github.com/danielt69/awesome-agent-observability)
+list is secondary discovery. Read `references/source-notes.md` for OpenInference/Phoenix pointers;
+telemetry remains diagnostic and never replaces a ledger or provider readback.
+
 ## When to use
 
 - A loop stalls, retries, times out, or appears healthy while making no progress.

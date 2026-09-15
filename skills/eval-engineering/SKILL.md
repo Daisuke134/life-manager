@@ -11,6 +11,14 @@ An eval is a reproducible decision instrument, not a number attached to a demo. 
 dataset, agent/solver, tool environment, scorer, and promotion policy. Measure both the behavior in a
 controlled fixture and the real-world evidence that the fixture cannot provide.
 
+## Master catalog route
+
+Read this skill first. Then consult the pinned **[Awesome Harness Engineering](https://github.com/ai-boost/awesome-harness-engineering)**
+snapshot (`692a1a681c464de22a5e9b947bd081808600b0b3`) under Evals & Verification and Verification & CI;
+use Observability & Tracing to define trace pointers. The specialized [Awesome Evals](https://github.com/benchflow-ai/awesome-evals)
+catalog is secondary discovery. Read `references/source-notes.md` and the pinned Inspect AI/DSPy
+code before adopting a pattern; never let an eval mutate production.
+
 ## When to use
 
 - A loop change needs a baseline, regression gate, or held-out test.

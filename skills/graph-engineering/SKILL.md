@@ -12,6 +12,14 @@ with the questions the agent must answer, then project the smallest nodes and ed
 Every edge carries provenance, authority, and observed time so a stale or inferred relationship cannot
 silently become permission.
 
+## Master catalog route
+
+Read this skill first. Then consult the pinned **[Awesome Harness Engineering](https://github.com/ai-boost/awesome-harness-engineering)**
+snapshot (`692a1a681c464de22a5e9b947bd081808600b0b3`) under Memory & State, Agent Loop, and Reference
+Implementations. Use the dedicated [Awesome Graph Engineering](https://github.com/adventurewave-labs/awesome-graph-engineering)
+list only as secondary discovery. Read `references/source-notes.md` before borrowing Graphiti or
+LangGraph code; the catalog never becomes the graph authority.
+
 ## When to use
 
 - Goals, capabilities, artifacts, effects, receipts, or people have real dependencies.

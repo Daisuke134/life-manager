@@ -12,6 +12,14 @@ resume. Keep the model responsible for semantic choices; keep the harness respon
 ownership, tool execution, isolation, evidence, and lifecycle. The harness is complete only when a
 finite run can resume from durable state without a human replaying the prompt.
 
+## Master catalog route
+
+Read this skill first. Then consult the pinned **[Awesome Harness Engineering](https://github.com/ai-boost/awesome-harness-engineering)**
+snapshot (`692a1a681c464de22a5e9b947bd081808600b0b3`) for Foundations, Agent Loop, Tool Design,
+Permissions, Task Runners & Orchestration, and Verification & CI. Read only the relevant chapter;
+then follow `references/source-notes.md` to the exact cloned implementation. The catalog is an index,
+not a runtime dependency and not a reason to load the whole README into the agent context.
+
 ## When to use
 
 - Adding a tool, agent runner, host adapter, or new loop owner.

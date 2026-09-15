@@ -75,6 +75,28 @@ No deletion — decay only affects retrieval priority.
 - Local/self-hosted and cloud are two host adapters for one loop implementation, never separate loop codebases. Share the loop ID, business recipe, agent/tool contract, provider adapter, effect fence and receipt vocabulary; vary only supervisor, storage, secrets and browser transport. Before adding a local-only or cloud-only implementation, follow `skills/loop-engineering/SKILL.md` and prove the shared core cannot support it.
 - Before creating, changing, migrating, debugging, or retiring a Life Manager loop, MUST read and follow `skills/loop-development/SKILL.md`.
 
+## Agent Engineering Skills
+
+Before creating, changing, routing, or evaluating an agent, loop, wake/alarm, or self-improvement
+action, load the relevant repository skill first. Use the [Awesome Harness Engineering](https://github.com/ai-boost/awesome-harness-engineering)
+catalog snapshot pinned at `692a1a681c464de22a5e9b947bd081808600b0b3` as the discovery map, then read
+the exact pinned implementation named by that skill's `references/source-notes.md`. Do not load the
+whole catalog or all skills into every prompt; load the primary skill plus only the cross-cutting
+skills required by the current decision.
+
+| Concern | Skill to load |
+|---|---|
+| Runtime, tools, ownership, recovery | `skills/harness-engineering/SKILL.md` |
+| Prompt budget, memory, resume | `skills/context-engineering/SKILL.md` |
+| Wake/alarm, lifecycle, retries, release | `skills/loop-engineering/SKILL.md` then `skills/loop-development/SKILL.md` |
+| Dependencies, provenance, identity | `skills/graph-engineering/SKILL.md` |
+| Regression, trajectory, promotion | `skills/eval-engineering/SKILL.md` |
+| Traces, metrics, receipts, diagnosis | `skills/observability-engineering/SKILL.md` |
+| Durable intent, blockers, self-improvement | `skills/goal-engineering/SKILL.md` |
+
+A wake/alarm only schedules a finite attempt; it is not proof of progress. The loaded skill defines
+the owner, context capsule, effect fence, official readback, terminal state, and next eligible wake.
+
 ## Life Manager Cloud development
 - Use `docs/superpowers/specs/2026-08-28-life-manager-cloud-telegram-product-ux-design.md` §§0/8 for the current Cloud launch scope and ordered remaining TODO, `docs/superpowers/specs/2026-08-26-life-manager-cloud-on-time-core-design.md` for technical MUST/DO NOT, `docs/superpowers/plans/2026-08-28-life-manager-cloud-on-time-core-finish.md` for reusable implementation detail, and the matching `.superpowers/sdd/.../progress.md` for measured history. The 2026-09-05 owner scope supersedes old Active Orders and migration rulings; completed evidence is not discarded.
 - Owner scope (2026-09-05): ship the existing Cloud daily core; retain existing Stripe; no ElizaOS/Eliza Cloud/plugin migration and no Telegram Stars implementation task. Local operation and later loop migration belong to the separate local Codex workstream, not this launch checklist. Start with CLOUD-01 detailed travel/online notification UX.
