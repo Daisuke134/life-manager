@@ -70,6 +70,19 @@ def test_durable_protocol_defaults_v1_and_activates_only_when_idle(tmp_path, mon
     assert admission.durable_protocol_version() == 2
 
 
+def test_preflighted_v2_activation_preserves_live_v1_owner(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    claim, reason = admission.try_acquire(
+        "agent", "legacy-live", retain_ticket=False)
+    assert claim is not None and reason == "acquired"
+
+    admission.activate_durable_v2(allow_live_owners=True)
+
+    assert admission.durable_protocol_version() == 2
+    assert claim.exists()
+    admission.release(claim)
+
+
 def test_durable_protocol_activation_is_replay_safe_after_queue_starts(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     admission.activate_durable_v2()

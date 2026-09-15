@@ -439,6 +439,20 @@ def _supports_durable_admission_v2(release_root: Path) -> bool:
     return isinstance(value, dict) and value.get("resource_admission") == 2
 
 
+def _loaded_v2_release(arguments: list[str], loop_id: str) -> bool:
+    if len(arguments) != 3 or arguments[1] != loop_id:
+        return False
+    try:
+        loaded_root = Path(arguments[2]).resolve(strict=True)
+    except OSError:
+        return False
+    return (
+        arguments[0] == str(loaded_root / "bin/lm-loop-run")
+        and arguments[2] == str(loaded_root)
+        and _supports_durable_admission_v2(loaded_root)
+    )
+
+
 def activate_current(current: Path, release_root: Path,
                      lock_path: Path | None = None, *,
                      protocol_reader: Callable[[], int] = _protocol_v1) -> None:
@@ -465,7 +479,7 @@ def activate_current(current: Path, release_root: Path,
 def activate_durable_admission_live(
         registry: dict, release_root: Path, launchctl_safe: Path, *,
         current: Path | None = None) -> dict[str, object]:
-    """Enable v2 only when every finite owner is loaded from this release."""
+    """Enable v2 only when every finite owner uses a v2-capable release."""
     validate_registry(registry)
     release_root = release_root.resolve(strict=True)
     if not _supports_durable_admission_v2(release_root):
@@ -480,13 +494,12 @@ def activate_durable_admission_live(
             for loop_id, entry in sorted(registry["loops"].items()):
                 if entry.get("cadence", {}).get("keep_alive"):
                     continue
-                expected = [str(release_root / "bin/lm-loop-run"), loop_id, str(release_root)]
                 rc, printed = _safe_launchctl(
                     launchctl_safe, ["print", f"gui/{os.getuid()}/{entry['label']}"])
-                if rc != 0 or _loaded_arguments(printed) != expected:
+                if rc != 0 or not _loaded_v2_release(_loaded_arguments(printed), loop_id):
                     raise RuntimeError(f"{loop_id}: loaded argv is not v2-capable")
                 verified += 1
-            activate_durable_v2()
+            activate_durable_v2(allow_live_owners=True)
     return {"ok": True, "protocol": 2, "verified_finite_labels": verified}
 
 
