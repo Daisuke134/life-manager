@@ -166,6 +166,13 @@ TODO worktree. The current cursor is `GRAPH-03`.
   Focused proof: `node --test apps/life-manager/lib/agent-graph.test.js` (7 passed), including a
   reversed-order rebuild equality assertion. No provider, browser, launchd, ledger, or Telegram
   effect was performed. Next active ID: `GRAPH-03`.
+- [x] `GRAPH-03` — Added bounded blocker, receipt, and human-gate queries to
+  `apps/life-manager/lib/agent-graph.js`. Results carry the authoritative source fact, observation
+  time, content hash, and stale/unknown markers; limits are 1–100 and every query revalidates the
+  read-only graph. The graph exposes no effect authorization or credentials. Focused proof:
+  `node --test apps/life-manager/lib/agent-graph.test.js` (8 passed), including a stale blocker,
+  unknown human gate, and invalid-limit fixture. No provider, browser, launchd, ledger, or Telegram
+  effect was performed. Next active ID: `EVAL-01`.
 
 ### Current production blocker snapshot (read-only)
 

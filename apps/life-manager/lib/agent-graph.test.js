@@ -12,6 +12,9 @@ const {
   validateEdge,
   validateGraph,
   projectLedgerFacts,
+  queryBlockers,
+  queryReceipts,
+  queryHumanGates,
 } = require("./agent-graph.js");
 
 const HASH = "a".repeat(64);
@@ -129,4 +132,36 @@ test("ledger projection deduplicates the same fact but rejects conflicting IDs",
     repeated,
     { recordType: "node", value: node({ id: "goal-1", status: "stale" }) },
   ]), /conflict|duplicate/i);
+});
+
+test("bounded competency queries return source pointers and stale/unknown markers", () => {
+  const graph = validateGraph({
+    version: GRAPH_VERSION,
+    nodes: [
+      node({ id: "goal-1" }),
+      node({ id: "resource-1", kind: "resource", status: "stale" }),
+      node({ id: "receipt-1", kind: "receipt" }),
+      node({ id: "human-gate-1", kind: "human_gate", status: "unknown" }),
+    ],
+    edges: [
+      edge({ id: "blocked-1", from: "goal-1", to: "resource-1", predicate: "blocked_by" }),
+      edge({ id: "proof-1", from: "goal-1", to: "receipt-1", predicate: "proved_by" }),
+    ],
+  });
+  const blockers = queryBlockers(graph, { limit: 1 });
+  assert.equal(blockers.length, 1);
+  assert.deepEqual(blockers[0], {
+    edgeId: "blocked-1",
+    subjectId: "goal-1",
+    blockerId: "resource-1",
+    blockerKind: "resource",
+    stale: true,
+    unknown: false,
+    sourceFact: "ledger://tenant-1/fact-1",
+    observedAt: OBSERVED_AT,
+    contentHash: HASH,
+  });
+  assert.equal(queryReceipts(graph, { limit: 10 })[0].sourceFact, "ledger://tenant-1/fact-1");
+  assert.equal(queryHumanGates(graph, { limit: 10 })[0].unknown, true);
+  assert.throws(() => queryReceipts(graph, { limit: 0 }), /limit/i);
 });

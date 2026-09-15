@@ -154,6 +154,64 @@ function projectLedgerFacts(facts) {
   });
 }
 
+function queryLimit(value) {
+  const limit = value == null ? 50 : value;
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) invalid("limit");
+  return limit;
+}
+
+function sourceMarker(item) {
+  return {
+    stale: item.status === "stale",
+    unknown: item.status === "unknown",
+    sourceFact: item.provenance.sourceFact,
+    observedAt: item.provenance.observedAt,
+    contentHash: item.provenance.contentHash,
+  };
+}
+
+function queryBlockers(graph, options = {}) {
+  const checked = validateGraph(graph);
+  const limit = queryLimit(options.limit);
+  const byId = new Map(checked.nodes.map((item) => [item.id, item]));
+  return checked.edges
+    .filter((item) => item.predicate === "blocked_by")
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .slice(0, limit)
+    .map((item) => {
+      const blocker = byId.get(item.to);
+      return {
+        edgeId: item.id,
+        subjectId: item.from,
+        blockerId: blocker.id,
+        blockerKind: blocker.kind,
+        ...sourceMarker(blocker),
+        sourceFact: item.provenance.sourceFact,
+        observedAt: item.provenance.observedAt,
+        contentHash: item.provenance.contentHash,
+      };
+    });
+}
+
+function queryNodesByKind(graph, kind, options = {}) {
+  const checked = validateGraph(graph);
+  if (!NODE_KINDS.includes(kind)) invalid("query kind");
+  const limit = queryLimit(options.limit);
+  return checked.nodes
+    .filter((item) => item.kind === kind)
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .slice(0, limit)
+    .map((item) => ({ nodeId: item.id, kind: item.kind, ...sourceMarker(item) }));
+}
+
+function queryReceipts(graph, options = {}) {
+  return queryNodesByKind(graph, "receipt", options);
+}
+
+function queryHumanGates(graph, options = {}) {
+  return queryNodesByKind(graph, "human_gate", options);
+}
+
 module.exports = {
   GRAPH_VERSION,
   NODE_KINDS,
@@ -165,6 +223,9 @@ module.exports = {
   validateEdge,
   validateGraph,
   projectLedgerFacts,
+  queryBlockers,
+  queryReceipts,
+  queryHumanGates,
   // Explicit aliases keep the contract discoverable to callers that name the
   // records rather than the short validator names.
   validateGraphNode: validateNode,
