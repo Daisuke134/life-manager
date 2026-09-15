@@ -487,6 +487,23 @@ def test_revenue_workers_share_host_capacity_beyond_borrow_agent_limit(
         admission.release_and_reserve(claim, reserve=False)
 
 
+def test_legacy_revenue_uses_host_capacity_beyond_borrow_agent_limit(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="3")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_RUNS", "1")
+
+    claims = []
+    for owner_id in ("coconala-apply", "coconala-reply", "coconala-paid"):
+        claim, reason = admission.try_acquire(
+            "agent", owner_id, retain_ticket=False,
+            admission_class="revenue")
+        assert claim is not None and reason == "acquired"
+        claims.append(claim)
+
+    for claim in claims:
+        admission.release(claim)
+
+
 def test_crashed_revenue_claim_keeps_priority_when_requeued(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     admission.activate_durable_v2()

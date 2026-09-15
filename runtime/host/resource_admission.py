@@ -655,10 +655,12 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
 
 
 def try_acquire(resource_class: str, owner_id: str, *,
+                admission_class: str = "borrow",
                 retain_ticket: bool = True,
                 required_protocol: int | None = None) -> tuple[Path | None, str]:
     """Atomically claim a slot; live waiters are served FIFO within each class."""
-    if resource_class not in {"agent", "deterministic"} or not owner_id:
+    if (resource_class not in {"agent", "deterministic"} or not owner_id
+            or admission_class not in ADMISSION_CLASSES):
         raise RuntimeError("invalid resource identity")
     root = state_root()
     owners, tickets = root / "owners", root / "tickets"
@@ -709,14 +711,10 @@ def try_acquire(resource_class: str, owner_id: str, *,
 
         digest = hashlib.sha256(owner_id.encode()).hexdigest()
         if not retain_ticket:
-            total_limit = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 3)
-            class_limit = _capacity(
-                "LIFE_MANAGER_HOST_MAX_AGENT_RUNS" if resource_class == "agent"
-                else "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS",
-                1 if resource_class == "agent" else 2,
-            )
+            total_limit, class_limit = _limits(resource_class, admission_class)
             if len(occupied) >= total_limit or sum(
-                row.get("resource_class") == resource_class for row in occupied
+                _uses_limited_capacity(row, resource_class, admission_class)
+                for row in occupied
             ) >= class_limit:
                 return None, "capacity_busy"
             for candidate in sorted(tickets.glob(f"{resource_class}-*.json")):
@@ -730,7 +728,8 @@ def try_acquire(resource_class: str, owner_id: str, *,
             claim = owners / f"{digest}-{os.getpid()}.json"
             atomic_json(claim, {"version": 1, "pid": os.getpid(),
                         "process_start": started, "owner_id": owner_id,
-                        "resource_class": resource_class})
+                        "resource_class": resource_class,
+                        "admission_class": admission_class})
             return claim, "acquired"
 
         matches = [
@@ -742,14 +741,10 @@ def try_acquire(resource_class: str, owner_id: str, *,
         atomic_json(ticket, {"version": 1, "pid": os.getpid(),
                     "process_start": started, "owner_id": owner_id})
 
-        total_limit = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 3)
-        class_limit = _capacity(
-            "LIFE_MANAGER_HOST_MAX_AGENT_RUNS" if resource_class == "agent"
-            else "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS",
-            1 if resource_class == "agent" else 2,
-        )
+        total_limit, class_limit = _limits(resource_class, admission_class)
         if len(occupied) >= total_limit or sum(
-            row.get("resource_class") == resource_class for row in occupied
+            _uses_limited_capacity(row, resource_class, admission_class)
+            for row in occupied
         ) >= class_limit:
             return None, "capacity_busy"
 
@@ -768,7 +763,8 @@ def try_acquire(resource_class: str, owner_id: str, *,
         claim = owners / f"{digest}-{os.getpid()}.json"
         atomic_json(claim, {"version": 1, "pid": os.getpid(),
                     "process_start": started, "owner_id": owner_id,
-                    "resource_class": resource_class})
+                    "resource_class": resource_class,
+                    "admission_class": admission_class})
         ticket.unlink(missing_ok=True)
         return claim, "acquired"
     finally:

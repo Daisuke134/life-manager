@@ -185,7 +185,8 @@ def test_v1_protocol_uses_legacy_nonretaining_admission(tmp_path):
         ) == 0
 
     acquire.assert_called_once_with(
-        "agent", "example", retain_ticket=False, required_protocol=1,
+        "agent", "example", admission_class="borrow",
+        retain_ticket=False, required_protocol=1,
     )
     enqueue.assert_not_called()
     transfer.assert_called_once_with(claim, 4242)
