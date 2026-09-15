@@ -238,6 +238,46 @@ def test_acquire_reaps_only_one_stale_row_at_capacity(monkeypatch, tmp_path):
     assert list(module._leases()) == ["dead-b"]
 
 
+def test_acquire_reaps_one_expired_provisioning_row_even_below_capacity(monkeypatch, tmp_path):
+    module = load_module()
+    leases_file = tmp_path / "leases.json"
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases_file))
+    _write_leases(leases_file, {
+        "stale-provision": {
+            "provisioning": True,
+            "provisioning_started_at": 0,
+            "provisioning_deadline": 0,
+            "context_id": "orphan-context",
+            "target_id": None,
+            "token": "a" * 32,
+            "generation": 1,
+            "pid": None,
+            "ts": 0,
+        },
+        "healthy-parked": {
+            "context_id": "healthy-context",
+            "target_id": "healthy-target",
+            "parked": True,
+            "ts": int(time.time()),
+        },
+    })
+    calls = []
+
+    def fake_gc(idle_min=45, max_reaps=None, priority_task=None):
+        calls.append((idle_min, max_reaps, priority_task))
+        leases = module._leases()
+        leases.pop("stale-provision")
+        module._save(leases)
+        return {"ok": True, "reaped": ["stale-provision"]}
+
+    monkeypatch.setattr(module, "gc", fake_gc)
+
+    module._recover_capacity_if_needed("new-task")
+
+    assert calls == [(45, 8, "new-task")]
+    assert list(module._leases()) == ["healthy-parked"]
+
+
 def test_existing_task_reuse_never_waits_for_capacity_gc(monkeypatch, tmp_path):
     module = load_module()
     leases_file = tmp_path / "leases.json"

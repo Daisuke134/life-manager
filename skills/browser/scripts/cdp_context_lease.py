@@ -403,13 +403,20 @@ def _new_slot_blocked(task):
 
 
 def _recover_capacity_if_needed(task, wait_seconds=25.0):
-    """Reap a bounded stale batch when this task or capacity needs recovery."""
+    """Reap a bounded stale batch when this task or any lease needs recovery.
+
+    An expired provisioning row can be unrelated to the requesting task and still
+    leave a half-created CDP context behind.  Recover one bounded batch on the
+    next acquire instead of waiting for a separate maintenance wake.
+    """
     with _ledger_lock():
         leases = _leases()
         held = leases.get(task)
-        needs_reap = _lease_is_stale(held, time.time())
+        now = time.time()
+        needs_reap = _lease_is_stale(held, now)
+        stale_exists = any(_lease_is_stale(row, now) for row in leases.values())
         blocked = task not in leases and len(leases) >= _max_contexts()
-    if not needs_reap and not blocked:
+    if not needs_reap and not blocked and not stale_exists:
         return
     result = gc(idle_min=45, max_reaps=8, priority_task=task)
     if result.get("skipped") == "gc_already_running":
@@ -418,9 +425,11 @@ def _recover_capacity_if_needed(task, wait_seconds=25.0):
             with _ledger_lock():
                 leases = _leases()
                 held = leases.get(task)
-                needs_reap = _lease_is_stale(held, time.time())
+                now = time.time()
+                needs_reap = _lease_is_stale(held, now)
+                stale_exists = any(_lease_is_stale(row, now) for row in leases.values())
                 blocked = task not in leases and len(leases) >= _max_contexts()
-            if not needs_reap and not blocked:
+            if not needs_reap and not blocked and not stale_exists:
                 return
             time.sleep(0.1)
     if _new_slot_blocked(task):
