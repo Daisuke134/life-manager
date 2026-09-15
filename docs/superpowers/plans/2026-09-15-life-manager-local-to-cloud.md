@@ -214,6 +214,10 @@ TODO worktree. The current cursor is `PROD-01`.
   new wake ID to the resumed worker. Focused proof: human-gate plus existing reply-kernel tests
   (34 passed). No provider, browser, launchd, ledger, or Telegram effect was performed. The next
   action is reordered to the measured Lancers production blocker `PROD-01`.
+- [ ] `PROD-01` — In progress. The Lancers caller now adds `--escalation-reason` only for the
+  explicit planner task (`48e9da35d3`), while the shared runner defensively ignores stale metadata
+  for ordinary tasks (`cec6ce0d9b`). The new regression test and the full Lancers/runner suites pass;
+  production release creation, natural-idle sync, and one official canary remain open.
 
 ### Current production blocker snapshot (read-only)
 
@@ -222,10 +226,8 @@ TODO worktree. The current cursor is `PROD-01`.
   `ENOSPC` while writing evidence and the provider-local `denied_source_id` path; this is a
   provider/host blocker, not a graph result.
 - Lancers application remains on the older `e8e8a2b2` release while its owner is `running`; it was
-  not stopped or restarted. Its `safety_check_failed` path was reproduced: the caller passes
-  `--escalation-reason` to `diagnostic-agent`, and the runner rejects it before launching the safety
-  verifier (`escalation reason is only valid for an explicit escalation route`). No verified proposal
-  receipt exists for the current runs.
+  not stopped or restarted. The caller bug is fixed on the architecture branch (`48e9da35d3`), but
+  that code is not live yet. No verified proposal receipt exists for the current runs.
 - Mercor application is loaded on the current full release `5a9fdfb4`; its last application attempt
   was deferred for host capacity and no new official application receipt is observed yet.
 - Host data-volume headroom recovered to about 13 GiB, above the six-GiB runtime floor. The cleanup
@@ -238,9 +240,10 @@ No provider submission or payment receipt was produced by this snapshot.
 
 `PROD-01` progress: the shared runner now ignores stale escalation metadata for ordinary tasks
 without granting authority, records only `extraneous_escalation_reason_ignored`, and still requires a
-reason for restricted routes (`cec6ce0d9b`). Proof: runner suite 69 passed with 58 subtests and an
-anonymous diagnostic-agent JSON probe passed. The Lancers caller and production immutable-release
-canary remain pending; this commit is not live until it is included in a main-derived release.
+reason for restricted routes (`cec6ce0d9b`). The Lancers caller condition is also fixed
+(`48e9da35d3`). Proof: Lancers suite 36 passed with 4 subtests, runner suite 69 passed with 58
+subtests, and an anonymous diagnostic-agent JSON probe passed. The production immutable-release
+canary remains pending; these commits are not live until included in a main-derived release.
 
 ## FND research gate (search complete; FND-02 implemented)
 
@@ -270,7 +273,8 @@ target control plane is implemented.
 production evidence shows Lancers cannot reach its safety verifier at all, so the new order is
 `PROD-01` (caller argument fix and targeted immutable-release canary), then `BROWSER-01`. This
 shortens time to a real provider effect without changing safety gates or interrupting the running
-owner. The current atomic change is `PROD-01` and begins with a focused failing regression test.
+owner. The caller regression is now GREEN; the current atomic change remains `PROD-01` until its
+production canary has an official receipt.
 
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
 |---|---|---|---|
