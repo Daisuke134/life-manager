@@ -39,38 +39,39 @@ runtime event、provider ledgerを突き合わせた現在cursorです。後続�
 
 | 対象 | 実測状態 | 判定 |
 |---|---|---|
-| source | `origin/main=06b4d6d87bb2dc00ea0b69d8129124b71d28e423` | Lancersの容量・planner・遷移診断・exhaustive 1-turn・pending cursor・本番wrapperのbounded discoveryを含む |
-| release selector | `~/loops/current`は`20260915T222815-ae1bf965`。最新検証済みreleaseは`20260915T230801-475febf2`（wrapper修正`06b4...`用releaseは未作成） | selector、稼働owner、mainが混在。全体昇格は未完 |
-| Lancers Application | 旧475 releaseの`--json --exhaustive` wakeを16分超で停止し、`bootout=0`・`unloaded`・終端`entrypoint_exit_143`。planner/safetyのagent-runner成功はあるが、provider終端・公式応募receiptは未確認 | pendingを保持したまま重複起動しない。次にwrapper修正を含む`06b4...` releaseを作成し、idle境界で反映 |
+| source | `origin/main=6e95af80035533d3c458986ea199482a3aade224` | Lancersの容量・planner・遷移診断・exhaustive 1-turn・pending cursor・本番wrapperのbounded discovery・timeout診断・single-slice discoveryを含む |
+| release selector | `~/loops/current`は`20260915T232248-475febf2`。Applicationだけ最新release`20260915T235054-6e95af80`へ反映 | selectorとApplication ownerは別。Browser等は旧release。全体昇格は未完 |
+| Lancers Application | 最新releaseで`--exhaustive`なし・1query sliceを実行し、約1分で`last_exit=0`/terminal `pass`。出力は`no_eligible_project`（観測0、公式応募0）。pending 134件、ledger最新sequence 147 | 検索占有の基盤gateはPASS。収益gateは未完。pendingを保持し、候補が取れる次wakeで公式receiptを確認 |
 | Lancers Browser | `loaded-running`、9227 CDPはChrome 145 / Protocol 1.3、ownerは旧`ae1bf96528` | Browser接続canaryはPASS。provider効果は未確認。Applicationと同時にprofileを再起動しない |
 | Lancers Negotiate/Storefront/work-sync/report | ownerのインストール版は475へ揃ったものがあるが、旧terminal event、`resource_capacity_busy`、`resource_control_busy`が残る。Reportは旧ae1 event | 履歴を成功に変換せず、各ownerを一つずつ自然wakeで確認 |
 | Lancers Paid | `loaded-idle`、installed releaseは475、`install` eventも475。一方で直近provider結果は`entrypoint_exit_1` | **reconcile作業は完了**。公式paid効果は未確認のため収益完了にはしない |
-| Lancers ledger | 最新の`application_verified`は既存sequence 147（新canaryのreceiptではない） | 現在runの成功・収益は0件として扱う |
+| Lancers ledger | 最新の`application_verified`は既存sequence 147（2026-09-11）。新release wakeで増加なし | 現在runの成功・収益は0件として扱う |
 
-最新のmain統合はPR #5233（merge commit `06b4d6d87b`）です。今回の追加修正は、本番の
+最新のmain統合はPR #5235（merge commit `6e95af80`）です。PR #5233で本番の
 `application-owner`から`--exhaustive`を外し、仕様どおり通常の回転検索を使うことです。
-`--exhaustive`は全カテゴリ＋キーワード＋詳細ページを一つのwakeで読み、実測でApplicationの
-検索・planner・provider遷移を5分以上保持しました。修正後も全語彙を捨てるのではなく、既存の
-回転・重複排除・未判断cacheで次のwakeへ分散します。新releaseは作成後、稼働中ownerを止めずに
-idle境界で段階的にreconcileします。
+PR #5234では、confirmation遷移失敗後の診断用`page.evaluate`を呼ばず、URLだけを記録して
+必ず戻るようにしました。PR #5235では、通常経路も候補40件になるまで検索せず、1 wakeにつき
+回転中の1 query sliceだけを処理します。新releaseの自然wakeで約1分終了を確認しましたが、
+候補・公式応募receiptはまだありません。pending 134件の再確認とprovider form canaryを続けます。
 
 このcursorからの実行順序を固定する。前の項目の公式証拠がない限り、次のplatformへ進めない。
 
 | 順番 | atomic task | 変更範囲 | 完了条件 |
 |---:|---|---|---|
 | 1 | `PROD-01-A` Lancers Paidをidle時に現行releaseへreconcile | Lancers Paid ownerのみ | **完了**: installed/install eventは475で一致。provider効果は別gate |
-| 2 | `PROD-01-B` wrapper修正を含む`06b4...` releaseを作成し、Applicationをidle境界で反映 | Application owner + immutable release | loaded argvが`--exhaustive`なしで一致。現在の旧wakeは終端まで重複起動しない |
-| 3 | `PROD-01-C` Lancers Applicationを新wrapperの自然wakeで1回検証 | Application owner、planner/safety evidence | planner schema valid、safety結果、外部effect 0または公式receipt。公式receiptなしは未完 |
-| 4 | `PROD-01-D` proposal確認遷移の残故障を修正 | Lancers provider adapterと回帰テスト | URL/DOM状態を記録し、正しいconfirm routeまたは明示的provider拒否を再現 |
-| 5 | `PROD-01-E` Lancers全7 ownerのrelease driftを解消 | Lancers ownerだけ | Browser、4収益lane、work-sync、reportが同じimmutable SHA |
-| 6 | `BROWSER-03` Lancers応募canaryを1件だけ実行 | provider effect owner | 公式proposal receipt、公式readback、replay-zero |
-| 7 | `PROD-02` Lancers Negotiate/Storefront/Paidを個別に閉じる | 各provider adapter | laneごとの公式receiptまたは明示的not-applicable、重複0 |
-| 8 | `MARKET-02` CrowdWorksを同じshared kernelで検証 | CrowdWorks adapter/owner | 応募・契約の公式receiptまたはtruthful not-applicable |
-| 9 | `MARKET-03` Mercorをhuman gate付きで検証 | Mercor adapter/owner | typed gate再開、公式application/contract/payment receipt |
-| 10 | `MARKET-04` Coconalaを別workstream完了後に検証 | Coconala owner | 既存の4 laneごとの公式receipt、buyer readback、replay-zero |
-| 11 | `LOCAL-01/02` 14 Product Loopのlocal completion manifest | shared control plane + 各owner | unknown 0、未対応は明示状態、外部成功はreceipt限定 |
-| 12 | `CLOUD-01/02/03` tenant分離・cloud Browser・phone-only経路 | cloud adapter | localと同じcontract、cloud canary、静かな通知、公式readback |
-| 13 | `CLOUD-04` production昇格 | primary release owner | local gate、cloud gate、公式効果、replay-zeroの全PASS |
+| 2 | `PROD-01-B` wrapper修正を含む`6e95...` releaseを作成し、Applicationをidle境界で反映 | Application owner + immutable release | **完了**: loaded argvは`--exhaustive`なし、installed/event SHAは`6e95...` |
+| 3 | `PROD-01-C` Lancers Applicationを新wrapperの自然wakeで1回検証 | Application owner、planner/safety evidence | **基盤部分PASS**:約1分で終端。候補0・公式receipt0のため収益gateは未完 |
+| 4 | `PROD-01-D` pending 134件を順番に再確認し、fresh sliceを枯らさない | Application state/reconciliation only | transient failureを次wakeへ送り、state invalidはfail-closed。pending解消または理由付きterminal |
+| 5 | `PROD-01-E` proposal確認遷移の残故障を1件で再現・修正 | Lancers provider adapterと回帰テスト | URL/DOM状態を記録し、正しいconfirm routeまたは明示的provider拒否を再現 |
+| 6 | `PROD-01-F` Lancers全7 ownerのrelease driftを解消 | Lancers ownerだけ | Browser、4収益lane、work-sync、reportが同じimmutable SHA |
+| 7 | `BROWSER-03` Lancers応募canaryを1件だけ実行 | provider effect owner | 公式proposal receipt、公式readback、replay-zero |
+| 8 | `PROD-02` Lancers Negotiate/Storefront/Paidを個別に閉じる | 各provider adapter | laneごとの公式receiptまたは明示的not-applicable、重複0 |
+| 9 | `MARKET-02` CrowdWorksを同じshared kernelで検証 | CrowdWorks adapter/owner | 応募・契約の公式receiptまたはtruthful not-applicable |
+| 10 | `MARKET-03` Mercorをhuman gate付きで検証 | Mercor adapter/owner | typed gate再開、公式application/contract/payment receipt |
+| 11 | `MARKET-04` Coconalaを別workstream完了後に検証 | Coconala owner | 既存の4 laneごとの公式receipt、buyer readback、replay-zero |
+| 12 | `LOCAL-01/02` 14 Product Loopのlocal completion manifest | shared control plane + 各owner | unknown 0、未対応は明示状態、外部成功はreceipt限定 |
+| 13 | `CLOUD-01/02/03` tenant分離・cloud Browser・phone-only経路 | cloud adapter | localと同じcontract、cloud canary、静かな通知、公式readback |
+| 14 | `CLOUD-04` production昇格 | primary release owner | local gate、cloud gate、公式効果、replay-zeroの全PASS |
 
 routine report、PID、exit 0、Telegram送信、テストgreenだけでは各項目を完了にしない。各項目の
 最後に公式証拠がなければ、その項目は同じcursorに留まり、次のplatformを起動しない。
