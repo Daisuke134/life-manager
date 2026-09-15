@@ -3,160 +3,99 @@
 
 # Life Manager
 
-> **An AI that manages your life better than you ever can.**
+> **AI that manages your life better than you ever can.**
 
-Life Manager is a proactive general agent for your **body, mind, and money**. It turns a goal into a bounded plan, acts within delegated boundaries, verifies the official result, and learns from the evidence. The problem it is designed to solve is life stagnation: knowing what would help, but not being able to keep moving.
-
-The long-term vision is a manager for every life—starting with one person, then making dependable care and agency available to all living beings. That is a direction, not a claim that the current repository has already reached it.
-
-[Open Life Manager](https://aniccaai.com/lm) · [Start in Telegram](https://t.me/LifeManagerBotbot?start=lp) · [Source](https://github.com/Daisuke134/life-manager)
+Life Manager is a proactive general agent for your **body, mind, and money**. It turns intent into a life that moves forward, acts within delegated boundaries, verifies reality, and keeps improving. The long-term vision is a manager for every life, ultimately all living beings.
 
 Life Manager is the product. Anicca is the company name only when a form explicitly asks for it.
 
-## What it manages
+[Open Life Manager](https://aniccaai.com/lm) · [Start in Telegram](https://t.me/LifeManagerBotbot?start=lp) · [Source](https://github.com/Daisuke134/life-manager)
 
-| Organ | Examples |
-|---|---|
-| **Daily** | Goals, calendar, priorities, applications, follow-through |
-| **Body & mind** | Routines, wellbeing signals, care continuity, small next actions |
-| **Money** | Work opportunities, writing, applications, revenue, cash flow, risk-gated investing |
-
-Life Manager does not promise wealth or investment returns. A draft, click, or local success is not a completed outcome; completion requires the provider's official receipt or an explicit capability state such as `setup_required`.
+Telegram is a temporary control surface. The product is the manager, not the channel.
 
 ## One product, two modes
 
-Local and cloud are two ways to run the **same core**, not two products.
+Local and Cloud run the **same core**. Only the host, storage adapter, secret store, and browser transport change.
 
-| Mode | Purpose | Where mutable data lives | User experience |
-|---|---|---|---|
-| **Local** | Development, self-hosting, recovery, and the local completion gate | The owner's machine, outside Git | Terminal for setup; Telegram or the local channel for important results |
-| **Cloud** | Always-on production and many independent users | Tenant-scoped database/object storage and secret store | A phone is enough; workers, schedules, and browser sessions run remotely |
+| Local | Cloud |
+|---|---|
+| Development, self-hosting, recovery | Always-on production, phone-only |
+| Private state on the owner's machine | Tenant-isolated database/object storage |
+| Headless browser when automation is needed | On-demand headless browser sessions |
 
-The execution contract is shared: goal → context → finite wake → tool effect → official readback → receipt → evaluation. Only the supervisor, storage adapter, secret store, and browser transport change between modes. Cloud promotion happens only after the local acceptance gate passes; mutable local state is not copied into cloud state.
+The local acceptance gate must pass before the identical immutable release is promoted to Cloud.
 
-## How one wake becomes progress
+## User experience
+
+1. The person states an intention in the app or phone channel.
+2. Life Manager remembers the relevant context and chooses the next useful action.
+3. It works in a finite wake, checks the real provider result, and records the evidence.
+4. The person sees only a meaningful result, an unavoidable action, or a persistent blocker.
+
+Routine wakes, retries, health, and raw logs stay private. The long-term goal is a self-managing life, without requiring a computer or constant supervision.
+
+## How a wake becomes progress
 
 ```mermaid
 flowchart LR
-    I[Intent from a person] --> G[Goal with success condition]
-    G --> Q[Durable queue]
-    Q --> W[One finite wake]
-    W --> C[Context capsule]
-    C --> T[Model + allowed tools]
-    T --> E[External effect]
-    E --> R[Official provider readback]
-    R --> L[Receipt and ledger]
-    L --> V[Evaluation and telemetry]
-    V --> H{Improve or repair?}
-    H -->|yes| P[Canary, promote, or rollback]
-    P --> Q
-    H -->|no| N[Quiet internal record]
-    E -->|human gate| U[Ask the person only for the required action]
-    U --> R
+  A[Intent] --> B[Goal]
+  B --> C[Context]
+  C --> D[Finite wake]
+  D --> E[Allowed tools]
+  E --> F[Real-world action]
+  F --> G[Official result]
+  G --> H[Receipt]
+  H --> I[Learn, repair, improve]
+  I --> C
 ```
-
-Routine wakes stay inside the system. Telegram is reserved for a human action, urgent safety issue, material outcome, or persistent blocker—not hourly raw logs.
 
 ## The 14 product loops
 
-These are fourteen user-facing capabilities, not fourteen permanently running processes. The registry may split a capability into discovery, browser, worker, healthcheck, reconciliation, and reporting jobs.
+The loops are capabilities, not fourteen permanent processes: Coconala, Lancers, CrowdWorks, Writer, Affiliate, Investment, Agent Economy, Job Hunter, Fundraiser, Connector, Self-Build, Mobile Apps, Capafy, and CFO. Their lifecycle jobs remain separately owned in [`config/loop-registry.json`](config/loop-registry.json); the identity contract is in the [architecture spec](docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md).
 
-| # | Loop | Responsibility |
-|---:|---|---|
-| 1 | Gig — Coconala | Find, screen, apply, negotiate, support delivery, and verify provider outcomes |
-| 2 | Gig — Lancers | Run the same earning lifecycle with Lancers-specific rules and receipts |
-| 3 | Gig — CrowdWorks | Find eligible projects, apply safely, and reconcile confirmations |
-| 4 | Writer | Discover paid writing, respond, publish when allowed, and reconcile payment |
-| 5 | Affiliate | Find attributable opportunities, publish through an owned path, and measure results |
-| 6 | Investment | Run paper/shadow/live modes behind explicit risk gates and reconcile orders |
-| 7 | Agent Economy | Separate owner funds, agent revenue, compute cost, and reserves |
-| 8 | Job Hunter | Discover qualified roles, submit applications, and reconcile email/provider replies |
-| 9 | Fundraiser | Find accelerators, grants, fellowships, and investor intakes and apply when eligible |
-| 10 | Connector | Discover eligible events, apply, verify registration, and place confirmed events on the calendar |
-| 11 | Self-Build | Turn verified feedback and product evidence into reviewed improvements |
-| 12 | Mobile Apps | Create, build, release, market, measure, and improve owned apps through one lifecycle |
-| 13 | Capafy | Operate the product's sales, outcome, and audience-growth workflows |
-| 14 | CFO | Reconcile verified revenue, costs, balances, payouts, and financial decisions |
+## One data shape, private values
 
-The live registry is [`config/loop-registry.json`](config/loop-registry.json). The shared remediation and ownership matrix is in the [architecture refinement spec](docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md).
-
-## The shared data contract
-
-Every person uses the same shape of data, while each person's values and history remain isolated. The identity boundary is always `tenant_id` + `user_id` + `owner_id`.
-
-| Record | Stored content | Rule |
-|---|---|---|
-| Goal | Desired outcome, priority, deadline, success condition | No goal is complete without a measurable condition |
-| Context | Preferences, constraints, permissions, and relevant history | Load the smallest capsule needed for this wake |
-| Graph | Goal, task, opportunity, dependency, person, and provider relationships | Edges carry provenance and freshness |
-| Execution | Job, wake, tool call, effect, retry, and human-gate states | Idempotency key prevents duplicate effects |
-| Evidence | Official readback, receipt, artifact hash, and failure reason | `unknown` is never silently changed to `0` or `success` |
-| Evaluation | Baseline, score, error class, candidate, canary, and rollback decision | Held-out cases protect against self-deception |
-
-Personal data, credentials, browser sessions, and execution records are runtime state—not source code. They never enter Git, prompts copied between tenants, public skills, or Telegram. The target canonical layout is:
+Every person uses the same schema, while values and history remain isolated by `tenant_id`, `user_id`, and `owner_id`.
 
 ```text
-Git repository                 code, schemas, skills, specs, immutable releases
-Local owner state              ~/.local/state/life-manager/<tenant>/<owner>/
-Cloud tenant state             PostgreSQL + object storage, scoped by tenant/user/owner
-Secret and browser state       OS/host secret store or cloud vault; provider-scoped sessions
+Git repository          code, skills, schemas, specs, immutable releases
+Local state             ~/.local/state/life-manager/<tenant>/<owner>/
+Cloud state             PostgreSQL/object storage scoped to one tenant
+Secrets/sessions        host secret store or cloud vault, provider-scoped
 ```
 
-The local and cloud adapters implement the same contract and retention/redaction rules. A migration may transform records through an explicit receipt, but it does not copy a user's mutable local state into another tenant.
+Personal data, credentials, browser sessions, and execution records never enter Git or a different person's context.
 
 ## Self-healing and recursive improvement
 
-Three layers make “no babysitting” an engineering property instead of a slogan:
+`observe → classify → repair → verify → promote or rollback` is the shared loop. Self-improvement can change a recipe, evaluator, or context selector only after baseline, held-out evaluation, safety checks, and a canary. It cannot silently grant permissions or claim an external result without evidence.
 
-1. **Self-healing:** detect a typed failure, isolate the affected owner, choose a bounded repair, rerun the smallest proof, and stop safely when the provider or a human is required.
-2. **Self-improvement:** measure a baseline, create one candidate change, evaluate it on held-out cases, canary it, and promote or roll back using the same receipt contract.
-3. **Recursive self-improvement:** the system may improve its evaluator, repair recipe, context selection, and skills only through the same evidence gate. It cannot grant itself new permissions, change the scheduler, or declare an external effect without a receipt.
-
-The seven reusable engineering skills encode these rules: [harness](skills/harness-engineering/SKILL.md), [context](skills/context-engineering/SKILL.md), [loop](skills/loop-engineering/SKILL.md), [graph](skills/graph-engineering/SKILL.md), [eval](skills/eval-engineering/SKILL.md), [observability](skills/observability-engineering/SKILL.md), and [goal](skills/goal-engineering/SKILL.md). Their pinned source catalog is [`docs/agent-engineering/REFERENCE-REPOS.md`](docs/agent-engineering/REFERENCE-REPOS.md).
+The reusable recipes are [harness](skills/harness-engineering/SKILL.md), [context](skills/context-engineering/SKILL.md), [loop](skills/loop-engineering/SKILL.md), [graph](skills/graph-engineering/SKILL.md), [eval](skills/eval-engineering/SKILL.md), [observability](skills/observability-engineering/SKILL.md), and [goal](skills/goal-engineering/SKILL.md).
 
 ## Folder map
 
 ```text
 life-manager/
-├── apps/life-manager/              product registry and user-facing orchestration
-├── config/loop-registry.json       the 14-loop capability registry
-├── skills/                         reusable agent recipes and provider adapters
-│   └── agent-engineering/tests/    contract tests for the recipes
-├── runtime/                        local supervisors and finite wake workers
-├── docs/agent-engineering/         pinned open-source references and source map
-├── docs/superpowers/specs/         architecture and acceptance contracts
-├── docs/superpowers/plans/         atomic local-to-cloud execution plan
-└── install.sh / bin/lm-loop        local setup and diagnosis entry points
+├── apps/life-manager/          product orchestration
+├── config/loop-registry.json   lifecycle job registry
+├── skills/                     reusable agent recipes
+├── runtime/                    supervisors and finite wakes
+└── docs/superpowers/           specs and atomic plans
 
-~/.local/state/life-manager/        personal state and execution records (outside Git)
+~/.local/state/life-manager/    personal state and execution records (outside Git)
 ```
 
 ## Roadmap
 
-**Now — make the local core dependable**
+- **Now:** finish the shared identity, state, resource, context, evidence, evaluation, and quiet-reporting contracts; pass Local acceptance for all 14 loops.
+- **Next:** provision tenant-scoped Cloud state, run read-only then effect canaries, and increase capacity only after official readback and replay-zero.
+- **North Star:** a phone is enough to state an intention; Life Manager manages the rest of life continuously and safely.
 
-- Finish the shared contracts for identity, resources, goals, context, graph, effects, receipts, human gates, evaluation, and internal reporting.
-- Give every loop one owner, one release identity, one resource class, one retry policy, and one official completion condition.
-- Run browser work headlessly by default, admit work against measured memory, and keep a viewer only for human handoff or debugging.
-- Bring all fourteen loops through the local acceptance matrix; a provider that cannot run reports an explicit capability state instead of pretending to succeed.
-
-**Then — promote the same release to cloud**
-
-- Provision tenant-scoped state and provider-scoped browser sessions on demand.
-- Run a small cloud canary, compare receipts and evaluations with local, then expand concurrency gradually.
-- Keep routine telemetry internal; send only important human-facing events to the phone.
-
-**North star — phone-only life management**
-
-- A person states a goal in Telegram or the app.
-- Life Manager plans and executes within delegated boundaries, asks only for unavoidable human gates, and verifies the result.
-- The manager continuously repairs failures and improves its own recipes while preserving privacy, permission, and evidence boundaries.
-
-The atomic implementation order and current cursor live in the [local-to-cloud plan](docs/superpowers/plans/2026-09-15-life-manager-local-to-cloud.md). The repository is actively being built; not every loop is production-complete today. Current measured status belongs in the loop-specific specs and receipts, not in a marketing claim here.
+The atomic implementation cursor and proof for each task live in the [Local-to-Cloud plan](docs/superpowers/plans/2026-09-15-life-manager-local-to-cloud.md). The repository is actively being built; current measured status belongs in loop-specific receipts, not in this short overview.
 
 ## Start
 
-**Cloud:** [start in Telegram](https://t.me/LifeManagerBotbot?start=lp) or open [Life Manager](https://aniccaai.com/lm). No computer needs to stay on.
+**Cloud:** [start in Telegram](https://t.me/LifeManagerBotbot?start=lp) or open [Life Manager](https://aniccaai.com/lm).
 
 **Local:**
 
@@ -167,15 +106,12 @@ LIFE_MANAGER_INSTALL_DAEMON=0 ./install.sh
 ./bin/lm-loop doctor
 ```
 
-Local setup is for development, self-hosting, and recovery. Do not infer a provider effect from a process exit code; inspect the official receipt.
-
-## Further reading
+## Links
 
 - [Agent-engineering source catalog](docs/agent-engineering/REFERENCE-REPOS.md)
 - [Architecture refinement](docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md)
-- [Local-to-cloud implementation plan](docs/superpowers/plans/2026-09-15-life-manager-local-to-cloud.md)
-- [Loop-engineering recipe](skills/loop-engineering/SKILL.md)
-- [Security and contribution notes](SECURITY.md) · [Soul](SOUL.md) · [Thesis](THESIS.md)
+- [Local-to-Cloud plan](docs/superpowers/plans/2026-09-15-life-manager-local-to-cloud.md)
+- [Security](SECURITY.md) · [Soul](SOUL.md) · [Thesis](THESIS.md)
 - [日本語版 README](README.ja.md)
 
 ## North Star (immutable)

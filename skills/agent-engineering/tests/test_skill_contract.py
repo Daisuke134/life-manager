@@ -231,8 +231,8 @@ def test_product_readmes_are_short_and_cover_the_shared_runtime_contract() -> No
     english = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
     japanese = (REPO_ROOT / "README.ja.md").read_text(encoding="utf-8")
 
-    assert len(english.splitlines()) <= 260
-    assert len(japanese.splitlines()) <= 260
+    assert len(english.splitlines()) <= 140
+    assert len(japanese.splitlines()) <= 140
     assert "Local" in english and "Cloud" in english
     assert "same core" in english
     english_lower = english.lower()
