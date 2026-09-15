@@ -325,6 +325,8 @@ def _uses_limited_capacity(row: dict[str, object], resource_class: str,
 
 def _legacy_owner_present(occupied: list[dict[str, object]]) -> bool:
     return any(
+        row.get("admission_class", "borrow") == "borrow"
+        and
         row.get("admission_policy") != ADMISSION_POLICY
         for row in occupied
     )
