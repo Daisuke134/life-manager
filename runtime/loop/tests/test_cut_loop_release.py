@@ -447,6 +447,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "PATH": f"{fake_bin}:{os.environ['PATH']}",
                     "LIFE_MANAGER_SOURCE_REPO": str(root),
                     "LOOPS_ROOT": str(loops),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
                 },
                 capture_output=True,
                 text=True,
@@ -488,6 +489,9 @@ class CutLoopReleaseTest(unittest.TestCase):
             )
             cutter_called = root / "cutter.called"
             calls = root / "lm-loop.calls"
+            admission_root = root / "admission"
+            admission_root.mkdir()
+            (admission_root / "protocol.json").write_text('{"version":2}\n')
             fake_git = fake_bin / "git"
             fake_git.write_text(
                 "#!/bin/sh\n"
@@ -517,6 +521,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "PATH": f"{fake_bin}:{os.environ['PATH']}",
                     "LIFE_MANAGER_SOURCE_REPO": str(root),
                     "LOOPS_ROOT": str(loops),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(admission_root),
                 },
                 capture_output=True,
                 text=True,
@@ -525,7 +530,7 @@ class CutLoopReleaseTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertFalse(cutter_called.exists())
-            self.assertEqual(len(calls.read_text().splitlines()), 3)
+            self.assertEqual(len(calls.read_text().splitlines()), 2)
 
 
 if __name__ == "__main__":
