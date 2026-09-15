@@ -134,8 +134,17 @@ def insert(tid: str, value: str) -> dict:
 def key(tid: str, value: str) -> dict:
     ws = _page(tid)
     try:
+        identity = ({
+            "code": "Enter",
+            "windowsVirtualKeyCode": 13,
+            "nativeVirtualKeyCode": 13,
+        } if value == "Enter" else {})
         for call_id, kind in enumerate(("keyDown", "keyUp"), start=1):
-            _rpc(ws, call_id, "Input.dispatchKeyEvent", {"type": kind, "key": value})
+            _rpc(ws, call_id, "Input.dispatchKeyEvent", {
+                "type": kind,
+                "key": value,
+                **identity,
+            })
         return {"key": value}
     finally:
         ws.close()
