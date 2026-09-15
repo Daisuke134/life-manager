@@ -251,6 +251,14 @@ Production preflight receipt (read-only): `launchctl-safe preflight` at
 Directory Services, Aqua manager, GUI domain, and launchd manager probes all passed. This removes a
 host-permission blocker; only main-derived release integration and the official canary remain.
 
+Live recheck (read-only): `launchctl-safe preflight` at `2026-09-15T09:43:11Z` again returned
+`status=pass`, `mutation_allowed=true`, and no errors. Lancers was still `running` on
+`e8e8a2b2` with last exit code `1`; its log still reports `safety_check_failed`,
+`account_unavailable`, and `browser_unavailable`. `origin/main` remains `5a9fdfb4` and still
+contains the pre-fix unconditional safety-agent escalation argument. Handoff of commits
+`48e9da35d3` and `cec6ce0d9b` was sent to `fable-main` and `sol-codex`; no acknowledgement or
+main-derived release containing the fix exists yet. No running owner was stopped or restarted.
+
 ## FND research gate (search complete; FND-02 implemented)
 
 The research pass is complete for `FND-02` through `FND-10`. This section records the evidence and
