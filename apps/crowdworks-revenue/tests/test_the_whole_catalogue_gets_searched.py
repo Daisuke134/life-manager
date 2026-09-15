@@ -37,7 +37,10 @@ def test_every_group_the_board_publishes_is_walked():
     wakes = -(-len(module.JOB_GROUPS) // module.GROUPS_READ_PER_WAKE)
     seen = set()
     for index in range(wakes):
-        seen |= set(module._groups(BASE + datetime.timedelta(seconds=module.WAKE_INTERVAL_SECONDS * index)))
+        seen |= set(module._groups(
+            BASE + datetime.timedelta(seconds=module.WAKE_INTERVAL_SECONDS * index),
+            start=(index * module.GROUPS_READ_PER_WAKE) % len(module.JOB_GROUPS),
+        ))
     assert seen == set(module.JOB_GROUPS)
 
 
@@ -52,8 +55,8 @@ def test_no_group_is_dropped_on_a_guess_about_what_it_holds():
 
 def test_consecutive_wakes_walk_different_groups():
     module = _owner()
-    first = module._groups(BASE)
-    second = module._groups(BASE + datetime.timedelta(seconds=module.WAKE_INTERVAL_SECONDS))
+    first = module._groups(BASE, start=0)
+    second = module._groups(BASE + datetime.timedelta(seconds=module.WAKE_INTERVAL_SECONDS), start=5)
     assert set(first) != set(second)
 
 
