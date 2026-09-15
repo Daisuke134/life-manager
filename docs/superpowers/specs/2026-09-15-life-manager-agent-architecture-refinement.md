@@ -39,8 +39,10 @@ claim that the target control plane, marketplace effects, or cloud deployment ar
 
 **この仕事は完了していません。** スキルの調査・読み込みと候補branchのテストgreenは、
 Life Managerの実際の応募・契約・納品・報酬・cloud運用が動いたことを意味しません。現在の
-本番selectorは `origin/main=2ff93374f79c` 由来の `20260916T044820-2ff93374` のままで、
-統合候補 `fix/lm-fundamental-runtime-20260916`（`5dfbcb9748`）はpush済みですが未統合です。
+本番selectorは `origin/main=22dc7cdc53` 由来の `20260916T054645-22dc7cdc` へ進みましたが、
+ownerのinstalled/event SHAはまだ混在しています。統合候補
+`fix/lm-fundamental-runtime-20260916`（HEAD `c780f1c18f`）は最新mainを取り込みpush済みですが、
+まだ本番へ統合していません。
 したがって、次の作業は「さらにスキルを読む」ではなく、候補をmain由来immutable releaseへ
 昇格し、ownerごとの自然wakeで公式効果を確認することです。
 
@@ -48,7 +50,7 @@ Life Managerの実際の応募・契約・納品・報酬・cloud運用が動い
 
 | 順番 | atomic task | いま残っている理由 | 完了条件 |
 |---:|---|---|---|
-| 1 | `CAND-01` 候補 `5dfbcb9748` の共有kernel修正を固定する | Lancers browser lease、stale claim解放、CrowdWorks/Mercor timeout、Mercor stale provisioning GCは候補branchだけ | candidate suite（871 tests + 132 subtests）、diff、fixture、release manifestを再確認。main/本番にはまだ配布しない |
+| 1 | `CAND-01` 候補 `c780f1c18f` の共有kernel修正を固定する | Lancers browser lease、stale claim解放、CrowdWorks/Mercor timeout、Mercor stale provisioning GC、sparse release互換は候補branchだけ | candidateのLancers 402 tests + 17 subtests、Job Hunter 462 tests、runtime/loop 481 tests + 483 subtests等を再確認。main/本番にはまだ配布しない |
 | 2 | `CAND-02` candidateのread-only自然wake/canaryを閉じる | candidateの競合・冪等化はfixture/live read-onlyで確認しただけ | 各対象ownerをeffectなしで一度ずつ確認し、想定外の`browser_session_busy` 0、`resource release deferred` 0、terminal eventあり |
 | 3 | `PROD-01-F` Lancers pendingを1 sliceずつ消化 | pending 101件が残り、Application以外の収益receiptが0 | 101件が公式receipt付きで処理済み、または理由付きterminal。effect key重複0、replay-zero |
 | 4 | `PROD-02` Lancers Negotiate/Storefront/Paidを閉じる | Paidは契約候補0・effect/readback 0で、収益成功ではない。Reply/Storefrontも公式readback未完 | laneごとに公式receipt、または明示的not-applicableと再試行境界 |
@@ -58,7 +60,7 @@ Life Managerの実際の応募・契約・納品・報酬・cloud運用が動い
 | 8 | `CONTROL-01` registry外Browser provisionerを分類する | `lm-loop doctor` が unmanaged provisionerを1件報告 | 所有者・release・state・readbackを登録し、doctorのunmanaged 0（稼働中profileは止めない） |
 | 9 | `LOCAL-01/02` 14 Product Loopのcompletion manifestを埋める | 14 loopは論理的な一覧で、全loopの実測receiptが揃っていない | unknown 0、未対応はtyped state、成功は公式receiptだけ、内部ログとTelegramを分離 |
 | 10 | `CLOUD-01..04` local→cloud昇格 | tenant分離・cloud Browser・phone-only canary未実装/未実測 | local gate全PASS後、同じcontractでcloud canary、公式readback、replay-zero |
-| 11 | `INT-99` 全受入後に一度だけmain統合・immutable release化 | 候補は未統合で、本番selectorは `2ff93374` のまま | rows 1〜10が全PASS、mainへ一度だけPR/merge、13 ownerを同じSHAへ反映、production readback |
+| 11 | `INT-99` 全受入後に一度だけmain統合・immutable release化 | 候補は未統合で、本番selectorは `22dc7cdc` のまま | rows 1〜10が全PASS、mainへ一度だけPR/merge、13 ownerを同じSHAへ反映、production readback |
 
 **進行ルール:** 前の行の完了条件を満たすまで次の外部effectを実行しません。`exit 0`、
 Telegram報告、テストgreen、ブラウザ画面表示だけでは完了にしません。候補branchを本番ownerへ
@@ -73,17 +75,17 @@ runtime event、provider ledgerを突き合わせた現在cursorです。後続�
 
 | 対象 | 実測状態 | 判定 |
 |---|---|---|
-| source | `origin/main=2ff93374f79ccb91c712b98692537e3ce61387d7`（PR #5250）; 統合候補branch `fix/lm-fundamental-runtime-20260916`（HEAD `5dfbcb9748`）はpush済み・未統合 | mainにはdynamic CDP endpoint修正が追加済み。統合候補にはLancers shared browser session lease、stale claim解放の冪等化、CrowdWorks/Mercor finite lane timeout、Mercor stale provisioning auto-GC、Lancers Skill更新を追加し、関連871 tests + 132 subtestsがPASS |
-| release selector | `~/loops/current`は`20260916T044820-2ff93374`（SHA `2ff93374`）を指す。Lancers 7 ownerのinstalled/loaded argvも全て2ffへ移行済み | currentは全tree (`release_paths=ALL`)でorigin/mainと一致。installed/loaded release drift gateはPASS。統合候補branchは未反映、protocol v2は有効、全体gateは未完 |
-| Lancers Application | e789自然wakeでproposal 19件、current自然wakeで27922237を含む`application_verified`。pendingは134→101、同じeffectの重複ledger行なし | **Application canaryの公式効果/readbackはPASS**。current自然wakeも`pass`。残りpending 101件と全lane収益gateは未完 |
-| Lancers Browser | `loaded-running`、9227 CDPはChrome 145 / Protocol 1.3、Browser ownerはcurrent | Browser ownerのinstalled/loaded argvはcurrent。9227 listen canaryはPASS。統合候補branchにはprofile leaseがあるが本番未反映 |
-| Lancers Negotiate/Storefront/work-sync/report | 6 ownerのinstalled/loaded argvはcurrentへ移行済み。Negotiateのcurrent自然wakeは`pass`、Telegram-report/Work-syncは容量/FIFO保留の履歴が残る | current自然wakeを各ownerで一つずつ実行し、terminalと公式readbackを確認。統合候補反映後に同時接続0を確認 |
-| Lancers Paid | current `2ff93374`へ移行済み。直近runは`pass`（契約候補なし） | timeout canaryはPASS（無限実行を停止）。current Paid runは`effect=0`・`readback=0`・公式paid receipt 0。単独read-onlyとbranch版Paid owner canaryはログイン済み・契約候補0・残高0円・finance complete。契約が存在する場合の正式納品は別の認可・契約仕様が必要 |
+| source | `origin/main=22dc7cdc53a6d76137629e3fd0fc4ab8bafa08ca`（PR #5254まで）; 統合候補branch `fix/lm-fundamental-runtime-20260916`（HEAD `c780f1c18f`）はpush済み・未統合 | mainには収益枠の予約改善とlegacy revenue ownerの並行許可が追加済み。候補にはLancers shared browser session lease、stale claim解放の冪等化、CrowdWorks/Mercor finite lane timeout、Mercor stale provisioning auto-GC、sparse releaseのadmission capability自動同梱を追加。主要suiteはLancers 402+17、Job Hunter 462、runtime/loop 481+483、runtime/host 87、agent-runner 70+58、CDP 64がPASS |
+| release selector | `~/loops/current`は`20260916T054645-22dc7cdc`（SHA `22dc7cdc`）を指す。ownerのinstalled/event SHAは混在 | current自体はorigin/mainと一致するが、Lancers/CrowdWorks/Mercorのowner drift gateはFAIL。protocol v2は有効、候補branchは未反映、全体gateは未完 |
+| Lancers Application | 以前のe789/current wakeでproposal 20件を公式ledgerへ記録（pendingは134→101）。直近current ownerは`entrypoint_exit_124`でblocked | 20件のApplication公式receiptは保持するが、現在の自然wakeは成功扱いにしない。pending 101件と再現可能なterminalが残る |
+| Lancers Browser | `loaded-running`、9227 CDPはlisten中だがinstalled SHA `2ff93374`、event SHA `437b5696`でcurrent `22dc7cdc`と不一致 | 9227 healthだけではrelease gate PASSにならない。候補反映後に同時接続とlease releaseを確認 |
+| Lancers Negotiate/Storefront/work-sync/report | Negotiate/Telegram-report/Work-syncは`resource_control_busy`/FIFO blocked、Storefrontは`entrypoint_exit_1`。installed/eventは2ff | current自然wakeを成功扱いせず、候補反映後にownerごとのterminalと公式readbackを確認 |
+| Lancers Paid | installed/eventは2ff、直近は`resource_capacity_busy` blocked | timeout canaryは候補でPASSしたが、現行Paidの`effect=0`・`readback=0`・公式paid receipt 0。契約が存在する場合の正式納品は別の認可・契約仕様が必要 |
 | Lancers ledger | 最新はsequence 167（proposal 27922237）。148〜167は`application_verified`のみで、paid/delivery receiptは0 | Application 20件は成功として記録。収益・納品の成功は0件として扱う |
-| CrowdWorks | 9228/profileは既存の`provider-browser.lock`でlane間を直列化。Application/Reply/Paid/Reportは旧release `2a53ce25`で、直近に`Page.goto` 30秒timeout、`account_ensure_failed`、`profile_navigation_failed`、capacity/FIFO保留を記録 | timeout修正は統合候補 `5dfbcb9748` のregistryへ追加済み。main/current反映後、4 laneの自然terminalと公式receiptを確認 |
-| Mercor | 9222/daily-driverはCDP context leaseを使用。共有台帳の`job-search-daily`期限切れprovisioning行（PIDなし）を対象1件GCし、Mercorのparked contextは`target_responds=True`で保持。Application/Paid/Reply ownerはcurrentへ移行済みだが、直近Replyにはlogged_out/handshake timeout履歴がある | timeoutとstale provisioning auto-GCは統合候補 `5dfbcb9748`。main/current反映後、Application/Paid/Replyの自然terminal・human gate・公式receiptを確認 |
+| CrowdWorks | 9228/profileは既存の`provider-browser.lock`でlane間を直列化。4 ownerは旧release `2a53ce25`で、直近はApplication/Paidが`resource_capacity_busy`、Reply/Reportが`resource_control_busy` | timeout修正は候補 `c780f1c18f`。main/current反映後、4 laneの自然terminalと公式receiptを確認 |
+| Mercor | 9222/daily-driverはCDP context leaseを使用。期限切れ`job-search-daily`行はGC済み。Application installed 2ff/event e789、Paid/Reply installed/event 2ffで、Paid/Replyはresource blocked | timeoutとstale provisioning auto-GCは候補 `c780f1c18f`。main/current反映後、Application/Paid/Replyの自然terminal・human gate・公式receiptを確認 |
 
-最新のmain統合はPR #5250（commit `2ff93374f7`）です。PR #5233で本番の
+履歴として、PR #5250（commit `2ff93374f7`）までのmainでは次を実施しました。PR #5233で本番の
 `application-owner`から`--exhaustive`を外し、仕様どおり通常の回転検索を使うことです。
 PR #5234では、confirmation遷移失敗後の診断用`page.evaluate`を呼ばず、URLだけを記録して
 必ず戻るようにしました。PR #5235では、通常経路も候補40件になるまで検索せず、1 wakeにつき
@@ -100,11 +102,14 @@ e789のApplication自然wakeで公式proposal receipt（ledger sequence 148〜16
 readbackしました。queueにはborrow owner、revenue claimにはLancers/Application等が現れ、優先順を
 実測しています。自動reconciler自身は旧releaseで全fleet走査が長時間化していましたが、PR #5245で
 1 wake最大1 ownerへ、PR #5248で対象snapshotを最大64件へ制限しました。PR #5249でLancersの有限laneに
-300秒のruntime timeoutを追加し、release `20260916T041632-437b5696`へ反映済みです。現在のmain `2ff93374f7`は
-current `20260916T044820-2ff93374`へ反映済みで、Lancers 7 ownerのinstalled/loaded argvもcurrentで一致しています。Paidのtimeout
+300秒のruntime timeoutを追加し、当時のrelease `20260916T041632-437b5696`へ反映済みです。当時のmain `2ff93374f7`は
+当時のcurrent `20260916T044820-2ff93374`へ反映され、Lancers 7 ownerのinstalled/loaded argvもその時点では一致していました。Paidのtimeout
 canaryは`entrypoint_exit_143`で終端しましたが、provider効果は未確認です。関連suiteは206 tests + 130
 subtests PASS、Lancers timeout suiteは163 tests + 30 subtests PASSです。
 未load plistの検証に加え、release reconcilerがprotocol未作成時に自動でv2有効化を試みます。
+その後、PR #5252〜#5254で収益枠の予約改善・legacy revenue ownerの並行許可・現在の
+admission release記録がmainへ入りました。`~/loops/current`はその新mainを指しますが、
+ownerのinstalled/event SHAはまだ混在しているため、release drift gateは未完了です。
 また、`lm-loop doctor`はregistry外の稼働中label
 `ai.anicca.provision-browser.colors-hachioji.owner-18211957`を1件報告しています。
 これは別のBrowser provisionerがprofileを使用中のため、停止・削除せず、所有者登録または
@@ -126,14 +131,14 @@ subtests PASS、Lancers timeout suiteは163 tests + 30 subtests PASSです。
 | 5 | `PROD-01-E` 収益枠を予約できるadmissionへ修正・検証 | shared resource admission + marketplace revenue owners | **コード/テスト/release作成完了**: 148 tests + 100 subtests PASS。e789を7 ownerへ反映済み、自然wakeの効果確認は別gate |
 | 6 | `PROD-01-F` pending 101件を順番に再確認し、fresh sliceを枯らさない | Application state/reconciliation only | 観測cursorではpendingが134→101（33件減）。20件の公式verified ledgerを確認済み。transient failureは次wakeへ送り、state invalidはfail-closed。101件の解消または理由付きterminalが必要 |
 | 7 | `PROD-01-G` proposal確認遷移の残故障を1件で再現・修正 | Lancers provider adapterと回帰テスト | **完了**: 現行DOM fallback（PR #5241）をe789で実行し、proposal 27922413/27921564の公式readbackをledgerへ記録 |
-| 8 | `PROD-01-H` Lancers全7 ownerのrelease driftを解消 | Lancers ownerだけ | **PASS**: 7 ownerのplist・loaded programがcurrent SHA `2ff93374`で一致。currentが進むたび同じbounded reconcileを再実行する |
-| 9 | `BROWSER-03` Lancers応募canaryを1件だけ実行 | provider effect owner | **Application部分PASS**: ledger sequence 148〜167の公式 `application_verified` 20件、重複0。残りeffect laneのcanaryは未完 |
-| 10 | `ADMISSION-01` 未load v2対応plistを許容する修正をmain由来releaseへ反映し、protocol v2を有効化 | shared runtime + installed finite owners | **v2基盤PASS / runtime反映継続**: current `044820-2ff93374`、`protocol.json` version 2、`verified_finite_labels=139`、queue/reservation readback、bounded reconcilerコードとtimeoutを確認。全ownerの自然terminalは未確認 |
-| 11 | `BROWSER-04` shared Lancers browser session leaseをmain由来releaseへ反映 | Lancers browser boundary + all Lancers owners | **統合候補 `5dfbcb9748` code/tests/live contention/Paid canary PASS**: lease保持中の別processは`browser_session_busy`で拒否し、解放後の2本のread-only inventoryとbranch版Paid ownerは順番に成功。runtime停止完了まで保持する解放回帰テスト済み。main統合後、Application/Paid/Reply/Storefrontの2 natural wakeで競合0を確認 |
-| 12 | `ADMISSION-02` stale claim解放を冪等化し、再予約を壊さない | shared runtime admission | **統合候補 `5dfbcb9748` code/tests PASS**: stale sweepがclaimを先に削除しても`release_and_reserve`が警告・例外を出さず、必要な予約を継続。runtime testsを含むcandidate suite PASS。main統合後、自然wakeで`resource release deferred`が0になることを確認 |
-| 13 | `CROWD-01` CrowdWorks finite laneを5分runtime boundへ揃える | CrowdWorks registry + owner | **統合候補 `5dfbcb9748` code/tests PASS**: Application/Reply/Paid/Reportへ300秒上限、registry fixtureとCrowdWorks 129 tests PASS。main統合後、4 laneのtimeout/公式receiptを確認 |
-| 14 | `MERCOR-01` Mercor finite laneを5分runtime boundへ揃える | Mercor registry + owner | **統合候補 `5dfbcb9748` code/tests PASS**: Application/Paid/Replyへ300秒上限、Mercor 54 tests + 2 subtests PASS。main統合後、CDP/human-gateの自然terminalと公式receiptを確認 |
-| 15 | `MERCOR-02` 別taskの期限切れprovisioningをacquire時にbounded GC | CDP context lease | **統合候補 `5dfbcb9748` code/tests/live recovery PASS**: 期限切れ`job-search-daily`を対象1件reaped、Mercor parked contextは保持。main統合後、handshake timeoutとstale row再発を監視 |
+| 8 | `PROD-01-H` Lancers全7 ownerのrelease driftを解消 | Lancers ownerだけ | **旧currentではPASSしたが再オープン**: currentが`22dc7cdc`へ進み、7 ownerのinstalled/event SHAが混在。新releaseでbounded reconcileを再実行する必要がある |
+| 9 | `BROWSER-03` Lancers応募canaryを1件だけ実行 | provider effect owner | **Application部分PASS**: ledger sequence 148〜167の公式 `application_verified` 20件、重複0。直近Applicationは`entrypoint_exit_124`で、残りeffect laneのcanaryは未完 |
+| 10 | `ADMISSION-01` 未load v2対応plistを許容する修正をmain由来releaseへ反映し、protocol v2を有効化 | shared runtime + installed finite owners | **v2基盤はmainで有効 / runtime反映未完**: current `054645-22dc7cdc`、`protocol.json` version 2。ownerのinstalled/event driftと自然terminalを再確認する必要がある |
+| 11 | `BROWSER-04` shared Lancers browser session leaseをmain由来releaseへ反映 | Lancers browser boundary + all Lancers owners | **統合候補 `c780f1c18f` code/tests/live contention/Paid canary PASS**: lease保持中の別processは`browser_session_busy`で拒否し、解放後のread-only inventoryとbranch版Paid ownerは順番に成功。runtime停止完了まで保持する解放回帰テスト済み。main統合後、Application/Paid/Reply/Storefrontの2 natural wakeで競合0を確認 |
+| 12 | `ADMISSION-02` stale claim解放を冪等化し、再予約を壊さない | shared runtime admission | **統合候補 `c780f1c18f` code/tests PASS**: stale sweepがclaimを先に削除しても`release_and_reserve`が警告・例外を出さず、必要な予約を継続。runtime testsを含むcandidate suite PASS。main統合後、自然wakeで`resource release deferred`が0になることを確認 |
+| 13 | `CROWD-01` CrowdWorks finite laneを5分runtime boundへ揃える | CrowdWorks registry + owner | **統合候補 `c780f1c18f` code/tests PASS**: Application/Reply/Paid/Reportへ300秒上限、registry fixtureとCrowdWorks tests PASS。main統合後、4 laneのtimeout/公式receiptを確認 |
+| 14 | `MERCOR-01` Mercor finite laneを5分runtime boundへ揃える | Mercor registry + owner | **統合候補 `c780f1c18f` code/tests PASS**: Application/Paid/Replyへ300秒上限、Mercor tests PASS。main統合後、CDP/human-gateの自然terminalと公式receiptを確認 |
+| 15 | `MERCOR-02` 別taskの期限切れprovisioningをacquire時にbounded GC | CDP context lease | **統合候補 `c780f1c18f` code/tests/live recovery PASS**: 期限切れ`job-search-daily`を対象1件reaped、Mercor parked contextは保持。main統合後、handshake timeoutとstale row再発を監視 |
 | 16 | `PROD-02` Lancers Negotiate/Storefront/Paidを個別に閉じる | 各provider adapter | laneごとの公式receiptまたは明示的not-applicable、重複0 |
 | 17 | `MARKET-02` CrowdWorksを同じshared kernelで検証 | CrowdWorks adapter/owner | 応募・契約の公式receiptまたはtruthful not-applicable |
 | 18 | `MARKET-03` Mercorをhuman gate付きで検証 | Mercor adapter/owner | typed gate再開、公式application/contract/payment receipt |
@@ -193,9 +198,9 @@ browser/effect/readback契約を使う、(3)公式receiptとreplay-zeroを受け
 | platform | サイト固有の仕事と境界 | 共有kernelから使う部品 | 今回の状態（公式receipt基準） | 次の合格条件 |
 |---|---|---|---|---|
 | Coconala | 公開依頼→応募、購入前talkroom返信、自分のサービス掲載、購入済み納品。`coconala.com`のrequest/message/service/order route、専用profile | goal/wake、admission、context、browser lease、effect key、readback、通知outbox | 別workstreamが1案件を処理中。architecture workstreamはbrowser/account/TODOを変更しない。今回のcanaryで応募成功は主張しない | 案件ごとの公式応募/購入/納品receipt、buyer readback、replay-zero |
-| Lancers | 公開案件→proposal、購入前会話、menu掲載、契約/納品。`www.lancers.jp`のwork/proposal/menu/myplan route、専用9227 CDP、safety verifier | Coconalaと同じtyped lifecycle・admission・effect/readback契約 | mainはPR #5250（2ff93374）まで統合済み。proposal 20件を公式ledger sequence 148〜167へ記録（重複0）。current `044820-2ff93374`と7 ownerのinstalled/loaded argvは一致。Application/Negotiate/Paidの直近自然wakeはpass、Telegram-report/Work-syncは容量/FIFO保留の履歴が残る。統合候補 `5dfbcb9748`（lease + stale claim冪等化 + CrowdWorks/Mercor timeout）は未統合。pending 101件、paid/delivery receipt 0。protocol v2はversion 2で有効 | 統合候補をmainへ反映→同時接続0とstale release warning 0を確認→pendingを1 sliceずつ処理→各laneの公式receipt/readback→replay-zero |
-| CrowdWorks | 公開案件→応募→契約→納品。応募・契約のprovider語彙は専用adapterで保持し、Coconala/Lancersの掲載laneを仮定しない | goal/context、admission、provider-browser.lock、effect fence、human gate、receipt/eval | 9228/profileのprovider-browser.lockは存在するが、4 ownerは旧release `2a53ce25`。直近に`Page.goto` 30秒timeout、`account_ensure_failed`、`profile_navigation_failed`、capacity/FIFO保留。公式応募・契約・収益receiptは未確認。timeout修正は統合候補 `5dfbcb9748` | candidateをmain由来releaseへ反映→4 laneの自然terminal→公式応募/契約receiptまたはtruthful not-applicable→重複なし |
-| Mercor | 応募→本人確認/面接/録画などのhuman gate→契約・報酬。identity/interview/mediaの外部状態を専用adapterで扱う | agent-runner、context capsule、human gate、通知outbox、effect/readback、revenue/cost graph | Application/Paid/Replyはrevenue admissionだが、Application/ReplyでCDP websocket handshake timeout・logged_out、Paidはcapacity deferの履歴。3 finite laneの300秒timeoutとstale provisioning auto-GCは統合候補 `5dfbcb9748`、公式application/contract/payment receiptは未確認。architecture workstreamはMercorの認証・面接を操作しない | candidateをmain由来releaseへ反映→CDP/human gate自然terminal→公式application/contract/payment receipt→費用上限内・replay-zero |
+| Lancers | 公開案件→proposal、購入前会話、menu掲載、契約/納品。`www.lancers.jp`のwork/proposal/menu/myplan route、専用9227 CDP、safety verifier | Coconalaと同じtyped lifecycle・admission・effect/readback契約 | mainはPR #5254（22dc7cdc）まで統合済み。proposal 20件を公式ledger sequence 148〜167へ記録（重複0）。current `054645-22dc7cdc`とowner installed/event SHAは不一致。Application直近は`entrypoint_exit_124`、Negotiate/Paid/Report/Work-syncはresource blocked、Storefrontは`entrypoint_exit_1`。統合候補 `c780f1c18f`（lease + stale claim冪等化 + CrowdWorks/Mercor timeout + sparse release互換）は未統合。pending 101件、paid/delivery receipt 0。protocol v2はversion 2で有効 | 候補受入→main統合後にownerを同一SHAへ揃える→同時接続0/stale warning 0→pendingを1 sliceずつ処理→各lane公式receipt/readback→replay-zero |
+| CrowdWorks | 公開案件→応募→契約→納品。応募・契約のprovider語彙は専用adapterで保持し、Coconala/Lancersの掲載laneを仮定しない | goal/context、admission、provider-browser.lock、effect fence、human gate、receipt/eval | 9228/profileのprovider-browser.lockは存在するが、4 ownerは旧release `2a53ce25`。直近はApplication/Paidが`resource_capacity_busy`、Reply/Reportが`resource_control_busy`。公式応募・契約・収益receiptは未確認。timeout修正は候補 `c780f1c18f` | 候補受入→main統合後に4 laneの自然terminal→公式応募/契約receiptまたはtruthful not-applicable→重複なし |
+| Mercor | 応募→本人確認/面接/録画などのhuman gate→契約・報酬。identity/interview/mediaの外部状態を専用adapterで扱う | agent-runner、context capsule、human gate、通知outbox、effect/readback、revenue/cost graph | Application installed 2ff/event e789、Paid/Reply installed/event 2ff。Paid/Replyはresource blocked、過去Application/ReplyにはCDP handshake timeout・logged_out。期限切れprovisioningは対象1件GC済み。3 finite laneのtimeoutとauto-GCは候補 `c780f1c18f`、公式application/contract/payment receiptは未確認。architecture workstreamはMercorの認証・面接を操作しない | 候補受入→main統合後にCDP/human gate自然terminal→公式application/contract/payment receipt→費用上限内・replay-zero |
 
 したがって、前回のLancers失敗は「各サイトの処理内容が同じだから」ではありません。共通kernelの
 入口で (a) 収益laneが`borrow`のまま容量を奪われ、(b) launchdが旧releaseを指し、(c) 失敗した
