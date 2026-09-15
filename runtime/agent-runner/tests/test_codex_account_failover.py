@@ -163,7 +163,7 @@ class CodexProfileBoundaryTest(unittest.TestCase):
         self.assertEqual(
             [(row["provider"], row["model"], row.get("profile_alias")) for row in candidates],
             [
-                ("codex", "gpt-5.6-terra", "acct2"),
+                ("codex", "gpt-5.6-terra", "acct1"),
             ],
         )
 

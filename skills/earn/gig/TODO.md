@@ -9,9 +9,17 @@ durable runtime ledgers and receipts, not in duplicated historical checklists.
 This is the only restart cursor for the next Codex session. Re-check every value against Git and official
 runtime/provider readback before acting; conversation claims are not completion evidence.
 
-- Repository: `/Users/anicca/Projects/life-manager-main`, remote `Daisuke134/life-manager`.
-- Canonical runtime source is `origin/main` at `f80de2ef43a06a01339a4f67fa5a629b4f6b1d44`. The latest
-  immutable release is `/Users/anicca/loops/releases/20260916T060446-f80de2ef`. PRs `#5252` and `#5254`
+- Canonical local repository checkout: `/Users/anicca/Projects/life-manager-main`, remote
+  `Daisuke134/life-manager`. The folder name on this Mac is **`life-manager-main`**. No separate project or
+  repository named `life-manager/` was created.
+- Current task worktree: `/private/tmp/lm-runtime-admission-reservations-20260914`, branch
+  `fix/runtime-admission-lock-bounded-20260915`, lease
+  `ac1f02d45387233d8866ce7dbd62c01a5b1a28987c9e2614a873535c1d766f69`. This is a linked Git worktree of
+  the same `life-manager-main` repository, not another project. The main checkout is currently on the unrelated
+  Capify branch `capafy/account-plan-deck-offline-20260912`, so it remains read-only for this workstream.
+- Canonical runtime source is `origin/main` at `4b0dc5580b1661742b91eb6f8dc3edf15ef0bed1`. The latest
+  immutable release is `/Users/anicca/loops/releases/20260916T060446-f80de2ef` (the current docs-only main
+  commit has not been cut into a new release yet). PRs `#5252` and `#5254`
   add the revenue floor, legacy-reservation migration fence and Paid Account 1→2 Codex route; `#5250`
   browser/child-cleanup remains an ancestor. The four Coconala labels are currently running the equivalent
   code from release `22dc7cdc`; idle-safe convergence to the docs-only `f80de2ef` release is pending.
@@ -22,14 +30,16 @@ runtime/provider readback before acting; conversation claims are not completion 
   1.872 seconds, 39/39 simultaneous enqueues persisted, 69 host tests, 464 loop tests plus 470 subtests, 67
   registry tests plus 100 subtests, exact stdlib CI discovery 434 tests, fresh read-only `ship`, and GitHub CI
   8/8 PASS. Earlier JSON 500-enqueue evidence was 35.93 seconds.
-- Spec worktree: `/private/tmp/lm-coconala-retained-attachments`, branch
-  `docs/coconala-current-cursor-20260914`. This file is the current remaining-work SSOT. Its eventual canonical
-  name/location must be derived from repository conventions and references, then migrated once without
-  creating a second live TODO.
+- Current spec file in this worktree:
+  `/private/tmp/lm-runtime-admission-reservations-20260914/skills/earn/gig/TODO.md`. Its repository-relative
+  canonical path is `skills/earn/gig/TODO.md`; after merge the same file is available under
+  `/Users/anicca/Projects/life-manager-main/skills/earn/gig/TODO.md`. Do not create a second live TODO.
 - Ryu and Coconala are not complete. No current official readback proves that the newest Ryu buyer event is
-  covered by a later seller submission. Chii's official effective DM ledger is 12/300 with 288 remaining;
-  the latest run stopped before DM transport at `paid_work_decision` because Account 2 quota was exhausted.
-  Never report completion from a historical message or local state.
+  covered by a later seller submission. Chii's direct execution ledger now contains 288 exact-readback sends,
+  the previously verified ledger contains 12, and the official Sheet contains 300 unique rows. The 300-row
+  workbook was sent to Coconala with formal delivery OFF and read back in talkroom `18180857`. Chii is now
+  buyer-waiting and no existing recipient or completion message may be resent. The pre-batch `12/288` file is
+  superseded historical state, not another client-work project.
 - Paid now tries the existing Account 1 Codex profile first and falls back to Account 2 through the shared
   runner. One bounded Account 1 invocation and its official runner receipt remain to be proved; preserve all
   Codex/cloud sessions and unrelated providers.
@@ -46,6 +56,32 @@ Freelancer.com, Upwork and newly discovered platforms. Every supported lifecycle
 Codex babysitting, shares one runtime and marketplace kernel, resumes from durable state, verifies official
 effects, prevents duplicates, heals failures and improves itself. The first measured revenue gate is USD
 10K MRR; applications, health checks and projected value do not count as revenue.
+
+## Gig-platform As-Is / To-Be
+
+This table is the compact platform truth. “Registered” means a loop exists in the registry; it does not mean
+that the provider currently has an authenticated account, a verified external effect, or attributable revenue.
+
+| Platform | As-Is now | To-Be finish condition |
+|---|---|---|
+| Coconala | Four independent owners are registered and the shared kernel is deployed. Chii's 300-row workbook was sent; its canonical Paid receipt still needs promotion. Ryu, Reply, Apply, Storefront and payout proof remain open per client. | Every active client has its own durable work item, newest-buyer coverage, provider effect/readback, replay-zero and payout attribution; one client's failure never pauses another lane. |
+| Lancers | Application, browser, negotiation, paid, storefront, work-sync and report owners are registered. Production fixes exist in main, but durable login and the full Apply→Paid→payout proof are not closed. | One persistent account/browser owner runs the complete lifecycle with official proposal, work, payment and payout receipts. |
+| CrowdWorks | Application, Reply, Paid and Report owners are registered. Existing contracts still need fulfillment from buyer instruction/link through actual submission and readback. | Each accepted contract becomes an independent fulfillment item and reaches artifact submission, official receipt, payout and replay-zero; Storefront is explicitly `not_applicable` unless the provider exposes it. |
+| Mercor | Application, Reply and Paid owners are registered, but repeated-login/authentication and full contract proof remain open. | Persistent authenticated account state, application, reply/interview handoff, contract, paid work and payout are independently evidenced. |
+| Freelancer.com | Runtime work is registered in the fleet, but current provider account/policy and end-to-end revenue proof are not closed. | Official account/policy state plus Apply→Reply→Paid→payout, with Storefront only if officially supported. |
+| Upwork | Browser/application/report infrastructure and historical evidence exist, but current account/policy and paid attribution are not a closed revenue loop. | Official proposal, reply, contract, delivery/payment and payout receipts with duplicate-zero replay. |
+| Writer / other gig surfaces | Writer owners and shared publication/payment ledgers exist; each provider still needs current authenticated opportunity, submission and payment proof. | The same shared observe→decide→act→verify→persist loop drives every provider; only thin provider adapters differ. |
+| New platforms | Discovery and adapter-generation owners exist, but no platform is promoted merely because it was found. | A new provider is promoted only after policy qualification, thin shared-contract adapter, canary, official effect/readback, replay-zero and positive unit economics. |
+
+### Two finish-line differences
+
+1. **External work versus canonical truth:** Chii's external workbook message is sent and is now buyer-waiting.
+   The old `12/288` file is retained only as historical evidence; effect fences and the later seller readback
+   prohibit replay while the engineering cursor moves to the shared runtime.
+2. **One client versus the fleet:** Coconala's Chii send is one client-level milestone. The program is finished
+   only when every applicable platform/client independently passes the same effect, readback, replay-zero,
+   payout and long-run self-healing gates. They run concurrently; the completion criteria are not collapsed into
+   one serial queue.
 
 ## Non-negotiable contracts
 
@@ -69,15 +105,24 @@ effects, prevents duplicates, heals failures and improves itself. The first meas
 
 ### Evidence correction for the earlier “300 complete” report
 
-The earlier report correctly observed **300 populated rows in Google Sheets**, but it incorrectly treated that
-row count as 300 successful TikTok sends. The paired official effect/readback ledger is the authority: it proves
-12 eligible non-live sends and leaves 288 unproved. The official Chii talkroom also contains a seller-authored
-“DM 300件完了” claim and a buyer message saying the spreadsheet was not filled; neither is a provider send
-receipt. Therefore the screenshot is historical/reporting evidence, not proof that 300 DMs were sent. The
-correct current state is `verified_unique_sends=12`, `remaining_eligible_personalized_sends=288`,
-`required_effect_satisfied=false`, and `formal_delivery=OFF`.
+The earlier report mixed two different snapshots: the canonical Paid result still said `12/300` while a later
+manual owner run wrote 288 `sent` rows with per-recipient official TikTok readback to
+`/Users/anicca/gig/projects/18180857/delivery/tiktok-message-effects.jsonl`. Together with the prior 12
+verified effects, the execution evidence supports 300 total sends; the official Sheet readback contains 300
+unique rows. The ordinary Coconala message and workbook were then sent and read back in
+`/Users/anicca/gig/projects/18180857/evidence/paid-direct-live/paid-direct/18180857/answer/chii-300-send/`,
+with `formal_delivery_control_checked=false`. The remaining defect is state promotion: the canonical
+`paid-remote-result.json` and `paid-remote-progress.jsonl` still expose the pre-batch `12/288` cursor. Until a
+single reconciliation receipt records `verified_unique_sends=300`, `remaining=0`, Sheet/effect pairing and
+replay-zero, the Chii contract is operationally sent but not canonical-complete. Never resend an existing
+recipient or send a second completion message.
 
 ## Shared architecture
+
+The real repository folder is `/Users/anicca/Projects/life-manager-main/`. The tree below is a
+**repository-relative To-Be ownership map**, not a new `life-manager/` folder and not a second project. The
+current task worktree exposes the same relative paths under
+`/private/tmp/lm-runtime-admission-reservations-20260914/`.
 
 ```text
 config/
@@ -284,14 +329,15 @@ freeze protocol 1
 -> continue platform revenue order
 ```
 
-Current cursor: main `f80de2ef` is exported as immutable release `20260916T060446-f80de2ef`. Apply, Reply,
-Paid and Storefront are currently running the equivalent code from `22dc7cdc`; idle-safe convergence to this
-docs-only release is pending. The latest Paid terminal is effect-zero: Ryu `18211957` and Chii `18180857`
-stopped at `paid_work_decision` with provider `codex`, profile `acct2`, and `transient_quota`; no Chii DM
-transport or Coconala seller message occurred in that cycle. Chii therefore remains 12 verified effective
-sends out of 300, with 288 unproved. Disk free is about 9.4 GiB, but swap is about 16.9/17.4 GiB used and
-historical low-headroom/`ENOSPC` receipts keep the pressure proof open. Do not create a new worktree, edit the
-Capify checkout, globally kill browsers/apps, or call a stale result a submission.
+Current cursor: main `4b0dc558` has the latest spec update; the latest immutable runtime release remains
+`20260916T060446-f80de2ef`. Apply, Reply, Paid and Storefront are currently running the equivalent code from
+`22dc7cdc`; idle-safe convergence to the docs-only release is pending. Chii's later manual owner wrote 288
+exact-readback TikTok sends and the existing audit contains 12 prior verified effects; its 300-row workbook was
+sent to Coconala and read back with formal delivery OFF. The canonical Paid result still exposes the earlier
+`12/288` cursor, so canonical promotion, buyer acknowledgement and replay-zero remain open. Disk free is about
+9.4 GiB, but swap is about 16.9/17.4 GiB used and historical low-headroom/`ENOSPC` receipts keep the pressure
+proof open. Do not create a new worktree, edit the Capify checkout, globally kill browsers/apps, or call a stale
+result a submission.
 
 ### Ideal steady state
 
@@ -460,10 +506,10 @@ never by deleting the guard.
 ### Coconala
 
 The matrix below is the durable client set, not proof that every row is currently submitted. The live Paid
-wake must finish each item and write its own official readback before a row can be closed. `18180857` has a
-truthful 300-populated-row Google Sheet readback, but only 12 paired official TikTok effects; its Coconala
-reply/monitoring loop is still paused. Ryu `18211957` is still `WORK_REQUIRED` in the live project state and
-must not be reported as done from the older historical seller message.
+wake must finish each item and write its own official readback before a row can be closed. Chii `18180857`
+has a 300-row workbook and an ordinary Coconala message read back with formal delivery OFF; its canonical
+Paid cursor still needs the `300/0` promotion described above. Ryu `18211957` remains `WORK_REQUIRED` until
+the newest buyer event is covered by a later official seller effect.
 
 #### Current active-client inventory
 
@@ -476,7 +522,7 @@ claim. One buyer may own multiple independent contracts.
 | Ryu0820119 | `18211957` | `取引中` | A newer buyer message is reported after the historical confirmed seller effect. The current state is internally inconsistent: `next_action=await_buyer_feedback` while `buyer_feedback_pending_artifact=true`. Re-observe the newest message, perform the requested ordinary submission, then verify a later seller effect. Formal delivery stays off unless the buyer authorizes that state. |
 | こころ支援 NPO法人まくとぅー | `18223833` | `取引中` | The retained ledger says the prior seller effect was confirmed and is awaiting buyer feedback. Refresh the official head and retained attachments; do not ask again for files already retained. |
 | こころ支援 NPO法人まくとぅー | `18250352` | `取引中` | Separate active contract. The retained ledger says the prior effect was confirmed and awaits feedback; refresh independently and preserve this room's own context. |
-| Chii【CK protect】 | `18180857` | `取引中` | Buyer feedback is pending while the lane says `await_buyer_feedback`. Establish the truthful completed/target DM count from official/account evidence, continue only permitted real sends, update the real result ledger, and reply from that evidence. |
+| Chii【CK protect】 | `18180857` | `取引中`; 300-row workbook sent, formal delivery OFF | Buyer-waiting. Do not resend any recipient or completion message; reopen only for a newer buyer event. |
 | あつぎ | `18171850` | `取引中`, formal delivery confirmed | Buyer feedback is pending after delivery. Observe the newest feedback, revise/reply if requested, and verify the later seller effect; otherwise remain at buyer acceptance. |
 
 `逃げ因子` talkroom `18211838` is excluded because retained official state is `取引完了`. Historical
@@ -520,12 +566,14 @@ independent production effects.
 - [ ] Finish the current four-lane canary from release `22dc7cdc` (then converge the docs-only `f80de2ef`): wait for each owner to write its natural
   terminal receipt, then verify the exact Coconala readback separately for Apply, Reply, Paid and Storefront.
   Paid must record the actual selected Codex account; Ryu `18211957` must use the newest buyer-feedback digest,
-  Chii `18180857` must retain the official 12/300 ledger truth, and Kokoro rooms must remain independent
+  Chii `18180857` must retain the new 300/0 canonical ledger after promotion, and Kokoro rooms must remain independent
   buyer-wait states. No PID, scheduler line or Telegram message closes this item.
-- [ ] Chii Paid completion: do not send a “300 complete” Coconala report yet. First prove the seller-owned
-  TikTok identity, individually send and officially read back the remaining 288 eligible DMs, append matching
-  rows to the shared Sheet, and reconcile the exact 300-count ledger. Only then send the ordinary Coconala
-  progress/delivery message with the formal-delivery control OFF.
+- [x] Chii Paid external delivery: export the official Sheet with 300 unique rows, send it once to talkroom
+  `18180857` through the existing Coconala browser path, and read back the attachment and message with
+  `formal_delivery_control_checked=false`.
+- [x] Chii Paid closure: the 300-row workbook and ordinary Coconala message are read back with formal delivery
+  OFF. Treat the client as buyer-waiting and rely on existing effect fences; do not build another adapter,
+  reconciliation framework, recipient send or completion message for this one-off contract.
 - [x] Cut immutable release `20260916T044820-2ff93374` from public main `2ff93374`; the dynamic-CDP and
   child-group cleanup repair is present. Coconala label-by-label loaded-idle convergence and natural terminal
   receipts are still open.
@@ -749,12 +797,13 @@ observed `juves9718` negotiation demonstrates the remaining gap: a buyer asked f
 current Reply path acknowledged it without creating and submitting the demo. After open Paid liabilities close,
 route substantive Reply/Negotiate requests into the same executor instead of treating them as text-only replies.
 
-Chii `18180857` is now reconciled by the manual owner: the official Google Sheet contains 300 unique rows and
-the sender identity readback is `@anicca.jp`. The 300-send and spreadsheet requirement is complete; the
-canonical receipt is `delivery/paid-remote-result.json` and the official Sheet readback is
-`delivery/effects/google-sheets-manual-20260916T300.json`. The outer Chii loop remains paused until a fresh
-natural wake proves reply monitoring and replay-zero; no existing 300-row recipient may be resent. A one-off
-unintended test-text effect to `@gucci_fuufu` is recorded separately and is excluded from the 300 count.
+Chii `18180857` was completed externally by the manual owner: the official Google Sheet contains 300 unique rows,
+the sender identity readback is `@anicca.jp`, and a 300-row workbook was sent to Coconala and read back with
+formal delivery OFF. The direct effect ledger contains 288 exact-readback sends plus the prior 12 verified
+effects. The canonical receipt is not yet promoted: `delivery/paid-remote-result.json` still carries `12/288`.
+Promote one `300/0` receipt with effect/Sheet pairing and replay-zero before the outer Chii loop wakes again;
+no existing recipient may be resent. A one-off unintended test-text effect to `@gucci_fuufu` is recorded
+separately and is excluded from the 300 count.
 
 PR `#5222`, merge SHA `131fdc9952b7f6e92ad0c912308ad1e62ab8cc87`, fixes the observed one-owner-per-wake
 bottleneck without adding another scheduler. When an owner writes new durable progress, leaves both business
@@ -804,11 +853,11 @@ effect described above. Do not reopen it unless a newer buyer event appears.
 The owner explicitly retired TikTok-adapter development for Chii because this outreach shape will not recur.
 Do not add another TikTok adapter or speculative queue framework. Finish this one contract operationally through
 the existing authenticated `tiktok-anicca-jp` search/profile reader, shared message transport, exact official
-readback and `gog sheets` API. The 12-to-58 ledger paragraph that follows is historical evidence only. It is
-superseded by the current manual receipt: `18180857` has 300/300 unique rows and zero remaining eligible sends;
-do not resend any existing recipient. Continue only reply monitoring and ordinary Coconala work, stopping on an
-actual TikTok warning or provider limit. A profile button without a recipient-bound conversation is effect zero
-and must never create a Sheet row.
+readback and `gog sheets` API. The 12-to-58 ledger paragraphs that follow are historical evidence only. The
+current external delivery is represented by the 300-row workbook/readback, but the canonical Paid cursor still
+needs its `300/0` promotion; do not resend any existing recipient. Continue only reply monitoring and ordinary
+Coconala work, stopping on an actual TikTok warning or provider limit. A profile button without a
+recipient-bound conversation is effect zero and must never create a Sheet row.
 
 After sustained profile/search activity, TikTok began returning an official page title with an empty profile body
 even under one serial owner. Six consecutive serial profiles reproduced the empty readback. Treat that as current
@@ -853,16 +902,14 @@ work item and leave a sibling trace unchanged.
   unless a newer buyer event appears.
 - [x] Kokoro `18250352`: processed independently with its own verified v12 submission; replay zero unless a newer
   buyer event appears.
-- [ ] Chii `18180857`: the official Sheets range contains 300 rows, but the corrected TikTok result proves only
-  12 eligible verified sends and leaves 288 eligible sends outstanding. The effect ledger also contains 288
-  `sent` rows, but they are not eligible completion proof without the required recipient/readback/Sheet pairing.
-  Do not claim 300/300, and do not bulk-send or bypass the shared transport. Resume only after PR `#5250` is
-  merged and the guarded dynamic CDP endpoint is loaded; each candidate remains independently fenced.
-- [ ] Resume Paid from the current `437b5696` release after PR `#5250` is merged and a new immutable release is
-  cut. Ryu is the first
-  actionable Coconala message; Chii continues from the audited 12 only when an eligible candidate and official
-  readback are available. The last Chii candidate preflight (`@toshi_todaivlog`) had `effect=0` and no send
-  receipt, so it must not be retried until its owner can reach the correct dynamic endpoint.
+- [x] Chii `18180857` external send: the official Sheet has 300 unique rows, the manual owner ledger has 288
+  exact-readback sends plus 12 prior verified effects, and the 300-row workbook was sent to Coconala with
+  formal delivery OFF and exact talkroom readback.
+- [x] Chii `18180857` is buyer-waiting after exact Coconala message/attachment readback. No further client work
+  is scheduled unless a newer buyer event arrives.
+- [ ] Resume Paid from the current immutable release after PR `#5250` is loaded and a new natural terminal is
+  recorded. Ryu is the first actionable Coconala message; Chii resumes only for reply monitoring and canonical
+  receipt promotion. Existing Chii recipients must not be retried.
 - [ ] Atsugi `18171850`: reconcile the newest post-delivery feedback, perform any required revision/reply once,
   and return to verified buyer-acceptance wait.
 - [ ] Re-run all five active work items and prove newest-buyer-digest coverage, official readback and replay-zero
