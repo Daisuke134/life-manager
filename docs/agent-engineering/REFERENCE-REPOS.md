@@ -6,6 +6,18 @@ remain available without importing another project's dependency tree.
 
 Local root: `/Users/anicca/Projects/life-manager-agent-engineering-references/`
 
+## Master catalog
+
+[`ai-boost/awesome-harness-engineering`](https://github.com/ai-boost/awesome-harness-engineering) is
+the best single index for this curriculum. Its chapters cover foundations, Agent Loop, planning,
+context/compaction, tools, Skills/MCP, permissions, memory/state, orchestration, verification/CI,
+observability/tracing, debugging, human-in-the-loop, and generators/meta-harnesses. It is a catalog,
+not a runtime or a substitute for reading the implementation repositories below.
+
+| Repository | Pinned commit | License | Local clone | Used for |
+|---|---|---|---|---|
+| [ai-boost/awesome-harness-engineering](https://github.com/ai-boost/awesome-harness-engineering) | `692a1a681c464de22a5e9b947bd081808600b0b3` | CC0-1.0 | `awesome-harness-engineering` | master index and discovery map |
+
 | Repository | Pinned commit | License | Local clone | Used for |
 |---|---|---|---|---|
 | [openai/symphony](https://github.com/openai/symphony) | `e0ccc83720a42a600a53b61c5f8d3e518bebe1db` | Apache-2.0 | `openai-symphony` | harness, loop, workspaces, retries, observability |
