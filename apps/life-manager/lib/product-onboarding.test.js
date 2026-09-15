@@ -7,7 +7,11 @@ const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
-const { planProductOnboarding, readProductLoopCatalog } = require("./product-onboarding.js");
+const {
+  buildProductLoopCompletionManifest,
+  planProductOnboarding,
+  readProductLoopCatalog,
+} = require("./product-onboarding.js");
 
 const ROOT = path.resolve(__dirname, "../../..");
 
@@ -108,4 +112,110 @@ test("Cloud provisioning is gated by the shared product model", () => {
   const source = fs.readFileSync(path.join(ROOT, "apps/life-manager/server.js"), "utf8");
   assert.match(source, /planProductOnboarding\(\{ host: "cloud", selected_loop_ids: \["agent-economy"\] \}\)/u);
   assert.match(source, /onboarding\.loops\[0\]\.command\?\.\[0\] !== "\/start"/u);
+});
+
+test("completion manifest covers every catalog loop and never treats unknown as complete", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "a".repeat(40);
+  const contract = {
+    goal: true,
+    context: true,
+    admission: true,
+    receipt: true,
+    observability: true,
+    evaluation: true,
+  };
+  const observations = catalog.loops.map((loop, index) => ({
+    id: loop.id,
+    state: index === 0 ? "unknown" : "setup_required",
+    reason: index === 0 ? "evidence_not_collected" : "host_adapter_pending",
+    contract,
+  }));
+
+  const manifest = buildProductLoopCompletionManifest({
+    host: "local",
+    release_sha: releaseSha,
+    observations,
+  });
+
+  assert.equal(manifest.schema_version, "product.loop.completion.v1");
+  assert.equal(manifest.loops.length, 14);
+  assert.equal(manifest.unknown_count, 1);
+  assert.equal(manifest.completion, false);
+  assert.deepEqual(manifest.loops.map((loop) => loop.id), catalog.loops.map((loop) => loop.id));
+});
+
+test("verified completion requires an official receipt and the canonical release", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "b".repeat(40);
+  const contract = {
+    goal: true,
+    context: true,
+    admission: true,
+    receipt: true,
+    observability: true,
+    evaluation: true,
+  };
+  const observations = catalog.loops.map((loop) => ({
+    id: loop.id,
+    state: "not_applicable",
+    reason: "provider_surface_not_supported",
+    contract,
+  }));
+  observations[0] = {
+    id: catalog.loops[0].id,
+    state: "verified",
+    owner_id: "owner-1",
+    release_sha: "c".repeat(40),
+    official_receipt: false,
+    contract,
+  };
+
+  assert.throws(
+    () => buildProductLoopCompletionManifest({
+      host: "cloud",
+      release_sha: releaseSha,
+      observations,
+    }),
+    /verified loop requires official receipt and matching release/u,
+  );
+});
+
+test("completion is true only when every loop is verified or explicitly unsupported", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "d".repeat(40);
+  const contract = {
+    goal: true,
+    context: true,
+    admission: true,
+    receipt: true,
+    observability: true,
+    evaluation: true,
+  };
+  const observations = catalog.loops.map((loop) => ({
+    id: loop.id,
+    state: "not_applicable",
+    reason: "provider_surface_not_supported",
+    contract,
+  }));
+  observations[0] = {
+    id: catalog.loops[0].id,
+    state: "verified",
+    reason: "official_receipt_verified",
+    owner_id: "owner-1",
+    release_sha: releaseSha,
+    official_receipt: true,
+    contract,
+  };
+
+  const manifest = buildProductLoopCompletionManifest({
+    host: "cloud",
+    release_sha: releaseSha,
+    observations,
+  });
+
+  assert.equal(manifest.completion, true);
+  assert.equal(manifest.unknown_count, 0);
+  assert.equal(manifest.counts.verified, 1);
+  assert.equal(manifest.counts.not_applicable, 13);
 });

@@ -5,6 +5,15 @@ const path = require("node:path");
 
 const DEFAULT_CATALOG = path.resolve(__dirname, "../config/product-loop-catalog.json");
 const HOSTS = new Set(["local", "cloud"]);
+const COMPLETION_STATES = new Set(["verified", "setup_required", "not_applicable", "unknown"]);
+const COMPLETION_CONTRACT_FIELDS = [
+  "goal",
+  "context",
+  "admission",
+  "receipt",
+  "observability",
+  "evaluation",
+];
 
 function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
   const value = JSON.parse(fs.readFileSync(catalogFile, "utf8"));
@@ -88,4 +97,79 @@ function planProductOnboarding(input = {}, options = {}) {
   });
 }
 
-module.exports = { DEFAULT_CATALOG, planProductOnboarding, readProductLoopCatalog };
+function buildProductLoopCompletionManifest(input = {}, options = {}) {
+  const host = String(input.host || "").trim();
+  if (!HOSTS.has(host)) throw new Error("completion host must be local or cloud");
+  const releaseSha = String(input.release_sha || "").trim();
+  if (!/^[a-f0-9]{40}$/iu.test(releaseSha)) throw new Error("completion release sha invalid");
+  if (!Array.isArray(input.observations)) throw new Error("completion observations invalid");
+
+  const catalog = readProductLoopCatalog(options.catalogFile);
+  const catalogIds = new Set(catalog.loops.map((loop) => loop.id));
+  const observations = new Map();
+  for (const observation of input.observations) {
+    if (!observation || typeof observation.id !== "string" || !catalogIds.has(observation.id)
+      || observations.has(observation.id)) {
+      throw new Error("completion observations must contain each catalog loop exactly once");
+    }
+    observations.set(observation.id, observation);
+  }
+  if (observations.size !== catalog.loops.length) {
+    throw new Error("completion observations must contain each catalog loop exactly once");
+  }
+
+  const loops = catalog.loops.map((catalogLoop) => {
+    const observation = observations.get(catalogLoop.id);
+    const state = String(observation.state || "").trim();
+    if (!COMPLETION_STATES.has(state)) throw new Error(`completion state invalid: ${catalogLoop.id}`);
+    const reason = typeof observation.reason === "string" ? observation.reason.trim() : "";
+    if (state !== "verified" && !reason) {
+      throw new Error(`completion reason required: ${catalogLoop.id}`);
+    }
+    const sourceContract = observation.contract && typeof observation.contract === "object"
+      ? observation.contract : {};
+    const contract = Object.fromEntries(COMPLETION_CONTRACT_FIELDS.map((field) => [
+      field, sourceContract[field] === true,
+    ]));
+    const ownerId = typeof observation.owner_id === "string" && observation.owner_id.trim()
+      ? observation.owner_id.trim() : null;
+    const observedRelease = typeof observation.release_sha === "string"
+      && observation.release_sha.trim() ? observation.release_sha.trim() : null;
+    const officialReceipt = observation.official_receipt === true;
+    if (state === "verified"
+      && (!officialReceipt || !ownerId || observedRelease !== releaseSha
+        || COMPLETION_CONTRACT_FIELDS.some((field) => contract[field] !== true))) {
+      throw new Error(`verified loop requires official receipt and matching release: ${catalogLoop.id}`);
+    }
+    return Object.freeze({
+      id: catalogLoop.id,
+      name: catalogLoop.name,
+      host,
+      state,
+      reason,
+      owner_id: ownerId,
+      release_sha: observedRelease,
+      official_receipt: officialReceipt,
+      contract: Object.freeze(contract),
+    });
+  });
+  const counts = Object.fromEntries([...COMPLETION_STATES].map((state) => [
+    state, loops.filter((loop) => loop.state === state).length,
+  ]));
+  return Object.freeze({
+    schema_version: "product.loop.completion.v1",
+    host,
+    release_sha: releaseSha,
+    loops: Object.freeze(loops),
+    counts: Object.freeze(counts),
+    unknown_count: counts.unknown,
+    completion: counts.unknown === 0,
+  });
+}
+
+module.exports = {
+  DEFAULT_CATALOG,
+  buildProductLoopCompletionManifest,
+  planProductOnboarding,
+  readProductLoopCatalog,
+};
