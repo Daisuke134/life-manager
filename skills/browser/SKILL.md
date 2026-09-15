@@ -112,6 +112,16 @@ bash skills/browser/with-browser.sh tiktok-anicca-jp -- \
 Exit `0` means the expected identity is authenticated. Exit `2` means logged out,
 indeterminate, or a different identity; consume its JSON status as an exact retry blocker.
 
+For fresh candidate discovery, use the shared official user-search reader under the same
+registered identity. It returns profile URLs only; the model still decides eligibility from
+each official profile and excludes prior effect keys before sending.
+
+```bash
+bash skills/browser/with-browser.sh tiktok-anicca-jp -- \
+  python3 skills/browser/scripts/tiktok_user_search.py "社会人 日常" \
+  --owner paid-tiktok-search --output /absolute/project-owned/search.json
+```
+
 ## Google Sheets bookkeeping
 
 Use the installed authenticated `gog sheets` API CLI before browser automation. API
