@@ -88,4 +88,5 @@ def test_competitions_do_not_masquerade_as_a_broken_fixed_price_form():
 def test_hourly_jobs_do_not_masquerade_as_a_broken_fixed_price_form():
     source = _candidate_source()
     assert '"仕事の概要 時間単価制" in text' in source
-    assert "時給・週上限の公式readbackが未実装" in source
+    assert '"pricing_mode": "hourly"' in source
+    assert "hourly_rate_minor" in source
