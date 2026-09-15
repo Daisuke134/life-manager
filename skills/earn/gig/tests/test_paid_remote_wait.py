@@ -185,6 +185,61 @@ def test_fully_received_stable_partial_download_is_persisted(tmp_path, monkeypat
     ]
 
 
+def test_large_browser_download_is_streamed_to_project_storage(tmp_path, monkeypatch) -> None:
+    snapshot = load("coconala_queue_snapshot")
+    download_path = None
+    evaluate_calls = 0
+    size = 17 * 1024 * 1024
+
+    async def fake_sleep(_seconds):
+        return None
+
+    async def progress_events(*_args):
+        return [{"method": "Browser.downloadProgress", "params": {
+            "state": "completed", "receivedBytes": size, "totalBytes": size,
+        }}]
+
+    async def fake_call(_ws, _request_id, method, params, *_args):
+        nonlocal download_path, evaluate_calls
+        if method in {"Browser.setDownloadBehavior", "Page.setDownloadBehavior"}:
+            download_path = Path(params["downloadPath"])
+            return {}
+        if method == "Target.getTargets":
+            return {"targetInfos": []}
+        if method == "Runtime.callFunctionOn":
+            return {"result": {"value": {
+                "ok": True, "x": 10, "y": 10, "width": 20, "height": 20,
+                "viewport_width": 100, "viewport_height": 100,
+            }}}
+        if method == "Runtime.evaluate":
+            evaluate_calls += 1
+            if evaluate_calls == 1:
+                return {"result": {"value": json.dumps({"ok": True})}}
+            return {"result": {"objectId": "download-control"}}
+        if method == "Input.dispatchMouseEvent" and params["type"] == "mouseReleased":
+            assert download_path is not None
+            with (download_path / "large.bin").open("wb") as handle:
+                handle.truncate(size)
+        return {}
+
+    monkeypatch.setattr(snapshot, "call", fake_call)
+    monkeypatch.setattr(snapshot, "collect_cdp_events", progress_events)
+    monkeypatch.setattr(snapshot.asyncio, "sleep", fake_sleep)
+    attachment = {"filename": "large.mp4", "reference": "message:1:attachment:0"}
+    talkroom = {"messages": [{"side": "buyer", "attachments": [attachment]}]}
+
+    snapshot.asyncio.run(snapshot.capture_click_downloads(
+        object(), 1, talkroom, project_root=tmp_path,
+    ))
+
+    stored = Path(attachment["source_path"])
+    assert stored.stat().st_size == size
+    assert attachment["size_bytes"] == size
+    assert snapshot.recover_captured_attachment(
+        tmp_path, "large.mp4", reference="message:1:attachment:0",
+    )[0] == str(stored)
+
+
 def test_download_response_body_is_persisted_when_browser_file_is_absent(
         tmp_path, monkeypatch) -> None:
     snapshot = load("coconala_queue_snapshot")
