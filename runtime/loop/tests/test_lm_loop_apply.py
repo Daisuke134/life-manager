@@ -183,7 +183,11 @@ class LmLoopApplyTest(unittest.TestCase):
         )
         self.assertEqual(value["StartInterval"], 60)
         self.assertNotIn("Umask", value)
-        self.assertEqual(value["EnvironmentVariables"]["LIFE_MANAGER_RELEASE_SHA"], SHA)
+        environment = value["EnvironmentVariables"]
+        self.assertEqual(environment["LIFE_MANAGER_RELEASE_SHA"], SHA)
+        self.assertEqual(environment["LIFE_MANAGER_ENTRYPOINT"], "bin/example.sh")
+        self.assertEqual(environment["LIFE_MANAGER_OWNER_ID"], "example")
+        self.assertEqual(environment["LIFE_MANAGER_RESOURCE_CLASS"], "deterministic")
 
     def test_release_runtime_python_cache_tag_must_match(self):
         manifest = self.root / "RELEASE.json"

@@ -14,6 +14,9 @@ They do not choose a storage engine and do not move an existing database.
 - Durable notification outbox item: `#/$defs/OutboxItem`
 - Financial Manager ledger record: `#/$defs/FinancialRecord`
 - Browser target lease: `#/$defs/BrowserTargetLease`
+- Launch identity: `runtime/loop/release_identity.py` verifies the immutable release manifest,
+  Loop/owner/resource environment, private state boundary, and current release before an effect
+  child starts; stale effect-bearing releases fail closed as `release_drift`.
 
 An entrypoint exit proves only a runtime event. An external effect becomes true only through a
 provider-backed `Receipt`. Outbox delivery uses `message_key` as its retry identity. Financial

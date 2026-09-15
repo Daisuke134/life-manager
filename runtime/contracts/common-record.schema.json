@@ -63,7 +63,7 @@
         "attempt": {"type": "integer", "minimum": 1, "maximum": 20},
         "effect_key": {"type": ["string", "null"], "minLength": 1, "maxLength": 1024},
         "failure_layer": {"oneOf": [
-          {"enum": ["admission", "context", "model", "tool", "provider", "readback", "persistence", "notification", "unknown"]},
+          {"enum": ["admission", "context", "model", "tool", "provider", "readback", "persistence", "notification", "release", "unknown"]},
           {"type": "null"}
         ]},
         "official_readback_ref": {"oneOf": [
@@ -192,7 +192,7 @@
         "attempt": {"type": "integer", "minimum": 1, "maximum": 20},
         "due_at": {"$ref": "#/$defs/Timestamp"},
         "reason_code": {"$ref": "#/$defs/Id"},
-        "failure_layer": {"enum": ["admission", "context", "model", "tool", "provider", "readback", "persistence", "notification", "unknown"]},
+        "failure_layer": {"enum": ["admission", "context", "model", "tool", "provider", "readback", "persistence", "notification", "release", "unknown"]},
         "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 1024}
       }
     },

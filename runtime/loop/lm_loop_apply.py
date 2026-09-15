@@ -52,6 +52,11 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             "LIFE_MANAGER_LOOP_ID": loop_id,
             "LIFE_MANAGER_REPO": str(release_root),
             "LIFE_MANAGER_RELEASE_SHA": release_sha,
+            "LIFE_MANAGER_ENTRYPOINT": entry["entrypoint"],
+            "LIFE_MANAGER_OWNER_ID": loop_id,
+            "LIFE_MANAGER_RESOURCE_CLASS": entry.get("resource_class") or (
+                "agent" if entry["provider_route"] == "shared-agent-runner" else "deterministic"
+            ),
             "LIFE_MANAGER_STATE_ROOT": state_root,
             "LIFE_MANAGER_LOG_ROOT": log_root,
             "LIFE_MANAGER_RUNTIME_PYTHON": str(

@@ -19,6 +19,11 @@ from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path
 from runtime.loop.lm_loop_apply import _loaded_arguments
 from runtime.loop.loop_cleanup import remove_owned_tree
 from runtime.loop.macos_loop_registry import validate_registry
+from runtime.loop.release_identity import (
+    CONTROL_PLANE_LOOP_IDS,
+    ReleaseIdentityError,
+    validate_runtime_identity,
+)
 from runtime.loop.runtime_event import append_runtime_event, build_runtime_event, build_runtime_start_event
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.resource_admission import (
@@ -479,18 +484,53 @@ def main(argv: list[str] | None = None) -> int:
     try:
         registry = json.loads((release_root / "config/loop-registry.json").read_text())
         manifest = json.loads((release_root / "RELEASE.json").read_text())
-        if not isinstance(manifest.get("sha"), str) or len(manifest["sha"]) != 40:
+        if (not isinstance(manifest.get("sha"), str)
+                or not re.fullmatch(r"[0-9a-f]{40}", manifest["sha"])):
             raise ValueError("invalid release manifest SHA")
         entry = registry.get("loops", {}).get(loop_id)
         if not isinstance(entry, dict):
             raise ValueError(f"unknown loop id: {loop_id}")
         loop_state_root = Path(os.path.expanduser(
             os.environ.get("LIFE_MANAGER_STATE_ROOT", entry["state_root"])))
+        run_id = os.environ.get("LIFE_MANAGER_RUN_ID") or f"{time.time_ns():x}-{os.getpid()}"
+        try:
+            identity = validate_runtime_identity(
+                registry,
+                loop_id,
+                release_root,
+                current=Path("~/loops/current").expanduser(),
+                allow_current_drift=loop_id in CONTROL_PLANE_LOOP_IDS,
+            )
+        except ReleaseIdentityError as error:
+            try:
+                append_runtime_event(
+                    loop_state_root / "events.jsonl",
+                    build_runtime_event(
+                        loop_id=loop_id,
+                        domain=entry["domain"],
+                        run_id=run_id,
+                        release_sha=manifest["sha"],
+                        provider=entry["provider_route"],
+                        profile_alias=None,
+                        effect_class=entry["effect_class"],
+                        succeeded=False,
+                        blocker=error.blocker,
+                        failure_layer="release",
+                        evidence_scheme="lm-loop",
+                        product_loop_id=loop_id,
+                        job_id=loop_id,
+                        owner_id=loop_id,
+                        wake_id=run_id,
+                    ),
+                )
+            except (OSError, ValueError) as event_error:
+                print(f"lm-loop-run: identity failure event failed: {event_error}", file=sys.stderr)
+            print(f"lm-loop-run: {error}", file=sys.stderr)
+            return 78
         current = Path("~/loops/current").expanduser()
         item_lock = _label_apply_lock_path(current, entry["label"])
         with _apply_lock(current, item_lock):
             command = build_loop_command(registry, loop_id, release_root)
-            run_id = os.environ.get("LIFE_MANAGER_RUN_ID") or f"{time.time_ns():x}-{os.getpid()}"
             event_path = loop_state_root / "events.jsonl"
             scratch, scratch_parent_fd, scratch_fd = reset_loop_scratch(
                 loop_state_root, loop_id, run_id)
@@ -499,6 +539,8 @@ def main(argv: list[str] | None = None) -> int:
                     loop_id=loop_id, domain=entry["domain"], run_id=run_id,
                     release_sha=manifest["sha"], provider=entry["provider_route"],
                     profile_alias=None, effect_class=entry["effect_class"],
+                    product_loop_id=loop_id, job_id=loop_id,
+                    owner_id=identity["owner_id"], wake_id=run_id,
                 ))
             except (OSError, ValueError) as error:
                 print(f"lm-loop-run: start event failed: {error}", file=sys.stderr)
@@ -518,7 +560,8 @@ def main(argv: list[str] | None = None) -> int:
                 release_sha=manifest["sha"], provider=entry["provider_route"],
                 profile_alias=None, effect_class=entry["effect_class"],
                 succeeded=succeeded, deferred=deferred, blocker=blocker,
-                evidence_scheme="lm-loop",
+                evidence_scheme="lm-loop", product_loop_id=loop_id, job_id=loop_id,
+                owner_id=identity["owner_id"], wake_id=run_id,
             )
             append_runtime_event(event_path, event)
             terminal_saved = True

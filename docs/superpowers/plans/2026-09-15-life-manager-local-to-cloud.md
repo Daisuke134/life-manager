@@ -106,6 +106,15 @@ TODO worktree. The current cursor is `GRAPH-01`.
   replay-stable; the JS context never rebuilds or expands it. Focused proof: context-capsule and
   prompt/context tests passed (15 total), plus the shared contract checks. No provider, browser,
   launchd, ledger, or Telegram effect was performed. Next active ID: `GRAPH-01`.
+- [x] `ALIGN-01` — Added the fail-closed startup identity gate in
+  `runtime/loop/release_identity.py` and `runtime/loop/lm_loop_run.py`. A loop now checks its
+  immutable release manifest, launchd-projected Loop ID/owner/resource metadata, state-root boundary,
+  and current-release SHA before starting the child. A stale effect-bearing release records a
+  secret-free `release_drift` event and exits without starting the effect child; the release
+  reconciler remains the explicit control-plane exception. New plist metadata makes the identity
+  self-describing. Focused proof: `runtime/loop/tests/test_release_identity.py` (2 passed), the
+  runner/apply/event/read-only suites (35, 79, 34, and 14 passed). No provider, browser, launchd,
+  ledger, or Telegram effect was performed. Next active ID remains `GRAPH-01`.
 
 ## FND research gate (search complete; FND-02 implemented)
 
