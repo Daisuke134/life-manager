@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "runtime/agent-runner"))
 
-from agent_runner import emit_runtime_event, runtime_event_loop_id  # noqa: E402
+from agent_runner import emit_runtime_event, runtime_event_loop_id, runtime_registry_path  # noqa: E402
 
 
 class RuntimeEventBoundaryTest(unittest.TestCase):
@@ -26,6 +26,15 @@ class RuntimeEventBoundaryTest(unittest.TestCase):
     def test_unmanaged_invocation_keeps_requested_loop_id(self):
         with mock.patch.dict(os.environ, {}, clear=True):
             self.assertEqual(runtime_event_loop_id("standalone-loop"), "standalone-loop")
+
+    def test_staged_runner_uses_loaded_release_registry(self):
+        with mock.patch.dict(os.environ, {
+            "LIFE_MANAGER_REPO": "/loops/releases/current-sha",
+        }, clear=True):
+            self.assertEqual(
+                runtime_registry_path(),
+                Path("/loops/releases/current-sha/config/loop-registry.json"),
+            )
 
     def test_final_runner_summary_emits_one_registry_grounded_event(self):
         with tempfile.TemporaryDirectory() as directory:

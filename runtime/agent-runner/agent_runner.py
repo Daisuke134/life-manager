@@ -81,6 +81,14 @@ def runtime_event_loop_id(requested_loop_id: str) -> str:
     return os.environ.get("LIFE_MANAGER_LOOP_ID", "").strip() or requested_loop_id
 
 
+def runtime_registry_path() -> Path:
+    explicit = os.environ.get("LIFE_MANAGER_REGISTRY", "").strip()
+    if explicit:
+        return Path(explicit)
+    release = Path(os.environ.get("LIFE_MANAGER_REPO", str(REPO_ROOT)))
+    return release / "config" / "loop-registry.json"
+
+
 def emit_runtime_event(*, loop_id: str, evidence_dir: Path,
                        selected: dict[str, Any] | None, attempts: list[dict[str, Any]],
                        candidate_profile: str | None, registry_path: Path,
@@ -1727,8 +1735,7 @@ def run() -> int:
     runtime_event_failed = False
     release_sha = os.environ.get("LIFE_MANAGER_RELEASE_SHA", "").strip()
     if release_sha:
-        registry_path = Path(os.environ.get(
-            "LIFE_MANAGER_REGISTRY", REPO_ROOT / "config" / "loop-registry.json"))
+        registry_path = runtime_registry_path()
         try:
             event = emit_runtime_event(
                 loop_id=runtime_event_loop_id(parsed.loop),
