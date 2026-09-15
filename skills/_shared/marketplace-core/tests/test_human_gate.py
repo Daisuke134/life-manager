@@ -103,3 +103,63 @@ def test_concurrent_creates_still_append_one_gate(tmp_path):
         rows = list(pool.map(create_once, range(16)))
     assert all(row == record for row in rows)
     assert len(path.read_text(encoding="utf-8").splitlines()) == 1
+
+
+def test_resolution_is_append_only_idempotent_and_keeps_the_same_effect_namespace(tmp_path):
+    path = tmp_path / "human-gates.jsonl"
+    store = human_gate.HumanGateStore(path)
+    record = human_gate.build_human_gate(**request())
+    store.create(record)
+
+    resolved = store.resolve(
+        record["human_gate_id"],
+        owner_id=record["owner_id"],
+        effect_key=record["effect_key"],
+        answer_ref="answer://mercor/interview-complete",
+        observed_at="2026-09-15T01:00:00.000Z",
+        outbox_id="telegram:human-gate:1",
+    )
+    replay = store.resolve(
+        record["human_gate_id"],
+        owner_id=record["owner_id"],
+        effect_key=record["effect_key"],
+        answer_ref="answer://mercor/interview-complete",
+        observed_at="2026-09-15T01:00:00.000Z",
+        outbox_id="telegram:human-gate:1",
+    )
+
+    assert resolved == replay
+    assert resolved["status"] == "resolved"
+    assert resolved["owner_id"] == record["owner_id"]
+    assert resolved["effect_key"] == record["effect_key"]
+    assert resolved["notification_event_id"] == record["notification_event_id"]
+    assert store.pending() == []
+    assert len(path.read_text(encoding="utf-8").splitlines()) == 2
+    binding = human_gate.resume_binding(resolved, resume_wake_id="wake-2")
+    assert binding == {
+        "human_gate_id": record["human_gate_id"],
+        "tenant_id": record["tenant_id"],
+        "owner_id": record["owner_id"],
+        "product_loop_id": record["product_loop_id"],
+        "job_id": record["job_id"],
+        "wake_id": "wake-2",
+        "effect_key": record["effect_key"],
+    }
+
+
+def test_resolution_rejects_wrong_owner_effect_stale_answer_and_conflicting_replay(tmp_path):
+    store = human_gate.HumanGateStore(tmp_path / "human-gates.jsonl")
+    record = human_gate.build_human_gate(**request())
+    store.create(record)
+    kwargs = {
+        "owner_id": record["owner_id"],
+        "effect_key": record["effect_key"],
+        "answer_ref": "answer://mercor/interview-complete",
+        "observed_at": "2026-09-15T01:00:00.000Z",
+    }
+    for change in ({"owner_id": "another-owner"}, {"effect_key": "other-effect"}, {"observed_at": NOW}):
+        with pytest.raises(human_gate.HumanGateError):
+            store.resolve(record["human_gate_id"], **{**kwargs, **change})
+    store.resolve(record["human_gate_id"], **kwargs)
+    with pytest.raises(human_gate.HumanGateError, match="conflict"):
+        store.resolve(record["human_gate_id"], **{**kwargs, "answer_ref": "answer://mercor/different"})

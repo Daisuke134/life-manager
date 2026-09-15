@@ -159,6 +159,8 @@ def validate_human_gate(value: dict[str, Any]) -> dict[str, Any]:
         _invalid("notification_identity")
     if status == "pending" and answer_ref is not None:
         _invalid("pending_answer")
+    if status == "resolved" and answer_ref is None:
+        _invalid("resolved_answer")
     return canonical
 
 
@@ -243,3 +245,67 @@ class HumanGateStore:
         with self._lock():
             latest = {row["human_gate_id"]: row for row in self._rows()}
             return sorted((row for row in latest.values() if row["status"] == "pending"), key=lambda row: row["human_gate_id"])
+
+    def resolve(
+        self,
+        human_gate_id: str,
+        *,
+        owner_id: str,
+        effect_key: str,
+        answer_ref: str,
+        observed_at: str,
+        outbox_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Append one resolved state and return the durable resume identity.
+
+        The owner and effect key are checked before the idempotent replay path;
+        a different actor can therefore never resolve or replay another owner's
+        gate.  A repeated identical answer returns the existing row without a
+        second outbox event.
+        """
+        gate_id = _id(human_gate_id, "id")
+        owner = _id(owner_id, "owner_id")
+        effect = _id(effect_key, "effect_key")
+        answer = _ref(answer_ref, "answer_ref")
+        observed = _instant(observed_at, "observed_at")
+        outbox = None if outbox_id is None else _id(outbox_id, "outbox_id")
+        with self._lock():
+            latest = {row["human_gate_id"]: row for row in self._rows()}.get(gate_id)
+            if latest is None:
+                raise HumanGateError("human_gate_not_found")
+            if latest["owner_id"] != owner or latest["effect_key"] != effect:
+                raise HumanGateError("human_gate_namespace_mismatch")
+            if latest["status"] == "resolved":
+                if latest["answer_ref"] == answer and latest["outbox_id"] == outbox:
+                    return latest
+                raise HumanGateError("human_gate_conflict")
+            if latest["status"] != "pending":
+                raise HumanGateError("human_gate_not_pending")
+            if datetime.fromisoformat(observed.replace("Z", "+00:00")) <= datetime.fromisoformat(latest["updated_at"].replace("Z", "+00:00")):
+                raise HumanGateError("human_gate_stale_answer")
+            resolved = validate_human_gate({
+                **latest,
+                "status": "resolved",
+                "answer_ref": answer,
+                "outbox_id": outbox,
+                "updated_at": observed,
+            })
+            self._append(resolved)
+            return resolved
+
+
+def resume_binding(record: dict[str, Any], *, resume_wake_id: str) -> dict[str, str]:
+    """Return only the same-owner/effect namespace needed by the next wake."""
+    checked = validate_human_gate(record)
+    if checked["status"] != "resolved":
+        raise HumanGateError("human_gate_not_resolved")
+    wake_id = _id(resume_wake_id, "resume_wake_id")
+    return {
+        "human_gate_id": checked["human_gate_id"],
+        "tenant_id": checked["tenant_id"],
+        "owner_id": checked["owner_id"],
+        "product_loop_id": checked["product_loop_id"],
+        "job_id": checked["job_id"],
+        "wake_id": wake_id,
+        "effect_key": checked["effect_key"],
+    }
