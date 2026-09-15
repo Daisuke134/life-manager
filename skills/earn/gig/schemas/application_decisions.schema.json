@@ -41,35 +41,7 @@
           },
           "weekly_hours_min": {"type": ["integer", "null"], "minimum": 0},
           "weekly_hours_max": {"type": ["integer", "null"], "minimum": 0}
-        },
-        "allOf": [
-          {
-            "if": {
-              "properties": {
-                "request_id": {"pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"}
-              }
-            },
-            "then": {
-              "required": ["work_frequency", "weekly_hours_min", "weekly_hours_max"],
-              "properties": {
-                "work_frequency": {
-                  "type": "string",
-                  "enum": ["WEEK_ONE", "WEEK_TWO", "WEEK_THREE", "WEEK_FOUR", "WEEK_FIVE", "BIWEEKLY", "MONTH_ONE"]
-                },
-                "weekly_hours_min": {"type": "integer", "minimum": 0},
-                "weekly_hours_max": {"type": "integer", "minimum": 0}
-              }
-            },
-            "else": {
-              "required": ["work_frequency", "weekly_hours_min", "weekly_hours_max"],
-              "properties": {
-                "work_frequency": {"const": null},
-                "weekly_hours_min": {"const": null},
-                "weekly_hours_max": {"const": null}
-              }
-            }
-          }
-        ]
+        }
       }
     }
   }
