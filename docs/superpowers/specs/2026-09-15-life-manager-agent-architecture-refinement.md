@@ -39,13 +39,19 @@ runtime event、provider ledgerを突き合わせた現在cursorです。後続�
 
 | 対象 | 実測状態 | 判定 |
 |---|---|---|
-| source | `origin/main=ae1bf96528a9b74b754f535c5ae5271117ae242f` | mainは3つのLancers修正PRを含む |
-| release selector | `~/loops/current`は`16cb493b50f8b7f319a0a54bd76f05bb66a8eee6`、Lancersの大半は`ae1bf96528a9b74b754f535c5ae5271117ae242f` | selectorとownerが混在。全体昇格は未完 |
-| Lancers Application | `loaded-running`/`entrypoint_exit_1`。plannerは非nullの提案文・価格・納期を返すrunを確認済み | model契約の故障は縮小したが、公式応募receiptなし |
+| source | `origin/main=1ddeeabe897ed40879eb1b31f6b158d2674a17c8` | mainはLancersの容量・planner・遷移診断・exhaustive-bound修正を含む |
+| release selector | `~/loops/current`は`16cb493b50f8b7f319a0a54bd76f05bb66a8eee6`、最新releaseは`20260915T225353-1ddeeabe` | selectorとownerが混在。全体昇格は未完 |
+| Lancers Application | `loaded-running`/`entrypoint_exit_1`。plannerは非nullの提案文・価格・納期を返すrunを確認済み。稼働中ownerは旧`ae1bf96528` | 3ターン修正は次wakeから有効。公式応募receiptなし |
 | Lancers Browser | `loaded-running`、9227 CDPはChrome 145 / Protocol 1.3 | Browser接続canaryはPASS。provider効果は未確認 |
 | Lancers Negotiate/Storefront/work-sync/report | 多くは`loaded-idle`。capacity/control busyまたは旧terminal eventが残る | 履歴を成功に変換せず、各ownerの自然wakeを待つ |
-| Lancers Paid | 最後のreadbackでは旧release`16cb493b50`で稼働中 | idle後に`ae1bf96528`へreconcile必須 |
+| Lancers Paid | 最後のreadbackでは旧release`16cb493b50`で稼働中 | idle後に`1ddeeabe89`へreconcile必須 |
 | Lancers ledger | 最新の`application_verified`は既存sequence 147（新canaryのreceiptではない） | 現在runの成功・収益は0件として扱う |
+
+最新のmain統合はPR #5231（merge commit `1ddeeabe89`）です。`--exhaustive`が1wakeで3回
+同じ全検索を繰り返していたため、`_discovery_turn_count`を導入して1回のunionに限定しました。
+これにより、長時間runが他のlaneを塞ぐ時間を減らします。release
+`20260915T225353-1ddeeabe`は作成済みですが、稼働中ownerを止めずに切り替えるため、各ownerの
+idle境界で段階的にreconcileします。
 
 このcursorからの実行順序を固定する。前の項目の公式証拠がない限り、次のplatformへ進めない。
 
