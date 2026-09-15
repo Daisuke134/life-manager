@@ -1,6 +1,6 @@
 from pathlib import Path
 import importlib.util
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 import sys
 
 
@@ -59,3 +59,61 @@ def test_exhaustive_discovery_has_one_bounded_turn():
     assert module._discovery_turn_count(exhaustive=True, source=None, query=None) == 1
     assert module._discovery_turn_count(exhaustive=False, source=None, query=None) == 3
     assert module._discovery_turn_count(exhaustive=False, source=object(), query=None) == 1
+
+
+def test_transient_pending_failure_does_not_abort_fresh_discovery(tmp_path, monkeypatch):
+    module = _load_application_loop()
+    pending = {
+        "project_id": "5601059",
+        "amount_minor": 88000,
+        "delivery_due_on": "2026-09-24",
+    }
+    monkeypatch.setattr(module.application_tick, "read_pending_descriptor", lambda _path: pending)
+    monkeypatch.setattr(
+        module.application_tick.shared,
+        "read_pending_descriptors",
+        lambda _path: [pending],
+    )
+    monkeypatch.setattr(
+        module,
+        "_reconcile_pending",
+        lambda *_args, **_kwargs: module.ApplicationLoopResult(
+            False, error="account_unavailable", project_id="5601059"
+        ),
+    )
+    discoveries = []
+
+    def discoverer(**_kwargs):
+        discoveries.append(True)
+        return {"ok": True, "opportunities": [], "observed_count": 0, "already_decided_count": 0}
+
+    result = module.run_loop(
+        state_path=tmp_path / "application.json",
+        evidence_root=tmp_path / "evidence",
+        discoverer=discoverer,
+        clock=lambda: datetime(2026, 9, 15, tzinfo=timezone.utc),
+    )
+
+    assert discoveries == [True]
+    assert result["reason"] == "no_eligible_project"
+    assert result["unresolved_project_id"] == "5601059"
+
+
+def test_pending_descriptor_rotates_by_wake_slot(monkeypatch):
+    module = _load_application_loop()
+    descriptors = [
+        {"project_id": "1", "amount_minor": 1, "delivery_due_on": "2026-09-16"},
+        {"project_id": "2", "amount_minor": 1, "delivery_due_on": "2026-09-16"},
+        {"project_id": "3", "amount_minor": 1, "delivery_due_on": "2026-09-16"},
+    ]
+    monkeypatch.setattr(module.application_tick.shared, "read_pending_descriptors", lambda _path: descriptors)
+
+    first = module._pending_descriptor_for_wake(
+        Path("/tmp/application.json"), datetime(2026, 9, 15, tzinfo=timezone.utc)
+    )
+    second = module._pending_descriptor_for_wake(
+        Path("/tmp/application.json"),
+        datetime(2026, 9, 15, tzinfo=timezone.utc) + timedelta(seconds=60),
+    )
+
+    assert first["project_id"] != second["project_id"]
