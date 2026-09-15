@@ -2,7 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildResponsesRequest,
+  buildBackgroundResponsesRequest,
   normalizeResponsesResponse,
+  pollBackgroundResponse,
+  startBackgroundResponse,
   thinkResponses,
 } from '../responses-adapter.mjs';
 import { think } from '../brain.mjs';
@@ -174,4 +177,76 @@ test('think routes ANICCA_BRAIN=responses through the adapter and preserves the 
   } finally {
     globalThis.fetch = previousFetch;
   }
+});
+
+test('background diagnostic requests carry a capsule hash but no callable tools', () => {
+  const request = buildBackgroundResponsesRequest(context, {
+    ANICCA_RESPONSES_MODEL: 'gpt-6-astra',
+  });
+  assert.equal(request.background, true);
+  assert.equal(request.store, false);
+  assert.deepEqual(request.tools, []);
+  assert.equal('tool_choice' in request, false);
+  assert.deepEqual(request.metadata, { context_sha256: 'a'.repeat(64) });
+});
+
+test('background response start returns a durable response ID and polling preserves in-progress status', async () => {
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push({ url, method: options.method, body: options.body && JSON.parse(options.body) });
+    if (options.method === 'POST') {
+      return { ok: true, status: 200, text: async () => JSON.stringify({ id: 'resp-bg', status: 'queued' }) };
+    }
+    return { ok: true, status: 200, text: async () => JSON.stringify({ id: 'resp-bg', status: 'in_progress', output: [] }) };
+  };
+  const started = await startBackgroundResponse(context, {
+    OPENAI_RESPONSES_BASE_URL: 'http://127.0.0.1:9999/v1',
+  }, { fetchImpl });
+  const polled = await pollBackgroundResponse('resp-bg', {
+    OPENAI_RESPONSES_BASE_URL: 'http://127.0.0.1:9999/v1',
+  }, { fetchImpl });
+
+  assert.deepEqual(started, { response_id: 'resp-bg', status: 'queued' });
+  assert.deepEqual(polled, { response_id: 'resp-bg', status: 'in_progress' });
+  assert.equal(calls[0].url, 'http://127.0.0.1:9999/v1/responses');
+  assert.equal(calls[0].body.background, true);
+  assert.deepEqual(calls[0].body.tools, []);
+  assert.equal(calls[1].url, 'http://127.0.0.1:9999/v1/responses/resp-bg');
+  assert.equal(calls[1].method, 'GET');
+});
+
+test('background polling normalizes completed text and rejects a terminal function call', async () => {
+  const completed = await pollBackgroundResponse('resp-done', {
+    OPENAI_RESPONSES_BASE_URL: 'http://127.0.0.1:9999/v1',
+  }, {
+    fetchImpl: async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        id: 'resp-done',
+        status: 'completed',
+        output: [{ type: 'message', content: [{ type: 'output_text', text: 'diagnosis' }] }],
+      }),
+    }),
+  });
+  assert.equal(completed.response_id, 'resp-done');
+  assert.equal(completed.status, 'completed');
+  assert.equal(completed.output_text, 'diagnosis');
+
+  await assert.rejects(
+    () => pollBackgroundResponse('resp-effect', {
+      OPENAI_RESPONSES_BASE_URL: 'http://127.0.0.1:9999/v1',
+    }, {
+      fetchImpl: async () => ({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({
+          id: 'resp-effect',
+          status: 'completed',
+          output: [{ type: 'function_call', call_id: 'call-effect', name: 'run_skill', arguments: '{}' }],
+        }),
+      }),
+    }),
+    /function call.*background/i,
+  );
 });

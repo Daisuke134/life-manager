@@ -94,6 +94,19 @@ export function buildResponsesRequest(ctx = {}, config = {}) {
   return request;
 }
 
+/** Build a long-running diagnostic request with no callable tool or effect authority. */
+export function buildBackgroundResponsesRequest(ctx = {}, config = {}) {
+  const request = buildResponsesRequest(ctx, config);
+  const { tool_choice: _toolChoice, parallel_tool_calls: _parallel, ...withoutTools } = request;
+  return {
+    ...withoutTools,
+    tools: [],
+    background: true,
+    // Background responses may be polled for roughly ten minutes even when storage is disabled.
+    store: false,
+  };
+}
+
 function outputText(response) {
   if (typeof response.output_text === 'string') return response.output_text;
   const output = Array.isArray(response.output) ? response.output : [];
@@ -168,10 +181,17 @@ async function readBody(response) {
   return text;
 }
 
-/** Execute one bounded Responses request. The loop remains the only effect/tool executor. */
-export async function thinkResponses(ctx, config = {}, { fetchImpl } = {}) {
-  const request = buildResponsesRequest(ctx, config);
-  const url = endpoint(config);
+function responseIdentifier(value) {
+  const id = typeof value === 'string' ? value.trim() : '';
+  if (!/^[A-Za-z0-9._-]{1,200}$/.test(id)) invalid('response id invalid');
+  return id;
+}
+
+async function fetchResponsesJson(url, config, {
+  fetchImpl,
+  method = 'GET',
+  body,
+} = {}) {
   const key = String(config.OPENAI_API_KEY || process.env.OPENAI_API_KEY || '').trim();
   let parsedUrl;
   try { parsedUrl = new URL(url); } catch { invalid('endpoint invalid'); }
@@ -191,27 +211,77 @@ export async function thinkResponses(ctx, config = {}, { fetchImpl } = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (key) headers.Authorization = `Bearer ${key}`;
     const response = await fetcher(url, {
-      method: 'POST',
+      method,
       headers,
-      body: JSON.stringify(request),
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       signal: controller.signal,
     });
     if (!response || !response.ok) {
       throw new Error(`responses HTTP ${response ? response.status : 'no response'}`);
     }
-    let body;
-    try { body = JSON.parse(await readBody(response)); } catch { invalid('response JSON invalid'); }
-    const normalized = normalizeResponsesResponse(body);
-    normalized._anicca.context_sha256 = request.metadata?.context_sha256 || null;
-    normalized._anicca.timeout_ms = timeoutMs;
-    normalized._anicca.tool_count = request.tools.length;
-    return normalized;
+    let parsed;
+    try { parsed = JSON.parse(await readBody(response)); } catch { invalid('response JSON invalid'); }
+    return { body: parsed, timeoutMs };
   } catch (error) {
     if (controller.signal.aborted) throw new Error(`responses_timeout: exceeded ${timeoutMs}ms`);
-    if (error && /^responses HTTP /.test(String(error.message || ''))) throw error;
     throw error instanceof Error ? error : new Error(String(error));
   } finally {
     clearTimeout(timer);
   }
 }
 
+/** Start a long diagnostic response. The returned ID is safe to persist in the next wake. */
+export async function startBackgroundResponse(ctx, config = {}, { fetchImpl } = {}) {
+  const request = buildBackgroundResponsesRequest(ctx, config);
+  const { body } = await fetchResponsesJson(endpoint(config), config, {
+    fetchImpl,
+    method: 'POST',
+    body: request,
+  });
+  const id = responseIdentifier(body && body.id);
+  const status = typeof body.status === 'string' ? body.status : '';
+  if (!['queued', 'in_progress', 'completed', 'failed', 'cancelled', 'incomplete'].includes(status)) {
+    invalid('background response status invalid');
+  }
+  return { response_id: id, status };
+}
+
+/** Poll one previously persisted background response ID; never dispatches its output as an effect. */
+export async function pollBackgroundResponse(responseId, config = {}, { fetchImpl } = {}) {
+  const id = responseIdentifier(responseId);
+  const { body } = await fetchResponsesJson(`${endpoint(config)}/${encodeURIComponent(id)}`, config, {
+    fetchImpl,
+    method: 'GET',
+  });
+  if (!body || body.id !== id || typeof body.status !== 'string') invalid('background response record invalid');
+  if (body.status !== 'completed') return { response_id: id, status: body.status };
+  if (Array.isArray(body.output) && body.output.some((item) => item && item.type === 'function_call')) {
+    invalid('function call returned by background diagnostic');
+  }
+  const normalized = normalizeResponsesResponse(body);
+  return {
+    ...normalized,
+    response_id: id,
+    status: body.status,
+  };
+}
+
+/** Execute one bounded Responses request. The loop remains the only effect/tool executor. */
+export async function thinkResponses(ctx, config = {}, { fetchImpl } = {}) {
+  const request = buildResponsesRequest(ctx, config);
+  const url = endpoint(config);
+  try {
+    const { body, timeoutMs } = await fetchResponsesJson(url, config, {
+      fetchImpl,
+      method: 'POST',
+      body: request,
+    });
+    const normalized = normalizeResponsesResponse(body);
+    normalized._anicca.context_sha256 = request.metadata?.context_sha256 || null;
+    normalized._anicca.timeout_ms = timeoutMs;
+    normalized._anicca.tool_count = request.tools.length;
+    return normalized;
+  } catch (error) {
+    throw error instanceof Error ? error : new Error(String(error));
+  }
+}
