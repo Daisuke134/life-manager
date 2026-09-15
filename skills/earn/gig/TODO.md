@@ -10,11 +10,12 @@ This is the only restart cursor for the next Codex session. Re-check every value
 runtime/provider readback before acting; conversation claims are not completion evidence.
 
 - Repository: `/Users/anicca/Projects/life-manager-main`, remote `Daisuke134/life-manager`.
-- Runtime implementation worktree: `/private/tmp/lm-runtime-admission-reservations-20260914`, branch
-  `fix/runtime-admission-reservations-20260914`, upstream of the same name. Pushed clean HEAD is
-  `4ac009092fdebcec225d5516a9de444e6a15f5f7`; PR `#5193` is merged at main
-  `3fbe75546d720add1bfa465731ddc94353b662b5`. Preserve this worktree until production activation and natural
-  proof finish; do not delete or reuse it for another task.
+- Canonical runtime source is `origin/main` at `fb80cadd5d0bba58de3fece64db6ab0203ba1e83`. The latest
+  immutable release is `/Users/anicca/loops/releases/20260916T032610-1d4bca43` from its parent main SHA;
+  a follow-up release containing `fb80cadd5d` is being cut by the existing release owner. The prior runtime
+  worktree `/private/tmp/lm-runtime-admission-marketplace-priority-20260916` contains the already-merged
+  disk/APFS and Storefront commits (`9aaab33d3c`, `8b472f9642`) but its remote branch is deleted; do not use
+  it as a second source of truth or create another runtime worktree.
 - Phase 2 replaces the v2 JSON scan with stdlib SQLite, adds durable FIFO reservations, child-PID claim
   handoff, same-owner/crash recovery, exact loaded-idle dispatch, retired/missing-owner cancellation, a
   default-v1 mixed-release gate and `lm-loop admission-v2-enable`. Final evidence is 500 sequential enqueues in
@@ -30,12 +31,11 @@ runtime/provider readback before acting; conversation claims are not completion 
 - Account migration is open: identify the account 1 Codex auth/provider profile through the credential SSOT,
   prove one bounded invocation, then roll only the intended Life Manager Codex routes forward. Preserve all
   Codex/cloud sessions and unrelated providers.
-- First safe action: keep admission protocol at `1` and do not treat release convergence alone as recovery.
-  Continue the approved fundamental scalability repair in the existing clean runtime-admission worktree after
-  renewing its same-owner/task lease and fast-forwarding it to latest `origin/main`; do not create a duplicate
-  worktree. Preserve independent lane owners, partition host capacity so maintenance cannot starve revenue,
-  restore project-scoped Paid concurrency and attachment retention, then prove the four-lane Coconala canary
-  before activating corrected protocol `2`. Never restart a running sibling or edit the Capafy shared checkout.
+- First safe action: keep each provider owner independent and verify the exact loaded release before any effect.
+  Admission protocol `2` is currently live (`resources/protocol.json`), but its fairness and starvation proof
+  remain open. Preserve effect fences, per-client evidence and browser ownership; never edit the Capafy shared
+  checkout. Storefront must run one bounded pass per launchd wake, and cleanup must distinguish closed APFS
+  Chromium clones before removing them.
 
 ## Outcome
 
@@ -272,15 +272,32 @@ freeze protocol 1
 -> continue platform revenue order
 ```
 
-Current cursor: shared admission and attachment-recovery fixes are merged and running from immutable release
-`20260915T101017-d2fc0a7b`. Continue the natural Coconala Paid wake until each project produces a terminal
-receipt; then finish missing retained-attachment recovery, produce each requested artifact, send exactly once,
-and prove the later seller effect by official readback. Protocol `2` remains off until the one incompatible
-running Lancers owner drains and is label-scoped onto the current compatible release. Reuse
-`/private/tmp/lm-runtime-admission-reservations-20260914`; the Capafy shared checkout remains read-only and
-forbidden for this task. Do not create another worktree merely because a branch is behind main.
+Current cursor: main `fb80cadd5d` is being exported to an immutable release by the existing release owner.
+After that release is available, verify loaded argv for all four Coconala labels, let the current Paid wake
+finish its per-client children, and read back each official talkroom plus replay-zero. The Storefront inner
+cadence fix and APFS clone cleanup are merged but still need one natural production wake. Protocol `2` is live,
+yet fairness, no-starvation, healthy disk headroom and 24-hour/seven-day proof remain open. Do not create a new
+worktree, do not edit the Capify checkout, and do not restart a running sibling unless it is an exact stale
+owner with a recorded terminal/recovery reason.
 
 ## Current measured state
+
+### Live correction (re-read before every mutation)
+
+- `origin/main` is `fb80cadd5d0bba58de3fece64db6ab0203ba1e83`; current symlink is still
+  `/Users/anicca/loops/releases/20260916T032610-1d4bca43` until the existing release builder finishes.
+- Admission is protocol `2`. At the last snapshot, Coconala Paid reached its provider children for
+  `18180857` and `18211957` concurrently; no terminal official receipt has been recorded yet. Coconala
+  Storefront was a stale 11-hour `--auto-cadence` owner and was replaced label-scoped; its next release must
+  omit that inner cadence so launchd's 60-second interval owns repetition.
+- Apply and Reply are loaded-idle from `1d4bca43`; Paid and Storefront are loaded-running from that release.
+  Other revenue owners can consume the finite host ceiling, so a PID or scheduler run is not a client effect.
+- Disk free is about `4.7 GiB` (98% used). Thirty-four closed Chromium APFS clones and one unreferenced release
+  were removed through the allow-listed governor; one live clone remains. A transient `disk_headroom_low`
+  receipt occurred during the first Paid restart, so the healthy disk floor and seven-day no-ENOSPC proof remain
+  open.
+- The canonical runtime repair is now in main through PRs `#5244` and `#5246`; do not report the old
+  `b8cff053`/protocol-1 snapshot below as current.
 
 ### Shared host/runtime
 
@@ -405,6 +422,12 @@ forbidden for this task. Do not create another worktree merely because a branch 
 
 ### Coconala
 
+The matrix below is the durable client set, not proof that every row is currently submitted. The live Paid
+wake must finish each item and write its own official readback before a row can be closed. `18180857` has a
+truthful 300-row TikTok/Sheet completion receipt, but its Coconala reply/monitoring loop is still paused; Ryu
+`18211957` is still `WORK_REQUIRED` in the live project state and must not be reported as done from the older
+historical seller message.
+
 #### Current active-client inventory
 
 This is the retained official-state candidate set, not a claim that every newest message has been handled.
@@ -455,10 +478,10 @@ independent production effects.
 
 ### 1. Shared runtime production convergence and account 1 cutover — current cursor
 
-- [x] Reuse `/private/tmp/lm-runtime-admission-reservations-20260914` for this same admission repair. Re-check
-  clean/merged/no-open-PR/no-open-process/lease-owner conditions, renew the stale lease HEAD, and fast-forward
-  its branch to latest `origin/main` before editing. Do not create another worktree or write in the divergent
-  spec worktree, shared Capafy checkout or an active release.
+- [x] Reuse the existing runtime worktree instead of creating another one. The APFS clone detector is merged
+  as PR `#5244` and Storefront's inner-cadence removal as PR `#5246`; both are in `origin/main`.
+- [ ] Cut the `fb80cadd5d` immutable release and verify its exact SHA is loaded by every Coconala label before
+  treating the runtime repair as active.
 - [ ] **Current cursor:** preserve three secret-free production regression fixtures before changing behavior:
   1. all four Coconala lanes repeatedly terminate before provider work while unrelated owners hold global
      capacity;
@@ -474,6 +497,10 @@ independent production effects.
   spawned browser child/process group to remain attached to one durable owner receipt and be reaped on every
   terminal path. Retain regression fixtures for the orphaned Capafy Chrome groups and the duplicate/wedged
   CrowdWorks `9228` roots.
+- [x] Make Storefront a one-pass owner: launchd's 60-second cadence is the only repetition mechanism, so an
+  inner `--auto-cadence` child cannot retain a revenue slot forever.
+- [x] Make the disk governor identify closed APFS Chromium clones from one global open-path snapshot; active
+  clones remain protected and closed clones are reclaimable.
 - [ ] Convert Paid from one-order-per-pass lane-global evidence to project-scoped durable work items and bounded
   concurrent consumers. Serialize only the same exact order/effect and the short authenticated mutation.
 - [ ] Make retained attachment references cumulative across wakes. Reuse verified bytes; recover missing bytes
@@ -720,13 +747,11 @@ effect described above. Do not reopen it unless a newer buyer event appears.
 The owner explicitly retired TikTok-adapter development for Chii because this outreach shape will not recur.
 Do not add another TikTok adapter or speculative queue framework. Finish this one contract operationally through
 the existing authenticated `tiktok-anicca-jp` search/profile reader, shared message transport, exact official
-readback and `gog sheets` API. The manual owner continuation on 2026-09-15 advanced the truthful paired ledger
-from 12 to 58 unique Sheet rows. It produced six new exact-readback TikTok sends, recovered two previously sent
-but unrecorded pairs, and reconciled 38 more exact existing-message readbacks without resending them. Every added
-row has an immediate A:B Sheet readback and the whole range re-counts as 58 unique handles. The remaining target
-is 242. Continue
-without an artificial ten-candidate run stop, but stop on an actual TikTok warning or provider limit. A profile
-button without a recipient-bound conversation is effect zero and must never create a Sheet row.
+readback and `gog sheets` API. The 12-to-58 ledger paragraph that follows is historical evidence only. It is
+superseded by the current manual receipt: `18180857` has 300/300 unique rows and zero remaining eligible sends;
+do not resend any existing recipient. Continue only reply monitoring and ordinary Coconala work, stopping on an
+actual TikTok warning or provider limit. A profile button without a recipient-bound conversation is effect zero
+and must never create a Sheet row.
 
 After sustained profile/search activity, TikTok began returning an official page title with an empty profile body
 even under one serial owner. Six consecutive serial profiles reproduced the empty readback. Treat that as current
@@ -735,13 +760,10 @@ remaining 144-URL discovery wave, resume from its first unverified URL when offi
 and keep the single persistent owner/session; do not rotate accounts or browsers to evade the provider state.
 
 The shared runtime admission review then found a separate fleet-wide hang class: `transfer_durable` and
-`release_and_reserve` used blocking `flock(LOCK_EX)` after a child or sibling held `control.lock`. The minimal
-shared fix is now on branch `fix/runtime-admission-lock-bounded-20260915`: both paths use the existing
-`_acquire_bounded` helper with a 0.5-second deadline and fail closed as `control_busy`; the claim remains durable
-for the next stale-owner recovery. Two mock and two real multiprocessing lock-holder regressions cover the
-handoff/release behavior. Clean `origin/main` plus this one commit passes 160 related Python tests and 100
-subtests, and the 500-waiter benchmark completes in 1.286 seconds. The branch is pushed but intentionally not
-merged until the full Coconala acceptance gate; production still runs the prior immutable release.
+`release_and_reserve` used blocking `flock(LOCK_EX)` after a child or sibling held `control.lock`. The bounded
+handoff fix, APFS clone detector and Storefront one-pass fix are now merged in PRs `#5244` and `#5246` (main
+`fb80cadd5d`). Their focused runtime tests pass; production still needs the new release's natural wake and
+24-hour/seven-day proof.
 
 Observability remains a current architecture gap. Existing JSONL events and provider receipts stay the source
 of truth, while OpenTelemetry becomes the shared trace envelope rather than a second business ledger. One
@@ -765,8 +787,9 @@ work item and leave a sibling trace unchanged.
   `await_buyer_feedback`; retain one regression fixture covering the Ryu-shaped contradiction.
 - [ ] Route each active talkroom to an independent work item and effect fence; one blocked room must not block
   any sibling room.
-- [x] Ryu `18211957`: newest buyer request is covered by a later verified seller effect; formal delivery remains
-  OFF until buyer authorization.
+- [ ] Ryu `18211957`: the project state is currently `WORK_REQUIRED` with a newer buyer-feedback digest;
+  the historical seller message is not enough. Close only after the current Paid/Reply wake produces a later
+  seller effect and official talkroom readback; formal delivery remains OFF until buyer authorization.
 - [x] Kokoro `18223833`: retained inputs were recovered and the room has its own verified submission; replay zero
   unless a newer buyer event appears.
 - [x] Kokoro `18250352`: processed independently with its own verified v12 submission; replay zero unless a newer
@@ -777,6 +800,8 @@ work item and leave a sibling trace unchanged.
   requirement is complete; reply monitoring, reply-rate analysis and the durable 24/7 owner restart proof
   remain open. The outer Chii loop remains paused until that next natural wake is explicitly verified. A one-off
   unintended test-text effect to `@gucci_fuufu` is recorded separately and is not counted.
+- [ ] Current Paid wake: provider children for Chii `18180857` and Ryu `18211957` are running concurrently
+  from release `1d4bca43`; their terminal receipts and official Coconala readbacks are still pending.
 - [ ] Atsugi `18171850`: reconcile the newest post-delivery feedback, perform any required revision/reply once,
   and return to verified buyer-acceptance wait.
 - [ ] Re-run all five active work items and prove newest-buyer-digest coverage, official readback and replay-zero
