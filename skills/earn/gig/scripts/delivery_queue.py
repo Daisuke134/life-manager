@@ -166,7 +166,7 @@ def is_active_paid_order(order: dict[str, Any]) -> bool:
     live_revision = (
         order.get("buyer_feedback_pending_artifact") is True
         or order.get("buyer_reply_after_artifact_observed") is True
-        or order.get("buyer_feedback_stage") == "initial_request"
+        or order.get("buyer_feedback_stage") in {"initial_request", "revision"}
         # A5: a buyer who paid and then wrote nothing at all trips none of the three above,
         # so an order whose card also fails to render 取引中 was dropped here -- before any
         # class, priority or clock could apply to it. The marketplace rendering its own
@@ -498,7 +498,7 @@ def build(snapshot: dict[str, Any], evidence_root: Path, today: date) -> dict[st
             item.get("buyer_feedback_pending_artifact")
             or item.get("buyer_reply_after_artifact_observed")
             or item.get("revision_requested")
-            or item.get("buyer_feedback_stage") == "initial_request"
+            or item.get("buyer_feedback_stage") in {"initial_request", "revision"}
         ):
             queue_class = "buyer_feedback_or_revision"
         elif due and due <= today:
