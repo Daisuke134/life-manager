@@ -457,7 +457,7 @@ def preflight(*, state_path: Path = DEFAULT_STATE_PATH, browser_factory: Optiona
 def _cleanup(page: Any, browser: Any) -> bool:
     try: page_ok = page is None or bool(application_tick._close_owned_page(page))
     except Exception: page_ok = False
-    try: getattr(getattr(browser, "_anicca_playwright_runtime", None), "stop", lambda: None)()
+    try: application_tick._stop_playwright_runtime(getattr(browser, "_anicca_playwright_runtime", None))
     except Exception: return False
     return page_ok
 
