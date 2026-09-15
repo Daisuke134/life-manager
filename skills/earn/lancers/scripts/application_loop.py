@@ -537,6 +537,11 @@ def _safety_outcome(row: Mapping[str, object], decision: Mapping[str, object], e
         pass
     return "failed"
 
+
+def _discovery_turn_count(*, exhaustive: bool, source: object, query: object) -> int:
+    """Keep the all-query discovery path to one bounded union per wake."""
+    return 1 if exhaustive or source is not None or query is not None else 3
+
 def _safe_proposal(value: object, ids: Sequence[str]) -> bool:
     if not isinstance(value, str) or not 200 <= len(value) <= 3000: return False
     if len(KANA_RE.findall(value)) < max(20, len(re.findall(r"[A-Za-z]", value)) + 1): return False
@@ -967,7 +972,9 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
         except Exception: evidence = None
         if evidence is not None:
             source = discoverer or discovery
-            turns = 3 if source is None and query is None else 1
+            turns = _discovery_turn_count(
+                exhaustive=exhaustive, source=source, query=query,
+            )
             observed_total = 0; decision_reports: list[Mapping[str, object]] = []; wake_seen_ids: set[str] = set()
             for turn in range(turns):
                 turn_evidence = evidence
