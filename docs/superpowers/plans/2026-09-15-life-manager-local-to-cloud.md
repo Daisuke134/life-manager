@@ -242,8 +242,9 @@ No provider submission or payment receipt was produced by this snapshot.
 without granting authority, records only `extraneous_escalation_reason_ignored`, and still requires a
 reason for restricted routes (`cec6ce0d9b`). The Lancers caller condition is also fixed
 (`48e9da35d3`). Proof: Lancers suite 36 passed with 4 subtests, runner suite 69 passed with 58
-subtests, and an anonymous diagnostic-agent JSON probe passed. The production immutable-release
-canary remains pending; these commits are not live until included in a main-derived release.
+subtests, and an anonymous provider-level safety probe returned `safe_to_submit=true` with
+`schema_valid=true` from `gpt-5.6-terra`. The production immutable-release canary remains pending;
+these commits are not live until included in a main-derived release.
 
 ## FND research gate (search complete; FND-02 implemented)
 
