@@ -316,6 +316,14 @@ Parallel browser receipts (production cursor unchanged):
   acquire/reuse/release timing, and a seed-free read-only CDP navigation all passed. The measured
   host pressure remains a capacity input; no concurrency increase is authorized by this canary.
 
+Parallel API progress (production cursor unchanged): `c3d62f0098` adds an opt-in Responses API brain
+adapter. It converts the existing bounded wake context and tool menu to the Responses `instructions`,
+`input`, and top-level function-tool shapes, binds a valid context-capsule hash in metadata, sets
+`store=false`, disables parallel calls, enforces output/tool/timeout bounds, and maps exactly one
+`function_call` back to the existing parser. HTTP errors, missing IDs, multiple calls, empty output,
+and timeouts fail closed. `ANICCA_BRAIN=proxy` remains the default; background diagnostic polling and
+the live-cost/effect promotion gate are still open.
+
 ## FND research gate (search complete; FND-02 implemented)
 
 The research pass is complete for `FND-02` through `FND-10`. This section records the evidence and
