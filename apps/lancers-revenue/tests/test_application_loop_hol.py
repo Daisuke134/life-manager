@@ -572,6 +572,34 @@ class ApplicationLoopHolTests(unittest.TestCase):
         self.assertEqual((decisions["minItems"], decisions["maxItems"]), (1, 1))
         self.assertEqual(decisions["items"]["properties"]["request_id"]["enum"], ["6000001"])
 
+    def test_safety_verifier_does_not_receive_planner_escalation_reason(self):
+        application_loop = _load_deployed_loop()
+        calls = []
+
+        def fake_run(command, **kwargs):
+            calls.append((command, kwargs))
+            return type("Completed", (), {"returncode": 0})()
+
+        with tempfile.TemporaryDirectory() as directory:
+            evidence = Path(directory) / "safety"
+            evidence.mkdir()
+            result_path = evidence / "result.json"
+            result_path.write_text(json.dumps({
+                "safe_to_submit": True,
+                "reason": "approved",
+                "blocker_evidence": None,
+            }), encoding="utf-8")
+            (evidence / "summary.json").write_text(
+                json.dumps({"status": "success", "result_path": str(result_path)}),
+                encoding="utf-8",
+            )
+            prompt = application_loop._safety_prompt(_opportunity("6000001"), _eligible_decision("6000001"))
+            with patch.object(application_loop.subprocess, "run", side_effect=fake_run):
+                result = application_loop._default_safety_verifier(prompt, evidence)
+
+        self.assertEqual(result["reason"], "approved")
+        self.assertNotIn("--escalation-reason", calls[0][0])
+
     def test_normal_tick_submits_every_eligible_project_in_ranked_order(self):
         application_loop = _load_deployed_loop()
         submitter_project_ids = []

@@ -451,7 +451,12 @@ def build_planner_prompt(rows: Sequence[Mapping[str, object]], today: date) -> s
     return PLANNER_RULES + json.dumps(_snapshot(rows, _tick_date(today)), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 def _invoke_agent(prompt: str, evidence_dir: Path, task_class: str, schema_path: Path, label: str) -> Mapping[str, object]:
-    command = [sys.executable, str(AGENT_RUNNER), "--task-class", task_class, "--prompt-stdin", "--schema", str(schema_path), "--evidence-dir", str(evidence_dir), "--task-label", label, "--loop", "lancers-application", "--workdir", str(SKILLS_ROOT.parent), "--escalation-reason", ESCALATION_REASON]
+    command = [sys.executable, str(AGENT_RUNNER), "--task-class", task_class, "--prompt-stdin", "--schema", str(schema_path), "--evidence-dir", str(evidence_dir), "--task-label", label, "--loop", "lancers-application", "--workdir", str(SKILLS_ROOT.parent)]
+    # Only the planner is configured as an explicit escalation route.  The
+    # safety verifier is a normal diagnostic task; passing planner metadata to
+    # it makes the shared runner reject the call before safety can run.
+    if task_class == PLANNER_TASK_CLASS:
+        command.extend(["--escalation-reason", ESCALATION_REASON])
     try:
         # stderr is kept, not discarded. The runner refuses on configuration this loop cannot see,
         # and a refusal that reaches no log is a lane that stops applying without ever saying so.
