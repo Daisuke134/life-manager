@@ -291,9 +291,12 @@ next atomic architecture item only after `PROD-01` has an official canary receip
 Latest production merge recheck: `origin/main=97287335fe` now contains the Lancers caller and
 runner fixes, and the current immutable release is
 `/Users/anicca/loops/releases/20260915T193529-97287335`. The Lancers launchd owner is still pinned
-to `e8e8a2b2`; the safe reconcile command was attempted with the correct registry ID and returned
-`skipped_running`, so no running owner was stopped or restarted. The next production action remains
-the same targeted reconcile after natural idle, followed by one official safety/proposal canary.
+to `e8e8a2b2`; the first safe reconcile while it was running returned `skipped_running`, so no
+running owner was stopped or restarted. After it reached natural idle, the same targeted reconcile
+passed with install event `f5f75b062c5af6dda9bd9f54`, loaded arguments rooted at
+`20260915T193529-97287335`, and `LIFE_MANAGER_RELEASE_SHA=97287335fe903af7d967bf36847a965026f732cb`.
+The owner is now `loaded-idle` on the fixed release; its next natural wake is the remaining official
+safety/proposal canary gate.
 
 ## FND research gate (search complete; FND-02 implemented)
 
