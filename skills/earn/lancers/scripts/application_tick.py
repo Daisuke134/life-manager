@@ -116,12 +116,22 @@ def _form_changed(where: str, **detail: Any) -> RuntimeError:
     return RuntimeError("proposal_form_changed")
 
 
-def _confirmation_transition_detail(page: Any, project_id: str) -> dict[str, object]:
-    """Capture only the safe DOM shape when the confirmation route does not arrive."""
+def _confirmation_transition_detail(
+    page: Any, project_id: str, *, allow_evaluate: bool = True,
+) -> dict[str, object]:
+    """Capture safe transition evidence without trapping a failed browser renderer.
+
+    The normal diagnostic path may read the DOM.  After ``wait_for_url`` has already timed out,
+    however, a renderer that stopped answering can make ``page.evaluate`` wait forever.  The
+    timeout path therefore records only the already-readable URL and returns immediately.
+    """
     detail: dict[str, object] = {
         "project_id": str(project_id),
         "page_url": str(getattr(page, "url", ""))[:512],
     }
+    if not allow_evaluate:
+        detail["diagnostic"] = "page_url_only_after_transition_timeout"
+        return detail
     try:
         observed = page.evaluate(
             """() => ({
@@ -944,7 +954,7 @@ def _production_submitter(
         except Exception:
             raise _form_changed(
                 "_production_submitter:822",
-                **_confirmation_transition_detail(page, project_id),
+                **_confirmation_transition_detail(page, project_id, allow_evaluate=False),
             ) from None
         if not _route(getattr(page, "url", None), f"/work/propose_confirm/{project_id}"):
             raise _form_changed("_production_submitter:824")
