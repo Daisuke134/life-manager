@@ -10,11 +10,10 @@ This is the only restart cursor for the next Codex session. Re-check every value
 runtime/provider readback before acting; conversation claims are not completion evidence.
 
 - Repository: `/Users/anicca/Projects/life-manager-main`, remote `Daisuke134/life-manager`.
-- Canonical runtime source is `origin/main` at `2ff93374f79ccb91c712b98692537e3ce61387d7`. The latest
-  immutable release is `/Users/anicca/loops/releases/20260916T044820-2ff93374`. The existing runtime
-  worktree `/private/tmp/lm-runtime-admission-reservations-20260914` is the task worktree on branch
-  `fix/runtime-admission-lock-bounded-20260915`; its next pushed commit is `d75794b8a3` and still needs
-  fresh review, merge and release. The merged `#5250` browser/child-cleanup fix is already in `2ff93374`.
+- Canonical runtime source is `origin/main` at `1a8c7193c31b6558e1b3bd26dc72e3f602209571`. The latest
+  immutable release is `/Users/anicca/loops/releases/20260916T053710-1a8c7193`. The runtime admission
+  patch is merged by PR `#5252`; it adds the revenue floor, legacy-reservation migration fence and Paid
+  Account 1→2 Codex route. The merged `#5250` browser/child-cleanup fix is an ancestor of this main.
   Do not create another runtime worktree or use the Capify checkout as source.
 - Phase 2 replaces the v2 JSON scan with stdlib SQLite, adds durable FIFO reservations, child-PID claim
   handoff, same-owner/crash recovery, exact loaded-idle dispatch, retired/missing-owner cancellation, a
@@ -28,8 +27,8 @@ runtime/provider readback before acting; conversation claims are not completion 
   creating a second live TODO.
 - Ryu and Coconala are not complete. No current official readback proves that the newest Ryu buyer event is
   covered by a later seller submission. Never report completion from a historical message or local state.
-- Account migration is open only for proof: Paid now tries the existing Account 1 Codex profile first and
-  falls back to Account 2 through the shared runner. Prove one bounded Account 1 invocation and preserve all
+- Paid now tries the existing Account 1 Codex profile first and falls back to Account 2 through the shared
+  runner. One bounded Account 1 invocation and its official runner receipt remain to be proved; preserve all
   Codex/cloud sessions and unrelated providers.
 - First safe action: keep each provider owner independent and verify the exact loaded release before any effect.
   Admission protocol `2` is currently live (`resources/protocol.json`), but its fairness and starvation proof
@@ -272,33 +271,31 @@ freeze protocol 1
 -> continue platform revenue order
 ```
 
-Current cursor: main `2ff93374` is exported as immutable release `20260916T044820-2ff93374`. The merged
-dynamic-CDP and child-group cleanup repair is installed, but the first Paid wake still ended with
-`host_admission_deferred:resource_capacity_busy` before provider work; the next wake later acquired a slot
-and ended with Ryu `18211957` and Chii `18180857` at `remote_builder`, `effect=0`, because the Codex Account 2
-subscription usage limit was reached. No Coconala seller message is verified from that wake. The staged
-`d75794b8a3` patch reserves four revenue slots on the measured five-run host and routes Paid through Account
-1 then Account 2; it is not production-complete until fresh review, merge, immutable release, idle-safe
-reconciliation and natural receipts pass. Disk governor cleanup is healthy (`errors=0`, protected deletions
-`0`, free space about 6.4 GiB) but the guard previously observed 160--534 MiB and `ENOSPC`, so disk proof is
-separate. Do not create a new worktree, edit the Capify checkout, globally kill browsers/apps, or call a stale
-remote result a submission.
+Current cursor: main `1a8c7193` is exported as immutable release `20260916T053710-1a8c7193`. PR `#5252`
+merged the shared revenue floor, legacy-owner/reservation migration fence and Paid Codex Account 1→2 route.
+Reply was reconciled idle-safe to this release; Apply is still running from the older `437b5696` release,
+Paid is running from `2ff93374`, and Storefront is unloaded. The latest Paid terminal remains effect-zero:
+Ryu `18211957` and Chii `18180857` stopped at `remote_builder` because Account 2 hit its usage limit; no
+Coconala seller message is verified from that wake. A new natural Paid wake must prove Account 1 first and
+then exact-room official readback. Disk governor now reports about 8.4 GiB free, but historical low-headroom
+and `ENOSPC` receipts keep the 24-hour/seven-day disk proof open. Do not create a new worktree, edit the
+Capify checkout, globally kill browsers/apps, or call a stale remote result a submission.
 
 ## Current measured state
 
 ### Live correction (re-read before every mutation)
 
-- `origin/main` is `2ff93374f79ccb91c712b98692537e3ce61387d7`; current symlink is
-  `/Users/anicca/loops/releases/20260916T044820-2ff93374`.
+- `origin/main` is `1a8c7193c31b6558e1b3bd26dc72e3f602209571`; current symlink is
+  `/Users/anicca/loops/releases/20260916T053710-1a8c7193`.
 - Admission is protocol `2`. The latest Paid wake reached Chii and Ryu owners concurrently but ended without
   a terminal Coconala effect: both semantic owners stopped at `remote_builder` after the Account 2 Codex
   usage-limit error. Storefront's inner cadence and dynamic-CDP fixes are in main, but fresh natural
   terminal receipts remain open. Other revenue owners can consume the finite host ceiling, so a PID or
   scheduler run is not a client effect.
-- The browser/child-cleanup repair from PR `#5250` is merged in `2ff93374`. The staged runtime commit
-  `d75794b8a3` adds a four-slot revenue floor on the measured five-run host and routes Paid through Account 1
-  then Account 2. It still needs fresh review, merge, immutable release, idle-safe reconciliation and a
-  natural Paid receipt.
+- The browser/child-cleanup repair from PR `#5250` and the admission/failover repair from PR `#5252` are
+  merged in `1a8c7193`. Reply is installed from the new release after an idle-safe reconcile; Apply and Paid
+  still need natural drain before their individual idle-safe swaps, and Storefront is unloaded. No label
+  swap is treated as a business effect.
 - Disk governor latest readback is `errors=0`, `protected_deletions=0`, with free space about `6.4 GiB`; it
   preserved three open candidates and reclaimed `0` bytes. Historical Paid/cleanup runs contain real
   `ENOSPC` receipts and repeated low-headroom observations, so the healthy disk floor and seven-day no-ENOSPC
@@ -500,8 +497,9 @@ independent production effects.
   that is borrow-only and preemptible. The staged `d75794b8a3` floor is the first minimal slice (four revenue
   slots, one borrow slot); it is not complete until the merged release proves no starvation and no hard-cap
   violation under natural wakes.
-- [ ] Merge/release the staged runtime floor and Paid Account 1→2 failover, then verify one bounded Account 1
-  invocation. Do not fall back to Claude or a new scheduler; the existing Codex runner remains the single
+- [x] Merge/release the runtime floor and Paid Account 1→2 failover. Main `1a8c7193` and immutable release
+  `20260916T053710-1a8c7193` are present; one bounded Account 1 invocation and its receipt remain to be
+  proved. Do not fall back to Claude or a new scheduler; the existing Codex runner remains the single
   semantic path.
 - [ ] Add bounded owner heartbeat and durable-progress leases. A live PID without heartbeat/progress cannot
   retain capacity forever; recovery may reclaim only the exact owned claim after process-identity verification.
