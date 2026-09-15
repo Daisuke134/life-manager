@@ -387,6 +387,18 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "skills/earn/crowdworks/scripts/report-owner",
         )
 
+    def test_crowdworks_finite_revenue_lanes_have_a_five_minute_runtime_bound(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        finite_lanes = (
+            "crowdworks-revenue-application",
+            "crowdworks-revenue-reply",
+            "crowdworks-revenue-paid",
+            "crowdworks-revenue-report",
+        )
+        for loop_id in finite_lanes:
+            with self.subTest(loop_id=loop_id):
+                self.assertEqual(registry["loops"][loop_id]["runtime_timeout_seconds"], 300)
+
     def test_lancers_application_uses_repo_managed_runtime_python(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["lancers-revenue-application"]
