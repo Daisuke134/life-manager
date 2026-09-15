@@ -117,6 +117,29 @@ def emit_runtime_event(*, loop_id: str, evidence_dir: Path,
     return event
 
 
+def attach_runtime_event(*, summary: dict[str, Any], loop_id: str,
+                         evidence_dir: Path, selected: dict[str, Any] | None,
+                         attempts: list[dict[str, Any]], registry_path: Path,
+                         release_sha: str) -> bool:
+    """Record observability without turning completed agent work into failure."""
+    try:
+        event = emit_runtime_event(
+            loop_id=loop_id,
+            evidence_dir=evidence_dir,
+            selected=selected,
+            attempts=attempts,
+            candidate_profile=(selected or (attempts[-1] if attempts else {})).get(
+                "profile_alias"),
+            registry_path=registry_path,
+            release_sha=release_sha,
+        )
+        summary["runtime_event_id"] = event["event_id"]
+        return True
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        summary["runtime_event_error"] = str(error)
+        return False
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -1732,31 +1755,22 @@ def run() -> int:
         "result_path": selected["result_path"] if selected else None,
         "evidence_reclamation": retention,
     }
-    runtime_event_failed = False
     release_sha = os.environ.get("LIFE_MANAGER_RELEASE_SHA", "").strip()
     if release_sha:
-        registry_path = runtime_registry_path()
-        try:
-            event = emit_runtime_event(
-                loop_id=runtime_event_loop_id(parsed.loop),
-                evidence_dir=evidence_dir,
-                selected=selected,
-                attempts=attempts,
-                candidate_profile=(selected or (attempts[-1] if attempts else {})).get(
-                    "profile_alias"),
-                registry_path=registry_path,
-                release_sha=release_sha,
-            )
-            summary["runtime_event_id"] = event["event_id"]
-        except (OSError, ValueError, json.JSONDecodeError) as error:
-            runtime_event_failed = True
-            summary["status"] = "failed"
-            summary["runtime_event_error"] = str(error)
+        attach_runtime_event(
+            summary=summary,
+            loop_id=runtime_event_loop_id(parsed.loop),
+            evidence_dir=evidence_dir,
+            selected=selected,
+            attempts=attempts,
+            registry_path=runtime_registry_path(),
+            release_sha=release_sha,
+        )
     atomic_json(summary_path, summary)
     print(json.dumps(summary, ensure_ascii=False, separators=(",", ":")))
     if lease_fd is not None:
         os.close(lease_fd)
-    if selected and not runtime_event_failed:
+    if selected:
         return 0
     return 75 if budget_blocked else 1
 
