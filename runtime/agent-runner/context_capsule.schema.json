@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Daisuke134/life-manager/runtime/agent-runner/context_capsule.schema.json",
+  "title": "Life Manager bounded context capsule",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "capsule_id", "tenant_id", "owner_id", "product_loop_id", "job_id",
+    "wake_id", "goal", "sources", "decisions", "open_questions", "budget", "freshness",
+    "content_sha256", "privacy"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "capsule_id": {"$ref": "#/$defs/Id"},
+    "tenant_id": {"$ref": "#/$defs/Id"},
+    "owner_id": {"$ref": "#/$defs/Id"},
+    "product_loop_id": {"$ref": "#/$defs/Id"},
+    "job_id": {"$ref": "#/$defs/Id"},
+    "wake_id": {"$ref": "#/$defs/Id"},
+    "goal": {"$ref": "#/$defs/Goal"},
+    "sources": {"type": "array", "minItems": 1, "maxItems": 32, "items": {"$ref": "#/$defs/Source"}},
+    "decisions": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/Decision"}},
+    "open_questions": {"type": "array", "maxItems": 16, "items": {"type": "string", "minLength": 1, "maxLength": 1024}},
+    "budget": {"$ref": "#/$defs/Budget"},
+    "freshness": {"$ref": "#/$defs/Freshness"},
+    "content_sha256": {"$ref": "#/$defs/Sha256"},
+    "privacy": {"$ref": "#/$defs/Privacy"}
+  },
+  "$defs": {
+    "Id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "Sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "Timestamp": {"type": "string", "format": "date-time"},
+    "Ref": {"type": "string", "pattern": "^[a-z][a-z0-9+.-]*://[A-Za-z0-9._:/-]{1,512}$"},
+    "Goal": {
+      "type": "object", "additionalProperties": false,
+      "required": ["text", "success_condition", "revision"],
+      "properties": {
+        "text": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "success_condition": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "revision": {"type": "integer", "minimum": 1}
+      }
+    },
+    "Source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["ref", "observed_at", "content_sha256", "freshness", "excerpt"],
+      "properties": {
+        "ref": {"$ref": "#/$defs/Ref"},
+        "observed_at": {"$ref": "#/$defs/Timestamp"},
+        "content_sha256": {"$ref": "#/$defs/Sha256"},
+        "freshness": {"enum": ["fresh", "stale", "unknown"]},
+        "excerpt": {"type": "string", "maxLength": 1024}
+      }
+    },
+    "Decision": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "summary", "source_refs"],
+      "properties": {
+        "id": {"$ref": "#/$defs/Id"},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "source_refs": {"type": "array", "minItems": 1, "maxItems": 32, "items": {"$ref": "#/$defs/Ref"}}
+      }
+    },
+    "Budget": {
+      "type": "object", "additionalProperties": false,
+      "required": ["max_bytes", "max_tokens"],
+      "properties": {
+        "max_bytes": {"type": "integer", "minimum": 128, "maximum": 65536},
+        "max_tokens": {"type": "integer", "minimum": 1, "maximum": 128000}
+      }
+    },
+    "Freshness": {
+      "type": "object", "additionalProperties": false,
+      "required": ["compiled_at", "max_age_seconds", "stale_source_count"],
+      "properties": {
+        "compiled_at": {"$ref": "#/$defs/Timestamp"},
+        "max_age_seconds": {"type": "integer", "minimum": 0, "maximum": 604800},
+        "stale_source_count": {"type": "integer", "minimum": 0, "maximum": 32}
+      }
+    },
+    "Privacy": {
+      "type": "object", "additionalProperties": false,
+      "required": ["redaction", "payload_mode"],
+      "properties": {
+        "redaction": {"const": "secret_free"},
+        "payload_mode": {"const": "references_only"}
+      }
+    }
+  }
+}

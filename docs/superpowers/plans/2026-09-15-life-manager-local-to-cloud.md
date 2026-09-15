@@ -29,7 +29,7 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `FND-09`.
+TODO worktree. The current cursor is `FND-10`.
 
 ### Atomic execution log
 
@@ -92,6 +92,13 @@ TODO worktree. The current cursor is `FND-09`.
   resource-admission plus loop-boundary tests passed 76 tests. The overlap readback found latest
   `origin/main=1f8d25eb4f12e3024e011b2fc5017443dc75c50d`, a clean marketplace TODO worktree, and no
   target-file change in canonical main. Next active ID: `FND-09`.
+- [x] `FND-09` — Added `runtime/agent-runner/context_capsule.schema.json` with required goal, owner,
+  product/job/wake identity, source hashes, decisions, open questions, byte/token budget, freshness,
+  content hash, and secret-free references-only privacy markers. The fixture rejects missing budget or
+  hash and invalid budget bounds. Focused proof: context-capsule, common-contract, and runtime-event
+  boundary tests (21 passed). The overlap readback found latest `origin/main=1f8d25eb4f12e3024e011b2fc5017443dc75c50d`,
+  a clean marketplace TODO worktree, and no target-file change in canonical main. Next active ID:
+  `FND-10`.
 
 ## FND research gate (search complete; FND-02 implemented)
 
@@ -115,10 +122,10 @@ target control plane is implemented.
 - [Firecracker](https://github.com/firecracker-microvm/firecracker/blob/c5314e5dfc732db683115a02dee440ca06162a7c/docs/design.md) uses microVM, seccomp, cgroups, namespaces, and jailer boundaries; reserve it for untrusted repair/eval code, not every browser session.
 - [Chrome headless](https://developer.chrome.com/docs/automation-and-testing/headless) confirms unattended no-UI operation, while modern headless shares Chrome's implementation; it reduces display overhead, not all browser memory.
 
-**Alignment checkpoint:** the search phase is complete and `FND-02` through `FND-08` now have
+**Alignment checkpoint:** the search phase is complete and `FND-02` through `FND-09` now have
 focused contracts. No launchd, browser/account, ledger, or provider effect was changed; FND-06 was
-tested with a fake sender only. The next atomic change is `FND-09`'s context capsule schema, starting
-with a focused failing test.
+tested with a fake sender only. The next atomic change is `FND-10`'s bounded capsule compiler,
+starting with a focused failing test.
 
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
 |---|---|---|---|
