@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 import sys
 import tempfile
+import threading
 import time
 from typing import Any, Callable, Mapping, Optional, Sequence
 import urllib.request
@@ -25,6 +26,7 @@ _DOM_CONTRACT_PATH = _SHARED_PATH.with_name("dom_contract.py")
 _DOM_CONTRACT_MODULE_NAME = "anicca_lancers_shared_dom_contract"
 CDP_URL = "http://127.0.0.1:9227"
 BROWSER_ATTACH_TIMEOUT_MS = 10_000; CDP_REQUEST_TIMEOUT_SECONDS = 2; MAX_CDP_TARGETS = 32; MAX_CDP_RESPONSE_BYTES = 256 * 1024
+PLAYWRIGHT_STOP_TIMEOUT_SECONDS = 2.0
 PLATFORM = "lancers"
 DASHBOARD_URL = "https://www.lancers.jp/mypage"
 DEFAULT_STATE_PATH = Path.home() / ".local" / "state" / "anicca" / "lancers" / "application.json"
@@ -296,11 +298,57 @@ def _record_terminal_block(
         shared._write_state(path, claims, pending)
 
 
-def _stop_playwright_runtime(runtime: Any) -> None:
+def _playwright_transport_process(runtime: Any) -> Any:
     try:
-        getattr(runtime, "stop", lambda: None)()
+        return runtime._connection._transport._proc
+    except Exception:
+        return None
+
+
+def _force_stop_playwright_process(process: Any) -> None:
+    if process is None:
+        return
+    try:
+        if process.poll() is None:
+            process.terminate()
+        process.wait(timeout=1)
+        return
     except Exception:
         pass
+    try:
+        process.kill()
+    except Exception:
+        pass
+
+
+def _stop_playwright_runtime(runtime: Any) -> None:
+    """Stop this tick's Playwright client without ever stopping the owned browser.
+
+    A provider renderer can disappear while the Python sync API is waiting on its Node driver.
+    Calling ``runtime.stop()`` without a watchdog then leaves the loop holding its admission slot
+    indefinitely.  The watchdog only terminates this tick-local client process; the 9227 Chromium
+    owner remains untouched and can serve the next wake.
+    """
+    if runtime is None:
+        return
+    stop = getattr(runtime, "stop", None)
+    if not callable(stop):
+        return
+    process = _playwright_transport_process(runtime)
+    finished = threading.Event()
+
+    def watchdog() -> None:
+        if not finished.wait(PLAYWRIGHT_STOP_TIMEOUT_SECONDS):
+            _force_stop_playwright_process(process)
+
+    thread = threading.Thread(target=watchdog, name="lancers-playwright-stop-watchdog", daemon=True)
+    thread.start()
+    try:
+        stop()
+    except Exception:
+        _force_stop_playwright_process(process)
+    finally:
+        finished.set()
 
 
 _LANCERS_AUTH_ROUTES = {"/user/login", "/user/reminder"}; _GOOGLE_AUTH_ROUTES = {"/v3/signin/accountchooser", "/info/sessionexpired"}
