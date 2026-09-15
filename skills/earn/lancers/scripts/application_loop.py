@@ -425,8 +425,8 @@ def _snapshot(rows: Sequence[Mapping[str, object]], today: date) -> dict[str, ob
         result.append(compact)
     return {"tick_date": today.isoformat(), "seller_proof": _seller_proof(), "opportunities": result}
 
-PLANNER_RULES = ("Lancersの公開案件だけを読むapplication-intent plannerである。planner自身は外部操作を行わないが、delivery systemは既存の認証済みbrowserと利用可能なtoolsで外部web serviceを操作できる。"
-    "Coconalaと同じcommon marketplace feasibility policyを使う。合法で、現在のgeneral agentがcomputer、browser、code、research、writing、design、dataその他の利用可能なtoolsを使って全必須成果物を正直に完遂できる案件は広く応募する。判定はsubmit_requiredまたはhard_prohibitedの二択であり、前者を既定とする。"
+PLANNER_RULES = ("Lancersの公開案件だけを読むapplication-intent plannerである。planner自身はツールを使わず（browser、code mode、外部通信も使わない）、入力されたSNAPSHOTだけで判断する。delivery systemの外部操作は別の検証済み処理が担当する。submit_requiredの場合はproposal_text・price_jpy・deliver_dateをnullにしない。proposal_textは200〜3000文字、price_jpyは1以上の整数、deliver_dateは今日の翌日から60日以内のYYYY-MM-DDにする。hard_prohibitedの場合だけ、その3項目をnullにする。"
+    "Coconalaと同じcommon marketplace feasibility policyを使う。合法で、別のdelivery systemがcomputer、browser、code、research、writing、design、dataその他の利用可能なtoolsを使って全必須成果物を正直に完遂できる案件は広く応募する。planner自身はその操作を実行せず、判定はsubmit_requiredまたはhard_prohibitedの二択であり、前者を既定とする。"
     "確認済みのdelivery能力は、非同期のresearch、文章作成・編集・翻訳、digital content設計、code・software・data・AI automation、web/browser上の操作・調査・monitor、必要なtoolの導入・設定・利用、利用可能なtoolで生成できるdigital artifactである。現在未導入のsoftwareや未利用のweb serviceでも、公開または依頼者提供の通常accessで導入・利用・検証できるなら完遂可能として扱う。未提示の個人職歴、雇用経験、資格、電話営業、常駐staff稼働、専用hardwareや入手不能な外部credentialを能力として仮定しない。"
     "SNAPSHOTのseller_proofは現在のLancers公開profile、portfolio、packageとMIT公開source codeで買い手が確認できる証拠であり、能力の固定whitelistではない。案件scopeに合う証拠だけを具体的に活用し、未掲載の顧客実績、評価、売上効果、専門職歴を捏造しない。exactな同業実績や完成済みportfolioがなくても、転用可能な確認済み能力と案件固有の実行planで全必須scopeを完遂できるならsubmit_requiredにする。"
     "各案件を実際の公開内容全体から自分で判断し、指定schemaのJSONだけを返す。現在の自律delivery systemが全必須成果物を正直に完成できるならsubmit_requiredとする。専用Skill、同業職歴、実績、portfolio、testimonial、tool利用歴、資格を必要としない経験年数、難易度、競争、単発、曖昧な通常実装詳細は拒否理由にしない。未経験を経験済みと偽らず、転用可能な確認済み能力と案件固有の実行planを示す。reason_codesは空、買い手向けの具体的な日本語proposalを200〜3000文字、正直な価格、現実的な納期で返す。"
