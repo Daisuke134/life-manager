@@ -118,6 +118,7 @@ PLANNER_TASK_CLASS = "application-intent-planner"
 SAFETY_TASK_CLASS = "diagnostic-agent"
 ESCALATION_REASON = "application decision and client-facing proposal text come from this single call"
 PLANNER_TIMEOUT_SECONDS = 420
+SAFETY_TIMEOUT_SECONDS = 150
 SAFETY_REASONS = frozenset({
     "approved", "live_interaction_required", "physical_presence_required",
     "personal_identity_required", "recording_required", "unsupported_claim",
@@ -450,6 +451,10 @@ PLANNER_RULES = ("Lancersの公開案件だけを読むapplication-intent planne
 def build_planner_prompt(rows: Sequence[Mapping[str, object]], today: date) -> str:
     return PLANNER_RULES + json.dumps(_snapshot(rows, _tick_date(today)), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
+def _agent_timeout_seconds(task_class: str) -> int:
+    """Keep per-candidate safety checks from holding an entire wake open for planner time."""
+    return SAFETY_TIMEOUT_SECONDS if task_class == SAFETY_TASK_CLASS else PLANNER_TIMEOUT_SECONDS
+
 def _invoke_agent(prompt: str, evidence_dir: Path, task_class: str, schema_path: Path, label: str) -> Mapping[str, object]:
     command = [sys.executable, str(AGENT_RUNNER), "--task-class", task_class, "--prompt-stdin", "--schema", str(schema_path), "--evidence-dir", str(evidence_dir), "--task-label", label, "--loop", "lancers-application", "--workdir", str(SKILLS_ROOT.parent)]
     # Only the planner is configured as an explicit escalation route.  The
@@ -460,7 +465,7 @@ def _invoke_agent(prompt: str, evidence_dir: Path, task_class: str, schema_path:
     try:
         # stderr is kept, not discarded. The runner refuses on configuration this loop cannot see,
         # and a refusal that reaches no log is a lane that stops applying without ever saying so.
-        completed = subprocess.run(command, input=prompt, text=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=False, timeout=PLANNER_TIMEOUT_SECONDS + 30)
+        completed = subprocess.run(command, input=prompt, text=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=False, timeout=_agent_timeout_seconds(task_class) + 30)
         if completed.returncode != 0: raise ValueError(((completed.stderr or "").strip().splitlines() or ["no stderr"])[-1])
         evidence = Path(evidence_dir); summary = json.loads((evidence / "summary.json").read_text(encoding="utf-8"))
         result_path = Path(str(summary["result_path"])).resolve(); result_path.relative_to(evidence.resolve())
