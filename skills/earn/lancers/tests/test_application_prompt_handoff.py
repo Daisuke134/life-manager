@@ -117,3 +117,26 @@ def test_pending_descriptor_rotates_by_wake_slot(monkeypatch):
     )
 
     assert first["project_id"] != second["project_id"]
+
+
+def test_default_discovery_reads_one_rotating_query_per_wake(tmp_path, monkeypatch):
+    module = _load_application_loop()
+    calls = []
+
+    def discover(**kwargs):
+        calls.append(kwargs)
+        return {"ok": False, "error": "no_normalized_opportunities", "opportunities": []}
+
+    monkeypatch.setattr(module.status, "run_discovery", discover)
+
+    result = module._run_default_discovery(
+        datetime(2026, 9, 15, 0, 0, tzinfo=timezone.utc),
+        20.0,
+        tmp_path / "application.json",
+    )
+
+    assert result["ok"] is True
+    assert len(calls) == 1
+    assert calls[0]["query"] == module._discovery_query(
+        datetime(2026, 9, 15, 0, 0, tzinfo=timezone.utc)
+    )
