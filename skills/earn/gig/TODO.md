@@ -10,10 +10,10 @@ This is the only restart cursor for the next Codex session. Re-check every value
 runtime/provider readback before acting; conversation claims are not completion evidence.
 
 - Repository: `/Users/anicca/Projects/life-manager-main`, remote `Daisuke134/life-manager`.
-- Canonical runtime source is `origin/main` at `1a8c7193c31b6558e1b3bd26dc72e3f602209571`. The latest
-  immutable release is `/Users/anicca/loops/releases/20260916T053710-1a8c7193`. The runtime admission
-  patch is merged by PR `#5252`; it adds the revenue floor, legacy-reservation migration fence and Paid
-  Account 1→2 Codex route. The merged `#5250` browser/child-cleanup fix is an ancestor of this main.
+- Canonical runtime source is `origin/main` at `22dc7cdc53a6d76137629e3fd0fc4ab8bafa08ca`. The latest
+  immutable release is `/Users/anicca/loops/releases/20260916T054645-22dc7cdc`. PRs `#5252` and `#5254`
+  add the revenue floor, legacy-reservation migration fence and Paid Account 1→2 Codex route; `#5250`
+  browser/child-cleanup remains an ancestor. All four Coconala labels are now installed from this release.
   Do not create another runtime worktree or use the Capify checkout as source.
 - Phase 2 replaces the v2 JSON scan with stdlib SQLite, adds durable FIFO reservations, child-PID claim
   handoff, same-owner/crash recovery, exact loaded-idle dispatch, retired/missing-owner cancellation, a
@@ -271,35 +271,33 @@ freeze protocol 1
 -> continue platform revenue order
 ```
 
-Current cursor: main `1a8c7193` is exported as immutable release `20260916T053710-1a8c7193`. PR `#5252`
-merged the shared revenue floor, legacy-owner/reservation migration fence and Paid Codex Account 1→2 route.
-Reply was reconciled idle-safe to this release; Apply is still running from the older `437b5696` release,
-Paid is running from `2ff93374`, and Storefront is unloaded. The latest Paid terminal remains effect-zero:
-Ryu `18211957` and Chii `18180857` stopped at `remote_builder` because Account 2 hit its usage limit; no
-Coconala seller message is verified from that wake. A new natural Paid wake must prove Account 1 first and
-then exact-room official readback. Disk governor now reports about 8.4 GiB free, but historical low-headroom
-and `ENOSPC` receipts keep the 24-hour/seven-day disk proof open. Do not create a new worktree, edit the
-Capify checkout, globally kill browsers/apps, or call a stale remote result a submission.
+Current cursor: main `22dc7cdc` is exported as immutable release `20260916T054645-22dc7cdc`. Apply, Reply,
+Paid and Storefront each have an installed release and a live policy-stamped owner during the current natural
+wake. The latest completed Paid terminal before this wake remains effect-zero: Ryu `18211957` and Chii
+`18180857` stopped at `paid_work_decision` after the Account 2 Codex usage-limit error; no Coconala seller
+message is verified from that terminal. The current wake has not produced a new terminal receipt yet, so
+Account 1 success and exact-room official readback remain unproved. Disk free is about 9.5 GiB, but swap is
+about 16.9/17.4 GiB used and historical low-headroom/`ENOSPC` receipts keep the pressure proof open. Do not
+create a new worktree, edit the Capify checkout, globally kill browsers/apps, or call a stale result a
+submission.
 
 ## Current measured state
 
 ### Live correction (re-read before every mutation)
 
-- `origin/main` is `1a8c7193c31b6558e1b3bd26dc72e3f602209571`; current symlink is
-  `/Users/anicca/loops/releases/20260916T053710-1a8c7193`.
+- `origin/main` is `22dc7cdc53a6d76137629e3fd0fc4ab8bafa08ca`; current symlink is
+  `/Users/anicca/loops/releases/20260916T054645-22dc7cdc`.
 - Admission is protocol `2`. The latest Paid wake reached Chii and Ryu owners concurrently but ended without
   a terminal Coconala effect: both semantic owners stopped at `remote_builder` after the Account 2 Codex
   usage-limit error. Storefront's inner cadence and dynamic-CDP fixes are in main, but fresh natural
   terminal receipts remain open. Other revenue owners can consume the finite host ceiling, so a PID or
   scheduler run is not a client effect.
-- The browser/child-cleanup repair from PR `#5250` and the admission/failover repair from PR `#5252` are
-  merged in `1a8c7193`. Reply is installed from the new release after an idle-safe reconcile; Apply and Paid
-  still need natural drain before their individual idle-safe swaps, and Storefront is unloaded. No label
-  swap is treated as a business effect.
-- Disk governor latest readback is `errors=0`, `protected_deletions=0`, with free space about `6.4 GiB`; it
-  preserved three open candidates and reclaimed `0` bytes. Historical Paid/cleanup runs contain real
-  `ENOSPC` receipts and repeated low-headroom observations, so the healthy disk floor and seven-day no-ENOSPC
-  proof remain open.
+- The browser/child-cleanup repair from PR `#5250` and admission/failover repairs from PRs `#5252`/`#5254`
+  are merged in `22dc7cdc`. Idle-safe install receipts prove Apply, Reply, Paid and Storefront point to the
+  same release; their natural business terminals and official effects are still separate gates.
+- Disk governor latest readback is `errors=0`, `protected_deletions=0`, with free space about `9.5 GiB`;
+  the current wake still emitted historical `ENOSPC` lines from old owners, while swap usage remained about
+  `16.9/17.4 GiB`. No global process was killed and no protected browser/state/evidence was deleted.
 - The canonical runtime repair is now in main through PRs `#5244`, `#5246`, `#5247`, `#5248` and `#5249`; do not report the old
   `b8cff053`/protocol-1 snapshot below as current.
 
@@ -484,6 +482,11 @@ independent production effects.
 
 - [x] Reuse the existing runtime worktree instead of creating another one. The APFS clone detector is merged
   as PR `#5244` and Storefront's inner-cadence removal as PR `#5246`; both are in `origin/main`.
+- [ ] Finish the current four-lane canary from release `22dc7cdc`: wait for each owner to write its natural
+  terminal receipt, then verify the exact Coconala readback separately for Apply, Reply, Paid and Storefront.
+  Paid must record the actual selected Codex account; Ryu `18211957` must use the newest buyer-feedback digest,
+  Chii `18180857` must retain the official 12/300 ledger truth, and Kokoro rooms must remain independent
+  buyer-wait states. No PID, scheduler line or Telegram message closes this item.
 - [x] Cut immutable release `20260916T044820-2ff93374` from public main `2ff93374`; the dynamic-CDP and
   child-group cleanup repair is present. Coconala label-by-label loaded-idle convergence and natural terminal
   receipts are still open.
@@ -497,8 +500,8 @@ independent production effects.
   that is borrow-only and preemptible. The staged `d75794b8a3` floor is the first minimal slice (four revenue
   slots, one borrow slot); it is not complete until the merged release proves no starvation and no hard-cap
   violation under natural wakes.
-- [x] Merge/release the runtime floor and Paid Account 1→2 failover. Main `1a8c7193` and immutable release
-  `20260916T053710-1a8c7193` are present; one bounded Account 1 invocation and its receipt remain to be
+- [x] Merge/release the runtime floor and Paid Account 1→2 failover. Main `22dc7cdc` and immutable release
+  `20260916T054645-22dc7cdc` are present; one bounded Account 1 invocation and its receipt remain to be
   proved. Do not fall back to Claude or a new scheduler; the existing Codex runner remains the single
   semantic path.
 - [ ] Add bounded owner heartbeat and durable-progress leases. A live PID without heartbeat/progress cannot
