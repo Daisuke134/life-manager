@@ -521,6 +521,24 @@ The aggregate remains `pending=3`, `effect=0`, `readback=0`; file recovery is me
 submission. The current cursor therefore stays on those three project work items until their terminal receipts
 and official effects exist.
 
+The fixed host ceiling of three is a crash-containment baseline, not the target architecture and not proof that
+all four Coconala lanes can make simultaneous progress. OSS code review confirms the reusable pattern: Hatchet
+durable tasks free worker slots while waiting and attach a per-task slot cost; Temporal separates lightweight
+workflow slots from resource-based activity slots; OpenBrowser and Steel broker persistent profile sessions
+instead of launching one browser per loop; DBOS reserves polling/control capacity so data-plane saturation does
+not starve recovery. Life Manager keeps its existing SQLite ledger and authenticated CloakBrowser path while
+copying these small contracts: durable wait eviction, weighted task units, measured CPU/RAM admission, and one
+browser broker per platform/account. Steel is the intended hosted browser transport. Installing a second local
+workflow engine or replacing the logged-in Coconala profile during recovery is explicitly out of scope.
+
+PR `#5207`, merge SHA `6ca2fc44668993b0ddec22b6a54bd62476d35459`, keeps the existing disk governor
+outside finite data-plane slots and makes one malformed LaunchAgent plist fail independently instead of
+crashing the whole cleanup pass. The focused cleanup/admission suites passed 111 tests. Immutable release
+`20260915T103333-6ca2fc44` is current and only the disk-cleanup label was reconciled immediately; its first
+natural run remains open. A later `d2fc0a7b` Paid wake recovered all 18 observed attachments for Kokoro
+`18223833` and 16 of 26 for Kokoro `18250352`; Ryu retains 42 local files while its distinct-reference and
+duplicate-filename cases remain unresolved. No new client effect has yet been written, so all three stay open.
+
 ### 2. Coconala vertical revenue proof
 
 - [ ] During the corrected shared-runtime canary, let natural Paid and Reply wakes finish and persist terminal
