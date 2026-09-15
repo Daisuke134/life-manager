@@ -69,7 +69,7 @@ readbackしました。queueにはborrow owner、revenue claimにはLancers/Appl
 実測しています。自動reconciler自身は旧releaseで全fleet走査が長時間化していましたが、PR #5245で
 1 wake最大1 ownerへ、PR #5248で対象snapshotを最大64件へ制限しました。PR #5249でLancersの有限laneに
 300秒のruntime timeoutを追加し、release `20260916T041632-437b5696`へ反映済みです。現在のmain `2ff93374f7`は
-current `20260916T044820-2ff93374`へ反映済みですがLancers ownerは旧releaseのままです。Paidのtimeout
+current `20260916T044820-2ff93374`へ反映済みで、Lancers 7 ownerのinstalled/loaded argvもcurrentで一致しています。Paidのtimeout
 canaryは`entrypoint_exit_143`で終端しましたが、provider効果は未確認です。関連suiteは206 tests + 130
 subtests PASS、Lancers timeout suiteは163 tests + 30 subtests PASSです。
 未load plistの検証に加え、release reconcilerがprotocol未作成時に自動でv2有効化を試みます。
