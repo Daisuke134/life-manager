@@ -246,6 +246,11 @@ subtests, and an anonymous provider-level safety probe returned `safe_to_submit=
 `schema_valid=true` from `gpt-5.6-terra`. The production immutable-release canary remains pending;
 these commits are not live until included in a main-derived release.
 
+Production preflight receipt (read-only): `launchctl-safe preflight` at
+`2026-09-15T09:36:46Z` returned `status=pass`, `mutation_allowed=true`, and no errors. UID,
+Directory Services, Aqua manager, GUI domain, and launchd manager probes all passed. This removes a
+host-permission blocker; only main-derived release integration and the official canary remain.
+
 ## FND research gate (search complete; FND-02 implemented)
 
 The research pass is complete for `FND-02` through `FND-10`. This section records the evidence and
