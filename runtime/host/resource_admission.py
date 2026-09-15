@@ -498,7 +498,8 @@ def transfer_durable(claim: Path, child_pid: int) -> None:
     root, _, _, _ = _durable_paths()
     descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
     try:
-        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        if not _acquire_bounded(descriptor, timeout_seconds=0.5):
+            raise RuntimeError("control_busy")
         value = _row(claim)
         if (not value or value.get("phase", "claimed") != "claimed"
                 or not _controlled_by(value, controller_pid, controller_start)):
@@ -631,7 +632,8 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
     starts, snapshot_started_ns = _identity_snapshot(owners, tickets)
     descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
     try:
-        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        if not _acquire_bounded(descriptor, timeout_seconds=0.5):
+            raise RuntimeError("control_busy")
         instant = time.time() if now is None else now
         if requeue and value.get("version") == 2:
             sequence = value.get("sequence")
