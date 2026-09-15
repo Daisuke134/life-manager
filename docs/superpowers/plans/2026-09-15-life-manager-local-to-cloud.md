@@ -308,8 +308,13 @@ Parallel browser receipts (production cursor unchanged):
   CDP 1.3, websocket host match). The host snapshot is 187 Chromium processes, 54 targets/33 pages,
   about 9.7 GiB aggregate RSS, and 34% free memory. A temporary `about:blank` context acquired in
   0.631s, reused in 0.558s on the same owner, and released in 0.370–0.680s with
-  `cleanup_pending=false`. No provider action was attempted; the official read-only provider result
-  remains open.
+  `cleanup_pending=false`. A second seed-free context opened the public read-only target
+  `https://example.com/`, returned the exact URL with `readyState=complete`, and released with
+  `cleanup_pending=false`; no provider action was attempted. Provider-specific effect/readback
+  remains owned by BROWSER-03/LOCAL-02.
+- [x] `BROWSER-02` — Local headless canary completed: endpoint/mode/websocket checks, bounded
+  acquire/reuse/release timing, and a seed-free read-only CDP navigation all passed. The measured
+  host pressure remains a capacity input; no concurrency increase is authorized by this canary.
 
 ## FND research gate (search complete; FND-02 implemented)
 
