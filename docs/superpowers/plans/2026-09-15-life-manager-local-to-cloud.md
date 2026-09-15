@@ -140,8 +140,8 @@ TODO worktree. The current cursor is `GRAPH-01`.
   owner was `loaded-running`. This changed launchd configuration only and performed no provider
   effect, browser action, or Telegram send. Next active action is the same targeted reconcile when
   Lancers reaches a natural loaded-idle state; `GRAPH-01` remains the architecture cursor.
-- [x] `RESOURCE-01` — Added a central finite-wake disk-headroom gate in
-  `runtime/host/memory_admission.py` and `runtime/loop/lm_loop_run.py`. The default six-GiB floor
+- [x] `RESOURCE-01` — Reused the existing `runtime/host/disk_admission.py` with an explicit required
+  byte floor and connected it to `runtime/loop/lm_loop_run.py`. The default six-GiB floor
   defers a queued owner before its child starts, records bounded free/threshold bytes, and preserves
   the existing durable resume path; control-plane cleanup/reconcile owners remain exempt. The gate
   was motivated by a measured Coconala `ENOSPC` after current-release sync, and it changes no browser,

@@ -26,11 +26,12 @@ from runtime.loop.release_identity import (
     validate_runtime_identity,
 )
 from runtime.loop.runtime_event import append_runtime_event, build_runtime_event, build_runtime_start_event
-from runtime.host.memory_admission import (
-    DEFAULT_MIN_DISK_FREE_BYTES,
+from runtime.host.disk_admission import (
+    DEFAULT_RUNTIME_REQUIRED_BYTES,
     disk_free_bytes,
-    memory_free_percent,
+    disk_headroom_ok,
 )
+from runtime.host.memory_admission import memory_free_percent
 from runtime.host.resource_admission import (
     cancel_durable as cancel_durable_resource,
     claim_durable as claim_durable_resource,
@@ -365,7 +366,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         return 64
     try:
         minimum_disk_free = int(os.environ.get(
-            "LIFE_MANAGER_MIN_DISK_FREE_BYTES", str(DEFAULT_MIN_DISK_FREE_BYTES)
+            "LIFE_MANAGER_MIN_DISK_FREE_BYTES", str(DEFAULT_RUNTIME_REQUIRED_BYTES)
         ))
     except ValueError:
         return 64
@@ -402,7 +403,6 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": f"resource_{admission_reason}"})
             return 75
-        disk_available = disk_free_bytes()
         if interrupted:
             if durable:
                 try:
@@ -412,7 +412,18 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_interrupted"})
             return 75
-        if disk_available is None or disk_available < minimum_disk_free:
+        disk_available = disk_free_bytes()
+        disk_ok = disk_headroom_ok(minimum_disk_free)
+        if interrupted:
+            if durable:
+                try:
+                    defer_durable_resource(loop_id)
+                except (OSError, RuntimeError):
+                    pass
+            _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                  "reason": "resource_admission_interrupted"})
+            return 75
+        if (not disk_ok or disk_available is None or disk_available < minimum_disk_free):
             if durable:
                 try:
                     defer_durable_resource(loop_id)
@@ -420,8 +431,11 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                     pass
             _atomic_json(receipt, {
                 "status": "deferred", "effect": 0,
-                "reason": "disk_headroom_unavailable" if disk_available is None
-                else "disk_headroom_low",
+                "reason": (
+                    "disk_headroom_unavailable" if disk_available is None
+                    else "disk_headroom_low" if disk_available < minimum_disk_free
+                    else "disk_headroom_policy_blocked"
+                ),
                 "free_bytes": disk_available,
                 "minimum_free_bytes": minimum_disk_free,
             })

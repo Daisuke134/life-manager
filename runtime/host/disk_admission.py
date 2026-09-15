@@ -14,6 +14,7 @@ from typing import Sequence
 
 
 DEFAULT_REQUIRED_KIB = 524288
+DEFAULT_RUNTIME_REQUIRED_BYTES = 6 * 1024**3
 REQUIRED_KIB = int(
     os.environ.get("LIFE_MANAGER_DISK_HEADROOM_KIB", str(DEFAULT_REQUIRED_KIB))
 )
@@ -118,6 +119,7 @@ def _failure(
     available_bytes: int | None,
     *,
     metadata: dict[str, object] | None = None,
+    required_bytes: int = REQUIRED_BYTES,
 ) -> int:
     receipt: dict[str, object] = {
         "status": "failed",
@@ -125,7 +127,7 @@ def _failure(
         "effect": 0,
         "readback": 0,
         "reason": reason,
-        "required_bytes": REQUIRED_BYTES,
+        "required_bytes": required_bytes,
     }
     if available_bytes is not None:
         receipt["available_bytes"] = available_bytes
@@ -168,12 +170,25 @@ def _producer_gate() -> tuple[str, Path] | None:
     return None
 
 
-def disk_headroom_ok() -> bool:
+def disk_free_bytes() -> int | None:
+    """Return free bytes on the writable volume used by Life Manager state."""
+    state_dir = _state_dir()
+    probe = state_dir if state_dir.exists() else Path.home()
+    try:
+        return int(shutil.disk_usage(probe).free)
+    except OSError:
+        return None
+
+
+def disk_headroom_ok(required_bytes: int | None = None) -> bool:
+    required = REQUIRED_BYTES if required_bytes is None else required_bytes
+    if isinstance(required, bool) or not isinstance(required, int) or required < 0:
+        raise ValueError("required_bytes must be a non-negative integer")
     state_dir = _state_dir()
     if not _ensure_producer_state_dir(state_dir):
         print(json.dumps({
             "status": "failed", "failed": 1, "effect": 0, "readback": 0,
-            "reason": "disk_state_unsafe", "required_bytes": REQUIRED_BYTES,
+            "reason": "disk_state_unsafe", "required_bytes": required,
         }, sort_keys=True, separators=(",", ":")))
         return False
     gate = _producer_gate()
@@ -187,15 +202,16 @@ def disk_headroom_ok() -> bool:
             reason,
             available_bytes,
             metadata={"gate": _PRODUCER_GATE, "flag_path": str(flag)},
+            required_bytes=required,
         )
         return False
     try:
         available_bytes = int(shutil.disk_usage(state_dir).free)
     except Exception:
-        _failure("disk_headroom_unavailable", None)
+        _failure("disk_headroom_unavailable", None, required_bytes=required)
         return False
-    if REQUIRED_BYTES and available_bytes < REQUIRED_BYTES:
-        _failure("disk_headroom_low", available_bytes)
+    if required and available_bytes < required:
+        _failure("disk_headroom_low", available_bytes, required_bytes=required)
         return False
     return True
 

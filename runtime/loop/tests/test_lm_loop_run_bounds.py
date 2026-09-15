@@ -18,10 +18,11 @@ from runtime.loop.lm_loop_run import (
 
 _PROTOCOL_PATCHER = None
 _DISK_PATCHER = None
+_DISK_OK_PATCHER = None
 
 
 def setup_module():
-    global _PROTOCOL_PATCHER, _DISK_PATCHER
+    global _PROTOCOL_PATCHER, _DISK_PATCHER, _DISK_OK_PATCHER
     _PROTOCOL_PATCHER = patch(
         "runtime.loop.lm_loop_run.durable_protocol_version", return_value=2,
     )
@@ -30,9 +31,14 @@ def setup_module():
         "runtime.loop.lm_loop_run.disk_free_bytes", return_value=100 * 1024**3,
     )
     _DISK_PATCHER.start()
+    _DISK_OK_PATCHER = patch(
+        "runtime.loop.lm_loop_run.disk_headroom_ok", return_value=True,
+    )
+    _DISK_OK_PATCHER.start()
 
 
 def teardown_module():
+    _DISK_OK_PATCHER.stop()
     _DISK_PATCHER.stop()
     _PROTOCOL_PATCHER.stop()
 
@@ -258,7 +264,8 @@ def test_disk_headroom_defers_before_starting_an_effect_child(tmp_path, monkeypa
              "provider_route": "shared-agent-runner"}
     receipt = tmp_path / "receipt"
     monkeypatch.setenv("LIFE_MANAGER_MIN_DISK_FREE_BYTES", str(6 * 1024**3))
-    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=5 * 1024**3),
+    with (patch("runtime.loop.lm_loop_run.disk_headroom_ok", return_value=False) as disk_ok,
+          patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=5 * 1024**3),
           patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                 return_value=(tmp_path / "ticket", "ready")) as enqueue,
           patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
@@ -268,6 +275,7 @@ def test_disk_headroom_defers_before_starting_an_effect_child(tmp_path, monkeypa
         assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
 
     enqueue.assert_called_once_with("agent", "example", admission_class="borrow")
+    disk_ok.assert_called_once_with(6 * 1024**3)
     defer.assert_called_once_with("example")
     acquire.assert_not_called()
     memory.assert_not_called()
