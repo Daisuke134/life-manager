@@ -29,7 +29,7 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `EVAL-01`.
+TODO worktree. The current cursor is `EVAL-02`.
 
 ### Atomic execution log
 
@@ -173,6 +173,14 @@ TODO worktree. The current cursor is `EVAL-01`.
   `node --test apps/life-manager/lib/agent-graph.test.js` (8 passed), including a stale blocker,
   unknown human gate, and invalid-limit fixture. No provider, browser, launchd, ledger, or Telegram
   effect was performed. Next active ID: `EVAL-01`.
+- [x] `EVAL-01` — Added strict versioned case/run/score/gate validators in
+  `apps/life-manager/eval/agent-contract/records.js`. Cases require a split and expected lifecycle/
+  effect/readback/safety; runs bind candidate/baseline/prompt/tool-fixture hashes, model, seed,
+  timing, score IDs, and trace refs; scores bind bounded latency/cost/safety/evidence; gates carry
+  separate held-out/safety/cost/latency/live-evidence checks and a rollback pointer. Unknown keys,
+  malformed hashes/refs, secrets, unbounded values, and invalid lifecycle timing fail closed. Focused
+  proof: initial RED import failure followed by the case-contract and graph tests (12 passed).
+  No provider, browser, launchd, ledger, or Telegram effect was performed. Next active ID: `EVAL-02`.
 
 ### Current production blocker snapshot (read-only)
 
@@ -212,8 +220,8 @@ target control plane is implemented.
 
 **Alignment checkpoint:** the search and FND implementation phase is complete: `FND-02` through
 `FND-10` have focused contracts and receipts. No provider effect was performed in this workstream.
-The next atomic change is `GRAPH-01`'s graph node/edge/provenance schema; it begins with a focused
-failing test after the FND handoff is reviewed.
+The next atomic change is `EVAL-02`'s five representative failure fixtures; it begins with a focused
+failing test while preserving the evaluator's no-production-effect boundary.
 
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
 |---|---|---|---|
