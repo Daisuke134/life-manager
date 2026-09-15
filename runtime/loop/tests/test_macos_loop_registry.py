@@ -208,7 +208,15 @@ class MacosLoopRegistryTest(unittest.TestCase):
             script,
         )
         self.assertIn(
+            "reconcile shared-agent-runner --loaded-idle-only --max-owners 1",
+            script,
+        )
+        self.assertIn(
             "reconcile deterministic --loaded-idle-only",
+            script,
+        )
+        self.assertIn(
+            "reconcile deterministic --loaded-idle-only --max-owners 1",
             script,
         )
         self.assertIn("admission-v2-enable", script)
