@@ -193,3 +193,17 @@ def test_parallel_workstream_boundary_protects_the_active_marketplace_todo() -> 
         assert token in spec, token
     for token in ("Parallel workstream boundary", "active marketplace TODO", "shared file"):
         assert token in agents, token
+
+
+def test_architecture_spec_has_a_remediation_and_ownership_row_for_all_product_loops() -> None:
+    path = REPO_ROOT / "docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md"
+    text = path.read_text(encoding="utf-8")
+    assert "Fourteen-Loop Remediation Matrix" in text
+    for loop in (
+        "Coconala", "Lancers", "CrowdWorks", "Writer", "Affiliate", "Investment",
+        "Agent Economy", "Job Hunter", "Fundraiser", "Connector", "Self-Build",
+        "Mobile Apps", "Capafy", "CFO",
+    ):
+        assert loop in text, loop
+    for token in ("shared kernel", "official readback", "completion condition", "workstream owner"):
+        assert token in text, token
