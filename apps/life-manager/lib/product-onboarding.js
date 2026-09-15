@@ -162,6 +162,36 @@ function indexRuntimeRows(runtimeRows, catalog) {
   return rows;
 }
 
+function buildDefaultProductLoopObservations(input = {}, options = {}) {
+  const host = String(input.host || "").trim();
+  if (!HOSTS.has(host)) throw new Error("default observation host must be local or cloud");
+  const releaseSha = String(input.release_sha || "").trim();
+  if (!RELEASE_SHA.test(releaseSha)) throw new Error("default observation release sha invalid");
+  const catalog = readProductLoopCatalog(options.catalogFile);
+  const runtimeByJobId = indexRuntimeRows(input.runtime_rows || [], catalog);
+  const contract = Object.freeze(Object.fromEntries(
+    COMPLETION_CONTRACT_FIELDS.map((field) => [field, false]),
+  ));
+  return Object.freeze(catalog.loops.map((loop) => {
+    const runtimeEvidence = buildRuntimeEvidence(loop, runtimeByJobId, releaseSha);
+    const setupRequired = loop.hosts[host].availability === "setup_required";
+    return Object.freeze({
+      id: loop.id,
+      state: setupRequired ? "setup_required" : "unknown",
+      reason: setupRequired ? "host_adapter_pending"
+        : (runtimeEvidence.reason || "official_receipt_required"),
+      owner_id: null,
+      release_sha: null,
+      official_receipt: false,
+      official_receipt_ref: null,
+      replay_zero: false,
+      resource_class: "unknown",
+      notification_state: "internal_only",
+      contract,
+    });
+  }));
+}
+
 function evaluateCloudPromotionGate(input = {}, options = {}) {
   const reasons = [];
   const releaseSha = typeof input.release_sha === "string" ? input.release_sha : "";
@@ -408,6 +438,7 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
 
 module.exports = {
   DEFAULT_CATALOG,
+  buildDefaultProductLoopObservations,
   buildProductLoopCompletionManifest,
   evaluateCloudPromotionGate,
   evaluateLocalCompletionGate,

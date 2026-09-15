@@ -8,6 +8,7 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const {
+  buildDefaultProductLoopObservations,
   buildProductLoopCompletionManifest,
   evaluateCloudPromotionGate,
   evaluateLocalCompletionGate,
@@ -146,6 +147,30 @@ test("completion manifest covers every catalog loop and never treats unknown as 
   assert.equal(manifest.completion, false);
   assert.deepEqual(manifest.loops[0].job_ids, catalog.loops[0].job_ids);
   assert.deepEqual(manifest.loops.map((loop) => loop.id), catalog.loops.map((loop) => loop.id));
+});
+
+test("default product observations make unsupported hosts explicit and never invent effect proof", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "a".repeat(40);
+  const observations = buildDefaultProductLoopObservations({
+    host: "local",
+    release_sha: releaseSha,
+    runtime_rows: [],
+  });
+
+  assert.equal(observations.length, 14);
+  assert.equal(new Set(observations.map((observation) => observation.id)).size, 14);
+  assert.equal(observations.every((observation) => observation.official_receipt !== true), true);
+  assert.equal(observations.every((observation) => observation.replay_zero !== true), true);
+  assert.equal(observations.find((observation) => observation.id === "gig-lancers").state,
+    "setup_required");
+  assert.equal(observations.find((observation) => observation.id === "gig-coconala").state,
+    "unknown");
+  assert.equal(observations.find((observation) => observation.id === "gig-coconala").reason,
+    "runtime_evidence_missing");
+  assert.equal(observations.every((observation) => observation.resource_class === "unknown"), true);
+  assert.equal(observations.every((observation) => observation.notification_state === "internal_only"), true);
+  assert.deepEqual(catalog.loops.map((loop) => loop.id), observations.map((observation) => observation.id));
 });
 
 test("local completion gate blocks a manifest that still contains unknown loops", () => {
@@ -681,6 +706,29 @@ test("completion manifest CLI binds lm-loop status JSON when requested", () => {
   assert.equal(result.status, 0, result.stderr);
   const manifest = JSON.parse(fs.readFileSync(outputPath, "utf8"));
   assert.equal(manifest.loops[0].runtime_evidence.ready, true);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test("completion manifest CLI builds a safe baseline when only runtime status is supplied", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-completion-default-cli-"));
+  const runtimePath = path.join(root, "runtime-status.json");
+  const outputPath = path.join(root, "completion.json");
+  fs.writeFileSync(runtimePath, JSON.stringify([]));
+
+  const result = spawnSync(process.execPath, [
+    path.join(ROOT, "apps/life-manager/scripts/product-loop-completion.js"),
+    "--host", "local",
+    "--release-sha", "4".repeat(40),
+    "--runtime-status", runtimePath,
+    "--output", outputPath,
+  ], { cwd: ROOT, encoding: "utf8" });
+
+  assert.equal(result.status, 0, result.stderr);
+  const manifest = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+  assert.equal(manifest.loops.length, 14);
+  assert.equal(manifest.loops.find((loop) => loop.id === "gig-coconala").state, "unknown");
+  assert.equal(manifest.loops.find((loop) => loop.id === "gig-lancers").state, "setup_required");
+  assert.equal(manifest.completion, false);
   fs.rmSync(root, { recursive: true, force: true });
 });
 

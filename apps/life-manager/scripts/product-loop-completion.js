@@ -5,10 +5,13 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const { buildProductLoopCompletionManifest } = require("../lib/product-onboarding.js");
+const {
+  buildDefaultProductLoopObservations,
+  buildProductLoopCompletionManifest,
+} = require("../lib/product-onboarding.js");
 
 function usage() {
-  return "usage: product-loop-completion.js --host local|cloud --release-sha SHA --observations PATH [--runtime-status PATH] [--output PATH]";
+  return "usage: product-loop-completion.js --host local|cloud --release-sha SHA [--observations PATH | --runtime-status PATH] [--output PATH]";
 }
 
 function parseArgs(args) {
@@ -23,7 +26,9 @@ function parseArgs(args) {
     values[key.slice(2).replaceAll("-", "_ ").replaceAll(" ", "")] = value;
     index += 1;
   }
-  if (!values.host || !values.release_sha || !values.observations) throw new Error(usage());
+  if (!values.host || !values.release_sha || (!values.observations && !values.runtime_status)) {
+    throw new Error(usage());
+  }
   return values;
 }
 
@@ -40,9 +45,15 @@ function writePrivate(pathname, content) {
 
 function main(args = process.argv.slice(2)) {
   const options = parseArgs(args);
-  const observations = JSON.parse(fs.readFileSync(options.observations, "utf8"));
   const runtimeRows = options.runtime_status
     ? JSON.parse(fs.readFileSync(options.runtime_status, "utf8")) : undefined;
+  const observations = options.observations
+    ? JSON.parse(fs.readFileSync(options.observations, "utf8"))
+    : buildDefaultProductLoopObservations({
+      host: options.host,
+      release_sha: options.release_sha,
+      runtime_rows: runtimeRows,
+    });
   const manifest = buildProductLoopCompletionManifest({
     host: options.host,
     release_sha: options.release_sha,
