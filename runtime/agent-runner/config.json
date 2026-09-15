@@ -101,7 +101,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         },
         {
           "provider": "claude-direct",
@@ -119,7 +119,7 @@
           "model": "gpt-5.6-luna",
           "effort": "medium",
           "timeout_seconds": 120,
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         },
         {
           "provider": "claude-direct",
@@ -137,7 +137,7 @@
           "model": "gpt-5.6-terra",
           "effort": "medium",
           "timeout_seconds": 90,
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         },
         {
           "provider": "claude-direct",
@@ -154,7 +154,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         },
         {
           "provider": "claude-direct",
@@ -171,7 +171,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         },
         {
           "provider": "claude-direct",
@@ -190,7 +190,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "high",
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         },
         {
           "provider": "claude-direct",
@@ -208,7 +208,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         },
         {
           "provider": "claude-direct",
@@ -226,13 +226,13 @@
           "provider": "codex",
           "model": "gpt-5.6-luna",
           "effort": "high",
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         },
         {
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         },
         {
           "provider": "claude-direct",
@@ -249,7 +249,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         },
         {
           "provider": "claude-direct",
@@ -266,7 +266,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         },
         {
           "provider": "claude-direct",
@@ -283,7 +283,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         },
         {
           "provider": "claude-direct",
@@ -301,7 +301,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         }
       ]
     },
@@ -330,7 +330,7 @@
           "provider": "codex",
           "model": "gpt-5.6-sol",
           "effort": "medium",
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         },
         {
           "provider": "claude-direct",
@@ -347,7 +347,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "medium",
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         },
         {
           "provider": "claude-direct",
@@ -365,7 +365,7 @@
           "provider": "codex",
           "model": "gpt-5.6-terra",
           "effort": "high",
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         },
         {
           "provider": "claude-direct",
@@ -383,7 +383,7 @@
           "provider": "codex",
           "model": "gpt-5.6-sol",
           "effort": "high",
-          "profile_alias": "acct2"
+          "profile_alias": "acct1"
         },
         {
           "provider": "claude-direct",

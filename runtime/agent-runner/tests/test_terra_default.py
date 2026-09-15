@@ -31,38 +31,38 @@ class TerraDefaultTest(unittest.TestCase):
                 continue
             with self.subTest(task_class=name):
                 expected = [
-                    {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium", "profile_alias": "acct2"},
+                    {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium", "profile_alias": "acct1"},
                 ]
                 if name == "application-intent-planner":
                     expected = [
-                        {"provider": "codex", "model": "gpt-5.6-luna", "effort": "high", "profile_alias": "acct2"},
-                        {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium", "profile_alias": "acct2"},
+                        {"provider": "codex", "model": "gpt-5.6-luna", "effort": "high", "profile_alias": "acct1"},
+                        {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium", "profile_alias": "acct1"},
                         {"provider": "claude-direct", "model": "claude-sonnet-5"},
                     ]
                 if name == "reply-semantic-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-luna",
                                  "effort": "medium", "timeout_seconds": 120,
-                                 "profile_alias": "acct2"}]
+                                 "profile_alias": "acct1"}]
                 if name == "storefront-proposal-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-terra",
                                  "effort": "medium", "timeout_seconds": 90,
-                                 "profile_alias": "acct2"}]
+                                 "profile_alias": "acct1"}]
                 if name == "writer-sol-audit":
                     expected = [{"provider": "codex", "model": "gpt-5.6-sol",
-                                 "effort": "medium", "profile_alias": "acct2"}]
+                                 "effort": "medium", "profile_alias": "acct1"}]
                 if name == "writer-repair-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-terra",
-                                 "effort": "medium", "profile_alias": "acct2"}]
+                                 "effort": "medium", "profile_alias": "acct1"}]
                 if name == "affiliate-marketing-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-terra",
-                                 "effort": "high", "profile_alias": "acct2"}]
+                                 "effort": "high", "profile_alias": "acct1"}]
                 if name == "affiliate-escalation-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-sol",
-                                 "effort": "high", "profile_alias": "acct2"}]
+                                 "effort": "high", "profile_alias": "acct1"}]
                 if name == "browser-lane-agent":
                     expected = [
                         {"provider": "codex", "model": "gpt-5.6-terra",
-                         "effort": "high", "profile_alias": "acct2"},
+                         "effort": "high", "profile_alias": "acct1"},
                     ]
                 if name == "paid-owner-agent":
                     expected = [
@@ -88,6 +88,15 @@ class TerraDefaultTest(unittest.TestCase):
             [(row["model"], row["profile_alias"]) for row in resolved],
             [("gpt-5.6-terra", "acct1"), ("gpt-5.6-terra", "acct2")],
         )
+
+    def test_every_codex_route_starts_with_account_one(self):
+        config_path = Path(__file__).resolve().parents[1] / "config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        for name, task_class in config["task_classes"].items():
+            for candidate in task_class.get("candidates", []):
+                if candidate.get("provider") == "codex":
+                    with self.subTest(task_class=name, model=candidate.get("model")):
+                        self.assertEqual(candidate.get("profile_alias"), "acct1")
 
     def test_a_restricted_candidate_carries_its_escalation_route(self):
         """Without the route the runner raises at the first wake, not at review time."""
