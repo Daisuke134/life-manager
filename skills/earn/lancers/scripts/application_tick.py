@@ -116,6 +116,40 @@ def _form_changed(where: str, **detail: Any) -> RuntimeError:
     return RuntimeError("proposal_form_changed")
 
 
+def _confirmation_transition_detail(page: Any, project_id: str) -> dict[str, object]:
+    """Capture only the safe DOM shape when the confirmation route does not arrive."""
+    detail: dict[str, object] = {
+        "project_id": str(project_id),
+        "page_url": str(getattr(page, "url", ""))[:512],
+    }
+    try:
+        observed = page.evaluate(
+            """() => ({
+                ready_state: document.readyState,
+                proposal_form: document.querySelector('form#ProposalProposeForm') !== null,
+                confirmation_form: document.querySelector('form#ProposalProposeConfirmForm') !== null,
+                invalid_controls: document.querySelectorAll('input:invalid,textarea:invalid,select:invalid').length,
+                alerts: document.querySelectorAll('[role=alert],.error-message,.formError').length,
+            })"""
+        )
+    except Exception:
+        return detail
+    if not isinstance(observed, Mapping):
+        return detail
+    ready_state = observed.get("ready_state")
+    if isinstance(ready_state, str) and ready_state in {"loading", "interactive", "complete"}:
+        detail["ready_state"] = ready_state
+    for key in ("proposal_form", "confirmation_form"):
+        value = observed.get(key)
+        if isinstance(value, bool):
+            detail[key] = value
+    for key in ("invalid_controls", "alerts"):
+        value = observed.get(key)
+        if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 1000:
+            detail[key] = value
+    return detail
+
+
 def _one(locator: Any) -> Any:
     try:
         return dom_contract.exactly_one(
@@ -908,7 +942,10 @@ def _production_submitter(
         try:
             wait_for_url(confirmation_url, timeout=10_000)
         except Exception:
-            raise _form_changed("_production_submitter:822") from None
+            raise _form_changed(
+                "_production_submitter:822",
+                **_confirmation_transition_detail(page, project_id),
+            ) from None
         if not _route(getattr(page, "url", None), f"/work/propose_confirm/{project_id}"):
             raise _form_changed("_production_submitter:824")
         confirm_form = _one(page.locator("form#ProposalProposeConfirmForm"))
