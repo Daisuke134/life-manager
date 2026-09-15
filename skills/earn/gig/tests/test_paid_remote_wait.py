@@ -1644,6 +1644,41 @@ def test_confirmed_handled_feedback_dominates_stale_derived_work_state(tmp_path,
     assert paid._reported_handled_feedback_cycle(SimpleNamespace(), item) == root
 
 
+def test_official_seller_attachment_wait_dominates_stale_local_state(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    root = tmp_path / "project"
+    root.mkdir()
+    monkeypatch.setattr(paid, "_paid_project_root", lambda *_args: root)
+    item = {
+        "talkroom_id": "room",
+        "talkroom_state": "取引中",
+        "buyer_feedback_sha256": "d" * 64,
+        "buyer_feedback_pending_artifact": False,
+        "buyer_reply_after_artifact_observed": False,
+        "buyer_visible_artifact_observed": True,
+        "formal_delivery_observed": False,
+        "seller_sent_messages": [{
+            "text": "成果物を共有します。",
+            "attachments": ["delivery.xlsx"],
+        }],
+    }
+
+    result = paid._reported_paid_row(SimpleNamespace(), item)
+
+    assert result["status"] == "awaiting_buyer"
+    assert result["send_performed"] is False
+    assert result["deduplicated"] is True
+
+    item["buyer_reply_after_artifact_observed"] = True
+    assert paid._official_seller_attachment_wait(item) is False
+    item["buyer_reply_after_artifact_observed"] = False
+    item["formal_delivery_observed"] = True
+    assert paid._official_seller_attachment_wait(item) is False
+    item["formal_delivery_observed"] = False
+    item["talkroom_state"] = "取引完了"
+    assert paid._official_seller_attachment_wait(item) is False
+
+
 def test_wait_accepts_supplementary_receipt_when_another_has_readback(tmp_path):
     remote = load("paid_remote_result")
     root, feedback, digest = blocked_project(tmp_path)
