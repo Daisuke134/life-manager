@@ -306,8 +306,10 @@ Parallel browser receipts (production cursor unchanged):
   (`cleanup_pending=false`) pass.
 - `BROWSER-02` endpoint/mode readback passes against local `127.0.0.1:9222` (headless, Chrome 145,
   CDP 1.3, websocket host match). The host snapshot is 187 Chromium processes, 54 targets/33 pages,
-  about 9.7 GiB aggregate RSS, and 34% free memory. No provider action was attempted; the official
-  read-only provider result and reuse measurement remain open.
+  about 9.7 GiB aggregate RSS, and 34% free memory. A temporary `about:blank` context acquired in
+  0.631s, reused in 0.558s on the same owner, and released in 0.370–0.680s with
+  `cleanup_pending=false`. No provider action was attempted; the official read-only provider result
+  remains open.
 
 ## FND research gate (search complete; FND-02 implemented)
 
