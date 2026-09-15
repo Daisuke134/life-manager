@@ -272,13 +272,13 @@ freeze protocol 1
 -> continue platform revenue order
 ```
 
-Current cursor: specification is approved and recorded; no runtime implementation or production mutation is
-authorized by this document update. The next implementation reuses
-`/private/tmp/lm-runtime-admission-reservations-20260914`: re-check the six lifecycle conditions, renew its
-`codex-root` / `runtime-admission-reservations-phase2` lease with the actual HEAD, then fast-forward the clean
-branch to latest `origin/main`. The pushed merged commit remains remote evidence, the spec branch owns this
-file, and the Capafy shared checkout is forbidden. Create a replacement only if the existing owner/task cannot
-be safely continued; never create one merely because the branch is behind main.
+Current cursor: shared admission and attachment-recovery fixes are merged and running from immutable release
+`20260915T101017-d2fc0a7b`. Continue the natural Coconala Paid wake until each project produces a terminal
+receipt; then finish missing retained-attachment recovery, produce each requested artifact, send exactly once,
+and prove the later seller effect by official readback. Protocol `2` remains off until the one incompatible
+running Lancers owner drains and is label-scoped onto the current compatible release. Reuse
+`/private/tmp/lm-runtime-admission-reservations-20260914`; the Capafy shared checkout remains read-only and
+forbidden for this task. Do not create another worktree merely because a branch is behind main.
 
 ## Current measured state
 
@@ -506,6 +506,20 @@ Ryu `18211957` plus Kokoro `18223833`/`18250352` concurrently; it still ended `e
 rows back through the existing delivery queue and treats an explicit revision stage as work required;
 immutable `287ccb88` is installed for the next natural Paid wake. These are supporting components, not proof
 that buyer-visible progress is restored until that wake produces per-client effects and official readback.
+
+PR `#5205` adds the safe protocol-`2` activation preflight: it preserves live protocol-`1` owners only after
+every finite loaded program points to a structurally protocol-`2`-capable immutable release, including a mixed
+set of compatible SHAs. Production activation correctly remains blocked by the still-running old Lancers
+application owner; no active provider effect was killed to force convergence. PR `#5206`, merge SHA
+`d2fc0a7bf369368078c04e93034b4e6328075ce3`, fixes the existing authenticated attachment collector without a
+second framework: it removes the synthetic-event delay, skips file polling when no trusted control exists,
+uses Page plus Browser download behavior, accepts a complete stable download when CDP byte counts agree, and
+deduplicates only the same official attachment reference. Its focused Paid suite passed 199 tests. On the first
+natural `d2fc0a7b` Paid wake, three targeted Coconala projects ran concurrently and saved fresh non-empty files:
+Ryu `18211957` saved five, Kokoro `18223833` saved four in project `5242505`, and Kokoro `18250352` saved six.
+The aggregate remains `pending=3`, `effect=0`, `readback=0`; file recovery is measured progress, not a client
+submission. The current cursor therefore stays on those three project work items until their terminal receipts
+and official effects exist.
 
 ### 2. Coconala vertical revenue proof
 
