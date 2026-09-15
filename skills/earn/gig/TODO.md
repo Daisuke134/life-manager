@@ -10,11 +10,11 @@ This is the only restart cursor for the next Codex session. Re-check every value
 runtime/provider readback before acting; conversation claims are not completion evidence.
 
 - Repository: `/Users/anicca/Projects/life-manager-main`, remote `Daisuke134/life-manager`.
-- Canonical runtime source is `origin/main` at `62716e997b93a7e57cca35bb88e2b009fd1f476d`. The latest
-  immutable release is `/Users/anicca/loops/releases/20260916T035216-62716e99`. The prior runtime
-  worktree `/private/tmp/lm-runtime-admission-marketplace-priority-20260916` contains the already-merged
-  disk/APFS and Storefront commits (`9aaab33d3c`, `8b472f9642`) but its remote branch is deleted; do not use
-  it as a second source of truth or create another runtime worktree.
+- Canonical runtime source is `origin/main` at `e44798c7b6ccc97f8de4b978fff8a70a52b4050b`. The latest
+  immutable release is `/Users/anicca/loops/releases/20260916T035937-e44798c7`. The existing runtime
+  worktree `/private/tmp/lm-runtime-admission-marketplace-priority-20260916` is the only runtime worktree;
+  its browser fix is pushed as PR `#5250` and must be merged before a new production release. Do not create
+  another runtime worktree or use the Capify checkout as source.
 - Phase 2 replaces the v2 JSON scan with stdlib SQLite, adds durable FIFO reservations, child-PID claim
   handoff, same-owner/crash recovery, exact loaded-idle dispatch, retired/missing-owner cancellation, a
   default-v1 mixed-release gate and `lm-loop admission-v2-enable`. Final evidence is 500 sequential enqueues in
@@ -271,32 +271,32 @@ freeze protocol 1
 -> continue platform revenue order
 ```
 
-Current cursor: main `62716e997b` is exported as immutable release `20260916T035216-62716e99`. Verify loaded
-argv for all four Coconala labels, let the current Paid wake
-finish its per-client children, and read back each official talkroom plus replay-zero. The Storefront inner
-cadence fix and APFS clone cleanup are merged but still need one natural production wake. Protocol `2` is live,
-yet fairness, no-starvation, healthy disk headroom and 24-hour/seven-day proof remain open. Do not create a new
-worktree, do not edit the Capify checkout, and do not restart a running sibling unless it is an exact stale
-owner with a recorded terminal/recovery reason.
+Current cursor: main `e44798c7` is exported as immutable release `20260916T035937-e44798c7`. Paid is stopped after
+an effect-zero owner attempt; the next run must use the dynamic-CDP browser fix from PR `#5250`, then read back
+each official talkroom plus replay-zero. Storefront was stopped after a seven-hour stuck pass and must be
+reconciled to this release before its next natural wake. Protocol `2` is live, but fairness, no-starvation,
+healthy disk headroom and 24-hour/seven-day proof remain open. Do not create a new worktree, do not edit the
+Capify checkout, and do not restart a running sibling unless it is an exact stale owner with a recorded
+terminal/recovery reason.
 
 ## Current measured state
 
 ### Live correction (re-read before every mutation)
 
-- `origin/main` is `62716e997b93a7e57cca35bb88e2b009fd1f476d`; current symlink is
-  `/Users/anicca/loops/releases/20260916T035216-62716e99`.
-- Admission is protocol `2`. At the last snapshot, Coconala Paid reached its provider children for
-  `18180857` and `18211957` concurrently; no terminal official receipt has been recorded yet. Coconala
-  Storefront was a stale 11-hour `--auto-cadence` owner and was replaced label-scoped; its next release must
-  omit that inner cadence so launchd's 60-second interval owns repetition.
-- Apply and Reply are loaded-idle from `62716e99`; Storefront is running one bounded pass from `62716e99`.
-  The previous Paid wake on `1d4bca43` was stopped after its child workers became orphaned; no terminal
-  Coconala effect was accepted from that interrupted run.
+- `origin/main` is `e44798c7b6ccc97f8de4b978fff8a70a52b4050b`; current symlink is
+  `/Users/anicca/loops/releases/20260916T035937-e44798c7`.
+- Admission is protocol `2`. The latest Paid wake reached Chii and Ryu owners concurrently but ended without
+  a terminal Coconala effect: Chii was blocked by a stale target-owner/browser endpoint and Ryu was stopped
+  before its Coconala message. Storefront's inner cadence fix is in main, but its first `--effect` pass was
+  stopped after seven hours; its next wake must be a bounded terminal pass.
+- Apply and Reply remain on the previous loaded-idle/current release until a natural idle reconcile; Paid is
+  unloaded and its plist is now installed from `e44798c7`. Storefront is unloaded after the stuck pass. The
+  browser owner fix (`with-browser.sh` passes the guard-resolved CDP URL as `CLOAK_CDP_BASE_URL`) is PR
+  `#5250`; without it the Paid owner sandbox reconnects to forbidden static `:9223` and fails closed.
   Other revenue owners can consume the finite host ceiling, so a PID or scheduler run is not a client effect.
-- Disk free is about `4.7 GiB` (98% used). Thirty-four closed Chromium APFS clones and one unreferenced release
-  were removed through the allow-listed governor; one live clone remains. A transient `disk_headroom_low`
-  receipt occurred during the first Paid restart, so the healthy disk floor and seven-day no-ENOSPC proof remain
-  open.
+- Disk free was `7.6 GiB` on the latest readback and `gig_disk_guard` returned PASS; one live Chromium clone
+  remains. Historical Paid runs still contain real `ENOSPC` receipts, so the healthy disk floor and seven-day
+  no-ENOSPC proof remain open.
 - The canonical runtime repair is now in main through PRs `#5244`, `#5246` and `#5247`; do not report the old
   `b8cff053`/protocol-1 snapshot below as current.
 
@@ -789,23 +789,23 @@ work item and leave a sibling trace unchanged.
   `await_buyer_feedback`; retain one regression fixture covering the Ryu-shaped contradiction.
 - [ ] Route each active talkroom to an independent work item and effect fence; one blocked room must not block
   any sibling room.
-- [ ] Ryu `18211957`: the project state is currently `WORK_REQUIRED` with a newer buyer-feedback digest;
-  the historical seller message is not enough. Close only after the current Paid/Reply wake produces a later
-  seller effect and official talkroom readback; formal delivery remains OFF until buyer authorization.
+- [ ] Ryu `18211957`: the remote production revision has a current `paid-remote-result.json` with official
+  Colors/FTPS readbacks and no remaining remote work, but the current Coconala buyer digest is still
+  `WORK_REQUIRED`. Send the exact verified ordinary review message through the shared connector and require a
+  later official talkroom readback; formal delivery remains OFF until buyer authorization.
 - [x] Kokoro `18223833`: retained inputs were recovered and the room has its own verified submission; replay zero
   unless a newer buyer event appears.
 - [x] Kokoro `18250352`: processed independently with its own verified v12 submission; replay zero unless a newer
   buyer event appears.
-- [x] Chii `18180857`: 300/300 unique TikTok-send plus Sheet rows verified by official readback on 2026-09-16
-  (`2026年8月!A1:B400`, ordered handle digest
-  `1ff6f6fc7ccfae8681fb32b5697656e1be5cb9a47e71b550cb625c87c71e6105`). The 300-send and spreadsheet
-  requirement is complete; reply monitoring, reply-rate analysis and the durable 24/7 owner restart proof
-  remain open. The outer Chii loop remains paused until that next natural wake is explicitly verified. A one-off
-  unintended test-text effect to `@gucci_fuufu` is recorded separately and is not counted.
-- [ ] Resume Paid from `62716e99` with Chii's 300-row campaign marked complete (no new TikTok sends) and Ryu's
-  current `WORK_REQUIRED` digest as the only actionable client work. The interrupted run produced no terminal
-  Coconala receipt; its Chii candidate preflight was `effect=0`, `status=ready`, and no `@toshi_todaivlog` send
-  appears in the effect ledger.
+- [ ] Chii `18180857`: the official Sheets range contains 300 rows, but the corrected TikTok result proves only
+  12 eligible verified sends and leaves 288 eligible sends outstanding. The effect ledger also contains 288
+  `sent` rows, but they are not eligible completion proof without the required recipient/readback/Sheet pairing.
+  Do not claim 300/300, and do not bulk-send or bypass the shared transport. Resume only after PR `#5250` is
+  merged and the guarded dynamic CDP endpoint is loaded; each candidate remains independently fenced.
+- [ ] Resume Paid from the current `e44798c7` release after the browser fix is merged. Ryu is the first
+  actionable Coconala message; Chii continues from the audited 12 only when an eligible candidate and official
+  readback are available. The last Chii candidate preflight (`@toshi_todaivlog`) had `effect=0` and no send
+  receipt, so it must not be retried until its owner can reach the correct dynamic endpoint.
 - [ ] Atsugi `18171850`: reconcile the newest post-delivery feedback, perform any required revision/reply once,
   and return to verified buyer-acceptance wait.
 - [ ] Re-run all five active work items and prove newest-buyer-digest coverage, official readback and replay-zero
