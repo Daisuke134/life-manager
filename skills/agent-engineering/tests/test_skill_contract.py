@@ -83,3 +83,27 @@ def test_architecture_refinement_spec_covers_the_control_plane_gaps() -> None:
         assert section in text, section
     for token in ("165", "resource_admission_deferred", "human_gate_id", "held-out", "replay-zero"):
         assert token in text, token
+
+
+def test_architecture_spec_covers_private_reporting_and_model_runtime_boundary() -> None:
+    path = REPO_ROOT / "docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md"
+    text = path.read_text(encoding="utf-8")
+    for token in (
+        "User Communication Contract",
+        "Responses API",
+        "Agents SDK",
+        "routine wakes",
+        "human_action_required",
+        "background=true",
+        "trace_include_sensitive_data",
+    ):
+        assert token in text, token
+
+
+def test_internal_first_reporting_is_part_of_the_runtime_skill_contract() -> None:
+    skill = (REPO_ROOT / "skills/observability-engineering/SKILL.md").read_text(encoding="utf-8")
+    agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    for token in ("Internal-first reporting", "routine wake", "human action", "stable event key"):
+        assert token in skill, token
+    for token in ("User-facing reporting", "routine wake", "human action", "raw logs"):
+        assert token in agents, token

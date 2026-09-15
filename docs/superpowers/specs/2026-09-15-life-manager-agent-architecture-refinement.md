@@ -111,6 +111,48 @@ Both hosts use the same product loop ID, recipe, capability/effect contract, gra
 evaluation contract, receipt schema, and human-gate semantics. Only supervisor, storage, secret, and
 browser transport adapters differ. A second local/cloud business implementation is a contract failure.
 
+### K. User Communication Contract
+
+Every wake, retry, evaluation, health signal, and diagnostic remains in the private ledger/control room
+by default. Telegram receives only a human action, urgent safety/credential issue, material verified
+outcome, or persistent blocker after bounded recovery. A routine wake or healthy no-op produces zero
+Telegram messages. Human-gate messages are idempotent by stable event key; identical blocker messages
+are suppressed until state changes or the 24-hour reminder boundary. User messages contain only the
+short reason, exact action, deadline, and link/evidence needed to act—never raw logs, prompts, secrets,
+or unnecessary personal data.
+
+The allowed Telegram event kinds are `human_action_required`, `urgent_safety`, `material_outcome`,
+and `persistent_blocker`; every other lifecycle event remains internal.
+
+### L. Model Runtime Boundary
+
+The core Life Manager model transport uses the Responses API through the existing brain adapter because
+Life Manager owns the loop, tool dispatch, leases, context capsule, ledger, and provider readback. The
+official [Agents SDK/Responses API guidance](https://openai.github.io/openai-agents-python/) says the
+Responses API is appropriate when the application owns loop/tool/state handling, while the Agents SDK
+is appropriate when its runtime should manage turns, tools, guardrails, handoffs, or sessions.
+
+Agents SDK may be used only inside an isolated evaluator or repair worker behind the same owner,
+context, budget, and evidence contracts. It must not create a second scheduler, provider-effect owner,
+or authoritative memory store. If SDK tracing is enabled, sensitive capture is disabled or routed to a
+private exporter with `trace_include_sensitive_data=False`; the official [tracing guidance](https://openai.github.io/openai-agents-python/tracing/)
+warns that generation and function spans can contain sensitive inputs/outputs.
+
+Long analysis may use Responses `background=true` with a persisted response ID and next-wake polling or
+webhook. A background response may not hold a browser/effect lease or perform a provider mutation. The
+official [Responses create reference](https://developers.openai.com/api/reference/cli/resources/responses/methods/create)
+defines background execution, context management, tool-call limits, and response storage controls;
+privacy-sensitive work uses the repository-owned capsule and explicit storage policy instead of
+implicitly retaining an unbounded conversation.
+
+### M. No-babysitting Operation
+
+Each failure creates one durable issue with owner, repair class, retry budget, next eligible time,
+last-good receipt, and escalation boundary. A supervisor resumes queued issues after process exit and
+applies only the repair class permitted by the evidence. It continues independent work while one issue
+waits for a human or external provider. A human is contacted only for an explicit human gate; all
+other supported work, recovery, evaluation, and candidate promotion proceed without manual restarts.
+
 ## 3. As-Is / To-Be
 
 | Concern | As-Is (measured) | To-Be contract |
@@ -167,6 +209,10 @@ provenance questions; it never substitutes for provider truth.
 | 9 | Observability schema/privacy | `test_runtime_events_redact_and_join_by_stable_ids` | OK: bounded attributes; health/effect separation |
 | 10 | Recursive improvement boundary | `test_candidate_cannot_change_constitution_or_evidence_rules` | OK: rollback and immutable policy |
 | 11 | Local/cloud parity | `test_host_adapters_share_loop_and_receipt_contract` | OK: infrastructure-only variation |
+| 12 | Internal-first user communication | `test_routine_wakes_are_private_and_human_gates_are_idempotent` | OK: notification budget, stable keys, redaction |
+| 13 | Responses API boundary | `test_model_adapter_persists_capsule_and_resumes_background_response` | OK: response ID, polling, no effect lease in background |
+| 14 | Agents SDK isolation | `test_sdk_worker_cannot_create_scheduler_or_authoritative_state` | OK: bounded evaluator/repair-only use |
+| 15 | No-babysitting supervisor | `test_issue_queue_recovers_or_escalates_without_manual_restart` | OK: retry budget, independent progress, typed escalation |
 
 All tests are deterministic fixtures or read-only contract checks. External marketplace acceptance
 remains a separate owner-scoped operation that requires the existing immutable-release,
@@ -189,6 +235,12 @@ official-readback, and replay-zero rules.
 - Do not create a fifth marketplace lane when Apply, Reply, Storefront, and Paid already own the
   lifecycle; add only a thin provider adapter and shared receipt mapping.
 - Do not edit another worktree's active Coconala TODO while implementing this architecture.
+- Do not send routine wake, retry, evaluation, health, or diagnostic reports to Telegram; retain them
+  in the private control room and send only the contracted user-facing events.
+- Do not replace the existing control plane with an Agents SDK scheduler or a second memory/session
+  authority. Use the Responses API adapter for the core loop and isolate any SDK worker.
+- Do not allow a background model response, webhook, or trace callback to hold a browser/effect lease
+  or perform a provider mutation.
 
 ## 7. Execution Steps
 
@@ -211,6 +263,14 @@ official-readback, and replay-zero rules.
 9. Re-run focused runtime, graph, eval, human-gate, and host-parity tests, then perform targeted
    immutable-release acceptance for one owner at a time. Update the active TODO only from measured
    receipts.
+10. Add the private control-room projection and notification policy; prove routine wakes stay private,
+    human gates are delivered once, and persistent blockers are rate-limited.
+11. Add the Responses API brain adapter with explicit capsule/hash, tool-call, background, polling,
+    storage, timeout, and cost contracts; preserve the existing provider effect owner.
+12. If an evaluator or repair worker needs Agents SDK, wrap it behind a bounded adapter with isolated
+    session/evidence and disabled sensitive trace capture; prove it cannot schedule or mutate a provider.
+13. Run the no-babysitting supervisor fixture, then targeted immutable-release acceptance and update
+    the active TODO only from official receipts.
 
 ## E2E Judgment
 

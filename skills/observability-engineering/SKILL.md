@@ -20,6 +20,15 @@ Developer Experience, and Verification & CI. The specialized [Awesome Agent Obse
 list is secondary discovery. Read `references/source-notes.md` for OpenInference/Phoenix pointers;
 telemetry remains diagnostic and never replaces a ledger or provider readback.
 
+## Internal-first reporting
+
+Keep lifecycle events, retries, evaluations, health snapshots, and diagnostics in the private ledger
+and control room by default. A routine wake or healthy no-op is not a Telegram notification. Send only
+for a human action, urgent safety/credential issue, material verified outcome, or persistent blocker
+after bounded recovery. Each message has a stable event key, exact next action/deadline when needed,
+and no raw logs, prompts, secrets, or unnecessary personal data. Suppress identical messages until the
+state changes or the 24-hour reminder boundary is reached.
+
 ## When to use
 
 - A loop stalls, retries, times out, or appears healthy while making no progress.

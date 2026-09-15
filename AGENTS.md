@@ -87,6 +87,16 @@ skills required by the current decision.
 The architecture refinement SSOT is
 `docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md`.
 
+## User-facing reporting
+
+Internal-first reporting is the default. Keep wake, retry, evaluation, health, and diagnostic events
+in the private ledger/control room; do not send a routine wake report to Telegram. Telegram is reserved
+for a human action, an urgent safety/credential issue, a material verified outcome, or a persistent
+blocker after bounded recovery. Every message uses a stable event key, contains the exact next action
+and deadline when applicable, and never includes raw logs, prompts, secrets, or unnecessary personal data.
+Repeated reports for the same issue are suppressed until its state changes or the 24-hour reminder
+boundary is reached.
+
 | Concern | Skill to load |
 |---|---|
 | Runtime, tools, ownership, recovery | `skills/harness-engineering/SKILL.md` |
