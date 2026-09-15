@@ -159,6 +159,69 @@ function indexRuntimeRows(runtimeRows, catalog) {
   return rows;
 }
 
+function evaluateLocalCompletionGate(manifest, options = {}) {
+  const reasons = [];
+  let catalog;
+  try {
+    catalog = readProductLoopCatalog(options.catalogFile);
+  } catch {
+    reasons.push("catalog_invalid");
+  }
+  const validManifest = manifest && typeof manifest === "object" && !Array.isArray(manifest);
+  if (!validManifest) {
+    reasons.push("manifest_invalid");
+  } else {
+    if (manifest.schema_version !== "product.loop.completion.v1") reasons.push("manifest_schema_invalid");
+    if (manifest.host !== "local") reasons.push("host_not_local");
+    if (typeof manifest.release_sha !== "string" || !RELEASE_SHA.test(manifest.release_sha)) {
+      reasons.push("manifest_release_invalid");
+    }
+    if (!Array.isArray(manifest.loops)) {
+      reasons.push("manifest_loops_invalid");
+    } else if (catalog) {
+      const byId = new Map(manifest.loops.map((loop) => [loop && loop.id, loop]));
+      for (const catalogLoop of catalog.loops) {
+        const loop = byId.get(catalogLoop.id);
+        if (!loop) {
+          reasons.push("product_loop_missing");
+          continue;
+        }
+        const state = String(loop.state || "").trim();
+        if (state === "unknown") {
+          reasons.push("unknown_product_loop");
+        } else if (!["verified", "setup_required", "not_applicable"].includes(state)) {
+          reasons.push("invalid_product_loop_state");
+        }
+        if (state !== "verified" && !(typeof loop.reason === "string" && loop.reason.trim())) {
+          reasons.push("unexplained_product_loop_state");
+        }
+        if (state === "verified" && (
+          loop.official_receipt !== true
+          || typeof loop.owner_id !== "string" || !loop.owner_id.trim()
+          || loop.release_sha !== manifest.release_sha
+          || !loop.contract || COMPLETION_CONTRACT_FIELDS.some((field) => loop.contract[field] !== true)
+          || (loop.runtime_evidence && loop.runtime_evidence.ready !== true)
+        )) {
+          reasons.push("verified_evidence_incomplete");
+        }
+      }
+      if (manifest.loops.length !== catalog.loops.length) reasons.push("manifest_loop_count_mismatch");
+      const unknownCount = manifest.loops.filter((loop) => loop && loop.state === "unknown").length;
+      if (manifest.unknown_count !== unknownCount) reasons.push("manifest_unknown_count_mismatch");
+      if (manifest.completion !== (unknownCount === 0)) reasons.push("manifest_completion_mismatch");
+    }
+  }
+  const uniqueReasons = [...new Set(reasons)];
+  return Object.freeze({
+    schema_version: "product.local.completion.v1",
+    decision: uniqueReasons.length ? "block" : "pass",
+    host: validManifest && manifest.host === "local" ? "local" : null,
+    release_sha: validManifest && typeof manifest.release_sha === "string"
+      ? manifest.release_sha : null,
+    reasons: Object.freeze(uniqueReasons),
+  });
+}
+
 function buildProductLoopCompletionManifest(input = {}, options = {}) {
   const host = String(input.host || "").trim();
   if (!HOSTS.has(host)) throw new Error("completion host must be local or cloud");
@@ -241,6 +304,7 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
 module.exports = {
   DEFAULT_CATALOG,
   buildProductLoopCompletionManifest,
+  evaluateLocalCompletionGate,
   planProductOnboarding,
   readProductLoopCatalog,
 };

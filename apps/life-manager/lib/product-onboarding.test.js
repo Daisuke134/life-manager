@@ -9,6 +9,7 @@ const { spawnSync } = require("node:child_process");
 
 const {
   buildProductLoopCompletionManifest,
+  evaluateLocalCompletionGate,
   planProductOnboarding,
   readProductLoopCatalog,
 } = require("./product-onboarding.js");
@@ -144,6 +145,82 @@ test("completion manifest covers every catalog loop and never treats unknown as 
   assert.equal(manifest.completion, false);
   assert.deepEqual(manifest.loops[0].job_ids, catalog.loops[0].job_ids);
   assert.deepEqual(manifest.loops.map((loop) => loop.id), catalog.loops.map((loop) => loop.id));
+});
+
+test("local completion gate blocks a manifest that still contains unknown loops", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "4".repeat(40);
+  const contract = {
+    goal: true,
+    context: true,
+    admission: true,
+    receipt: true,
+    observability: true,
+    evaluation: true,
+  };
+  const observations = catalog.loops.map((loop, index) => ({
+    id: loop.id,
+    state: index === 0 ? "unknown" : "setup_required",
+    reason: index === 0 ? "evidence_not_collected" : "host_adapter_pending",
+    contract,
+  }));
+  const manifest = buildProductLoopCompletionManifest({
+    host: "local",
+    release_sha: releaseSha,
+    observations,
+  });
+
+  const gate = evaluateLocalCompletionGate(manifest);
+
+  assert.deepEqual(gate, {
+    schema_version: "product.local.completion.v1",
+    decision: "block",
+    host: "local",
+    release_sha: releaseSha,
+    reasons: ["unknown_product_loop"],
+  });
+});
+
+test("local completion gate passes only explicit setup states or verified receipts", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "5".repeat(40);
+  const contract = {
+    goal: true,
+    context: true,
+    admission: true,
+    receipt: true,
+    observability: true,
+    evaluation: true,
+  };
+  const observations = catalog.loops.map((loop) => ({
+    id: loop.id,
+    state: "setup_required",
+    reason: "host_adapter_pending",
+    contract,
+  }));
+  observations[0] = {
+    id: catalog.loops[0].id,
+    state: "verified",
+    owner_id: "owner-1",
+    release_sha: releaseSha,
+    official_receipt: true,
+    contract,
+  };
+  const manifest = buildProductLoopCompletionManifest({
+    host: "local",
+    release_sha: releaseSha,
+    observations,
+  });
+
+  const gate = evaluateLocalCompletionGate(manifest);
+
+  assert.deepEqual(gate, {
+    schema_version: "product.local.completion.v1",
+    decision: "pass",
+    host: "local",
+    release_sha: releaseSha,
+    reasons: [],
+  });
 });
 
 test("verified completion requires an official receipt and the canonical release", () => {
