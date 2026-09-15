@@ -205,6 +205,8 @@ test("local completion gate passes only explicit setup states or verified receip
     owner_id: "owner-1",
     release_sha: releaseSha,
     official_receipt: true,
+    official_receipt_ref: "ledger://local/owner-1/receipt-1",
+    replay_zero: true,
     contract,
   };
   const manifest = buildProductLoopCompletionManifest({
@@ -338,6 +340,42 @@ test("verified completion requires an official receipt and the canonical release
   );
 });
 
+test("verified completion requires a receipt reference and replay-zero proof", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "a".repeat(40);
+  const contract = {
+    goal: true,
+    context: true,
+    admission: true,
+    receipt: true,
+    observability: true,
+    evaluation: true,
+  };
+  const observations = catalog.loops.map((loop) => ({
+    id: loop.id,
+    state: "not_applicable",
+    reason: "provider_surface_not_supported",
+    contract,
+  }));
+  observations[0] = {
+    id: catalog.loops[0].id,
+    state: "verified",
+    owner_id: "owner-1",
+    release_sha: releaseSha,
+    official_receipt: true,
+    contract,
+  };
+
+  assert.throws(
+    () => buildProductLoopCompletionManifest({
+      host: "local",
+      release_sha: releaseSha,
+      observations,
+    }),
+    /verified loop requires official receipt and matching release/u,
+  );
+});
+
 test("completion manifest binds runtime status to every mapped job without promoting health to effect", () => {
   const catalog = readProductLoopCatalog();
   const releaseSha = "f".repeat(40);
@@ -398,6 +436,8 @@ test("verified completion rejects missing or stale mapped runtime evidence", () 
     owner_id: "owner-1",
     release_sha: releaseSha,
     official_receipt: true,
+    official_receipt_ref: "ledger://cloud/owner-1/receipt-1",
+    replay_zero: true,
     contract,
   };
   const runtimeRows = catalog.loops[0].job_ids.map((loopId, index) => ({
@@ -442,6 +482,8 @@ test("completion is true only when every loop is verified or explicitly unsuppor
     owner_id: "owner-1",
     release_sha: releaseSha,
     official_receipt: true,
+    official_receipt_ref: "ledger://cloud/owner-1/receipt-verified",
+    replay_zero: true,
     contract,
   };
 

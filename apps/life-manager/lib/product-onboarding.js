@@ -16,6 +16,7 @@ const COMPLETION_CONTRACT_FIELDS = [
 ];
 const RUNTIME_TERMINAL_RESULTS = new Set(["pass", "fail", "blocked", "running"]);
 const RELEASE_SHA = /^[a-f0-9]{40}$/iu;
+const RECEIPT_REF = /^[a-z][a-z0-9+.-]*:\/\/\S{1,1024}$/iu;
 
 function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
   const value = JSON.parse(fs.readFileSync(catalogFile, "utf8"));
@@ -318,8 +319,18 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
     const observedRelease = typeof observation.release_sha === "string"
       && observation.release_sha.trim() ? observation.release_sha.trim() : null;
     const officialReceipt = observation.official_receipt === true;
+    const officialReceiptRef = typeof observation.official_receipt_ref === "string"
+      && observation.official_receipt_ref.trim() ? observation.official_receipt_ref.trim() : null;
+    if (officialReceiptRef && !RECEIPT_REF.test(officialReceiptRef)) {
+      throw new Error(`completion official receipt reference invalid: ${catalogLoop.id}`);
+    }
+    if (observation.replay_zero !== undefined && typeof observation.replay_zero !== "boolean") {
+      throw new Error(`completion replay-zero proof invalid: ${catalogLoop.id}`);
+    }
+    const replayZero = observation.replay_zero === true;
     if (state === "verified"
       && (!officialReceipt || !ownerId || observedRelease !== releaseSha
+        || !officialReceiptRef || !replayZero
         || COMPLETION_CONTRACT_FIELDS.some((field) => contract[field] !== true))) {
       throw new Error(`verified loop requires official receipt and matching release: ${catalogLoop.id}`);
     }
@@ -336,6 +347,8 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
       owner_id: ownerId,
       release_sha: observedRelease,
       official_receipt: officialReceipt,
+      official_receipt_ref: officialReceiptRef,
+      replay_zero: replayZero,
       contract: Object.freeze(contract),
       runtime_evidence: runtimeEvidence,
     });
