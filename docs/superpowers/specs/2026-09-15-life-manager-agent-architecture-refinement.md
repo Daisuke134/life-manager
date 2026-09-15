@@ -39,22 +39,24 @@ runtime event、provider ledgerを突き合わせた現在cursorです。後続�
 
 | 対象 | 実測状態 | 判定 |
 |---|---|---|
-| source | `origin/main=a9648531f1424ac91c882b71cb9695225bea6e4f` | Lancersの容量・planner・遷移診断・exhaustive 1-turn・pending cursor・本番wrapperのbounded discovery・timeout診断・single-slice discovery・Playwright cleanup watchdogを含む |
-| release selector | `~/loops/current`は`20260915T000152-6e95af80`の整理中（selectorは検証済み`20260915T000152-6e95af80`へまだ切替完了していない）。最新検証済みreleaseは`20260915T235054-6e95af80` | selector、main、稼働ownerが混在。cleanup修正を含むreleaseは未作成。全体昇格は未完 |
-| Lancers Application | 6e95 releaseで`--exhaustive`なし・1query sliceを実行し、約1分で`last_exit=0`/terminal `pass`。出力は`no_eligible_project`（観測0、公式応募0）。pending 134件、ledger最新sequence 147。現在は重複防止のため停止中 | 検索占有の基盤gateはPASS。cleanup修正releaseで再実測するまで収益gateは未完 |
+| source | `origin/main=ba19cea5f139a7f33c4b3b1270142be1207caf9a` | Lancersの容量・planner・遷移診断・exhaustive 1-turn・pending cursor・本番wrapperのbounded discovery・timeout診断・single-slice discovery・Playwright cleanup watchdog・pending cursor回帰テストを含む |
+| release selector | 共有release整理処理が生きており、`~/loops/current`は検証済み`20260915T232248-475febf2`。最新検証済みreleaseは`20260915T235054-6e95af80` | selector、main、稼働ownerが混在。`a964...`/`ba19...`を含むreleaseは未作成。全体昇格は未完 |
+| Lancers Application | 6e95 releaseで`--exhaustive`なし・1query sliceを実行し、約1分で`last_exit=0`/terminal `pass`。出力は`no_eligible_project`（観測0、公式応募0）。pending 134件、ledger最新sequence 147。現在は重複防止のため停止中。再起動wakeは共有容量で`resource_capacity_busy` | 検索占有の基盤gateはPASS。cleanup修正releaseと収益枠予約の再実測まで収益gateは未完 |
 | Lancers Browser | `loaded-running`、9227 CDPはChrome 145 / Protocol 1.3、ownerは旧`ae1bf96528` | Browser接続canaryはPASS。provider効果は未確認。Applicationと同時にprofileを再起動しない |
 | Lancers Negotiate/Storefront/work-sync/report | ownerのインストール版は475へ揃ったものがあるが、旧terminal event、`resource_capacity_busy`、`resource_control_busy`が残る。Reportは旧ae1 event | 履歴を成功に変換せず、各ownerを一つずつ自然wakeで確認 |
 | Lancers Paid | 旧475 releaseのprovider inventory失敗（`effect=0`）を確認後停止。installed releaseは6e95、cleanup修正release待ち | **reconcile作業は部分完了**。新cleanup版で再実行し、公式paid効果はreceiptが出るまで未完 |
 | Lancers ledger | 最新の`application_verified`は既存sequence 147（2026-09-11）。新release wakeで増加なし | 現在runの成功・収益は0件として扱う |
 
-最新のmain統合はPR #5236（merge commit `a9648531f1`）です。PR #5233で本番の
+最新のmain統合はPR #5237（merge commit `ba19cea5f1`）です。PR #5233で本番の
 `application-owner`から`--exhaustive`を外し、仕様どおり通常の回転検索を使うことです。
 PR #5234では、confirmation遷移失敗後の診断用`page.evaluate`を呼ばず、URLだけを記録して
 必ず戻るようにしました。PR #5235では、通常経路も候補40件になるまで検索せず、1 wakeにつき
 回転中の1 query sliceだけを処理します。新releaseの自然wakeで約1分終了を確認しましたが、
 候補・公式応募receiptはまだありません。PR #5236では、停止時にrun専用Playwright clientを
-2秒でterminateするwatchdogを追加しました。cleanup修正release作成後、pending 134件の再確認と
-provider form canaryを続けます。
+2秒でterminateするwatchdogを追加しました。PR #5237ではpending-cursorの回帰fixtureを現行readerへ
+合わせ、HOL 36件をgreenにしました。共有admission枠はCoconala収益agent・Affiliate・Lancers
+Negotiateが占有し、Applicationの新wakeが`resource_capacity_busy`になったため、次のrelease後に
+収益枠予約も検証します。
 
 このcursorからの実行順序を固定する。前の項目の公式証拠がない限り、次のplatformへ進めない。
 
@@ -63,11 +65,12 @@ provider form canaryを続けます。
 | 1 | `PROD-01-A` Lancers Paidをidle時に現行releaseへreconcile | Lancers Paid ownerのみ | **完了**: installed/install eventは475で一致。provider効果は別gate |
 | 2 | `PROD-01-B` wrapper修正を含む`6e95...` releaseを作成し、Applicationをidle境界で反映 | Application owner + immutable release | **完了**: loaded argvは`--exhaustive`なし、installed/event SHAは`6e95...` |
 | 3 | `PROD-01-C` Lancers Applicationを新wrapperの自然wakeで1回検証 | Application owner、planner/safety evidence | **基盤部分PASS**:約1分で終端。候補0・公式receipt0のため収益gateは未完 |
-| 4 | `PROD-01-D` cleanup修正を含む`a964...` releaseを作成し、Application/Paidをidle境界で反映 | immutable release + Application/Paid owner | release manifest `a964...`、loaded argv、cleanup watchdogの存在を確認 |
-| 5 | `PROD-01-E` pending 134件を順番に再確認し、fresh sliceを枯らさない | Application state/reconciliation only | transient failureを次wakeへ送り、state invalidはfail-closed。pending解消または理由付きterminal |
-| 6 | `PROD-01-F` proposal確認遷移の残故障を1件で再現・修正 | Lancers provider adapterと回帰テスト | URL/DOM状態を記録し、正しいconfirm routeまたは明示的provider拒否を再現 |
-| 7 | `PROD-01-G` Lancers全7 ownerのrelease driftを解消 | Lancers ownerだけ | Browser、4収益lane、work-sync、reportが同じimmutable SHA |
-| 8 | `BROWSER-03` Lancers応募canaryを1件だけ実行 | provider effect owner | 公式proposal receipt、公式readback、replay-zero |
+| 4 | `PROD-01-D` `ba19...` releaseを作成し、Application/Paidをidle境界で反映 | immutable release + Application/Paid owner | release manifest `ba19...`、loaded argv、cleanup watchdogの存在を確認 |
+| 5 | `PROD-01-E` 収益枠を予約できるadmissionへ修正・検証 | shared resource admission + Lancers revenue owners | borrow ownerが収益枠を枯らさず、capacity deferは次wakeへ戻る |
+| 6 | `PROD-01-F` pending 134件を順番に再確認し、fresh sliceを枯らさない | Application state/reconciliation only | transient failureを次wakeへ送り、state invalidはfail-closed。pending解消または理由付きterminal |
+| 7 | `PROD-01-G` proposal確認遷移の残故障を1件で再現・修正 | Lancers provider adapterと回帰テスト | URL/DOM状態を記録し、正しいconfirm routeまたは明示的provider拒否を再現 |
+| 8 | `PROD-01-H` Lancers全7 ownerのrelease driftを解消 | Lancers ownerだけ | Browser、4収益lane、work-sync、reportが同じimmutable SHA |
+| 9 | `BROWSER-03` Lancers応募canaryを1件だけ実行 | provider effect owner | 公式proposal receipt、公式readback、replay-zero |
 | 9 | `PROD-02` Lancers Negotiate/Storefront/Paidを個別に閉じる | 各provider adapter | laneごとの公式receiptまたは明示的not-applicable、重複0 |
 | 10 | `MARKET-02` CrowdWorksを同じshared kernelで検証 | CrowdWorks adapter/owner | 応募・契約の公式receiptまたはtruthful not-applicable |
 | 11 | `MARKET-03` Mercorをhuman gate付きで検証 | Mercor adapter/owner | typed gate再開、公式application/contract/payment receipt |
