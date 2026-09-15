@@ -584,6 +584,31 @@ state returns recovery-ready for Ryu and both Kokoro projects. Immutable release
 `20260915T114149-d8c6f097` is current; Paid remains on its preceding release until its active natural wake
 terminates, then it must be exact-reconciled and prove real per-client effects.
 
+PR `#5213`, merge SHA `46c49b19`, makes a confirmed handled buyer digest dominate stale derived
+`active_feedback_cycle` and `work_state` fields. A completed room therefore stays a no-op instead of
+re-entering build work. In the following production wake, completed Kokoro `18223833` did not spawn another
+effect worker; its latest verified outcome remains `effect=1`, `readback=1`, formal delivery OFF, with the v4
+review ZIP present in official selected-talkroom readback.
+
+PR `#5214`, merge SHA `fc2549d2`, fixes isolated staged agents so shared registry reads resolve from the
+loaded `LIFE_MANAGER_REPO` rather than the temporary staged working directory. PR `#5215`, merge SHA
+`0439d7c0`, accepts verifier evidence returned as a structured object and extracts its official
+`readback_source` instead of rejecting a valid remote verification. Paid suites passed 227 tests and all CI
+checks passed. Immutable release `20260915T122835-0439d7c0` then ran Ryu `18211957` and Kokoro `18250352`
+as independent concurrent work items. Ryu reached a fresh v193 remote owner result with authenticated public
+and management readbacks, required effect/output satisfied and remaining work empty; independent verification
+and the Coconala message/readback are still in progress, so Ryu is not yet closed. Kokoro `18250352` produced
+a valid `status=PASS` 50-item source census, but its runner summary incorrectly changed success to failure when
+runtime-event emission hit `Operation not permitted` on the immutable release registry.
+
+PR `#5216`, merge SHA `0dd1496f2c63c2c720ceb495aec04c9199e6b58d`, separates observability transport
+failure from business-work truth. A runtime-event write error remains visible as `runtime_event_error`, but it
+cannot reverse a selected successful agent result or its process exit code. The focused boundary passed five
+tests, all agent-runner tests passed 67 tests, and every PR check passed. Immutable release
+`20260915T124728-0dd1496f` contains this fix. The currently running older Paid wake is not interrupted; after
+its terminal receipt, reconcile only the Paid label to this release and resume Kokoro `18250352` from retained
+source evidence.
+
 Observability remains a current architecture gap. Existing JSONL events and provider receipts stay the source
 of truth, while OpenTelemetry becomes the shared trace envelope rather than a second business ledger. One
 trace joins `platform/account/work-item` observe, context capsule, attachment recovery, model work, effect and
