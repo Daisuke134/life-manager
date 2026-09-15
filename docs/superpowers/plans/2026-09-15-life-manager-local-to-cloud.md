@@ -29,7 +29,7 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `HUMAN-01`.
+TODO worktree. The current cursor is `HUMAN-02`.
 
 ### Atomic execution log
 
@@ -198,6 +198,15 @@ TODO worktree. The current cursor is `HUMAN-01`.
   `node --test apps/life-manager/eval/agent-contract/gate.test.js` (3 passed) plus the records and
   five-failure fixture tests (9 passed). No provider, browser, launchd, ledger, or Telegram effect
   was performed. Next active ID: `HUMAN-01`.
+- [x] `HUMAN-01` — Added the provider-neutral append-only human-gate contract in
+  `skills/_shared/marketplace-core/scripts/human_gate.py`. Only explicit interview, KYC,
+  identity-recording, or approval actions are accepted; each gate binds tenant/owner/product/job/
+  wake/effect identity, exact action hash, evidence reference, deadline, stable notification event,
+  and outbox/answer slots. The store uses a cross-process lock, preserves 700/600 permissions, and
+  deduplicates concurrent creates without inferring identity from wording. Secrets, credentialed
+  URLs, invalid deadlines, tampered IDs, and extra fields fail closed. Focused proof:
+  `python3 -m pytest skills/_shared/marketplace-core/tests/test_human_gate.py -q` (5 passed).
+  No provider, browser, launchd, ledger, or Telegram effect was performed. Next active ID: `HUMAN-02`.
 
 ### Current production blocker snapshot (read-only)
 
@@ -237,7 +246,7 @@ target control plane is implemented.
 
 **Alignment checkpoint:** the search and FND implementation phase is complete: `FND-02` through
 `FND-10` have focused contracts and receipts. No provider effect was performed in this workstream.
-The next atomic change is `HUMAN-01`'s typed human-gate record; it begins with a focused
+The next atomic change is `HUMAN-02`'s same-owner resume path; it begins with a focused
 failing test while preserving the evaluator's no-production-effect boundary.
 
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
