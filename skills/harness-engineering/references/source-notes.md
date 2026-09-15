@@ -21,6 +21,16 @@ Pinned clones are listed in `docs/agent-engineering/REFERENCE-REPOS.md`.
   one canonical telemetry client prevents duplicate business events.
 - `NousResearch/hermes-agent/agent/` and `hermes_state_*.py`: inspect the tool loop and persisted
   session/state boundaries before borrowing any self-restart behavior.
+- `steel-browser/api/src/services/session.service.ts`, `api/src/services/cdp/`, and
+  `api/src/services/context/`: session lifecycle, CDP handoff, persisted browser state, and cleanup
+  are the selected remote-browser reference. Use the pinned clone only behind the Life Manager
+  browser-owner/effect-readback contract.
+- `firecracker/docs/design.md`: microVM, cgroup, seccomp, jailer, and explicit vCPU/memory boundaries
+  are the isolation reference for untrusted repair/eval code, not for every browser session.
+- `lightpanda/README.md`: low-memory headless browser and CDP path; its Web API and Playwright
+  compatibility is partial/WIP, so it is a discovery experiment rather than an effect executor.
+- `browserless/README.md` and its concurrency/timeout configuration: useful queue and cleanup ideas;
+  review SSPL/commercial licensing before any commercial deployment.
 
 ## Life Manager mapping
 

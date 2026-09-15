@@ -177,6 +177,52 @@ the Life Manager control plane performs all validation, graph projection, evalua
 decisions. A hosted agent cannot modify the canonical repository, private state, credentials, browser
 session, scheduler, or provider system directly.
 
+### O. Browser Execution and Deployment
+
+Browser automation runs headless by default so the user's screen is not occupied, but headless does
+not mean zero memory: Chrome still creates browser/renderer processes and page JavaScript, DOM,
+cookies, and storage consume resources. The [Chrome headless documentation](https://developer.chrome.com/docs/automation-and-testing/headless)
+states that modern headless shares the Chrome implementation; capacity is therefore controlled by
+session count, page count, timeouts, and measured memory rather than by the display flag alone.
+
+The selected browser abstraction is [Steel Browser](https://github.com/steel-dev/steel-browser), used
+through its session API and CDP connection. It manages browser processes, session state, cookies,
+local/session storage, cleanup, and a viewer while remaining compatible with the existing Playwright/
+Puppeteer adapters. Local and cloud use the same `BrowserSession` contract; only the endpoint,
+secret store, and session storage adapter differ.
+
+```text
+local Mac today                 cloud target
+----------------                ------------------------------
+Life Manager queue              Life Manager control plane
+        |                       tenant/owner work queue
+Steel self-hosted Docker        Steel Cloud or self-hosted Steel
+headless sessions               headless sessions on worker nodes
+        |                       |
+provider adapter via CDP        provider adapter via CDP
+```
+
+On the local Mac, retain one controlled browser service during migration and move non-human work to
+headless Steel sessions; headed windows remain only for debugging or an explicit human gate. In the
+cloud, create a tenant- and provider-scoped session on demand, park or release it after the finite
+wake, persist only the declared authentication state, and attach a viewer to that same session when
+human action is required. Never create a second session for the handoff. The session memory is scoped to
+the owner and provider, not shared across users or unrelated loops.
+
+Admission uses a measured concurrency limit (`concurrency_limit`) and per-session CPU, memory, page, wall-clock, and
+inactivity budgets. It queues work when capacity is full and records a durable deferral; it does not
+promise that a virtual computer eliminates memory crashes. A full `virtual computer`/desktop is not
+the default for autonomous work because its guest OS and display stack add overhead. Use a remote
+desktop such as Kasm only when a person must see or operate the same browser session.
+
+[Firecracker](https://github.com/firecracker-microvm/firecracker) is the isolation reference for
+untrusted repair/evaluation code, with a separate microVM and explicit resource limits; it is not a
+one-VM-per-browser design. [Lightpanda](https://github.com/lightpanda-io/browser) is a low-memory,
+headless discovery experiment whose Web API and Playwright compatibility remains partial/WIP; it
+cannot perform a provider effect until a provider-specific read-only and official-readback suite
+passes. Browserless is a comparison reference for queue/timeout ideas, not a deployment choice under
+its SSPL/commercial licensing.
+
 ## 3. As-Is / To-Be
 
 | Concern | As-Is (measured) | To-Be contract |
@@ -185,6 +231,8 @@ session, scheduler, or provider system directly.
 | Capacity | Memory/load pressure can admit work; browser/ledger I/O has caused cross-owner stalls | Resource-class admission, durable deferral, per-owner leases, and host-pressure telemetry |
 | Wake | `runtime/loop/index.mjs` has finite wake/retry/sleep behavior, but context is still recent-ledger oriented | One wake contract with goal/context/effect/readback evidence and explicit next eligibility |
 | Context | `runtime/loop/context.mjs` passes bounded fields and the last 20 ledger lines | Hash-bound source capsules with freshness and artifact offload |
+| Browser | Visible Chromium and persistent owners consume host resources; browser choice is mixed across lanes | Headless Steel sessions with per-owner state, measured concurrency, timeout/cleanup, and same-session viewer handoff |
+| Deployment | Local browser processes compete with the user's Mac and are hard to scale | Local Steel service during migration; cloud Steel sessions behind the same CDP/provider contract |
 | Graph | Intent and calendar/context projections exist; no unified economic/effect dependency projection | Rebuildable cross-loop projection for planning and provenance; ledger/provider remain authoritative |
 | Eval | Domain-specific deterministic eval files exist | Shared case/run/score/gate schema plus held-out and live-evidence promotion gates |
 | Human loop | Mercor and marketplace gates exist in lane-specific work | Provider-neutral typed `human_gate` lifecycle and Telegram outbox idempotency |
@@ -238,6 +286,7 @@ provenance questions; it never substitutes for provider truth.
 | 14 | Agents SDK isolation | `test_sdk_worker_cannot_create_scheduler_or_authoritative_state` | OK: bounded evaluator/repair-only use |
 | 15 | No-babysitting supervisor | `test_issue_queue_recovers_or_escalates_without_manual_restart` | OK: retry budget, independent progress, typed escalation |
 | 16 | Agents API sandbox boundary | `test_agents_api_task_manifest_and_readonly_release` | OK: bounded subagents, no credentials/effects, hashed outputs |
+| 17 | Browser session mode and capacity | `test_browser_session_mode_capacity_and_handoff` | OK: headless default, session state, limits, viewer handoff, no duplicate session |
 
 All tests are deterministic fixtures or read-only contract checks. External marketplace acceptance
 remains a separate owner-scoped operation that requires the existing immutable-release,
@@ -269,6 +318,12 @@ official-readback, and replay-zero rules.
 - Do not give an Agents API hosted sandbox provider credentials, browser sessions, canonical write
   access, scheduler control, or direct marketplace-effect tools. Use it only with a read-only release
   and bounded fixtures in the maintenance pilot.
+- Do not equate headless mode, a virtual computer, or a remote browser with unlimited concurrency or
+  zero memory use. Every session needs a measured limit, timeout, cleanup, and durable owner.
+- Do not switch a provider's effect path to Lightpanda or a new browser service without read-only
+  compatibility, authentication persistence, official readback, and replay-zero acceptance.
+- Do not create a second browser session for a human handoff; attach the viewer to the existing leased
+  session and resume the same owner.
 
 ## 7. Execution Steps
 
@@ -301,6 +356,13 @@ official-readback, and replay-zero rules.
     task manifest, result/artifact hashes, no credential/effect access, and import only its recommendation.
 14. Run the no-babysitting supervisor fixture, then targeted immutable-release acceptance and update
     the active TODO only from official receipts.
+15. Implement the provider-neutral browser-session interface against Steel, preserving the current
+    CDP/Playwright adapter contract and explicit session ownership.
+16. Run headless compatibility and measured memory/concurrency acceptance for one read-only provider,
+    then one effectful provider with official readback and replay-zero; keep a headed/remote-view path
+    only for human gates and debugging.
+17. Use Firecracker only for untrusted repair/evaluation execution and run Lightpanda only as a
+    read-only discovery experiment; record the license and compatibility decision before any promotion.
 
 ## E2E Judgment
 

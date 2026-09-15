@@ -47,6 +47,10 @@ def test_reference_map_is_present_and_names_pinned_sources() -> None:
     assert "license" in text.lower()
     assert "openai/symphony" in text
     assert "UKGovernmentBEIS/inspect_ai" in text
+    assert "steel-dev/steel-browser" in text
+    assert "firecracker-microvm/firecracker" in text
+    assert "lightpanda-io/browser" in text
+    assert "browserless/browserless" in text
 
 
 def test_agents_instructions_route_new_agent_work_to_the_skill_set() -> None:
@@ -66,6 +70,8 @@ def test_agents_instructions_route_new_agent_work_to_the_skill_set() -> None:
         assert f"skills/{skill}/SKILL.md" in text, skill
     assert "before" in text.lower() and "wake" in text.lower()
     for token in ("Model execution boundary", "Responses API", "read-only release", "no provider"):
+        assert token in text, token
+    for token in ("Browser execution boundary", "headless", "Steel Browser", "human handoff"):
         assert token in text, token
 
 
@@ -123,3 +129,21 @@ def test_internal_first_reporting_is_part_of_the_runtime_skill_contract() -> Non
         assert token in skill, token
     for token in ("User-facing reporting", "routine wake", "human action", "raw logs"):
         assert token in agents, token
+
+
+def test_architecture_spec_covers_local_cloud_and_browser_execution_boundaries() -> None:
+    path = REPO_ROOT / "docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md"
+    text = path.read_text(encoding="utf-8")
+    for token in (
+        "Browser Execution and Deployment",
+        "Steel Browser",
+        "headless",
+        "virtual computer",
+        "local Mac",
+        "cloud",
+        "session memory",
+        "concurrency limit",
+        "Firecracker",
+        "Lightpanda",
+    ):
+        assert token in text, token

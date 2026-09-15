@@ -18,6 +18,18 @@ not a runtime or a substitute for reading the implementation repositories below.
 |---|---|---|---|---|
 | [ai-boost/awesome-harness-engineering](https://github.com/ai-boost/awesome-harness-engineering) | `692a1a681c464de22a5e9b947bd081808600b0b3` | CC0-1.0 | `awesome-harness-engineering` | master index and discovery map |
 
+Browser/runtime references are kept separate from the business-loop references. Steel is the
+selected browser-session abstraction; Firecracker is the isolation reference for untrusted code;
+Lightpanda is a compatibility-gated low-memory experiment; Browserless is a comparison only because
+its repository uses SSPL-1.0 or a commercial license.
+
+| Repository | Pinned commit | License | Local clone | Used for |
+|---|---|---|---|---|
+| [steel-dev/steel-browser](https://github.com/steel-dev/steel-browser) | `2b41124d8e2953b0afe355c534e3c9aa71edae26` | Apache-2.0 | `steel-browser` | headless/cloud sessions, CDP, state, cleanup, and session viewer |
+| [firecracker-microvm/firecracker](https://github.com/firecracker-microvm/firecracker) | `c5314e5dfc732db683115a02dee440ca06162a7c` | Apache-2.0 | `firecracker` | microVM isolation and per-task CPU/memory boundaries |
+| [lightpanda-io/browser](https://github.com/lightpanda-io/browser) | `baf45f03e918df28fa74af47a8313a3f5f5a8fff` | AGPL-3.0 | `lightpanda` | low-memory headless discovery experiment; no provider effects until compatibility passes |
+| [browserless/browserless](https://github.com/browserless/browserless) | `450ec681481a1ee7bce2a4e5fe7c2ce3f939a0d7` | SSPL-1.0 / commercial | `browserless` | concurrency, queue, timeout, and health reference only |
+
 | Repository | Pinned commit | License | Local clone | Used for |
 |---|---|---|---|---|
 | [openai/symphony](https://github.com/openai/symphony) | `e0ccc83720a42a600a53b61c5f8d3e518bebe1db` | Apache-2.0 | `openai-symphony` | harness, loop, workspaces, retries, observability |

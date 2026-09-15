@@ -119,6 +119,15 @@ evaluation/repair/architecture work using a read-only release and fixtures; they
 credentials, browser sessions, canonical write access, or direct effect tools. Store only result IDs,
 artifact hashes, and redacted traces in the private control room.
 
+## Browser execution boundary
+
+Use headless [Steel Browser](https://github.com/steel-dev/steel-browser) sessions for autonomous work
+by default, with a measured concurrency limit, wall-clock timeout, inactivity cleanup, and one owner
+per provider/account. Headless hides the window but does not remove browser memory use. A human handoff
+attaches a viewer to the existing leased session; it never creates a second session. Use virtual
+desktops only for that handoff/debug path, Firecracker for untrusted code, and Lightpanda only for a
+read-only compatibility experiment.
+
 ## Life Manager Cloud development
 - Use `docs/superpowers/specs/2026-08-28-life-manager-cloud-telegram-product-ux-design.md` §§0/8 for the current Cloud launch scope and ordered remaining TODO, `docs/superpowers/specs/2026-08-26-life-manager-cloud-on-time-core-design.md` for technical MUST/DO NOT, `docs/superpowers/plans/2026-08-28-life-manager-cloud-on-time-core-finish.md` for reusable implementation detail, and the matching `.superpowers/sdd/.../progress.md` for measured history. The 2026-09-05 owner scope supersedes old Active Orders and migration rulings; completed evidence is not discarded.
 - Owner scope (2026-09-05): ship the existing Cloud daily core; retain existing Stripe; no ElizaOS/Eliza Cloud/plugin migration and no Telegram Stars implementation task. Local operation and later loop migration belong to the separate local Codex workstream, not this launch checklist. Start with CLOUD-01 detailed travel/online notification UX.
