@@ -289,8 +289,9 @@ owner with a recorded terminal/recovery reason.
   `18180857` and `18211957` concurrently; no terminal official receipt has been recorded yet. Coconala
   Storefront was a stale 11-hour `--auto-cadence` owner and was replaced label-scoped; its next release must
   omit that inner cadence so launchd's 60-second interval owns repetition.
-- Apply and Reply are loaded-idle from `62716e99`; Paid is still running its previous `1d4bca43` wake and
-  Storefront is running one bounded pass from `62716e99`.
+- Apply and Reply are loaded-idle from `62716e99`; Storefront is running one bounded pass from `62716e99`.
+  The previous Paid wake on `1d4bca43` was stopped after its child workers became orphaned; no terminal
+  Coconala effect was accepted from that interrupted run.
   Other revenue owners can consume the finite host ceiling, so a PID or scheduler run is not a client effect.
 - Disk free is about `4.7 GiB` (98% used). Thirty-four closed Chromium APFS clones and one unreferenced release
   were removed through the allow-listed governor; one live clone remains. A transient `disk_headroom_low`
@@ -801,8 +802,10 @@ work item and leave a sibling trace unchanged.
   requirement is complete; reply monitoring, reply-rate analysis and the durable 24/7 owner restart proof
   remain open. The outer Chii loop remains paused until that next natural wake is explicitly verified. A one-off
   unintended test-text effect to `@gucci_fuufu` is recorded separately and is not counted.
-- [ ] Current Paid wake: provider children for Chii `18180857` and Ryu `18211957` are running concurrently
-  from release `1d4bca43`; their terminal receipts and official Coconala readbacks are still pending.
+- [ ] Resume Paid from `62716e99` with Chii's 300-row campaign marked complete (no new TikTok sends) and Ryu's
+  current `WORK_REQUIRED` digest as the only actionable client work. The interrupted run produced no terminal
+  Coconala receipt; its Chii candidate preflight was `effect=0`, `status=ready`, and no `@toshi_todaivlog` send
+  appears in the effect ledger.
 - [ ] Atsugi `18171850`: reconcile the newest post-delivery feedback, perform any required revision/reply once,
   and return to verified buyer-acceptance wait.
 - [ ] Re-run all five active work items and prove newest-buyer-digest coverage, official readback and replay-zero
