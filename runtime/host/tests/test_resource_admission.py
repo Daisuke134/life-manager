@@ -592,6 +592,57 @@ def test_revenue_floor_defers_while_legacy_owner_is_live(
     admission.release(claim)
 
 
+def test_revenue_floor_treats_legacy_reservation_as_migration_block(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="5")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "4")
+    admission.activate_durable_v2()
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        lease_until = time.time() + 3600
+        connection.execute(
+            "INSERT INTO priorities(owner_id,admission_class) VALUES(?,?)",
+            ("legacy-reservation", "borrow"),
+        )
+        connection.execute(
+            "INSERT INTO reservations(owner_id,resource_class,sequence,lease_until) "
+            "VALUES(?,?,?,?)",
+            ("legacy-reservation", "agent", 1, lease_until),
+        )
+
+    claim, reason = admission.try_acquire(
+        "agent", "revenue-after-legacy-reservation", retain_ticket=False,
+        admission_class="revenue")
+    assert claim is None and reason == "capacity_busy"
+
+
+def test_reserved_revenue_rechecks_legacy_owner_before_claim(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="5")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "4")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "revenue-reservation", admission_class="revenue")
+    assert admission.reserve_available(now=100, lease_seconds=30) == [
+        "revenue-reservation"
+    ]
+    admission.atomic_json(tmp_path / "owners" / "legacy.json", {
+        "version": 2, "pid": os.getpid(),
+        "process_start": admission.process_start(os.getpid()),
+        "owner_id": "legacy-owner", "resource_class": "agent",
+        "admission_class": "borrow",
+    })
+
+    claim, reason = admission.claim_durable(
+        "agent", "revenue-reservation", admission_class="revenue", now=101)
+    assert claim is None and reason == "capacity_busy"
+
+    (tmp_path / "owners" / "legacy.json").unlink()
+    claim, reason = admission.claim_durable(
+        "agent", "revenue-reservation", admission_class="revenue", now=102)
+    assert claim is not None and reason == "acquired"
+    admission.release(claim)
+
+
 def test_durable_reservation_fills_revenue_floor_around_one_borrower(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="5")

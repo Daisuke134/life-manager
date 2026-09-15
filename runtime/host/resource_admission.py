@@ -276,10 +276,16 @@ def _database(path: Path) -> sqlite3.Connection:
         );
         CREATE TABLE IF NOT EXISTS priorities (
             owner_id TEXT PRIMARY KEY,
-            admission_class TEXT NOT NULL CHECK(admission_class IN ('borrow','revenue'))
+            admission_class TEXT NOT NULL CHECK(admission_class IN ('borrow','revenue')),
+            admission_policy TEXT
         );
         PRAGMA user_version=2;
     """)
+    priority_columns = {
+        row[1] for row in connection.execute("PRAGMA table_info(priorities)")
+    }
+    if "admission_policy" not in priority_columns:
+        connection.execute("ALTER TABLE priorities ADD COLUMN admission_policy TEXT")
     return connection
 
 
@@ -319,8 +325,7 @@ def _uses_limited_capacity(row: dict[str, object], resource_class: str,
 
 def _legacy_owner_present(occupied: list[dict[str, object]]) -> bool:
     return any(
-        isinstance(row.get("pid"), int)
-        and row.get("admission_policy") != ADMISSION_POLICY
+        row.get("admission_policy") != ADMISSION_POLICY
         for row in occupied
     )
 
@@ -391,15 +396,16 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                     "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
                     (row["sequence"], row["owner_id"], row["resource_class"]))
                 connection.execute(
-                    "INSERT OR IGNORE INTO priorities(owner_id,admission_class) VALUES(?,?)",
-                    (row["owner_id"], row.get("admission_class", "borrow")))
+                    "INSERT OR IGNORE INTO priorities(owner_id,admission_class,admission_policy) VALUES(?,?,?)",
+                    (row["owner_id"], row.get("admission_class", "borrow"),
+                     row.get("admission_policy")))
             path.unlink(missing_ok=True)
     connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (now,))
     reserved = [dict(zip(("owner_id", "resource_class", "sequence", "lease_until",
-                          "admission_class"), row))
+                          "admission_class", "admission_policy"), row))
                 for row in connection.execute("""
                     SELECT r.owner_id,r.resource_class,r.sequence,r.lease_until,
-                           COALESCE(p.admission_class,'borrow')
+                           COALESCE(p.admission_class,'borrow'),p.admission_policy
                     FROM reservations r
                     LEFT JOIN priorities p ON p.owner_id=r.owner_id
                 """)]
@@ -448,8 +454,11 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
             connection.execute("INSERT OR IGNORE INTO queue(owner_id,resource_class) VALUES(?,?)",
                                (owner_id, resource_class))
             connection.execute(
-                "INSERT OR IGNORE INTO priorities(owner_id,admission_class) VALUES(?,?)",
-                (owner_id, admission_class))
+                "INSERT OR IGNORE INTO priorities(owner_id,admission_class,admission_policy) VALUES(?,?,?)",
+                (owner_id, admission_class, ADMISSION_POLICY))
+            connection.execute(
+                "UPDATE priorities SET admission_policy=? WHERE owner_id=?",
+                (ADMISSION_POLICY, owner_id))
             row = connection.execute("""
                 SELECT q.sequence,q.resource_class,p.admission_class
                 FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
@@ -515,8 +524,11 @@ def claim_durable(resource_class: str, owner_id: str, *,
             if any(item.get("owner_id") == owner_id for item in (
                     _row(path) or {} for path in owners.glob("*.json"))):
                 return None, "owner_busy"
-            if reserved and _capacity_overflow(
-                    occupied, resource_class, admission_class):
+            if reserved and (
+                    _capacity_overflow(occupied, resource_class, admission_class)
+                    or (admission_class == "revenue"
+                        and _revenue_floor(_limits(resource_class, admission_class)[0])
+                        and _legacy_owner_present(occupied))):
                 return None, "capacity_busy"
             if not reserved and (not available or _legacy_waiter_exists(
                     tickets, resource_class, starts, snapshot_started_ns)):
@@ -702,8 +714,9 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                     "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
                     (sequence, value["owner_id"], value["resource_class"]))
                 connection.execute(
-                    "INSERT OR IGNORE INTO priorities(owner_id,admission_class) VALUES(?,?)",
-                    (value["owner_id"], value.get("admission_class", "borrow")))
+                    "INSERT OR IGNORE INTO priorities(owner_id,admission_class,admission_policy) VALUES(?,?,?)",
+                    (value["owner_id"], value.get("admission_class", "borrow"),
+                     value.get("admission_policy")))
         claim.unlink()
         if not reserve:
             return []
@@ -765,9 +778,12 @@ def try_acquire(resource_class: str, owner_id: str, *,
                 connection.execute(
                     "DELETE FROM reservations WHERE lease_until <= ?", (time.time(),))
                 reserved_rows = [
-                    {"owner_id": row[0], "resource_class": row[1]}
+                    {"owner_id": row[0], "resource_class": row[1],
+                     "admission_policy": row[2]}
                     for row in connection.execute(
-                        "SELECT owner_id,resource_class FROM reservations")
+                        """SELECT r.owner_id,r.resource_class,p.admission_policy
+                           FROM reservations r
+                           LEFT JOIN priorities p ON p.owner_id=r.owner_id""")
                 ]
         occupied = owner_rows + reserved_rows
 
