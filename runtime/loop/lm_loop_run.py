@@ -409,7 +409,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 claim_durable_resource(
                     resource_class, loop_id, admission_class=admission_class)
                 if durable else try_acquire_resource(
-                    resource_class, loop_id, retain_ticket=False, required_protocol=1)
+                    resource_class, loop_id, admission_class=admission_class,
+                    retain_ticket=False, required_protocol=1)
             )
         except (OSError, RuntimeError):
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
