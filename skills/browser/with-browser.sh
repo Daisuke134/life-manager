@@ -58,7 +58,11 @@ release_once() {
 }
 trap release_once EXIT INT TERM HUP
 
-CDP="$CDP" "$@" &
+# The caller may inherit a launchd/static endpoint (for example the shared :9223
+# daily-driver).  The guard's resolved endpoint is authoritative for this identity;
+# pass it through both names so Python adapters cannot accidentally reconnect to the
+# inherited port, especially inside a sandbox that intentionally denies that port.
+CLOAK_CDP_BASE_URL="$CDP" CDP="$CDP" "$@" &
 child=$!
 wait "$child"
 status=$?
