@@ -457,7 +457,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(cutter_arg.read_text().strip(), captured_sha)
             self.assertEqual((root / "origin.sha").read_text().strip(), "c" * 40)
             reconciles = calls.read_text().splitlines()
-            self.assertEqual(len(reconciles), 2)
+            self.assertEqual(len(reconciles), 3)
             self.assertTrue(
                 all(line.startswith(f"{new_release.resolve()}|") for line in reconciles),
                 reconciles,
@@ -467,6 +467,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                 [
                     "reconcile shared-agent-runner --loaded-idle-only",
                     "reconcile deterministic --loaded-idle-only",
+                    "admission-v2-enable",
                 ],
             )
 
@@ -524,7 +525,7 @@ class CutLoopReleaseTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertFalse(cutter_called.exists())
-            self.assertEqual(len(calls.read_text().splitlines()), 2)
+            self.assertEqual(len(calls.read_text().splitlines()), 3)
 
 
 if __name__ == "__main__":
