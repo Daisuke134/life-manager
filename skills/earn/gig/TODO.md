@@ -46,9 +46,9 @@ runtime/provider readback before acting; conversation claims are not completion 
   superseded historical state, not another client-work project.
 - Paid now tries the existing Account 1 Codex profile first and falls back to Account 2 through the shared
   runner; the first bounded Account 1 receipt is proved. Preserve both accounts and all unrelated sessions.
-- First safe action: let Coconala Apply's next natural wake run from `427972bf` after its current revenue
-  reservation expires, prove the strict planner schema no longer returns HTTP 400, then reconcile the 54
-  uncertain intents against official applied history. Paid's current four-client set is closed by a natural
+- First safe action: fix Coconala's official applied-history collector so it extracts request IDs across the
+  complete pagination surface, then reconcile the 54 uncertain intents. The natural `427972bf` Apply wake
+  passed resource admission and planner execution without schema HTTP 400. Paid's current four-client set is closed by a natural
   `172d3f2e` replay-zero pass. Admission protocol `2` is live and one four-lane overlap is proved, but the
   24-hour/seven-day fairness and no-starvation gates remain open.
 
@@ -342,8 +342,11 @@ independent byte-for-byte readback, then Coconala received one later report with
 Paid wake at `2026-09-15T23:09:25Z` observed all four open rooms with `actionable=0`, `effect=0`, `readback=4`,
 `failed=0`, `pending=0` and terminal `pass`. Apply's planner schema defect (`required` incomplete, then unsupported
 `allOf`) is fixed by PR `#5262`, live Codex output-schema probe PASS, and immutable release
-`20260916T082615-427972bf` is loaded. Its first corrected natural wake stopped at
-`host_admission_deferred:resource_capacity_busy` before planner execution; the next natural wake is the cursor.
+`20260916T082615-427972bf` is loaded. Four idle CrowdWorks revenue labels were reconciled to the same protocol-2
+release, removing the observed mixed-release borrower gate. A later natural Apply wake passed, judged five
+new listings correctly as prohibited, and retained exactly 54 duplicate-fenced intents. The current official
+history reader renders the applied page but extracts zero request IDs and does not prove full pagination, so
+collector repair and 54-intent reconciliation are the cursor.
 Do not create another worktree, edit the Capify checkout, globally kill browsers/apps, or call a process receipt
 a provider effect.
 
@@ -908,9 +911,9 @@ work item and leave a sibling trace unchanged.
   seller message. Keep it settlement/payout-waiting and reopen only for a newer buyer event.
 - [x] Ryu and both Kokoro rooms have later official seller effects; Chii has its workbook effect. All four
   independently replayed zero in the natural Paid wake. Atsugi remains settlement-only unless reopened.
-- [ ] **Current cursor:** let the next natural Apply wake pass resource admission from `427972bf`, prove the
-  strict planner schema no longer returns HTTP 400, then reconcile all 54 uncertain application intents against
-  official applied history.
+- [ ] **Current cursor:** repair the official applied-history reader to extract exact request IDs across complete
+  pagination, then reconcile all 54 uncertain application intents. The natural `427972bf` wake already passes
+  admission and planner execution without schema HTTP 400.
 - [ ] Restore authenticated discovery for both `single:new` and `retainer:new`.
 - [ ] Submit every eligible high-fit one-off and continuous application; verify each officially; replay zero.
 - [ ] Create Calendar events and five-minute Telegram reminders for every accepted meeting.
