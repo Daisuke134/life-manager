@@ -16,6 +16,8 @@ from runtime.host import resource_admission as admission
 def isolated(tmp_path, monkeypatch, total="1"):
     monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path))
     monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", total)
+    # Unit tests below exercise raw slot semantics unless a floor is explicit.
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "0")
 
 
 def durable_rows(root, table):
@@ -514,6 +516,7 @@ def test_default_host_capacity_allows_five_revenue_workers(tmp_path, monkeypatch
     monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path))
     monkeypatch.delenv("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", raising=False)
     monkeypatch.delenv("LIFE_MANAGER_HOST_MAX_REVENUE_RUNS", raising=False)
+    monkeypatch.delenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", raising=False)
     claims = []
 
     for index in range(5):
@@ -530,6 +533,159 @@ def test_default_host_capacity_allows_five_revenue_workers(tmp_path, monkeypatch
     )
     assert blocked is None and reason == "capacity_busy"
     for claim in claims:
+        admission.release(claim)
+
+
+def test_revenue_floor_keeps_borrowers_from_consuming_reserved_headroom(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="5")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "4")
+    admission.activate_durable_v2()
+
+    borrow, reason = admission.try_acquire(
+        "agent", "maintenance-one", retain_ticket=False,
+        admission_class="borrow")
+    assert borrow is not None and reason == "acquired"
+    blocked_borrow, reason = admission.try_acquire(
+        "deterministic", "maintenance-two", retain_ticket=False,
+        admission_class="borrow")
+    assert blocked_borrow is None and reason == "capacity_busy"
+
+    revenue_claims = []
+    for index in range(4):
+        claim, reason = admission.try_acquire(
+            "agent", f"revenue-reserved-{index}", retain_ticket=False,
+            admission_class="revenue")
+        assert claim is not None and reason == "acquired"
+        revenue_claims.append(claim)
+    extra, reason = admission.try_acquire(
+        "agent", "revenue-over-hard-ceiling", retain_ticket=False,
+        admission_class="revenue")
+    assert extra is None and reason == "capacity_busy"
+
+    for claim in [borrow, *revenue_claims]:
+        admission.release(claim)
+
+
+def test_revenue_floor_defers_while_legacy_owner_is_live(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="5")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "4")
+    admission.activate_durable_v2()
+    admission.atomic_json(tmp_path / "owners" / "legacy.json", {
+        "version": 2, "pid": os.getpid(),
+        "process_start": admission.process_start(os.getpid()),
+        "owner_id": "legacy-owner", "resource_class": "agent",
+        "admission_class": "borrow",
+    })
+
+    claim, reason = admission.try_acquire(
+        "agent", "revenue-during-migration", retain_ticket=False,
+        admission_class="revenue")
+    assert claim is None and reason == "capacity_busy"
+
+    (tmp_path / "owners" / "legacy.json").unlink()
+    claim, reason = admission.try_acquire(
+        "agent", "revenue-after-migration", retain_ticket=False,
+        admission_class="revenue")
+    assert claim is not None and reason == "acquired"
+    admission.release(claim)
+
+
+def test_revenue_floor_treats_legacy_reservation_as_migration_block(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="5")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "4")
+    admission.activate_durable_v2()
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        lease_until = time.time() + 3600
+        connection.execute(
+            "INSERT INTO priorities(owner_id,admission_class) VALUES(?,?)",
+            ("legacy-reservation", "borrow"),
+        )
+        connection.execute(
+            "INSERT INTO reservations(owner_id,resource_class,sequence,lease_until) "
+            "VALUES(?,?,?,?)",
+            ("legacy-reservation", "agent", 1, lease_until),
+        )
+
+    claim, reason = admission.try_acquire(
+        "agent", "revenue-after-legacy-reservation", retain_ticket=False,
+        admission_class="revenue")
+    assert claim is None and reason == "capacity_busy"
+
+
+def test_existing_priorities_schema_migrates_policy_column(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    database = tmp_path / "admission-v2.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.executescript("""
+            CREATE TABLE priorities (
+                owner_id TEXT PRIMARY KEY,
+                admission_class TEXT NOT NULL
+            );
+        """)
+    connection = admission._database(database)
+    try:
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(priorities)")
+        }
+    finally:
+        connection.close()
+    assert "admission_policy" in columns
+
+
+def test_reserved_revenue_rechecks_legacy_owner_before_claim(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="5")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "4")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "revenue-reservation", admission_class="revenue")
+    assert admission.reserve_available(now=100, lease_seconds=30) == [
+        "revenue-reservation"
+    ]
+    admission.atomic_json(tmp_path / "owners" / "legacy.json", {
+        "version": 2, "pid": os.getpid(),
+        "process_start": admission.process_start(os.getpid()),
+        "owner_id": "legacy-owner", "resource_class": "agent",
+        "admission_class": "borrow",
+    })
+
+    claim, reason = admission.claim_durable(
+        "agent", "revenue-reservation", admission_class="revenue", now=101)
+    assert claim is None and reason == "capacity_busy"
+
+    (tmp_path / "owners" / "legacy.json").unlink()
+    claim, reason = admission.claim_durable(
+        "agent", "revenue-reservation", admission_class="revenue", now=102)
+    assert claim is not None and reason == "acquired"
+    admission.release(claim)
+
+
+def test_durable_reservation_fills_revenue_floor_around_one_borrower(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="5")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "4")
+    admission.activate_durable_v2()
+
+    admission.enqueue_durable("agent", "maintenance-one", admission_class="borrow")
+    borrow, reason = admission.claim_durable(
+        "agent", "maintenance-one", admission_class="borrow")
+    assert borrow is not None and reason == "acquired"
+    for index in range(4):
+        ticket, reason = admission.enqueue_durable(
+            "agent", f"revenue-floor-{index}", admission_class="revenue")
+        assert ticket is not None and reason in {"ready", "capacity_busy", "fifo_wait"}
+
+    assert admission.reserve_available(now=100, lease_seconds=30) == [
+        "revenue-floor-0", "revenue-floor-1", "revenue-floor-2", "revenue-floor-3"
+    ]
+    admission.release(borrow)
+    for index in range(4):
+        claim, reason = admission.claim_durable(
+            "agent", f"revenue-floor-{index}", admission_class="revenue", now=101)
+        assert claim is not None and reason == "acquired"
         admission.release(claim)
 
 
