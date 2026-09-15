@@ -31,6 +31,43 @@ target control plane is already implemented.
 `docs/agent-engineering-skills-20260915`のcommitへ記録します。テストgreenだけではprovider
 成功や収益を意味せず、公式receiptがない状態は未完了です。
 
+### Shared components and provider adapters
+
+現在の構成は、完全な共有でも完全な分離でもありません。共有kernelとprovider専用adapterの
+境界は次のように固定します。
+
+| 層 | 共有するもの | platformごとに変えるもの |
+|---|---|---|
+| 目標・wake | goal revision、owner、wake、retry、停止条件 | 仕事の目的と入力データ |
+| 資源 | resource admission、memory/disk pressure、queue、deferred state | provider/accountごとの上限値 |
+| model | agent-runner、Responses API、context capsule、tool-call schema | 使用するskillとJSON schema |
+| browser | owner lease、CDP health、headless、timeout、release | profile、CDP port、provider URL/DOM |
+| effect | effect key、attempt、official readback、replay-zero | 応募・返信・掲載・納品のprovider操作 |
+| 記録 | runtime event、graph、eval、内部control room | provider固有のreceipt parser |
+| 通知 | 共通outbox、dedupe、human gate | 人間が必要な時の文面・リンク |
+
+Lancersの現在の故障は、この境界が実装にも反映されていない例です。Apply/Reply/Storefront/
+Paidは同じhost admissionを使いますが、Lancersの4収益laneが`borrow`のままだったため、
+Coconala/Affiliateのownerがdeterministic枠を占有すると、Lancersはproviderへ到達する前に
+`resource_capacity_busy`になりました。ApplyはさらにLancers専用browser接続のretry cleanupと
+safety verifier timeoutを持っていませんでした。したがって、各laneを個別に再起動することが
+解決策ではなく、共有kernelの資源分類と、Lancers adapterの接続境界を順に直す必要があります。
+
+```mermaid
+flowchart TD
+  K[共有kernel\nqueue / admission / runner / browser lease / receipts] --> L[Lancers adapters\nApply / Reply / Storefront / Paid]
+  K --> C[Coconala adapters\nApply / Reply / Storefront / Paid]
+  K --> M[Mercor adapters]
+  L --> LR[Lancers公式receipt]
+  C --> CR[Coconala公式receipt]
+  M --> MR[Mercor公式receipt]
+  K --> G[graph / eval / internal report]
+```
+
+修正順序は、(1)共有kernelがownerを正しく分類・保留・再開する、(2)各provider adapterが同じ
+browser/effect/readback契約を使う、(3)公式receiptとreplay-zeroを受けてから次のlaneへ進む、
+とする。一つのproviderを直しただけで他のproviderが直ったとは扱わない。
+
 ## 1. Overview (What & Why)
 
 Life Manager presents fourteen user-facing Product Loops, while
