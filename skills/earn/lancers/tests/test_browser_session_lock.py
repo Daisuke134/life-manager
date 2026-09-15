@@ -50,5 +50,6 @@ def test_page_close_releases_the_browser_session_lease(tmp_path):
             return None
 
     assert module._close_owned_page(Page()) is True
+    module._stop_playwright_runtime(runtime)
     released = module._acquire_browser_session_lock(timeout_seconds=0.01)
     released.release()
