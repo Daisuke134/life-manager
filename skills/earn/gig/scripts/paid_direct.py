@@ -12,6 +12,7 @@ HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path: sys.path.insert(0, str(HERE))
 import delivery_project  # noqa: E402
 import delivery_queue  # noqa: E402
+import coconala_queue_snapshot  # noqa: E402
 import effect_checkpoint  # noqa: E402
 import paid_admission  # noqa: E402
 import paid_work_evidence  # noqa: E402
@@ -445,31 +446,7 @@ def _buyer_attachment_recovery_pending(root: Path) -> bool:
         rows = []
     except (OSError, TypeError, ValueError, json.JSONDecodeError):
         return True
-    talkroom_dir = root / "source" / "buyer-attachments"
     dm_attachment_dir = root / "source" / "dm" / "attachments"
-
-    def verified_by_name(filename: str, directory: Path) -> bool:
-        digests: set[str] = set()
-        suffix = f"-{filename}"
-        if directory.is_symlink():
-            return False
-        try:
-            candidates = list(directory.iterdir())
-        except OSError:
-            return False
-        for raw in candidates:
-            if raw.is_symlink() or not _regular_file(raw) or not raw.name.endswith(suffix):
-                continue
-            prefix = raw.name[:-len(suffix)]
-            if not re.fullmatch(r"[0-9a-f]{12}", prefix):
-                continue
-            try:
-                digest = _file_snapshot(raw)[1]
-            except (OSError, ValueError):
-                continue
-            if digest.startswith(prefix):
-                digests.add(digest)
-        return len(digests) == 1
 
     attachments_by_reference: dict[str, str] = {}
     for row in rows:
@@ -490,8 +467,10 @@ def _buyer_attachment_recovery_pending(root: Path) -> bool:
         filename: sum(1 for _, candidate in talkroom_attachments if candidate == filename)
         for _, filename in talkroom_attachments
     }
-    if any(talkroom_name_counts[filename] != 1 or not verified_by_name(filename, talkroom_dir)
-           for _, filename in talkroom_attachments):
+    if any(coconala_queue_snapshot.recover_captured_attachment(
+            root, filename, reference=reference,
+            allow_filename_fallback=talkroom_name_counts[filename] == 1,
+    ) is None for reference, filename in talkroom_attachments):
         return True
 
     dm_dir = root / "source" / "dm"
