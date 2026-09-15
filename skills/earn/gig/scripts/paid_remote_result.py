@@ -78,6 +78,10 @@ def _verifier_evidence_values(result):
     alias = result.get("verifier_evidence")
     if not values and isinstance(alias, str) and alias.strip():
         values = [alias]
+    if not values and isinstance(alias, dict):
+        readback_source = alias.get("readback_source")
+        if isinstance(readback_source, str) and readback_source.strip():
+            values = [readback_source]
     if not values and isinstance(alias, list):
         values = [value for value in alias if isinstance(value, str) and value.strip()]
     if not values and isinstance(result.get("evidence"), list):
