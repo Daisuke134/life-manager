@@ -46,10 +46,11 @@ runtime/provider readback before acting; conversation claims are not completion 
   superseded historical state, not another client-work project.
 - Paid now tries the existing Account 1 Codex profile first and falls back to Account 2 through the shared
   runner; the first bounded Account 1 receipt is proved. Preserve both accounts and all unrelated sessions.
-- First safe action: continue Coconala Apply by reconciling the 54 uncertain intents against official applied
-  history, then restore authenticated one-off and retainer discovery. Paid's current four-client set is closed
-  by a natural `172d3f2e` replay-zero pass. Admission protocol `2` is live and one four-lane overlap is proved,
-  but the 24-hour/seven-day fairness and no-starvation gates remain open.
+- First safe action: let Coconala Apply's next natural wake run from `427972bf` after its current revenue
+  reservation expires, prove the strict planner schema no longer returns HTTP 400, then reconcile the 54
+  uncertain intents against official applied history. Paid's current four-client set is closed by a natural
+  `172d3f2e` replay-zero pass. Admission protocol `2` is live and one four-lane overlap is proved, but the
+  24-hour/seven-day fairness and no-starvation gates remain open.
 
 ## Outcome
 
@@ -66,7 +67,7 @@ that the provider currently has an authenticated account, a verified external ef
 
 | Platform | As-Is now | To-Be finish condition |
 |---|---|---|
-| Coconala | Paid is exact-loaded from `172d3f2e`; the other three lanes retain `0aba1191`. One overlap ran all four as revenue owners. Reply's latest natural pass observed 179 threads with 164 official readbacks and 15 pending. Ryu, Chii, both Kokoro rooms and Atsugi have later seller/terminal evidence; the current Paid wake is independently re-evaluating Kokoro `18250352`. Apply, Storefront and payout proof remain open. | Every active client has its own durable work item, newest-buyer coverage, provider effect/readback, replay-zero and payout attribution; one client's failure never pauses another lane. |
+| Coconala | Paid is exact-loaded from `172d3f2e`; Apply is exact-loaded from `427972bf`; Reply and Storefront retain `0aba1191`. Paid naturally replayed all four open clients with effect zero/readback four. Reply's latest natural pass observed 179 threads with 164 official readbacks and 15 pending. Apply's invalid OpenAI response schema is fixed and live-probed, but its first corrected wake stopped at resource admission before planner execution. Apply, Storefront, Reply pending items and payout proof remain open. | Every active client has its own durable work item, newest-buyer coverage, provider effect/readback, replay-zero and payout attribution; one client's failure never pauses another lane. |
 | Lancers | Application, browser, negotiation, paid, storefront, work-sync and report owners are registered. Production fixes exist in main, but durable login and the full Apply→Paid→payout proof are not closed. | One persistent account/browser owner runs the complete lifecycle with official proposal, work, payment and payout receipts. |
 | CrowdWorks | Application, Reply, Paid and Report owners are registered. Existing contracts still need fulfillment from buyer instruction/link through actual submission and readback. | Each accepted contract becomes an independent fulfillment item and reaches artifact submission, official receipt, payout and replay-zero; Storefront is explicitly `not_applicable` unless the provider exposes it. |
 | Mercor | Application, Reply and Paid owners are registered, but repeated-login/authentication and full contract proof remain open. | Persistent authenticated account state, application, reply/interview handoff, contract, paid work and payout are independently evidenced. |
@@ -339,7 +340,10 @@ buyer event is now covered by one later ordinary seller message, exact official 
 fence. Kokoro `18250352` also completed its newer email request: Gmail SENT and all 11 attachments passed
 independent byte-for-byte readback, then Coconala received one later report with formal delivery OFF. A natural
 Paid wake at `2026-09-15T23:09:25Z` observed all four open rooms with `actionable=0`, `effect=0`, `readback=4`,
-`failed=0`, `pending=0` and terminal `pass`; Coconala Apply is now the cursor.
+`failed=0`, `pending=0` and terminal `pass`. Apply's planner schema defect (`required` incomplete, then unsupported
+`allOf`) is fixed by PR `#5262`, live Codex output-schema probe PASS, and immutable release
+`20260916T082615-427972bf` is loaded. Its first corrected natural wake stopped at
+`host_admission_deferred:resource_capacity_busy` before planner execution; the next natural wake is the cursor.
 Do not create another worktree, edit the Capify checkout, globally kill browsers/apps, or call a process receipt
 a provider effect.
 
@@ -517,7 +521,7 @@ claim. One buyer may own multiple independent contracts.
 
 | Buyer | Talkroom | Retained official state | Current unresolved condition |
 |---|---:|---|---|
-| Ryu0820119 | `18211957` | `取引中`; correction report sent, formal delivery OFF | Buyer-waiting. The latest `デモになってます。` digest is covered by a later seller message, exact talkroom readback and standard external-handoff replay fence. |
+| Ryu0820119 | `18211957` | `取引中`; correction report sent, formal delivery OFF | Buyer-waiting. The latest `デモになってます。` digest is covered by a later seller message and replay fence. A fresh rendered browser check also proves HOME-first admin navigation, public-order item navigation, per-cast editable records, HOME/top entry and no public diary/review sections. |
 | こころ支援 NPO法人まくとぅー | `18223833` | `取引中` | Independent v4 seller artifact is later than the retained buyer input. Buyer-waiting; replay zero unless a newer buyer event appears. Never ask again for retained files. |
 | こころ支援 NPO法人まくとぅー | `18250352` | `取引中`; email effect and Coconala report completed, formal delivery OFF | Gmail SENT readback proves 11 buyer-source attachments, the independent verifier downloaded and byte-matched all 11, and the later Coconala seller message matches the current buyer digest. Replay-zero passes for the same digest. |
 | Chii【CK protect】 | `18180857` | `取引中`; 300-row workbook sent, formal delivery OFF | Buyer-waiting. Do not resend any recipient or completion message; reopen only for a newer buyer event. |
@@ -904,7 +908,9 @@ work item and leave a sibling trace unchanged.
   seller message. Keep it settlement/payout-waiting and reopen only for a newer buyer event.
 - [x] Ryu and both Kokoro rooms have later official seller effects; Chii has its workbook effect. All four
   independently replayed zero in the natural Paid wake. Atsugi remains settlement-only unless reopened.
-- [ ] **Current cursor:** reconcile all 54 uncertain application intents against official applied history.
+- [ ] **Current cursor:** let the next natural Apply wake pass resource admission from `427972bf`, prove the
+  strict planner schema no longer returns HTTP 400, then reconcile all 54 uncertain application intents against
+  official applied history.
 - [ ] Restore authenticated discovery for both `single:new` and `retainer:new`.
 - [ ] Submit every eligible high-fit one-off and continuous application; verify each officially; replay zero.
 - [ ] Create Calendar events and five-minute Telegram reminders for every accepted meeting.
