@@ -102,3 +102,56 @@ def test_pre_send_failure_releases_the_same_sqlite_event_for_replay(tmp_path):
     assert replay["delivery"] == "delivered"
     assert replay["provider_message_id"] == "provider-2"
     assert calls == [arguments["message"], arguments["message"]]
+
+
+def test_routine_events_never_enter_the_existing_outbox(tmp_path):
+    notification = load("test_effect_notification_internal_first", "effect_notification.py")
+    calls = []
+
+    def sender(message):
+        calls.append(message)
+        return load("test_effect_delivery_internal_first", "telegram_delivery.py").SendResult(
+            True, "unexpected", None
+        )
+
+    for index in range(100):
+        result = notification.notify_effect(
+            database=tmp_path / "outbox.sqlite3",
+            event_key=f"routine:wake:{index}",
+            message="routine wake",
+            observed_at="2026-09-15T05:00:00Z",
+            chat_id="123",
+            env_file=tmp_path / "telegram.env",
+            sender=sender,
+            event_kind="wake_completed",
+        )
+        assert result["delivery"] == "internal_only"
+        assert result["attempted"] == 0
+
+    assert calls == []
+    assert not (tmp_path / "outbox.sqlite3").exists()
+
+
+def test_material_event_still_uses_the_existing_receipt_outbox(tmp_path):
+    notification = load("test_effect_notification_material", "effect_notification.py")
+    delivery = load("test_effect_delivery_material", "telegram_delivery.py")
+    calls = []
+
+    def sender(message):
+        calls.append(message)
+        return delivery.SendResult(True, "provider-material", None)
+
+    result = notification.notify_effect(
+        database=tmp_path / "outbox.sqlite3",
+        event_key="material:outcome:1",
+        message="verified outcome",
+        observed_at="2026-09-15T05:00:00Z",
+        chat_id="123",
+        env_file=tmp_path / "telegram.env",
+        sender=sender,
+        event_kind="material_outcome",
+    )
+
+    assert result["delivery"] == "delivered"
+    assert result["provider_message_id"] == "provider-material"
+    assert calls == ["verified outcome"]

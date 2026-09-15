@@ -10,6 +10,31 @@ from typing import Any, Callable, Optional
 
 HERE = Path(__file__).resolve().parent
 
+USER_VISIBLE_EVENT_KINDS = frozenset({
+    "human_action_required",
+    "urgent_safety",
+    "material_outcome",
+    "persistent_blocker",
+})
+ROUTINE_EVENT_KINDS = frozenset({
+    "wake_completed",
+    "retry_scheduled",
+    "health_check",
+    "evaluation_finished",
+})
+
+
+def decide_notification(event_kind: object) -> dict[str, str]:
+    """Return the user-visibility decision without touching storage or a sender."""
+    normalized = event_kind.strip() if isinstance(event_kind, str) else "unknown"
+    if normalized in USER_VISIBLE_EVENT_KINDS:
+        return {"event_kind": normalized, "visibility": "user_visible", "reason": normalized}
+    return {
+        "event_kind": normalized or "unknown",
+        "visibility": "internal_only",
+        "reason": "routine" if normalized in ROUTINE_EVENT_KINDS else "unknown_event_kind",
+    }
+
 
 def _load(name: str, path: Path) -> Any:
     if name in sys.modules:
@@ -33,12 +58,25 @@ def notify_effect(
     env_file: Path,
     sender: Optional[Callable[[str], Any]] = None,
     repeat_after_seconds: Optional[float] = 3600,
+    event_kind: str = "material_outcome",
 ) -> dict[str, Any]:
     """Enqueue, deliver and return the durable provider receipt for one effect.
 
     Event identity and wording belong to the calling lane. Claiming, at-most-once
     delivery, receipt persistence and retry state are shared by every provider.
     """
+    decision = decide_notification(event_kind)
+    if decision["visibility"] != "user_visible":
+        return {
+            "event_key": event_key,
+            "delivery": "internal_only",
+            "provider_message_id": None,
+            "attempted": 0,
+            "delivered": 0,
+            "delivery_uncertain": 0,
+            "pre_send_failed": 0,
+            "notification_reason": decision["reason"],
+        }
     outbox = _load("marketplace_effect_outbox", HERE / "telegram_outbox.py")
     delivery = _load("marketplace_effect_delivery", HERE / "telegram_delivery.py")
     try:

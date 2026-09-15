@@ -29,7 +29,7 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `FND-06`.
+TODO worktree. The current cursor is `FND-07`.
 
 ### Atomic execution log
 
@@ -73,6 +73,12 @@ TODO worktree. The current cursor is `FND-06`.
   `material_outcome`, and `persistent_blocker` return `user_visible`; unknown kinds fail closed.
   Focused proof: `node --test apps/life-manager/lib/notification-policy.test.js` (3 passed).
   No Telegram sender or existing outbox was changed. Next active ID: `FND-06`.
+- [x] `FND-06` — Applied the notification decision at the existing shared marketplace outbox via
+  `skills/_shared/marketplace-core/scripts/effect_notification.py`. Routine event kinds short-circuit
+  before database creation or sender invocation; user-visible kinds retain the receipt-backed delivery
+  path. Focused proof sent 100 routine events with zero outbox/sender calls, delivered one material
+  event, and the shared marketplace suite passed 259 tests. No live Telegram send was performed.
+  Next active ID: `FND-07`.
 
 ## FND research gate (search complete; FND-02 implemented)
 
@@ -98,7 +104,7 @@ target control plane is implemented.
 
 **Alignment checkpoint:** the search phase is complete and `FND-02` through `FND-05` now have
 focused contracts. No launchd, browser/account, ledger, or provider effect was changed. The next
-atomic change is `FND-06`'s existing-outbox wiring; it begins with a focused failing test.
+atomic change is `FND-07`'s host/browser metrics contract; it begins with a focused failing test.
 
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
 |---|---|---|---|
