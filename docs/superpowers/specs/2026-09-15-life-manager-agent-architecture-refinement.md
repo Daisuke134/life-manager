@@ -64,7 +64,7 @@ proposal読取fallbackを追加し、PR #5242でPaidの後処理にもbounded cl
 e789のApplication自然wakeで公式proposal receipt（ledger sequence 148、149）を2件確認済みです。
 一方、protocol v2は未有効（`protocol.json` absent）で、`admission-v2-enable`は未loadの
 `article-resume`をloaded argv非対応と誤判定して停止しました。インストール済みplistはv2対応です。
-この判定を修正するbranch `fix/admission-v2-unloaded-capable-plists`（最新commit `daedcf80dc`、
+この判定を修正するbranch `fix/admission-v2-unloaded-capable-plists`（最新commit `28f69edb07`、
 204 tests + 130 subtests PASS）がpush済みです。未load plistの検証に加え、release reconcilerが
 protocol未作成時に自動でv2有効化を試みますが、main由来releaseへ未反映です。
 また、`lm-loop doctor`はregistry外の稼働中label
@@ -90,7 +90,7 @@ protocol未作成時に自動でv2有効化を試みますが、main由来releas
 | 7 | `PROD-01-G` proposal確認遷移の残故障を1件で再現・修正 | Lancers provider adapterと回帰テスト | **完了**: 現行DOM fallback（PR #5241）をe789で実行し、proposal 27922413/27921564の公式readbackをledgerへ記録 |
 | 8 | `PROD-01-H` Lancers全7 ownerのrelease driftを解消 | Lancers ownerだけ | **完了**: 7 ownerのplist・loaded programがe789で一致。Browserは9227でlisten、install eventも各ownerに記録 |
 | 9 | `BROWSER-03` Lancers応募canaryを1件だけ実行 | provider effect owner | **Application部分PASS**: proposal 27922413/27921564、ledger sequence 148/149、重複0。残りeffect laneのcanaryは未完 |
-| 10 | `ADMISSION-01` 未load v2対応plistを許容する修正をmain由来releaseへ反映し、protocol v2を有効化 | shared runtime + installed finite owners | branch `daedcf80dc`をmain由来immutable releaseへ反映→`protocol.json` version 2→revenue queue/reservation readback。reconciler自動復旧もterminalで確認 |
+| 10 | `ADMISSION-01` 未load v2対応plistを許容する修正をmain由来releaseへ反映し、protocol v2を有効化 | shared runtime + installed finite owners | branch `28f69edb07`をmain由来immutable releaseへ反映→`protocol.json` version 2→revenue queue/reservation readback。reconciler自動復旧もterminalで確認 |
 | 11 | `PROD-02` Lancers Negotiate/Storefront/Paidを個別に閉じる | 各provider adapter | laneごとの公式receiptまたは明示的not-applicable、重複0 |
 | 12 | `MARKET-02` CrowdWorksを同じshared kernelで検証 | CrowdWorks adapter/owner | 応募・契約の公式receiptまたはtruthful not-applicable |
 | 13 | `MARKET-03` Mercorをhuman gate付きで検証 | Mercor adapter/owner | typed gate再開、公式application/contract/payment receipt |
