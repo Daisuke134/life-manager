@@ -289,9 +289,9 @@ terminal/recovery reason.
   a terminal Coconala effect: Chii was blocked by a stale target-owner/browser endpoint and Ryu was stopped
   before its Coconala message. Storefront's inner cadence fix is in main, but its first `--effect` pass was
   stopped after seven hours; its next wake must be a bounded terminal pass.
-- Apply and Reply remain on the previous loaded-idle/current release until a natural idle reconcile; Paid is
-  unloaded and its plist is still installed from `e44798c7` until PR `#5250` is integrated. Storefront is
-  unloaded and its plist is installed from `437b5696` after the stuck pass. The
+- Apply is still running from `62716e99` and is intentionally not reloaded. Reply is idle and Paid is unloaded;
+  both plists are now installed from `437b5696`. Storefront is unloaded and its plist is installed from
+  `437b5696` after the stuck pass. The
   browser owner fix (`with-browser.sh` passes the guard-resolved CDP URL as `CLOAK_CDP_BASE_URL`) is PR
   `#5250`; without it the Paid owner sandbox reconnects to forbidden static `:9223` and fails closed.
   Other revenue owners can consume the finite host ceiling, so a PID or scheduler run is not a client effect.
