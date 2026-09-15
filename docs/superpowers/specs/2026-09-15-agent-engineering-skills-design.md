@@ -8,6 +8,10 @@ improve without a human restarting each step.
 Keep source repositories as durable, shallow/sparse clones outside Git, and record pinned commits,
 licenses, source paths, and Life Manager mappings in `docs/agent-engineering/REFERENCE-REPOS.md`.
 
+The skills route through the pinned [Awesome Harness Engineering](https://github.com/ai-boost/awesome-harness-engineering)
+master catalog at commit `692a1a681c464de22a5e9b947bd081808600b0b3`; each skill names its relevant
+catalog chapters and instructs the agent to load only the needed chapter and source notes.
+
 **Non-goals:** Do not rewrite the Coconala TODO, change a production loop, add a graph database,
 replace the current runtime, or claim autonomous self-improvement from process liveness. The other
 Codex owns the Coconala-to-meta-loop worktree and `skills/earn/gig/TODO.md` remains read-only here.
@@ -51,6 +55,7 @@ functions rather than copying upstream implementations, preserving license and u
 | Eval | `UKGovernmentBEIS/inspect_ai`, `stanfordnlp/dspy`, `openai/simple-evals` (reference only; deprecated) | Task/solver/scorer logs, held-out experiments, prompt optimization, reproducible baselines |
 | Observability | `Arize-ai/phoenix`, Symphony logging/status, existing health and effect ledgers | OpenTelemetry spans, datasets/experiments, structured receipts, privacy-aware runtime health |
 | Goal | `Conway-Research/automaton`, `NousResearch/hermes-agent-self-evolution`, Symphony workflow states | Durable goal lifecycle, constitution/stop boundaries, skill evolution, no-human continuation |
+| Master index | `ai-boost/awesome-harness-engineering` | Cross-topic discovery map for harness, context, loop, graph-adjacent state, eval, observability, and human-in-the-loop references |
 
 The clones live at `/Users/anicca/Projects/life-manager-agent-engineering-references/` and are not
 runtime dependencies. A clean machine can use the recorded upstream URL and commit instead.

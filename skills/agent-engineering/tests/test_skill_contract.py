@@ -65,3 +65,21 @@ def test_agents_instructions_route_new_agent_work_to_the_skill_set() -> None:
     ):
         assert f"skills/{skill}/SKILL.md" in text, skill
     assert "before" in text.lower() and "wake" in text.lower()
+
+
+def test_architecture_refinement_spec_covers_the_control_plane_gaps() -> None:
+    path = REPO_ROOT / "docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md"
+    text = path.read_text(encoding="utf-8")
+    for section in (
+        "## 1. Overview",
+        "## 2. Acceptance Criteria",
+        "## 3. As-Is / To-Be",
+        "## 4. Target Architecture",
+        "## 5. Test Matrix",
+        "## 6. Boundaries",
+        "## 7. Execution Steps",
+        "## E2E Judgment",
+    ):
+        assert section in text, section
+    for token in ("165", "resource_admission_deferred", "human_gate_id", "held-out", "replay-zero"):
+        assert token in text, token

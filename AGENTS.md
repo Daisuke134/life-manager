@@ -84,6 +84,9 @@ the exact pinned implementation named by that skill's `references/source-notes.m
 whole catalog or all skills into every prompt; load the primary skill plus only the cross-cutting
 skills required by the current decision.
 
+The architecture refinement SSOT is
+`docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md`.
+
 | Concern | Skill to load |
 |---|---|
 | Runtime, tools, ownership, recovery | `skills/harness-engineering/SKILL.md` |
