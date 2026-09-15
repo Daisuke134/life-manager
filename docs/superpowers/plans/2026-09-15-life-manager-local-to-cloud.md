@@ -29,7 +29,7 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `GRAPH-01`.
+TODO worktree. The current cursor is `GRAPH-02`.
 
 ### Atomic execution log
 
@@ -140,6 +140,12 @@ TODO worktree. The current cursor is `GRAPH-01`.
   owner was `loaded-running`. This changed launchd configuration only and performed no provider
   effect, browser action, or Telegram send. Next active action is the same targeted reconcile when
   Lancers reaches a natural loaded-idle state; `GRAPH-01` remains the architecture cursor.
+- [x] `ALIGN-06` — Re-read the current immutable release `5a9fdfb48ffe6c5e8bd776934c1bfdc7765f8b41`.
+  The deterministic Lancers target was safely skipped because its owner was still `loaded-running`;
+  the shared-agent Mercor target was loaded with the exact current argv and install receipt
+  `92be874e25ceafd0ee433bf3`. Coconala remained untouched because it was running on `a5da9dca`.
+  No provider effect, browser action, ledger write, or Telegram send was performed. The release
+  alignment is therefore partial until Lancers reaches natural idle.
 - [x] `RESOURCE-01` — Reused the existing `runtime/host/disk_admission.py` with an explicit required
   byte floor and connected it to `runtime/loop/lm_loop_run.py`. The default six-GiB floor
   defers a queued owner before its child starts, records bounded free/threshold bytes, and preserves
@@ -147,6 +153,13 @@ TODO worktree. The current cursor is `GRAPH-01`.
   was motivated by a measured Coconala `ENOSPC` after current-release sync, and it changes no browser,
   provider, launchd, or Telegram state by itself. Focused proof: runner suite (34 passed), memory
   admission suite (7 passed), and the disk-deferral fixture. Next active ID remains `GRAPH-01`.
+- [x] `GRAPH-01` — Added the pure read-only graph schema in
+  `apps/life-manager/lib/agent-graph.js`. It fixes the nine node kinds, seven edge predicates, and
+  five-field provenance record (source fact, authority, observed time, confidence, content hash),
+  rejects unknown keys/predicates, duplicate or dangling IDs, and cross-tenant joins, and returns a
+  frozen projection with no effect-authority or credential fields. Focused proof: the initial RED
+  import failure followed by `node --test apps/life-manager/lib/agent-graph.test.js` (5 passed).
+  No provider, browser, launchd, ledger, or Telegram effect was performed. Next active ID: `GRAPH-02`.
 
 ### Current production blocker snapshot (read-only)
 
