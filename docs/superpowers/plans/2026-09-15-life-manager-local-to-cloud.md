@@ -265,6 +265,9 @@ fixes on top (`177748f3ab`, `8cb5ad4830`). Its focused suites pass (Lancers 36 p
 runner 2 passed). A subsequent read-only launchd check showed Lancers naturally `not running` but
 still pinned to old `e8e8a2b2`; no release sync or provider effect was performed. The next safe
 action is to consume the candidate through the main/release owner, then run the one-canary proof.
+An immutable `git archive` of `8cb5ad4830` was also unpacked into a temporary release directory; the
+same Lancers and runner suites passed from the unpacked tree, confirming the caller fix is present
+in the artifact that would be deployed.
 
 ## FND research gate (search complete; FND-02 implemented)
 
