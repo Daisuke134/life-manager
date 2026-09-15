@@ -9,10 +9,12 @@ import unittest
 from unittest import mock
 from pathlib import Path
 
+import runtime.loop.lm_loop_run as lm_loop_run
 from runtime.loop.loop_cleanup import cleanup_run_root, gc_releases
-from runtime.loop.lm_loop_run import prepare_loop_run
+from runtime.loop.lm_loop_run import build_loop_command
 from runtime.loop.runtime_event import validate_runtime_event
-from runtime.loop.central_cleanup import loaded_release_roots, open_release_roots, release_gc
+from runtime.loop.central_cleanup import installed_state_roots, loaded_release_roots
+from runtime.loop.central_cleanup import open_release_roots, release_gc, scratch_gc
 from runtime.loop.central_cleanup import host_cleanup_command, host_cleanup_ok
 
 
@@ -94,46 +96,350 @@ class LoopCleanupTest(unittest.TestCase):
             self.assertFalse(stale.exists())
             self.assertEqual(result["errors"], 0)
 
-    def test_loop_run_cleans_only_its_root_then_returns_exact_release_argv(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root=Path(directory); entry=root/'bin/job.sh'; entry.parent.mkdir(); entry.write_text('#!/bin/sh\n'); entry.chmod(0o755)
-            state=root/'home/state'; completed(state,'old',128)
-            registry={"schema_version":2,"loops":{"job":{
-                "label":"ai.anicca.job","domain":"system","entrypoint":"bin/job.sh",
-                "cadence":{"run_at_load":True},"effect_class":"none",
-                "state_root":"~/state","log_root":"~/state/logs",
-                "cleanup":{"max_runs":1,"max_age_days":1},"provider_route":"deterministic"}}}
-            with mock.patch.dict(os.environ,{"HOME":str(root/'home')}):
-                argv,receipt=prepare_loop_run(registry,"job",root,active_run_ids=set(),now=time.time()+172800)
-            self.assertEqual(argv,[str(entry.resolve())])
-            self.assertFalse((state/'runs/old').exists())
-            self.assertGreaterEqual(receipt['reclaimed_bytes'],128)
-
-    def test_loop_run_cleanup_uses_installed_runtime_root_override(self):
+    def test_business_wake_builds_command_without_scanning_run_tree(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            entry = root / 'bin/job.sh'
+            entry = root / "bin/job.sh"
             entry.parent.mkdir()
-            entry.write_text('#!/bin/sh\n')
+            entry.write_text("#!/bin/sh\n")
             entry.chmod(0o755)
-            home = root / 'home'
-            default_state = home / 'default-state'
-            custom_state = root / 'custom-state'
-            custom_log = root / 'custom-log'
-            completed(default_state, 'must-stay', 16)
-            completed(custom_state, 'remove', 16)
-            registry = {"schema_version": 2, "loops": {"job": {
+            value = {"schema_version": 2, "loops": {"job": {
                 "label": "ai.anicca.job", "domain": "system", "entrypoint": "bin/job.sh",
                 "cadence": {"run_at_load": True}, "effect_class": "none",
-                "state_root": "~/default-state", "log_root": "~/default-state/logs",
+                "state_root": "~/state", "log_root": "~/state/logs",
                 "cleanup": {"max_runs": 1, "max_age_days": 1},
                 "provider_route": "deterministic"}}}
-            with mock.patch.dict(os.environ, {"HOME": str(home)}):
-                prepare_loop_run(
-                    registry, "job", root, active_run_ids=set(), now=time.time() + 172800,
-                    state_root=str(custom_state), log_root=str(custom_log))
-            self.assertTrue((default_state / 'runs/must-stay').exists())
-            self.assertFalse((custom_state / 'runs/remove').exists())
+            with mock.patch("runtime.loop.loop_cleanup.cleanup_run_root",
+                            side_effect=AssertionError("wake-path cleanup")):
+                self.assertEqual(build_loop_command(value, "job", root), [str(entry.resolve())])
+
+    def test_business_wake_reaches_admission_without_run_tree_cleanup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            entry = root / "bin/job.sh"
+            entry.parent.mkdir()
+            entry.write_text("#!/bin/sh\n")
+            entry.chmod(0o755)
+            home = root / "home"
+            home.mkdir()
+            value = {"schema_version": 2, "loops": {"job": {
+                "label": "ai.anicca.job", "domain": "system", "entrypoint": "bin/job.sh",
+                "cadence": {"run_at_load": True}, "effect_class": "none",
+                "state_root": "~/state", "log_root": "~/state/logs",
+                "cleanup": {"max_runs": 1, "max_age_days": 1},
+                "provider_route": "deterministic"}}}
+            (root / "config").mkdir()
+            (root / "config/loop-registry.json").write_text(json.dumps(value))
+            (root / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+            claim = object()
+            with (
+                mock.patch.dict(os.environ, {"HOME": str(home)}),
+                mock.patch("runtime.loop.loop_cleanup.cleanup_run_root",
+                           side_effect=AssertionError("wake-path cleanup")),
+                mock.patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=100),
+                mock.patch("runtime.loop.lm_loop_run.durable_protocol_version", return_value=2),
+                mock.patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                           return_value=(root / "ticket", "ready")),
+                mock.patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                           return_value=(claim, "acquired")),
+                mock.patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                           return_value=[]),
+                mock.patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0),
+            ):
+                self.assertEqual(lm_loop_run.main(["job", str(root)]), 0)
+
+    def test_terminal_event_failure_preserves_scratch_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            entry = root / "bin/job.sh"
+            entry.parent.mkdir()
+            entry.write_text("#!/bin/sh\n")
+            entry.chmod(0o755)
+            home = root / "home"
+            home.mkdir()
+            value = {"schema_version": 2, "loops": {"job": {
+                "label": "ai.anicca.job", "domain": "system", "entrypoint": "bin/job.sh",
+                "cadence": {"run_at_load": True}, "effect_class": "none",
+                "state_root": "~/state", "log_root": "~/state/logs",
+                "cleanup": {"max_runs": 1, "max_age_days": 1},
+                "provider_route": "deterministic"}}}
+            (root / "config").mkdir()
+            (root / "config/loop-registry.json").write_text(json.dumps(value))
+            (root / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+            claim = object()
+            with (
+                mock.patch.dict(os.environ, {"HOME": str(home)}),
+                mock.patch("runtime.loop.lm_loop_run.process_start", return_value="start"),
+                mock.patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=100),
+                mock.patch("runtime.loop.lm_loop_run.durable_protocol_version", return_value=2),
+                mock.patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                           return_value=(root / "ticket", "ready")),
+                mock.patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                           return_value=(claim, "acquired")),
+                mock.patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                           return_value=[]),
+                mock.patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0),
+                mock.patch("runtime.loop.lm_loop_run.append_runtime_event",
+                           side_effect=[None, OSError("receipt write failed")]),
+            ):
+                self.assertEqual(lm_loop_run.main(["job", str(root)]), 0)
+            scratches = list((home / "state/loop-tmp/job").iterdir())
+            self.assertEqual(len(scratches), 1)
+            self.assertTrue((scratches[0] / ".owner.json").is_file())
+            self.assertTrue((scratches[0] / ".terminal-unrecorded").is_file())
+
+    def test_scratch_gc_removes_only_proved_stale_owner(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            live = root / "loop-tmp/job/live"
+            stale = root / "loop-tmp/job/stale"
+            live.mkdir(parents=True)
+            stale.mkdir(parents=True)
+            (live / ".owner.json").write_text(json.dumps(
+                {"pid": 10, "process_start": "live-start"}))
+            (stale / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": "old-start"}))
+            result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                starts={10: "live-start"})
+            self.assertTrue(live.is_dir())
+            self.assertFalse(stale.exists())
+            self.assertEqual((result["removed"], result["preserved"]), (1, 1))
+
+    def test_scratch_gc_fails_closed_without_identity_snapshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/job/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": "old-start"}))
+            with mock.patch("runtime.loop.central_cleanup.process_starts", return_value=None):
+                result = scratch_gc({root})
+            self.assertTrue(run.is_dir())
+            self.assertFalse(result["identity_snapshot_available"])
+
+    def test_scratch_gc_preserves_unrecorded_terminal_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/job/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": "old-start"}))
+            (run / ".terminal-unrecorded").touch()
+            result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                starts={})
+            self.assertTrue(run.is_dir())
+            self.assertEqual((result["removed"], result["preserved"]), (0, 1))
+
+    def test_scratch_gc_ancestor_swap_cannot_delete_outside_tree(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "state"
+            loop_dir = root / "loop-tmp/job"
+            run = loop_dir / "run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": "old-start"}))
+            outside = Path(directory) / "outside"
+            outside_run = outside / "run"
+            outside_run.mkdir(parents=True)
+            sentinel = outside_run / "sentinel"
+            sentinel.write_text("keep")
+            original_replace = os.replace
+
+            def swap_then_replace(src, dst, **kwargs):
+                moved = loop_dir.with_name("job-original")
+                original_replace(loop_dir, moved)
+                loop_dir.symlink_to(outside, target_is_directory=True)
+                return original_replace(src, dst, **kwargs)
+
+            with mock.patch("runtime.loop.loop_cleanup.os.replace",
+                            side_effect=swap_then_replace):
+                result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                    starts={})
+            self.assertTrue(sentinel.is_file())
+            self.assertEqual(result["removed"], 1)
+            self.assertFalse((root / "loop-tmp/job-original/run").exists())
+
+    def test_scratch_gc_preserves_run_replaced_after_inspection(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "state"
+            run = root / "loop-tmp/job/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": "old-start"}))
+            original_replace = os.replace
+            swapped = False
+
+            def swap_then_replace(src, dst, **kwargs):
+                nonlocal swapped
+                if src == "run" and not swapped:
+                    swapped = True
+                    run.rename(run.with_name("inspected-run"))
+                    run.mkdir()
+                    (run / ".terminal-unrecorded").touch()
+                    (run / "sentinel").write_text("keep")
+                    result = original_replace(src, dst, **kwargs)
+                    run.mkdir()
+                    (run / "late-sentinel").write_text("keep")
+                    return result
+                return original_replace(src, dst, **kwargs)
+
+            with mock.patch("runtime.loop.loop_cleanup.os.replace",
+                            side_effect=swap_then_replace):
+                result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                    starts={})
+            preserved = next(run.parent.glob("run.gc-trash.*"))
+            self.assertTrue((preserved / "sentinel").is_file())
+            self.assertTrue((run / "late-sentinel").is_file())
+            self.assertTrue(run.with_name("inspected-run").is_dir())
+            self.assertEqual((result["removed"], result["errors"]), (0, 1))
+
+    def test_scratch_gc_preserves_trash_replaced_after_inode_check(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "state"
+            run = root / "loop-tmp/job/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": "old-start"}))
+            from runtime.loop import loop_cleanup
+            original_clear = loop_cleanup._clear_owned_directory
+            swapped = False
+
+            def swap_then_clear(directory_fd):
+                nonlocal swapped
+                if not swapped:
+                    swapped = True
+                    trash = next(run.parent.glob("run.gc-trash.*"))
+                    trash.rename(run.parent / "inspected-trash")
+                    trash.mkdir()
+                    (trash / "sentinel").write_text("keep")
+                return original_clear(directory_fd)
+
+            with mock.patch("runtime.loop.loop_cleanup._clear_owned_directory",
+                            side_effect=swap_then_clear):
+                result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                    starts={})
+            replacement = next(run.parent.glob("run.gc-trash.*"))
+            self.assertTrue((replacement / "sentinel").is_file())
+            self.assertEqual((result["removed"], result["errors"]), (0, 1))
+
+    def test_scratch_gc_rejects_loop_tmp_swapped_before_open(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "state"
+            run = root / "loop-tmp/job/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": "old-start"}))
+            outside = Path(directory) / "outside"
+            outside_run = outside / "job/run"
+            outside_run.mkdir(parents=True)
+            sentinel = outside_run / "sentinel"
+            sentinel.write_text("keep")
+            original_open = os.open
+            swapped = False
+
+            def swap_then_open(path, flags, *args, **kwargs):
+                nonlocal swapped
+                if path == "loop-tmp" and kwargs.get("dir_fd") is not None and not swapped:
+                    swapped = True
+                    loop_tmp = root / "loop-tmp"
+                    loop_tmp.rename(root / "loop-tmp-original")
+                    loop_tmp.symlink_to(outside, target_is_directory=True)
+                return original_open(path, flags, *args, **kwargs)
+
+            with mock.patch("runtime.loop.central_cleanup.os.open",
+                            side_effect=swap_then_open):
+                result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                    starts={})
+            self.assertTrue(sentinel.is_file())
+            self.assertEqual(result["removed"], 0)
+
+    def test_scratch_gc_preserves_missing_start_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/job/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": None}))
+            result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                starts={})
+            self.assertTrue(run.exists())
+            self.assertEqual((result["removed"], result["errors"]), (0, 1))
+
+    def test_scratch_gc_preserves_owner_created_after_snapshot(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/job/run"
+            run.mkdir(parents=True)
+            owner = run / ".owner.json"
+            owner.write_text(json.dumps({"pid": 11, "process_start": "new-start"}))
+            result = scratch_gc({root}, snapshot_started_ns=owner.stat().st_mtime_ns,
+                                starts={})
+            self.assertTrue(run.is_dir())
+            self.assertEqual(result["preserved"], 1)
+
+    def test_scratch_gc_never_follows_loop_directory_symlink(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "state"
+            outside = Path(directory) / "outside/run"
+            outside.mkdir(parents=True)
+            (outside / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": "old"}))
+            scratch = root / "loop-tmp"
+            scratch.mkdir(parents=True)
+            (scratch / "job").symlink_to(outside.parent, target_is_directory=True)
+            result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                starts={})
+            self.assertTrue(outside.is_dir())
+            self.assertEqual(result["removed"], 0)
+
+    def test_scratch_gc_preserves_malformed_owner(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for index, value in enumerate(([], True, {"pid": -1},
+                                           {"pid": True, "process_start": "x"},
+                                           {"pid": 11, "process_start": ""})):
+                run = root / f"loop-tmp/job/run-{index}"
+                run.mkdir(parents=True)
+                (run / ".owner.json").write_text(json.dumps(value))
+            result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                starts={})
+            self.assertEqual(result["removed"], 0)
+            self.assertEqual(result["preserved"], 5)
+            self.assertEqual(result["errors"], 5)
+
+    def test_installed_state_roots_uses_plist_runtime_override(self):
+        with tempfile.TemporaryDirectory() as directory:
+            agents = Path(directory)
+            expected = agents / "custom-state"
+            with (agents / "ai.anicca.job.plist").open("wb") as handle:
+                import plistlib
+                plistlib.dump({"EnvironmentVariables": {
+                    "LIFE_MANAGER_STATE_ROOT": str(expected),
+                }}, handle)
+            self.assertEqual(installed_state_roots(agents), {expected.resolve()})
+
+    def test_installed_state_roots_skips_non_object_plist(self):
+        with tempfile.TemporaryDirectory() as directory:
+            agents = Path(directory)
+            with (agents / "ai.anicca.bad.plist").open("wb") as handle:
+                import plistlib
+                plistlib.dump([], handle)
+            self.assertEqual(installed_state_roots(agents), set())
+
+    def test_installed_state_roots_skips_one_malformed_xml_plist(self):
+        with tempfile.TemporaryDirectory() as directory:
+            agents = Path(directory)
+            (agents / "ai.anicca.bad.plist").write_text(
+                '<?xml version="1.0"?><plist><dict><key>broken</dict></plist>'
+            )
+            expected = agents / "healthy-state"
+            with (agents / "ai.anicca.healthy.plist").open("wb") as handle:
+                import plistlib
+                plistlib.dump({"EnvironmentVariables": {
+                    "LIFE_MANAGER_STATE_ROOT": str(expected),
+                }}, handle)
+
+            self.assertEqual(installed_state_roots(agents), {expected.resolve()})
 
     def test_loop_run_preserves_python_adapter_argv(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -150,8 +456,7 @@ class LoopCleanupTest(unittest.TestCase):
                 "cleanup": {"max_runs": 1, "max_age_days": 1},
                 "provider_route": "deterministic"}}}
             with mock.patch.dict(os.environ, {"HOME": str(root / 'home')}):
-                argv, _ = prepare_loop_run(
-                    registry, "job", root, active_run_ids=set())
+                argv = build_loop_command(registry, "job", root)
             self.assertEqual(argv, [sys.executable, str(entrypoint.resolve()), "dashboard"])
 
     def test_loop_run_preserves_empty_python_adapter_argv(self):
@@ -169,8 +474,7 @@ class LoopCleanupTest(unittest.TestCase):
                 "cleanup": {"max_runs": 1, "max_age_days": 1},
                 "provider_route": "deterministic"}}}
             with mock.patch.dict(os.environ, {"HOME": str(root / 'home')}):
-                argv, _ = prepare_loop_run(
-                    registry, "job", root, active_run_ids=set())
+                argv = build_loop_command(registry, "job", root)
             self.assertEqual(argv, [sys.executable, str(entrypoint.resolve())])
 
     def test_loop_run_preserves_exec_adapter_argv(self):
@@ -188,8 +492,7 @@ class LoopCleanupTest(unittest.TestCase):
                 "cleanup": {"max_runs": 1, "max_age_days": 1},
                 "provider_route": "deterministic"}}}
             with mock.patch.dict(os.environ, {"HOME": str(root / 'home')}):
-                argv, _ = prepare_loop_run(
-                    registry, "job", root, active_run_ids=set())
+                argv = build_loop_command(registry, "job", root)
             self.assertEqual(argv, [str(entrypoint.resolve()), "sources", "wake"])
 
     def test_loaded_plist_release_is_discovered_as_protected(self):
@@ -231,7 +534,9 @@ class LoopCleanupTest(unittest.TestCase):
             result = subprocess.run(
                 [sys.executable, "-m", "runtime.loop.lm_loop_run", "job", str(root)],
                 cwd=Path(__file__).parents[3], env={**os.environ, "HOME": str(home),
-                                                    "LIFE_MANAGER_MAX_LOAD_PER_CPU": "100000"}, check=False)
+                    "LIFE_MANAGER_MAX_LOAD_PER_CPU": "100000",
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission")},
+                check=False)
             self.assertEqual(result.returncode, exit_code)
             event = json.loads((home / "state/events.jsonl").read_text().splitlines()[-1])
             return validate_runtime_event(event)
@@ -267,6 +572,7 @@ class LoopCleanupTest(unittest.TestCase):
                 "LIFE_MANAGER_MAX_LOAD_PER_CPU": "100000",
                 "LIFE_MANAGER_RELEASE_ROOT": "",
                 "LIFE_MANAGER_REPO": "source-sentinel",
+                "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
             }
             result = subprocess.run(
                 [sys.executable, "-m", "runtime.loop.lm_loop_run", "job", str(root)],

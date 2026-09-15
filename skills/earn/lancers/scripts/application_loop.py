@@ -118,6 +118,7 @@ PLANNER_TASK_CLASS = "application-intent-planner"
 SAFETY_TASK_CLASS = "diagnostic-agent"
 ESCALATION_REASON = "application decision and client-facing proposal text come from this single call"
 PLANNER_TIMEOUT_SECONDS = 420
+SAFETY_TIMEOUT_SECONDS = 150
 SAFETY_REASONS = frozenset({
     "approved", "live_interaction_required", "physical_presence_required",
     "personal_identity_required", "recording_required", "unsupported_claim",
@@ -182,6 +183,9 @@ KANA_RE = re.compile(r"[ぁ-ゖァ-ヺ]")
 FORBIDDEN_TERMS = ("receipt", "gate", "agent", "model", "browser", "token", "prompt", "internal id", "レシート", "ゲート", "エージェント", "モデル", "ブラウザ", "トークン", "プロンプト", "内部ID")
 FORBIDDEN_RE = re.compile("|".join(re.escape(term).replace(r"\ ", r"[ _]") for term in FORBIDDEN_TERMS), re.IGNORECASE)
 RETAIN_EVIDENCE_ERRORS = frozenset({"planner_runner_failed", "planner_contract_invalid", "safety_check_failed"})
+PENDING_CONTINUE_ERRORS = frozenset({
+    "submission_uncertain", "browser_unavailable", "account_unavailable", "account_lock_busy",
+})
 SKIP_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 # A row the planner declined to judge is not a row it refused. Measured 2026-09-07: 15 of the
 # reports in eight consecutive wakes were `invalid` and they were the same postings each time --
@@ -355,44 +359,55 @@ def _run_exhaustive_discovery(timeout: float, tick_value: object = None) -> Mapp
     return union
 
 def _run_default_discovery(tick_value: object, timeout: float, state_path: Path, exclude_ids: frozenset[str] = frozenset()) -> Mapping[str, object]:
-    first = _discovery_query(tick_value)
-    start = DISCOVERY_QUERIES.index(first)
-    last: Mapping[str, object] = {"ok": False, "error": "no_normalized_opportunities", "opportunities": []}
-    observed_ids: set[str] = set()
-    decided_ids: set[str] = set()
-    pooled: dict[str, Mapping[str, object]] = {}
-    undecided: set[str] = set()
-    last_ok: Optional[Mapping[str, object]] = None
-    for offset in range(len(DISCOVERY_QUERIES)):
-        query = DISCOVERY_QUERIES[(start + offset) % len(DISCOVERY_QUERIES)]
-        last = status.run_discovery(query=query, limit=MAX_OPPORTUNITIES, timeout=timeout)
-        if last.get("ok") is True:
-            opportunities = last.get("opportunities")
-            if isinstance(opportunities, Sequence) and not isinstance(opportunities, (str, bytes, bytearray)):
-                observed_ids.update(str(row.get("external_id")) for row in opportunities if isinstance(row, Mapping) and row.get("external_id"))
-                try: remaining, _, _ = _filter_claimed_rows(opportunities, state_path)
-                except Exception: return last
-                remaining_ids = {str(row.get("external_id")) for row in remaining if isinstance(row, Mapping)}
-                decided_ids.update(str(row.get("external_id")) for row in opportunities if isinstance(row, Mapping) and str(row.get("external_id")) not in remaining_ids)
-                remaining = [row for row in remaining if str(row.get("external_id")) not in exclude_ids]
-                for row in remaining:
-                    external_id = str(row.get("external_id") or "") if isinstance(row, Mapping) else ""
-                    if external_id: pooled.setdefault(external_id, row)
-                undecided.update(pooled)
-                last_ok = last
-                # Returning at the first query with anything undecided meant one wake saw one
-                # query. Measured 2026-09-07 that was 18 postings, of which every judgeable one
-                # was genuinely unworkable, so the lane reported no_eligible_project every minute
-                # while eleven other queries went unread. The planner ranks what it is given, so
-                # give it the union and let it choose.
-                if len(undecided) >= DISCOVERY_POOL_TARGET: break
-                continue
-            return dict(last) | {"observed_count": len(observed_ids), "already_decided_count": len(decided_ids)}
-        if last.get("error") != "no_normalized_opportunities":
-            return last
-    if pooled and last_ok is not None:
-        return dict(last_ok) | {"opportunities": list(pooled.values()), "observed_count": len(observed_ids), "already_decided_count": len(decided_ids)}
-    return {"ok": True, "platform": PLATFORM, "source": "public_html", "opportunities": [], "observed_count": len(observed_ids), "already_decided_count": len(decided_ids)}
+    """Read one rotating query per wake and hand that slice to the planner immediately.
+
+    The old implementation kept fetching queries until it had a forty-row pool.  Each query also
+    enriched up to twenty detail pages, so a single 60-second wake could hold the revenue slot for
+    many minutes before the planner or browser was reached.  Coverage comes from
+    ``_discovery_query`` rotating on the next wake; a selected slice must be judged now rather
+    than waiting for an exhaustive union.
+    """
+    query = _discovery_query(tick_value)
+    last = status.run_discovery(query=query, limit=MAX_OPPORTUNITIES, timeout=timeout)
+    error = last.get("error")
+    if last.get("ok") is not True:
+        if error == "no_normalized_opportunities":
+            return {
+                "ok": True,
+                "platform": PLATFORM,
+                "source": "public_html",
+                "opportunities": [],
+                "observed_count": int(last.get("provider_count") or 0),
+                "already_decided_count": 0,
+            }
+        return last
+    opportunities = last.get("opportunities")
+    if isinstance(opportunities, (str, bytes, bytearray)) or not isinstance(opportunities, Sequence):
+        return dict(last) | {"observed_count": 0, "already_decided_count": 0}
+    observed_ids = {
+        str(row.get("external_id"))
+        for row in opportunities
+        if isinstance(row, Mapping) and row.get("external_id")
+    }
+    try:
+        remaining, _, _ = _filter_claimed_rows(opportunities, state_path)
+    except Exception:
+        return last
+    remaining_ids = {
+        str(row.get("external_id"))
+        for row in remaining
+        if isinstance(row, Mapping) and row.get("external_id")
+    }
+    decided_count = len(observed_ids - remaining_ids)
+    remaining = [
+        row for row in remaining
+        if isinstance(row, Mapping) and str(row.get("external_id")) not in exclude_ids
+    ]
+    return dict(last) | {
+        "opportunities": remaining,
+        "observed_count": len(observed_ids),
+        "already_decided_count": decided_count,
+    }
 
 def _seller_proof() -> dict[str, object]:
     product = json.loads(PRODUCT_PATH.read_text(encoding="utf-8")); portfolio = product["portfolio"]; software_portfolio = product["software_portfolio"]; software = PUBLIC_SOFTWARE_PROOF
@@ -424,8 +439,8 @@ def _snapshot(rows: Sequence[Mapping[str, object]], today: date) -> dict[str, ob
         result.append(compact)
     return {"tick_date": today.isoformat(), "seller_proof": _seller_proof(), "opportunities": result}
 
-PLANNER_RULES = ("Lancersの公開案件だけを読むapplication-intent plannerである。planner自身は外部操作を行わないが、delivery systemは既存の認証済みbrowserと利用可能なtoolsで外部web serviceを操作できる。"
-    "Coconalaと同じcommon marketplace feasibility policyを使う。合法で、現在のgeneral agentがcomputer、browser、code、research、writing、design、dataその他の利用可能なtoolsを使って全必須成果物を正直に完遂できる案件は広く応募する。判定はsubmit_requiredまたはhard_prohibitedの二択であり、前者を既定とする。"
+PLANNER_RULES = ("Lancersの公開案件だけを読むapplication-intent plannerである。planner自身はツールを使わず（browser、code mode、外部通信も使わない）、入力されたSNAPSHOTだけで判断する。delivery systemの外部操作は別の検証済み処理が担当する。submit_requiredの場合はproposal_text・price_jpy・deliver_dateをnullにしない。proposal_textは200〜3000文字、price_jpyは1以上の整数、deliver_dateは今日の翌日から60日以内のYYYY-MM-DDにする。hard_prohibitedの場合だけ、その3項目をnullにする。"
+    "Coconalaと同じcommon marketplace feasibility policyを使う。合法で、別のdelivery systemがcomputer、browser、code、research、writing、design、dataその他の利用可能なtoolsを使って全必須成果物を正直に完遂できる案件は広く応募する。planner自身はその操作を実行せず、判定はsubmit_requiredまたはhard_prohibitedの二択であり、前者を既定とする。"
     "確認済みのdelivery能力は、非同期のresearch、文章作成・編集・翻訳、digital content設計、code・software・data・AI automation、web/browser上の操作・調査・monitor、必要なtoolの導入・設定・利用、利用可能なtoolで生成できるdigital artifactである。現在未導入のsoftwareや未利用のweb serviceでも、公開または依頼者提供の通常accessで導入・利用・検証できるなら完遂可能として扱う。未提示の個人職歴、雇用経験、資格、電話営業、常駐staff稼働、専用hardwareや入手不能な外部credentialを能力として仮定しない。"
     "SNAPSHOTのseller_proofは現在のLancers公開profile、portfolio、packageとMIT公開source codeで買い手が確認できる証拠であり、能力の固定whitelistではない。案件scopeに合う証拠だけを具体的に活用し、未掲載の顧客実績、評価、売上効果、専門職歴を捏造しない。exactな同業実績や完成済みportfolioがなくても、転用可能な確認済み能力と案件固有の実行planで全必須scopeを完遂できるならsubmit_requiredにする。"
     "各案件を実際の公開内容全体から自分で判断し、指定schemaのJSONだけを返す。現在の自律delivery systemが全必須成果物を正直に完成できるならsubmit_requiredとする。専用Skill、同業職歴、実績、portfolio、testimonial、tool利用歴、資格を必要としない経験年数、難易度、競争、単発、曖昧な通常実装詳細は拒否理由にしない。未経験を経験済みと偽らず、転用可能な確認済み能力と案件固有の実行planを示す。reason_codesは空、買い手向けの具体的な日本語proposalを200〜3000文字、正直な価格、現実的な納期で返す。"
@@ -450,6 +465,10 @@ PLANNER_RULES = ("Lancersの公開案件だけを読むapplication-intent planne
 def build_planner_prompt(rows: Sequence[Mapping[str, object]], today: date) -> str:
     return PLANNER_RULES + json.dumps(_snapshot(rows, _tick_date(today)), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
+def _agent_timeout_seconds(task_class: str) -> int:
+    """Keep per-candidate safety checks from holding an entire wake open for planner time."""
+    return SAFETY_TIMEOUT_SECONDS if task_class == SAFETY_TASK_CLASS else PLANNER_TIMEOUT_SECONDS
+
 def _invoke_agent(prompt: str, evidence_dir: Path, task_class: str, schema_path: Path, label: str) -> Mapping[str, object]:
     command = [sys.executable, str(AGENT_RUNNER), "--task-class", task_class, "--prompt-stdin", "--schema", str(schema_path), "--evidence-dir", str(evidence_dir), "--task-label", label, "--loop", "lancers-application", "--workdir", str(SKILLS_ROOT.parent)]
     # Only the planner is configured as an explicit escalation route.  The
@@ -460,7 +479,7 @@ def _invoke_agent(prompt: str, evidence_dir: Path, task_class: str, schema_path:
     try:
         # stderr is kept, not discarded. The runner refuses on configuration this loop cannot see,
         # and a refusal that reaches no log is a lane that stops applying without ever saying so.
-        completed = subprocess.run(command, input=prompt, text=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=False, timeout=PLANNER_TIMEOUT_SECONDS + 30)
+        completed = subprocess.run(command, input=prompt, text=True, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=False, timeout=_agent_timeout_seconds(task_class) + 30)
         if completed.returncode != 0: raise ValueError(((completed.stderr or "").strip().splitlines() or ["no stderr"])[-1])
         evidence = Path(evidence_dir); summary = json.loads((evidence / "summary.json").read_text(encoding="utf-8"))
         result_path = Path(str(summary["result_path"])).resolve(); result_path.relative_to(evidence.resolve())
@@ -531,6 +550,29 @@ def _safety_outcome(row: Mapping[str, object], decision: Mapping[str, object], e
     except Exception:
         pass
     return "failed"
+
+
+def _discovery_turn_count(*, exhaustive: bool, source: object, query: object) -> int:
+    """Keep the all-query discovery path to one bounded union per wake."""
+    return 1 if exhaustive or source is not None or query is not None else 3
+
+
+def _pending_descriptor_for_wake(state_path: Path, tick_value: object) -> Optional[Mapping[str, object]]:
+    """Rotate read-only pending reconciliation so one stale job cannot starve fresh discovery."""
+    descriptors = application_tick.shared.read_pending_descriptors(Path(state_path))
+    if not descriptors:
+        return None
+    try:
+        if isinstance(tick_value, datetime):
+            moment = tick_value
+        else:
+            moment = datetime.fromisoformat(str(tick_value).strip().replace("Z", "+00:00"))
+        if moment.tzinfo is None or moment.utcoffset() is None:
+            raise ValueError
+        slot = int(moment.astimezone(timezone.utc).timestamp() // WAKE_INTERVAL_SECONDS)
+    except (AttributeError, OSError, OverflowError, TypeError, ValueError):
+        slot = 0
+    return descriptors[slot % len(descriptors)]
 
 def _safe_proposal(value: object, ids: Sequence[str]) -> bool:
     if not isinstance(value, str) or not 200 <= len(value) <= 3000: return False
@@ -918,7 +960,11 @@ def _plan_and_submit(rows: Sequence[Mapping[str, object]], today: date, evidence
 
 def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH, evidence_root: Optional[Path] = None, discoverer: Optional[Callable[..., Mapping[str, object]]] = None, planner: Optional[Callable[..., object]] = None, safety_verifier: Optional[Callable[..., object]] = None, submitter: Optional[Callable[..., object]] = None, clock: Optional[Callable[[], object]] = None, discovery: Optional[Callable[..., Mapping[str, object]]] = None, now: Optional[Callable[[], object]] = None, evidence_dir: Optional[Path] = None, output_stream: Optional[TextIO] = None, query: Optional[str] = None, timeout: float = 20.0) -> dict[str, object]:
     try:
-        pending = application_tick.read_pending_descriptor(Path(state_path))
+        tick_value = (clock or now or (lambda: datetime.now(timezone.utc)))()
+    except Exception:
+        tick_value = None
+    try:
+        pending = _pending_descriptor_for_wake(Path(state_path), tick_value)
     except Exception:
         result = ApplicationLoopResult(False, error="state_invalid")
         if output_stream is not None: _emit(result, output_stream)
@@ -926,7 +972,7 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
     quarantined_project_id = None
     if pending is not None:
         pending_result = _reconcile_pending(pending, Path(state_path))
-        if pending_result.error != "submission_uncertain":
+        if pending_result.error not in PENDING_CONTINUE_ERRORS:
             if pending_result.application_verified and pending_result.project_id:
                 # The pending descriptor already carries the title and the amount that were
                 # submitted, and this path -- reconciling a submission_uncertain on the next wake
@@ -948,8 +994,6 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
             if output_stream is not None: _emit(pending_result, output_stream)
             return pending_result.to_dict()
         quarantined_project_id = pending_result.unresolved_project_id or pending_result.project_id
-    try: tick_value = (clock or now or (lambda: datetime.now(timezone.utc)))()
-    except Exception: tick_value = None
     capacity_reason = _capacity_reason(Path(state_path), tick_value) if submitter is None and discoverer is None and discovery is None and query is None else None
     if capacity_reason is not None:
         result = ApplicationLoopResult(True, reason=capacity_reason, unresolved_project_id=quarantined_project_id)
@@ -962,7 +1006,9 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
         except Exception: evidence = None
         if evidence is not None:
             source = discoverer or discovery
-            turns = 3 if source is None and query is None else 1
+            turns = _discovery_turn_count(
+                exhaustive=exhaustive, source=source, query=query,
+            )
             observed_total = 0; decision_reports: list[Mapping[str, object]] = []; wake_seen_ids: set[str] = set()
             for turn in range(turns):
                 turn_evidence = evidence

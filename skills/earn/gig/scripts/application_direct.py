@@ -24,7 +24,7 @@ from b2_result_gate import (
 )
 from b2_search_objective import checkpoint, finish, wake_plan
 from application_snapshot import SnapshotContractError, canonical_request_url
-import evidence_gc
+from evidence_gc import register_live_evidence_pin
 from telegram_outbox import TelegramOutbox, dispatch_one
 from apply_telegram_report import ApplyTelegramTransport
 from gig_paths import BROWSER_DIR, RUNNER_DIR
@@ -63,8 +63,6 @@ HARD_PROHIBITED = "hard_prohibited"
 DUPLICATE_FENCED = "duplicate_fenced"
 OFFICIALLY_UNSUBMITTABLE = "officially_unsubmittable"
 DIRECT_MAX_APPLICATIONS = 20
-APPLY_EVIDENCE_HIGH_WATER_BYTES = 400 * 1024 * 1024
-APPLY_EVIDENCE_LOW_WATER_BYTES = 250 * 1024 * 1024
 
 
 def _official_open_scan_prep(prep: dict[str, Any]) -> dict[str, Any]:
@@ -1241,6 +1239,12 @@ def main(argv: list[str] | None = None) -> int:
         env.setdefault("ANICCA_BUDGET_SCOPE_ID", pass_id)
         env.setdefault("ANICCA_BUDGET_DAILY_SCOPE", "gig-apply-direct")
     run_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        register_live_evidence_pin(args.state_dir.parent, run_dir, "apply-direct")
+    except OSError:
+        empty["failed"] = 1
+        empty["source_health"] = "実行中evidenceの保護状態を確立できませんでした"
+        return _finish(output, pass_id, empty, status="failed", args=args, error="evidence_pin_failed")
     brake_status = _operator_brake_status(args.operator_brake)
     if brake_status == "held":
         empty["source_health"] = "operator brakeが有効なため、応募処理を開始しませんでした"
@@ -1255,18 +1259,6 @@ def main(argv: list[str] | None = None) -> int:
             output, pass_id, empty, status="failed", args=args,
             error="operator_brake_check_failed",
         )
-    try:
-        evidence_gc.main([
-            "--state-dir", str(args.state_dir.parent),
-            "--evidence-root", str(args.state_dir),
-            "--current-evidence-dir", str(run_dir),
-            "--high-water-bytes", str(APPLY_EVIDENCE_HIGH_WATER_BYTES),
-            "--low-water-bytes", str(APPLY_EVIDENCE_LOW_WATER_BYTES),
-            "--quiet",
-        ])
-    except Exception:
-        # Evidence collection is housekeeping; it must never fail an Apply wake.
-        pass
     refresh_cursor_path = run_dir / "b2-refresh-cursor.json"
     coverage_cursor_path = run_dir / "b2-coverage-cursor.json"
     try:

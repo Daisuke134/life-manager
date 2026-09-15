@@ -34,6 +34,13 @@
       ],
       "type": "string"
     },
+    "admission_class": {
+      "enum": [
+        "borrow",
+        "revenue"
+      ],
+      "type": "string"
+    },
     "browser_owner": {
       "additionalProperties": false,
       "properties": {

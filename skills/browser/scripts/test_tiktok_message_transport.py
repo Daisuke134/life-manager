@@ -20,7 +20,8 @@ SPEC.loader.exec_module(transport)
 
 
 class FakeCDP:
-    def __init__(self, *, identity="expected", exact_before=False, after=None, route=True):
+    def __init__(self, *, identity="expected", exact_before=False, after=None, route=True,
+                 confirmed_empty=False):
         self.identity = identity
         self.exact_before = exact_before
         self.after = after or {
@@ -30,6 +31,7 @@ class FakeCDP:
             "exact_message": True,
         }
         self.route = route
+        self.confirmed_empty = confirmed_empty
         self.calls = []
 
     def new_target(self, url, owner):
@@ -66,6 +68,8 @@ class FakeCDP:
                 "editor": True,
                 "editor_empty": True,
                 "exact_message": self.exact_before,
+                "conversation_loaded": self.confirmed_empty,
+                "message_count": 0 if self.confirmed_empty else None,
             }
         if "TIKTOK_FOCUS" in expression:
             return True
@@ -116,6 +120,30 @@ class TikTokMessageTransportTest(unittest.TestCase):
         self.assertEqual(result["status"], "sender_identity_mismatch")
         self.assertEqual(result["effect"], 0)
 
+    def test_waits_for_delayed_authenticated_sender_navigation(self):
+        class DelayedIdentity(FakeCDP):
+            def __init__(self):
+                super().__init__()
+                self.identity_reads = 0
+
+            def evaluate(self, target, expression):
+                if "TIKTOK_IDENTITY" in expression:
+                    self.identity_reads += 1
+                    if self.identity_reads == 1:
+                        self.calls.append(("evaluate", target, expression))
+                        return {
+                            "url": "https://www.tiktok.com/",
+                            "profile_navigation_hrefs": [],
+                            "login_control_count": 0,
+                        }
+                return super().evaluate(target, expression)
+
+        fake = DelayedIdentity()
+        result = self.send(self.payload(), fake, send=False)
+        self.assertEqual(result["status"], "ready")
+        self.assertTrue(result["sender_identity"]["authenticated"])
+        self.assertGreaterEqual(fake.identity_reads, 2)
+
     def test_deduplicates_exact_existing_message(self):
         fake = FakeCDP(exact_before=True)
         result = self.send(self.payload(), fake)
@@ -152,6 +180,29 @@ class TikTokMessageTransportTest(unittest.TestCase):
         self.assertEqual(result["effect"], 1)
         self.assertFalse(result["retry_safe"])
         self.assertEqual(sum(call[0] == "insert" for call in fake.calls), 1)
+
+    def test_unknown_is_released_only_after_official_empty_conversation_readback(self):
+        payload = self.payload()
+        first = FakeCDP(after={
+            "url": "https://www.tiktok.com/business-suite/messages?u=candidate",
+            "recipient_bound": True,
+            "editor_empty": True,
+            "exact_message": False,
+        })
+        self.assertEqual(self.send(payload, first)["status"], "send_unknown_reconcile_required")
+
+        reconciled_cdp = FakeCDP(confirmed_empty=True, route=False)
+        reconciled = self.send(payload, reconciled_cdp, send=False)
+        self.assertEqual(reconciled["status"], "not_sent_exact_official_readback")
+        self.assertTrue(reconciled["retry_safe"])
+        self.assertFalse(reconciled["exact_readback"])
+        self.assertFalse(any(
+            call[0] == "navigate" and call[2].endswith("/@candidate")
+            for call in reconciled_cdp.calls
+        ))
+
+        retry = self.send(payload, FakeCDP(), send=True)
+        self.assertEqual(retry["status"], "sent_exact_official_readback")
 
     def test_send_ack_exception_returns_unknown_and_next_run_cannot_resend(self):
         class AckLost(FakeCDP):

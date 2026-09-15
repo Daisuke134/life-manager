@@ -33,12 +33,15 @@ import urllib.parse
 
 
 AGENT_BROWSER = os.environ.get("LIFE_MANAGER_AGENT_BROWSER", "agent-browser")
+AGENT_BROWSER_SESSION = os.environ.get(
+    "LIFE_MANAGER_AGENT_BROWSER_SESSION", "life-manager-lateness-route",
+)
 
 
 def _run_ab(args: list[str], timeout: int = 30) -> str:
     """Invoke agent-browser CLI and return its stdout."""
     out = subprocess.run(
-        [AGENT_BROWSER, *args],
+        [AGENT_BROWSER, "--session", AGENT_BROWSER_SESSION, *args],
         capture_output=True,
         text=True,
         timeout=timeout,
@@ -55,10 +58,16 @@ def fetch_transit_route(origin: str, destination: str) -> dict:
         f"https://www.google.com/maps/dir/{origin}/{dest_enc}"
         f"/data=!4m2!4m1!3e3"
     )
-    _run_ab(["open", url], timeout=30)
-    # Maps fetches transit data after JS render; give it a beat.
-    time.sleep(7)
-    snapshot = _run_ab(["snapshot"], timeout=20)
+    try:
+        _run_ab(["open", url], timeout=30)
+        # Maps fetches transit data after JS render; give it a beat.
+        time.sleep(7)
+        snapshot = _run_ab(["snapshot"], timeout=20)
+    finally:
+        try:
+            _run_ab(["close"], timeout=20)
+        except (OSError, RuntimeError, subprocess.SubprocessError):
+            pass
 
     # The first transit suggestion shows up as a single anchor / button whose
     # accessible name concatenates: "公共交通機関 N 分 HH:MM - HH:MM 電車 LINE_NAME ...

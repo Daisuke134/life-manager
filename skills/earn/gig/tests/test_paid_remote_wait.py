@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import fcntl
+import base64
 import hashlib
 import importlib.util
 import inspect
@@ -11,6 +12,7 @@ import threading
 import time
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -80,6 +82,157 @@ def test_attachment_capture_prioritizes_newest_buyer_message() -> None:
     assert ordered == [(2, messages[2]), (1, messages[1]), (0, messages[0])]
 
 
+def test_attachment_without_download_control_skips_file_polling(tmp_path, monkeypatch) -> None:
+    snapshot = load("coconala_queue_snapshot")
+    sleeps = []
+    evaluate_calls = 0
+    event_waits = 0
+
+    async def fake_sleep(seconds):
+        sleeps.append(seconds)
+
+    async def no_events(*_args):
+        nonlocal event_waits
+        event_waits += 1
+        return []
+
+    async def fake_call(_ws, _request_id, method, params, *_args):
+        nonlocal evaluate_calls
+        if method == "Target.getTargets":
+            return {"targetInfos": []}
+        if method == "Runtime.callFunctionOn":
+            return {"result": {"value": {
+                "ok": True, "x": 10, "y": 10, "width": 20, "height": 20,
+                "viewport_width": 100, "viewport_height": 100,
+            }}}
+        if method == "Runtime.evaluate":
+            evaluate_calls += 1
+            if evaluate_calls == 1:
+                return {"result": {"value": json.dumps({"ok": True})}}
+            if evaluate_calls == 2:
+                return {"result": {"objectId": "attachment-item"}}
+            return {"result": {}}
+        return {}
+
+    monkeypatch.setattr(snapshot, "call", fake_call)
+    monkeypatch.setattr(snapshot, "collect_cdp_events", no_events)
+    monkeypatch.setattr(snapshot.asyncio, "sleep", fake_sleep)
+    attachment = {"filename": "brief.pdf", "reference": "message:1:attachment:0"}
+    talkroom = {"messages": [{"side": "buyer", "attachments": [attachment]}]}
+
+    snapshot.asyncio.run(snapshot.capture_click_downloads(
+        object(), 1, talkroom, project_root=tmp_path,
+    ))
+
+    assert attachment["capture_error"] == "attachment_download_control_unavailable"
+    assert sleeps == [0.5, 0.25]
+    assert event_waits == 0
+
+
+def test_fully_received_stable_partial_download_is_persisted(tmp_path, monkeypatch) -> None:
+    snapshot = load("coconala_queue_snapshot")
+    download_path = None
+    evaluate_calls = 0
+    download_behaviors = []
+
+    async def fake_sleep(_seconds):
+        return None
+
+    async def progress_events(*_args):
+        return [{"method": "Browser.downloadProgress", "params": {
+            "state": "inProgress", "receivedBytes": 4, "totalBytes": 4,
+        }}]
+
+    async def fake_call(_ws, _request_id, method, params, *_args):
+        nonlocal download_path, evaluate_calls
+        if method in {"Browser.setDownloadBehavior", "Page.setDownloadBehavior"}:
+            download_behaviors.append((method, params["behavior"]))
+            download_path = Path(params["downloadPath"])
+            return {}
+        if method == "Target.getTargets":
+            return {"targetInfos": []}
+        if method == "Runtime.callFunctionOn":
+            return {"result": {"value": {
+                "ok": True, "x": 10, "y": 10, "width": 20, "height": 20,
+                "viewport_width": 100, "viewport_height": 100,
+            }}}
+        if method == "Runtime.evaluate":
+            evaluate_calls += 1
+            if evaluate_calls == 1:
+                return {"result": {"value": json.dumps({"ok": True})}}
+            return {"result": {"objectId": "download-control"}}
+        if method == "Input.dispatchMouseEvent" and params["type"] == "mouseReleased":
+            assert download_path is not None
+            (download_path / "file.crdownload").write_bytes(b"data")
+        return {}
+
+    monkeypatch.setattr(snapshot, "call", fake_call)
+    monkeypatch.setattr(snapshot, "collect_cdp_events", progress_events)
+    monkeypatch.setattr(snapshot.asyncio, "sleep", fake_sleep)
+    attachment = {"filename": "brief.pdf", "reference": "message:1:attachment:0"}
+    talkroom = {"messages": [{"side": "buyer", "attachments": [attachment]}]}
+
+    snapshot.asyncio.run(snapshot.capture_click_downloads(
+        object(), 1, talkroom, project_root=tmp_path,
+    ))
+
+    stored = Path(attachment["source_path"])
+    assert stored.read_bytes() == b"data"
+    assert attachment["size_bytes"] == 4
+    assert attachment["sha256"] == hashlib.sha256(b"data").hexdigest()
+    assert download_behaviors == [
+        ("Browser.setDownloadBehavior", "allowAndName"),
+        ("Page.setDownloadBehavior", "allow"),
+    ]
+
+
+def test_download_response_body_is_persisted_when_browser_file_is_absent(
+        tmp_path, monkeypatch) -> None:
+    snapshot = load("coconala_queue_snapshot")
+    evaluate_calls = 0
+
+    async def fake_sleep(_seconds):
+        return None
+
+    async def download_events(*_args):
+        return [{"method": "Network.responseReceived", "params": {
+            "requestId": "download-request",
+            "response": {"status": 200, "mimeType": "application/octet-stream"},
+        }}]
+
+    async def fake_call(_ws, _request_id, method, _params, *_args):
+        nonlocal evaluate_calls
+        if method == "Target.getTargets":
+            return {"targetInfos": []}
+        if method == "Network.getResponseBody":
+            return {"body": base64.b64encode(b"data").decode(), "base64Encoded": True}
+        if method == "Runtime.callFunctionOn":
+            return {"result": {"value": {
+                "ok": True, "x": 10, "y": 10, "width": 20, "height": 20,
+                "viewport_width": 100, "viewport_height": 100,
+            }}}
+        if method == "Runtime.evaluate":
+            evaluate_calls += 1
+            if evaluate_calls == 1:
+                return {"result": {"value": json.dumps({"ok": True})}}
+            return {"result": {"objectId": "download-control"}}
+        return {}
+
+    monkeypatch.setattr(snapshot, "call", fake_call)
+    monkeypatch.setattr(snapshot, "collect_cdp_events", download_events)
+    monkeypatch.setattr(snapshot.asyncio, "sleep", fake_sleep)
+    attachment = {"filename": "brief.pdf", "reference": "message:1:attachment:0"}
+    talkroom = {"messages": [{"side": "buyer", "attachments": [attachment]}]}
+
+    snapshot.asyncio.run(snapshot.capture_click_downloads(
+        object(), 1, talkroom, project_root=tmp_path,
+    ))
+
+    stored = Path(attachment["source_path"])
+    assert stored.read_bytes() == b"data"
+    assert attachment["sha256"] == hashlib.sha256(b"data").hexdigest()
+
+
 def test_known_buyer_attachment_without_bytes_stays_in_transport_recovery(tmp_path: Path) -> None:
     paid = load("paid_direct")
     ledger = tmp_path / "source" / "talkroom" / "messages.jsonl"
@@ -108,7 +261,54 @@ def test_verified_buyer_attachment_leaves_transport_recovery(tmp_path: Path) -> 
     assert paid._buyer_attachment_recovery_pending(tmp_path) is False
 
 
-def test_older_unfetched_buyer_attachment_cannot_hide_behind_latest_requirements(tmp_path: Path) -> None:
+def test_reobserved_same_attachment_reference_does_not_block_recovery(tmp_path: Path) -> None:
+    paid = load("paid_direct")
+    payload = b"buyer supplied workbook"
+    digest = hashlib.sha256(payload).hexdigest()
+    source = tmp_path / "source" / "buyer-attachments" / f"{digest[:12]}-file.xlsx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(payload)
+    attachment = {
+        "filename": "file.xlsx", "reference": "message:123:attachment:0",
+    }
+    ledger = tmp_path / "source" / "talkroom" / "messages.jsonl"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text("\n".join([
+        json.dumps({"side": "buyer", "attachments": [attachment]}),
+        json.dumps({"side": "buyer", "attachments": [attachment]}),
+    ]) + "\n", encoding="utf-8")
+
+    assert paid._buyer_attachment_recovery_pending(tmp_path) is False
+
+
+def test_duplicate_filenames_require_and_accept_each_official_reference(tmp_path: Path) -> None:
+    paid = load("paid_direct")
+    snapshot = load("coconala_queue_snapshot")
+    first = "message:123:attachment:0"
+    second = "message:456:attachment:0"
+    ledger = tmp_path / "source" / "talkroom" / "messages.jsonl"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text("\n".join([
+        json.dumps({"side": "buyer", "attachments": [{
+            "filename": "same.png", "reference": first,
+        }]}),
+        json.dumps({"side": "buyer", "attachments": [{
+            "filename": "same.png", "reference": second,
+        }]}),
+    ]) + "\n", encoding="utf-8")
+
+    snapshot.persist_captured_attachment(
+        tmp_path, "same.png", b"first", reference=first,
+    )
+    assert paid._buyer_attachment_recovery_pending(tmp_path) is True
+
+    snapshot.persist_captured_attachment(
+        tmp_path, "same.png", b"second", reference=second,
+    )
+    assert paid._buyer_attachment_recovery_pending(tmp_path) is False
+
+
+def test_handled_older_attachment_does_not_block_current_feedback_cycle(tmp_path: Path) -> None:
     paid = load("paid_direct")
     ledger = tmp_path / "source" / "talkroom" / "messages.jsonl"
     ledger.parent.mkdir(parents=True)
@@ -123,7 +323,7 @@ def test_older_unfetched_buyer_attachment_cannot_hide_behind_latest_requirements
     requirements.parent.mkdir(parents=True)
     requirements.write_text(json.dumps({"attachments": []}), encoding="utf-8")
 
-    assert paid._buyer_attachment_recovery_pending(tmp_path) is True
+    assert paid._buyer_attachment_recovery_pending(tmp_path) is False
 
 
 def test_unfetched_direct_message_attachment_stays_in_transport_recovery(tmp_path: Path) -> None:
@@ -634,6 +834,12 @@ def test_owner_validation_failure_after_new_checkpoint_resumes_progress(tmp_path
         paid._raise_remote_builder_or_progress(
             progress, 0, contract, ValueError("stale result")
         )
+    assert paid._continue_remote_owner_after_invalid_result(
+        progress, 0, contract, 1, 3
+    ) is True
+    assert paid._continue_remote_owner_after_invalid_result(
+        progress, 0, contract, 3, 3
+    ) is False
 
 
 def test_owner_validation_failure_without_new_checkpoint_remains_failure(tmp_path):
@@ -805,6 +1011,30 @@ def test_owner_verification_handoff_rejects_actual_remaining_work():
 
     with pytest.raises(ValueError):
         paid._validated_owner_outcome_for_verification({"business_outcome": outcome})
+
+
+def test_incomplete_owner_with_new_checkpoint_continues_before_verifier():
+    paid = load("paid_direct")
+    result = {"status": "ok", "business_outcome": {
+        "required_effect_satisfied": False,
+        "required_output_satisfied": False,
+        "remaining_work": ["Continue the next candidate."],
+    }}
+
+    assert paid._continue_remote_owner_same_run(result, 100, 140, 1, 3) is True
+    assert paid._continue_remote_owner_same_run(result, 100, 100, 1, 3) is False
+    assert paid._continue_remote_owner_same_run(result, 100, 140, 3, 3) is False
+
+
+def test_complete_owner_never_repeats_before_verifier():
+    paid = load("paid_direct")
+    result = {"status": "ok", "business_outcome": {
+        "required_effect_satisfied": True,
+        "required_output_satisfied": True,
+        "remaining_work": [],
+    }}
+
+    assert paid._continue_remote_owner_same_run(result, 100, 140, 1, 3) is False
 
 
 def test_incomplete_ok_verifier_contract_retries_before_failing(monkeypatch, tmp_path):
@@ -1385,6 +1615,33 @@ def test_reported_formal_cycle_accepts_exact_linked_message_readback(tmp_path, m
     }
 
     assert paid._reported_formal_cycle(SimpleNamespace(projects_root=projects), item) == root
+
+
+def test_confirmed_handled_feedback_dominates_stale_derived_work_state(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    root = tmp_path / "project"
+    root.mkdir()
+    feedback = "d" * 64
+    write_json(root / "state.json", {
+        "handled_buyer_feedback_sha256": feedback,
+        "delivery_confirmed_feedback_sha256": feedback,
+        "next_action": "await_buyer_feedback",
+        "active_feedback_cycle": {
+            "buyer_feedback_sha256": feedback,
+            "phase": "ACTIONABLE",
+        },
+    })
+    monkeypatch.setattr(paid, "_paid_project_root", lambda *_args: root)
+    item = {
+        "talkroom_id": "room",
+        "talkroom_state": "取引中",
+        "buyer_feedback_sha256": feedback,
+        "buyer_feedback_pending_artifact": False,
+        "buyer_reply_after_artifact_observed": False,
+        "seller_sent_messages": [{"text": "sent", "attachments": ["artifact.zip"]}],
+    }
+
+    assert paid._reported_handled_feedback_cycle(SimpleNamespace(), item) == root
 
 
 def test_wait_accepts_supplementary_receipt_when_another_has_readback(tmp_path):
@@ -2185,6 +2442,59 @@ def test_targeted_readback_reclaims_its_stale_owner_before_open(tmp_path, monkey
     ]
 
 
+@pytest.mark.parametrize("pending_artifact", [False, True])
+def test_targeted_revision_reclassifies_stale_buyer_wait_as_work_required(
+        tmp_path, monkeypatch, pending_artifact):
+    paid = load("paid_direct")
+    room = "18211957"
+    feedback = "a" * 64
+    selected = {
+        "request_id": room,
+        "talkroom_id": room,
+        "contract_id": f"talkroom:{room}",
+        "marketplace_url": f"https://coconala.com/talkrooms/{room}",
+        "status": "unknown",
+        "selection_stage": "targeted",
+        "targeted_readback_required": False,
+        "talkroom_state": "取引中",
+        "transaction_state": "取引中",
+        "price_jpy": 50000,
+        "price_source": "structured_order_label",
+        "delivery_date": "2026-09-11",
+        "buyer_feedback_sha256": feedback,
+        "buyer_feedback_stage": "revision",
+        "buyer_feedback_pending_artifact": pending_artifact,
+        "buyer_reply_after_artifact_observed": pending_artifact,
+    }
+    collector_output = {}
+
+    def collector(_args, _mode, output, *_rest):
+        collector_output["path"] = output
+        return ["collector"]
+
+    def run(_command, _step, **_kwargs):
+        write_json(collector_output["path"], {
+            "captured_at": "2026-09-15T09:13:00+09:00",
+            "source": "authenticated_coconala_hidden_default_context_dom",
+            "orders": [selected],
+        })
+
+    monkeypatch.setattr(paid, "_collector", collector)
+    monkeypatch.setattr(paid, "_run", run)
+    monkeypatch.setattr(paid, "_reclaim_browser_owner", lambda *_args: None)
+    args = SimpleNamespace(
+        evidence_dir=tmp_path,
+        delivery_evidence_dir=tmp_path / "delivery-evidence",
+        cdp_lock_dir=tmp_path / "locks",
+        today="2026-09-15",
+    )
+
+    result = paid._targeted(args, {"talkroom_id": room}, 0)
+
+    assert result["queue_class"] == "buyer_feedback_or_revision"
+    assert result["delivery_action"] == "work_required"
+
+
 def test_targeted_readback_retries_default_tab_open_timeout_once(tmp_path, monkeypatch):
     paid = load("paid_direct")
     calls = []
@@ -2384,6 +2694,35 @@ def test_remote_owner_prompt_reconciles_project_effect_receipts_before_mutation(
     assert "Never repeat an effect whose receipt is already verified" in prompt
 
 
+def test_remote_owner_prompt_uses_authenticated_sheets_api_without_browser_identity(tmp_path):
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    requirements_sha = paid.paid_remote_result.requirements_digest(root, feedback)
+
+    prompt = paid._repair_prompt(
+        root, tmp_path / "item.json", feedback, requirements_sha,
+        False, tmp_path / "cdp.py",
+    )
+
+    assert "gog sheets" in prompt
+    assert "does not require a browser identity" in prompt
+    assert "append response's exact updated range" in prompt
+
+
+def test_remote_owner_prompt_uses_shared_tiktok_user_search(tmp_path):
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    requirements_sha = paid.paid_remote_result.requirements_digest(root, feedback)
+
+    prompt = paid._repair_prompt(
+        root, tmp_path / "item.json", feedback, requirements_sha,
+        False, tmp_path / "cdp.py",
+    )
+
+    assert "tiktok_user_search.py" in prompt
+    assert "Search results are candidate discovery, not eligibility proof" in prompt
+
+
 def test_paid_agent_creates_authorized_missing_resources_instead_of_asking_buyer(tmp_path):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)
@@ -2484,6 +2823,41 @@ def test_decision_prompt_keeps_live_system_revisions_remote_and_url_only(tmp_pat
     assert "choose remote until the live revision and its official verification are complete" in prompt
     assert "send its verified HTTPS review URL without a file attachment" in prompt
     assert "explicitly asks for source files, an archive, or a download" in prompt
+
+
+def test_decision_prompt_preserves_complete_visual_reference_contract(tmp_path):
+    paid = load("paid_direct")
+    identity = {"message_id": "m1", "content_sha256": "d" * 64, "side": "buyer"}
+
+    prompt = paid._decision_prompt(
+        tmp_path / "context.json", "a" * 64, "b" * 64, "c" * 64,
+        identity, identity,
+    ).decode()
+
+    assert "visually inspect every referenced image" in prompt
+    assert "complete visible component and layout census" in prompt
+    assert "must not reduce the contract to only the components named in nearby text" in prompt
+
+
+def test_remote_prompt_requires_buyer_visible_browser_and_cache_proof(tmp_path):
+    paid = load("paid_direct")
+    root = tmp_path / "project"
+    (root / "context").mkdir(parents=True)
+    (root / "context" / "paid-work-decision.json").write_text(json.dumps({
+        "decision": "actionable", "mode": "remote", "feedback_sha256": "b" * 64,
+        "requirements_sha256": "c" * 64, "required_output": "visible web revision",
+        "required_effect": "publish visible web revision", "required_assets": [],
+    }))
+
+    prompt = paid._repair_prompt(
+        root, tmp_path / "item.json", "b" * 64, "c" * 64, True,
+        tmp_path / "cdp.py",
+    )
+
+    assert "raw HTML, JavaScript, CSS, or API content is not buyer-visible proof" in prompt
+    assert "complete every entrance, consent, cookie, or overlay flow" in prompt
+    assert "cache-safe asset identity" in prompt
+    assert "fresh browser screenshot" in prompt
 
 
 def test_selected_talkroom_readback_uses_visible_transport_for_attachments(tmp_path, monkeypatch):
@@ -3766,7 +4140,7 @@ def test_paid_admission_orders_project_scoped_priority_without_excluding_others(
     assert [item["talkroom_id"] for item in admitted] == ["102", "101"]
 
 
-def test_account_owner_delegation_is_removed_from_active_paid_items(tmp_path):
+def test_static_interactive_delegation_cannot_remove_paid_item_forever(tmp_path):
     paid = load("paid_direct")
     project = tmp_path / "101"
     project.mkdir(parents=True)
@@ -3782,8 +4156,37 @@ def test_account_owner_delegation_is_removed_from_active_paid_items(tmp_path):
     delegated = {"talkroom_id": "101"}
     active = {"talkroom_id": "102"}
 
-    assert paid._paid_project_is_delegated(args, delegated)
-    assert paid._paid_active_items(args, [delegated, active]) == [active]
+    assert not paid._paid_project_is_delegated(args, delegated)
+    assert paid._paid_active_items(args, [delegated, active]) == [delegated, active]
+
+
+def test_only_fresh_runtime_owner_lease_delegates_paid_item(tmp_path):
+    paid = load("paid_direct")
+    project = tmp_path / "101"
+    project.mkdir(parents=True)
+    write_json(project / "state.json", {"talkroom_id": "101"})
+    policy = {
+        "version": 1,
+        "priority": 100,
+        "delegated": True,
+        "authorized_by": "account_owner",
+        "reason": "runtime_handoff",
+        "owner_lease": {
+            "version": 1,
+            "owner_kind": "runtime",
+            "owner_id": "paid-campaign-worker",
+            "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat(),
+        },
+    }
+    write_json(project / "context/paid-priority.json", policy)
+    args = SimpleNamespace(projects_root=tmp_path)
+    item = {"talkroom_id": "101"}
+
+    assert paid._paid_project_is_delegated(args, item)
+
+    policy["owner_lease"]["expires_at"] = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+    write_json(project / "context/paid-priority.json", policy)
+    assert not paid._paid_project_is_delegated(args, item)
 
 
 def test_queued_paid_project_keeps_parent_pending():
@@ -3975,6 +4378,29 @@ def test_run_bounded_does_not_wait_for_grandchild_inherited_pipe():
     assert time.monotonic() - started < 1
 
 
+def test_active_bounded_process_groups_are_terminated_on_shutdown(monkeypatch):
+    paid = load("paid_direct")
+
+    class FakeProcess:
+        pid = 43210
+
+        def poll(self):
+            return None
+
+    signals = []
+    monkeypatch.setattr(paid.os, "killpg", lambda pid, signum: signals.append((pid, signum)))
+    process = FakeProcess()
+    with paid._ACTIVE_BOUNDED_LOCK:
+        paid._ACTIVE_BOUNDED_PROCESSES.add(process)
+    try:
+        paid._terminate_active_bounded_processes()
+    finally:
+        with paid._ACTIVE_BOUNDED_LOCK:
+            paid._ACTIVE_BOUNDED_PROCESSES.discard(process)
+
+    assert signals == [(43210, paid.signal.SIGTERM)]
+
+
 def test_runner_loop_id_uses_managed_control_plane_identity(monkeypatch):
     paid = load("paid_direct")
     monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "hf-gig-paid-direct")
@@ -4000,6 +4426,21 @@ def test_remote_verifier_accepts_multiple_evidence_references():
         ("verifier_evidence", "second.json"),
     ]
     assert remote._verifier_evidence_values(result) == ["first.json", "second.json"]
+
+
+def test_remote_verifier_accepts_structured_readback_reference():
+    paid = load("paid_direct")
+    remote = load("paid_remote_result")
+    result = {"verifier_evidence": {
+        "official_url": "https://provider.example/result",
+        "readback_source": "fresh-verifier-readback.json",
+        "exact_readback": True,
+    }}
+
+    assert paid._verifier_evidence_references(result) == [
+        ("verifier_evidence", "fresh-verifier-readback.json"),
+    ]
+    assert remote._verifier_evidence_values(result) == ["fresh-verifier-readback.json"]
 
 
 def test_remote_verifier_ignores_owner_delivery_supplements():

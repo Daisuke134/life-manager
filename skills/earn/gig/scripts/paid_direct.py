@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse, errno, fcntl, hashlib, json, mimetypes, os, re, shutil, signal, stat, subprocess, sys, tempfile, threading, time, zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 from urllib.parse import urlsplit
@@ -12,6 +12,7 @@ HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path: sys.path.insert(0, str(HERE))
 import delivery_project  # noqa: E402
 import delivery_queue  # noqa: E402
+import coconala_queue_snapshot  # noqa: E402
 import effect_checkpoint  # noqa: E402
 import paid_admission  # noqa: E402
 import paid_work_evidence  # noqa: E402
@@ -272,6 +273,42 @@ def _comparison_key(value: str) -> str: return " ".join(value.split())
 
 STEP_TIMEOUT_RETURNCODE = 124
 
+# Each bounded child has its own process group so a timeout is isolated. A
+# launchd stop signal reaches the paid parent, not detached child groups; track
+# them so shutdown can forward the signal to every active child, including
+# children started from worker threads.
+_ACTIVE_BOUNDED_PROCESSES: set[subprocess.Popen] = set()
+_ACTIVE_BOUNDED_LOCK = threading.Lock()
+
+
+def _terminate_active_bounded_processes() -> None:
+    with _ACTIVE_BOUNDED_LOCK:
+        processes = tuple(_ACTIVE_BOUNDED_PROCESSES)
+    for process in processes:
+        if process.poll() is not None:
+            continue
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+
+
+def _install_bounded_shutdown_handlers() -> dict[int, Any]:
+    previous: dict[int, Any] = {}
+
+    def forward(_signum: int, _frame: Any) -> None:
+        _terminate_active_bounded_processes()
+
+    for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        previous[signum] = signal.getsignal(signum)
+        signal.signal(signum, forward)
+    return previous
+
+
+def _restore_bounded_shutdown_handlers(previous: dict[int, Any]) -> None:
+    for signum, handler in previous.items():
+        signal.signal(signum, handler)
+
 
 def _run_bounded(command: list[str], *, env=None, timeout: float | None = None):
     """A wedged child must become a failed step, not an unbounded wait.
@@ -285,6 +322,8 @@ def _run_bounded(command: list[str], *, env=None, timeout: float | None = None):
         command, stdout=stdout_file, stderr=stderr_file, text=True, env=env,
         start_new_session=os.name == "posix",
     )
+    with _ACTIVE_BOUNDED_LOCK:
+        _ACTIVE_BOUNDED_PROCESSES.add(process)
 
     def captured() -> tuple[str, str]:
         stdout_file.flush(); stderr_file.flush()
@@ -332,6 +371,8 @@ def _run_bounded(command: list[str], *, env=None, timeout: float | None = None):
             command, STEP_TIMEOUT_RETURNCODE, stdout,
             stderr + f"\nstep timed out after {error.timeout}s")
     finally:
+        with _ACTIVE_BOUNDED_LOCK:
+            _ACTIVE_BOUNDED_PROCESSES.discard(process)
         for signum, handler in previous.items():
             signal.signal(signum, handler)
         stdout_file.close(); stderr_file.close()
@@ -432,46 +473,38 @@ def _collect_dm_context(args, item: dict[str, Any], root: Path, base: Path) -> N
 
 
 def _buyer_attachment_recovery_pending(root: Path) -> bool:
-    """Keep every known buyer file inside collector recovery until bytes exist.
+    """Keep current buyer-cycle files inside collector recovery until bytes exist.
 
     A filename and an official message reference prove that the buyer already sent
     the file. Missing local bytes are therefore a transport-recovery job, not a
-    missing buyer input that the semantic agent may ask for again.
+    missing buyer input that the semantic agent may ask for again. Historical files
+    remain in the ledger, but a handled cycle cannot block a newer revision forever.
     """
     ledger = root / "source" / "talkroom" / "messages.jsonl"
-    try:
-        rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
-    except FileNotFoundError:
-        rows = []
-    except (OSError, TypeError, ValueError, json.JSONDecodeError):
-        return True
-    talkroom_dir = root / "source" / "buyer-attachments"
+    requirements_path = root / "requirements" / "live-buyer-reply.json"
+    if requirements_path.is_file():
+        try:
+            requirements = _load(requirements_path)
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            return True
+        active = requirements.get("attachments") if isinstance(requirements, dict) else None
+        if not isinstance(active, list):
+            return True
+        rows = [{"side": "buyer", "attachments": [
+            {"filename": attachment.get("filename"),
+             "reference": attachment.get("download_reference")}
+            for attachment in active if isinstance(attachment, dict)
+        ]}]
+    else:
+        try:
+            rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
+        except FileNotFoundError:
+            rows = []
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            return True
     dm_attachment_dir = root / "source" / "dm" / "attachments"
 
-    def verified_by_name(filename: str, directory: Path) -> bool:
-        digests: set[str] = set()
-        suffix = f"-{filename}"
-        if directory.is_symlink():
-            return False
-        try:
-            candidates = list(directory.iterdir())
-        except OSError:
-            return False
-        for raw in candidates:
-            if raw.is_symlink() or not _regular_file(raw) or not raw.name.endswith(suffix):
-                continue
-            prefix = raw.name[:-len(suffix)]
-            if not re.fullmatch(r"[0-9a-f]{12}", prefix):
-                continue
-            try:
-                digest = _file_snapshot(raw)[1]
-            except (OSError, ValueError):
-                continue
-            if digest.startswith(prefix):
-                digests.add(digest)
-        return len(digests) == 1
-
-    talkroom_attachments: list[tuple[str, str]] = []
+    attachments_by_reference: dict[str, str] = {}
     for row in rows:
         if not isinstance(row, dict) or row.get("side") != "buyer":
             continue
@@ -482,13 +515,18 @@ def _buyer_attachment_recovery_pending(root: Path) -> bool:
             reference = _text(attachment.get("reference"))
             if not filename or Path(filename).name != filename:
                 return True
-            talkroom_attachments.append((reference, filename))
+            previous = attachments_by_reference.setdefault(reference, filename)
+            if previous != filename:
+                return True
+    talkroom_attachments = list(attachments_by_reference.items())
     talkroom_name_counts = {
         filename: sum(1 for _, candidate in talkroom_attachments if candidate == filename)
         for _, filename in talkroom_attachments
     }
-    if any(talkroom_name_counts[filename] != 1 or not verified_by_name(filename, talkroom_dir)
-           for _, filename in talkroom_attachments):
+    if any(coconala_queue_snapshot.recover_captured_attachment(
+            root, filename, reference=reference,
+            allow_filename_fallback=talkroom_name_counts[filename] == 1,
+    ) is None for reference, filename in talkroom_attachments):
         return True
 
     dm_dir = root / "source" / "dm"
@@ -1862,6 +1900,10 @@ def _decision_prompt(context: Path, context_sha256: str, feedback: str,
         "the complete semantic workflow, never from title or keyword matching. required_output and required_effect must "
         "state the bounded buyer-facing completed outcome. They must never narrate your analysis process, promise to "
         "inspect/read/check the context later, or describe a read-only/no-effect assessment as actionable work. "
+        "When the buyer says to copy, adopt, match, or use attached visual references, visually inspect every referenced image "
+        "and make a complete visible component and layout census across the whole reference set. The required_output and "
+        "required_effect must preserve that complete census and must not reduce the contract to only the components named in nearby text, "
+        "unless a later buyer message explicitly excludes a referenced component. "
         "Complete every required context read before returning JSON. required_assets must list every buyer-visible screenshot, image, or linked asset "
         "required for the current bounded output and available for honest verification in this cycle; use [] only when "
         "the current output requires no such media. An asset that can exist only after a future event belongs in "
@@ -2337,6 +2379,10 @@ def _verifier_evidence_references(result: dict[str, Any]) -> list[tuple[str, str
     single = result.get("verifier_evidence")
     if not references and isinstance(single, str) and single.strip():
         references = [("verifier_evidence", single)]
+    if not references and isinstance(single, dict):
+        readback_source = single.get("readback_source")
+        if isinstance(readback_source, str) and readback_source.strip():
+            references = [("verifier_evidence", readback_source)]
     if not references and isinstance(single, list):
         references = [("verifier_evidence", value) for value in single
                       if isinstance(value, str) and value.strip()]
@@ -2525,6 +2571,20 @@ def resolve_managed_verifier(project_root: Path, feedback: str, digest: str) -> 
         pass
     raise Failure("remote_resume")
 
+
+def _classify_targeted(args, item, snapshot: Path, room: str) -> dict[str, Any]:
+    snapshot_value = _load(snapshot)
+    observed = {**item, **_row(snapshot_value, room)}
+    classified = delivery_queue.build(
+        {"captured_at": snapshot_value.get("captured_at"),
+         "source": snapshot_value.get("source"),
+         "orders": [observed], "quotes": []},
+        getattr(args, "delivery_evidence_dir", args.evidence_dir / "delivery-evidence"),
+        date.fromisoformat(getattr(args, "today", date.today().isoformat())),
+    )["items"]
+    return classified[0] if len(classified) == 1 else observed
+
+
 def _targeted(args, item, index):
     room = _text(item.get("talkroom_id")); base = args.evidence_dir / "paid-direct" / "targeted" / room
     item_path, snapshot = base / "item.json", base / "snapshot.json"
@@ -2547,13 +2607,13 @@ def _targeted(args, item, index):
                 _collector(args, "selected-talkroom-only", snapshot, base, item_path, item),
                 "targeted_readback", timeout=TARGETED_READBACK_TIMEOUT_SECONDS, env=environment,
             )
-            return {**item, **_row(_load(snapshot), room)}
+            return _classify_targeted(args, item, snapshot, room)
         # The collector atomically publishes the official snapshot before optional trailing
         # work. A child that wedges after that point must not discard this wake's fresh readback.
         if (not snapshot.is_file() or snapshot.stat().st_mtime_ns <= started_ns):
             raise
         _row(_load(snapshot), room)
-    return {**item, **_row(_load(snapshot), room)}
+    return _classify_targeted(args, item, snapshot, room)
 
 def _recoverable(args, item):
     try:
@@ -4627,6 +4687,10 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
             f"The canonical accumulated buyer requirements are {root / 'requirements/live-buyer-reply.json'} "
             f"with accumulated requirements SHA256={requirements_sha256}. Independently read that file; its feedback_sha256 must match the current feedback. "
             f"{target_contract} "
+            "For any buyer-visible web change, raw HTML, JavaScript, CSS, or API content is not buyer-visible proof. "
+            "Use a fresh browser context, complete every entrance, consent, cookie, or overlay flow, navigate the exact buyer route, "
+            "and prove the required elements are visible in the requested viewport with a fresh browser screenshot. When static assets "
+            "can be cached, bind the page to a cache-safe asset identity and verify that exact loaded asset URL/version before PASS. "
             f"Before building raw browser automation, search {code_root} with rg for an existing production adapter and relevant SKILL.md that "
             "support the target and its live readback. Read the skill, use its CLI contract when applicable, and do not reimplement it. "
             f"For an authorized TikTok DM, use {code_root / 'skills/browser/scripts/tiktok_message_transport.py'} through "
@@ -4634,6 +4698,16 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
             "project-local TikTok transport. The model must supply one qualified candidate and recipient-specific exact message; the shared "
             "transport alone owns sender verification, one send and exact official readback. Run it from PROJECT_ROOT so its deterministic "
             "delivery/tiktok-message-effects.jsonl fence remains stable across every wake; its path is not an agent choice. "
+            f"For fresh TikTok candidate discovery, run {code_root / 'skills/browser/scripts/tiktok_user_search.py'} "
+            f"through {code_root / 'skills/browser/with-browser.sh'} with the same registered identity and a project-owned "
+            "output path. Search results are candidate discovery, not eligibility proof; the model must inspect each official "
+            "profile and exclude prior effect keys before using the message transport. Continue with another query when one "
+            "complete search yields no unused route-capable candidate. "
+            "For authorized Google Sheets bookkeeping, prefer the installed authenticated `gog sheets` API CLI over "
+            "browser automation. An authenticated API account does not require a browser identity, so a resource-resolver "
+            "browser result of unavailable is not a Sheets blocker. Read the target range first for deduplication, append "
+            "one exact row with `gog sheets append`, atomically persist its JSON response, then read the append response's "
+            "exact updated range with `gog sheets get` and require matching values before checkpointing. "
             "Choose skills from the complete project context and actual target capabilities, never from a hardcoded buyer-name or keyword router. "
             "Before any external mutation, bind every factual claim in the outbound payload to an official source URL or a hash-bound "
             "project source. Omit facts that were not observed; when a missing fact matters, ask the recipient as a concise qualification "
@@ -5099,10 +5173,29 @@ def _remote_owner_checkpoint(status: str, root: Path, feedback: str, digest: str
     raise Failure("remote_builder")
 
 
-def _raise_remote_builder_or_progress(progress: Path, before_size: int,
-                                      expected: dict[str, str], error: Exception) -> None:
-    """Keep newly checkpointed self-actionable work resumable after owner validation."""
-    current_checkpoint = False
+def _continue_remote_owner_same_run(result: object, progress_before: int,
+                                    progress_after: int, review_round: int,
+                                    max_rounds: int) -> bool:
+    """Spend an existing review round on more durable work before verification."""
+    if not isinstance(result, dict) or result.get("status") != "ok":
+        return False
+    outcome = result.get("business_outcome")
+    if not isinstance(outcome, dict):
+        return False
+    remaining = outcome.get("remaining_work")
+    return (
+        review_round < max_rounds
+        and progress_after > progress_before
+        and outcome.get("required_effect_satisfied") is False
+        and outcome.get("required_output_satisfied") is False
+        and isinstance(remaining, list)
+        and bool(remaining)
+        and not isinstance(outcome.get("wait_receipt"), dict)
+    )
+
+
+def _current_remote_checkpoint_added(progress: Path, before_size: int,
+                                     expected: dict[str, str]) -> bool:
     if _regular_file(progress) and progress.stat().st_size > before_size:
         with progress.open("rb") as handle:
             handle.seek(before_size)
@@ -5113,8 +5206,23 @@ def _raise_remote_builder_or_progress(progress: Path, before_size: int,
                     continue
                 if (effect_checkpoint.valid_checkpoint(row)
                         and all(row.get(key) == value for key, value in expected.items())):
-                    current_checkpoint = True
-                    break
+                    return True
+    return False
+
+
+def _continue_remote_owner_after_invalid_result(
+        progress: Path, before_size: int, expected: dict[str, str],
+        review_round: int, max_rounds: int) -> bool:
+    return (
+        review_round < max_rounds
+        and _current_remote_checkpoint_added(progress, before_size, expected)
+    )
+
+
+def _raise_remote_builder_or_progress(progress: Path, before_size: int,
+                                      expected: dict[str, str], error: Exception) -> None:
+    """Keep newly checkpointed self-actionable work resumable after owner validation."""
+    current_checkpoint = _current_remote_checkpoint_added(progress, before_size, expected)
     stage = (
         "remote_progress"
         if current_checkpoint
@@ -5209,7 +5317,8 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
 
     verifier_path = None
     verifier_contract_error = None
-    for review_round in range(1, 4):
+    max_review_rounds = 3
+    for review_round in range(1, max_review_rounds + 1):
         if builder_required:
             prompt = repair / "owner.prompt.txt"
             prompt.write_text(
@@ -5281,9 +5390,21 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
                     raise Failure("remote_progress")
                 paid_remote_result.validate_builder(root, feedback, digest, pass_start)
             except (OSError, ValueError, TypeError, json.JSONDecodeError) as error:
+                if _continue_remote_owner_after_invalid_result(
+                        progress, progress_size, progress_contract,
+                        review_round, max_review_rounds):
+                    builder_required, review_delta = True, None
+                    continue
                 _raise_remote_builder_or_progress(
                     progress, progress_size, progress_contract, error,
                 )
+            delivery_result = _load(root / "delivery" / "paid-remote-result.json")
+            progress_after = progress.stat().st_size if _regular_file(progress) else 0
+            if _continue_remote_owner_same_run(
+                    delivery_result, progress_size, progress_after,
+                    review_round, max_review_rounds):
+                builder_required, review_delta = True, None
+                continue
             builder_required, validation_start = False, pass_start
 
         if verifier_evidence.is_symlink():
@@ -6311,16 +6432,30 @@ def _paid_queue_priority(args, item: dict[str, Any]) -> tuple[int, int, str, str
 
 
 def _paid_project_is_delegated(args, item: dict[str, Any]) -> bool:
-    """Keep an explicitly delegated project observable without running duplicate effects."""
+    """Skip only while a bounded runtime owner lease is currently alive."""
     try:
         policy = _load(_paid_project_root(args, item) / "context" / "paid-priority.json")
     except (Failure, OSError, ValueError, TypeError, json.JSONDecodeError):
         return False
-    return (
+    lease = policy.get("owner_lease")
+    if not (
         policy.get("version") == 1
         and policy.get("authorized_by") == "account_owner"
         and policy.get("delegated") is True
-    )
+        and isinstance(lease, dict)
+        and lease.get("version") == 1
+        and lease.get("owner_kind") == "runtime"
+        and _text(lease.get("owner_id"))
+    ):
+        return False
+    try:
+        expires_at = datetime.fromisoformat(_text(lease.get("expires_at")).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if expires_at.tzinfo is None:
+        return False
+    remaining = (expires_at - datetime.now(timezone.utc)).total_seconds()
+    return 0 < remaining <= 15 * 60
 
 
 def _paid_active_items(args, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -6416,6 +6551,27 @@ def _completed_paid_readbacks(refresh_jobs):
         yield job, refresh_jobs[job]
 
 
+def _reported_handled_feedback_cycle(args, item: dict[str, Any]) -> Path | None:
+    """Let confirmed current facts dominate stale derived workflow state."""
+    try:
+        root = _paid_project_root(args, item)
+        state = _load(root / "state.json")
+        feedback = _text(item.get("buyer_feedback_sha256"))
+        seller = item.get("seller_sent_messages") or item.get("seller_messages") or []
+        if (not re.fullmatch(r"[0-9a-f]{64}", feedback)
+                or state.get("handled_buyer_feedback_sha256") != feedback
+                or state.get("delivery_confirmed_feedback_sha256") != feedback
+                or state.get("next_action") != "await_buyer_feedback"
+                or item.get("buyer_feedback_pending_artifact") is not False
+                or item.get("buyer_reply_after_artifact_observed") is not False
+                or not _text(item.get("talkroom_state", item.get("transaction_state")))
+                or not isinstance(seller, list) or not seller):
+            return None
+        return root
+    except (AttributeError, OSError, ValueError, TypeError, json.JSONDecodeError, Failure):
+        return None
+
+
 def _reported_paid_row(args, item: dict[str, Any]) -> dict[str, Any] | None:
     room = _text(item.get("talkroom_id"))
     effect_policy = _account_owner_observe_only(args, item)
@@ -6437,6 +6593,11 @@ def _reported_paid_row(args, item: dict[str, Any]) -> dict[str, Any] | None:
                 "formal_delivery_checkbox": True,
                 "evidence_paths": {"official_readback": _text(item.get("talkroom_evidence_file"))}}
     if _reported_file_progress_cycle(args, item) is not None:
+        return {"talkroom_id": room, "status": "awaiting_buyer",
+                "send_performed": False, "deduplicated": True,
+                "formal_delivery_checkbox": False,
+                "evidence_paths": {"official_readback": _text(item.get("talkroom_evidence_file"))}}
+    if _reported_handled_feedback_cycle(args, item) is not None:
         return {"talkroom_id": room, "status": "awaiting_buyer",
                 "send_performed": False, "deduplicated": True,
                 "formal_delivery_checkbox": False,
@@ -6696,7 +6857,7 @@ def _parser():
                         default=Path(os.environ.get("GIG_OPERATOR_BRAKE_FILE", DEFAULT_BRAKE)))
     parser.add_argument("--today", default=date.today().isoformat()); parser.add_argument("--effect-item", type=Path); parser.add_argument("--write-item", type=Path); parser.add_argument("--decision-item", type=Path); return parser
 
-def main(argv=None) -> int:
+def _main(argv=None) -> int:
     args = _parser().parse_args(argv)
     for name in ("output", "evidence_dir", "projects_root", "collector", "run_with_cdp_lock", "answer_browser", "formal_browser", "cancel_browser", "delivery_evidence_dir", "cdp_lock_dir", "context_compiler", "dm_collector", "agent_runner", "runner_schema", "artifact_schema", "decision_schema"): setattr(args, name, getattr(args, name).expanduser().resolve())
     args.cdp_helper = args.cdp_helper.expanduser(); args.lock_file = args.lock_file.expanduser().resolve() if args.lock_file else args.evidence_dir / ".paid-direct.lock"
@@ -6723,6 +6884,14 @@ def main(argv=None) -> int:
         result["telegram"] = {"status": "failed", "error": type(error).__name__}
     _write(args.output, result)
     return rc
+
+
+def main(argv=None) -> int:
+    previous = _install_bounded_shutdown_handlers()
+    try:
+        return _main(argv)
+    finally:
+        _restore_bounded_shutdown_handlers(previous)
 
 if __name__ == "__main__":
     exit_code = main()

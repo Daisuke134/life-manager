@@ -5,11 +5,56 @@ set -euo pipefail
 SOURCE_REPO="${LIFE_MANAGER_SOURCE_REPO:-$HOME/Projects/life-manager-main}"
 LOOPS_ROOT="${LOOPS_ROOT:-$HOME/loops}"
 CURRENT="$LOOPS_ROOT/current"
+SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 
-git -C "$SOURCE_REPO" fetch --quiet origin main
+fetch_timeout_seconds="${LIFE_MANAGER_RELEASE_FETCH_TIMEOUT_SECONDS:-600}"
+case "$fetch_timeout_seconds" in
+  ''|*[!0-9]*)
+    printf 'agent-runner reconcile refused: invalid fetch timeout\n' >&2
+    exit 64
+    ;;
+esac
+if [ "$fetch_timeout_seconds" -lt 1 ]; then
+  printf 'agent-runner reconcile refused: invalid fetch timeout\n' >&2
+  exit 64
+fi
+runtime_python="${LIFE_MANAGER_RUNTIME_PYTHON:-$(command -v python3 || true)}"
+timeout_runner="$SCRIPT_ROOT/runtime/run-with-timeout.py"
+if [ -z "$runtime_python" ] || [ ! -f "$timeout_runner" ]; then
+  printf 'agent-runner reconcile refused: portable timeout unavailable\n' >&2
+  exit 69
+fi
+
+reconcile_release() {
+  local release_root="$1"
+  local status=0
+  if ! LIFE_MANAGER_RELEASE_ROOT="$release_root" "$release_root/bin/lm-loop" \
+    reconcile shared-agent-runner --loaded-idle-only --max-owners 1; then
+    status=1
+  fi
+  if ! LIFE_MANAGER_RELEASE_ROOT="$release_root" "$release_root/bin/lm-loop" \
+    reconcile deterministic --loaded-idle-only --max-owners 1; then
+    status=1
+  fi
+  local admission_root="${LIFE_MANAGER_RESOURCE_ADMISSION_ROOT:-$HOME/.local/state/life-manager/host-admission/resources}"
+  if [ ! -f "$admission_root/protocol.json" ] && \
+    ! LIFE_MANAGER_RELEASE_ROOT="$release_root" "$release_root/bin/lm-loop" admission-v2-enable; then
+    status=1
+  fi
+  return "$status"
+}
+
+"$runtime_python" "$timeout_runner" --grace-seconds 15 "$fetch_timeout_seconds" \
+  git -C "$SOURCE_REPO" fetch --quiet --no-tags --no-auto-maintenance \
+    --negotiation-tip=refs/remotes/origin/main origin main
 main_sha="$(git -C "$SOURCE_REPO" rev-parse origin/main)"
-current_sha="$(jq -r '.sha // ""' "$CURRENT/RELEASE.json" 2>/dev/null || true)"
-current_paths="$(jq -r '.release_paths // ""' "$CURRENT/RELEASE.json" 2>/dev/null || true)"
+initial_release_root="$(cd "$CURRENT" 2>/dev/null && pwd -P || true)"
+current_sha=""
+current_paths=""
+if [ -n "$initial_release_root" ]; then
+  current_sha="$(jq -r '.sha // ""' "$initial_release_root/RELEASE.json" 2>/dev/null || true)"
+  current_paths="$(jq -r '.release_paths // ""' "$initial_release_root/RELEASE.json" 2>/dev/null || true)"
+fi
 current_complete=0
 [ "$current_paths" = "ALL" ] && current_complete=1
 release_sha_target="$main_sha"
@@ -40,14 +85,4 @@ if [ "$release_sha" != "$release_sha_target" ] || [ "$release_paths" != "ALL" ];
   exit 1
 fi
 
-status=0
-if ! LIFE_MANAGER_RELEASE_ROOT="$RELEASE_ROOT" "$RELEASE_ROOT/bin/lm-loop" reconcile shared-agent-runner --loaded-idle-only --loop-id hf-gig-apply-direct; then
-  status=1
-fi
-if ! LIFE_MANAGER_RELEASE_ROOT="$RELEASE_ROOT" "$RELEASE_ROOT/bin/lm-loop" reconcile shared-agent-runner --include-running --loop-id hf-gig-reply-detector; then
-  status=1
-fi
-if ! LIFE_MANAGER_RELEASE_ROOT="$RELEASE_ROOT" "$RELEASE_ROOT/bin/lm-loop" reconcile deterministic --loaded-idle-only --loop-id hf-gig-storefront-direct --loop-id hf-gig-paid-direct --loop-id life-manager-disk-cleanup; then
-  status=1
-fi
-exit "$status"
+reconcile_release "$RELEASE_ROOT"

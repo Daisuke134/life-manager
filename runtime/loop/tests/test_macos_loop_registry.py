@@ -199,26 +199,29 @@ class MacosLoopRegistryTest(unittest.TestCase):
         })
         self.assertEqual(validate_registry(registry), registry)
 
-    def test_release_reconciler_scopes_each_route_to_the_four_gig_owners(self):
+    def test_release_reconciler_updates_only_loaded_idle_fleet_owners(self):
         script = (ROOT / "bin/reconcile-agent-runner-release.sh").read_text()
         self.assertIn("':(exclude)docs/**'", script)
         self.assertIn("':(exclude)skills/earn/gig/TODO.md'", script)
         self.assertIn(
-            "reconcile shared-agent-runner --loaded-idle-only "
-            "--loop-id hf-gig-apply-direct",
+            "reconcile shared-agent-runner --loaded-idle-only",
             script,
         )
         self.assertIn(
-            "reconcile shared-agent-runner --include-running "
-            "--loop-id hf-gig-reply-detector",
+            "reconcile shared-agent-runner --loaded-idle-only --max-owners 1",
             script,
         )
         self.assertIn(
-            "reconcile deterministic --loaded-idle-only "
-            "--loop-id hf-gig-storefront-direct --loop-id hf-gig-paid-direct "
-            "--loop-id life-manager-disk-cleanup",
+            "reconcile deterministic --loaded-idle-only",
             script,
         )
+        self.assertIn(
+            "reconcile deterministic --loaded-idle-only --max-owners 1",
+            script,
+        )
+        self.assertIn("admission-v2-enable", script)
+        self.assertNotIn("--include-running", script)
+        self.assertNotIn("--loop-id", script)
 
     def test_registry_rejects_missing_and_secret_fields(self):
         missing = {"schema_version": 2, "loops": {"example": entry()}}
@@ -442,6 +445,24 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual(
             row["entrypoint"],
             "skills/earn/lancers/scripts/telegram-report-owner",
+        )
+
+    def test_lancers_finite_revenue_lanes_have_a_five_minute_runtime_bound(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        finite_lanes = (
+            "lancers-revenue-application",
+            "lancers-revenue-paid",
+            "lancers-revenue-negotiate",
+            "lancers-revenue-storefront",
+            "lancers-revenue-work-sync",
+            "lancers-revenue-telegram-report",
+        )
+        for loop_id in finite_lanes:
+            with self.subTest(loop_id=loop_id):
+                self.assertEqual(registry["loops"][loop_id]["runtime_timeout_seconds"], 300)
+        self.assertNotIn(
+            "runtime_timeout_seconds",
+            registry["loops"]["lancers-revenue-browser"],
         )
 
     def test_marketing_metrics_daily_uses_direct_python_adapter(self):

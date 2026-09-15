@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import tempfile
@@ -17,6 +18,39 @@ DEPENDENCY_ROOTS = (
 
 
 class CutLoopReleaseTest(unittest.TestCase):
+    def test_release_builds_immutable_bytecode_for_its_runtime_python(self):
+        with tempfile.TemporaryDirectory() as directory:
+            loops = Path(directory) / "loops"
+            result = subprocess.run(
+                ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
+                cwd=ROOT,
+                env={
+                    **os.environ,
+                    "LOOPS_ROOT": str(loops),
+                    "LOOPS_RELEASE_PATHS": "runtime",
+                    "LOOPS_ACTIVATE_CURRENT": "0",
+                    "LIFE_MANAGER_DISK_PRESSURE_FILE": str(Path(directory) / "no-pressure"),
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            release = next((loops / "releases").iterdir())
+            manifest = json.loads((release / "RELEASE.json").read_text())
+            runtime_python = Path(manifest["runtime_python"])
+            tag = manifest["runtime_python_cache_tag"]
+            caches = list(release.glob(f"runtime/**/__pycache__/*.{tag}.pyc"))
+            self.assertTrue(caches)
+            self.assertEqual(int.from_bytes(caches[0].read_bytes()[4:8], "little"), 3)
+            self.assertFalse(release.stat().st_mode & 0o200)
+            self.assertTrue(runtime_python.is_absolute() and os.access(runtime_python, os.X_OK))
+            actual_tag = subprocess.check_output(
+                [str(runtime_python), "-c", "import sys; print(sys.implementation.cache_tag)"],
+                text=True,
+            ).strip()
+            self.assertEqual(tag, actual_tag)
+
     def test_connector_sparse_release_includes_shared_browser_runtime(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -37,6 +71,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "LOOPS_ACTIVATE_CURRENT": "0",
                     "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
                     "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
                     "NPM_BIN": str(npm),
                     "NPM_VERSION": "test",
                     "NPM_NODE_VERSION": "test",
@@ -87,6 +122,45 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(len(releases), 1)
             self.assertTrue((releases[0] / "RELEASE.json").is_file())
             self.assertIn("current unchanged", result.stdout)
+
+    def test_release_cannot_move_current_to_an_older_main_ancestor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            loops = root / "loops"
+            current_release = loops / "releases" / "current-release"
+            current_release.mkdir(parents=True)
+            current_sha = "fb80cadd5d0bba58de3fece64db6ab0203ba1e83"
+            older_sha = "1d4bca431546c1604c388abbe6542c9764d274e8"
+            (current_release / "RELEASE.json").write_text(
+                json.dumps({"sha": current_sha, "release_paths": "ALL"}) + "\n"
+            )
+            current = loops / "current"
+            current.symlink_to(current_release)
+            agents = root / "agents"
+            agents.mkdir()
+            admission = root / "admission"
+            admission.mkdir()
+
+            result = subprocess.run(
+                ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), older_sha],
+                cwd=ROOT,
+                env={
+                    **os.environ,
+                    "LOOPS_ROOT": str(loops),
+                    "LOOPS_RELEASE_PATHS": "runtime/loop",
+                    "LOOPS_KEEP_RELEASES": "1",
+                    "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(admission),
+                    "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("current backwards", result.stderr)
+            self.assertEqual(current.resolve(), current_release.resolve())
 
     def test_release_reuses_one_content_addressed_dependency_bundle(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -167,7 +241,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             result = subprocess.run(
                 ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
                 cwd=ROOT,
-                env={**os.environ, "LOOPS_ROOT": str(loops), "LOOPS_KEEP_RELEASES": "2", "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint", "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"), "NPM_BIN": str(npm), "NPM_VERSION": "test", "NPM_NODE_VERSION": "test"},
+                env={**os.environ, "LOOPS_ROOT": str(loops), "LOOPS_KEEP_RELEASES": "2", "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint", "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"), "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"), "NPM_BIN": str(npm), "NPM_VERSION": "test", "NPM_NODE_VERSION": "test"},
                 capture_output=True, text=True, check=False,
             )
 
@@ -282,6 +356,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint",
                     "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
                     "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
                     "NPM_BIN": str(npm),
                     "NPM_VERSION": "test",
                     "NPM_NODE_VERSION": "test",
@@ -304,6 +379,61 @@ class CutLoopReleaseTest(unittest.TestCase):
                 (release / relative / "node_modules").is_symlink()
                 for relative in DEPENDENCY_ROOTS
             ))
+
+    def test_reconciler_bounds_origin_fetch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fake_bin = root / "bin"
+            fake_bin.mkdir()
+            loops = root / "loops"
+            release = loops / "releases" / "current-release"
+            (release / "bin").mkdir(parents=True)
+            (loops / "current").symlink_to(release)
+            (release / "RELEASE.json").write_text(
+                '{"sha":"%s","release_paths":"ALL"}\n' % ("a" * 40)
+            )
+            reconcile_calls = root / "reconcile.calls"
+            lm_loop = release / "bin" / "lm-loop"
+            lm_loop.write_text(
+                "#!/bin/sh\n"
+                f"printf '%s\\n' \"$*\" >> {reconcile_calls}\n"
+            )
+            lm_loop.chmod(0o755)
+            fake_git = fake_bin / "git"
+            fetch_args = root / "fetch.args"
+            fake_git.write_text(
+                "#!/bin/sh\n"
+                f"printf '%s\\n' \"$*\" > {fetch_args}\n"
+                "sleep 10\n"
+            )
+            fake_git.chmod(0o755)
+
+            result = subprocess.run(
+                ["/bin/bash", str(ROOT / "bin/reconcile-agent-runner-release.sh")],
+                cwd=ROOT,
+                env={
+                    **os.environ,
+                    "PATH": f"{fake_bin}:{os.environ['PATH']}",
+                    "LIFE_MANAGER_SOURCE_REPO": str(root),
+                    "LOOPS_ROOT": str(loops),
+                    "LIFE_MANAGER_RELEASE_FETCH_TIMEOUT_SECONDS": "1",
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=5,
+            )
+
+            self.assertEqual(result.returncode, 124, result.stderr)
+            self.assertIn("--no-tags", fetch_args.read_text())
+            self.assertIn("--no-auto-maintenance", fetch_args.read_text())
+            self.assertIn(
+                "--negotiation-tip=refs/remotes/origin/main", fetch_args.read_text()
+            )
+            self.assertFalse(
+                reconcile_calls.exists(),
+                "a pre-fetch release must never be applied after current can move",
+            )
 
     def test_reconciler_pins_captured_main_sha_when_origin_moves_during_cut(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -358,6 +488,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "PATH": f"{fake_bin}:{os.environ['PATH']}",
                     "LIFE_MANAGER_SOURCE_REPO": str(root),
                     "LOOPS_ROOT": str(loops),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
                 },
                 capture_output=True,
                 text=True,
@@ -376,9 +507,9 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(
                 [line.split("|", 1)[1] for line in reconciles],
                 [
-                    "reconcile shared-agent-runner --loaded-idle-only --loop-id hf-gig-apply-direct",
-                    "reconcile shared-agent-runner --include-running --loop-id hf-gig-reply-detector",
-                    "reconcile deterministic --loaded-idle-only --loop-id hf-gig-storefront-direct --loop-id hf-gig-paid-direct --loop-id life-manager-disk-cleanup",
+                    "reconcile shared-agent-runner --loaded-idle-only --max-owners 1",
+                    "reconcile deterministic --loaded-idle-only --max-owners 1",
+                    "admission-v2-enable",
                 ],
             )
 
@@ -399,6 +530,9 @@ class CutLoopReleaseTest(unittest.TestCase):
             )
             cutter_called = root / "cutter.called"
             calls = root / "lm-loop.calls"
+            admission_root = root / "admission"
+            admission_root.mkdir()
+            (admission_root / "protocol.json").write_text('{"version":2}\n')
             fake_git = fake_bin / "git"
             fake_git.write_text(
                 "#!/bin/sh\n"
@@ -428,6 +562,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "PATH": f"{fake_bin}:{os.environ['PATH']}",
                     "LIFE_MANAGER_SOURCE_REPO": str(root),
                     "LOOPS_ROOT": str(loops),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(admission_root),
                 },
                 capture_output=True,
                 text=True,
@@ -436,7 +571,7 @@ class CutLoopReleaseTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertFalse(cutter_called.exists())
-            self.assertEqual(len(calls.read_text().splitlines()), 3)
+            self.assertEqual(len(calls.read_text().splitlines()), 2)
 
 
 if __name__ == "__main__":

@@ -64,6 +64,7 @@ SAFETY (hard, and each one has a test)
 from __future__ import annotations
 
 import argparse
+import atexit
 import json
 import os
 import re
@@ -72,6 +73,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+import tempfile
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 
@@ -310,6 +312,44 @@ def _process_start_signature(pid: int) -> str | None:
     return value or None
 
 
+def _pid_is_live(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
+def register_live_evidence_pin(state_dir: Path, evidence_dir: Path, lane: str) -> Path:
+    """Publish one atomic, PID-identity-bound pin for the lifetime of this process."""
+    state_dir = Path(state_dir)
+    evidence_dir = Path(evidence_dir).resolve(strict=True)
+    pid = os.getpid()
+    process_start = _process_start_signature(pid)
+    if not process_start:
+        raise OSError("cannot establish process-start identity for evidence pin")
+    state_dir.mkdir(parents=True, exist_ok=True)
+    temporary = Path(tempfile.mkdtemp(prefix=".evidence-pin-", dir=state_dir))
+    target = state_dir / f".gig-pass-{lane}-{pid}-{time.time_ns()}.lock.d"
+    try:
+        (temporary / "pid").write_text(f"{pid}\n", encoding="utf-8")
+        (temporary / "meta.json").write_text(json.dumps({
+            "pid": pid,
+            "process_start": process_start,
+            "evidence_dir": str(evidence_dir),
+        }, sort_keys=True) + "\n", encoding="utf-8")
+        os.rename(temporary, target)
+    except Exception:
+        shutil.rmtree(temporary, ignore_errors=True)
+        raise
+    atexit.register(shutil.rmtree, target, True)
+    return target
+
+
 def _running_sibling_evidence(state_dir: Path, evidence_root: Path) -> set[str]:
     """Pin live lane trees from direct Hermes lock metadata, fail closed otherwise."""
     try:
@@ -325,14 +365,19 @@ def _running_sibling_evidence(state_dir: Path, evidence_root: Path) -> set[str]:
         try:
             pid = int(pid_path.read_text(encoding="utf-8").strip())
             metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-            actual_start = _process_start_signature(pid)
         except (OSError, ValueError, TypeError):
             continue
         if not isinstance(metadata, dict) or pid <= 0:
             continue
-        if metadata.get("pid") != pid or not actual_start:
+        if metadata.get("pid") != pid:
             continue
-        if metadata.get("process_start") != actual_start:
+        actual_start = _process_start_signature(pid)
+        if actual_start and metadata.get("process_start") != actual_start:
+            continue
+        # A transient `ps` timeout must retain evidence, not turn observability
+        # failure into deletion. A reused PID is excluded above when `ps` works;
+        # when it does not, over-retaining for a live PID is the safe outcome.
+        if not actual_start and not _pid_is_live(pid):
             continue
         candidate = metadata.get("evidence_dir")
         if not isinstance(candidate, str) or not candidate.strip():
@@ -791,11 +836,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args(argv)
 
-    state_dir = args.state_dir
-    evidence_root = args.evidence_root or state_dir / "evidence"
+    state_dir = args.state_dir.expanduser()
+    evidence_root = args.evidence_root.expanduser() if args.evidence_root else state_dir / "evidence"
     # `--current-evidence-dir ""` (an unset shell variable) must not become
     # Path(".") and drop evidence-gc.json into whatever cwd the caller had.
-    current = args.current_evidence_dir
+    current = args.current_evidence_dir.expanduser() if args.current_evidence_dir else None
     if current is not None and str(current) in ("", "."):
         current = None
     overrides = {}

@@ -145,25 +145,40 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
     try:
         target = cdp_client.new_target("https://www.tiktok.com/", owner)
         wait(2)
-        observed_identity = cdp_client.evaluate(target, "/* TIKTOK_IDENTITY */" +
-                                                  tiktok_identity_readback.READBACK_EXPRESSION)
-        if not isinstance(observed_identity, dict) or "__error__" in observed_identity:
-            result["status"] = "sender_identity_unreadable"
-            return result
-        identity = tiktok_identity_readback.classify_readback(observed_identity, sender)
+        identity = None
+        for identity_attempt in range(30):
+            observed_identity = cdp_client.evaluate(
+                target,
+                "/* TIKTOK_IDENTITY */" + tiktok_identity_readback.READBACK_EXPRESSION,
+            )
+            if not isinstance(observed_identity, dict) or "__error__" in observed_identity:
+                result["status"] = "sender_identity_unreadable"
+                return result
+            identity = tiktok_identity_readback.classify_readback(observed_identity, sender)
+            if identity["authenticated"] or identity["status"] == "authenticated_identity_mismatch":
+                break
+            if identity_attempt < 29:
+                wait(0.5)
+        assert identity is not None
         result["sender_identity"] = identity
         if not identity["authenticated"]:
             result["status"] = ("sender_identity_mismatch" if identity["observed_handle"]
                                 else "sender_identity_not_authenticated")
             return result
 
-        cdp_client.navigate(target, profile)
-        wait(4)
-        route_readback = cdp_client.evaluate(target, r'''/* TIKTOK_PROFILE_ROUTE */ (() => {
-          const link = [...document.querySelectorAll('a[href*="/business-suite/messages"][href*="u="]')][0];
-          return {url: location.href, message_route: link?.href || null};
-        })()''')
-        route = _message_route(route_readback.get("message_route") if isinstance(route_readback, dict) else None)
+        route = None
+        if prior and prior[-1].get("state") in {"attempting", "unknown"}:
+            route = _message_route(prior[-1].get("official_url"))
+        if route is None:
+            cdp_client.navigate(target, profile)
+            wait(4)
+            route_readback = cdp_client.evaluate(target, r'''/* TIKTOK_PROFILE_ROUTE */ (() => {
+              const link = [...document.querySelectorAll('a[href*="/business-suite/messages"][href*="u="]')][0];
+              return {url: location.href, message_route: link?.href || null};
+            })()''')
+            route = _message_route(
+                route_readback.get("message_route") if isinstance(route_readback, dict) else None
+            )
         if route is None:
             result["status"] = "recipient_message_route_unavailable"
             return result
@@ -175,12 +190,15 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
           const doc = frame?.contentDocument;
           const body = doc?.body?.innerText || '';
           const editor = doc?.querySelector({json.dumps(EDITOR)});
+          const messageList = doc?.querySelector('[data-e2e="dm-new-message-list"]');
           const heads = [...(doc?.querySelectorAll('[data-e2e*="chat-header"],[class*="ChatHeader"],[class*="ConversationHeader"]') || [])];
           const handles = heads.flatMap(node => (node.innerText || '').match(/@[A-Za-z0-9._-]+/g) || []).map(x => x.toLowerCase());
           const recipientBound = handles.includes({json.dumps(candidate)});
           return {{url: location.href, recipient_bound: recipientBound,
             editor: !!editor, editor_empty: !editor || !(editor.innerText || '').trim(),
-            exact_message: body.includes({json.dumps(message)})}};
+            exact_message: body.includes({json.dumps(message)}),
+            conversation_loaded: !!messageList,
+            message_count: messageList && (messageList.innerText || '').trim() ? 1 : 0}};
         }})()''')
         if not isinstance(before, dict) or "__error__" in before:
             result["status"] = "composer_unreadable"
@@ -194,6 +212,12 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
         if (before.get("recipient_bound") is not True or before.get("editor") is not True
                 or before.get("editor_empty") is not True):
             result["status"] = "composer_recipient_binding_failed"
+            return result
+        if (prior and prior[-1].get("state") in {"attempting", "unknown"}
+                and before.get("conversation_loaded") is True
+                and before.get("message_count") == 0):
+            _append(ledger, result, "not_sent")
+            result.update(status="not_sent_exact_official_readback", retry_safe=True)
             return result
         if prior and prior[-1].get("state") in {"attempting", "unknown", "sent"}:
             result.update(status="reconcile_required", retry_safe=False)
@@ -291,7 +315,8 @@ def main() -> int:
     result = send_one(json.loads(raw), send=args.send)
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0 if result.get("status") in {
-        "ready", "deduplicated_exact_official_readback", "sent_exact_official_readback"
+        "ready", "not_sent_exact_official_readback",
+        "deduplicated_exact_official_readback", "sent_exact_official_readback"
     } else 2
 
 

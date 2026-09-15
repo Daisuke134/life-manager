@@ -16,6 +16,30 @@ locked worktree -> focused test -> merged main -> immutable release -> lm-loop a
                                                            +-> mutable private state outside release
 ```
 
+## Session routing and skill boundary
+
+- Before repository work, read the active persistent goal and its named paths.
+  A goal-named worktree takes priority. Otherwise inspect registered worktrees,
+  leases, branches, upstreams, dirty state, open PRs, and live users to find a
+  safe same-task continuation. Never create a duplicate worktree for the same
+  task. Create one from fresh `origin/main` only when no safe continuation
+  exists; a shared checkout or mismatched branch remains read-only.
+- Start development with the applicable Superpowers process skill, then use
+  this repository skill for Life Manager-specific contracts. Codex plugin skills
+  are development-time tools; Life Manager runtime loads only repository-owned
+  skills from its immutable release. Generalize reusable learning here with a
+  pressure test; never make production depend on `~/.codex`, plugin caches, or
+  another agent's home directory.
+- One independent workstream owns one worktree, branch, and lease. Parallel
+  sessions must not share the same worktree, branch, mutable state, browser
+  profile, or CDP port. Give each session exact files and runtime owners. If two
+  tasks need one mutable resource or external effect, serialize the exact shared
+  effect; keep every unrelated workstream parallel and integrate through main.
+- For uncertain implementation practice, inspect the existing implementation
+  and local clones before prose documentation, then confirm unstable interfaces
+  in primary sources. Do not clone a duplicate repository; fetch or inspect the
+  existing clone, and add a new clone only when the code is not already present.
+
 ## Before editing
 
 1. Read the current spec, registry row, entrypoint, state path, loaded plist
@@ -106,9 +130,23 @@ Long waits belong in persisted `next_eligible_at` state and launchd cadence.
   heartbeat is evidence to inspect, not permission for blind restart. Recovery
   is bounded, records the first failure separately, and never retries an
   uncertain external effect without official readback.
+- Symptom: an active work item is skipped forever because mutable state says
+  `delegated=true`. Wrong instinct: trust an interactive session name or delete
+  the flag by hand after every outage. Correct action: delegate only to a
+  runtime owner with a timezone-aware lease of at most 15 minutes; the owner
+  renews while progressing and the parent automatically reclaims on missing,
+  malformed, or expired lease. General law: static handoff metadata is never
+  liveness or ownership proof. Example: a dormant agent process cannot suppress
+  the paid campaign after its runtime lease expires.
 - Browser cleanup is owner-scoped: prove profile/port/PID ownership and open
   resources before closing stale contexts or tabs. Never use a global Chromium,
   WindowServer, loginwindow, GUI-session, or host restart as loop recovery.
+- External browser CLIs always use a loop/run-named session and close that exact
+  session in `finally`; the parent must wait/reap its children. Symptom: zombies
+  or a browser under a terminal run. Wrong instinct: kill zombies individually.
+  Correct action: verify the owning receipt, terminate only the stale parent/group,
+  and fix session teardown. Example: a timed-out route lookup closes its named
+  session, while another loop's authenticated browser remains untouched.
 - Local macOS uses short launchd jobs plus external durable state. Cloud uses the
   platform's equivalent scheduler and durable store; both implement the same
   `observe -> decide -> act -> verify -> persist -> exit` contract. A second host

@@ -1,8 +1,18 @@
 import unittest
+import importlib.util
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[3]
+
+
+def load_route_lookup():
+    path = ROOT / "skills/anicca-life-manager/scripts/route_lookup.py"
+    spec = importlib.util.spec_from_file_location("route_lookup_test", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class LatenessEntrypointContractTest(unittest.TestCase):
@@ -40,6 +50,32 @@ class LatenessEntrypointContractTest(unittest.TestCase):
         ):
             helper = (ROOT / "skills/anicca-life-manager/scripts" / relative).read_text()
             self.assertNotIn("/opt/homebrew/bin", helper, relative)
+
+    def test_route_lookup_uses_owned_agent_browser_session(self):
+        route = load_route_lookup()
+        completed = mock.Mock(returncode=0, stdout="ok", stderr="")
+        with mock.patch.object(route.subprocess, "run", return_value=completed) as run:
+            self.assertEqual(route._run_ab(["snapshot"]), "ok")
+        self.assertEqual(run.call_args.args[0][:3], [
+            route.AGENT_BROWSER, "--session", "life-manager-lateness-route",
+        ])
+
+    def test_route_lookup_closes_owned_session_after_failure(self):
+        route = load_route_lookup()
+        calls = []
+
+        def invoke(args, timeout=30):
+            calls.append((args, timeout))
+            if args[0] == "snapshot":
+                raise RuntimeError("snapshot failed")
+            return ""
+
+        with (mock.patch.object(route, "_run_ab", side_effect=invoke),
+              mock.patch.object(route.time, "sleep")):
+            with self.assertRaisesRegex(RuntimeError, "snapshot failed"):
+                route.fetch_transit_route("35.0,139.0", "destination")
+
+        self.assertEqual(calls[-1], (["close"], 20))
 
 
 if __name__ == "__main__":

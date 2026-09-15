@@ -7,7 +7,9 @@ import shutil
 import shlex
 import stat
 import subprocess
+import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -78,6 +80,22 @@ class LmLoopApplyTest(unittest.TestCase):
                 redirect_stdout(io.StringIO()):
             self.assertEqual(lm_loop.main(["apply", "--all"]), 0)
         self.assertIsNone(apply.call_args.kwargs["target"])
+
+    def test_admission_v2_enable_cli_uses_release_registry_and_reports_receipt(self):
+        (self.root / "config").mkdir()
+        (self.root / "config/loop-registry.json").write_text(json.dumps(registry()))
+        receipt = {"ok": True, "protocol": 2, "verified_finite_labels": 1}
+        with (patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(self.root),
+                "LIFE_MANAGER_LAUNCHCTL_SAFE": str(self.root / "bin/launchctl-safe"),
+        }, clear=True),
+              patch.object(lm_loop, "activate_durable_admission_live",
+                           return_value=receipt) as activate,
+              redirect_stdout(io.StringIO()) as output):
+            self.assertEqual(lm_loop.main(["admission-v2-enable"]), 0)
+
+        self.assertEqual(json.loads(output.getvalue()), receipt)
+        self.assertEqual(activate.call_args.args[0], registry())
 
     def tearDown(self):
         self.temp.cleanup()
@@ -159,9 +177,53 @@ class LmLoopApplyTest(unittest.TestCase):
         value = plistlib.loads(first[0]["plist_bytes"])
         self.assertEqual(value["ProgramArguments"], [
             str(self.root.resolve() / "bin/lm-loop-run"), "example", str(self.root.resolve())])
+        self.assertEqual(
+            value["EnvironmentVariables"]["LIFE_MANAGER_RUNTIME_PYTHON"],
+            str(Path(sys.executable).resolve()),
+        )
         self.assertEqual(value["StartInterval"], 60)
         self.assertNotIn("Umask", value)
         self.assertEqual(value["EnvironmentVariables"]["LIFE_MANAGER_RELEASE_SHA"], SHA)
+        self.assertEqual(
+            value["EnvironmentVariables"]["LIFE_MANAGER_HOST_MIN_REVENUE_RUNS"],
+            "4",
+        )
+
+    def test_release_runtime_python_cache_tag_must_match(self):
+        manifest = self.root / "RELEASE.json"
+        manifest.write_text(json.dumps({
+            "sha": SHA,
+            "runtime_python": str(Path(sys.executable).resolve()),
+            "runtime_python_cache_tag": "wrong-cache-tag",
+        }))
+        with self.assertRaisesRegex(ValueError, "cache tag mismatch"):
+            build_apply_plan(registry(), self.root, SHA)
+
+    def test_release_runtime_python_is_projected_to_the_runner(self):
+        tag = sys.implementation.cache_tag
+        cache = self.root / "runtime/loop/__pycache__" / f"lm_loop_run.{tag}.pyc"
+        cache.parent.mkdir(parents=True)
+        cache.write_bytes(b"sealed")
+        (self.root / "RELEASE.json").write_text(json.dumps({
+            "sha": SHA,
+            "runtime_python": str(Path(sys.executable).resolve()),
+            "runtime_python_cache_tag": tag,
+        }))
+        rendered = plistlib.loads(build_apply_plan(
+            registry(), self.root, SHA
+        )[0]["plist_bytes"])
+        self.assertEqual(
+            rendered["EnvironmentVariables"]["LIFE_MANAGER_RUNTIME_PYTHON"],
+            str(Path(sys.executable).resolve()),
+        )
+        self.assertIn(
+            '"${LIFE_MANAGER_RUNTIME_PYTHON:-python3}"',
+            (Path(__file__).resolve().parents[3] / "bin/lm-loop-run").read_text(),
+        )
+        self.assertIn(
+            '"${LIFE_MANAGER_RUNTIME_PYTHON:-python3}"',
+            (Path(__file__).resolve().parents[3] / "bin/lm-loop").read_text(),
+        )
 
     def test_alpaca_plist_declares_local_deployment(self):
         value = registry()
@@ -961,6 +1023,98 @@ class LmLoopApplyTest(unittest.TestCase):
 
         self.assertEqual(applied_roots, [release, release])
 
+    def test_reconcile_max_owners_limits_a_route_to_one_owner(self):
+        release = self._release("release-bounded").resolve()
+        value = two_loop_registry()
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        rows = [
+            {
+                "classification": "managed",
+                "provider_route": "deterministic",
+                "launchd_state": "loaded-idle",
+                "installed_release_sha": "b" * 40,
+                "loop_id": loop_id,
+            }
+            for loop_id in ("example", "second")
+        ]
+        applied = []
+
+        def record_apply(release_root, *args, **kwargs):
+            applied.append(kwargs["target"])
+            return [{"ok": True, "release_sha": SHA}]
+
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "targeted_snapshot", return_value=rows),
+            patch.object(lm_loop, "apply_live", side_effect=record_apply),
+            patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release)}),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(
+                lm_loop.main([
+                    "reconcile", "deterministic", "--max-owners", "1",
+                    "--loop-id", "example", "--loop-id", "second",
+                ]),
+                0,
+            )
+
+        self.assertEqual(applied, ["example"])
+        self.assertEqual(json.loads(output.getvalue())["eligible"], 1)
+
+    def test_reconcile_max_owners_uses_bounded_targeted_snapshot(self):
+        release = self._release("release-targeted").resolve()
+        value = two_loop_registry()
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        agents_dir = self.root / "agents"
+        agents_dir.mkdir()
+        old_root = "/Users/anicca/loops/releases/" + ("b" * 40)
+        for loop_id, entry in value["loops"].items():
+            (agents_dir / f"{entry['label']}.plist").write_bytes(plistlib.dumps({
+                "Label": entry["label"],
+                "ProgramArguments": [
+                    f"{old_root}/bin/lm-loop-run", loop_id, old_root,
+                ],
+            }))
+        rows = [
+            {
+                "classification": "managed",
+                "provider_route": "deterministic",
+                "launchd_state": "loaded-idle",
+                "installed_release_sha": "b" * 40,
+                "loop_id": loop_id,
+            }
+            for loop_id in ("example", "second")
+        ]
+        applied = []
+
+        def record_apply(release_root, *args, **kwargs):
+            applied.append(kwargs["target"])
+            return [{"ok": True, "release_sha": SHA}]
+
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "targeted_snapshot", return_value=rows) as targeted,
+            patch.object(lm_loop, "snapshot",
+                         side_effect=AssertionError("unbounded fleet snapshot")),
+            patch.object(lm_loop, "apply_live", side_effect=record_apply),
+            patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents_dir),
+            }),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(
+                lm_loop.main([
+                    "reconcile", "deterministic", "--max-owners", "1",
+                ]),
+                0,
+            )
+
+        targeted.assert_called_once()
+        self.assertEqual(targeted.call_args.args[1], {"example", "second"})
+        self.assertEqual(applied, ["example"])
+        self.assertEqual(json.loads(output.getvalue())["eligible"], 1)
+
     def test_reconcile_loaded_idle_only_leaves_unloaded_rows_untouched(self):
         release = self._release("release-a").resolve()
         rows = [
@@ -1008,6 +1162,63 @@ class LmLoopApplyTest(unittest.TestCase):
         report = json.loads(output.getvalue())
         self.assertEqual(report["eligible"], 1)
         self.assertEqual(report["skipped_running"], ["running"])
+
+    def test_target_reconcile_snapshots_only_requested_loop(self):
+        release = self._release("release-target").resolve()
+        row = {
+            "classification": "managed",
+            "provider_route": "deterministic",
+            "launchd_state": "loaded-idle",
+            "installed_release_sha": "b" * 40,
+            "loop_id": "example",
+        }
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "targeted_snapshot", return_value=[row]) as targeted,
+            patch.object(lm_loop, "snapshot",
+                         side_effect=AssertionError("fleet snapshot")),
+            patch.object(lm_loop, "apply_live", return_value=[{"ok": True}]),
+            patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release)}),
+            redirect_stdout(io.StringIO()),
+        ):
+            self.assertEqual(lm_loop.main([
+                "reconcile", "deterministic", "--loaded-idle-only",
+                "--loop-id", "example",
+            ]), 0)
+
+        self.assertEqual(targeted.call_args.args[1], {"example"})
+
+    def test_targeted_snapshot_never_lists_fleet(self):
+        value = registry()
+        value["loops"]["example"]["provider_route"] = "deterministic"
+        launchctl_calls = []
+        safe_calls = []
+
+        def launchctl(*args):
+            launchctl_calls.append(args)
+            return '"ai.anicca.unrelated" => enabled\n'
+
+        def safe(_executable, args):
+            safe_calls.append(args)
+            return 0, "state = waiting\nlast exit code = 0\n"
+
+        with (
+            patch.object(lm_loop, "_launchctl", side_effect=launchctl),
+            patch.object(lm_loop, "_safe_launchctl", side_effect=safe),
+            patch.object(lm_loop, "_release_from_plist", return_value="b" * 40),
+            patch.object(lm_loop, "_last_event", return_value=None),
+        ):
+            rows = lm_loop.targeted_snapshot(
+                value, {"example"}, Path("/release/bin/launchctl-safe"))
+
+        self.assertEqual(launchctl_calls, [
+            ("print-disabled", f"gui/{os.getuid()}"),
+        ])
+        self.assertEqual(safe_calls, [[
+            "print", f"gui/{os.getuid()}/{value['loops']['example']['label']}",
+        ]])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["launchd_state"], "loaded-idle")
 
     def test_release_reconciler_does_not_starve_unproven_scheduled_release(self):
         release = self._release("release-a").resolve()
@@ -1094,7 +1305,7 @@ class LmLoopApplyTest(unittest.TestCase):
 
         with (
             patch.object(lm_loop, "ROOT", release),
-            patch.object(lm_loop, "snapshot", return_value=rows),
+            patch.object(lm_loop, "targeted_snapshot", return_value=rows),
             patch.object(lm_loop, "apply_live", side_effect=record_apply),
             patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release)}),
             redirect_stdout(io.StringIO()),
@@ -1145,7 +1356,7 @@ class LmLoopApplyTest(unittest.TestCase):
 
         with (
             patch.object(lm_loop, "ROOT", release),
-            patch.object(lm_loop, "snapshot", return_value=rows),
+            patch.object(lm_loop, "targeted_snapshot", return_value=rows),
             patch.object(lm_loop, "apply_live", side_effect=record_apply),
             patch.dict(os.environ, {
                 "LIFE_MANAGER_RELEASE_ROOT": str(release),
@@ -1184,7 +1395,7 @@ class LmLoopApplyTest(unittest.TestCase):
 
         with (
             patch.object(lm_loop, "ROOT", release),
-            patch.object(lm_loop, "snapshot", return_value=rows),
+            patch.object(lm_loop, "targeted_snapshot", return_value=rows),
             patch.object(lm_loop, "apply_live", side_effect=record_apply),
             patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release)}),
             redirect_stdout(io.StringIO()) as output,
@@ -1225,7 +1436,7 @@ class LmLoopApplyTest(unittest.TestCase):
 
         with (
             patch.object(lm_loop, "ROOT", release),
-            patch.object(lm_loop, "snapshot", return_value=rows),
+            patch.object(lm_loop, "targeted_snapshot", return_value=rows),
             patch.object(lm_loop, "apply_live", side_effect=record_apply),
             patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release)}),
             redirect_stdout(io.StringIO()),
@@ -2153,6 +2364,156 @@ class LmLoopApplyTest(unittest.TestCase):
 
         self.assertEqual(current.resolve(), release_a)
         self.assertFalse((self.root / "current.swap").exists())
+
+    def test_admission_v2_activation_requires_exact_loaded_finite_argv(self):
+        (self.root / "config").mkdir()
+        (self.root / "config/runtime-capabilities.json").write_text(json.dumps({
+            "resource_admission": 2,
+        }))
+        release = self.root.resolve()
+        expected = [str(release / "bin/lm-loop-run"), "example", str(release)]
+        stale = [*expected[:-1], f"{self.root}-stale"]
+
+        with (patch.object(lm_loop, "_safe_launchctl", return_value=(
+                0, "arguments = {\n" + "\n".join(stale) + "\n}\n")),
+              patch.object(lm_loop, "activate_durable_v2") as activate):
+            with self.assertRaisesRegex(RuntimeError, "loaded argv is not v2-capable"):
+                lm_loop.activate_durable_admission_live(
+                    registry(), self.root, self.root / "bin/launchctl-safe",
+                    current=self.root / "current",
+                )
+
+        activate.assert_not_called()
+
+    def test_admission_v2_activation_accepts_mixed_v2_capable_releases(self):
+        (self.root / "config").mkdir()
+        (self.root / "config/runtime-capabilities.json").write_text(json.dumps({
+            "resource_admission": 2,
+        }))
+        loaded = (self.root / "older-v2-release").resolve()
+        (loaded / "bin").mkdir(parents=True)
+        (loaded / "config").mkdir()
+        (loaded / "bin/lm-loop-run").write_text("#!/bin/sh\n")
+        (loaded / "config/runtime-capabilities.json").write_text(json.dumps({
+            "resource_admission": 2,
+        }))
+        expected = [str(loaded / "bin/lm-loop-run"), "example", str(loaded)]
+
+        def launchctl(_safe, args):
+            if args == ["preflight"]:
+                return 0, "ok"
+            return 0, "arguments = {\n" + "\n".join(expected) + "\n}\n"
+
+        with (patch.object(lm_loop, "_safe_launchctl", side_effect=launchctl),
+              patch.object(lm_loop, "activate_durable_v2") as activate):
+            result = lm_loop.activate_durable_admission_live(
+                registry(), self.root, self.root / "bin/launchctl-safe",
+                current=self.root / "current",
+            )
+
+        self.assertEqual(result["verified_finite_labels"], 1)
+        activate.assert_called_once_with(allow_live_owners=True)
+
+    def test_admission_v2_activation_accepts_unloaded_v2_capable_plist(self):
+        (self.root / "config").mkdir()
+        (self.root / "config/runtime-capabilities.json").write_text(json.dumps({
+            "resource_admission": 2,
+        }))
+        agents_dir = self.root / "Library" / "LaunchAgents"
+        agents_dir.mkdir(parents=True)
+        release = self.root.resolve()
+        expected = [str(release / "bin/lm-loop-run"), "example", str(release)]
+        (agents_dir / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
+            "Label": "ai.anicca.example",
+            "ProgramArguments": expected,
+        }))
+
+        def launchctl(_safe, args):
+            if args == ["preflight"]:
+                return 0, "ok"
+            return 1, "Could not find service"
+
+        with (patch.object(lm_loop, "_safe_launchctl", side_effect=launchctl),
+              patch.object(lm_loop, "activate_durable_v2") as activate):
+            result = lm_loop.activate_durable_admission_live(
+                registry(), self.root, self.root / "bin/launchctl-safe",
+                current=self.root / "current", agents_dir=agents_dir,
+            )
+
+        self.assertEqual(result["verified_finite_labels"], 1)
+        activate.assert_called_once_with(allow_live_owners=True)
+
+    def test_admission_v2_activation_verifies_all_finite_labels_then_flips(self):
+        (self.root / "config").mkdir()
+        (self.root / "config/runtime-capabilities.json").write_text(json.dumps({
+            "resource_admission": 2,
+        }))
+        release = self.root.resolve()
+        expected = [str(release / "bin/lm-loop-run"), "example", str(release)]
+
+        def launchctl(_safe, args):
+            if args == ["preflight"]:
+                return 0, "ok"
+            return 0, "arguments = {\n" + "\n".join(expected) + "\n}\n"
+
+        with (patch.object(lm_loop, "_safe_launchctl", side_effect=launchctl),
+              patch.object(lm_loop, "activate_durable_v2") as activate):
+            result = lm_loop.activate_durable_admission_live(
+                registry(), self.root, self.root / "bin/launchctl-safe",
+                current=self.root / "current",
+            )
+
+        self.assertEqual(result, {"ok": True, "protocol": 2, "verified_finite_labels": 1})
+        activate.assert_called_once_with(allow_live_owners=True)
+
+    def test_activate_current_rejects_old_release_while_protocol_v2(self):
+        release_a = self._release("release-a").resolve()
+        release_b = self._release("release-b").resolve()
+        current = self.root / "current"
+        current.symlink_to(release_a)
+
+        with self.assertRaisesRegex(RuntimeError, "does not support durable admission v2"):
+            lm_loop.activate_current(
+                current, release_b, self.root / "apply.lock",
+                protocol_reader=lambda: 2,
+            )
+
+        self.assertEqual(current.resolve(), release_a)
+
+    def test_apply_live_rejects_old_release_while_protocol_v2(self):
+        release = self._release("old-release").resolve()
+
+        with self.assertRaisesRegex(RuntimeError, "does not support durable admission v2"):
+            apply_live(
+                release, self.root / "LaunchAgents", self.root / "launchctl-safe",
+                protocol_reader=lambda: 2,
+            )
+
+    def test_protocol_transition_excludes_activation_while_apply_is_open(self):
+        current = self.root / "current"
+        attempted = self.root / "exclusive-attempted"
+        marker = self.root / "exclusive-acquired"
+        runner = (
+            "from pathlib import Path; "
+            "from runtime.loop.lm_loop import _protocol_transition_lock; "
+            f"current=Path({str(current)!r}); attempted=Path({str(attempted)!r}); "
+            f"marker=Path({str(marker)!r}); attempted.write_text('yes'); "
+            "\nwith _protocol_transition_lock(current, exclusive=True): marker.write_text('yes')"
+        )
+
+        with lm_loop._protocol_transition_lock(current, exclusive=False):
+            process = subprocess.Popen(
+                [sys.executable, "-c", runner], cwd=str(Path(__file__).parents[3]),
+                env={**os.environ, "PYTHONPATH": "."},
+            )
+            deadline = time.monotonic() + 5
+            while not attempted.exists() and time.monotonic() < deadline:
+                time.sleep(.01)
+            self.assertTrue(attempted.exists())
+            self.assertFalse(marker.exists())
+
+        self.assertEqual(process.wait(timeout=5), 0)
+        self.assertEqual(marker.read_text(), "yes")
 
 
 if __name__ == "__main__":

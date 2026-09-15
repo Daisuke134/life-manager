@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from agent_runner import configured_task_classes
+from agent_runner import configured_task_classes, resolve_provider_profiles
 
 
 class TerraDefaultTest(unittest.TestCase):
@@ -67,10 +67,7 @@ class TerraDefaultTest(unittest.TestCase):
                 if name == "paid-owner-agent":
                     expected = [
                         {"provider": "codex", "model": "gpt-5.6-terra",
-                         "effort": "medium", "profile_alias": "acct2",
-                         "timeout_seconds": 180},
-                        {"provider": "codex", "model": "gpt-5.6-luna",
-                         "effort": "medium", "profile_alias": "acct2",
+                         "effort": "medium", "profile_alias": "acct1",
                          "timeout_seconds": 180},
                     ]
                 # Paid and explicit escalation stay Codex-only. Other executable
@@ -79,6 +76,18 @@ class TerraDefaultTest(unittest.TestCase):
                 if name not in {"paid-owner-agent", "escalation-agent"} and fallback not in expected:
                     expected.append(fallback)
                 self.assertEqual(candidates, expected)
+
+    def test_paid_route_resolves_each_codex_account_once(self):
+        config_path = Path(__file__).resolve().parents[1] / "config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        resolved = resolve_provider_profiles(
+            config["task_classes"]["paid-owner-agent"]["candidates"],
+            config["providers"],
+        )
+        self.assertEqual(
+            [(row["model"], row["profile_alias"]) for row in resolved],
+            [("gpt-5.6-terra", "acct1"), ("gpt-5.6-terra", "acct2")],
+        )
 
     def test_a_restricted_candidate_carries_its_escalation_route(self):
         """Without the route the runner raises at the first wake, not at review time."""

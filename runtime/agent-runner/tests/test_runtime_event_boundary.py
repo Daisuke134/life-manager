@@ -9,7 +9,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "runtime/agent-runner"))
 
-from agent_runner import emit_runtime_event, runtime_event_loop_id  # noqa: E402
+from agent_runner import (  # noqa: E402
+    attach_runtime_event,
+    emit_runtime_event,
+    runtime_event_loop_id,
+    runtime_registry_path,
+)
 
 
 class RuntimeEventBoundaryTest(unittest.TestCase):
@@ -26,6 +31,15 @@ class RuntimeEventBoundaryTest(unittest.TestCase):
     def test_unmanaged_invocation_keeps_requested_loop_id(self):
         with mock.patch.dict(os.environ, {}, clear=True):
             self.assertEqual(runtime_event_loop_id("standalone-loop"), "standalone-loop")
+
+    def test_staged_runner_uses_loaded_release_registry(self):
+        with mock.patch.dict(os.environ, {
+            "LIFE_MANAGER_REPO": "/loops/releases/current-sha",
+        }, clear=True):
+            self.assertEqual(
+                runtime_registry_path(),
+                Path("/loops/releases/current-sha/config/loop-registry.json"),
+            )
 
     def test_final_runner_summary_emits_one_registry_grounded_event(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -49,6 +63,24 @@ class RuntimeEventBoundaryTest(unittest.TestCase):
             self.assertEqual(len(rows), 1)
             self.assertEqual(event["effect_status"], "unknown")
             self.assertNotIn(str(root), rows[0])
+
+    def test_observability_write_failure_does_not_reverse_success(self):
+        summary = {"status": "success"}
+        with mock.patch("agent_runner.emit_runtime_event", side_effect=PermissionError(
+            "immutable release",
+        )):
+            attached = attach_runtime_event(
+                summary=summary,
+                loop_id="example",
+                evidence_dir=Path("/tmp/evidence"),
+                selected={"provider": "codex", "profile_alias": "acct2"},
+                attempts=[],
+                registry_path=Path("/immutable/config/loop-registry.json"),
+                release_sha="b" * 40,
+            )
+        self.assertFalse(attached)
+        self.assertEqual(summary["status"], "success")
+        self.assertEqual(summary["runtime_event_error"], "immutable release")
 
 
 if __name__ == "__main__":

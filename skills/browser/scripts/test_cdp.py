@@ -126,3 +126,38 @@ def test_close_target_refuses_foreign_owner(monkeypatch):
         with pytest.raises(PermissionError):
             module.close_target("foreign-tab", "paid-room")
     browser_call.assert_not_called()
+
+
+def test_enter_dispatches_browser_complete_keyboard_identity(monkeypatch):
+    module = _load_module()
+    calls = []
+
+    class FakeSocket:
+        def close(self):
+            calls.append(("close", None))
+
+    monkeypatch.setattr(module, "_page", lambda _target: FakeSocket())
+    monkeypatch.setattr(
+        module,
+        "_rpc",
+        lambda _ws, _call_id, method, params=None: calls.append((method, params)),
+    )
+
+    assert module.key("target", "Enter") == {"key": "Enter"}
+    key_events = [params for method, params in calls if method == "Input.dispatchKeyEvent"]
+    assert key_events == [
+        {
+            "type": "keyDown",
+            "key": "Enter",
+            "code": "Enter",
+            "windowsVirtualKeyCode": 13,
+            "nativeVirtualKeyCode": 13,
+        },
+        {
+            "type": "keyUp",
+            "key": "Enter",
+            "code": "Enter",
+            "windowsVirtualKeyCode": 13,
+            "nativeVirtualKeyCode": 13,
+        },
+    ]

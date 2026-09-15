@@ -486,6 +486,37 @@ def test_closed_browser_clone_with_source_named_dependency_is_reclaimed(
     assert result["reclaimed"] == 32
 
 
+def test_browser_clone_probe_distinguishes_open_apfs_clone_from_closed_clone(
+    tmp_path: Path, monkeypatch
+) -> None:
+    temporary = tmp_path / "T"
+    temporary.mkdir()
+    collection = tmp_path / "X/org.chromium.Chromium.code_sign_clone"
+    open_clone = collection / "code_sign_clone.open"
+    closed_clone = collection / "code_sign_clone.closed"
+    open_clone.mkdir(parents=True)
+    closed_clone.mkdir(parents=True)
+    monkeypatch.setattr(disk_cleanup.tempfile, "gettempdir", lambda: str(temporary))
+    calls: list[list[str]] = []
+
+    class Result:
+        returncode = 0
+        stdout = f"n{open_clone}/Chromium.app.bundle/Contents/MacOS/Chromium\n"
+        stderr = ""
+
+    def record(argv, **_kwargs):
+        calls.append(argv)
+        return Result()
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", record)
+    disk_cleanup._open_paths.cache_clear()
+
+    assert disk_cleanup._default_lsof(open_clone) == "open"
+    assert disk_cleanup._default_lsof(closed_clone) == "confirmed-closed"
+    assert calls == [["/usr/sbin/lsof", "-nP", "-Fn"]]
+    disk_cleanup._open_paths.cache_clear()
+
+
 def test_release_probe_uses_one_global_lsof_instead_of_walking_the_tree(tmp_path: Path, monkeypatch) -> None:
     release = tmp_path / "loops/releases/20260828T010101-aaaaaaaa"
     release.mkdir(parents=True)

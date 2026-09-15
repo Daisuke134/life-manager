@@ -19,7 +19,7 @@ DEFAULT_ICONS = STATE_HOME / "assets/capafy/icons"
 DEFAULT_OUTPUT = STATE_HOME / "state/capafy-candidate-backlog.json"
 REPO_ROOT = Path(os.environ.get("LIFE_MANAGER_REPO", Path(__file__).resolve().parents[3]))
 DEFAULT_CATALOG = REPO_ROOT / "skills/capafy/catalog"
-TERMINAL_PLATFORM_STATES = {"online", "approved"}
+TERMINAL_PLATFORM_STATES = {"online"}
 RETRY_PLATFORM_STATES = {"review_rejected"}
 
 

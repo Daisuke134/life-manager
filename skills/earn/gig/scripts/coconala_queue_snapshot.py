@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -1022,7 +1023,8 @@ def sha256_file(path: Path) -> str:
 
 
 def recover_captured_attachment(
-    project_root: Path, filename: str,
+    project_root: Path, filename: str, *, reference: str | None = None,
+    allow_filename_fallback: bool = True,
 ) -> tuple[str, str, int] | None:
     """Bytes an earlier pass already fetched, found by this module's own naming.
 
@@ -1041,7 +1043,41 @@ def recover_captured_attachment(
     is ``None``: the same answer as never having fetched it, which is true.
     """
     directory = project_root / "source" / "buyer-attachments"
-    suffix = f"-{filename}"
+    safe_name = safe_filename(filename)
+    if reference is not None:
+        reference = safe_download_reference(None, reference)
+        if reference is None:
+            return None
+        try:
+            index = json.loads((directory / ".reference-index.json").read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            index = {}
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            return None
+        entry = (index.get("references") or {}).get(reference) if isinstance(index, dict) else None
+        if isinstance(entry, dict):
+            digest = str(entry.get("sha256") or "")
+            stored_name = str(entry.get("stored_name") or "")
+            path = directory / stored_name
+            try:
+                if path.is_symlink():
+                    return None
+                resolved = path.resolve()
+                resolved.relative_to(directory.resolve())
+                size = resolved.stat().st_size
+            except (OSError, ValueError):
+                return None
+            if (entry.get("filename") != safe_name
+                    or not re.fullmatch(r"[0-9a-f]{64}", digest)
+                    or Path(stored_name).name != stored_name
+                    or stored_name != f"{digest[:12]}-{safe_name}"
+                    or not resolved.is_file()
+                    or sha256_file(resolved) != digest):
+                return None
+            return str(resolved), digest, size
+        if not allow_filename_fallback:
+            return None
+    suffix = f"-{safe_name}"
     found: dict[str, tuple[str, int]] = {}
     try:
         entries = sorted(directory.iterdir())
@@ -1067,7 +1103,7 @@ def recover_captured_attachment(
 
 
 def persist_captured_attachment(
-    project_root: Path, filename: str, payload: bytes,
+    project_root: Path, filename: str, payload: bytes, *, reference: str | None = None,
 ) -> tuple[str, str, int]:
     """Durably retain one successful browser download before capture continues."""
     safe_name = safe_filename(filename)
@@ -1077,6 +1113,28 @@ def persist_captured_attachment(
     )
     if not source_path.is_file() or sha256_file(source_path) != digest:
         secure_write_bytes(source_path, payload)
+    if reference is not None:
+        reference = safe_download_reference(None, reference)
+        if reference is None:
+            raise ValueError("invalid attachment reference")
+        index_path = source_path.parent / ".reference-index.json"
+        lock_path = source_path.parent / ".reference-index.lock"
+        with lock_path.open("a+b") as lock:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            try:
+                index = json.loads(index_path.read_text(encoding="utf-8"))
+            except FileNotFoundError:
+                index = {"version": 1, "references": {}}
+            if (not isinstance(index, dict) or index.get("version") != 1
+                    or not isinstance(index.get("references"), dict)):
+                raise ValueError("invalid attachment reference index")
+            index["references"][reference] = {
+                "filename": safe_name,
+                "stored_name": source_path.name,
+                "sha256": digest,
+                "size_bytes": len(payload),
+            }
+            atomic_json(index_path, index)
     return str(source_path), digest, len(payload)
 
 
@@ -2067,12 +2125,20 @@ def persist_latest_paid_buyer_reply(
                 if captured_bytes and len(captured_bytes) <= 16 * 1024 * 1024:
                     captured_path, captured_sha256, captured_size = persist_captured_attachment(
                         project_root, filename, captured_bytes,
+                        reference=safe_download_reference(
+                            attachment.get("href"), attachment.get("reference")
+                        ),
                     )
             if captured_path is None:
                 # This pass did not fetch it; an earlier pass may already have.
                 # Asking the disk is what turns "we failed to download" back into
                 # the truth, which is that the file has been here since 22:00.
-                recovered = recover_captured_attachment(project_root, filename)
+                recovered = recover_captured_attachment(
+                    project_root, filename,
+                    reference=safe_download_reference(
+                        attachment.get("href"), attachment.get("reference")
+                    ),
+                )
                 if recovered is not None:
                     captured_path, captured_sha256, captured_size = recovered
             attachment_manifest.append({
@@ -2498,31 +2564,48 @@ async def capture_click_downloads(
     with tempfile.TemporaryDirectory(
         prefix="gig-buyer-attachments-", dir=download_parent,
     ) as directory:
+        browser_download_configured = False
         try:
             await call(ws, request_id, "Browser.setDownloadBehavior", {
-                "behavior": "allow",
+                "behavior": "allowAndName",
                 "downloadPath": directory,
                 "eventsEnabled": True,
             })
+            browser_download_configured = True
         except RuntimeError:
+            pass
+        try:
             await call(ws, request_id, "Page.setDownloadBehavior", {
                 "behavior": "allow",
                 "downloadPath": directory,
             })
+        except RuntimeError:
+            if not browser_download_configured:
+                raise
         request_id += 1
         await call(ws, request_id, "Network.enable", {})
         request_id += 1
         # Attachment capture has a bounded 45-second envelope. Start with the
         # newest buyer message so a long historical room cannot spend the whole
         # budget downloading obsolete files before the current revision assets.
+        attachment_name_counts = Counter(
+            safe_filename(attachment.get("filename"))
+            for message in talkroom.get("messages", []) if isinstance(message, dict)
+            for attachment in message.get("attachments", []) if isinstance(attachment, dict)
+        )
         for message_index, message in newest_first_messages(talkroom):
             if not isinstance(message, dict) or message.get("side") != "buyer":
                 continue
             for attachment_index, attachment in enumerate(message.get("attachments") or []):
                 if not isinstance(attachment, dict) or attachment.get("data_base64"):
                     continue
+                filename = safe_filename(attachment.get("filename"))
+                reference = safe_download_reference(
+                    attachment.get("href"), attachment.get("reference")
+                )
                 recovered = recover_captured_attachment(
-                    project_root, safe_filename(attachment.get("filename")),
+                    project_root, filename, reference=reference,
+                    allow_filename_fallback=attachment_name_counts[filename] == 1,
                 ) if project_root is not None else None
                 if recovered is not None:
                     continue
@@ -2550,8 +2633,6 @@ async def capture_click_downloads(
                     "returnByValue": True,
                 }, synthetic_raw_events if probe else None)
                 request_id += 1
-                if probe:
-                    synthetic_raw_events.extend(await collect_cdp_events(ws))
                 synthetic_events = allowlisted_cdp_events(synthetic_raw_events)
                 clicked_raw = clicked.get("result", {}).get("value")
                 try:
@@ -2661,6 +2742,19 @@ async def capture_click_downloads(
                         "targets_added": sorted(target_set_after - target_set_before),
                         "targets_removed": sorted(target_set_before - target_set_after),
                     }
+                    if geometry_value.get("ok") is not True:
+                        attachment["capture_error"] = "attachment_download_control_unavailable"
+                        continue
+                complete_sizes = {
+                    int(params["totalBytes"])
+                    for event in trusted_events
+                    if event.get("method") == "Browser.downloadProgress"
+                    for params in [event.get("params") or {}]
+                    if isinstance(params.get("receivedBytes"), (int, float))
+                    and isinstance(params.get("totalBytes"), (int, float))
+                    and params["totalBytes"] > 0
+                    and params["receivedBytes"] == params["totalBytes"]
+                }
                 downloaded: Path | None = None
                 previous_size = -1
                 stable_polls = 0
@@ -2668,7 +2762,10 @@ async def capture_click_downloads(
                     candidates = [
                         path for path in Path(directory).iterdir()
                         if path.is_file() and path.name not in before
-                        and not path.name.endswith((".crdownload", ".download"))
+                        and (
+                            not path.name.endswith((".crdownload", ".download"))
+                            or path.stat().st_size in complete_sizes
+                        )
                     ]
                     if candidates:
                         candidate = max(candidates, key=lambda path: path.stat().st_mtime_ns)
@@ -2679,10 +2776,35 @@ async def capture_click_downloads(
                             downloaded = candidate
                             break
                     await asyncio.sleep(0.25)
-                if downloaded is None:
+                payload = downloaded.read_bytes() if downloaded is not None else None
+                if payload is None:
+                    for event in trusted_events:
+                        if event.get("method") != "Network.responseReceived":
+                            continue
+                        params = event.get("params") or {}
+                        response = params.get("response") or {}
+                        if (response.get("mimeType") != "application/octet-stream"
+                                or not isinstance(response.get("status"), (int, float))
+                                or not 200 <= response["status"] < 300
+                                or not params.get("requestId")):
+                            continue
+                        try:
+                            body = await call(ws, request_id, "Network.getResponseBody", {
+                                "requestId": params["requestId"],
+                            })
+                            request_id += 1
+                            encoded = body.get("body")
+                            if (body.get("base64Encoded") is not True
+                                    or not isinstance(encoded, str)
+                                    or len(encoded) > 24 * 1024 * 1024):
+                                continue
+                            payload = base64.b64decode(encoded, validate=True)
+                            break
+                        except (RuntimeError, ValueError, binascii.Error):
+                            continue
+                if payload is None:
                     attachment["capture_error"] = "attachment_download_not_observed"
                     continue
-                payload = downloaded.read_bytes()
                 if len(payload) > 16 * 1024 * 1024:
                     attachment["capture_error"] = "attachment_capture_limit"
                     continue
@@ -2690,6 +2812,7 @@ async def capture_click_downloads(
                 if project_root is not None:
                     source_path, digest, size = persist_captured_attachment(
                         project_root, attachment.get("filename"), payload,
+                        reference=reference,
                     )
                     attachment["source_path"] = source_path
                     attachment["sha256"] = digest
@@ -2697,7 +2820,8 @@ async def capture_click_downloads(
                 else:
                     attachment["size_bytes"] = len(payload)
                 attachment["capture_error"] = None
-                downloaded.unlink(missing_ok=True)
+                if downloaded is not None:
+                    downloaded.unlink(missing_ok=True)
     return request_id
 
 

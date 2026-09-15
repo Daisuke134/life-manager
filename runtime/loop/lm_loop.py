@@ -25,6 +25,7 @@ from runtime.loop.lm_loop_apply import (
 )
 from runtime.loop.lm_loop_lifecycle import lifecycle, lifecycle_one
 from runtime.loop.runtime_event import append_runtime_event, build_install_event, validate_runtime_event
+from runtime.host.resource_admission import activate_durable_v2, durable_protocol_version
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -261,6 +262,25 @@ def _select(rows: list[dict], target: str) -> list[dict]:
     return selected
 
 
+def _bounded_reconcile_candidates(registry: dict, route: str,
+                                  current_sha: str, max_owners: int) -> set[str]:
+    """Find a small deterministic set of stale installed owners before launchd probing."""
+    agents_dir = Path(os.environ.get(
+        "LIFE_MANAGER_LAUNCH_AGENTS_DIR", "~/Library/LaunchAgents")).expanduser()
+    candidates: list[str] = []
+    candidate_limit = min(64, max_owners * 8)
+    for loop_id, entry in sorted(registry["loops"].items()):
+        if entry.get("provider_route") != route:
+            continue
+        plist_path = agents_dir / f"{entry['label']}.plist"
+        installed_sha = _release_from_plist(plist_path)
+        if installed_sha and installed_sha != current_sha:
+            candidates.append(loop_id)
+        if len(candidates) >= candidate_limit:
+            break
+    return set(candidates)
+
+
 def snapshot(registry: dict, target: str) -> list[dict]:
     if target != "all" and target in registry["loops"]:
         selected_registry = {**registry, "loops": {target: registry["loops"][target]}}
@@ -282,6 +302,43 @@ def _safe_launchctl(executable: Path, args: list[str]) -> tuple[int, str]:
             [str(executable), *args], stdout=output, stderr=output, text=True, timeout=30)
         output.seek(0)
         return result.returncode, output.read()
+
+
+def targeted_snapshot(registry: dict, targets: set[str],
+                      launchctl_safe: Path) -> list[dict]:
+    """Read only explicitly requested services; never list the whole fleet."""
+    disabled = parse_disabled(_launchctl("print-disabled", f"gui/{os.getuid()}"))
+    plist_dir = Path.home() / "Library/LaunchAgents"
+    rows = []
+    for loop_id in sorted(targets):
+        entry = registry["loops"][loop_id]
+        label = entry["label"]
+        rc, detail = _safe_launchctl(
+            launchctl_safe, ["print", f"gui/{os.getuid()}/{label}"])
+        absent = rc != 0 and bool(re.search(
+            r"(?i)(?:could not find service|service not found|\babsent\b)", detail))
+        if rc != 0 and not absent:
+            raise RuntimeError(f"{label}: targeted launchd readback failed: {detail.strip()}")
+        loaded = {}
+        if rc == 0:
+            pid = re.search(r"\bpid\s*=\s*([1-9][0-9]*)\b", detail)
+            last_exit = re.search(r"\blast exit code\s*=\s*(-?[0-9]+)\b", detail)
+            loaded[label] = {
+                "pid": pid.group(1) if pid else None,
+                "last_exit": last_exit.group(1) if last_exit else None,
+            }
+        plist_path = plist_dir / f"{label}.plist"
+        event = _last_event(
+            _state_root_from_plist(plist_path, entry["state_root"]), loop_id)
+        selected_registry = {**registry, "loops": {loop_id: entry}}
+        rows.extend(status_rows(
+            selected_registry,
+            loaded=loaded,
+            disabled={label: disabled.get(label, False)},
+            events={loop_id: event} if event else {},
+            installed_releases={label: _release_from_plist(plist_path)},
+        ))
+    return rows
 
 
 @contextmanager
@@ -308,6 +365,23 @@ def _label_apply_lock_path(current: Path, label: str,
     base = Path(lock_path).expanduser() if lock_path else current.parent / ".apply-locks"
     return (base / f"{label}.lock" if lock_path is None else
             base.with_name(f"{base.name}.{label}.lock"))
+
+
+@contextmanager
+def _protocol_transition_lock(current: Path, *, exclusive: bool):
+    path = current.parent / ".admission-protocol.lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        os.fchmod(descriptor, 0o600)
+        fcntl.flock(descriptor, fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
+        yield
+    finally:
+        os.close(descriptor)
+
+
+def _protocol_v1() -> int:
+    return 1
 
 
 def _service_is_running(detail: str) -> bool:
@@ -374,22 +448,98 @@ def _retire_labels(registry: dict, agents_dir: Path, launchctl_safe: Path,
     return results
 
 
+def _supports_durable_admission_v2(release_root: Path) -> bool:
+    try:
+        value = json.loads(
+            (release_root / "config/runtime-capabilities.json").read_text(encoding="utf-8")
+        )
+    except (OSError, ValueError, json.JSONDecodeError):
+        return False
+    return isinstance(value, dict) and value.get("resource_admission") == 2
+
+
+def _loaded_v2_release(arguments: list[str], loop_id: str) -> bool:
+    if len(arguments) != 3 or arguments[1] != loop_id:
+        return False
+    try:
+        loaded_root = Path(arguments[2]).resolve(strict=True)
+    except OSError:
+        return False
+    return (
+        arguments[0] == str(loaded_root / "bin/lm-loop-run")
+        and arguments[2] == str(loaded_root)
+        and _supports_durable_admission_v2(loaded_root)
+    )
+
+
 def activate_current(current: Path, release_root: Path,
-                     lock_path: Path | None = None) -> None:
+                     lock_path: Path | None = None, *,
+                     protocol_reader: Callable[[], int] = _protocol_v1) -> None:
     current = Path(current).expanduser()
     release_root = Path(release_root).expanduser()
-    with _apply_lock(current, lock_path):
-        release_root = release_root.resolve(strict=True)
-        if not release_root.is_dir():
-            raise ValueError("release root is not a directory")
-        current.parent.mkdir(parents=True, exist_ok=True)
-        swap = current.with_name(current.name + ".swap")
-        swap.unlink(missing_ok=True)
-        swap.symlink_to(release_root)
-        try:
-            os.replace(swap, current)
-        finally:
+    with _protocol_transition_lock(current, exclusive=False):
+        with _apply_lock(current, lock_path):
+            release_root = release_root.resolve(strict=True)
+            if not release_root.is_dir():
+                raise ValueError("release root is not a directory")
+            if (protocol_reader() == 2
+                    and not _supports_durable_admission_v2(release_root)):
+                raise RuntimeError("target release does not support durable admission v2")
+            current.parent.mkdir(parents=True, exist_ok=True)
+            swap = current.with_name(current.name + ".swap")
             swap.unlink(missing_ok=True)
+            swap.symlink_to(release_root)
+            try:
+                os.replace(swap, current)
+            finally:
+                swap.unlink(missing_ok=True)
+
+
+def activate_durable_admission_live(
+        registry: dict, release_root: Path, launchctl_safe: Path, *,
+        current: Path | None = None,
+        agents_dir: Path | None = None) -> dict[str, object]:
+    """Enable v2 only when every finite owner uses a v2-capable release."""
+    validate_registry(registry)
+    release_root = release_root.resolve(strict=True)
+    if not _supports_durable_admission_v2(release_root):
+        raise RuntimeError("release does not support durable admission v2")
+    current = Path(current or "~/loops/current").expanduser()
+    agents_dir = Path(agents_dir or "~/Library/LaunchAgents").expanduser()
+    with _protocol_transition_lock(current, exclusive=True):
+        with _apply_lock(current, None):
+            preflight_rc, detail = _safe_launchctl(launchctl_safe, ["preflight"])
+            if preflight_rc:
+                raise RuntimeError(f"launchctl-safe preflight failed: {detail.strip()}")
+            verified = 0
+            for loop_id, entry in sorted(registry["loops"].items()):
+                if entry.get("cadence", {}).get("keep_alive"):
+                    continue
+                rc, printed = _safe_launchctl(
+                    launchctl_safe, ["print", f"gui/{os.getuid()}/{entry['label']}"])
+                if rc != 0:
+                    absent = bool(re.search(
+                        r"(?i)(?:could not find service|service not found|\babsent\b)",
+                        printed))
+                    if not absent:
+                        raise RuntimeError(
+                            f"{loop_id}: loaded argv readback failed: {printed.strip()}")
+                    plist_path = agents_dir / f"{entry['label']}.plist"
+                    try:
+                        with plist_path.open("rb") as handle:
+                            plist = plistlib.load(handle)
+                        arguments = list(map(str, plist.get("ProgramArguments") or []))
+                    except (OSError, ValueError, plistlib.InvalidFileException):
+                        arguments = []
+                    if not _loaded_v2_release(arguments, loop_id):
+                        raise RuntimeError(f"{loop_id}: installed plist is not v2-capable")
+                    verified += 1
+                    continue
+                if not _loaded_v2_release(_loaded_arguments(printed), loop_id):
+                    raise RuntimeError(f"{loop_id}: loaded argv is not v2-capable")
+                verified += 1
+            activate_durable_v2(allow_live_owners=True)
+    return {"ok": True, "protocol": 2, "verified_finite_labels": verified}
 
 
 def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
@@ -398,9 +548,23 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                preserve_unloaded: bool = False,
                skip_busy: bool = False,
                reload_running: bool = False,
-               event_writer=append_runtime_event) -> list[dict]:
-    release_root = release_root.resolve()
+               protocol_reader: Callable[[], int] = _protocol_v1,
+               event_writer=append_runtime_event,
+               _protocol_guarded: bool = False) -> list[dict]:
     current = Path(current or "~/loops/current").expanduser()
+    if not _protocol_guarded:
+        with _protocol_transition_lock(current, exclusive=False):
+            return apply_live(
+                release_root, agents_dir, launchctl_safe, target,
+                current=current, lock_path=lock_path,
+                preserve_unloaded=preserve_unloaded, skip_busy=skip_busy,
+                reload_running=reload_running, protocol_reader=protocol_reader,
+                event_writer=event_writer, _protocol_guarded=True,
+            )
+    release_root = release_root.resolve()
+    if (protocol_reader() == 2
+            and not _supports_durable_admission_v2(release_root)):
+        raise RuntimeError("target release does not support durable admission v2")
     registry = json.loads((release_root / "config/loop-registry.json").read_text())
     manifest = json.loads((release_root / "RELEASE.json").read_text())
     release_sha = manifest.get("sha")
@@ -543,9 +707,12 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
 
 def main(argv: list[str] | None = None) -> int:
     args = argv or sys.argv[1:]
-    commands = {"apply", "doctor", "reconcile", "start", "stop", "restart", "status", "watch"}
+    commands = {
+        "admission-v2-enable", "apply", "doctor", "reconcile",
+        "start", "stop", "restart", "status", "watch",
+    }
     if not args or args[0] not in commands:
-        print("usage: lm-loop apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
@@ -570,15 +737,37 @@ def main(argv: list[str] | None = None) -> int:
         try:
             results = apply_live(
                 release_root, agents_dir, launchctl_safe,
-                target=target)
+                target=target, protocol_reader=durable_protocol_version)
         except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
             print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True))
             return 1
         print(json.dumps(results, indent=2, sort_keys=True))
         return 0
+    if command == "admission-v2-enable":
+        if len(args) != 1:
+            print(json.dumps({"ok": False, "error": "admission-v2-enable accepts no arguments"}))
+            return 2
+        release_root = Path(os.environ.get(
+            "LIFE_MANAGER_RELEASE_ROOT", "~/loops/current")).expanduser().resolve(strict=True)
+        launchctl_safe = Path(os.environ.get(
+            "LIFE_MANAGER_LAUNCHCTL_SAFE", str(release_root / "bin/launchctl-safe")
+        )).expanduser()
+        try:
+            release_registry = validate_registry(json.loads(
+                (release_root / "config/loop-registry.json").read_text(encoding="utf-8")
+            ))
+            result = activate_durable_admission_live(
+                release_registry, release_root, launchctl_safe,
+            )
+        except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, sort_keys=True))
+            return 1
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return 0
     registry = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))
     if command == "reconcile":
         positionals, loop_ids, loaded_idle_only, include_running = [], [], False, False
+        max_owners = None
         reconcile_args = args[1:]
         index = 0
         while index < len(reconcile_args):
@@ -587,6 +776,19 @@ def main(argv: list[str] | None = None) -> int:
                 loaded_idle_only = True
             elif value == "--include-running":
                 include_running = True
+            elif value == "--max-owners":
+                if index + 1 >= len(reconcile_args) or reconcile_args[index + 1].startswith("--"):
+                    print(json.dumps({"ok": False, "error": "--max-owners requires a value"}))
+                    return 2
+                try:
+                    max_owners = int(reconcile_args[index + 1])
+                except ValueError:
+                    print(json.dumps({"ok": False, "error": "--max-owners must be a positive integer"}))
+                    return 2
+                if not 1 <= max_owners <= 64:
+                    print(json.dumps({"ok": False, "error": "--max-owners must be between 1 and 64"}))
+                    return 2
+                index += 1
             elif value == "--loop-id":
                 if index + 1 >= len(reconcile_args) or reconcile_args[index + 1].startswith("--"):
                     print(json.dumps({"ok": False, "error": "--loop-id requires a value"}))
@@ -632,7 +834,16 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
         release_root = Path(os.environ.get("LIFE_MANAGER_RELEASE_ROOT", ROOT)).expanduser().resolve(strict=True)
         current_sha = json.loads((release_root / "RELEASE.json").read_text()).get("sha")
-        rows = snapshot(registry, "all")
+        rows = (targeted_snapshot(
+            registry, requested_ids, release_root / "bin/launchctl-safe")
+            if requested_ids else (
+                targeted_snapshot(
+                    registry,
+                    _bounded_reconcile_candidates(
+                        registry, route, current_sha, max_owners),
+                    release_root / "bin/launchctl-safe",
+                ) if max_owners is not None else snapshot(registry, "all")
+            ))
         automatic_release_reconciler = (
             os.environ.get("LIFE_MANAGER_LOOP_ID") == "life-manager-release-reconciler"
         )
@@ -659,6 +870,8 @@ def main(argv: list[str] | None = None) -> int:
                  or row["loop_id"] in explicitly_reloadable
                  or row.get("event_release_sha") == row["installed_release_sha"])
         )]
+        if max_owners is not None:
+            eligible = eligible[:max_owners]
         applied, failed = [], []
         for row in eligible:
             try:
@@ -669,7 +882,8 @@ def main(argv: list[str] | None = None) -> int:
                     preserve_unloaded=row["launchd_state"] == "unloaded",
                     skip_busy=(loaded_idle_only and
                                row["loop_id"] not in explicitly_reloadable),
-                    reload_running=row["launchd_state"] == "loaded-running"))
+                    reload_running=row["launchd_state"] == "loaded-running",
+                    protocol_reader=durable_protocol_version))
             except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
                 failed.append({"loop_id": row["loop_id"], "error": str(exc)})
         print(json.dumps({

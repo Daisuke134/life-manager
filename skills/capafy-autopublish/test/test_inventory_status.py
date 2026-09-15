@@ -34,7 +34,7 @@ def test_normalize_agents_returns_exact_slot_and_retry_counts() -> None:
     module = load_module()
     rows = [
         agent("1", "online"),
-        agent("2", "approved"),
+        agent("2", "online"),
         agent("3", "draft"),
         agent("4", "under_review"),
         agent("5", "review_rejected"),
@@ -50,6 +50,8 @@ def test_normalize_agents_returns_exact_slot_and_retry_counts() -> None:
         "occupied": 3,
         "free": 2,
         "retry": 1,
+        "recover": 0,
+        "ready_publish": 0,
         "blocked": 1,
         "unknown": 0,
     }
@@ -96,6 +98,61 @@ def test_unknown_status_fails_closed_without_free_slot_claim() -> None:
     assert result["counts"]["occupied"] is None
     assert result["counts"]["free"] is None
     assert result["counts"]["unknown"] == 1
+
+
+def test_offline_is_recoverable_not_server_unreadable() -> None:
+    module = load_module()
+
+    normalized = module.normalize_agents([agent("sold-1", "offline", name="Sold Skill")])
+    decision = module.allocate_action(
+        normalized,
+        [],
+        [],
+        recoveries=[{"agent_id": "sold-1", "title": "Sold Skill"}],
+    )
+
+    assert normalized["readable"] is True
+    assert normalized["counts"]["recover"] == 1
+    assert normalized["counts"]["occupied"] == 0
+    assert decision == {
+        "verdict": "PUBLISHABLE",
+        "reason": "offline Agent needs copied replacement version",
+        "action": "recover_delisted",
+        "action_key": "recover:sold-1",
+        "item": {"agent_id": "sold-1", "title": "Sold Skill"},
+    }
+
+
+def test_offline_recovery_bypasses_full_new_agent_cap() -> None:
+    module = load_module()
+    rows = [agent(f"draft-{i}", "draft") for i in range(5)] + [agent("sold-1", "offline")]
+    normalized = module.normalize_agents(rows)
+
+    decision = module.allocate_action(
+        normalized,
+        [],
+        [{"feature": "catalog:fresh", "title": "Fresh Skill"}],
+        recoveries=[{"agent_id": "sold-1", "title": "Skill sold-1"}],
+    )
+
+    assert decision["action"] == "recover_delisted"
+
+
+def test_approved_version_requires_test_run_and_manual_publish() -> None:
+    module = load_module()
+    normalized = module.normalize_agents([agent("sold-1", "pending_online", name="Sold Skill")])
+
+    decision = module.allocate_action(
+        normalized,
+        [],
+        [],
+        ready_to_publish=[{"agent_id": "sold-1", "title": "Sold Skill"}],
+    )
+
+    assert normalized["readable"] is True
+    assert normalized["counts"]["ready_publish"] == 1
+    assert decision["action"] == "test_and_publish"
+    assert decision["action_key"] == "publish:sold-1"
 
 
 def test_missing_identity_fails_closed() -> None:

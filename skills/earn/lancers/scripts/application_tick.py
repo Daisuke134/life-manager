@@ -13,6 +13,7 @@ from pathlib import Path
 import re
 import sys
 import tempfile
+import threading
 import time
 from typing import Any, Callable, Mapping, Optional, Sequence
 import urllib.request
@@ -25,6 +26,7 @@ _DOM_CONTRACT_PATH = _SHARED_PATH.with_name("dom_contract.py")
 _DOM_CONTRACT_MODULE_NAME = "anicca_lancers_shared_dom_contract"
 CDP_URL = "http://127.0.0.1:9227"
 BROWSER_ATTACH_TIMEOUT_MS = 10_000; CDP_REQUEST_TIMEOUT_SECONDS = 2; MAX_CDP_TARGETS = 32; MAX_CDP_RESPONSE_BYTES = 256 * 1024
+PLAYWRIGHT_STOP_TIMEOUT_SECONDS = 2.0
 PLATFORM = "lancers"
 DASHBOARD_URL = "https://www.lancers.jp/mypage"
 DEFAULT_STATE_PATH = Path.home() / ".local" / "state" / "anicca" / "lancers" / "application.json"
@@ -114,6 +116,50 @@ def _form_changed(where: str, **detail: Any) -> RuntimeError:
     """
     _record_form_change(where, "form_step_failed", detail or None)
     return RuntimeError("proposal_form_changed")
+
+
+def _confirmation_transition_detail(
+    page: Any, project_id: str, *, allow_evaluate: bool = True,
+) -> dict[str, object]:
+    """Capture safe transition evidence without trapping a failed browser renderer.
+
+    The normal diagnostic path may read the DOM.  After ``wait_for_url`` has already timed out,
+    however, a renderer that stopped answering can make ``page.evaluate`` wait forever.  The
+    timeout path therefore records only the already-readable URL and returns immediately.
+    """
+    detail: dict[str, object] = {
+        "project_id": str(project_id),
+        "page_url": str(getattr(page, "url", ""))[:512],
+    }
+    if not allow_evaluate:
+        detail["diagnostic"] = "page_url_only_after_transition_timeout"
+        return detail
+    try:
+        observed = page.evaluate(
+            """() => ({
+                ready_state: document.readyState,
+                proposal_form: document.querySelector('form#ProposalProposeForm') !== null,
+                confirmation_form: document.querySelector('form#ProposalProposeConfirmForm') !== null,
+                invalid_controls: document.querySelectorAll('input:invalid,textarea:invalid,select:invalid').length,
+                alerts: document.querySelectorAll('[role=alert],.error-message,.formError').length,
+            })"""
+        )
+    except Exception:
+        return detail
+    if not isinstance(observed, Mapping):
+        return detail
+    ready_state = observed.get("ready_state")
+    if isinstance(ready_state, str) and ready_state in {"loading", "interactive", "complete"}:
+        detail["ready_state"] = ready_state
+    for key in ("proposal_form", "confirmation_form"):
+        value = observed.get(key)
+        if isinstance(value, bool):
+            detail[key] = value
+    for key in ("invalid_controls", "alerts"):
+        value = observed.get(key)
+        if isinstance(value, int) and not isinstance(value, bool) and 0 <= value <= 1000:
+            detail[key] = value
+    return detail
 
 
 def _one(locator: Any) -> Any:
@@ -252,11 +298,57 @@ def _record_terminal_block(
         shared._write_state(path, claims, pending)
 
 
-def _stop_playwright_runtime(runtime: Any) -> None:
+def _playwright_transport_process(runtime: Any) -> Any:
     try:
-        getattr(runtime, "stop", lambda: None)()
+        return runtime._connection._transport._proc
+    except Exception:
+        return None
+
+
+def _force_stop_playwright_process(process: Any) -> None:
+    if process is None:
+        return
+    try:
+        if process.poll() is None:
+            process.terminate()
+        process.wait(timeout=1)
+        return
     except Exception:
         pass
+    try:
+        process.kill()
+    except Exception:
+        pass
+
+
+def _stop_playwright_runtime(runtime: Any) -> None:
+    """Stop this tick's Playwright client without ever stopping the owned browser.
+
+    A provider renderer can disappear while the Python sync API is waiting on its Node driver.
+    Calling ``runtime.stop()`` without a watchdog then leaves the loop holding its admission slot
+    indefinitely.  The watchdog only terminates this tick-local client process; the 9227 Chromium
+    owner remains untouched and can serve the next wake.
+    """
+    if runtime is None:
+        return
+    stop = getattr(runtime, "stop", None)
+    if not callable(stop):
+        return
+    process = _playwright_transport_process(runtime)
+    finished = threading.Event()
+
+    def watchdog() -> None:
+        if not finished.wait(PLAYWRIGHT_STOP_TIMEOUT_SECONDS):
+            _force_stop_playwright_process(process)
+
+    thread = threading.Thread(target=watchdog, name="lancers-playwright-stop-watchdog", daemon=True)
+    thread.start()
+    try:
+        stop()
+    except Exception:
+        _force_stop_playwright_process(process)
+    finally:
+        finished.set()
 
 
 _LANCERS_AUTH_ROUTES = {"/user/login", "/user/reminder"}; _GOOGLE_AUTH_ROUTES = {"/v3/signin/accountchooser", "/info/sessionexpired"}
@@ -368,6 +460,24 @@ def _new_owned_page(browser: Any) -> Any:
     return contexts[0].new_page()
 
 
+def _close_failed_browser(browser: Any) -> None:
+    """Close a connection that failed before a page became owned by this tick.
+
+    A retry after a Playwright/CDP attach or page-create failure must not leave the first
+    connection alive. The browser process is owned by lancers-revenue-browser and is never
+    stopped here; only this tick's client connection and its runtime are released.
+    """
+    if browser is None:
+        return
+    try:
+        close = getattr(browser, "close", None)
+        if callable(close):
+            close()
+    except Exception:
+        pass
+    _stop_playwright_runtime(getattr(browser, "_anicca_playwright_runtime", None))
+
+
 def _open_owned_page(browser_factory: Optional[Callable[[str], Any]] = None) -> tuple[Any, Any]:
     for attempt in range(2):
         browser = None
@@ -375,6 +485,7 @@ def _open_owned_page(browser_factory: Optional[Callable[[str], Any]] = None) -> 
             browser = (browser_factory or _default_browser_factory)(CDP_URL)
             return browser, _new_owned_page(browser)
         except Exception as error:
+            _close_failed_browser(browser)
             if attempt:
                 print(f"application_tick:browser_open_failed:{type(error).__name__}:{error}", file=sys.stderr)
                 raise
@@ -382,13 +493,40 @@ def _open_owned_page(browser_factory: Optional[Callable[[str], Any]] = None) -> 
     raise RuntimeError("browser_unavailable")
 
 
-def _close_owned_page(page: Any) -> bool:
+def _page_playwright_runtime(page: Any) -> Any:
     try:
-        if page is not None:
-            page.close()
+        return page.context.browser._anicca_playwright_runtime
+    except Exception:
+        return None
+
+
+def _close_owned_page(page: Any, runtime: Any = None) -> bool:
+    """Close a tick-owned page without allowing a dead renderer to hold the loop.
+
+    ``page.close`` is another synchronous command sent through the per-tick Node client.  If the
+    renderer has already stopped answering, it can block before the normal runtime cleanup is
+    reached.  The watchdog terminates only that client process; the shared 9227 Chromium owner is
+    never touched.
+    """
+    if page is None:
+        return True
+    process = _playwright_transport_process(runtime or _page_playwright_runtime(page))
+    finished = threading.Event()
+
+    def watchdog() -> None:
+        if not finished.wait(PLAYWRIGHT_STOP_TIMEOUT_SECONDS):
+            _force_stop_playwright_process(process)
+
+    thread = threading.Thread(target=watchdog, name="lancers-page-close-watchdog", daemon=True)
+    thread.start()
+    try:
+        page.close()
         return True
     except Exception:
+        _force_stop_playwright_process(process)
         return False
+    finally:
+        finished.set()
 
 
 def _production_account_ready(page: Any) -> bool:
@@ -675,6 +813,48 @@ def _proposal_og_url(page: Any, expected: str) -> None:
         raise _form_changed("_proposal_og_url:605")
 
 
+def _current_proposal_list_reader(
+    page: Any, project_id: str, username: str,
+) -> Mapping[str, object]:
+    """Read the current proposal-list DOM and select exactly this account's card."""
+    cards = page.locator('[id^="js-list-item-"]')
+    matches: list[Mapping[str, str]] = []
+    expected_profile = f"/profile/{username}"
+    for index in range(_count(cards)):
+        try:
+            card = cards.nth(index)
+            card_id = card.get_attribute("id") or ""
+            card_match = re.fullmatch(r"js-list-item-([0-9]+)", card_id)
+            if card_match is None:
+                continue
+            profiles = card.locator('a[href^="/profile/"]')
+            profile_hrefs = {
+                profiles.nth(profile_index).get_attribute("href")
+                for profile_index in range(_count(profiles))
+            }
+            if expected_profile not in profile_hrefs:
+                continue
+            headings = card.locator("a.p-proposal-list__heading__title")
+            if _count(headings) != 1:
+                continue
+            heading = headings.nth(0)
+            heading_text = " ".join(heading.inner_text().split())
+            if re.fullmatch(r"\S.{0,99} さんの提案", heading_text) is None:
+                continue
+            heading_href = heading.get_attribute("href")
+            parsed_heading = urlsplit(heading_href or "")
+            proposal_match = re.fullmatch(r"/work/proposal/([0-9]+)", parsed_heading.path)
+            if (
+                parsed_heading.scheme or parsed_heading.netloc or parsed_heading.query
+                or parsed_heading.fragment or proposal_match is None
+            ):
+                continue
+            matches.append({"proposal_id": proposal_match.group(1), "project_id": project_id})
+        except Exception:
+            continue
+    return matches[0] if len(matches) == 1 else {}
+
+
 def _default_proposal_reader(page: Any, project_id: str) -> Mapping[str, object]:
     try:
         if not _route(getattr(page, "url", None), "/mypage/proposals"):
@@ -705,30 +885,33 @@ def _default_proposal_reader(page: Any, project_id: str) -> Mapping[str, object]
         own_url = _url(own_path)
         _proposal_og_url(page, own_url)
 
-        heading = _one(page.locator("a.p-simpleProposal-list__heading-title")).nth(0)
-        heading_text = " ".join(heading.inner_text().split())
-        if re.fullmatch(r"\S.{0,99} さんの提案", heading_text) is None:
-            return {}
-        heading_href = heading.get_attribute("href")
-        parsed_heading = urlsplit(heading_href or "")
-        proposal_match = re.fullmatch(r"/work/proposal/([0-9]+)", parsed_heading.path)
-        if (
-            parsed_heading.scheme or parsed_heading.netloc or parsed_heading.query
-            or parsed_heading.fragment or proposal_match is None
-        ):
-            return {}
-        proposal_id = proposal_match.group(1)
-        card = _one(page.locator(f"div#js-list-item-{proposal_id}")).nth(0)
-        if card.get_attribute("id") != f"js-list-item-{proposal_id}":
-            return {}
-        card_heading = _one(card.locator("a.p-simpleProposal-list__heading-title")).nth(0)
-        if (
-            card_heading.get_attribute("href") != heading_href
-            or " ".join(card_heading.inner_text().split()) != heading_text
-        ):
-            return {}
+        old_headings = page.locator("a.p-simpleProposal-list__heading-title")
+        if _count(old_headings):
+            heading = _one(old_headings).nth(0)
+            heading_text = " ".join(heading.inner_text().split())
+            if re.fullmatch(r"\S.{0,99} さんの提案", heading_text) is None:
+                return {}
+            heading_href = heading.get_attribute("href")
+            parsed_heading = urlsplit(heading_href or "")
+            proposal_match = re.fullmatch(r"/work/proposal/([0-9]+)", parsed_heading.path)
+            if (
+                parsed_heading.scheme or parsed_heading.netloc or parsed_heading.query
+                or parsed_heading.fragment or proposal_match is None
+            ):
+                return {}
+            proposal_id = proposal_match.group(1)
+            card = _one(page.locator(f"div#js-list-item-{proposal_id}")).nth(0)
+            if card.get_attribute("id") != f"js-list-item-{proposal_id}":
+                return {}
+            card_heading = _one(card.locator("a.p-simpleProposal-list__heading-title")).nth(0)
+            if (
+                card_heading.get_attribute("href") != heading_href
+                or " ".join(card_heading.inner_text().split()) != heading_text
+            ):
+                return {}
+            return {"proposal_id": proposal_id, "project_id": project_id}
 
-        return {"proposal_id": proposal_id, "project_id": project_id}
+        return _current_proposal_list_reader(page, project_id, username)
     except Exception:
         return {}
 
@@ -889,7 +1072,10 @@ def _production_submitter(
         try:
             wait_for_url(confirmation_url, timeout=10_000)
         except Exception:
-            raise _form_changed("_production_submitter:822") from None
+            raise _form_changed(
+                "_production_submitter:822",
+                **_confirmation_transition_detail(page, project_id, allow_evaluate=False),
+            ) from None
         if not _route(getattr(page, "url", None), f"/work/propose_confirm/{project_id}"):
             raise _form_changed("_production_submitter:824")
         confirm_form = _one(page.locator("form#ProposalProposeConfirmForm"))

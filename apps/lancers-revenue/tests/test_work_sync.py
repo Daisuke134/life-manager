@@ -239,6 +239,16 @@ class WorkSyncTests(unittest.TestCase):
         self.assertEqual(json.loads(output.getvalue()), {"ok": False, "logged_in": True, "source_complete": False, "error": "cleanup_failed"})
         self.assertTrue(browser.stopped)
 
+    def test_cleanup_uses_bounded_shared_playwright_stop(self):
+        sync = _load()
+        runtime = object()
+        browser = type("Browser", (), {"_anicca_playwright_runtime": runtime})()
+        stops = []
+        with patch.object(sync.application_tick, "_close_owned_page", return_value=True), \
+             patch.object(sync.application_tick, "_stop_playwright_runtime", side_effect=lambda value: stops.append(value)):
+            self.assertTrue(sync._cleanup(None, browser))
+        self.assertEqual(stops, [runtime])
+
     def test_watchdog_forwards_valid_nonzero_worker_failure_json(self):
         sync = _load()
         result = sync._watchdog([sys.executable, "-c", "import json,sys; print(json.dumps({'ok': False, 'logged_in': True, 'source_complete': False, 'error': 'cleanup_failed'})); sys.exit(1)"], 1)

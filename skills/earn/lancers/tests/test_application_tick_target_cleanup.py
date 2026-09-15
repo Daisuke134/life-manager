@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import threading
 from pathlib import Path
 
 
@@ -37,3 +38,221 @@ def test_cleanup_closes_only_stale_auth_targets(monkeypatch):
         f"{module.CDP_URL}/json/close/login",
         f"{module.CDP_URL}/json/close/google",
     ]
+
+
+def test_open_owned_page_closes_failed_browser_before_retry(monkeypatch):
+    module = _module()
+    closed = []
+    attempts = []
+
+    class BrokenBrowser:
+        contexts = [type("BrokenContext", (), {"new_page": lambda _self: (_ for _ in ()).throw(RuntimeError("page create failed"))})()]
+
+        def close(self):
+            closed.append("broken")
+
+    class HealthyBrowser:
+        contexts = [type("HealthyContext", (), {"new_page": lambda _self: "page"})()]
+
+        def close(self):
+            closed.append("healthy")
+
+    browsers = [BrokenBrowser(), HealthyBrowser()]
+
+    def factory(url):
+        attempts.append(url)
+        return browsers.pop(0)
+
+    browser, page = module._open_owned_page(factory)
+
+    assert page == "page"
+    assert isinstance(browser, HealthyBrowser)
+    assert attempts == [module.CDP_URL, module.CDP_URL]
+    assert closed == ["broken"]
+
+
+def test_confirmation_transition_detail_records_safe_dom_shape():
+    module = _module()
+
+    class Page:
+        url = "https://www.lancers.jp/work/propose_start/123?proposeReferer=detail"
+
+        def evaluate(self, script):
+            assert "document.readyState" in script
+            return {
+                "ready_state": "complete",
+                "proposal_form": True,
+                "confirmation_form": False,
+                "invalid_controls": 1,
+                "alerts": 1,
+            }
+
+    detail = module._confirmation_transition_detail(Page(), "123")
+
+    assert detail == {
+        "project_id": "123",
+        "page_url": "https://www.lancers.jp/work/propose_start/123?proposeReferer=detail",
+        "ready_state": "complete",
+        "proposal_form": True,
+        "confirmation_form": False,
+        "invalid_controls": 1,
+        "alerts": 1,
+    }
+
+
+def test_confirmation_timeout_path_skips_unbounded_dom_evaluate():
+    module = _module()
+
+    class Page:
+        url = "https://www.lancers.jp/work/propose_start/123?proposeReferer=detail"
+
+        def evaluate(self, _script):
+            raise AssertionError("timeout diagnostics must not evaluate a stalled renderer")
+
+    detail = module._confirmation_transition_detail(Page(), "123", allow_evaluate=False)
+
+    assert detail == {
+        "project_id": "123",
+        "page_url": "https://www.lancers.jp/work/propose_start/123?proposeReferer=detail",
+        "diagnostic": "page_url_only_after_transition_timeout",
+    }
+
+
+def test_playwright_cleanup_force_stops_client_when_stop_fails():
+    module = _module()
+
+    class Process:
+        def __init__(self):
+            self.terminated = False
+
+        def poll(self):
+            return None if not self.terminated else 0
+
+        def terminate(self):
+            self.terminated = True
+
+        def wait(self, timeout=None):
+            return 0
+
+    process = Process()
+
+    class Runtime:
+        _connection = type(
+            "Connection", (), {"_transport": type("Transport", (), {"_proc": process})()}
+        )()
+
+        def stop(self):
+            raise RuntimeError("client already gone")
+
+    module._stop_playwright_runtime(Runtime())
+
+    assert process.terminated is True
+
+
+def test_playwright_cleanup_watchdog_terminates_stalled_client(monkeypatch):
+    module = _module()
+    released = threading.Event()
+
+    class Process:
+        def __init__(self):
+            self.terminated = False
+
+        def poll(self):
+            return None if not self.terminated else 0
+
+        def terminate(self):
+            self.terminated = True
+            released.set()
+
+        def wait(self, timeout=None):
+            return 0
+
+    process = Process()
+
+    class Runtime:
+        _connection = type(
+            "Connection", (), {"_transport": type("Transport", (), {"_proc": process})()}
+        )()
+
+        def stop(self):
+            assert released.wait(1)
+
+    monkeypatch.setattr(module, "PLAYWRIGHT_STOP_TIMEOUT_SECONDS", 0.01)
+    module._stop_playwright_runtime(Runtime())
+
+    assert process.terminated is True
+
+
+def test_page_cleanup_force_stops_client_when_close_fails():
+    module = _module()
+
+    class Process:
+        def __init__(self):
+            self.terminated = False
+
+        def poll(self):
+            return None if not self.terminated else 0
+
+        def terminate(self):
+            self.terminated = True
+
+        def wait(self, timeout=None):
+            return 0
+
+    process = Process()
+    runtime = type(
+        "Runtime",
+        (), {
+            "_connection": type(
+                "Connection", (), {"_transport": type("Transport", (), {"_proc": process})()}
+            )(),
+        },
+    )()
+
+    class Page:
+        context = type("Context", (), {"browser": type("Browser", (), {"_anicca_playwright_runtime": runtime})()})()
+
+        def close(self):
+            raise RuntimeError("renderer already gone")
+
+    assert module._close_owned_page(Page()) is False
+    assert process.terminated is True
+
+
+def test_page_cleanup_watchdog_terminates_stalled_client(monkeypatch):
+    module = _module()
+    released = threading.Event()
+
+    class Process:
+        def __init__(self):
+            self.terminated = False
+
+        def poll(self):
+            return None if not self.terminated else 0
+
+        def terminate(self):
+            self.terminated = True
+            released.set()
+
+        def wait(self, timeout=None):
+            return 0
+
+    process = Process()
+    runtime = type(
+        "Runtime",
+        (), {
+            "_connection": type(
+                "Connection", (), {"_transport": type("Transport", (), {"_proc": process})()}
+            )(),
+        },
+    )()
+
+    class Page:
+        context = type("Context", (), {"browser": type("Browser", (), {"_anicca_playwright_runtime": runtime})()})()
+
+        def close(self):
+            assert released.wait(1)
+
+    monkeypatch.setattr(module, "PLAYWRIGHT_STOP_TIMEOUT_SECONDS", 0.01)
+    assert module._close_owned_page(Page()) is True
+    assert process.terminated is True
