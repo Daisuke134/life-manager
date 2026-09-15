@@ -41,10 +41,10 @@ runtime event、provider ledgerを突き合わせた現在cursorです。後続�
 |---|---|---|
 | source | `origin/main=e7895f9ed80c9317ad6d1e117b70b2896a4cf61a` | Lancersの容量・planner・遷移診断・exhaustive 1-turn・pending cursor・本番wrapperのbounded discovery・timeout診断・single-slice discovery・Playwright cleanup watchdog・提案DOM読取・Paid cleanup・全marketplace収益admissionを含む |
 | release selector | `~/loops/current`は`20260916T014446-1f65be2c`を指す。対象Lancers ownerのreleaseは`20260916T020115-e7895f9e` | Lancers 7 ownerはe789で一致。全体selectorは他loopへの影響があるため旧のまま、全体昇格は未完 |
-| Lancers Application | e789の自然wake（直近run `18d58e9661ab8b18-16515`）が終端し、proposal 27922413と27921564を`application_verified`。pendingは134→127、同じeffectの重複ledger行なし。後続wakeは回転中 | **Application canaryの公式効果/readbackはPASS**。残りpending 127件と全lane収益gateは未完 |
+| Lancers Application | e789の自然wake（直近確認run `18d58ee61b21ea70-23030`）が終端し、proposal 27922413と27921564を`application_verified`。pendingは134→126、同じeffectの重複ledger行なし。後続wakeは回転中 | **Application canaryの公式効果/readbackはPASS**。残りpending 126件と全lane収益gateは未完 |
 | Lancers Browser | `loaded-running`、9227 CDPはChrome 145 / Protocol 1.3、Browser ownerもe789 | 7 ownerのrelease driftは解消。接続canaryはPASS。provider効果はlane別に未確認 |
-| Lancers Negotiate/Storefront/work-sync/report | 6 ownerすべてe789へ反映済み。旧f0bdの直近wakeには`resource_capacity_busy`、`resource_control_busy`、`entrypoint_exit_1`が残る | e789の自然wake terminalとlaneごとの公式readbackを確認 |
-| Lancers Paid | e789へ反映済み。切替前f0bdの直近runは`provider_inventory`／`entrypoint_exit_1`、`effect=0`、公式paid receiptなし | e789自然wake後、provider inventory→契約/納品→公式paid receiptを別gateで確認 |
+| Lancers Negotiate/Storefront/work-sync/report | 6 ownerすべてe789へ反映済み。e789自然wakeでも`resource_capacity_busy`、`resource_control_busy`、`entrypoint_exit_1`が残る | admission v2有効化後に再wakeし、laneごとの公式readbackを確認 |
+| Lancers Paid | e789へ反映済み。e789直近runも`provider_inventory`／`entrypoint_exit_1`、`effect=0`、公式paid receiptなし | admission v2有効化後、provider inventory→契約/納品→公式paid receiptを別gateで確認 |
 | Lancers ledger | 最新はsequence 149（proposal 27921564）。148以前も含めapplication_verifiedのみで、paid/delivery receiptは0 | Application 2件は成功として記録。収益・納品の成功は0件として扱う |
 
 最新のmain統合はPR #5242（merge commit `e7895f9ed8`）です。PR #5233で本番の
@@ -60,6 +60,10 @@ memory crashを避けるfail-closed動作ですが、PR #5238でCrowdWorks/Merco
 へ明示し、admission handoff lockを0.5秒でfail-closedにしました。PR #5241で現行Lancers DOMの
 proposal読取fallbackを追加し、PR #5242でPaidの後処理にもbounded cleanupを適用しました。
 e789のApplication自然wakeで公式proposal receipt（ledger sequence 148、149）を2件確認済みです。
+一方、protocol v2は未有効（`protocol.json` absent）で、`admission-v2-enable`は未loadの
+`article-resume`をloaded argv非対応と誤判定して停止しました。インストール済みplistはv2対応です。
+この判定を修正するbranch `fix/admission-v2-unloaded-capable-plists`（commit `6845f4fe8b`、
+126 tests + 30 subtests PASS）がpush済みですが、main由来releaseへ未反映です。
 
 順序変更記録: 旧順序ではpending処理（`PROD-01-F`）をrelease統一（`PROD-01-H`）より先に置いて
 いましたが、Browser競合を増やさず全ownerを同一immutable SHAへ揃える方が安全で、後続wakeの再現性も
@@ -75,17 +79,18 @@ e789のApplication自然wakeで公式proposal receipt（ledger sequence 148、14
 | 3 | `PROD-01-C` Lancers Applicationを新wrapperの自然wakeで1回検証 | Application owner、planner/safety evidence | **基盤gate完了**: bounded discoveryが約1〜5分で終端。公式効果は`BROWSER-03`で別判定 |
 | 4 | `PROD-01-D` `ba19...` releaseを作成し、Application/Paid/Browserを反映 | immutable release + 3 Lancers owners | **履歴gate・置換済み**: ba19の反映確認後、現行の収益admission/DOM修正を含むe789へ移行 |
 | 5 | `PROD-01-E` 収益枠を予約できるadmissionへ修正・検証 | shared resource admission + marketplace revenue owners | **コード/テスト/release作成完了**: 148 tests + 100 subtests PASS。e789を7 ownerへ反映済み、自然wakeの効果確認は別gate |
-| 6 | `PROD-01-F` pending 127件を順番に再確認し、fresh sliceを枯らさない | Application state/reconciliation only | 7件は公式verifiedでpendingから除去済み。transient failureは次wakeへ送り、state invalidはfail-closed。127件の解消または理由付きterminalが必要 |
+| 6 | `PROD-01-F` pending 126件を順番に再確認し、fresh sliceを枯らさない | Application state/reconciliation only | 8件は公式verifiedでpendingから除去済み。transient failureは次wakeへ送り、state invalidはfail-closed。126件の解消または理由付きterminalが必要 |
 | 7 | `PROD-01-G` proposal確認遷移の残故障を1件で再現・修正 | Lancers provider adapterと回帰テスト | **完了**: 現行DOM fallback（PR #5241）をe789で実行し、proposal 27922413/27921564の公式readbackをledgerへ記録 |
 | 8 | `PROD-01-H` Lancers全7 ownerのrelease driftを解消 | Lancers ownerだけ | **完了**: 7 ownerのplist・loaded programがe789で一致。Browserは9227でlisten、install eventも各ownerに記録 |
 | 9 | `BROWSER-03` Lancers応募canaryを1件だけ実行 | provider effect owner | **Application部分PASS**: proposal 27922413/27921564、ledger sequence 148/149、重複0。残りeffect laneのcanaryは未完 |
-| 10 | `PROD-02` Lancers Negotiate/Storefront/Paidを個別に閉じる | 各provider adapter | laneごとの公式receiptまたは明示的not-applicable、重複0 |
-| 11 | `MARKET-02` CrowdWorksを同じshared kernelで検証 | CrowdWorks adapter/owner | 応募・契約の公式receiptまたはtruthful not-applicable |
-| 12 | `MARKET-03` Mercorをhuman gate付きで検証 | Mercor adapter/owner | typed gate再開、公式application/contract/payment receipt |
-| 13 | `MARKET-04` Coconalaを別workstream完了後に検証 | Coconala owner | 既存の4 laneごとの公式receipt、buyer readback、replay-zero |
-| 14 | `LOCAL-01/02` 14 Product Loopのlocal completion manifest | shared control plane + 各owner | unknown 0、未対応は明示状態、外部成功はreceipt限定 |
-| 15 | `CLOUD-01/02/03` tenant分離・cloud Browser・phone-only経路 | cloud adapter | localと同じcontract、cloud canary、静かな通知、公式readback |
-| 16 | `CLOUD-04` production昇格 | primary release owner | local gate、cloud gate、公式効果、replay-zeroの全PASS |
+| 10 | `ADMISSION-01` 未load v2対応plistを許容する修正をmain由来releaseへ反映し、protocol v2を有効化 | shared runtime + installed finite owners | branch `6845f4fe8b`をmain由来immutable releaseへ反映→`protocol.json` version 2→revenue queue/reservation readback |
+| 11 | `PROD-02` Lancers Negotiate/Storefront/Paidを個別に閉じる | 各provider adapter | laneごとの公式receiptまたは明示的not-applicable、重複0 |
+| 12 | `MARKET-02` CrowdWorksを同じshared kernelで検証 | CrowdWorks adapter/owner | 応募・契約の公式receiptまたはtruthful not-applicable |
+| 13 | `MARKET-03` Mercorをhuman gate付きで検証 | Mercor adapter/owner | typed gate再開、公式application/contract/payment receipt |
+| 14 | `MARKET-04` Coconalaを別workstream完了後に検証 | Coconala owner | 既存の4 laneごとの公式receipt、buyer readback、replay-zero |
+| 15 | `LOCAL-01/02` 14 Product Loopのlocal completion manifest | shared control plane + 各owner | unknown 0、未対応は明示状態、外部成功はreceipt限定 |
+| 16 | `CLOUD-01/02/03` tenant分離・cloud Browser・phone-only経路 | cloud adapter | localと同じcontract、cloud canary、静かな通知、公式readback |
+| 17 | `CLOUD-04` production昇格 | primary release owner | local gate、cloud gate、公式効果、replay-zeroの全PASS |
 
 routine report、PID、exit 0、Telegram送信、テストgreenだけでは各項目を完了にしない。各項目の
 最後に公式証拠がなければ、その項目は同じcursorに留まり、次のplatformを起動しない。
