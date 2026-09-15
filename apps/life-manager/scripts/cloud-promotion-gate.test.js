@@ -31,6 +31,8 @@ function inputWithDecision(decision) {
       loops: catalog.loops.map((loop) => ({
         id: loop.id,
         state: "setup_required",
+        resource_class: "unknown",
+        notification_state: "internal_only",
       })),
     },
     cloud_canary: {

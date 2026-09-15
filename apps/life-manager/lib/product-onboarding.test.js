@@ -207,6 +207,7 @@ test("local completion gate passes only explicit setup states or verified receip
     official_receipt: true,
     official_receipt_ref: "ledger://local/owner-1/receipt-1",
     replay_zero: true,
+    resource_class: "agent",
     contract,
   };
   const manifest = buildProductLoopCompletionManifest({
@@ -248,6 +249,7 @@ test("local completion gate blocks a verified row whose receipt reference or rep
       official_receipt: true,
       official_receipt_ref: "ledger://local/owner-1/receipt-1",
       replay_zero: true,
+      resource_class: "agent",
       contract,
     } : {
       id: loop.id,
@@ -364,6 +366,8 @@ test("cloud promotion gate rejects a fourteen-row manifest with fabricated loop 
       loops: Array.from({ length: 14 }, (_, index) => ({
         id: `fabricated-loop-${index}`,
         state: "setup_required",
+        resource_class: "agent",
+        notification_state: "internal_only",
       })),
     },
     cloud_canary: {
@@ -452,6 +456,45 @@ test("verified completion requires a receipt reference and replay-zero proof", (
   );
 });
 
+test("verified completion requires an explicit resource class and notification boundary", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "c".repeat(40);
+  const contract = {
+    goal: true,
+    context: true,
+    admission: true,
+    receipt: true,
+    observability: true,
+    evaluation: true,
+  };
+  const observations = catalog.loops.map((loop) => ({
+    id: loop.id,
+    state: "setup_required",
+    reason: "host_adapter_pending",
+    contract: {},
+  }));
+  observations[0] = {
+    id: catalog.loops[0].id,
+    state: "verified",
+    owner_id: "owner-1",
+    release_sha: releaseSha,
+    official_receipt: true,
+    official_receipt_ref: "ledger://local/owner-1/receipt-resource",
+    replay_zero: true,
+    notification_state: "invalid_boundary",
+    contract,
+  };
+
+  assert.throws(
+    () => buildProductLoopCompletionManifest({
+      host: "local",
+      release_sha: releaseSha,
+      observations,
+    }),
+    /resource class|notification boundary/u,
+  );
+});
+
 test("completion manifest binds runtime status to every mapped job without promoting health to effect", () => {
   const catalog = readProductLoopCatalog();
   const releaseSha = "f".repeat(40);
@@ -514,6 +557,7 @@ test("verified completion rejects missing or stale mapped runtime evidence", () 
     official_receipt: true,
     official_receipt_ref: "ledger://cloud/owner-1/receipt-1",
     replay_zero: true,
+    resource_class: "agent",
     contract,
   };
   const runtimeRows = catalog.loops[0].job_ids.map((loopId, index) => ({
@@ -560,6 +604,7 @@ test("completion is true only when every loop is verified or explicitly unsuppor
     official_receipt: true,
     official_receipt_ref: "ledger://cloud/owner-1/receipt-verified",
     replay_zero: true,
+    resource_class: "agent",
     contract,
   };
 

@@ -17,6 +17,8 @@ const COMPLETION_CONTRACT_FIELDS = [
 const RUNTIME_TERMINAL_RESULTS = new Set(["pass", "fail", "blocked", "running"]);
 const RELEASE_SHA = /^[a-f0-9]{40}$/iu;
 const RECEIPT_REF = /^[a-z][a-z0-9+.-]*:\/\/\S{1,1024}$/iu;
+const RESOURCE_CLASS = /^[a-z][a-z0-9_.:-]{0,63}$/iu;
+const NOTIFICATION_STATES = new Set(["internal_only", "user_visible", "not_configured"]);
 
 function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
   const value = JSON.parse(fs.readFileSync(catalogFile, "utf8"));
@@ -195,7 +197,9 @@ function evaluateCloudPromotionGate(input = {}, options = {}) {
         && [...actualIds].sort().every((id, index) => id === [...expectedIds].sort()[index]);
       if (!sameIds) reasons.push("cloud_manifest_loop_identity_mismatch");
       if (cloudManifest.loops.some((loop) => !loop
-        || !["verified", "setup_required", "not_applicable"].includes(loop.state))) {
+        || !["verified", "setup_required", "not_applicable"].includes(loop.state)
+        || typeof loop.resource_class !== "string" || !RESOURCE_CLASS.test(loop.resource_class)
+        || typeof loop.notification_state !== "string" || !NOTIFICATION_STATES.has(loop.notification_state))) {
         reasons.push("cloud_manifest_state_invalid");
       }
     }
@@ -261,10 +265,18 @@ function evaluateLocalCompletionGate(manifest, options = {}) {
         if (state !== "verified" && !(typeof loop.reason === "string" && loop.reason.trim())) {
           reasons.push("unexplained_product_loop_state");
         }
+        if (typeof loop.resource_class !== "string" || !RESOURCE_CLASS.test(loop.resource_class)) {
+          reasons.push("resource_class_invalid");
+        }
+        if (typeof loop.notification_state !== "string" || !NOTIFICATION_STATES.has(loop.notification_state)) {
+          reasons.push("notification_boundary_invalid");
+        }
         if (state === "verified" && (
           loop.official_receipt !== true
           || typeof loop.official_receipt_ref !== "string" || !RECEIPT_REF.test(loop.official_receipt_ref)
           || loop.replay_zero !== true
+          || loop.resource_class === "unknown"
+          || loop.notification_state === "not_configured"
           || typeof loop.owner_id !== "string" || !loop.owner_id.trim()
           || loop.release_sha !== manifest.release_sha
           || !loop.contract || COMPLETION_CONTRACT_FIELDS.some((field) => loop.contract[field] !== true)
@@ -335,6 +347,16 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
     const officialReceipt = observation.official_receipt === true;
     const officialReceiptRef = typeof observation.official_receipt_ref === "string"
       && observation.official_receipt_ref.trim() ? observation.official_receipt_ref.trim() : null;
+    const resourceClass = typeof observation.resource_class === "string"
+      && observation.resource_class.trim() ? observation.resource_class.trim() : "unknown";
+    if (!RESOURCE_CLASS.test(resourceClass)) {
+      throw new Error(`completion resource class invalid: ${catalogLoop.id}`);
+    }
+    const notificationState = observation.notification_state === undefined
+      ? "internal_only" : String(observation.notification_state).trim();
+    if (!NOTIFICATION_STATES.has(notificationState)) {
+      throw new Error(`completion notification boundary invalid: ${catalogLoop.id}`);
+    }
     if (officialReceiptRef && !RECEIPT_REF.test(officialReceiptRef)) {
       throw new Error(`completion official receipt reference invalid: ${catalogLoop.id}`);
     }
@@ -345,6 +367,7 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
     if (state === "verified"
       && (!officialReceipt || !ownerId || observedRelease !== releaseSha
         || !officialReceiptRef || !replayZero
+        || resourceClass === "unknown" || notificationState === "not_configured"
         || COMPLETION_CONTRACT_FIELDS.some((field) => contract[field] !== true))) {
       throw new Error(`verified loop requires official receipt and matching release: ${catalogLoop.id}`);
     }
@@ -363,6 +386,8 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
       official_receipt: officialReceipt,
       official_receipt_ref: officialReceiptRef,
       replay_zero: replayZero,
+      resource_class: resourceClass,
+      notification_state: notificationState,
       contract: Object.freeze(contract),
       runtime_evidence: runtimeEvidence,
     });
