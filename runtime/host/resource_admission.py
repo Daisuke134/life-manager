@@ -283,7 +283,7 @@ def _database(path: Path) -> sqlite3.Connection:
 
 
 def _limits(resource_class: str, admission_class: str = "borrow") -> tuple[int, int]:
-    total = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 3)
+    total = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 5)
     if admission_class == "revenue":
         return total, _capacity("LIFE_MANAGER_HOST_MAX_REVENUE_RUNS", total)
     per_class = _capacity(

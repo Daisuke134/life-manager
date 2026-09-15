@@ -133,6 +133,12 @@ Long waits belong in persisted `next_eligible_at` state and launchd cadence.
 - Browser cleanup is owner-scoped: prove profile/port/PID ownership and open
   resources before closing stale contexts or tabs. Never use a global Chromium,
   WindowServer, loginwindow, GUI-session, or host restart as loop recovery.
+- External browser CLIs always use a loop/run-named session and close that exact
+  session in `finally`; the parent must wait/reap its children. Symptom: zombies
+  or a browser under a terminal run. Wrong instinct: kill zombies individually.
+  Correct action: verify the owning receipt, terminate only the stale parent/group,
+  and fix session teardown. Example: a timed-out route lookup closes its named
+  session, while another loop's authenticated browser remains untouched.
 - Local macOS uses short launchd jobs plus external durable state. Cloud uses the
   platform's equivalent scheduler and durable store; both implement the same
   `observe -> decide -> act -> verify -> persist -> exit` contract. A second host
