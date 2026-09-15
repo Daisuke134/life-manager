@@ -5149,10 +5149,8 @@ def _continue_remote_owner_same_run(result: object, progress_before: int,
     )
 
 
-def _raise_remote_builder_or_progress(progress: Path, before_size: int,
-                                      expected: dict[str, str], error: Exception) -> None:
-    """Keep newly checkpointed self-actionable work resumable after owner validation."""
-    current_checkpoint = False
+def _current_remote_checkpoint_added(progress: Path, before_size: int,
+                                     expected: dict[str, str]) -> bool:
     if _regular_file(progress) and progress.stat().st_size > before_size:
         with progress.open("rb") as handle:
             handle.seek(before_size)
@@ -5163,8 +5161,23 @@ def _raise_remote_builder_or_progress(progress: Path, before_size: int,
                     continue
                 if (effect_checkpoint.valid_checkpoint(row)
                         and all(row.get(key) == value for key, value in expected.items())):
-                    current_checkpoint = True
-                    break
+                    return True
+    return False
+
+
+def _continue_remote_owner_after_invalid_result(
+        progress: Path, before_size: int, expected: dict[str, str],
+        review_round: int, max_rounds: int) -> bool:
+    return (
+        review_round < max_rounds
+        and _current_remote_checkpoint_added(progress, before_size, expected)
+    )
+
+
+def _raise_remote_builder_or_progress(progress: Path, before_size: int,
+                                      expected: dict[str, str], error: Exception) -> None:
+    """Keep newly checkpointed self-actionable work resumable after owner validation."""
+    current_checkpoint = _current_remote_checkpoint_added(progress, before_size, expected)
     stage = (
         "remote_progress"
         if current_checkpoint
@@ -5332,6 +5345,11 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
                     raise Failure("remote_progress")
                 paid_remote_result.validate_builder(root, feedback, digest, pass_start)
             except (OSError, ValueError, TypeError, json.JSONDecodeError) as error:
+                if _continue_remote_owner_after_invalid_result(
+                        progress, progress_size, progress_contract,
+                        review_round, max_review_rounds):
+                    builder_required, review_delta = True, None
+                    continue
                 _raise_remote_builder_or_progress(
                     progress, progress_size, progress_contract, error,
                 )
