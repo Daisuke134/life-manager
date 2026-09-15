@@ -396,6 +396,8 @@ def _stop_playwright_runtime(runtime: Any, *, release_session_lease: bool = True
         return
     stop = getattr(runtime, "stop", None)
     if not callable(stop):
+        if release_session_lease:
+            _release_browser_session_lease(runtime)
         return
     process = _playwright_transport_process(runtime)
     finished = threading.Event()
@@ -600,7 +602,6 @@ def _close_owned_page(page: Any, runtime: Any = None) -> bool:
         return False
     finally:
         finished.set()
-        _release_browser_session_lease(runtime)
 
 
 def _production_account_ready(page: Any) -> bool:
