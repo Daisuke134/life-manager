@@ -813,6 +813,48 @@ def _proposal_og_url(page: Any, expected: str) -> None:
         raise _form_changed("_proposal_og_url:605")
 
 
+def _current_proposal_list_reader(
+    page: Any, project_id: str, username: str,
+) -> Mapping[str, object]:
+    """Read the current proposal-list DOM and select exactly this account's card."""
+    cards = page.locator('[id^="js-list-item-"]')
+    matches: list[Mapping[str, str]] = []
+    expected_profile = f"/profile/{username}"
+    for index in range(_count(cards)):
+        try:
+            card = cards.nth(index)
+            card_id = card.get_attribute("id") or ""
+            card_match = re.fullmatch(r"js-list-item-([0-9]+)", card_id)
+            if card_match is None:
+                continue
+            profiles = card.locator('a[href^="/profile/"]')
+            profile_hrefs = {
+                profiles.nth(profile_index).get_attribute("href")
+                for profile_index in range(_count(profiles))
+            }
+            if expected_profile not in profile_hrefs:
+                continue
+            headings = card.locator("a.p-proposal-list__heading__title")
+            if _count(headings) != 1:
+                continue
+            heading = headings.nth(0)
+            heading_text = " ".join(heading.inner_text().split())
+            if re.fullmatch(r"\S.{0,99} さんの提案", heading_text) is None:
+                continue
+            heading_href = heading.get_attribute("href")
+            parsed_heading = urlsplit(heading_href or "")
+            proposal_match = re.fullmatch(r"/work/proposal/([0-9]+)", parsed_heading.path)
+            if (
+                parsed_heading.scheme or parsed_heading.netloc or parsed_heading.query
+                or parsed_heading.fragment or proposal_match is None
+            ):
+                continue
+            matches.append({"proposal_id": proposal_match.group(1), "project_id": project_id})
+        except Exception:
+            continue
+    return matches[0] if len(matches) == 1 else {}
+
+
 def _default_proposal_reader(page: Any, project_id: str) -> Mapping[str, object]:
     try:
         if not _route(getattr(page, "url", None), "/mypage/proposals"):
@@ -843,30 +885,33 @@ def _default_proposal_reader(page: Any, project_id: str) -> Mapping[str, object]
         own_url = _url(own_path)
         _proposal_og_url(page, own_url)
 
-        heading = _one(page.locator("a.p-simpleProposal-list__heading-title")).nth(0)
-        heading_text = " ".join(heading.inner_text().split())
-        if re.fullmatch(r"\S.{0,99} さんの提案", heading_text) is None:
-            return {}
-        heading_href = heading.get_attribute("href")
-        parsed_heading = urlsplit(heading_href or "")
-        proposal_match = re.fullmatch(r"/work/proposal/([0-9]+)", parsed_heading.path)
-        if (
-            parsed_heading.scheme or parsed_heading.netloc or parsed_heading.query
-            or parsed_heading.fragment or proposal_match is None
-        ):
-            return {}
-        proposal_id = proposal_match.group(1)
-        card = _one(page.locator(f"div#js-list-item-{proposal_id}")).nth(0)
-        if card.get_attribute("id") != f"js-list-item-{proposal_id}":
-            return {}
-        card_heading = _one(card.locator("a.p-simpleProposal-list__heading-title")).nth(0)
-        if (
-            card_heading.get_attribute("href") != heading_href
-            or " ".join(card_heading.inner_text().split()) != heading_text
-        ):
-            return {}
+        old_headings = page.locator("a.p-simpleProposal-list__heading-title")
+        if _count(old_headings):
+            heading = _one(old_headings).nth(0)
+            heading_text = " ".join(heading.inner_text().split())
+            if re.fullmatch(r"\S.{0,99} さんの提案", heading_text) is None:
+                return {}
+            heading_href = heading.get_attribute("href")
+            parsed_heading = urlsplit(heading_href or "")
+            proposal_match = re.fullmatch(r"/work/proposal/([0-9]+)", parsed_heading.path)
+            if (
+                parsed_heading.scheme or parsed_heading.netloc or parsed_heading.query
+                or parsed_heading.fragment or proposal_match is None
+            ):
+                return {}
+            proposal_id = proposal_match.group(1)
+            card = _one(page.locator(f"div#js-list-item-{proposal_id}")).nth(0)
+            if card.get_attribute("id") != f"js-list-item-{proposal_id}":
+                return {}
+            card_heading = _one(card.locator("a.p-simpleProposal-list__heading-title")).nth(0)
+            if (
+                card_heading.get_attribute("href") != heading_href
+                or " ".join(card_heading.inner_text().split()) != heading_text
+            ):
+                return {}
+            return {"proposal_id": proposal_id, "project_id": project_id}
 
-        return {"proposal_id": proposal_id, "project_id": project_id}
+        return _current_proposal_list_reader(page, project_id, username)
     except Exception:
         return {}
 
