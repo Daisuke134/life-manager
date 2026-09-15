@@ -819,7 +819,8 @@ work item and leave a sibling trace unchanged.
   one candidate at a time, without an artificial per-run candidate cap; persist every official result and never
   fabricate a send or Sheet row. The Chii outer loop is paused while this manual owner performs the batch to
   prevent stale state overwrites; resume it only after the manual batch is checkpointed and its first natural
-  wake is verified.
+  wake is verified. A one-off unintended test-text effect to `@gucci_fuufu` was recorded separately and is not
+  counted; never execute a test payload against the live TikTok owner.
 - [ ] Atsugi `18171850`: reconcile the newest post-delivery feedback, perform any required revision/reply once,
   and return to verified buyer-acceptance wait.
 - [ ] Re-run all five active work items and prove newest-buyer-digest coverage, official readback and replay-zero
