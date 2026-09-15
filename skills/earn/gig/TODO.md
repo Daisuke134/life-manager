@@ -539,9 +539,10 @@ crossed the malformed-plist boundary and completed the safe scan, but returned f
 host probe remained unknown; it reclaimed only 6,409 bytes and left about 7.8 GiB free. A concurrent
 `d2fc0a7b` Paid wake recovered all 18 observed attachments for Kokoro `18223833` and 16 of 26 for Kokoro
 `18250352`; Ryu retains 42 local files while its distinct-reference and duplicate-filename cases remain
-unresolved. Kokoro `18223833` then built the revised workbook, sent it once in progress mode with formal
+unresolved. Kokoro `18223833` then built its current review artifact, sent it once in progress mode with formal
 delivery OFF, and wrote `status=completed`, `effect=1`, `readback=1`; the official selected-talkroom readback
-contains the new seller message and attached v2 workbook. Ryu and Kokoro `18250352` remain open.
+contains the new seller message and attached v3 review ZIP. The Paid aggregate is now `effect=1`, `readback=1`,
+`pending=2`, `failed=0`. Ryu and Kokoro `18250352` remain open.
 
 ### 2. Coconala vertical revenue proof
 
