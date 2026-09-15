@@ -111,6 +111,31 @@ Both hosts use the same product loop ID, recipe, capability/effect contract, gra
 evaluation contract, receipt schema, and human-gate semantics. Only supervisor, storage, secret, and
 browser transport adapters differ. A second local/cloud business implementation is a contract failure.
 
+### J1. Two Deployment Modes and local-first promotion
+
+Life Manager exposes two deployment modes for the same implementation:
+
+1. **Local mode:** a single owner runs the control plane, private state, and host adapters on a local
+   Mac or Linux machine. It is the development, self-hosted, and recovery mode. Autonomous browser work
+   uses headless sessions; the user's screen is reserved for debugging and human gates.
+2. **Cloud mode:** the hosted control plane, tenant-scoped durable store, worker pool, and Steel Browser
+   sessions run continuously in the cloud. A phone and Telegram/app are sufficient for the user. Cloud
+   is the production expansion mode, not a fork of the business code.
+
+The **local completion gate** MUST pass before cloud promotion: every advertised Product Loop has one
+canonical owner and release, no stale/duplicate scheduler, bounded resource admission, a context and
+receipt contract, private internal reporting, and either a verified official effect or an explicit
+`setup_required`/`not_applicable` capability state. No enabled owner may remain `unknown`, silently
+failing, or dependent on a visible desktop window. Cloud promotion copies the immutable source and
+contracts, creates fresh tenant-scoped state, runs one cloud canary, and proves the same official
+readback/replay-zero behavior. It never copies local credentials, browser sessions, or mutable logs.
+
+Local and cloud remain available as user choices after promotion. `phone-only` use is the default cloud
+experience; local mode remains a self-hosted option and a recovery path. Both modes use the same
+implementation, and only their host adapters differ.
+
+The rule is: **no cloud promotion before local acceptance**.
+
 ### K. User Communication Contract
 
 Every wake, retry, evaluation, health signal, and diagnostic remains in the private ledger/control room
@@ -287,6 +312,8 @@ provenance questions; it never substitutes for provider truth.
 | 15 | No-babysitting supervisor | `test_issue_queue_recovers_or_escalates_without_manual_restart` | OK: retry budget, independent progress, typed escalation |
 | 16 | Agents API sandbox boundary | `test_agents_api_task_manifest_and_readonly_release` | OK: bounded subagents, no credentials/effects, hashed outputs |
 | 17 | Browser session mode and capacity | `test_browser_session_mode_capacity_and_handoff` | OK: headless default, session state, limits, viewer handoff, no duplicate session |
+| 18 | Two deployment modes | `test_local_and_cloud_use_the_same_implementation_contract` | OK: host-only variation, tenant isolation, phone-only cloud path |
+| 19 | Local-first promotion | `test_cloud_promotion_requires_local_completion_gate_and_canary` | OK: no unknown/stale owner, immutable source, official readback/replay-zero |
 
 All tests are deterministic fixtures or read-only contract checks. External marketplace acceptance
 remains a separate owner-scoped operation that requires the existing immutable-release,
@@ -324,6 +351,9 @@ official-readback, and replay-zero rules.
   compatibility, authentication persistence, official readback, and replay-zero acceptance.
 - Do not create a second browser session for a human handoff; attach the viewer to the existing leased
   session and resume the same owner.
+- Do not promote cloud before the local completion gate passes; do not copy local mutable state,
+  credentials, browser sessions, or logs into cloud.
+- Do not maintain separate local and cloud business implementations. Only host adapters may differ.
 
 ## 7. Execution Steps
 
@@ -363,6 +393,12 @@ official-readback, and replay-zero rules.
     only for human gates and debugging.
 17. Use Firecracker only for untrusted repair/evaluation execution and run Lightpanda only as a
     read-only discovery experiment; record the license and compatibility decision before any promotion.
+18. Complete the local completion gate for every advertised Product Loop, including owner/release
+    readback, resource admission, private reporting, official effect/readback or explicit capability
+    state, and replay-zero where an effect exists.
+19. Promote the identical immutable source to cloud, provision tenant-scoped state and Steel sessions,
+    run one canary per supported resource class, prove official readback/replay-zero, and expose the
+    phone-only notification/control path before enabling broader cloud capacity.
 
 ## E2E Judgment
 

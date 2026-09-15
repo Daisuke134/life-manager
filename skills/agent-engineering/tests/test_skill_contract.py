@@ -147,3 +147,35 @@ def test_architecture_spec_covers_local_cloud_and_browser_execution_boundaries()
         "Lightpanda",
     ):
         assert token in text, token
+
+
+def test_architecture_spec_requires_local_completion_before_cloud_promotion() -> None:
+    path = REPO_ROOT / "docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md"
+    text = path.read_text(encoding="utf-8")
+    for token in (
+        "Two Deployment Modes",
+        "local-first",
+        "local completion gate",
+        "cloud promotion",
+        "phone-only",
+        "same implementation",
+        "no cloud promotion before local acceptance",
+    ):
+        assert token in text, token
+
+
+def test_local_to_cloud_plan_has_ordered_execution_and_phone_only_gate() -> None:
+    path = REPO_ROOT / "docs/superpowers/plans/2026-09-15-life-manager-local-to-cloud.md"
+    text = path.read_text(encoding="utf-8")
+    for token in (
+        "Local-to-Cloud Implementation Plan",
+        "Task 1: ローカル完了台帳を作る",
+        "Task 11: ローカル版を完全受入する",
+        "Task 12: クラウド版へ同じ実装を昇格する",
+        "Task 13: スマホだけの本番を有効化する",
+        "local completion manifest",
+        "cloud promotion",
+        "phone-only",
+        "never start all production jobs",
+    ):
+        assert token in text, token
