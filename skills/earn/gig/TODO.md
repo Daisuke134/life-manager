@@ -67,6 +67,16 @@ effects, prevents duplicates, heals failures and improves itself. The first meas
 - Chii remains an active paid contract until the official room and the truthful DM-result ledger prove the
   contracted outcome. Never invent recipients, sends or spreadsheet rows.
 
+### Evidence correction for the earlier “300 complete” report
+
+The earlier report correctly observed **300 populated rows in Google Sheets**, but it incorrectly treated that
+row count as 300 successful TikTok sends. The paired official effect/readback ledger is the authority: it proves
+12 eligible non-live sends and leaves 288 unproved. The official Chii talkroom also contains a seller-authored
+“DM 300件完了” claim and a buyer message saying the spreadsheet was not filled; neither is a provider send
+receipt. Therefore the screenshot is historical/reporting evidence, not proof that 300 DMs were sent. The
+correct current state is `verified_unique_sends=12`, `remaining_eligible_personalized_sends=288`,
+`required_effect_satisfied=false`, and `formal_delivery=OFF`.
+
 ## Shared architecture
 
 ```text
@@ -451,9 +461,9 @@ never by deleting the guard.
 
 The matrix below is the durable client set, not proof that every row is currently submitted. The live Paid
 wake must finish each item and write its own official readback before a row can be closed. `18180857` has a
-truthful 300-row TikTok/Sheet completion receipt, but its Coconala reply/monitoring loop is still paused; Ryu
-`18211957` is still `WORK_REQUIRED` in the live project state and must not be reported as done from the older
-historical seller message.
+truthful 300-populated-row Google Sheet readback, but only 12 paired official TikTok effects; its Coconala
+reply/monitoring loop is still paused. Ryu `18211957` is still `WORK_REQUIRED` in the live project state and
+must not be reported as done from the older historical seller message.
 
 #### Current active-client inventory
 
@@ -512,6 +522,10 @@ independent production effects.
   Paid must record the actual selected Codex account; Ryu `18211957` must use the newest buyer-feedback digest,
   Chii `18180857` must retain the official 12/300 ledger truth, and Kokoro rooms must remain independent
   buyer-wait states. No PID, scheduler line or Telegram message closes this item.
+- [ ] Chii Paid completion: do not send a “300 complete” Coconala report yet. First prove the seller-owned
+  TikTok identity, individually send and officially read back the remaining 288 eligible DMs, append matching
+  rows to the shared Sheet, and reconcile the exact 300-count ledger. Only then send the ordinary Coconala
+  progress/delivery message with the formal-delivery control OFF.
 - [x] Cut immutable release `20260916T044820-2ff93374` from public main `2ff93374`; the dynamic-CDP and
   child-group cleanup repair is present. Coconala label-by-label loaded-idle convergence and natural terminal
   receipts are still open.
@@ -560,6 +574,9 @@ independent production effects.
 - [ ] Prove the staged Paid Account 1→2 Codex route with one bounded invocation, then roll only that Paid
   owner forward. Do not delete or overwrite either account's sessions; other Life Manager routes stay on
   their existing Account 2 policy until separately proven.
+- [ ] Roll all Codex task classes to Account 1 first with the existing Account 2 failover, before retrying
+  Chii's semantic/remote work. Verify each resolved route and one bounded receipt before changing its
+  production label; do not switch browser/platform credentials or copy secrets.
 
 Completed foundation retained as evidence: disk-headroom recovery; off-critical-path cleanup; checked-hash
 bytecode and pinned interpreter; native Darwin process identity; SQLite durable reservations/dispatcher;
