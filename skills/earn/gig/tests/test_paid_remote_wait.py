@@ -2709,6 +2709,20 @@ def test_remote_owner_prompt_uses_authenticated_sheets_api_without_browser_ident
     assert "append response's exact updated range" in prompt
 
 
+def test_remote_owner_prompt_uses_shared_tiktok_user_search(tmp_path):
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    requirements_sha = paid.paid_remote_result.requirements_digest(root, feedback)
+
+    prompt = paid._repair_prompt(
+        root, tmp_path / "item.json", feedback, requirements_sha,
+        False, tmp_path / "cdp.py",
+    )
+
+    assert "tiktok_user_search.py" in prompt
+    assert "Search results are candidate discovery, not eligibility proof" in prompt
+
+
 def test_paid_agent_creates_authorized_missing_resources_instead_of_asking_buyer(tmp_path):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)
