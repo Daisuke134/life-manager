@@ -9,4 +9,4 @@ if [[ ! -x "$PYTHON" ]]; then
   exit 69
 fi
 exec "$PYTHON" "$ROOT/skills/earn/lancers/scripts/application_loop.py" \
-  --json --exhaustive --state-path "$STATE_ROOT/application.json" "$@"
+  --json --state-path "$STATE_ROOT/application.json" "$@"
