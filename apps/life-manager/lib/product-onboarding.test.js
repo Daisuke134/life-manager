@@ -9,6 +9,7 @@ const { spawnSync } = require("node:child_process");
 
 const {
   buildProductLoopCompletionManifest,
+  evaluateCloudPromotionGate,
   evaluateLocalCompletionGate,
   planProductOnboarding,
   readProductLoopCatalog,
@@ -218,6 +219,84 @@ test("local completion gate passes only explicit setup states or verified receip
     schema_version: "product.local.completion.v1",
     decision: "pass",
     host: "local",
+    release_sha: releaseSha,
+    reasons: [],
+  });
+});
+
+test("cloud promotion gate blocks when local completion is not proven", () => {
+  const releaseSha = "7".repeat(40);
+  const gate = evaluateCloudPromotionGate({
+    release_sha: releaseSha,
+    local_gate: {
+      schema_version: "product.local.completion.v1",
+      decision: "block",
+      host: "local",
+      release_sha: releaseSha,
+      reasons: ["unknown_product_loop"],
+    },
+    cloud_manifest: {
+      schema_version: "product.loop.completion.v1",
+      host: "cloud",
+      release_sha: releaseSha,
+      completion: true,
+      unknown_count: 0,
+      loops: [],
+    },
+    cloud_canary: {
+      tenant_isolated: true,
+      immutable_source: true,
+      official_readback: "verified",
+      replay_zero: true,
+      local_state_copied: false,
+      local_credentials_copied: false,
+    },
+  });
+
+  assert.deepEqual(gate, {
+    schema_version: "product.cloud.promotion.v1",
+    decision: "block",
+    release_sha: releaseSha,
+    reasons: ["local_gate_blocked", "cloud_manifest_loop_count_mismatch"],
+  });
+});
+
+test("cloud promotion gate passes only with local pass, fresh tenant state, and canary proof", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "8".repeat(40);
+  const cloudManifest = buildProductLoopCompletionManifest({
+    host: "cloud",
+    release_sha: releaseSha,
+    observations: catalog.loops.map((loop) => ({
+      id: loop.id,
+      state: "setup_required",
+      reason: "host_adapter_pending",
+      contract: {},
+    })),
+  });
+  const gate = evaluateCloudPromotionGate({
+    release_sha: releaseSha,
+    local_gate: {
+      schema_version: "product.local.completion.v1",
+      decision: "pass",
+      host: "local",
+      release_sha: releaseSha,
+      reasons: [],
+    },
+    cloud_manifest: cloudManifest,
+    cloud_canary: {
+      tenant_isolated: true,
+      immutable_source: true,
+      official_readback: "verified",
+      replay_zero: true,
+      local_state_copied: false,
+      local_credentials_copied: false,
+    },
+  });
+
+  assert.deepEqual(gate, {
+    schema_version: "product.cloud.promotion.v1",
+    decision: "pass",
     release_sha: releaseSha,
     reasons: [],
   });

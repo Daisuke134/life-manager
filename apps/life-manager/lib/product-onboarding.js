@@ -159,6 +159,59 @@ function indexRuntimeRows(runtimeRows, catalog) {
   return rows;
 }
 
+function evaluateCloudPromotionGate(input = {}) {
+  const reasons = [];
+  const releaseSha = typeof input.release_sha === "string" ? input.release_sha : "";
+  if (!RELEASE_SHA.test(releaseSha)) reasons.push("release_invalid");
+
+  const localGate = input.local_gate;
+  if (!localGate || typeof localGate !== "object" || Array.isArray(localGate)
+    || localGate.schema_version !== "product.local.completion.v1"
+    || localGate.host !== "local" || !Array.isArray(localGate.reasons)) {
+    reasons.push("local_gate_invalid");
+  } else {
+    if (localGate.decision !== "pass") reasons.push("local_gate_blocked");
+    if (localGate.release_sha !== releaseSha) reasons.push("local_release_mismatch");
+  }
+
+  const cloudManifest = input.cloud_manifest;
+  if (!cloudManifest || typeof cloudManifest !== "object" || Array.isArray(cloudManifest)
+    || cloudManifest.schema_version !== "product.loop.completion.v1"
+    || cloudManifest.host !== "cloud" || cloudManifest.release_sha !== releaseSha) {
+    reasons.push("cloud_manifest_invalid");
+  } else {
+    if (!Array.isArray(cloudManifest.loops) || cloudManifest.loops.length !== 14) {
+      reasons.push("cloud_manifest_loop_count_mismatch");
+    } else if (cloudManifest.loops.some((loop) => !loop
+      || !["verified", "setup_required", "not_applicable"].includes(loop.state))) {
+      reasons.push("cloud_manifest_state_invalid");
+    }
+    if (cloudManifest.completion !== true || cloudManifest.unknown_count !== 0) {
+      reasons.push("cloud_manifest_incomplete");
+    }
+  }
+
+  const canary = input.cloud_canary;
+  if (!canary || typeof canary !== "object" || Array.isArray(canary)) {
+    reasons.push("cloud_canary_invalid");
+  } else {
+    if (canary.tenant_isolated !== true) reasons.push("tenant_isolation_unverified");
+    if (canary.immutable_source !== true) reasons.push("immutable_source_unverified");
+    if (canary.official_readback !== "verified") reasons.push("cloud_readback_missing");
+    if (canary.replay_zero !== true) reasons.push("cloud_replay_not_zero");
+    if (canary.local_state_copied !== false) reasons.push("local_state_copy_unverified");
+    if (canary.local_credentials_copied !== false) reasons.push("local_credentials_copy_unverified");
+  }
+
+  const uniqueReasons = [...new Set(reasons)];
+  return Object.freeze({
+    schema_version: "product.cloud.promotion.v1",
+    decision: uniqueReasons.length ? "block" : "pass",
+    release_sha: releaseSha,
+    reasons: Object.freeze(uniqueReasons),
+  });
+}
+
 function evaluateLocalCompletionGate(manifest, options = {}) {
   const reasons = [];
   let catalog;
@@ -304,6 +357,7 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
 module.exports = {
   DEFAULT_CATALOG,
   buildProductLoopCompletionManifest,
+  evaluateCloudPromotionGate,
   evaluateLocalCompletionGate,
   planProductOnboarding,
   readProductLoopCatalog,
