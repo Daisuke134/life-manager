@@ -327,12 +327,15 @@ def test_decision_schema_has_disjoint_single_and_retainer_shapes() -> None:
 
     schema = json.loads((SCRIPTS.parent / "schemas" / "application_decisions.schema.json").read_text(encoding="utf-8"))
     validator = Draft202012Validator(schema)
-    single = {key: value for key, value in _decision()["decisions"][0].items() if key not in {
-        "work_frequency", "weekly_hours_min", "weekly_hours_max"
-    }}
+    item_schema = schema["properties"]["decisions"]["items"]
+    assert set(item_schema["required"]) == set(item_schema["properties"])
+    single = {**_decision()["decisions"][0],
+              "work_frequency": None, "weekly_hours_min": None, "weekly_hours_max": None}
     single["request_id"] = "123"
     assert not list(validator.iter_errors({"decisions": [single]}))
-    assert list(validator.iter_errors({"decisions": [{**single, "work_frequency": None}]}))
+    assert list(validator.iter_errors({"decisions": [{
+        key: value for key, value in single.items() if key != "work_frequency"
+    }]}))
     retainer = _decision()["decisions"][0]
     assert not list(validator.iter_errors({"decisions": [retainer]}))
     assert list(validator.iter_errors({"decisions": [{
