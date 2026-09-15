@@ -359,44 +359,55 @@ def _run_exhaustive_discovery(timeout: float, tick_value: object = None) -> Mapp
     return union
 
 def _run_default_discovery(tick_value: object, timeout: float, state_path: Path, exclude_ids: frozenset[str] = frozenset()) -> Mapping[str, object]:
-    first = _discovery_query(tick_value)
-    start = DISCOVERY_QUERIES.index(first)
-    last: Mapping[str, object] = {"ok": False, "error": "no_normalized_opportunities", "opportunities": []}
-    observed_ids: set[str] = set()
-    decided_ids: set[str] = set()
-    pooled: dict[str, Mapping[str, object]] = {}
-    undecided: set[str] = set()
-    last_ok: Optional[Mapping[str, object]] = None
-    for offset in range(len(DISCOVERY_QUERIES)):
-        query = DISCOVERY_QUERIES[(start + offset) % len(DISCOVERY_QUERIES)]
-        last = status.run_discovery(query=query, limit=MAX_OPPORTUNITIES, timeout=timeout)
-        if last.get("ok") is True:
-            opportunities = last.get("opportunities")
-            if isinstance(opportunities, Sequence) and not isinstance(opportunities, (str, bytes, bytearray)):
-                observed_ids.update(str(row.get("external_id")) for row in opportunities if isinstance(row, Mapping) and row.get("external_id"))
-                try: remaining, _, _ = _filter_claimed_rows(opportunities, state_path)
-                except Exception: return last
-                remaining_ids = {str(row.get("external_id")) for row in remaining if isinstance(row, Mapping)}
-                decided_ids.update(str(row.get("external_id")) for row in opportunities if isinstance(row, Mapping) and str(row.get("external_id")) not in remaining_ids)
-                remaining = [row for row in remaining if str(row.get("external_id")) not in exclude_ids]
-                for row in remaining:
-                    external_id = str(row.get("external_id") or "") if isinstance(row, Mapping) else ""
-                    if external_id: pooled.setdefault(external_id, row)
-                undecided.update(pooled)
-                last_ok = last
-                # Returning at the first query with anything undecided meant one wake saw one
-                # query. Measured 2026-09-07 that was 18 postings, of which every judgeable one
-                # was genuinely unworkable, so the lane reported no_eligible_project every minute
-                # while eleven other queries went unread. The planner ranks what it is given, so
-                # give it the union and let it choose.
-                if len(undecided) >= DISCOVERY_POOL_TARGET: break
-                continue
-            return dict(last) | {"observed_count": len(observed_ids), "already_decided_count": len(decided_ids)}
-        if last.get("error") != "no_normalized_opportunities":
-            return last
-    if pooled and last_ok is not None:
-        return dict(last_ok) | {"opportunities": list(pooled.values()), "observed_count": len(observed_ids), "already_decided_count": len(decided_ids)}
-    return {"ok": True, "platform": PLATFORM, "source": "public_html", "opportunities": [], "observed_count": len(observed_ids), "already_decided_count": len(decided_ids)}
+    """Read one rotating query per wake and hand that slice to the planner immediately.
+
+    The old implementation kept fetching queries until it had a forty-row pool.  Each query also
+    enriched up to twenty detail pages, so a single 60-second wake could hold the revenue slot for
+    many minutes before the planner or browser was reached.  Coverage comes from
+    ``_discovery_query`` rotating on the next wake; a selected slice must be judged now rather
+    than waiting for an exhaustive union.
+    """
+    query = _discovery_query(tick_value)
+    last = status.run_discovery(query=query, limit=MAX_OPPORTUNITIES, timeout=timeout)
+    error = last.get("error")
+    if last.get("ok") is not True:
+        if error == "no_normalized_opportunities":
+            return {
+                "ok": True,
+                "platform": PLATFORM,
+                "source": "public_html",
+                "opportunities": [],
+                "observed_count": int(last.get("provider_count") or 0),
+                "already_decided_count": 0,
+            }
+        return last
+    opportunities = last.get("opportunities")
+    if isinstance(opportunities, (str, bytes, bytearray)) or not isinstance(opportunities, Sequence):
+        return dict(last) | {"observed_count": 0, "already_decided_count": 0}
+    observed_ids = {
+        str(row.get("external_id"))
+        for row in opportunities
+        if isinstance(row, Mapping) and row.get("external_id")
+    }
+    try:
+        remaining, _, _ = _filter_claimed_rows(opportunities, state_path)
+    except Exception:
+        return last
+    remaining_ids = {
+        str(row.get("external_id"))
+        for row in remaining
+        if isinstance(row, Mapping) and row.get("external_id")
+    }
+    decided_count = len(observed_ids - remaining_ids)
+    remaining = [
+        row for row in remaining
+        if isinstance(row, Mapping) and str(row.get("external_id")) not in exclude_ids
+    ]
+    return dict(last) | {
+        "opportunities": remaining,
+        "observed_count": len(observed_ids),
+        "already_decided_count": decided_count,
+    }
 
 def _seller_proof() -> dict[str, object]:
     product = json.loads(PRODUCT_PATH.read_text(encoding="utf-8")); portfolio = product["portfolio"]; software_portfolio = product["software_portfolio"]; software = PUBLIC_SOFTWARE_PROOF

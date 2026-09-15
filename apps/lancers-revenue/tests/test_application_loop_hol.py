@@ -456,21 +456,15 @@ class ApplicationLoopHolTests(unittest.TestCase):
         ]
         def discover(**kwargs):
             calls.append(kwargs["query"])
-            # Every query is read now, so the ones past the fixtures simply hold nothing.
-            return responses.pop(0) if responses else {"ok": True, "error": None, "opportunities": []}
+            return responses.pop(0)
         with patch.object(application_loop.status, "run_discovery", side_effect=discover), patch.object(application_loop.application_tick, "state_has_claim", side_effect=lambda _path, project_id: project_id == "5583089"):
             result = application_loop._run_default_discovery(datetime(2026, 8, 13, 3, 0, tzinfo=timezone.utc), 20.0, Path("/tmp/application.json"))
-        # Every query is now read and the undecided projects pooled, rather than returning at the
-        # first query that had one. A wake that stopped early was measured on 2026-09-07 seeing 18
-        # postings, all of them unworkable, while eleven queries went unread.
-        total = len(application_loop.DISCOVERY_QUERIES)
-        start = application_loop.DISCOVERY_QUERIES.index(calls[0])
-        self.assertEqual(calls, [application_loop.DISCOVERY_QUERIES[(start + i) % total] for i in range(total)])
-        # The claimed one is not offered to the planner; the fresh one is.
-        self.assertEqual([row["external_id"] for row in result["opportunities"]], ["5587000"])
+        # A claimed-only slice is dropped now; the next rotating wake reads the next query.
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(result["opportunities"], [])
 
     def test_default_discovery_pools_every_query_rather_than_taking_the_first(self):
-        """The whole point of twelve queries is twelve queries' worth of candidates."""
+        """The production wake must hand one bounded slice to the planner."""
         application_loop = _load_deployed_loop(); calls = []
         fresh = {0: "6100001", 1: "6100002", 3: "6100003"}
         def discover(**kwargs):
@@ -481,12 +475,11 @@ class ApplicationLoopHolTests(unittest.TestCase):
              patch.object(application_loop.application_tick, "state_has_claim", side_effect=lambda _p, _i: False):
             result = application_loop._run_default_discovery(
                 datetime(2026, 8, 13, 3, 0, tzinfo=timezone.utc), 20.0, Path("/tmp/application.json"))
-        self.assertEqual(len(calls), len(application_loop.DISCOVERY_QUERIES))
-        self.assertEqual(sorted(row["external_id"] for row in result["opportunities"]),
-                         ["6100001", "6100002", "6100003"])
+        self.assertEqual(len(calls), 1)
+        self.assertEqual([row["external_id"] for row in result["opportunities"]], ["6100001"])
 
     def test_pooling_stops_once_the_planner_has_enough_to_choose_from(self):
-        """A busy board must not cost twelve searches every wake."""
+        """A busy board must not cost multiple searches every wake."""
         application_loop = _load_deployed_loop(); calls = []
         def discover(**kwargs):
             index = len(calls); calls.append(kwargs["query"])
@@ -496,7 +489,7 @@ class ApplicationLoopHolTests(unittest.TestCase):
              patch.object(application_loop.application_tick, "state_has_claim", side_effect=lambda _p, _i: False):
             application_loop._run_default_discovery(
                 datetime(2026, 8, 13, 3, 0, tzinfo=timezone.utc), 20.0, Path("/tmp/application.json"))
-        self.assertEqual(len(calls), 2)  # 20 + 20 reaches DISCOVERY_POOL_TARGET of 40
+        self.assertEqual(len(calls), 1)
 
     def test_the_fallback_query_is_not_work_the_fleet_refuses(self):
         """DEFAULT_DISCOVERY_QUERY was SNS運用, which manual_marketplace_operation then declined."""
