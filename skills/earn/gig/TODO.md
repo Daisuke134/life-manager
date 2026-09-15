@@ -674,6 +674,26 @@ remaining. Main Paid must not remove the flag or touch the same TikTok/Sheet sta
 act. The next atomic action is explicit stale-owner retirement, then remove the delegation flag, refresh from
 current main/release and resume from the exact 12-pair ledger without resending uncertain recipients.
 
+The stale interactive Chii process was retired without deleting project state, the delegation flag was removed,
+and main Paid immediately created an independent `18180857` work item from the existing 12/300 ledger. Its first
+owner wake proved the remaining blocker was not campaign logic: registered identity `tiktok-anicca-jp` was
+unreachable and guarded startup could not submit its browser owner, so it made zero new TikTok or Sheet effects.
+Targeted `launchctl-safe submit` then started only that registered profile; guard readback showed a dynamic live
+port, browser UUID, collision zero, and official TikTok identity readback returned authenticated
+`@anicca.jp`. PR `#5218`, merge SHA `005fbd9d336702814b8887ddd282c2d262a5bcbe`, prevents this class
+from returning: static `delegated=true` or an interactive-session name cannot suppress Paid work. Delegation is
+valid only with a timezone-aware runtime-owner lease expiring within 15 minutes; missing, malformed or expired
+leases are reclaimed automatically. Paid tests passed 230 and all PR checks passed. Immutable release
+`20260915T142348-005fbd9d` contains the repair and must replace the Paid label after its preceding run terminates.
+
+Chii completion remains exactly 300 verified unique pairs, never 12. To reduce latency, first populate the shared
+Sheet with a deduplicated 300-real-account candidate queue whose rows are explicitly `candidate`, then run the
+shared TikTok transport per row and change a row to `sent/verified` only after exact official message readback.
+Candidate presence is not a send receipt. Continue the same logical campaign across bounded process wakes from
+the durable cursor; a process boundary must not require a human or Codex restart. After Chii closes, observe Ryu's
+new buyer request for the administration screen and send the existing verified admin URL/instructions with
+official talkroom readback before entering the Reply/Negotiate shared-kernel work.
+
 Observability remains a current architecture gap. Existing JSONL events and provider receipts stay the source
 of truth, while OpenTelemetry becomes the shared trace envelope rather than a second business ledger. One
 trace joins `platform/account/work-item` observe, context capsule, attachment recovery, model work, effect and
