@@ -603,6 +603,25 @@ def test_revenue_floor_defers_while_legacy_owner_is_live(
     admission.release(claim)
 
 
+def test_revenue_floor_does_not_block_on_legacy_revenue_owner(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="5")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "4")
+    admission.activate_durable_v2()
+    admission.atomic_json(tmp_path / "owners" / "legacy-revenue.json", {
+        "version": 2, "pid": os.getpid(),
+        "process_start": admission.process_start(os.getpid()),
+        "owner_id": "legacy-revenue", "resource_class": "agent",
+        "admission_class": "revenue",
+    })
+
+    claim, reason = admission.try_acquire(
+        "agent", "revenue-alongside-legacy", retain_ticket=False,
+        admission_class="revenue")
+    assert claim is not None and reason == "acquired"
+    admission.release(claim)
+
+
 def test_revenue_floor_treats_legacy_reservation_as_migration_block(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="5")
