@@ -10,10 +10,15 @@ from __future__ import annotations
 
 import ipaddress
 import os
+import re
 from urllib.parse import urlsplit
 
 
 DEFAULT_BROWSER_ENDPOINT = "http://127.0.0.1:9222"
+_SAFE_KEY = re.compile(r"^[A-Za-z][A-Za-z0-9._:-]{0,127}$")
+_SECRET_LIKE_KEY = re.compile(
+    r"(?:token|secret|password|credential|authorization|api[_-]?key)", re.IGNORECASE
+)
 
 
 def _is_private_hostname(hostname: str) -> bool:
@@ -80,6 +85,61 @@ def browser_mode(*, mode: str | None = None, purpose: str | None = None) -> dict
         "mode": selected_mode,
         "purpose": selected_purpose,
         "headless": selected_mode == "headless",
+    }
+
+
+def normalize_storage_scope(
+    origin: str | None,
+    local_storage_keys: list[str] | tuple[str, ...] | None = None,
+    session_storage_keys: list[str] | tuple[str, ...] | None = None,
+) -> dict[str, object] | None:
+    """Validate the named browser-storage scope without inspecting any stored values."""
+
+    local = list(local_storage_keys or [])
+    session = list(session_storage_keys or [])
+    if origin is None and not local and not session:
+        return None
+    if not isinstance(origin, str) or not origin.strip():
+        raise ValueError("browser session contract: storage origin required")
+    parsed = urlsplit(origin.strip())
+    try:
+        port = parsed.port
+    except ValueError as error:
+        raise ValueError("browser session contract: storage origin invalid") from error
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+        or parsed.path not in {"", "/"}
+        or parsed.hostname.endswith(".")
+    ):
+        raise ValueError("browser session contract: storage origin invalid")
+    if len(local) > 64 or len(session) > 64:
+        raise ValueError("browser session contract: storage key list invalid")
+
+    def keys(values: list[str]) -> list[str]:
+        normalized = []
+        for value in values:
+            if (
+                not isinstance(value, str)
+                or not _SAFE_KEY.fullmatch(value.strip())
+                or _SECRET_LIKE_KEY.search(value)
+            ):
+                raise ValueError("browser session contract: storage key invalid")
+            normalized.append(value.strip())
+        return sorted(set(normalized))
+
+    hostname = parsed.hostname.lower()
+    if ":" in hostname and not hostname.startswith("["):
+        hostname = f"[{hostname}]"
+    authority = hostname if port in {None, 443} else f"{hostname}:{port}"
+    return {
+        "origin": f"https://{authority}",
+        "local_storage_keys": keys(local),
+        "session_storage_keys": keys(session),
     }
 
 

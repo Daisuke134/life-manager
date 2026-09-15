@@ -298,6 +298,16 @@ passed with install event `f5f75b062c5af6dda9bd9f54`, loaded arguments rooted at
 The owner is now `loaded-idle` on the fixed release; its next natural wake is the remaining official
 safety/proposal canary gate.
 
+Parallel browser receipts (production cursor unchanged):
+
+- `BROWSER-01` implementation is pushed at `9237206392`; JavaScript contract tests (6), all browser
+  Python tests (122), syntax checks, and a temporary local `about:blank` context acquire/release
+  (`cleanup_pending=false`) pass.
+- `BROWSER-02` endpoint/mode readback passes against local `127.0.0.1:9222` (headless, Chrome 145,
+  CDP 1.3, websocket host match). The host snapshot is 187 Chromium processes, 54 targets/33 pages,
+  about 9.7 GiB aggregate RSS, and 34% free memory. No provider action was attempted; the official
+  read-only provider result and reuse measurement remain open.
+
 ## FND research gate (search complete; FND-02 implemented)
 
 The research pass is complete for `FND-02` through `FND-10`. This section records the evidence and
@@ -394,10 +404,10 @@ Files: runtime/host/resource_admission.py; runtime/host/memory_admission.py; run
 
 Files: skills/browser/scripts/cdp_context_lease.py; skills/browser/scripts/session_vault.py; runtime/browser/target-lease.cjs; config/loop-registry.json
 
-- [ ] 既存CDP/Playwright接続の接続先を設定可能にし、Steel Cloudと自己運用Steelへ同じ契約で接続する。
-- [ ] Cookie、localStorage、sessionStorageをprovider宣言の範囲だけ保存・復元する。
-- [ ] 作成、利用、park、release、stale cleanupをowner単位で記録する。
-- [ ] 自動処理はヘッドレス、画面表示は人間確認と診断だけにする。
+- [x] 既存CDP/Playwright接続の接続先を設定可能にし、Steel Cloudと自己運用Steelへ同じ契約で接続する（`9237206392`）。
+- [x] Cookie、localStorage、sessionStorageをprovider宣言の範囲だけ保存・復元する契約を、既存のscoped lease commitへ接続する。
+- [x] 作成、利用、park、release、stale cleanupをowner単位で記録する既存leaseに、endpoint契約検査と即時releaseを追加する。
+- [x] 自動処理はヘッドレス、画面表示は人間確認と診断だけにする。
 - [ ] 読み取り専用providerで起動時間、1セッションの最大メモリ、再利用率を測定する。
 
 ### Task 5: 内部記録とTelegram通知を分離する

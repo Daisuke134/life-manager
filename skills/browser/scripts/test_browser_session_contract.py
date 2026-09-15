@@ -1,6 +1,11 @@
 import pytest
 
-from browser_session_contract import browser_mode, configured_endpoint, normalize_endpoint
+from browser_session_contract import (
+    browser_mode,
+    configured_endpoint,
+    normalize_endpoint,
+    normalize_storage_scope,
+)
 
 
 def test_local_and_private_endpoints_are_normalized(monkeypatch):
@@ -33,3 +38,21 @@ def test_headless_is_default_and_headed_requires_human_boundary(monkeypatch):
     with pytest.raises(ValueError, match="headed"):
         browser_mode(mode="headed", purpose="autonomous")
     assert browser_mode(mode="headed", purpose="human_gate")["headless"] is False
+
+
+def test_storage_scope_requires_https_origin_and_named_non_secret_keys():
+    assert normalize_storage_scope(
+        "https://mercor.com/",
+        ["theme", "mercor-auth-store"],
+        ["csrf"],
+    ) == {
+        "origin": "https://mercor.com",
+        "local_storage_keys": ["mercor-auth-store", "theme"],
+        "session_storage_keys": ["csrf"],
+    }
+    for origin in ("http://mercor.com", "https://mercor.com/path", "https://user:pw@mercor.com"):
+        with pytest.raises(ValueError, match="storage origin"):
+            normalize_storage_scope(origin, ["theme"], [])
+    for key in ("*", "auth_token", "session-secret"):
+        with pytest.raises(ValueError, match="storage key"):
+            normalize_storage_scope("https://mercor.com", [key], [])

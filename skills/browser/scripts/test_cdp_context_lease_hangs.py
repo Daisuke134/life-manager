@@ -448,6 +448,28 @@ def test_commit_cookies_also_commits_only_declared_web_storage(monkeypatch, tmp_
     }]
 
 
+def test_commit_cookies_rejects_unscoped_or_secret_like_storage_before_browser_read(monkeypatch):
+    module = load_module()
+    calls = []
+
+    async def should_not_read(pairs, timeout=None):
+        calls.append(pairs)
+        return []
+
+    monkeypatch.setattr(module, "_calls", should_not_read)
+    for origin, local_keys in [
+        ("http://work.mercor.com", ["theme"]),
+        ("https://work.mercor.com", ["auth_token"]),
+        (None, ["theme"]),
+    ]:
+        result = module.commit_cookies(
+            "mercor-task", ["mercor.com"], origin=origin,
+            local_storage_keys=local_keys,
+        )
+        assert result == {"ok": False, "reason": "invalid_local_storage_scope"}
+    assert calls == []
+
+
 def test_seed_web_storage_injects_before_exact_origin_navigation(monkeypatch):
     module = load_module()
     calls = []

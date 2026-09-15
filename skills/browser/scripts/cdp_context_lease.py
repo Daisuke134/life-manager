@@ -27,7 +27,7 @@ import time
 import urllib.request
 from urllib.parse import urlparse
 
-from browser_session_contract import browser_mode, configured_endpoint
+from browser_session_contract import browser_mode, configured_endpoint, normalize_storage_scope
 
 try:
     import websockets
@@ -877,19 +877,13 @@ def commit_cookies(
     normalized_domains = sorted({_normalized_cookie_domain(domain) for domain in domains})
     if not normalized_domains or any("." not in domain for domain in normalized_domains):
         return {"ok": False, "reason": "invalid_cookie_domain"}
-    normalized_storage_origin = _normalized_origin(origin) if origin else ""
-    storage_keys = sorted({
-        key for key in (local_storage_keys or [])
-        if isinstance(key, str) and key and len(key) <= 256
-    })
-    session_keys = sorted({
-        key for key in (session_storage_keys or [])
-        if isinstance(key, str) and key and len(key) <= 256
-    })
-    if (origin or storage_keys or session_keys) and (
-        not normalized_storage_origin or not (storage_keys or session_keys)
-    ):
+    try:
+        storage_scope = normalize_storage_scope(origin, local_storage_keys, session_storage_keys)
+    except ValueError:
         return {"ok": False, "reason": "invalid_local_storage_scope"}
+    normalized_storage_origin = str(storage_scope["origin"]) if storage_scope else ""
+    storage_keys = list(storage_scope["local_storage_keys"]) if storage_scope else []
+    session_keys = list(storage_scope["session_storage_keys"]) if storage_scope else []
 
     with _ledger_lock():
         held = _leases().get(task)
