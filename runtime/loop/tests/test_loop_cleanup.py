@@ -426,6 +426,21 @@ class LoopCleanupTest(unittest.TestCase):
                 plistlib.dump([], handle)
             self.assertEqual(installed_state_roots(agents), set())
 
+    def test_installed_state_roots_skips_one_malformed_xml_plist(self):
+        with tempfile.TemporaryDirectory() as directory:
+            agents = Path(directory)
+            (agents / "ai.anicca.bad.plist").write_text(
+                '<?xml version="1.0"?><plist><dict><key>broken</dict></plist>'
+            )
+            expected = agents / "healthy-state"
+            with (agents / "ai.anicca.healthy.plist").open("wb") as handle:
+                import plistlib
+                plistlib.dump({"EnvironmentVariables": {
+                    "LIFE_MANAGER_STATE_ROOT": str(expected),
+                }}, handle)
+
+            self.assertEqual(installed_state_roots(agents), {expected.resolve()})
+
     def test_loop_run_preserves_python_adapter_argv(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

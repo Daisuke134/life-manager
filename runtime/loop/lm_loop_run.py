@@ -339,7 +339,7 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
 def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, str],
                   receipt: Path) -> int:
     limit = _runtime_limit(entry)
-    if loop_id == "life-manager-release-reconciler":
+    if loop_id in {"life-manager-release-reconciler", "life-manager-disk-cleanup"}:
         _atomic_json(receipt, {"status": "pass", "effect": 0,
                               "reason": "control_plane_exempt"})
         return _run_entrypoint(command, env=env, timeout_seconds=limit)
