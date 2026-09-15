@@ -2498,17 +2498,24 @@ async def capture_click_downloads(
     with tempfile.TemporaryDirectory(
         prefix="gig-buyer-attachments-", dir=download_parent,
     ) as directory:
+        browser_download_configured = False
         try:
             await call(ws, request_id, "Browser.setDownloadBehavior", {
-                "behavior": "allow",
+                "behavior": "allowAndName",
                 "downloadPath": directory,
                 "eventsEnabled": True,
             })
+            browser_download_configured = True
         except RuntimeError:
+            pass
+        try:
             await call(ws, request_id, "Page.setDownloadBehavior", {
                 "behavior": "allow",
                 "downloadPath": directory,
             })
+        except RuntimeError:
+            if not browser_download_configured:
+                raise
         request_id += 1
         await call(ws, request_id, "Network.enable", {})
         request_id += 1
@@ -2550,8 +2557,6 @@ async def capture_click_downloads(
                     "returnByValue": True,
                 }, synthetic_raw_events if probe else None)
                 request_id += 1
-                if probe:
-                    synthetic_raw_events.extend(await collect_cdp_events(ws))
                 synthetic_events = allowlisted_cdp_events(synthetic_raw_events)
                 clicked_raw = clicked.get("result", {}).get("value")
                 try:
@@ -2661,6 +2666,19 @@ async def capture_click_downloads(
                         "targets_added": sorted(target_set_after - target_set_before),
                         "targets_removed": sorted(target_set_before - target_set_after),
                     }
+                    if geometry_value.get("ok") is not True:
+                        attachment["capture_error"] = "attachment_download_control_unavailable"
+                        continue
+                complete_sizes = {
+                    int(params["totalBytes"])
+                    for event in trusted_events
+                    if event.get("method") == "Browser.downloadProgress"
+                    for params in [event.get("params") or {}]
+                    if isinstance(params.get("receivedBytes"), (int, float))
+                    and isinstance(params.get("totalBytes"), (int, float))
+                    and params["totalBytes"] > 0
+                    and params["receivedBytes"] == params["totalBytes"]
+                }
                 downloaded: Path | None = None
                 previous_size = -1
                 stable_polls = 0
@@ -2668,7 +2686,10 @@ async def capture_click_downloads(
                     candidates = [
                         path for path in Path(directory).iterdir()
                         if path.is_file() and path.name not in before
-                        and not path.name.endswith((".crdownload", ".download"))
+                        and (
+                            not path.name.endswith((".crdownload", ".download"))
+                            or path.stat().st_size in complete_sizes
+                        )
                     ]
                     if candidates:
                         candidate = max(candidates, key=lambda path: path.stat().st_mtime_ns)
@@ -2679,10 +2700,35 @@ async def capture_click_downloads(
                             downloaded = candidate
                             break
                     await asyncio.sleep(0.25)
-                if downloaded is None:
+                payload = downloaded.read_bytes() if downloaded is not None else None
+                if payload is None:
+                    for event in trusted_events:
+                        if event.get("method") != "Network.responseReceived":
+                            continue
+                        params = event.get("params") or {}
+                        response = params.get("response") or {}
+                        if (response.get("mimeType") != "application/octet-stream"
+                                or not isinstance(response.get("status"), (int, float))
+                                or not 200 <= response["status"] < 300
+                                or not params.get("requestId")):
+                            continue
+                        try:
+                            body = await call(ws, request_id, "Network.getResponseBody", {
+                                "requestId": params["requestId"],
+                            })
+                            request_id += 1
+                            encoded = body.get("body")
+                            if (body.get("base64Encoded") is not True
+                                    or not isinstance(encoded, str)
+                                    or len(encoded) > 24 * 1024 * 1024):
+                                continue
+                            payload = base64.b64decode(encoded, validate=True)
+                            break
+                        except (RuntimeError, ValueError, binascii.Error):
+                            continue
+                if payload is None:
                     attachment["capture_error"] = "attachment_download_not_observed"
                     continue
-                payload = downloaded.read_bytes()
                 if len(payload) > 16 * 1024 * 1024:
                     attachment["capture_error"] = "attachment_capture_limit"
                     continue
@@ -2697,7 +2743,8 @@ async def capture_click_downloads(
                 else:
                     attachment["size_bytes"] = len(payload)
                 attachment["capture_error"] = None
-                downloaded.unlink(missing_ok=True)
+                if downloaded is not None:
+                    downloaded.unlink(missing_ok=True)
     return request_id
 
 

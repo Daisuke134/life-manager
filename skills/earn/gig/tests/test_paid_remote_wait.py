@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import fcntl
+import base64
 import hashlib
 import importlib.util
 import inspect
@@ -80,6 +81,157 @@ def test_attachment_capture_prioritizes_newest_buyer_message() -> None:
     assert ordered == [(2, messages[2]), (1, messages[1]), (0, messages[0])]
 
 
+def test_attachment_without_download_control_skips_file_polling(tmp_path, monkeypatch) -> None:
+    snapshot = load("coconala_queue_snapshot")
+    sleeps = []
+    evaluate_calls = 0
+    event_waits = 0
+
+    async def fake_sleep(seconds):
+        sleeps.append(seconds)
+
+    async def no_events(*_args):
+        nonlocal event_waits
+        event_waits += 1
+        return []
+
+    async def fake_call(_ws, _request_id, method, params, *_args):
+        nonlocal evaluate_calls
+        if method == "Target.getTargets":
+            return {"targetInfos": []}
+        if method == "Runtime.callFunctionOn":
+            return {"result": {"value": {
+                "ok": True, "x": 10, "y": 10, "width": 20, "height": 20,
+                "viewport_width": 100, "viewport_height": 100,
+            }}}
+        if method == "Runtime.evaluate":
+            evaluate_calls += 1
+            if evaluate_calls == 1:
+                return {"result": {"value": json.dumps({"ok": True})}}
+            if evaluate_calls == 2:
+                return {"result": {"objectId": "attachment-item"}}
+            return {"result": {}}
+        return {}
+
+    monkeypatch.setattr(snapshot, "call", fake_call)
+    monkeypatch.setattr(snapshot, "collect_cdp_events", no_events)
+    monkeypatch.setattr(snapshot.asyncio, "sleep", fake_sleep)
+    attachment = {"filename": "brief.pdf", "reference": "message:1:attachment:0"}
+    talkroom = {"messages": [{"side": "buyer", "attachments": [attachment]}]}
+
+    snapshot.asyncio.run(snapshot.capture_click_downloads(
+        object(), 1, talkroom, project_root=tmp_path,
+    ))
+
+    assert attachment["capture_error"] == "attachment_download_control_unavailable"
+    assert sleeps == [0.5, 0.25]
+    assert event_waits == 0
+
+
+def test_fully_received_stable_partial_download_is_persisted(tmp_path, monkeypatch) -> None:
+    snapshot = load("coconala_queue_snapshot")
+    download_path = None
+    evaluate_calls = 0
+    download_behaviors = []
+
+    async def fake_sleep(_seconds):
+        return None
+
+    async def progress_events(*_args):
+        return [{"method": "Browser.downloadProgress", "params": {
+            "state": "inProgress", "receivedBytes": 4, "totalBytes": 4,
+        }}]
+
+    async def fake_call(_ws, _request_id, method, params, *_args):
+        nonlocal download_path, evaluate_calls
+        if method in {"Browser.setDownloadBehavior", "Page.setDownloadBehavior"}:
+            download_behaviors.append((method, params["behavior"]))
+            download_path = Path(params["downloadPath"])
+            return {}
+        if method == "Target.getTargets":
+            return {"targetInfos": []}
+        if method == "Runtime.callFunctionOn":
+            return {"result": {"value": {
+                "ok": True, "x": 10, "y": 10, "width": 20, "height": 20,
+                "viewport_width": 100, "viewport_height": 100,
+            }}}
+        if method == "Runtime.evaluate":
+            evaluate_calls += 1
+            if evaluate_calls == 1:
+                return {"result": {"value": json.dumps({"ok": True})}}
+            return {"result": {"objectId": "download-control"}}
+        if method == "Input.dispatchMouseEvent" and params["type"] == "mouseReleased":
+            assert download_path is not None
+            (download_path / "file.crdownload").write_bytes(b"data")
+        return {}
+
+    monkeypatch.setattr(snapshot, "call", fake_call)
+    monkeypatch.setattr(snapshot, "collect_cdp_events", progress_events)
+    monkeypatch.setattr(snapshot.asyncio, "sleep", fake_sleep)
+    attachment = {"filename": "brief.pdf", "reference": "message:1:attachment:0"}
+    talkroom = {"messages": [{"side": "buyer", "attachments": [attachment]}]}
+
+    snapshot.asyncio.run(snapshot.capture_click_downloads(
+        object(), 1, talkroom, project_root=tmp_path,
+    ))
+
+    stored = Path(attachment["source_path"])
+    assert stored.read_bytes() == b"data"
+    assert attachment["size_bytes"] == 4
+    assert attachment["sha256"] == hashlib.sha256(b"data").hexdigest()
+    assert download_behaviors == [
+        ("Browser.setDownloadBehavior", "allowAndName"),
+        ("Page.setDownloadBehavior", "allow"),
+    ]
+
+
+def test_download_response_body_is_persisted_when_browser_file_is_absent(
+        tmp_path, monkeypatch) -> None:
+    snapshot = load("coconala_queue_snapshot")
+    evaluate_calls = 0
+
+    async def fake_sleep(_seconds):
+        return None
+
+    async def download_events(*_args):
+        return [{"method": "Network.responseReceived", "params": {
+            "requestId": "download-request",
+            "response": {"status": 200, "mimeType": "application/octet-stream"},
+        }}]
+
+    async def fake_call(_ws, _request_id, method, _params, *_args):
+        nonlocal evaluate_calls
+        if method == "Target.getTargets":
+            return {"targetInfos": []}
+        if method == "Network.getResponseBody":
+            return {"body": base64.b64encode(b"data").decode(), "base64Encoded": True}
+        if method == "Runtime.callFunctionOn":
+            return {"result": {"value": {
+                "ok": True, "x": 10, "y": 10, "width": 20, "height": 20,
+                "viewport_width": 100, "viewport_height": 100,
+            }}}
+        if method == "Runtime.evaluate":
+            evaluate_calls += 1
+            if evaluate_calls == 1:
+                return {"result": {"value": json.dumps({"ok": True})}}
+            return {"result": {"objectId": "download-control"}}
+        return {}
+
+    monkeypatch.setattr(snapshot, "call", fake_call)
+    monkeypatch.setattr(snapshot, "collect_cdp_events", download_events)
+    monkeypatch.setattr(snapshot.asyncio, "sleep", fake_sleep)
+    attachment = {"filename": "brief.pdf", "reference": "message:1:attachment:0"}
+    talkroom = {"messages": [{"side": "buyer", "attachments": [attachment]}]}
+
+    snapshot.asyncio.run(snapshot.capture_click_downloads(
+        object(), 1, talkroom, project_root=tmp_path,
+    ))
+
+    stored = Path(attachment["source_path"])
+    assert stored.read_bytes() == b"data"
+    assert attachment["sha256"] == hashlib.sha256(b"data").hexdigest()
+
+
 def test_known_buyer_attachment_without_bytes_stays_in_transport_recovery(tmp_path: Path) -> None:
     paid = load("paid_direct")
     ledger = tmp_path / "source" / "talkroom" / "messages.jsonl"
@@ -104,6 +256,26 @@ def test_verified_buyer_attachment_leaves_transport_recovery(tmp_path: Path) -> 
     ledger.write_text(json.dumps({"side": "buyer", "attachments": [{
         "filename": "file.xlsx", "reference": "message:123:attachment:0",
     }]}) + "\n", encoding="utf-8")
+
+    assert paid._buyer_attachment_recovery_pending(tmp_path) is False
+
+
+def test_reobserved_same_attachment_reference_does_not_block_recovery(tmp_path: Path) -> None:
+    paid = load("paid_direct")
+    payload = b"buyer supplied workbook"
+    digest = hashlib.sha256(payload).hexdigest()
+    source = tmp_path / "source" / "buyer-attachments" / f"{digest[:12]}-file.xlsx"
+    source.parent.mkdir(parents=True)
+    source.write_bytes(payload)
+    attachment = {
+        "filename": "file.xlsx", "reference": "message:123:attachment:0",
+    }
+    ledger = tmp_path / "source" / "talkroom" / "messages.jsonl"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text("\n".join([
+        json.dumps({"side": "buyer", "attachments": [attachment]}),
+        json.dumps({"side": "buyer", "attachments": [attachment]}),
+    ]) + "\n", encoding="utf-8")
 
     assert paid._buyer_attachment_recovery_pending(tmp_path) is False
 

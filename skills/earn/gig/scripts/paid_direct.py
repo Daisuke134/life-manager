@@ -471,7 +471,7 @@ def _buyer_attachment_recovery_pending(root: Path) -> bool:
                 digests.add(digest)
         return len(digests) == 1
 
-    talkroom_attachments: list[tuple[str, str]] = []
+    attachments_by_reference: dict[str, str] = {}
     for row in rows:
         if not isinstance(row, dict) or row.get("side") != "buyer":
             continue
@@ -482,7 +482,10 @@ def _buyer_attachment_recovery_pending(root: Path) -> bool:
             reference = _text(attachment.get("reference"))
             if not filename or Path(filename).name != filename:
                 return True
-            talkroom_attachments.append((reference, filename))
+            previous = attachments_by_reference.setdefault(reference, filename)
+            if previous != filename:
+                return True
+    talkroom_attachments = list(attachments_by_reference.items())
     talkroom_name_counts = {
         filename: sum(1 for _, candidate in talkroom_attachments if candidate == filename)
         for _, filename in talkroom_attachments
