@@ -12,6 +12,7 @@ import threading
 import time
 import zipfile
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -4080,7 +4081,7 @@ def test_paid_admission_orders_project_scoped_priority_without_excluding_others(
     assert [item["talkroom_id"] for item in admitted] == ["102", "101"]
 
 
-def test_account_owner_delegation_is_removed_from_active_paid_items(tmp_path):
+def test_static_interactive_delegation_cannot_remove_paid_item_forever(tmp_path):
     paid = load("paid_direct")
     project = tmp_path / "101"
     project.mkdir(parents=True)
@@ -4096,8 +4097,37 @@ def test_account_owner_delegation_is_removed_from_active_paid_items(tmp_path):
     delegated = {"talkroom_id": "101"}
     active = {"talkroom_id": "102"}
 
-    assert paid._paid_project_is_delegated(args, delegated)
-    assert paid._paid_active_items(args, [delegated, active]) == [active]
+    assert not paid._paid_project_is_delegated(args, delegated)
+    assert paid._paid_active_items(args, [delegated, active]) == [delegated, active]
+
+
+def test_only_fresh_runtime_owner_lease_delegates_paid_item(tmp_path):
+    paid = load("paid_direct")
+    project = tmp_path / "101"
+    project.mkdir(parents=True)
+    write_json(project / "state.json", {"talkroom_id": "101"})
+    policy = {
+        "version": 1,
+        "priority": 100,
+        "delegated": True,
+        "authorized_by": "account_owner",
+        "reason": "runtime_handoff",
+        "owner_lease": {
+            "version": 1,
+            "owner_kind": "runtime",
+            "owner_id": "paid-campaign-worker",
+            "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat(),
+        },
+    }
+    write_json(project / "context/paid-priority.json", policy)
+    args = SimpleNamespace(projects_root=tmp_path)
+    item = {"talkroom_id": "101"}
+
+    assert paid._paid_project_is_delegated(args, item)
+
+    policy["owner_lease"]["expires_at"] = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+    write_json(project / "context/paid-priority.json", policy)
+    assert not paid._paid_project_is_delegated(args, item)
 
 
 def test_queued_paid_project_keeps_parent_pending():

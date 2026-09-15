@@ -130,6 +130,14 @@ Long waits belong in persisted `next_eligible_at` state and launchd cadence.
   heartbeat is evidence to inspect, not permission for blind restart. Recovery
   is bounded, records the first failure separately, and never retries an
   uncertain external effect without official readback.
+- Symptom: an active work item is skipped forever because mutable state says
+  `delegated=true`. Wrong instinct: trust an interactive session name or delete
+  the flag by hand after every outage. Correct action: delegate only to a
+  runtime owner with a timezone-aware lease of at most 15 minutes; the owner
+  renews while progressing and the parent automatically reclaims on missing,
+  malformed, or expired lease. General law: static handoff metadata is never
+  liveness or ownership proof. Example: a dormant agent process cannot suppress
+  the paid campaign after its runtime lease expires.
 - Browser cleanup is owner-scoped: prove profile/port/PID ownership and open
   resources before closing stale contexts or tabs. Never use a global Chromium,
   WindowServer, loginwindow, GUI-session, or host restart as loop recovery.

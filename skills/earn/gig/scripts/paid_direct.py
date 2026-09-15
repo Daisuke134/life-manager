@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse, errno, fcntl, hashlib, json, mimetypes, os, re, shutil, signal, stat, subprocess, sys, tempfile, threading, time, zipfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import contextmanager
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 from urllib.parse import urlsplit
@@ -6335,16 +6335,30 @@ def _paid_queue_priority(args, item: dict[str, Any]) -> tuple[int, int, str, str
 
 
 def _paid_project_is_delegated(args, item: dict[str, Any]) -> bool:
-    """Keep an explicitly delegated project observable without running duplicate effects."""
+    """Skip only while a bounded runtime owner lease is currently alive."""
     try:
         policy = _load(_paid_project_root(args, item) / "context" / "paid-priority.json")
     except (Failure, OSError, ValueError, TypeError, json.JSONDecodeError):
         return False
-    return (
+    lease = policy.get("owner_lease")
+    if not (
         policy.get("version") == 1
         and policy.get("authorized_by") == "account_owner"
         and policy.get("delegated") is True
-    )
+        and isinstance(lease, dict)
+        and lease.get("version") == 1
+        and lease.get("owner_kind") == "runtime"
+        and _text(lease.get("owner_id"))
+    ):
+        return False
+    try:
+        expires_at = datetime.fromisoformat(_text(lease.get("expires_at")).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if expires_at.tzinfo is None:
+        return False
+    remaining = (expires_at - datetime.now(timezone.utc)).total_seconds()
+    return 0 < remaining <= 15 * 60
 
 
 def _paid_active_items(args, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
