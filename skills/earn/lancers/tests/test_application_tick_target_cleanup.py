@@ -97,3 +97,21 @@ def test_confirmation_transition_detail_records_safe_dom_shape():
         "invalid_controls": 1,
         "alerts": 1,
     }
+
+
+def test_confirmation_timeout_path_skips_unbounded_dom_evaluate():
+    module = _module()
+
+    class Page:
+        url = "https://www.lancers.jp/work/propose_start/123?proposeReferer=detail"
+
+        def evaluate(self, _script):
+            raise AssertionError("timeout diagnostics must not evaluate a stalled renderer")
+
+    detail = module._confirmation_transition_detail(Page(), "123", allow_evaluate=False)
+
+    assert detail == {
+        "project_id": "123",
+        "page_url": "https://www.lancers.jp/work/propose_start/123?proposeReferer=detail",
+        "diagnostic": "page_url_only_after_transition_timeout",
+    }
