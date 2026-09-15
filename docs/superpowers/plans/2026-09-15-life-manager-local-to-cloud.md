@@ -24,6 +24,45 @@
 
 ---
 
+## Atomic Execution Cursor
+
+Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
+test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
+touches a shared file, run a shared-file overlap check against the latest main and the marketplace
+TODO worktree. The current cursor is `FND-01`.
+
+| ID | One atomic outcome | Files/owner | Proof before the next ID |
+|---|---|---|---|
+| FND-01 | Record worktree and latest-main baseline | docs/architecture worktree / architecture owner | clean branch and baseline SHA |
+| FND-02 | Validate Product Loop/job identity rows | config/product-loop-catalog.json / architecture owner | registry fixture PASS |
+| FND-03 | Define typed issue and retry states | runtime/contracts or existing schema / architecture owner | state-shape unit PASS |
+| FND-04 | Emit owner/release/readback identifiers | runtime/loop/runtime_event.py / integration owner | event fixture PASS |
+| FND-05 | Implement internal-first notification decision | apps/life-manager/lib/notification-policy.js / architecture owner | routine event returns internal-only |
+| FND-06 | Apply notification decision at the existing outbox | existing Telegram outbox/report envelope / integration owner | 100 routine events send zero |
+| FND-07 | Record host pressure and browser-session metrics | runtime/host/memory_admission.py / architecture owner | redacted metric fixture PASS |
+| FND-08 | Defer and resume one saturated owner | runtime/host/resource_admission.py / integration owner | sibling progress and durable resume PASS |
+| FND-09 | Validate the context capsule shape | runtime/agent-runner/context_capsule.schema.json / architecture owner | schema rejects missing hash/budget |
+| FND-10 | Compile one bounded capsule from authoritative facts | runtime/loop/context.mjs; runtime/agent-runner/context_packet.py / integration owner | freshness, privacy, and resume fixture PASS |
+| GRAPH-01 | Define graph node/edge/provenance schema | apps/life-manager/lib/agent-graph.js / architecture owner | unknown predicate and missing provenance rejected |
+| GRAPH-02 | Project ledger facts idempotently | apps/life-manager/lib/agent-graph.js / integration owner | two rebuilds produce identical projection |
+| GRAPH-03 | Answer blocker, receipt, and human-gate queries | apps/life-manager/lib/agent-graph.js / integration owner | bounded source-backed query fixture PASS |
+| EVAL-01 | Define case/run/score/gate records | apps/life-manager/eval/agent-contract/ / architecture owner | schema fixture PASS |
+| EVAL-02 | Add five representative failure classes | apps/life-manager/eval/agent-contract/cases.jsonl / architecture owner | Coconala/Lancers/Mercor/Connector/Fundraiser cases run |
+| EVAL-03 | Gate candidate promotion on held-out and safety | apps/life-manager/eval/agent-contract/gate.js / integration owner | regression and tripwire fixture PASS |
+| HUMAN-01 | Persist one typed human gate | shared marketplace human-gate contract / market+integration owners | stable gate ID and one outbox event |
+| HUMAN-02 | Resume the same owner after a human answer | shared marketplace resume path / integration owner | same owner/effect namespace and replay-zero |
+| BROWSER-01 | Connect one provider-neutral session to Steel | skills/browser/session lease path / architecture owner | CDP, storage, timeout, cleanup fixture PASS |
+| BROWSER-02 | Run one read-only local headless canary | local Steel service / architecture owner | measured memory and official read-only result |
+| BROWSER-03 | Run one local effect canary | one market owner / market+integration owners | official effect, readback, replay-zero |
+| API-01 | Add the Responses API brain adapter | runtime/loop/brain.mjs; runtime/loop/responses-adapter.mjs / integration owner | capsule hash, tool limit, timeout, and cost fixture PASS |
+| API-02 | Run an Agents API maintenance-only pilot | runtime/agent-maintenance/agents-api-pilot.py / architecture owner | read-only release, no credentials/effects, hashed output |
+| LOCAL-01 | Produce the local completion manifest | scripts/local-completion-gate.py / integration owner | no advertised Loop remains unknown |
+| LOCAL-02 | Accept all local Product Loop contracts | provider owners + local gate / market+integration owners | official evidence or explicit capability state for all 14 |
+| CLOUD-01 | Provision tenant-scoped cloud state | apps/life-manager deployment / cloud owner | tenant isolation and immutable source check |
+| CLOUD-02 | Run the cloud Steel canary | cloud browser adapter / cloud owner | read-only, human-gate, and effect canaries PASS |
+| CLOUD-03 | Enable phone-only control and quiet reports | apps/life-manager Telegram/API / cloud owner | smartphone can create, resume, and inspect goals |
+| CLOUD-04 | Promote the identical release to production | cloud promotion gate / primary owner | local gate, cloud canary, official readback, replay-zero |
+
 ### Task 1: ローカル完了台帳を作る
 
 Files: config/product-loop-catalog.json; docs/superpowers/specs/2026-09-15-life-manager-local-completion-gate.md; skills/agent-engineering/tests/test_skill_contract.py

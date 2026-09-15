@@ -181,6 +181,24 @@ def test_local_to_cloud_plan_has_ordered_execution_and_phone_only_gate() -> None
         assert token in text, token
 
 
+def test_execution_plan_has_an_atomic_cursor_and_non_overlapping_workstream_ids() -> None:
+    path = REPO_ROOT / "docs/superpowers/plans/2026-09-15-life-manager-local-to-cloud.md"
+    text = path.read_text(encoding="utf-8")
+    for token in (
+        "Atomic Execution Cursor",
+        "FND-01",
+        "FND-10",
+        "GRAPH-01",
+        "EVAL-01",
+        "BROWSER-01",
+        "LOCAL-01",
+        "CLOUD-01",
+        "Only one unchecked atomic ID is active",
+        "shared-file overlap",
+    ):
+        assert token in text, token
+
+
 def test_parallel_workstream_boundary_protects_the_active_marketplace_todo() -> None:
     spec = (REPO_ROOT / "docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md").read_text(encoding="utf-8")
     agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
