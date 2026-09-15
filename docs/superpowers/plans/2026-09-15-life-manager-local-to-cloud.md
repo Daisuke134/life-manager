@@ -317,12 +317,14 @@ Parallel browser receipts (production cursor unchanged):
   host pressure remains a capacity input; no concurrency increase is authorized by this canary.
 
 Parallel API progress (production cursor unchanged): `c3d62f0098` adds an opt-in Responses API brain
-adapter. It converts the existing bounded wake context and tool menu to the Responses `instructions`,
-`input`, and top-level function-tool shapes, binds a valid context-capsule hash in metadata, sets
-`store=false`, disables parallel calls, enforces output/tool/timeout bounds, and maps exactly one
-`function_call` back to the existing parser. HTTP errors, missing IDs, multiple calls, empty output,
-and timeouts fail closed. `ANICCA_BRAIN=proxy` remains the default; background diagnostic polling and
-the live-cost/effect promotion gate are still open.
+  adapter. It converts the existing bounded wake context and tool menu to the Responses `instructions`,
+  `input`, and top-level function-tool shapes, binds a valid context-capsule hash in metadata, sets
+  `store=false`, disables parallel calls, enforces output/tool/timeout bounds, and maps exactly one
+  `function_call` back to the existing parser. HTTP errors, missing IDs, multiple calls, empty output,
+  and timeouts fail closed. `0784e5dc4f` adds read-only `background=true` start/poll helpers that persist
+  a response ID through the caller and reject function calls from the background diagnostic lane.
+  `ANICCA_BRAIN=proxy` remains the default; live-cost/effect promotion and production rollout are
+  still open. Focused adapter/config/brain/parser tests: 34 passed.
 
 ## FND research gate (search complete; FND-02 implemented)
 
