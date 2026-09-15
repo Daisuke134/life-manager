@@ -160,7 +160,7 @@ function indexRuntimeRows(runtimeRows, catalog) {
   return rows;
 }
 
-function evaluateCloudPromotionGate(input = {}) {
+function evaluateCloudPromotionGate(input = {}, options = {}) {
   const reasons = [];
   const releaseSha = typeof input.release_sha === "string" ? input.release_sha : "";
   if (!RELEASE_SHA.test(releaseSha)) reasons.push("release_invalid");
@@ -183,9 +183,21 @@ function evaluateCloudPromotionGate(input = {}) {
   } else {
     if (!Array.isArray(cloudManifest.loops) || cloudManifest.loops.length !== 14) {
       reasons.push("cloud_manifest_loop_count_mismatch");
-    } else if (cloudManifest.loops.some((loop) => !loop
-      || !["verified", "setup_required", "not_applicable"].includes(loop.state))) {
-      reasons.push("cloud_manifest_state_invalid");
+    } else {
+      const actualIds = cloudManifest.loops.map((loop) => loop && loop.id);
+      let expectedIds = [];
+      try {
+        expectedIds = readProductLoopCatalog(options.catalogFile).loops.map((loop) => loop.id);
+      } catch {
+        reasons.push("cloud_manifest_catalog_invalid");
+      }
+      const sameIds = actualIds.length === expectedIds.length
+        && [...actualIds].sort().every((id, index) => id === [...expectedIds].sort()[index]);
+      if (!sameIds) reasons.push("cloud_manifest_loop_identity_mismatch");
+      if (cloudManifest.loops.some((loop) => !loop
+        || !["verified", "setup_required", "not_applicable"].includes(loop.state))) {
+        reasons.push("cloud_manifest_state_invalid");
+      }
     }
     if (cloudManifest.completion !== true || cloudManifest.unknown_count !== 0) {
       reasons.push("cloud_manifest_incomplete");

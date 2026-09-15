@@ -6,10 +6,12 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
+const { readProductLoopCatalog } = require("../lib/product-onboarding.js");
 
 const ROOT = path.resolve(__dirname, "../../..");
 
 function inputWithDecision(decision) {
+  const catalog = readProductLoopCatalog();
   const releaseSha = "9".repeat(40);
   return {
     release_sha: releaseSha,
@@ -26,8 +28,8 @@ function inputWithDecision(decision) {
       release_sha: releaseSha,
       completion: true,
       unknown_count: 0,
-      loops: Array.from({ length: 14 }, (_, index) => ({
-        id: `loop-${index}`,
+      loops: catalog.loops.map((loop) => ({
+        id: loop.id,
         state: "setup_required",
       })),
     },

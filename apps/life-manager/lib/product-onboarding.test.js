@@ -304,6 +304,42 @@ test("cloud promotion gate passes only with local pass, fresh tenant state, and 
   });
 });
 
+test("cloud promotion gate rejects a fourteen-row manifest with fabricated loop identities", () => {
+  const releaseSha = "b".repeat(40);
+  const gate = evaluateCloudPromotionGate({
+    release_sha: releaseSha,
+    local_gate: {
+      schema_version: "product.local.completion.v1",
+      decision: "pass",
+      host: "local",
+      release_sha: releaseSha,
+      reasons: [],
+    },
+    cloud_manifest: {
+      schema_version: "product.loop.completion.v1",
+      host: "cloud",
+      release_sha: releaseSha,
+      completion: true,
+      unknown_count: 0,
+      loops: Array.from({ length: 14 }, (_, index) => ({
+        id: `fabricated-loop-${index}`,
+        state: "setup_required",
+      })),
+    },
+    cloud_canary: {
+      tenant_isolated: true,
+      immutable_source: true,
+      official_readback: "verified",
+      replay_zero: true,
+      local_state_copied: false,
+      local_credentials_copied: false,
+    },
+  });
+
+  assert.deepEqual(gate.reasons, ["cloud_manifest_loop_identity_mismatch"]);
+  assert.equal(gate.decision, "block");
+});
+
 test("verified completion requires an official receipt and the canonical release", () => {
   const catalog = readProductLoopCatalog();
   const releaseSha = "b".repeat(40);
