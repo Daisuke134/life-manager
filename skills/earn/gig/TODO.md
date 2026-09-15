@@ -544,6 +544,26 @@ delivery OFF, and wrote `status=completed`, `effect=1`, `readback=1`; the offici
 contains the new seller message and attached v3 review ZIP. The Paid aggregate is now `effect=1`, `readback=1`,
 `pending=2`, `failed=0`. Ryu and Kokoro `18250352` remain open.
 
+PR `#5208`, merge SHA `6a3d61a0c79f3f82605069766f05755ef2e2e3fc`, removes a permanent
+attachment-recovery contradiction. The collector previously skipped every later official reference after one
+file with the same filename existed, while the Paid gate rejected every duplicated filename without
+reference-level proof. The shared collector now keeps a locked atomic `message reference -> content hash/file`
+receipt, reuses a legacy filename only when it is unique in the official room, and stores duplicate bytes only
+once. Paid suites passed 225 tests, the exact CI `unittest discover` entry passed 437 tests, and all PR checks
+passed. Immutable release `20260915T110135-6a3d61a0` is current and the Paid label is exact-loaded from it. Its
+first admitted run recovered five Ryu references and increased retained files from 42 to 46. The same run
+replayed completed Kokoro `18223833` as `satisfied_noop`, `deduplicated=true`, `send_performed=false`,
+`readback=1`; no duplicate client effect occurred. Ryu and Kokoro `18250352` remain pending.
+
+The host also contained 127 zombie processes owned by one four-day-old unregistered default `agent-browser`
+daemon. Its only live browser child belonged to a one-day-old lateness-heartbeat scratch run; no external client
+held the socket. Exact owner-group cleanup reduced zombies to two and total processes from 833 to about 704
+without touching ChatGPT, CloakBrowser or Coconala port `9223`. Root cause was
+`skills/anicca-life-manager/scripts/route_lookup.py`: it used the global default session and never closed it on
+success or repeated timeout. PR `#5209`, merge SHA `fcce2565e33e469979bcd29111b7dc7c46c02234`, uses one named
+loop session and closes it in `finally`; all PR checks passed. It is merged but not yet in a production release,
+because the current Paid run and disk headroom took priority over cutting another full release.
+
 ### 2. Coconala vertical revenue proof
 
 - [ ] During the corrected shared-runtime canary, let natural Paid and Reply wakes finish and persist terminal
