@@ -90,8 +90,8 @@ Telegram報告、テストgreen、ブラウザ画面表示だけでは完了に�
 ### 理想フロー（1回のwake）
 
 Life Managerは、常駐する一つの巨大agentではなく、短いwakeを何度も安全に積み重ねます。
-初回の登録・本人確認・権限設定・生活方針の入力は必要ですが、通常のwakeごとにユーザーが
-目標を入力するわけではありません。保存済みの目標、方針、制約、現在状態から自律的に始めます。
+利用可能な観測データ、保存済みの方針・制約、現在状態から、各wakeで次の安全な行動を
+自律的に決めます。
 
 ```mermaid
 flowchart LR
@@ -126,6 +126,13 @@ replay-zeroが揃った時だけです。人間が必要なのは、Mercorの面
 
 handoffの完了条件は、単独owner、対象branch、候補SHA、未完了receipt、次の一件を一つのhandoff
 receiptに記録することです。handoff receiptがない間は、どちらのCodexも同じ外部effectを再実行しません。
+
+### TODO.mdとの関係
+
+`skills/earn/gig/TODO.md`は、Gigの案件・契約・納品・報酬を進めるplatform workstreamの実行SSOTです。
+このspecは、14 Product Loopが共通で使うfoundationのSSOTです。両方を一つの長いTODOへコピーして
+統合しません。Gig ownerはTODOからprovider effectを進め、foundation ownerはこのspecのcontractを
+更新します。TODOの各platform項目は、必要なfoundation gateをこのspecのIDへリンクします。
 
 ### Current operational cursor and remaining atomic TODO
 
@@ -412,8 +419,9 @@ readback/replay-zero behavior. It never copies local credentials, browser sessio
 
 Local and cloud remain available as user choices after promotion. `phone-only` use is the default cloud
 experience; local mode remains a self-hosted option and a recovery path. Both modes use the same
-implementation, and only their host adapters differ. After initial setup, ordinary wakes do not require
-the user to restate a goal; the user only changes policy or answers an explicit typed human gate.
+implementation, and only their host adapters differ. Ordinary wakes do not require the user to restate
+a goal. User involvement is limited to an explicit typed human gate or a deliberate
+policy/permission change; ordinary wakes continue without conversation.
 
 The rule is: **no cloud promotion before local acceptance**.
 
