@@ -534,10 +534,14 @@ workflow engine or replacing the logged-in Coconala profile during recovery is e
 PR `#5207`, merge SHA `6ca2fc44668993b0ddec22b6a54bd62476d35459`, keeps the existing disk governor
 outside finite data-plane slots and makes one malformed LaunchAgent plist fail independently instead of
 crashing the whole cleanup pass. The focused cleanup/admission suites passed 111 tests. Immutable release
-`20260915T103333-6ca2fc44` is current and only the disk-cleanup label was reconciled immediately; its first
-natural run remains open. A later `d2fc0a7b` Paid wake recovered all 18 observed attachments for Kokoro
-`18223833` and 16 of 26 for Kokoro `18250352`; Ryu retains 42 local files while its distinct-reference and
-duplicate-filename cases remain unresolved. No new client effect has yet been written, so all three stay open.
+`20260915T103333-6ca2fc44` is current and only the disk-cleanup label was reconciled immediately. Its first run
+crossed the malformed-plist boundary and completed the safe scan, but returned failure because one protected
+host probe remained unknown; it reclaimed only 6,409 bytes and left about 7.8 GiB free. A concurrent
+`d2fc0a7b` Paid wake recovered all 18 observed attachments for Kokoro `18223833` and 16 of 26 for Kokoro
+`18250352`; Ryu retains 42 local files while its distinct-reference and duplicate-filename cases remain
+unresolved. Kokoro `18223833` then built the revised workbook, sent it once in progress mode with formal
+delivery OFF, and wrote `status=completed`, `effect=1`, `readback=1`; the official selected-talkroom readback
+contains the new seller message and attached v2 workbook. Ryu and Kokoro `18250352` remain open.
 
 ### 2. Coconala vertical revenue proof
 
