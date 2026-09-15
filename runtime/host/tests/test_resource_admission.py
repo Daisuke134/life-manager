@@ -438,6 +438,32 @@ def test_memory_defer_releases_only_its_reservation(tmp_path, monkeypatch):
     assert ticket is not None and reason == "ready"
 
 
+def test_deferred_owner_persists_reason_and_resumes_after_next_eligible_at(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    first, _ = admission.try_acquire("agent", "first", retain_ticket=False)
+    admission.enqueue_durable("agent", "second")
+    assert admission.release_and_reserve(first, now=100, lease_seconds=30) == ["second"]
+
+    assert admission.defer_durable(
+        "second", reason_code="memory_headroom_low", next_eligible_at=200
+    ) is True
+    deferred = durable_rows(tmp_path, "deferred")
+    assert deferred == [{
+        "owner_id": "second",
+        "resource_class": "agent",
+        "sequence": 1,
+        "reason_code": "memory_headroom_low",
+        "next_eligible_at": 200.0,
+    }]
+
+    claim, reason = admission.claim_durable("agent", "second", now=150)
+    assert claim is None and reason == "deferred"
+    claim, reason = admission.claim_durable("agent", "second", now=201)
+    assert claim is not None and reason == "acquired"
+    assert durable_rows(tmp_path, "deferred") == []
+    admission.release(claim)
+
+
 def test_stale_owner_recovery_reserves_sleeping_fifo_head(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     admission.atomic_json(tmp_path / "owners" / "stale.json", {

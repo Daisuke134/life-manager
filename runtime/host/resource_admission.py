@@ -6,8 +6,10 @@ import ctypes
 import fcntl
 import hashlib
 import json
+import math
 import os
 import pwd
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -19,6 +21,7 @@ from typing import Callable
 
 
 ADMISSION_CLASSES = {"borrow", "revenue"}
+_REASON_CODE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 
 
 class _ProcBsdInfo(ctypes.Structure):
@@ -277,6 +280,13 @@ def _database(path: Path) -> sqlite3.Connection:
             owner_id TEXT PRIMARY KEY,
             admission_class TEXT NOT NULL CHECK(admission_class IN ('borrow','revenue'))
         );
+        CREATE TABLE IF NOT EXISTS deferred (
+            owner_id TEXT PRIMARY KEY,
+            resource_class TEXT NOT NULL CHECK(resource_class IN ('agent','deterministic')),
+            sequence INTEGER NOT NULL,
+            reason_code TEXT NOT NULL,
+            next_eligible_at REAL NOT NULL
+        );
         PRAGMA user_version=2;
     """)
     return connection
@@ -390,6 +400,7 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
             connection.execute(
                 "INSERT OR IGNORE INTO priorities(owner_id,admission_class) VALUES(?,?)",
                 (owner_id, admission_class))
+            connection.execute("DELETE FROM deferred WHERE owner_id=?", (owner_id,))
             row = connection.execute("""
                 SELECT q.sequence,q.resource_class,p.admission_class
                 FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
@@ -455,6 +466,13 @@ def claim_durable(resource_class: str, owner_id: str, *,
             if any(item.get("owner_id") == owner_id for item in (
                     _row(path) or {} for path in owners.glob("*.json"))):
                 return None, "owner_busy"
+            deferred = connection.execute(
+                "SELECT next_eligible_at FROM deferred WHERE owner_id=?", (owner_id,)
+            ).fetchone()
+            if deferred is not None:
+                if float(deferred[0]) > instant:
+                    return None, "deferred"
+                connection.execute("DELETE FROM deferred WHERE owner_id=?", (owner_id,))
             total, per_class = _limits(resource_class, admission_class)
             if reserved and (len(occupied) > total or sum(
                     _uses_limited_capacity(item, resource_class, admission_class)
@@ -515,10 +533,16 @@ def transfer_durable(claim: Path, child_pid: int) -> None:
         os.close(descriptor)
 
 
-def defer_durable(owner_id: str) -> bool:
-    """Return only this owner's dispatch reservation to its existing queue position."""
+def defer_durable(owner_id: str, *, reason_code: str = "resource_admission_deferred",
+                  next_eligible_at: float = 0) -> bool:
+    """Return one reservation to its queue and persist its typed defer reason and wake time."""
     if not owner_id:
         raise RuntimeError("invalid resource identity")
+    if not isinstance(reason_code, str) or not _REASON_CODE.fullmatch(reason_code):
+        raise RuntimeError("invalid defer reason")
+    if (isinstance(next_eligible_at, bool) or not isinstance(next_eligible_at, (int, float))
+            or not math.isfinite(next_eligible_at) or next_eligible_at < 0):
+        raise RuntimeError("invalid next eligible time")
     root, _, _, database = _durable_paths()
     descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
     try:
@@ -527,6 +551,16 @@ def defer_durable(owner_id: str) -> bool:
         except BlockingIOError:
             return False
         with _database(database) as connection:
+            reservation = connection.execute(
+                "SELECT resource_class,sequence FROM reservations WHERE owner_id=?",
+                (owner_id,),
+            ).fetchone()
+            if reservation is None:
+                return False
+            connection.execute(
+                "INSERT OR REPLACE INTO deferred(owner_id,resource_class,sequence,reason_code,next_eligible_at) VALUES(?,?,?,?,?)",
+                (owner_id, reservation[0], reservation[1], reason_code, float(next_eligible_at)),
+            )
             changed = connection.execute(
                 "DELETE FROM reservations WHERE owner_id=?", (owner_id,)).rowcount
         return changed == 1
@@ -548,6 +582,7 @@ def cancel_durable(owner_id: str) -> bool:
         with _database(database) as connection:
             connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
             connection.execute("DELETE FROM priorities WHERE owner_id=?", (owner_id,))
+            connection.execute("DELETE FROM deferred WHERE owner_id=?", (owner_id,))
             changed = connection.execute(
                 "DELETE FROM queue WHERE owner_id=?", (owner_id,)).rowcount
         return changed == 1
@@ -573,10 +608,12 @@ def _reserve_locked(connection: sqlite3.Connection, owners: Path, tickets: Path,
                        COALESCE(p.admission_class,'borrow') FROM queue q
                 LEFT JOIN reservations r ON r.owner_id=q.owner_id
                 LEFT JOIN priorities p ON p.owner_id=q.owner_id
+                LEFT JOIN deferred d ON d.owner_id=q.owner_id
                 WHERE q.resource_class=? AND r.owner_id IS NULL
+                  AND (d.owner_id IS NULL OR d.next_eligible_at <= ?)
                 ORDER BY CASE COALESCE(p.admission_class,'borrow')
                     WHEN 'revenue' THEN 0 ELSE 1 END, q.sequence LIMIT 1
-            """, (resource_class,)).fetchone()
+            """, (resource_class, instant)).fetchone()
             if candidate:
                 owner_id, sequence, admission_class = candidate
                 available, _ = _durable_capacity(
@@ -644,6 +681,7 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                 connection.execute(
                     "INSERT OR IGNORE INTO priorities(owner_id,admission_class) VALUES(?,?)",
                     (value["owner_id"], value.get("admission_class", "borrow")))
+                connection.execute("DELETE FROM deferred WHERE owner_id=?", (value["owner_id"],))
         claim.unlink()
         if not reserve:
             return []

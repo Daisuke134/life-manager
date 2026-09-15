@@ -29,7 +29,7 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `FND-08`.
+TODO worktree. The current cursor is `FND-09`.
 
 ### Atomic execution log
 
@@ -84,6 +84,14 @@ TODO worktree. The current cursor is `FND-08`.
   load, finite-wake, browser-session/process/endpoint counts and a `metrics_only` marker; it rejects
   invalid values and never stores PIDs, URLs, or credentials. Focused proof: memory-admission and
   common-contract tests (8 passed). Next active ID: `FND-08`.
+- [x] `FND-08` — Extended durable admission with a private `deferred` table carrying owner,
+  resource class, original FIFO sequence, reason code, and `next_eligible_at`. A deferred owner
+  releases only its reservation; before eligibility it returns `deferred`, and after eligibility it
+  resumes from the same queue position. Future deferred owners are excluded from new reservations,
+  while unrelated classes/owners continue. Focused proof: the durable defer/resume fixture passed and
+  resource-admission plus loop-boundary tests passed 76 tests. The overlap readback found latest
+  `origin/main=1f8d25eb4f12e3024e011b2fc5017443dc75c50d`, a clean marketplace TODO worktree, and no
+  target-file change in canonical main. Next active ID: `FND-09`.
 
 ## FND research gate (search complete; FND-02 implemented)
 
@@ -107,10 +115,10 @@ target control plane is implemented.
 - [Firecracker](https://github.com/firecracker-microvm/firecracker/blob/c5314e5dfc732db683115a02dee440ca06162a7c/docs/design.md) uses microVM, seccomp, cgroups, namespaces, and jailer boundaries; reserve it for untrusted repair/eval code, not every browser session.
 - [Chrome headless](https://developer.chrome.com/docs/automation-and-testing/headless) confirms unattended no-UI operation, while modern headless shares Chrome's implementation; it reduces display overhead, not all browser memory.
 
-**Alignment checkpoint:** the search phase is complete and `FND-02` through `FND-07` now have
+**Alignment checkpoint:** the search phase is complete and `FND-02` through `FND-08` now have
 focused contracts. No launchd, browser/account, ledger, or provider effect was changed; FND-06 was
-tested with a fake sender only. The next atomic change is `FND-08`'s durable defer/resume behavior,
-starting with a focused failing test.
+tested with a fake sender only. The next atomic change is `FND-09`'s context capsule schema, starting
+with a focused failing test.
 
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
 |---|---|---|---|
