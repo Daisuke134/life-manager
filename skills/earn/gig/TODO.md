@@ -13,7 +13,9 @@ runtime/provider readback before acting; conversation claims are not completion 
 - Canonical runtime source is `origin/main` at `437b5696d2463d6d0c929d2613782c088c0f9cc6`. The latest
   immutable release is `/Users/anicca/loops/releases/20260916T041632-437b5696`. The existing runtime
   worktree `/private/tmp/lm-runtime-admission-marketplace-priority-20260916` is the only runtime worktree;
-  its browser fix is pushed as PR `#5250` and must be merged before a new production release. Do not create
+  its browser/child-cleanup fix is pushed as PR `#5250` (commits `5358ded927`, `e2c6eeda95`) and must be
+  merged before a new production release. A live wrapper smoke confirmed the guard-selected dynamic endpoint
+  (`127.0.0.1:56608`) replaced inherited `:9223`. Do not create
   another runtime worktree or use the Capify checkout as source.
 - Phase 2 replaces the v2 JSON scan with stdlib SQLite, adds durable FIFO reservations, child-PID claim
   handoff, same-owner/crash recovery, exact loaded-idle dispatch, retired/missing-owner cancellation, a
@@ -292,8 +294,9 @@ terminal/recovery reason.
 - Apply is still running from `62716e99` and is intentionally not reloaded. Reply is idle and Paid is unloaded;
   both plists are now installed from `437b5696`. Storefront is unloaded and its plist is installed from
   `437b5696` after the stuck pass. The
-  browser owner fix (`with-browser.sh` passes the guard-resolved CDP URL as `CLOAK_CDP_BASE_URL`) is PR
-  `#5250`; without it the Paid owner sandbox reconnects to forbidden static `:9223` and fails closed.
+  browser owner fix (`with-browser.sh` passes the guard-resolved CDP URL as `CLOAK_CDP_BASE_URL`) and Paid
+  detached-child cleanup are in PR `#5250`; without the first, the Paid owner sandbox reconnects to forbidden
+  static `:9223` and fails closed, and without the second, stop can leave child groups behind.
   Other revenue owners can consume the finite host ceiling, so a PID or scheduler run is not a client effect.
 - Disk free was `7.6 GiB` on the latest readback and `gig_disk_guard` returned PASS; one live Chromium clone
   remains. Historical Paid runs still contain real `ENOSPC` receipts, so the healthy disk floor and seven-day
