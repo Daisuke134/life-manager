@@ -50,8 +50,8 @@ ownerのinstalled/event SHAはまだ混在しています。統合候補
 
 | 順番 | atomic task | いま残っている理由 | 完了条件 |
 |---:|---|---|---|
-| 1 | `CAND-01` 候補 `c780f1c18f` の共有kernel修正を固定する | Lancers browser lease、stale claim解放、CrowdWorks/Mercor timeout、Mercor stale provisioning GC、sparse release互換は候補branchだけ | candidateのLancers 402 tests + 17 subtests、Job Hunter 462 tests、runtime/loop 481 tests + 483 subtests等を再確認。main/本番にはまだ配布しない |
-| 2 | `CAND-02` candidateのread-only自然wake/canaryを閉じる | candidateの競合・冪等化はfixture/live read-onlyで確認しただけ | 各対象ownerをeffectなしで一度ずつ確認し、想定外の`browser_session_busy` 0、`resource release deferred` 0、terminal eventあり |
+| 1 | `CAND-01` 候補 `c780f1c18f` の共有kernel修正を固定する | 修正はcandidateに限定され、本番ownerへは未配布 | **candidate gate PASS**: Lancers 402 tests + 17 subtests、Job Hunter 462、runtime/loop 481 + 483 subtests、runtime/host 87、agent-runner 70 + 58 subtests、CDP 64、sparse/admission 61がPASS。main/本番にはまだ配布しない |
+| 2 | `CAND-02` candidateのread-only自然wake/canaryを閉じる | `66 passed`はfixture/内部read-only canaryであり、本番ownerの自然wakeではない | **内部canary PASS**: lease競合、CDP stale GC、admission v2/legacy並行を確認。live ownerのterminal・公式readbackはmain/release反映後に再確認 |
 | 3 | `PROD-01-F` Lancers pendingを1 sliceずつ消化 | pending 101件が残り、Application以外の収益receiptが0 | 101件が公式receipt付きで処理済み、または理由付きterminal。effect key重複0、replay-zero |
 | 4 | `PROD-02` Lancers Negotiate/Storefront/Paidを閉じる | Paidは契約候補0・effect/readback 0で、収益成功ではない。Reply/Storefrontも公式readback未完 | laneごとに公式receipt、または明示的not-applicableと再試行境界 |
 | 5 | `MARKET-02` CrowdWorksを閉じる | 4 ownerが旧release、直近に30秒 `Page.goto` timeout、account/profile failure | 候補受入後に作る新releaseの自然terminal、公式応募/契約receiptまたはtruthful not-applicable、重複0 |
@@ -75,7 +75,7 @@ runtime event、provider ledgerを突き合わせた現在cursorです。後続�
 
 | 対象 | 実測状態 | 判定 |
 |---|---|---|
-| source | `origin/main=22dc7cdc53a6d76137629e3fd0fc4ab8bafa08ca`（PR #5254まで）; 統合候補branch `fix/lm-fundamental-runtime-20260916`（HEAD `c780f1c18f`）はpush済み・未統合 | mainには収益枠の予約改善とlegacy revenue ownerの並行許可が追加済み。候補にはLancers shared browser session lease、stale claim解放の冪等化、CrowdWorks/Mercor finite lane timeout、Mercor stale provisioning auto-GC、sparse releaseのadmission capability自動同梱を追加。主要suiteはLancers 402+17、Job Hunter 462、runtime/loop 481+483、runtime/host 87、agent-runner 70+58、CDP 64がPASS |
+| source | `origin/main=22dc7cdc53a6d76137629e3fd0fc4ab8bafa08ca`（PR #5254まで）; 統合候補branch `fix/lm-fundamental-runtime-20260916`（HEAD `c780f1c18f`）はpush済み・未統合 | mainには収益枠の予約改善とlegacy revenue ownerの並行許可が追加済み。候補にはLancers shared browser session lease、stale claim解放の冪等化、CrowdWorks/Mercor finite lane timeout、Mercor stale provisioning auto-GC、sparse releaseのadmission capability自動同梱を追加。主要suiteとeffectなしcanary（66 tests）がPASS |
 | release selector | `~/loops/current`は`20260916T054645-22dc7cdc`（SHA `22dc7cdc`）を指す。ownerのinstalled/event SHAは混在 | current自体はorigin/mainと一致するが、Lancers/CrowdWorks/Mercorのowner drift gateはFAIL。protocol v2は有効、候補branchは未反映、全体gateは未完 |
 | Lancers Application | 以前のe789/current wakeでproposal 20件を公式ledgerへ記録（pendingは134→101）。直近current ownerは`entrypoint_exit_124`でblocked | 20件のApplication公式receiptは保持するが、現在の自然wakeは成功扱いにしない。pending 101件と再現可能なterminalが残る |
 | Lancers Browser | `loaded-running`、9227 CDPはlisten中だがinstalled SHA `2ff93374`、event SHA `437b5696`でcurrent `22dc7cdc`と不一致 | 9227 healthだけではrelease gate PASSにならない。候補反映後に同時接続とlease releaseを確認 |
