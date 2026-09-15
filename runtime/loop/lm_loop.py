@@ -165,14 +165,46 @@ def _launchctl(*args: str) -> str:
     return output
 
 
+DEFAULT_EVENT_TAIL_BYTES = 1024 * 1024
+MAX_EVENT_TAIL_BYTES = 16 * 1024 * 1024
+
+
+def _event_tail_bytes() -> int:
+    try:
+        value = int(os.environ.get("LM_RUNTIME_EVENT_TAIL_BYTES", DEFAULT_EVENT_TAIL_BYTES))
+    except ValueError:
+        return DEFAULT_EVENT_TAIL_BYTES
+    if value < 1:
+        return DEFAULT_EVENT_TAIL_BYTES
+    return min(value, MAX_EVENT_TAIL_BYTES)
+
+
+def _read_event_tail(path: Path, max_bytes: int) -> list[bytes]:
+    if max_bytes < 1:
+        raise ValueError("event tail byte limit must be positive")
+    with path.open("rb") as handle:
+        handle.seek(0, os.SEEK_END)
+        size = handle.tell()
+        start = max(0, size - max_bytes)
+        handle.seek(start, os.SEEK_SET)
+        data = handle.read(max_bytes)
+    if start:
+        _, separator, data = data.partition(b"\n")
+        if not separator:
+            return []
+    return data.splitlines()
+
+
 def _last_event(state_root: str, loop_id: str | None = None,
-                cache: dict[Path, dict[str | None, dict]] | None = None) -> dict | None:
+                cache: dict[Path, dict[str | None, dict]] | None = None,
+                max_bytes: int | None = None) -> dict | None:
     path = Path(os.path.expanduser(state_root)) / "events.jsonl"
-    if cache is not None and path in cache:
+    use_cache = cache is not None and max_bytes is None
+    if use_cache and path in cache:
         return cache[path].get(loop_id)
     reports: dict[str | None, dict] = {}
     try:
-        lines = path.read_text(encoding="utf-8").splitlines()
+        lines = _read_event_tail(path, max_bytes if max_bytes is not None else _event_tail_bytes())
     except OSError:
         lines = []
     for line in reversed(lines):
@@ -185,7 +217,7 @@ def _last_event(state_root: str, loop_id: str | None = None,
             continue
         reports.setdefault(None, value)
         reports.setdefault(value.get("loop_id"), value)
-    if cache is not None:
+    if use_cache:
         cache[path] = reports
     return reports.get(loop_id)
 

@@ -62,3 +62,22 @@ test("local completion gate CLI exits nonzero and explains unknown loops", () =>
   assert.deepEqual(JSON.parse(result.stdout).reasons, ["unknown_product_loop"]);
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+test("local completion gate CLI keeps a shared existing temp parent untouched", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-local-gate-shared-input-"));
+  const manifestPath = path.join(root, "manifest.json");
+  const outputPath = path.join(os.tmpdir(), `lm-local-gate-shared-${process.pid}-${Date.now()}.json`);
+  fs.writeFileSync(manifestPath, JSON.stringify(manifestWithStates("setup_required")));
+
+  const result = spawnSync(process.execPath, [
+    path.join(ROOT, "apps/life-manager/scripts/local-completion-gate.js"),
+    "--manifest", manifestPath,
+    "--output", outputPath,
+  ], { cwd: ROOT, encoding: "utf8" });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(fs.readFileSync(outputPath, "utf8")).decision, "pass");
+  assert.equal(fs.statSync(outputPath).mode & 0o777, 0o600);
+  fs.rmSync(outputPath, { force: true });
+  fs.rmSync(root, { recursive: true, force: true });
+});

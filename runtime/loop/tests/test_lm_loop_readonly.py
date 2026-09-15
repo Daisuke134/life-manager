@@ -125,6 +125,21 @@ class LmLoopReadonlyTest(unittest.TestCase):
             self.assertEqual((event["status"], event["timestamp"]),
                              ("pass", "2026-08-28T00:00:00Z"))
 
+    def test_last_event_bounds_tail_reads_and_does_not_resurrect_old_evidence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            old = {"version":1,"event_id":"a"*24,"timestamp":"2026-08-28T00:00:00Z","loop_id":"a","domain":"system","run_id":"run-a","phase":"report","status":"pass","release_sha":"b"*40,"provider":"deterministic","profile_alias":None,"effect_class":"none","effect_status":"not_applicable","blocker":None,"evidence_refs":["lm-loop://a/run-a/summary.json"]}
+            (root / "events.jsonl").write_text(json.dumps(old) + "\n" + ("{}\n" * 4096))
+            self.assertIsNone(_last_event(str(root), "a", max_bytes=1024))
+
+    def test_last_event_finds_a_report_inside_the_bounded_tail(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            latest = {"version":1,"event_id":"a"*24,"timestamp":"2026-08-28T00:00:00Z","loop_id":"a","domain":"system","run_id":"run-a","phase":"report","status":"pass","release_sha":"b"*40,"provider":"deterministic","profile_alias":None,"effect_class":"none","effect_status":"not_applicable","blocker":None,"evidence_refs":["lm-loop://a/run-a/summary.json"]}
+            (root / "events.jsonl").write_text(("{}\n" * 4096) + json.dumps(latest) + "\n")
+            event = _last_event(str(root), "a", max_bytes=1024)
+            self.assertEqual(event["run_id"], "run-a")
+
     def test_installed_release_uses_full_sha_from_generated_plist(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "job.plist"

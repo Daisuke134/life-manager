@@ -27,8 +27,15 @@ function parseArgs(args) {
 
 function writePrivate(pathname, content) {
   const parent = path.dirname(pathname);
+  let parentExisted = true;
+  try {
+    if (!fs.statSync(parent).isDirectory()) throw new Error("output parent is not a directory");
+  } catch (error) {
+    if (error && error.code === "ENOENT") parentExisted = false;
+    else throw error;
+  }
   fs.mkdirSync(parent, { recursive: true, mode: 0o700 });
-  fs.chmodSync(parent, 0o700);
+  if (!parentExisted) fs.chmodSync(parent, 0o700);
   const temporary = `${pathname}.tmp-${process.pid}`;
   fs.writeFileSync(temporary, content, { encoding: "utf8", mode: 0o600 });
   fs.chmodSync(temporary, 0o600);

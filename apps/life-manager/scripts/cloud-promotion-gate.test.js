@@ -79,3 +79,22 @@ test("cloud promotion gate CLI blocks a local failure", () => {
   assert.deepEqual(JSON.parse(result.stdout).reasons, ["local_gate_blocked"]);
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+test("cloud promotion gate CLI keeps a shared existing temp parent untouched", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-cloud-gate-shared-input-"));
+  const inputPath = path.join(root, "input.json");
+  const outputPath = path.join(os.tmpdir(), `lm-cloud-gate-shared-${process.pid}-${Date.now()}.json`);
+  fs.writeFileSync(inputPath, JSON.stringify(inputWithDecision("pass")));
+
+  const result = spawnSync(process.execPath, [
+    path.join(ROOT, "apps/life-manager/scripts/cloud-promotion-gate.js"),
+    "--input", inputPath,
+    "--output", outputPath,
+  ], { cwd: ROOT, encoding: "utf8" });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(fs.readFileSync(outputPath, "utf8")).decision, "pass");
+  assert.equal(fs.statSync(outputPath).mode & 0o777, 0o600);
+  fs.rmSync(outputPath, { force: true });
+  fs.rmSync(root, { recursive: true, force: true });
+});
