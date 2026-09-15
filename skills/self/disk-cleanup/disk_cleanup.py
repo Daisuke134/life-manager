@@ -156,12 +156,22 @@ def _open_paths() -> frozenset[str] | None:
     return frozenset(line[1:] for line in result.stdout.splitlines() if line.startswith("n/"))
 
 
+def _is_code_sign_clone(path: Path) -> bool:
+    return (
+        path.name.startswith("code_sign_clone.")
+        and path.parent.name in {
+            "com.google.Chrome.code_sign_clone",
+            "org.chromium.Chromium.code_sign_clone",
+        }
+    )
+
+
 def _default_lsof(path: Path) -> str:
-    if RELEASE_NAME_PATTERN.fullmatch(path.name):
+    if RELEASE_NAME_PATTERN.fullmatch(path.name) or _is_code_sign_clone(path):
         opened = _open_paths()
         if opened is None:
             return "probe-error"
-        root = str(path)
+        root = str(path.resolve())
         prefix = root + "/"
         held = any(entry == root or entry.startswith(prefix) for entry in opened)
         return "open" if held else "confirmed-closed"
