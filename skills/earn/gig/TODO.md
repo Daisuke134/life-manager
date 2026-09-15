@@ -561,8 +561,38 @@ held the socket. Exact owner-group cleanup reduced zombies to two and total proc
 without touching ChatGPT, CloakBrowser or Coconala port `9223`. Root cause was
 `skills/anicca-life-manager/scripts/route_lookup.py`: it used the global default session and never closed it on
 success or repeated timeout. PR `#5209`, merge SHA `fcce2565e33e469979bcd29111b7dc7c46c02234`, uses one named
-loop session and closes it in `finally`; all PR checks passed. It is merged but not yet in a production release,
-because the current Paid run and disk headroom took priority over cutting another full release.
+loop session and closes it in `finally`; all PR checks passed. It was subsequently included in the `5d0a813f`
+production release described below.
+
+PR `#5210`, merge SHA `5d0a813fe077034577c140eb7b45c68a892b7522`, raises the bounded local finite
+worker default from three to five after exact zombie/browser-owner cleanup. A regression proves five revenue
+owners acquire and the sixth remains `capacity_busy`; host overrides and memory admission remain active. In
+production, five owners then ran concurrently: Coconala Paid, Reply and Storefront plus CrowdWorks Paid and an
+affiliate refresh. This is the new local crash-containment baseline, not permission for unbounded processes and
+not the final weighted CPU/RAM tuner. The same release exact-loaded lateness-heartbeat with the named-session
+teardown from PR `#5209`; the pre-run zombie count was two and no global browser/app restart was used.
+
+The next Ryu diagnosis rejected an incorrect large-video hypothesis before merge. Historical Ryu messages
+contain old screenshot/recording references, but they are not inputs to the current revision. The abandoned PR
+`#5211` was closed and reverted without production deployment. Root cause is broader context, not file size:
+`_buyer_attachment_recovery_pending` scanned every buyer attachment ever observed, so a handled historical
+cycle blocked a newer revision forever. PR `#5212`, merge SHA
+`d8c6f097401674bd85095d019f5941ea9322657d`, scopes the blocking gate to the current
+`live-buyer-reply.json` feedback cycle while retaining historical references for context and background
+recovery. All Paid suites passed 225 tests and every PR check passed. Read-only application to current project
+state returns recovery-ready for Ryu and both Kokoro projects. Immutable release
+`20260915T114149-d8c6f097` is current; Paid remains on its preceding release until its active natural wake
+terminates, then it must be exact-reconciled and prove real per-client effects.
+
+Observability remains a current architecture gap. Existing JSONL events and provider receipts stay the source
+of truth, while OpenTelemetry becomes the shared trace envelope rather than a second business ledger. One
+trace joins `platform/account/work-item` observe, context capsule, attachment recovery, model work, effect and
+official readback; current blocker and previous terminal blocker are separate fields; every running child emits
+bounded heartbeat/progress; SLA, repeated failure and orphan-owner alerts derive from those facts. Start with
+the OpenTelemetry Python API plus one lightweight Collector/export path. Do not install a full local Grafana,
+Loki or Hatchet stack while disk pressure and client work remain open; hosted dashboards consume the same OTLP
+later. Completion requires an injected stalled-child fixture to alert, reclaim only its exact owner, resume the
+work item and leave a sibling trace unchanged.
 
 ### 2. Coconala vertical revenue proof
 
