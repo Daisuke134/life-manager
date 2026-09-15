@@ -1,8 +1,8 @@
 # Life Manager Mental and Physical Care Design
 
-**Status:** Approved design, ready for implementation planning  
-**Owner:** Life Manager cloud runtime  
-**Primary locale:** Japanese  
+**Status:** Approved design, ready for implementation planning
+**Owner:** Life Manager cloud runtime
+**Primary locale:** Japanese
 **Related incident:** Telnyx `/v2/calls` rejects `time_limit_secs < 30` with error `90029`
 
 ## 1. Outcome
