@@ -262,6 +262,25 @@ def _select(rows: list[dict], target: str) -> list[dict]:
     return selected
 
 
+def _bounded_reconcile_candidates(registry: dict, route: str,
+                                  current_sha: str, max_owners: int) -> set[str]:
+    """Find a small deterministic set of stale installed owners before launchd probing."""
+    agents_dir = Path(os.environ.get(
+        "LIFE_MANAGER_LAUNCH_AGENTS_DIR", "~/Library/LaunchAgents")).expanduser()
+    candidates: list[str] = []
+    candidate_limit = min(64, max_owners * 8)
+    for loop_id, entry in sorted(registry["loops"].items()):
+        if entry.get("provider_route") != route:
+            continue
+        plist_path = agents_dir / f"{entry['label']}.plist"
+        installed_sha = _release_from_plist(plist_path)
+        if installed_sha and installed_sha != current_sha:
+            candidates.append(loop_id)
+        if len(candidates) >= candidate_limit:
+            break
+    return set(candidates)
+
+
 def snapshot(registry: dict, target: str) -> list[dict]:
     if target != "all" and target in registry["loops"]:
         selected_registry = {**registry, "loops": {target: registry["loops"][target]}}
@@ -817,7 +836,14 @@ def main(argv: list[str] | None = None) -> int:
         current_sha = json.loads((release_root / "RELEASE.json").read_text()).get("sha")
         rows = (targeted_snapshot(
             registry, requested_ids, release_root / "bin/launchctl-safe")
-            if requested_ids else snapshot(registry, "all"))
+            if requested_ids else (
+                targeted_snapshot(
+                    registry,
+                    _bounded_reconcile_candidates(
+                        registry, route, current_sha, max_owners),
+                    release_root / "bin/launchctl-safe",
+                ) if max_owners is not None else snapshot(registry, "all")
+            ))
         automatic_release_reconciler = (
             os.environ.get("LIFE_MANAGER_LOOP_ID") == "life-manager-release-reconciler"
         )
