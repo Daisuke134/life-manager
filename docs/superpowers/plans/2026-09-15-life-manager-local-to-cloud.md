@@ -478,8 +478,8 @@ Files: skills/_shared/marketplace-core/scripts/human_gate.py; skills/earn/mercor
 Files: runtime/loop/brain.mjs; runtime/loop/responses-adapter.mjs; runtime/agent-maintenance/agents-api-pilot.py
 
 - [ ] 通常のprovider/effect LoopはResponses APIを既存brain adapter経由で呼ぶ。
-- [ ] 長い診断だけbackground=trueで開始し、response IDを保存して次wakeで確認する。
-- [ ] background応答にはブラウザ・送信・支払いの権限を渡さない。
+- [x] 長い診断だけbackground=trueで開始し、response IDを保存して次wakeで確認する（`0784e5dc4f`）。
+- [x] background応答にはブラウザ・送信・支払いの権限を渡さない（tools空配列・terminal function_call拒否）。
 - [ ] Agents API pilotは読み取り専用release、fixture、出力先だけを与える。
 - [ ] Agents API/SDKがscheduler、provider effect、正本台帳、秘密情報へ触れられないことを確認する。
 
