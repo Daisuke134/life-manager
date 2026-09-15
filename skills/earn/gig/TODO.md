@@ -653,8 +653,9 @@ visible component and layout census across every reference rather than only the 
 buyer-visible web PASS now requires a fresh browser after entrance/consent/overlay completion, exact route and
 viewport visibility, screenshot evidence and cache-safe loaded asset identity; raw HTML/JS/CSS/API content is
 insufficient. Two new regressions, all 204 remote-wait tests, all 229 Paid tests and every PR check passed.
-Immutable release `20260915T135937-4cdfcf78` contains the rule and waits for the active preceding Paid wake to
-terminate before the Paid label is reconciled.
+Immutable release `20260915T135937-4cdfcf78` contains the rule. The preceding Paid wake terminated
+`status=completed`, `effect=0`, `readback=3`, `failed=0`; the Paid label was then exact-reconciled and started
+from this release. Ryu replayed as `satisfied_noop` with no duplicate send.
 
 Reply/Negotiate and Paid must not maintain separate semantic work engines. Their shared kernel is official
 observation -> cumulative context -> work-item decision -> text/file/remote execution -> verification ->
@@ -663,6 +664,15 @@ pre-contract demo/estimate authority differs from paid progress and buyer-author
 observed `juves9718` negotiation demonstrates the remaining gap: a buyer asked for a selection demo, but the
 current Reply path acknowledged it without creating and submitting the demo. After open Paid liabilities close,
 route substantive Reply/Negotiate requests into the same executor instead of treating them as text-only replies.
+
+Chii `18180857` remains outside the main Paid executor because `context/paid-priority.json` declares
+`delegated=true` and transfer to `chii-paid-luna`. Read-only ownership audit found that Codex process still
+present after about one day and twenty hours, but its worktree is 186 commits behind current main with no local
+changes; its last agmsg response was only the September 13 acknowledgement and it has emitted no later milestone
+or effect handoff. Current official campaign truth remains 12/300 verified TikTok-DM plus Sheet pairs, 288
+remaining. Main Paid must not remove the flag or touch the same TikTok/Sheet state while that owner can still
+act. The next atomic action is explicit stale-owner retirement, then remove the delegation flag, refresh from
+current main/release and resume from the exact 12-pair ledger without resending uncertain recipients.
 
 Observability remains a current architecture gap. Existing JSONL events and provider receipts stay the source
 of truth, while OpenTelemetry becomes the shared trace envelope rather than a second business ledger. One
