@@ -116,6 +116,30 @@ class TikTokMessageTransportTest(unittest.TestCase):
         self.assertEqual(result["status"], "sender_identity_mismatch")
         self.assertEqual(result["effect"], 0)
 
+    def test_waits_for_delayed_authenticated_sender_navigation(self):
+        class DelayedIdentity(FakeCDP):
+            def __init__(self):
+                super().__init__()
+                self.identity_reads = 0
+
+            def evaluate(self, target, expression):
+                if "TIKTOK_IDENTITY" in expression:
+                    self.identity_reads += 1
+                    if self.identity_reads == 1:
+                        self.calls.append(("evaluate", target, expression))
+                        return {
+                            "url": "https://www.tiktok.com/",
+                            "profile_navigation_hrefs": [],
+                            "login_control_count": 0,
+                        }
+                return super().evaluate(target, expression)
+
+        fake = DelayedIdentity()
+        result = self.send(self.payload(), fake, send=False)
+        self.assertEqual(result["status"], "ready")
+        self.assertTrue(result["sender_identity"]["authenticated"])
+        self.assertGreaterEqual(fake.identity_reads, 2)
+
     def test_deduplicates_exact_existing_message(self):
         fake = FakeCDP(exact_before=True)
         result = self.send(self.payload(), fake)
