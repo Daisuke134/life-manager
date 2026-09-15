@@ -17,6 +17,7 @@ import { spawn } from 'node:child_process';
 import { buildSystemPrompt, buildUserMessage, getToolDefinitions } from './prompt.mjs';
 // spec 25 O1: expose each live skill as a pickable tool (enum on run_skill.slot).
 import { scrubPrivateKeys } from './env-filter.mjs';
+import { thinkResponses } from './responses-adapter.mjs';
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 2000;
@@ -45,6 +46,8 @@ export async function think(ctx, config) {
     // is the only way they stay net-positive.
     return thinkClaudeP(ctx, config);
   }
+
+  if (brain === 'responses') return thinkResponses(ctx, config);
 
   return thinkProxy(ctx, config);
 }

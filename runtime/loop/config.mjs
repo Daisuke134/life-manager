@@ -59,11 +59,19 @@ const DEFAULTS = {
   LEAN_TIER_THRESHOLD:  1.00,
   ANICCA_BRAIN:         'proxy',
   ANICCA_BRAIN_MODEL:   'claude-sonnet-4-6',
+  // Optional Responses API lane. The existing proxy remains the default; a loop opts in by
+  // setting ANICCA_BRAIN=responses. Keep the endpoint/model explicit so local and cloud can use
+  // the same adapter without silently changing the established proxy route.
+  OPENAI_RESPONSES_BASE_URL: 'https://api.openai.com/v1',
+  ANICCA_RESPONSES_MODEL: 'gpt-6-astra',
+  RESPONSES_TIMEOUT_MS: 30000,
+  RESPONSES_MAX_OUTPUT_TOKENS: 512,
 };
 
 const INTEGER_KEYS = new Set([
   'SLEEP_BASE_S', 'SLEEP_ERROR_S', 'SLEEP_LOOP_DETECT_S', 'SLEEP_LOOP_DETECT_MAX_S',
   'SKILL_TIMEOUT_S', 'LOOP_DETECT_WINDOW', 'BALANCE_CACHE_TTL_S',
+  'RESPONSES_TIMEOUT_MS', 'RESPONSES_MAX_OUTPUT_TOKENS',
 ]);
 
 const FLOAT_KEYS = new Set(['LEAN_TIER_THRESHOLD']);

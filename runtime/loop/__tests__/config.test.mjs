@@ -60,6 +60,22 @@ test('PROP-011/012: defaults applied when nothing set', () => {
   assert.equal(config.LEAN_TIER_THRESHOLD, 1.00);
 });
 
+test('API-01: Responses configuration is loaded without changing the proxy default', () => {
+  const config = loadConfig({
+    ANICCA_HOME: '/tmp/test',
+    ANICCA_BRAIN: 'responses',
+    OPENAI_RESPONSES_BASE_URL: 'https://api.openai.com/v1',
+    ANICCA_RESPONSES_MODEL: 'gpt-6-astra',
+    RESPONSES_TIMEOUT_MS: '45000',
+    RESPONSES_MAX_OUTPUT_TOKENS: '1024',
+  }, '');
+  assert.equal(config.ANICCA_BRAIN, 'responses');
+  assert.equal(config.OPENAI_RESPONSES_BASE_URL, 'https://api.openai.com/v1');
+  assert.equal(config.ANICCA_RESPONSES_MODEL, 'gpt-6-astra');
+  assert.equal(config.RESPONSES_TIMEOUT_MS, 45000);
+  assert.equal(config.RESPONSES_MAX_OUTPUT_TOKENS, 1024);
+});
+
 // ANICCA_HOME not set -> error-like config (loop will handle)
 test('PROP-011: ANICCA_HOME absent yields empty/null home path', () => {
   const config = loadConfig({}, '');
