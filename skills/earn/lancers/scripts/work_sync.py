@@ -381,6 +381,8 @@ def read_only_inventory(*, state_path: Path = DEFAULT_STATE_PATH, browser_factor
             result["logged_in"] = True
     except SourceFailure as error:
         result = _failed(str(error), logged_in)
+    except application_tick.BrowserSessionBusy:
+        result = _failed("browser_session_busy", logged_in)
     except Exception as error:
         result = _failed("account_lock_busy" if type(error).__name__ == "_AccountLockBusy" else "observer_unavailable", logged_in)
     finally:
@@ -405,6 +407,8 @@ def read_paid_inventory(*, state_path: Path = DEFAULT_STATE_PATH,
             result["logged_in"] = True
     except SourceFailure as error:
         result = _failed(str(error), logged_in)
+    except application_tick.BrowserSessionBusy:
+        result = _failed("browser_session_busy", logged_in)
     except Exception as error:
         result = _failed(
             "account_lock_busy" if type(error).__name__ == "_AccountLockBusy"
@@ -500,6 +504,8 @@ def run_tick(*, state_path: Path = DEFAULT_STATE_PATH, browser_factory: Optional
             })
     except SourceFailure as error:
         result = _failed(str(error), logged_in)
+    except application_tick.BrowserSessionBusy:
+        result = _failed("browser_session_busy", logged_in)
     except Exception as error:
         result = _failed("account_lock_busy" if type(error).__name__ == "_AccountLockBusy" else "observer_unavailable", logged_in)
     finally:

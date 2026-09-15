@@ -9,11 +9,27 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import re
 from typing import Any, Callable, Mapping
 
 
 HERE = Path(__file__).resolve().parent
 DEFAULT_STATE = Path.home() / ".local/state/anicca/lancers/application.json"
+
+_WAITABLE_INVENTORY_ERRORS = {
+    "account_unavailable": ["restore the official Lancers session and retry inventory"],
+    "account_lock_busy": ["retry inventory after the Lancers account lock is released"],
+    "browser_session_busy": ["retry inventory after the shared Lancers browser session is released"],
+}
+
+
+class LancersPaidInventoryWait(RuntimeError):
+    """A transient inventory boundary that the shared kernel should retry."""
+
+    def __init__(self, reason: str, remaining_work: list[str]):
+        super().__init__(reason)
+        self.paid_wait_reason = reason
+        self.paid_remaining_work = remaining_work
 
 
 def _digest(value: Mapping[str, Any]) -> str:
@@ -43,9 +59,17 @@ class LancersPaidAdapter:
 
     def _inventory(self) -> list[dict[str, Any]]:
         snapshot = self.inventory_reader()
-        if (not isinstance(snapshot, Mapping) or snapshot.get("ok") is not True
-                or snapshot.get("source_complete") is not True
+        if not isinstance(snapshot, Mapping):
+            raise RuntimeError("lancers_paid_inventory_unavailable")
+        if (snapshot.get("ok") is not True or snapshot.get("source_complete") is not True
                 or not isinstance(snapshot.get("contract_candidates"), list)):
+            error = snapshot.get("error")
+            if isinstance(error, str) and error in _WAITABLE_INVENTORY_ERRORS:
+                raise LancersPaidInventoryWait(error, list(_WAITABLE_INVENTORY_ERRORS[error]))
+            if isinstance(error, str) and re.fullmatch(r"[a-z][a-z0-9_]{1,127}", error):
+                failure = RuntimeError("lancers_paid_inventory_unavailable")
+                failure.paid_error_code = f"lancers_paid_{error}"
+                raise failure
             raise RuntimeError("lancers_paid_inventory_unavailable")
         observed_at = self.clock()
         rows = []
