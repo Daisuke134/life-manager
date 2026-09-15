@@ -743,6 +743,19 @@ and durable preflight checkpoints. It continued between candidates without a new
 bottleneck is now discovery of eligible profiles whose official TikTok DM route is available, not authentication,
 Sheets access, memory admission, static delegation or one-candidate process termination.
 
+The next targeted Chii run proved the full bounded continuation chain. Round one used official TikTok and
+`gog sheets` readbacks, removed three non-effective rows with exact range confirmation, and checkpointed the
+12-row effective ledger. Round two started in the same process, checked `@nanana.206` and `@shakaijin_` without a
+new wake, and checkpointed both as route-unavailable effect zero. Round three then started in the same process.
+The same-project model/effect lock serialized a coincident natural Chii worker while Ryu remained independent;
+there was no simultaneous mutation of Chii state and no cross-client wait.
+
+Ryu `18211957` completed its newer management-screen revision in parallel. Durable item result is
+`status=completed`, `effect=1`, `readback=1`, `failed=0`, `remote_repaired=true`, formal delivery OFF. The official
+talkroom readback contains a seller message later than the buyer request, stating that the admin now starts from
+HOME with item navigation, page/profile sections are individually selectable, and the public site initially shows
+HOME rather than attendance. Ryu is now buyer-waiting and must replay zero unless a newer buyer event arrives.
+
 Ryu's newer buyer event supersedes the earlier satisfied no-op. The buyer asks for the administration page to
 use a HOME-first left-side section menu so each component can be edited without scrolling the whole profile, and
 asks that the public site start at HOME rather than attendance. Chii remains first; after its 300 verified pairs
