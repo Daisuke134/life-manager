@@ -447,6 +447,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "PATH": f"{fake_bin}:{os.environ['PATH']}",
                     "LIFE_MANAGER_SOURCE_REPO": str(root),
                     "LOOPS_ROOT": str(loops),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
                 },
                 capture_output=True,
                 text=True,
@@ -457,7 +458,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(cutter_arg.read_text().strip(), captured_sha)
             self.assertEqual((root / "origin.sha").read_text().strip(), "c" * 40)
             reconciles = calls.read_text().splitlines()
-            self.assertEqual(len(reconciles), 2)
+            self.assertEqual(len(reconciles), 3)
             self.assertTrue(
                 all(line.startswith(f"{new_release.resolve()}|") for line in reconciles),
                 reconciles,
@@ -467,6 +468,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                 [
                     "reconcile shared-agent-runner --loaded-idle-only",
                     "reconcile deterministic --loaded-idle-only",
+                    "admission-v2-enable",
                 ],
             )
 
@@ -487,6 +489,9 @@ class CutLoopReleaseTest(unittest.TestCase):
             )
             cutter_called = root / "cutter.called"
             calls = root / "lm-loop.calls"
+            admission_root = root / "admission"
+            admission_root.mkdir()
+            (admission_root / "protocol.json").write_text('{"version":2}\n')
             fake_git = fake_bin / "git"
             fake_git.write_text(
                 "#!/bin/sh\n"
@@ -516,6 +521,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "PATH": f"{fake_bin}:{os.environ['PATH']}",
                     "LIFE_MANAGER_SOURCE_REPO": str(root),
                     "LOOPS_ROOT": str(loops),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(admission_root),
                 },
                 capture_output=True,
                 text=True,

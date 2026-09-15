@@ -36,6 +36,11 @@ reconcile_release() {
     reconcile deterministic --loaded-idle-only; then
     status=1
   fi
+  local admission_root="${LIFE_MANAGER_RESOURCE_ADMISSION_ROOT:-$HOME/.local/state/life-manager/host-admission/resources}"
+  if [ ! -f "$admission_root/protocol.json" ] && \
+    ! LIFE_MANAGER_RELEASE_ROOT="$release_root" "$release_root/bin/lm-loop" admission-v2-enable; then
+    status=1
+  fi
   return "$status"
 }
 

@@ -211,6 +211,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "reconcile deterministic --loaded-idle-only",
             script,
         )
+        self.assertIn("admission-v2-enable", script)
         self.assertNotIn("--include-running", script)
         self.assertNotIn("--loop-id", script)
 

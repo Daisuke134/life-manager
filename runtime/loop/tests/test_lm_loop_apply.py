@@ -2318,6 +2318,35 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(result["verified_finite_labels"], 1)
         activate.assert_called_once_with(allow_live_owners=True)
 
+    def test_admission_v2_activation_accepts_unloaded_v2_capable_plist(self):
+        (self.root / "config").mkdir()
+        (self.root / "config/runtime-capabilities.json").write_text(json.dumps({
+            "resource_admission": 2,
+        }))
+        agents_dir = self.root / "Library" / "LaunchAgents"
+        agents_dir.mkdir(parents=True)
+        release = self.root.resolve()
+        expected = [str(release / "bin/lm-loop-run"), "example", str(release)]
+        (agents_dir / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
+            "Label": "ai.anicca.example",
+            "ProgramArguments": expected,
+        }))
+
+        def launchctl(_safe, args):
+            if args == ["preflight"]:
+                return 0, "ok"
+            return 1, "Could not find service"
+
+        with (patch.object(lm_loop, "_safe_launchctl", side_effect=launchctl),
+              patch.object(lm_loop, "activate_durable_v2") as activate):
+            result = lm_loop.activate_durable_admission_live(
+                registry(), self.root, self.root / "bin/launchctl-safe",
+                current=self.root / "current", agents_dir=agents_dir,
+            )
+
+        self.assertEqual(result["verified_finite_labels"], 1)
+        activate.assert_called_once_with(allow_live_owners=True)
+
     def test_admission_v2_activation_verifies_all_finite_labels_then_flips(self):
         (self.root / "config").mkdir()
         (self.root / "config/runtime-capabilities.json").write_text(json.dumps({

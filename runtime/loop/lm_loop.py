@@ -478,13 +478,15 @@ def activate_current(current: Path, release_root: Path,
 
 def activate_durable_admission_live(
         registry: dict, release_root: Path, launchctl_safe: Path, *,
-        current: Path | None = None) -> dict[str, object]:
+        current: Path | None = None,
+        agents_dir: Path | None = None) -> dict[str, object]:
     """Enable v2 only when every finite owner uses a v2-capable release."""
     validate_registry(registry)
     release_root = release_root.resolve(strict=True)
     if not _supports_durable_admission_v2(release_root):
         raise RuntimeError("release does not support durable admission v2")
     current = Path(current or "~/loops/current").expanduser()
+    agents_dir = Path(agents_dir or "~/Library/LaunchAgents").expanduser()
     with _protocol_transition_lock(current, exclusive=True):
         with _apply_lock(current, None):
             preflight_rc, detail = _safe_launchctl(launchctl_safe, ["preflight"])
@@ -496,7 +498,25 @@ def activate_durable_admission_live(
                     continue
                 rc, printed = _safe_launchctl(
                     launchctl_safe, ["print", f"gui/{os.getuid()}/{entry['label']}"])
-                if rc != 0 or not _loaded_v2_release(_loaded_arguments(printed), loop_id):
+                if rc != 0:
+                    absent = bool(re.search(
+                        r"(?i)(?:could not find service|service not found|\babsent\b)",
+                        printed))
+                    if not absent:
+                        raise RuntimeError(
+                            f"{loop_id}: loaded argv readback failed: {printed.strip()}")
+                    plist_path = agents_dir / f"{entry['label']}.plist"
+                    try:
+                        with plist_path.open("rb") as handle:
+                            plist = plistlib.load(handle)
+                        arguments = list(map(str, plist.get("ProgramArguments") or []))
+                    except (OSError, ValueError, plistlib.InvalidFileException):
+                        arguments = []
+                    if not _loaded_v2_release(arguments, loop_id):
+                        raise RuntimeError(f"{loop_id}: installed plist is not v2-capable")
+                    verified += 1
+                    continue
+                if not _loaded_v2_release(_loaded_arguments(printed), loop_id):
                     raise RuntimeError(f"{loop_id}: loaded argv is not v2-capable")
                 verified += 1
             activate_durable_v2(allow_live_owners=True)
