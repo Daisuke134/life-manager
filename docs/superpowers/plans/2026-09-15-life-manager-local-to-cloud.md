@@ -323,8 +323,9 @@ Parallel API progress (production cursor unchanged): `c3d62f0098` adds an opt-in
   `function_call` back to the existing parser. HTTP errors, missing IDs, multiple calls, empty output,
   and timeouts fail closed. `0784e5dc4f` adds read-only `background=true` start/poll helpers that persist
   a response ID through the caller and reject function calls from the background diagnostic lane.
-  `ANICCA_BRAIN=proxy` remains the default; live-cost/effect promotion and production rollout are
-  still open. Focused adapter/config/brain/parser tests: 34 passed.
+  `34933e328d` rejects public HTTP endpoints before a key-bearing request, while allowing local HTTP
+  and explicit public HTTPS. `ANICCA_BRAIN=proxy` remains the default; live-cost/effect promotion and
+  production rollout are still open. Focused adapter/config/brain/parser tests: 35 passed.
 
 ## FND research gate (search complete; FND-02 implemented)
 
