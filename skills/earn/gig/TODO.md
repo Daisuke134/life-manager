@@ -626,6 +626,20 @@ digest and must finish a fresh verifier, corrective Coconala message and officia
 can close. Future buyer-visible web effects cannot pass from raw API/asset text alone; acceptance needs a fresh
 browser-visible route after entrance/overlay completion and cache-safe asset identity.
 
+The buyer then supplied the five reference screenshots again, which disproved the narrower semantic contract:
+the live page had basic measurements and six options but not the complete reference composition. The references
+also required attribute badges, a broad tri-state option grid, Q&A, cast message, manager comment, per-profile
+schedule, review/recent-view states and previous/list/next navigation. The owner extended only the existing
+HTML/JS/CSS and authenticated content document: no new framework or parallel site was introduced. A failing
+three-test reference contract became green; JavaScript syntax passed; local and production 390px browser checks
+then measured two badges, four measurements, 33 options, seven Q&A rows, both message sections, three schedule
+rows, explicit empty review/recent states and three navigation links. The existing XServer FTPS adapter returned
+matching hashes, the authenticated content API save/readback returned 200, and the cache-safe asset versions
+matched in the real page. The corrective full-profile Coconala message was sent with formal delivery OFF and is
+the latest seller message in independent selected-talkroom readback. The current photo count is one; the existing
+administration supports up to five distinct uploads, replacement and ordering without fabricating extra cast
+photos.
+
 Observability remains a current architecture gap. Existing JSONL events and provider receipts stay the source
 of truth, while OpenTelemetry becomes the shared trace envelope rather than a second business ledger. One
 trace joins `platform/account/work-item` observe, context capsule, attachment recovery, model work, effect and
