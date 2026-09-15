@@ -776,6 +776,15 @@ provider display suppression, not candidate ineligibility and not permission to 
 remaining 144-URL discovery wave, resume from its first unverified URL when official profile bodies render again,
 and keep the single persistent owner/session; do not rotate accounts or browsers to evade the provider state.
 
+The shared runtime admission review then found a separate fleet-wide hang class: `transfer_durable` and
+`release_and_reserve` used blocking `flock(LOCK_EX)` after a child or sibling held `control.lock`. The minimal
+shared fix is now on branch `fix/runtime-admission-lock-bounded-20260915`: both paths use the existing
+`_acquire_bounded` helper with a 0.5-second deadline and fail closed as `control_busy`; the claim remains durable
+for the next stale-owner recovery. Two mock and two real multiprocessing lock-holder regressions cover the
+handoff/release behavior. Clean `origin/main` plus this one commit passes 160 related Python tests and 100
+subtests, and the 500-waiter benchmark completes in 1.286 seconds. The branch is pushed but intentionally not
+merged until the full Coconala acceptance gate; production still runs the prior immutable release.
+
 Observability remains a current architecture gap. Existing JSONL events and provider receipts stay the source
 of truth, while OpenTelemetry becomes the shared trace envelope rather than a second business ledger. One
 trace joins `platform/account/work-item` observe, context capsule, attachment recovery, model work, effect and
