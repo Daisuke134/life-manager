@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
 from collections.abc import Mapping
@@ -131,6 +132,7 @@ def validate_runtime_identity(
         "entrypoint": entrypoint,
         "release_sha": release_sha,
         "state_root": str(state_root),
+        "state_root_sha256": hashlib.sha256(str(state_root).encode()).hexdigest(),
         "resource_class": _resource_class(entry),
         "current_release_sha": current_sha or release_sha,
     }

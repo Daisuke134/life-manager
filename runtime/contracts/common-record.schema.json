@@ -62,6 +62,9 @@
         "owner_id": {"$ref": "#/$defs/Id"}, "wake_id": {"$ref": "#/$defs/Id"},
         "attempt": {"type": "integer", "minimum": 1, "maximum": 20},
         "effect_key": {"type": ["string", "null"], "minLength": 1, "maxLength": 1024},
+        "entrypoint": {"type": "string", "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[A-Za-z0-9._/-]{1,512}$"},
+        "resource_class": {"enum": ["agent", "deterministic"]},
+        "state_root_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
         "failure_layer": {"oneOf": [
           {"enum": ["admission", "context", "model", "tool", "provider", "readback", "persistence", "notification", "release", "unknown"]},
           {"type": "null"}

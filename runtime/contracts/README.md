@@ -30,9 +30,10 @@ layer, and idempotency key without copying provider payloads.
 `HostPressure` contains only bounded memory, swap, load, wake, browser-process, and endpoint counts;
 it is an admission signal, not a provider receipt and never includes PIDs, URLs, or credentials.
 Runtime events may also carry `product_loop_id`, `job_id`, `owner_id`, `wake_id`, `attempt`,
-`effect_key`, `failure_layer`, `official_readback_ref`, and `next_eligible_at`. These optional
-identity fields are emitted by the current builders so older event rows remain readable while the
-runtime migrates to the full join key.
+`effect_key`, `failure_layer`, `official_readback_ref`, `next_eligible_at`, `entrypoint`,
+`resource_class`, and a `state_root_sha256` (hash only). These optional identity fields are emitted
+by the current builders so older event rows remain readable while the runtime migrates to the full
+join key without exporting a private state path.
 Every FinancialRecord identity is deterministic:
 `record_id = "financial:" + sha256_utf8(subject_id + "\n" + idempotency_key)`.
 The JSON Schema enforces the resulting shape; `projectFinancialRecord` enforces this cross-field

@@ -121,6 +121,13 @@ TODO worktree. The current cursor is `GRAPH-01`.
   proof: `runtime/loop/tests/test_lm_loop_readonly.py::test_doctor_reports_installed_release_drift`
   and the full read-only suite passed. No provider, browser, launchd, ledger, or Telegram effect was
   performed. Next active ID remains `GRAPH-01`.
+- [x] `ALIGN-03` — Added privacy-safe launch identity fields to runtime start/terminal events:
+  repository-relative `entrypoint`, `resource_class`, and a SHA-256 state-root identifier. The
+  common schema validates the fields, while raw private paths remain excluded. Added a wrong-owner
+  launchd fixture proving the child is not started and an event-identity fixture proving both lifecycle
+  events retain the same metadata. Focused proof: `runtime/loop/tests/test_release_identity.py` (4
+  passed) and runtime/contract suites. No provider, browser, launchd, ledger, or Telegram effect was
+  performed. Next active ID remains `GRAPH-01`.
 
 ## FND research gate (search complete; FND-02 implemented)
 

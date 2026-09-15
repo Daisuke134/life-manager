@@ -1,4 +1,5 @@
 import json
+import hashlib
 from pathlib import Path
 from unittest.mock import patch
 
@@ -56,6 +57,7 @@ def test_stale_effect_release_is_rejected_before_child_start(tmp_path, monkeypat
     (loops / "current").symlink_to(current_release)
     state_root = tmp_path / ".local/state/life-manager/example"
     monkeypatch.setattr(Path, "home", classmethod(lambda _cls: tmp_path))
+    monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "example")
     monkeypatch.setenv("LIFE_MANAGER_REPO", str(old_release.resolve()))
     monkeypatch.setenv("LIFE_MANAGER_RELEASE_SHA", SHA_OLD)
@@ -89,6 +91,7 @@ def test_control_plane_release_reconciler_may_run_across_release_drift(tmp_path,
     (loops / "current").symlink_to(current_release)
     state_root = tmp_path / ".local/state/life-manager/life-manager-release-reconciler"
     monkeypatch.setattr(Path, "home", classmethod(lambda _cls: tmp_path))
+    monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "life-manager-release-reconciler")
     monkeypatch.setenv("LIFE_MANAGER_REPO", str(old_release.resolve()))
     monkeypatch.setenv("LIFE_MANAGER_RELEASE_SHA", SHA_OLD)
@@ -99,3 +102,61 @@ def test_control_plane_release_reconciler_may_run_across_release_drift(tmp_path,
 
     assert result == 0
     run.assert_called_once()
+
+
+def test_wrong_launchd_owner_cannot_start_a_different_loop(tmp_path, monkeypatch):
+    release = _release(tmp_path, "release", SHA_OLD)
+    loops = tmp_path / "loops"
+    loops.mkdir()
+    (loops / "current").symlink_to(release)
+    state_root = tmp_path / ".local/state/life-manager/example"
+    monkeypatch.setattr(Path, "home", classmethod(lambda _cls: tmp_path))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "other-owner")
+    monkeypatch.setenv("LIFE_MANAGER_REPO", str(release.resolve()))
+    monkeypatch.setenv("LIFE_MANAGER_RELEASE_SHA", SHA_OLD)
+    monkeypatch.setenv("LIFE_MANAGER_STATE_ROOT", str(state_root))
+    started = []
+
+    with patch.object(
+        lm_loop_run, "_run_admitted", side_effect=lambda *args: started.append(args) or 0
+    ):
+        result = lm_loop_run.main(["example", str(release)])
+
+    assert result == 78
+    assert started == []
+    event = json.loads(
+        (state_root / "events.jsonl").read_text(encoding="utf-8").splitlines()[-1]
+    )
+    assert event["blocker"] == "runtime_identity_mismatch"
+
+
+def test_runtime_events_keep_launch_identity_without_private_state_path(
+    tmp_path, monkeypatch
+):
+    release = _release(tmp_path, "release", SHA_OLD)
+    loops = tmp_path / "loops"
+    loops.mkdir()
+    (loops / "current").symlink_to(release)
+    state_root = tmp_path / ".local/state/life-manager/example"
+    monkeypatch.setattr(Path, "home", classmethod(lambda _cls: tmp_path))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "example")
+    monkeypatch.setenv("LIFE_MANAGER_REPO", str(release.resolve()))
+    monkeypatch.setenv("LIFE_MANAGER_RELEASE_SHA", SHA_OLD)
+    monkeypatch.setenv("LIFE_MANAGER_STATE_ROOT", str(state_root))
+
+    with patch.object(lm_loop_run, "_run_admitted", return_value=0):
+        result = lm_loop_run.main(["example", str(release)])
+
+    assert result == 0
+    events = [
+        json.loads(line)
+        for line in (state_root / "events.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    expected_hash = hashlib.sha256(str(state_root).encode()).hexdigest()
+    for event in events:
+        assert event["entrypoint"] == "bin/effect.sh"
+        assert event["resource_class"] == "deterministic"
+        assert event["state_root_sha256"] == expected_hash
+        assert str(state_root) not in json.dumps(event)

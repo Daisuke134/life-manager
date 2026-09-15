@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import plistlib
 import re
@@ -493,6 +494,12 @@ def main(argv: list[str] | None = None) -> int:
         loop_state_root = Path(os.path.expanduser(
             os.environ.get("LIFE_MANAGER_STATE_ROOT", entry["state_root"])))
         run_id = os.environ.get("LIFE_MANAGER_RUN_ID") or f"{time.time_ns():x}-{os.getpid()}"
+        event_resource_class = entry.get("resource_class") or (
+            "agent" if entry["provider_route"] == "shared-agent-runner" else "deterministic"
+        )
+        event_state_root_sha256 = hashlib.sha256(
+            str(loop_state_root.resolve(strict=False)).encode()
+        ).hexdigest()
         try:
             identity = validate_runtime_identity(
                 registry,
@@ -521,6 +528,9 @@ def main(argv: list[str] | None = None) -> int:
                         job_id=loop_id,
                         owner_id=loop_id,
                         wake_id=run_id,
+                        entrypoint=entry["entrypoint"],
+                        resource_class=event_resource_class,
+                        state_root_sha256=event_state_root_sha256,
                     ),
                 )
             except (OSError, ValueError) as event_error:
@@ -541,6 +551,9 @@ def main(argv: list[str] | None = None) -> int:
                     profile_alias=None, effect_class=entry["effect_class"],
                     product_loop_id=loop_id, job_id=loop_id,
                     owner_id=identity["owner_id"], wake_id=run_id,
+                    entrypoint=identity["entrypoint"],
+                    resource_class=identity["resource_class"],
+                    state_root_sha256=identity["state_root_sha256"],
                 ))
             except (OSError, ValueError) as error:
                 print(f"lm-loop-run: start event failed: {error}", file=sys.stderr)
@@ -562,6 +575,9 @@ def main(argv: list[str] | None = None) -> int:
                 succeeded=succeeded, deferred=deferred, blocker=blocker,
                 evidence_scheme="lm-loop", product_loop_id=loop_id, job_id=loop_id,
                 owner_id=identity["owner_id"], wake_id=run_id,
+                entrypoint=identity["entrypoint"],
+                resource_class=identity["resource_class"],
+                state_root_sha256=identity["state_root_sha256"],
             )
             append_runtime_event(event_path, event)
             terminal_saved = True

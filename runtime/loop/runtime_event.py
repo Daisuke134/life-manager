@@ -20,7 +20,8 @@ REQUIRED_FIELDS = {
 }
 OPTIONAL_IDENTITY_FIELDS = {
     "product_loop_id", "job_id", "owner_id", "wake_id", "attempt", "effect_key",
-    "failure_layer", "official_readback_ref", "next_eligible_at",
+    "failure_layer", "official_readback_ref", "next_eligible_at", "entrypoint",
+    "resource_class", "state_root_sha256",
 }
 FIELDS = REQUIRED_FIELDS | OPTIONAL_IDENTITY_FIELDS
 DOMAINS = {"physical", "mental", "financial", "earn", "growth", "system"}
@@ -31,6 +32,8 @@ EFFECT_STATUSES = {"not_applicable", "unknown", "planned", "started", "verified"
 FAILURE_LAYERS = {"admission", "context", "model", "tool", "provider", "readback", "persistence", "notification", "release", "unknown"}
 SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 SAFE_REF = re.compile(r"[a-z][a-z0-9+.-]*://[A-Za-z0-9._:/-]{1,512}\Z")
+SAFE_ENTRYPOINT = re.compile(r"[A-Za-z0-9._/-]{1,512}\Z")
+SHA256 = re.compile(r"[a-f0-9]{64}\Z")
 SECRET = re.compile(
     r"(?i)(?:bearer\s+[A-Za-z0-9._~+/-]+|(?:token|secret|password|credential|api.?key|auth\.json)\s*[=:]|(?<![A-Za-z0-9])sk-[A-Za-z0-9_-]{16,}|/" r"Users/)"
 )
@@ -154,6 +157,17 @@ def validate_runtime_event(event: dict) -> dict:
                 datetime.fromisoformat(next_at.replace("Z", "+00:00"))
             except (AttributeError, ValueError) as exc:
                 raise ValueError("invalid next_eligible_at") from exc
+    if "entrypoint" in event:
+        entrypoint = event["entrypoint"]
+        if (not isinstance(entrypoint, str) or not SAFE_ENTRYPOINT.fullmatch(entrypoint)
+                or entrypoint.startswith("/") or ".." in entrypoint.split("/")):
+            raise ValueError("invalid entrypoint")
+    if "resource_class" in event and event["resource_class"] not in {"agent", "deterministic"}:
+        raise ValueError("invalid resource_class")
+    if "state_root_sha256" in event and (
+            not isinstance(event["state_root_sha256"], str)
+            or not SHA256.fullmatch(event["state_root_sha256"])):
+        raise ValueError("invalid state_root_sha256")
     return event
 
 
@@ -181,7 +195,10 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
                         attempt: int = 1, effect_key: str | None = None,
                         failure_layer: str | None = None,
                         official_readback_ref: str | None = None,
-                        next_eligible_at: str | None = None) -> dict:
+                        next_eligible_at: str | None = None,
+                        entrypoint: str | None = None,
+                        resource_class: str | None = None,
+                        state_root_sha256: str | None = None) -> dict:
     timestamp = datetime.now(timezone.utc).isoformat()
     if succeeded and deferred:
         raise ValueError("runtime event cannot be both succeeded and deferred")
@@ -221,6 +238,13 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
         "official_readback_ref": official_readback_ref,
         "next_eligible_at": next_eligible_at,
     }
+    for key, value in {
+        "entrypoint": entrypoint,
+        "resource_class": resource_class,
+        "state_root_sha256": state_root_sha256,
+    }.items():
+        if value is not None:
+            event[key] = value
     return validate_runtime_event(event)
 
 
@@ -232,13 +256,16 @@ def build_runtime_start_event(*, loop_id: str, domain: str, run_id: str,
                               attempt: int = 1, effect_key: str | None = None,
                               failure_layer: str | None = None,
                               official_readback_ref: str | None = None,
-                              next_eligible_at: str | None = None) -> dict:
+                              next_eligible_at: str | None = None,
+                              entrypoint: str | None = None,
+                              resource_class: str | None = None,
+                              state_root_sha256: str | None = None) -> dict:
     timestamp = datetime.now(timezone.utc).isoformat()
     product_loop_id = product_loop_id or loop_id
     job_id = job_id or loop_id
     owner_id = owner_id or job_id
     wake_id = wake_id or run_id
-    return validate_runtime_event({
+    event = {
         "version": 1,
         "event_id": _event_identity(
             release_sha=release_sha, product_loop_id=product_loop_id, job_id=job_id,
@@ -267,7 +294,15 @@ def build_runtime_start_event(*, loop_id: str, domain: str, run_id: str,
         "failure_layer": failure_layer,
         "official_readback_ref": official_readback_ref,
         "next_eligible_at": next_eligible_at,
-    })
+    }
+    for key, value in {
+        "entrypoint": entrypoint,
+        "resource_class": resource_class,
+        "state_root_sha256": state_root_sha256,
+    }.items():
+        if value is not None:
+            event[key] = value
+    return validate_runtime_event(event)
 
 
 def build_install_event(*, loop_id: str, domain: str, release_sha: str,
@@ -277,13 +312,16 @@ def build_install_event(*, loop_id: str, domain: str, release_sha: str,
                         attempt: int = 1, effect_key: str | None = None,
                         failure_layer: str | None = None,
                         official_readback_ref: str | None = None,
-                        next_eligible_at: str | None = None) -> dict:
+                        next_eligible_at: str | None = None,
+                        entrypoint: str | None = None,
+                        resource_class: str | None = None,
+                        state_root_sha256: str | None = None) -> dict:
     timestamp = datetime.now(timezone.utc).isoformat()
     product_loop_id = product_loop_id or loop_id
     job_id = job_id or loop_id
     owner_id = owner_id or job_id
     wake_id = wake_id or "install"
-    return validate_runtime_event({
+    event = {
         "version": 1,
         "event_id": _event_identity(
             release_sha=release_sha, product_loop_id=product_loop_id, job_id=job_id,
@@ -312,7 +350,15 @@ def build_install_event(*, loop_id: str, domain: str, release_sha: str,
         "failure_layer": failure_layer,
         "official_readback_ref": official_readback_ref,
         "next_eligible_at": next_eligible_at,
-    })
+    }
+    for key, value in {
+        "entrypoint": entrypoint,
+        "resource_class": resource_class,
+        "state_root_sha256": state_root_sha256,
+    }.items():
+        if value is not None:
+            event[key] = value
+    return validate_runtime_event(event)
 
 
 def _contains_event_id(fd: int, event_id: str) -> bool:
