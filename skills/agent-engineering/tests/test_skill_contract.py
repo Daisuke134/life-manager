@@ -1,5 +1,6 @@
 """Contract tests for the repository-owned agent-engineering skill set."""
 
+import json
 from pathlib import Path
 
 
@@ -244,3 +245,38 @@ def test_product_readmes_are_short_and_cover_the_shared_runtime_contract() -> No
         assert token in japanese, token
     assert "Live Dashboard" not in english
     assert "Live Dashboard" not in japanese
+
+
+def test_registry_product_and_job_identity() -> None:
+    catalog = json.loads(
+        (REPO_ROOT / "apps/life-manager/config/product-loop-catalog.json").read_text(
+            encoding="utf-8",
+        )
+    )
+    registry = json.loads(
+        (REPO_ROOT / "config/loop-registry.json").read_text(encoding="utf-8")
+    )
+
+    assert catalog["schema_version"] == 1
+    loops = catalog["loops"]
+    assert len(loops) == 14
+    assert {item["id"] for item in loops} == {
+        "gig-coconala", "gig-lancers", "gig-crowdworks", "writer", "affiliate",
+        "investment", "agent-economy", "job-hunter", "fundraiser", "connector",
+        "self-build", "mobile-apps", "capafy", "cfo",
+    }
+
+    seen_jobs: dict[str, str] = {}
+    for product_loop in loops:
+        job_ids = product_loop["job_ids"]
+        assert job_ids, product_loop["id"]
+        assert len(job_ids) == len(set(job_ids)), product_loop["id"]
+        for job_id in job_ids:
+            assert job_id in registry["loops"], (product_loop["id"], job_id)
+            assert job_id not in seen_jobs, (job_id, seen_jobs[job_id], product_loop["id"])
+            seen_jobs[job_id] = product_loop["id"]
+            job = registry["loops"][job_id]
+            assert isinstance(job.get("label"), str) and job["label"].startswith("ai.")
+            assert isinstance(job.get("entrypoint"), str) and job["entrypoint"]
+            assert isinstance(job.get("cadence"), dict) and job["cadence"]
+            assert isinstance(job.get("effect_class"), str) and job["effect_class"]

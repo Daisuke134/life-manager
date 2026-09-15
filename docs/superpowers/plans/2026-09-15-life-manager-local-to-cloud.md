@@ -29,7 +29,7 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `FND-02`.
+TODO worktree. The current cursor is `FND-03`.
 
 ### Atomic execution log
 
@@ -43,8 +43,18 @@ TODO worktree. The current cursor is `FND-02`.
   unrelated local changes and remains untouched. Proof: `git status --porcelain`, branch/SHA
   readback, `git worktree list`, and `git diff --name-status origin/main...HEAD`.
   Next active ID: `FND-02`.
+- [x] `FND-02` — Added explicit `job_ids` to all fourteen rows in
+  `apps/life-manager/config/product-loop-catalog.json`. The catalog now points at existing
+  `config/loop-registry.json` keys without copying effect/cadence data; the contract test rejects
+  missing, unknown, duplicate, or malformed job identities and requires the exact fourteen product
+  loop IDs. Focused proof: `python3 -m pytest
+  skills/agent-engineering/tests/test_skill_contract.py::test_registry_product_and_job_identity -q`
+  and `node --test apps/life-manager/lib/product-onboarding.test.js` (all passed), followed by the
+  full skill contract, startup-context, repository URL, and diff checks. The overlap check read back
+  latest `origin/main=005fbd9d336702814b8887ddd282c2d262a5bcbe`, a clean marketplace TODO worktree,
+  and no target-file change in canonical main. Next active ID: `FND-03`.
 
-## FND research gate (search complete; implementation intentionally paused)
+## FND research gate (search complete; FND-02 implemented)
 
 The research pass is complete for `FND-02` through `FND-10`. This section records the evidence and
 the proposed contract before any runtime fix begins. It is a design checkpoint, not a claim that the
@@ -66,9 +76,10 @@ target control plane is implemented.
 - [Firecracker](https://github.com/firecracker-microvm/firecracker/blob/c5314e5dfc732db683115a02dee440ca06162a7c/docs/design.md) uses microVM, seccomp, cgroups, namespaces, and jailer boundaries; reserve it for untrusted repair/eval code, not every browser session.
 - [Chrome headless](https://developer.chrome.com/docs/automation-and-testing/headless) confirms unattended no-UI operation, while modern headless shares Chrome's implementation; it reduces display overhead, not all browser memory.
 
-**Alignment checkpoint:** search is complete. The next change would be `FND-02`'s identity contract and
-its fixture. No runtime, launchd, browser/account, ledger, or provider effect is changed until that
-contract is accepted and the focused test is written first.
+**Alignment checkpoint:** the search phase is complete and `FND-02`'s identity contract is now
+implemented with its fixture. No runtime, launchd, browser/account, ledger, or provider effect was
+changed. The next atomic change is `FND-03`'s typed state contract; it begins with a focused failing
+test before any production implementation.
 
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
 |---|---|---|---|
