@@ -12,6 +12,7 @@ import {
   computeSlotHealth,
   computeBrainTransportHealth,
   computeHarnessHealth,
+  decideRecoveryAction,
   shouldEscalate,
   DEFAULT_STREAK_THRESHOLD,
 } from '../harness-health.mjs';
@@ -201,6 +202,74 @@ test('R5: one above threshold -> true', () => {
 
 test('R5: DEFAULT_STREAK_THRESHOLD is 5 when HARNESS_HEALTH_STREAK_THRESHOLD is unset (Number(process.env.X) || N idiom)', () => {
   assert.equal(DEFAULT_STREAK_THRESHOLD, 5);
+});
+
+test('R10: healthy owner continues without touching siblings', () => {
+  assert.deepEqual(decideRecoveryAction({
+    ownerId: 'owner-1',
+    health: { slot: 'x', failures: 0, consecutiveFailureStreak: 0 },
+    retryAttempts: 0,
+    retryLimit: 2,
+    streakThreshold: 5,
+  }), {
+    action: 'continue',
+    ownerId: 'owner-1',
+    slot: 'x',
+    reason: 'healthy',
+    retryAttempt: 0,
+    preserveSiblings: true,
+  });
+});
+
+test('R10: a bounded failure retries only the same owner', () => {
+  assert.deepEqual(decideRecoveryAction({
+    ownerId: 'owner-1',
+    health: { slot: 'x', failures: 1, consecutiveFailureStreak: 1 },
+    retryAttempts: 0,
+    retryLimit: 2,
+    streakThreshold: 5,
+  }), {
+    action: 'retry_owner',
+    ownerId: 'owner-1',
+    slot: 'x',
+    reason: 'bounded_retry',
+    retryAttempt: 1,
+    preserveSiblings: true,
+  });
+});
+
+test('R10: a failure streak escalates instead of restarting forever', () => {
+  assert.deepEqual(decideRecoveryAction({
+    ownerId: 'owner-1',
+    health: { slot: 'x', failures: 5, consecutiveFailureStreak: 5 },
+    retryAttempts: 1,
+    retryLimit: 2,
+    streakThreshold: 5,
+  }), {
+    action: 'escalate_repair',
+    ownerId: 'owner-1',
+    slot: 'x',
+    reason: 'failure_streak_threshold',
+    retryAttempt: 1,
+    preserveSiblings: true,
+  });
+});
+
+test('R10: exhausted retries become a typed blocker', () => {
+  assert.deepEqual(decideRecoveryAction({
+    ownerId: 'owner-1',
+    health: { slot: 'x', failures: 1, consecutiveFailureStreak: 1 },
+    retryAttempts: 2,
+    retryLimit: 2,
+    streakThreshold: 5,
+  }), {
+    action: 'escalate_repair',
+    ownerId: 'owner-1',
+    slot: 'x',
+    reason: 'retry_budget_exhausted',
+    retryAttempt: 2,
+    preserveSiblings: true,
+  });
 });
 
 // ── R8 cross-language parity anchor (JS side) — shared fixture with harness_health.py ──

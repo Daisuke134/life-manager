@@ -145,6 +145,64 @@ export function shouldEscalate(consecutiveFailureStreak, threshold) {
   return Number(consecutiveFailureStreak) >= Number(threshold);
 }
 
+const RECOVERY_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+
+/**
+ * R10 — decideRecoveryAction: pure recovery routing for one owner.  It returns a plan only;
+ * callers own the existing retry/reclaim/escalation mechanisms and must preserve sibling owners.
+ * No process, browser, provider, ledger, or notification side effect is permitted here.
+ *
+ * @param {{ownerId?: string, health?: object, retryAttempts?: number, retryLimit?: number,
+ *   streakThreshold?: number}} input
+ * @returns {{action:string,ownerId:string|null,slot:string|null,reason:string,retryAttempt:number,
+ *   preserveSiblings:true}}
+ */
+export function decideRecoveryAction(input = {}) {
+  const ownerId = typeof input.ownerId === 'string' && RECOVERY_ID.test(input.ownerId)
+    ? input.ownerId : null;
+  const health = input.health && typeof input.health === 'object' && !Array.isArray(input.health)
+    ? input.health : null;
+  const slot = health && typeof health.slot === 'string' && RECOVERY_ID.test(health.slot)
+    ? health.slot : null;
+  const retryAttempts = input.retryAttempts == null ? 0 : input.retryAttempts;
+  const retryLimit = input.retryLimit == null ? 2 : input.retryLimit;
+  const threshold = input.streakThreshold == null ? DEFAULT_STREAK_THRESHOLD : input.streakThreshold;
+  const validNumbers = [health?.failures, health?.consecutiveFailureStreak,
+    retryAttempts, retryLimit, threshold].every((value) => (
+    Number.isSafeInteger(value) && value >= 0
+  ));
+  if (!ownerId || !slot || !health || !validNumbers || retryLimit < 1
+    || retryAttempts > retryLimit || threshold < 1) {
+    return Object.freeze({
+      action: 'block', ownerId, slot, reason: 'invalid_recovery_input',
+      retryAttempt: Number.isSafeInteger(retryAttempts) && retryAttempts >= 0 ? retryAttempts : 0,
+      preserveSiblings: true,
+    });
+  }
+  if (health.failures === 0 && health.consecutiveFailureStreak === 0) {
+    return Object.freeze({
+      action: 'continue', ownerId, slot, reason: 'healthy', retryAttempt: retryAttempts,
+      preserveSiblings: true,
+    });
+  }
+  if (retryAttempts >= retryLimit) {
+    return Object.freeze({
+      action: 'escalate_repair', ownerId, slot, reason: 'retry_budget_exhausted',
+      retryAttempt: retryAttempts, preserveSiblings: true,
+    });
+  }
+  if (shouldEscalate(health.consecutiveFailureStreak, threshold)) {
+    return Object.freeze({
+      action: 'escalate_repair', ownerId, slot, reason: 'failure_streak_threshold',
+      retryAttempt: retryAttempts, preserveSiblings: true,
+    });
+  }
+  return Object.freeze({
+    action: 'retry_owner', ownerId, slot, reason: 'bounded_retry',
+    retryAttempt: retryAttempts + 1, preserveSiblings: true,
+  });
+}
+
 /**
  * R4 — computeHarnessHealth(records, opts): whole-ledger report shape covering every distinct slot
  * value present in the R2 subset (SLOT_HEALTH_KINDS), plus loop-level brain-transport health, each

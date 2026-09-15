@@ -264,7 +264,7 @@ export async function thinkClaudeP(ctx, config) {
     // settings.json/allowedTools instead of the wake's decision -- observed verbatim 2026-07-12,
     // and it is why every claude-p wake fell through parseToolCall into `narrate` while looking
     // perfectly healthy (zero errors, no fallback). The loops that already run on Sonnet
-    // (claude-p-mainloop.sh:78, self-fix.sh) all pass this flag; this one simply never did.
+    // (claude-p-mainloop.sh:78 and the repair helper) all pass this flag; this one simply never did.
     '--dangerously-skip-permissions',
   ], {
     env: childEnv,
