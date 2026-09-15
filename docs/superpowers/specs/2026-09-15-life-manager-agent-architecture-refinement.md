@@ -68,6 +68,40 @@ flowchart TD
 browser/effect/readback契約を使う、(3)公式receiptとreplay-zeroを受けてから次のlaneへ進む、
 とする。一つのproviderを直しただけで他のproviderが直ったとは扱わない。
 
+### Platform differences and current read-only state
+
+「共通部品を使う」とは、同じブラウザや同じログインを使い回すことではありません。各サイトは
+専用のadapter、URL、DOM、アカウント、profile、公式receiptを持ち、共有kernelには typed な
+状態と証拠だけを渡します。次の表は今回のread-only確認で固定した境界です。`未確認`は失敗の
+証拠でも成功の証拠でもなく、公式readbackを取るまで未完了として扱います。
+
+| platform | サイト固有の仕事と境界 | 共有kernelから使う部品 | 今回の状態（公式receipt基準） | 次の合格条件 |
+|---|---|---|---|---|
+| Coconala | 公開依頼→応募、購入前talkroom返信、自分のサービス掲載、購入済み納品。`coconala.com`のrequest/message/service/order route、専用profile | goal/wake、admission、context、browser lease、effect key、readback、通知outbox | 別workstreamが1案件を処理中。architecture workstreamはbrowser/account/TODOを変更しない。今回のcanaryで応募成功は主張しない | 案件ごとの公式応募/購入/納品receipt、buyer readback、replay-zero |
+| Lancers | 公開案件→proposal、購入前会話、menu掲載、契約/納品。`www.lancers.jp`のwork/proposal/menu/myplan route、専用9227 CDP、safety verifier | Coconalaと同じtyped lifecycle・admission・effect/readback契約 | CDPは応答したが、launchd Browser ownerは旧release、Applyは`entrypoint_exit_1`/`resource_capacity_busy`、他laneも容量待ち。公式応募・返信・掲載・有料receiptは0。修正branch `fix/lancers-browser-repair-20260915` (`7e231a7259`) はpush済みだが未merge/未release | main ownerがmerge→idle ownerだけreconcile→各lane自然wake→公式proposal/contract receipt + replay-zero |
+| CrowdWorks | 公開案件→応募→契約→納品。応募・契約のprovider語彙は専用adapterで保持し、Coconala/Lancersの掲載laneを仮定しない | goal/context、admission、browser lease、effect fence、human gate、receipt/eval | 今回の稼働readbackは未実施。EVAL fixtureの対象であり、成功・収益は未確認 | 公式応募または契約receipt、または理由付きnot-applicable、重複なし |
+| Mercor | 応募→本人確認/面接/録画などのhuman gate→契約・報酬。identity/interview/mediaの外部状態を専用adapterで扱う | agent-runner、context capsule、human gate、通知outbox、effect/readback、revenue/cost graph | 直近のread-only記録ではcurrent releaseの起動receiptはあるが、応募はcapacity deferで終了し、公式application receiptは未確認。architecture workstreamはMercorの認証・面接を操作しない | typed human gateの再開→公式application/contract/payment receipt→費用上限内・replay-zero |
+
+したがって、前回のLancers失敗は「各サイトの処理内容が同じだから」ではありません。共通kernelの
+入口で (a) 収益laneが`borrow`のまま容量を奪われ、(b) launchdが旧releaseを指し、(c) 失敗した
+Playwright/CDP接続の後始末とsafety verifierの時間上限が不足し、providerの応募画面まで到達
+できなかったことが原因です。`browser_unavailable`、`account_unavailable`、`safety_check_failed`
+というTelegram文面だけでは、外部応募の成功/失敗を確定できません。必ず同じwakeのofficial
+receipt、readback、effect keyの再実行0件を揃えます。
+
+```mermaid
+flowchart LR
+  K[共有kernel\n状態・容量・再試行・記録] --> C[Coconala adapter\n依頼/DM/掲載/納品]
+  K --> L[Lancers adapter\n案件/proposal/menu/契約]
+  K --> W[CrowdWorks adapter\n案件/応募/契約/納品]
+  K --> M[Mercor adapter\n応募/本人確認/面接/報酬]
+  C --> CR[サイト公式receipt]
+  L --> LR[サイト公式receipt]
+  W --> WR[サイト公式receipt]
+  M --> MR[サイト公式receipt + human gate]
+  CR & LR & WR & MR --> E[readback + replay-zero\n→ 初めて成功扱い]
+```
+
 ## 1. Overview (What & Why)
 
 Life Manager presents fourteen user-facing Product Loops, while
