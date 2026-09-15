@@ -225,3 +225,22 @@ def test_architecture_spec_has_a_remediation_and_ownership_row_for_all_product_l
         assert loop in text, loop
     for token in ("shared kernel", "official readback", "completion condition", "workstream owner"):
         assert token in text, token
+
+
+def test_product_readmes_are_short_and_cover_the_shared_runtime_contract() -> None:
+    english = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+    japanese = (REPO_ROOT / "README.ja.md").read_text(encoding="utf-8")
+
+    assert len(english.splitlines()) <= 260
+    assert len(japanese.splitlines()) <= 260
+    assert "Local" in english and "Cloud" in english
+    assert "same core" in english
+    english_lower = english.lower()
+    for token in ("tenant", "git", "telegram", "roadmap", "self-healing", "self-improvement", "14"):
+        assert token in english_lower, token
+    assert "Local" in japanese and "Cloud" in japanese
+    assert "同じcore" in japanese
+    for token in ("tenant", "Git", "Telegram", "ロードマップ", "自己修復", "自己改善", "14"):
+        assert token in japanese, token
+    assert "Live Dashboard" not in english
+    assert "Live Dashboard" not in japanese
