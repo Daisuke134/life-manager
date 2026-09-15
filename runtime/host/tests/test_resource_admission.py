@@ -615,6 +615,26 @@ def test_revenue_floor_treats_legacy_reservation_as_migration_block(
     assert claim is None and reason == "capacity_busy"
 
 
+def test_existing_priorities_schema_migrates_policy_column(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    database = tmp_path / "admission-v2.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.executescript("""
+            CREATE TABLE priorities (
+                owner_id TEXT PRIMARY KEY,
+                admission_class TEXT NOT NULL
+            );
+        """)
+    connection = admission._database(database)
+    try:
+        columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(priorities)")
+        }
+    finally:
+        connection.close()
+    assert "admission_policy" in columns
+
+
 def test_reserved_revenue_rechecks_legacy_owner_before_claim(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="5")
