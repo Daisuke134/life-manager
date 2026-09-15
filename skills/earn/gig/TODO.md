@@ -596,8 +596,7 @@ loaded `LIFE_MANAGER_REPO` rather than the temporary staged working directory. P
 `readback_source` instead of rejecting a valid remote verification. Paid suites passed 227 tests and all CI
 checks passed. Immutable release `20260915T122835-0439d7c0` then ran Ryu `18211957` and Kokoro `18250352`
 as independent concurrent work items. Ryu reached a fresh v193 remote owner result with authenticated public
-and management readbacks, required effect/output satisfied and remaining work empty; independent verification
-and the Coconala message/readback are still in progress, so Ryu is not yet closed. Kokoro `18250352` produced
+and management readbacks, required effect/output satisfied and remaining work empty. Kokoro `18250352` produced
 a valid `status=PASS` 50-item source census, but its runner summary incorrectly changed success to failure when
 runtime-event emission hit `Operation not permitted` on the immutable release registry.
 
@@ -605,9 +604,15 @@ PR `#5216`, merge SHA `0dd1496f2c63c2c720ceb495aec04c9199e6b58d`, separates obse
 failure from business-work truth. A runtime-event write error remains visible as `runtime_event_error`, but it
 cannot reverse a selected successful agent result or its process exit code. The focused boundary passed five
 tests, all agent-runner tests passed 67 tests, and every PR check passed. Immutable release
-`20260915T124728-0dd1496f` contains this fix. The currently running older Paid wake is not interrupted; after
-its terminal receipt, reconcile only the Paid label to this release and resume Kokoro `18250352` from retained
-source evidence.
+`20260915T124728-0dd1496f` contains this fix. The older Paid wake was allowed to reach its terminal receipt and
+cleanup without interruption; only the Paid label was then reconciled to this release and Kokoro `18250352`
+resumed from retained source evidence.
+
+The first `0dd1496f` Paid wake reused Ryu's verified remote answer instead of repeating the site mutation, sent
+the ordinary Coconala review message once with formal delivery OFF, and confirmed the exact newer seller message
+in authenticated selected-talkroom readback. Its item receipt is `status=completed`, `effect=1`, `readback=1`,
+`failed=0`, `send_performed=true`. Ryu `18211957` is closed for the current buyer digest; the next wake must be
+replay-zero unless a newer buyer digest arrives. Kokoro `18250352` remains the active Paid client cursor.
 
 Observability remains a current architecture gap. Existing JSONL events and provider receipts stay the source
 of truth, while OpenTelemetry becomes the shared trace envelope rather than a second business ledger. One
