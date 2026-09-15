@@ -2765,6 +2765,41 @@ def test_decision_prompt_keeps_live_system_revisions_remote_and_url_only(tmp_pat
     assert "explicitly asks for source files, an archive, or a download" in prompt
 
 
+def test_decision_prompt_preserves_complete_visual_reference_contract(tmp_path):
+    paid = load("paid_direct")
+    identity = {"message_id": "m1", "content_sha256": "d" * 64, "side": "buyer"}
+
+    prompt = paid._decision_prompt(
+        tmp_path / "context.json", "a" * 64, "b" * 64, "c" * 64,
+        identity, identity,
+    ).decode()
+
+    assert "visually inspect every referenced image" in prompt
+    assert "complete visible component and layout census" in prompt
+    assert "must not reduce the contract to only the components named in nearby text" in prompt
+
+
+def test_remote_prompt_requires_buyer_visible_browser_and_cache_proof(tmp_path):
+    paid = load("paid_direct")
+    root = tmp_path / "project"
+    (root / "context").mkdir(parents=True)
+    (root / "context" / "paid-work-decision.json").write_text(json.dumps({
+        "decision": "actionable", "mode": "remote", "feedback_sha256": "b" * 64,
+        "requirements_sha256": "c" * 64, "required_output": "visible web revision",
+        "required_effect": "publish visible web revision", "required_assets": [],
+    }))
+
+    prompt = paid._repair_prompt(
+        root, tmp_path / "item.json", "b" * 64, "c" * 64, True,
+        tmp_path / "cdp.py",
+    )
+
+    assert "raw HTML, JavaScript, CSS, or API content is not buyer-visible proof" in prompt
+    assert "complete every entrance, consent, cookie, or overlay flow" in prompt
+    assert "cache-safe asset identity" in prompt
+    assert "fresh browser screenshot" in prompt
+
+
 def test_selected_talkroom_readback_uses_visible_transport_for_attachments(tmp_path, monkeypatch):
     snapshot = load("coconala_queue_snapshot")
     seen = []
