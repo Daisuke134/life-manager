@@ -29,7 +29,7 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `GRAPH-02`.
+TODO worktree. The current cursor is `GRAPH-03`.
 
 ### Atomic execution log
 
@@ -160,6 +160,12 @@ TODO worktree. The current cursor is `GRAPH-02`.
   frozen projection with no effect-authority or credential fields. Focused proof: the initial RED
   import failure followed by `node --test apps/life-manager/lib/agent-graph.test.js` (5 passed).
   No provider, browser, launchd, ledger, or Telegram effect was performed. Next active ID: `GRAPH-02`.
+- [x] `GRAPH-02` — Added `projectLedgerFacts` to rebuild the graph from typed append-only node/edge
+  facts. Identical repeated facts are deduplicated, conflicting identities fail closed, output is
+  sorted by stable IDs, and the existing graph validator enforces tenant/dangling-edge boundaries.
+  Focused proof: `node --test apps/life-manager/lib/agent-graph.test.js` (7 passed), including a
+  reversed-order rebuild equality assertion. No provider, browser, launchd, ledger, or Telegram
+  effect was performed. Next active ID: `GRAPH-03`.
 
 ### Current production blocker snapshot (read-only)
 

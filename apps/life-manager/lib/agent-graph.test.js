@@ -11,6 +11,7 @@ const {
   validateNode,
   validateEdge,
   validateGraph,
+  projectLedgerFacts,
 } = require("./agent-graph.js");
 
 const HASH = "a".repeat(64);
@@ -106,4 +107,26 @@ test("graph validation returns a frozen, effect-authority-free projection", () =
   assert.equal(Object.isFrozen(graph), true);
   assert.equal(Object.hasOwn(graph, "authorizeEffect"), false);
   assert.equal(Object.hasOwn(graph, "credentials"), false);
+});
+
+test("ledger projection is idempotent and independent of fact order", () => {
+  const facts = [
+    { recordType: "node", value: node() },
+    { recordType: "node", value: node({ id: "capability-1", kind: "capability" }) },
+    { recordType: "edge", value: edge() },
+  ];
+  const first = projectLedgerFacts(facts);
+  const second = projectLedgerFacts([...facts].reverse());
+  assert.deepEqual(second, first);
+  assert.equal(first.nodes[0].id, "capability-1");
+  assert.equal(first.edges[0].id, "edge-1");
+});
+
+test("ledger projection deduplicates the same fact but rejects conflicting IDs", () => {
+  const repeated = { recordType: "node", value: node() };
+  assert.equal(projectLedgerFacts([repeated, repeated]).nodes.length, 1);
+  assert.throws(() => projectLedgerFacts([
+    repeated,
+    { recordType: "node", value: node({ id: "goal-1", status: "stale" }) },
+  ]), /conflict|duplicate/i);
 });

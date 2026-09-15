@@ -115,6 +115,45 @@ function validateGraph(value) {
   return Object.freeze({ version: GRAPH_VERSION, nodes: freezeArray(nodes), edges: freezeArray(edges) });
 }
 
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+// Rebuild the read-only projection from append-only graph facts.  A fact is
+// deliberately small and typed so callers cannot smuggle effect authority or
+// credentials into the projection.  Repeated identical facts are harmless;
+// conflicting records for one identity fail closed.
+function projectLedgerFacts(facts) {
+  if (!Array.isArray(facts) || facts.length > 30_000) invalid("facts");
+  const nodes = new Map();
+  const edges = new Map();
+  for (const fact of facts) {
+    exactKeys(fact, ["recordType", "value"], "fact");
+    if (fact.recordType === "node") {
+      const item = validateNode(fact.value);
+      const previous = nodes.get(item.id);
+      if (previous && stableStringify(previous) !== stableStringify(item)) invalid("conflicting node");
+      nodes.set(item.id, item);
+    } else if (fact.recordType === "edge") {
+      const item = validateEdge(fact.value);
+      const previous = edges.get(item.id);
+      if (previous && stableStringify(previous) !== stableStringify(item)) invalid("conflicting edge");
+      edges.set(item.id, item);
+    } else {
+      invalid("fact recordType");
+    }
+  }
+  return validateGraph({
+    version: GRAPH_VERSION,
+    nodes: [...nodes.values()].sort((a, b) => a.id.localeCompare(b.id)),
+    edges: [...edges.values()].sort((a, b) => a.id.localeCompare(b.id)),
+  });
+}
+
 module.exports = {
   GRAPH_VERSION,
   NODE_KINDS,
@@ -125,6 +164,7 @@ module.exports = {
   validateNode,
   validateEdge,
   validateGraph,
+  projectLedgerFacts,
   // Explicit aliases keep the contract discoverable to callers that name the
   // records rather than the short validator names.
   validateGraphNode: validateNode,
