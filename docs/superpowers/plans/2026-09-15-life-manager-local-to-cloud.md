@@ -148,6 +148,21 @@ TODO worktree. The current cursor is `GRAPH-01`.
   provider, launchd, or Telegram state by itself. Focused proof: runner suite (34 passed), memory
   admission suite (7 passed), and the disk-deferral fixture. Next active ID remains `GRAPH-01`.
 
+### Current production blocker snapshot (read-only)
+
+- Coconala `hf-gig-apply-direct` did load current release `a5da9dca`, but its natural wake still
+  ended with `ENOSPC` while writing evidence and an `UnboundLocalError` for provider-local
+  `denied_source_id`; no official application receipt was observed.
+- Lancers application remains on the older `e8e8a2b2` release while its owner is `running`; it was
+  not stopped or restarted. Its recent output includes account/browser/safety failures and no
+  verified proposal receipt.
+- Mercor application is loaded on current `a5da9dca` after the targeted reconcile, but its last
+  application attempt before that sync was deferred for host capacity; no new official application
+  receipt is observed yet.
+- Host data-volume headroom is below the six-GiB runtime floor; the existing cleanup owner preserved
+  all 38 discovered candidates because they were open. Active browsers and unknown owners remain
+  protected.
+
 ## FND research gate (search complete; FND-02 implemented)
 
 The research pass is complete for `FND-02` through `FND-10`. This section records the evidence and
