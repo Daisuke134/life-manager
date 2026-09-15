@@ -9,7 +9,14 @@ durable runtime ledgers and receipts, not in duplicated historical checklists.
 This is the only restart cursor for the next Codex session. Re-check every value against Git and official
 runtime/provider readback before acting; conversation claims are not completion evidence.
 
-- Repository: `/Users/anicca/Projects/life-manager-main`, remote `Daisuke134/life-manager`.
+- Canonical local repository checkout: `/Users/anicca/Projects/life-manager-main`, remote
+  `Daisuke134/life-manager`. The folder name on this Mac is **`life-manager-main`**. No separate project or
+  repository named `life-manager/` was created.
+- Current task worktree: `/private/tmp/lm-runtime-admission-reservations-20260914`, branch
+  `fix/runtime-admission-lock-bounded-20260915`, lease
+  `ac1f02d45387233d8866ce7dbd62c01a5b1a28987c9e2614a873535c1d766f69`. This is a linked Git worktree of
+  the same `life-manager-main` repository, not another project. The main checkout is currently on the unrelated
+  Capify branch `capafy/account-plan-deck-offline-20260912`, so it remains read-only for this workstream.
 - Canonical runtime source is `origin/main` at `4b0dc5580b1661742b91eb6f8dc3edf15ef0bed1`. The latest
   immutable release is `/Users/anicca/loops/releases/20260916T060446-f80de2ef` (the current docs-only main
   commit has not been cut into a new release yet). PRs `#5252` and `#5254`
@@ -23,10 +30,10 @@ runtime/provider readback before acting; conversation claims are not completion 
   1.872 seconds, 39/39 simultaneous enqueues persisted, 69 host tests, 464 loop tests plus 470 subtests, 67
   registry tests plus 100 subtests, exact stdlib CI discovery 434 tests, fresh read-only `ship`, and GitHub CI
   8/8 PASS. Earlier JSON 500-enqueue evidence was 35.93 seconds.
-- Spec worktree: `/private/tmp/lm-coconala-retained-attachments`, branch
-  `docs/coconala-current-cursor-20260914`. This file is the current remaining-work SSOT. Its eventual canonical
-  name/location must be derived from repository conventions and references, then migrated once without
-  creating a second live TODO.
+- Current spec file in this worktree:
+  `/private/tmp/lm-runtime-admission-reservations-20260914/skills/earn/gig/TODO.md`. Its repository-relative
+  canonical path is `skills/earn/gig/TODO.md`; after merge the same file is available under
+  `/Users/anicca/Projects/life-manager-main/skills/earn/gig/TODO.md`. Do not create a second live TODO.
 - Ryu and Coconala are not complete. No current official readback proves that the newest Ryu buyer event is
   covered by a later seller submission. Chii's direct execution ledger now contains 288 exact-readback sends,
   the previously verified ledger contains 12, and the official Sheet contains 300 unique rows. The 300-row
@@ -112,6 +119,11 @@ replay-zero, the Chii contract is operationally sent but not canonical-complete.
 recipient or send a second completion message.
 
 ## Shared architecture
+
+The real repository folder is `/Users/anicca/Projects/life-manager-main/`. The tree below is a
+**repository-relative To-Be ownership map**, not a new `life-manager/` folder and not a second project. The
+current task worktree exposes the same relative paths under
+`/private/tmp/lm-runtime-admission-reservations-20260914/`.
 
 ```text
 config/
