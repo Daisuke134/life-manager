@@ -4281,6 +4281,21 @@ def test_remote_verifier_accepts_multiple_evidence_references():
     assert remote._verifier_evidence_values(result) == ["first.json", "second.json"]
 
 
+def test_remote_verifier_accepts_structured_readback_reference():
+    paid = load("paid_direct")
+    remote = load("paid_remote_result")
+    result = {"verifier_evidence": {
+        "official_url": "https://provider.example/result",
+        "readback_source": "fresh-verifier-readback.json",
+        "exact_readback": True,
+    }}
+
+    assert paid._verifier_evidence_references(result) == [
+        ("verifier_evidence", "fresh-verifier-readback.json"),
+    ]
+    assert remote._verifier_evidence_values(result) == ["fresh-verifier-readback.json"]
+
+
 def test_remote_verifier_ignores_owner_delivery_supplements():
     paid = load("paid_direct")
     result = {"verifier_evidence": [

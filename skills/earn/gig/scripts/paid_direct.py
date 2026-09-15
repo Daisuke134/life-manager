@@ -2335,6 +2335,10 @@ def _verifier_evidence_references(result: dict[str, Any]) -> list[tuple[str, str
     single = result.get("verifier_evidence")
     if not references and isinstance(single, str) and single.strip():
         references = [("verifier_evidence", single)]
+    if not references and isinstance(single, dict):
+        readback_source = single.get("readback_source")
+        if isinstance(readback_source, str) and readback_source.strip():
+            references = [("verifier_evidence", readback_source)]
     if not references and isinstance(single, list):
         references = [("verifier_evidence", value) for value in single
                       if isinstance(value, str) and value.strip()]
