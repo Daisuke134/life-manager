@@ -133,6 +133,13 @@ TODO worktree. The current cursor is `GRAPH-01`.
   Added a regression test for the timeout budget. The change does not bypass preflight or perform a
   launchd mutation. Focused proof: `runtime/loop/tests/test_lm_loop_readonly.py::test_safe_launchctl_timeout_covers_the_full_control_plane_preflight` (passed). No provider,
   browser, launchd, ledger, or Telegram effect was performed. Next active ID remains `GRAPH-01`.
+- [x] `ALIGN-05` — Ran a targeted production reconcile against the current immutable release
+  `a5da9dca71bb4ac18843b3d989baa989d7487e0d` after launchd-safe preflight passed. Coconala
+  `hf-gig-apply-direct` and Mercor `mercor-revenue-application` were each loaded with the exact
+  current release argv and recorded install receipts; Lancers was not touched because its application
+  owner was `loaded-running`. This changed launchd configuration only and performed no provider
+  effect, browser action, or Telegram send. Next active action is the same targeted reconcile when
+  Lancers reaches a natural loaded-idle state; `GRAPH-01` remains the architecture cursor.
 
 ## FND research gate (search complete; FND-02 implemented)
 
