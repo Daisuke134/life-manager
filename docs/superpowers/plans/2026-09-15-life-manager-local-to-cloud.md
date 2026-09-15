@@ -217,9 +217,10 @@ TODO worktree. The current cursor is `PROD-01`.
 
 ### Current production blocker snapshot (read-only)
 
-- Coconala `hf-gig-apply-direct` remains on release `a5da9dca` and its running process still has no
-  official application receipt. The latest observed failures include `ENOSPC` while writing evidence
-  and the provider-local `denied_source_id` path; this is a provider/host blocker, not a graph result.
+- Coconala `hf-gig-apply-direct` is now loaded on the current full release `5a9fdfb4` and its running
+  process still has no new official application receipt. The latest observed failures include
+  `ENOSPC` while writing evidence and the provider-local `denied_source_id` path; this is a
+  provider/host blocker, not a graph result.
 - Lancers application remains on the older `e8e8a2b2` release while its owner is `running`; it was
   not stopped or restarted. Its `safety_check_failed` path was reproduced: the caller passes
   `--escalation-reason` to `diagnostic-agent`, and the runner rejects it before launching the safety
@@ -227,9 +228,13 @@ TODO worktree. The current cursor is `PROD-01`.
   receipt exists for the current runs.
 - Mercor application is loaded on the current full release `5a9fdfb4`; its last application attempt
   was deferred for host capacity and no new official application receipt is observed yet.
-- Host data-volume headroom is about 2.4 GiB, below the six-GiB runtime floor; the existing cleanup
-  owner preserved all 38 discovered candidates because they were open. Active browsers and unknown
+- Host data-volume headroom recovered to about 13 GiB, above the six-GiB runtime floor. The cleanup
+  owner preserved all 38 discovered candidates because they were open; active browsers and unknown
   owners remain protected.
+
+Latest read-only launchd snapshot: Coconala is running on `5a9fdfb4`, Mercor is stopped after
+`EX_TEMPFAIL` capacity deferral on `5a9fdfb4`, and Lancers is still running the old `e8e8a2b2` owner.
+No provider submission or payment receipt was produced by this snapshot.
 
 ## FND research gate (search complete; FND-02 implemented)
 
