@@ -282,6 +282,28 @@ def test_all_coconala_lanes_enter_revenue_admission(tmp_path):
     run.assert_not_called()
 
 
+def test_all_marketplace_revenue_lanes_use_agent_revenue_admission():
+    registry = json.loads(
+        (Path(__file__).parents[3] / "config/loop-registry.json").read_text()
+    )["loops"]
+    loop_ids = (
+        "crowdworks-revenue-application",
+        "crowdworks-revenue-reply",
+        "crowdworks-revenue-paid",
+        "lancers-revenue-application",
+        "lancers-revenue-negotiate",
+        "lancers-revenue-paid",
+        "lancers-revenue-storefront",
+        "mercor-revenue-application",
+        "mercor-revenue-reply",
+        "mercor-revenue-paid",
+    )
+    assert all(registry[loop_id].get("resource_class") == "agent"
+               for loop_id in loop_ids)
+    assert all(registry[loop_id].get("admission_class") == "revenue"
+               for loop_id in loop_ids)
+
+
 def test_unavailable_admission_becomes_deferred_receipt(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "shared-agent-runner"}
