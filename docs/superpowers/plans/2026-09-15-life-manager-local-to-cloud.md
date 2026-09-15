@@ -300,8 +300,9 @@ safety/proposal canary gate.
 
 Parallel browser receipts (production cursor unchanged):
 
-- `BROWSER-01` implementation is pushed at `9237206392`; JavaScript contract tests (6), all browser
-  Python tests (122), syntax checks, and a temporary local `about:blank` context acquire/release
+- `BROWSER-01` implementation is pushed at `9237206392` and storage-scope hardening at
+  `a6fe7f2e04`; JavaScript contract tests (6), all browser Python tests (124), syntax checks, and a
+  temporary local `about:blank` context acquire/release
   (`cleanup_pending=false`) pass.
 - `BROWSER-02` endpoint/mode readback passes against local `127.0.0.1:9222` (headless, Chrome 145,
   CDP 1.3, websocket host match). The host snapshot is 187 Chromium processes, 54 targets/33 pages,
