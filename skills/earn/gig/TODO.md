@@ -813,9 +813,9 @@ work item and leave a sibling trace unchanged.
   unless a newer buyer event appears.
 - [x] Kokoro `18250352`: processed independently with its own verified v12 submission; replay zero unless a newer
   buyer event appears.
-- [ ] Chii `18180857`: current official Sheet truth is 146/300 unique TikTok-send plus Sheet rows, 154 remaining
+- [ ] Chii `18180857`: current official Sheet truth is 196/300 unique TikTok-send plus Sheet rows, 104 remaining
   (read back from `2026年8月!A1:B400` on 2026-09-15; ordered handle digest
-  `372a9cf0b893ec356ae56a42b03071b6b849b6f65dc186dabff2fed41f59cd24`). Continue with existing tools only,
+  `a7adf438d93c15aa92e8895782d558beb760f644f8c0681569a7632bed595427`). Continue with existing tools only,
   one candidate at a time, without an artificial per-run candidate cap; persist every official result and never
   fabricate a send or Sheet row. The Chii outer loop is paused while this manual owner performs the batch to
   prevent stale state overwrites; resume it only after the manual batch is checkpointed and its first natural
