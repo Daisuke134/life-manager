@@ -64,6 +64,10 @@ e789のApplication自然wakeで公式proposal receipt（ledger sequence 148、14
 `article-resume`をloaded argv非対応と誤判定して停止しました。インストール済みplistはv2対応です。
 この判定を修正するbranch `fix/admission-v2-unloaded-capable-plists`（commit `6845f4fe8b`、
 126 tests + 30 subtests PASS）がpush済みですが、main由来releaseへ未反映です。
+また、`lm-loop doctor`はregistry外の稼働中label
+`ai.anicca.provision-browser.colors-hachioji.owner-18211957`を1件報告しています。
+これは別のBrowser provisionerがprofileを使用中のため、停止・削除せず、所有者登録または
+安全なhandoffを完了するまでlocal gateを閉じます。
 
 順序変更記録: 旧順序ではpending処理（`PROD-01-F`）をrelease統一（`PROD-01-H`）より先に置いて
 いましたが、Browser競合を増やさず全ownerを同一immutable SHAへ揃える方が安全で、後続wakeの再現性も
@@ -88,9 +92,10 @@ e789のApplication自然wakeで公式proposal receipt（ledger sequence 148、14
 | 12 | `MARKET-02` CrowdWorksを同じshared kernelで検証 | CrowdWorks adapter/owner | 応募・契約の公式receiptまたはtruthful not-applicable |
 | 13 | `MARKET-03` Mercorをhuman gate付きで検証 | Mercor adapter/owner | typed gate再開、公式application/contract/payment receipt |
 | 14 | `MARKET-04` Coconalaを別workstream完了後に検証 | Coconala owner | 既存の4 laneごとの公式receipt、buyer readback、replay-zero |
-| 15 | `LOCAL-01/02` 14 Product Loopのlocal completion manifest | shared control plane + 各owner | unknown 0、未対応は明示状態、外部成功はreceipt限定 |
-| 16 | `CLOUD-01/02/03` tenant分離・cloud Browser・phone-only経路 | cloud adapter | localと同じcontract、cloud canary、静かな通知、公式readback |
-| 17 | `CLOUD-04` production昇格 | primary release owner | local gate、cloud gate、公式効果、replay-zeroの全PASS |
+| 15 | `CONTROL-01` registry外Browser provisionerの所有者分類とhandoff | control plane + provisioner owner | active profileを止めずにdoctorのunmanaged 0、owner/release/state/readbackを登録 |
+| 16 | `LOCAL-01/02` 14 Product Loopのlocal completion manifest | shared control plane + 各owner | unknown 0、未対応は明示状態、外部成功はreceipt限定 |
+| 17 | `CLOUD-01/02/03` tenant分離・cloud Browser・phone-only経路 | cloud adapter | localと同じcontract、cloud canary、静かな通知、公式readback |
+| 18 | `CLOUD-04` production昇格 | primary release owner | local gate、cloud gate、公式効果、replay-zeroの全PASS |
 
 routine report、PID、exit 0、Telegram送信、テストgreenだけでは各項目を完了にしない。各項目の
 最後に公式証拠がなければ、その項目は同じcursorに留まり、次のplatformを起動しない。
