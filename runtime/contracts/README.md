@@ -29,6 +29,9 @@ from effect/readback truth (not applicable, planned, started, verified, failed, 
 layer, and idempotency key without copying provider payloads.
 `HostPressure` contains only bounded memory, swap, load, wake, browser-process, and endpoint counts;
 it is an admission signal, not a provider receipt and never includes PIDs, URLs, or credentials.
+Finite wakes also check writable data-volume headroom before starting a child; below the configured
+floor they persist a deferred `disk_headroom_low`/`disk_headroom_unavailable` receipt and resume from
+the same durable queue position.
 Runtime events may also carry `product_loop_id`, `job_id`, `owner_id`, `wake_id`, `attempt`,
 `effect_key`, `failure_layer`, `official_readback_ref`, `next_eligible_at`, `entrypoint`,
 `resource_class`, and a `state_root_sha256` (hash only). These optional identity fields are emitted

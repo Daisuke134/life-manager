@@ -17,17 +17,23 @@ from runtime.loop.lm_loop_run import (
 
 
 _PROTOCOL_PATCHER = None
+_DISK_PATCHER = None
 
 
 def setup_module():
-    global _PROTOCOL_PATCHER
+    global _PROTOCOL_PATCHER, _DISK_PATCHER
     _PROTOCOL_PATCHER = patch(
         "runtime.loop.lm_loop_run.durable_protocol_version", return_value=2,
     )
     _PROTOCOL_PATCHER.start()
+    _DISK_PATCHER = patch(
+        "runtime.loop.lm_loop_run.disk_free_bytes", return_value=100 * 1024**3,
+    )
+    _DISK_PATCHER.start()
 
 
 def teardown_module():
+    _DISK_PATCHER.stop()
     _PROTOCOL_PATCHER.stop()
 
 
@@ -243,6 +249,34 @@ def test_busy_resource_admission_defers_without_waiting_or_starting_child(tmp_pa
     assert json.loads(receipt.read_text()) == {
         "effect": 0,
         "reason": "resource_capacity_busy",
+        "status": "deferred",
+    }
+
+
+def test_disk_headroom_defers_before_starting_an_effect_child(tmp_path, monkeypatch):
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner"}
+    receipt = tmp_path / "receipt"
+    monkeypatch.setenv("LIFE_MANAGER_MIN_DISK_FREE_BYTES", str(6 * 1024**3))
+    with (patch("runtime.loop.lm_loop_run.disk_free_bytes", return_value=5 * 1024**3),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")) as enqueue,
+          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource") as acquire,
+          patch("runtime.loop.lm_loop_run.memory_free_percent") as memory,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 75
+
+    enqueue.assert_called_once_with("agent", "example", admission_class="borrow")
+    defer.assert_called_once_with("example")
+    acquire.assert_not_called()
+    memory.assert_not_called()
+    run.assert_not_called()
+    assert json.loads(receipt.read_text()) == {
+        "effect": 0,
+        "reason": "disk_headroom_low",
+        "free_bytes": 5 * 1024**3,
+        "minimum_free_bytes": 6 * 1024**3,
         "status": "deferred",
     }
 
@@ -671,6 +705,7 @@ def test_wrapper_sigkill_keeps_effect_child_claim_live(tmp_path, monkeypatch):
     monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(admission_root))
     monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", "1")
     monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_RUNS", "1")
+    monkeypatch.setenv("LIFE_MANAGER_MIN_DISK_FREE_BYTES", "1")
     child = (
         "import pathlib,signal,time,sys; "
         "signal.signal(signal.SIGTERM, lambda *_: sys.exit(0)); "

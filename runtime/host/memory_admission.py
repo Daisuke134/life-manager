@@ -8,6 +8,7 @@ import math
 import os
 import pwd
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -19,6 +20,7 @@ from typing import Sequence
 
 _FREE_PERCENT = re.compile(r"System-wide memory free percentage:\s*(\d+)%")
 _RESOURCE_CLASSES = frozenset({"agent", "deterministic", "browser", "model", "unknown"})
+DEFAULT_MIN_DISK_FREE_BYTES = 6 * 1024**3
 
 
 def _metric_int(name: str, value: object, *, minimum: int = 0, maximum: int | None = None) -> int:
@@ -97,6 +99,15 @@ def memory_free_percent() -> int | None:
     if result.returncode != 0:
         return None
     return parse_free_percent(result.stdout)
+
+
+def disk_free_bytes() -> int | None:
+    """Return free bytes on the writable data volume used by runtime state."""
+    mount = "/System/Volumes/Data" if Path("/System/Volumes/Data").exists() else "/"
+    try:
+        return int(shutil.disk_usage(mount).free)
+    except OSError:
+        return None
 
 
 def _receipt_path() -> Path:
