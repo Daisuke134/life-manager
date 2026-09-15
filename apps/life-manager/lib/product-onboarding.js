@@ -263,6 +263,8 @@ function evaluateLocalCompletionGate(manifest, options = {}) {
         }
         if (state === "verified" && (
           loop.official_receipt !== true
+          || typeof loop.official_receipt_ref !== "string" || !RECEIPT_REF.test(loop.official_receipt_ref)
+          || loop.replay_zero !== true
           || typeof loop.owner_id !== "string" || !loop.owner_id.trim()
           || loop.release_sha !== manifest.release_sha
           || !loop.contract || COMPLETION_CONTRACT_FIELDS.some((field) => loop.contract[field] !== true)

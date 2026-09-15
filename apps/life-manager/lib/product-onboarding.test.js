@@ -226,6 +226,46 @@ test("local completion gate passes only explicit setup states or verified receip
   });
 });
 
+test("local completion gate blocks a verified row whose receipt reference or replay proof was removed", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "6".repeat(40);
+  const contract = {
+    goal: true,
+    context: true,
+    admission: true,
+    receipt: true,
+    observability: true,
+    evaluation: true,
+  };
+  const manifest = buildProductLoopCompletionManifest({
+    host: "local",
+    release_sha: releaseSha,
+    observations: catalog.loops.map((loop, index) => index === 0 ? {
+      id: loop.id,
+      state: "verified",
+      owner_id: "owner-1",
+      release_sha: releaseSha,
+      official_receipt: true,
+      official_receipt_ref: "ledger://local/owner-1/receipt-1",
+      replay_zero: true,
+      contract,
+    } : {
+      id: loop.id,
+      state: "setup_required",
+      reason: "host_adapter_pending",
+      contract: {},
+    }),
+  });
+  const tampered = JSON.parse(JSON.stringify(manifest));
+  tampered.loops[0].official_receipt_ref = null;
+  tampered.loops[0].replay_zero = false;
+
+  const gate = evaluateLocalCompletionGate(tampered);
+
+  assert.deepEqual(gate.reasons, ["verified_evidence_incomplete"]);
+  assert.equal(gate.decision, "block");
+});
+
 test("cloud promotion gate blocks when local completion is not proven", () => {
   const releaseSha = "7".repeat(40);
   const gate = evaluateCloudPromotionGate({
