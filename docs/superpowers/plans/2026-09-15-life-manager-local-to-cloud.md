@@ -29,7 +29,20 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `FND-01`.
+TODO worktree. The current cursor is `FND-02`.
+
+### Atomic execution log
+
+- [x] `FND-01` — Baseline recorded before touching runtime code. Architecture worktree is
+  `/private/tmp/lm-agent-engineering-skills-20260915`, branch
+  `docs/agent-engineering-skills-20260915`, clean at `d1c5fa8c7cc6a0538b51614da43dfeb3f3e01a1b`.
+  Latest `origin/main` is `4cdfcf7879a937e0df989615583bb75e2014ef5b`; the merge-base is
+  `d8c6f097401674bd85095d019f5941ea9322657d`. The marketplace TODO worktree
+  `/private/tmp/lm-shared-commercial-profile-20260911` is clean on its own branch, so this
+  workstream has no shared-file overlap with its active changes. The canonical main checkout has
+  unrelated local changes and remains untouched. Proof: `git status --porcelain`, branch/SHA
+  readback, `git worktree list`, and `git diff --name-status origin/main...HEAD`.
+  Next active ID: `FND-02`.
 
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
 |---|---|---|---|
