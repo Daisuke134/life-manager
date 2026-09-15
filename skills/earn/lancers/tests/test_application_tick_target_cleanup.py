@@ -181,3 +181,78 @@ def test_playwright_cleanup_watchdog_terminates_stalled_client(monkeypatch):
     module._stop_playwright_runtime(Runtime())
 
     assert process.terminated is True
+
+
+def test_page_cleanup_force_stops_client_when_close_fails():
+    module = _module()
+
+    class Process:
+        def __init__(self):
+            self.terminated = False
+
+        def poll(self):
+            return None if not self.terminated else 0
+
+        def terminate(self):
+            self.terminated = True
+
+        def wait(self, timeout=None):
+            return 0
+
+    process = Process()
+    runtime = type(
+        "Runtime",
+        (), {
+            "_connection": type(
+                "Connection", (), {"_transport": type("Transport", (), {"_proc": process})()}
+            )(),
+        },
+    )()
+
+    class Page:
+        context = type("Context", (), {"browser": type("Browser", (), {"_anicca_playwright_runtime": runtime})()})()
+
+        def close(self):
+            raise RuntimeError("renderer already gone")
+
+    assert module._close_owned_page(Page()) is False
+    assert process.terminated is True
+
+
+def test_page_cleanup_watchdog_terminates_stalled_client(monkeypatch):
+    module = _module()
+    released = threading.Event()
+
+    class Process:
+        def __init__(self):
+            self.terminated = False
+
+        def poll(self):
+            return None if not self.terminated else 0
+
+        def terminate(self):
+            self.terminated = True
+            released.set()
+
+        def wait(self, timeout=None):
+            return 0
+
+    process = Process()
+    runtime = type(
+        "Runtime",
+        (), {
+            "_connection": type(
+                "Connection", (), {"_transport": type("Transport", (), {"_proc": process})()}
+            )(),
+        },
+    )()
+
+    class Page:
+        context = type("Context", (), {"browser": type("Browser", (), {"_anicca_playwright_runtime": runtime})()})()
+
+        def close(self):
+            assert released.wait(1)
+
+    monkeypatch.setattr(module, "PLAYWRIGHT_STOP_TIMEOUT_SECONDS", 0.01)
+    assert module._close_owned_page(Page()) is True
+    assert process.terminated is True

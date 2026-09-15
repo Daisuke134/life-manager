@@ -493,13 +493,40 @@ def _open_owned_page(browser_factory: Optional[Callable[[str], Any]] = None) -> 
     raise RuntimeError("browser_unavailable")
 
 
-def _close_owned_page(page: Any) -> bool:
+def _page_playwright_runtime(page: Any) -> Any:
     try:
-        if page is not None:
-            page.close()
+        return page.context.browser._anicca_playwright_runtime
+    except Exception:
+        return None
+
+
+def _close_owned_page(page: Any, runtime: Any = None) -> bool:
+    """Close a tick-owned page without allowing a dead renderer to hold the loop.
+
+    ``page.close`` is another synchronous command sent through the per-tick Node client.  If the
+    renderer has already stopped answering, it can block before the normal runtime cleanup is
+    reached.  The watchdog terminates only that client process; the shared 9227 Chromium owner is
+    never touched.
+    """
+    if page is None:
+        return True
+    process = _playwright_transport_process(runtime or _page_playwright_runtime(page))
+    finished = threading.Event()
+
+    def watchdog() -> None:
+        if not finished.wait(PLAYWRIGHT_STOP_TIMEOUT_SECONDS):
+            _force_stop_playwright_process(process)
+
+    thread = threading.Thread(target=watchdog, name="lancers-page-close-watchdog", daemon=True)
+    thread.start()
+    try:
+        page.close()
         return True
     except Exception:
+        _force_stop_playwright_process(process)
         return False
+    finally:
+        finished.set()
 
 
 def _production_account_ready(page: Any) -> bool:
