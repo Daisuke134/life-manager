@@ -29,7 +29,7 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `HUMAN-02`.
+TODO worktree. The current cursor is `PROD-01`.
 
 ### Atomic execution log
 
@@ -207,6 +207,13 @@ TODO worktree. The current cursor is `HUMAN-02`.
   URLs, invalid deadlines, tampered IDs, and extra fields fail closed. Focused proof:
   `python3 -m pytest skills/_shared/marketplace-core/tests/test_human_gate.py -q` (5 passed).
   No provider, browser, launchd, ledger, or Telegram effect was performed. Next active ID: `HUMAN-02`.
+- [x] `HUMAN-02` — Added same-owner resume handling to
+  `skills/_shared/marketplace-core/scripts/human_gate.py`. Resolution is append-only, checks the
+  exact owner/effect namespace and a newer answer timestamp, keeps one notification event, returns
+  the same gate on identical replay, and exposes only the original tenant/product/job/effect plus a
+  new wake ID to the resumed worker. Focused proof: human-gate plus existing reply-kernel tests
+  (34 passed). No provider, browser, launchd, ledger, or Telegram effect was performed. The next
+  action is reordered to the measured Lancers production blocker `PROD-01`.
 
 ### Current production blocker snapshot (read-only)
 
@@ -214,8 +221,10 @@ TODO worktree. The current cursor is `HUMAN-02`.
   official application receipt. The latest observed failures include `ENOSPC` while writing evidence
   and the provider-local `denied_source_id` path; this is a provider/host blocker, not a graph result.
 - Lancers application remains on the older `e8e8a2b2` release while its owner is `running`; it was
-  not stopped or restarted. Its recent output includes account/browser/safety failures and no
-  verified proposal receipt.
+  not stopped or restarted. Its `safety_check_failed` path was reproduced: the caller passes
+  `--escalation-reason` to `diagnostic-agent`, and the runner rejects it before launching the safety
+  verifier (`escalation reason is only valid for an explicit escalation route`). No verified proposal
+  receipt exists for the current runs.
 - Mercor application is loaded on the current full release `5a9fdfb4`; its last application attempt
   was deferred for host capacity and no new official application receipt is observed yet.
 - Host data-volume headroom is about 2.4 GiB, below the six-GiB runtime floor; the existing cleanup
@@ -246,8 +255,11 @@ target control plane is implemented.
 
 **Alignment checkpoint:** the search and FND implementation phase is complete: `FND-02` through
 `FND-10` have focused contracts and receipts. No provider effect was performed in this workstream.
-The next atomic change is `HUMAN-02`'s same-owner resume path; it begins with a focused
-failing test while preserving the evaluator's no-production-effect boundary.
+**Execution-order adjustment:** the old next order was `HUMAN-02` then `BROWSER-01`; measured
+production evidence shows Lancers cannot reach its safety verifier at all, so the new order is
+`PROD-01` (caller argument fix and targeted immutable-release canary), then `BROWSER-01`. This
+shortens time to a real provider effect without changing safety gates or interrupting the running
+owner. The current atomic change is `PROD-01` and begins with a focused failing regression test.
 
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
 |---|---|---|---|
@@ -269,6 +281,7 @@ failing test while preserving the evaluator's no-production-effect boundary.
 | EVAL-03 | Gate candidate promotion on held-out and safety | apps/life-manager/eval/agent-contract/gate.js / integration owner | regression and tripwire fixture PASS |
 | HUMAN-01 | Persist one typed human gate | shared marketplace human-gate contract / market+integration owners | stable gate ID and one outbox event |
 | HUMAN-02 | Resume the same owner after a human answer | shared marketplace resume path / integration owner | same owner/effect namespace and replay-zero |
+| PROD-01 | Fix Lancers safety-verifier caller contract and run one targeted canary | skills/earn/lancers/scripts/application_loop.py / marketplace owner | diagnostic-agent starts, safety result recorded, no duplicate effect |
 | BROWSER-01 | Connect one provider-neutral session to Steel | skills/browser/session lease path / architecture owner | CDP, storage, timeout, cleanup fixture PASS |
 | BROWSER-02 | Run one read-only local headless canary | local Steel service / architecture owner | measured memory and official read-only result |
 | BROWSER-03 | Run one local effect canary | one market owner / market+integration owners | official effect, readback, replay-zero |
