@@ -611,8 +611,20 @@ resumed from retained source evidence.
 The first `0dd1496f` Paid wake reused Ryu's verified remote answer instead of repeating the site mutation, sent
 the ordinary Coconala review message once with formal delivery OFF, and confirmed the exact newer seller message
 in authenticated selected-talkroom readback. Its item receipt is `status=completed`, `effect=1`, `readback=1`,
-`failed=0`, `send_performed=true`. Ryu `18211957` is closed for the current buyer digest; the next wake must be
-replay-zero unless a newer buyer digest arrives. Kokoro `18250352` remains the active Paid client cursor.
+`failed=0`, `send_performed=true`. That transport receipt did not prove the buyer-visible site outcome: the buyer
+immediately replied that nothing had changed and that they had waited a day. The room therefore reopened under
+new buyer digest `ba9c4cff11f2a29753d5f3d9da22fcbe1857df4de5c2dd14c8eed27af674a6ad`; Ryu is not closed.
+
+The direct root cause was stale browser assets. Production returned `cache-control: max-age=604800` for `app.js`
+and `styles.css`, while `index.html` still referenced old fixed query versions after the September 15 asset
+update. Raw asset/API readback saw the new code, but a returning buyer browser could retain the old JavaScript
+and CSS for seven days. The owner changed the HTML references to content-hash versions, deployed through the
+existing authenticated XServer FTPS adapter, and verified the remote hashes. A fresh real browser then completed
+the entrance flow and visibly rendered profile `あかり`, age, height, three sizes, cup and six option-availability
+rows; screenshots are retained under the Ryu verifier evidence. The active Paid wake now owns the new buyer
+digest and must finish a fresh verifier, corrective Coconala message and official talkroom readback before Ryu
+can close. Future buyer-visible web effects cannot pass from raw API/asset text alone; acceptance needs a fresh
+browser-visible route after entrance/overlay completion and cache-safe asset identity.
 
 Observability remains a current architecture gap. Existing JSONL events and provider receipts stay the source
 of truth, while OpenTelemetry becomes the shared trace envelope rather than a second business ledger. One
