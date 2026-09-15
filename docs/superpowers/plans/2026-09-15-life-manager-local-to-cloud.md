@@ -68,6 +68,11 @@ TODO worktree. The current cursor is `FND-06`.
   runtime/loop/tests/test_runtime_event.py runtime/contracts/test_common_contracts.py -q` (16 passed),
   plus schema/diff checks. The overlap readback found latest `origin/main=39279e660ef95ace8c7d17f8de1129d44419ef61`,
   a clean marketplace TODO worktree, and no target-file change in canonical main. Next active ID: `FND-05`.
+- [x] `FND-05` — Added the pure `apps/life-manager/lib/notification-policy.js` decision seam.
+  Known routine events return `internal_only`; only `human_action_required`, `urgent_safety`,
+  `material_outcome`, and `persistent_blocker` return `user_visible`; unknown kinds fail closed.
+  Focused proof: `node --test apps/life-manager/lib/notification-policy.test.js` (3 passed).
+  No Telegram sender or existing outbox was changed. Next active ID: `FND-06`.
 
 ## FND research gate (search complete; FND-02 implemented)
 
@@ -91,15 +96,9 @@ target control plane is implemented.
 - [Firecracker](https://github.com/firecracker-microvm/firecracker/blob/c5314e5dfc732db683115a02dee440ca06162a7c/docs/design.md) uses microVM, seccomp, cgroups, namespaces, and jailer boundaries; reserve it for untrusted repair/eval code, not every browser session.
 - [Chrome headless](https://developer.chrome.com/docs/automation-and-testing/headless) confirms unattended no-UI operation, while modern headless shares Chrome's implementation; it reduces display overhead, not all browser memory.
 
-**Alignment checkpoint:** the search phase is complete and `FND-02`/`FND-03`/`FND-04` contracts are
-implemented with focused fixtures. No launchd, browser/account, ledger, or provider effect was
-  changed. The next atomic change is `FND-05`'s pure notification policy; it begins with a focused
-  failing test before wiring any existing outbox.
-- [x] `FND-05` — Added the pure `apps/life-manager/lib/notification-policy.js` decision seam.
-  Known routine events return `internal_only`; only `human_action_required`, `urgent_safety`,
-  `material_outcome`, and `persistent_blocker` return `user_visible`; unknown kinds fail closed.
-  Focused proof: `node --test apps/life-manager/lib/notification-policy.test.js` (3 passed).
-  No Telegram sender or existing outbox was changed. Next active ID: `FND-06`.
+**Alignment checkpoint:** the search phase is complete and `FND-02` through `FND-05` now have
+focused contracts. No launchd, browser/account, ledger, or provider effect was changed. The next
+atomic change is `FND-06`'s existing-outbox wiring; it begins with a focused failing test.
 
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
 |---|---|---|---|
