@@ -236,6 +236,12 @@ Latest read-only launchd snapshot: Coconala is running on `5a9fdfb4`, Mercor is 
 `EX_TEMPFAIL` capacity deferral on `5a9fdfb4`, and Lancers is still running the old `e8e8a2b2` owner.
 No provider submission or payment receipt was produced by this snapshot.
 
+`PROD-01` progress: the shared runner now ignores stale escalation metadata for ordinary tasks
+without granting authority, records only `extraneous_escalation_reason_ignored`, and still requires a
+reason for restricted routes (`cec6ce0d9b`). Proof: runner suite 69 passed with 58 subtests and an
+anonymous diagnostic-agent JSON probe passed. The Lancers caller and production immutable-release
+canary remain pending; this commit is not live until it is included in a main-derived release.
+
 ## FND research gate (search complete; FND-02 implemented)
 
 The research pass is complete for `FND-02` through `FND-10`. This section records the evidence and
