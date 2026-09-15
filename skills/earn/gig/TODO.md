@@ -37,10 +37,9 @@ runtime/provider readback before acting; conversation claims are not completion 
 - Ryu and Coconala are not complete. No current official readback proves that the newest Ryu buyer event is
   covered by a later seller submission. Chii's direct execution ledger now contains 288 exact-readback sends,
   the previously verified ledger contains 12, and the official Sheet contains 300 unique rows. The 300-row
-  workbook was sent to Coconala with formal delivery OFF and read back in talkroom `18180857`. The canonical
-  `paid-remote-result.json` still carries the pre-batch `12/288` state and must be promoted to `300/0` before
-  the next Chii wake; do not resend existing recipients. Never report completion from a historical message or
-  a stale state file.
+  workbook was sent to Coconala with formal delivery OFF and read back in talkroom `18180857`. Chii is now
+  buyer-waiting and no existing recipient or completion message may be resent. The pre-batch `12/288` file is
+  superseded historical state, not another client-work project.
 - Paid now tries the existing Account 1 Codex profile first and falls back to Account 2 through the shared
   runner. One bounded Account 1 invocation and its official runner receipt remain to be proved; preserve all
   Codex/cloud sessions and unrelated providers.
@@ -76,9 +75,9 @@ that the provider currently has an authenticated account, a verified external ef
 
 ### Two finish-line differences
 
-1. **External work versus canonical truth:** Chii's external workbook message is sent, but the old `12/288`
-   canonical cursor has not yet been promoted to the new `300/0` receipt. Until this is reconciled, the loop
-   can misreport or retry work even though the provider action already happened.
+1. **External work versus canonical truth:** Chii's external workbook message is sent and is now buyer-waiting.
+   The old `12/288` file is retained only as historical evidence; effect fences and the later seller readback
+   prohibit replay while the engineering cursor moves to the shared runtime.
 2. **One client versus the fleet:** Coconala's Chii send is one client-level milestone. The program is finished
    only when every applicable platform/client independently passes the same effect, readback, replay-zero,
    payout and long-run self-healing gates. They run concurrently; the completion criteria are not collapsed into
@@ -523,7 +522,7 @@ claim. One buyer may own multiple independent contracts.
 | Ryu0820119 | `18211957` | `取引中` | A newer buyer message is reported after the historical confirmed seller effect. The current state is internally inconsistent: `next_action=await_buyer_feedback` while `buyer_feedback_pending_artifact=true`. Re-observe the newest message, perform the requested ordinary submission, then verify a later seller effect. Formal delivery stays off unless the buyer authorizes that state. |
 | こころ支援 NPO法人まくとぅー | `18223833` | `取引中` | The retained ledger says the prior seller effect was confirmed and is awaiting buyer feedback. Refresh the official head and retained attachments; do not ask again for files already retained. |
 | こころ支援 NPO法人まくとぅー | `18250352` | `取引中` | Separate active contract. The retained ledger says the prior effect was confirmed and awaits feedback; refresh independently and preserve this room's own context. |
-| Chii【CK protect】 | `18180857` | `取引中`; 300-row workbook sent, formal delivery OFF | External send is read back. Promote the separate 288-send direct ledger plus prior 12 verified effects into the canonical Paid receipt (`300/0`), then wait for buyer acknowledgement without resending. |
+| Chii【CK protect】 | `18180857` | `取引中`; 300-row workbook sent, formal delivery OFF | Buyer-waiting. Do not resend any recipient or completion message; reopen only for a newer buyer event. |
 | あつぎ | `18171850` | `取引中`, formal delivery confirmed | Buyer feedback is pending after delivery. Observe the newest feedback, revise/reply if requested, and verify the later seller effect; otherwise remain at buyer acceptance. |
 
 `逃げ因子` talkroom `18211838` is excluded because retained official state is `取引完了`. Historical
@@ -572,10 +571,9 @@ independent production effects.
 - [x] Chii Paid external delivery: export the official Sheet with 300 unique rows, send it once to talkroom
   `18180857` through the existing Coconala browser path, and read back the attachment and message with
   `formal_delivery_control_checked=false`.
-- [ ] Chii Paid canonical completion: reconcile the 288 exact-readback rows in
-  `/Users/anicca/gig/projects/18180857/delivery/tiktok-message-effects.jsonl` plus the prior 12 verified
-  effects into `delivery/paid-remote-result.json` and `delivery/paid-remote-progress.jsonl` as one `300/0`
-  receipt with Sheet pairing and replay-zero. Do not resend any recipient or send another completion message.
+- [x] Chii Paid closure: the 300-row workbook and ordinary Coconala message are read back with formal delivery
+  OFF. Treat the client as buyer-waiting and rely on existing effect fences; do not build another adapter,
+  reconciliation framework, recipient send or completion message for this one-off contract.
 - [x] Cut immutable release `20260916T044820-2ff93374` from public main `2ff93374`; the dynamic-CDP and
   child-group cleanup repair is present. Coconala label-by-label loaded-idle convergence and natural terminal
   receipts are still open.
@@ -907,9 +905,8 @@ work item and leave a sibling trace unchanged.
 - [x] Chii `18180857` external send: the official Sheet has 300 unique rows, the manual owner ledger has 288
   exact-readback sends plus 12 prior verified effects, and the 300-row workbook was sent to Coconala with
   formal delivery OFF and exact talkroom readback.
-- [ ] Chii `18180857` canonical promotion: write one reconciled `300/0` Paid receipt that pairs all effects to
-  the Sheet, preserves replay-zero, and updates `paid-remote-result.json` / `paid-remote-progress.jsonl` before
-  the next wake. Do not resend any existing recipient.
+- [x] Chii `18180857` is buyer-waiting after exact Coconala message/attachment readback. No further client work
+  is scheduled unless a newer buyer event arrives.
 - [ ] Resume Paid from the current immutable release after PR `#5250` is loaded and a new natural terminal is
   recorded. Ryu is the first actionable Coconala message; Chii resumes only for reply monitoring and canonical
   receipt promotion. Existing Chii recipients must not be retried.
