@@ -10,10 +10,11 @@ This is the only restart cursor for the next Codex session. Re-check every value
 runtime/provider readback before acting; conversation claims are not completion evidence.
 
 - Repository: `/Users/anicca/Projects/life-manager-main`, remote `Daisuke134/life-manager`.
-- Canonical runtime source is `origin/main` at `22dc7cdc53a6d76137629e3fd0fc4ab8bafa08ca`. The latest
-  immutable release is `/Users/anicca/loops/releases/20260916T054645-22dc7cdc`. PRs `#5252` and `#5254`
+- Canonical runtime source is `origin/main` at `f80de2ef43a06a01339a4f67fa5a629b4f6b1d44`. The latest
+  immutable release is `/Users/anicca/loops/releases/20260916T060446-f80de2ef`. PRs `#5252` and `#5254`
   add the revenue floor, legacy-reservation migration fence and Paid Account 1→2 Codex route; `#5250`
-  browser/child-cleanup remains an ancestor. All four Coconala labels are now installed from this release.
+  browser/child-cleanup remains an ancestor. The four Coconala labels are currently running the equivalent
+  code from release `22dc7cdc`; idle-safe convergence to the docs-only `f80de2ef` release is pending.
   Do not create another runtime worktree or use the Capify checkout as source.
 - Phase 2 replaces the v2 JSON scan with stdlib SQLite, adds durable FIFO reservations, child-PID claim
   handoff, same-owner/crash recovery, exact loaded-idle dispatch, retired/missing-owner cancellation, a
@@ -26,7 +27,9 @@ runtime/provider readback before acting; conversation claims are not completion 
   name/location must be derived from repository conventions and references, then migrated once without
   creating a second live TODO.
 - Ryu and Coconala are not complete. No current official readback proves that the newest Ryu buyer event is
-  covered by a later seller submission. Never report completion from a historical message or local state.
+  covered by a later seller submission. Chii's official effective DM ledger is 12/300 with 288 remaining;
+  the latest run stopped before DM transport at `paid_work_decision` because Account 2 quota was exhausted.
+  Never report completion from a historical message or local state.
 - Paid now tries the existing Account 1 Codex profile first and falls back to Account 2 through the shared
   runner. One bounded Account 1 invocation and its official runner receipt remain to be proved; preserve all
   Codex/cloud sessions and unrelated providers.
@@ -63,6 +66,16 @@ effects, prevents duplicates, heals failures and improves itself. The first meas
   `next_action` conflicts with a newer buyer-event digest, the buyer event wins and the item returns to work.
 - Chii remains an active paid contract until the official room and the truthful DM-result ledger prove the
   contracted outcome. Never invent recipients, sends or spreadsheet rows.
+
+### Evidence correction for the earlier “300 complete” report
+
+The earlier report correctly observed **300 populated rows in Google Sheets**, but it incorrectly treated that
+row count as 300 successful TikTok sends. The paired official effect/readback ledger is the authority: it proves
+12 eligible non-live sends and leaves 288 unproved. The official Chii talkroom also contains a seller-authored
+“DM 300件完了” claim and a buyer message saying the spreadsheet was not filled; neither is a provider send
+receipt. Therefore the screenshot is historical/reporting evidence, not proof that 300 DMs were sent. The
+correct current state is `verified_unique_sends=12`, `remaining_eligible_personalized_sends=288`,
+`required_effect_satisfied=false`, and `formal_delivery=OFF`.
 
 ## Shared architecture
 
@@ -271,33 +284,55 @@ freeze protocol 1
 -> continue platform revenue order
 ```
 
-Current cursor: main `22dc7cdc` is exported as immutable release `20260916T054645-22dc7cdc`. Apply, Reply,
-Paid and Storefront each have an installed release and a live policy-stamped owner during the current natural
-wake. The latest completed Paid terminal before this wake remains effect-zero: Ryu `18211957` and Chii
-`18180857` stopped at `paid_work_decision` after the Account 2 Codex usage-limit error; no Coconala seller
-message is verified from that terminal. The current wake has not produced a new terminal receipt yet, so
-Account 1 success and exact-room official readback remain unproved. Disk free is about 9.5 GiB, but swap is
-about 16.9/17.4 GiB used and historical low-headroom/`ENOSPC` receipts keep the pressure proof open. Do not
-create a new worktree, edit the Capify checkout, globally kill browsers/apps, or call a stale result a
-submission.
+Current cursor: main `f80de2ef` is exported as immutable release `20260916T060446-f80de2ef`. Apply, Reply,
+Paid and Storefront are currently running the equivalent code from `22dc7cdc`; idle-safe convergence to this
+docs-only release is pending. The latest Paid terminal is effect-zero: Ryu `18211957` and Chii `18180857`
+stopped at `paid_work_decision` with provider `codex`, profile `acct2`, and `transient_quota`; no Chii DM
+transport or Coconala seller message occurred in that cycle. Chii therefore remains 12 verified effective
+sends out of 300, with 288 unproved. Disk free is about 9.4 GiB, but swap is about 16.9/17.4 GiB used and
+historical low-headroom/`ENOSPC` receipts keep the pressure proof open. Do not create a new worktree, edit the
+Capify checkout, globally kill browsers/apps, or call a stale result a submission.
+
+### Ideal steady state
+
+```text
+launchd wake (each lane, 1–5 min)
+        ↓
+shared host broker: hard ceiling + revenue floor (maintenance borrows only)
+        ↓
+lane owner: one persistent browser owner per platform/account
+        ↓
+client work item: observe → model decides → effect fence → official readback
+        ↓
+terminal receipt + durable cursor → next wake
+```
+
+The four Coconala lanes and every future platform lane remain independent owners. A slow or failed client
+only returns its own item to durable retry; it does not hold another client's browser, state, slot or effect
+fence. “24/7” means these bounded wakes keep resuming forever; it does not mean one immortal process or
+unbounded simultaneous Chromium tabs. Capacity is increased only after measured headroom and replay-zero,
+never by deleting the guard.
 
 ## Current measured state
 
 ### Live correction (re-read before every mutation)
 
-- `origin/main` is `22dc7cdc53a6d76137629e3fd0fc4ab8bafa08ca`; current symlink is
-  `/Users/anicca/loops/releases/20260916T054645-22dc7cdc`.
+- `origin/main` is `f80de2ef43a06a01339a4f67fa5a629b4f6b1d44`; current symlink is
+  `/Users/anicca/loops/releases/20260916T060446-f80de2ef`.
 - Admission is protocol `2`. The latest Paid wake reached Chii and Ryu owners concurrently but ended without
   a terminal Coconala effect: both semantic owners stopped at `remote_builder` after the Account 2 Codex
   usage-limit error. Storefront's inner cadence and dynamic-CDP fixes are in main, but fresh natural
   terminal receipts remain open. Other revenue owners can consume the finite host ceiling, so a PID or
   scheduler run is not a client effect.
 - The browser/child-cleanup repair from PR `#5250` and admission/failover repairs from PRs `#5252`/`#5254`
-  are merged in `22dc7cdc`. Idle-safe install receipts prove Apply, Reply, Paid and Storefront point to the
-  same release; their natural business terminals and official effects are still separate gates.
-- Disk governor latest readback is `errors=0`, `protected_deletions=0`, with free space about `9.5 GiB`;
-  the current wake still emitted historical `ENOSPC` lines from old owners, while swap usage remained about
-  `16.9/17.4 GiB`. No global process was killed and no protected browser/state/evidence was deleted.
+  are merged in `22dc7cdc` and carried into docs-only release `f80de2ef`. Idle-safe install receipts prove
+  Apply, Reply, Paid and Storefront point to `22dc7cdc`; the docs-only convergence and their natural business
+  terminals/official effects are separate gates.
+- The latest Paid terminal receipt is `status=failed`, `failed_step=paid_work_decision`, provider `codex`,
+  profile `acct2`, `error_class=transient_quota`, `effect=0`, `readback=2`; Chii's current item was never
+  sent. Disk free is about `9.4 GiB`, while swap remains about `16.9/17.4 GiB`; historical low-headroom and
+  `ENOSPC` receipts remain open. No global process was killed and no protected browser/state/evidence was
+  deleted.
 - The canonical runtime repair is now in main through PRs `#5244`, `#5246`, `#5247`, `#5248` and `#5249`; do not report the old
   `b8cff053`/protocol-1 snapshot below as current.
 
@@ -426,9 +461,9 @@ submission.
 
 The matrix below is the durable client set, not proof that every row is currently submitted. The live Paid
 wake must finish each item and write its own official readback before a row can be closed. `18180857` has a
-truthful 300-row TikTok/Sheet completion receipt, but its Coconala reply/monitoring loop is still paused; Ryu
-`18211957` is still `WORK_REQUIRED` in the live project state and must not be reported as done from the older
-historical seller message.
+truthful 300-populated-row Google Sheet readback, but only 12 paired official TikTok effects; its Coconala
+reply/monitoring loop is still paused. Ryu `18211957` is still `WORK_REQUIRED` in the live project state and
+must not be reported as done from the older historical seller message.
 
 #### Current active-client inventory
 
@@ -482,11 +517,15 @@ independent production effects.
 
 - [x] Reuse the existing runtime worktree instead of creating another one. The APFS clone detector is merged
   as PR `#5244` and Storefront's inner-cadence removal as PR `#5246`; both are in `origin/main`.
-- [ ] Finish the current four-lane canary from release `22dc7cdc`: wait for each owner to write its natural
+- [ ] Finish the current four-lane canary from release `22dc7cdc` (then converge the docs-only `f80de2ef`): wait for each owner to write its natural
   terminal receipt, then verify the exact Coconala readback separately for Apply, Reply, Paid and Storefront.
   Paid must record the actual selected Codex account; Ryu `18211957` must use the newest buyer-feedback digest,
   Chii `18180857` must retain the official 12/300 ledger truth, and Kokoro rooms must remain independent
   buyer-wait states. No PID, scheduler line or Telegram message closes this item.
+- [ ] Chii Paid completion: do not send a “300 complete” Coconala report yet. First prove the seller-owned
+  TikTok identity, individually send and officially read back the remaining 288 eligible DMs, append matching
+  rows to the shared Sheet, and reconcile the exact 300-count ledger. Only then send the ordinary Coconala
+  progress/delivery message with the formal-delivery control OFF.
 - [x] Cut immutable release `20260916T044820-2ff93374` from public main `2ff93374`; the dynamic-CDP and
   child-group cleanup repair is present. Coconala label-by-label loaded-idle convergence and natural terminal
   receipts are still open.
@@ -501,7 +540,8 @@ independent production effects.
   slots, one borrow slot); it is not complete until the merged release proves no starvation and no hard-cap
   violation under natural wakes.
 - [x] Merge/release the runtime floor and Paid Account 1→2 failover. Main `22dc7cdc` and immutable release
-  `20260916T054645-22dc7cdc` are present; one bounded Account 1 invocation and its receipt remain to be
+  `20260916T054645-22dc7cdc` are present; docs-only main `f80de2ef` has release
+  `20260916T060446-f80de2ef`; one bounded Account 1 invocation and its receipt remain to be
   proved. Do not fall back to Claude or a new scheduler; the existing Codex runner remains the single
   semantic path.
 - [ ] Add bounded owner heartbeat and durable-progress leases. A live PID without heartbeat/progress cannot
@@ -534,6 +574,9 @@ independent production effects.
 - [ ] Prove the staged Paid Account 1→2 Codex route with one bounded invocation, then roll only that Paid
   owner forward. Do not delete or overwrite either account's sessions; other Life Manager routes stay on
   their existing Account 2 policy until separately proven.
+- [ ] Roll all Codex task classes to Account 1 first with the existing Account 2 failover, before retrying
+  Chii's semantic/remote work. Verify each resolved route and one bounded receipt before changing its
+  production label; do not switch browser/platform credentials or copy secrets.
 
 Completed foundation retained as evidence: disk-headroom recovery; off-critical-path cleanup; checked-hash
 bytecode and pinned interpreter; native Darwin process identity; SQLite durable reservations/dispatcher;
