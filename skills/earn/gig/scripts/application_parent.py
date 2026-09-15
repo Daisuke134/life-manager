@@ -4439,12 +4439,30 @@ def run_parent(
                 # snapshot starts.  Projection and outbox event keys make this idempotent.
                 _publish_instant_work_events(ledger_path, pass_id)
             effects.ws_recycler = lease.recycle
+            intent_store = fence.IntentStore(intent_root)
+            uncertain_ids = _durable_uncertain_intent_ids(intent_store)
+            if uncertain_ids:
+                full_history_path = evidence_dir / "parent-B2-applied-full-history.json"
+                observed_ids = effects._official_readback(
+                    uncertain_ids, full_history_path,
+                    max_pages=_APPLIED_OFFERS_MAX_PAGES,
+                    include_retainer_history=True,
+                )
+                reconciliation = reconcile_durable_intents_from_full_history(
+                    store=intent_store, observed_ids=observed_ids,
+                    evidence_path=full_history_path,
+                )
+                _atomic_json(
+                    evidence_dir / "durable-intent-full-history-reconciliation.json",
+                    {"version": 1, "official_readback": str(full_history_path.resolve()),
+                     **reconciliation},
+                )
             collector = CdpSnapshotCollector(
                 effects,
                 pass_id=pass_id,
                 objective=objective,
                 excluded_request_ids=quarantined_request_ids(intent_root),
-                intent_store=fence.IntentStore(intent_root),
+                intent_store=intent_store,
                 cursor_contract=cursor_contract,
                 ineligible_cache=(
                     load_ineligible_cache(
@@ -4805,6 +4823,50 @@ def ledger_applied_ids(ledger_path: Path) -> set[str]:
         if value is not None and str(value).strip():
             identifiers.add(str(value).strip())
     return identifiers
+
+
+def _durable_uncertain_intent_ids(store: "fence.IntentStore") -> set[str]:
+    identifiers: set[str] = set()
+    if not store.root.is_dir():
+        return identifiers
+    for path in store.root.glob("*.json"):
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if (isinstance(value, dict)
+                and value.get("version") in {2, 3}
+                and value.get("state") == fence.PREPARED
+                and value.get("effect_phase") == fence.IRREVERSIBLE_ATTEMPT_STARTED):
+            request_id = str(value.get("request_id") or "")
+            if request_id.isdigit() or _is_retainer_request(request_id):
+                identifiers.add(request_id)
+    return identifiers
+
+
+def reconcile_durable_intents_from_full_history(
+    *, store: "fence.IntentStore", observed_ids: set[str], evidence_path: Path,
+) -> dict[str, int]:
+    """Settle only effect-started intents after a complete official-history read."""
+    identifiers = _durable_uncertain_intent_ids(store)
+    counts = {"checked": len(identifiers), "confirmed": 0, "retired_absent": 0}
+    for request_id in sorted(identifiers):
+        with store.locked(request_id):
+            current = store._read_locked(request_id)
+            if (not isinstance(current, dict)
+                    or current.get("state") != fence.PREPARED
+                    or current.get("effect_phase") != fence.IRREVERSIBLE_ATTEMPT_STARTED):
+                continue
+            if request_id in observed_ids:
+                _confirm_locked(store, request_id, current)
+                counts["confirmed"] += 1
+            else:
+                store.retire_prepared_locked(
+                    request_id, expected_cas=current["cas"],
+                    reason=f"official_full_history_exact_id_absent:{evidence_path}",
+                )
+                counts["retired_absent"] += 1
+    return counts
 
 
 def snapshot_applied_ids(identifiers: object) -> list[str]:
