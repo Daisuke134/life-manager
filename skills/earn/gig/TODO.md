@@ -730,6 +730,19 @@ range before checkpointing. Browser resolver absence is not API credential absen
 release `20260915T162329-05b6790f` is the loaded Paid target. A preceding Chii owner remains allowed to finish; the
 next Chii owner must use this release without overlapping the same mutable project state.
 
+PR `#5225`, merge SHA `a5da9dca71bb4ac18843b3d989baa989d7487e0d`, closes the validation edge found by
+the next canary: a current-contract checkpoint could be durable while the model left a stale/incomplete builder
+result, and the controller previously ended `pending` before its same-run continuation branch. A newly appended
+valid checkpoint now spends the next available review round on another owner even when builder-result validation
+fails; zero progress and the final round remain fail-closed. Remote tests passed 208 and all PR checks passed.
+Immutable release `20260915T163955-a5da9dca` is loaded. Its targeted Chii run performed official TikTok and
+`gog sheets` readbacks, removed three non-effective Sheet rows with exact range readback, checkpointed the
+reconciled 12-row ledger, then started a second owner round in the same process. That round checked two distinct
+unused candidates (`@nanana.206`, `@shakaijin_`); both returned `recipient_message_route_unavailable`, effect zero,
+and durable preflight checkpoints. It continued between candidates without a new wake. The immediate campaign
+bottleneck is now discovery of eligible profiles whose official TikTok DM route is available, not authentication,
+Sheets access, memory admission, static delegation or one-candidate process termination.
+
 Ryu's newer buyer event supersedes the earlier satisfied no-op. The buyer asks for the administration page to
 use a HOME-first left-side section menu so each component can be edited without scrolling the whole profile, and
 asks that the public site start at HOME rather than attendance. Chii remains first; after its 300 verified pairs
