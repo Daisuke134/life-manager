@@ -368,6 +368,24 @@ def _new_owned_page(browser: Any) -> Any:
     return contexts[0].new_page()
 
 
+def _close_failed_browser(browser: Any) -> None:
+    """Close a connection that failed before a page became owned by this tick.
+
+    A retry after a Playwright/CDP attach or page-create failure must not leave the first
+    connection alive. The browser process is owned by lancers-revenue-browser and is never
+    stopped here; only this tick's client connection and its runtime are released.
+    """
+    if browser is None:
+        return
+    try:
+        close = getattr(browser, "close", None)
+        if callable(close):
+            close()
+    except Exception:
+        pass
+    _stop_playwright_runtime(getattr(browser, "_anicca_playwright_runtime", None))
+
+
 def _open_owned_page(browser_factory: Optional[Callable[[str], Any]] = None) -> tuple[Any, Any]:
     for attempt in range(2):
         browser = None
@@ -375,6 +393,7 @@ def _open_owned_page(browser_factory: Optional[Callable[[str], Any]] = None) -> 
             browser = (browser_factory or _default_browser_factory)(CDP_URL)
             return browser, _new_owned_page(browser)
         except Exception as error:
+            _close_failed_browser(browser)
             if attempt:
                 print(f"application_tick:browser_open_failed:{type(error).__name__}:{error}", file=sys.stderr)
                 raise
