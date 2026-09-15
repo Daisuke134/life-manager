@@ -10,8 +10,8 @@ This is the only restart cursor for the next Codex session. Re-check every value
 runtime/provider readback before acting; conversation claims are not completion evidence.
 
 - Repository: `/Users/anicca/Projects/life-manager-main`, remote `Daisuke134/life-manager`.
-- Canonical runtime source is `origin/main` at `e44798c7b6ccc97f8de4b978fff8a70a52b4050b`. The latest
-  immutable release is `/Users/anicca/loops/releases/20260916T035937-e44798c7`. The existing runtime
+- Canonical runtime source is `origin/main` at `437b5696d2463d6d0c929d2613782c088c0f9cc6`. The latest
+  immutable release is `/Users/anicca/loops/releases/20260916T041632-437b5696`. The existing runtime
   worktree `/private/tmp/lm-runtime-admission-marketplace-priority-20260916` is the only runtime worktree;
   its browser fix is pushed as PR `#5250` and must be merged before a new production release. Do not create
   another runtime worktree or use the Capify checkout as source.
@@ -271,7 +271,7 @@ freeze protocol 1
 -> continue platform revenue order
 ```
 
-Current cursor: main `e44798c7` is exported as immutable release `20260916T035937-e44798c7`. Paid is stopped after
+Current cursor: main `437b5696` is exported as immutable release `20260916T041632-437b5696`. Paid is stopped after
 an effect-zero owner attempt; the next run must use the dynamic-CDP browser fix from PR `#5250`, then read back
 each official talkroom plus replay-zero. Storefront was stopped after a seven-hour stuck pass and must be
 reconciled to this release before its next natural wake. Protocol `2` is live, but fairness, no-starvation,
@@ -283,21 +283,22 @@ terminal/recovery reason.
 
 ### Live correction (re-read before every mutation)
 
-- `origin/main` is `e44798c7b6ccc97f8de4b978fff8a70a52b4050b`; current symlink is
-  `/Users/anicca/loops/releases/20260916T035937-e44798c7`.
+- `origin/main` is `437b5696d2463d6d0c929d2613782c088c0f9cc6`; current symlink is
+  `/Users/anicca/loops/releases/20260916T041632-437b5696`.
 - Admission is protocol `2`. The latest Paid wake reached Chii and Ryu owners concurrently but ended without
   a terminal Coconala effect: Chii was blocked by a stale target-owner/browser endpoint and Ryu was stopped
   before its Coconala message. Storefront's inner cadence fix is in main, but its first `--effect` pass was
   stopped after seven hours; its next wake must be a bounded terminal pass.
 - Apply and Reply remain on the previous loaded-idle/current release until a natural idle reconcile; Paid is
-  unloaded and its plist is now installed from `e44798c7`. Storefront is unloaded after the stuck pass. The
+  unloaded and its plist is still installed from `e44798c7` until PR `#5250` is integrated. Storefront is
+  unloaded and its plist is installed from `437b5696` after the stuck pass. The
   browser owner fix (`with-browser.sh` passes the guard-resolved CDP URL as `CLOAK_CDP_BASE_URL`) is PR
   `#5250`; without it the Paid owner sandbox reconnects to forbidden static `:9223` and fails closed.
   Other revenue owners can consume the finite host ceiling, so a PID or scheduler run is not a client effect.
 - Disk free was `7.6 GiB` on the latest readback and `gig_disk_guard` returned PASS; one live Chromium clone
   remains. Historical Paid runs still contain real `ENOSPC` receipts, so the healthy disk floor and seven-day
   no-ENOSPC proof remain open.
-- The canonical runtime repair is now in main through PRs `#5244`, `#5246` and `#5247`; do not report the old
+- The canonical runtime repair is now in main through PRs `#5244`, `#5246`, `#5247`, `#5248` and `#5249`; do not report the old
   `b8cff053`/protocol-1 snapshot below as current.
 
 ### Shared host/runtime
@@ -802,7 +803,8 @@ work item and leave a sibling trace unchanged.
   `sent` rows, but they are not eligible completion proof without the required recipient/readback/Sheet pairing.
   Do not claim 300/300, and do not bulk-send or bypass the shared transport. Resume only after PR `#5250` is
   merged and the guarded dynamic CDP endpoint is loaded; each candidate remains independently fenced.
-- [ ] Resume Paid from the current `e44798c7` release after the browser fix is merged. Ryu is the first
+- [ ] Resume Paid from the current `437b5696` release after PR `#5250` is merged and a new immutable release is
+  cut. Ryu is the first
   actionable Coconala message; Chii continues from the audited 12 only when an eligible candidate and official
   readback are available. The last Chii candidate preflight (`@toshi_todaivlog`) had `effect=0` and no send
   receipt, so it must not be retried until its owner can reach the correct dynamic endpoint.
