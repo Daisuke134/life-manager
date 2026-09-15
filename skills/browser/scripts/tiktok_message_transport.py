@@ -145,12 +145,21 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
     try:
         target = cdp_client.new_target("https://www.tiktok.com/", owner)
         wait(2)
-        observed_identity = cdp_client.evaluate(target, "/* TIKTOK_IDENTITY */" +
-                                                  tiktok_identity_readback.READBACK_EXPRESSION)
-        if not isinstance(observed_identity, dict) or "__error__" in observed_identity:
-            result["status"] = "sender_identity_unreadable"
-            return result
-        identity = tiktok_identity_readback.classify_readback(observed_identity, sender)
+        identity = None
+        for identity_attempt in range(30):
+            observed_identity = cdp_client.evaluate(
+                target,
+                "/* TIKTOK_IDENTITY */" + tiktok_identity_readback.READBACK_EXPRESSION,
+            )
+            if not isinstance(observed_identity, dict) or "__error__" in observed_identity:
+                result["status"] = "sender_identity_unreadable"
+                return result
+            identity = tiktok_identity_readback.classify_readback(observed_identity, sender)
+            if identity["authenticated"] or identity["status"] == "authenticated_identity_mismatch":
+                break
+            if identity_attempt < 29:
+                wait(0.5)
+        assert identity is not None
         result["sender_identity"] = identity
         if not identity["authenticated"]:
             result["status"] = ("sender_identity_mismatch" if identity["observed_handle"]
