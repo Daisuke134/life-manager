@@ -48,20 +48,22 @@ Life Managerの実際の応募・契約・納品・報酬・cloud運用が動い
 
 | 順番 | atomic task | いま残っている理由 | 完了条件 |
 |---:|---|---|---|
-| 1 | `INT-01` 候補 `5dfbcb9748` をmainへ統合できる状態にする | Lancers browser lease、stale claim解放、CrowdWorks/Mercor timeout、Mercor stale provisioning GCは候補branchだけ | main由来releaseを作成し、candidate suite（871 tests + 132 subtests）とrelease manifestを再確認 |
-| 2 | `INT-02` 影響ownerを新immutable releaseへ揃える | 現在の `~/loops/current` は `2ff93374`。候補の修正が稼働ownerへ届いていない | Lancers 7、CrowdWorks 4、Mercor 3のinstalled/loaded argv、install event、release SHAが一致 |
-| 3 | `INT-03` shared browser/admission自然wake canary | candidateの競合・冪等化はfixture/live read-onlyで確認しただけ | 各ownerを一度ずつwakeし、`browser_session_busy`の意図しない発生0、`resource release deferred` 0、terminal eventあり |
-| 4 | `PROD-01-F` Lancers pendingを1 sliceずつ消化 | pending 101件が残り、Application以外の収益receiptが0 | 101件が公式receipt付きで処理済み、または理由付きterminal。effect key重複0、replay-zero |
-| 5 | `PROD-02` Lancers Negotiate/Storefront/Paidを閉じる | Paidは契約候補0・effect/readback 0で、収益成功ではない。Reply/Storefrontも公式readback未完 | laneごとに公式receipt、または明示的not-applicableと再試行境界 |
-| 6 | `MARKET-02` CrowdWorksを閉じる | 4 ownerが旧release、直近に30秒 `Page.goto` timeout、account/profile failure | 新releaseの自然terminal、公式応募/契約receiptまたはtruthful not-applicable、重複0 |
-| 7 | `MARKET-03` Mercorを閉じる | logged_out / CDP handshake timeout履歴、human gate・payment receipt未確認 | stale lease再発なし、Application/Reply/Paidがtyped terminal、必要なhuman gate再開、公式receipt |
-| 8 | `MARKET-04` Coconalaを別ownerから受け取る | 他workstreamがbrowser/account/TODOを所有中 | 4 laneごとの公式応募・購入・納品receipt、buyer readback、replay-zero |
-| 9 | `CONTROL-01` registry外Browser provisionerを分類する | `lm-loop doctor` が unmanaged provisionerを1件報告 | 所有者・release・state・readbackを登録し、doctorのunmanaged 0（稼働中profileは止めない） |
-| 10 | `LOCAL-01/02` 14 Product Loopのcompletion manifestを埋める | 14 loopは論理的な一覧で、全loopの実測receiptが揃っていない | unknown 0、未対応はtyped state、成功は公式receiptだけ、内部ログとTelegramを分離 |
-| 11 | `CLOUD-01..04` local→cloud昇格 | tenant分離・cloud Browser・phone-only canary未実装/未実測 | local gate全PASS後、同じcontractでcloud canary、公式readback、replay-zero、本番昇格 |
+| 1 | `CAND-01` 候補 `5dfbcb9748` の共有kernel修正を固定する | Lancers browser lease、stale claim解放、CrowdWorks/Mercor timeout、Mercor stale provisioning GCは候補branchだけ | candidate suite（871 tests + 132 subtests）、diff、fixture、release manifestを再確認。main/本番にはまだ配布しない |
+| 2 | `CAND-02` candidateのread-only自然wake/canaryを閉じる | candidateの競合・冪等化はfixture/live read-onlyで確認しただけ | 各対象ownerをeffectなしで一度ずつ確認し、想定外の`browser_session_busy` 0、`resource release deferred` 0、terminal eventあり |
+| 3 | `PROD-01-F` Lancers pendingを1 sliceずつ消化 | pending 101件が残り、Application以外の収益receiptが0 | 101件が公式receipt付きで処理済み、または理由付きterminal。effect key重複0、replay-zero |
+| 4 | `PROD-02` Lancers Negotiate/Storefront/Paidを閉じる | Paidは契約候補0・effect/readback 0で、収益成功ではない。Reply/Storefrontも公式readback未完 | laneごとに公式receipt、または明示的not-applicableと再試行境界 |
+| 5 | `MARKET-02` CrowdWorksを閉じる | 4 ownerが旧release、直近に30秒 `Page.goto` timeout、account/profile failure | 候補受入後に作る新releaseの自然terminal、公式応募/契約receiptまたはtruthful not-applicable、重複0 |
+| 6 | `MARKET-03` Mercorを閉じる | logged_out / CDP handshake timeout履歴、human gate・payment receipt未確認 | stale lease再発なし、Application/Reply/Paidがtyped terminal、必要なhuman gate再開、公式receipt |
+| 7 | `MARKET-04` Coconalaを別ownerから受け取る | 他workstreamがbrowser/account/TODOを所有中 | 4 laneごとの公式応募・購入・納品receipt、buyer readback、replay-zero |
+| 8 | `CONTROL-01` registry外Browser provisionerを分類する | `lm-loop doctor` が unmanaged provisionerを1件報告 | 所有者・release・state・readbackを登録し、doctorのunmanaged 0（稼働中profileは止めない） |
+| 9 | `LOCAL-01/02` 14 Product Loopのcompletion manifestを埋める | 14 loopは論理的な一覧で、全loopの実測receiptが揃っていない | unknown 0、未対応はtyped state、成功は公式receiptだけ、内部ログとTelegramを分離 |
+| 10 | `CLOUD-01..04` local→cloud昇格 | tenant分離・cloud Browser・phone-only canary未実装/未実測 | local gate全PASS後、同じcontractでcloud canary、公式readback、replay-zero |
+| 11 | `INT-99` 全受入後に一度だけmain統合・immutable release化 | 候補は未統合で、本番selectorは `2ff93374` のまま | rows 1〜10が全PASS、mainへ一度だけPR/merge、13 ownerを同じSHAへ反映、production readback |
 
 **進行ルール:** 前の行の完了条件を満たすまで次の外部effectを実行しません。`exit 0`、
-Telegram報告、テストgreen、ブラウザ画面表示だけでは完了にしません。
+Telegram報告、テストgreen、ブラウザ画面表示だけでは完了にしません。候補branchを本番ownerへ
+先に配布しません。全体のlocal/cloud受入が揃った最後に、main統合とimmutable release作成を
+一度だけ行います。
 
 ### Current operational cursor and remaining atomic TODO
 
