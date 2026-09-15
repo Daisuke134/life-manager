@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from xml.parsers.expat import ExpatError
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -33,7 +34,7 @@ def installed_state_roots(agents_dir: Path) -> set[Path]:
             value = environment.get("LIFE_MANAGER_STATE_ROOT")
             if isinstance(value, str) and value:
                 roots.add(Path(value).expanduser().resolve())
-        except (OSError, ValueError, plistlib.InvalidFileException):
+        except (OSError, ValueError, plistlib.InvalidFileException, ExpatError):
             continue
     return roots
 

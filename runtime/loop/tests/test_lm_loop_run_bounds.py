@@ -9,6 +9,8 @@ import time
 from pathlib import Path
 from unittest.mock import call, patch
 
+import pytest
+
 from runtime.host import resource_admission as admission
 from runtime.loop.lm_loop_run import (
     _admission_class, _dispatch_reserved, _host_admission_deferred, _resource_class,
@@ -139,7 +141,11 @@ def test_acquired_slot_keeps_the_full_entrypoint_runtime_budget(tmp_path):
     dispatch.assert_called_once_with(["next"])
 
 
-def test_release_reconciler_bypasses_data_plane_admission(tmp_path):
+@pytest.mark.parametrize("loop_id", (
+    "life-manager-release-reconciler",
+    "life-manager-disk-cleanup",
+))
+def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path, loop_id):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "deterministic", "runtime_timeout_seconds": 900}
     receipt = tmp_path / "receipt"
@@ -148,7 +154,7 @@ def test_release_reconciler_bypasses_data_plane_admission(tmp_path):
           patch("runtime.loop.lm_loop_run.try_acquire_resource") as acquire,
           patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0) as run):
         assert _run_admitted(
-            ["/bin/true"], entry, "life-manager-release-reconciler", {}, receipt,
+            ["/bin/true"], entry, loop_id, {}, receipt,
         ) == 0
 
     memory.assert_not_called()
