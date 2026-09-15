@@ -30,6 +30,7 @@ from runtime.host.resource_admission import activate_durable_v2, durable_protoco
 
 
 ROOT = Path(__file__).resolve().parents[2]
+LAUNCHCTL_TIMEOUT_SECONDS = 45
 
 
 def _next_eligible(cadence: dict) -> str:
@@ -299,7 +300,8 @@ def snapshot(registry: dict, target: str) -> list[dict]:
 def _safe_launchctl(executable: Path, args: list[str]) -> tuple[int, str]:
     with tempfile.TemporaryFile(mode="w+") as output:
         result = subprocess.run(
-            [str(executable), *args], stdout=output, stderr=output, text=True, timeout=30)
+            [str(executable), *args], stdout=output, stderr=output, text=True,
+            timeout=LAUNCHCTL_TIMEOUT_SECONDS)
         output.seek(0)
         return result.returncode, output.read()
 

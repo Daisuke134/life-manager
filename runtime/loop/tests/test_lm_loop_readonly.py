@@ -155,6 +155,15 @@ class LmLoopReadonlyTest(unittest.TestCase):
             }))
             self.assertEqual(_state_root_from_plist(path, "/default-state"), custom)
 
+    def test_safe_launchctl_timeout_covers_the_full_control_plane_preflight(self):
+        from runtime.loop.lm_loop import _safe_launchctl
+
+        completed = subprocess.CompletedProcess([], 0, "ok")
+        with patch("runtime.loop.lm_loop.subprocess.run", return_value=completed) as run:
+            self.assertEqual(_safe_launchctl(Path("/bin/launchctl-safe"), ["preflight"]), (0, ""))
+
+        self.assertGreaterEqual(run.call_args.kwargs["timeout"], 40)
+
 
 if __name__ == "__main__":
     unittest.main()

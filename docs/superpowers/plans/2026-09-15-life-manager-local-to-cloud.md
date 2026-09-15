@@ -128,6 +128,11 @@ TODO worktree. The current cursor is `GRAPH-01`.
   events retain the same metadata. Focused proof: `runtime/loop/tests/test_release_identity.py` (4
   passed) and runtime/contract suites. No provider, browser, launchd, ledger, or Telegram effect was
   performed. Next active ID remains `GRAPH-01`.
+- [x] `ALIGN-04` — Increased the safe launchd wrapper timeout from 30 to 45 seconds so the outer
+  control-plane call covers the preflight's sequential bounded probes before reconciling stale labels.
+  Added a regression test for the timeout budget. The change does not bypass preflight or perform a
+  launchd mutation. Focused proof: `runtime/loop/tests/test_lm_loop_readonly.py::test_safe_launchctl_timeout_covers_the_full_control_plane_preflight` (passed). No provider,
+  browser, launchd, ledger, or Telegram effect was performed. Next active ID remains `GRAPH-01`.
 
 ## FND research gate (search complete; FND-02 implemented)
 
