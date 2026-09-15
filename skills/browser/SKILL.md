@@ -66,6 +66,28 @@ The profile itself (`--user-data-dir`, never deleted, caches capped) is what kee
 of the time; the ladder is for the rare server-side expiry. To cut expiry frequency: keep the profile,
 keep a stable fingerprint, and (at scale) pin a sticky proxy per account.
 
+## One session contract for local and cloud
+
+The local CDP helpers and the cloud Steel adapter use the same boundary. Set one endpoint per
+environment; do not let a loop quietly fall back to a different browser:
+
+```bash
+LIFE_MANAGER_BROWSER_ENDPOINT=http://127.0.0.1:9222       # local test
+LIFE_MANAGER_BROWSER_ENDPOINT=http://steel-browser.railway.internal:8080  # cloud private network
+```
+
+The endpoint must be private by default (loopback, private network, `.local`, or `.internal`). A
+public endpoint is accepted only when `LIFE_MANAGER_BROWSER_ALLOW_PUBLIC_ENDPOINT=1` and it is HTTPS.
+The default mode is `CLOAK_BROWSER_MODE=headless`; `headed` is allowed only with
+`CLOAK_BROWSER_PURPOSE=human_gate` or `diagnostic`. Autonomous headed sessions fail closed.
+
+Every Steel session is checked after creation: its CDP websocket host and port must match the
+configured endpoint. A mismatch releases that session immediately, so a stale or misrouted browser
+cannot receive provider credentials or actions. Session context is an explicit provider allowlist
+(origins and named cookie/storage keys); wildcard and secret-like keys are rejected. Tenant, owner,
+provider, timeout, page-count, and idle budgets travel with that contract rather than being inferred
+from a prompt.
+
 ## Rules for browser loops
 
 - **Never launch your own Chromium** and never point at your own `--user-data-dir`. One browser, one

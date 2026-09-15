@@ -24,8 +24,14 @@
 // and also tears down the CDP socket, because a live socket against a released session is the same
 // leak by another name.
 
-const STEEL_BASE_URL = "http://steel-browser.railway.internal:8080";
 const { validateSessionContext } = require("./browser-auth-session-store.js");
+const {
+  DEFAULT_STEEL_ENDPOINT,
+  assertBrowserSessionEndpoint,
+  createBrowserSessionConfig,
+  normalizeBrowserEndpoint,
+} = require("../../../runtime/browser/session-contract.cjs");
+const STEEL_BASE_URL = DEFAULT_STEEL_ENDPOINT;
 
 // The page-side probe. Runs in the provider's page and returns the field descriptor shape
 // care-booking-executor.js reasons about: {selector, label, name, type, required, maxLength}. The
@@ -173,10 +179,45 @@ async function readJson(response) {
 
 // The real CDP connection is injected (`connectCdp`) so the protocol wiring can be swapped or
 // stubbed without this module smuggling a websocket import into every test that touches booking.
-function makeSteelCdpClient({ baseUrl = STEEL_BASE_URL, fetchImpl, connectCdp } = {}) {
+function sessionOptions(options) {
+  const value = options && typeof options === "object" && !Array.isArray(options)
+    ? options
+    : {};
+  const contract = value.browserSession || value.sessionContract || null;
+  const { browserSession: _browserSession, sessionContract: _sessionContract, ...steelOptions } = value;
+  return { contract, steelOptions };
+}
+
+function makeSteelCdpClient({
+  baseUrl = process.env.LIFE_MANAGER_BROWSER_ENDPOINT || STEEL_BASE_URL,
+  fetchImpl,
+  connectCdp,
+  sessionConfig,
+} = {}) {
+  const allowPublicEndpoint = Boolean(
+    sessionConfig && sessionConfig.allowPublicEndpoint === true,
+  ) || process.env.LIFE_MANAGER_BROWSER_ALLOW_PUBLIC_ENDPOINT === "1";
+  const normalizedBaseUrl = normalizeBrowserEndpoint(baseUrl, { allowPublicEndpoint });
+  const configuredSession = sessionConfig
+    ? createBrowserSessionConfig({ ...sessionConfig, endpoint: normalizedBaseUrl })
+    : null;
   const doFetch = fetchImpl || globalThis.fetch;
   const connect = connectCdp || require("./cdp-connection.js").connectCdp;
   let connection = null;
+
+  function resolveSessionContract(value) {
+    if (value == null) return configuredSession;
+    if (value && value.schema_version === 1) {
+      if (value.endpoint !== normalizedBaseUrl) {
+        throw new Error("browser session contract endpoint mismatch");
+      }
+      return value;
+    }
+    return createBrowserSessionConfig({
+      ...value,
+      endpoint: normalizedBaseUrl,
+    });
+  }
 
   async function page() {
     if (!connection) throw new Error("no steel session — createSession() first");
@@ -184,13 +225,15 @@ function makeSteelCdpClient({ baseUrl = STEEL_BASE_URL, fetchImpl, connectCdp } 
   }
 
   async function launch(options = {}) {
-    if (Object.hasOwn(options, "persist") || Object.hasOwn(options, "userDataDir")) {
+    const resolved = sessionOptions(options);
+    const steelOptions = resolved.steelOptions;
+    if (Object.hasOwn(steelOptions, "persist") || Object.hasOwn(steelOptions, "userDataDir")) {
       throw new Error("persistent Steel profiles are forbidden");
     }
-    const response = await doFetch(`${baseUrl}/v1/sessions`, {
+    const response = await doFetch(`${normalizedBaseUrl}/v1/sessions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ blockAds: true, ...options }),
+      body: JSON.stringify({ blockAds: true, ...steelOptions }),
     });
     if (!response || !response.ok) {
       throw new Error(`steel session launch failed (${response ? response.status : "no response"})`);
@@ -202,12 +245,59 @@ function makeSteelCdpClient({ baseUrl = STEEL_BASE_URL, fetchImpl, connectCdp } 
     return { id: details.id, websocketUrl: details.websocketUrl };
   }
 
+  async function releaseRemoteSession(sessionId) {
+    const id = typeof sessionId === "string" ? sessionId.trim() : "";
+    if (!/^[A-Za-z0-9._-]{1,200}$/.test(id)) throw new Error("Steel session id unavailable");
+    let firstError = null;
+    try {
+      const response = await doFetch(`${normalizedBaseUrl}/v1/sessions/${encodeURIComponent(id)}/release`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (response && response.ok) return true;
+      firstError = new Error(`steel session release failed (${response ? response.status : "no response"})`);
+    } catch (error) {
+      firstError = error instanceof Error ? error : new Error(`steel session release failed: ${String(error)}`);
+    }
+    try {
+      const all = await doFetch(`${normalizedBaseUrl}/v1/sessions/release`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (all && all.ok) return true;
+    } catch { /* report the original per-session error */ }
+    throw firstError;
+  }
+
+  async function checkedLaunch(options = {}) {
+    const resolved = sessionOptions(options);
+    const sessionContract = resolveSessionContract(resolved.contract);
+    const session = await launch(resolved.steelOptions);
+    try {
+      // Endpoint binding is mandatory even when a caller does not need the richer
+      // tenant/storage contract.  Returning an unbound CDP socket would let a stale
+      // or misconfigured launch drive another browser service.
+      assertBrowserSessionEndpoint(session, sessionContract ? sessionContract.endpoint : normalizedBaseUrl, {
+        allowPublicEndpoint: sessionContract
+          ? sessionContract.allow_public_endpoint === true
+          : allowPublicEndpoint,
+      });
+    } catch (error) {
+      const failure = error instanceof Error ? error : new Error(String(error));
+      failure.sessionId = session.id;
+      failure.sessionReleased = await releaseRemoteSession(session.id).then(() => true, () => false);
+      throw failure;
+    }
+    return session;
+  }
+
   return {
-    baseUrl,
+    baseUrl: normalizedBaseUrl,
+    sessionContract: configuredSession,
     async assertLiveSession(sessionId) {
       const id = typeof sessionId === "string" ? sessionId.trim() : "";
       if (!/^[A-Za-z0-9._-]{1,200}$/.test(id)) throw new Error("Steel live session invalid");
-      const response = await doFetch(`${baseUrl}/v1/sessions/${encodeURIComponent(id)}`);
+      const response = await doFetch(`${normalizedBaseUrl}/v1/sessions/${encodeURIComponent(id)}`);
       if (!response || !response.ok) throw new Error("Steel live session unavailable");
       const details = await readJson(response);
       if (!details || details.id !== id || details.status !== "live") {
@@ -224,7 +314,7 @@ function makeSteelCdpClient({ baseUrl = STEEL_BASE_URL, fetchImpl, connectCdp } 
         throw new Error("Steel debugger public URL invalid");
       }
       await this.assertLiveSession(sessionId);
-      const response = await doFetch(`${baseUrl}/v1/sessions/debug?interactive=true&showControls=true`);
+      const response = await doFetch(`${normalizedBaseUrl}/v1/sessions/debug?interactive=true&showControls=true`);
       if (!response || !response.ok) throw new Error("Steel debugger unavailable");
       const html = await response.text();
       const privateCast = "ws://steel-browser.railway.internal:8080/v1/sessions/cast";
@@ -235,19 +325,19 @@ function makeSteelCdpClient({ baseUrl = STEEL_BASE_URL, fetchImpl, connectCdp } 
       return safe;
     },
     async health() {
-      const response = await doFetch(`${baseUrl}/v1/health`);
+      const response = await doFetch(`${normalizedBaseUrl}/v1/health`);
       return Boolean(response && response.ok);
     },
     // Stagehand owns the CDP connection for generic natural-language tasks. This creates the same
     // private Steel session but deliberately does not attach the deterministic booking CDP client.
     async createRawSession(options = {}) {
-      return launch(options);
+      return checkedLaunch(options);
     },
     async getSessionContext(sessionId) {
       const id = typeof sessionId === "string" ? sessionId.trim() : "";
       if (!id || id.length > 200) throw new Error("steel session id unavailable");
       const response = await doFetch(
-        `${baseUrl}/v1/sessions/${encodeURIComponent(id)}/context`,
+        `${normalizedBaseUrl}/v1/sessions/${encodeURIComponent(id)}/context`,
         { method: "GET" },
       );
       if (!response || !response.ok) {
@@ -258,7 +348,7 @@ function makeSteelCdpClient({ baseUrl = STEEL_BASE_URL, fetchImpl, connectCdp } 
       return validateSessionContext(await readJson(response));
     },
     async createSession(options = {}) {
-      const details = await launch(options);
+      const details = await checkedLaunch(options);
       // The id is captured BEFORE the connect, because a connect that throws leaves a session running
       // on the far side that nobody holds a handle to — and the OSS build has exactly one slot, so an
       // orphan blocks every later booking for every user until the service restarts.
@@ -305,7 +395,7 @@ function makeSteelCdpClient({ baseUrl = STEEL_BASE_URL, fetchImpl, connectCdp } 
       if (open && typeof open.close === "function") {
         try { await open.close(); } catch { /* the HTTP release below is what actually frees the slot */ }
       }
-      const response = await doFetch(`${baseUrl}/v1/sessions/release`, {
+      const response = await doFetch(`${normalizedBaseUrl}/v1/sessions/release`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -317,28 +407,10 @@ function makeSteelCdpClient({ baseUrl = STEEL_BASE_URL, fetchImpl, connectCdp } 
       if (open && typeof open.close === "function") {
         try { await open.close(); } catch { /* the HTTP release below is what actually frees the slot */ }
       }
-      let firstError = null;
-      try {
-        const response = await doFetch(`${baseUrl}/v1/sessions/${encodeURIComponent(sessionId)}/release`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-        if (response && response.ok) return true;
-        firstError = new Error(`steel session release failed (${response ? response.status : "no response"})`);
-      } catch (error) {
-        firstError = error instanceof Error ? error : new Error(`steel session release failed: ${String(error)}`);
-      }
       // A session we failed to release by id still occupies the only slot there is. Release-ALL is
       // safe precisely because the build is single-session: there is no other tenant's session to
       // take down with it, and leaving the slot stuck is strictly worse than freeing it bluntly.
-      try {
-        const all = await doFetch(`${baseUrl}/v1/sessions/release`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-        if (all && all.ok) return true;
-      } catch { /* fall through and report the original failure */ }
-      throw firstError;
+      return releaseRemoteSession(sessionId);
     },
   };
 }

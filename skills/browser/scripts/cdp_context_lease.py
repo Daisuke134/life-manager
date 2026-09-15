@@ -27,6 +27,8 @@ import time
 import urllib.request
 from urllib.parse import urlparse
 
+from browser_session_contract import browser_mode, configured_endpoint
+
 try:
     import websockets
 except ImportError:
@@ -35,7 +37,11 @@ except ImportError:
 
 
 def _cdp_base():
-    return os.environ.get("CLOAK_CDP_BASE_URL", "http://127.0.0.1:9222").rstrip("/")
+    # One endpoint contract is shared with the cloud Steel adapter.  The mode check is
+    # intentionally performed on every acquire/release invocation so a scheduler cannot
+    # silently turn an autonomous loop into a visible headed browser via inherited env.
+    browser_mode()
+    return configured_endpoint()
 
 
 def _vault_path():

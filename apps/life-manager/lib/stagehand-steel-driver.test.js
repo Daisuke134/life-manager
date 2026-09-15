@@ -131,14 +131,16 @@ function fixture(fixtureOptions = {}) {
     async close() { calls.push(["close"]); }
   }
   const steelClient = {
-    baseUrl: "http://steel-browser.railway.internal:8080",
+    baseUrl: fixtureOptions.baseUrl || "http://steel-browser.railway.internal:8080",
     async createRawSession(createOptions) {
       calls.push(["create", createOptions]);
       const id = `steel-${calls.filter(([name]) => name === "create").length}`;
       return {
         id,
         websocketUrl: fixtureOptions.websocketUrl ||
-          "ws://steel-browser.railway.internal:8080/",
+          (fixtureOptions.baseUrl === "http://steel:3000"
+            ? "ws://steel:3000/"
+            : "ws://steel-browser.railway.internal:8080/"),
       };
     },
     async getSessionContext(id) {
@@ -227,6 +229,18 @@ test("Stagehand reasons over a Railway-private Steel session and discovers the t
   assert.match(tasks[1], /exactly one/i);
   assert.doesNotMatch(tasks.join("\n"), /fresh-events\.example/i, "the target comes from discovery, never configuration");
   assert.doesNotMatch(JSON.stringify(action), /browser-owner@example\.test/i, "the identity never enters durable results");
+});
+
+test("Stagehand uses the same contract for a local Steel endpoint without Railway host rewriting", async () => {
+  const { driver, getOptions } = fixture({ baseUrl: "http://steel:3000" });
+  const session = await driver.openSession();
+  await driver.discoverAndAct(session, {
+    goal: "Find a suitable free public online AI event and register the agent-owned email",
+    locale: "en",
+  });
+
+  assert.equal(getOptions().localBrowserLaunchOptions.cdpUrl, "ws://steel:3000/");
+  assert.equal(Object.hasOwn(getOptions().localBrowserLaunchOptions, "cdpHeaders"), false);
 });
 
 test("expired held session releases the exact Steel slot once", async () => {
@@ -1918,12 +1932,15 @@ test("release closes Stagehand before releasing the one Steel slot", async () =>
   assert.deepEqual(calls.slice(-2), [["close"], ["release", "steel-1"]]);
 });
 
-test("public or local browser endpoints are rejected before a browser is created", () => {
-  for (const baseUrl of ["https://steel.example.com", "http://localhost:3000"]) {
-    assert.throws(() => makeStagehandSteelDriver({
-      steelClient: { baseUrl },
-      Stagehand: class {},
-      apiKey: "key",
-    }), /Railway-private Steel/i);
-  }
+test("public endpoints are rejected, while local endpoints are accepted before a browser is created", () => {
+  assert.throws(() => makeStagehandSteelDriver({
+    steelClient: { baseUrl: "https://steel.example.com" },
+    Stagehand: class {},
+    apiKey: "key",
+  }), /private endpoint/i);
+  assert.doesNotThrow(() => makeStagehandSteelDriver({
+    steelClient: { baseUrl: "http://localhost:3000" },
+    Stagehand: class {},
+    apiKey: "key",
+  }));
 });

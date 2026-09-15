@@ -120,6 +120,52 @@ test("createRawSession leaves the private Steel CDP endpoint unattached for Stag
   assert.equal(connectCalls, 0, "Stagehand, not the deterministic booking client, owns this CDP socket");
 });
 
+test("the session contract binds a local launch and strips contract metadata from Steel", async () => {
+  const fetchImpl = fakeFetch(() => ok({
+    id: "local-1",
+    websocketUrl: "ws://steel:3000/",
+    status: "live",
+  }));
+  const client = makeSteelCdpClient({
+    baseUrl: "http://steel:3000/",
+    fetchImpl,
+    connectCdp: async () => ({}),
+    sessionConfig: {
+      scope: { tenantId: "tenant-a", ownerId: "owner-a", provider: "lancers" },
+      storage: { origins: ["https://lancers.jp"], cookieNames: ["session"] },
+    },
+  });
+  const session = await client.createRawSession({
+    blockAds: true,
+    browserSession: {
+      scope: { tenantId: "tenant-a", ownerId: "owner-a", provider: "lancers" },
+      storage: { origins: ["https://lancers.jp"], cookieNames: ["session"] },
+    },
+  });
+
+  assert.deepEqual(session, { id: "local-1", websocketUrl: "ws://steel:3000/" });
+  assert.equal(client.baseUrl, "http://steel:3000");
+  assert.equal(client.sessionContract.endpoint, "http://steel:3000");
+  assert.deepEqual(fetchImpl.calls[0].body, { blockAds: true });
+});
+
+test("a launch whose CDP socket leaves the configured host is released and rejected", async () => {
+  const fetchImpl = fakeFetch((url) => url.endsWith("/release")
+    ? ok({ success: true })
+    : ok({ id: "local-2", websocketUrl: "ws://other:3000/", status: "live" }));
+  const client = makeSteelCdpClient({
+    baseUrl: "http://steel:3000",
+    fetchImpl,
+    connectCdp: async () => ({}),
+  });
+
+  await assert.rejects(() => client.createRawSession(), /endpoint host/i);
+  assert.deepEqual(fetchImpl.calls.map((call) => call.url), [
+    "http://steel:3000/v1/sessions",
+    "http://steel:3000/v1/sessions/local-2/release",
+  ]);
+});
+
 test("getSessionContext exports and validates the complete Steel browser context", async () => {
   const context = {
     cookies: [{
@@ -257,7 +303,7 @@ test("page work runs over the session's CDP connection and reads real form field
     submitSelector: "form button[type=submit]",
     fields: [{ selector: "#name", label: "お名前", name: "name", type: "text", required: true }],
   };
-  const fetchImpl = fakeFetch(() => ok({ id: "abc", websocketUrl: "ws://s/", status: "live" }));
+  const fetchImpl = fakeFetch(() => ok({ id: "abc", websocketUrl: "ws://steel-browser.railway.internal:8080/", status: "live" }));
   const client = makeSteelCdpClient({ fetchImpl, connectCdp });
 
   await client.createSession();
@@ -270,7 +316,7 @@ test("page work runs over the session's CDP connection and reads real form field
 test("releaseSession also closes the CDP connection so the single OSS session is really free", async () => {
   let closed = 0;
   const connectCdp = async () => ({ async evaluate() { return null; }, async close() { closed += 1; } });
-  const fetchImpl = fakeFetch(() => ok({ id: "abc", websocketUrl: "ws://s/", status: "live" }));
+  const fetchImpl = fakeFetch(() => ok({ id: "abc", websocketUrl: "ws://steel-browser.railway.internal:8080/", status: "live" }));
   const client = makeSteelCdpClient({ fetchImpl, connectCdp });
   await client.createSession();
   await client.readForm("abc");
@@ -285,7 +331,7 @@ test("releaseSession also closes the CDP connection so the single OSS session is
 test("a CDP connect failure releases the session it had already created", async () => {
   const fetchImpl = fakeFetch((url) => (url.endsWith("/release")
     ? ok({ success: true })
-    : ok({ id: "abc", websocketUrl: "ws://s/", status: "live" })));
+    : ok({ id: "abc", websocketUrl: "ws://steel-browser.railway.internal:8080/", status: "live" })));
   const client = makeSteelCdpClient({ fetchImpl, connectCdp: async () => { throw new Error("connect ECONNREFUSED"); } });
 
   const error = await client.createSession().then(() => null, (e) => e);
@@ -301,7 +347,7 @@ test("a CDP connect failure releases the session it had already created", async 
 test("a per-session release failure falls back to the release-ALL route", async () => {
   const fetchImpl = fakeFetch((url) => {
     if (url.endsWith("/v1/sessions/abc/release")) return { ok: false, status: 500, text: async () => "boom" };
-    if (url.endsWith("/v1/sessions")) return ok({ id: "abc", websocketUrl: "ws://s/", status: "live" });
+    if (url.endsWith("/v1/sessions")) return ok({ id: "abc", websocketUrl: "ws://steel-browser.railway.internal:8080/", status: "live" });
     return ok({ success: true });
   });
   const client = makeSteelCdpClient({ fetchImpl, connectCdp: async () => ({ async close() {} }) });
@@ -322,7 +368,7 @@ test("a release that fails BOTH ways still throws rather than claiming the slot 
 test("waitForLoad rides through to the CDP connection", async () => {
   const seen = [];
   const connectCdp = async () => ({ async waitForLoad(timeoutMs) { seen.push(timeoutMs); return { loaded: true }; }, async close() {} });
-  const fetchImpl = fakeFetch(() => ok({ id: "abc", websocketUrl: "ws://s/", status: "live" }));
+  const fetchImpl = fakeFetch(() => ok({ id: "abc", websocketUrl: "ws://steel-browser.railway.internal:8080/", status: "live" }));
   const client = makeSteelCdpClient({ fetchImpl, connectCdp });
   await client.createSession();
   assert.deepEqual(await client.waitForLoad("abc", 1234), { loaded: true });
@@ -461,7 +507,7 @@ test("the submit helper throws the sentinel the executor keys its zero-submits f
 
   let expression = null;
   const connectCdp = async () => ({ async evaluate(source) { expression = source; return true; }, async close() {} });
-  const fetchImpl = fakeFetch(() => ok({ id: "abc", websocketUrl: "ws://s/", status: "live" }));
+  const fetchImpl = fakeFetch(() => ok({ id: "abc", websocketUrl: "ws://steel-browser.railway.internal:8080/", status: "live" }));
   const client = makeSteelCdpClient({ fetchImpl, connectCdp });
   await client.createSession();
   await client.submit("abc", "#go");

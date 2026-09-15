@@ -10,14 +10,15 @@ const {
   upsertBrowserAuthSession: defaultUpsertBrowserAuthSession,
   invalidateBrowserAuthSession: defaultInvalidateBrowserAuthSession,
 } = require("./browser-auth-session-store.js");
+const {
+  assertBrowserSessionEndpoint,
+  normalizeBrowserEndpoint,
+} = require("../../../runtime/browser/session-contract.cjs");
 
 const MODEL = "google/gemini-2.5-flash";
 const AGENT_MODEL = "google/gemini-2.5-computer-use-preview-10-2025";
 const AGENT_SYSTEM_PROMPT = "Operate the remote cloud browser carefully. Use only truthful supplied identity data, never invent personal data, and stop at login, CAPTCHA, 2FA, KYC, or payment.";
 const SEARCH_URL = "https://www.google.com/";
-const PRIVATE_STEEL = /^http:\/\/steel-browser\.railway\.internal:8080\/?$/;
-const PRIVATE_CDP = /^ws:\/\/steel-browser\.railway\.internal:8080(?:\/|$)/;
-
 const selectionSchema = z.object({
   selectedSiteName: z.string(),
   selectionReason: z.string(),
@@ -279,18 +280,40 @@ function classifyReadOnlyDomSnapshot(snapshot = {}) {
   };
 }
 
-function privateSession(session) {
-  if (!session || !session.id || !PRIVATE_CDP.test(String(session.websocketUrl || ""))) {
-    throw new Error("Stagehand requires a Railway-private Steel CDP session");
+function privateSession(session, endpoint, allowPublicEndpoint = false) {
+  try {
+    assertBrowserSessionEndpoint(session, endpoint, { allowPublicEndpoint });
+  } catch {
+    throw new Error(
+      "Stagehand requires a Railway-private Steel CDP session on the configured private endpoint",
+    );
   }
   return session;
 }
 
+function websocketBase(endpoint) {
+  const parsed = new URL(endpoint);
+  parsed.protocol = parsed.protocol === "https:" ? "wss:" : "ws:";
+  return `${parsed.protocol}//${parsed.host}/`;
+}
+
+function cdpHeaders(endpoint) {
+  const parsed = new URL(endpoint);
+  return parsed.hostname.endsWith(".railway.internal")
+    ? { Host: `localhost:${parsed.port || (parsed.protocol === "https:" ? "443" : "80")}` }
+    : undefined;
+}
+
 function makeStagehandSteelDriver(options = {}) {
   const steelClient = options.steelClient || makeSteelCdpClient();
-  if (!PRIVATE_STEEL.test(String(steelClient.baseUrl || STEEL_BASE_URL))) {
-    throw new Error("Stagehand driver requires Railway-private Steel");
-  }
+  const allowPublicEndpoint = options.allowPublicEndpoint === true
+    || process.env.LIFE_MANAGER_BROWSER_ALLOW_PUBLIC_ENDPOINT === "1";
+  const steelEndpoint = normalizeBrowserEndpoint(
+    steelClient.baseUrl || STEEL_BASE_URL,
+    { allowPublicEndpoint },
+  );
+  const steelWebsocketBase = websocketBase(steelEndpoint);
+  const steelCdpHeaders = cdpHeaders(steelEndpoint);
   const Stagehand = options.Stagehand || require("@browserbasehq/stagehand").Stagehand;
   const apiKey = String(options.apiKey || process.env.GEMINI_API_KEY || "").trim();
   const agentEmail = String(options.agentEmail || process.env.LM_AGENT_BROWSER_EMAIL || "").trim();
@@ -320,7 +343,7 @@ function makeStagehandSteelDriver(options = {}) {
       if (!sessions.has(id)) throw new Error("Stagehand handoff session unavailable");
       return this.readProviderReceipt({
         id,
-        websocketUrl: "ws://steel-browser.railway.internal:8080/",
+        websocketUrl: steelWebsocketBase,
       });
     },
     async openSession(input = {}) {
@@ -359,7 +382,7 @@ function makeStagehandSteelDriver(options = {}) {
       const created = await steelClient.createRawSession(createOptions);
       let session;
       try {
-        session = privateSession(created);
+        session = privateSession(created, steelEndpoint, allowPublicEndpoint);
       } catch (error) {
         if (created && created.id) {
           try { await steelClient.releaseSession(String(created.id)); } catch { /* preserve validation */ }
@@ -371,7 +394,7 @@ function makeStagehandSteelDriver(options = {}) {
     },
 
     async discoverAndAct(sessionInput, context = {}) {
-      const session = privateSession(sessionInput);
+      const session = privateSession(sessionInput, steelEndpoint, allowPublicEndpoint);
       const goal = String(context.goal || "").trim();
       if (!goal) throw new Error("generic browser goal unavailable");
       const stagehand = new Stagehand({
@@ -380,7 +403,7 @@ function makeStagehandSteelDriver(options = {}) {
         verbose: 0,
         localBrowserLaunchOptions: {
           cdpUrl: session.websocketUrl,
-          cdpHeaders: { Host: "localhost:8080" },
+          ...(steelCdpHeaders ? { cdpHeaders: steelCdpHeaders } : {}),
         },
         model: {
           modelName: MODEL,
@@ -528,7 +551,7 @@ function makeStagehandSteelDriver(options = {}) {
     },
 
     async readProviderReceipt(sessionInput, action = {}) {
-      const session = privateSession(sessionInput);
+      const session = privateSession(sessionInput, steelEndpoint, allowPublicEndpoint);
       const open = sessions.get(String(session.id));
       const restoredAuth = authSessions.get(String(session.id));
       if (!open) throw new Error("Stagehand session unavailable for provider readback");
@@ -708,7 +731,7 @@ function makeStagehandSteelDriver(options = {}) {
     },
 
     async captureEvidence(sessionInput) {
-      const session = privateSession(sessionInput);
+      const session = privateSession(sessionInput, steelEndpoint, allowPublicEndpoint);
       const open = sessions.get(String(session.id));
       if (!open) throw new Error("Stagehand session unavailable for evidence capture");
       return {

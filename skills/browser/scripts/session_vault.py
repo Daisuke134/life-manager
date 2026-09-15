@@ -38,6 +38,7 @@ import time
 import urllib.request
 
 import target_ownership
+from browser_session_contract import browser_mode, configured_endpoint, normalize_endpoint
 
 CDP_PORT = os.environ.get("SESSION_VAULT_PORT", "9222")
 CDP = f"http://127.0.0.1:{CDP_PORT}"
@@ -66,7 +67,12 @@ except ImportError:
 
 
 def _browser_ws():
-    d = json.loads(urllib.request.urlopen(f"{CDP}/json/version", timeout=8).read())
+    browser_mode()
+    if os.environ.get("LIFE_MANAGER_BROWSER_ENDPOINT") or os.environ.get("CLOAK_CDP_BASE_URL"):
+        endpoint = configured_endpoint()
+    else:
+        endpoint = normalize_endpoint(CDP)
+    d = json.loads(urllib.request.urlopen(f"{endpoint}/json/version", timeout=8).read())
     return d["webSocketDebuggerUrl"]
 
 
