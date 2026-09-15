@@ -29,7 +29,7 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `EVAL-02`.
+TODO worktree. The current cursor is `EVAL-03`.
 
 ### Atomic execution log
 
@@ -181,6 +181,14 @@ TODO worktree. The current cursor is `EVAL-02`.
   malformed hashes/refs, secrets, unbounded values, and invalid lifecycle timing fail closed. Focused
   proof: initial RED import failure followed by the case-contract and graph tests (12 passed).
   No provider, browser, launchd, ledger, or Telegram effect was performed. Next active ID: `EVAL-02`.
+- [x] `EVAL-02` — Added five anonymous regression/boundary fixtures in
+  `apps/life-manager/eval/agent-contract/cases.jsonl`: Coconala source outage, Lancers login
+  unavailability, Mercor authentication-save failure, Connector registration failure, and Fundraiser
+  deadline failure. Every case keeps the effect unverified/blocked, requires safety-pass handling,
+  and contains only a fixture reference plus hashes; no real account, provider payload, or credential
+  is copied. Focused proof: `node --test apps/life-manager/eval/agent-contract/cases.test.js`
+  (2 passed) with duplicate-ID and malformed-contract checks. No provider, browser, launchd, ledger,
+  or Telegram effect was performed. Next active ID: `EVAL-03`.
 
 ### Current production blocker snapshot (read-only)
 
@@ -220,7 +228,7 @@ target control plane is implemented.
 
 **Alignment checkpoint:** the search and FND implementation phase is complete: `FND-02` through
 `FND-10` have focused contracts and receipts. No provider effect was performed in this workstream.
-The next atomic change is `EVAL-02`'s five representative failure fixtures; it begins with a focused
+The next atomic change is `EVAL-03`'s held-out and safety promotion gate; it begins with a focused
 failing test while preserving the evaluator's no-production-effect boundary.
 
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
