@@ -298,6 +298,22 @@ passed with install event `f5f75b062c5af6dda9bd9f54`, loaded arguments rooted at
 The owner is now `loaded-idle` on the fixed release; its next natural wake is the remaining official
 safety/proposal canary gate.
 
+Latest Lancers read-only lane check: Apply is installed on `97287335` but the latest natural wakes
+still show `entrypoint_exit_1` or `host_admission_deferred:resource_capacity_busy`; Reply/Negotiate,
+Storefront, and Paid still show the same capacity blocker on older `2a53ce25` releases. The dedicated
+9227 Browser owner responds with Chrome 145, but launchd remains on `e8e8a2b2` and its last exit is
+`78 (EX_CONFIG)`. No official application, reply, storefront, or paid receipt is present in this
+readback.
+
+Lancers repair handoff: branch `fix/lancers-browser-repair-20260915` is pushed through `7e231a7259`.
+It includes (1) close the failed Playwright/CDP client before the one retry (`3ed11504e9`), (2) cap
+the diagnostic safety verifier parent timeout at 150 seconds while leaving planner at 420 seconds
+(`be03795138`), and (3) reserve `revenue` admission for Lancers Apply/Negotiate/Storefront/Paid
+(`7e231a7259`). Lancers tests 171 passed; runtime registry/admission tests 101 passed with 100
+subtests. These changes are not live until the main/release owner merges them, reconciles each idle
+label, and records a natural-wake official receipt plus replay-zero. No running browser owner is to
+be force-stopped for this handoff.
+
 Parallel browser receipts (production cursor unchanged):
 
 - `BROWSER-01` implementation is pushed at `9237206392` and storage-scope hardening at
