@@ -219,6 +219,14 @@ TODO worktree. The current cursor is `PROD-01`.
   for ordinary tasks (`cec6ce0d9b`). The new regression test and the full Lancers/runner suites pass;
   production release creation, natural-idle sync, and one official canary remain open.
 
+  Parallel architecture progress (does not advance this production cursor): the provider-neutral
+  browser session contract is implemented and pushed as `9237206392`. It binds local and cloud Steel
+  endpoints, defaults autonomous work to headless mode, rejects headed autonomous sessions, scopes
+  storage keys, and releases a session whose CDP websocket does not match its configured endpoint.
+  Python CDP lease/vault helpers and the Stagehand/Steel adapters now use the same boundary. The
+  focused contract and browser-helper fixtures pass; the real local read-only canary remains a later
+  `BROWSER-02` gate.
+
 ### Current production blocker snapshot (read-only)
 
 - Coconala `hf-gig-apply-direct` is now loaded on the current full release `5a9fdfb4` and its running
@@ -279,6 +287,13 @@ focused Lancers and runner suites pass. The architecture worktree must not re-ap
 provider fix into that worktree; Marketplace owns the provider/TODO/main-release path. This
 worktree owns the shared contracts, skills, evals, and read-only verification, and will resume the
 next atomic architecture item only after `PROD-01` has an official canary receipt.
+
+Latest production merge recheck: `origin/main=97287335fe` now contains the Lancers caller and
+runner fixes, and the current immutable release is
+`/Users/anicca/loops/releases/20260915T193529-97287335`. The Lancers launchd owner is still pinned
+to `e8e8a2b2`; the safe reconcile command was attempted with the correct registry ID and returned
+`skipped_running`, so no running owner was stopped or restarted. The next production action remains
+the same targeted reconcile after natural idle, followed by one official safety/proposal canary.
 
 ## FND research gate (search complete; FND-02 implemented)
 
