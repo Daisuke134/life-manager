@@ -15,6 +15,7 @@
  * @property {string} genesisPrompt - contents of $ANICCA_HOME/identity/genesis.md
  * @property {string} wakeId - ULID for this wake
  * @property {number} ts - unix timestamp
+ * @property {object|null} contextCapsule - precompiled, hash-bound context; never rebuilt here
  */
 
 /**
@@ -23,7 +24,7 @@
  * @param {object} opts
  * @returns {WakeContext}
  */
-export function assembleContext({ walletAddress, balanceUsdc, netWorth, tier, model, recentLedgerLines, genesisPrompt, wakeId, ts, activeSkillSlots, skillCatalog, skillToolDocs, positionsSummary, reserveUsdc, avoidSlot, recentSlots, earnSteer, alwaysActEngaged, alwaysActMenu }) {
+export function assembleContext({ walletAddress, balanceUsdc, netWorth, tier, model, recentLedgerLines, genesisPrompt, wakeId, ts, activeSkillSlots, skillCatalog, skillToolDocs, positionsSummary, reserveUsdc, avoidSlot, recentSlots, earnSteer, alwaysActEngaged, alwaysActMenu, contextCapsule }) {
   return {
     // franklin-alwaysact-skill-router REQ-504: additive fields set by index.mjs's wake loop only for
     // Franklin-identity, flag-engaged wakes (REQ-501). alwaysActEngaged defaults false (byte-for-byte
@@ -57,6 +58,8 @@ export function assembleContext({ walletAddress, balanceUsdc, netWorth, tier, mo
     genesisPrompt: genesisPrompt || '',
     wakeId: wakeId || '',
     ts: ts || Math.floor(Date.now() / 1000),
+    // FND-10: context_packet.py compiles and hashes this capsule; the JS wake context only carries it.
+    contextCapsule: contextCapsule && typeof contextCapsule === 'object' ? contextCapsule : null,
     // spec 25 O1: the live skill slots the LLM may pick + their summaries
     activeSkillSlots: Array.isArray(activeSkillSlots) ? activeSkillSlots : [],
     skillCatalog: skillCatalog && typeof skillCatalog === 'object' ? skillCatalog : {},

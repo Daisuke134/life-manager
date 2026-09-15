@@ -49,6 +49,12 @@ test('assembleContext keeps avoidSlot + recentSlots (FIND-005: they were being d
   assert.match(m, /FORBIDDEN/); // the avoid steer now actually fires
 });
 
+test('assembleContext carries a compiled context capsule without rebuilding it', () => {
+  const capsule = Object.freeze({ capsule_id: 'capsule-1', content_sha256: 'a'.repeat(64) });
+  const ctx = assembleContext({ wakeId: 'W', contextCapsule: capsule });
+  assert.equal(ctx.contextCapsule, capsule);
+});
+
 
 const REGISTRY = {
   slots: {

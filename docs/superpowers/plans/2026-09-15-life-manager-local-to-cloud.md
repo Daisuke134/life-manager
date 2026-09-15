@@ -29,7 +29,7 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `FND-10`.
+TODO worktree. The current cursor is `GRAPH-01`.
 
 ### Atomic execution log
 
@@ -99,6 +99,13 @@ TODO worktree. The current cursor is `FND-10`.
   boundary tests (21 passed). The overlap readback found latest `origin/main=1f8d25eb4f12e3024e011b2fc5017443dc75c50d`,
   a clean marketplace TODO worktree, and no target-file change in canonical main. Next active ID:
   `FND-10`.
+- [x] `FND-10` — Added the deterministic `build_context_capsule` compiler in
+  `runtime/agent-runner/context_packet.py` and a pass-through `contextCapsule` field in
+  `runtime/loop/context.mjs`. The compiler normalizes authoritative facts, truncates only bounded
+  excerpts, counts stale sources, hashes the canonical payload, rejects secret-like values, and is
+  replay-stable; the JS context never rebuilds or expands it. Focused proof: context-capsule and
+  prompt/context tests passed (15 total), plus the shared contract checks. No provider, browser,
+  launchd, ledger, or Telegram effect was performed. Next active ID: `GRAPH-01`.
 
 ## FND research gate (search complete; FND-02 implemented)
 
@@ -122,10 +129,10 @@ target control plane is implemented.
 - [Firecracker](https://github.com/firecracker-microvm/firecracker/blob/c5314e5dfc732db683115a02dee440ca06162a7c/docs/design.md) uses microVM, seccomp, cgroups, namespaces, and jailer boundaries; reserve it for untrusted repair/eval code, not every browser session.
 - [Chrome headless](https://developer.chrome.com/docs/automation-and-testing/headless) confirms unattended no-UI operation, while modern headless shares Chrome's implementation; it reduces display overhead, not all browser memory.
 
-**Alignment checkpoint:** the search phase is complete and `FND-02` through `FND-09` now have
-focused contracts. No launchd, browser/account, ledger, or provider effect was changed; FND-06 was
-tested with a fake sender only. The next atomic change is `FND-10`'s bounded capsule compiler,
-starting with a focused failing test.
+**Alignment checkpoint:** the search and FND implementation phase is complete: `FND-02` through
+`FND-10` have focused contracts and receipts. No provider effect was performed in this workstream.
+The next atomic change is `GRAPH-01`'s graph node/edge/provenance schema; it begins with a focused
+failing test after the FND handoff is reviewed.
 
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
 |---|---|---|---|
