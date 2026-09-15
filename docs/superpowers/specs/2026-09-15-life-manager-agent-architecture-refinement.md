@@ -136,6 +136,16 @@ implementation, and only their host adapters differ.
 
 The rule is: **no cloud promotion before local acceptance**.
 
+### J2. Parallel Workstream Boundary
+
+The active marketplace owner exclusively edits `skills/earn/gig/TODO.md` and provider-owned files
+while its vertical acceptance is in progress. Architecture work proceeds in a separate worktree on
+skills, specifications, contract fixtures, and read-only diagnostics. A shared-file overlap check is
+required before changing `config/loop-registry.json`, `runtime/loop`, `skills/browser`,
+`skills/_shared/marketplace-core`, or production state. No workstream edits the active TODO or
+provider-owned files concurrently, and no workstream changes a live browser/account/ledger owner
+owned by another workstream.
+
 ### K. User Communication Contract
 
 Every wake, retry, evaluation, health signal, and diagnostic remains in the private ledger/control room

@@ -97,6 +97,14 @@ and deadline when applicable, and never includes raw logs, prompts, secrets, or 
 Repeated reports for the same issue are suppressed until its state changes or the 24-hour reminder
 boundary is reached.
 
+## Parallel workstream boundary
+
+The active marketplace TODO owner has exclusive ownership of `skills/earn/gig/TODO.md` and its
+provider-owned files while that workstream is running. Architecture work may proceed in a dedicated
+worktree on skills, specifications, contract fixtures, and read-only diagnostics. Before touching a
+shared file, compare the latest main and perform a shared-file overlap check; do not edit the active
+TODO, provider-owned files, shared runtime, browser lease, or production state concurrently.
+
 | Concern | Skill to load |
 |---|---|
 | Runtime, tools, ownership, recovery | `skills/harness-engineering/SKILL.md` |

@@ -179,3 +179,17 @@ def test_local_to_cloud_plan_has_ordered_execution_and_phone_only_gate() -> None
         "never start all production jobs",
     ):
         assert token in text, token
+
+
+def test_parallel_workstream_boundary_protects_the_active_marketplace_todo() -> None:
+    spec = (REPO_ROOT / "docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md").read_text(encoding="utf-8")
+    agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    for token in (
+        "Parallel Workstream Boundary",
+        "skills/earn/gig/TODO.md",
+        "shared-file overlap",
+        "provider-owned files",
+    ):
+        assert token in spec, token
+    for token in ("Parallel workstream boundary", "active marketplace TODO", "shared file"):
+        assert token in agents, token
