@@ -5,6 +5,8 @@ They do not choose a storage engine and do not move an existing database.
 
 - Scheduler declaration: `runtime/loop/loop.schema.json`
 - Runtime work item: `runtime/contracts/common-record.schema.json#/$defs/Job`
+- Typed run lifecycle: `runtime/contracts/common-record.schema.json#/$defs/RunState`
+- Durable retry entry: `runtime/contracts/common-record.schema.json#/$defs/RetryEntry`
 - Runtime event: `runtime/contracts/common-record.schema.json#/$defs/RuntimeEvent`
 - External effect: `#/$defs/Effect`
 - Verified receipt: `#/$defs/Receipt`
@@ -17,6 +19,10 @@ provider-backed `Receipt`. Outbox delivery uses `message_key` as its retry ident
 records keep non-negative minor-unit amounts; `direction` carries the sign, while `scope` and
 `kind` prevent a personal balance, internal transfer, business revenue, cost, and payout from being
 silently aggregated as the same thing. `verification.status=verified` requires evidence references.
+Run state keeps lifecycle truth (queued, running, retry, deferred, human wait, terminal) separate
+from effect/readback truth (not applicable, planned, started, verified, failed, reconciled, unknown);
+`unknown` is never promoted to success. A retry entry carries the next attempt, due time, failure
+layer, and idempotency key without copying provider payloads.
 Every FinancialRecord identity is deterministic:
 `record_id = "financial:" + sha256_utf8(subject_id + "\n" + idempotency_key)`.
 The JSON Schema enforces the resulting shape; `projectFinancialRecord` enforces this cross-field

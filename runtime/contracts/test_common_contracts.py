@@ -142,6 +142,7 @@ class CommonContractTests(unittest.TestCase):
         event = {"version": 1, "event_id": "a" * 24, "timestamp": "2026-09-07T00:00:00Z", "loop_id": "example", "domain": "earn", "run_id": "run-1", "phase": "report", "status": "pass", "release_sha": "b" * 40, "provider": "deterministic", "profile_alias": None, "effect_class": "none", "effect_status": "not_applicable", "blocker": None, "evidence_refs": ["lm-loop://example/run-1/summary.json"]}
         validate(event)
         runtime_event.validate_runtime_event(event)
+
         event["evidence_refs"] = ["lm-loop://example/run-1/summary.json?query=1"]
         with self.assertRaises(AssertionError):
             validate(event)
@@ -151,6 +152,58 @@ class CommonContractTests(unittest.TestCase):
         event["evidence_refs"] = [long_scheme_ref, long_scheme_ref]
         validate(event)
         runtime_event.validate_runtime_event(event)
+
+    def test_typed_run_and_retry_states_keep_lifecycle_and_effect_truth_separate(self):
+        run_state = {
+            "schema_version": 1,
+            "record_type": "run_state",
+            "tenant_id": "tenant-1",
+            "product_loop_id": "gig-coconala",
+            "job_id": "hf-gig-apply-direct",
+            "owner_id": "ai.anicca.hf-gig-apply-direct",
+            "run_id": "run-1",
+            "wake_id": "wake-1",
+            "attempt": 1,
+            "max_attempts": 3,
+            "lifecycle": "retry_scheduled",
+            "effect_status": "unknown",
+            "next_eligible_at": "2026-09-15T05:00:00Z",
+            "error_code": "provider_timeout",
+            "human_gate_id": None,
+            "idempotency_key": "gig-coconala:wake-1",
+            "created_at": "2026-09-15T04:00:00Z",
+            "updated_at": "2026-09-15T04:01:00Z",
+        }
+        retry_entry = {
+            "schema_version": 1,
+            "record_type": "retry_entry",
+            "tenant_id": "tenant-1",
+            "product_loop_id": "gig-coconala",
+            "job_id": "hf-gig-apply-direct",
+            "owner_id": "ai.anicca.hf-gig-apply-direct",
+            "run_id": "run-1",
+            "attempt": 1,
+            "due_at": "2026-09-15T05:00:00Z",
+            "reason_code": "provider_timeout",
+            "failure_layer": "provider",
+            "idempotency_key": "gig-coconala:wake-1:retry-1",
+        }
+
+        validate(run_state)
+        validate(retry_entry)
+
+        for field, value in (("lifecycle", "succeeded"), ("effect_status", "pending")):
+            invalid = {**run_state, field: value}
+            with self.assertRaises(AssertionError):
+                validate(invalid)
+        with self.assertRaises(AssertionError):
+            validate({**retry_entry, "attempt": 0})
+        with self.assertRaises(AssertionError):
+            validate({**run_state, "lifecycle": "deferred", "next_eligible_at": None})
+        with self.assertRaises(AssertionError):
+            validate({**run_state, "lifecycle": "human_wait", "human_gate_id": None})
+        with self.assertRaises(AssertionError):
+            validate({**run_state, "lifecycle": "failed", "error_code": None})
 
     def test_verified_business_revenue_requires_evidence(self):
         key = "stripe:payment:1"
