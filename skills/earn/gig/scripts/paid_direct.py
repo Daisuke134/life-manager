@@ -6572,6 +6572,21 @@ def _reported_handled_feedback_cycle(args, item: dict[str, Any]) -> Path | None:
         return None
 
 
+def _official_seller_attachment_wait(item: dict[str, Any]) -> bool:
+    """Treat the current official seller-last artifact as authoritative."""
+    seller = item.get("seller_sent_messages") or item.get("seller_messages") or []
+    latest = seller[-1] if isinstance(seller, list) and seller else None
+    return (
+        item.get("buyer_visible_artifact_observed") is True
+        and item.get("buyer_feedback_pending_artifact") is False
+        and item.get("buyer_reply_after_artifact_observed") is False
+        and item.get("formal_delivery_observed", item.get("formal_delivery_confirmed")) is False
+        and _text(item.get("talkroom_state", item.get("transaction_state"))) == "取引中"
+        and isinstance(latest, dict)
+        and bool(latest.get("attachments"))
+    )
+
+
 def _reported_paid_row(args, item: dict[str, Any]) -> dict[str, Any] | None:
     room = _text(item.get("talkroom_id"))
     effect_policy = _account_owner_observe_only(args, item)
@@ -6598,6 +6613,11 @@ def _reported_paid_row(args, item: dict[str, Any]) -> dict[str, Any] | None:
                 "formal_delivery_checkbox": False,
                 "evidence_paths": {"official_readback": _text(item.get("talkroom_evidence_file"))}}
     if _reported_handled_feedback_cycle(args, item) is not None:
+        return {"talkroom_id": room, "status": "awaiting_buyer",
+                "send_performed": False, "deduplicated": True,
+                "formal_delivery_checkbox": False,
+                "evidence_paths": {"official_readback": _text(item.get("talkroom_evidence_file"))}}
+    if _official_seller_attachment_wait(item):
         return {"talkroom_id": room, "status": "awaiting_buyer",
                 "send_performed": False, "deduplicated": True,
                 "formal_delivery_checkbox": False,
