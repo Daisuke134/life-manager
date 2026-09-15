@@ -19,6 +19,7 @@ from typing import Callable
 
 
 ADMISSION_CLASSES = {"borrow", "revenue"}
+ADMISSION_POLICY = "revenue-floor-v1"
 
 
 class _ProcBsdInfo(ctypes.Structure):
@@ -169,12 +170,12 @@ def _live(path: Path, starts: dict[int, str | None] | None = None,
     return _pid_exists(value["pid"])
 
 
-def _capacity(name: str, default: int) -> int:
+def _capacity(name: str, default: int, *, minimum: int = 1) -> int:
     try:
         value = int(os.environ.get(name, str(default)))
     except ValueError as error:
         raise RuntimeError(f"invalid capacity: {name}") from error
-    if not 1 <= value <= 64:
+    if not minimum <= value <= 64:
         raise RuntimeError(f"invalid capacity: {name}")
     return value
 
@@ -294,11 +295,73 @@ def _limits(resource_class: str, admission_class: str = "borrow") -> tuple[int, 
     return total, per_class
 
 
+def _revenue_floor(total: int) -> int:
+    """Return capacity that borrow-only work must leave for revenue work."""
+    # Older callers explicitly set the total for isolated/v1 operation and do
+    # not know about the floor. New launchd plists carry the floor explicitly;
+    # the default keeps an unconfigured five-run host safe during migration.
+    default = (
+        min(4, total)
+        if "LIFE_MANAGER_HOST_MAX_FINITE_RUNS" not in os.environ else 0
+    )
+    requested = _capacity(
+        "LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", default, minimum=0)
+    revenue_limit = _capacity("LIFE_MANAGER_HOST_MAX_REVENUE_RUNS", total)
+    return min(total, requested, revenue_limit)
+
+
 def _uses_limited_capacity(row: dict[str, object], resource_class: str,
                            admission_class: str) -> bool:
     if admission_class == "revenue":
         return row.get("admission_class", "borrow") == "revenue"
     return row.get("resource_class") == resource_class
+
+
+def _legacy_owner_present(occupied: list[dict[str, object]]) -> bool:
+    return any(
+        isinstance(row.get("pid"), int)
+        and row.get("admission_policy") != ADMISSION_POLICY
+        for row in occupied
+    )
+
+
+def _capacity_available(occupied: list[dict[str, object]],
+                        resource_class: str, admission_class: str) -> bool:
+    total, per_class = _limits(resource_class, admission_class)
+    if len(occupied) >= total:
+        return False
+    if (admission_class == "revenue" and _revenue_floor(total)
+            and _legacy_owner_present(occupied)):
+        return False
+    if sum(_uses_limited_capacity(row, resource_class, admission_class)
+           for row in occupied) >= per_class:
+        return False
+    if admission_class == "borrow":
+        borrow_count = sum(
+            row.get("admission_class", "borrow") == "borrow"
+            for row in occupied
+        )
+        if borrow_count >= total - _revenue_floor(total):
+            return False
+    return True
+
+
+def _capacity_overflow(occupied: list[dict[str, object]],
+                       resource_class: str, admission_class: str) -> bool:
+    total, per_class = _limits(resource_class, admission_class)
+    if len(occupied) > total:
+        return True
+    if sum(_uses_limited_capacity(row, resource_class, admission_class)
+           for row in occupied) > per_class:
+        return True
+    if admission_class == "borrow":
+        borrow_count = sum(
+            row.get("admission_class", "borrow") == "borrow"
+            for row in occupied
+        )
+        if borrow_count > total - _revenue_floor(total):
+            return True
+    return False
 
 
 def _identity_snapshot(*directories: Path) -> tuple[dict[int, str | None], int]:
@@ -341,10 +404,7 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                     LEFT JOIN priorities p ON p.owner_id=r.owner_id
                 """)]
     occupied = live + reserved
-    total, per_class = _limits(resource_class, admission_class)
-    available = (len(occupied) < total and sum(
-        _uses_limited_capacity(row, resource_class, admission_class)
-        for row in occupied) < per_class)
+    available = _capacity_available(occupied, resource_class, admission_class)
     return available, occupied
 
 
@@ -455,11 +515,8 @@ def claim_durable(resource_class: str, owner_id: str, *,
             if any(item.get("owner_id") == owner_id for item in (
                     _row(path) or {} for path in owners.glob("*.json"))):
                 return None, "owner_busy"
-            total, per_class = _limits(resource_class, admission_class)
-            if reserved and (len(occupied) > total or sum(
-                    _uses_limited_capacity(item, resource_class, admission_class)
-                    for item in occupied
-            ) > per_class):
+            if reserved and _capacity_overflow(
+                    occupied, resource_class, admission_class):
                 return None, "capacity_busy"
             if not reserved and (not available or _legacy_waiter_exists(
                     tickets, resource_class, starts, snapshot_started_ns)):
@@ -471,6 +528,7 @@ def claim_durable(resource_class: str, owner_id: str, *,
                         "process_start": started, "owner_id": owner_id,
                         "resource_class": resource_class, "sequence": row[0],
                         "admission_class": admission_class,
+                        "admission_policy": ADMISSION_POLICY,
                         "phase": "claimed"})
             connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
             connection.execute("DELETE FROM queue WHERE owner_id=?", (owner_id,))
@@ -715,11 +773,7 @@ def try_acquire(resource_class: str, owner_id: str, *,
 
         digest = hashlib.sha256(owner_id.encode()).hexdigest()
         if not retain_ticket:
-            total_limit, class_limit = _limits(resource_class, admission_class)
-            if len(occupied) >= total_limit or sum(
-                _uses_limited_capacity(row, resource_class, admission_class)
-                for row in occupied
-            ) >= class_limit:
+            if not _capacity_available(occupied, resource_class, admission_class):
                 return None, "capacity_busy"
             for candidate in sorted(tickets.glob(f"{resource_class}-*.json")):
                 value = _row(candidate)
@@ -733,7 +787,8 @@ def try_acquire(resource_class: str, owner_id: str, *,
             atomic_json(claim, {"version": 1, "pid": os.getpid(),
                         "process_start": started, "owner_id": owner_id,
                         "resource_class": resource_class,
-                        "admission_class": admission_class})
+                        "admission_class": admission_class,
+                        "admission_policy": ADMISSION_POLICY})
             return claim, "acquired"
 
         matches = [
@@ -745,11 +800,7 @@ def try_acquire(resource_class: str, owner_id: str, *,
         atomic_json(ticket, {"version": 1, "pid": os.getpid(),
                     "process_start": started, "owner_id": owner_id})
 
-        total_limit, class_limit = _limits(resource_class, admission_class)
-        if len(occupied) >= total_limit or sum(
-            _uses_limited_capacity(row, resource_class, admission_class)
-            for row in occupied
-        ) >= class_limit:
+        if not _capacity_available(occupied, resource_class, admission_class):
             return None, "capacity_busy"
 
         head = None
@@ -768,7 +819,8 @@ def try_acquire(resource_class: str, owner_id: str, *,
         atomic_json(claim, {"version": 1, "pid": os.getpid(),
                     "process_start": started, "owner_id": owner_id,
                     "resource_class": resource_class,
-                    "admission_class": admission_class})
+                    "admission_class": admission_class,
+                    "admission_policy": ADMISSION_POLICY})
         ticket.unlink(missing_ok=True)
         return claim, "acquired"
     finally:

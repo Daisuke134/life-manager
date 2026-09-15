@@ -295,6 +295,7 @@ def test_lancers_effect_lanes_enter_revenue_admission():
     assert all(registry[loop_id].get("admission_class") == "revenue"
                for loop_id in loop_ids)
 
+
 def test_all_marketplace_revenue_lanes_use_agent_revenue_admission():
     registry = json.loads(
         (Path(__file__).parents[3] / "config/loop-registry.json").read_text()
