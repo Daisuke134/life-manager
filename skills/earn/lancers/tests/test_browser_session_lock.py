@@ -33,3 +33,22 @@ def test_browser_session_lock_rejects_a_second_client_until_the_first_releases(t
     second = module._acquire_browser_session_lock(timeout_seconds=0.01)
     second.release()
 
+
+def test_page_close_releases_the_browser_session_lease(tmp_path):
+    module = _load()
+    module.BROWSER_SESSION_LOCK_PATH = tmp_path / "browser-session.lock"
+    runtime = type("Runtime", (), {})()
+    lease = module._acquire_browser_session_lock(timeout_seconds=0.01)
+    module._attach_browser_session_lease(runtime, lease)
+
+    class Page:
+        context = type("Context", (), {"browser": type("Browser", (), {
+            "_anicca_playwright_runtime": runtime,
+        })()})()
+
+        def close(self):
+            return None
+
+    assert module._close_owned_page(Page()) is True
+    released = module._acquire_browser_session_lock(timeout_seconds=0.01)
+    released.release()
