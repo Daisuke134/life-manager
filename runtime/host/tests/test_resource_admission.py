@@ -34,6 +34,16 @@ def enqueue_after_barrier(root, index, barrier, results):
     results.put((ticket is not None, reason))
 
 
+def hold_control_lock(path, ready):
+    descriptor = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        ready.set()
+        time.sleep(2)
+    finally:
+        os.close(descriptor)
+
+
 def test_slot_releases_for_next_owner(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     first, reason = admission.try_acquire("deterministic", "first")
@@ -618,6 +628,89 @@ def test_transfer_claim_tracks_child_while_controller_can_release(tmp_path, monk
         admission.release_and_reserve(claim, reserve=False)
 
     assert not claim.exists()
+
+
+def test_transfer_lock_contention_fails_closed_without_waiting(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable("agent", "first")
+    claim, reason = admission.claim_durable("agent", "first")
+    assert claim is not None and reason == "acquired"
+    controller_start = admission.process_start(os.getpid())
+
+    def process_identity(pid):
+        return "child-start" if pid == 4242 else controller_start
+
+    with patch.object(admission, "process_start", side_effect=process_identity), \
+         patch.object(admission, "_acquire_bounded", return_value=False):
+        with pytest.raises(RuntimeError, match="control_busy"):
+            admission.transfer_durable(claim, 4242)
+
+    assert json.loads(claim.read_text())["phase"] == "claimed"
+    admission.release_and_reserve(claim, reserve=False)
+
+
+def test_release_lock_contention_fails_closed_without_waiting(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable("agent", "first")
+    claim, reason = admission.claim_durable("agent", "first")
+    assert claim is not None and reason == "acquired"
+
+    with patch.object(admission, "_acquire_bounded", return_value=False):
+        with pytest.raises(RuntimeError, match="control_busy"):
+            admission.release_and_reserve(claim, reserve=False)
+
+    assert claim.exists()
+    admission.release_and_reserve(claim, reserve=False)
+
+
+def test_transfer_control_lock_contention_is_time_bounded(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable("agent", "first")
+    claim, reason = admission.claim_durable("agent", "first")
+    assert claim is not None and reason == "acquired"
+    controller_start = admission.process_start(os.getpid())
+    context = multiprocessing.get_context("spawn")
+    ready = context.Event()
+    holder = context.Process(target=hold_control_lock,
+                             args=(str(tmp_path / "control.lock"), ready))
+    holder.start()
+    try:
+        assert ready.wait(timeout=10)
+
+        def process_identity(pid):
+            return "child-start" if pid == 4242 else controller_start
+
+        started = time.monotonic()
+        with patch.object(admission, "process_start", side_effect=process_identity):
+            with pytest.raises(RuntimeError, match="control_busy"):
+                admission.transfer_durable(claim, 4242)
+        assert time.monotonic() - started < 1.5
+    finally:
+        holder.terminate()
+        holder.join(timeout=5)
+    admission.release_and_reserve(claim, reserve=False)
+
+
+def test_release_control_lock_contention_is_time_bounded(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable("agent", "first")
+    claim, reason = admission.claim_durable("agent", "first")
+    assert claim is not None and reason == "acquired"
+    context = multiprocessing.get_context("spawn")
+    ready = context.Event()
+    holder = context.Process(target=hold_control_lock,
+                             args=(str(tmp_path / "control.lock"), ready))
+    holder.start()
+    try:
+        assert ready.wait(timeout=10)
+        started = time.monotonic()
+        with pytest.raises(RuntimeError, match="control_busy"):
+            admission.release_and_reserve(claim, reserve=False)
+        assert time.monotonic() - started < 1.5
+    finally:
+        holder.terminate()
+        holder.join(timeout=5)
+    admission.release_and_reserve(claim, reserve=False)
 
 
 def test_cancel_retired_owner_removes_queue_and_reservation(tmp_path, monkeypatch):
