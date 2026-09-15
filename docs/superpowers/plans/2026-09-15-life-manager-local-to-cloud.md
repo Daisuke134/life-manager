@@ -268,6 +268,9 @@ action is to consume the candidate through the main/release owner, then run the 
 An immutable `git archive` of `8cb5ad4830` was also unpacked into a temporary release directory; the
 same Lancers and runner suites passed from the unpacked tree, confirming the caller fix is present
 in the artifact that would be deployed.
+The Lancers installer also requires `merge-base --is-ancestor RELEASE_SHA origin/main`; the
+candidate is intentionally not installable until its two commits are merged into the main-derived
+release. Bypassing that assertion (`LANCERS_SKIP_MAIN_ASSERT=1`) is not allowed.
 
 ## FND research gate (search complete; FND-02 implemented)
 
