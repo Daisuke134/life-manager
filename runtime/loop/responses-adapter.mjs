@@ -6,6 +6,7 @@
  * one model function_call back into the loop's existing parseToolCall shape.
  */
 
+import net from 'node:net';
 import { buildSystemPrompt, buildUserMessage, getToolDefinitions } from './prompt.mjs';
 
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1';
@@ -28,6 +29,22 @@ function boundedNumber(value, name, fallback, minimum, maximum) {
   return selected;
 }
 
+function privateHost(hostname) {
+  const host = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
+  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local')
+    || host.endsWith('.internal') || !host.includes('.')) return true;
+  const family = net.isIP(host);
+  if (family === 4) {
+    const octets = host.split('.').map(Number);
+    return octets[0] === 10 || octets[0] === 127 || (octets[0] === 169 && octets[1] === 254)
+      || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31)
+      || (octets[0] === 192 && octets[1] === 168);
+  }
+  if (family === 6) return host === '::1' || host.startsWith('fc') || host.startsWith('fd')
+    || host.startsWith('fe8') || host.startsWith('fe9') || host.startsWith('fea') || host.startsWith('feb');
+  return false;
+}
+
 function endpoint(config = {}) {
   const raw = String(
     config.OPENAI_RESPONSES_BASE_URL || config.OPENAI_BASE_URL || DEFAULT_BASE_URL,
@@ -37,6 +54,9 @@ function endpoint(config = {}) {
   if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password
     || parsed.search || parsed.hash) {
     invalid('base URL invalid');
+  }
+  if (parsed.protocol === 'http:' && !privateHost(parsed.hostname)) {
+    invalid('public HTTPS required for non-private endpoint');
   }
   if (/\/responses$/i.test(parsed.pathname)) return parsed.toString();
   return `${parsed.toString()}/responses`;

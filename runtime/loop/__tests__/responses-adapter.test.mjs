@@ -134,6 +134,16 @@ test('thinkResponses fails closed on multiple function calls and HTTP errors', a
   );
 });
 
+test('thinkResponses never sends an API key to a public HTTP endpoint', async () => {
+  await assert.rejects(
+    () => thinkResponses(context, {
+      OPENAI_RESPONSES_BASE_URL: 'http://api.example.com/v1',
+      OPENAI_API_KEY: 'test-key',
+    }, { fetchImpl: async () => { throw new Error('must not fetch'); } }),
+    /public HTTPS|endpoint/i,
+  );
+});
+
 test('thinkResponses aborts a request that exceeds its bounded timeout', async () => {
   await assert.rejects(
     () => thinkResponses(context, {
