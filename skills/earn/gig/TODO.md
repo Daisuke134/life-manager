@@ -10,13 +10,12 @@ This is the only restart cursor for the next Codex session. Re-check every value
 runtime/provider readback before acting; conversation claims are not completion evidence.
 
 - Repository: `/Users/anicca/Projects/life-manager-main`, remote `Daisuke134/life-manager`.
-- Canonical runtime source is `origin/main` at `437b5696d2463d6d0c929d2613782c088c0f9cc6`. The latest
-  immutable release is `/Users/anicca/loops/releases/20260916T041632-437b5696`. The existing runtime
-  worktree `/private/tmp/lm-runtime-admission-marketplace-priority-20260916` is the only runtime worktree;
-  its browser/child-cleanup fix is pushed as PR `#5250` (commits `5358ded927`, `e2c6eeda95`) and must be
-  merged before a new production release. A live wrapper smoke confirmed the guard-selected dynamic endpoint
-  (`127.0.0.1:56608`) replaced inherited `:9223`. Do not create
-  another runtime worktree or use the Capify checkout as source.
+- Canonical runtime source is `origin/main` at `2ff93374f79ccb91c712b98692537e3ce61387d7`. The latest
+  immutable release is `/Users/anicca/loops/releases/20260916T044820-2ff93374`. The existing runtime
+  worktree `/private/tmp/lm-runtime-admission-reservations-20260914` is the task worktree on branch
+  `fix/runtime-admission-lock-bounded-20260915`; its next pushed commit is `d75794b8a3` and still needs
+  fresh review, merge and release. The merged `#5250` browser/child-cleanup fix is already in `2ff93374`.
+  Do not create another runtime worktree or use the Capify checkout as source.
 - Phase 2 replaces the v2 JSON scan with stdlib SQLite, adds durable FIFO reservations, child-PID claim
   handoff, same-owner/crash recovery, exact loaded-idle dispatch, retired/missing-owner cancellation, a
   default-v1 mixed-release gate and `lm-loop admission-v2-enable`. Final evidence is 500 sequential enqueues in
@@ -29,8 +28,8 @@ runtime/provider readback before acting; conversation claims are not completion 
   creating a second live TODO.
 - Ryu and Coconala are not complete. No current official readback proves that the newest Ryu buyer event is
   covered by a later seller submission. Never report completion from a historical message or local state.
-- Account migration is open: identify the account 1 Codex auth/provider profile through the credential SSOT,
-  prove one bounded invocation, then roll only the intended Life Manager Codex routes forward. Preserve all
+- Account migration is open only for proof: Paid now tries the existing Account 1 Codex profile first and
+  falls back to Account 2 through the shared runner. Prove one bounded Account 1 invocation and preserve all
   Codex/cloud sessions and unrelated providers.
 - First safe action: keep each provider owner independent and verify the exact loaded release before any effect.
   Admission protocol `2` is currently live (`resources/protocol.json`), but its fairness and starvation proof
@@ -273,34 +272,37 @@ freeze protocol 1
 -> continue platform revenue order
 ```
 
-Current cursor: main `437b5696` is exported as immutable release `20260916T041632-437b5696`. Paid is stopped after
-an effect-zero owner attempt; the next run must use the dynamic-CDP browser fix from PR `#5250`, then read back
-each official talkroom plus replay-zero. Storefront was stopped after a seven-hour stuck pass and must be
-reconciled to this release before its next natural wake. Protocol `2` is live, but fairness, no-starvation,
-healthy disk headroom and 24-hour/seven-day proof remain open. Do not create a new worktree, do not edit the
-Capify checkout, and do not restart a running sibling unless it is an exact stale owner with a recorded
-terminal/recovery reason.
+Current cursor: main `2ff93374` is exported as immutable release `20260916T044820-2ff93374`. The merged
+dynamic-CDP and child-group cleanup repair is installed, but the first Paid wake still ended with
+`host_admission_deferred:resource_capacity_busy` before provider work; the next wake later acquired a slot
+and ended with Ryu `18211957` and Chii `18180857` at `remote_builder`, `effect=0`, because the Codex Account 2
+subscription usage limit was reached. No Coconala seller message is verified from that wake. The staged
+`d75794b8a3` patch reserves four revenue slots on the measured five-run host and routes Paid through Account
+1 then Account 2; it is not production-complete until fresh review, merge, immutable release, idle-safe
+reconciliation and natural receipts pass. Disk governor cleanup is healthy (`errors=0`, protected deletions
+`0`, free space about 6.4 GiB) but the guard previously observed 160--534 MiB and `ENOSPC`, so disk proof is
+separate. Do not create a new worktree, edit the Capify checkout, globally kill browsers/apps, or call a stale
+remote result a submission.
 
 ## Current measured state
 
 ### Live correction (re-read before every mutation)
 
-- `origin/main` is `437b5696d2463d6d0c929d2613782c088c0f9cc6`; current symlink is
-  `/Users/anicca/loops/releases/20260916T041632-437b5696`.
+- `origin/main` is `2ff93374f79ccb91c712b98692537e3ce61387d7`; current symlink is
+  `/Users/anicca/loops/releases/20260916T044820-2ff93374`.
 - Admission is protocol `2`. The latest Paid wake reached Chii and Ryu owners concurrently but ended without
-  a terminal Coconala effect: Chii was blocked by a stale target-owner/browser endpoint and Ryu was stopped
-  before its Coconala message. Storefront's inner cadence fix is in main, but its first `--effect` pass was
-  stopped after seven hours; its next wake must be a bounded terminal pass.
-- Apply is still running from `62716e99` and is intentionally not reloaded. Reply is idle and Paid is unloaded;
-  both plists are now installed from `437b5696`. Storefront is unloaded and its plist is installed from
-  `437b5696` after the stuck pass. The
-  browser owner fix (`with-browser.sh` passes the guard-resolved CDP URL as `CLOAK_CDP_BASE_URL`) and Paid
-  detached-child cleanup are in PR `#5250`; without the first, the Paid owner sandbox reconnects to forbidden
-  static `:9223` and fails closed, and without the second, stop can leave child groups behind.
-  Other revenue owners can consume the finite host ceiling, so a PID or scheduler run is not a client effect.
-- Disk free was `7.6 GiB` on the latest readback and `gig_disk_guard` returned PASS; one live Chromium clone
-  remains. Historical Paid runs still contain real `ENOSPC` receipts, so the healthy disk floor and seven-day
-  no-ENOSPC proof remain open.
+  a terminal Coconala effect: both semantic owners stopped at `remote_builder` after the Account 2 Codex
+  usage-limit error. Storefront's inner cadence and dynamic-CDP fixes are in main, but fresh natural
+  terminal receipts remain open. Other revenue owners can consume the finite host ceiling, so a PID or
+  scheduler run is not a client effect.
+- The browser/child-cleanup repair from PR `#5250` is merged in `2ff93374`. The staged runtime commit
+  `d75794b8a3` adds a four-slot revenue floor on the measured five-run host and routes Paid through Account 1
+  then Account 2. It still needs fresh review, merge, immutable release, idle-safe reconciliation and a
+  natural Paid receipt.
+- Disk governor latest readback is `errors=0`, `protected_deletions=0`, with free space about `6.4 GiB`; it
+  preserved three open candidates and reclaimed `0` bytes. Historical Paid/cleanup runs contain real
+  `ENOSPC` receipts and repeated low-headroom observations, so the healthy disk floor and seven-day no-ENOSPC
+  proof remain open.
 - The canonical runtime repair is now in main through PRs `#5244`, `#5246`, `#5247`, `#5248` and `#5249`; do not report the old
   `b8cff053`/protocol-1 snapshot below as current.
 
@@ -485,16 +487,22 @@ independent production effects.
 
 - [x] Reuse the existing runtime worktree instead of creating another one. The APFS clone detector is merged
   as PR `#5244` and Storefront's inner-cadence removal as PR `#5246`; both are in `origin/main`.
-- [ ] Cut the `fb80cadd5d` immutable release and verify its exact SHA is loaded by every Coconala label before
-  treating the runtime repair as active.
+- [x] Cut immutable release `20260916T044820-2ff93374` from public main `2ff93374`; the dynamic-CDP and
+  child-group cleanup repair is present. Coconala label-by-label loaded-idle convergence and natural terminal
+  receipts are still open.
 - [ ] **Current cursor:** preserve three secret-free production regression fixtures before changing behavior:
   1. all four Coconala lanes repeatedly terminate before provider work while unrelated owners hold global
      capacity;
   2. a retained 15-attachment Coconala contract is incorrectly sent a re-upload request;
   3. an accepted CrowdWorks contract with a supplied work link never becomes a submitted fulfillment effect.
-- [ ] Replace the fleet-wide fungible three-slot rule with shared hierarchical accounting: measured host hard
+- [ ] Replace the fleet-wide fungible slot rule with shared hierarchical accounting: measured host hard
   ceiling, non-stealable lane/platform minimums, per-item limits, and maintenance/reporting/Telegram capacity
-  that is borrow-only and preemptible. Preserve effect-zero fail-closed behavior without cross-lane starvation.
+  that is borrow-only and preemptible. The staged `d75794b8a3` floor is the first minimal slice (four revenue
+  slots, one borrow slot); it is not complete until the merged release proves no starvation and no hard-cap
+  violation under natural wakes.
+- [ ] Merge/release the staged runtime floor and Paid Account 1→2 failover, then verify one bounded Account 1
+  invocation. Do not fall back to Claude or a new scheduler; the existing Codex runner remains the single
+  semantic path.
 - [ ] Add bounded owner heartbeat and durable-progress leases. A live PID without heartbeat/progress cannot
   retain capacity forever; recovery may reclaim only the exact owned claim after process-identity verification.
 - [ ] Separate memory probe timeout, real memory pressure, disk pressure and TCC permission state. Apply
@@ -522,9 +530,9 @@ independent production effects.
 - [ ] Produce continuous terminal receipts and real official progress for 24 hours, then seven days, including
   reboot recovery and measured browser/CPU/memory/process ceilings. Any progress regression fails the rollout
   and restores the last proven release.
-- [ ] Switch only the intended Life Manager Codex provider routes from account 2 to account 1 after resolving
-  their current owner and credential profile. Prove one bounded account 1 invocation and receipt before the
-  targeted rollout; do not delete or overwrite either account's sessions.
+- [ ] Prove the staged Paid Account 1→2 Codex route with one bounded invocation, then roll only that Paid
+  owner forward. Do not delete or overwrite either account's sessions; other Life Manager routes stay on
+  their existing Account 2 policy until separately proven.
 
 Completed foundation retained as evidence: disk-headroom recovery; off-critical-path cleanup; checked-hash
 bytecode and pinned interpreter; native Darwin process identity; SQLite durable reservations/dispatcher;
