@@ -17,6 +17,12 @@ listing count, proposals, forecasts, and unpaid contracts are not revenue.
 - Reporting: `scripts/telegram_report.py` is the four-lane control plane, not a fifth revenue lane. It renders every wake, effect, skip, blocker, failure, official readback, and verified payment in natural Japanese.
 - Product: `products/monthly-sns-content-ops-v1.json` is the single offer definition. Its image is in `assets/`.
 
+All Lancers lanes use the same 9227 CDP endpoint and browser profile. Per-lane state locks do not
+serialize page navigation; every production browser client must pass through
+`application_tick._default_browser_factory`, which holds the shared browser-session lease until
+page cleanup. A held lease returns `browser_session_busy` for the next wake; never bypass the lease,
+open a second profile, or treat a process exit as a provider effect.
+
 The exact four-lane ownership, Coconala copy boundary, Telegram human-message contract, $10K plan, and active TODO order live only in the
 design SSOT §18. Do not add a fifth lane or duplicate those rules here.
 
