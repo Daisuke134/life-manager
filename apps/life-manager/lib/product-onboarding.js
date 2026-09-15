@@ -42,6 +42,11 @@ function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
         throw new Error("guided product loop command unavailable");
       }
     }
+    if (!Array.isArray(loop.job_ids) || loop.job_ids.length < 1
+      || loop.job_ids.some((jobId) => typeof jobId !== "string" || !jobId.trim())
+      || new Set(loop.job_ids).size !== loop.job_ids.length) {
+      throw new Error("product loop job mapping invalid");
+    }
   }
   return Object.freeze({
     host_requirements: Object.freeze({
@@ -144,6 +149,7 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
     return Object.freeze({
       id: catalogLoop.id,
       name: catalogLoop.name,
+      job_ids: Object.freeze([...catalogLoop.job_ids]),
       host,
       state,
       reason,

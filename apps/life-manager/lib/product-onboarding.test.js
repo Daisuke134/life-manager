@@ -142,6 +142,7 @@ test("completion manifest covers every catalog loop and never treats unknown as 
   assert.equal(manifest.loops.length, 14);
   assert.equal(manifest.unknown_count, 1);
   assert.equal(manifest.completion, false);
+  assert.deepEqual(manifest.loops[0].job_ids, catalog.loops[0].job_ids);
   assert.deepEqual(manifest.loops.map((loop) => loop.id), catalog.loops.map((loop) => loop.id));
 });
 
@@ -245,4 +246,27 @@ test("completion manifest CLI writes a private deterministic projection", () => 
   assert.equal(JSON.parse(fs.readFileSync(outputPath, "utf8")).completion, true);
   assert.equal(fs.statSync(outputPath).mode & 0o777, 0o600);
   fs.rmSync(root, { recursive: true, force: true });
+});
+
+test("each public product loop maps only to existing canonical runtime jobs", () => {
+  const catalog = readProductLoopCatalog();
+  const registry = JSON.parse(fs.readFileSync(
+    path.join(ROOT, "config/loop-registry.json"),
+    "utf8",
+  ));
+  const seen = new Set();
+  for (const loop of catalog.loops) {
+    assert.ok(Array.isArray(loop.job_ids) && loop.job_ids.length > 0, loop.id);
+    for (const jobId of loop.job_ids) {
+      assert.equal(typeof jobId, "string", `${loop.id}: job id type`);
+      assert.equal(seen.has(jobId), false, `${jobId}: assigned more than once`);
+      seen.add(jobId);
+      const job = registry.loops[jobId];
+      assert.ok(job, `${loop.id}: unknown job ${jobId}`);
+      assert.match(String(job.label || ""), /^ai\./u);
+      assert.ok(String(job.entrypoint || "").length > 0, `${jobId}: entrypoint`);
+      assert.ok(job.cadence && typeof job.cadence === "object", `${jobId}: cadence`);
+      assert.ok(String(job.effect_class || "").length > 0, `${jobId}: effect class`);
+    }
+  }
 });
