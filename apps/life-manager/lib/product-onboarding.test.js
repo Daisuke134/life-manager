@@ -219,3 +219,30 @@ test("completion is true only when every loop is verified or explicitly unsuppor
   assert.equal(manifest.counts.verified, 1);
   assert.equal(manifest.counts.not_applicable, 13);
 });
+
+test("completion manifest CLI writes a private deterministic projection", () => {
+  const catalog = readProductLoopCatalog();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-completion-cli-"));
+  const observationsPath = path.join(root, "observations.json");
+  const outputPath = path.join(root, "completion.json");
+  const observations = catalog.loops.map((loop) => ({
+    id: loop.id,
+    state: "setup_required",
+    reason: "host_adapter_pending",
+    contract: {},
+  }));
+  fs.writeFileSync(observationsPath, JSON.stringify(observations));
+
+  const result = spawnSync(process.execPath, [
+    path.join(ROOT, "apps/life-manager/scripts/product-loop-completion.js"),
+    "--host", "cloud",
+    "--release-sha", "e".repeat(40),
+    "--observations", observationsPath,
+    "--output", outputPath,
+  ], { cwd: ROOT, encoding: "utf8" });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(fs.readFileSync(outputPath, "utf8")).completion, true);
+  assert.equal(fs.statSync(outputPath).mode & 0o777, 0o600);
+  fs.rmSync(root, { recursive: true, force: true });
+});
