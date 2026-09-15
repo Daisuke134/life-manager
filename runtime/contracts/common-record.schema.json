@@ -12,7 +12,8 @@
     {"$ref": "#/$defs/CitizenIdentity"},
     {"$ref": "#/$defs/BrowserTargetLease"},
     {"$ref": "#/$defs/RunState"},
-    {"$ref": "#/$defs/RetryEntry"}
+    {"$ref": "#/$defs/RetryEntry"},
+    {"$ref": "#/$defs/HostPressure"}
   ],
   "$defs": {
     "Id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
@@ -193,6 +194,27 @@
         "reason_code": {"$ref": "#/$defs/Id"},
         "failure_layer": {"enum": ["admission", "context", "model", "tool", "provider", "readback", "persistence", "notification", "unknown"]},
         "idempotency_key": {"type": "string", "minLength": 1, "maxLength": 1024}
+      }
+    },
+    "HostPressure": {
+      "type": "object", "additionalProperties": false,
+      "required": [
+        "schema_version", "record_type", "observed_at", "resource_class",
+        "memory_free_percent", "swap_used_bytes", "load_1m", "active_finite_wakes",
+        "active_browser_sessions", "browser_processes", "browser_debug_endpoints", "redaction"
+      ],
+      "properties": {
+        "schema_version": {"const": 1}, "record_type": {"const": "host_pressure"},
+        "observed_at": {"$ref": "#/$defs/Timestamp"},
+        "resource_class": {"enum": ["agent", "deterministic", "browser", "model", "unknown"]},
+        "memory_free_percent": {"type": ["integer", "null"], "minimum": 0, "maximum": 100},
+        "swap_used_bytes": {"type": ["integer", "null"], "minimum": 0},
+        "load_1m": {"type": ["number", "null"], "minimum": 0},
+        "active_finite_wakes": {"type": "integer", "minimum": 0},
+        "active_browser_sessions": {"type": "integer", "minimum": 0},
+        "browser_processes": {"type": "integer", "minimum": 0},
+        "browser_debug_endpoints": {"type": "integer", "minimum": 0},
+        "redaction": {"const": "metrics_only"}
       }
     },
     "FinancialRecord": {

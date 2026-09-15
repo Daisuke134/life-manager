@@ -29,7 +29,7 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `FND-07`.
+TODO worktree. The current cursor is `FND-08`.
 
 ### Atomic execution log
 
@@ -79,6 +79,11 @@ TODO worktree. The current cursor is `FND-07`.
   path. Focused proof sent 100 routine events with zero outbox/sender calls, delivered one material
   event, and the shared marketplace suite passed 259 tests. No live Telegram send was performed.
   Next active ID: `FND-07`.
+- [x] `FND-07` — Added the redacted `HostPressure` record and builder in
+  `runtime/host/memory_admission.py`, with shared-schema coverage. It records bounded memory, swap,
+  load, finite-wake, browser-session/process/endpoint counts and a `metrics_only` marker; it rejects
+  invalid values and never stores PIDs, URLs, or credentials. Focused proof: memory-admission and
+  common-contract tests (8 passed). Next active ID: `FND-08`.
 
 ## FND research gate (search complete; FND-02 implemented)
 
@@ -102,9 +107,10 @@ target control plane is implemented.
 - [Firecracker](https://github.com/firecracker-microvm/firecracker/blob/c5314e5dfc732db683115a02dee440ca06162a7c/docs/design.md) uses microVM, seccomp, cgroups, namespaces, and jailer boundaries; reserve it for untrusted repair/eval code, not every browser session.
 - [Chrome headless](https://developer.chrome.com/docs/automation-and-testing/headless) confirms unattended no-UI operation, while modern headless shares Chrome's implementation; it reduces display overhead, not all browser memory.
 
-**Alignment checkpoint:** the search phase is complete and `FND-02` through `FND-05` now have
-focused contracts. No launchd, browser/account, ledger, or provider effect was changed. The next
-atomic change is `FND-07`'s host/browser metrics contract; it begins with a focused failing test.
+**Alignment checkpoint:** the search phase is complete and `FND-02` through `FND-07` now have
+focused contracts. No launchd, browser/account, ledger, or provider effect was changed; FND-06 was
+tested with a fake sender only. The next atomic change is `FND-08`'s durable defer/resume behavior,
+starting with a focused failing test.
 
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
 |---|---|---|---|

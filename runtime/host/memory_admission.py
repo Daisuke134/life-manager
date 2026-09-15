@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import pwd
 import re
@@ -11,11 +12,67 @@ import subprocess
 import sys
 import tempfile
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Sequence
 
 
 _FREE_PERCENT = re.compile(r"System-wide memory free percentage:\s*(\d+)%")
+_RESOURCE_CLASSES = frozenset({"agent", "deterministic", "browser", "model", "unknown"})
+
+
+def _metric_int(name: str, value: object, *, minimum: int = 0, maximum: int | None = None) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+        raise ValueError(f"invalid {name}")
+    if maximum is not None and value > maximum:
+        raise ValueError(f"invalid {name}")
+    return value
+
+
+def _optional_metric_int(name: str, value: object, *, maximum: int | None = None) -> int | None:
+    if value is None:
+        return None
+    return _metric_int(name, value, maximum=maximum)
+
+
+def _metric_number(name: str, value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+        raise ValueError(f"invalid {name}")
+    return float(value)
+
+
+def build_host_pressure_record(
+    *, observed_at: str, resource_class: str,
+    memory_free_percent: int | None, swap_used_bytes: int | None,
+    load_1m: int | float | None, active_finite_wakes: int,
+    active_browser_sessions: int, browser_processes: int,
+    browser_debug_endpoints: int,
+) -> dict[str, object]:
+    """Build a secret-free host/browser pressure snapshot for admission decisions."""
+    if not isinstance(observed_at, str) or not observed_at:
+        raise ValueError("invalid observed_at")
+    try:
+        datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
+    except ValueError as error:
+        raise ValueError("invalid observed_at") from error
+    if resource_class not in _RESOURCE_CLASSES:
+        raise ValueError("invalid resource_class")
+    return {
+        "schema_version": 1,
+        "record_type": "host_pressure",
+        "observed_at": observed_at,
+        "resource_class": resource_class,
+        "memory_free_percent": _optional_metric_int(
+            "memory_free_percent", memory_free_percent, maximum=100
+        ),
+        "swap_used_bytes": _optional_metric_int("swap_used_bytes", swap_used_bytes),
+        "load_1m": None if load_1m is None else _metric_number("load_1m", load_1m),
+        "active_finite_wakes": _metric_int("active_finite_wakes", active_finite_wakes),
+        "active_browser_sessions": _metric_int("active_browser_sessions", active_browser_sessions),
+        "browser_processes": _metric_int("browser_processes", browser_processes),
+        "browser_debug_endpoints": _metric_int("browser_debug_endpoints", browser_debug_endpoints),
+        "redaction": "metrics_only",
+    }
 
 
 def parse_free_percent(output: str) -> int | None:

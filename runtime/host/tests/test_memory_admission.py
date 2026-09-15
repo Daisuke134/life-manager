@@ -15,6 +15,39 @@ SPEC.loader.exec_module(MODULE)
 
 
 class MemoryAdmissionTests(unittest.TestCase):
+    def test_host_pressure_record_contains_only_bounded_redacted_metrics(self):
+        record = MODULE.build_host_pressure_record(
+            observed_at="2026-09-15T06:00:00Z",
+            resource_class="browser",
+            memory_free_percent=43,
+            swap_used_bytes=1024,
+            load_1m=1.25,
+            active_finite_wakes=2,
+            active_browser_sessions=1,
+            browser_processes=4,
+            browser_debug_endpoints=1,
+        )
+        self.assertEqual(record["schema_version"], 1)
+        self.assertEqual(record["record_type"], "host_pressure")
+        self.assertEqual(record["redaction"], "metrics_only")
+        self.assertEqual(record["active_browser_sessions"], 1)
+        self.assertNotIn("pid", json.dumps(record))
+        self.assertNotIn("url", json.dumps(record))
+        self.assertNotIn("Users/", json.dumps(record))
+
+        with self.assertRaises(ValueError):
+            MODULE.build_host_pressure_record(
+                observed_at="2026-09-15T06:00:00Z",
+                resource_class="browser",
+                memory_free_percent=101,
+                swap_used_bytes=0,
+                load_1m=0,
+                active_finite_wakes=0,
+                active_browser_sessions=0,
+                browser_processes=0,
+                browser_debug_endpoints=0,
+            )
+
     def test_parse_memory_pressure_percentage(self):
         self.assertEqual(
             MODULE.parse_free_percent(

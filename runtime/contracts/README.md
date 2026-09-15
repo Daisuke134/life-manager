@@ -7,6 +7,7 @@ They do not choose a storage engine and do not move an existing database.
 - Runtime work item: `runtime/contracts/common-record.schema.json#/$defs/Job`
 - Typed run lifecycle: `runtime/contracts/common-record.schema.json#/$defs/RunState`
 - Durable retry entry: `runtime/contracts/common-record.schema.json#/$defs/RetryEntry`
+- Host/browser pressure snapshot: `runtime/contracts/common-record.schema.json#/$defs/HostPressure`
 - Runtime event: `runtime/contracts/common-record.schema.json#/$defs/RuntimeEvent`
 - External effect: `#/$defs/Effect`
 - Verified receipt: `#/$defs/Receipt`
@@ -23,6 +24,8 @@ Run state keeps lifecycle truth (queued, running, retry, deferred, human wait, t
 from effect/readback truth (not applicable, planned, started, verified, failed, reconciled, unknown);
 `unknown` is never promoted to success. A retry entry carries the next attempt, due time, failure
 layer, and idempotency key without copying provider payloads.
+`HostPressure` contains only bounded memory, swap, load, wake, browser-process, and endpoint counts;
+it is an admission signal, not a provider receipt and never includes PIDs, URLs, or credentials.
 Runtime events may also carry `product_loop_id`, `job_id`, `owner_id`, `wake_id`, `attempt`,
 `effect_key`, `failure_layer`, `official_readback_ref`, and `next_eligible_at`. These optional
 identity fields are emitted by the current builders so older event rows remain readable while the

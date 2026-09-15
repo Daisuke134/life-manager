@@ -8,6 +8,7 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator, FormatChecker
 
+from runtime.host import memory_admission
 from runtime.loop import runtime_event
 
 
@@ -208,6 +209,22 @@ class CommonContractTests(unittest.TestCase):
             validate({**run_state, "lifecycle": "human_wait", "human_gate_id": None})
         with self.assertRaises(AssertionError):
             validate({**run_state, "lifecycle": "failed", "error_code": None})
+
+    def test_host_pressure_snapshot_matches_the_shared_schema(self):
+        record = memory_admission.build_host_pressure_record(
+            observed_at="2026-09-15T06:00:00Z",
+            resource_class="browser",
+            memory_free_percent=43,
+            swap_used_bytes=1024,
+            load_1m=1.25,
+            active_finite_wakes=2,
+            active_browser_sessions=1,
+            browser_processes=4,
+            browser_debug_endpoints=1,
+        )
+        validate(record)
+        with self.assertRaises(AssertionError):
+            validate({**record, "redaction": "full_payload"})
 
     def test_verified_business_revenue_requires_evidence(self):
         key = "stripe:payment:1"
