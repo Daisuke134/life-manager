@@ -46,10 +46,10 @@ runtime/provider readback before acting; conversation claims are not completion 
   superseded historical state, not another client-work project.
 - Paid now tries the existing Account 1 Codex profile first and falls back to Account 2 through the shared
   runner; the first bounded Account 1 receipt is proved. Preserve both accounts and all unrelated sessions.
-- First safe action: let the next natural `172d3f2e` Paid wake re-observe all four open rooms. Ryu, Chii and
-  both Kokoro contracts must resolve without duplicate effects. Keep each provider owner independent.
-  Admission protocol `2` is live and one four-lane overlap is proved, but the 24-hour/seven-day fairness and
-  no-starvation gates remain open.
+- First safe action: continue Coconala Apply by reconciling the 54 uncertain intents against official applied
+  history, then restore authenticated one-off and retainer discovery. Paid's current four-client set is closed
+  by a natural `172d3f2e` replay-zero pass. Admission protocol `2` is live and one four-lane overlap is proved,
+  but the 24-hour/seven-day fairness and no-starvation gates remain open.
 
 ## Outcome
 
@@ -337,8 +337,9 @@ Ryu and the two Kokoro contracts. Chii's 300-row workbook is later than its buye
 have later independent seller artifacts; Atsugi has buyer acceptance plus formal-delivery readback. Ryu's latest
 buyer event is now covered by one later ordinary seller message, exact official readback and a standard replay
 fence. Kokoro `18250352` also completed its newer email request: Gmail SENT and all 11 attachments passed
-independent byte-for-byte readback, then Coconala received one later report with formal delivery OFF. The next
-natural Paid wake's all-client replay-zero receipt is the cursor.
+independent byte-for-byte readback, then Coconala received one later report with formal delivery OFF. A natural
+Paid wake at `2026-09-15T23:09:25Z` observed all four open rooms with `actionable=0`, `effect=0`, `readback=4`,
+`failed=0`, `pending=0` and terminal `pass`; Coconala Apply is now the cursor.
 Do not create another worktree, edit the Capify checkout, globally kill browsers/apps, or call a process receipt
 a provider effect.
 
@@ -577,8 +578,8 @@ independent production effects.
   production wake has no Chii owner.
 - [x] Merge PR `#5257`, cut immutable release `20260916T070823-0aba1191`, and exact-load all four Coconala
   labels without restarting running siblings.
-- [ ] **Current cursor:** require the next natural Paid wake to keep Ryu, Chii and both Kokoro rooms terminal or
-  buyer-waiting with no duplicate provider or Coconala effect.
+- [x] Natural Paid replay-zero: release `172d3f2e` observed all four open rooms with `actionable=0`, `effect=0`,
+  `readback=4`, `failed=0`, `pending=0`; runtime terminal is `pass`, exit `0`, loaded-idle.
 - [ ] Replace the fleet-wide fungible slot rule with shared hierarchical accounting: measured host hard
   ceiling, non-stealable lane/platform minimums, per-item limits, and maintenance/reporting/Telegram capacity
   that is borrow-only and preemptible. The staged `d75794b8a3` floor is the first minimal slice (four revenue
@@ -901,9 +902,9 @@ work item and leave a sibling trace unchanged.
   wake remains active; its provider/client terminal is still required.
 - [x] Atsugi `18171850`: latest retained official head contains explicit buyer acceptance and a later formal
   seller message. Keep it settlement/payout-waiting and reopen only for a newer buyer event.
-- [ ] Ryu and both Kokoro rooms have later official seller effects; Chii has its workbook effect. Confirm all
-  four independently replay zero in the next natural Paid wake. Atsugi remains settlement-only unless reopened.
-- [ ] Reconcile all 54 uncertain application intents against official applied history.
+- [x] Ryu and both Kokoro rooms have later official seller effects; Chii has its workbook effect. All four
+  independently replayed zero in the natural Paid wake. Atsugi remains settlement-only unless reopened.
+- [ ] **Current cursor:** reconcile all 54 uncertain application intents against official applied history.
 - [ ] Restore authenticated discovery for both `single:new` and `retainer:new`.
 - [ ] Submit every eligible high-fit one-off and continuous application; verify each officially; replay zero.
 - [ ] Create Calendar events and five-minute Telegram reminders for every accepted meeting.
