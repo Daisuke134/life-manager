@@ -71,20 +71,20 @@
 
 - [ ] **Step 2: Read current Railway service and deployment metadata**
 
-Run: `cd apps/life-manager && railway status --json`  
-Run: `cd apps/life-manager && railway deployment list --json`  
+Run: `cd apps/life-manager && railway status --json`
+Run: `cd apps/life-manager && railway deployment list --json`
 Record the exact service, environment, deployment ID, status, and `commitHash`. Do not print environment variables.
 
 - [ ] **Step 3: Read the bounded 08:02 error window**
 
-Run: `cd apps/life-manager && railway logs --service life-call --since 2026-09-16T07:58:00+09:00 --until 2026-09-16T08:06:00+09:00`  
+Run: `cd apps/life-manager && railway logs --service life-call --since 2026-09-16T07:58:00+09:00 --until 2026-09-16T08:06:00+09:00`
 If the service name from Step 2 differs, rerun against that exact service. Record only the producer marker and numeric limit; redact phone numbers, tokens, and user text.
 
 - [ ] **Step 4: Compare the deployed SHA with current main**
 
-Set `DEPLOYED_SHA` to the exact `commitHash` recorded in Step 2.  
-Run: `git show "$DEPLOYED_SHA":apps/life-manager/lib/call-logic.js | rg -n "time_limit_secs|telnyxDialBody"`  
-Run: `git show "$DEPLOYED_SHA":apps/life-manager/lib/dial.js | rg -n "time_limit_secs|telnyxDialBody|/calls"`  
+Set `DEPLOYED_SHA` to the exact `commitHash` recorded in Step 2.
+Run: `git show "$DEPLOYED_SHA":apps/life-manager/lib/call-logic.js | rg -n "time_limit_secs|telnyxDialBody"`
+Run: `git show "$DEPLOYED_SHA":apps/life-manager/lib/dial.js | rg -n "time_limit_secs|telnyxDialBody|/calls"`
 Run: `rg -n "time_limit_secs|telnyxDialBody|/v2/calls" apps/life-manager --glob '!node_modules'`.
 
 - [ ] **Step 5: Close the producer identity**
@@ -136,7 +136,7 @@ test("Telnyx dial omits an absent or invalid call limit", () => {
 
 - [ ] **Step 2: Run the focused test and observe RED**
 
-Run: `cd apps/life-manager && node --test lib/lm-p0.test.js`  
+Run: `cd apps/life-manager && node --test lib/lm-p0.test.js`
 Expected: FAIL because `time_limit_secs` is absent for `29`.
 
 - [ ] **Step 3: Implement the shared clamp**
@@ -160,7 +160,7 @@ function telnyxDialBody({ connectionId, to, from, streamUrl, timeLimitSecs }) {
 
 - [ ] **Step 4: Run focused and adjacent call tests**
 
-Run: `cd apps/life-manager && node --test lib/lm-p0.test.js lib/dial.test.js test/testcall-amd-hangup.test.js test/testcall-amd-hangup-http-contract.test.js`  
+Run: `cd apps/life-manager && node --test lib/lm-p0.test.js lib/dial.test.js test/testcall-amd-hangup.test.js test/testcall-amd-hangup-http-contract.test.js`
 Expected: all PASS.
 
 - [ ] **Step 5: Route the observed producer through the shared builder**
@@ -190,7 +190,7 @@ Run the repository's existing PR creation and `--admin` merge path. Record PR UR
 
 - [ ] **Step 2: Observe the Railway deployment created from merged `main`**
 
-Run: `cd apps/life-manager && railway deployment list --json`  
+Run: `cd apps/life-manager && railway deployment list --json`
 Wait for the deployment whose `commitHash` equals the merge SHA to reach `SUCCESS`. A successful deployment for an older SHA does not pass.
 
 - [ ] **Step 3: Verify the exact Railway service role**
@@ -301,7 +301,7 @@ Create one grounded case each for `pre_event`, `post_strain`, `mindful_pause`, `
 
 - [ ] **Step 3: Run the trigger tests and observe RED**
 
-Run: `cd apps/life-manager && node --test lib/mental-trigger.test.js`  
+Run: `cd apps/life-manager && node --test lib/mental-trigger.test.js`
 Expected: FAIL on new input keys/intents.
 
 - [ ] **Step 4: Extend validation with closed key sets**
@@ -327,7 +327,7 @@ Each intent appends either zero or one `{ intent, reason, facts }` candidate. Se
 
 - [ ] **Step 6: Run trigger tests GREEN**
 
-Run: `cd apps/life-manager && node --test lib/mental-trigger.test.js`  
+Run: `cd apps/life-manager && node --test lib/mental-trigger.test.js`
 Expected: all PASS.
 
 - [ ] **Step 7: Commit and push**
@@ -724,8 +724,8 @@ If the iOS app cannot yet consume the API catalog, leave `AffirmationData.swift`
 
 - [ ] **Step 6: Run catalog/API and focused iOS tests**
 
-Run: `cd /Users/anicca/anicca-project/apps/api && npm test -- src/modules/affirmations`  
-Run: `cd /Users/anicca/anicca-project/mobile-apps/rork-thankful-gratitude-app && xcodebuild test -project ThankfulGratitudeApp.xcodeproj -scheme ThankfulGratitudeApp -destination 'platform=iOS Simulator,name=iPhone 16 Pro' -only-testing:ThankfulGratitudeAppTests`  
+Run: `cd /Users/anicca/anicca-project/apps/api && npm test -- src/modules/affirmations`
+Run: `cd /Users/anicca/anicca-project/mobile-apps/rork-thankful-gratitude-app && xcodebuild test -project ThankfulGratitudeApp.xcodeproj -scheme ThankfulGratitudeApp -destination 'platform=iOS Simulator,name=iPhone 16 Pro' -only-testing:ThankfulGratitudeAppTests`
 Expected: all related tests PASS. If the named simulator is unavailable, select the first installed iPhone simulator from `xcrun simctl list devices available` and record its exact destination; do not skip the iOS test.
 
 - [ ] **Step 7: Commit and push in the Anicca repository**
