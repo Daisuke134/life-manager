@@ -936,9 +936,9 @@ class ApplicationLoopHolTests(unittest.TestCase):
             root = Path(directory)
             result = None
             with patch.object(
-                application_loop.application_tick,
-                "read_pending_descriptor",
-                return_value=pending,
+                application_loop.application_tick.shared,
+                "read_pending_descriptors",
+                return_value=[pending],
             ), patch.object(
                 application_loop,
                 "_reconcile_pending",
