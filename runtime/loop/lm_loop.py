@@ -693,7 +693,7 @@ def main(argv: list[str] | None = None) -> int:
         "start", "stop", "restart", "status", "watch",
     }
     if not args or args[0] not in commands:
-        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
@@ -748,6 +748,7 @@ def main(argv: list[str] | None = None) -> int:
     registry = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))
     if command == "reconcile":
         positionals, loop_ids, loaded_idle_only, include_running = [], [], False, False
+        max_owners = None
         reconcile_args = args[1:]
         index = 0
         while index < len(reconcile_args):
@@ -756,6 +757,19 @@ def main(argv: list[str] | None = None) -> int:
                 loaded_idle_only = True
             elif value == "--include-running":
                 include_running = True
+            elif value == "--max-owners":
+                if index + 1 >= len(reconcile_args) or reconcile_args[index + 1].startswith("--"):
+                    print(json.dumps({"ok": False, "error": "--max-owners requires a value"}))
+                    return 2
+                try:
+                    max_owners = int(reconcile_args[index + 1])
+                except ValueError:
+                    print(json.dumps({"ok": False, "error": "--max-owners must be a positive integer"}))
+                    return 2
+                if not 1 <= max_owners <= 64:
+                    print(json.dumps({"ok": False, "error": "--max-owners must be between 1 and 64"}))
+                    return 2
+                index += 1
             elif value == "--loop-id":
                 if index + 1 >= len(reconcile_args) or reconcile_args[index + 1].startswith("--"):
                     print(json.dumps({"ok": False, "error": "--loop-id requires a value"}))
@@ -830,6 +844,8 @@ def main(argv: list[str] | None = None) -> int:
                  or row["loop_id"] in explicitly_reloadable
                  or row.get("event_release_sha") == row["installed_release_sha"])
         )]
+        if max_owners is not None:
+            eligible = eligible[:max_owners]
         applied, failed = [], []
         for row in eligible:
             try:

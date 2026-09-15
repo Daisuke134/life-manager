@@ -1019,6 +1019,43 @@ class LmLoopApplyTest(unittest.TestCase):
 
         self.assertEqual(applied_roots, [release, release])
 
+    def test_reconcile_max_owners_limits_a_route_to_one_owner(self):
+        release = self._release("release-bounded").resolve()
+        value = two_loop_registry()
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        rows = [
+            {
+                "classification": "managed",
+                "provider_route": "deterministic",
+                "launchd_state": "loaded-idle",
+                "installed_release_sha": "b" * 40,
+                "loop_id": loop_id,
+            }
+            for loop_id in ("example", "second")
+        ]
+        applied = []
+
+        def record_apply(release_root, *args, **kwargs):
+            applied.append(kwargs["target"])
+            return [{"ok": True, "release_sha": SHA}]
+
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "snapshot", return_value=rows),
+            patch.object(lm_loop, "apply_live", side_effect=record_apply),
+            patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release)}),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(
+                lm_loop.main([
+                    "reconcile", "deterministic", "--max-owners", "1",
+                ]),
+                0,
+            )
+
+        self.assertEqual(applied, ["example"])
+        self.assertEqual(json.loads(output.getvalue())["eligible"], 1)
+
     def test_reconcile_loaded_idle_only_leaves_unloaded_rows_untouched(self):
         release = self._release("release-a").resolve()
         rows = [

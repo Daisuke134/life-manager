@@ -71,6 +71,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "LOOPS_ACTIVATE_CURRENT": "0",
                     "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
                     "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
                     "NPM_BIN": str(npm),
                     "NPM_VERSION": "test",
                     "NPM_NODE_VERSION": "test",
@@ -201,7 +202,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             result = subprocess.run(
                 ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
                 cwd=ROOT,
-                env={**os.environ, "LOOPS_ROOT": str(loops), "LOOPS_KEEP_RELEASES": "2", "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint", "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"), "NPM_BIN": str(npm), "NPM_VERSION": "test", "NPM_NODE_VERSION": "test"},
+                env={**os.environ, "LOOPS_ROOT": str(loops), "LOOPS_KEEP_RELEASES": "2", "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint", "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"), "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"), "NPM_BIN": str(npm), "NPM_VERSION": "test", "NPM_NODE_VERSION": "test"},
                 capture_output=True, text=True, check=False,
             )
 
@@ -316,6 +317,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint",
                     "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
                     "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
                     "NPM_BIN": str(npm),
                     "NPM_VERSION": "test",
                     "NPM_NODE_VERSION": "test",
@@ -466,8 +468,8 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(
                 [line.split("|", 1)[1] for line in reconciles],
                 [
-                    "reconcile shared-agent-runner --loaded-idle-only",
-                    "reconcile deterministic --loaded-idle-only",
+                    "reconcile shared-agent-runner --loaded-idle-only --max-owners 1",
+                    "reconcile deterministic --loaded-idle-only --max-owners 1",
                     "admission-v2-enable",
                 ],
             )
