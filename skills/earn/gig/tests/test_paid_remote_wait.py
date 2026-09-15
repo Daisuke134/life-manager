@@ -2185,6 +2185,59 @@ def test_targeted_readback_reclaims_its_stale_owner_before_open(tmp_path, monkey
     ]
 
 
+@pytest.mark.parametrize("pending_artifact", [False, True])
+def test_targeted_revision_reclassifies_stale_buyer_wait_as_work_required(
+        tmp_path, monkeypatch, pending_artifact):
+    paid = load("paid_direct")
+    room = "18211957"
+    feedback = "a" * 64
+    selected = {
+        "request_id": room,
+        "talkroom_id": room,
+        "contract_id": f"talkroom:{room}",
+        "marketplace_url": f"https://coconala.com/talkrooms/{room}",
+        "status": "unknown",
+        "selection_stage": "targeted",
+        "targeted_readback_required": False,
+        "talkroom_state": "取引中",
+        "transaction_state": "取引中",
+        "price_jpy": 50000,
+        "price_source": "structured_order_label",
+        "delivery_date": "2026-09-11",
+        "buyer_feedback_sha256": feedback,
+        "buyer_feedback_stage": "revision",
+        "buyer_feedback_pending_artifact": pending_artifact,
+        "buyer_reply_after_artifact_observed": pending_artifact,
+    }
+    collector_output = {}
+
+    def collector(_args, _mode, output, *_rest):
+        collector_output["path"] = output
+        return ["collector"]
+
+    def run(_command, _step, **_kwargs):
+        write_json(collector_output["path"], {
+            "captured_at": "2026-09-15T09:13:00+09:00",
+            "source": "authenticated_coconala_hidden_default_context_dom",
+            "orders": [selected],
+        })
+
+    monkeypatch.setattr(paid, "_collector", collector)
+    monkeypatch.setattr(paid, "_run", run)
+    monkeypatch.setattr(paid, "_reclaim_browser_owner", lambda *_args: None)
+    args = SimpleNamespace(
+        evidence_dir=tmp_path,
+        delivery_evidence_dir=tmp_path / "delivery-evidence",
+        cdp_lock_dir=tmp_path / "locks",
+        today="2026-09-15",
+    )
+
+    result = paid._targeted(args, {"talkroom_id": room}, 0)
+
+    assert result["queue_class"] == "buyer_feedback_or_revision"
+    assert result["delivery_action"] == "work_required"
+
+
 def test_targeted_readback_retries_default_tab_open_timeout_once(tmp_path, monkeypatch):
     paid = load("paid_direct")
     calls = []

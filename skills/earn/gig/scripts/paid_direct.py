@@ -2525,6 +2525,20 @@ def resolve_managed_verifier(project_root: Path, feedback: str, digest: str) -> 
         pass
     raise Failure("remote_resume")
 
+
+def _classify_targeted(args, item, snapshot: Path, room: str) -> dict[str, Any]:
+    snapshot_value = _load(snapshot)
+    observed = {**item, **_row(snapshot_value, room)}
+    classified = delivery_queue.build(
+        {"captured_at": snapshot_value.get("captured_at"),
+         "source": snapshot_value.get("source"),
+         "orders": [observed], "quotes": []},
+        getattr(args, "delivery_evidence_dir", args.evidence_dir / "delivery-evidence"),
+        date.fromisoformat(getattr(args, "today", date.today().isoformat())),
+    )["items"]
+    return classified[0] if len(classified) == 1 else observed
+
+
 def _targeted(args, item, index):
     room = _text(item.get("talkroom_id")); base = args.evidence_dir / "paid-direct" / "targeted" / room
     item_path, snapshot = base / "item.json", base / "snapshot.json"
@@ -2547,13 +2561,13 @@ def _targeted(args, item, index):
                 _collector(args, "selected-talkroom-only", snapshot, base, item_path, item),
                 "targeted_readback", timeout=TARGETED_READBACK_TIMEOUT_SECONDS, env=environment,
             )
-            return {**item, **_row(_load(snapshot), room)}
+            return _classify_targeted(args, item, snapshot, room)
         # The collector atomically publishes the official snapshot before optional trailing
         # work. A child that wedges after that point must not discard this wake's fresh readback.
         if (not snapshot.is_file() or snapshot.stat().st_mtime_ns <= started_ns):
             raise
         _row(_load(snapshot), room)
-    return {**item, **_row(_load(snapshot), room)}
+    return _classify_targeted(args, item, snapshot, room)
 
 def _recoverable(args, item):
     try:
