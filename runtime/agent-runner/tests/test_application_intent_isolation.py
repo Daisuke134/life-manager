@@ -68,8 +68,8 @@ class ApplicationIntentIsolationTest(unittest.TestCase):
             "token_reservation": 24576,
             "timeout_seconds": 420,
             "candidates": [
-                {"provider": "codex", "model": "gpt-5.6-luna", "effort": "high", "profile_alias": "acct2"},
-                {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium", "profile_alias": "acct2"},
+                {"provider": "codex", "model": "gpt-5.6-luna", "effort": "high", "profile_alias": "acct1"},
+                {"provider": "codex", "model": "gpt-5.6-terra", "effort": "medium", "profile_alias": "acct1"},
                 {"provider": "claude-direct", "model": "claude-sonnet-5"},
             ],
         })
