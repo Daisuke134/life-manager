@@ -29,7 +29,7 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `FND-05`.
+TODO worktree. The current cursor is `FND-06`.
 
 ### Atomic execution log
 
@@ -93,8 +93,13 @@ target control plane is implemented.
 
 **Alignment checkpoint:** the search phase is complete and `FND-02`/`FND-03`/`FND-04` contracts are
 implemented with focused fixtures. No launchd, browser/account, ledger, or provider effect was
-changed. The next atomic change is `FND-05`'s pure notification policy; it begins with a focused
-failing test before wiring any existing outbox.
+  changed. The next atomic change is `FND-05`'s pure notification policy; it begins with a focused
+  failing test before wiring any existing outbox.
+- [x] `FND-05` — Added the pure `apps/life-manager/lib/notification-policy.js` decision seam.
+  Known routine events return `internal_only`; only `human_action_required`, `urgent_safety`,
+  `material_outcome`, and `persistent_blocker` return `user_visible`; unknown kinds fail closed.
+  Focused proof: `node --test apps/life-manager/lib/notification-policy.test.js` (3 passed).
+  No Telegram sender or existing outbox was changed. Next active ID: `FND-06`.
 
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
 |---|---|---|---|
