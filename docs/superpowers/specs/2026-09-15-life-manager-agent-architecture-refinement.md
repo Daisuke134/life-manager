@@ -58,7 +58,7 @@ platform adapterの実装そのものをfoundationへ複製しません。
 Life Managerの実際の応募・契約・納品・報酬・cloud運用が動いたことを意味しません。現在の
 origin/mainは `5ec0bf206a`（PR #5259）まで進み、本番selectorは
 `20260916T073615-172d3f2e`のままです。ownerのinstalled/event SHAはまだ混在しています。
-統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `65050f8306`）は最新mainを取り込みpush済みで、
+統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `f346ca7ce3`）は最新mainを取り込みpush済みで、
 本番へはまだ統合していません。
 したがって、次の作業は「さらにスキルを読む」ではなく、候補をmain由来immutable releaseへ
 昇格し、ownerごとの自然wakeで公式効果を確認することです。
@@ -70,7 +70,7 @@ provider/state/browserを触らない。handoff receiptができるまで、未�
 
 | 順番 | atomic task | いま残っている理由 | 完了条件 |
 |---:|---|---|---|
-| 1 | `CAND-01` 候補 `65050f8306` の共有kernel修正を固定する | 修正はcandidateに限定され、本番ownerへは未配布 | **完了（candidate gate PASS）**: 最新main同期後にLancers 402 tests + 17 subtests、Job Hunter 462、runtime/loop 481 + 483 subtests、runtime/host 88、sparse/admission 61、completion manifest 15 tests、agent-runner 71 + 93 subtests、Graph/Eval/notification契約20 testsがPASS。main/本番にはまだ配布しない |
+| 1 | `CAND-01` 候補 `f346ca7ce3` の共有kernel修正を固定する | 修正はcandidateに限定され、本番ownerへは未配布 | **完了（candidate gate PASS）**: 最新main同期後にLancers 402 tests + 17 subtests、Job Hunter 462、runtime/loop 481 + 483 subtests、runtime/host 88、sparse/admission 61、completion manifest 15 tests、agent-runner 71 + 93 subtests、Graph/Eval/notification契約20 testsがPASS。main/本番にはまだ配布しない |
 | 2 | `CAND-02` candidateのread-only自然wake/canaryを閉じる | `66 passed`はfixture/内部read-only canaryであり、本番ownerの自然wakeではない | **内部canary PASS**: lease競合、CDP stale GC、admission v2/legacy並行を確認。live ownerのterminal・公式readbackはmain/release反映後に再確認 |
 | 3 | `PROD-01-F` Lancers pendingを1 sliceずつ消化 | pending 101件が残り、Application以外の収益receiptが0 | 101件が公式receipt付きで処理済み、または理由付きterminal。effect key重複0、replay-zero |
 | 4 | `PROD-02` Lancers Negotiate/Storefront/Paidを閉じる | Paidは契約候補0・effect/readback 0で、収益成功ではない。Reply/Storefrontも公式readback未完 | laneごとに公式receipt、または明示的not-applicableと再試行境界 |
@@ -88,7 +88,7 @@ Telegram報告、テストgreen、ブラウザ画面表示だけでは完了に�
 一度だけ行います。
 
 **現在のfoundation cursor:** `CAND-01`と`CAND-02`の内部canaryは完了しています。`LOCAL-01/02`
-ではcompletion manifestの契約と`lm-loop status` JSON接続をcandidate `65050f8306`へ実装済みです。
+ではcompletion manifestの契約と`lm-loop status` JSON接続、7つのskill索引をcandidate `f346ca7ce3`へ実装済みです。
 Graph/Eval/notificationの契約も同candidateへ接続済みです。次は各loopのevidenceを
 このmanifestへ接続する作業であり、platformの外部effectを私が実行する項目ではありません。
 
@@ -126,7 +126,7 @@ replay-zeroが揃った時だけです。人間が必要なのは、Mercorの面
 - 他Codex：`skills/earn/gig/TODO.md`、Coconala/Lancers/CrowdWorks/Mercorのprovider effect、
   browser/account/state、公式receipt、production owner。ここをgig workの単独ownerとする。
 - 私の候補：`fix/lm-fundamental-runtime-20260916` は handoff用のruntime候補証拠として凍結する。
-  `65050f8306`を部分的に本番へ入れず、単独ownerが受入した後に一度だけrelease化する。
+  `f346ca7ce3`を部分的に本番へ入れず、単独ownerが受入した後に一度だけrelease化する。
 - 私のdocs：このspecだけをread-onlyで更新し、gigのTODO/provider/state/browserを再編集しない。
 
 handoffの完了条件は、単独owner、対象branch、候補SHA、未完了receipt、次の一件を一つのhandoff
