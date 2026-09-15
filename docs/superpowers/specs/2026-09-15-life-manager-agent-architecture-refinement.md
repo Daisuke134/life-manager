@@ -35,6 +35,23 @@ claim that the target control plane, marketplace effects, or cloud deployment ar
 `docs/agent-engineering-skills-20260915`のcommitへ記録します。テストgreenだけではprovider
 成功や収益を意味せず、公式receiptがない状態は未完了です。
 
+### Foundation scope（platform作業との境界）
+
+このspecでいうfoundationは、Lancers/CrowdWorks/Coconala/Mercorの案件を処理することではなく、
+どのProduct Loopでも同じ安全な実行契約を使えるようにすることです。platform ownerはサイト固有の
+DOM・アカウント・応募・契約・納品・報酬receiptを担当し、foundation ownerは共有kernelと受入契約を
+担当します。platformの公式receiptはfoundationが実環境で機能したことを確認する受入証拠ですが、
+platform adapterの実装そのものをfoundationへ複製しません。
+
+| foundation領域 | 現在 | 残り |
+|---|---|---|
+| FND（goal/wake/context/admission/effect/readback） | 共通契約とcandidate testsあり | 14 loopすべてを同じcontractへ接続し、local completion manifestを埋める |
+| GRAPH | projection/queryの部品あり | 全loopのissue・receipt・resource・human gateを一つのcontrol planeで再構築する |
+| EVAL | case/run/score/gateの部品あり | held-out・safety・cost・live canary・promotion/rollbackを実運用へ接続する |
+| OBSERVABILITY | runtime event・metrics・Telegram境界を定義 | 内部control room、通知抑制、失敗からの自動issue生成を全loopへ接続する |
+| SELF-HEAL / SELF-IMPROVE | timeout・stale回収・冪等化の候補修正あり | supervisor、retry、candidate生成、評価、昇格、rollbackを無人で連結する |
+| LOCAL / CLOUD | 同じcontractにする設計あり | local gate、tenant分離、cloud worker/browser、phone-only canary、本番昇格 |
+
 ### 今回の判定（2026-09-16）
 
 **この仕事は完了していません。** スキルの調査・読み込みと候補branchのテストgreenは、
@@ -73,10 +90,12 @@ Telegram報告、テストgreen、ブラウザ画面表示だけでは完了に�
 ### 理想フロー（1回のwake）
 
 Life Managerは、常駐する一つの巨大agentではなく、短いwakeを何度も安全に積み重ねます。
+初回の登録・本人確認・権限設定・生活方針の入力は必要ですが、通常のwakeごとにユーザーが
+目標を入力するわけではありません。保存済みの目標、方針、制約、現在状態から自律的に始めます。
 
 ```mermaid
 flowchart LR
-  A[目標と前回状態] --> B[queue / resource admission]
+  A[保存済みの目標・方針・現在状態] --> B[queue / resource admission]
   B --> C[新鮮で小さいcontext capsule]
   C --> D[modelが次のskillを選ぶ]
   D --> E[owner lease付きのprovider操作]
@@ -393,7 +412,8 @@ readback/replay-zero behavior. It never copies local credentials, browser sessio
 
 Local and cloud remain available as user choices after promotion. `phone-only` use is the default cloud
 experience; local mode remains a self-hosted option and a recovery path. Both modes use the same
-implementation, and only their host adapters differ.
+implementation, and only their host adapters differ. After initial setup, ordinary wakes do not require
+the user to restate a goal; the user only changes policy or answers an explicit typed human gate.
 
 The rule is: **no cloud promotion before local acceptance**.
 
