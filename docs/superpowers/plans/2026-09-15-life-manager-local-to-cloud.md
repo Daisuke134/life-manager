@@ -259,6 +259,13 @@ contains the pre-fix unconditional safety-agent escalation argument. Handoff of 
 `48e9da35d3` and `cec6ce0d9b` was sent to `fable-main` and `sol-codex`; no acknowledgement or
 main-derived release containing the fix exists yet. No running owner was stopped or restarted.
 
+Latest-main candidate (safe handoff): branch `fix/lancers-prod-canary-20260915` is pushed at
+`8cb5ad4830`, with `origin/main=5a9fdfb4` as its base and only the Lancers caller and shared-runner
+fixes on top (`177748f3ab`, `8cb5ad4830`). Its focused suites pass (Lancers 36 passed/4 subtests;
+runner 2 passed). A subsequent read-only launchd check showed Lancers naturally `not running` but
+still pinned to old `e8e8a2b2`; no release sync or provider effect was performed. The next safe
+action is to consume the candidate through the main/release owner, then run the one-canary proof.
+
 ## FND research gate (search complete; FND-02 implemented)
 
 The research pass is complete for `FND-02` through `FND-10`. This section records the evidence and
