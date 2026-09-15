@@ -714,6 +714,22 @@ total therefore remains 12/300. PR `#5221` merged as
 `7f09631bb98f1d201720489fdbfb68ef75b1eeff`; every PR check passed, immutable release
 `20260915T154428-7f09631b` is loaded for Paid, and its natural owner independently read the sent/unknown fences.
 
+PR `#5222`, merge SHA `131fdc9952b7f6e92ad0c912308ad1e62ab8cc87`, fixes the observed one-owner-per-wake
+bottleneck without adding another scheduler. When an owner writes new durable progress, leaves both business
+outcome flags false with nonempty self-actionable remaining work, and has no external wait receipt, the existing
+three-round Paid review loop spends the next round on more owner work before verifier handoff. Zero progress,
+completion, an external wait or the final round still terminates the repetition. Remote-wait tests passed 208 and
+all Paid-related tests passed 241 before release `20260915T160937-131fdc99` was loaded.
+
+That release then exposed a separate tool-discovery error: the owner treated a missing Google browser identity as
+a Sheets blocker even though the host's existing authenticated `gog sheets` API had already appended and exactly
+read back `@we_kouki / 9/15`. PR `#5223`, merge SHA
+`05b6790f2025cb7a8a3b885a8635ddc6bc230eb7`, makes the API path explicit in the shared browser skill and Paid
+owner prompt: read for dedupe, append one row, atomically retain the response, and get the response's exact updated
+range before checkpointing. Browser resolver absence is not API credential absence. All PR checks passed; immutable
+release `20260915T162329-05b6790f` is the loaded Paid target. A preceding Chii owner remains allowed to finish; the
+next Chii owner must use this release without overlapping the same mutable project state.
+
 Ryu's newer buyer event supersedes the earlier satisfied no-op. The buyer asks for the administration page to
 use a HOME-first left-side section menu so each component can be edited without scrolling the whole profile, and
 asks that the public site start at HOME rather than attendance. Chii remains first; after its 300 verified pairs
