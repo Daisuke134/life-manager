@@ -110,6 +110,15 @@ boundary is reached.
 A wake/alarm only schedules a finite attempt; it is not proof of progress. The loaded skill defines
 the owner, context capsule, effect fence, official readback, terminal state, and next eligible wake.
 
+## Model execution boundary
+
+Use the existing Life Manager brain adapter with the Responses API for provider and business loops;
+Life Manager owns their loop, tools, state, leases, and official readback. Do not install an Agents API
+or Agents SDK scheduler beside it. The Agents SDK and the hosted Agents API are limited to bounded
+evaluation/repair/architecture work using a read-only release and fixtures; they receive no provider
+credentials, browser sessions, canonical write access, or direct effect tools. Store only result IDs,
+artifact hashes, and redacted traces in the private control room.
+
 ## Life Manager Cloud development
 - Use `docs/superpowers/specs/2026-08-28-life-manager-cloud-telegram-product-ux-design.md` §§0/8 for the current Cloud launch scope and ordered remaining TODO, `docs/superpowers/specs/2026-08-26-life-manager-cloud-on-time-core-design.md` for technical MUST/DO NOT, `docs/superpowers/plans/2026-08-28-life-manager-cloud-on-time-core-finish.md` for reusable implementation detail, and the matching `.superpowers/sdd/.../progress.md` for measured history. The 2026-09-05 owner scope supersedes old Active Orders and migration rulings; completed evidence is not discarded.
 - Owner scope (2026-09-05): ship the existing Cloud daily core; retain existing Stripe; no ElizaOS/Eliza Cloud/plugin migration and no Telegram Stars implementation task. Local operation and later loop migration belong to the separate local Codex workstream, not this launch checklist. Start with CLOUD-01 detailed travel/online notification UX.

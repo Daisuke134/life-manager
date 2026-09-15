@@ -65,6 +65,8 @@ def test_agents_instructions_route_new_agent_work_to_the_skill_set() -> None:
     ):
         assert f"skills/{skill}/SKILL.md" in text, skill
     assert "before" in text.lower() and "wake" in text.lower()
+    for token in ("Model execution boundary", "Responses API", "read-only release", "no provider"):
+        assert token in text, token
 
 
 def test_architecture_refinement_spec_covers_the_control_plane_gaps() -> None:
@@ -96,6 +98,20 @@ def test_architecture_spec_covers_private_reporting_and_model_runtime_boundary()
         "human_action_required",
         "background=true",
         "trace_include_sensitive_data",
+    ):
+        assert token in text, token
+
+
+def test_architecture_spec_distinguishes_agents_api_from_local_runtime_layers() -> None:
+    path = REPO_ROOT / "docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md"
+    text = path.read_text(encoding="utf-8")
+    for token in (
+        "Agents API",
+        "Codex harness",
+        "hosted sandbox",
+        "read-only release",
+        "provider credentials",
+        "sandbox boundary",
     ):
         assert token in text, token
 

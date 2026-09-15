@@ -126,6 +126,17 @@ and `persistent_blocker`; every other lifecycle event remains internal.
 
 ### L. Model Runtime Boundary
 
+There are three distinct OpenAI layers:
+
+1. **Responses API:** the low-level model request. The application owns the loop, tool dispatch, and
+   state.
+2. **Agents SDK:** a local Python runtime that can own turns, tools, guardrails, handoffs, sessions,
+   and tracing around Responses API calls.
+3. **Agents API:** OpenAI's hosted **Codex harness** and infrastructure. It can create a cloud agent,
+   attach tools and a hosted sandbox, compact long sessions, search tools on demand, and run bounded
+   subagents. The [official Agents API announcement](https://openai.com/ja-JP/index/introducing-the-agents-api/)
+   describes these managed capabilities and the choice of OpenAI-hosted or partner environments.
+
 The core Life Manager model transport uses the Responses API through the existing brain adapter because
 Life Manager owns the loop, tool dispatch, leases, context capsule, ledger, and provider readback. The
 official [Agents SDK/Responses API guidance](https://openai.github.io/openai-agents-python/) says the
@@ -133,8 +144,12 @@ Responses API is appropriate when the application owns loop/tool/state handling,
 is appropriate when its runtime should manage turns, tools, guardrails, handoffs, or sessions.
 
 Agents SDK may be used only inside an isolated evaluator or repair worker behind the same owner,
-context, budget, and evidence contracts. It must not create a second scheduler, provider-effect owner,
-or authoritative memory store. If SDK tracing is enabled, sensitive capture is disabled or routed to a
+context, budget, and evidence contracts. Agents API is used in a separate cloud maintenance pilot for
+read-only diagnosis, evaluation, skill drafting, and architecture research. Its hosted sandbox receives
+only a **read-only release**, approved skills, bounded fixtures, and a private output directory. It
+never receives provider credentials, browser sessions, payment keys, or permission to perform a
+marketplace effect. It must not create a second scheduler, provider-effect owner, or authoritative
+memory store. If SDK or Agents API tracing is enabled, sensitive capture is disabled or routed to a
 private exporter with `trace_include_sensitive_data=False`; the official [tracing guidance](https://openai.github.io/openai-agents-python/tracing/)
 warns that generation and function spans can contain sensitive inputs/outputs.
 
@@ -152,6 +167,15 @@ last-good receipt, and escalation boundary. A supervisor resumes queued issues a
 applies only the repair class permitted by the evidence. It continues independent work while one issue
 waits for a human or external provider. A human is contacted only for an explicit human gate; all
 other supported work, recovery, evaluation, and candidate promotion proceed without manual restarts.
+
+### N. Agents API sandbox boundary
+
+The hosted Agents API maintenance pilot is bounded by a signed task manifest containing owner, goal
+revision, release hash, allowed skills, fixture hashes, maximum subagent count, time/token budget, and
+output path. It returns a result ID, artifact hashes, trace pointers, and a promotion recommendation;
+the Life Manager control plane performs all validation, graph projection, evaluation gates, and release
+decisions. A hosted agent cannot modify the canonical repository, private state, credentials, browser
+session, scheduler, or provider system directly.
 
 ## 3. As-Is / To-Be
 
@@ -213,6 +237,7 @@ provenance questions; it never substitutes for provider truth.
 | 13 | Responses API boundary | `test_model_adapter_persists_capsule_and_resumes_background_response` | OK: response ID, polling, no effect lease in background |
 | 14 | Agents SDK isolation | `test_sdk_worker_cannot_create_scheduler_or_authoritative_state` | OK: bounded evaluator/repair-only use |
 | 15 | No-babysitting supervisor | `test_issue_queue_recovers_or_escalates_without_manual_restart` | OK: retry budget, independent progress, typed escalation |
+| 16 | Agents API sandbox boundary | `test_agents_api_task_manifest_and_readonly_release` | OK: bounded subagents, no credentials/effects, hashed outputs |
 
 All tests are deterministic fixtures or read-only contract checks. External marketplace acceptance
 remains a separate owner-scoped operation that requires the existing immutable-release,
@@ -241,6 +266,9 @@ official-readback, and replay-zero rules.
   authority. Use the Responses API adapter for the core loop and isolate any SDK worker.
 - Do not allow a background model response, webhook, or trace callback to hold a browser/effect lease
   or perform a provider mutation.
+- Do not give an Agents API hosted sandbox provider credentials, browser sessions, canonical write
+  access, scheduler control, or direct marketplace-effect tools. Use it only with a read-only release
+  and bounded fixtures in the maintenance pilot.
 
 ## 7. Execution Steps
 
@@ -269,7 +297,9 @@ official-readback, and replay-zero rules.
     storage, timeout, and cost contracts; preserve the existing provider effect owner.
 12. If an evaluator or repair worker needs Agents SDK, wrap it behind a bounded adapter with isolated
     session/evidence and disabled sensitive trace capture; prove it cannot schedule or mutate a provider.
-13. Run the no-babysitting supervisor fixture, then targeted immutable-release acceptance and update
+13. Run the Agents API maintenance pilot against a read-only release and bounded fixture, verify the
+    task manifest, result/artifact hashes, no credential/effect access, and import only its recommendation.
+14. Run the no-babysitting supervisor fixture, then targeted immutable-release acceptance and update
     the active TODO only from official receipts.
 
 ## E2E Judgment
