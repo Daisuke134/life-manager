@@ -813,14 +813,12 @@ work item and leave a sibling trace unchanged.
   unless a newer buyer event appears.
 - [x] Kokoro `18250352`: processed independently with its own verified v12 submission; replay zero unless a newer
   buyer event appears.
-- [ ] Chii `18180857`: current official Sheet truth is 227/300 unique TikTok-send plus Sheet rows, 73 remaining
-  (read back from `2026年8月!A1:B400` on 2026-09-15; ordered handle digest
-  `9f27213b35f4654e7e1c771c90e4a6838390972208e83c10260c516f9ee0af47`). Continue with existing tools only,
-  one candidate at a time, without an artificial per-run candidate cap; persist every official result and never
-  fabricate a send or Sheet row. The Chii outer loop is paused while this manual owner performs the batch to
-  prevent stale state overwrites; resume it only after the manual batch is checkpointed and its first natural
-  wake is verified. A one-off unintended test-text effect to `@gucci_fuufu` was recorded separately and is not
-  counted; never execute a test payload against the live TikTok owner.
+- [x] Chii `18180857`: 300/300 unique TikTok-send plus Sheet rows verified by official readback on 2026-09-16
+  (`2026年8月!A1:B400`, ordered handle digest
+  `1ff6f6fc7ccfae8681fb32b5697656e1be5cb9a47e71b550cb625c87c71e6105`). The 300-send and spreadsheet
+  requirement is complete; reply monitoring, reply-rate analysis and the durable 24/7 owner restart proof
+  remain open. The outer Chii loop remains paused until that next natural wake is explicitly verified. A one-off
+  unintended test-text effect to `@gucci_fuufu` is recorded separately and is not counted.
 - [ ] Atsugi `18171850`: reconcile the newest post-delivery feedback, perform any required revision/reply once,
   and return to verified buyer-acceptance wait.
 - [ ] Re-run all five active work items and prove newest-buyer-digest coverage, official readback and replay-zero
