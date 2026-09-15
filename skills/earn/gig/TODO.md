@@ -10,9 +10,8 @@ This is the only restart cursor for the next Codex session. Re-check every value
 runtime/provider readback before acting; conversation claims are not completion evidence.
 
 - Repository: `/Users/anicca/Projects/life-manager-main`, remote `Daisuke134/life-manager`.
-- Canonical runtime source is `origin/main` at `fb80cadd5d0bba58de3fece64db6ab0203ba1e83`. The latest
-  immutable release is `/Users/anicca/loops/releases/20260916T032610-1d4bca43` from its parent main SHA;
-  a follow-up release containing `fb80cadd5d` is being cut by the existing release owner. The prior runtime
+- Canonical runtime source is `origin/main` at `62716e997b93a7e57cca35bb88e2b009fd1f476d`. The latest
+  immutable release is `/Users/anicca/loops/releases/20260916T035216-62716e99`. The prior runtime
   worktree `/private/tmp/lm-runtime-admission-marketplace-priority-20260916` contains the already-merged
   disk/APFS and Storefront commits (`9aaab33d3c`, `8b472f9642`) but its remote branch is deleted; do not use
   it as a second source of truth or create another runtime worktree.
@@ -272,8 +271,8 @@ freeze protocol 1
 -> continue platform revenue order
 ```
 
-Current cursor: main `fb80cadd5d` is being exported to an immutable release by the existing release owner.
-After that release is available, verify loaded argv for all four Coconala labels, let the current Paid wake
+Current cursor: main `62716e997b` is exported as immutable release `20260916T035216-62716e99`. Verify loaded
+argv for all four Coconala labels, let the current Paid wake
 finish its per-client children, and read back each official talkroom plus replay-zero. The Storefront inner
 cadence fix and APFS clone cleanup are merged but still need one natural production wake. Protocol `2` is live,
 yet fairness, no-starvation, healthy disk headroom and 24-hour/seven-day proof remain open. Do not create a new
@@ -284,19 +283,20 @@ owner with a recorded terminal/recovery reason.
 
 ### Live correction (re-read before every mutation)
 
-- `origin/main` is `fb80cadd5d0bba58de3fece64db6ab0203ba1e83`; current symlink is still
-  `/Users/anicca/loops/releases/20260916T032610-1d4bca43` until the existing release builder finishes.
+- `origin/main` is `62716e997b93a7e57cca35bb88e2b009fd1f476d`; current symlink is
+  `/Users/anicca/loops/releases/20260916T035216-62716e99`.
 - Admission is protocol `2`. At the last snapshot, Coconala Paid reached its provider children for
   `18180857` and `18211957` concurrently; no terminal official receipt has been recorded yet. Coconala
   Storefront was a stale 11-hour `--auto-cadence` owner and was replaced label-scoped; its next release must
   omit that inner cadence so launchd's 60-second interval owns repetition.
-- Apply and Reply are loaded-idle from `1d4bca43`; Paid and Storefront are loaded-running from that release.
+- Apply and Reply are loaded-idle from `62716e99`; Paid is still running its previous `1d4bca43` wake and
+  Storefront is running one bounded pass from `62716e99`.
   Other revenue owners can consume the finite host ceiling, so a PID or scheduler run is not a client effect.
 - Disk free is about `4.7 GiB` (98% used). Thirty-four closed Chromium APFS clones and one unreferenced release
   were removed through the allow-listed governor; one live clone remains. A transient `disk_headroom_low`
   receipt occurred during the first Paid restart, so the healthy disk floor and seven-day no-ENOSPC proof remain
   open.
-- The canonical runtime repair is now in main through PRs `#5244` and `#5246`; do not report the old
+- The canonical runtime repair is now in main through PRs `#5244`, `#5246` and `#5247`; do not report the old
   `b8cff053`/protocol-1 snapshot below as current.
 
 ### Shared host/runtime
@@ -761,8 +761,9 @@ and keep the single persistent owner/session; do not rotate accounts or browsers
 
 The shared runtime admission review then found a separate fleet-wide hang class: `transfer_durable` and
 `release_and_reserve` used blocking `flock(LOCK_EX)` after a child or sibling held `control.lock`. The bounded
-handoff fix, APFS clone detector and Storefront one-pass fix are now merged in PRs `#5244` and `#5246` (main
-`fb80cadd5d`). Their focused runtime tests pass; production still needs the new release's natural wake and
+handoff fix, APFS clone detector, Storefront one-pass fix and stale-release guard are now merged in PRs `#5244`,
+`#5246` and `#5247` (main `62716e997b`). Their focused runtime tests pass; production still needs the new
+release's natural wake and
 24-hour/seven-day proof.
 
 Observability remains a current architecture gap. Existing JSONL events and provider receipts stay the source
