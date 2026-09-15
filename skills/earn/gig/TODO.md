@@ -684,7 +684,11 @@ port, browser UUID, collision zero, and official TikTok identity readback return
 from returning: static `delegated=true` or an interactive-session name cannot suppress Paid work. Delegation is
 valid only with a timezone-aware runtime-owner lease expiring within 15 minutes; missing, malformed or expired
 leases are reclaimed automatically. Paid tests passed 230 and all PR checks passed. Immutable release
-`20260915T142348-005fbd9d` contains the repair and must replace the Paid label after its preceding run terminates.
+`20260915T142348-005fbd9d` contained the repair and replaced the Paid label. PR `#5219`, merge SHA
+`39279e660ef95ace8c7d17f8de1129d44419ef61`, then fixed the shared TikTok transport's false
+`sender_identity_not_authenticated`: the standalone identity check waited for delayed navigation DOM, while the
+transport previously sampled it once after two seconds. Focused tests and every PR check passed; immutable release
+`20260915T150646-39279e66` is loaded for Paid and its natural run selected Chii without a static owner.
 
 Chii completion remains exactly 300 verified unique pairs, never 12. To reduce latency, first populate the shared
 Sheet with a deduplicated 300-real-account candidate queue whose rows are explicitly `candidate`, then run the
@@ -693,6 +697,24 @@ Candidate presence is not a send receipt. Continue the same logical campaign acr
 the durable cursor; a process boundary must not require a human or Codex restart. After Chii closes, observe Ryu's
 new buyer request for the administration screen and send the existing verified admin URL/instructions with
 official talkroom readback before entering the Reply/Negotiate shared-kernel work.
+
+The first Chii run on `39279e66` proved the next exact boundary. Two eligible candidates reached official
+Business Suite conversations and were each attempted once, but the shared CDP helper dispatched Enter without
+the browser keyboard identity fields, so neither send had exact readback and both were fenced `unknown`.
+Independent official readback later proved `@we_kouki` had a fully loaded empty conversation; `@dd._.6s` remains
+unknown and must never be resent without an exact negative or positive readback. The smallest shared repair adds
+the complete Enter identity, reuses the receipt-bound conversation URL during reconciliation, and changes an
+unknown fence to `not_sent` only when the official message list is loaded and empty. Tests pass 17/17 for the
+TikTok transport and 10/10 for the CDP helper. A live recovery then changed `@we_kouki` from `unknown` to
+`not_sent`, retried it once, and returned `sent_exact_official_readback`, `effect=1`, ledger `sent`. The shared
+Sheet has not yet been appended, so the truthful completed-pair total remains 12/300 until that matching row is
+officially read back. PR `#5221` contains this repair and is awaiting merge/release at the current cursor.
+
+Ryu's newer buyer event supersedes the earlier satisfied no-op. The buyer asks for the administration page to
+use a HOME-first left-side section menu so each component can be edited without scrolling the whole profile, and
+asks that the public site start at HOME rather than attendance. Chii remains first; after its 300 verified pairs
+close, implement this Ryu revision on the existing site/admin, verify both real routes, and send one ordinary
+Coconala update with formal delivery OFF.
 
 Observability remains a current architecture gap. Existing JSONL events and provider receipts stay the source
 of truth, while OpenTelemetry becomes the shared trace envelope rather than a second business ledger. One
