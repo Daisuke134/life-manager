@@ -3,6 +3,34 @@
 状態: DRAFT — this document defines the next architecture boundary; it does not claim that the
 target control plane is already implemented.
 
+## Implementation status (current evidence)
+
+このspecの受入状態は、次のとおりです。`PROD-01`が全体の正本cursorであり、provider固有の
+応募・送信・公式receiptはMarketplace ownerが管理します。Architecture ownerは別worktreeで
+共通契約、skill、fixture、read-only診断だけを進めます。両者を同じファイルや稼働browserで
+同時に変更しません。
+
+完了済みの共通基盤:
+
+- Product Loop/job identity、runtime state/event、context capsule（FND-02〜FND-10）
+- graph projection/query（GRAPH-01〜GRAPH-03）
+- eval case/run/score/gate（EVAL-01〜EVAL-03）
+- typed human gate（HUMAN-01〜HUMAN-02）
+- browser session contractとlocal headless read-only canary（BROWSER-01〜BROWSER-02）
+- Responses APIの同期adapterとread-only background start/poll（API-01の基礎部分）
+
+未完了の受入:
+
+- `PROD-01`: Lancersの公式安全判定・proposal receipt・replay-zero
+- `BROWSER-03`: provider effect/readback canary
+- Responses APIの通常Loopへの昇格、Agents API maintenance pilot
+- 14 Loopのlocal completion gate
+- tenant分離したcloud、cloud canary、phone-only経路、本番昇格
+
+証拠はplan `docs/superpowers/plans/2026-09-15-life-manager-local-to-cloud.md`と専用branch
+`docs/agent-engineering-skills-20260915`のcommitへ記録します。テストgreenだけではprovider
+成功や収益を意味せず、公式receiptがない状態は未完了です。
+
 ## 1. Overview (What & Why)
 
 Life Manager presents fourteen user-facing Product Loops, while
