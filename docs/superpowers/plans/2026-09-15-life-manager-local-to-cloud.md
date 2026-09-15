@@ -201,10 +201,10 @@ Files: config/product-loop-catalog.json; docs/superpowers/specs/2026-09-15-life-
 
 Files: config/loop-registry.json; runtime/loop/lm_loop_run.py; runtime/loop/runtime_event.py; runtime/host/tests/
 
-- [ ] 起動時にjob ID、entrypoint、release SHA、state root、resource classを内部イベントへ保存する。
-- [ ] ロード済み定義と現在のソースが異なる場合は業務処理をせず停止する。
-- [ ] 古いlaunchd labelが新しい所有者を起動しないことを確認する。
-- [ ] launchdを変更しないfixtureで、正しい所有者だけが実行されることを確認する。
+- [x] 起動時にjob ID、entrypoint、release SHA、state root（hash）、resource classを内部イベントへ保存する（`ALIGN-03`）。
+- [x] ロード済み定義と現在のソースが異なる場合は業務処理をせず停止する（`ALIGN-01`）。
+- [x] 古いlaunchd labelが新しい所有者を起動しないことを確認する（`ALIGN-03`のwrong-owner fixture）。
+- [x] launchdを変更しないfixtureで、正しい所有者だけが実行されることを確認する（`runtime/loop/tests/test_release_identity.py`）。
 
 ### Task 3: 資源の待ち行列と自動再開を完成させる
 
