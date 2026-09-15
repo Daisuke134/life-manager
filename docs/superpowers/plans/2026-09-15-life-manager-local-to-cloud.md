@@ -272,6 +272,14 @@ The Lancers installer also requires `merge-base --is-ancestor RELEASE_SHA origin
 candidate is intentionally not installable until its two commits are merged into the main-derived
 release. Bypassing that assertion (`LANCERS_SKIP_MAIN_ASSERT=1`) is not allowed.
 
+Ownership overlap resolution: the Marketplace worktree
+`/private/tmp/lm-coconala-retained-attachments` already contains equivalent cherry-picks
+`da5e725b00` (Lancers caller) and `cc4abb0fba` (shared runner), ahead of its remote branch. Its
+focused Lancers and runner suites pass. The architecture worktree must not re-apply or merge the
+provider fix into that worktree; Marketplace owns the provider/TODO/main-release path. This
+worktree owns the shared contracts, skills, evals, and read-only verification, and will resume the
+next atomic architecture item only after `PROD-01` has an official canary receipt.
+
 ## FND research gate (search complete; FND-02 implemented)
 
 The research pass is complete for `FND-02` through `FND-10`. This section records the evidence and
