@@ -1586,6 +1586,33 @@ def test_reported_formal_cycle_accepts_exact_linked_message_readback(tmp_path, m
     assert paid._reported_formal_cycle(SimpleNamespace(projects_root=projects), item) == root
 
 
+def test_confirmed_handled_feedback_dominates_stale_derived_work_state(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    root = tmp_path / "project"
+    root.mkdir()
+    feedback = "d" * 64
+    write_json(root / "state.json", {
+        "handled_buyer_feedback_sha256": feedback,
+        "delivery_confirmed_feedback_sha256": feedback,
+        "next_action": "await_buyer_feedback",
+        "active_feedback_cycle": {
+            "buyer_feedback_sha256": feedback,
+            "phase": "ACTIONABLE",
+        },
+    })
+    monkeypatch.setattr(paid, "_paid_project_root", lambda *_args: root)
+    item = {
+        "talkroom_id": "room",
+        "talkroom_state": "取引中",
+        "buyer_feedback_sha256": feedback,
+        "buyer_feedback_pending_artifact": False,
+        "buyer_reply_after_artifact_observed": False,
+        "seller_sent_messages": [{"text": "sent", "attachments": ["artifact.zip"]}],
+    }
+
+    assert paid._reported_handled_feedback_cycle(SimpleNamespace(), item) == root
+
+
 def test_wait_accepts_supplementary_receipt_when_another_has_readback(tmp_path):
     remote = load("paid_remote_result")
     root, feedback, digest = blocked_project(tmp_path)
