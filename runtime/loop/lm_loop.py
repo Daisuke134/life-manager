@@ -24,6 +24,7 @@ from runtime.loop.lm_loop_apply import (
     install_one,
 )
 from runtime.loop.lm_loop_lifecycle import lifecycle, lifecycle_one
+from runtime.loop.release_identity import read_release_manifest
 from runtime.loop.runtime_event import append_runtime_event, build_install_event, validate_runtime_event
 from runtime.host.resource_admission import activate_durable_v2, durable_protocol_version
 
@@ -133,7 +134,8 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
 
 
 def doctor_report(registry: dict, *, installed_labels: set[str], loaded_labels: set[str],
-                  existing_entrypoints: set[str]) -> dict:
+                  existing_entrypoints: set[str], installed_releases: dict | None = None,
+                  current_release_sha: str | None = None) -> dict:
     validate_registry(registry)
     retired = set(registry.get("retired_labels", []))
     managed = ({entry["label"] for entry in registry["loops"].values()}
@@ -144,13 +146,30 @@ def doctor_report(registry: dict, *, installed_labels: set[str], loaded_labels: 
         for loop_id, entry in registry["loops"].items()
         if entry["entrypoint"] not in existing_entrypoints
     )
+    installed_releases = installed_releases or {}
+    release_drift = sorted(
+        label for label in (entry["label"] for entry in registry["loops"].values())
+        if current_release_sha
+        and installed_releases.get(label)
+        and installed_releases[label] != current_release_sha
+    )
     return {
-        "ok": not unmanaged and not missing and not ((installed_labels | loaded_labels) & retired),
+        "ok": not unmanaged and not missing and not ((installed_labels | loaded_labels) & retired)
+        and not release_drift,
         "registry_entries": len(registry["loops"]),
         "unmanaged_labels": unmanaged,
         "missing_entrypoints": missing,
         "retired_installed_labels": sorted((installed_labels | loaded_labels) & retired),
+        "release_drift_labels": release_drift,
     }
+
+
+def _current_release_sha() -> str | None:
+    try:
+        _root, manifest = read_release_manifest(Path("~/loops/current").expanduser())
+    except (OSError, RuntimeError, ValueError, json.JSONDecodeError):
+        return None
+    return str(manifest["sha"])
 
 
 def _launchctl(*args: str) -> str:
@@ -859,11 +878,13 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if any(row["return_code"] for row in results) else 0
     target = args[1] if len(args) > 1 else "all"
     if command == "doctor":
-        loaded, _, _, _, installed = collect_live(registry)
+        loaded, _, _, releases, installed = collect_live(registry)
         existing = {entry["entrypoint"] for entry in registry["loops"].values()
                     if (ROOT / entry["entrypoint"]).is_file()}
         report = doctor_report(registry, installed_labels=installed,
-                               loaded_labels=set(loaded), existing_entrypoints=existing)
+                               loaded_labels=set(loaded), existing_entrypoints=existing,
+                               installed_releases=releases,
+                               current_release_sha=_current_release_sha())
         print(json.dumps(report, indent=2, sort_keys=True))
         return 0 if report["ok"] else 1
     while True:

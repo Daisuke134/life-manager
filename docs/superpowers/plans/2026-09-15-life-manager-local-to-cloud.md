@@ -115,6 +115,12 @@ TODO worktree. The current cursor is `GRAPH-01`.
   self-describing. Focused proof: `runtime/loop/tests/test_release_identity.py` (2 passed), the
   runner/apply/event/read-only suites (35, 79, 34, and 14 passed). No provider, browser, launchd,
   ledger, or Telegram effect was performed. Next active ID remains `GRAPH-01`.
+- [x] `ALIGN-02` — Extended read-only `doctor` output to report labels whose installed release SHA
+  differs from the current immutable release. The check consumes the same release manifest reader as
+  the startup gate and makes release drift a failing doctor result without mutating launchd. Focused
+  proof: `runtime/loop/tests/test_lm_loop_readonly.py::test_doctor_reports_installed_release_drift`
+  and the full read-only suite passed. No provider, browser, launchd, ledger, or Telegram effect was
+  performed. Next active ID remains `GRAPH-01`.
 
 ## FND research gate (search complete; FND-02 implemented)
 

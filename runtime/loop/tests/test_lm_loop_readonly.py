@@ -55,6 +55,18 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertEqual(report["unmanaged_labels"], [])
         self.assertTrue(report["ok"])
 
+    def test_doctor_reports_installed_release_drift(self):
+        report = doctor_report(
+            REGISTRY,
+            installed_labels={"ai.anicca.example"},
+            loaded_labels={"ai.anicca.example"},
+            existing_entrypoints={"bin/example.sh"},
+            installed_releases={"ai.anicca.example": "a" * 40},
+            current_release_sha="b" * 40,
+        )
+        self.assertEqual(report["release_drift_labels"], ["ai.anicca.example"])
+        self.assertFalse(report["ok"])
+
     def test_no_event_never_becomes_success_from_pid_or_exit(self):
         row = status_rows(REGISTRY, loaded={}, disabled={}, events={}, installed_releases={})[0]
         self.assertEqual(row["next_eligible_run"], "interval:60s")
