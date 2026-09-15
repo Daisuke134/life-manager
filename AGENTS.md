@@ -75,6 +75,25 @@ No deletion — decay only affects retrieval priority.
 - Local/self-hosted and cloud are two host adapters for one loop implementation, never separate loop codebases. Share the loop ID, business recipe, agent/tool contract, provider adapter, effect fence and receipt vocabulary; vary only supervisor, storage, secrets and browser transport. Before adding a local-only or cloud-only implementation, follow `skills/loop-engineering/SKILL.md` and prove the shared core cannot support it.
 - Before creating, changing, migrating, debugging, or retiring a Life Manager loop, MUST read and follow `skills/loop-development/SKILL.md`.
 
+## Agent engineering skill index
+
+For control-plane or loop work, load the relevant recipe before editing code. These are the shared
+foundations; provider adapters must keep their own official-surface and receipt rules.
+
+| Concern | Skill |
+|---|---|
+| Harness boundaries, ownership, and safe execution | `skills/harness-engineering/SKILL.md` |
+| Bounded context capsules and source freshness | `skills/context-engineering/SKILL.md` |
+| Finite wakes, retries, leases, and replay-zero | `skills/loop-engineering/SKILL.md` |
+| Provenance, dependencies, and cross-loop queries | `skills/graph-engineering/SKILL.md` |
+| Cases, held-out checks, promotion, and rollback | `skills/eval-engineering/SKILL.md` |
+| Private lifecycle events, metrics, and notification boundaries | `skills/observability-engineering/SKILL.md` |
+| Goal identity, measurable outcomes, and stop conditions | `skills/goal-engineering/SKILL.md` |
+
+The pinned repositories and source-to-skill map are recorded in `docs/agent-engineering/REFERENCE-REPOS.md`
+and `docs/agent-engineering/SOURCE-MAP.md`. Do not create a second recipe or bypass the existing
+runtime, ledger, browser lease, or provider receipt owner.
+
 ## Life Manager Cloud development
 - Use `docs/superpowers/specs/2026-08-28-life-manager-cloud-telegram-product-ux-design.md` §§0/8 for the current Cloud launch scope and ordered remaining TODO, `docs/superpowers/specs/2026-08-26-life-manager-cloud-on-time-core-design.md` for technical MUST/DO NOT, `docs/superpowers/plans/2026-08-28-life-manager-cloud-on-time-core-finish.md` for reusable implementation detail, and the matching `.superpowers/sdd/.../progress.md` for measured history. The 2026-09-05 owner scope supersedes old Active Orders and migration rulings; completed evidence is not discarded.
 - Owner scope (2026-09-05): ship the existing Cloud daily core; retain existing Stripe; no ElizaOS/Eliza Cloud/plugin migration and no Telegram Stars implementation task. Local operation and later loop migration belong to the separate local Codex workstream, not this launch checklist. Start with CLOUD-01 detailed travel/online notification UX.
