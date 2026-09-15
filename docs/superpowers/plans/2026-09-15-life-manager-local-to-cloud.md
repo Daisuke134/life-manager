@@ -44,10 +44,36 @@ TODO worktree. The current cursor is `FND-02`.
   readback, `git worktree list`, and `git diff --name-status origin/main...HEAD`.
   Next active ID: `FND-02`.
 
+## FND research gate (search complete; implementation intentionally paused)
+
+The research pass is complete for `FND-02` through `FND-10`. This section records the evidence and
+the proposed contract before any runtime fix begins. It is a design checkpoint, not a claim that the
+target control plane is implemented.
+
+| FND | Measured Life Manager gap | Reusable source pattern | Proposed contract (before implementation) |
+|---|---|---|---|
+| FND-02 identity | The catalog has 14 product loops, while `config/loop-registry.json` has 165 jobs; zero catalog rows have `job_ids`, and zero registry rows have `product_loop_id` or `owner_id`. | [OpenAI Symphony SPEC](https://github.com/openai/symphony/blob/e0ccc83720a42a600a53b61c5f8d3e518bebe1db/SPEC.md) separates opaque issue identity, human identifier, workspace key, and run/session identity. | Keep `product_loop_id` (user capability) separate from `job_id` (registry key). Add one explicit, validated identity map; never merge job state or receipts merely because they share a product label. |
+| FND-03 states | `runtime/loop/runtime_event.py` currently allows lifecycle `running/pass/fail/blocked` and effect `not_applicable/unknown/planned/started/verified/failed/reconciled`; it cannot express a durable queued/retry/deferred/human-wait state in one contract. | Symphony's orchestrator owns `running`, `claimed`, `blocked`, and `retry_attempts`; its retry entry carries `attempt`, due time, and error. | Use two typed axes: lifecycle (`queued`, `running`, `retry_scheduled`, `deferred`, `human_wait`, `completed`, `failed`, `blocked`) and effect/readback (`not_applicable`, `planned`, `started`, `verified`, `failed`, `unknown`). Never turn `unknown` into success or zero. |
+| FND-04 events | Current events have `event_id`, `loop_id`, and `run_id`, but omit `product_loop_id`, `job_id`, `owner_id`, `wake_id`, `attempt`, `effect_key`, failure layer, and next eligibility. | [Symphony logging guide](https://github.com/openai/symphony/blob/e0ccc83720a42a600a53b61c5f8d3e518bebe1db/elixir/docs/logging.md) requires stable issue/session identifiers and concise outcomes. [OpenInference](https://github.com/Arize-ai/openinference/tree/812f6877d5e3e353be4ecceaf9b518963475a0) supplies typed span/agent/tool attributes instead of hand-spelled keys. | Make `(tenant, owner, product_loop, job, run, wake, attempt)` the join key; hash it into an idempotent event ID. Keep payloads redacted and evidence pointers separate. |
+| FND-05/06 notification | `apps/life-manager/lib/notify.js` is a late-email helper; the existing Telegram outbox is durable and idempotent, but no shared policy decides which runtime events are user-visible. | [OpenHands telemetry rules](https://github.com/OpenHands/OpenHands/blob/23ca81c9ff6e638546f966d7f0e11a7682666179/AGENTS.md) use one telemetry owner and one canonical business event. The local outbox already suppresses unchanged messages by hash/time. | Add a pure policy before the existing outbox: routine wake/retry/eval/health stays internal; only human action, urgent safety, material outcome, or persistent blocker enters the outbox. Telegram is transitional transport, not the product boundary. |
+| FND-07/08 resources | `memory_admission.py` gates on free-percent and `resource_admission.py` has durable FIFO reservations, but the shared Product Loop contract does not yet bind resource class, provider/account, browser profile, and host pressure to every job. | [Apify resource guide](https://docs.apify.com/actors/running/usage-and-resources) states that allocated memory also determines CPU/disk and that the total running allocation limits new work. [Browserless limiter](https://github.com/browserless/browserless/blob/450ec681481a1ee7bce2a4e5fe7c2ce3f939a0d7/src/limiter.ts) tracks queued/running/concurrent/timeout/health. | Admit finite wakes through one resource boundary; persist `resource_admission_deferred` with reason and `next_eligible_at`; use measured per-class/per-owner limits and fair resume. Headless removes display overhead but does not make memory unlimited. |
+| FND-09/10 context | `context_packet.py` bounds bytes/depth/items and `context.mjs` passes a recent ledger slice, but there is no required hash-bound capsule containing goal, owner, sources, decisions, open questions, freshness, and budget. | [LangGraph durable execution](https://docs.langchain.com/oss/python/langgraph/durable-execution) distinguishes a thread checkpointer from a cross-thread store. [DeepAgents better harness](https://github.com/langchain-ai/deepagents/blob/1d3232c0852c47af09119edea10eeec887e4f0da/examples/better-harness/better_harness/core.py) separates train/holdout/scorecard and stores artifact/trace references. [Graphiti](https://github.com/getzep/graphiti/blob/c035afb7990b6077331a81e98b04efcfd9bf8184/graphiti_core/models/nodes.py) keeps source descriptions and temporal facts. | Compile the smallest capsule from authoritative facts; hash it; offload large artifacts; refresh mutable provider state immediately before an effect; share approved graph facts, never transcripts, credentials, or browser sessions. |
+
+### Search evidence used
+
+- [OpenTelemetry traces](https://opentelemetry.io/docs/concepts/signals/traces/) describes traces as the path of one request through a system; use trace/span IDs for diagnosis, not as business-effect proof.
+- [Steel Browser](https://github.com/steel-dev/steel-browser/blob/2b41124d8e2953b0afe355c534e3c9aa71edae26/api/src/services/session.service.ts) exposes session identity, persistence, headless mode, CDP, and viewer handoff; Life Manager must keep provider/session ownership above that adapter.
+- [Firecracker](https://github.com/firecracker-microvm/firecracker/blob/c5314e5dfc732db683115a02dee440ca06162a7c/docs/design.md) uses microVM, seccomp, cgroups, namespaces, and jailer boundaries; reserve it for untrusted repair/eval code, not every browser session.
+- [Chrome headless](https://developer.chrome.com/docs/automation-and-testing/headless) confirms unattended no-UI operation, while modern headless shares Chrome's implementation; it reduces display overhead, not all browser memory.
+
+**Alignment checkpoint:** search is complete. The next change would be `FND-02`'s identity contract and
+its fixture. No runtime, launchd, browser/account, ledger, or provider effect is changed until that
+contract is accepted and the focused test is written first.
+
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
 |---|---|---|---|
 | FND-01 | Record worktree and latest-main baseline | docs/architecture worktree / architecture owner | clean branch and baseline SHA |
-| FND-02 | Validate Product Loop/job identity rows | config/product-loop-catalog.json / architecture owner | registry fixture PASS |
+| FND-02 | Validate Product Loop/job identity rows | apps/life-manager/config/product-loop-catalog.json / architecture owner | registry fixture PASS |
 | FND-03 | Define typed issue and retry states | runtime/contracts or existing schema / architecture owner | state-shape unit PASS |
 | FND-04 | Emit owner/release/readback identifiers | runtime/loop/runtime_event.py / integration owner | event fixture PASS |
 | FND-05 | Implement internal-first notification decision | apps/life-manager/lib/notification-policy.js / architecture owner | routine event returns internal-only |
