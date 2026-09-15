@@ -23,6 +23,8 @@ target control plane is already implemented.
 
 - `PROD-01`: Lancersのpending消化とNegotiate/Storefront/Paidの公式receipt・replay-zero
 - `BROWSER-03`: Application canaryは合格。残りのeffect/readback laneは未完了
+- `ADMISSION-01`: protocol v2のmain由来release反映と有効化
+- `CONTROL-01`: registry外Browser provisionerの所有者分類とhandoff
 - Responses APIの通常Loopへの昇格、Agents API maintenance pilot
 - 14 Loopのlocal completion gate
 - tenant分離したcloud、cloud canary、phone-only経路、本番昇格
