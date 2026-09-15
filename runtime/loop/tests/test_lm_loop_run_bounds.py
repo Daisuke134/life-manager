@@ -9,8 +9,6 @@ import time
 from pathlib import Path
 from unittest.mock import call, patch
 
-import pytest
-
 from runtime.host import resource_admission as admission
 from runtime.loop.lm_loop_run import (
     _admission_class, _dispatch_reserved, _host_admission_deferred, _resource_class,
@@ -141,31 +139,28 @@ def test_acquired_slot_keeps_the_full_entrypoint_runtime_budget(tmp_path):
     dispatch.assert_called_once_with(["next"])
 
 
-@pytest.mark.parametrize("loop_id", (
-    "life-manager-release-reconciler",
-    "life-manager-disk-cleanup",
-))
-def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path, loop_id):
+def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "deterministic", "runtime_timeout_seconds": 900}
-    receipt = tmp_path / "receipt"
-    with (patch("runtime.loop.lm_loop_run.memory_free_percent") as memory,
-          patch("runtime.loop.lm_loop_run.durable_protocol_version") as protocol,
-          patch("runtime.loop.lm_loop_run.try_acquire_resource") as acquire,
-          patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0) as run):
-        assert _run_admitted(
-            ["/bin/true"], entry, loop_id, {}, receipt,
-        ) == 0
+    for loop_id in ("life-manager-release-reconciler", "life-manager-disk-cleanup"):
+        receipt = tmp_path / f"receipt-{loop_id}"
+        with (patch("runtime.loop.lm_loop_run.memory_free_percent") as memory,
+              patch("runtime.loop.lm_loop_run.durable_protocol_version") as protocol,
+              patch("runtime.loop.lm_loop_run.try_acquire_resource") as acquire,
+              patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0) as run):
+            assert _run_admitted(
+                ["/bin/true"], entry, loop_id, {}, receipt,
+            ) == 0
 
-    memory.assert_not_called()
-    protocol.assert_not_called()
-    acquire.assert_not_called()
-    run.assert_called_once_with(["/bin/true"], env={}, timeout_seconds=900)
-    assert json.loads(receipt.read_text()) == {
-        "effect": 0,
-        "reason": "control_plane_exempt",
-        "status": "pass",
-    }
+        memory.assert_not_called()
+        protocol.assert_not_called()
+        acquire.assert_not_called()
+        run.assert_called_once_with(["/bin/true"], env={}, timeout_seconds=900)
+        assert json.loads(receipt.read_text()) == {
+            "effect": 0,
+            "reason": "control_plane_exempt",
+            "status": "pass",
+        }
 
 
 def test_v1_protocol_uses_legacy_nonretaining_admission(tmp_path):
