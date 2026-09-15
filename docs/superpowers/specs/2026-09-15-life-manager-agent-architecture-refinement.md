@@ -41,7 +41,7 @@ runtime event、provider ledgerを突き合わせた現在cursorです。後続�
 |---|---|---|
 | source | `origin/main=06b4d6d87bb2dc00ea0b69d8129124b71d28e423` | Lancersの容量・planner・遷移診断・exhaustive 1-turn・pending cursor・本番wrapperのbounded discoveryを含む |
 | release selector | `~/loops/current`は`20260915T222815-ae1bf965`。最新検証済みreleaseは`20260915T230801-475febf2`（wrapper修正`06b4...`用releaseは未作成） | selector、稼働owner、mainが混在。全体昇格は未完 |
-| Lancers Application | `loaded-running`、現行PIDは`--json --exhaustive`を含む旧475 release起動中。planner/safetyのagent-runner成功はあるが、provider終端・公式応募receiptは未確認 | 現在wakeを重複起動せず自然終端まで観測。次にwrapper修正を含む`06b4...` releaseをidle境界で反映 |
+| Lancers Application | 旧475 releaseの`--json --exhaustive` wakeを16分超で停止し、`bootout=0`・`unloaded`・終端`entrypoint_exit_143`。planner/safetyのagent-runner成功はあるが、provider終端・公式応募receiptは未確認 | pendingを保持したまま重複起動しない。次にwrapper修正を含む`06b4...` releaseを作成し、idle境界で反映 |
 | Lancers Browser | `loaded-running`、9227 CDPはChrome 145 / Protocol 1.3、ownerは旧`ae1bf96528` | Browser接続canaryはPASS。provider効果は未確認。Applicationと同時にprofileを再起動しない |
 | Lancers Negotiate/Storefront/work-sync/report | ownerのインストール版は475へ揃ったものがあるが、旧terminal event、`resource_capacity_busy`、`resource_control_busy`が残る。Reportは旧ae1 event | 履歴を成功に変換せず、各ownerを一つずつ自然wakeで確認 |
 | Lancers Paid | `loaded-idle`、installed releaseは475、`install` eventも475。一方で直近provider結果は`entrypoint_exit_1` | **reconcile作業は完了**。公式paid効果は未確認のため収益完了にはしない |
@@ -122,7 +122,7 @@ browser/effect/readback契約を使う、(3)公式receiptとreplay-zeroを受け
 | platform | サイト固有の仕事と境界 | 共有kernelから使う部品 | 今回の状態（公式receipt基準） | 次の合格条件 |
 |---|---|---|---|---|
 | Coconala | 公開依頼→応募、購入前talkroom返信、自分のサービス掲載、購入済み納品。`coconala.com`のrequest/message/service/order route、専用profile | goal/wake、admission、context、browser lease、effect key、readback、通知outbox | 別workstreamが1案件を処理中。architecture workstreamはbrowser/account/TODOを変更しない。今回のcanaryで応募成功は主張しない | 案件ごとの公式応募/購入/納品receipt、buyer readback、replay-zero |
-| Lancers | 公開案件→proposal、購入前会話、menu掲載、契約/納品。`www.lancers.jp`のwork/proposal/menu/myplan route、専用9227 CDP、safety verifier | Coconalaと同じtyped lifecycle・admission・effect/readback契約 | mainはPR #5233まで統合済み。CDPは応答したがBrowser ownerは旧ae1、Applicationは旧`--exhaustive` wakeが長時間継続。planner/safety成功は記録済みだが、公式応募・返信・掲載・有料receiptは0。wrapper修正後releaseは未作成 | `06b4...` releaseを作成→Application自然終端→idle ownerだけreconcile→新wrapperで1 wake→公式proposal/contract receipt + replay-zero |
+| Lancers | 公開案件→proposal、購入前会話、menu掲載、契約/納品。`www.lancers.jp`のwork/proposal/menu/myplan route、専用9227 CDP、safety verifier | Coconalaと同じtyped lifecycle・admission・effect/readback契約 | mainはPR #5233まで統合済み。CDPは応答したがBrowser ownerは旧ae1。旧`--exhaustive` Applicationは16分超で停止（公式応募receipt 0）。planner/safety成功は記録済みだが、返信・掲載・有料receiptも0。wrapper修正後releaseは未作成 | `06b4...` releaseを作成→Applicationを新wrapperで起動→1 wakeの公式proposal receipt/readback→replay-zero |
 | CrowdWorks | 公開案件→応募→契約→納品。応募・契約のprovider語彙は専用adapterで保持し、Coconala/Lancersの掲載laneを仮定しない | goal/context、admission、browser lease、effect fence、human gate、receipt/eval | 今回の稼働readbackは未実施。EVAL fixtureの対象であり、成功・収益は未確認 | 公式応募または契約receipt、または理由付きnot-applicable、重複なし |
 | Mercor | 応募→本人確認/面接/録画などのhuman gate→契約・報酬。identity/interview/mediaの外部状態を専用adapterで扱う | agent-runner、context capsule、human gate、通知outbox、effect/readback、revenue/cost graph | 直近のread-only記録ではcurrent releaseの起動receiptはあるが、応募はcapacity deferで終了し、公式application receiptは未確認。architecture workstreamはMercorの認証・面接を操作しない | typed human gateの再開→公式application/contract/payment receipt→費用上限内・replay-zero |
 
