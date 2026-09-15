@@ -465,6 +465,17 @@ class MacosLoopRegistryTest(unittest.TestCase):
             registry["loops"]["lancers-revenue-browser"],
         )
 
+    def test_mercor_finite_revenue_lanes_have_a_five_minute_runtime_bound(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        finite_lanes = (
+            "mercor-revenue-application",
+            "mercor-revenue-paid",
+            "mercor-revenue-reply",
+        )
+        for loop_id in finite_lanes:
+            with self.subTest(loop_id=loop_id):
+                self.assertEqual(registry["loops"][loop_id]["runtime_timeout_seconds"], 300)
+
     def test_marketing_metrics_daily_uses_direct_python_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["marketing-metrics-daily"]
