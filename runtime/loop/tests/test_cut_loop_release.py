@@ -123,6 +123,45 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertTrue((releases[0] / "RELEASE.json").is_file())
             self.assertIn("current unchanged", result.stdout)
 
+    def test_release_cannot_move_current_to_an_older_main_ancestor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            loops = root / "loops"
+            current_release = loops / "releases" / "current-release"
+            current_release.mkdir(parents=True)
+            current_sha = "fb80cadd5d0bba58de3fece64db6ab0203ba1e83"
+            older_sha = "1d4bca431546c1604c388abbe6542c9764d274e8"
+            (current_release / "RELEASE.json").write_text(
+                json.dumps({"sha": current_sha, "release_paths": "ALL"}) + "\n"
+            )
+            current = loops / "current"
+            current.symlink_to(current_release)
+            agents = root / "agents"
+            agents.mkdir()
+            admission = root / "admission"
+            admission.mkdir()
+
+            result = subprocess.run(
+                ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), older_sha],
+                cwd=ROOT,
+                env={
+                    **os.environ,
+                    "LOOPS_ROOT": str(loops),
+                    "LOOPS_RELEASE_PATHS": "runtime/loop",
+                    "LOOPS_KEEP_RELEASES": "1",
+                    "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(admission),
+                    "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("current backwards", result.stderr)
+            self.assertEqual(current.resolve(), current_release.resolve())
+
     def test_release_reuses_one_content_addressed_dependency_bundle(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

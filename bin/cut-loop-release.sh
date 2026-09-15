@@ -379,6 +379,27 @@ BUILD_COMPLETE=1
 chmod -R a-w "$DEST" 2>/dev/null || true
 
 if [ "$ACTIVATE_CURRENT" = "1" ]; then
+  # A release builder can finish after a newer builder has already activated current.
+  # Never let that late, older ancestor move the shared pointer backwards.
+  CURRENT_SHA=""
+  if [ -f "$CURRENT/RELEASE.json" ]; then
+    CURRENT_SHA="$(python3 - "$CURRENT/RELEASE.json" <<'PY'
+import json, sys
+try:
+    value = json.load(open(sys.argv[1], encoding="utf-8"))
+    sha = value.get("sha", "")
+    print(sha if isinstance(sha, str) else "")
+except (OSError, ValueError, TypeError):
+    print("")
+PY
+)"
+  fi
+  if [ -n "$CURRENT_SHA" ] && [ "$CURRENT_SHA" != "$SHA" ] \
+    && git -C "$REPO_ROOT" merge-base --is-ancestor "$SHA" "$CURRENT_SHA" 2>/dev/null; then
+    BUILD_COMPLETE=0
+    die "refusing to move current backwards from $CURRENT_SHA to $SHA"
+  fi
+
   # Use the same host-wide owner lock as `lm-loop apply` while replacing `current` atomically.
   PYTHONPATH="$SCRIPT_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
     python3 -c 'import sys; from pathlib import Path; from runtime.host.resource_admission import durable_protocol_version; from runtime.loop.lm_loop import activate_current; activate_current(Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3]), protocol_reader=durable_protocol_version)' \
