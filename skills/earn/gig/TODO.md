@@ -707,8 +707,12 @@ the complete Enter identity, reuses the receipt-bound conversation URL during re
 unknown fence to `not_sent` only when the official message list is loaded and empty. Tests pass 17/17 for the
 TikTok transport and 10/10 for the CDP helper. A live recovery then changed `@we_kouki` from `unknown` to
 `not_sent`, retried it once, and returned `sent_exact_official_readback`, `effect=1`, ledger `sent`. The shared
-Sheet has not yet been appended, so the truthful completed-pair total remains 12/300 until that matching row is
-officially read back. PR `#5221` contains this repair and is awaiting merge/release at the current cursor.
+Sheet was then appended through the official API and read back as `2026年8月!A17:B17 = @we_kouki / 9/15`.
+Because that DM asks the recipient to confirm a required qualification, the pair is durably classified
+`qualification` and does not increase the effective target without an affirmative reply; the truthful effective
+total therefore remains 12/300. PR `#5221` merged as
+`7f09631bb98f1d201720489fdbfb68ef75b1eeff`; every PR check passed, immutable release
+`20260915T154428-7f09631b` is loaded for Paid, and its natural owner independently read the sent/unknown fences.
 
 Ryu's newer buyer event supersedes the earlier satisfied no-op. The buyer asks for the administration page to
 use a HOME-first left-side section menu so each component can be edited without scrolling the whole profile, and
