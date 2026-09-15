@@ -19,6 +19,7 @@ from typing import Callable
 
 
 ADMISSION_CLASSES = {"borrow", "revenue"}
+ADMISSION_POLICY = "revenue-floor-v1"
 
 
 class _ProcBsdInfo(ctypes.Structure):
@@ -169,12 +170,12 @@ def _live(path: Path, starts: dict[int, str | None] | None = None,
     return _pid_exists(value["pid"])
 
 
-def _capacity(name: str, default: int) -> int:
+def _capacity(name: str, default: int, *, minimum: int = 1) -> int:
     try:
         value = int(os.environ.get(name, str(default)))
     except ValueError as error:
         raise RuntimeError(f"invalid capacity: {name}") from error
-    if not 1 <= value <= 64:
+    if not minimum <= value <= 64:
         raise RuntimeError(f"invalid capacity: {name}")
     return value
 
@@ -275,10 +276,16 @@ def _database(path: Path) -> sqlite3.Connection:
         );
         CREATE TABLE IF NOT EXISTS priorities (
             owner_id TEXT PRIMARY KEY,
-            admission_class TEXT NOT NULL CHECK(admission_class IN ('borrow','revenue'))
+            admission_class TEXT NOT NULL CHECK(admission_class IN ('borrow','revenue')),
+            admission_policy TEXT
         );
         PRAGMA user_version=2;
     """)
+    priority_columns = {
+        row[1] for row in connection.execute("PRAGMA table_info(priorities)")
+    }
+    if "admission_policy" not in priority_columns:
+        connection.execute("ALTER TABLE priorities ADD COLUMN admission_policy TEXT")
     return connection
 
 
@@ -294,11 +301,72 @@ def _limits(resource_class: str, admission_class: str = "borrow") -> tuple[int, 
     return total, per_class
 
 
+def _revenue_floor(total: int) -> int:
+    """Return capacity that borrow-only work must leave for revenue work."""
+    # Older callers explicitly set the total for isolated/v1 operation and do
+    # not know about the floor. New launchd plists carry the floor explicitly;
+    # the default keeps an unconfigured five-run host safe during migration.
+    default = (
+        min(4, total)
+        if "LIFE_MANAGER_HOST_MAX_FINITE_RUNS" not in os.environ else 0
+    )
+    requested = _capacity(
+        "LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", default, minimum=0)
+    revenue_limit = _capacity("LIFE_MANAGER_HOST_MAX_REVENUE_RUNS", total)
+    return min(total, requested, revenue_limit)
+
+
 def _uses_limited_capacity(row: dict[str, object], resource_class: str,
                            admission_class: str) -> bool:
     if admission_class == "revenue":
         return row.get("admission_class", "borrow") == "revenue"
     return row.get("resource_class") == resource_class
+
+
+def _legacy_owner_present(occupied: list[dict[str, object]]) -> bool:
+    return any(
+        row.get("admission_policy") != ADMISSION_POLICY
+        for row in occupied
+    )
+
+
+def _capacity_available(occupied: list[dict[str, object]],
+                        resource_class: str, admission_class: str) -> bool:
+    total, per_class = _limits(resource_class, admission_class)
+    if len(occupied) >= total:
+        return False
+    if (admission_class == "revenue" and _revenue_floor(total)
+            and _legacy_owner_present(occupied)):
+        return False
+    if sum(_uses_limited_capacity(row, resource_class, admission_class)
+           for row in occupied) >= per_class:
+        return False
+    if admission_class == "borrow":
+        borrow_count = sum(
+            row.get("admission_class", "borrow") == "borrow"
+            for row in occupied
+        )
+        if borrow_count >= total - _revenue_floor(total):
+            return False
+    return True
+
+
+def _capacity_overflow(occupied: list[dict[str, object]],
+                       resource_class: str, admission_class: str) -> bool:
+    total, per_class = _limits(resource_class, admission_class)
+    if len(occupied) > total:
+        return True
+    if sum(_uses_limited_capacity(row, resource_class, admission_class)
+           for row in occupied) > per_class:
+        return True
+    if admission_class == "borrow":
+        borrow_count = sum(
+            row.get("admission_class", "borrow") == "borrow"
+            for row in occupied
+        )
+        if borrow_count > total - _revenue_floor(total):
+            return True
+    return False
 
 
 def _identity_snapshot(*directories: Path) -> tuple[dict[int, str | None], int]:
@@ -328,23 +396,21 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                     "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
                     (row["sequence"], row["owner_id"], row["resource_class"]))
                 connection.execute(
-                    "INSERT OR IGNORE INTO priorities(owner_id,admission_class) VALUES(?,?)",
-                    (row["owner_id"], row.get("admission_class", "borrow")))
+                    "INSERT OR IGNORE INTO priorities(owner_id,admission_class,admission_policy) VALUES(?,?,?)",
+                    (row["owner_id"], row.get("admission_class", "borrow"),
+                     row.get("admission_policy")))
             path.unlink(missing_ok=True)
     connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (now,))
     reserved = [dict(zip(("owner_id", "resource_class", "sequence", "lease_until",
-                          "admission_class"), row))
+                          "admission_class", "admission_policy"), row))
                 for row in connection.execute("""
                     SELECT r.owner_id,r.resource_class,r.sequence,r.lease_until,
-                           COALESCE(p.admission_class,'borrow')
+                           COALESCE(p.admission_class,'borrow'),p.admission_policy
                     FROM reservations r
                     LEFT JOIN priorities p ON p.owner_id=r.owner_id
                 """)]
     occupied = live + reserved
-    total, per_class = _limits(resource_class, admission_class)
-    available = (len(occupied) < total and sum(
-        _uses_limited_capacity(row, resource_class, admission_class)
-        for row in occupied) < per_class)
+    available = _capacity_available(occupied, resource_class, admission_class)
     return available, occupied
 
 
@@ -388,8 +454,11 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
             connection.execute("INSERT OR IGNORE INTO queue(owner_id,resource_class) VALUES(?,?)",
                                (owner_id, resource_class))
             connection.execute(
-                "INSERT OR IGNORE INTO priorities(owner_id,admission_class) VALUES(?,?)",
-                (owner_id, admission_class))
+                "INSERT OR IGNORE INTO priorities(owner_id,admission_class,admission_policy) VALUES(?,?,?)",
+                (owner_id, admission_class, ADMISSION_POLICY))
+            connection.execute(
+                "UPDATE priorities SET admission_policy=? WHERE owner_id=?",
+                (ADMISSION_POLICY, owner_id))
             row = connection.execute("""
                 SELECT q.sequence,q.resource_class,p.admission_class
                 FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
@@ -455,11 +524,11 @@ def claim_durable(resource_class: str, owner_id: str, *,
             if any(item.get("owner_id") == owner_id for item in (
                     _row(path) or {} for path in owners.glob("*.json"))):
                 return None, "owner_busy"
-            total, per_class = _limits(resource_class, admission_class)
-            if reserved and (len(occupied) > total or sum(
-                    _uses_limited_capacity(item, resource_class, admission_class)
-                    for item in occupied
-            ) > per_class):
+            if reserved and (
+                    _capacity_overflow(occupied, resource_class, admission_class)
+                    or (admission_class == "revenue"
+                        and _revenue_floor(_limits(resource_class, admission_class)[0])
+                        and _legacy_owner_present(occupied))):
                 return None, "capacity_busy"
             if not reserved and (not available or _legacy_waiter_exists(
                     tickets, resource_class, starts, snapshot_started_ns)):
@@ -471,6 +540,7 @@ def claim_durable(resource_class: str, owner_id: str, *,
                         "process_start": started, "owner_id": owner_id,
                         "resource_class": resource_class, "sequence": row[0],
                         "admission_class": admission_class,
+                        "admission_policy": ADMISSION_POLICY,
                         "phase": "claimed"})
             connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
             connection.execute("DELETE FROM queue WHERE owner_id=?", (owner_id,))
@@ -651,8 +721,9 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                     "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
                     (sequence, value["owner_id"], value["resource_class"]))
                 connection.execute(
-                    "INSERT OR IGNORE INTO priorities(owner_id,admission_class) VALUES(?,?)",
-                    (value["owner_id"], value.get("admission_class", "borrow")))
+                    "INSERT OR IGNORE INTO priorities(owner_id,admission_class,admission_policy) VALUES(?,?,?)",
+                    (value["owner_id"], value.get("admission_class", "borrow"),
+                     value.get("admission_policy")))
         claim.unlink(missing_ok=True)
         if not reserve:
             return []
@@ -714,19 +785,18 @@ def try_acquire(resource_class: str, owner_id: str, *,
                 connection.execute(
                     "DELETE FROM reservations WHERE lease_until <= ?", (time.time(),))
                 reserved_rows = [
-                    {"owner_id": row[0], "resource_class": row[1]}
+                    {"owner_id": row[0], "resource_class": row[1],
+                     "admission_policy": row[2]}
                     for row in connection.execute(
-                        "SELECT owner_id,resource_class FROM reservations")
+                        """SELECT r.owner_id,r.resource_class,p.admission_policy
+                           FROM reservations r
+                           LEFT JOIN priorities p ON p.owner_id=r.owner_id""")
                 ]
         occupied = owner_rows + reserved_rows
 
         digest = hashlib.sha256(owner_id.encode()).hexdigest()
         if not retain_ticket:
-            total_limit, class_limit = _limits(resource_class, admission_class)
-            if len(occupied) >= total_limit or sum(
-                _uses_limited_capacity(row, resource_class, admission_class)
-                for row in occupied
-            ) >= class_limit:
+            if not _capacity_available(occupied, resource_class, admission_class):
                 return None, "capacity_busy"
             for candidate in sorted(tickets.glob(f"{resource_class}-*.json")):
                 value = _row(candidate)
@@ -740,7 +810,8 @@ def try_acquire(resource_class: str, owner_id: str, *,
             atomic_json(claim, {"version": 1, "pid": os.getpid(),
                         "process_start": started, "owner_id": owner_id,
                         "resource_class": resource_class,
-                        "admission_class": admission_class})
+                        "admission_class": admission_class,
+                        "admission_policy": ADMISSION_POLICY})
             return claim, "acquired"
 
         matches = [
@@ -752,11 +823,7 @@ def try_acquire(resource_class: str, owner_id: str, *,
         atomic_json(ticket, {"version": 1, "pid": os.getpid(),
                     "process_start": started, "owner_id": owner_id})
 
-        total_limit, class_limit = _limits(resource_class, admission_class)
-        if len(occupied) >= total_limit or sum(
-            _uses_limited_capacity(row, resource_class, admission_class)
-            for row in occupied
-        ) >= class_limit:
+        if not _capacity_available(occupied, resource_class, admission_class):
             return None, "capacity_busy"
 
         head = None
@@ -775,7 +842,8 @@ def try_acquire(resource_class: str, owner_id: str, *,
         atomic_json(claim, {"version": 1, "pid": os.getpid(),
                     "process_start": started, "owner_id": owner_id,
                     "resource_class": resource_class,
-                    "admission_class": admission_class})
+                    "admission_class": admission_class,
+                    "admission_policy": ADMISSION_POLICY})
         ticket.unlink(missing_ok=True)
         return claim, "acquired"
     finally:
