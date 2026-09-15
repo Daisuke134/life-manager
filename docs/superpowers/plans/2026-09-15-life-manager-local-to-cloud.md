@@ -29,7 +29,7 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `EVAL-03`.
+TODO worktree. The current cursor is `HUMAN-01`.
 
 ### Atomic execution log
 
@@ -189,6 +189,15 @@ TODO worktree. The current cursor is `EVAL-03`.
   is copied. Focused proof: `node --test apps/life-manager/eval/agent-contract/cases.test.js`
   (2 passed) with duplicate-ID and malformed-contract checks. No provider, browser, launchd, ledger,
   or Telegram effect was performed. Next active ID: `EVAL-03`.
+- [x] `EVAL-03` — Added the pure held-out/safety promotion gate in
+  `apps/life-manager/eval/agent-contract/gate.js`. It binds scores to one completed run and one
+  case each, keeps tuning and held-out sets separate, compares held-out score/cost/latency against
+  the baseline, requires safety-pass results, verified official readback, replay-zero, and a
+  rollback pointer, and caps diagnostic reasons. Any missing or regressed condition returns a
+  typed `block`; only an all-pass fixture returns `pass`. Focused proof:
+  `node --test apps/life-manager/eval/agent-contract/gate.test.js` (3 passed) plus the records and
+  five-failure fixture tests (9 passed). No provider, browser, launchd, ledger, or Telegram effect
+  was performed. Next active ID: `HUMAN-01`.
 
 ### Current production blocker snapshot (read-only)
 
@@ -228,7 +237,7 @@ target control plane is implemented.
 
 **Alignment checkpoint:** the search and FND implementation phase is complete: `FND-02` through
 `FND-10` have focused contracts and receipts. No provider effect was performed in this workstream.
-The next atomic change is `EVAL-03`'s held-out and safety promotion gate; it begins with a focused
+The next atomic change is `HUMAN-01`'s typed human-gate record; it begins with a focused
 failing test while preserving the evaluator's no-production-effect boundary.
 
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
