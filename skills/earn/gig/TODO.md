@@ -640,6 +640,30 @@ the latest seller message in independent selected-talkroom readback. The current
 administration supports up to five distinct uploads, replacement and ordering without fabricating extra cast
 photos.
 
+The same Paid kernel subsequently repaired Kokoro `18250352` beyond the first v11 candidate and sent
+`makutuu-submission-documents-v12.zip`. The durable item result is `status=completed`, `effect=1`, `readback=1`,
+`failed=0`, `send_performed=true`, formal delivery OFF; authenticated selected-talkroom readback contains the
+v12 seller message and attachment. This room is now buyer-waiting for that digest. The remaining observed Paid
+liability is Chii `18180857`; Ryu and both Kokoro rooms are submitted and must replay zero unless newer buyer
+messages arrive.
+
+PR `#5217`, merge SHA `4cdfcf7879a937e0df989615583bb75e2014ef5b`, generalizes the Ryu failure class
+inside the shared Paid kernel. A buyer request to copy/adopt/match visual references now requires a complete
+visible component and layout census across every reference rather than only the nearby named subset. A
+buyer-visible web PASS now requires a fresh browser after entrance/consent/overlay completion, exact route and
+viewport visibility, screenshot evidence and cache-safe loaded asset identity; raw HTML/JS/CSS/API content is
+insufficient. Two new regressions, all 204 remote-wait tests, all 229 Paid tests and every PR check passed.
+Immutable release `20260915T135937-4cdfcf78` contains the rule and waits for the active preceding Paid wake to
+terminate before the Paid label is reconciled.
+
+Reply/Negotiate and Paid must not maintain separate semantic work engines. Their shared kernel is official
+observation -> cumulative context -> work-item decision -> text/file/remote execution -> verification ->
+provider send -> official readback -> durable dedupe/resume. Thin state/policy adapters remain separate because
+pre-contract demo/estimate authority differs from paid progress and buyer-authorized formal delivery. The
+observed `juves9718` negotiation demonstrates the remaining gap: a buyer asked for a selection demo, but the
+current Reply path acknowledged it without creating and submitting the demo. After open Paid liabilities close,
+route substantive Reply/Negotiate requests into the same executor instead of treating them as text-only replies.
+
 Observability remains a current architecture gap. Existing JSONL events and provider receipts stay the source
 of truth, while OpenTelemetry becomes the shared trace envelope rather than a second business ledger. One
 trace joins `platform/account/work-item` observe, context capsule, attachment recovery, model work, effect and
