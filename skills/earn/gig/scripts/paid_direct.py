@@ -273,6 +273,42 @@ def _comparison_key(value: str) -> str: return " ".join(value.split())
 
 STEP_TIMEOUT_RETURNCODE = 124
 
+# Each bounded child has its own process group so a timeout is isolated. A
+# launchd stop signal reaches the paid parent, not detached child groups; track
+# them so shutdown can forward the signal to every active child, including
+# children started from worker threads.
+_ACTIVE_BOUNDED_PROCESSES: set[subprocess.Popen] = set()
+_ACTIVE_BOUNDED_LOCK = threading.Lock()
+
+
+def _terminate_active_bounded_processes() -> None:
+    with _ACTIVE_BOUNDED_LOCK:
+        processes = tuple(_ACTIVE_BOUNDED_PROCESSES)
+    for process in processes:
+        if process.poll() is not None:
+            continue
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+
+
+def _install_bounded_shutdown_handlers() -> dict[int, Any]:
+    previous: dict[int, Any] = {}
+
+    def forward(_signum: int, _frame: Any) -> None:
+        _terminate_active_bounded_processes()
+
+    for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+        previous[signum] = signal.getsignal(signum)
+        signal.signal(signum, forward)
+    return previous
+
+
+def _restore_bounded_shutdown_handlers(previous: dict[int, Any]) -> None:
+    for signum, handler in previous.items():
+        signal.signal(signum, handler)
+
 
 def _run_bounded(command: list[str], *, env=None, timeout: float | None = None):
     """A wedged child must become a failed step, not an unbounded wait.
@@ -286,6 +322,8 @@ def _run_bounded(command: list[str], *, env=None, timeout: float | None = None):
         command, stdout=stdout_file, stderr=stderr_file, text=True, env=env,
         start_new_session=os.name == "posix",
     )
+    with _ACTIVE_BOUNDED_LOCK:
+        _ACTIVE_BOUNDED_PROCESSES.add(process)
 
     def captured() -> tuple[str, str]:
         stdout_file.flush(); stderr_file.flush()
@@ -333,6 +371,8 @@ def _run_bounded(command: list[str], *, env=None, timeout: float | None = None):
             command, STEP_TIMEOUT_RETURNCODE, stdout,
             stderr + f"\nstep timed out after {error.timeout}s")
     finally:
+        with _ACTIVE_BOUNDED_LOCK:
+            _ACTIVE_BOUNDED_PROCESSES.discard(process)
         for signum, handler in previous.items():
             signal.signal(signum, handler)
         stdout_file.close(); stderr_file.close()
@@ -6817,7 +6857,7 @@ def _parser():
                         default=Path(os.environ.get("GIG_OPERATOR_BRAKE_FILE", DEFAULT_BRAKE)))
     parser.add_argument("--today", default=date.today().isoformat()); parser.add_argument("--effect-item", type=Path); parser.add_argument("--write-item", type=Path); parser.add_argument("--decision-item", type=Path); return parser
 
-def main(argv=None) -> int:
+def _main(argv=None) -> int:
     args = _parser().parse_args(argv)
     for name in ("output", "evidence_dir", "projects_root", "collector", "run_with_cdp_lock", "answer_browser", "formal_browser", "cancel_browser", "delivery_evidence_dir", "cdp_lock_dir", "context_compiler", "dm_collector", "agent_runner", "runner_schema", "artifact_schema", "decision_schema"): setattr(args, name, getattr(args, name).expanduser().resolve())
     args.cdp_helper = args.cdp_helper.expanduser(); args.lock_file = args.lock_file.expanduser().resolve() if args.lock_file else args.evidence_dir / ".paid-direct.lock"
@@ -6844,6 +6884,14 @@ def main(argv=None) -> int:
         result["telegram"] = {"status": "failed", "error": type(error).__name__}
     _write(args.output, result)
     return rc
+
+
+def main(argv=None) -> int:
+    previous = _install_bounded_shutdown_handlers()
+    try:
+        return _main(argv)
+    finally:
+        _restore_bounded_shutdown_handlers(previous)
 
 if __name__ == "__main__":
     exit_code = main()

@@ -4378,6 +4378,29 @@ def test_run_bounded_does_not_wait_for_grandchild_inherited_pipe():
     assert time.monotonic() - started < 1
 
 
+def test_active_bounded_process_groups_are_terminated_on_shutdown(monkeypatch):
+    paid = load("paid_direct")
+
+    class FakeProcess:
+        pid = 43210
+
+        def poll(self):
+            return None
+
+    signals = []
+    monkeypatch.setattr(paid.os, "killpg", lambda pid, signum: signals.append((pid, signum)))
+    process = FakeProcess()
+    with paid._ACTIVE_BOUNDED_LOCK:
+        paid._ACTIVE_BOUNDED_PROCESSES.add(process)
+    try:
+        paid._terminate_active_bounded_processes()
+    finally:
+        with paid._ACTIVE_BOUNDED_LOCK:
+            paid._ACTIVE_BOUNDED_PROCESSES.discard(process)
+
+    assert signals == [(43210, paid.signal.SIGTERM)]
+
+
 def test_runner_loop_id_uses_managed_control_plane_identity(monkeypatch):
     paid = load("paid_direct")
     monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "hf-gig-paid-direct")
