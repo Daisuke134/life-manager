@@ -1113,13 +1113,6 @@ def persist_captured_attachment(
     )
     if not source_path.is_file() or sha256_file(source_path) != digest:
         secure_write_bytes(source_path, payload)
-    record_captured_attachment_reference(source_path, safe_name, digest, len(payload), reference)
-    return str(source_path), digest, len(payload)
-
-
-def record_captured_attachment_reference(
-    source_path: Path, filename: str, digest: str, size: int, reference: str | None,
-) -> None:
     if reference is not None:
         reference = safe_download_reference(None, reference)
         if reference is None:
@@ -1136,32 +1129,13 @@ def record_captured_attachment_reference(
                     or not isinstance(index.get("references"), dict)):
                 raise ValueError("invalid attachment reference index")
             index["references"][reference] = {
-                "filename": filename,
+                "filename": safe_name,
                 "stored_name": source_path.name,
                 "sha256": digest,
-                "size_bytes": size,
+                "size_bytes": len(payload),
             }
             atomic_json(index_path, index)
-
-
-def persist_captured_attachment_file(
-    project_root: Path, filename: str, downloaded: Path, *, reference: str | None = None,
-) -> tuple[str, str, int]:
-    """Move a completed browser download without loading the whole file into RAM."""
-    if downloaded.is_symlink() or not downloaded.is_file():
-        raise ValueError("invalid downloaded attachment")
-    safe_name = safe_filename(filename)
-    digest = sha256_file(downloaded)
-    size = downloaded.stat().st_size
-    source_path = project_root / "source" / "buyer-attachments" / f"{digest[:12]}-{safe_name}"
-    secure_directory(source_path.parent)
-    if source_path.is_file() and not source_path.is_symlink() and sha256_file(source_path) == digest:
-        downloaded.unlink()
-    else:
-        os.replace(downloaded, source_path)
-        source_path.chmod(0o600)
-    record_captured_attachment_reference(source_path, safe_name, digest, size, reference)
-    return str(source_path), digest, size
+    return str(source_path), digest, len(payload)
 
 
 def buyer_request_identity(manifest: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -2802,20 +2776,6 @@ async def capture_click_downloads(
                             downloaded = candidate
                             break
                     await asyncio.sleep(0.25)
-                if downloaded is not None and downloaded.stat().st_size > 16 * 1024 * 1024:
-                    try:
-                        source_path, digest, size = persist_captured_attachment_file(
-                            project_root, attachment.get("filename"), downloaded,
-                            reference=reference,
-                        ) if project_root is not None else (None, None, downloaded.stat().st_size)
-                    except (OSError, ValueError):
-                        attachment["capture_error"] = "attachment_store_failed"
-                        continue
-                    attachment["source_path"] = source_path
-                    attachment["sha256"] = digest
-                    attachment["size_bytes"] = size
-                    attachment["capture_error"] = None
-                    continue
                 payload = downloaded.read_bytes() if downloaded is not None else None
                 if payload is None:
                     for event in trusted_events:
