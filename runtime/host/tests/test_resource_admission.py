@@ -422,6 +422,17 @@ def test_post_claim_requeue_commits_before_claim_is_removed(tmp_path, monkeypatc
     }]
 
 
+def test_release_already_reclaimed_claim_is_idempotent(tmp_path, monkeypatch):
+    """A stale-owner sweep may win the race with the original finally block."""
+    isolated(tmp_path, monkeypatch)
+    admission.enqueue_durable("deterministic", "first")
+    claim, reason = admission.claim_durable("deterministic", "first")
+    assert claim is not None and reason == "acquired"
+    claim.unlink()
+
+    assert admission.release_and_reserve(claim, reserve=False) == []
+
+
 def test_legacy_agent_waiter_does_not_starve_deterministic_queue(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="2")
     started = admission.process_start(os.getpid())

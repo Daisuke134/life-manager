@@ -623,8 +623,15 @@ def reserve_available(*, now: float | None = None,
 def release_and_reserve(claim: Path, *, requeue: bool = False,
                         reserve: bool = True, now: float | None = None,
                         lease_seconds: int = 60) -> list[str]:
-    """Release one claim and reserve newly available capacity for queued owners."""
+    """Release one claim and reserve newly available capacity for queued owners.
+
+    A concurrent stale-owner sweep can remove an already-dead claim before the
+    original runner reaches its ``finally`` block.  Missing claims are already
+    released; do not turn that harmless race into a recovery warning.
+    """
     value = _row(claim)
+    if not value and not claim.exists():
+        return reserve_available(now=now, lease_seconds=lease_seconds) if reserve else []
     started = process_start(os.getpid())
     if not value or not started or not _controlled_by(value, os.getpid(), started):
         raise RuntimeError("resource claim ownership mismatch")
@@ -646,7 +653,7 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                 connection.execute(
                     "INSERT OR IGNORE INTO priorities(owner_id,admission_class) VALUES(?,?)",
                     (value["owner_id"], value.get("admission_class", "borrow")))
-        claim.unlink()
+        claim.unlink(missing_ok=True)
         if not reserve:
             return []
         with _database(database) as connection:
