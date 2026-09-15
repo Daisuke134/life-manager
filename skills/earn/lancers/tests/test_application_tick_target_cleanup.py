@@ -68,3 +68,32 @@ def test_open_owned_page_closes_failed_browser_before_retry(monkeypatch):
     assert isinstance(browser, HealthyBrowser)
     assert attempts == [module.CDP_URL, module.CDP_URL]
     assert closed == ["broken"]
+
+
+def test_confirmation_transition_detail_records_safe_dom_shape():
+    module = _module()
+
+    class Page:
+        url = "https://www.lancers.jp/work/propose_start/123?proposeReferer=detail"
+
+        def evaluate(self, script):
+            assert "document.readyState" in script
+            return {
+                "ready_state": "complete",
+                "proposal_form": True,
+                "confirmation_form": False,
+                "invalid_controls": 1,
+                "alerts": 1,
+            }
+
+    detail = module._confirmation_transition_detail(Page(), "123")
+
+    assert detail == {
+        "project_id": "123",
+        "page_url": "https://www.lancers.jp/work/propose_start/123?proposeReferer=detail",
+        "ready_state": "complete",
+        "proposal_form": True,
+        "confirmation_form": False,
+        "invalid_controls": 1,
+        "alerts": 1,
+    }
