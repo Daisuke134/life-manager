@@ -17,7 +17,10 @@
           "reason_codes",
           "proposal_text",
           "price_jpy",
-          "deliver_date"
+          "deliver_date",
+          "work_frequency",
+          "weekly_hours_min",
+          "weekly_hours_max"
         ],
         "properties": {
           "request_id": {"type": "string", "pattern": "^(?:[0-9]+|[0-7][0-9A-HJKMNP-TV-Z]{25})$"},
@@ -38,28 +41,7 @@
           },
           "weekly_hours_min": {"type": ["integer", "null"], "minimum": 0},
           "weekly_hours_max": {"type": ["integer", "null"], "minimum": 0}
-        },
-        "allOf": [
-          {
-            "if": {
-              "properties": {
-                "request_id": {"pattern": "^[0-7][0-9A-HJKMNP-TV-Z]{25}$"}
-              }
-            },
-            "then": {
-              "required": ["work_frequency", "weekly_hours_min", "weekly_hours_max"]
-            },
-            "else": {
-              "not": {
-                "anyOf": [
-                  {"required": ["work_frequency"]},
-                  {"required": ["weekly_hours_min"]},
-                  {"required": ["weekly_hours_max"]}
-                ]
-              }
-            }
-          }
-        ]
+        }
       }
     }
   }

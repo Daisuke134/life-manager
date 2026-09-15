@@ -64,6 +64,30 @@ def _decision() -> dict[str, object]:
     }]}
 
 
+def _single_snapshot() -> dict[str, object]:
+    return parent.snapshot_contract.build_envelope({
+        "pass_id": "single-test",
+        "lease_fence": {"task": "single-test", "token": "2" * 32, "generation": 1},
+        "observed_at": "2026-09-14T00:00:00Z",
+        "objective": {"target_applications": 1, "max_applications": 1,
+                      "required_search_source_ids": ["single:new"]},
+        "search_sources": [{
+            "source_id": "single:new", "url": "https://coconala.com/requests?sort=new&recruiting=true",
+            "page_index": 1, "card_request_ids": ["123"], "has_next": False, "exhausted": True,
+            "screenshot_sha256": "c" * 64, "dom_sha256": "d" * 64,
+        }],
+        "request_details": [{
+            "request_id": "123", "canonical_url": "https://coconala.com/requests/123",
+            "title": "資料整理", "category": "IT・プログラミング",
+            "visible_text": "募集内容\n資料を整理して納品してください。",
+            "accepting_applications": True, "budget_min_jpy": 10_000,
+            "budget_max_jpy": 20_000, "applicants_count": 0, "contracted_count": 0,
+            "applicants": [], "observed_at": "2026-09-14T00:00:00Z",
+        }],
+        "already_applied_ids": [],
+    })
+
+
 def test_retainer_terms_are_required_and_bound_to_the_durable_intent() -> None:
     decision = _decision()
     assert planner.validate_decisions(_snapshot(), decision) == []
@@ -327,12 +351,28 @@ def test_decision_schema_has_disjoint_single_and_retainer_shapes() -> None:
 
     schema = json.loads((SCRIPTS.parent / "schemas" / "application_decisions.schema.json").read_text(encoding="utf-8"))
     validator = Draft202012Validator(schema)
-    single = {key: value for key, value in _decision()["decisions"][0].items() if key not in {
-        "work_frequency", "weekly_hours_min", "weekly_hours_max"
-    }}
+    item_schema = schema["properties"]["decisions"]["items"]
+    assert set(item_schema["required"]) == set(item_schema["properties"])
+    def schema_keys(value):
+        if isinstance(value, dict):
+            return set(value).union(*(schema_keys(item) for item in value.values()))
+        if isinstance(value, list):
+            return set().union(*(schema_keys(item) for item in value))
+        return set()
+    assert not {"allOf", "if", "then", "else"}.intersection(schema_keys(schema))
+    single = {**_decision()["decisions"][0],
+              "price_jpy": 12_000,
+              "work_frequency": None, "weekly_hours_min": None, "weekly_hours_max": None}
     single["request_id"] = "123"
     assert not list(validator.iter_errors({"decisions": [single]}))
-    assert list(validator.iter_errors({"decisions": [{**single, "work_frequency": None}]}))
+    assert planner.validate_decisions(_single_snapshot(), {"decisions": [single]}) == []
+    bad_single = {**single, "work_frequency": "WEEK_ONE"}
+    assert "decision[0]_single_retainer_terms_must_be_null" in planner.validate_decisions(
+        _single_snapshot(), {"decisions": [bad_single]},
+    )
+    assert list(validator.iter_errors({"decisions": [{
+        key: value for key, value in single.items() if key != "work_frequency"
+    }]}))
     retainer = _decision()["decisions"][0]
     assert not list(validator.iter_errors({"decisions": [retainer]}))
     assert list(validator.iter_errors({"decisions": [{
