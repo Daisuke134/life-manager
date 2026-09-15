@@ -307,7 +307,7 @@ def test_duplicate_filenames_require_and_accept_each_official_reference(tmp_path
     assert paid._buyer_attachment_recovery_pending(tmp_path) is False
 
 
-def test_older_unfetched_buyer_attachment_cannot_hide_behind_latest_requirements(tmp_path: Path) -> None:
+def test_handled_older_attachment_does_not_block_current_feedback_cycle(tmp_path: Path) -> None:
     paid = load("paid_direct")
     ledger = tmp_path / "source" / "talkroom" / "messages.jsonl"
     ledger.parent.mkdir(parents=True)
@@ -322,7 +322,7 @@ def test_older_unfetched_buyer_attachment_cannot_hide_behind_latest_requirements
     requirements.parent.mkdir(parents=True)
     requirements.write_text(json.dumps({"attachments": []}), encoding="utf-8")
 
-    assert paid._buyer_attachment_recovery_pending(tmp_path) is True
+    assert paid._buyer_attachment_recovery_pending(tmp_path) is False
 
 
 def test_unfetched_direct_message_attachment_stays_in_transport_recovery(tmp_path: Path) -> None:

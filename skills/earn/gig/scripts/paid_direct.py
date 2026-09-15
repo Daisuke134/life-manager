@@ -433,19 +433,35 @@ def _collect_dm_context(args, item: dict[str, Any], root: Path, base: Path) -> N
 
 
 def _buyer_attachment_recovery_pending(root: Path) -> bool:
-    """Keep every known buyer file inside collector recovery until bytes exist.
+    """Keep current buyer-cycle files inside collector recovery until bytes exist.
 
     A filename and an official message reference prove that the buyer already sent
     the file. Missing local bytes are therefore a transport-recovery job, not a
-    missing buyer input that the semantic agent may ask for again.
+    missing buyer input that the semantic agent may ask for again. Historical files
+    remain in the ledger, but a handled cycle cannot block a newer revision forever.
     """
     ledger = root / "source" / "talkroom" / "messages.jsonl"
-    try:
-        rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
-    except FileNotFoundError:
-        rows = []
-    except (OSError, TypeError, ValueError, json.JSONDecodeError):
-        return True
+    requirements_path = root / "requirements" / "live-buyer-reply.json"
+    if requirements_path.is_file():
+        try:
+            requirements = _load(requirements_path)
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            return True
+        active = requirements.get("attachments") if isinstance(requirements, dict) else None
+        if not isinstance(active, list):
+            return True
+        rows = [{"side": "buyer", "attachments": [
+            {"filename": attachment.get("filename"),
+             "reference": attachment.get("download_reference")}
+            for attachment in active if isinstance(attachment, dict)
+        ]}]
+    else:
+        try:
+            rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
+        except FileNotFoundError:
+            rows = []
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            return True
     dm_attachment_dir = root / "source" / "dm" / "attachments"
 
     attachments_by_reference: dict[str, str] = {}
