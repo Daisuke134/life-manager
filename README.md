@@ -51,7 +51,7 @@ flowchart LR
 
 ## The 14 product loops
 
-The loops are capabilities, not fourteen permanent processes: Coconala, Lancers, CrowdWorks, Writer, Affiliate, Investment, Agent Economy, Job Hunter, Fundraiser, Connector, Self-Build, Mobile Apps, Capafy, and CFO. Their lifecycle jobs remain separately owned in [`config/loop-registry.json`](config/loop-registry.json); the identity contract is in the [architecture spec](docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md).
+The loops are capabilities, not fourteen permanent processes: **Gig — Coconala**, **Gig — Lancers**, **Gig — CrowdWorks**, Writer, Affiliate, Investment, Agent Economy, Job Hunter, Fundraiser, Connector, Self-Build / Product Improvement, Mobile App Loops, Capafy, and CFO. Their lifecycle jobs remain separately owned in [`config/loop-registry.json`](config/loop-registry.json); the identity contract is in the [architecture spec](docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md).
 
 ## One data shape, private values
 

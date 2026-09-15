@@ -51,7 +51,7 @@ flowchart LR
 
 ## 14本のproduct loop
 
-14本は常時起動する14個のprocessではなく、14個の能力です。Coconala、Lancers、CrowdWorks、Writer、Affiliate、Investment、Agent Economy、Job Hunter、Fundraiser、Connector、Self-Build、Mobile Apps、Capafy、CFOを、registry内の小さなjobで実装します。正本は[`config/loop-registry.json`](config/loop-registry.json)、修復方針は[architecture spec](docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md)です。
+14本は常時起動する14個のprocessではなく、14個の能力です。**Gig — Coconala**、**Gig — Lancers**、**Gig — CrowdWorks**、Writer、Affiliate、Investment、Agent Economy、Job Hunter、Fundraiser、Connector、Self-Build / Product Improvement、Mobile App Loops、Capafy、CFOを、registry内の小さなjobで実装します。正本は[`config/loop-registry.json`](config/loop-registry.json)、修復方針は[architecture spec](docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md)です。
 
 ## 同じdataの形、別々の中身
 
