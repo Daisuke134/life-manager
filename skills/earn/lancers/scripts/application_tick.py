@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import fcntl
 import hashlib
 import importlib.util
 import json
@@ -27,11 +28,73 @@ _DOM_CONTRACT_MODULE_NAME = "anicca_lancers_shared_dom_contract"
 CDP_URL = "http://127.0.0.1:9227"
 BROWSER_ATTACH_TIMEOUT_MS = 10_000; CDP_REQUEST_TIMEOUT_SECONDS = 2; MAX_CDP_TARGETS = 32; MAX_CDP_RESPONSE_BYTES = 256 * 1024
 PLAYWRIGHT_STOP_TIMEOUT_SECONDS = 2.0
+BROWSER_SESSION_LOCK_PATH = Path.home() / ".local/state/anicca/lancers/browser-session.lock"
+BROWSER_SESSION_LOCK_TIMEOUT_SECONDS = 0.5
 PLATFORM = "lancers"
 DASHBOARD_URL = "https://www.lancers.jp/mypage"
 DEFAULT_STATE_PATH = Path.home() / ".local" / "state" / "anicca" / "lancers" / "application.json"
 TERMINAL_STATE_RECORD_TYPE = "application_terminal_state"
 TERMINAL_STATE_STATUS = "provider_terminal_blocked"
+
+
+class BrowserSessionBusy(RuntimeError):
+    """The single Lancers CDP/profile lease is held by another lane."""
+
+
+class _BrowserSessionLease:
+    def __init__(self, descriptor: int):
+        self._descriptor = descriptor
+        self._released = False
+
+    def release(self) -> None:
+        if self._released:
+            return
+        self._released = True
+        try:
+            fcntl.flock(self._descriptor, fcntl.LOCK_UN)
+        finally:
+            os.close(self._descriptor)
+
+
+def _acquire_browser_session_lock(
+    *, timeout_seconds: float = BROWSER_SESSION_LOCK_TIMEOUT_SECONDS,
+) -> _BrowserSessionLease:
+    """Acquire the one lease for the shared Lancers CDP/profile session.
+
+    Every lane has its own state lock, but all of them navigate the same 9227
+    browser/profile.  A short, fail-closed wait avoids page interference and
+    avoids holding a host-admission slot while a different lane is browsing.
+    """
+    if not isinstance(timeout_seconds, (int, float)) or isinstance(timeout_seconds, bool) or timeout_seconds < 0:
+        raise ValueError("browser_session_lock_timeout_invalid")
+    path = BROWSER_SESSION_LOCK_PATH.expanduser()
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(path.parent, 0o700)
+    descriptor = os.open(str(path), os.O_CREAT | os.O_RDWR, 0o600)
+    os.fchmod(descriptor, 0o600)
+    deadline = time.monotonic() + float(timeout_seconds)
+    while True:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return _BrowserSessionLease(descriptor)
+        except BlockingIOError:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                os.close(descriptor)
+                raise BrowserSessionBusy("browser_session_busy") from None
+            time.sleep(min(0.01, remaining))
+
+
+def _attach_browser_session_lease(runtime: Any, lease: _BrowserSessionLease) -> None:
+    setattr(runtime, "_anicca_browser_session_lease", lease)
+
+
+def _release_browser_session_lease(runtime: Any) -> None:
+    if runtime is None:
+        return
+    lease = getattr(runtime, "_anicca_browser_session_lease", None)
+    if isinstance(lease, _BrowserSessionLease):
+        lease.release()
 
 
 def _load_shared():
@@ -321,7 +384,7 @@ def _force_stop_playwright_process(process: Any) -> None:
         pass
 
 
-def _stop_playwright_runtime(runtime: Any) -> None:
+def _stop_playwright_runtime(runtime: Any, *, release_session_lease: bool = True) -> None:
     """Stop this tick's Playwright client without ever stopping the owned browser.
 
     A provider renderer can disappear while the Python sync API is waiting on its Node driver.
@@ -349,6 +412,8 @@ def _stop_playwright_runtime(runtime: Any) -> None:
         _force_stop_playwright_process(process)
     finally:
         finished.set()
+        if release_session_lease:
+            _release_browser_session_lease(runtime)
 
 
 _LANCERS_AUTH_ROUTES = {"/user/login", "/user/reminder"}; _GOOGLE_AUTH_ROUTES = {"/v3/signin/accountchooser", "/info/sessionexpired"}
@@ -429,27 +494,34 @@ def _cleanup_stale_targets(cdp_url: str) -> bool:
 def _default_browser_factory(cdp_url: str = CDP_URL) -> Any:
     if cdp_url != CDP_URL:
         raise RuntimeError("browser_endpoint_invalid")
+    lease = _acquire_browser_session_lock()
     runtime = None
     try:
         from playwright.sync_api import sync_playwright
         runtime = sync_playwright().start()
+        _attach_browser_session_lease(runtime, lease)
         browser = runtime.chromium.connect_over_cdp(cdp_url, timeout=BROWSER_ATTACH_TIMEOUT_MS)
         setattr(browser, "_anicca_playwright_runtime", runtime)
         return browser
     except Exception as exc:
-        _stop_playwright_runtime(runtime)
+        _stop_playwright_runtime(runtime, release_session_lease=False)
         try: from playwright.sync_api import TimeoutError as PlaywrightTimeoutError; is_timeout = isinstance(exc, PlaywrightTimeoutError)
         except Exception: is_timeout = False
-        if runtime is None or not is_timeout: raise RuntimeError("browser_connect_failed") from None
+        if runtime is None or not is_timeout:
+            lease.release()
+            raise RuntimeError("browser_connect_failed") from None
     if runtime is None or not _cleanup_stale_targets(cdp_url):
+        lease.release()
         raise RuntimeError("browser_connect_failed") from None
     retry_runtime = None
     try:
         retry_runtime = sync_playwright().start(); browser = retry_runtime.chromium.connect_over_cdp(cdp_url, timeout=BROWSER_ATTACH_TIMEOUT_MS)
+        _attach_browser_session_lease(retry_runtime, lease)
         setattr(browser, "_anicca_playwright_runtime", retry_runtime)
         return browser
     except Exception:
         _stop_playwright_runtime(retry_runtime)
+        lease.release()
         raise RuntimeError("browser_connect_failed") from None
 
 
@@ -510,7 +582,8 @@ def _close_owned_page(page: Any, runtime: Any = None) -> bool:
     """
     if page is None:
         return True
-    process = _playwright_transport_process(runtime or _page_playwright_runtime(page))
+    runtime = runtime or _page_playwright_runtime(page)
+    process = _playwright_transport_process(runtime)
     finished = threading.Event()
 
     def watchdog() -> None:
@@ -527,6 +600,7 @@ def _close_owned_page(page: Any, runtime: Any = None) -> bool:
         return False
     finally:
         finished.set()
+        _release_browser_session_lease(runtime)
 
 
 def _production_account_ready(page: Any) -> bool:

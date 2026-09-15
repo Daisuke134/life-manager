@@ -168,6 +168,22 @@ class WorkSyncTests(unittest.TestCase):
             with self.assertRaisesRegex(sync.SourceFailure, "finance_detail_readback_required"):
                 sync._read_paid_surfaces(object())
 
+    def test_paid_inventory_exposes_shared_browser_contention_as_retryable(self):
+        sync = _load()
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            sync.application_tick,
+            "_open_owned_page",
+            side_effect=sync.application_tick.BrowserSessionBusy("browser_session_busy"),
+        ):
+            result = sync.read_paid_inventory(
+                state_path=Path(directory) / "application.json"
+            )
+        self.assertEqual(
+            result,
+            {"ok": False, "logged_in": False, "source_complete": False,
+             "error": "browser_session_busy"},
+        )
+
     @staticmethod
     def _reachable_from(calls, entry):
         reached, pending = set(), [entry]

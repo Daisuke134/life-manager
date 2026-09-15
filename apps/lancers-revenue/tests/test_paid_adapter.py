@@ -81,6 +81,38 @@ class LancersPaidAdapterTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "lancers_paid_inventory_unavailable"):
             adapter.observe_active()
 
+    def test_browser_session_contention_is_a_retryable_inventory_wait(self):
+        module = load()
+        adapter = module.LancersPaidAdapter(
+            account_id="seller-1",
+            inventory_reader=lambda: {
+                "ok": False,
+                "source_complete": False,
+                "error": "browser_session_busy",
+            },
+        )
+        with self.assertRaises(module.LancersPaidInventoryWait) as raised:
+            adapter.observe_active()
+        self.assertEqual(raised.exception.paid_wait_reason, "browser_session_busy")
+        self.assertTrue(raised.exception.paid_remaining_work)
+
+    def test_unexpected_inventory_error_keeps_a_safe_diagnostic_code(self):
+        module = load()
+        adapter = module.LancersPaidAdapter(
+            account_id="seller-1",
+            inventory_reader=lambda: {
+                "ok": False,
+                "source_complete": False,
+                "error": "finance_source_unavailable",
+            },
+        )
+        with self.assertRaisesRegex(RuntimeError, "lancers_paid_inventory_unavailable") as raised:
+            adapter.observe_active()
+        self.assertEqual(
+            raised.exception.paid_error_code,
+            "lancers_paid_finance_source_unavailable",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
