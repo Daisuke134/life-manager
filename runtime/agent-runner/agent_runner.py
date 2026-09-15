@@ -76,6 +76,24 @@ TOOLLESS_TASK_CLASSES = (
 TOOLLESS_CODEX_DISABLED_FEATURES = ("shell_tool", "code_mode_host", "unified_exec")
 
 
+def normalize_escalation_request(
+    task_config: dict[str, Any], reason: str | None,
+) -> tuple[str | None, str | None]:
+    """Keep escalation metadata separate from task execution authority.
+
+    Restricted candidates still require an explicit reason.  An ordinary task
+    may receive stale caller metadata from an older wrapper; that metadata does
+    not grant authority, so discard the text and surface only a stable warning
+    instead of preventing the ordinary task from starting.
+    """
+    requires = bool(task_config.get("requires_explicit_escalation"))
+    if requires and reason is None:
+        raise ValueError("explicit escalation reason is required")
+    if not requires and reason is not None:
+        return None, "extraneous_escalation_reason_ignored"
+    return reason, None
+
+
 def runtime_event_loop_id(requested_loop_id: str) -> str:
     """Bind nested agent evidence to its managed parent loop when available."""
     return os.environ.get("LIFE_MANAGER_LOOP_ID", "").strip() or requested_loop_id
@@ -1325,7 +1343,7 @@ def run() -> int:
             else configured_timeout_seconds,
         )
         route = str(task_config.get("route") or f"{parsed.task_class}:configured")
-        escalation_reason = (
+        supplied_escalation_reason = (
             parsed.escalation_reason.strip()
             if isinstance(parsed.escalation_reason, str) and parsed.escalation_reason.strip()
             else None
@@ -1340,10 +1358,9 @@ def run() -> int:
         )
         if restricted_candidates and not requires_explicit_escalation:
             raise ValueError("high-effort/Sol candidates require an explicit escalation route")
-        if requires_explicit_escalation and escalation_reason is None:
-            raise ValueError("explicit escalation reason is required")
-        if not requires_explicit_escalation and escalation_reason is not None:
-            raise ValueError("escalation reason is only valid for an explicit escalation route")
+        escalation_reason, escalation_warning = normalize_escalation_request(
+            task_config, supplied_escalation_reason,
+        )
         candidate_profile: dict[str, Any] = {}
         if parsed.candidate_profile:
             candidate_profile = config.get("candidate_profiles", {}).get(parsed.candidate_profile)
@@ -1599,6 +1616,7 @@ def run() -> int:
             "route": route,
             "escalated": requires_explicit_escalation,
             "escalation_reason": escalation_reason,
+            "input_warnings": [escalation_warning] if escalation_warning else [],
             "provider": provider,
             "profile_alias": provider_config.get("profile_alias"),
             "budget": last_budget,
@@ -1643,6 +1661,7 @@ def run() -> int:
             "route": route,
             "escalated": requires_explicit_escalation,
             "escalation_reason": escalation_reason,
+            "input_warnings": [escalation_warning] if escalation_warning else [],
             "attempt": index,
             "provider": provider,
             "profile_alias": provider_config.get("profile_alias"),
@@ -1713,6 +1732,7 @@ def run() -> int:
         "route": route,
         "escalated": requires_explicit_escalation,
         "escalation_reason": escalation_reason,
+        "input_warnings": [escalation_warning] if escalation_warning else [],
         "status": "success" if selected else ("budget_blocked" if budget_blocked else "failed"),
         "budget": budget_blocked or last_budget,
         "selected_provider": selected["provider"] if selected else None,
