@@ -183,6 +183,9 @@ KANA_RE = re.compile(r"[ぁ-ゖァ-ヺ]")
 FORBIDDEN_TERMS = ("receipt", "gate", "agent", "model", "browser", "token", "prompt", "internal id", "レシート", "ゲート", "エージェント", "モデル", "ブラウザ", "トークン", "プロンプト", "内部ID")
 FORBIDDEN_RE = re.compile("|".join(re.escape(term).replace(r"\ ", r"[ _]") for term in FORBIDDEN_TERMS), re.IGNORECASE)
 RETAIN_EVIDENCE_ERRORS = frozenset({"planner_runner_failed", "planner_contract_invalid", "safety_check_failed"})
+PENDING_CONTINUE_ERRORS = frozenset({
+    "submission_uncertain", "browser_unavailable", "account_unavailable", "account_lock_busy",
+})
 SKIP_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 # A row the planner declined to judge is not a row it refused. Measured 2026-09-07: 15 of the
 # reports in eight consecutive wakes were `invalid` and they were the same postings each time --
@@ -541,6 +544,24 @@ def _safety_outcome(row: Mapping[str, object], decision: Mapping[str, object], e
 def _discovery_turn_count(*, exhaustive: bool, source: object, query: object) -> int:
     """Keep the all-query discovery path to one bounded union per wake."""
     return 1 if exhaustive or source is not None or query is not None else 3
+
+
+def _pending_descriptor_for_wake(state_path: Path, tick_value: object) -> Optional[Mapping[str, object]]:
+    """Rotate read-only pending reconciliation so one stale job cannot starve fresh discovery."""
+    descriptors = application_tick.shared.read_pending_descriptors(Path(state_path))
+    if not descriptors:
+        return None
+    try:
+        if isinstance(tick_value, datetime):
+            moment = tick_value
+        else:
+            moment = datetime.fromisoformat(str(tick_value).strip().replace("Z", "+00:00"))
+        if moment.tzinfo is None or moment.utcoffset() is None:
+            raise ValueError
+        slot = int(moment.astimezone(timezone.utc).timestamp() // WAKE_INTERVAL_SECONDS)
+    except (AttributeError, OSError, OverflowError, TypeError, ValueError):
+        slot = 0
+    return descriptors[slot % len(descriptors)]
 
 def _safe_proposal(value: object, ids: Sequence[str]) -> bool:
     if not isinstance(value, str) or not 200 <= len(value) <= 3000: return False
@@ -928,7 +949,11 @@ def _plan_and_submit(rows: Sequence[Mapping[str, object]], today: date, evidence
 
 def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH, evidence_root: Optional[Path] = None, discoverer: Optional[Callable[..., Mapping[str, object]]] = None, planner: Optional[Callable[..., object]] = None, safety_verifier: Optional[Callable[..., object]] = None, submitter: Optional[Callable[..., object]] = None, clock: Optional[Callable[[], object]] = None, discovery: Optional[Callable[..., Mapping[str, object]]] = None, now: Optional[Callable[[], object]] = None, evidence_dir: Optional[Path] = None, output_stream: Optional[TextIO] = None, query: Optional[str] = None, timeout: float = 20.0) -> dict[str, object]:
     try:
-        pending = application_tick.read_pending_descriptor(Path(state_path))
+        tick_value = (clock or now or (lambda: datetime.now(timezone.utc)))()
+    except Exception:
+        tick_value = None
+    try:
+        pending = _pending_descriptor_for_wake(Path(state_path), tick_value)
     except Exception:
         result = ApplicationLoopResult(False, error="state_invalid")
         if output_stream is not None: _emit(result, output_stream)
@@ -936,7 +961,7 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
     quarantined_project_id = None
     if pending is not None:
         pending_result = _reconcile_pending(pending, Path(state_path))
-        if pending_result.error != "submission_uncertain":
+        if pending_result.error not in PENDING_CONTINUE_ERRORS:
             if pending_result.application_verified and pending_result.project_id:
                 # The pending descriptor already carries the title and the amount that were
                 # submitted, and this path -- reconciling a submission_uncertain on the next wake
@@ -958,8 +983,6 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
             if output_stream is not None: _emit(pending_result, output_stream)
             return pending_result.to_dict()
         quarantined_project_id = pending_result.unresolved_project_id or pending_result.project_id
-    try: tick_value = (clock or now or (lambda: datetime.now(timezone.utc)))()
-    except Exception: tick_value = None
     capacity_reason = _capacity_reason(Path(state_path), tick_value) if submitter is None and discoverer is None and discovery is None and query is None else None
     if capacity_reason is not None:
         result = ApplicationLoopResult(True, reason=capacity_reason, unresolved_project_id=quarantined_project_id)
