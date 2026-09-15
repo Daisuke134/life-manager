@@ -665,54 +665,12 @@ observed `juves9718` negotiation demonstrates the remaining gap: a buyer asked f
 current Reply path acknowledged it without creating and submitting the demo. After open Paid liabilities close,
 route substantive Reply/Negotiate requests into the same executor instead of treating them as text-only replies.
 
-Chii `18180857` remains outside the main Paid executor because `context/paid-priority.json` declares
-`delegated=true` and transfer to `chii-paid-luna`. Read-only ownership audit found that Codex process still
-present after about one day and twenty hours, but its worktree is 186 commits behind current main with no local
-changes; its last agmsg response was only the September 13 acknowledgement and it has emitted no later milestone
-or effect handoff. Current official campaign truth remains 12/300 verified TikTok-DM plus Sheet pairs, 288
-remaining. Main Paid must not remove the flag or touch the same TikTok/Sheet state while that owner can still
-act. The next atomic action is explicit stale-owner retirement, then remove the delegation flag, refresh from
-current main/release and resume from the exact 12-pair ledger without resending uncertain recipients.
-
-The stale interactive Chii process was retired without deleting project state, the delegation flag was removed,
-and main Paid immediately created an independent `18180857` work item from the existing 12/300 ledger. Its first
-owner wake proved the remaining blocker was not campaign logic: registered identity `tiktok-anicca-jp` was
-unreachable and guarded startup could not submit its browser owner, so it made zero new TikTok or Sheet effects.
-Targeted `launchctl-safe submit` then started only that registered profile; guard readback showed a dynamic live
-port, browser UUID, collision zero, and official TikTok identity readback returned authenticated
-`@anicca.jp`. PR `#5218`, merge SHA `005fbd9d336702814b8887ddd282c2d262a5bcbe`, prevents this class
-from returning: static `delegated=true` or an interactive-session name cannot suppress Paid work. Delegation is
-valid only with a timezone-aware runtime-owner lease expiring within 15 minutes; missing, malformed or expired
-leases are reclaimed automatically. Paid tests passed 230 and all PR checks passed. Immutable release
-`20260915T142348-005fbd9d` contained the repair and replaced the Paid label. PR `#5219`, merge SHA
-`39279e660ef95ace8c7d17f8de1129d44419ef61`, then fixed the shared TikTok transport's false
-`sender_identity_not_authenticated`: the standalone identity check waited for delayed navigation DOM, while the
-transport previously sampled it once after two seconds. Focused tests and every PR check passed; immutable release
-`20260915T150646-39279e66` is loaded for Paid and its natural run selected Chii without a static owner.
-
-Chii completion remains exactly 300 verified unique pairs, never 12. To reduce latency, first populate the shared
-Sheet with a deduplicated 300-real-account candidate queue whose rows are explicitly `candidate`, then run the
-shared TikTok transport per row and change a row to `sent/verified` only after exact official message readback.
-Candidate presence is not a send receipt. Continue the same logical campaign across bounded process wakes from
-the durable cursor; a process boundary must not require a human or Codex restart. After Chii closes, observe Ryu's
-new buyer request for the administration screen and send the existing verified admin URL/instructions with
-official talkroom readback before entering the Reply/Negotiate shared-kernel work.
-
-The first Chii run on `39279e66` proved the next exact boundary. Two eligible candidates reached official
-Business Suite conversations and were each attempted once, but the shared CDP helper dispatched Enter without
-the browser keyboard identity fields, so neither send had exact readback and both were fenced `unknown`.
-Independent official readback later proved `@we_kouki` had a fully loaded empty conversation; `@dd._.6s` remains
-unknown and must never be resent without an exact negative or positive readback. The smallest shared repair adds
-the complete Enter identity, reuses the receipt-bound conversation URL during reconciliation, and changes an
-unknown fence to `not_sent` only when the official message list is loaded and empty. Tests pass 17/17 for the
-TikTok transport and 10/10 for the CDP helper. A live recovery then changed `@we_kouki` from `unknown` to
-`not_sent`, retried it once, and returned `sent_exact_official_readback`, `effect=1`, ledger `sent`. The shared
-Sheet was then appended through the official API and read back as `2026年8月!A17:B17 = @we_kouki / 9/15`.
-Because that DM asks the recipient to confirm a required qualification, the pair is durably classified
-`qualification` and does not increase the effective target without an affirmative reply; the truthful effective
-total therefore remains 12/300. PR `#5221` merged as
-`7f09631bb98f1d201720489fdbfb68ef75b1eeff`; every PR check passed, immutable release
-`20260915T154428-7f09631b` is loaded for Paid, and its natural owner independently read the sent/unknown fences.
+Chii `18180857` is now reconciled by the manual owner: the official Google Sheet contains 300 unique rows and
+the sender identity readback is `@anicca.jp`. The 300-send and spreadsheet requirement is complete; the
+canonical receipt is `delivery/paid-remote-result.json` and the official Sheet readback is
+`delivery/effects/google-sheets-manual-20260916T300.json`. The outer Chii loop remains paused until a fresh
+natural wake proves reply monitoring and replay-zero; no existing 300-row recipient may be resent. A one-off
+unintended test-text effect to `@gucci_fuufu` is recorded separately and is excluded from the 300 count.
 
 PR `#5222`, merge SHA `131fdc9952b7f6e92ad0c912308ad1e62ab8cc87`, fixes the observed one-owner-per-wake
 bottleneck without adding another scheduler. When an owner writes new durable progress, leaves both business
