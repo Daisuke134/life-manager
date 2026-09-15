@@ -756,11 +756,18 @@ talkroom readback contains a seller message later than the buyer request, statin
 HOME with item navigation, page/profile sections are individually selectable, and the public site initially shows
 HOME rather than attendance. Ryu is now buyer-waiting and must replay zero unless a newer buyer event arrives.
 
-Ryu's newer buyer event supersedes the earlier satisfied no-op. The buyer asks for the administration page to
-use a HOME-first left-side section menu so each component can be edited without scrolling the whole profile, and
-asks that the public site start at HOME rather than attendance. Chii remains first; after its 300 verified pairs
-close, implement this Ryu revision on the existing site/admin, verify both real routes, and send one ordinary
-Coconala update with formal delivery OFF.
+Ryu's newer buyer event superseded the earlier satisfied no-op and is now covered by the later verified seller
+effect described above. Do not reopen it unless a newer buyer event appears.
+
+The owner explicitly retired TikTok-adapter development for Chii because this outreach shape will not recur.
+Do not add another TikTok adapter or speculative queue framework. Finish this one contract operationally through
+the existing authenticated `tiktok-anicca-jp` search/profile reader, shared message transport, exact official
+readback and `gog sheets` API. The manual owner continuation on 2026-09-15 advanced the truthful paired ledger
+from 12 to 20: six new exact-readback TikTok sends (`@de57350902k`, `@hana_asmr87`, `@masa55age`, `@40ol40ol`,
+`@amedama_ys`, `@thedailylife69`) plus recovery of two already-sent but previously unrecorded pairs
+(`@naaaoki`, `@tabi_7v`). Every pair has an immediate A:B Sheet readback. The remaining target is 280. Continue
+without an artificial ten-candidate run stop, but stop on an actual TikTok warning or provider limit. A profile
+button without a recipient-bound conversation is effect zero and must never create a Sheet row.
 
 Observability remains a current architecture gap. Existing JSONL events and provider receipts stay the source
 of truth, while OpenTelemetry becomes the shared trace envelope rather than a second business ledger. One
@@ -784,16 +791,15 @@ work item and leave a sibling trace unchanged.
   `await_buyer_feedback`; retain one regression fixture covering the Ryu-shaped contradiction.
 - [ ] Route each active talkroom to an independent work item and effect fence; one blocked room must not block
   any sibling room.
-- [ ] Ryu `18211957`: observe the newest buyer request, generate the requested ordinary submission from retained
-  context/artifacts, send once, and prove a later seller effect in official readback. Do not toggle formal
-  delivery without buyer authorization.
-- [ ] Kokoro `18223833`: refresh the official head and all retained attachment references; recover missing bytes
-  locally and continue without asking the buyer to resend known files.
-- [ ] Kokoro `18250352`: refresh and process independently from `18223833`; prove its own terminal receipt and
-  official effect.
-- [ ] Chii `18180857`: read the truthful sent-count ledger, identify the remaining eligible real TikTok targets,
-  execute only permitted real DMs at provider-safe cadence, persist each official result, and report the real
-  total. Never fabricate work.
+- [x] Ryu `18211957`: newest buyer request is covered by a later verified seller effect; formal delivery remains
+  OFF until buyer authorization.
+- [x] Kokoro `18223833`: retained inputs were recovered and the room has its own verified submission; replay zero
+  unless a newer buyer event appears.
+- [x] Kokoro `18250352`: processed independently with its own verified v12 submission; replay zero unless a newer
+  buyer event appears.
+- [ ] Chii `18180857`: current truth is 20/300 verified TikTok-send plus Sheet pairs, 280 remaining. Continue with
+  existing tools only, without an artificial per-run candidate cap; persist every official result and never
+  fabricate a send or Sheet row.
 - [ ] Atsugi `18171850`: reconcile the newest post-delivery feedback, perform any required revision/reply once,
   and return to verified buyer-acceptance wait.
 - [ ] Re-run all five active work items and prove newest-buyer-digest coverage, official readback and replay-zero
