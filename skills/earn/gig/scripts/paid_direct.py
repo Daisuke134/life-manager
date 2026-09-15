@@ -6428,6 +6428,27 @@ def _completed_paid_readbacks(refresh_jobs):
         yield job, refresh_jobs[job]
 
 
+def _reported_handled_feedback_cycle(args, item: dict[str, Any]) -> Path | None:
+    """Let confirmed current facts dominate stale derived workflow state."""
+    try:
+        root = _paid_project_root(args, item)
+        state = _load(root / "state.json")
+        feedback = _text(item.get("buyer_feedback_sha256"))
+        seller = item.get("seller_sent_messages") or item.get("seller_messages") or []
+        if (not re.fullmatch(r"[0-9a-f]{64}", feedback)
+                or state.get("handled_buyer_feedback_sha256") != feedback
+                or state.get("delivery_confirmed_feedback_sha256") != feedback
+                or state.get("next_action") != "await_buyer_feedback"
+                or item.get("buyer_feedback_pending_artifact") is not False
+                or item.get("buyer_reply_after_artifact_observed") is not False
+                or not _text(item.get("talkroom_state", item.get("transaction_state")))
+                or not isinstance(seller, list) or not seller):
+            return None
+        return root
+    except (AttributeError, OSError, ValueError, TypeError, json.JSONDecodeError, Failure):
+        return None
+
+
 def _reported_paid_row(args, item: dict[str, Any]) -> dict[str, Any] | None:
     room = _text(item.get("talkroom_id"))
     effect_policy = _account_owner_observe_only(args, item)
@@ -6449,6 +6470,11 @@ def _reported_paid_row(args, item: dict[str, Any]) -> dict[str, Any] | None:
                 "formal_delivery_checkbox": True,
                 "evidence_paths": {"official_readback": _text(item.get("talkroom_evidence_file"))}}
     if _reported_file_progress_cycle(args, item) is not None:
+        return {"talkroom_id": room, "status": "awaiting_buyer",
+                "send_performed": False, "deduplicated": True,
+                "formal_delivery_checkbox": False,
+                "evidence_paths": {"official_readback": _text(item.get("talkroom_evidence_file"))}}
+    if _reported_handled_feedback_cycle(args, item) is not None:
         return {"talkroom_id": room, "status": "awaiting_buyer",
                 "send_performed": False, "deduplicated": True,
                 "formal_delivery_checkbox": False,
