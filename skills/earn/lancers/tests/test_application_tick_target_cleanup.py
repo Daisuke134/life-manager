@@ -37,3 +37,34 @@ def test_cleanup_closes_only_stale_auth_targets(monkeypatch):
         f"{module.CDP_URL}/json/close/login",
         f"{module.CDP_URL}/json/close/google",
     ]
+
+
+def test_open_owned_page_closes_failed_browser_before_retry(monkeypatch):
+    module = _module()
+    closed = []
+    attempts = []
+
+    class BrokenBrowser:
+        contexts = [type("BrokenContext", (), {"new_page": lambda _self: (_ for _ in ()).throw(RuntimeError("page create failed"))})()]
+
+        def close(self):
+            closed.append("broken")
+
+    class HealthyBrowser:
+        contexts = [type("HealthyContext", (), {"new_page": lambda _self: "page"})()]
+
+        def close(self):
+            closed.append("healthy")
+
+    browsers = [BrokenBrowser(), HealthyBrowser()]
+
+    def factory(url):
+        attempts.append(url)
+        return browsers.pop(0)
+
+    browser, page = module._open_owned_page(factory)
+
+    assert page == "page"
+    assert isinstance(browser, HealthyBrowser)
+    assert attempts == [module.CDP_URL, module.CDP_URL]
+    assert closed == ["broken"]
