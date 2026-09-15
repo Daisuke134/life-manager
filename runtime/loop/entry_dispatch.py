@@ -74,7 +74,7 @@ def command_for(loop_id: str, root: Path, home: Path) -> list[str]:
         "hf-gig-storefront-direct": [
             python, str(root / "skills/earn/gig/scripts/gig_disk_guard.py"),
             python, str(root / "skills/earn/gig/scripts/storefront_direct.py"),
-            "--effect", "--auto-cadence", "--full-interval-seconds", "60",
+            "--effect",
         ],
     }
     if loop_id not in fixed:

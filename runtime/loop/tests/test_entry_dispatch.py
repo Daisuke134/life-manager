@@ -279,7 +279,9 @@ class EntryDispatchTest(unittest.TestCase):
         self.assertNotIn('/release/runtime/host/memory_admission.py', apply)
         self.assertNotIn('/release/runtime/host/memory_admission.py', storefront)
         self.assertIn('--all-eligible',apply)
-        self.assertEqual(storefront[-4:],['--effect','--auto-cadence','--full-interval-seconds','60'])
+        self.assertEqual(storefront[-1:], ['--effect'])
+        self.assertNotIn('--auto-cadence', storefront)
+        self.assertNotIn('--full-interval-seconds', storefront)
 
     def test_coconala_reply_no_longer_has_a_handwritten_dispatch(self):
         with self.assertRaisesRegex(ValueError, 'no dispatch command'):
