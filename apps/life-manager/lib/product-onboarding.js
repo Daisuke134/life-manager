@@ -14,6 +14,8 @@ const COMPLETION_CONTRACT_FIELDS = [
   "observability",
   "evaluation",
 ];
+const RUNTIME_TERMINAL_RESULTS = new Set(["pass", "fail", "blocked", "running"]);
+const RELEASE_SHA = /^[a-f0-9]{40}$/iu;
 
 function readProductLoopCatalog(catalogFile = DEFAULT_CATALOG) {
   const value = JSON.parse(fs.readFileSync(catalogFile, "utf8"));
@@ -102,6 +104,61 @@ function planProductOnboarding(input = {}, options = {}) {
   });
 }
 
+function buildRuntimeEvidence(catalogLoop, runtimeByJobId, releaseSha) {
+  const observedJobIds = catalogLoop.job_ids.filter((jobId) => runtimeByJobId.has(jobId));
+  const missingJobIds = catalogLoop.job_ids.filter((jobId) => !runtimeByJobId.has(jobId));
+  const releaseMismatchJobIds = observedJobIds.filter((jobId) => {
+    const row = runtimeByJobId.get(jobId);
+    return row.installed_release_sha !== releaseSha || row.event_release_sha !== releaseSha;
+  });
+  const nonPassJobIds = observedJobIds.filter((jobId) => (
+    runtimeByJobId.get(jobId).last_terminal_result !== "pass"
+  ));
+  const releaseMatch = missingJobIds.length === 0 && releaseMismatchJobIds.length === 0;
+  const terminalPass = missingJobIds.length === 0 && nonPassJobIds.length === 0;
+  const reason = missingJobIds.length > 0 ? "runtime_evidence_missing"
+    : releaseMismatchJobIds.length > 0 ? "runtime_release_drift"
+      : nonPassJobIds.length > 0 ? "runtime_terminal_not_pass" : null;
+  return Object.freeze({
+    observed_job_ids: Object.freeze([...observedJobIds]),
+    missing_job_ids: Object.freeze([...missingJobIds]),
+    release_mismatch_job_ids: Object.freeze([...releaseMismatchJobIds]),
+    non_pass_job_ids: Object.freeze([...nonPassJobIds]),
+    release_match: releaseMatch,
+    terminal_pass: terminalPass,
+    ready: releaseMatch && terminalPass,
+    reason,
+  });
+}
+
+function indexRuntimeRows(runtimeRows, catalog) {
+  if (!Array.isArray(runtimeRows)) throw new Error("completion runtime rows invalid");
+  const catalogJobIds = new Set(catalog.loops.flatMap((loop) => loop.job_ids));
+  const rows = new Map();
+  for (const row of runtimeRows) {
+    if (!row || typeof row !== "object" || Array.isArray(row)
+      || typeof row.loop_id !== "string" || !row.loop_id.trim()) {
+      throw new Error("completion runtime row invalid");
+    }
+    for (const field of ["installed_release_sha", "event_release_sha", "last_terminal_result"]) {
+      if (!Object.hasOwn(row, field)) throw new Error(`completion runtime row missing ${field}`);
+    }
+    for (const field of ["installed_release_sha", "event_release_sha"]) {
+      if (row[field] !== null && (typeof row[field] !== "string" || !RELEASE_SHA.test(row[field]))) {
+        throw new Error(`completion runtime ${field} invalid`);
+      }
+    }
+    if (row.last_terminal_result !== null
+      && !RUNTIME_TERMINAL_RESULTS.has(row.last_terminal_result)) {
+      throw new Error("completion runtime terminal result invalid");
+    }
+    if (!catalogJobIds.has(row.loop_id)) continue;
+    if (rows.has(row.loop_id)) throw new Error(`duplicate completion runtime row: ${row.loop_id}`);
+    rows.set(row.loop_id, row);
+  }
+  return rows;
+}
+
 function buildProductLoopCompletionManifest(input = {}, options = {}) {
   const host = String(input.host || "").trim();
   if (!HOSTS.has(host)) throw new Error("completion host must be local or cloud");
@@ -110,6 +167,8 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
   if (!Array.isArray(input.observations)) throw new Error("completion observations invalid");
 
   const catalog = readProductLoopCatalog(options.catalogFile);
+  const runtimeRowsProvided = Object.hasOwn(input, "runtime_rows");
+  const runtimeByJobId = runtimeRowsProvided ? indexRuntimeRows(input.runtime_rows, catalog) : null;
   const catalogIds = new Set(catalog.loops.map((loop) => loop.id));
   const observations = new Map();
   for (const observation of input.observations) {
@@ -125,6 +184,8 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
 
   const loops = catalog.loops.map((catalogLoop) => {
     const observation = observations.get(catalogLoop.id);
+    const runtimeEvidence = runtimeRowsProvided
+      ? buildRuntimeEvidence(catalogLoop, runtimeByJobId, releaseSha) : null;
     const state = String(observation.state || "").trim();
     if (!COMPLETION_STATES.has(state)) throw new Error(`completion state invalid: ${catalogLoop.id}`);
     const reason = typeof observation.reason === "string" ? observation.reason.trim() : "";
@@ -146,6 +207,9 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
         || COMPLETION_CONTRACT_FIELDS.some((field) => contract[field] !== true))) {
       throw new Error(`verified loop requires official receipt and matching release: ${catalogLoop.id}`);
     }
+    if (state === "verified" && runtimeEvidence && !runtimeEvidence.ready) {
+      throw new Error(`verified loop runtime evidence incomplete: ${catalogLoop.id}`);
+    }
     return Object.freeze({
       id: catalogLoop.id,
       name: catalogLoop.name,
@@ -157,6 +221,7 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
       release_sha: observedRelease,
       official_receipt: officialReceipt,
       contract: Object.freeze(contract),
+      runtime_evidence: runtimeEvidence,
     });
   });
   const counts = Object.fromEntries([...COMPLETION_STATES].map((state) => [

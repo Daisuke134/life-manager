@@ -182,6 +182,86 @@ test("verified completion requires an official receipt and the canonical release
   );
 });
 
+test("completion manifest binds runtime status to every mapped job without promoting health to effect", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "f".repeat(40);
+  const observations = catalog.loops.map((loop) => ({
+    id: loop.id,
+    state: "setup_required",
+    reason: "provider_surface_pending",
+    contract: {},
+  }));
+  const runtimeRows = catalog.loops.flatMap((loop) => loop.job_ids.map((loopId) => ({
+    loop_id: loopId,
+    installed_release_sha: releaseSha,
+    event_release_sha: releaseSha,
+    last_terminal_result: "pass",
+  })));
+
+  const manifest = buildProductLoopCompletionManifest({
+    host: "local",
+    release_sha: releaseSha,
+    observations,
+    runtime_rows: runtimeRows,
+  });
+
+  assert.deepEqual(manifest.loops[0].runtime_evidence, {
+    observed_job_ids: catalog.loops[0].job_ids,
+    missing_job_ids: [],
+    release_mismatch_job_ids: [],
+    non_pass_job_ids: [],
+    release_match: true,
+    terminal_pass: true,
+    ready: true,
+    reason: null,
+  });
+  assert.equal(manifest.loops.every((loop) => loop.state === "setup_required"), true);
+  assert.equal(manifest.completion, true);
+});
+
+test("verified completion rejects missing or stale mapped runtime evidence", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "1".repeat(40);
+  const contract = {
+    goal: true,
+    context: true,
+    admission: true,
+    receipt: true,
+    observability: true,
+    evaluation: true,
+  };
+  const observations = catalog.loops.map((loop) => ({
+    id: loop.id,
+    state: "not_applicable",
+    reason: "provider_surface_not_supported",
+    contract,
+  }));
+  observations[0] = {
+    id: catalog.loops[0].id,
+    state: "verified",
+    owner_id: "owner-1",
+    release_sha: releaseSha,
+    official_receipt: true,
+    contract,
+  };
+  const runtimeRows = catalog.loops[0].job_ids.map((loopId, index) => ({
+    loop_id: loopId,
+    installed_release_sha: releaseSha,
+    event_release_sha: index === 0 ? "2".repeat(40) : releaseSha,
+    last_terminal_result: "pass",
+  }));
+
+  assert.throws(
+    () => buildProductLoopCompletionManifest({
+      host: "cloud",
+      release_sha: releaseSha,
+      observations,
+      runtime_rows: runtimeRows,
+    }),
+    /runtime evidence incomplete/u,
+  );
+});
+
 test("completion is true only when every loop is verified or explicitly unsupported", () => {
   const catalog = readProductLoopCatalog();
   const releaseSha = "d".repeat(40);
@@ -245,6 +325,43 @@ test("completion manifest CLI writes a private deterministic projection", () => 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(fs.readFileSync(outputPath, "utf8")).completion, true);
   assert.equal(fs.statSync(outputPath).mode & 0o777, 0o600);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test("completion manifest CLI binds lm-loop status JSON when requested", () => {
+  const catalog = readProductLoopCatalog();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-completion-runtime-cli-"));
+  const observationsPath = path.join(root, "observations.json");
+  const runtimePath = path.join(root, "runtime-status.json");
+  const outputPath = path.join(root, "completion.json");
+  const releaseSha = "2".repeat(40);
+  const observations = catalog.loops.map((loop) => ({
+    id: loop.id,
+    state: "setup_required",
+    reason: "host_adapter_pending",
+    contract: {},
+  }));
+  const runtimeRows = catalog.loops.flatMap((loop) => loop.job_ids.map((loopId) => ({
+    loop_id: loopId,
+    installed_release_sha: releaseSha,
+    event_release_sha: releaseSha,
+    last_terminal_result: "pass",
+  })));
+  fs.writeFileSync(observationsPath, JSON.stringify(observations));
+  fs.writeFileSync(runtimePath, JSON.stringify(runtimeRows));
+
+  const result = spawnSync(process.execPath, [
+    path.join(ROOT, "apps/life-manager/scripts/product-loop-completion.js"),
+    "--host", "local",
+    "--release-sha", releaseSha,
+    "--observations", observationsPath,
+    "--runtime-status", runtimePath,
+    "--output", outputPath,
+  ], { cwd: ROOT, encoding: "utf8" });
+
+  assert.equal(result.status, 0, result.stderr);
+  const manifest = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+  assert.equal(manifest.loops[0].runtime_evidence.ready, true);
   fs.rmSync(root, { recursive: true, force: true });
 });
 
