@@ -262,6 +262,25 @@ def _select(rows: list[dict], target: str) -> list[dict]:
     return selected
 
 
+def _bounded_reconcile_candidates(registry: dict, route: str,
+                                  current_sha: str, max_owners: int) -> set[str]:
+    """Find a small deterministic set of stale installed owners before launchd probing."""
+    agents_dir = Path(os.environ.get(
+        "LIFE_MANAGER_LAUNCH_AGENTS_DIR", "~/Library/LaunchAgents")).expanduser()
+    candidates: list[str] = []
+    candidate_limit = min(64, max_owners * 8)
+    for loop_id, entry in sorted(registry["loops"].items()):
+        if entry.get("provider_route") != route:
+            continue
+        plist_path = agents_dir / f"{entry['label']}.plist"
+        installed_sha = _release_from_plist(plist_path)
+        if installed_sha and installed_sha != current_sha:
+            candidates.append(loop_id)
+        if len(candidates) >= candidate_limit:
+            break
+    return set(candidates)
+
+
 def snapshot(registry: dict, target: str) -> list[dict]:
     if target != "all" and target in registry["loops"]:
         selected_registry = {**registry, "loops": {target: registry["loops"][target]}}
@@ -478,13 +497,15 @@ def activate_current(current: Path, release_root: Path,
 
 def activate_durable_admission_live(
         registry: dict, release_root: Path, launchctl_safe: Path, *,
-        current: Path | None = None) -> dict[str, object]:
+        current: Path | None = None,
+        agents_dir: Path | None = None) -> dict[str, object]:
     """Enable v2 only when every finite owner uses a v2-capable release."""
     validate_registry(registry)
     release_root = release_root.resolve(strict=True)
     if not _supports_durable_admission_v2(release_root):
         raise RuntimeError("release does not support durable admission v2")
     current = Path(current or "~/loops/current").expanduser()
+    agents_dir = Path(agents_dir or "~/Library/LaunchAgents").expanduser()
     with _protocol_transition_lock(current, exclusive=True):
         with _apply_lock(current, None):
             preflight_rc, detail = _safe_launchctl(launchctl_safe, ["preflight"])
@@ -496,7 +517,25 @@ def activate_durable_admission_live(
                     continue
                 rc, printed = _safe_launchctl(
                     launchctl_safe, ["print", f"gui/{os.getuid()}/{entry['label']}"])
-                if rc != 0 or not _loaded_v2_release(_loaded_arguments(printed), loop_id):
+                if rc != 0:
+                    absent = bool(re.search(
+                        r"(?i)(?:could not find service|service not found|\babsent\b)",
+                        printed))
+                    if not absent:
+                        raise RuntimeError(
+                            f"{loop_id}: loaded argv readback failed: {printed.strip()}")
+                    plist_path = agents_dir / f"{entry['label']}.plist"
+                    try:
+                        with plist_path.open("rb") as handle:
+                            plist = plistlib.load(handle)
+                        arguments = list(map(str, plist.get("ProgramArguments") or []))
+                    except (OSError, ValueError, plistlib.InvalidFileException):
+                        arguments = []
+                    if not _loaded_v2_release(arguments, loop_id):
+                        raise RuntimeError(f"{loop_id}: installed plist is not v2-capable")
+                    verified += 1
+                    continue
+                if not _loaded_v2_release(_loaded_arguments(printed), loop_id):
                     raise RuntimeError(f"{loop_id}: loaded argv is not v2-capable")
                 verified += 1
             activate_durable_v2(allow_live_owners=True)
@@ -673,7 +712,7 @@ def main(argv: list[str] | None = None) -> int:
         "start", "stop", "restart", "status", "watch",
     }
     if not args or args[0] not in commands:
-        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
@@ -728,6 +767,7 @@ def main(argv: list[str] | None = None) -> int:
     registry = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))
     if command == "reconcile":
         positionals, loop_ids, loaded_idle_only, include_running = [], [], False, False
+        max_owners = None
         reconcile_args = args[1:]
         index = 0
         while index < len(reconcile_args):
@@ -736,6 +776,19 @@ def main(argv: list[str] | None = None) -> int:
                 loaded_idle_only = True
             elif value == "--include-running":
                 include_running = True
+            elif value == "--max-owners":
+                if index + 1 >= len(reconcile_args) or reconcile_args[index + 1].startswith("--"):
+                    print(json.dumps({"ok": False, "error": "--max-owners requires a value"}))
+                    return 2
+                try:
+                    max_owners = int(reconcile_args[index + 1])
+                except ValueError:
+                    print(json.dumps({"ok": False, "error": "--max-owners must be a positive integer"}))
+                    return 2
+                if not 1 <= max_owners <= 64:
+                    print(json.dumps({"ok": False, "error": "--max-owners must be between 1 and 64"}))
+                    return 2
+                index += 1
             elif value == "--loop-id":
                 if index + 1 >= len(reconcile_args) or reconcile_args[index + 1].startswith("--"):
                     print(json.dumps({"ok": False, "error": "--loop-id requires a value"}))
@@ -783,7 +836,14 @@ def main(argv: list[str] | None = None) -> int:
         current_sha = json.loads((release_root / "RELEASE.json").read_text()).get("sha")
         rows = (targeted_snapshot(
             registry, requested_ids, release_root / "bin/launchctl-safe")
-            if requested_ids else snapshot(registry, "all"))
+            if requested_ids else (
+                targeted_snapshot(
+                    registry,
+                    _bounded_reconcile_candidates(
+                        registry, route, current_sha, max_owners),
+                    release_root / "bin/launchctl-safe",
+                ) if max_owners is not None else snapshot(registry, "all")
+            ))
         automatic_release_reconciler = (
             os.environ.get("LIFE_MANAGER_LOOP_ID") == "life-manager-release-reconciler"
         )
@@ -810,6 +870,8 @@ def main(argv: list[str] | None = None) -> int:
                  or row["loop_id"] in explicitly_reloadable
                  or row.get("event_release_sha") == row["installed_release_sha"])
         )]
+        if max_owners is not None:
+            eligible = eligible[:max_owners]
         applied, failed = [], []
         for row in eligible:
             try:

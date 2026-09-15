@@ -208,9 +208,18 @@ class MacosLoopRegistryTest(unittest.TestCase):
             script,
         )
         self.assertIn(
+            "reconcile shared-agent-runner --loaded-idle-only --max-owners 1",
+            script,
+        )
+        self.assertIn(
             "reconcile deterministic --loaded-idle-only",
             script,
         )
+        self.assertIn(
+            "reconcile deterministic --loaded-idle-only --max-owners 1",
+            script,
+        )
+        self.assertIn("admission-v2-enable", script)
         self.assertNotIn("--include-running", script)
         self.assertNotIn("--loop-id", script)
 
@@ -436,6 +445,24 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual(
             row["entrypoint"],
             "skills/earn/lancers/scripts/telegram-report-owner",
+        )
+
+    def test_lancers_finite_revenue_lanes_have_a_five_minute_runtime_bound(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        finite_lanes = (
+            "lancers-revenue-application",
+            "lancers-revenue-paid",
+            "lancers-revenue-negotiate",
+            "lancers-revenue-storefront",
+            "lancers-revenue-work-sync",
+            "lancers-revenue-telegram-report",
+        )
+        for loop_id in finite_lanes:
+            with self.subTest(loop_id=loop_id):
+                self.assertEqual(registry["loops"][loop_id]["runtime_timeout_seconds"], 300)
+        self.assertNotIn(
+            "runtime_timeout_seconds",
+            registry["loops"]["lancers-revenue-browser"],
         )
 
     def test_marketing_metrics_daily_uses_direct_python_adapter(self):

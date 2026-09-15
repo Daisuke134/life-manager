@@ -282,6 +282,19 @@ def test_all_coconala_lanes_enter_revenue_admission(tmp_path):
     run.assert_not_called()
 
 
+def test_lancers_effect_lanes_enter_revenue_admission():
+    registry = json.loads(
+        (Path(__file__).parents[3] / "config/loop-registry.json").read_text()
+    )["loops"]
+    loop_ids = (
+        "lancers-revenue-application",
+        "lancers-revenue-negotiate",
+        "lancers-revenue-paid",
+        "lancers-revenue-storefront",
+    )
+    assert all(registry[loop_id].get("admission_class") == "revenue"
+               for loop_id in loop_ids)
+
 def test_all_marketplace_revenue_lanes_use_agent_revenue_admission():
     registry = json.loads(
         (Path(__file__).parents[3] / "config/loop-registry.json").read_text()

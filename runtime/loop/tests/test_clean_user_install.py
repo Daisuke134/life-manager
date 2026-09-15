@@ -374,7 +374,7 @@ class CleanUserInstallTest(unittest.TestCase):
         self.assertEqual(
             result.stdout.strip(),
             f"{ROOT}/skills/earn/lancers/scripts/application_loop.py "
-            f"--json --exhaustive --state-path {state_root}/application.json",
+            f"--json --state-path {state_root}/application.json",
         )
 
     def test_lancers_work_sync_wrapper_preserves_managed_state_argv(self):

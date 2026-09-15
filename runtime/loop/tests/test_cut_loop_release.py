@@ -71,6 +71,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "LOOPS_ACTIVATE_CURRENT": "0",
                     "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
                     "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
                     "NPM_BIN": str(npm),
                     "NPM_VERSION": "test",
                     "NPM_NODE_VERSION": "test",
@@ -121,6 +122,45 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(len(releases), 1)
             self.assertTrue((releases[0] / "RELEASE.json").is_file())
             self.assertIn("current unchanged", result.stdout)
+
+    def test_release_cannot_move_current_to_an_older_main_ancestor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            loops = root / "loops"
+            current_release = loops / "releases" / "current-release"
+            current_release.mkdir(parents=True)
+            current_sha = "fb80cadd5d0bba58de3fece64db6ab0203ba1e83"
+            older_sha = "1d4bca431546c1604c388abbe6542c9764d274e8"
+            (current_release / "RELEASE.json").write_text(
+                json.dumps({"sha": current_sha, "release_paths": "ALL"}) + "\n"
+            )
+            current = loops / "current"
+            current.symlink_to(current_release)
+            agents = root / "agents"
+            agents.mkdir()
+            admission = root / "admission"
+            admission.mkdir()
+
+            result = subprocess.run(
+                ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), older_sha],
+                cwd=ROOT,
+                env={
+                    **os.environ,
+                    "LOOPS_ROOT": str(loops),
+                    "LOOPS_RELEASE_PATHS": "runtime/loop",
+                    "LOOPS_KEEP_RELEASES": "1",
+                    "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(admission),
+                    "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
+                },
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+            self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("current backwards", result.stderr)
+            self.assertEqual(current.resolve(), current_release.resolve())
 
     def test_release_reuses_one_content_addressed_dependency_bundle(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -201,7 +241,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             result = subprocess.run(
                 ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
                 cwd=ROOT,
-                env={**os.environ, "LOOPS_ROOT": str(loops), "LOOPS_KEEP_RELEASES": "2", "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint", "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"), "NPM_BIN": str(npm), "NPM_VERSION": "test", "NPM_NODE_VERSION": "test"},
+                env={**os.environ, "LOOPS_ROOT": str(loops), "LOOPS_KEEP_RELEASES": "2", "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint", "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"), "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"), "NPM_BIN": str(npm), "NPM_VERSION": "test", "NPM_NODE_VERSION": "test"},
                 capture_output=True, text=True, check=False,
             )
 
@@ -316,6 +356,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint",
                     "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
                     "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
                     "NPM_BIN": str(npm),
                     "NPM_VERSION": "test",
                     "NPM_NODE_VERSION": "test",
@@ -447,6 +488,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "PATH": f"{fake_bin}:{os.environ['PATH']}",
                     "LIFE_MANAGER_SOURCE_REPO": str(root),
                     "LOOPS_ROOT": str(loops),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
                 },
                 capture_output=True,
                 text=True,
@@ -457,7 +499,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(cutter_arg.read_text().strip(), captured_sha)
             self.assertEqual((root / "origin.sha").read_text().strip(), "c" * 40)
             reconciles = calls.read_text().splitlines()
-            self.assertEqual(len(reconciles), 2)
+            self.assertEqual(len(reconciles), 3)
             self.assertTrue(
                 all(line.startswith(f"{new_release.resolve()}|") for line in reconciles),
                 reconciles,
@@ -465,8 +507,9 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(
                 [line.split("|", 1)[1] for line in reconciles],
                 [
-                    "reconcile shared-agent-runner --loaded-idle-only",
-                    "reconcile deterministic --loaded-idle-only",
+                    "reconcile shared-agent-runner --loaded-idle-only --max-owners 1",
+                    "reconcile deterministic --loaded-idle-only --max-owners 1",
+                    "admission-v2-enable",
                 ],
             )
 
@@ -487,6 +530,9 @@ class CutLoopReleaseTest(unittest.TestCase):
             )
             cutter_called = root / "cutter.called"
             calls = root / "lm-loop.calls"
+            admission_root = root / "admission"
+            admission_root.mkdir()
+            (admission_root / "protocol.json").write_text('{"version":2}\n')
             fake_git = fake_bin / "git"
             fake_git.write_text(
                 "#!/bin/sh\n"
@@ -516,6 +562,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "PATH": f"{fake_bin}:{os.environ['PATH']}",
                     "LIFE_MANAGER_SOURCE_REPO": str(root),
                     "LOOPS_ROOT": str(loops),
+                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(admission_root),
                 },
                 capture_output=True,
                 text=True,

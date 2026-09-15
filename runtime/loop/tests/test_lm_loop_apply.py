@@ -1019,6 +1019,98 @@ class LmLoopApplyTest(unittest.TestCase):
 
         self.assertEqual(applied_roots, [release, release])
 
+    def test_reconcile_max_owners_limits_a_route_to_one_owner(self):
+        release = self._release("release-bounded").resolve()
+        value = two_loop_registry()
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        rows = [
+            {
+                "classification": "managed",
+                "provider_route": "deterministic",
+                "launchd_state": "loaded-idle",
+                "installed_release_sha": "b" * 40,
+                "loop_id": loop_id,
+            }
+            for loop_id in ("example", "second")
+        ]
+        applied = []
+
+        def record_apply(release_root, *args, **kwargs):
+            applied.append(kwargs["target"])
+            return [{"ok": True, "release_sha": SHA}]
+
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "targeted_snapshot", return_value=rows),
+            patch.object(lm_loop, "apply_live", side_effect=record_apply),
+            patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release)}),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(
+                lm_loop.main([
+                    "reconcile", "deterministic", "--max-owners", "1",
+                    "--loop-id", "example", "--loop-id", "second",
+                ]),
+                0,
+            )
+
+        self.assertEqual(applied, ["example"])
+        self.assertEqual(json.loads(output.getvalue())["eligible"], 1)
+
+    def test_reconcile_max_owners_uses_bounded_targeted_snapshot(self):
+        release = self._release("release-targeted").resolve()
+        value = two_loop_registry()
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        agents_dir = self.root / "agents"
+        agents_dir.mkdir()
+        old_root = "/Users/anicca/loops/releases/" + ("b" * 40)
+        for loop_id, entry in value["loops"].items():
+            (agents_dir / f"{entry['label']}.plist").write_bytes(plistlib.dumps({
+                "Label": entry["label"],
+                "ProgramArguments": [
+                    f"{old_root}/bin/lm-loop-run", loop_id, old_root,
+                ],
+            }))
+        rows = [
+            {
+                "classification": "managed",
+                "provider_route": "deterministic",
+                "launchd_state": "loaded-idle",
+                "installed_release_sha": "b" * 40,
+                "loop_id": loop_id,
+            }
+            for loop_id in ("example", "second")
+        ]
+        applied = []
+
+        def record_apply(release_root, *args, **kwargs):
+            applied.append(kwargs["target"])
+            return [{"ok": True, "release_sha": SHA}]
+
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "targeted_snapshot", return_value=rows) as targeted,
+            patch.object(lm_loop, "snapshot",
+                         side_effect=AssertionError("unbounded fleet snapshot")),
+            patch.object(lm_loop, "apply_live", side_effect=record_apply),
+            patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents_dir),
+            }),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(
+                lm_loop.main([
+                    "reconcile", "deterministic", "--max-owners", "1",
+                ]),
+                0,
+            )
+
+        targeted.assert_called_once()
+        self.assertEqual(targeted.call_args.args[1], {"example", "second"})
+        self.assertEqual(applied, ["example"])
+        self.assertEqual(json.loads(output.getvalue())["eligible"], 1)
+
     def test_reconcile_loaded_idle_only_leaves_unloaded_rows_untouched(self):
         release = self._release("release-a").resolve()
         rows = [
@@ -2313,6 +2405,35 @@ class LmLoopApplyTest(unittest.TestCase):
             result = lm_loop.activate_durable_admission_live(
                 registry(), self.root, self.root / "bin/launchctl-safe",
                 current=self.root / "current",
+            )
+
+        self.assertEqual(result["verified_finite_labels"], 1)
+        activate.assert_called_once_with(allow_live_owners=True)
+
+    def test_admission_v2_activation_accepts_unloaded_v2_capable_plist(self):
+        (self.root / "config").mkdir()
+        (self.root / "config/runtime-capabilities.json").write_text(json.dumps({
+            "resource_admission": 2,
+        }))
+        agents_dir = self.root / "Library" / "LaunchAgents"
+        agents_dir.mkdir(parents=True)
+        release = self.root.resolve()
+        expected = [str(release / "bin/lm-loop-run"), "example", str(release)]
+        (agents_dir / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
+            "Label": "ai.anicca.example",
+            "ProgramArguments": expected,
+        }))
+
+        def launchctl(_safe, args):
+            if args == ["preflight"]:
+                return 0, "ok"
+            return 1, "Could not find service"
+
+        with (patch.object(lm_loop, "_safe_launchctl", side_effect=launchctl),
+              patch.object(lm_loop, "activate_durable_v2") as activate):
+            result = lm_loop.activate_durable_admission_live(
+                registry(), self.root, self.root / "bin/launchctl-safe",
+                current=self.root / "current", agents_dir=agents_dir,
             )
 
         self.assertEqual(result["verified_finite_labels"], 1)
