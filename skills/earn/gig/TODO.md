@@ -763,11 +763,18 @@ The owner explicitly retired TikTok-adapter development for Chii because this ou
 Do not add another TikTok adapter or speculative queue framework. Finish this one contract operationally through
 the existing authenticated `tiktok-anicca-jp` search/profile reader, shared message transport, exact official
 readback and `gog sheets` API. The manual owner continuation on 2026-09-15 advanced the truthful paired ledger
-from 12 to 20: six new exact-readback TikTok sends (`@de57350902k`, `@hana_asmr87`, `@masa55age`, `@40ol40ol`,
-`@amedama_ys`, `@thedailylife69`) plus recovery of two already-sent but previously unrecorded pairs
-(`@naaaoki`, `@tabi_7v`). Every pair has an immediate A:B Sheet readback. The remaining target is 280. Continue
+from 12 to 58 unique Sheet rows. It produced six new exact-readback TikTok sends, recovered two previously sent
+but unrecorded pairs, and reconciled 38 more exact existing-message readbacks without resending them. Every added
+row has an immediate A:B Sheet readback and the whole range re-counts as 58 unique handles. The remaining target
+is 242. Continue
 without an artificial ten-candidate run stop, but stop on an actual TikTok warning or provider limit. A profile
 button without a recipient-bound conversation is effect zero and must never create a Sheet row.
+
+After sustained profile/search activity, TikTok began returning an official page title with an empty profile body
+even under one serial owner. Six consecutive serial profiles reproduced the empty readback. Treat that as current
+provider display suppression, not candidate ineligibility and not permission to fabricate rows. Preserve the
+remaining 144-URL discovery wave, resume from its first unverified URL when official profile bodies render again,
+and keep the single persistent owner/session; do not rotate accounts or browsers to evade the provider state.
 
 Observability remains a current architecture gap. Existing JSONL events and provider receipts stay the source
 of truth, while OpenTelemetry becomes the shared trace envelope rather than a second business ledger. One
@@ -797,7 +804,7 @@ work item and leave a sibling trace unchanged.
   unless a newer buyer event appears.
 - [x] Kokoro `18250352`: processed independently with its own verified v12 submission; replay zero unless a newer
   buyer event appears.
-- [ ] Chii `18180857`: current truth is 20/300 verified TikTok-send plus Sheet pairs, 280 remaining. Continue with
+- [ ] Chii `18180857`: current truth is 58/300 unique TikTok-send plus Sheet rows, 242 remaining. Continue with
   existing tools only, without an artificial per-run candidate cap; persist every official result and never
   fabricate a send or Sheet row.
 - [ ] Atsugi `18171850`: reconcile the newest post-delivery feedback, perform any required revision/reply once,
