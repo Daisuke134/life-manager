@@ -29,7 +29,7 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `GRAPH-03`.
+TODO worktree. The current cursor is `EVAL-01`.
 
 ### Atomic execution log
 
@@ -176,18 +176,17 @@ TODO worktree. The current cursor is `GRAPH-03`.
 
 ### Current production blocker snapshot (read-only)
 
-- Coconala `hf-gig-apply-direct` did load current release `a5da9dca`, but its natural wake still
-  ended with `ENOSPC` while writing evidence and an `UnboundLocalError` for provider-local
-  `denied_source_id`; no official application receipt was observed.
+- Coconala `hf-gig-apply-direct` remains on release `a5da9dca` and its running process still has no
+  official application receipt. The latest observed failures include `ENOSPC` while writing evidence
+  and the provider-local `denied_source_id` path; this is a provider/host blocker, not a graph result.
 - Lancers application remains on the older `e8e8a2b2` release while its owner is `running`; it was
   not stopped or restarted. Its recent output includes account/browser/safety failures and no
   verified proposal receipt.
-- Mercor application is loaded on current `a5da9dca` after the targeted reconcile, but its last
-  application attempt before that sync was deferred for host capacity; no new official application
-  receipt is observed yet.
-- Host data-volume headroom is below the six-GiB runtime floor; the existing cleanup owner preserved
-  all 38 discovered candidates because they were open. Active browsers and unknown owners remain
-  protected.
+- Mercor application is loaded on the current full release `5a9fdfb4`; its last application attempt
+  was deferred for host capacity and no new official application receipt is observed yet.
+- Host data-volume headroom is about 2.4 GiB, below the six-GiB runtime floor; the existing cleanup
+  owner preserved all 38 discovered candidates because they were open. Active browsers and unknown
+  owners remain protected.
 
 ## FND research gate (search complete; FND-02 implemented)
 
