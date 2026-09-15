@@ -130,6 +130,43 @@ class RuntimeEventTest(unittest.TestCase):
         self.assertEqual(event["effect_status"], "unknown")
         self.assertEqual(event["evidence_refs"], ["agent-runner://example/run-1/summary.json"])
 
+    def test_builder_emits_stable_join_identity_and_readback_fields(self):
+        options = {
+            "loop_id": "hf-gig-apply-direct",
+            "domain": "earn",
+            "run_id": "run-1",
+            "release_sha": "b" * 40,
+            "provider": "coconala",
+            "profile_alias": "seller-1",
+            "effect_class": "application",
+            "succeeded": True,
+            "blocker": None,
+            "product_loop_id": "gig-coconala",
+            "job_id": "hf-gig-apply-direct",
+            "owner_id": "ai.anicca.hf-gig-apply-direct",
+            "wake_id": "wake-1",
+            "attempt": 2,
+            "effect_key": "coconala:application:5271917",
+            "failure_layer": None,
+            "official_readback_ref": "https://coconala.com/requests/5271917",
+            "next_eligible_at": None,
+        }
+        event = build_runtime_event(**options)
+        replay = build_runtime_event(**options)
+
+        self.assertEqual(event["event_id"], replay["event_id"])
+        self.assertEqual(
+            {event[field] for field in (
+                "product_loop_id", "job_id", "owner_id", "wake_id", "attempt",
+                "effect_key", "failure_layer", "official_readback_ref", "next_eligible_at",
+            )},
+            {"gig-coconala", "hf-gig-apply-direct", "ai.anicca.hf-gig-apply-direct", "wake-1", 2,
+             "coconala:application:5271917", None, "https://coconala.com/requests/5271917", None},
+        )
+        validate_runtime_event(event)
+        with self.assertRaises(ValueError):
+            validate_runtime_event({**event, "failure_layer": "not-a-layer"})
+
     def test_no_effect_uses_not_applicable(self):
         event = build_runtime_event(
             loop_id="example", domain="system", run_id="run-1", release_sha="b" * 40,

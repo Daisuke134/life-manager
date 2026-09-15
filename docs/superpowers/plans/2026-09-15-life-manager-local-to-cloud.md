@@ -29,7 +29,7 @@
 Only one unchecked atomic ID is active. The primary records the active ID, changed files, focused
 test result, receipt/evidence pointer, and next ID in this plan after every commit. Before any ID that
 touches a shared file, run a shared-file overlap check against the latest main and the marketplace
-TODO worktree. The current cursor is `FND-04`.
+TODO worktree. The current cursor is `FND-05`.
 
 ### Atomic execution log
 
@@ -60,6 +60,14 @@ TODO worktree. The current cursor is `FND-04`.
   states require their resume/error metadata. Focused proof:
   `python3 -m pytest runtime/contracts/test_common_contracts.py -q` (16 passed) and the related
   contract suite for runtime events, admission, and memory (78 passed). Next active ID: `FND-04`.
+- [x] `FND-04` — Extended the runtime event builders and common schema with the stable join fields
+  `product_loop_id`, `job_id`, `owner_id`, `wake_id`, `attempt`, `effect_key`, `failure_layer`,
+  `official_readback_ref`, and `next_eligible_at`. Builders derive backward-compatible identities for
+  legacy callers while new callers can bind the full tuple; event IDs exclude timestamps and remain
+  deterministic on replay. Focused proof: `python3 -m pytest
+  runtime/loop/tests/test_runtime_event.py runtime/contracts/test_common_contracts.py -q` (16 passed),
+  plus schema/diff checks. The overlap readback found latest `origin/main=39279e660ef95ace8c7d17f8de1129d44419ef61`,
+  a clean marketplace TODO worktree, and no target-file change in canonical main. Next active ID: `FND-05`.
 
 ## FND research gate (search complete; FND-02 implemented)
 
@@ -83,10 +91,10 @@ target control plane is implemented.
 - [Firecracker](https://github.com/firecracker-microvm/firecracker/blob/c5314e5dfc732db683115a02dee440ca06162a7c/docs/design.md) uses microVM, seccomp, cgroups, namespaces, and jailer boundaries; reserve it for untrusted repair/eval code, not every browser session.
 - [Chrome headless](https://developer.chrome.com/docs/automation-and-testing/headless) confirms unattended no-UI operation, while modern headless shares Chrome's implementation; it reduces display overhead, not all browser memory.
 
-**Alignment checkpoint:** the search phase is complete and `FND-02`/`FND-03` contracts are now
+**Alignment checkpoint:** the search phase is complete and `FND-02`/`FND-03`/`FND-04` contracts are
 implemented with focused fixtures. No launchd, browser/account, ledger, or provider effect was
-changed. The next atomic change is `FND-04`'s event identity contract; it begins with a focused
-failing test before any runtime-event implementation.
+changed. The next atomic change is `FND-05`'s pure notification policy; it begins with a focused
+failing test before wiring any existing outbox.
 
 | ID | One atomic outcome | Files/owner | Proof before the next ID |
 |---|---|---|---|

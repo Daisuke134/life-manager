@@ -13,16 +13,22 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-FIELDS = {
+REQUIRED_FIELDS = {
     "version", "event_id", "timestamp", "loop_id", "domain", "run_id", "phase",
     "status", "release_sha", "provider", "profile_alias", "effect_class",
     "effect_status", "blocker", "evidence_refs",
 }
+OPTIONAL_IDENTITY_FIELDS = {
+    "product_loop_id", "job_id", "owner_id", "wake_id", "attempt", "effect_key",
+    "failure_layer", "official_readback_ref", "next_eligible_at",
+}
+FIELDS = REQUIRED_FIELDS | OPTIONAL_IDENTITY_FIELDS
 DOMAINS = {"physical", "mental", "financial", "earn", "growth", "system"}
 PHASES = {"plan", "execute", "reconcile", "verify", "report"}
 STATUSES = {"running", "pass", "fail", "blocked"}
 EFFECTS = {"none", "publish", "message", "money", "application", "trade", "account_mutation"}
 EFFECT_STATUSES = {"not_applicable", "unknown", "planned", "started", "verified", "failed", "reconciled"}
+FAILURE_LAYERS = {"admission", "context", "model", "tool", "provider", "readback", "persistence", "notification", "unknown"}
 SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 SAFE_REF = re.compile(r"[a-z][a-z0-9+.-]*://[A-Za-z0-9._:/-]{1,512}\Z")
 SECRET = re.compile(
@@ -87,7 +93,7 @@ def rotate_jsonl_locked(
 def validate_runtime_event(event: dict) -> dict:
     if not isinstance(event, dict):
         raise ValueError("event must be an object")
-    missing, unknown = FIELDS - set(event), set(event) - FIELDS
+    missing, unknown = REQUIRED_FIELDS - set(event), set(event) - FIELDS
     if missing:
         raise ValueError(f"missing fields: {sorted(missing)}")
     if unknown:
@@ -120,22 +126,78 @@ def validate_runtime_event(event: dict) -> dict:
         not isinstance(ref, str) or not SAFE_REF.fullmatch(ref) for ref in refs
     ):
         raise ValueError("invalid evidence_refs")
+    for key in ("product_loop_id", "job_id", "owner_id", "wake_id"):
+        if key in event and (not isinstance(event[key], str) or not SAFE_ID.fullmatch(event[key])):
+            raise ValueError(f"invalid {key}")
+    if "attempt" in event and (
+        isinstance(event["attempt"], bool)
+        or not isinstance(event["attempt"], int)
+        or not 1 <= event["attempt"] <= 20
+    ):
+        raise ValueError("invalid attempt")
+    if "effect_key" in event:
+        effect_key = event["effect_key"]
+        if effect_key is not None and (not isinstance(effect_key, str) or not 1 <= len(effect_key) <= 1024):
+            raise ValueError("invalid effect_key")
+        if event["effect_class"] == "none" and effect_key is not None:
+            raise ValueError("effect_key must be null for no-effect events")
+    if "failure_layer" in event and event["failure_layer"] is not None and event["failure_layer"] not in FAILURE_LAYERS:
+        raise ValueError("invalid failure_layer")
+    if "official_readback_ref" in event:
+        readback = event["official_readback_ref"]
+        if readback is not None and (not isinstance(readback, str) or not SAFE_REF.fullmatch(readback)):
+            raise ValueError("invalid official_readback_ref")
+    if "next_eligible_at" in event:
+        next_at = event["next_eligible_at"]
+        if next_at is not None:
+            try:
+                datetime.fromisoformat(next_at.replace("Z", "+00:00"))
+            except (AttributeError, ValueError) as exc:
+                raise ValueError("invalid next_eligible_at") from exc
     return event
+
+
+def _event_identity(*, release_sha: str, product_loop_id: str, job_id: str,
+                    owner_id: str, loop_id: str, run_id: str, wake_id: str,
+                    attempt: int, phase: str, status: str,
+                    effect_key: str | None) -> str:
+    """Return a deterministic digest for one runtime identity, excluding timestamps."""
+    material = json.dumps(
+        [release_sha, product_loop_id, job_id, owner_id, loop_id, run_id, wake_id,
+         attempt, phase, status, effect_key],
+        ensure_ascii=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(material.encode()).hexdigest()[:24]
 
 
 def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: str,
                         provider: str, profile_alias: str | None, effect_class: str,
                         succeeded: bool, blocker: str | None,
                         deferred: bool = False,
-                        evidence_scheme: str = "agent-runner") -> dict:
+                        evidence_scheme: str = "agent-runner",
+                        product_loop_id: str | None = None, job_id: str | None = None,
+                        owner_id: str | None = None, wake_id: str | None = None,
+                        attempt: int = 1, effect_key: str | None = None,
+                        failure_layer: str | None = None,
+                        official_readback_ref: str | None = None,
+                        next_eligible_at: str | None = None) -> dict:
     timestamp = datetime.now(timezone.utc).isoformat()
     if succeeded and deferred:
         raise ValueError("runtime event cannot be both succeeded and deferred")
     status = "blocked" if deferred else ("pass" if succeeded else "fail")
-    material = f"{release_sha}:{loop_id}:{run_id}:report:{status}"
+    product_loop_id = product_loop_id or loop_id
+    job_id = job_id or loop_id
+    owner_id = owner_id or job_id
+    wake_id = wake_id or run_id
+    event_id = _event_identity(
+        release_sha=release_sha, product_loop_id=product_loop_id, job_id=job_id,
+        owner_id=owner_id, loop_id=loop_id, run_id=run_id, wake_id=wake_id,
+        attempt=attempt, phase="report", status=status, effect_key=effect_key,
+    )
     event = {
         "version": 1,
-        "event_id": hashlib.sha256(material.encode()).hexdigest()[:24],
+        "event_id": event_id,
         "timestamp": timestamp,
         "loop_id": loop_id,
         "domain": domain,
@@ -149,18 +211,40 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
         "effect_status": "not_applicable" if effect_class == "none" else "unknown",
         "blocker": blocker,
         "evidence_refs": [f"{evidence_scheme}://{loop_id}/{run_id}/summary.json"],
+        "product_loop_id": product_loop_id,
+        "job_id": job_id,
+        "owner_id": owner_id,
+        "wake_id": wake_id,
+        "attempt": attempt,
+        "effect_key": effect_key,
+        "failure_layer": failure_layer,
+        "official_readback_ref": official_readback_ref,
+        "next_eligible_at": next_eligible_at,
     }
     return validate_runtime_event(event)
 
 
 def build_runtime_start_event(*, loop_id: str, domain: str, run_id: str,
                               release_sha: str, provider: str,
-                              profile_alias: str | None, effect_class: str) -> dict:
+                              profile_alias: str | None, effect_class: str,
+                              product_loop_id: str | None = None, job_id: str | None = None,
+                              owner_id: str | None = None, wake_id: str | None = None,
+                              attempt: int = 1, effect_key: str | None = None,
+                              failure_layer: str | None = None,
+                              official_readback_ref: str | None = None,
+                              next_eligible_at: str | None = None) -> dict:
     timestamp = datetime.now(timezone.utc).isoformat()
-    material = f"{release_sha}:{loop_id}:{run_id}:execute:running"
+    product_loop_id = product_loop_id or loop_id
+    job_id = job_id or loop_id
+    owner_id = owner_id or job_id
+    wake_id = wake_id or run_id
     return validate_runtime_event({
         "version": 1,
-        "event_id": hashlib.sha256(material.encode()).hexdigest()[:24],
+        "event_id": _event_identity(
+            release_sha=release_sha, product_loop_id=product_loop_id, job_id=job_id,
+            owner_id=owner_id, loop_id=loop_id, run_id=run_id, wake_id=wake_id,
+            attempt=attempt, phase="execute", status="running", effect_key=effect_key,
+        ),
         "timestamp": timestamp,
         "loop_id": loop_id,
         "domain": domain,
@@ -174,16 +258,38 @@ def build_runtime_start_event(*, loop_id: str, domain: str, run_id: str,
         "effect_status": "not_applicable" if effect_class == "none" else "started",
         "blocker": None,
         "evidence_refs": [f"lm-loop://{loop_id}/{run_id}/summary.json"],
+        "product_loop_id": product_loop_id,
+        "job_id": job_id,
+        "owner_id": owner_id,
+        "wake_id": wake_id,
+        "attempt": attempt,
+        "effect_key": effect_key,
+        "failure_layer": failure_layer,
+        "official_readback_ref": official_readback_ref,
+        "next_eligible_at": next_eligible_at,
     })
 
 
 def build_install_event(*, loop_id: str, domain: str, release_sha: str,
-                        provider: str, effect_class: str) -> dict:
+                        provider: str, effect_class: str,
+                        product_loop_id: str | None = None, job_id: str | None = None,
+                        owner_id: str | None = None, wake_id: str | None = None,
+                        attempt: int = 1, effect_key: str | None = None,
+                        failure_layer: str | None = None,
+                        official_readback_ref: str | None = None,
+                        next_eligible_at: str | None = None) -> dict:
     timestamp = datetime.now(timezone.utc).isoformat()
-    material = f"{release_sha}:{loop_id}:install:plan:pass"
+    product_loop_id = product_loop_id or loop_id
+    job_id = job_id or loop_id
+    owner_id = owner_id or job_id
+    wake_id = wake_id or "install"
     return validate_runtime_event({
         "version": 1,
-        "event_id": hashlib.sha256(material.encode()).hexdigest()[:24],
+        "event_id": _event_identity(
+            release_sha=release_sha, product_loop_id=product_loop_id, job_id=job_id,
+            owner_id=owner_id, loop_id=loop_id, run_id="install", wake_id=wake_id,
+            attempt=attempt, phase="plan", status="pass", effect_key=effect_key,
+        ),
         "timestamp": timestamp,
         "loop_id": loop_id,
         "domain": domain,
@@ -197,6 +303,15 @@ def build_install_event(*, loop_id: str, domain: str, release_sha: str,
         "effect_status": "not_applicable" if effect_class == "none" else "unknown",
         "blocker": None,
         "evidence_refs": [f"lm-loop://{loop_id}/install/summary.json"],
+        "product_loop_id": product_loop_id,
+        "job_id": job_id,
+        "owner_id": owner_id,
+        "wake_id": wake_id,
+        "attempt": attempt,
+        "effect_key": effect_key,
+        "failure_layer": failure_layer,
+        "official_readback_ref": official_readback_ref,
+        "next_eligible_at": next_eligible_at,
     })
 
 

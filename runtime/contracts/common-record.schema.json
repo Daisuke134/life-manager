@@ -56,7 +56,20 @@
         "effect_class": {"enum": ["none", "publish", "message", "money", "application", "trade", "account_mutation"]},
         "effect_status": {"enum": ["not_applicable", "unknown", "planned", "started", "verified", "failed", "reconciled"]},
         "blocker": {"oneOf": [{"$ref": "#/$defs/Id"}, {"type": "null"}]},
-        "evidence_refs": {"$ref": "#/$defs/EvidenceRefs"}
+        "evidence_refs": {"$ref": "#/$defs/EvidenceRefs"},
+        "product_loop_id": {"$ref": "#/$defs/Id"}, "job_id": {"$ref": "#/$defs/Id"},
+        "owner_id": {"$ref": "#/$defs/Id"}, "wake_id": {"$ref": "#/$defs/Id"},
+        "attempt": {"type": "integer", "minimum": 1, "maximum": 20},
+        "effect_key": {"type": ["string", "null"], "minLength": 1, "maxLength": 1024},
+        "failure_layer": {"oneOf": [
+          {"enum": ["admission", "context", "model", "tool", "provider", "readback", "persistence", "notification", "unknown"]},
+          {"type": "null"}
+        ]},
+        "official_readback_ref": {"oneOf": [
+          {"type": "string", "pattern": "^[a-z][a-z0-9+.-]*://[A-Za-z0-9._:/-]{1,512}$"},
+          {"type": "null"}
+        ]},
+        "next_eligible_at": {"oneOf": [{"$ref": "#/$defs/Timestamp"}, {"type": "null"}]}
       }
     },
     "Effect": {

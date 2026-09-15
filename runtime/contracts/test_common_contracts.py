@@ -139,7 +139,11 @@ class CommonContractTests(unittest.TestCase):
         self.assertEqual(set(definition["status"]["enum"]), runtime_event.STATUSES)
         self.assertEqual(set(definition["effect_class"]["enum"]), runtime_event.EFFECTS)
         self.assertEqual(set(definition["effect_status"]["enum"]), runtime_event.EFFECT_STATUSES)
-        event = {"version": 1, "event_id": "a" * 24, "timestamp": "2026-09-07T00:00:00Z", "loop_id": "example", "domain": "earn", "run_id": "run-1", "phase": "report", "status": "pass", "release_sha": "b" * 40, "provider": "deterministic", "profile_alias": None, "effect_class": "none", "effect_status": "not_applicable", "blocker": None, "evidence_refs": ["lm-loop://example/run-1/summary.json"]}
+        self.assertEqual(
+            set(definition["failure_layer"]["oneOf"][0]["enum"]),
+            runtime_event.FAILURE_LAYERS,
+        )
+        event = {"version": 1, "event_id": "a" * 24, "timestamp": "2026-09-07T00:00:00Z", "loop_id": "example", "domain": "earn", "run_id": "run-1", "phase": "report", "status": "pass", "release_sha": "b" * 40, "provider": "deterministic", "profile_alias": None, "effect_class": "none", "effect_status": "not_applicable", "blocker": None, "evidence_refs": ["lm-loop://example/run-1/summary.json"], "product_loop_id": "gig-coconala", "job_id": "hf-gig-apply-direct", "owner_id": "ai.anicca.hf-gig-apply-direct", "wake_id": "wake-1", "attempt": 1, "effect_key": None, "failure_layer": None, "official_readback_ref": None, "next_eligible_at": None}
         validate(event)
         runtime_event.validate_runtime_event(event)
 
