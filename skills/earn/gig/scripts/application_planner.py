@@ -25,10 +25,9 @@ MAX_PROPOSAL_CHARS = 3000
 _ROOT_FIELDS = frozenset({"decisions"})
 _DECISION_FIELDS = frozenset({
     "request_id", "business_class", "reason_codes", "proposal_text", "price_jpy", "deliver_date",
-})
-_RETAINER_DECISION_FIELDS = _DECISION_FIELDS | frozenset({
     "work_frequency", "weekly_hours_min", "weekly_hours_max",
 })
+_RETAINER_DECISION_FIELDS = _DECISION_FIELDS
 RETAINER_WORK_FREQUENCIES = frozenset({
     "WEEK_ONE", "WEEK_TWO", "WEEK_THREE", "WEEK_FOUR", "WEEK_FIVE",
     "BIWEEKLY", "MONTH_ONE",
@@ -257,6 +256,11 @@ def validate_decisions(
                 for field in ("work_frequency", "weekly_hours_min", "weekly_hours_max")
             ):
                 errors.append(f"decision[{index}]_hard_prohibited_retainer_terms_must_be_null")
+        if not _RETAINER_ID.fullmatch(str(request_id or "")) and any(
+            row[field] is not None
+            for field in ("work_frequency", "weekly_hours_min", "weekly_hours_max")
+        ):
+            errors.append(f"decision[{index}]_single_retainer_terms_must_be_null")
     if len(set(actual_ids)) != len(actual_ids):
         errors.append("decision_request_ids_duplicate")
     # The model owns the judgment and semantic priority for each immutable request
