@@ -497,7 +497,15 @@ independent production effects.
 Completed foundation retained as evidence: disk-headroom recovery; off-critical-path cleanup; checked-hash
 bytecode and pinned interpreter; native Darwin process identity; SQLite durable reservations/dispatcher;
 mixed-release compatibility; PR `#5193` and immutable `3fbe7554`; release-reconciler PRs `#5194`--`#5199` and
-immutable `b8cff053`. These are supporting components, not proof that revenue progress is restored.
+immutable `b8cff053`. PR `#5200` adds explicit revenue-before-borrow admission, PR `#5201` removes stale
+pre-fetch release reconciliation, PR `#5202` lets revenue owners share the measured host-wide ceiling instead
+of the borrow-only `agent=1` limit, and PR `#5203` applies the same rule during the v1 drain. Their natural
+`77f80b3a` Paid wake acquired a slot beside unrelated owners, officially observed four rooms, and refreshed
+Ryu `18211957` plus Kokoro `18223833`/`18250352` concurrently; it still ended `effect=0`, `readback=0`,
+`pending=3` because targeted rows retained `delivery_action=none`. PR `#5204` routes those official targeted
+rows back through the existing delivery queue and treats an explicit revision stage as work required;
+immutable `287ccb88` is installed for the next natural Paid wake. These are supporting components, not proof
+that buyer-visible progress is restored until that wake produces per-client effects and official readback.
 
 ### 2. Coconala vertical revenue proof
 
