@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -1022,7 +1023,8 @@ def sha256_file(path: Path) -> str:
 
 
 def recover_captured_attachment(
-    project_root: Path, filename: str,
+    project_root: Path, filename: str, *, reference: str | None = None,
+    allow_filename_fallback: bool = True,
 ) -> tuple[str, str, int] | None:
     """Bytes an earlier pass already fetched, found by this module's own naming.
 
@@ -1041,7 +1043,41 @@ def recover_captured_attachment(
     is ``None``: the same answer as never having fetched it, which is true.
     """
     directory = project_root / "source" / "buyer-attachments"
-    suffix = f"-{filename}"
+    safe_name = safe_filename(filename)
+    if reference is not None:
+        reference = safe_download_reference(None, reference)
+        if reference is None:
+            return None
+        try:
+            index = json.loads((directory / ".reference-index.json").read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            index = {}
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            return None
+        entry = (index.get("references") or {}).get(reference) if isinstance(index, dict) else None
+        if isinstance(entry, dict):
+            digest = str(entry.get("sha256") or "")
+            stored_name = str(entry.get("stored_name") or "")
+            path = directory / stored_name
+            try:
+                if path.is_symlink():
+                    return None
+                resolved = path.resolve()
+                resolved.relative_to(directory.resolve())
+                size = resolved.stat().st_size
+            except (OSError, ValueError):
+                return None
+            if (entry.get("filename") != safe_name
+                    or not re.fullmatch(r"[0-9a-f]{64}", digest)
+                    or Path(stored_name).name != stored_name
+                    or stored_name != f"{digest[:12]}-{safe_name}"
+                    or not resolved.is_file()
+                    or sha256_file(resolved) != digest):
+                return None
+            return str(resolved), digest, size
+        if not allow_filename_fallback:
+            return None
+    suffix = f"-{safe_name}"
     found: dict[str, tuple[str, int]] = {}
     try:
         entries = sorted(directory.iterdir())
@@ -1067,7 +1103,7 @@ def recover_captured_attachment(
 
 
 def persist_captured_attachment(
-    project_root: Path, filename: str, payload: bytes,
+    project_root: Path, filename: str, payload: bytes, *, reference: str | None = None,
 ) -> tuple[str, str, int]:
     """Durably retain one successful browser download before capture continues."""
     safe_name = safe_filename(filename)
@@ -1077,6 +1113,28 @@ def persist_captured_attachment(
     )
     if not source_path.is_file() or sha256_file(source_path) != digest:
         secure_write_bytes(source_path, payload)
+    if reference is not None:
+        reference = safe_download_reference(None, reference)
+        if reference is None:
+            raise ValueError("invalid attachment reference")
+        index_path = source_path.parent / ".reference-index.json"
+        lock_path = source_path.parent / ".reference-index.lock"
+        with lock_path.open("a+b") as lock:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            try:
+                index = json.loads(index_path.read_text(encoding="utf-8"))
+            except FileNotFoundError:
+                index = {"version": 1, "references": {}}
+            if (not isinstance(index, dict) or index.get("version") != 1
+                    or not isinstance(index.get("references"), dict)):
+                raise ValueError("invalid attachment reference index")
+            index["references"][reference] = {
+                "filename": safe_name,
+                "stored_name": source_path.name,
+                "sha256": digest,
+                "size_bytes": len(payload),
+            }
+            atomic_json(index_path, index)
     return str(source_path), digest, len(payload)
 
 
@@ -2067,12 +2125,20 @@ def persist_latest_paid_buyer_reply(
                 if captured_bytes and len(captured_bytes) <= 16 * 1024 * 1024:
                     captured_path, captured_sha256, captured_size = persist_captured_attachment(
                         project_root, filename, captured_bytes,
+                        reference=safe_download_reference(
+                            attachment.get("href"), attachment.get("reference")
+                        ),
                     )
             if captured_path is None:
                 # This pass did not fetch it; an earlier pass may already have.
                 # Asking the disk is what turns "we failed to download" back into
                 # the truth, which is that the file has been here since 22:00.
-                recovered = recover_captured_attachment(project_root, filename)
+                recovered = recover_captured_attachment(
+                    project_root, filename,
+                    reference=safe_download_reference(
+                        attachment.get("href"), attachment.get("reference")
+                    ),
+                )
                 if recovered is not None:
                     captured_path, captured_sha256, captured_size = recovered
             attachment_manifest.append({
@@ -2522,14 +2588,24 @@ async def capture_click_downloads(
         # Attachment capture has a bounded 45-second envelope. Start with the
         # newest buyer message so a long historical room cannot spend the whole
         # budget downloading obsolete files before the current revision assets.
+        attachment_name_counts = Counter(
+            safe_filename(attachment.get("filename"))
+            for message in talkroom.get("messages", []) if isinstance(message, dict)
+            for attachment in message.get("attachments", []) if isinstance(attachment, dict)
+        )
         for message_index, message in newest_first_messages(talkroom):
             if not isinstance(message, dict) or message.get("side") != "buyer":
                 continue
             for attachment_index, attachment in enumerate(message.get("attachments") or []):
                 if not isinstance(attachment, dict) or attachment.get("data_base64"):
                     continue
+                filename = safe_filename(attachment.get("filename"))
+                reference = safe_download_reference(
+                    attachment.get("href"), attachment.get("reference")
+                )
                 recovered = recover_captured_attachment(
-                    project_root, safe_filename(attachment.get("filename")),
+                    project_root, filename, reference=reference,
+                    allow_filename_fallback=attachment_name_counts[filename] == 1,
                 ) if project_root is not None else None
                 if recovered is not None:
                     continue
@@ -2736,6 +2812,7 @@ async def capture_click_downloads(
                 if project_root is not None:
                     source_path, digest, size = persist_captured_attachment(
                         project_root, attachment.get("filename"), payload,
+                        reference=reference,
                     )
                     attachment["source_path"] = source_path
                     attachment["sha256"] = digest

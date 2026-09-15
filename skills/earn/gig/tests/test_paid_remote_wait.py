@@ -280,6 +280,33 @@ def test_reobserved_same_attachment_reference_does_not_block_recovery(tmp_path: 
     assert paid._buyer_attachment_recovery_pending(tmp_path) is False
 
 
+def test_duplicate_filenames_require_and_accept_each_official_reference(tmp_path: Path) -> None:
+    paid = load("paid_direct")
+    snapshot = load("coconala_queue_snapshot")
+    first = "message:123:attachment:0"
+    second = "message:456:attachment:0"
+    ledger = tmp_path / "source" / "talkroom" / "messages.jsonl"
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text("\n".join([
+        json.dumps({"side": "buyer", "attachments": [{
+            "filename": "same.png", "reference": first,
+        }]}),
+        json.dumps({"side": "buyer", "attachments": [{
+            "filename": "same.png", "reference": second,
+        }]}),
+    ]) + "\n", encoding="utf-8")
+
+    snapshot.persist_captured_attachment(
+        tmp_path, "same.png", b"first", reference=first,
+    )
+    assert paid._buyer_attachment_recovery_pending(tmp_path) is True
+
+    snapshot.persist_captured_attachment(
+        tmp_path, "same.png", b"second", reference=second,
+    )
+    assert paid._buyer_attachment_recovery_pending(tmp_path) is False
+
+
 def test_older_unfetched_buyer_attachment_cannot_hide_behind_latest_requirements(tmp_path: Path) -> None:
     paid = load("paid_direct")
     ledger = tmp_path / "source" / "talkroom" / "messages.jsonl"
