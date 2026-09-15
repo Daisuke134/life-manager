@@ -2289,6 +2289,35 @@ class LmLoopApplyTest(unittest.TestCase):
 
         activate.assert_not_called()
 
+    def test_admission_v2_activation_accepts_mixed_v2_capable_releases(self):
+        (self.root / "config").mkdir()
+        (self.root / "config/runtime-capabilities.json").write_text(json.dumps({
+            "resource_admission": 2,
+        }))
+        loaded = (self.root / "older-v2-release").resolve()
+        (loaded / "bin").mkdir(parents=True)
+        (loaded / "config").mkdir()
+        (loaded / "bin/lm-loop-run").write_text("#!/bin/sh\n")
+        (loaded / "config/runtime-capabilities.json").write_text(json.dumps({
+            "resource_admission": 2,
+        }))
+        expected = [str(loaded / "bin/lm-loop-run"), "example", str(loaded)]
+
+        def launchctl(_safe, args):
+            if args == ["preflight"]:
+                return 0, "ok"
+            return 0, "arguments = {\n" + "\n".join(expected) + "\n}\n"
+
+        with (patch.object(lm_loop, "_safe_launchctl", side_effect=launchctl),
+              patch.object(lm_loop, "activate_durable_v2") as activate):
+            result = lm_loop.activate_durable_admission_live(
+                registry(), self.root, self.root / "bin/launchctl-safe",
+                current=self.root / "current",
+            )
+
+        self.assertEqual(result["verified_finite_labels"], 1)
+        activate.assert_called_once_with(allow_live_owners=True)
+
     def test_admission_v2_activation_verifies_all_finite_labels_then_flips(self):
         (self.root / "config").mkdir()
         (self.root / "config/runtime-capabilities.json").write_text(json.dumps({
@@ -2310,7 +2339,7 @@ class LmLoopApplyTest(unittest.TestCase):
             )
 
         self.assertEqual(result, {"ok": True, "protocol": 2, "verified_finite_labels": 1})
-        activate.assert_called_once_with()
+        activate.assert_called_once_with(allow_live_owners=True)
 
     def test_activate_current_rejects_old_release_while_protocol_v2(self):
         release_a = self._release("release-a").resolve()

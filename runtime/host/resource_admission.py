@@ -198,7 +198,7 @@ def durable_protocol_version() -> int:
     return int(value["version"])
 
 
-def activate_durable_v2() -> None:
+def activate_durable_v2(*, allow_live_owners: bool = False) -> None:
     """Atomically enable v2 only after every legacy admission owner drains."""
     if durable_protocol_version() == 2:
         return
@@ -211,6 +211,8 @@ def activate_durable_v2() -> None:
             return
         for path in owners.glob("*.json"):
             if _live(path, starts, snapshot_started_ns):
+                if allow_live_owners:
+                    continue
                 raise RuntimeError("legacy admission is not idle")
             path.unlink(missing_ok=True)
         for path in tickets.glob("*.json"):
