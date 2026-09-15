@@ -1007,6 +1007,30 @@ def test_owner_verification_handoff_rejects_actual_remaining_work():
         paid._validated_owner_outcome_for_verification({"business_outcome": outcome})
 
 
+def test_incomplete_owner_with_new_checkpoint_continues_before_verifier():
+    paid = load("paid_direct")
+    result = {"status": "ok", "business_outcome": {
+        "required_effect_satisfied": False,
+        "required_output_satisfied": False,
+        "remaining_work": ["Continue the next candidate."],
+    }}
+
+    assert paid._continue_remote_owner_same_run(result, 100, 140, 1, 3) is True
+    assert paid._continue_remote_owner_same_run(result, 100, 100, 1, 3) is False
+    assert paid._continue_remote_owner_same_run(result, 100, 140, 3, 3) is False
+
+
+def test_complete_owner_never_repeats_before_verifier():
+    paid = load("paid_direct")
+    result = {"status": "ok", "business_outcome": {
+        "required_effect_satisfied": True,
+        "required_output_satisfied": True,
+        "remaining_work": [],
+    }}
+
+    assert paid._continue_remote_owner_same_run(result, 100, 140, 1, 3) is False
+
+
 def test_incomplete_ok_verifier_contract_retries_before_failing(monkeypatch, tmp_path):
     paid = load("paid_direct")
 

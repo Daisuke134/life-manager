@@ -5123,6 +5123,27 @@ def _remote_owner_checkpoint(status: str, root: Path, feedback: str, digest: str
     raise Failure("remote_builder")
 
 
+def _continue_remote_owner_same_run(result: object, progress_before: int,
+                                    progress_after: int, review_round: int,
+                                    max_rounds: int) -> bool:
+    """Spend an existing review round on more durable work before verification."""
+    if not isinstance(result, dict) or result.get("status") != "ok":
+        return False
+    outcome = result.get("business_outcome")
+    if not isinstance(outcome, dict):
+        return False
+    remaining = outcome.get("remaining_work")
+    return (
+        review_round < max_rounds
+        and progress_after > progress_before
+        and outcome.get("required_effect_satisfied") is False
+        and outcome.get("required_output_satisfied") is False
+        and isinstance(remaining, list)
+        and bool(remaining)
+        and not isinstance(outcome.get("wait_receipt"), dict)
+    )
+
+
 def _raise_remote_builder_or_progress(progress: Path, before_size: int,
                                       expected: dict[str, str], error: Exception) -> None:
     """Keep newly checkpointed self-actionable work resumable after owner validation."""
@@ -5233,7 +5254,8 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
 
     verifier_path = None
     verifier_contract_error = None
-    for review_round in range(1, 4):
+    max_review_rounds = 3
+    for review_round in range(1, max_review_rounds + 1):
         if builder_required:
             prompt = repair / "owner.prompt.txt"
             prompt.write_text(
@@ -5308,6 +5330,13 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
                 _raise_remote_builder_or_progress(
                     progress, progress_size, progress_contract, error,
                 )
+            delivery_result = _load(root / "delivery" / "paid-remote-result.json")
+            progress_after = progress.stat().st_size if _regular_file(progress) else 0
+            if _continue_remote_owner_same_run(
+                    delivery_result, progress_size, progress_after,
+                    review_round, max_review_rounds):
+                builder_required, review_delta = True, None
+                continue
             builder_required, validation_start = False, pass_start
 
         if verifier_evidence.is_symlink():
