@@ -94,12 +94,23 @@ if [ -f "$PRESSURE_FILE" ]; then
   if [ "${#PRESSURE_ARCHIVE_PATHS[@]}" -gt 0 ]; then
     PRESSURE_HAS_BIN=0
     PRESSURE_HAS_SHARED=0
+    PRESSURE_HAS_RUNTIME_CAPABILITIES=0
     for path in "${PRESSURE_ARCHIVE_PATHS[@]}"; do
       [ "$path" = "bin" ] && PRESSURE_HAS_BIN=1
       [ "$path" = "skills/_shared" ] && PRESSURE_HAS_SHARED=1
+      if [ "$path" = "config" ] || [ "$path" = "config/runtime-capabilities.json" ]; then
+        PRESSURE_HAS_RUNTIME_CAPABILITIES=1
+      fi
     done
     if [ "$PRESSURE_HAS_BIN" -eq 1 ] && [ "$PRESSURE_HAS_SHARED" -eq 0 ]; then
       PRESSURE_ARCHIVE_PATHS+=("skills/_shared")
+    fi
+    # Activating `current` on an admission-v2 host requires the capability
+    # marker even when the caller requested a sparse path list. Measure the
+    # marker with the rest of the bounded archive so the pressure gate covers
+    # the exact payload that will be exported.
+    if [ "$ACTIVATE_CURRENT" = "1" ] && [ "$PRESSURE_HAS_RUNTIME_CAPABILITIES" -eq 0 ]; then
+      PRESSURE_ARCHIVE_PATHS+=("config/runtime-capabilities.json")
     fi
     PRESSURE_MAX_ARCHIVE_BYTES="${LOOPS_PRESSURE_MAX_ARCHIVE_BYTES:-268435456}"
     [[ "$PRESSURE_MAX_ARCHIVE_BYTES" =~ ^[1-9][0-9]*$ ]] || die "invalid pressure archive ceiling"
@@ -215,11 +226,15 @@ if [ -n "$RELEASE_PATHS" ]; then
   HAS_SHARED=0
   HAS_CONNECTOR=0
   HAS_BROWSER_RUNTIME=0
+  HAS_RUNTIME_CAPABILITIES=0
   for path in "${ARCHIVE_PATHS[@]}"; do
     [ "$path" = "bin" ] && HAS_BIN=1
     [ "$path" = "skills/_shared" ] && HAS_SHARED=1
     { [ "$path" = "apps/life-manager" ] || [ "$path" = "skills/connector" ]; } && HAS_CONNECTOR=1
     [ "$path" = "runtime/browser" ] && HAS_BROWSER_RUNTIME=1
+    if [ "$path" = "config" ] || [ "$path" = "config/runtime-capabilities.json" ]; then
+      HAS_RUNTIME_CAPABILITIES=1
+    fi
   done
   if [ "$HAS_BIN" -eq 1 ] && [ "$HAS_SHARED" -eq 0 ]; then
     ARCHIVE_PATHS+=("skills/_shared")
@@ -228,6 +243,11 @@ if [ -n "$RELEASE_PATHS" ]; then
   # primitive at runtime. Keep sparse releases import-complete.
   if [ "$HAS_CONNECTOR" -eq 1 ] && [ "$HAS_BROWSER_RUNTIME" -eq 0 ]; then
     ARCHIVE_PATHS+=("runtime/browser")
+  fi
+  # A sparse release may replace `current`. Keep it compatible with the
+  # durable admission protocol already enabled on the host.
+  if [ "$ACTIVATE_CURRENT" = "1" ] && [ "$HAS_RUNTIME_CAPABILITIES" -eq 0 ]; then
+    ARCHIVE_PATHS+=("config/runtime-capabilities.json")
   fi
 fi
 if [ "${#ARCHIVE_PATHS[@]}" -eq 0 ] && [ -n "$FULL_CLONE_DONOR" ]; then
