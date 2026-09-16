@@ -26,6 +26,7 @@ maintenance用途として別途判断し、現在のproduction gateには含め
 - browser session contractとlocal headless read-only canary（BROWSER-01〜BROWSER-02）
 - Responses APIの同期adapterとread-only background start/poll（API-01の基礎部分）
 - `local-completion-gate.js --runtime-status` による実行時statusの再束縛（古いruntime要約をそのまま受け入れない）
+- 実機statusで原因が分かるloopを`blocked`として保持し、`unknown`を原因の代わりに使わない分類（candidateでテスト済み）
 - Lancers共有9227/profileのbrowser session lease実装と競合時の再試行分類（コード/テスト済み、main未統合）
 - bounded recovery decision、既存`harness-failures.jsonl`へのsecret-free recovery intent保存、`harness-recovery.json`へのowner/slot別最新intent投影（コード/テスト済み、supervisorの実動作は未接続）
 
@@ -142,11 +143,9 @@ mock/fixture・PID・exit 0・Telegramは証拠にしません。
 | R1-13 | `capafy`のmanifest行を観測 | 8 jobのruntime status、release、typed effect/readback状態、理由を記録 | product/publication/revenue receiptまたはtyped terminal、replay-zero |
 | R1-14 | `cfo`のmanifest行を観測 | 3 jobのruntime status、release、typed effect/readback状態、理由を記録 | verified financial snapshot/payout receipt、replay-zero |
 
-**観測cursor（2026-09-16）:** `R1-01` Coconala、`R1-02` Lancers、`R1-03` CrowdWorks、
-`R1-04` Writer、`R1-05` Affiliate、`R1-06` Investment、`R1-07` Agent Economy、
-`R1-08` Job Hunter、`R1-09` Fundraiser、`R1-10` Connector、`R1-11` Self-build、
-`R1-12` Mobile Apps、`R1-13` Capafyの観測行は、receiptの有無にかかわらずGit外private artifactへ
-記録済みです。次の観測atomicは`R1-14 CFO`です。
+**観測cursor（2026-09-16）:** `R1-01`〜`R1-14`（Coconala、Lancers、CrowdWorks、Writer、Affiliate、
+Investment、Agent Economy、Job Hunter、Fundraiser、Connector、Self-build、Mobile Apps、Capafy、CFO）の
+観測行を、receiptの有無にかかわらずGit外private artifactへ記録済みです。R1観測は完了し、次のatomicは`R2 Local gate`です。
 `verified`昇格は別判定であり、release結合済みreceiptが無い行は`unknown`のまま保持します。
 
 #### R2〜R6: R1の後に一件ずつ実行するgate
@@ -173,7 +172,7 @@ mock/fixture・PID・exit 0・Telegramは証拠にしません。
 | S-03 | repair完了後の同一owner再開を一件検証 | `runtime/loop/lm_loop_run.py`、既存owner state/event | 同じjob/effect namespaceで再開し、duplicate effect 0、official readback未確認は未完のまま |
 | S-04 | candidate→held-out/safety/cost eval→promotion/rollbackを一件閉じる | `apps/life-manager/eval/agent-contract/`、`apps/life-manager/lib/product-onboarding.js` | baseline比較、held-out、safety、cost、rollback pointerが揃い、production stateを直接変更しない |
 
-#### TODO 1の現在のslice: `gig-coconala`
+#### R1観測結果の現在状態（2026-09-16）
 
 Git外のCoconala receiptをread-onlyで確認した結果、認証済み・公式talkroom参照・
 `exact_readback=true`・`quality_status=qualified`の実receiptは存在します。しかし再確認時点でcatalogの7 jobは、
@@ -293,6 +292,10 @@ Capafyの同日観測では、会社receiptに注文10件とInstagram公開URL�
 だった。8 jobのruntime releaseはcurrent releaseと一致せず、`state=blocked / reason=runtime_release_drift /
 official_receipt=true / replay_zero=false`で保存した。
 
+CFOの同日観測では、Moneytreeが利用できず`financial_source_unavailable`で終了し、Payoutも
+`no_verified_surplus`で送金額0だった。3 jobのruntimeはcontrol/FIFO busyで、
+`state=blocked / reason=financial_source_unavailable / official_receipt=false / replay_zero=false`で保存した。
+
 #### CLIのOSS化方針
 
 `product-loop-completion.js`、`local-completion-gate.js`、`cloud-promotion-gate.js`はOSS化する。
@@ -329,10 +332,9 @@ Telegram報告、テストgreen、ブラウザ画面表示だけでは完了に�
 先に配布しません。全体のlocal/cloud受入が揃った最後に、main統合とimmutable release作成を
 一度だけ行います。
 
-**現在のfoundation cursor:** Architecture側の`OBS-01`は完了しています。`CAND-01`と`CAND-02`の内部canaryも完了しています。`LOCAL-01/02`
+**現在のfoundation cursor:** Architecture側の`OBS-01`は完了しています。`CAND-01`と`CAND-02`の内部canaryも完了しています。R1の14 loop観測も完了し、次は`R2 Local gate`です。`LOCAL-01/02`
 ではcompletion manifestの契約と`lm-loop status` JSON接続、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、失敗記録へのrecovery intent保存、`harness-recovery.json`へのowner/slot別最新intent投影、7つのskill索引、`CONTROL-01`のexternal owner登録、管理statusの安定`job_id`/`owner_id`出力、常駐non-effect jobのruntime health判定、completion CLIの既存親ディレクトリ権限保護、runtime rowのjob identity一致検査、Local/Cloud verified行のruntime evidence必須化、Local/Cloud gateのruntime evidence整合性検査、official receiptのrelease SHA結合必須化をcandidate `b470ec3ead`へ実装済みです。
-Graph/Eval/notificationの契約も同candidateへ接続済みです。Local gate CLIのruntime status再束縛、非runtime manifest契約の保持、schema改ざん回帰テスト（43件PASS）、setup_required行の既知runtime診断保持、既知runtime障害の`blocked`分類も同candidateへ固定しました。次は各loopのevidenceを
-このmanifestへ接続する作業であり、platformの外部effectを私が実行する項目ではありません。
+Graph/Eval/notificationの契約も同candidateへ接続済みです。Local gate CLIのruntime status再束縛、非runtime manifest契約の保持、schema改ざん回帰テスト（43件PASS）、setup_required行の既知runtime診断保持、既知runtime障害の`blocked`分類も同candidateへ固定しました。次は14行のLocal gateを一度判定する作業であり、platformの外部effectを私が実行する項目ではありません。
 
 ### 理想フロー（1回のwake）
 
