@@ -38,6 +38,22 @@ def browser_entry(label: str, profile: str, port: int):
 
 
 class MacosLoopRegistryTest(unittest.TestCase):
+    def test_queued_wake_coalescing_requires_reserved_wake_coalescing(self):
+        row = entry()
+        row["coalesce_queued_wakes"] = True
+        with self.assertRaises(ValueError):
+            validate_registry({"schema_version": 2, "loops": {"example": row}})
+        row["coalesce_reserved_wakes"] = True
+        self.assertEqual(validate_registry({
+            "schema_version": 2, "loops": {"example": row},
+        })["loops"]["example"]["coalesce_queued_wakes"], True)
+
+    def test_known_submitted_browser_provisioner_is_explicit_external_owner(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        label = "ai.anicca.provision-browser.colors-hachioji.owner-18211957"
+        self.assertIn(label, registry["external_labels"])
+        self.assertNotIn(label, {row["label"] for row in registry["loops"].values()})
+
     def test_paper_and_shadow_are_retired_after_recurring_live_cutover(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         self.assertNotIn("alpaca-investment", registry["loops"])

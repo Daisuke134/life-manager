@@ -16,7 +16,8 @@ FIELDS = {
     "log_root", "cleanup", "provider_route",
 }
 OPTIONAL_FIELDS = {
-    "adapter", "admission_class", "browser_owner", "coalesce_reserved_wakes", "command",
+    "adapter", "admission_class", "browser_owner", "coalesce_reserved_wakes",
+    "coalesce_queued_wakes", "command",
     "priority", "runtime_timeout_seconds", "resource_class",
 }
 QUEUE_PRIORITIES = {"critical_paid", "revenue", "support"}
@@ -68,6 +69,9 @@ def validate_registry(registry: dict) -> dict:
             _fail(f"{loop_id}: invalid admission_class")
         if "coalesce_reserved_wakes" in row and type(row["coalesce_reserved_wakes"]) is not bool:
             _fail(f"{loop_id}: invalid coalesce_reserved_wakes")
+        if "coalesce_queued_wakes" in row and (type(row["coalesce_queued_wakes"]) is not bool
+                or (row["coalesce_queued_wakes"] and row.get("coalesce_reserved_wakes") is not True)):
+            _fail(f"{loop_id}: invalid coalesce_queued_wakes")
         if row.get("priority") not in {None, *QUEUE_PRIORITIES}:
             _fail(f"{loop_id}: invalid priority")
         adapter_present = "adapter" in row
@@ -209,6 +213,7 @@ def loop_json_schema() -> dict:
             "provider_route": {"type": "string", "enum": sorted(ROUTES)},
             "admission_class": {"type": "string", "enum": ["borrow", "revenue"]},
             "coalesce_reserved_wakes": {"type": "boolean"},
+            "coalesce_queued_wakes": {"type": "boolean"},
             "resource_class": {"type": "string", "enum": ["agent", "browser", "deterministic"]},
             "priority": {"type": "string", "enum": sorted(QUEUE_PRIORITIES)},
             "runtime_timeout_seconds": positive_integer,
