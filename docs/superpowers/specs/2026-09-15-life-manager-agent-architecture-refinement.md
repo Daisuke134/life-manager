@@ -343,6 +343,15 @@ agent queueが38件、deterministic queueが6件、swap使用量が約21.8GiBだ
 priority aging・occurrence durabilityをLocal canaryで同じownerに適用し、queueからclaimへ進める
 実測を得るまで、R2-03は未完のまま保持する。
 
+candidate release `3a70e98867a51eedf59539f336c968cf995e91a5`をConnector一件へLocal canary配置し、
+一回だけ手動kickstartした。資源枠は通過し、外側`lm-loop`の同一runは`running`から
+`report/pass`へ遷移し、installed/event SHAはcandidateで一致した。wake reportは
+`completed_no_effect / fallback_deferred_for_wake_budget`、Calendar busy readbackは成功、
+Luma/Connpass discoveryも成功したが、Connpassのtier/questionnaire/unsafe-action guardが働き、
+新規応募・登録・Calendar createは0、delivery receiptのmtimeも不変だった。これはcandidateの
+capacity経路と安全なno-effect terminalの証明であり、自然wake・公式効果receiptの代用ではない。
+外側runの自然wake terminalと同一ownerの公式readbackを得るまで、R2-03を未完のまま保持する。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
