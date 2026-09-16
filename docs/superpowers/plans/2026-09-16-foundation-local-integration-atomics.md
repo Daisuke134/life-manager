@@ -599,6 +599,20 @@ The narrow main release must not be reapplied. The next source cursor is a
 fresh review of the 101-file shared-v2 foundation/domain diff, then its
 main-derived release and unchanged Local queue/effect gates. Keep Coconala's
 provider owner untouched; Cloud still follows Local/Eval.
+That fresh review returned FIX-FIRST: on a controlled timeout/signal after
+an effect child starts, the candidate released its occurrence even though
+crash recovery would fence it as effect-unknown. Source-only
+`618fb4f6b7` now fences nonzero started-child exits (130 focused tests PASS),
+but it is **not deployable alone**: no official-readback resolver clears the
+exact occurrence. Connector currently creates an unrelated random wake ID
+and saves potential-effect candidates only after a result returns, so a kill
+during submit leaves no durable occurrence→provider/event map. Before shared
+v2 promotion, carry the host occurrence ID into the child, write one intent
+for every candidate before its first external effect, run a readback-only
+same-owner recovery for all intents, and clear the exact fence only after
+official provider/Calendar terminal receipts. Tests must cover 124/143,
+kill-before/after-intent, mixed registered/absent, missing mapping and
+replay-zero. Merge latest main into candidate before any release cut.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

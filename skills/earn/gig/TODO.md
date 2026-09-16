@@ -652,6 +652,29 @@ review and must not edit Coconala's provider owner. The prior two compatibility
 PRs were the same explicitly recorded
 exception to the one-final-merge ordering. This does not relax Cloud/Local,
 identity, permission, receipt or Eval gates.
+Fresh review of the 101-file candidate returned **FIX-FIRST**. A started
+effect child returning 124 timeout, 143 signal or another nonzero previously
+released its occurrence and could admit another same-owner wake before
+official readback. Source-only `618fb4f6b7` now leaves those occurrences
+`effect_unknown=1`; focused admission/runner 130/130 PASS. **Do not promote
+this fence alone:** no API or autonomous official-readback route currently
+clears it, so liveness would be lost after a timeout. Exact next slices:
+1. Propagate the host `occurrence_id` into the Connector child; persist a
+   write-ahead set of `(occurrence_id, provider, event_ref, canonical_url)`
+   before each possible provider/Calendar effect. One wake can attempt more
+   than one candidate. The existing after-result reconciliation store is not
+   sufficient for a kill during submit.
+2. Add a same-owner, readback-only recovery path for each attempted target,
+   using existing provider adapters and official Calendar/provider state.
+   No submit is permitted while the occurrence is fenced. Clear that exact
+   occurrence only after every attempted target has a terminal official
+   receipt; missing/mismatched intent stays fenced with an alert.
+3. Test kill before intent, kill after durable intent but before effect, kill
+   during effect, mixed registered/absent targets, malformed/missing mapping,
+   and replay-zero. Then merge latest main `ba9246eeaf` into the candidate,
+   re-run full Local/Eval gates, and only then propose shared-v2 main promotion.
+No Connector registration, Affiliate second plan, Metrics snapshot or 14-loop
+success is established by this source safety patch.
 
 **Current shared-runtime blocker:** The *loaded* candidate still uses the earlier reservation-only protocol,
 so a mixed-release dispatch cannot safely wake it. The foundation source now has queued-scan coalescing,
