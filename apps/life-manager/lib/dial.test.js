@@ -14,7 +14,7 @@ function jsonResponse(payload, ok = true, status = ok ? 200 : 500) {
   return { ok, status, async json() { return payload; } };
 }
 
-async function withDialTransport(callPayload, run) {
+async function withDialTransport(callPayload, run, expectedRequests = 2) {
   const savedEnv = {
     TELNYX_API_KEY: process.env.TELNYX_API_KEY,
     TELNYX_CONNECTION_ID: process.env.TELNYX_CONNECTION_ID,
@@ -35,7 +35,7 @@ async function withDialTransport(callPayload, run) {
   };
   try {
     const result = await run(requests);
-    assert.equal(requests.length, 2, "placeCall must keep the existing balance plus one dial request");
+    assert.equal(requests.length, expectedRequests, "unexpected Telnyx request count");
     return result;
   } finally {
     global.fetch = savedFetch;
@@ -125,6 +125,14 @@ test("placeCall sends the reserved connected-second ceiling to Telnyx", async ()
     assert.equal(result.ok, true);
     assert.equal(JSON.parse(requests[1].options.body).time_limit_secs, 37);
   }));
+});
+
+test("placeCall rejects a reserved limit below Telnyx's 30-second minimum before any request", async () => {
+  await withDialTransport(null, async () => {
+    const result = await placeCall({ to: "+99900000000", streamUrl: CALL_URL, timeLimitSeconds: 29 });
+    assert.equal(result.ok, false);
+    assert.match(result.error, /30/);
+  }, 0);
 });
 
 test("placeCall maps absent or invalid optional Telnyx identities to null", async () => {

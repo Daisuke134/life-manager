@@ -83,6 +83,9 @@ async function placeCall({ to, streamUrl, clientState, timeLimitSeconds = 120 })
   const FROM = process.env.TELNYX_PHONE_NUMBER;
   if (!API || !CONN || !FROM) return { ok: false, error: "telnyx env missing (API/CONN/FROM)" };
   if (!to || !streamUrl) return { ok: false, error: "to/streamUrl required" };
+  if (!Number.isInteger(Number(timeLimitSeconds)) || Number(timeLimitSeconds) < 30 || Number(timeLimitSeconds) > 14400) {
+    return { ok: false, error: "timeLimitSeconds must be an integer between 30 and 14400" };
+  }
 
   // Preflight: never dial on an empty balance (a mid-call cutoff is a fake "connected").
   const usd = await balanceUsd().catch(() => NaN);
