@@ -5,6 +5,7 @@ import plistlib
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from unittest.mock import call, patch
@@ -106,6 +107,50 @@ def test_wake_occurrence_identity_is_forwarded_to_durable_admission(tmp_path):
         priority="revenue", occurrence_id="connector:1800000000-1",
     )
     run.assert_not_called()
+
+
+def test_running_child_receives_periodic_claim_heartbeat(tmp_path, monkeypatch):
+    entry = {
+        "cadence": {"start_interval_seconds": 60},
+        "provider_route": "deterministic",
+        "admission_class": "revenue",
+        "priority": "revenue",
+    }
+    receipt = tmp_path / "receipt"
+    claim = tmp_path / "claim"
+    claim.write_text("owned")
+    heartbeat_seen = threading.Event()
+    calls = []
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        assert heartbeat_seen.wait(timeout=1)
+        return 0
+
+    def heartbeat(_claim):
+        calls.append("heartbeat")
+        heartbeat_seen.set()
+        return True
+
+    monkeypatch.setattr("runtime.loop.lm_loop_run.HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.heartbeat_durable_resource",
+                side_effect=heartbeat),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                side_effect=lambda *_args, **_kwargs: calls.append("release") or []),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(
+            ["/bin/true"], entry, "heartbeat-owner", {}, receipt,
+            occurrence_id="heartbeat-owner:run-1",
+        ) == 0
+
+    assert calls[0] == "heartbeat"
+    assert calls[-1] == "release"
 
 
 def test_memory_admission_exit_is_deferred_not_failed():
