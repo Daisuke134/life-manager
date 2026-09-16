@@ -3858,6 +3858,11 @@ def default_ineligible_cache_path() -> Path:
     return Path.home() / "gig" / "b2-ineligible-cache.json"
 
 
+def _full_history_reconcile_enabled() -> bool:
+    """Keep historical cleanup out of the revenue-critical Apply wake."""
+    return os.environ.get("GIG_RUN_FULL_HISTORY_RECONCILE") == "1"
+
+
 def load_ineligible_cache(
     cache_path: Path, *, now: float | None = None, ttl_seconds: float = INELIGIBLE_CACHE_TTL_SECONDS
 ) -> dict[str, dict[str, object]]:
@@ -4561,7 +4566,7 @@ def run_parent(
             effects.ws_recycler = lease.recycle
             intent_store = fence.IntentStore(intent_root)
             uncertain_intents = _durable_uncertain_intents(intent_store)
-            if uncertain_intents:
+            if uncertain_intents and _full_history_reconcile_enabled():
                 scan_state_path = intent_root / "full-history-scan-state.json"
                 target_sha256 = _sha256_bytes(json.dumps(
                     uncertain_intents, ensure_ascii=False, sort_keys=True,
