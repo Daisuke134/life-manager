@@ -574,8 +574,14 @@ The clean committed-source rerun later passed the entire control-plane suite
 natural wake `blocked/resource_capacity_busy` with 82 plans pending. Thus the
 source integration gate is closed, but the immutable-main release, one-owner
 loaded readback, queued occurrence claim, outer terminal and provider effect
-separation remain open. The next source defect is Connector's recorded
-TechPlay discovery overrun; do not mistake another capacity defer for its fix.
+separation remain open. The recorded Connector TechPlay overrun now has a
+source-only repair at pushed `79629bea4e`: bounded detail scans, durable
+pending/retry cursor, official applied-bundle retirement, budget-aware early
+provider scheduling and partial-progress audits. Fresh read-only review SHIP,
+Connector 776/776 and TechPlay26/26 tests PASS; the 19:52 UTC loaded old-SHA
+Connector wake still deferred on capacity before this code could run. Do not
+mistake code tests or a later capacity defer for natural `processed_count>0`,
+outer terminal, official provider readback or replay-zero.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

@@ -953,13 +953,19 @@ Connector's 18:39 natural outer run failed `wake_deadline` at 18:52, despite
 an inner PASS at 18:41. The same wake's audit shows TechPlay discovery taking
 302674 ms after earlier provider work; the workflow can inspect up to 50 RSS
 detail pages serially at up to 30 seconds each without a durable page cursor.
-No provider submit or Calendar effect is proven by this run. Next atomic
-Connector work: reproduce the unbounded discovery against the recorded wake,
-choose a bounded cursor/continuation contract that cannot silently skip deep
-RSS rows or repeat an uncertain effect, write a failing regression, then ship
-one provider-scoped slice and verify natural outer terminal plus official
-readback. Do not count the inner PASS or a `completed_no_effect` report as a
-Connector success.
+No provider submit or Calendar effect is proven by this run. The source-only
+TechPlay repair is pushed at `79629bea4e`: four detail reads per wake, a
+private durable cursor, retained actionable refs even after RSS eviction,
+official applied-bundle retirement, live remaining-wake budget, and a
+fair early-provider slot. The audit separates RSS/known/processed/pending and
+saturated counts. Connector tests 776/776, TechPlay26/26, OSS and fresh
+read-only review SHIP. This does **not** prove the loaded `cf655388` run used
+the fix; its 19:52 UTC natural wake remained pre-effect capacity-blocked.
+Next Connector gate: main-derived immutable release and targeted idle apply,
+then a natural outer terminal with TechPlay `processed_count>0`, exact
+provider/Calendar readback, and same-item replay-zero where an eligible
+effect occurs. Do not count inner PASS, `completed_no_effect`, or mock as a
+registration or a Connector production success.
 Separately, the 90-file foundation candidate integrated latest main's two
 bridge commits with conflict-aware merge `b5805f4352`. Candidate admission
 combines occurrence/priority/heartbeat fences with main's 60-second drift
