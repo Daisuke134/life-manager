@@ -36,6 +36,12 @@ class LmLoopReadonlyTest(unittest.TestCase):
                          ("blocked", "unknown", "provider_capacity"))
         self.assertNotEqual(row["installed_release_sha"], row["event_release_sha"])
 
+    def test_status_exposes_stable_job_and_owner_identity(self):
+        row = status_rows(REGISTRY, loaded={}, disabled={}, events={}, installed_releases={})[0]
+        self.assertEqual(row["job_id"], "example")
+        self.assertEqual(row["owner_id"], "example")
+        self.assertEqual(row["owner"], "life-manager")
+
     def test_doctor_lists_unmanaged_and_missing(self):
         report = doctor_report(REGISTRY,
             installed_labels={"ai.anicca.example", "ai.anicca.unmanaged"},

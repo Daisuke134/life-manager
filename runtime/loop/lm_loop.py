@@ -58,6 +58,13 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         rows.append({
             "classification": "managed",
             "owner": "life-manager",
+            # `owner` is the legacy harness label shared by the installation.  Keep
+            # it for compatibility, but expose the stable per-job identities used
+            # by admission, receipts, and recovery so sibling jobs cannot merge.
+            "job_id": loop_id,
+            "owner_id": (entry.get("owner_id")
+                         if isinstance(entry.get("owner_id"), str)
+                         and entry.get("owner_id").strip() else loop_id),
             "desired_mode": "continuous" if "keep_alive" in entry["cadence"] else "scheduled",
             "loop_id": loop_id,
             "label": label,
