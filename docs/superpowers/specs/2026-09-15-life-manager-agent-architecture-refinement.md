@@ -189,6 +189,9 @@ currentへ一致したが、`last_exit=75`、`host_admission_deferred:resource_c
 `capafy-goal-monitor`もpreflight PASS後にtargeted reconcileし、installed SHAをcurrentへ揃えた。
 最後の業務eventは旧SHAで`resource_capacity_busy`のまま、自然wakeのterminalは未確認である。
 
+`affiliate-composition`もtargeted reconcile後に自然terminalを観測した。installed/event SHAはcurrentへ一致し、
+`last_exit=75 / host_admission_deferred:resource_capacity_busy`だったため、release driftは解消したが容量待ちが残る。
+
 #### S: 自己修復・自己改善の残りも一件ずつ記録する
 
 これは別の常駐supervisorを追加するTODOではなく、既存のreconcile/launchd supervisorとcandidate gateへ
