@@ -140,6 +140,10 @@ mock/fixture・PID・exit 0・Telegramは証拠にしません。
 | R1-13 | `capafy`のmanifest行を観測 | 8 jobのruntime status、release、typed effect/readback状態、理由を記録 | product/publication/revenue receiptまたはtyped terminal、replay-zero |
 | R1-14 | `cfo`のmanifest行を観測 | 3 jobのruntime status、release、typed effect/readback状態、理由を記録 | verified financial snapshot/payout receipt、replay-zero |
 
+**観測cursor（2026-09-16）:** `R1-01` Coconalaと`R1-02` Lancersの観測行は、receiptの有無に
+かかわらずGit外private artifactへ記録済みです。次の観測atomicは`R1-03 CrowdWorks`です。
+`verified`昇格は別判定であり、release結合済みreceiptが無い行は`unknown`のまま保持します。
+
 #### R2〜R6: R1の後に一件ずつ実行するgate
 
 | 順番 | atomic task | 変更/参照ファイル | 完了条件 |
@@ -231,6 +235,10 @@ external IDの重複は0件だった。`general-agent/ga10/official-readback.jso
 「現在のimmutable releaseの成功である」ことを分け、現在は`receipt_release_unbound`として`unknown`に
 留める。古いreceiptへ現在のSHAを後付けせず、provider ownerがrelease結合付きの新しい証拠を一件
 保存した時だけ、この1行をmanifestへ接続する。
+
+2026-09-16の観測artifactでは、同じLancers receiptを再利用せず、既存の公式proposal URLと
+replay-zero記録を読み取って`official_receipt=true / replay_zero=true / release_sha=null`を保存した。
+runtime statusは7 jobのrelease driftを示すため、観測は完了したが`verified`昇格は行わない。
 
 #### CLIのOSS化方針
 
