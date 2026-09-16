@@ -587,7 +587,8 @@ sequence is unexecutable under the main-derived-production-release rule.
 The reviewed TechPlay commit is isolated on latest-main branch
 `fix/connector-techplay-bounded-main-20260917` at pushed `b9bb48268c`;
 that branch passed 775 Connector tests and OSS verification. Advance this
-domain-only PR through CI/main, cut its immutable main release, apply only
+domain-only PR [#5294](https://github.com/Daisuke134/life-manager/pull/5294)
+through CI/main (open, mergeable, checks pending at creation), cut its immutable main release, apply only
 idle Connector, then run the unchanged Local natural-wake/effect gates. This
 does not merge the 101-file foundation candidate, touch the Coconala owner,
 promote Cloud, or turn mock/code success into provider success.

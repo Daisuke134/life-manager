@@ -642,7 +642,9 @@ without loading unmerged candidate code or touching Coconala's provider owner.
 The current engineering cursor is the Connector-only branch
 `fix/connector-techplay-bounded-main-20260917` at pushed `b9bb48268c`;
 independent branch tests 775/775 and OSS PASS, but no main merge or live effect
-yet. The prior two compatibility PRs were the same explicitly recorded
+yet. Connector-only PR [#5294](https://github.com/Daisuke134/life-manager/pull/5294)
+is open on `b9bb48268c`, mergeable with CI pending; do not read a pending
+check as release evidence. The prior two compatibility PRs were the same explicitly recorded
 exception to the one-final-merge ordering. This does not relax Cloud/Local,
 identity, permission, receipt or Eval gates.
 
