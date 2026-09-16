@@ -824,6 +824,19 @@ the same three main-baseline failures noted above. Fresh read-only review of
 the final diff is running. No main merge, current switch or fleet apply yet;
 old immutable dispatchers will still cause a migration window until their
 loaded-idle owners are reconciled.
+Fresh read-only review of `d1e18ac84c` found no new P0/P1 in code and kept
+the operational migration gate open: every old dispatch-capable wrapper must
+finish or be safely reconciled before queue preservation is a production
+claim. Follow-up real-SQLite regressions fixed an expired reservation that
+otherwise left a drifted head immediately eligible, and proved bounded
+reconcile must inspect past its first eight stale rows so a later idle owner
+is not invisible. Related tests reached 177/177 plus 30 subtests. Full loop
+suite ran 447 with three failures: two sparse-release activation tests require
+a clean protocol-1 HOME rather than this host's live protocol v2; the third
+was a stale Capafy registry fixture, mechanically resynced and passing at
+pushed `11b2f60cce` (only two existing Capafy rows gain
+`admission_class=revenue`). CI runs this fixture test. No production
+effect/readback or main promotion follows from these source checks.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/

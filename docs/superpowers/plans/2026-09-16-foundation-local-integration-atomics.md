@@ -470,6 +470,15 @@ limit. Related tests 173 plus 30 subtests pass; full control-plane 445 has
 only the three unchanged-main baseline failures. Fresh final reviewer is
 running. Old loaded runners remain an explicit rollout window, not fixed by
 source tests or a main merge alone.
+Fresh review of the bridge code found no new P0/P1, but requires terminal and
+loaded-argv readback for every old dispatch-capable wrapper during rollout.
+Follow-up tests covered expired reservation cooldown and later eligible
+owners beyond the first-eight candidate window; 177 related tests plus 30
+subtests passed. Full suite 447 had the same two local protocol-v2 sparse-cut
+fixture failures and one stale Capafy registry fixture. The latter was
+mechanically updated (two `admission_class=revenue` fields), its exact test
+passed, and source branch `11b2f60cce` is pushed. The bridge remains unmerged
+and uninstalled; queue recovery and all fourteen product outcomes are open.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.
