@@ -33,6 +33,7 @@ PRIORITY_AGE_SECONDS = {
     "support": 2 * 60 * 60,
 }
 OCCURRENCE_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
+DEFAULT_HEARTBEAT_TIMEOUT_SECONDS = 300
 
 
 class _ProcBsdInfo(ctypes.Structure):
@@ -382,6 +383,32 @@ def _normalize_occurrence_id(occurrence_id: str | None) -> str | None:
     return occurrence_id
 
 
+def _heartbeat_timeout_seconds() -> int:
+    try:
+        value = int(os.environ.get(
+            "LIFE_MANAGER_CLAIM_HEARTBEAT_TIMEOUT_SECONDS",
+            str(DEFAULT_HEARTBEAT_TIMEOUT_SECONDS),
+        ))
+    except ValueError as error:
+        raise RuntimeError("invalid heartbeat timeout") from error
+    if not 1 <= value <= 3600:
+        raise RuntimeError("invalid heartbeat timeout")
+    return value
+
+
+def _heartbeat_expired(row: dict[str, object], now: float) -> bool:
+    if row.get("phase") not in {"claimed", "running"}:
+        return False
+    heartbeat_at = row.get("heartbeat_at")
+    timeout = row.get("heartbeat_timeout_seconds", DEFAULT_HEARTBEAT_TIMEOUT_SECONDS)
+    if (not isinstance(heartbeat_at, (int, float)) or isinstance(heartbeat_at, bool)
+            or not isinstance(timeout, (int, float)) or isinstance(timeout, bool)):
+        # Legacy claims have no heartbeat contract and remain governed by
+        # process identity until a compatible runner rewrites them.
+        return False
+    return now - float(heartbeat_at) > float(timeout)
+
+
 def _record_occurrence(connection: sqlite3.Connection, occurrence_id: str,
                        owner_id: str, resource_class: str,
                        admission_class: str, priority: str, queued_at: float,
@@ -532,10 +559,11 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
     live = []
     for path in owners.glob("*.json"):
         row = _row(path) or {}
-        if _live(path, starts, snapshot_started_ns):
+        if (_live(path, starts, snapshot_started_ns)
+                and not _heartbeat_expired(row, now)):
             live.append(row)
         else:
-            if (row.get("version") == 2 and row.get("phase", "claimed") == "claimed"
+            if (row.get("version") == 2 and row.get("phase", "claimed") in {"claimed", "running"}
                     and isinstance(row.get("sequence"), int)
                     and not isinstance(row.get("sequence"), bool)
                     and isinstance(row.get("owner_id"), str) and row["owner_id"]
@@ -747,6 +775,8 @@ def claim_durable(resource_class: str, owner_id: str, *,
                         "admission_policy": ADMISSION_POLICY,
                         "base_priority": row[3], "queued_at": row[4],
                         "occurrence_id": occurrence[0] if occurrence else None,
+                        "heartbeat_at": instant,
+                        "heartbeat_timeout_seconds": _heartbeat_timeout_seconds(),
                         "phase": "claimed"})
             connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
             connection.execute("DELETE FROM queue WHERE owner_id=?", (owner_id,))
@@ -786,8 +816,31 @@ def transfer_durable(claim: Path, child_pid: int) -> None:
             "process_start": child_start,
             "controller_pid": controller_pid,
             "controller_process_start": controller_start,
+            "heartbeat_at": time.time(),
             "phase": "running",
         })
+    finally:
+        os.close(descriptor)
+
+
+def heartbeat_durable(claim: Path, *, now: float | None = None) -> bool:
+    """Refresh progress for the exact live claim, without changing ownership."""
+    value = _row(claim)
+    started = process_start(os.getpid())
+    if not value or not started or not _controlled_by(value, os.getpid(), started):
+        return False
+    instant = time.time() if now is None else now
+    root, _, _, _ = _durable_paths()
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        if not _acquire_bounded(descriptor, timeout_seconds=0.5):
+            return False
+        current = _row(claim)
+        if (not current or not _controlled_by(current, os.getpid(), started)
+                or _heartbeat_expired(current, instant)):
+            return False
+        atomic_json(claim, {**current, "heartbeat_at": instant})
+        return True
     finally:
         os.close(descriptor)
 
