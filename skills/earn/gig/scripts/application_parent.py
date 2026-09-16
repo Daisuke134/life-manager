@@ -154,7 +154,7 @@ _COCONALA_HOSTS = {"coconala.com", "www.coconala.com"}
 # every extra page costs one more live navigate. 10 pages (~200 rows at ~20/page) comfortably
 # covers a day's application volume for one exact id without letting one pass scan forever.
 _APPLIED_OFFERS_MAX_PAGES = 10
-_APPLIED_OFFERS_RECONCILE_MAX_PAGES = 50
+_APPLIED_OFFERS_RECONCILE_PAGES_PER_WAKE = 2
 
 SUBMIT_REQUIRED = "submit_required"
 HARD_PROHIBITED = "hard_prohibited"
@@ -777,6 +777,26 @@ def _strict_next_page(current: str, candidate: object, *, path: str = "/requests
     ]
     retained.append(("page", str(after_page)))
     return urlunsplit(("https", "coconala.com", after.path.rstrip("/"), urlencode(retained), ""))
+
+
+def _next_applied_history_page(current: str, candidates: object) -> str | None:
+    if not isinstance(candidates, list):
+        return None
+    valid = {
+        next_url for candidate in candidates
+        if (next_url := _strict_next_page(
+            current, candidate, path=_APPLIED_OFFERS_PATH,
+        )) is not None
+    }
+    if not valid:
+        return None
+    expected_page = _page_index(current) + 1
+    adjacent = {url for url in valid if _page_index(url) == expected_page}
+    if not adjacent:
+        raise ReadbackScanTimeout(
+            f"official_readback_noncontiguous_pagination:expected_page={expected_page}"
+        )
+    return sorted(adjacent)[0]
 
 
 class CdpParentEffects:
@@ -1897,6 +1917,7 @@ class CdpParentEffects:
     async def _official_readback_async(
         self, expected_ids: set[str], max_pages: int | None = None,
         *, include_retainer_history: bool = False,
+        start_url: str | None = None, allow_truncated: bool = False,
     ) -> tuple[dict[str, object], bytes]:
         # Only a search for specific ids paginates past page 1. official_ids_for_snapshot
         # calls this with an empty expected_ids to build the pre-snapshot exclusion set on
@@ -1918,7 +1939,11 @@ class CdpParentEffects:
             # is genuine evidence of the submit page having killed the renderer -- exactly
             # what the wedge strike exists to count. Everything after the first successful
             # page eval is neighbour-scan and converts to ReadbackScanTimeout.
-            call_id = await self._navigate_retry_once(ws, _APPLIED_OFFERS_URL, call_id + 1)
+            initial_url = start_url or _APPLIED_OFFERS_URL
+            if (_strict_next_page(_APPLIED_OFFERS_URL, initial_url, path=_APPLIED_OFFERS_PATH) is None
+                    and initial_url != _APPLIED_OFFERS_URL):
+                raise ParentContractError("official_readback_start_url_invalid")
+            call_id = await self._navigate_retry_once(ws, initial_url, call_id + 1)
             observed: set[str] = set()
             first_page: dict[str, object] | None = None
             first_screenshot = b""
@@ -1947,6 +1972,11 @@ class CdpParentEffects:
                             offer_urls:[...document.querySelectorAll('a[href*="/mypage/offers/"]')]
                               .map(a=>a.href).filter((value,index,all)=>value&&all.indexOf(value)===index),
                             next_href:next?.href||null,
+                            pagination_hrefs:anchors.filter(
+                              a=>/^\\d+$/u.test((a.innerText||'').trim())&&
+                                a.href&&a.href.includes('/mypage/job_matching/applied/offers')&&
+                                a.href.includes('page=')
+                            ).map(a=>a.href),
                             body:(document.body?.innerText||'').slice(0,12000),
                             access_denied:document.title==='403 Forbidden'||document.title==='Access Denied',
                             not_found:/404|ページが見つかりません|お探しのページ/.test(document.title)};
@@ -2043,8 +2073,9 @@ class CdpParentEffects:
                         observed.add(request_id)
                 if single_expected and single_expected.issubset(observed):
                     break
-                next_url = _strict_next_page(
-                    str(page.get("url") or ""), page.get("next_href"), path=_APPLIED_OFFERS_PATH
+                next_url = _next_applied_history_page(
+                    str(page.get("url") or ""),
+                    [page.get("next_href"), *(page.get("pagination_hrefs") or [])],
                 )
                 has_next_page = next_url is not None
                 if next_url is None:
@@ -2061,7 +2092,8 @@ class CdpParentEffects:
                         raise
                     raise ReadbackScanTimeout(str(error)) from error
         assert first_page is not None
-        if truncated and single_expected and not single_expected.issubset(observed):
+        if (truncated and single_expected and not single_expected.issubset(observed)
+                and not allow_truncated):
             # An exhausted page budget with a next link remaining proves NOTHING about
             # absence. Plain False here is the duplicate-application path: the release
             # tool would clear an already-applied id, and the PREPARED reconcile would
@@ -2070,7 +2102,7 @@ class CdpParentEffects:
                 f"official_readback_truncated_after_{pages_walked}_pages_next_page_remains"
             )
         urls = [_APPLIED_OFFERS_URL]
-        if retainer_expected or include_retainer_history:
+        if not truncated and (retainer_expected or include_retainer_history):
             call_id = await self._navigate_retry_once(ws, RETAINER_APPLIED_URL, call_id)
             titles = self._retainer_titles(retainer_expected)
             retainer_page, call_id = await _wait_for_retainer_page(
@@ -2120,6 +2152,7 @@ class CdpParentEffects:
             "pages_walked": pages_walked,
             "cards_seen": cards_seen,
             "has_next_page": has_next_page,
+            "next_url": next_url if truncated else None,
             "missing_count": len(expected_ids - observed),
             "unresolved_count": 0,
             "body_sample": first_page.get("body") or "",
@@ -2129,12 +2162,15 @@ class CdpParentEffects:
     def _official_readback(
         self, expected_ids: set[str], path: Path, max_pages: int | None = None,
         *, include_retainer_history: bool = False,
+        start_url: str | None = None, allow_truncated: bool = False,
     ) -> set[str]:
         payload, screenshot = asyncio.run(
             self._official_readback_async(
                 expected_ids,
                 max_pages=max_pages,
                 include_retainer_history=include_retainer_history,
+                start_url=start_url,
+                allow_truncated=allow_truncated,
             )
         )
         screenshot_path = path.with_suffix(".png")
@@ -4443,27 +4479,87 @@ def run_parent(
             intent_store = fence.IntentStore(intent_root)
             uncertain_intents = _durable_uncertain_intents(intent_store)
             if uncertain_intents:
-                full_history_path = evidence_dir / "parent-B2-applied-full-history.json"
-                observed_ids = effects._official_readback(
-                    set(uncertain_intents), full_history_path,
-                    max_pages=_APPLIED_OFFERS_RECONCILE_MAX_PAGES,
+                scan_state_path = intent_root / "full-history-scan-state.json"
+                target_sha256 = _sha256_bytes(json.dumps(
+                    uncertain_intents, ensure_ascii=False, sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8"))
+                try:
+                    scan_state = json.loads(scan_state_path.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    scan_state = {}
+                if (not isinstance(scan_state, dict)
+                        or scan_state.get("version") != 1
+                        or scan_state.get("targets_sha256") != target_sha256
+                        or not isinstance(scan_state.get("next_url"), str)
+                        or not isinstance(scan_state.get("observed_ids"), list)
+                        or not isinstance(scan_state.get("pages_walked"), int)
+                        or not isinstance(scan_state.get("cards_seen"), int)
+                        or not isinstance(scan_state.get("chunks"), list)
+                        or not isinstance(scan_state.get("urls"), list)):
+                    scan_state = {
+                        "version": 1, "targets_sha256": target_sha256,
+                        "next_url": _APPLIED_OFFERS_URL, "observed_ids": [],
+                        "pages_walked": 0, "cards_seen": 0, "chunks": [],
+                        "urls": [_APPLIED_OFFERS_URL],
+                    }
+                chunk_index = int(scan_state["pages_walked"]) + 1
+                chunk_path = evidence_dir / f"parent-B2-history-scan-chunk-{chunk_index}.json"
+                effects._official_readback(
+                    set(uncertain_intents), chunk_path,
+                    max_pages=_APPLIED_OFFERS_RECONCILE_PAGES_PER_WAKE,
                     include_retainer_history=any(
                         _is_retainer_request(request_id)
                         for request_id in uncertain_intents
                     ),
+                    start_url=str(scan_state["next_url"]), allow_truncated=True,
                 )
-                reconciliation = reconcile_durable_intents_from_full_history(
-                    store=intent_store, targets=uncertain_intents,
-                    observed_ids=observed_ids, evidence_path=full_history_path,
-                    ledger_path=ledger_path, evidence_dir=evidence_dir,
-                    pass_id=pass_id,
+                chunk = _read_json_object(chunk_path, "full_history_chunk")
+                chunks = [*scan_state["chunks"], {
+                    "path": str(chunk_path.resolve()),
+                    "sha256": _sha256_bytes(chunk_path.read_bytes()),
+                }]
+                scan_state = _advance_full_history_scan_state(
+                    scan_state, chunk, uncertain_intents,
                 )
-                _publish_instant_work_events(ledger_path, pass_id)
-                _atomic_json(
-                    evidence_dir / "durable-intent-full-history-reconciliation.json",
-                    {"version": 1, "official_readback": str(full_history_path.resolve()),
-                     **reconciliation},
-                )
+                scan_state["chunks"] = chunks
+                if scan_state["next_url"]:
+                    _atomic_json(scan_state_path, scan_state)
+                else:
+                    observed_ids = set(scan_state["observed_ids"])
+                    full_history_path = evidence_dir / "parent-B2-applied-full-history.json"
+                    sort_key = lambda value: (0, int(value)) if value.isdigit() else (1, value)
+                    _atomic_json(full_history_path, {
+                        "source": "code_owned_cdp_readback", "observed": True,
+                        "not_found": False, "pass_id": pass_id,
+                        "observed_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+                        "url": _APPLIED_OFFERS_URL,
+                        "urls": scan_state["urls"],
+                        "request_ids": sorted(observed_ids, key=sort_key),
+                        "expected_ids": sorted(uncertain_intents, key=sort_key),
+                        "expected_request_ids": sorted(uncertain_intents, key=sort_key),
+                        "applied_page_absent_request_ids": sorted(
+                            set(uncertain_intents) - observed_ids, key=sort_key,
+                        ),
+                        "pages_walked": scan_state["pages_walked"],
+                        "cards_seen": scan_state["cards_seen"],
+                        "has_next_page": False, "next_url": None,
+                        "missing_count": len(set(uncertain_intents) - observed_ids),
+                        "unresolved_count": 0, "chunks": chunks,
+                    })
+                    reconciliation = reconcile_durable_intents_from_full_history(
+                        store=intent_store, targets=uncertain_intents,
+                        observed_ids=observed_ids, evidence_path=full_history_path,
+                        ledger_path=ledger_path, evidence_dir=evidence_dir,
+                        pass_id=pass_id,
+                    )
+                    _publish_instant_work_events(ledger_path, pass_id)
+                    _atomic_json(
+                        evidence_dir / "durable-intent-full-history-reconciliation.json",
+                        {"version": 1, "official_readback": str(full_history_path.resolve()),
+                         **reconciliation},
+                    )
+                    scan_state_path.unlink(missing_ok=True)
             collector = CdpSnapshotCollector(
                 effects,
                 pass_id=pass_id,
@@ -4926,6 +5022,44 @@ def reconcile_durable_intents_from_full_history(
                 )
                 counts["retired_absent"] += 1
     return counts
+
+
+def _advance_full_history_scan_state(
+    state: dict[str, object], chunk: dict[str, object], targets: dict[str, str],
+) -> dict[str, object]:
+    if (chunk.get("source") != "code_owned_cdp_readback"
+            or chunk.get("observed") is not True
+            or chunk.get("not_found") is not False
+            or not isinstance(chunk.get("request_ids"), list)
+            or not isinstance(chunk.get("urls"), list)
+            or not isinstance(chunk.get("pages_walked"), int)
+            or chunk["pages_walked"] < 1
+            or not isinstance(chunk.get("cards_seen"), int)
+            or chunk["cards_seen"] < 0
+            or chunk.get("next_url") is not None
+            and not isinstance(chunk.get("next_url"), str)):
+        raise ParentContractError("full_history_chunk_invalid")
+    observed = set(state["observed_ids"]) | {
+        str(value) for value in chunk["request_ids"] if str(value) in targets
+    }
+    canonical_paths = {
+        "/mypage/job_matching/applied/offers",
+        "/mypage/job_matching/applied/outsource_applications",
+    }
+    urls = set(state["urls"])
+    urls.update(
+        str(value) for value in chunk["urls"]
+        if isinstance(value, str)
+        and urlsplit(value).hostname in _COCONALA_HOSTS
+        and urlsplit(value).path.rstrip("/") in canonical_paths
+    )
+    return {
+        **state, "next_url": chunk.get("next_url"),
+        "observed_ids": sorted(observed),
+        "pages_walked": int(state["pages_walked"]) + chunk["pages_walked"],
+        "cards_seen": int(state["cards_seen"]) + chunk["cards_seen"],
+        "urls": sorted(urls),
+    }
 
 
 def snapshot_applied_ids(identifiers: object) -> list[str]:
