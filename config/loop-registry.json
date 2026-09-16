@@ -602,6 +602,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "capafy-loop-daily": {
+      "admission_class": "revenue",
       "cadence": {
         "start_interval_seconds": 3600
       },
@@ -618,6 +619,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "capafy-loop-healthcheck": {
+      "admission_class": "revenue",
       "cadence": {
         "start_interval_seconds": 300
       },
