@@ -1067,7 +1067,7 @@ class LmLoopApplyTest(unittest.TestCase):
         (release / "config/loop-registry.json").write_text(json.dumps(value))
         agents_dir = self.root / "agents"
         agents_dir.mkdir()
-        old_root = "/Users/anicca/loops/releases/" + ("b" * 40)
+        old_root = "/opt/loops/releases/" + ("b" * 40)
         for loop_id, entry in value["loops"].items():
             (agents_dir / f"{entry['label']}.plist").write_bytes(plistlib.dumps({
                 "Label": entry["label"],
