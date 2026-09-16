@@ -543,7 +543,10 @@ async function wakeCallOnce(u, nowMs, deps = {}) {
         const voice = typeof voiceReserve === "function"
           ? await voiceReserve(u.uid, eventKey, allowanceUrl, allowanceKey)
           : { allowed: true, allowedSeconds: 120, periodStart: "test", reservationToken: "test" };
-        if (!voice || voice.allowed !== true || !voice.reservationToken || voice.allowedSeconds < 1) {
+        if (!voice || voice.allowed !== true || !voice.reservationToken || voice.allowedSeconds < 30) {
+          if (voice && voice.reservationToken && typeof voiceRelease === "function") {
+            await voiceRelease(u.uid, eventKey, allowanceUrl, allowanceKey, { reservation: voice });
+          }
           if (allowanceReserved && typeof allowanceRelease === "function") {
             await allowanceRelease(u.uid, managedActionKey, allowanceUrl, allowanceKey,
               { reservation: allowanceReservation });
