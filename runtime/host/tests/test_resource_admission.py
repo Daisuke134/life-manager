@@ -749,6 +749,89 @@ def test_uncertain_running_effect_blocks_reserved_followup_occurrence(
     assert reservations == 0
 
 
+def test_reenqueue_of_released_occurrence_cannot_create_owner_queue(
+        tmp_path, monkeypatch):
+    """A replayed wake ID must not become an occurrence-less provider run."""
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "mobile-publication", admission_class="revenue",
+        occurrence_id="mobile-slot-once", now=100)
+    claim, reason = admission.claim_durable(
+        "agent", "mobile-publication", admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, reserve=False)
+
+    ticket, reason = admission.enqueue_durable(
+        "agent", "mobile-publication", admission_class="revenue",
+        occurrence_id="mobile-slot-once", now=200)
+    assert ticket is None and reason == "occurrence_terminal"
+    assert durable_rows(tmp_path, "queue") == []
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        state = connection.execute(
+            "SELECT state FROM occurrences WHERE occurrence_id='mobile-slot-once'"
+        ).fetchone()[0]
+    assert state == "released"
+
+
+def test_claim_selects_recovered_old_occurrence_after_stale_sweep(
+        tmp_path, monkeypatch):
+    """A dead pre-effect A returns ahead of the same owner's later queued B."""
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "mobile-publication", admission_class="revenue",
+        occurrence_id="mobile-slot-A", now=100)
+    old_claim, reason = admission.claim_durable(
+        "agent", "mobile-publication", admission_class="revenue", now=101)
+    assert old_claim is not None and reason == "acquired"
+    admission.enqueue_durable(
+        "agent", "mobile-publication", admission_class="revenue",
+        occurrence_id="mobile-slot-B", now=150)
+    old_row = json.loads(old_claim.read_text())
+    admission.atomic_json(old_claim, {
+        **old_row, "pid": 999_999_999, "process_start": "dead",
+    })
+
+    recovered, reason = admission.claim_durable(
+        "agent", "mobile-publication", admission_class="revenue", now=200)
+    assert recovered is not None and reason == "acquired"
+    assert json.loads(recovered.read_text())["occurrence_id"] == "mobile-slot-A"
+    admission.release_and_reserve(recovered, reserve=False)
+
+
+def test_dead_legacy_running_owner_fences_later_explicit_occurrence(
+        tmp_path, monkeypatch):
+    """Mixed-release effect uncertainty cannot be bypassed by a newer wake."""
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable("agent", "mobile-publication", admission_class="revenue")
+    old_claim, reason = admission.claim_durable(
+        "agent", "mobile-publication", admission_class="revenue", now=101)
+    assert old_claim is not None and reason == "acquired"
+    assert json.loads(old_claim.read_text())["occurrence_id"] is None
+    admission.enqueue_durable(
+        "agent", "mobile-publication", admission_class="revenue",
+        occurrence_id="mobile-slot-new", now=150)
+    old_row = json.loads(old_claim.read_text())
+    admission.atomic_json(old_claim, {
+        **old_row, "pid": 999_999_999, "process_start": "dead", "phase": "running",
+    })
+
+    later, reason = admission.claim_durable(
+        "agent", "mobile-publication", admission_class="revenue", now=200)
+    assert later is None and reason == "effect_unknown"
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        fence = connection.execute(
+            "SELECT effect_unknown FROM priorities WHERE owner_id='mobile-publication'"
+        ).fetchone()
+        state = connection.execute(
+            "SELECT state FROM occurrences WHERE occurrence_id='mobile-slot-new'"
+        ).fetchone()[0]
+    assert fence == (1,)
+    assert state == "queued"
+
+
 def test_heartbeat_updates_only_the_owned_claim(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     admission.activate_durable_v2()
