@@ -674,6 +674,9 @@ a unique agent-browser session and its parent uses the existing TERM/grace timeo
 that exact session. Five small tests passed; the real signal integration test was blocked by `ENOSPC`, and
 the prior orphan plus the larger shared gig/daily-driver profiles remain untouched. Do not count this as
 physical capacity recovery or a production natural-wake pass.
+Follow-up `9e967feca7` reran the real signal integration after making its startup wait pressure-tolerant;
+the focused lateness/timeout modules passed 9/9. Source-level teardown is now tested, but the old orphan and
+live gig-browser capacity problem still require exact owner-scoped production readback.
 
 **Next order:** (1) restore safe disk/memory headroom and verify next natural revenue wakes, then keep
 one-off/retainer refresh live and prove a fresh eligible retainer screening-answer effect when one exists,
