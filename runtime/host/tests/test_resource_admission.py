@@ -653,6 +653,38 @@ def test_multiple_occurrences_drain_one_owner_queue_without_loss(
     ]
 
 
+def test_independent_natural_wake_during_reservation_is_not_lost(
+        tmp_path, monkeypatch):
+    """A reserved owner does not prove a new launchd wake was its kickstart."""
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "connector", admission_class="revenue",
+        occurrence_id="connector:first", now=100)
+    assert admission.reserve_available(now=101, lease_seconds=60) == ["connector"]
+
+    ticket, _ = admission.enqueue_durable(
+        "agent", "connector", admission_class="revenue",
+        occurrence_id="connector:independent-natural", now=102)
+    assert ticket is not None
+    assert {(row["occurrence_id"], row["state"]) for row in
+            durable_rows(tmp_path, "occurrences")} == {
+        ("connector:first", "queued"),
+        ("connector:independent-natural", "queued"),
+    }
+
+    first, reason = admission.claim_durable(
+        "agent", "connector", admission_class="revenue", now=103)
+    assert first is not None and reason == "acquired"
+    assert json.loads(first.read_text())["occurrence_id"] == "connector:first"
+    assert admission.release_and_reserve(first, now=104) == ["connector"]
+    second, reason = admission.claim_durable(
+        "agent", "connector", admission_class="revenue", now=105)
+    assert second is not None and reason == "acquired"
+    assert json.loads(second.read_text())["occurrence_id"] == "connector:independent-natural"
+    admission.release_and_reserve(second, reserve=False)
+
+
 def test_expired_running_heartbeat_keeps_live_child_claim(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
