@@ -322,7 +322,7 @@ function evaluateLocalCompletionGate(manifest, options = {}) {
           || typeof loop.owner_id !== "string" || !loop.owner_id.trim()
           || loop.release_sha !== manifest.release_sha
           || !loop.contract || COMPLETION_CONTRACT_FIELDS.some((field) => loop.contract[field] !== true)
-          || (loop.runtime_evidence && loop.runtime_evidence.ready !== true)
+          || !loop.runtime_evidence || loop.runtime_evidence.ready !== true
         )) {
           reasons.push("verified_evidence_incomplete");
         }

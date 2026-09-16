@@ -239,6 +239,12 @@ test("local completion gate passes only explicit setup states or verified receip
     host: "local",
     release_sha: releaseSha,
     observations,
+    runtime_rows: catalog.loops.flatMap((loop) => loop.job_ids.map((jobId) => ({
+      loop_id: jobId,
+      installed_release_sha: releaseSha,
+      event_release_sha: releaseSha,
+      last_terminal_result: "pass",
+    }))),
   });
 
   const gate = evaluateLocalCompletionGate(manifest);
@@ -250,6 +256,44 @@ test("local completion gate passes only explicit setup states or verified receip
     release_sha: releaseSha,
     reasons: [],
   });
+});
+
+test("local completion gate blocks a verified row without runtime evidence", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "9".repeat(40);
+  const contract = {
+    goal: true,
+    context: true,
+    admission: true,
+    receipt: true,
+    observability: true,
+    evaluation: true,
+  };
+  const manifest = buildProductLoopCompletionManifest({
+    host: "local",
+    release_sha: releaseSha,
+    observations: catalog.loops.map((loop, index) => index === 0 ? {
+      id: loop.id,
+      state: "verified",
+      owner_id: "owner-1",
+      release_sha: releaseSha,
+      official_receipt: true,
+      official_receipt_ref: "ledger://local/owner-1/receipt-runtime-missing",
+      replay_zero: true,
+      resource_class: "agent",
+      contract,
+    } : {
+      id: loop.id,
+      state: "setup_required",
+      reason: "host_adapter_pending",
+      contract: {},
+    }),
+  });
+
+  const gate = evaluateLocalCompletionGate(manifest);
+
+  assert.deepEqual(gate.reasons, ["verified_evidence_incomplete"]);
+  assert.equal(gate.decision, "block");
 });
 
 test("local completion gate blocks a verified row whose receipt reference or replay proof was removed", () => {
