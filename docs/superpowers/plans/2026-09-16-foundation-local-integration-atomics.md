@@ -394,18 +394,17 @@ Instagram was `capacity_busy`, a distinct admission reason. The immediate
 atomic repair queue is (1) analyze finite-slot occupancy and deterministic
 service demand, (2) keep revenue priority without indefinitely starving
 lightweight support, (3) only then re-canary Metrics and 17 publishers.
-Read-only SQLite audit also found one stronger invariant failure: Instagram
-Metrics has a `queued`, known-safe occurrence but no queue/priority/reservation
-row and no live owner. Preserve this evidence, reproduce the exact removal
-path test-first, then repair using the existing admission store before raising
-capacity. Do not turn unknown-effect or cancelled work into a blind retry.
-Source branch `ff4d9b07f9` now adds that bounded restoration at the existing
-reservation boundary. RED→GREEN real-SQLite reproduction, 75 admission tests,
-41 runner-bounds tests and 462 full control-plane tests passed. Unknown-effect
-and cancelled occurrences were not reserved in the safety test. This is not
-yet installed; live Instagram remains orphaned. Await fresh reviewer, then
-create a pushed immutable candidate and verify owner-scoped production
-claim/release without treating mock/provider tests as an external effect.
+Read-only SQLite audit found Instagram Metrics with a `queued` occurrence but
+no queue/priority/reservation row or live owner. Generic auto-restoration at
+`ff4d9b07f9` passed its RED→GREEN SQLite test and the 462 loop tests, but
+fresh review found P0 and it was reverted in pushed `cc126b7b9f` before
+production load. Old immutable runners can execute without an occurrence ID,
+delete the queue row and leave a misleading `queued/effect_unknown=0` row.
+Queue absence is not safe-retry evidence. Next test the old-claim
+counterexample, then require exact pre-effect terminal/receipt or official
+effect reconciliation before owner-scoped restoration; expire stale
+reservations first. The specific Instagram 15:14 outer run was pre-effect
+`capacity_busy`, but that does not license a generic fleet replay.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

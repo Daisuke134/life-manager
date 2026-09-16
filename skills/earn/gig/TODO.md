@@ -710,21 +710,19 @@ Read-only invariant audit after these wakes found Instagram Metrics occurrence
 `life-manager-instagram-metrics:18d5d5ed4e4aaf38-71194` still `queued` with
 `effect_unknown=0`, but **no matching queue, priority or reservation row**.
 No live Instagram owner existed at the sample. Other queued occurrences did
-not show this mismatch. This can delay that exact occurrence until a later
-enqueue or repair even after capacity frees. Before any queue mutation,
-reproduce the precise queue-removal path in a focused SQLite test; then
-restore the queued-occurrence/queue invariant with the existing admission
-store and verify no cancelled/effect-unknown occurrence is reactivated.
-The exact orphan invariant now has a pushed source repair `ff4d9b07f9` in the
-foundation branch. Real SQLite regression failed RED when reservation returned
-no owner after a legacy-style queue/priorities deletion, then passed GREEN.
-The shared reservation path restores only queued, effect-known occurrences;
-unknown-effect and cancelled negative tests passed. Host admission 75/75,
-runner bounds 41/41, and complete loop control-plane 462/462 passed. Fresh
-read-only high-risk review is pending. The live Instagram occurrence remains
-orphaned because production still runs candidate `cf655388`; **do not** count
-the source test as live queue recovery. A later immutable release and exact
-natural owner claim/release are required before closing this item.
+not show this mismatch. It can delay that occurrence even after capacity frees.
+Generic auto-restoration `ff4d9b07f9` passed its RED→GREEN SQLite test
+(75 admission, 41 runner bounds, 462 loop control-plane), but fresh read-only
+review found a **P0**: older immutable runners can claim and execute an owner
+without writing an occurrence ID, then remove its queue row while leaving
+`queued/effect_unknown=0`. That state alone does not prove the provider effect
+is absent. The unsafe change was reverted by pushed `cc126b7b9f` before any
+production load. The live Instagram 15:14 run has a separate pre-effect
+`capacity_busy` terminal, but no global auto-replay is authorized by it.
+Next: test the old-claim counterexample and require positive same-run
+pre-effect evidence or official effect reconciliation before any owner-scoped
+restoration. Expire stale reservations before deciding whether restoration is
+needed. Preserve unknown-effect fences.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/
