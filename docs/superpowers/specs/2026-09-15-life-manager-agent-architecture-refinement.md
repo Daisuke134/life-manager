@@ -89,8 +89,9 @@ providerへ応募する仕事ではありません。
 実行せず、自己修復を直接行うものでもありません。自己修復は、この観測結果を入力にして後続の
 `S-01`〜`S-03`が同じownerだけを再開する仕組みです。
 
-`OBS-01`の実装はcandidate `fix/lm-fundamental-runtime-20260916` の `6715084a30` に固定済みで、
-関連テスト37件がPASSしました。実機status 267件を使ったLocal gateは、公式receipt不足を
+`OBS-01`の実装はcandidate `fix/lm-fundamental-runtime-20260916` の `6e41987c0e` に固定済みで、
+関連テスト38件がPASSしました。既知のruntime診断をsetup_required行にも残す回帰を追加し、
+実機status 267件を使ったLocal gateは、公式receipt不足を
 `BLOCK / unknown_product_loop`として正しく残しました。したがって、これは「他Codexの修正を
 待つTODO」ではなく、私の基盤側では完了したatomicです。
 
@@ -100,7 +101,7 @@ providerへ応募する仕事ではありません。
 Life Managerの実際の応募・契約・納品・報酬・cloud運用が動いたことを意味しません。現在の
 origin/mainは `913aaa9cc9`（Coconala current-truth merge後の最新remote main参照）まで進み、本番selectorも
 `913aaa9cc9ac1e40b54eb0f0899c69fc17b52c2f`を指しています。候補branchはこのmainへまだ統合しておらず、ownerのinstalled/event SHAもまだ混在しています。
-統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `6715084a30`）はpush済みですが、候補はまだmainへmergeしていません。
+統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `6e41987c0e`）はpush済みですが、候補はまだmainへmergeしていません。
 本番へはまだ統合していません。
 したがって、次の作業は「さらにスキルを読む」ではなく、候補をmain由来immutable releaseへ
 昇格し、ownerごとの自然wakeで公式効果を確認することです。
@@ -140,8 +141,8 @@ mock/fixture・PID・exit 0・Telegramは証拠にしません。
 | R1-13 | `capafy`のmanifest行を観測 | 8 jobのruntime status、release、typed effect/readback状態、理由を記録 | product/publication/revenue receiptまたはtyped terminal、replay-zero |
 | R1-14 | `cfo`のmanifest行を観測 | 3 jobのruntime status、release、typed effect/readback状態、理由を記録 | verified financial snapshot/payout receipt、replay-zero |
 
-**観測cursor（2026-09-16）:** `R1-01` Coconalaと`R1-02` Lancersの観測行は、receiptの有無に
-かかわらずGit外private artifactへ記録済みです。次の観測atomicは`R1-03 CrowdWorks`です。
+**観測cursor（2026-09-16）:** `R1-01` Coconala、`R1-02` Lancers、`R1-03` CrowdWorksの観測行は、
+receiptの有無にかかわらずGit外private artifactへ記録済みです。次の観測atomicは`R1-04 Writer`です。
 `verified`昇格は別判定であり、release結合済みreceiptが無い行は`unknown`のまま保持します。
 
 #### R2〜R6: R1の後に一件ずつ実行するgate
@@ -240,6 +241,11 @@ external IDの重複は0件だった。`general-agent/ga10/official-readback.jso
 replay-zero記録を読み取って`official_receipt=true / replay_zero=true / release_sha=null`を保存した。
 runtime statusは7 jobのrelease driftを示すため、観測は完了したが`verified`昇格は行わない。
 
+同日のCrowdWorks観測では、Applicationが`host_admission_deferred:resource_capacity_busy`、Paidが
+`fail`、Replyがruntime `pass`（effect 0）、Reportが容量待ちだった。profileの公開URLは応募・契約の
+receiptではないため、`official_receipt=false / replay_zero=false / state=unknown`として記録した。
+4 jobのruntime releaseは`427972bf07db`でcurrent releaseと一致せず、観測は完了したが`verified`へは昇格しない。
+
 #### CLIのOSS化方針
 
 `product-loop-completion.js`、`local-completion-gate.js`、`cloud-promotion-gate.js`はOSS化する。
@@ -277,8 +283,8 @@ Telegram報告、テストgreen、ブラウザ画面表示だけでは完了に�
 一度だけ行います。
 
 **現在のfoundation cursor:** Architecture側の`OBS-01`は完了しています。`CAND-01`と`CAND-02`の内部canaryも完了しています。`LOCAL-01/02`
-ではcompletion manifestの契約と`lm-loop status` JSON接続、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、失敗記録へのrecovery intent保存、`harness-recovery.json`へのowner/slot別最新intent投影、7つのskill索引、`CONTROL-01`のexternal owner登録、管理statusの安定`job_id`/`owner_id`出力、常駐non-effect jobのruntime health判定、completion CLIの既存親ディレクトリ権限保護、runtime rowのjob identity一致検査、Local/Cloud verified行のruntime evidence必須化、Local/Cloud gateのruntime evidence整合性検査、official receiptのrelease SHA結合必須化をcandidate `6715084a30`へ実装済みです。
-Graph/Eval/notificationの契約も同candidateへ接続済みです。Local gate CLIのruntime status再束縛、非runtime manifest契約の保持、schema改ざん回帰テスト（37件PASS）も同candidateへ固定しました。次は各loopのevidenceを
+ではcompletion manifestの契約と`lm-loop status` JSON接続、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、失敗記録へのrecovery intent保存、`harness-recovery.json`へのowner/slot別最新intent投影、7つのskill索引、`CONTROL-01`のexternal owner登録、管理statusの安定`job_id`/`owner_id`出力、常駐non-effect jobのruntime health判定、completion CLIの既存親ディレクトリ権限保護、runtime rowのjob identity一致検査、Local/Cloud verified行のruntime evidence必須化、Local/Cloud gateのruntime evidence整合性検査、official receiptのrelease SHA結合必須化をcandidate `6e41987c0e`へ実装済みです。
+Graph/Eval/notificationの契約も同candidateへ接続済みです。Local gate CLIのruntime status再束縛、非runtime manifest契約の保持、schema改ざん回帰テスト（38件PASS）、setup_required行の既知runtime診断保持も同candidateへ固定しました。次は各loopのevidenceを
 このmanifestへ接続する作業であり、platformの外部effectを私が実行する項目ではありません。
 
 ### 理想フロー（1回のwake）
