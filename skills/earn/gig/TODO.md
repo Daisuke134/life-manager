@@ -46,9 +46,12 @@ runtime/provider readback before acting; conversation claims are not completion 
   superseded historical state, not another client-work project.
 - Paid now tries the existing Account 1 Codex profile first and falls back to Account 2 through the shared
   runner; the first bounded Account 1 receipt is proved. Preserve both accounts and all unrelated sessions.
-- First safe action: let the current natural Coconala Apply wake finish without restart. PR `#5271`, main/release
-  `913aaa9c`, fixes null retainer terms by binding the official listing values before the strict effect fence.
-  The live run reached the retainer form with `WEEK_ONE / 1 / 10`; official submit/readback is still unconfirmed.
+- First safe action: repair the retainer provider identity/URL projection exposed by the completed natural wake.
+  PR `#5271`, main/release `913aaa9c`, fixed null retainer terms by binding the official listing values before
+  the strict effect fence. The wake reached the retainer form with `WEEK_ONE / 1 / 10` and `actionable=1`, but
+  ended `effect=0`, `readback=0`, `failed=1`: the gate reported `request_bucket_identity_mismatch`,
+  `request_url_invalid` and retainer/application count mismatch for the ULID request. No official application
+  receipt exists, so the intent remains uncertain and must be reconciled before any retry.
   The durable full-history cursor is page 29 after 28 pages, 527 cards and 14 hash-bound chunks, with all 54
   uncertain intents unchanged. Paid's current four-client set is closed by a natural
   `172d3f2e` replay-zero pass. Admission protocol `2` is live and one four-lane overlap is proved, but the
@@ -69,7 +72,7 @@ that the provider currently has an authenticated account, a verified external ef
 
 | Platform | As-Is now | To-Be finish condition |
 |---|---|---|
-| Coconala | Paid is exact-loaded from `172d3f2e`; Apply is exact-loaded from `913aaa9c`; Reply and Storefront retain `0aba1191`. Paid naturally replayed all four open clients with effect zero/readback four. Reply's latest natural pass observed 179 threads with 164 official readbacks and 15 pending. The current Apply wake reached a real retainer form with official `WEEK_ONE / 1 / 10` terms, but submit/readback is still in flight. The fleet still has a static five-finite-run default and only two durable revenue-priority owners, so 24/7 no-starvation is not proved. | Every active client has its own durable work item, newest-buyer coverage, provider effect/readback, replay-zero and payout attribution; every lane meets its cadence without a fixed global-slot bottleneck, and one client's failure never pauses another lane. |
+| Coconala | Paid is exact-loaded from `172d3f2e`; Apply is exact-loaded from `913aaa9c`; Reply and Storefront retain `0aba1191`. Paid naturally replayed all four open clients with effect zero/readback four. Reply's latest natural pass observed 179 threads with 164 official readbacks and 15 pending. Apply reached a real retainer form with official `WEEK_ONE / 1 / 10` terms and `actionable=1`, then failed before verified effect because the provider projection treated the ULID retainer as the wrong bucket/URL. The fleet still has a static five-finite-run default and only two durable revenue-priority owners, so 24/7 no-starvation is not proved. | Every active client has its own durable work item, newest-buyer coverage, provider effect/readback, replay-zero and payout attribution; every lane meets its cadence without a fixed global-slot bottleneck, and one client's failure never pauses another lane. |
 | Lancers | Application, browser, negotiation, paid, storefront, work-sync and report owners are registered. Production fixes exist in main, but durable login and the full Apply→Paid→payout proof are not closed. | One persistent account/browser owner runs the complete lifecycle with official proposal, work, payment and payout receipts. |
 | CrowdWorks | Application, Reply, Paid and Report owners are registered. Existing contracts still need fulfillment from buyer instruction/link through actual submission and readback. | Each accepted contract becomes an independent fulfillment item and reaches artifact submission, official receipt, payout and replay-zero; Storefront is explicitly `not_applicable` unless the provider exposes it. |
 | Mercor | Application, Reply and Paid owners are registered, but repeated-login/authentication and full contract proof remain open. | Persistent authenticated account state, application, reply/interview handoff, contract, paid work and payout are independently evidenced. |
@@ -574,7 +577,8 @@ Atsugi is settlement-only. Paid naturally read back all four open rooms with no 
 natural terminal pass. The one-off and retainer discovery surfaces are authenticated. The retainer null-term
 failure is merged, released and loaded, and the current natural wake reached a real retainer form.
 
-**Not done:** the current retainer application has no official submit/readback yet; 54 historical uncertain
+**Not done:** the retainer application failed before verified effect because its ULID identity was projected to
+the wrong bucket/URL, and has no official submit/readback; 54 historical uncertain
 applications still need final-page reconciliation; Reply has 15 pending threads; Storefront demand, payout
 attribution, 24-hour cadence, no-starvation, zombie-free browser teardown and every later platform remain open.
 
