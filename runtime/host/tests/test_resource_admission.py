@@ -548,6 +548,97 @@ def test_aged_revenue_waiter_advances_during_continuous_paid_arrivals(
     assert reserved == ["connector-aged"]
 
 
+def test_existing_paid_waiter_upgrades_priority_without_resetting_queue_age(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    running, reason = admission.try_acquire(
+        "agent", "running", retain_ticket=False, admission_class="revenue")
+    assert running is not None and reason == "acquired"
+
+    admission.enqueue_durable(
+        "agent", "older-revenue", admission_class="revenue",
+        priority="revenue", now=50)
+    admission.enqueue_durable(
+        "agent", "paid", admission_class="revenue",
+        priority="revenue", now=100)
+    admission.enqueue_durable(
+        "agent", "paid", admission_class="revenue",
+        priority="critical_paid", now=200)
+    # A stale, lower-priority release must not reverse the upgrade.
+    admission.enqueue_durable(
+        "agent", "paid", admission_class="revenue",
+        priority="revenue", now=201)
+
+    paid = next(row for row in durable_rows(tmp_path, "priorities")
+                if row["owner_id"] == "paid")
+    assert paid["base_priority"] == "critical_paid"
+    assert paid["queued_at"] == 100
+    assert admission.release_and_reserve(running, now=201) == ["paid"]
+
+
+def test_running_paid_owner_upgrades_its_queued_next_wake(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    running, reason = admission.try_acquire(
+        "agent", "paid", retain_ticket=False, admission_class="revenue")
+    assert running is not None and reason == "acquired"
+    admission.enqueue_durable(
+        "agent", "paid", admission_class="revenue", priority="revenue",
+        occurrence_id="paid:old", now=100)
+    ticket, reason = admission.enqueue_durable(
+        "agent", "paid", admission_class="revenue", priority="critical_paid",
+        occurrence_id="paid:new", now=200)
+    assert ticket is not None and reason == "owner_busy"
+    paid = next(row for row in durable_rows(tmp_path, "priorities")
+                if row["owner_id"] == "paid")
+    assert (paid["base_priority"], paid["queued_at"]) == ("critical_paid", 100)
+    assert admission.release_and_reserve(running, now=200) == ["paid"]
+
+
+def test_coalesced_paid_wake_upgrades_reserved_queue_priority(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "paid", admission_class="revenue", priority="revenue",
+        occurrence_id="paid:old", now=100)
+    assert admission.reserve_available(now=101, lease_seconds=60) == ["paid"]
+    ticket, reason = admission.enqueue_durable(
+        "agent", "paid", admission_class="revenue", priority="critical_paid",
+        occurrence_id="paid:new", coalesce_reserved=True, now=102)
+    assert ticket is not None and reason == "reservation_coalesced"
+    paid = next(row for row in durable_rows(tmp_path, "priorities")
+                if row["owner_id"] == "paid")
+    assert (paid["base_priority"], paid["queued_at"]) == ("critical_paid", 100)
+    assert [(row["occurrence_id"], row["state"]) for row in
+            durable_rows(tmp_path, "occurrences")] == [("paid:old", "queued")]
+
+
+def test_running_owner_rejects_mixed_release_queue_class_before_priority_upgrade(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    running, reason = admission.try_acquire(
+        "agent", "paid", retain_ticket=False, admission_class="revenue")
+    assert running is not None and reason == "acquired"
+    admission.enqueue_durable(
+        "agent", "paid", admission_class="borrow", priority="support",
+        occurrence_id="paid:old", now=100)
+
+    with pytest.raises(RuntimeError, match="durable owner resource class changed"):
+        admission.enqueue_durable(
+            "agent", "paid", admission_class="revenue", priority="critical_paid",
+            occurrence_id="paid:new", now=200)
+
+    paid = next(row for row in durable_rows(tmp_path, "priorities")
+                if row["owner_id"] == "paid")
+    assert (paid["admission_class"], paid["base_priority"], paid["queued_at"]) == (
+        "borrow", "support", 100)
+    assert [row["occurrence_id"] for row in durable_rows(tmp_path, "occurrences")] == [
+        "paid:old"]
+    admission.release_and_reserve(running, reserve=False)
+
+
 def test_aged_support_gets_released_slot_before_new_paid(
         tmp_path, monkeypatch):
     """An old Metrics wake runs when a paid worker releases physical capacity."""

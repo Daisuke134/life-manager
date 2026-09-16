@@ -414,6 +414,25 @@ def _normalize_priority(priority: str | None, admission_class: str) -> str:
     return value
 
 
+def _promote_queued_priority(connection: sqlite3.Connection, owner_id: str,
+                             priority: str, queued_at: float) -> None:
+    """Raise a retained owner's priority without losing its first queue age."""
+    connection.execute(
+        """UPDATE priorities
+              SET admission_policy=?,
+                  base_priority=CASE
+                      WHEN base_priority IS NULL OR
+                           (CASE base_priority
+                                WHEN 'critical_paid' THEN 0
+                                WHEN 'revenue' THEN 1
+                                ELSE 2 END) > ?
+                      THEN ? ELSE base_priority END,
+                  queued_at=COALESCE(queued_at,?)
+            WHERE owner_id=?""",
+        (ADMISSION_POLICY, PRIORITY_RANK[priority], priority, queued_at, owner_id),
+    )
+
+
 def _normalize_occurrence_id(occurrence_id: str | None) -> str | None:
     if occurrence_id is None:
         return None
@@ -752,6 +771,7 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                     (owner_id, resource_class, admission_class),
                 ).fetchone() if coalesce_reserved else None
                 if queued_scan is not None:
+                    _promote_queued_priority(connection, owner_id, priority_name, instant)
                     return database, ("reservation_coalesced" if queued_scan[0] is not None
                                       and queued_scan[0] > instant else "queued_coalesced")
             if any(item.get("owner_id") == owner_id for item in (
@@ -769,6 +789,15 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                         (owner_id, admission_class, ADMISSION_POLICY,
                          priority_name, instant),
                     )
+                    queued_identity = connection.execute(
+                        """SELECT q.resource_class,p.admission_class
+                             FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
+                            WHERE q.owner_id=?""",
+                        (owner_id,),
+                    ).fetchone()
+                    if queued_identity != (resource_class, admission_class):
+                        raise RuntimeError("durable owner resource class changed")
+                    _promote_queued_priority(connection, owner_id, priority_name, instant)
                     queued = connection.execute(
                         "SELECT sequence FROM queue WHERE owner_id=?",
                         (owner_id,),
@@ -791,13 +820,7 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                        owner_id,admission_class,admission_policy,base_priority,queued_at
                    ) VALUES(?,?,?,?,?)""",
                 (owner_id, admission_class, ADMISSION_POLICY, priority_name, instant))
-            connection.execute(
-                """UPDATE priorities
-                      SET admission_policy=?,
-                          base_priority=COALESCE(base_priority,?),
-                          queued_at=COALESCE(queued_at,?)
-                    WHERE owner_id=?""",
-                (ADMISSION_POLICY, priority_name, instant, owner_id))
+            _promote_queued_priority(connection, owner_id, priority_name, instant)
             row = connection.execute("""
                 SELECT q.sequence,q.resource_class,p.admission_class,
                        p.base_priority,p.queued_at
