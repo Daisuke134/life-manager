@@ -70,6 +70,13 @@ def test_memory_admission_exit_is_deferred_not_failed():
     assert _terminal_outcome(1) == (False, False, "entrypoint_exit_1")
 
 
+def test_entrypoint_result_hint_preserves_a_safe_failure_reason():
+    assert _terminal_outcome(1, result_hint="wake_deadline") == (
+        False, False, "wake_deadline")
+    assert _terminal_outcome(1, result_hint="unsafe detail") == (
+        False, False, "entrypoint_exit_1")
+
+
 def test_memory_deferral_requires_a_fresh_matching_receipt(tmp_path):
     receipt = tmp_path / "memory.json"
     started = time.time_ns()

@@ -6,7 +6,7 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 
-const { nativeExitCode, runNativePass } = require("../native-pass.js");
+const { nativeExitCode, runNativePass, writeNativeResultHint } = require("../native-pass.js");
 
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const VALID_KANA = Object.freeze({ family: "サクラ", given: "テスト" });
@@ -42,7 +42,27 @@ test("native terminal exit treats only healthy statuses as success", () => {
     [undefined, 1],
     [null, 1],
     [[], 1],
-  ]) assert.equal(nativeExitCode(result), expected);
+]) assert.equal(nativeExitCode(result), expected);
+});
+
+test("native result hint writes only bounded status and safe reason", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "connector-native-result-hint-"));
+  const target = path.join(directory, "entrypoint-result.json");
+  const previous = process.env.LIFE_MANAGER_RESULT_HINT_PATH;
+  try {
+    process.env.LIFE_MANAGER_RESULT_HINT_PATH = target;
+    writeNativeResultHint({ status: "circuit_open", safe_reason: "wake_deadline" });
+    assert.deepEqual(JSON.parse(fs.readFileSync(target, "utf8")), {
+      status: "circuit_open", safe_reason: "wake_deadline",
+    });
+    writeNativeResultHint({ status: "circuit_open", safe_reason: "unsafe detail" });
+    assert.deepEqual(JSON.parse(fs.readFileSync(target, "utf8")), { status: "circuit_open" });
+    assert.equal(fs.statSync(target).mode & 0o777, 0o600);
+  } finally {
+    if (previous === undefined) delete process.env.LIFE_MANAGER_RESULT_HINT_PATH;
+    else process.env.LIFE_MANAGER_RESULT_HINT_PATH = previous;
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test("official native pass forwards only the bounded minimal wake contract", async () => {

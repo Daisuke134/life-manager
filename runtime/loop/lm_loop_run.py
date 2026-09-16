@@ -38,6 +38,7 @@ from runtime.host.resource_admission import (
 
 EXEC_GATE = Path(__file__).resolve().parents[1] / "host/exec_gate.py"
 SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
+SAFE_RESULT_HINT = re.compile(r"[a-z][a-z0-9_:-]{1,99}\Z")
 ADMISSION_CONTROL_RETRY_ATTEMPTS = 3
 ADMISSION_CONTROL_RETRY_DELAY_SECONDS = 0.05
 
@@ -180,12 +181,24 @@ def _host_admission_deferred(path: Path, started_ns: int) -> str | None:
             and len(prefix) + len(reason) <= 128 else "unknown")
 
 
-def _terminal_outcome(return_code: int, *, host_deferred: str | None = None
+def _read_result_hint(path: Path) -> str | None:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+    reason = value.get("safe_reason") if isinstance(value, dict) else None
+    return reason if isinstance(reason, str) and SAFE_RESULT_HINT.fullmatch(reason) else None
+
+
+def _terminal_outcome(return_code: int, *, host_deferred: str | None = None,
+                      result_hint: str | None = None
                       ) -> tuple[bool, bool, str | None]:
     if return_code == 0:
         return True, False, None
     if host_deferred and return_code in {75, 124, 137, 143}:
         return False, True, f"host_admission_deferred:{host_deferred}"
+    if result_hint and SAFE_RESULT_HINT.fullmatch(result_hint):
+        return False, False, result_hint
     return False, False, f"entrypoint_exit_{return_code}"
 
 
@@ -456,8 +469,12 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             transfer_durable_resource(claim, child_pid)
             claim_started_child = True
 
+        child_env = {
+            **env,
+            "LIFE_MANAGER_RESULT_HINT_PATH": str(receipt.parent / "entrypoint-result.json"),
+        }
         return_code = _run_entrypoint(
-            command, env=env, timeout_seconds=limit, cancelled=lambda: interrupted,
+            command, env=child_env, timeout_seconds=limit, cancelled=lambda: interrupted,
             on_started=transfer_claim)
         if return_code == 75 and interrupted:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
@@ -520,10 +537,11 @@ def main(argv: list[str] | None = None) -> int:
             "TMPDIR": f"{scratch}/", "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
         }, host_receipt)
         host_deferred = _host_admission_deferred(host_receipt, started_ns)
+        result_hint = _read_result_hint(scratch / "entrypoint-result.json")
         terminal_saved = False
         try:
             succeeded, deferred, blocker = _terminal_outcome(
-                return_code, host_deferred=host_deferred)
+                return_code, host_deferred=host_deferred, result_hint=result_hint)
             event = build_runtime_event(
                 loop_id=loop_id, domain=entry["domain"], run_id=run_id,
                 release_sha=manifest["sha"], provider=entry["provider_route"],

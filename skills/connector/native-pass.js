@@ -37,6 +37,31 @@ function unavailable() {
   throw new Error("Connector minimal pass unavailable");
 }
 
+const SAFE_RESULT_REASON = /^[a-z][a-z0-9_:-]{1,99}$/;
+
+function writeNativeResultHint(result) {
+  const target = String(process.env.LIFE_MANAGER_RESULT_HINT_PATH || "").trim();
+  if (!target || !path.isAbsolute(target)) return;
+  const status = result && typeof result === "object" && !Array.isArray(result)
+    ? String(result.status || "") : "";
+  const safeReason = result && typeof result === "object" && !Array.isArray(result)
+    ? String(result.safe_reason || "") : "";
+  const payload = {
+    status: SAFE_RESULT_REASON.test(status) ? status : "unknown",
+    ...(SAFE_RESULT_REASON.test(safeReason) ? { safe_reason: safeReason } : {}),
+  };
+  const temporary = `${target}.tmp-${process.pid}`;
+  try {
+    fs.writeFileSync(temporary, `${JSON.stringify(payload)}\n`, {
+      encoding: "utf8", mode: 0o600, flag: "wx",
+    });
+    fs.renameSync(temporary, target);
+    fs.chmodSync(target, 0o600);
+  } catch {
+    try { fs.rmSync(temporary, { force: true }); } catch { /* best effort only */ }
+  }
+}
+
 function absoluteDirectory(value) {
   const directory = path.resolve(String(value == null ? "" : value));
   if (!path.isAbsolute(directory) || directory === path.parse(directory).root) unavailable();
@@ -223,9 +248,11 @@ function nativeExitCode(result) {
 if (require.main === module) {
   runNativePass(cliArguments())
     .then((result) => {
+      writeNativeResultHint(result);
       process.exit(nativeExitCode(result));
     })
     .catch(() => {
+      writeNativeResultHint({ status: "circuit_open", safe_reason: "wake_boundary_failed" });
       process.stderr.write("Connector minimal pass unavailable\n", () => process.exit(2));
     });
 }
@@ -235,4 +262,5 @@ module.exports = {
   createNativeReportConfig: reportConfig,
   nativeExitCode,
   runNativePass,
+  writeNativeResultHint,
 };
