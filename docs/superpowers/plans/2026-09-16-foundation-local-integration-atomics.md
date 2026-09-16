@@ -540,6 +540,15 @@ pushed merge `b5805f4352`; focused 302 tests+165 subtests, 466 complete
 control-plane tests, Marketing21, candidate doctor164 and OSS boundary PASS.
 Fresh conflict-resolution review is pending. The loaded Affiliate label still
 uses earlier immutable `5f7a0ce8`, so the merge is not production proof.
+Recovery review found and fixed two source-only safety errors: a derived
+keep-alive repair target could bypass `--loaded-idle-only`, and a skipped
+running owner could be marked repaired. A follow-up liveness fix at pushed
+`d726aafbdc` closes a repair already completed by another reconcile only
+when the immutable release SHA, installed plist arguments and launchd loaded
+arguments agree exactly; stale loaded arguments keep it queued. Focused
+105 tests plus 33 subtests, full control-plane 466/466 and OSS verification
+pass. This is not loaded production evidence; the next gate remains exact
+candidate natural queue-to-claim, terminal and official effect/readback.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

@@ -919,6 +919,15 @@ Post-merge focused tests 302 plus 165 subtests, full control-plane 466/466,
 Marketing Node 21/21, candidate doctor 164/164 and OSS boundary PASS. Fresh
 read-only conflict-resolution review is pending. This is source convergence,
 not a new immutable candidate load, main domain merge or provider success.
+Recovery review then found two source-only safety failures: a derived repair
+target could reload a running keep-alive owner despite loaded-idle scope, and
+a skipped result could close a repair. Both are fixed on the candidate branch.
+Its follow-up `d726aafbdc` also closes an already-satisfied repair only after
+exact immutable SHA, installed plist and loaded launchd argv readback; a
+stale loaded argv stays queued. Focused 105 tests plus 33 subtests, full
+control-plane 466/466 and OSS verification pass. Independent follow-up
+review and production Local queue-to-claim/natural-wake proof remain open;
+neither code PASS nor source push closes the fleet gate.
 The user-owned goal cannot pass its Local queue gate while old main dispatchers
 delete candidate queue rows. The later instruction to take ownership and not
 stall the goal is therefore used for a narrow exception to the previous
