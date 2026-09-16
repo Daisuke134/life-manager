@@ -744,7 +744,7 @@ def test_opted_in_connector_reservation_coalesces_one_wake_signal(
     assert admission.release_and_reserve(claim, now=104) == []
 
 
-def test_opted_in_connector_preserves_wake_after_reservation_expires(
+def test_opted_in_connector_reuses_queued_scan_after_reservation_expires(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
     admission.activate_durable_v2()
@@ -757,12 +757,14 @@ def test_opted_in_connector_preserves_wake_after_reservation_expires(
     ticket, reason = admission.enqueue_durable(
         "browser", "life-manager-connector-native", admission_class="revenue",
         occurrence_id="connector:after-expiry", coalesce_reserved=True, now=107)
-    assert ticket is not None and reason != "reservation_coalesced"
-    assert {(row["occurrence_id"], row["state"]) for row in
-            durable_rows(tmp_path, "occurrences")} == {
-        ("connector:first", "queued"),
-        ("connector:after-expiry", "queued"),
-    }
+    assert ticket is not None and reason == "queued_coalesced"
+    assert [(row["occurrence_id"], row["state"]) for row in
+            durable_rows(tmp_path, "occurrences")] == [("connector:first", "queued")]
+    claim, reason = admission.claim_durable(
+        "browser", "life-manager-connector-native", admission_class="revenue", now=108)
+    assert claim is not None and reason == "acquired"
+    assert json.loads(claim.read_text())["occurrence_id"] == "connector:first"
+    admission.release_and_reserve(claim, reserve=False, now=109)
 
 
 def test_expired_running_heartbeat_keeps_live_child_claim(

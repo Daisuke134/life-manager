@@ -134,6 +134,9 @@
       ],
       "type": "object"
     },
+    "coalesce_queued_wakes": {
+      "type": "boolean"
+    },
     "coalesce_reserved_wakes": {
       "type": "boolean"
     },

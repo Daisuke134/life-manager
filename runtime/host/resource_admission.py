@@ -734,20 +734,22 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                         return None, "occurrence_terminal"
                     if existing_occurrence[4] == "claimed":
                         return None, "occurrence_inflight"
-                if coalesce_reserved and connection.execute(
-                    """SELECT 1 FROM reservations r
-                         JOIN queue q ON q.owner_id=r.owner_id
-                                     AND q.sequence=r.sequence
-                         JOIN priorities p ON p.owner_id=r.owner_id
-                         JOIN occurrences o ON o.owner_id=r.owner_id
+                queued_scan = connection.execute(
+                    """SELECT r.lease_until FROM queue q
+                         JOIN priorities p ON p.owner_id=q.owner_id
+                         JOIN occurrences o ON o.owner_id=q.owner_id
                                            AND o.state='queued'
                                            AND o.effect_unknown=0
-                        WHERE r.owner_id=? AND r.resource_class=?
+                         LEFT JOIN reservations r ON r.owner_id=q.owner_id
+                                                    AND r.sequence=q.sequence
+                        WHERE q.owner_id=? AND q.resource_class=?
                           AND p.admission_class=? AND p.effect_unknown=0
-                          AND r.lease_until>? LIMIT 1""",
-                    (owner_id, resource_class, admission_class, instant),
-                ).fetchone():
-                    return database, "reservation_coalesced"
+                        LIMIT 1""",
+                    (owner_id, resource_class, admission_class),
+                ).fetchone() if coalesce_reserved else None
+                if queued_scan is not None:
+                    return database, ("reservation_coalesced" if queued_scan[0] is not None
+                                      and queued_scan[0] > instant else "queued_coalesced")
             if any(item.get("owner_id") == owner_id for item in (
                     _row(path) or {} for path in owners.glob("*.json"))):
                 if occurrence_name is not None:
