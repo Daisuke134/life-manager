@@ -401,6 +401,19 @@ class LmLoopApplyTest(unittest.TestCase):
                     self.assertEqual(environment["LIFE_MANAGER_ENV_FILE"],
                                      environment["LIFE_MANAGER_MARKETING_ENV_FILE"])
 
+    def test_mobile_apply_rejects_executable_node_that_fails_smoke(self):
+        entrypoint = self.root / "apps/life-manager/scripts/mobile-app"
+        entrypoint.parent.mkdir(parents=True, exist_ok=True)
+        entrypoint.write_text("#!/bin/sh\nexit 0\n")
+        entrypoint.chmod(0o755)
+        fake_node = self.root / "bin/failing-node"
+        fake_node.write_text("#!/bin/sh\nexit 42\n")
+        fake_node.chmod(0o755)
+        value = registry("apps/life-manager/scripts/mobile-app")
+        with patch("runtime.loop.lm_loop_apply.shutil.which", return_value=str(fake_node)):
+            with self.assertRaisesRegex(ValueError, "node runtime smoke failed"):
+                build_apply_plan(value, self.root, SHA)
+
     def test_writer_plist_projects_one_state_log_and_env_contract(self):
         writer_entrypoint = self.root / "skills/writer-agent/article-daily.sh"
         writer_entrypoint.parent.mkdir(parents=True)

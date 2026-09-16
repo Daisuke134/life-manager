@@ -25,6 +25,11 @@ _PRIVATE_LOG_LOOP_IDS = frozenset({
     "money-printer-symphony-bridge",
     "money-printer-symphony",
 })
+_MARKETING_ENTRYPOINTS = frozenset({
+    "apps/life-manager/scripts/mobile-app",
+    "apps/life-manager/scripts/instagram-metrics-production-boot.sh",
+    "apps/life-manager/scripts/tiktok-metrics-production-boot.sh",
+})
 
 
 def _is_immutable_release_working_directory(value: object) -> bool:
@@ -64,11 +69,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
         "StandardOutPath": str(Path(log_root) / "launchd.out.log"),
         "StandardErrorPath": str(Path(log_root) / "launchd.err.log"),
     }
-    if entry["entrypoint"] in {
-        "apps/life-manager/scripts/mobile-app",
-        "apps/life-manager/scripts/instagram-metrics-production-boot.sh",
-        "apps/life-manager/scripts/tiktok-metrics-production-boot.sh",
-    }:
+    if entry["entrypoint"] in _MARKETING_ENTRYPOINTS:
         node = shutil.which("node")
         python = (runtime_python or Path(sys.executable).resolve()).resolve()
         if (not node or not Path(node).is_absolute() or not os.access(node, os.X_OK)
@@ -289,6 +290,24 @@ def build_apply_plan(registry: dict, release_root: Path, release_sha: str) -> li
     loop_runner = release_root / "bin/lm-loop-run"
     if not loop_runner.is_file() or not os.access(loop_runner, os.X_OK):
         raise ValueError("release loop runner missing or not executable")
+    if any(entry["entrypoint"] in _MARKETING_ENTRYPOINTS
+           for entry in registry["loops"].values()):
+        node = shutil.which("node")
+        if not node or not Path(node).is_absolute() or not os.access(node, os.X_OK):
+            raise ValueError("managed node executable is unavailable")
+        for executable, arguments, name in (
+            (Path(node), ("--version",), "node"),
+            (runtime_python, ("-c", "import sys, json"), "python"),
+        ):
+            try:
+                result = subprocess.run(
+                    [str(executable), *arguments], capture_output=True,
+                    text=True, check=False, timeout=5,
+                )
+            except (OSError, subprocess.TimeoutExpired) as error:
+                raise ValueError(f"{name} runtime smoke unavailable") from error
+            if result.returncode != 0:
+                raise ValueError(f"{name} runtime smoke failed")
     plan = []
     for loop_id in sorted(registry["loops"]):
         entry = registry["loops"][loop_id]
