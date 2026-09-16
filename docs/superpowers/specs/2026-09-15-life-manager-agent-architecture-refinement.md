@@ -313,6 +313,13 @@ effect、兄弟owner再起動は追加していない。apply/recovery suiteは*
 `lm-loop`/reconcilerのsyntaxとrun/admission **102 tests PASS**。自然wake後の同一owner state/event、
 duplicate effect 0、公式readbackはまだ未確認であり、S-03のproduction受入は未完である。
 
+直近のread-only実測では、`life-manager-connector-native`一件をcurrent immutable releaseへ
+targeted reconcileし、`eligible=1`、`failed=[]`、plist/loaded argvはSHA
+`9c6c81233de69d84771738277d80c79ffa86e447`へ揃った。しかしbootstrap直後のlaunchd readbackは
+`runs=0 / last exit=(never exited)`、StartIntervalは1800秒で、まだ自然wakeのterminal eventが
+存在しない。repair queueは空で、これはrepaired/verifiedではなく、自然wake待ちとしてR2-03を
+未完のまま保持する。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
