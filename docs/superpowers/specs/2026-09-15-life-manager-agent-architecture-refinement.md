@@ -335,6 +335,14 @@ Connectorが58番目まで待たされる状態を確認した。既存`lm-loop 
 provider effectを増やさない。reconciler回帰は12 tests PASS。candidateはpush済みだがmain/production
 へ未反映であり、ConnectorのGoogle Calendar公式登録・自然wake E2Eはまだ未確認である。
 
+その後のConnector自然wakeは`2026-09-16T08:20:30Z`にも実行され、launchd `runs=2`、同一ownerの
+terminalは`host_admission_deferred:resource_capacity_busy`だった。provider処理とGoogle Calendar
+公式readbackには到達していない。read-onlyのhost admission観測ではlive agent claimが3〜5件、
+agent queueが38件、deterministic queueが6件、swap使用量が約21.8GiBだった。これは「起動しない」
+問題ではなく、現行releaseの共有資源枠が実行前に満杯になる問題である。candidateのresource class・
+priority aging・occurrence durabilityをLocal canaryで同じownerに適用し、queueからclaimへ進める
+実測を得るまで、R2-03は未完のまま保持する。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
