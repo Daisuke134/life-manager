@@ -653,6 +653,53 @@ def test_multiple_occurrences_drain_one_owner_queue_without_loss(
     ]
 
 
+def test_reservation_recovers_known_queued_occurrence_missing_legacy_queue_row(
+        tmp_path, monkeypatch):
+    """A mixed-release queue deletion must not strand a safe scheduled wake."""
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "deterministic", "instagram-metrics", admission_class="borrow",
+        priority="support", occurrence_id="instagram-metrics:wake-1", now=100)
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        connection.execute("DELETE FROM queue WHERE owner_id='instagram-metrics'")
+        connection.execute("DELETE FROM priorities WHERE owner_id='instagram-metrics'")
+
+    assert admission.reserve_available(now=101, lease_seconds=30) == [
+        "instagram-metrics"
+    ]
+    claim, reason = admission.claim_durable(
+        "deterministic", "instagram-metrics", admission_class="borrow", now=102)
+    assert claim is not None and reason == "acquired"
+    assert json.loads(claim.read_text())["occurrence_id"] == "instagram-metrics:wake-1"
+    admission.release_and_reserve(claim, reserve=False)
+    assert [(row["occurrence_id"], row["state"]) for row in
+            durable_rows(tmp_path, "occurrences")] == [
+                ("instagram-metrics:wake-1", "released")
+            ]
+
+
+def test_orphan_recovery_never_reserves_uncertain_or_cancelled_occurrences(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="2")
+    admission.activate_durable_v2()
+    for owner_id in ("uncertain", "cancelled"):
+        admission.enqueue_durable(
+            "deterministic", owner_id, admission_class="borrow",
+            priority="support", occurrence_id=f"{owner_id}:wake-1", now=100)
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        connection.execute("DELETE FROM queue")
+        connection.execute("DELETE FROM priorities")
+        connection.execute(
+            "UPDATE occurrences SET effect_unknown=1 WHERE owner_id='uncertain'")
+        connection.execute(
+            "UPDATE occurrences SET state='cancelled' WHERE owner_id='cancelled'")
+
+    assert admission.reserve_available(now=101, lease_seconds=30) == []
+    assert durable_rows(tmp_path, "queue") == []
+    assert durable_rows(tmp_path, "reservations") == []
+
+
 def test_independent_natural_wake_during_reservation_is_not_lost(
         tmp_path, monkeypatch):
     """A reserved owner does not prove a new launchd wake was its kickstart."""

@@ -1010,6 +1010,33 @@ def _reserve_locked(connection: sqlite3.Connection, owners: Path, tickets: Path,
                     instant: float, lease_seconds: int,
                     starts: dict[int, str | None],
                     snapshot_started_ns: int) -> list[str]:
+    # Older loaded runners can remove a queue row without updating the newer
+    # occurrence ledger. Reconcile only known-safe queued work under this lock.
+    orphans = connection.execute("""
+        SELECT o.owner_id,o.resource_class,o.admission_class,o.base_priority,
+               o.queued_at,o.sequence
+          FROM occurrences o
+         WHERE o.state='queued' AND o.effect_unknown=0
+           AND NOT EXISTS (SELECT 1 FROM queue q WHERE q.owner_id=o.owner_id)
+           AND NOT EXISTS (SELECT 1 FROM reservations r WHERE r.owner_id=o.owner_id)
+           AND NOT EXISTS (SELECT 1 FROM occurrences u
+                            WHERE u.owner_id=o.owner_id AND u.effect_unknown=1)
+           AND NOT EXISTS (SELECT 1 FROM priorities p
+                            WHERE p.owner_id=o.owner_id AND p.effect_unknown=1)
+         ORDER BY o.queued_at,o.occurrence_id
+    """).fetchall()
+    for owner_id, resource_class, admission_class, priority, queued_at, sequence in orphans:
+        if sequence is not None:
+            connection.execute(
+                "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
+                (sequence, owner_id, resource_class))
+        connection.execute(
+            "INSERT OR IGNORE INTO queue(owner_id,resource_class) VALUES(?,?)",
+            (owner_id, resource_class))
+        connection.execute("""INSERT OR IGNORE INTO priorities(
+            owner_id,admission_class,admission_policy,base_priority,queued_at)
+            VALUES(?,?,?,?,?)""", (owner_id, admission_class, ADMISSION_POLICY,
+                                   priority, queued_at))
     dispatched = []
     while True:
         connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (instant,))
