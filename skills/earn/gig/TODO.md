@@ -13,12 +13,14 @@ runtime/provider readback before acting; conversation claims are not completion 
   `Daisuke134/life-manager`. The folder name on this Mac is **`life-manager-main`**. No separate project or
   repository named `life-manager/` was created.
 - Current task worktree: `/private/tmp/lm-runtime-admission-reservations-20260914`, branch
-  `docs/coconala-paid-current-20260916`, lease
+  `docs/paid-autorecovery-current-20260916`, lease
   `ac1f02d45387233d8866ce7dbd62c01a5b1a28987c9e2614a873535c1d766f69`. This is a linked Git worktree of
   the same `life-manager-main` repository, not another project. The main checkout is currently on the unrelated
   Capify branch `capafy/account-plan-deck-offline-20260912`, so it remains read-only for this workstream.
-- Canonical runtime source is `origin/main` at `dde0efae68f5e804bef262b9efecf31ffdb90c39`. The newest
-  immutable release is `/Users/anicca/loops/releases/20260916T145334-dde0efae`. PR `#5279` adds model-owned
+- Canonical runtime source is `origin/main` at `f5251bb9373458643a644949e4961e249dd4c93e`. The newest
+  immutable release is `/Users/anicca/loops/releases/20260916T152637-f5251bb9`; Paid is exact-loaded from it.
+  PR `#5281` requires the owner to read the official buyer message before treating a redacted value as missing.
+  PR `#5279` adds model-owned
   `required_outcomes` and deterministic owner/verifier `outcome_coverage`, so every current buyer outcome needs
   official effect/readback evidence before Coconala send. PR `#5276` makes each
   Apply refresh collect both `single:new` and `retainer:new`; PR `#5274` fills mandatory retainer screening
@@ -27,7 +29,7 @@ runtime/provider readback before acting; conversation claims are not completion 
   official seller-last attachment wait reducer; PRs `#5252` and `#5254`
   add the revenue floor, legacy-reservation migration fence and Paid Account 1→2 Codex route; `#5250`
   browser/child-cleanup remains an ancestor. Apply is exact-loaded from `6e1dcc42`, Reply and Storefront retain
-  `0aba1191`, and Paid is exact-loaded from `dde0efae` under the bounded operator brake.
+  `0aba1191`, and Paid is exact-loaded from `f5251bb9`.
   A natural Reply wake passed and a bounded Paid decision
   selected `codex/acct1/gpt-5.6-terra`.
   Do not create another runtime worktree or use the Capify checkout as source.
@@ -41,12 +43,12 @@ runtime/provider readback before acting; conversation claims are not completion 
   `/private/tmp/lm-runtime-admission-reservations-20260914/skills/earn/gig/TODO.md`. Its repository-relative
   canonical path is `skills/earn/gig/TODO.md`; after merge the same file is available under
   `/Users/anicca/Projects/life-manager-main/skills/earn/gig/TODO.md`. Do not create a second live TODO.
-- Coconala is not complete. Ryu's previously handled digest has a later seller submission, but three newer buyer
-  messages now require: one configured destination for both forms, easy-edit section consolidation and profile
-  editing from easy edit. The old Paid contract proved only the latter two; a bounded operator brake stopped the
-  partial Coconala send with `effect=0`. Main/release `dde0efae` now requires per-outcome official receipts, but
-  the new release still needs loaded-idle cutover, a fresh complete owner/verifier pass, ordinary Coconala send,
-  exact talkroom readback and replay-zero. Chii's direct execution ledger contains
+- Coconala is not complete. Ryu's three newer buyer messages require one configured destination for both forms,
+  easy-edit section consolidation and profile editing from easy edit. The target-specific owner reports both
+  outcomes satisfied and a fresh browser readback exists. The independent verifier returned `cdp_transient`;
+  the stale browser lease was released manually after its holder PID disappeared. The Paid item then ended
+  `remote_verifier` failure with `effect=0` and `readback=0`. Neither manual lease release nor owner success is
+  proof of autonomous recovery or Coconala submission. Chii's direct execution ledger contains
   288 exact-readback sends,
   the previously verified ledger contains 12, and the official Sheet contains 300 unique rows. The 300-row
   workbook was sent to Coconala with formal delivery OFF and read back in talkroom `18180857`. Chii is now
@@ -54,8 +56,10 @@ runtime/provider readback before acting; conversation claims are not completion 
   superseded historical state, not another client-work project.
 - Paid now tries the existing Account 1 Codex profile first and falls back to Account 2 through the shared
   runner; the first bounded Account 1 receipt is proved. Preserve both accounts and all unrelated sessions.
-- First safe action: release the bounded Paid brake and close Ryu's
-  three-outcome cycle with official remote readbacks, ordinary Coconala readback and replay-zero. Then complete
+- First safe action: make the existing Paid owner recover its own orphaned browser lease, naturally retry the
+  same Ryu work item, finish independent verification, send one ordinary Coconala report and prove exact
+  talkroom readback plus replay-zero. Do not hand-release the next stale lease or treat a manual kickstart as
+  autonomous recovery. Then complete
   replay-zero for the current Apply release and move to shared admission/cadence and owner-scoped browser
   teardown. A natural `6e1dcc42` wake observed both
   `single:new` and `retainer:new` in one snapshot, found the current retainer page empty, and completed six
@@ -82,7 +86,7 @@ that the provider currently has an authenticated account, a verified external ef
 
 | Platform | As-Is now | To-Be finish condition |
 |---|---|---|
-| Coconala | Apply is exact-loaded from `6e1dcc42`; Reply and Storefront retain `0aba1191`; Paid is exact-loaded from `dde0efae` under a bounded operator brake. Ryu has three newer buyer outcomes and is not seller-last; the incomplete partial send was stopped at effect zero. Reply's latest natural pass observed 179 threads with 164 official readbacks and 15 pending. Apply observed both one-off and continuous sources, applied to six eligible one-off jobs and officially read back all six with zero failures; the current continuous page had zero active cards. The fleet still has a static five-finite-run default and only two durable revenue-priority owners, so 24/7 no-starvation is not proved. | Every active client has its own durable work item, newest-buyer coverage, provider effect/readback, replay-zero and payout attribution; every lane meets its cadence without a fixed global-slot bottleneck, and one client's failure never pauses another lane. |
+| Coconala | Apply is exact-loaded from `6e1dcc42`; Reply and Storefront retain `0aba1191`; Paid is exact-loaded from `f5251bb9`. Ryu's owner has target evidence for both newer outcomes, but the independent verifier failed `cdp_transient`; no current-cycle Coconala effect/readback exists. A stale browser lease required manual release, and a later Paid wake was deferred by `resource_capacity_busy`. Reply's latest natural pass observed 179 threads with 164 official readbacks and 15 pending. Apply observed both one-off and continuous sources and officially read back six new one-off applications; the continuous page had zero active cards. The static five-finite-run default and only two durable revenue-priority owners leave 24/7 no-starvation unproved. | Every active client has its own durable work item, newest-buyer coverage, provider effect/readback, replay-zero and payout attribution; every lane meets its cadence without a fixed global-slot bottleneck, and one client's failure never pauses another lane. |
 | Lancers | Application, browser, negotiation, paid, storefront, work-sync and report owners are registered. Production fixes exist in main, but durable login and the full Apply→Paid→payout proof are not closed. | One persistent account/browser owner runs the complete lifecycle with official proposal, work, payment and payout receipts. |
 | CrowdWorks | Application, Reply, Paid and Report owners are registered. Existing contracts still need fulfillment from buyer instruction/link through actual submission and readback. | Each accepted contract becomes an independent fulfillment item and reaches artifact submission, official receipt, payout and replay-zero; Storefront is explicitly `not_applicable` unless the provider exposes it. |
 | Mercor | Application, Reply and Paid owners are registered, but repeated-login/authentication and full contract proof remain open. | Persistent authenticated account state, application, reply/interview handoff, contract, paid work and payout are independently evidenced. |
@@ -588,8 +592,8 @@ four open rooms with no duplicate effect. Reply has a
 natural terminal pass. Apply release `6e1dcc42` naturally observed both one-off and continuous sources in one
 wake and completed six one-off applications with six official readbacks, zero failures and zero pending.
 
-**Not done:** Ryu's newest three-outcome cycle still needs complete remote effects, owner/verifier receipts,
-ordinary Coconala send, exact talkroom readback and replay-zero. The prior ULID retainer attempt has no official
+**Not done:** Ryu's newest three-outcome cycle still needs autonomous orphan-lease recovery, a fresh independent
+verifier PASS, ordinary Coconala send, exact talkroom readback and replay-zero. The prior ULID retainer attempt has no official
 submit/readback and remains duplicate-fenced; the
 current continuous page has no active listing with which to prove a fresh screening-answer effect. Apply still
 needs replay-zero for the six new official effects. Fifty-four historical uncertain applications remain a
@@ -604,7 +608,7 @@ Storefront must all be revenue-priority owners. Maintenance may borrow unused ca
 of five finite runs is not accepted as the final architecture; production must use measured resource-class
 capacity and prove 24 hours without a missed revenue cadence or fleet starvation.
 
-**Next order:** (1) release the Paid brake and close Ryu's latest three-outcome cycle, (2) prove replay-zero
+**Next order:** (1) close Ryu's latest three-outcome cycle through natural, self-recovering Paid wakes, (2) prove replay-zero
 for the six new one-off effects and keep one-off/retainer refresh live, (3) repair shared admission/cadence
 and owner-scoped tab teardown, (4) resolve Reply 15 and Coconala payout, (5) reconcile the 54 historical
 uncertain intents as preemptible background work without blocking current revenue, (6) prove all four Coconala
@@ -936,12 +940,12 @@ work item and leave a sibling trace unchanged.
   `await_buyer_feedback`; retain one regression fixture covering the Ryu-shaped contradiction.
 - [x] Route active talkrooms to independent work items and effect fences. The current Paid wake ran Ryu and
   Chii owner processes concurrently while both Kokoro rooms independently replayed buyer-wait state.
-- [ ] Ryu `18211957`: the older digest is covered by a later ordinary seller message, but three newer buyer
-  messages are now one active cycle: configure both form destinations, consolidate easy-edit sections and edit
-  profiles from easy edit. The old owner omitted the first outcome and the Paid brake stopped Coconala effect at
-  zero. Release the brake on exact-loaded `dde0efae`, require all `required_outcomes` and matching
-  `outcome_coverage`, verify the live
-  target, send one ordinary message with formal delivery OFF, read it back seller-last and prove replay-zero.
+- [ ] Ryu `18211957`: the older digest is covered by a later seller message; the newer three-message cycle
+  covers both form destinations, grouped easy edit and profile editing. The owner has current target evidence,
+  but independent verification failed `cdp_transient` and Coconala effect/readback remain zero. Fix the
+  owner-scoped orphan browser-lease recovery, then prove a natural Paid wake independently verifies both
+  outcomes, sends one ordinary message with formal delivery OFF, reads it back seller-last and replays zero.
+  A manual lease release or one supervised successful run does not close this item.
 - [x] Kokoro `18223833`: retained inputs were recovered and the room has its own verified submission; replay zero
   unless a newer buyer event appears.
 - [x] Kokoro `18250352`: the newer post-v12 request is complete. Gmail SENT readback and a fresh verifier prove
