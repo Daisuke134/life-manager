@@ -516,6 +516,16 @@ next natural wake cut the new complete release once. Then target-apply only
 the idle reconciler label, read back argv/SHA and verify the following natural
 wake command uses four ordinary owners/route. Until this chain passes, the
 fast reconciler is main-source-only, not production-proven.
+The old e447 outer reconciler run terminated `pass` at 18:13:30 UTC and its
+label was then exact-applied while idle to full main release
+`20260917T031021-3066e641`. Loaded argv/SHA matched. Its first **natural**
+new-SHA outer run terminated `pass` at 18:19:08: shared-agent applied four,
+deterministic applied four ordinary owners plus Disk Cleanup, failures zero;
+candidate Connector/Mobile/Affiliate SHAs remained protected by the
+non-ancestor skip/readback. Fleet snapshot: 12 new-main, 10 previous-main,
+21 candidate-safe, 121 other. This proves accelerated reconciler lifecycle,
+not queue-to-claim or provider effect; Metrics/Affiliate remain
+capacity-blocked and old dispatchers remain loaded.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

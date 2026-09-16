@@ -880,6 +880,20 @@ convergence: loaded argv/SHA point to the new main release, its next natural
 outer run invokes four ordinary owners/route (Disk Cleanup may be separate),
 and old-cancel wrapper count falls while a blocked candidate subsequently
 claims/releases. Loaded/exit0 alone is not queue progress.
+Natural handoff succeeded: old e447 reconciler outer run ended `pass` at
+18:13:30 UTC; only then was the idle reconciler label exact-applied to full
+main release `20260917T031021-3066e641` (plist/loaded argv/SHA read back).
+Its next natural wake started from that SHA and ended outer `pass` at
+18:19:08 UTC. Same-run output showed four shared-agent owners and four
+ordinary deterministic owners plus Disk Cleanup applied, failures zero,
+with non-ancestor Connector/Mobile/Affiliate candidate owners explicitly
+skipped. Candidate Affiliate `5f7a0ce8` and Instagram/TikTok `cf655388`
+remained exact-loaded. Snapshot after this wake: new main 12, prior main 10,
+candidate 21, other 121. Thus faster convergence is production-exercised,
+but old-cancel wrappers remain and candidate Metrics still ended
+`capacity_busy` before provider work. Continue automatic loaded-idle
+roll-forward and measure queue-to-claim/terminal; do not call the fourteen
+product loops verified from reconciler `pass`.
 The user-owned goal cannot pass its Local queue gate while old main dispatchers
 delete candidate queue rows. The later instruction to take ownership and not
 stall the goal is therefore used for a narrow exception to the previous
