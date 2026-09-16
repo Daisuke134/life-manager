@@ -974,6 +974,39 @@ train/held-out split, safety tripwires, promotion decision, and rollback pointer
 changes to recipes and skills, but cannot rewrite constitution, identity, credentials, permissions,
 effect/readback rules, or evaluator gates. Promotion is a separate owner action after all gates pass.
 
+### I1. RSI research grounding and Life Manager boundary (2026-09-16)
+
+公開コードをcloneして確認した結果、現在の「再帰的自己改善」の実装例は、基盤モデルの重みを
+無監督で作り直すものではなく、agentのコード・道具・実験手順を候補化し、外部の評価で選ぶものです。
+この区別をLife Managerの完了判定へ固定します。
+
+| source | 実コードで確認した流れ | Life Managerへ取り入れる原則 |
+|---|---|---|
+| [Darwin Gödel Machine](https://github.com/jennyzzt/dgm) / [paper](https://arxiv.org/abs/2505.22954) | `DGM_outer.py`がarchiveから親を選び、`self_improve_step.py`が隔離containerでagent codeを変更し、SWE/Polyglot評価後にmetadata/archiveへ保存する | 候補はbranch/release単位で保存し、親・差分・評価・rollbackを必ず結ぶ。archive探索はproduction effectと分離する |
+| [AI Scientist-v2](https://github.com/SakanaAI/AI-Scientist-v2) / [paper](https://arxiv.org/abs/2504.08066) | `AgentManager`と`ParallelAgent`がstage、checkpoint、experiment treeを管理し、各nodeを評価して次の探索へ進む | 長い改善をcheckpointとbounded treeで分割する。候補の失敗を捨てず、再現可能な証拠として残す |
+| [AutoML-Zero](https://github.com/google-research/google-research/tree/master/automl_zero) / [paper](https://arxiv.org/abs/2003.03384) | `RegularizedEvolution`が候補を選択・変異し、`Evaluator`のfitnessで次の候補を選ぶ | 変更案の評価関数を先に固定し、実測fitnessのない候補を昇格させない。並列数と計算量を明示的に制限する |
+| [OpenAI Tax AI](https://openai.com/index/building-self-improving-tax-agents-with-codex/) | 本番traceと専門家の修正をfinding/evalへ変換し、Codexが限定された製品層を改善する。architectureとshippingは人間の責任として残る | Life Managerもruntime receiptをeval caseへ変換する。ただし改善workerにcredential、browser lease、production write権限を渡さない |
+| [AlphaEvolve](https://deepmind.google/blog/alphaevolve-a-gemini-powered-coding-agent-for-designing-advanced-algorithms/) | LLMがプログラム候補を作り、自動評価器で検証し、program databaseの進化的選抜で次の候補を決める | evaluatorを候補生成器から分離し、baseline/held-out/safety/cost/live evidenceの全てを通過した候補だけをreleaseへ送る |
+
+この調査から、Life ManagerのRSIを次の4段階に分ける。
+
+1. **RSI-0（自己修復）**：timeout、stale claim、容量待ち、release driftを同じownerへ再接続する。
+2. **RSI-1（製品自己改善）**：receiptと失敗からskill、prompt、tool説明、context選択、adapterの候補を作る。
+3. **RSI-2（改善器の改善）**：candidate生成器、evaluator、Graph query、context圧縮方法自身を候補化する。
+4. **RSI-3（後継モデル研究）**：モデル重み・学習法・計算資源を更新する研究。これは現在のproduction TODOではなく、別の安全・計算資源・独立評価が必要な研究領域である。
+
+RSI-2を「再帰的」と呼ぶためには、改善workerが自分の改善方法を変更しても、同じimmutable
+baseline、held-out、安全性、cost、live evidence、rollbackのgateを通過しなければならない。
+改善workerは自分の評価器、権限、identity、外部effect証明を変更できない。候補生成は低優先度の
+deterministic/light resource classで行い、収益browser枠を奪わない。公開研究自身もDGMでは
+「iteratively modifies its own code」と説明する一方、sandboxとhuman oversightを使っているため、
+このSpecは「無監督で次世代foundation modelを作った」とは判定しない。
+
+OpenAIの公開説明も「Fully autonomous recursive self-improvement ... is not happening today」として
+おり、Life Managerは現在、RSI-0/RSI-1の実装とRSI-2の安全な接続を進める段階である。AGIという
+製品主張は、未知の課題への長期自律性、改善前後の再現可能な評価、外部効果、safety evidenceを
+独立に示した後でのみ検討する。
+
 ### J. Local and cloud are one implementation
 
 Both hosts use the same product loop ID, recipe, capability/effect contract, graph vocabulary,
