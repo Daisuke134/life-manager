@@ -974,11 +974,15 @@ work item and leave a sibling trace unchanged.
   official history page proves it absent. Never delete the records blindly or let them delay current revenue.
 - [x] Restore authenticated discovery for both `single:new` and `retainer:new`. Release `30a2a2df` observed the
   current single page and the official retainer page; the latter contained one active listing.
-- [ ] Keep submitting every eligible high-fit one-off and continuous application. The earlier six one-off
-  effects are duplicate-fenced in subsequent runs. The first `0401cb6a` run confirmed four more eligible
-  one-off effects with four official readbacks and zero failures; prove their replay-zero on the next natural
-  wake. The continuous source was observed in the same wake but had zero active cards, so its next
-  eligible listing must exercise the screening-answer submit/readback path.
+- [x] Prove the first `0401cb6a` run's four one-off effects replay zero. The next natural Apply wake
+  `gig-apply-direct-1789546429808684000-94897` recognized `5275397`, `5273683`, `5275175` and
+  `5266799` as already applied, did not send them again, and instead confirmed three distinct eligible
+  applications (`5275054`, `5270900`, `5268989`) with three official readbacks. Its terminal result was
+  `status=ok`, `effect=3`, `readback=3`, `failed=0`, `pending=0` under immutable release `0401cb6a`.
+- [ ] Keep submitting every eligible high-fit one-off and continuous application. The earlier six and
+  subsequent four one-off effects are duplicate-fenced in later runs. The continuous source was observed
+  but had zero active cards in the first `0401cb6a` wake; its next eligible listing must exercise the
+  screening-answer submit/readback path. The newest three effects need replay-zero on a later natural wake.
 - [ ] Create Calendar events and five-minute Telegram reminders for every accepted meeting.
 - [ ] Keep Reply processing every talkroom independently with cumulative context and attachment recovery. Its
   latest pass observed 179 threads, read back 164, and left 15 pending; resolve each pending thread without
