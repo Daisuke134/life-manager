@@ -211,9 +211,11 @@ S-01の共有kernel実装もcandidate `67a0374a10`から`1d66bc1049`へ継承し
 `lm-loop reconcile --recovery-intent PATH`はretry対象を1 owner/jobだけへ限定する。複数intent・owner不一致・
 route不一致・job ID欠落は実行前に拒否し、兄弟再起動とeffect再送を防ぐ。本番ownerへはまだ配布していない。
 
-同じ手順で外部effectを持たない`self-improve-evolve` ownerもtargeted reconcileした。preflightはPASSし、
-installed SHAはcurrentへ揃ったが、最後のruntime report/eventは旧SHAで`resource_capacity_busy`のままである。
-これはrelease整合性の修復であり、自己改善が成功したというreceiptではない。自然wake後に再確認する。
+同じ手順で外部effectを持たない`self-improve-evolve` ownerもtargeted reconcileした。最新のpreflightはPASSし、
+installed SHAをcurrent `c5cae826bee7bc8c9bb414037a11c3261b9e5102`へ揃えた。1回のkickstart後、eventも同SHAへ更新されたが、
+`last_exit=75 / host_admission_deferred:resource_capacity_busy`で終了した。これはrelease整合性とtyped
+terminalの修復であり、自己改善が成功したというreceiptではない。revenue ownerを停止せず、空き枠の
+自然wake後に再確認する。
 
 さらに外部effectを持たない`life-manager-selfbuild` ownerも同じtargeted reconcileでcurrent SHAへ揃えた。
 installed SHAは更新されたが、最後のruntime report/eventは旧SHAで`resource_control_busy`のため、自然wakeの
