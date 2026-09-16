@@ -142,55 +142,147 @@ Rules:
 - Do not describe the selected minute as emotionally optimal.
 - A user-authored goal may influence message selection, not timing, until a matching goal/work-block contract exists.
 
-## 7. Message families
+## 7. Catalog sources: reuse before invention
 
-### 7.1 Affirmation
+V1 does not author a new affirmation collection. It imports and indexes existing catalogs.
 
-Purpose: strengthen a believable posture toward oneself without claiming a current achievement or emotional state.
+### 7.1 First-party source
 
-- `そのままの自分で、今日を始めていい。`
-- `全部を完璧にしなくても、価値は減らない。`
-- `自分に向ける言葉も、少しやさしくしていい。`
-- `うまくできない瞬間があっても、自分全体が失敗になるわけではない。`
-- `急がなくても、進む方向は選べる。`
-- `他人の評価より先に、自分の味方でいていい。`
-- `今日の自分に必要なのは、罰ではなく余白かもしれない。`
-- `できる自分だけでなく、迷っている自分もここにいていい。`
+The primary source is the existing Anicca catalog:
 
-### 7.2 Manifestation
+```text
+/Users/anicca/anicca-project/apps/api/src/modules/affirmations/catalog/en.json
+/Users/anicca/anicca-project/apps/api/src/modules/affirmations/catalog/ja.json
+/Users/anicca/anicca-project/apps/api/src/modules/affirmations/catalog/es.json
+```
 
-Purpose: connect an explicit aspiration to agency. A message must stay valid even when no progress data exists.
+Each locale contains the same stable `q001`–`q200` IDs. Life Manager imports an approved snapshot into its own repository; it does not depend at runtime on the separate Anicca product checkout.
 
-- `望む未来は、今日の小さな選択から形になる。`
-- `なりたい自分を思い出して、次の一歩だけ選べばいい。`
-- `未来を保証する必要はない。向かう方向は、いま選べる。`
-- `言葉にした願いを、今日できる一つへ小さくしていい。`
-- `大きな変化は、繰り返せる小さな行動から始まる。`
-- `まだ見えていない可能性のために、今日の余白を残しておく。`
+Examples already present in the Japanese catalog:
 
-Explicit-goal examples, legal only when the goal is user-authored:
+| ID | Exact catalog text | Candidate themes |
+|---|---|---|
+| `q001` | `私は本当の自分になりつつあります。` | growth, identity |
+| `q005` | `私は、自分が育つ速さを信頼しています。` | patience, growth |
+| `q022` | `私の中心には、いつでも戻れる静けさがあります。` | calm, grounding |
+| `q027` | `すべてを直さなくていい。私は休んでよいのです。` | rest, self-compassion |
+| `q031` | `私は今、ここに在ります。それで十分です。` | presence, enoughness |
+| `q036` | `私は呼吸に戻り、自分自身に戻ります。` | breath, mindfulness |
+| `q038` | `気づき、息をして、もう一度始めます。` | reset, action |
+| `q061` | `私は今までも辛い日を越えてきた。今日も越えていけます。` | resilience |
+| `q071` | `コントロールできないことを手放し、平和を保ちます。` | release, calm |
+| `q091` | `まだ知らなかったことを、知らなかった自分を許します。` | forgiveness |
+| `q101` | `怖くても、私は前に進むことができます。` | courage, action |
+| `q161` | `私は今このままで、十分です。` | self-worth |
 
-- `「{goal}」を大切にするなら、今日はそれに近づく一つを選べる。`
-- `目指している「{goal}」は、完璧さより続けられる一歩から育つ。`
+### 7.2 External OSS candidates
 
-These do not say the user has already acted or will certainly succeed.
+| Source | Pin | License | V1 decision |
+|---|---|---|---|
+| [humancto/antara-remarkable](https://github.com/humancto/antara-remarkable) | `bdaf5a19e6401c771e097e04bc3fcc16d44eb835` | MIT | Approved candidate source; author field is preserved |
+| [lifeLessCoder/Mental-Buddy](https://github.com/lifeLessCoder/Mental-Buddy) | `05e0522deae5943ac2704826cbe3cdc124d9fedf` | MIT | Candidate source after safety screening |
+| [ContionMig/Mitsuzi-JS](https://github.com/ContionMig/Mitsuzi-JS) | inspected main | MIT repo | Not imported in V1; mixed attributed quotes, medical claims, and absolute manifestation claims |
+| [DNSERR/confidencecrew](https://github.com/DNSERR/confidencecrew) | inspected main | MIT repo | Not imported in V1; duplication and strong success/destiny claims |
 
-### 7.3 Mindfulness inquiry (`問いかけ`)
+Repository license alone is not enough when the file appears to aggregate third-party quotations. Each imported item needs traceable authorship or an explicit source license that covers the text.
 
-Purpose: interrupt autopilot and return attention to the present. No answer is requested or stored.
+### 7.3 Import manifest
 
-- `いま、何に意識を使っている？`
-- `いまの呼吸は、浅い？ 深い？`
-- `いま必要なのは、続けること？ 少し止まること？`
-- `いま手放しても困らない考えはある？`
-- `身体のどこに、いちばん力が入っている？`
-- `次の一分を、どんな気持ちで使いたい？`
-- `いま目の前にあるものを、ひとつだけ丁寧に見られる？`
-- `その考えは事実？ それとも、いま浮かんでいる物語？`
+Every imported catalog has a pinned manifest:
 
-Questions are rhetorical prompts. No keyboard, button, callback, or reply instruction is attached.
+```json
+{
+  "source_id": "anicca-affirmations-v1",
+  "source_repo": "Daisuke134/anicca-products",
+  "source_commit": "78566da90d279c4903ed393ceed331d97a587f5c",
+  "source_path": "apps/api/src/modules/affirmations/catalog/ja.json",
+  "license": "first-party",
+  "imported_sha256": "64-lowercase-hex",
+  "quote_count": 200
+}
+```
 
-## 8. Copy contract
+OSS manifests additionally store the license URL, author field when available, and exact upstream text. Unlicensed or ambiguous text never enters the production bank.
+
+## 8. Catalog classification and personalization
+
+Life Manager personalizes by selecting an existing catalog item, not by asking an LLM to rewrite it.
+
+Each approved quote receives Life Manager-owned metadata without changing the source text:
+
+```json
+{
+  "id": "anicca:q036",
+  "source_id": "anicca-affirmations-v1",
+  "source_quote_id": "q036",
+  "family": "affirmation",
+  "themes": ["breath", "mindfulness", "grounding"],
+  "tones": ["gentle", "spiritual-neutral"],
+  "windows": ["day_reset", "evening_release"],
+  "risk_flags": [],
+  "localized_text": {
+    "ja": "私は呼吸に戻り、自分自身に戻ります。",
+    "en": "I return to my breath. I return to myself.",
+    "es": "Vuelvo a mi respiración. Vuelvo a mí."
+  }
+}
+```
+
+### 8.1 User personalization inputs
+
+Only explicit, durable user facts affect selection:
+
+```text
+preferred locale
+preferred tone: gentle / direct / spiritual-neutral
+explicit values: growth / peace / courage / self-worth / rest
+explicit goals
+themes to avoid
+recently delivered quote IDs
+current delivery window
+```
+
+Calendar titles, silence, response time, and inferred mood do not modify the mental profile.
+
+### 8.2 Deterministic selection
+
+For every eligible quote:
+
+```text
+score =
+  +4 for each explicit-value/theme match
+  +3 for an explicit-goal/theme match
+  +2 for preferred-tone match
+  +1 for delivery-window match
+  -1000 if theme is explicitly avoided
+  -1000 if quote was delivered within 14 days
+  -1000 if any safety/risk flag is present
+```
+
+Ties are broken deterministically by `uid + local_day + window + quote_id`. Selection produces the existing localized text byte-for-byte.
+
+### 8.3 Manifestation
+
+Manifestation is a catalog classification, not newly generated prose. Only catalog items about direction, possibility, growth, and controllable action qualify. Items promising inevitable success, attraction of wealth, perfect health, destiny, or intervention by the universe are rejected.
+
+An explicit goal selects a matching quote but is not interpolated into the quote in V1. This avoids awkward or unsupported rewriting.
+
+### 8.4 Mindfulness inquiry (`問いかけ`)
+
+If a catalog contains an approved question, it can be delivered verbatim. When an affirmation is converted into a question, the question must be a separately reviewed catalog variant linked to its source ID:
+
+```json
+{
+  "id": "life-manager:inquiry:q036:ja:v1",
+  "derived_from": "anicca:q036",
+  "reviewed_text": "いま、呼吸に戻れる？",
+  "family": "mindfulness_inquiry"
+}
+```
+
+Runtime generation or ad-hoc paraphrasing is prohibited. The reviewed inquiry is stored and tested like any other catalog item. It remains useful without an answer and carries no button or reply instruction.
+
+## 9. Copy contract
 
 All V1 copy must satisfy:
 
@@ -212,24 +304,25 @@ The validator rejects reply-seeking phrases:
 返信して / 教えて / 答えて / 押して / 選んで / let me know / reply / tell me
 ```
 
-## 9. Selection and repetition
+## 10. Selection and repetition
 
-V1 uses a deterministic content bank, not free-form LLM generation.
+V1 uses the imported, classified catalog, not free-form LLM generation.
 
 Selection key:
 
 ```text
-uid + local_day + window + enabled_family + explicit_tone
+uid + local_day + window + eligible_quote_ids + explicit_profile_tags
 ```
 
 - Do not repeat the same template for the same user within 14 days.
 - Do not send the same family twice on the same day.
 - If no non-repeated eligible template exists, stay silent.
-- LLM generation is a later option only after deterministic safety and reception are measured.
+- Delivered text must equal the approved localized catalog text byte-for-byte.
+- LLM generation is not part of V1.
 
 No feedback buttons exist. V1 does not claim to learn message preference from silence. Any later adaptation must name a real signal such as explicit conversation, reaction, or settings change.
 
-## 10. Data and privacy
+## 11. Data and privacy
 
 Reuse `lm_mental_send_log`. Extend it only if current columns cannot store:
 
@@ -245,7 +338,7 @@ Do not add raw calendar titles, inferred mood, message-reply tracking, location 
 
 The durable profile may contain only explicit, user-authored values/goals and presentation preferences. A system inference is never written back as a user fact.
 
-## 11. Future context unlocks
+## 12. Future context unlocks
 
 Future contextual messages are separate milestones. Each is disabled until its evidence contract passes production readback.
 
@@ -259,7 +352,7 @@ Future contextual messages are separate milestones. Each is disabled until its e
 
 The receipt authorizes only the matching claim. For example, a calendar event never authorizes `準備済み`, and a task completion never authorizes an inferred mood.
 
-## 12. Failure behavior
+## 13. Failure behavior
 
 | Failure | Behavior |
 |---|---|
@@ -267,11 +360,13 @@ The receipt authorizes only the matching claim. For example, a calendar event ne
 | Calendar unavailable | Suppress rather than risk interrupting an event |
 | Send history unreadable | Suppress rather than exceed cap or repeat |
 | No eligible non-repeated template | Suppress |
+| Catalog manifest hash differs | Suppress; do not load an unreviewed catalog |
+| Source license/provenance missing | Exclude source at build/import time |
 | Template uses unavailable variable | Reject before Telegram |
 | Telegram failure | Do not record a delivered send |
 | Receipt write fails after delivery | Record reconciliation evidence by Telegram message ID; never resend blindly |
 
-## 13. Rollout
+## 14. Rollout
 
 ### Milestone A — Telnyx repair
 
@@ -295,9 +390,12 @@ Add one evidence-backed context class at a time. Each needs source, freshness, t
 
 Anicca iOS is not part of this runtime or rollout. It is a separate product created and operated by Life Manager's mobile-app loop.
 
-## 14. Acceptance criteria
+## 15. Acceptance criteria
 
 - Only `affirmation`, `manifestation`, and `mindfulness_inquiry` are enabled in V1.
+- Every production message resolves to a source ID, pinned manifest, quote ID, and approved localized text.
+- Anicca `q001`–`q200` ID parity across Japanese, English, and Spanish is preserved in the imported snapshot.
+- No unlicensed or ambiguous external text is imported.
 - Every message is plain text with zero buttons and zero reply instruction.
 - Maximum two V1 messages per user/local day.
 - Minimum four hours between messages.
@@ -309,7 +407,7 @@ Anicca iOS is not part of this runtime or rollout. It is a separate product crea
 - Seven-day Dais canary contains at least one delivered message from each family.
 - Telnyx acceptance remains independently satisfied.
 
-## 15. Non-goals
+## 16. Non-goals
 
 - Inferring mood from silence, calendar gaps, response time, or message opens.
 - Claiming a person prepared, focused, completed work, exercised, ate, drank, slept, or felt something without evidence.
@@ -318,11 +416,12 @@ Anicca iOS is not part of this runtime or rollout. It is a separate product crea
 - Anicca iOS integration.
 - Clinical diagnosis, therapy, emergency automation, or treatment claims.
 - Magical manifestation or guaranteed outcomes.
+- Runtime LLM rewriting, paraphrasing, translation, or interpolation of catalog prose.
 
-## 16. Decision record
+## 17. Decision record
 
-**Chosen:** context-light, plain-message V1 using only stable preferences and low-interruption opportunity windows.
+**Chosen:** select verbatim, licensed catalog text using stable preferences and low-interruption opportunity windows.
 
 **Deferred:** event-specific confidence, completed-task reflection, failure aftercare, and sensor-based physical prompts until their exact evidence sources exist and are verified in production.
 
-**Reason:** a less personalized true message is better than a highly personalized false one.
+**Reason:** reuse proven words; personalize the selection, not the truth of the sentence.
