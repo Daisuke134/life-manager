@@ -209,6 +209,8 @@ Run from the candidate worktree. The private filenames are unique and `umask 077
 
 **Task 7 second source slice — Postiz key preflight:** Same isolated branch commit `58cf4f7` adds `lm_require_env_keys` to the existing shared loader and invokes it from Mobile and both Metrics launchers before Node/provider work. The real launcher test failed RED with missing function/Node error, then passed GREEN: Node tests 9/9, shell syntax and diff check PASS. On missing `LM_POSTIZ_API_KEY` it returns exit 2 with the key name only; no value is logged. The private production env contains the key name and `LM_DATA_DIR`, but actual launchd environment, natural Postiz requests and provider readback remain unverified. `LM_DATA_DIR` validation is a separate consumer contract; do not infer it is universally required by Metrics solely from the publication runners.
 
+**Task 7 third source slice — executable smoke:** Same isolated branch pushed `10e7947`. A real executable fixture that exits 42 made the new apply test fail RED because plist generation accepted it; after adding bounded `node --version` and release-Python import checks before plan generation, it passed GREEN. Complete apply suite 84/84, syntax and diff check PASS. This rejects a broken runtime before any target plist install; it does not prove that the actual Postiz provider call or a scheduled Mobile publication succeeds. The branch remains unmerged, so the loaded 18 Mobile and 2 Metrics labels still use older releases.
+
 ### Task 8: Connect internal observability to bounded same-owner repair
 
 **Files:** `runtime/loop/harness-health.mjs`, `runtime/loop/lm_loop.py`, `bin/reconcile-agent-runner-release.sh`, `apps/life-manager/lib/product-onboarding.js`; existing recovery tests.
