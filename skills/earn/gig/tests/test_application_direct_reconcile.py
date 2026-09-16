@@ -47,13 +47,23 @@ def _started_intent(store, request_id):
         )
 
 
-def test_full_history_reconcile_confirms_present_and_retires_absent(tmp_path):
+def test_full_history_reconcile_confirms_present_and_retires_absent(tmp_path, monkeypatch):
     store = fence.IntentStore(tmp_path / "intents")
     present = _started_intent(store, "123")
     absent = _started_intent(store, "456")
+    targets = application_parent._durable_uncertain_intents(store)
+    ledger = tmp_path / "applied.jsonl"
+    original_confirm = application_parent._confirm_locked
+
+    def ledger_first(store_arg, request_id, intent):
+        assert '"requestId":"123"' in ledger.read_text(encoding="utf-8")
+        return original_confirm(store_arg, request_id, intent)
+
+    monkeypatch.setattr(application_parent, "_confirm_locked", ledger_first)
 
     result = application_parent.reconcile_durable_intents_from_full_history(
-        store=store, observed_ids={"123"}, evidence_path=tmp_path / "history.json",
+        store=store, targets=targets, observed_ids={"123"},
+        evidence_path=tmp_path / "history.json", ledger_path=ledger, pass_id="pass",
     )
 
     assert result == {"checked": 2, "confirmed": 1, "retired_absent": 1}
@@ -72,19 +82,39 @@ def test_full_history_reconcile_does_not_touch_non_started_intent(tmp_path):
         lease_fence={"task": "full-history-test", "token": "b" * 32, "generation": 1},
     )
     fence._durable_replace(store.intent_path("789"), payload)
+    targets = application_parent._durable_uncertain_intents(store)
 
     result = application_parent.reconcile_durable_intents_from_full_history(
-        store=store, observed_ids=set(), evidence_path=tmp_path / "history.json",
+        store=store, targets=targets, observed_ids=set(),
+        evidence_path=tmp_path / "history.json",
+        ledger_path=tmp_path / "applied.jsonl", pass_id="pass",
     )
 
     assert result == {"checked": 0, "confirmed": 0, "retired_absent": 0}
     assert store.read("789")["state"] == fence.PREPARED
 
 
+def test_full_history_reconcile_ignores_intent_created_after_target_snapshot(tmp_path):
+    store = fence.IntentStore(tmp_path / "intents")
+    _started_intent(store, "111")
+    targets = application_parent._durable_uncertain_intents(store)
+    _started_intent(store, "222")
+
+    result = application_parent.reconcile_durable_intents_from_full_history(
+        store=store, targets=targets, observed_ids=set(),
+        evidence_path=tmp_path / "history.json",
+        ledger_path=tmp_path / "applied.jsonl", pass_id="pass",
+    )
+
+    assert result == {"checked": 1, "confirmed": 0, "retired_absent": 1}
+    assert store.read("111")["state"] == fence.RETIRED_ABSENT
+    assert store.read("222")["state"] == fence.PREPARED
+
+
 def test_full_history_reconcile_runs_before_fresh_snapshot_collection():
     source = inspect.getsource(application_parent.run_parent)
 
-    assert source.index("uncertain_ids = _durable_uncertain_intent_ids") < source.index(
+    assert source.index("uncertain_intents = _durable_uncertain_intents") < source.index(
         "snapshot = collect_snapshot_with_readonly_retry"
     )
-    assert "max_pages=_APPLIED_OFFERS_MAX_PAGES" in source
+    assert "max_pages=_APPLIED_OFFERS_RECONCILE_MAX_PAGES" in source
