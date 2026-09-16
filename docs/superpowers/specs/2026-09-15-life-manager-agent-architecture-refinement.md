@@ -13,9 +13,19 @@ provider receiptが未完でも、Architecture ownerの観測基盤実装は停�
 `verified`へ昇格できるかを判定する入力であり、観測基盤を作るための待機条件ではありません。
 
 このfoundationの完了条件は実データです。mock/fixture、テストgreen、PID、exit 0、Telegram文面は
-公式receipt・Local gate・Cloud gateの証拠にしません。Claude-pは現在のLife Managerで使用しないため、
-このspecのTODO・受入・昇格条件から除外します。Agents APIは必要になった場合だけread-only
+公式receipt・Local gate・Cloud gateの証拠にしません。Agent Economyの全loopはこのspecの観測・
+runtime整合性・gate対象に含めます。`x402-claude-p`や`x402-inflow-watch-claude-p`はlegacyな
+instance/wallet labelであり、名前だけを理由にskipしません。実行providerはruntimeの実測で
+判定し、Codex経路を先頭の候補として検証します。Agents APIは必要になった場合だけread-only
 maintenance用途として別途判断し、現在のproduction gateには含めません。
+
+**Codex routing correction (2026-09-16):** Daisの最新指示により、旧specにあった「Claude-pを
+TODO・受入から除外する」という記述は無効です。`agent-economy-loop`の実機processは
+`ANICCA_BRAIN`を指定せずrepository proxyを使い、`ANICCA_FRONTIER_MODEL=openai/gpt-5.4-nano`
+を受けています。`runtime/agent-runner/config.json`ではtask classごとにCodex候補が先頭です。
+したがって、今回のfoundation cursorでは全Agent Economy行を観測・reconcileし、Claude CLIの
+文字列を根拠に除外しません。Codex modelの実際のprovider/model receiptが無い場合は、成功と
+断定せず`runtime_provider_unverified`として残します。
 
 完了済みの共通基盤:
 
@@ -355,9 +365,9 @@ order/balanceの公式receiptは無かった。runtimeは`resource_capacity_busy
 reason=resource_capacity_busy / official_receipt=false / replay_zero=false`として記録した。
 
 Agent Economyの同日観測では、x402のsettled revenue receiptを確認した一方、compute receiptは
-`failed_output`（HTTP 429）だった。Claude-p関連jobは対象外とし、既存revenue receiptのfile参照だけを
-保存した。19 jobのruntime releaseが混在しているため、`official_receipt=true / state=blocked /
-reason=runtime_release_drift / replay_zero=false`として記録した。
+`failed_output`（HTTP 429）だった。19 jobを全て観測対象として既存revenue receiptのfile参照と
+runtime状態を保存した。19 jobのruntime releaseが混在しているため、`official_receipt=true /
+state=blocked / reason=runtime_release_drift / replay_zero=false`として記録した。
 
 Job Hunterの同日観測では、ATS summaryのsubmitted 41件・confirmed application 35件とMercor reply
 readback 92件を確認した。しかし未確認adapterが残り、Mercor earningsは0、7 jobのruntime releaseも
@@ -404,7 +414,8 @@ OSS化はLocal/Cloud gateの完了条件ではなく、R1〜R6のproduction受�
 実receiptを取り込む機能は追加しない。mockの成功例を公開して完了を装わない。
 
 **別Codexのprovider TODO（参照用）:** 下記の細かいprovider表はGig/Coconala/Lancers/Mercorの
-外部effect ownerが進める資料です。私のfoundation cursorでは、mock・Claude-p・provider操作を実行しません。
+外部effect ownerが進める資料です。私のfoundation cursorでは、mockやprovider外部effectを実行しません。
+Agent Economyのruntime整合性・Codex provider実測は対象に含めます。
 
 | 順番 | atomic task | いま残っている理由 | 完了条件 |
 |---:|---|---|---|
