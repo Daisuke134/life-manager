@@ -657,6 +657,10 @@ Current cursor is owner-scoped browser/tab/lease reconciliation and safe physica
 interrupt a current external effect or erase protected sessions. A proposed exact temporary lint dependency
 removal was rejected by the execution safety layer and was not performed. This reorders engineering work,
 not independent live platform owners.
+Read-only lease audit: Apply's 14 gig contexts are parked and preserved. Reply's 14 contexts name two PIDs
+that are no longer running, but the authenticated `:9223` profile is shared with other Codex work. Do not
+run Reply-ledger GC until that exact cross-session resource is coordinated; then use the existing CAS-guarded
+owner GC, not raw target deletion, and verify sibling tabs plus physical free bytes afterward.
 
 **Next order:** (1) restore safe disk/memory headroom and verify next natural revenue wakes, then keep
 one-off/retainer refresh live and prove a fresh eligible retainer screening-answer effect when one exists,
