@@ -537,6 +537,86 @@ def test_aged_revenue_waiter_advances_during_continuous_paid_arrivals(
     assert reserved == ["connector-aged"]
 
 
+def test_explicit_occurrence_survives_owner_busy_and_reaches_terminal(
+        tmp_path, monkeypatch):
+    """A scheduled wake is durable even when the owner is already running."""
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    running, reason = admission.try_acquire(
+        "agent", "connector-running", retain_ticket=False,
+        admission_class="revenue")
+    assert running is not None and reason == "acquired"
+
+    ticket, reason = admission.enqueue_durable(
+        "agent", "connector-running", admission_class="revenue",
+        priority="revenue", occurrence_id="connector-wake-0001", now=100)
+    assert ticket is not None and reason == "owner_busy"
+
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        occurrence = connection.execute(
+            "SELECT occurrence_id,owner_id,state FROM occurrences"
+        ).fetchone()
+    assert occurrence == ("connector-wake-0001", "connector-running", "queued")
+
+    admission.release(running)
+    assert admission.reserve_available(now=101, lease_seconds=30) == [
+        "connector-running"
+    ]
+    claim, reason = admission.claim_durable(
+        "agent", "connector-running", admission_class="revenue", now=102)
+    assert claim is not None and reason == "acquired"
+    assert json.loads(claim.read_text())["occurrence_id"] == "connector-wake-0001"
+    admission.release_and_reserve(claim, reserve=False)
+
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        assert connection.execute(
+            "SELECT state FROM occurrences WHERE occurrence_id=?",
+            ("connector-wake-0001",),
+        ).fetchone() == ("released",)
+
+
+def test_multiple_occurrences_drain_one_owner_queue_without_loss(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    running, reason = admission.try_acquire(
+        "agent", "mobile-running", retain_ticket=False,
+        admission_class="revenue")
+    assert running is not None and reason == "acquired"
+    for occurrence_id in ("mobile-wake-0001", "mobile-wake-0002"):
+        ticket, reason = admission.enqueue_durable(
+            "agent", "mobile-running", admission_class="revenue",
+            priority="revenue", occurrence_id=occurrence_id, now=100)
+        assert ticket is not None and reason == "owner_busy"
+
+    admission.release(running)
+    assert admission.reserve_available(now=101, lease_seconds=30) == [
+        "mobile-running"
+    ]
+    first, reason = admission.claim_durable(
+        "agent", "mobile-running", admission_class="revenue", now=102)
+    assert first is not None and reason == "acquired"
+    assert json.loads(first.read_text())["occurrence_id"] == "mobile-wake-0001"
+    assert admission.release_and_reserve(first, now=103, lease_seconds=30) == [
+        "mobile-running"
+    ]
+
+    second, reason = admission.claim_durable(
+        "agent", "mobile-running", admission_class="revenue", now=104)
+    assert second is not None and reason == "acquired"
+    assert json.loads(second.read_text())["occurrence_id"] == "mobile-wake-0002"
+    admission.release_and_reserve(second, reserve=False)
+
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        states = connection.execute(
+            "SELECT occurrence_id,state FROM occurrences ORDER BY occurrence_id"
+        ).fetchall()
+    assert states == [
+        ("mobile-wake-0001", "released"),
+        ("mobile-wake-0002", "released"),
+    ]
+
+
 def test_revenue_priority_applies_across_resource_classes(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_RUNS", "1")
