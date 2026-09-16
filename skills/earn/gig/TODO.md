@@ -682,7 +682,7 @@ clears it, so liveness would be lost after a timeout. Exact next slices:
    immutable dependency bundle as a *test-only* `NODE_PATH`. Fresh read-only
    review SHIP. It is not a closed target-set
    snapshot or production effect proof.
-2. **OPEN — child-closed snapshot:** For an exact host occurrence, first prove the
+2. **SOURCE PARTIAL / ZERO-INTENT OPEN — child-closed snapshot:** For an exact host occurrence, first prove the
    child is terminal/dead and can no longer append an intent. Include the
    zero-intent case: reconcile the same wake's action/Telegram claim before
    deciding that no external effect was attempted. Then validate *all* journal
@@ -702,14 +702,34 @@ clears it, so liveness would be lost after a timeout. Exact next slices:
    472/472 PASS; fresh read-only review SHIP. A source-only readback of old
    Connector run `18d5ea6415f656d8-98545` returned the known
    `blocked/resource_capacity_busy` host terminal. This proves host-wake
-   closure only; for that pre-admission run no Connector child started. The
-   journal snapshot, zero-intent evidence check and per-target fence remain OPEN.
-3. **OPEN — atomic fence:** Persist the closed target set with exclusive,
-   no-clobber creation; on EEXIST re-read and compare exact occurrence/hash/
-   targets, fail closed on malformed contents or parent/symlink boundary.
-   Flush file and containing directory (and newly created parent) before any
-   admission clearance. A fence receipt means recovery ownership, never
-   provider-effect success.
+   closure only; for that pre-admission run no Connector child started. That
+   lookup alone did not yet freeze a target set.
+   **Nonempty target-set fence DONE at source level:** `7d2450f6fb` makes
+   `prepareEffectFence` invoke the real immutable-release `lm-loop terminal`
+   reader (test injectors cannot provide a fake terminal), validate the exact
+   outer host report, then snapshot all validated intents for that occurrence.
+   Intents are now per-occurrence bounded JSONL files; a >5 MB old file cannot
+   block a new occurrence, and a full current file stops the next effect
+   before append. A fsynced temp plus atomic no-clobber hardlink publishes one
+   mode-0600 fence; retries compare exact targets/hash/terminal and reject
+   malformed JSON, changed contents and symlinked fence directories. The
+   normal production owner contract is one admitted Connector child per
+   occurrence; `lm-loop` reaps it before writing outer terminal. This is the
+   writer-closed proof, not a generic guarantee against a separate actor
+   spoofing the same occurrence ID. RED→GREEN fixtures cover real CLI binding,
+   zero intents, fake terminal injection, two targets, parallel preparers,
+   post-fence append, symlink and JSON-null refusal, old-journal isolation,
+   bound-before-effect and >1 MB idempotent reopen. Operations30/30 and full
+   Connector library770/770 PASS with test-only immutable dependency bundle;
+   fresh read-only review SHIP. **No production caller or official provider
+   readback exists yet.** Zero-intent old occurrences still require same-wake
+   action/Telegram evidence and remain OPEN; no admission CAS was added.
+3. **SOURCE DONE / INTEGRATION OPEN — atomic fence:** The nonempty target set
+   now has exclusive no-clobber creation, exact EEXIST comparison and
+   file/directory durability in `7d2450f6fb`. The remaining work is to wire
+   the recovery owner to it, handle zero-intent evidence, and ensure no
+   admission clearance precedes that durable receipt. The receipt means
+   recovery ownership, never provider-effect success.
 4. **OPEN — readback-only resolver:** For each fenced target, use existing
    provider adapters and official provider/Calendar readback. Persist one
    terminal result per target; absent/unknown stays fenced and is never

@@ -661,6 +661,20 @@ That lookup is now pushed source-only as `77b95d1c8e`: focused tests and the
 21:29 Connector `capacity_busy` run is returned exactly, but had no child and
 no provider effect. It is not a target-set fence, admission clearance, or
 production promotion.
+The next source slice `7d2450f6fb` adds the nonempty per-occurrence target
+fence. The writer journal is per occurrence and bounded before an effect, so
+an old >5 MB journal cannot block future runs; normal production supplies one
+admitted child writer and the outer host terminal follows its reap. The
+preparer verifies that terminal through the actual `lm-loop` CLI, then writes
+an immutable fsynced target set with an atomic no-clobber hardlink. Its
+creation and retry limits are consistent (5 MB journal, 6 MB fence), and
+malformed existing fences, symlink directories, zero intents and post-fence
+appends fail closed. Operations30 and full Connector library770 tests PASS;
+fresh read-only reviewer SHIP. This source code has no production recovery
+caller yet. Do not clear the host occurrence from this receipt alone: official
+provider/Calendar results per target, zero-intent evidence, exact CAS and
+replay-zero are still required. Retention of resolved per-occurrence journals
+must be tied to those terminal receipts before 24/7 promotion.
 Old loaded Connector `cf655388` then naturally ran at 20:48:54 UTC (outer
 `18d5e83356635230-73022`) and terminated `FAIL/wake_deadline` at 20:59:00;
 its wake report is `circuit_open/wake_deadline`. No applied bundle timestamp
