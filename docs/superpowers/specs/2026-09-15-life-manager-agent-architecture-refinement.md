@@ -288,6 +288,11 @@ browser対応schemaへ移行する回帰を追加し、既存sequence・occurren
 Admission suiteは **62 tests PASS**。実production database migrationはimmutable release反映時に
 一度だけ行い、自然wakeでreadbackするまで未完とする。
 
+**R2-02 marketing env atomic (candidate `ee36f14718`):** Mobile、Instagram Metrics、TikTok Metricsの
+共通env loaderへsecret-free `lm_require_env_keys`を追加し、Postiz keyが無い場合は外部処理前に
+exit 2するようにした。keyの値はstdout/stderrへ出さない。Nodeの **8 tests PASS**、shell syntaxも
+PASS。plist反映後の実env、自然wake、Postiz公式readbackはまだ未完である。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
