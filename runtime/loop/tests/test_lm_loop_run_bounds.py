@@ -247,6 +247,34 @@ def test_busy_resource_admission_defers_without_waiting_or_starting_child(tmp_pa
     }
 
 
+def test_control_busy_claim_retries_before_deferring(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "shared-agent-runner"}
+    receipt = tmp_path / "receipt"
+    claim = tmp_path / "claim"
+    claim.write_text("owned")
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        return 0
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                side_effect=[(None, "control_busy"), (claim, "acquired")]) as acquire,
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child),
+          patch("runtime.loop.lm_loop_run.time.sleep") as sleep):
+        assert _run_admitted(["/bin/true"], entry, "example", {}, receipt) == 0
+
+    assert acquire.call_count == 2
+    sleep.assert_called_once()
+
+
 def test_all_coconala_lanes_enter_revenue_admission(tmp_path):
     registry = json.loads(
         (Path(__file__).parents[3] / "config/loop-registry.json").read_text()

@@ -38,6 +38,8 @@ from runtime.host.resource_admission import (
 
 EXEC_GATE = Path(__file__).resolve().parents[1] / "host/exec_gate.py"
 SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
+ADMISSION_CONTROL_RETRY_ATTEMPTS = 3
+ADMISSION_CONTROL_RETRY_DELAY_SECONDS = 0.05
 
 
 def build_loop_command(registry: dict, loop_id: str, release_root: Path) -> list[str]:
@@ -405,13 +407,22 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                          else "memory_headroom_low"})
             return 75
         try:
-            claim, admission_reason = (
-                claim_durable_resource(
-                    resource_class, loop_id, admission_class=admission_class)
-                if durable else try_acquire_resource(
-                    resource_class, loop_id, admission_class=admission_class,
-                    retain_ticket=False, required_protocol=1)
-            )
+            claim = None
+            admission_reason = None
+            for attempt in range(ADMISSION_CONTROL_RETRY_ATTEMPTS):
+                if interrupted:
+                    break
+                claim, admission_reason = (
+                    claim_durable_resource(
+                        resource_class, loop_id, admission_class=admission_class)
+                    if durable else try_acquire_resource(
+                        resource_class, loop_id, admission_class=admission_class,
+                        retain_ticket=False, required_protocol=1)
+                )
+                if claim is not None or admission_reason != "control_busy":
+                    break
+                if attempt + 1 < ADMISSION_CONTROL_RETRY_ATTEMPTS:
+                    time.sleep(ADMISSION_CONTROL_RETRY_DELAY_SECONDS * (attempt + 1))
         except (OSError, RuntimeError):
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
