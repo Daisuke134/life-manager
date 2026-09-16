@@ -509,6 +509,13 @@ reconciler excludes itself while running, the old e447 shell remains at
 apply from a later main-derived release. Verify its loaded argv/SHA and next
 natural wake command before claiming faster convergence. Candidate SHAs and
 running marketplace owners remain protected.
+PR #5293 later passed every CI check and merged as main `3066e64146`.
+Immediate readback still showed prior `current=a05fcb41` and old e447
+reconciler PID `12798` running. Preserve that exact run to terminal; let the
+next natural wake cut the new complete release once. Then target-apply only
+the idle reconciler label, read back argv/SHA and verify the following natural
+wake command uses four ordinary owners/route. Until this chain passes, the
+fast reconciler is main-source-only, not production-proven.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

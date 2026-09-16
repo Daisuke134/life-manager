@@ -868,6 +868,18 @@ outer terminal and owner-scoped idle apply from the new main-derived release.
 Read back loaded argv/SHA and the next natural wake's four-owner command
 before claiming acceleration. No candidate-provider effect or fourteen-loop
 completion is established by this PR.
+PR #5293 passed all CI and merged as main `3066e64146` at 17:57 UTC.
+Immediately afterward global `current` remained prior main `a05fcb41` and
+old e447 reconciler PID `12798` was still running; do not cut/activate a
+duplicate release or reload that owner based on this observation. Wait for
+the same outer terminal. Its next natural wake should detect `3066e64146`
+and cut one full immutable main release. Because the reconciler excludes
+itself, its old e447 shell will still pass one owner/route until that exact
+label is idle and target-applied from the new release. Acceptance for faster
+convergence: loaded argv/SHA point to the new main release, its next natural
+outer run invokes four ordinary owners/route (Disk Cleanup may be separate),
+and old-cancel wrapper count falls while a blocked candidate subsequently
+claims/releases. Loaded/exit0 alone is not queue progress.
 The user-owned goal cannot pass its Local queue gate while old main dispatchers
 delete candidate queue rows. The later instruction to take ownership and not
 stall the goal is therefore used for a narrow exception to the previous
