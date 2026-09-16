@@ -182,6 +182,10 @@ installed SHAはcurrentへ揃ったが、最後のruntime report/eventは旧SHA�
 installed SHAは更新されたが、最後のruntime report/eventは旧SHAで`resource_control_busy`のため、自然wakeの
 成功とは扱わない。
 
+`job-search-daily`もpreflight PASS後にtargeted reconcileし、自然terminalを観測した。installed/event SHAは
+currentへ一致したが、`last_exit=75`、`host_admission_deferred:resource_capacity_busy`で終了した。
+この1件はrelease driftを解消したが、容量不足のためruntime成功・応募effectとは数えない。
+
 #### S: 自己修復・自己改善の残りも一件ずつ記録する
 
 これは別の常駐supervisorを追加するTODOではなく、既存のreconcile/launchd supervisorとcandidate gateへ
