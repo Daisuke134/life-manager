@@ -60,7 +60,7 @@ The model decides open-ended domain work. Deterministic runtime owns resource ac
 
 ## Stop-the-line findings to resolve atomically
 
-1. `_effective_priority()` promotes an aged waiter, but `_capacity_available()` still applies the legacy `borrow` floor. Prove that an aged support waiter can claim under sustained paid arrivals without stealing an in-flight paid effect. If it cannot, change only that admission rule with a mixed-release regression.
+1. `_effective_priority()` promotes an aged waiter while `_capacity_available()` still applies the legacy `borrow` floor. This is not itself a defect: a running borrow owner legitimately occupies its one reserved slot. A full enqueue→claim→release regression now proves that, when five Paid owners fill the host and one releases, an aged support waiter is reserved before a newer Paid waiter. Keep the floor unless natural-wake evidence shows a distinct starvation mechanism.
 2. The candidate records `occurrence_id` from a wake's `run_id`, but durable occurrence retention, dispatch, claim and terminal effect identity must be tested end-to-end. A queued occurrence is not proof of a posted item; repeated wake dispatch must not duplicate an uncertain provider action.
 3. Candidate canary outer pass and natural fail are different runs. The nested agent report must never replace the outer terminal. The natural `wake_deadline` plus provider/Calendar effect zero is the current Connector result.
 4. Local gate is blocked. Observability can truthfully classify that blocker without declaring the domain verified. Do not make every provider's verified outcome a prerequisite for observing the foundation.
@@ -158,6 +158,8 @@ The active production `current` is main SHA `ae55b6f3`; Connector alone was load
 - [ ] If RED, change only the legacy floor/candidate selection interaction needed for an aged waiter to fit. Keep the global physical ceiling, class ceilings, mixed-release fence and existing reservation lease.
 - [ ] Re-run the focused suite; verify same-owner claim, crashed-owner requeue, FIFO within effective priority, and no sibling dispatch regression.
 - [ ] Confirm host feasibility: a bounded queue-age target is not a mathematical guarantee under sustained overload. If arrival workload exceeds safe service capacity, retain the job, emit an internal capacity incident and measure the required resource, rather than claiming aging solved throughput.
+
+**Task 4 hypothesis result — candidate path tested, production still open:** A direct function probe showed aged support rank 0 but capacity false while a different borrow owner held the sole borrow allocation. That alone was incorrectly interpreted as starvation; the allocation was legitimately occupied. The correct lifecycle fixture put five Paid claims in a five-slot host, queued aged Metrics support before a new critical Paid job, and released one Paid claim. Existing candidate code reserved Metrics first. The regression is pushed on an isolated branch `fix/admission-aged-borrow-floor-20260916` at `a3e4924`; full host admission suite 63/63 and diff check PASS. No admission production code was changed. This proves the tested handoff semantics, **not** fleet-wide queue-age bounds, memory headroom, or natural launchd dispatch. Next diagnosis should inspect actual queue occupancy, per-class throughput, stale claims and loaded release identity rather than deleting the revenue floor speculatively.
 
 ### Task 5: Prove occurrence and terminal identity through one natural owner
 
