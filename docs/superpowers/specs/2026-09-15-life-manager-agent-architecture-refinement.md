@@ -99,8 +99,8 @@ mock/fixture・PID・exit 0・Telegramは証拠にしません。
 | 順番 | atomic task（1行だけ） | 完了条件 | 状態 |
 |---:|---|---|---|
 | R1-00 | catalogのjob IDとruntime registryのidentityを照合 | 1行のjob IDが実在し、重複0、`job_id`/`owner_id`が安定 | **完了**（candidate `d0e4c4caa3`） |
-| R1-01 | `gig-coconala`のmanifest行を確定 | 7 jobの同一release runtime、公式receipt、replay-zero、または理由付きterminal | **一時保留**（別Codexのprovider修正中。成功扱いしない） |
-| R1-02 | `gig-lancers`のmanifest行を確定 | 7 jobの同一release runtime、公式proposal/契約receipt、replay-zero | **現在のcursor**（identityは修正済み。公式receiptは存在するがrelease SHA未結合） |
+| R1-01 | `gig-coconala`のmanifest行を確定 | 7 jobの同一release runtime、公式receipt、replay-zero、または理由付きterminal | **現在のcursor**（別Codexのprovider修正中。成功扱いしない） |
+| R1-02 | `gig-lancers`のmanifest行を確定 | 7 jobの同一release runtime、公式proposal/契約receipt、replay-zero | **次のcursor**（identityは修正済み。公式receiptは存在するがrelease SHA未結合） |
 | R1-03 | `gig-crowdworks`のmanifest行を確定 | 4 jobの同一release runtime、公式応募/契約receiptまたは明示的not-applicable、replay-zero | 未完了 |
 | R1-04 | `writer`のmanifest行を確定 | 7 jobのpublisher/payment receiptまたは明示的terminal、replay-zero | 未完了 |
 | R1-05 | `affiliate`のmanifest行を確定 | 6 jobの公式publication/attribution receiptまたは明示的terminal、replay-zero | 未完了 |
@@ -148,12 +148,12 @@ Git外のCoconala receiptをread-onlyで確認した結果、認証済み・公�
 公式receipt・release SHA・replay-zeroを揃えることです。古いreceiptを再利用したり、mock/fixtureで
 穴埋めしたりしません。
 
-#### 2026-09-16 cursor変更: Coconalaを一時保留し、Lancers identityへ進む
+#### 2026-09-16 cursor変更: Coconalaを先頭へ戻す
 
-Daisの明示指示により、別CodexがCoconala providerを修正している間だけ、`gig-coconala`の
-外部effect確認を一時保留し、TODO #1の次の独立sliceを`gig-lancers`へ進める。これはTODO #1を
-飛ばすことでも、Coconalaを成功扱いにすることでもない。Coconalaは`unknown`のままLocal gateを
-BLOCKし、Lancers sliceの後に同じreceipt条件で再確認する。
+Daisの明示指示により、`gig-coconala`をR1の現在cursorへ戻す。別Codexがproviderを修正している
+ため、同じ外部effectを再実行せず、修正後の新しい公式receiptだけを受け取る。Coconalaは成功扱い
+せず、証拠が揃うまで`unknown`とLocal gate BLOCKを維持する。Lancersのread-only確認結果は失わず、
+Coconala行が確定した後にR1-02へ戻る。
 
 次のidentity修正は`runtime/loop/lm_loop.py`の管理statusに安定した`job_id`と`owner_id`を出し、
 従来の共通表示`owner=life-manager`を互換のため残しつつ、jobごとのreceipt・recovery対象を分離した。
@@ -170,6 +170,20 @@ external IDの重複は0件だった。`general-agent/ga10/official-readback.jso
 「現在のimmutable releaseの成功である」ことを分け、現在は`receipt_release_unbound`として`unknown`に
 留める。古いreceiptへ現在のSHAを後付けせず、provider ownerがrelease結合付きの新しい証拠を一件
 保存した時だけ、この1行をmanifestへ接続する。
+
+#### CLIのOSS化方針
+
+`product-loop-completion.js`、`local-completion-gate.js`、`cloud-promotion-gate.js`はOSS化する。
+これは複数loopで使える汎用の台帳・gateであり、他のagent開発者にも再利用価値がある。ただしOSSへ
+含めるのはコード、schema、catalogのjob ID、説明、非成功のschema検査だけとし、次は含めない。
+
+- 個人データ、credential、token、browser profile、cookie、Git外のstate
+- 実際のprovider/payment receipt、proposal本文、Telegram ID、tenant識別子
+- provider固有の応募・送信・納品adapterや本番launchd設定
+
+OSS化はLocal/Cloud gateの完了条件ではなく、R1〜R6のproduction受入後に行う別の公開作業とする。
+公開前にclean checkoutでsecret scan、private path scan、CLI help/schema checkを一度実行し、公開後に
+実receiptを取り込む機能は追加しない。mockの成功例を公開して完了を装わない。
 
 **別Codexのprovider TODO（参照用）:** 下記の細かいprovider表はGig/Coconala/Lancers/Mercorの
 外部effect ownerが進める資料です。私のfoundation cursorでは、mock・Claude-p・provider操作を実行しません。
