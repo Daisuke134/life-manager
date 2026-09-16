@@ -153,6 +153,12 @@ Storefrontは`effect=0 / readback=0 / status=pending`（`reason=disk_pressure`�
 Apply/Paid/Storefrontのeffectを`unknown`または`fail`としており、同じimmutable releaseで7 jobが揃って
 いない。このため、R1-01は未完了のままprovider ownerの修正receiptを待つ。
 
+最新のstatus再確認では、Applyは`pass`だがeffectは`unknown`、Replyは`pass/not_applicable`、
+Apply-evidence-gc/Daily-reportは`resource_capacity_busy`、Paidは`resource_control_busy`、
+Storefrontは`resource_fifo_wait`、Browserは`entrypoint_exit_143`だった。installed/event SHAも
+`30a2a2dfab`、`2a53ce2528`、`172d3f2eaa`、`0aba1191a4`、`e8e8a2b264`/`3c95ef5f3d`に分裂している。
+したがってApplyの`pass`はruntime healthの観測に留まり、公式effect/readbackの成功とは数えない。
+
 #### 2026-09-16 cursor変更: Coconalaを先頭へ戻す
 
 Daisの明示指示により、`gig-coconala`をR1の現在cursorへ戻す。別Codexがproviderを修正している
