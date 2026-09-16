@@ -192,6 +192,12 @@ R2を実際のatomicに分けると、(a) `R2-01` gateを一度判定する、(b
 同じprivate manifestでgateを再実行する、の順になる。R2-02は外部effectではなく、既存reconcile・
 queue・resource契約を直す作業である。
 
+今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
+
+| atomic task | candidate状態 | 残りの受入条件 |
+|---|---|---|
+| `CODEX-01` Agent EconomyのTHINKをCodex-only agent-runnerへ切替 | **candidate完了** (`72390b7c3d`)。schema、180秒上限、read-only、Codex profile分離を実装 | 稼働中のagent-economyを中断せず、次のimmutable releaseでplistを再配置し、自然wakeのeventで`provider=codex`・`model=gpt-5.6-terra`・成功/失敗理由を実測する。x402 sellerのlegacy labelはskipしない |
+
 **R2の現在cursor（2026-09-16 03:57 UTC）:** `R2-01`は一度実測して`BLOCK`を記録済み。
 `R2-02`では外部effectを持たない`life-manager-connector-native`と`job-search-daily`を、
 preflight PASS後に一ownerずつcurrent `bce56bc9d8f3fce5367a12fe07601a8e79765241`へ再配置した。
