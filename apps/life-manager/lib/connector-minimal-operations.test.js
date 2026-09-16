@@ -803,6 +803,82 @@ test("Connector durably records exact host occurrence target before an effect", 
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });
 
+test("Connector refuses a first effect intent when its directory sync fails", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-intent-dir-sync-"));
+  const originalFsync = fs.fsyncSync;
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir, wakeId: "wake-intent-dir-sync", telegramTarget: "private-target",
+      occurrenceId: "life-manager-connector-native:run-dir-sync",
+      now: () => new Date("2026-08-12T08:30:00.000Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    });
+    fs.fsyncSync = (fd) => {
+      if (fs.fstatSync(fd).isDirectory()) throw new Error("directory sync unavailable");
+      return originalFsync(fd);
+    };
+    await assert.rejects(() => operations.recordEffectIntent({
+      effect_kind: "registration", effect_url: "https://luma.com/durable",
+      candidate: { provider: "luma", event_ref: "luma-event://event/durable",
+        canonical_url: "https://luma.com/durable" },
+    }), /directory sync unavailable/);
+    await assert.rejects(() => operations.recordEffectIntent({
+      effect_kind: "registration", effect_url: "https://luma.com/durable",
+      candidate: { provider: "luma", event_ref: "luma-event://event/durable",
+        canonical_url: "https://luma.com/durable" },
+    }), /directory sync unavailable/);
+  } finally {
+    fs.fsyncSync = originalFsync;
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("Connector refuses a state directory whose parent cannot be synced", () => {
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), "connector-state-parent-sync-"));
+  const stateDir = path.join(parent, "connector-native");
+  const parentInode = fs.statSync(parent).ino;
+  const originalFsync = fs.fsyncSync;
+  try {
+    fs.fsyncSync = (fd) => {
+      const stat = fs.fstatSync(fd);
+      if (stat.isDirectory() && stat.ino === parentInode) throw new Error("state parent sync unavailable");
+      return originalFsync(fd);
+    };
+    const create = () => createMinimalProductionOperations({
+      stateDir, wakeId: "wake-state-parent-sync", telegramTarget: "private-target",
+      occurrenceId: "life-manager-connector-native:run-parent-sync",
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    });
+    assert.throws(create, /state parent sync unavailable/);
+    assert.throws(create, /state parent sync unavailable/);
+  } finally {
+    fs.fsyncSync = originalFsync;
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("Connector refuses recursively created state ancestors without durable parent entries", () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "connector-state-ancestor-sync-"));
+  const stateDir = path.join(base, "new-parent", "connector-native");
+  const baseInode = fs.statSync(base).ino;
+  const originalFsync = fs.fsyncSync;
+  try {
+    fs.fsyncSync = (fd) => {
+      const stat = fs.fstatSync(fd);
+      if (stat.isDirectory() && stat.ino === baseInode) throw new Error("ancestor sync unavailable");
+      return originalFsync(fd);
+    };
+    assert.throws(() => createMinimalProductionOperations({
+      stateDir, wakeId: "wake-state-ancestor-sync", telegramTarget: "private-target",
+      occurrenceId: "life-manager-connector-native:run-ancestor-sync",
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    }), /ancestor sync unavailable/);
+  } finally {
+    fs.fsyncSync = originalFsync;
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test("TECH PLAY audit keeps a retained candidate visible after RSS eviction", async () => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-techplay-retained-audit-"));
   try {

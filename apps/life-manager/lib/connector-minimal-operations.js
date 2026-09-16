@@ -51,6 +51,13 @@ function privateDirectory(value) {
   if (!path.isAbsolute(directory) || directory === path.parse(directory).root) invalid();
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   fs.chmodSync(directory, 0o700);
+  // A retry must not mistake an unflushed ancestor from an earlier failed
+  // attempt for a durable directory. Sync every parent entry up to the root.
+  for (let child = directory, parent = path.dirname(child); parent !== child;
+    child = parent, parent = path.dirname(child)) {
+    const parentFd = fs.openSync(parent, "r");
+    try { fs.fsyncSync(parentFd); } finally { fs.closeSync(parentFd); }
+  }
   return directory;
 }
 
@@ -84,6 +91,8 @@ function appendDurable(file, value) {
     fs.closeSync(fd);
   }
   fs.chmodSync(file, 0o600);
+  const directoryFd = fs.openSync(path.dirname(file), "r");
+  try { fs.fsyncSync(directoryFd); } finally { fs.closeSync(directoryFd); }
 }
 
 function safeAction(input) {
