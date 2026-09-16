@@ -918,6 +918,73 @@ browser profile, model transport, and host capacity. A deferred job writes a dur
 later wake. Admission never holds the global ledger/vault lock across CDP, network, model, or context
 disposal I/O. No feature uses `start all` as a production acceptance shortcut.
 
+### B1. Cadence is not capacity (current operating decision)
+
+Keep finite admission: removing the safety boundary would recreate the earlier
+RAM/browser/process crash. A fixed total cap is not inherently wrong: the
+current OpenClaw cron implementation itself has a service-level cap of eight
+active runs. The problem here is treating the default five as a complete
+liveness policy: multi-hour waiters and old claimed rows are observed, while
+the exact contribution of those rows to each deferral and the release→dispatch
+path are not yet proved. Keep five as a provisional host safety cap;
+do not delete or raise it without measured memory and service-time headroom.
+Repair release→next-claim liveness, then separate browser/profile, model/agent
+and cheap deterministic capacity, paid access and fair aging under that host
+guard. Paid/Reply/Apply/Storefront retain revenue access; cheap health and
+receipt bookkeeping do not consume a browser/model slot. A cap value is not
+accepted from a mock or from the number of registered loops alone.
+
+Do not change every five-minute job to hourly. The current registry has 39
+five-minute and six one-minute interval jobs: if all fire, those two groups
+alone request 828 starts per hour. Staggering spreads peaks but does not lower
+that total or recover a dropped business item. Reduce only an *audited*
+low-urgency, expensive polling owner to an initial hourly candidate cadence
+after its owner proves a durable cursor and catch-up of every intended work
+item. Keep funded-client, buyer-message and permission/effect reconciliation
+responsive to their actual event and existing declared cadence; keep scheduled
+publication slots and provider rate limits product-specific. A lightweight
+idle wake should observe and exit quickly without model/browser admission.
+Cadence reduction lowers arrivals, but does not release an already occupied
+slot, fix a stuck claim, preserve a missed launchd trigger, or prove an external
+effect. The queue must coalesce redundant signals while retaining business
+work, reserve capacity for paid work, age all other eligible owners, and
+dispatch automatically when a physical slot is released. Monitor the measured
+oldest queue age and missed intended cadences per owner; a day-old waiter is a
+failure even if its launchd label remains scheduled.
+
+As an operating experiment, if the 39-job audit finds a low-urgency heavy
+owner, trial that one at hourly cadence with durable catch-up and official
+readback; otherwise skip the cadence change. Compare host pressure,
+queue-to-claim time, completed work and missed business items against its
+prior cadence. Promote the cadence rule to analogous owners only when those
+four measures improve without silent loss. Do not alter a paid owner or all
+39 five-minute jobs in one fleet-wide edit. This uses the existing launchd,
+registry and admission path; it adds no second scheduler.
+
+#### External implementation evidence
+
+The code-level comparison, exact upstream paths and limitations are in the
+[harness cron/admission research brief](../../../outputs/2026-09-17-harness-cron-admission-research.md).
+OpenClaw's inspected HEAD uses a fixed eight-run cron service cap plus durable due work and an
+immediate capacity-release recheck; Temporal, Symphony and Browserless also
+separate trigger timing from execution capacity. No inspected primary source
+guarantees 10,000 simultaneously active model/browser agents on one Mac mini.
+Stored schedules, queued work and live children are different quantities.
+
+The minimal Life Manager implementation stays in existing files:
+`config/loop-registry.json` declares cadence/priority/resource class;
+`runtime/loop/lm_loop_apply.py` renders launchd `StartInterval` or calendar
+triggers; `runtime/loop/lm_loop_run.py` turns a trigger into a finite child and
+releases its claim; `runtime/host/resource_admission.py` owns the durable queue,
+five-run default, class limits, coalescing and next-owner reservation. Domain
+adapters own official effect/readback, not scheduling. Repair those seams and
+their natural-wake evidence before inventing another scheduler or changing all
+cadences. Apple describes launchd interval/calendar triggers in
+[Creating Launch Daemons and Agents](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html);
+the local `launchd.plist(5)` manual states an interval firing is missed if its
+job is still running. Therefore the durable cursor, not the cron tick count,
+owns business work.
+
 ### C. Every wake has an evidence contract
 
 Each finite wake persists `wake_id`, owner, goal revision, context hash, selected capability, attempt,
@@ -1056,6 +1123,43 @@ Every Product Loop uses the same shared kernel for goal, context, admission, eff
 readback, receipts, internal reporting, evaluation, and recovery. Only the provider/product adapter
 owns its external vocabulary and mutation. The matrix assigns one workstream owner and one completion
 condition per Product Loop; the completion condition is explicit and an old receipt never closes a current owner.
+
+**Live snapshot (2026-09-16 22:29 UTC, read-only):** The catalog has 14 Product
+Loops mapping to 96 job IDs; 95 were loaded. `lm-loop status all` reported the
+following latest job states. “Same-SHA pass” is a CLI lifecycle signal only;
+the current selector has a known inner/outer report ambiguity, so no value in
+that column is an official business effect or a completed Product Loop. Across
+these catalog jobs, `effect_status=verified` was 0. Historical Coconala
+application/Paid readbacks remain real but do not prove current 24/7 progress.
+
+| Product Loop | Jobs | Loaded | Same-SHA pass* | Older-SHA pass | Blocked | Failed | No terminal | Full 24/7 proof |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| Coconala | 7 | 7 | 0 | 0 | 6 | 1 | 0 | No; historical effects only |
+| Lancers | 7 | 7 | 1 | 1 | 3 | 2 | 0 | No |
+| CrowdWorks | 4 | 4 | 2 | 0 | 1 | 1 | 0 | No |
+| Writer | 7 | 7 | 0 | 0 | 7 | 0 | 0 | No |
+| Affiliate | 6 | 6 | 1 | 0 | 2 | 3 | 0 | No |
+| Investment | 1 | 1 | 0 | 0 | 1 | 0 | 0 | No |
+| Agent Economy | 19 | 19 | 1 | 0 | 9 | 6 | 3 | No |
+| Job Hunter | 7 | 7 | 1 | 0 | 6 | 0 | 0 | No |
+| Fundraiser | 1 | 1 | 0 | 0 | 1 | 0 | 0 | No |
+| Connector | 1 | 1 | 0 | 0 | 1 | 0 | 0 | No |
+| Self-Build | 3 | 3 | 0 | 1 | 1 | 1 | 0 | No |
+| Mobile Apps | 22 | 21 | 0 | 0 | 21 | 1 | 0 | No; one label unloaded |
+| Capafy | 8 | 8 | 2 | 0 | 6 | 0 | 0 | No |
+| CFO | 3 | 3 | 0 | 0 | 3 | 0 | 0 | No |
+
+*A pass on a matching SHA is necessary lifecycle evidence, not sufficient outer
+terminal or provider/readback evidence. The values are a point-in-time status
+projection and can change on the next wake. Source: live `lm-loop status all`
+joined to `apps/life-manager/config/product-loop-catalog.json` by `job_ids`.
+Agent Economy's catalog count includes Claude-p-labelled jobs; this inventory
+does not authorize changing those jobs, which remain outside the current
+foundation repair scope.
+The live v2 admission ledger at this sample had 68 queued deterministic/borrow
+occurrences, 10 queued browser/revenue, four queued agent/revenue and two
+old Connector `claimed/effect_unknown=0` rows. Those old rows had outer terminal
+events but no owner files; do not delete or mark effects absent by SQL guess.
 
 | # | Product Loop | First repair focus | Shared-kernel use | Completion condition | Workstream owner |
 |---:|---|---|---|---|---|
