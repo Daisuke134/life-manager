@@ -297,6 +297,16 @@ def test_retainer_confirmation_requires_exact_canonical_ulid() -> None:
     )
 
 
+def test_retainer_question_selector_does_not_assume_native_required_or_fixed_limit() -> None:
+    observer = inspect.getsource(parent.CdpParentEffects._retainer_form_state_async)
+    filler = inspect.getsource(parent.CdpParentEffects._fill_retainer_async)
+    assert 'textarea[placeholder="回答を入力"]' in observer
+    assert 'textarea[placeholder="回答を入力"][required]' not in observer
+    assert "area.maxLength>0" in observer
+    assert "aria-required" in observer
+    assert 'textarea[placeholder="回答を入力"]' in filler
+
+
 def test_retainer_exact_readback_waits_past_the_previous_document(tmp_path, monkeypatch) -> None:
     effects = parent.CdpParentEffects(
         ws_url="ws://example.test/devtools/page/1",

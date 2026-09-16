@@ -1471,9 +1471,11 @@ class CdpParentEffects:
                     frequencyValues.every(value=>[...s.options].some(o=>o.value===value)));
                   const confirm=[...document.querySelectorAll('button,[role="button"]')].filter(b=>
                     b.offsetParent!==null&&(b.innerText||'').trim()==='確認画面に進む');
-                  const applicationQuestions=[...document.querySelectorAll('textarea[placeholder="回答を入力"][required]')]
-                    .map(area=>({question:(document.querySelector(`label[for="${area.id}"]`)?.innerText||'').trim(),required:true,max_length:1000}));
-                  const screeningAnswers=[...document.querySelectorAll('textarea[placeholder="回答を入力"][required]')]
+                  const questionAreas=[...document.querySelectorAll('textarea[placeholder="回答を入力"]')];
+                  const questionLimit=area=>{if(area.maxLength>0)return area.maxLength;let node=area;for(let i=0;i<6&&node;i++,node=node.parentElement){const match=(node.innerText||'').match(/(?:^|\n)[0-9]+\\/([0-9]+)(?:\n|$)/);if(match)return Number(match[1]);}return 5000;};
+                  const applicationQuestions=questionAreas
+                    .map(area=>({question:(document.querySelector(`label[for="${area.id}"]`)?.innerText||'').trim(),required:area.required||area.getAttribute('aria-required')==='true',max_length:questionLimit(area)}));
+                  const screeningAnswers=questionAreas
                     .map(area=>({question:(document.querySelector(`label[for="${area.id}"]`)?.innerText||'').trim(),answer:area.value||''}));
                   return {url:location.href,title:document.title,
                     compensation:compensation[0]?.value||'',message:message[0]?.value||'',
@@ -1530,7 +1532,7 @@ class CdpParentEffects:
           const minimum=[...document.querySelectorAll('input[name="weeklyWorkingHoursStart"]')];
           const maximum=[...document.querySelectorAll('input[name="weeklyWorkingHoursEnd"]')];
           const frequency=[...document.querySelectorAll('select')].filter(s=>[...s.options].some(o=>o.value===values.work_frequency));
-          const answerAreas=[...document.querySelectorAll('textarea[placeholder="回答を入力"][required]')];
+          const answerAreas=[...document.querySelectorAll('textarea[placeholder="回答を入力"]')];
           const answerByQuestion=new Map(values.screening_answers.map(item=>[item.question,item.answer]));
           const labels=answerAreas.map(area=>(document.querySelector(`label[for="${area.id}"]`)?.innerText||'').trim());
           const counts={compensation:compensation.length,message:message.length,weekly_hours_min:minimum.length,weekly_hours_max:maximum.length,work_frequency:frequency.length,screening_answers:answerAreas.length};
