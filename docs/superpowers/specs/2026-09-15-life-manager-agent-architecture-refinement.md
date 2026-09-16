@@ -142,8 +142,9 @@ mock/fixture・PID・exit 0・Telegramは証拠にしません。
 | R1-13 | `capafy`のmanifest行を観測 | 8 jobのruntime status、release、typed effect/readback状態、理由を記録 | product/publication/revenue receiptまたはtyped terminal、replay-zero |
 | R1-14 | `cfo`のmanifest行を観測 | 3 jobのruntime status、release、typed effect/readback状態、理由を記録 | verified financial snapshot/payout receipt、replay-zero |
 
-**観測cursor（2026-09-16）:** `R1-01` Coconala、`R1-02` Lancers、`R1-03` CrowdWorksの観測行は、
-receiptの有無にかかわらずGit外private artifactへ記録済みです。次の観測atomicは`R1-04 Writer`です。
+**観測cursor（2026-09-16）:** `R1-01` Coconala、`R1-02` Lancers、`R1-03` CrowdWorks、
+`R1-04` Writerの観測行は、receiptの有無にかかわらずGit外private artifactへ記録済みです。
+次の観測atomicは`R1-05 Affiliate`です。
 `verified`昇格は別判定であり、release結合済みreceiptが無い行は`unknown`のまま保持します。
 
 #### R2〜R6: R1の後に一件ずつ実行するgate
@@ -244,8 +245,12 @@ runtime statusは7 jobのrelease driftを示すため、観測は完了したが
 
 同日のCrowdWorks観測では、Applicationが`host_admission_deferred:resource_capacity_busy`、Paidが
 `fail`、Replyがruntime `pass`（effect 0）、Reportが容量待ちだった。profileの公開URLは応募・契約の
-receiptではないため、`official_receipt=false / replay_zero=false / state=unknown`として記録した。
+receiptではないため、`official_receipt=false / replay_zero=false / state=blocked`として記録した。
 4 jobのruntime releaseは`427972bf07db`でcurrent releaseと一致せず、観測は完了したが`verified`へは昇格しない。
+
+Writerの同日観測では、7 jobが`host_admission_deferred:resource_capacity_busy`またはrelease driftで、
+publisher/paymentの公式receiptは確認できなかった。`state=blocked / reason=runtime_release_drift`、
+`official_receipt=false / replay_zero=false`として記録し、観測は完了したが`verified`へは昇格しない。
 
 #### CLIのOSS化方針
 
