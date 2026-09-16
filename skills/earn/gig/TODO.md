@@ -777,6 +777,29 @@ effect was observed. Shared admission needs exact queue-removal provenance and
 positive pre-effect/effect-reconciliation gating before any replay; do not
 reintroduce the reverted generic auto-restore. Affiliate's bounded logic is
 loaded but not yet observed processing even one plan.
+**Release-drift root cause and order conflict:** Loaded old/main runtime SHA
+`8510913b` (and older immutable runners) calls `cancel_durable` when a
+reserved owner's plist argv points to a different release than `~/loops/current`.
+That deletes queue/priorities, matching recurring Instagram, TikTok and
+Affiliate `queued`-without-queue observations. Candidate `5f7a0ce8` instead
+defers only the reservation on mismatch, but old runners continue mutating
+the shared SQLite store. A latest-main-derived minimal bridge branch
+`fix/admission-release-drift-bridge-20260917` pushed `10c77389e3`: real
+SQLite regression RED→GREEN, runner 36/36 and admission 53/53 pass. Full
+loop suite has 3 failures identically reproduced on an unchanged main-based
+worktree (two sparse-release activation tests on live protocol v2, one stale
+registry fixture). Fresh independent review has not yet run because the
+session agent limit rejected it. No PR/main merge or fleet-wide apply occurred.
+Prior intended release order was Local gate → Eval → Cloud → one final main
+merge. The observed dependency reverses part of it: old immutable dispatchers
+must stop cancelling candidate owners before a truthful Local gate can pass.
+Recommended exceptional order is (1) review/promote the minimal bridge to
+main, (2) main-derived immutable release with loaded-idle dispatcher
+convergence in owner-scoped batches, (3) queue-to-claim and official-effect
+natural canaries, (4) finish Local/Eval/Cloud, (5) merge remaining domain work.
+This would be an explicit exception to the earlier one-main-merge rule;
+current cursor is bridge review and safe rollout contract, not an unreviewed
+merge.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/

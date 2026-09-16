@@ -442,6 +442,21 @@ can lose queue rows again between wakes, not merely once. The next shared
 runtime slice must trace the deleter and establish positive pre-effect or
 official reconciliation for each orphan before replay; the unsafe global
 restoration remains reverted.
+**Dependency correction from repeated production orphans:** old/main
+`_dispatch_reserved` cancels a reserved owner when loaded argv differs from
+global `current`; the candidate defers that reservation instead. Mixed
+immutable runners on the shared SQLite DB therefore delete candidate queue
+rows after every enqueue. Minimal latest-main bridge `10c77389e3` has a
+real-SQLite RED→GREEN preservation test, runner 36/36 and admission 53/53.
+Three broad-suite failures reproduce unchanged on another main-based
+worktree (protocol-v2 sparse-release activation twice, stale registry
+fixture); they are not bridge regressions. Independent review is pending due
+native agent slot limit. This invalidates the prior assumption that a
+candidate-only Local canary can prove no-starvation while old dispatchers
+remain loaded. Recommended exceptional order: bridge review/main promotion,
+main-derived release with loaded-idle dispatcher convergence, then
+Local/Eval/Cloud/domain merge. It conflicts with the earlier one-final-merge
+rule; no main merge or global current/label mutation is performed here.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.
