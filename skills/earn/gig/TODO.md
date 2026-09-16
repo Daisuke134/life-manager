@@ -13,16 +13,16 @@ runtime/provider readback before acting; conversation claims are not completion 
   `Daisuke134/life-manager`. The folder name on this Mac is **`life-manager-main`**. No separate project or
   repository named `life-manager/` was created.
 - Current task worktree: `/private/tmp/lm-runtime-admission-reservations-20260914`, branch
-  `docs/coconala-ryu-closed-20260916`, lease
+  `fix/coconala-current-truth-20260916`, lease
   `ac1f02d45387233d8866ce7dbd62c01a5b1a28987c9e2614a873535c1d766f69`. This is a linked Git worktree of
   the same `life-manager-main` repository, not another project. The main checkout is currently on the unrelated
   Capify branch `capafy/account-plan-deck-offline-20260912`, so it remains read-only for this workstream.
-- Canonical runtime source is `origin/main` at `172d3f2eaa4fedb815d0b8515f6454ab55ebe9a1`. The current
-  immutable release is `/Users/anicca/loops/releases/20260916T073615-172d3f2e`. PR `#5258` adds the
+- Canonical runtime source is `origin/main` at `30a2a2dfab16cdefe3834f15e083965b32dabc7c`. The current
+  immutable release is `/Users/anicca/loops/releases/20260916T102244-30a2a2df`. PR `#5258` adds the
   official seller-last attachment wait reducer; PRs `#5252` and `#5254`
   add the revenue floor, legacy-reservation migration fence and Paid Account 1→2 Codex route; `#5250`
-  browser/child-cleanup remains an ancestor. Apply, Reply, Paid and Storefront are all exact-loaded from
-  `0aba1191`; Paid is now exact-loaded from `172d3f2e`. A natural Reply wake passed and a bounded Paid decision
+  browser/child-cleanup remains an ancestor. Apply is exact-loaded from `30a2a2df`, Reply and Storefront retain
+  `0aba1191`, and Paid retains `172d3f2e`. A natural Reply wake passed and a bounded Paid decision
   selected `codex/acct1/gpt-5.6-terra`.
   Do not create another runtime worktree or use the Capify checkout as source.
 - Phase 2 replaces the v2 JSON scan with stdlib SQLite, adds durable FIFO reservations, child-PID claim
@@ -46,9 +46,12 @@ runtime/provider readback before acting; conversation claims are not completion 
   superseded historical state, not another client-work project.
 - Paid now tries the existing Account 1 Codex profile first and falls back to Account 2 through the shared
   runner; the first bounded Account 1 receipt is proved. Preserve both accounts and all unrelated sessions.
-- First safe action: let Coconala Apply continue its durable full-history cursor from page 3 in two-page chunks
-  until all pages are complete, then reconcile the 54 uncertain intents. Release `8d366069` passed page 1-2 in
-  production with 36 cards, zero target matches and zero intent mutations. Paid's current four-client set is closed by a natural
+- First safe action: release the retainer-term binding regression fix, then let Coconala Apply resume its durable
+  full-history cursor from page 17 in two-page chunks until all pages are complete and reconcile the 54 uncertain
+  intents. Release `30a2a2df` persisted eight hash-bound chunks covering pages 1-16 and 302 cards with zero intent
+  mutation. The same natural run officially observed `retainer:new` and one active retainer listing, but failed
+  before effect because the planner returned null weekly-hour terms; the candidate now binds `WEEK_ONE / 1 / 10`
+  from the official listing and passes the captured production fixture plus 65 related tests. Paid's current four-client set is closed by a natural
   `172d3f2e` replay-zero pass. Admission protocol `2` is live and one four-lane overlap is proved, but the
   24-hour/seven-day fairness and no-starvation gates remain open.
 
@@ -912,10 +915,12 @@ work item and leave a sibling trace unchanged.
   seller message. Keep it settlement/payout-waiting and reopen only for a newer buyer event.
 - [x] Ryu and both Kokoro rooms have later official seller effects; Chii has its workbook effect. All four
   independently replayed zero in the natural Paid wake. Atsugi remains settlement-only unless reopened.
-- [ ] **Current cursor:** continue the resumable official applied-history scan from page 3. Page 1-2 observed
-  36 cards, matched zero of the 54 frozen CAS targets, persisted one hash-bound chunk and changed no intent.
+- [ ] **Current cursor:** release and prove the retainer-term binding fix, then continue the resumable official
+  applied-history scan from page 17. Pages 1-16 observed 302 cards, matched zero of the 54 frozen CAS targets,
+  persisted eight hash-bound chunks and changed no intent.
   Reconcile all 54 only after the final page proves complete.
-- [ ] Restore authenticated discovery for both `single:new` and `retainer:new`.
+- [x] Restore authenticated discovery for both `single:new` and `retainer:new`. Release `30a2a2df` observed the
+  current single page and the official retainer page; the latter contained one active listing.
 - [ ] Submit every eligible high-fit one-off and continuous application; verify each officially; replay zero.
 - [ ] Create Calendar events and five-minute Telegram reminders for every accepted meeting.
 - [ ] Keep Reply processing every talkroom independently with cumulative context and attachment recovery. Its
