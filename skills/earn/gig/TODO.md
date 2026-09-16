@@ -837,6 +837,16 @@ was a stale Capafy registry fixture, mechanically resynced and passing at
 pushed `11b2f60cce` (only two existing Capafy rows gain
 `admission_class=revenue`). CI runs this fixture test. No production
 effect/readback or main promotion follows from these source checks.
+The user-owned goal cannot pass its Local queue gate while old main dispatchers
+delete candidate queue rows. The later instruction to take ownership and not
+stall the goal is therefore used for a narrow exception to the previous
+one-final-main-merge order: PR #5292 proposes only the reviewed compatibility
+bridge at `11b2f60cce`, with 90-file foundation/domain work still outside
+main. CI is running. The bridge must not be considered complete on merge:
+cut a main-derived immutable release, reconcile loaded-idle old dispatchers
+without downgrading non-ancestor candidate labels, let active old wrappers
+terminate, read back exact loaded argv and outer terminal, then prove a
+natural queued owner claims/releases and provider effects remain separate.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/

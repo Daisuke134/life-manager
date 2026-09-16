@@ -457,6 +457,15 @@ remain loaded. Recommended exceptional order: bridge review/main promotion,
 main-derived release with loaded-idle dispatcher convergence, then
 Local/Eval/Cloud/domain merge. It conflicts with the earlier one-final-merge
 rule; no main merge or global current/label mutation is performed here.
+**Bridge promotion exception now in flight:** Fresh native review found no
+code P0/P1 after expired-reservation, follower-dispatch and ancestry fixes.
+The latest bridge `11b2f60cce` also resynced only the two stale Capafy
+fixture fields. PR #5292 is open with CI running. This narrow early merge is
+chosen because the old main dispatcher's queue deletion makes a candidate-only
+Local gate impossible; the remaining foundation/domain merge is still later.
+Do not infer queue recovery from PR/CI alone: exact old-wrapper termination,
+main-derived loaded argv, natural queue-to-claim, receipt and official effect
+readback remain required.
 Bridge review still needs two protections: reservation-only `defer` can leave
 an incompatible owner at the queue head indefinitely, so a finite persisted
 skip/expiry must let a healthy follower claim; automatic bounded reconcile
