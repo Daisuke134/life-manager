@@ -25,10 +25,38 @@ _PRIVATE_LOG_LOOP_IDS = frozenset({
     "money-printer-symphony-bridge",
     "money-printer-symphony",
 })
+_RUNTIME_ENTRYPOINTS = frozenset({
+    "apps/life-manager/scripts/mobile-app",
+    "apps/life-manager/scripts/instagram-metrics-production-boot.sh",
+    "apps/life-manager/scripts/tiktok-metrics-production-boot.sh",
+    "skills/connector/run.sh",
+})
+_MARKETING_RUNTIME_ENTRYPOINTS = frozenset({
+    "apps/life-manager/scripts/mobile-app",
+    "apps/life-manager/scripts/instagram-metrics-production-boot.sh",
+    "apps/life-manager/scripts/tiktok-metrics-production-boot.sh",
+})
 
 
 def _is_immutable_release_working_directory(value: object) -> bool:
     return isinstance(value, str) and bool(_IMMUTABLE_RELEASE_WORKING_DIRECTORY.search(value))
+
+
+def _smoke_runtime_executables(node: Path, python: Path) -> None:
+    checks = (
+        (node, ("--version",), "node"),
+        (python, ("-c", "import sys, json; print(sys.version_info[:2])"), "python"),
+    )
+    for executable, arguments, label in checks:
+        try:
+            result = subprocess.run(
+                [str(executable), *arguments], capture_output=True,
+                text=True, check=False, timeout=5,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise ValueError(f"{label} runtime smoke unavailable") from error
+        if result.returncode != 0:
+            raise ValueError(f"{label} runtime smoke failed")
 
 
 def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
@@ -64,13 +92,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
         "StandardOutPath": str(Path(log_root) / "launchd.out.log"),
         "StandardErrorPath": str(Path(log_root) / "launchd.err.log"),
     }
-    runtime_entrypoints = {
-        "apps/life-manager/scripts/mobile-app",
-        "apps/life-manager/scripts/instagram-metrics-production-boot.sh",
-        "apps/life-manager/scripts/tiktok-metrics-production-boot.sh",
-        "skills/connector/run.sh",
-    }
-    if entry.get("entrypoint") in runtime_entrypoints:
+    if entry.get("entrypoint") in _RUNTIME_ENTRYPOINTS:
         node = shutil.which("node")
         python = (runtime_python or Path(sys.executable).resolve()).resolve()
         if (not node or not Path(node).is_absolute() or not Path(node).is_file()
@@ -84,11 +106,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             "LIFE_MANAGER_PYTHON": str(python),
             "PYTHON_BIN": str(python),
         })
-        if entry.get("entrypoint") in {
-            "apps/life-manager/scripts/mobile-app",
-            "apps/life-manager/scripts/instagram-metrics-production-boot.sh",
-            "apps/life-manager/scripts/tiktok-metrics-production-boot.sh",
-        }:
+        if entry.get("entrypoint") in _MARKETING_RUNTIME_ENTRYPOINTS:
             marketing_env = str(
                 Path.home() / ".local/state/life-manager/private/marketing.env"
             )
@@ -306,6 +324,12 @@ def build_apply_plan(registry: dict, release_root: Path, release_sha: str) -> li
     loop_runner = release_root / "bin/lm-loop-run"
     if not loop_runner.is_file() or not os.access(loop_runner, os.X_OK):
         raise ValueError("release loop runner missing or not executable")
+    if any(entry.get("entrypoint") in _RUNTIME_ENTRYPOINTS
+           for entry in registry["loops"].values()):
+        node = shutil.which("node")
+        if not node or not Path(node).is_absolute() or not Path(node).is_file():
+            raise ValueError("managed node executable is unavailable")
+        _smoke_runtime_executables(Path(node).resolve(), runtime_python)
     plan = []
     for loop_id in sorted(registry["loops"]):
         entry = registry["loops"][loop_id]

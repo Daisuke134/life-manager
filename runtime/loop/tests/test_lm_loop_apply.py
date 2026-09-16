@@ -413,6 +413,25 @@ class LmLoopApplyTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "cache tag mismatch"):
             build_apply_plan(registry(), self.root, SHA)
 
+    def test_shared_runtime_apply_requires_node_and_python_smoke(self):
+        release = self._release("marketing-runtime")
+        target = release / "apps/life-manager/scripts/mobile-app"
+        target.parent.mkdir(parents=True)
+        target.write_text("#!/bin/sh\nexit 0\n")
+        target.chmod(0o755)
+        value = registry("apps/life-manager/scripts/mobile-app")
+        value["loops"]["example"]["entrypoint"] = "apps/life-manager/scripts/mobile-app"
+        value["loops"]["example"]["priority"] = "revenue"
+        value["loops"]["example"]["admission_class"] = "revenue"
+        value["loops"]["example"]["resource_class"] = "agent"
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        bad_python = self.root / "bad-python"
+        bad_python.write_text("#!/bin/sh\nexit 1\n")
+        bad_python.chmod(0o755)
+        (release / "RELEASE.json").write_text(json.dumps({"sha": SHA, "runtime_python": str(bad_python)}))
+        with self.assertRaisesRegex(ValueError, "smoke"):
+            build_apply_plan(value, release, SHA)
+
     def test_release_runtime_python_is_projected_to_the_runner(self):
         tag = sys.implementation.cache_tag
         cache = self.root / "runtime/loop/__pycache__" / f"lm_loop_run.{tag}.pyc"
