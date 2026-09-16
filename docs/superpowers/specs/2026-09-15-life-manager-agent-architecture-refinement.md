@@ -159,6 +159,10 @@ Storefrontは`resource_fifo_wait`、Browserは`entrypoint_exit_143`だった。i
 `30a2a2dfab`、`2a53ce2528`、`172d3f2eaa`、`0aba1191a4`、`e8e8a2b264`/`3c95ef5f3d`に分裂している。
 したがってApplyの`pass`はruntime healthの観測に留まり、公式effect/readbackの成功とは数えない。
 
+同じ実機statusからcompletion CLIとLocal gateを再実行した結果は、`verified=0 / setup_required=6 /
+unknown=8`、gate `decision=block`、reason `unknown_product_loop`（終了コード1）だった。今回追加した
+verified行のruntime evidence必須条件でも、未確認receiptがLocal PASSへ抜けないことを確認した。
+
 #### 2026-09-16 cursor変更: Coconalaを先頭へ戻す
 
 Daisの明示指示により、`gig-coconala`をR1の現在cursorへ戻す。別Codexがproviderを修正している
