@@ -720,7 +720,9 @@ test("operations persist only safe Eventbrite discovery aggregate counts", async
 
 test("operations persist only safe TECH PLAY discovery aggregate counts", async () => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-minimal-techplay-discovery-"));
-  const valid = { discovered_count: 50, within_window_count: 12, eligible_count: 8, calendar_free_count: 2, selected_count: 1 };
+  const valid = { discovered_count: 50, rss_count: 50, processed_count: 20, pending_count: 30,
+    saturated_count: 0, within_window_count: 12, eligible_count: 8,
+    calendar_free_count: 2, selected_count: 1 };
   try {
     const operations = createMinimalProductionOperations({
       stateDir, wakeId: "wake-20260812-techplay-discovery", telegramTarget: "private-target",
@@ -734,7 +736,7 @@ test("operations persist only safe TECH PLAY discovery aggregate counts", async 
     const row = JSON.parse(lines[0]);
     assert.equal(lines.length, 1);
     assert.deepEqual(row, { schema_version: 1, wake_id: "wake-20260812-techplay-discovery", ...valid, recorded_at: "2026-08-12T08:30:00.000Z" });
-    assert.deepEqual(Object.keys(row).sort(), ["calendar_free_count", "discovered_count", "eligible_count", "recorded_at", "schema_version", "selected_count", "wake_id", "within_window_count"]);
+    assert.deepEqual(Object.keys(row).sort(), ["calendar_free_count", "discovered_count", "eligible_count", "pending_count", "processed_count", "recorded_at", "rss_count", "saturated_count", "schema_version", "selected_count", "wake_id", "within_window_count"]);
     assert.equal(fs.statSync(file).mode & 0o777, 0o600);
     assert.doesNotMatch(JSON.stringify(row), /https?:\/\/|private-target|title|ticket|profile|auth|email/i);
 
@@ -742,9 +744,31 @@ test("operations persist only safe TECH PLAY discovery aggregate counts", async 
     for (const input of [
       { ...valid, private_url: "https://private.example/fixture" }, missingKey,
       { ...valid, selected_count: 0.5 }, { ...valid, discovered_count: -1 }, { ...valid, discovered_count: 801 },
+      { ...valid, processed_count: 51 }, { ...valid, pending_count: 51 },
+      { ...valid, rss_count: 51 },
+      { ...valid, saturated_count: 2 },
       { ...valid, calendar_free_count: 9 }, { ...valid, within_window_count: 51 }, [], null,
     ]) await assert.rejects(() => operations.recordTechPlayDiscoveryAudit(input));
     assert.equal(fs.readFileSync(file, "utf8").trim().split("\n").length, 1);
+  } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
+});
+
+test("TECH PLAY audit keeps a retained candidate visible after RSS eviction", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-techplay-retained-audit-"));
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir, wakeId: "wake-techplay-retained-audit", telegramTarget: "private-target",
+      now: () => new Date("2026-08-12T08:30:00.000Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    });
+    await operations.recordTechPlayDiscoveryAudit({
+      discovered_count: 1, rss_count: 0, processed_count: 1, pending_count: 1,
+      saturated_count: 0, within_window_count: 1, eligible_count: 1,
+      calendar_free_count: 1, selected_count: 1,
+    });
+    const row = JSON.parse(fs.readFileSync(path.join(stateDir, "techplay-discovery-audits.jsonl"), "utf8"));
+    assert.equal(row.rss_count, 0);
+    assert.equal(row.pending_count, 1);
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });
 

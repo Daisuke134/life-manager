@@ -1402,7 +1402,10 @@ test("official production factory injects TECH PLAY on the supplied page without
       lumaWorkflow: emptyWorkflow, connpassWorkflow: emptyWorkflow, techplayWorkflow,
       actionCache: { async replay() {}, saveVerifiedRepair() {} }, browserHarness: { async runFallback() {}, async performAction() {} }, evidenceChain: { async completeEvidence() {} }, operations: { async reportWake() {}, async recordAction() {} },
     });
-    assert.deepEqual(await dependencies.discoverCandidates("techplay", calendar, page), [candidate]);
+    const budget = { remainingWakeMs: () => 240_000, completionReserveMs: 160_000 };
+    assert.deepEqual(await dependencies.discoverCandidates("techplay", calendar, page, budget), [candidate]);
+    assert.equal(discoveryInput.remainingWakeMs(), 240_000);
+    assert.equal(discoveryInput.completionReserveMs, 160_000);
     assert.equal(discoveryInput.page, page); assert.equal(discoveryInput.calendar, calendar); assert.deepEqual(railCalls, []);
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });
@@ -1416,11 +1419,15 @@ test("official production factory wires the default TECH PLAY audit callback", a
       repoRoot: "/private/repo", stateDir, wakeId: "wake-production-techplay-audit-1", calendarAccount: "private-account", gogKeyring: "private-keyring", telegramTarget: "private-target",
       lumaFormProfilePath: "/private/form-profile.json", lunaEvidenceDir: "/private/luna-evidence", calendar: { ready() { return true; } }, calendarReader: { async readCalendarGaps() { return []; } },
       browserRail: { open() {}, navigate() {}, close() {} }, lumaWorkflow: emptyWorkflow, connpassWorkflow: emptyWorkflow,
-      actionCache: { async replay() {}, saveVerifiedRepair() {} }, evidenceChain: { async completeEvidence() {} }, operations: { async reportWake() {}, async recordAction() {}, async recordTechPlayDiscoveryAudit(value) { audits.push(value); } },
+      actionCache: { async replay() {}, saveVerifiedRepair() {} },
+      evidenceChain: { async completeEvidence() {}, async appliedBundleEventRefs() { return []; } },
+      operations: { async reportWake() {}, async recordAction() {}, async recordTechPlayDiscoveryAudit(value) { audits.push(value); } },
       now: () => new Date("2026-08-10T08:30:00.000Z"),
     });
     assert.deepEqual(await dependencies.discoverCandidates("techplay", [], page), []);
-    assert.deepEqual(audits, [{ discovered_count: 0, within_window_count: 0, eligible_count: 0, calendar_free_count: 0, selected_count: 0 }]);
+    assert.deepEqual(audits, [{ discovered_count: 0, rss_count: 0,
+      processed_count: 0, pending_count: 0, saturated_count: 0,
+      within_window_count: 0, eligible_count: 0, calendar_free_count: 0, selected_count: 0 }]);
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });
 
