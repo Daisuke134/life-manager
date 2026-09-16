@@ -4,18 +4,19 @@
 
 **Goal:** Restore every registered money-making loop to continuous scheduled progress without unbounded parallel processes, `borrow` starvation, or launchd-only runtime failures.
 
-**Architecture:** Keep the existing independent launchd owners and the existing bounded host admission runtime. Replace class-based `borrow`/`revenue` selection with one durable, starvation-free FIFO queue per resource class; when a finite run exits, it releases its claim and dispatches the oldest compatible waiter. There is no external business deadline: correctness is measured by cadence continuity, bounded queue age, terminal receipts, and provider readback.
+**Architecture:** Keep the existing independent launchd owners and bounded host admission runtime. Use priority-aware durable queues per resource class: paid/contract fulfillment starts first, revenue acquisition and publication follow, and support work remains lower priority. Add aging so an older lower-priority job is promoted after a bounded wait; priority changes order, never permanent eligibility. When a finite run exits, it releases its claim and dispatches the highest effective-priority compatible waiter. There is no external business deadline: correctness is measured by cadence continuity, bounded queue age, terminal receipts, and provider readback.
 
 **Tech Stack:** Python 3.14, SQLite, launchd, Node.js, shell entrypoints, immutable Life Manager releases.
 
-**Spec:** `skills/earn/gig/TODO.md` section `Fundamental scalability repair`; this plan intentionally replaces its remaining `maintenance may borrow` and `revenue-priority` language with the uniform fairness contract below.
+**Spec:** `skills/earn/gig/TODO.md` section `Fundamental scalability repair`; this plan retains paid-work priority while replacing permanent `borrow` eligibility with priority plus bounded aging.
 
 ## Global Constraints
 
 - Every registered earning loop remains enabled. Capacity pressure delays work but never drops a scheduled occurrence.
 - “24/7” means every owner repeatedly performs bounded durable transitions; it does not mean keeping every heavy process alive simultaneously.
 - There is no business deadline field. Use registry cadence plus observed `queued_at`, `started_at`, and terminal timestamps.
-- All compatible waiters use insertion order. No class may jump the queue indefinitely.
+- Paid and accepted-contract work has the highest base priority. No class may jump an older waiter indefinitely.
+- Initial operational wait bounds are 5 minutes for paid/contract work, 30 minutes for acquisition/publication (including Connector and Mobile), and 2 hours for support/metrics. These are starvation safety bounds, not external business deadlines.
 - A completed, failed, or timed-out run releases its exact claim before the next waiter is dispatched.
 - Keep memory, browser, agent, and disk limits. Do not restore unbounded fan-out.
 - Serialize only the same exact provider/browser/effect resource; unrelated owners remain parallel.
@@ -24,22 +25,24 @@
 
 ## Existing TODO Alignment
 
-The existing TODO is directionally aligned on independent owners, bounded runs, durable state, immutable releases, and provider readback. It is not aligned on these two statements:
+The existing TODO is aligned on independent owners, bounded runs, durable state, immutable releases, provider readback, and paid-work priority. It is not aligned where `borrow` can mean indefinite non-admission:
 
 ```text
 maintenance may borrow unused capacity only
-Apply, Reply, Paid and Storefront must all be revenue-priority owners
 ```
 
 Replace them with:
 
 ```text
-Every finite owner joins the same durable FIFO for its declared resource class.
-No admission class may bypass an older compatible waiter. Light deterministic
-work uses its own measured resource class and therefore does not consume a
-browser/model slot. When a claim is released, the oldest compatible waiter is
-reserved and dispatched immediately. Continuous success is proved by bounded
-queue age across every registered earning loop, not by a priority label.
+Every finite owner remains durably eligible in its declared resource class.
+Paid and accepted-contract fulfillment has the highest base priority; acquisition
+and publication is next; support and metrics is last. Waiting jobs age toward the
+front, so base priority can reorder work but can never starve Connector, Mobile,
+metrics, or maintenance indefinitely. Light deterministic work uses a separate
+measured capacity and does not consume a browser/model slot. When a claim is
+released, the highest effective-priority compatible waiter is reserved and
+dispatched immediately. Continuous success requires bounded queue age for every
+registered earning loop.
 ```
 
 Do not treat `1–30 minute cadence` as a universal business deadline. Each registry cadence remains the desired recurrence. Runtime evidence records how late each occurrence actually starts; sustained lateness is a capacity defect to repair, not a reason to discard the occurrence.
@@ -73,7 +76,7 @@ For each scoped loop, record the latest start and terminal events, loaded `Progr
 
 - [ ] **Step 3: Update the TODO contract**
 
-Insert the replacement fairness text from `Existing TODO Alignment` and the baseline table. Remove assertions that `borrow` or `revenue-priority` is the desired final architecture.
+Insert the replacement fairness text from `Existing TODO Alignment` and the baseline table. Preserve paid-work priority; remove only the assertion that lower-priority work may remain indefinitely ineligible.
 
 - [ ] **Step 4: Commit the documentation contract**
 
@@ -90,14 +93,16 @@ git commit -m "docs(runtime): require fair continuous loop progress"
 
 **Interfaces:**
 - Consumes: current durable admission SQLite schema.
-- Produces: regression tests proving all compatible waiters advance in insertion order and released capacity dispatches the next waiter.
+- Produces: regression tests proving paid work starts first, older lower-priority work is promoted within its wait bound, and released capacity dispatches the next waiter.
 
 - [ ] **Step 1: Write the continuous-arrival regression**
 
-Create a test that enqueues Mobile, Connector, and marketplace owners, continuously adds newer marketplace work, then repeatedly claims and releases one slot. Assert that the original Mobile and Connector sequence numbers are claimed before later arrivals.
+Create a test that enqueues Mobile, Connector, and paid marketplace owners, continuously adds newer paid work, then repeatedly claims and releases one slot. Assert the first paid item claims first, while Mobile and Connector claim after aging despite continuous paid arrivals.
 
 ```python
-assert claimed_owner_ids[:3] == ["mobile-a", "connector", "marketplace-a"]
+assert claimed_owner_ids[0] == "paid-a"
+assert claimed_owner_ids.index("mobile-a") < claimed_owner_ids.index("paid-newest")
+assert claimed_owner_ids.index("connector") < claimed_owner_ids.index("paid-newest")
 assert set(claimed_owner_ids) == set(enqueued_owner_ids)
 ```
 
@@ -117,7 +122,7 @@ python3 -m unittest runtime.host.tests.test_resource_admission runtime.loop.test
 
 Expected: the class-priority starvation fixture fails before implementation.
 
-### Task 3: Replace class priority with simple compatible FIFO
+### Task 3: Replace permanent borrow eligibility with priority plus aging
 
 **Files:**
 - Modify: `runtime/host/resource_admission.py`
@@ -125,33 +130,39 @@ Expected: the class-priority starvation fixture fails before implementation.
 
 **Interfaces:**
 - Consumes: `queue(sequence, owner_id, resource_class)` and live owner identity.
-- Produces: `enqueue_durable`, `claim_durable`, `release_and_reserve`, and `reserve_available` with uniform FIFO semantics.
+- Produces: `enqueue_durable`, `claim_durable`, `release_and_reserve`, and `reserve_available` with paid-first, starvation-free semantics.
 
-- [ ] **Step 1: Remove priority from queue ordering**
+- [ ] **Step 1: Store base priority and queue age inputs**
 
-Change head selection to:
+Use three explicit base priorities:
 
-```sql
-SELECT owner_id
-FROM queue
-WHERE resource_class = ?
-ORDER BY sequence
-LIMIT 1
+```text
+0 critical_paid   paid delivery, accepted-contract fulfillment, urgent buyer reply
+1 revenue         application, Connector, Mobile publication
+2 support         metrics, reports, maintenance
 ```
 
-Do not order by `admission_class`.
+Store `queued_at` durably. Derive effective priority at claim time; never rewrite queue history.
 
-- [ ] **Step 2: Remove the borrow/revenue capacity floor**
+- [ ] **Step 2: Add bounded aging**
 
-Delete `_revenue_floor`, `_legacy_owner_present`, and admission-class-specific bypasses. Capacity remains bounded by total and resource-class limits.
+Promote a waiter to effective priority `0` when its operational wait bound is reached:
+
+```text
+critical_paid: 5 minutes
+revenue:       30 minutes
+support:        2 hours
+```
+
+Within the same effective priority, select the lowest sequence. Delete `_revenue_floor` and permanent `borrow` exclusion; retain bounded total and resource-class capacity.
 
 - [ ] **Step 3: Preserve schema compatibility during rollout**
 
-Continue reading legacy `priorities` rows while mixed releases exist, but ignore them for ordering. Do not delete the table until every loaded finite owner runs the compatible release and queued/reserved rows are drained.
+Continue reading legacy `priorities` rows while mixed releases exist. Map legacy `revenue` rows to the correct explicit priority and legacy `borrow` rows to `revenue` or `support` from the registry. Do not delete the table until every loaded finite owner runs the compatible release and queued/reserved rows are drained.
 
 - [ ] **Step 4: Dispatch immediately on release**
 
-Ensure `release_and_reserve` selects the oldest compatible waiter and returns one dispatch target after the releasing owner has durably relinquished its claim.
+Ensure `release_and_reserve` selects the highest effective-priority compatible waiter and returns one dispatch target after the releasing owner has durably relinquished its claim.
 
 - [ ] **Step 5: Run GREEN tests**
 
@@ -159,9 +170,9 @@ Ensure `release_and_reserve` selects the oldest compatible waiter and returns on
 python3 -m unittest runtime.host.tests.test_resource_admission runtime.loop.tests.test_lm_loop_run_bounds
 ```
 
-Expected: all starvation, handoff, crash-recovery, and capacity tests pass.
+Expected: paid-first, aging, starvation, handoff, crash-recovery, and capacity tests pass.
 
-### Task 4: Measure capacity by resource class without adding priorities
+### Task 4: Measure and raise capacity by resource class
 
 **Files:**
 - Modify: `config/loop-registry.json`
@@ -170,7 +181,7 @@ Expected: all starvation, handoff, crash-recovery, and capacity tests pass.
 
 **Interfaces:**
 - Consumes: registry `resource_class`.
-- Produces: separate bounded capacity for `agent`, `browser`, and `deterministic` work.
+- Produces: separate bounded capacity for `agent`, `browser`, and `deterministic` work, allowing the total to exceed five when measured headroom supports it.
 
 - [ ] **Step 1: Add only missing resource classifications**
 
@@ -184,7 +195,11 @@ Extend registry validation with the exact accepted set and a failing fixture for
 
 Add a test where all browser slots are occupied while a deterministic metrics job still claims its own slot.
 
-- [ ] **Step 4: Run focused tests**
+- [ ] **Step 4: Roll capacity upward from evidence**
+
+Start from the proven-safe current limit, then canary higher total capacity in steps (`5 -> 7 -> 10`). Advance only when peak RSS, memory-free percentage, swap growth, browser health, terminal latency, and stale-owner count remain within the existing host safety thresholds. A total of ten is acceptable if the measured mix is safe; ten simultaneous heavy Chromium/Codex jobs is not assumed safe.
+
+- [ ] **Step 5: Run focused tests**
 
 ```bash
 python3 -m unittest runtime.host.tests.test_resource_admission runtime.loop.tests.test_macos_loop_registry
@@ -337,9 +352,10 @@ Loaded status, PID, exit zero, or historical posts are insufficient. Close only 
 
 ## Completion Conditions
 
-- No final runtime decision depends on `borrow`, `revenue`, or a revenue floor.
-- Every compatible waiter eventually claims in durable insertion order.
-- A released slot immediately advances the next compatible waiter.
+- Paid and accepted-contract work claims before newer lower-priority work.
+- No final runtime decision uses `borrow` as permanent non-eligibility.
+- Every compatible waiter claims before its operational maximum queue age.
+- A released slot immediately advances the highest effective-priority compatible waiter.
 - Mobile and metrics run under launchd with absolute Node/Python paths and the private marketing env.
 - Every scoped loop produces current-release natural terminal evidence within its observed cadence cycle.
 - Mobile and Connector external effects have official readback and replay-zero.
