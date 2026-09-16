@@ -683,6 +683,14 @@ clears it, so liveness would be lost after a timeout. Exact next slices:
    re-run full Local/Eval gates, and only then propose shared-v2 main promotion.
 No Connector registration, Affiliate second plan, Metrics snapshot or 14-loop
 success is established by this source safety patch.
+After the exact Connector rollback, old candidate SHA `cf655388` naturally
+woke at 20:48:54 UTC as outer run `18d5e83356635230-73022`. The same PID
+stayed live through provider discovery, then ended `FAIL/wake_deadline` at
+20:59:00; wake-report `wake-3d4b21ce0949da96df29ecd6` is
+`circuit_open/wake_deadline`. No applied bundle was created in that wake's
+time window. This repeats the old-release overrun and does **not** prove
+external effect absence or the new TechPlay fix. Preserve exact provider
+readback fences before any resend; do not restart a terminal run as a fix.
 
 **Current shared-runtime blocker:** The *loaded* candidate still uses the earlier reservation-only protocol,
 so a mixed-release dispatch cannot safely wake it. The foundation source now has queued-scan coalescing,
