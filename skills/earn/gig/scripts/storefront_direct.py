@@ -5670,6 +5670,25 @@ def _validate_package_form_delta(before: dict, after: dict, contract: dict) -> N
         raise RuntimeError("seller_package_non_target_changed")
 
 
+def _observed_seller_list_page(evidence_dir: Path, service_id: str) -> str:
+    try:
+        observation = json.loads(
+            (evidence_dir / "listing-state-controls.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise RuntimeError("storefront_retire_page_evidence_unavailable") from error
+    for row in observation.get("page_walk") or []:
+        if service_id not in [str(value) for value in row.get("observed_ids") or []]:
+            continue
+        url = str(row.get("url") or "")
+        parts = urlsplit(url)
+        if (parts.scheme != "https" or parts.netloc != "coconala.com"
+                or not re.fullmatch(r"/mypage/services_lists(?:/page:[1-9][0-9]*)?", parts.path)
+                or parts.query or parts.fragment):
+            raise RuntimeError("storefront_retire_page_url_invalid")
+        return url
+    raise RuntimeError("storefront_retire_target_page_unobserved")
+
+
 async def _execute_listing_state_effect_async(
     ws_url: str, *, contract: dict, evidence_dir: Path,
 ) -> dict:
@@ -5690,12 +5709,13 @@ async def _execute_listing_state_effect_async(
     action = str(contract["proposed_value"]["action"])
     if action != f"/services/archive/{service_id}":
         raise RuntimeError("storefront_retire_action_invalid")
+    list_url = _observed_seller_list_page(evidence_dir, service_id)
     async with websockets.connect(ws_url, ping_interval=None, open_timeout=10,
                                   max_size=40 * 1024 * 1024) as ws:
         cid = 1
         await listing_inventory._call(ws, "Page.enable", {}, cid); cid += 1
         await ws.send(json.dumps({"id": cid, "method": "Page.navigate",
-                                  "params": {"url": "https://coconala.com/mypage/services_lists"}})); cid += 1
+                                  "params": {"url": list_url}})); cid += 1
         _, cid = await listing_inventory._wait_for_load(ws, asyncio.get_event_loop().time() + 15, cid)
         # Reconcile the resource before retrying.  A prior click may have reached Coconala
         # even when this process died before recording its readback.
@@ -5727,7 +5747,7 @@ async def _execute_listing_state_effect_async(
         # 削除する on that page, so it is gone: nothing here clicks a control it did not bind.
         await asyncio.sleep(5)
         await ws.send(json.dumps({"id": cid, "method": "Page.navigate",
-                                  "params": {"url": "https://coconala.com/mypage/services_lists"}})); cid += 1
+                                  "params": {"url": list_url}})); cid += 1
         _, cid = await listing_inventory._wait_for_load(ws, asyncio.get_event_loop().time() + 15, cid)
         raw, cid = await _evaluate(ws, (
             "JSON.stringify([...document.querySelectorAll('.serviceListContentBox')]"

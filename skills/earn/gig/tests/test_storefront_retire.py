@@ -171,6 +171,72 @@ def test_the_archive_executor_refuses_a_contract_that_is_not_a_recoverable_retir
             "ws://127.0.0.1:1/none", contract=wrong_action, evidence_dir=Path("/tmp")))
 
 
+def test_archive_executor_uses_the_observed_page_for_a_paginated_listing(monkeypatch, tmp_path):
+    import asyncio
+    import websockets
+    import listing_inventory
+
+    evidence = tmp_path / "evidence"
+    evidence.mkdir()
+    (evidence / "listing-state-controls.json").write_text(json.dumps({
+        "page_walk": [
+            {"url": "https://coconala.com/mypage/services_lists", "observed_ids": ["999"]},
+            {"url": "https://coconala.com/mypage/services_lists/page:2",
+             "observed_ids": [SERVICE_ID]},
+        ],
+    }), encoding="utf-8")
+    monkeypatch.setattr(sd, "_load_capability_families",
+                        lambda _path: (FAMILY, {"ui_translation": {}}))
+
+    class Browser:
+        url = ""
+        clicked = False
+        navigations = []
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def send(self, payload):
+            command = json.loads(payload)
+            if command["method"] == "Page.navigate":
+                self.url = command["params"]["url"]
+                self.navigations.append(self.url)
+
+    browser = Browser()
+
+    async def call(_ws, _method, _params, cid):
+        return {"id": cid}
+
+    async def loaded(_ws, _deadline, cid):
+        return True, cid + 1
+
+    async def evaluate(_ws, expression, cid):
+        on_target_page = browser.url.endswith("/page:2")
+        if "a.js_change-open-status" in expression:
+            browser.clicked = on_target_page
+            return browser.clicked, cid + 1
+        cards = ([{"text": "非公開", "restore": [f"/services/open/{SERVICE_ID}"]}]
+                 if browser.clicked else [{"text": "公開中", "restore": []}])
+        return json.dumps(cards if on_target_page else []), cid + 1
+
+    async def no_sleep(_seconds):
+        return None
+
+    monkeypatch.setattr(websockets, "connect", lambda *_args, **_kwargs: browser)
+    monkeypatch.setattr(listing_inventory, "_call", call)
+    monkeypatch.setattr(listing_inventory, "_wait_for_load", loaded)
+    monkeypatch.setattr(sd, "_evaluate", evaluate)
+    monkeypatch.setattr(sd.asyncio, "sleep", no_sleep)
+
+    result = asyncio.run(sd._execute_listing_state_effect_async(
+        "ws://127.0.0.1:1/fake", contract=render(), evidence_dir=evidence))
+    assert result["archived"] is True
+    assert browser.navigations == ["https://coconala.com/mypage/services_lists/page:2"] * 2
+
+
 def test_restore_refuses_an_href_that_is_not_a_service_control():
     import asyncio
 
