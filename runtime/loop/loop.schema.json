@@ -134,6 +134,9 @@
       ],
       "type": "object"
     },
+    "coalesce_reserved_wakes": {
+      "type": "boolean"
+    },
     "command": {
       "items": {
         "minLength": 1,

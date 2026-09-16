@@ -685,6 +685,52 @@ def test_independent_natural_wake_during_reservation_is_not_lost(
     admission.release_and_reserve(second, reserve=False)
 
 
+def test_opted_in_connector_reservation_coalesces_one_wake_signal(
+        tmp_path, monkeypatch):
+    """Connector scans current provider state; its triggers are not business items."""
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "browser", "life-manager-connector-native", admission_class="revenue",
+        occurrence_id="connector:first", now=100)
+    assert admission.reserve_available(now=101, lease_seconds=60) == [
+        "life-manager-connector-native"]
+
+    ticket, reason = admission.enqueue_durable(
+        "browser", "life-manager-connector-native", admission_class="revenue",
+        occurrence_id="connector:reserved-dispatch", coalesce_reserved=True, now=102)
+    assert ticket is not None and reason == "reservation_coalesced"
+    assert [(row["occurrence_id"], row["state"]) for row in
+            durable_rows(tmp_path, "occurrences")] == [("connector:first", "queued")]
+
+    claim, reason = admission.claim_durable(
+        "browser", "life-manager-connector-native", admission_class="revenue", now=103)
+    assert claim is not None and reason == "acquired"
+    assert json.loads(claim.read_text())["occurrence_id"] == "connector:first"
+    assert admission.release_and_reserve(claim, now=104) == []
+
+
+def test_opted_in_connector_preserves_wake_after_reservation_expires(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "browser", "life-manager-connector-native", admission_class="revenue",
+        occurrence_id="connector:first", now=100)
+    assert admission.reserve_available(now=101, lease_seconds=5) == [
+        "life-manager-connector-native"]
+
+    ticket, reason = admission.enqueue_durable(
+        "browser", "life-manager-connector-native", admission_class="revenue",
+        occurrence_id="connector:after-expiry", coalesce_reserved=True, now=107)
+    assert ticket is not None and reason != "reservation_coalesced"
+    assert {(row["occurrence_id"], row["state"]) for row in
+            durable_rows(tmp_path, "occurrences")} == {
+        ("connector:first", "queued"),
+        ("connector:after-expiry", "queued"),
+    }
+
+
 def test_expired_running_heartbeat_keeps_live_child_claim(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")

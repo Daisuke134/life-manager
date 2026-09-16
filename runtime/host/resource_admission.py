@@ -690,10 +690,12 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                     admission_class: str = "borrow",
                     priority: str | None = None,
                     occurrence_id: str | None = None,
+                    coalesce_reserved: bool = False,
                     now: float | None = None) -> tuple[Path | None, str]:
     """Persist a process-independent, priority-aware queue position."""
     if (resource_class not in set(RESOURCE_CLASSES) or not owner_id
-            or admission_class not in ADMISSION_CLASSES):
+            or admission_class not in ADMISSION_CLASSES
+            or type(coalesce_reserved) is not bool):
         raise RuntimeError("invalid resource identity")
     priority_name = _normalize_priority(priority, admission_class)
     occurrence_name = _normalize_occurrence_id(occurrence_id)
@@ -726,6 +728,20 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                         return None, "occurrence_terminal"
                     if existing_occurrence[4] == "claimed":
                         return None, "occurrence_inflight"
+                if coalesce_reserved and connection.execute(
+                    """SELECT 1 FROM reservations r
+                         JOIN queue q ON q.owner_id=r.owner_id
+                                     AND q.sequence=r.sequence
+                         JOIN priorities p ON p.owner_id=r.owner_id
+                         JOIN occurrences o ON o.owner_id=r.owner_id
+                                           AND o.state='queued'
+                                           AND o.effect_unknown=0
+                        WHERE r.owner_id=? AND r.resource_class=?
+                          AND p.admission_class=? AND p.effect_unknown=0
+                          AND r.lease_until>? LIMIT 1""",
+                    (owner_id, resource_class, admission_class, instant),
+                ).fetchone():
+                    return database, "reservation_coalesced"
             if any(item.get("owner_id") == owner_id for item in (
                     _row(path) or {} for path in owners.glob("*.json"))):
                 if occurrence_name is not None:
