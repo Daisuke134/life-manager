@@ -84,6 +84,30 @@ def test_explicit_registry_priority_is_forwarded_to_durable_admission(tmp_path):
     run.assert_not_called()
 
 
+def test_wake_occurrence_identity_is_forwarded_to_durable_admission(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 60},
+        "provider_route": "deterministic",
+        "admission_class": "revenue",
+        "priority": "revenue",
+    }
+    receipt = tmp_path / "receipt"
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "capacity_busy")) as enqueue,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(
+            ["/bin/true"], entry, "connector", {}, receipt,
+            occurrence_id="connector:1800000000-1",
+        ) == 75
+
+    enqueue.assert_called_once_with(
+        "deterministic", "connector", admission_class="revenue",
+        priority="revenue", occurrence_id="connector:1800000000-1",
+    )
+    run.assert_not_called()
+
+
 def test_memory_admission_exit_is_deferred_not_failed():
     assert _terminal_outcome(75, host_deferred="resource_capacity_busy") == (
         False, True, "host_admission_deferred:resource_capacity_busy")
@@ -332,7 +356,9 @@ def test_all_coconala_lanes_enter_revenue_admission(tmp_path):
             ) == 75
 
     assert enqueue.call_args_list == [
-        call("agent", loop_id, admission_class="revenue") for loop_id in loop_ids
+        call("agent", loop_id, admission_class="revenue",
+             priority=registry[loop_id]["priority"])
+        for loop_id in loop_ids
     ]
     assert claim.call_args_list == [
         call("agent", loop_id, admission_class="revenue") for loop_id in loop_ids
