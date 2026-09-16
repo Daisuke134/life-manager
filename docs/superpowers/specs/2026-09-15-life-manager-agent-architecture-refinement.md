@@ -5,10 +5,12 @@ claim that the target control plane, marketplace effects, or cloud deployment ar
 
 ## Implementation status (current evidence)
 
-このspecの受入状態は、次のとおりです。`PROD-01`が全体の正本cursorであり、provider固有の
-応募・送信・公式receiptはMarketplace ownerが管理します。Architecture ownerは別worktreeで
-共通契約、skill、fixture、read-only診断だけを進めます。両者を同じファイルや稼働browserで
-同時に変更しません。
+このspecの受入状態は、次のとおりです。`PROD-01`はMarketplace側の外部effect受入cursorであり、
+provider固有の応募・送信・公式receiptはMarketplace ownerが管理します。Architecture ownerの
+基盤cursorは独立して進み、観測・台帳・gate・修復契約を実装します。Architecture ownerは別worktreeで
+共通契約、skill、read-only診断を進め、両者を同じファイルや稼働browserで同時に変更しません。
+provider receiptが未完でも、Architecture ownerの観測基盤実装は停止しません。receiptはそのloopを
+`verified`へ昇格できるかを判定する入力であり、観測基盤を作るための待機条件ではありません。
 
 このfoundationの完了条件は実データです。mock/fixture、テストgreen、PID、exit 0、Telegram文面は
 公式receipt・Local gate・Cloud gateの証拠にしません。Claude-pは現在のLife Managerで使用しないため、
@@ -71,6 +73,26 @@ platform adapterの実装そのものをfoundationへ複製しません。
 | OBSERVABILITY | runtime event・metrics・Telegram境界を定義 | 内部control room、通知抑制、失敗からの自動issue生成を全loopへ接続する |
 | SELF-HEAL / SELF-IMPROVE | timeout・stale回収・冪等化、bounded recovery decision、既存失敗記録へのrecovery intent保存、`harness-recovery.json`投影の候補修正あり | supervisorがintentを読み、同一ownerだけを再開し、上限後にrepairへ渡す実動作、candidate生成、評価、昇格、rollbackを無人で連結する |
 | LOCAL / CLOUD | 同じcontractにする設計あり | local gate、tenant分離、cloud worker/browser、phone-only canary、本番昇格 |
+
+### Architecture ownerの最初のatomic: `OBS-01`
+
+`OBS-01`は、各Product Loopの実行事実を一つのmanifest行へ正確に写す観測基盤です。
+providerへ応募する仕事ではありません。
+
+1. `product-loop-catalog.json`からproduct loopとcanonical job IDを読む。
+2. 実機の`lm-loop status`から、そのjobのinstalled/event release、terminal状態、runtime healthを読む。
+3. 公式receipt・effect・readbackは、存在するものだけを別の証拠欄へ結び付ける。無いものは`unknown`のままにする。
+4. Local gateは、元manifestのschema・host・release・loop identityを先に検査し、渡された最新runtime statusから`runtime_evidence`だけを再計算する。
+
+目的は「何が起きたか」をLife Manager自身が正しく知ることです。これが無いと、古いログや
+`exit 0`を成功と誤認し、自己修復が間違ったjobを再実行します。`OBS-01`自体は外部effectを
+実行せず、自己修復を直接行うものでもありません。自己修復は、この観測結果を入力にして後続の
+`S-01`〜`S-03`が同じownerだけを再開する仕組みです。
+
+`OBS-01`の実装はcandidate `fix/lm-fundamental-runtime-20260916` の `6715084a30` に固定済みで、
+関連テスト37件がPASSしました。実機status 267件を使ったLocal gateは、公式receipt不足を
+`BLOCK / unknown_product_loop`として正しく残しました。したがって、これは「他Codexの修正を
+待つTODO」ではなく、私の基盤側では完了したatomicです。
 
 ### 今回の判定（2026-09-16）
 
@@ -238,7 +260,7 @@ Telegram報告、テストgreen、ブラウザ画面表示だけでは完了に�
 先に配布しません。全体のlocal/cloud受入が揃った最後に、main統合とimmutable release作成を
 一度だけ行います。
 
-**現在のfoundation cursor:** `CAND-01`と`CAND-02`の内部canaryは完了しています。`LOCAL-01/02`
+**現在のfoundation cursor:** Architecture側の`OBS-01`は完了しています。`CAND-01`と`CAND-02`の内部canaryも完了しています。`LOCAL-01/02`
 ではcompletion manifestの契約と`lm-loop status` JSON接続、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、失敗記録へのrecovery intent保存、`harness-recovery.json`へのowner/slot別最新intent投影、7つのskill索引、`CONTROL-01`のexternal owner登録、管理statusの安定`job_id`/`owner_id`出力、常駐non-effect jobのruntime health判定、completion CLIの既存親ディレクトリ権限保護、runtime rowのjob identity一致検査、Local/Cloud verified行のruntime evidence必須化、Local/Cloud gateのruntime evidence整合性検査、official receiptのrelease SHA結合必須化をcandidate `6715084a30`へ実装済みです。
 Graph/Eval/notificationの契約も同candidateへ接続済みです。Local gate CLIのruntime status再束縛、非runtime manifest契約の保持、schema改ざん回帰テスト（37件PASS）も同candidateへ固定しました。次は各loopのevidenceを
 このmanifestへ接続する作業であり、platformの外部effectを私が実行する項目ではありません。
