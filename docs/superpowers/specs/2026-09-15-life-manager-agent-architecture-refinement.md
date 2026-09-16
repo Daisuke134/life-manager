@@ -248,6 +248,13 @@ runnerでwakeごとのoccurrence_idを生成する自然経路と本番証拠は
 直接呼び出しの互換性は保ち、明示されたpriorityも同じenqueueへ渡す。loop-runの **39 tests PASS**。
 本番plistの再配置、自然wake、公式receiptはまだ未完である。
 
+**R2-02 launchd runtime projection atomic (candidate `96af987b43`):** Mobile App、Instagram/TikTok
+Metrics、Connectorの生成plistへ絶対`LIFE_MANAGER_NODE` / `NODE_BIN` / `LIFE_MANAGER_PYTHON` /
+`PYTHON_BIN`を投影し、Mobile/Metricsは同じprivate `marketing.env`を参照するようにした。
+実行ファイルの存在・実行権限をplist生成時にfail-closedで確認する。apply focused suiteは
+**88 tests / 30 subtests PASS**。version/import smoke、launchd自然wake、Postiz receipt、
+productionへの反映はまだ未完である。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
