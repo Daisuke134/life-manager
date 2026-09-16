@@ -164,6 +164,11 @@ Storefrontは`resource_fifo_wait`、Browserは`entrypoint_exit_143`だった。i
 unknown=8`、gate `decision=block`、reason `unknown_product_loop`（終了コード1）だった。今回追加した
 verified行のruntime evidence必須条件でも、未確認receiptがLocal PASSへ抜けないことを確認した。
 
+さらに2026-09-16の読み取り専用再実測では、`lm-loop status all`が267行（終了コード0）を返し、
+current release SHA `913aaa9cc9ac1e40b54eb0f0899c69fc17b52c2f`で
+`local-completion-gate.js --runtime-status`を実行しても同じ`BLOCK / unknown_product_loop`だった。
+これは実機statusを使ったgate確認であり、providerの公式receiptや外部effectの成功を意味しない。
+
 #### 2026-09-16 cursor変更: Coconalaを先頭へ戻す
 
 Daisの明示指示により、`gig-coconala`をR1の現在cursorへ戻す。別Codexがproviderを修正している
