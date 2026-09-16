@@ -1055,6 +1055,69 @@ test("completion manifest CLI binds lm-loop status JSON when requested", () => {
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test("local gate CLI rebinds runtime evidence from supplied status", () => {
+  const catalog = readProductLoopCatalog();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-local-gate-runtime-rebind-"));
+  const manifestPath = path.join(root, "manifest.json");
+  const runtimePath = path.join(root, "runtime-status.json");
+  const outputPath = path.join(root, "gate.json");
+  const releaseSha = "a".repeat(40);
+  const contract = {
+    goal: true,
+    context: true,
+    admission: true,
+    receipt: true,
+    observability: true,
+    evaluation: true,
+  };
+  const observations = catalog.loops.map((loop, index) => index === 0 ? {
+    id: loop.id,
+    state: "verified",
+    owner_id: "owner-1",
+    release_sha: releaseSha,
+    official_receipt: true,
+    official_receipt_ref: "ledger://local/owner-1/receipt-runtime-rebind",
+    official_receipt_release_sha: releaseSha,
+    replay_zero: true,
+    resource_class: "agent",
+    contract,
+  } : {
+    id: loop.id,
+    state: "setup_required",
+    reason: "host_adapter_pending",
+    contract: {},
+  });
+  const runtimeRows = catalog.loops.flatMap((loop) => loop.job_ids.map((jobId) => ({
+    loop_id: jobId,
+    installed_release_sha: releaseSha,
+    event_release_sha: releaseSha,
+    last_terminal_result: "pass",
+  })));
+  const manifest = buildProductLoopCompletionManifest({
+    host: "local",
+    release_sha: releaseSha,
+    observations,
+    runtime_rows: runtimeRows,
+  });
+  const tampered = JSON.parse(JSON.stringify(manifest));
+  tampered.loops[0].runtime_evidence.observed_job_ids = [];
+  fs.writeFileSync(manifestPath, JSON.stringify(tampered));
+  fs.writeFileSync(runtimePath, JSON.stringify(runtimeRows));
+
+  const result = spawnSync(process.execPath, [
+    path.join(ROOT, "apps/life-manager/scripts/local-completion-gate.js"),
+    "--manifest", manifestPath,
+    "--runtime-status", runtimePath,
+    "--output", outputPath,
+  ], { cwd: ROOT, encoding: "utf8" });
+
+  assert.equal(result.status, 0, result.stderr);
+  const gate = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+  assert.equal(gate.decision, "pass");
+  assert.deepEqual(gate.reasons, []);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test("completion manifest CLI builds a safe baseline when only runtime status is supplied", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-completion-default-cli-"));
   const runtimePath = path.join(root, "runtime-status.json");

@@ -5,17 +5,20 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const { evaluateLocalCompletionGate } = require("../lib/product-onboarding.js");
+const {
+  buildProductLoopCompletionManifest,
+  evaluateLocalCompletionGate,
+} = require("../lib/product-onboarding.js");
 
 function usage() {
-  return "usage: local-completion-gate.js --manifest PATH [--output PATH]";
+  return "usage: local-completion-gate.js --manifest PATH [--runtime-status PATH] [--output PATH]";
 }
 
 function parseArgs(args) {
   const values = {};
   for (let index = 0; index < args.length; index += 1) {
     const key = args[index];
-    if (!["--manifest", "--output"].includes(key)) throw new Error(usage());
+    if (!["--manifest", "--runtime-status", "--output"].includes(key)) throw new Error(usage());
     const value = args[index + 1];
     if (!value || value.startsWith("--")) throw new Error(usage());
     values[key.slice(2).replaceAll("-", "_")] = value;
@@ -46,7 +49,15 @@ function writePrivate(pathname, content) {
 function main(args = process.argv.slice(2)) {
   const options = parseArgs(args);
   const manifest = JSON.parse(fs.readFileSync(options.manifest, "utf8"));
-  const gate = evaluateLocalCompletionGate(manifest);
+  const runtimeRows = options.runtime_status
+    ? JSON.parse(fs.readFileSync(options.runtime_status, "utf8")) : undefined;
+  const effectiveManifest = runtimeRows === undefined ? manifest : buildProductLoopCompletionManifest({
+    host: manifest.host,
+    release_sha: manifest.release_sha,
+    observations: manifest.loops,
+    runtime_rows: runtimeRows,
+  });
+  const gate = evaluateLocalCompletionGate(effectiveManifest);
   const content = `${JSON.stringify(gate, null, 2)}\n`;
   if (options.output) writePrivate(options.output, content);
   else process.stdout.write(content);
