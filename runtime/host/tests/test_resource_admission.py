@@ -678,6 +678,35 @@ def test_expired_running_heartbeat_keeps_live_child_claim(
     ]
 
 
+def test_dead_running_claim_parks_effect_unknown_without_requeue(
+        tmp_path, monkeypatch):
+    """A dead effect child cannot authorize automatic replay of its occurrence."""
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "mobile-publication", admission_class="revenue",
+        occurrence_id="mobile-slot-001", now=100)
+    claim, reason = admission.claim_durable(
+        "agent", "mobile-publication", admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    row = json.loads(claim.read_text())
+    admission.atomic_json(claim, {
+        **row, "pid": 999_999_999, "process_start": "dead", "phase": "running",
+    })
+
+    assert admission.reserve_available(now=200, lease_seconds=30) == []
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        occurrence = connection.execute(
+            "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+            ("mobile-slot-001",),
+        ).fetchone()
+        queued = connection.execute(
+            "SELECT COUNT(*) FROM queue WHERE owner_id='mobile-publication'"
+        ).fetchone()[0]
+    assert occurrence == ("claimed", 1)
+    assert queued == 0
+
+
 def test_heartbeat_updates_only_the_owned_claim(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     admission.activate_durable_v2()
