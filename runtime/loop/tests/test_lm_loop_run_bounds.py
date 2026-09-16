@@ -109,6 +109,29 @@ def test_wake_occurrence_identity_is_forwarded_to_durable_admission(tmp_path):
     run.assert_not_called()
 
 
+def test_connector_registry_opt_in_coalesces_only_its_reserved_wake(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 1800},
+        "provider_route": "deterministic",
+        "resource_class": "browser",
+        "admission_class": "revenue",
+        "coalesce_reserved_wakes": True,
+    }
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "capacity_busy")) as enqueue,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(
+            ["/bin/true"], entry, "life-manager-connector-native", {},
+            tmp_path / "receipt", occurrence_id="connector:new",
+        ) == 75
+    enqueue.assert_called_once_with(
+        "browser", "life-manager-connector-native", admission_class="revenue",
+        occurrence_id="connector:new", coalesce_reserved=True,
+    )
+    run.assert_not_called()
+
+
 def test_running_child_receives_periodic_claim_heartbeat(tmp_path, monkeypatch):
     entry = {
         "cadence": {"start_interval_seconds": 60},
