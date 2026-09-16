@@ -423,6 +423,17 @@ source-capture tests pass; the wider Affiliate suite has identical pre-existing
 2 failures/6 errors on edited and unchanged worktrees. Review and Local
 candidate integration remain open. The old owner was still running at 30
 minutes, so source changes alone do not free the live borrow slot.
+Fresh review found no P0/P1 in the final Affiliate diff. It was integrated
+into pushed foundation `5f7a0ce846`; focused 13/13 and control-plane 462/462
+passed. Immutable Local candidate `20260917T010743-5f7a0ce8` passed doctor
+164/164 and did not move `current`. At 16:10 UTC only the old Affiliate
+source-refresh owner was booted out after about 41 minutes; wrapper and child
+exited, admission claim disappeared, and the old outer terminal was
+`fail/entrypoint_exit_143` from this deliberate stop. The same label was
+exact-applied to candidate SHA. Its first RunAtLoad wake was
+`blocked/resource_fifo_wait`, so bounded source progress is not yet proven.
+The next natural wake must claim, process at most one plan, write a durable
+receipt, release, and allow another queued owner through.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

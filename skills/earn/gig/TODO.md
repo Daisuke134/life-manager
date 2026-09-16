@@ -752,6 +752,20 @@ baseline worktrees (agent-routing/repost tests); do not call it all-green.
 Fresh review and candidate integration are pending. The old Affiliate child
 was still running after 30 minutes; source code alone has not freed the live
 borrow slot.
+After fresh reviewer found no P0/P1 in the bounded Affiliate slice, it was
+integrated into the foundation candidate at pushed `5f7a0ce846` and passed
+13/13 source-capture plus 462/462 loop control-plane tests. Candidate immutable
+release `20260917T010743-5f7a0ce8` was cut with `current` unchanged; doctor
+passed 164 registry rows, no missing/unmanaged/retired-installed labels.
+At 16:10 UTC, the exact old Affiliate source-refresh wrapper/child (running
+about 41 minutes) was owner-scoped booted out; both PIDs and admission owner
+disappeared, and the old outer run ended `fail/entrypoint_exit_143` from this
+operator stop. This read-only source capture had no provider effect, but its
+current plan may need recapture. Only that label was applied to `5f7a0ce8`;
+plist and launchd argv exact-match. Its RunAtLoad wake then ended
+`blocked/resource_fifo_wait` exit 75 before entering source capture. A new
+bounded plan receipt and natural scheduled wake remain unproven. No main/Cloud
+promotion is implied by this Local cutover.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/
