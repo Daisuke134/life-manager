@@ -128,63 +128,71 @@ Default opportunity windows in the user's local time:
 
 | Window | Time | Eligible family |
 |---|---:|---|
-| Morning orientation | 07:30–10:00 | affirmation or manifestation |
-| Day reset | 12:00–16:00 | mindfulness inquiry |
-| Evening release | 20:00–23:00 | affirmation or mindfulness inquiry |
+| Morning orientation | 07:30–09:30 | personalized affirmation |
+| Midday awareness | 12:00–15:00 | mindfulness or body-awareness inquiry |
+| Evening direction | 20:30–22:30 | manifestation, release, or rest |
 
 Rules:
 
-- Maximum two V1 mental messages per local day.
-- Minimum four hours between V1 messages.
+- Default is three message opportunities per local day: morning, midday, and evening.
+- Maximum three delivered mental/body messages per local day.
+- Minimum three hours between delivered messages.
 - Never send during a current calendar event.
 - Never send inside quiet hours.
 - Use a deterministic per-user/per-day minute inside the selected window so the whole fleet does not fire at one time.
 - Do not describe the selected minute as emotionally optimal.
-- A user-authored goal may influence message selection, not timing, until a matching goal/work-block contract exists.
+- A user-authored goal may influence message selection, not factual claims.
+- If no eligible non-repeated message fits the person, skip that window rather than send filler.
 
-## 7. Catalog sources: reuse before invention
+The default UX is therefore usually three messages, but the actual result can be zero to three. Operational receipts from Jobs, CFO, Investment, Calendar, or Care are separate and are not counted as mental/body messages.
 
-V1 does not author a new affirmation collection. It imports and indexes existing catalogs.
+## 7. Catalog sources: external reuse only
 
-### 7.1 First-party source
+Life Manager does not use the internal Anicca affirmation catalog. It imports only reviewed external OSS source material with pinned commits and text-level provenance.
 
-The primary source is the existing Anicca catalog:
+### 7.1 Approved source set
 
-```text
-/Users/anicca/anicca-project/apps/api/src/modules/affirmations/catalog/en.json
-/Users/anicca/anicca-project/apps/api/src/modules/affirmations/catalog/ja.json
-/Users/anicca/anicca-project/apps/api/src/modules/affirmations/catalog/es.json
-```
-
-Each locale contains the same stable `q001`–`q200` IDs. Life Manager imports an approved snapshot into its own repository; it does not depend at runtime on the separate Anicca product checkout.
-
-Examples already present in the Japanese catalog:
-
-| ID | Exact catalog text | Candidate themes |
-|---|---|---|
-| `q001` | `私は本当の自分になりつつあります。` | growth, identity |
-| `q005` | `私は、自分が育つ速さを信頼しています。` | patience, growth |
-| `q022` | `私の中心には、いつでも戻れる静けさがあります。` | calm, grounding |
-| `q027` | `すべてを直さなくていい。私は休んでよいのです。` | rest, self-compassion |
-| `q031` | `私は今、ここに在ります。それで十分です。` | presence, enoughness |
-| `q036` | `私は呼吸に戻り、自分自身に戻ります。` | breath, mindfulness |
-| `q038` | `気づき、息をして、もう一度始めます。` | reset, action |
-| `q061` | `私は今までも辛い日を越えてきた。今日も越えていけます。` | resilience |
-| `q071` | `コントロールできないことを手放し、平和を保ちます。` | release, calm |
-| `q091` | `まだ知らなかったことを、知らなかった自分を許します。` | forgiveness |
-| `q101` | `怖くても、私は前に進むことができます。` | courage, action |
-| `q161` | `私は今このままで、十分です。` | self-worth |
-
-### 7.2 External OSS candidates
-
-| Source | Pin | License | V1 decision |
+| Source | Pin | License | Use |
 |---|---|---|---|
-| [humancto/antara-remarkable](https://github.com/humancto/antara-remarkable) | `bdaf5a19e6401c771e097e04bc3fcc16d44eb835` | MIT | Approved candidate source; author field is preserved |
-| [lifeLessCoder/Mental-Buddy](https://github.com/lifeLessCoder/Mental-Buddy) | `05e0522deae5943ac2704826cbe3cdc124d9fedf` | MIT | Candidate source after safety screening |
-| [ContionMig/Mitsuzi-JS](https://github.com/ContionMig/Mitsuzi-JS) | inspected main | MIT repo | Not imported in V1; mixed attributed quotes, medical claims, and absolute manifestation claims |
-| [DNSERR/confidencecrew](https://github.com/DNSERR/confidencecrew) | inspected main | MIT repo | Not imported in V1; duplication and strong success/destiny claims |
+| [humancto/antara-remarkable](https://github.com/humancto/antara-remarkable) | `bdaf5a19e6401c771e097e04bc3fcc16d44eb835` | MIT | Primary source for enoughness, rest, boundaries, courage, self-trust, body awareness, imperfection, and starting again |
+| [lifeLessCoder/Mental-Buddy](https://github.com/lifeLessCoder/Mental-Buddy) | `05e0522deae5943ac2704826cbe3cdc124d9fedf` | MIT | Secondary source for self-worth, resilience, calm, presence, daily orientation, and evening release; every item is screened |
+| [ghall89/journal-prompts](https://github.com/ghall89/journal-prompts) | `6a180a182273f52d317d771e39546373beebac21` | MIT | Source for mindfulness, reflection, values, goals, body-awareness, and manifestation inquiries; only low-burden prompts are used |
 
-Repository license alone is not enough when the file appears to aggregate third-party quotations. Each imported item needs traceable authorship or an explicit source license that covers the text.
+Rejected in V1:
+
+| Source | Reason |
+|---|---|
+| `ContionMig/Mitsuzi-JS` | Mixed third-party quotations, medical claims, relationship predictions, universe claims, and absolute manifestation language |
+| `DNSERR/confidencecrew` | Duplicates, destiny/success claims, extreme language, and unclear per-item provenance |
+
+Repository license alone is insufficient when a file aggregates third-party quotations. Each imported item must either be authored by the repository source under its license or have separate text-level provenance.
+
+### 7.2 What is reused
+
+The English source text is stored unchanged. Japanese text is a reviewed translation tied to the exact source item; it is not generated at delivery time.
+
+Examples from the approved sources include:
+
+| Source | Exact English source | Life Manager theme |
+|---|---|---|
+| Antara | `i am enough as i am right now.` | enoughness, self-worth |
+| Antara | `i am allowed to rest before i am exhausted.` | rest, boundaries |
+| Antara | `my courage does not need to be loud to be real.` | courage, confidence |
+| Antara | `i can take the small step even while afraid.` | courage, action |
+| Antara | `i am here, in this body, breathing.` | presence, body awareness |
+| Antara | `i can unclench my jaw and mean it.` | body awareness |
+| Antara | `my body is not a project, it is a home.` | body respect |
+| Antara | `my mistakes are tuition, not verdicts.` | self-compassion |
+| Mental Buddy | `I am enough just as I am.` | self-worth |
+| Mental Buddy | `I do not have to believe everything I think.` | cognitive distance |
+| Mental Buddy | `My breath anchors me to the present.` | mindfulness |
+| Mental Buddy | `Small progress is still progress.` | growth |
+| Journal Prompts | `If my body could speak, it would tell me to` | body inquiry |
+| Journal Prompts | `I can take better care of myself by` | physical intention |
+| Journal Prompts | `My top three priorities right now are` | attention inquiry |
+| Journal Prompts | `If failure wasn’t an issue, I would` | manifestation inquiry |
+
+Items implying a current emotion, clinical condition, guaranteed result, or observed behavior are excluded unless the sentence remains universally valid without context.
 
 ### 7.3 Import manifest
 
@@ -192,17 +200,15 @@ Every imported catalog has a pinned manifest:
 
 ```json
 {
-  "source_id": "anicca-affirmations-v1",
-  "source_repo": "Daisuke134/anicca-products",
-  "source_commit": "78566da90d279c4903ed393ceed331d97a587f5c",
-  "source_path": "apps/api/src/modules/affirmations/catalog/ja.json",
-  "license": "first-party",
-  "imported_sha256": "64-lowercase-hex",
-  "quote_count": 200
+  "source_id": "antara-remarkable-affirmations",
+  "source_repo": "humancto/antara-remarkable",
+  "source_commit": "bdaf5a19e6401c771e097e04bc3fcc16d44eb835",
+  "source_path": "content/collections/affirmations.json",
+  "license": "MIT"
 }
 ```
 
-OSS manifests additionally store the license URL, author field when available, and exact upstream text. Unlicensed or ambiguous text never enters the production bank.
+The importer computes and stores `imported_sha256`. Manifests also store the license URL, author field when available, exact upstream text, reviewed Japanese translation, reviewer version, and rejection reason for excluded items. Unlicensed or ambiguous text never enters the production bank.
 
 ## 8. Catalog classification and personalization
 
@@ -212,39 +218,65 @@ Each approved quote receives Life Manager-owned metadata without changing the so
 
 ```json
 {
-  "id": "anicca:q036",
-  "source_id": "anicca-affirmations-v1",
-  "source_quote_id": "q036",
+  "id": "antara:affirmations:enough-right-now",
+  "source_id": "antara-remarkable-affirmations",
+  "source_quote_id": "i-am-enough-as-i-am-right-now",
   "family": "affirmation",
-  "themes": ["breath", "mindfulness", "grounding"],
-  "tones": ["gentle", "spiritual-neutral"],
-  "windows": ["day_reset", "evening_release"],
+  "themes": ["self-worth", "enoughness"],
+  "tones": ["gentle", "direct"],
+  "windows": ["morning_orientation", "evening_direction"],
   "risk_flags": [],
   "localized_text": {
-    "ja": "私は呼吸に戻り、自分自身に戻ります。",
-    "en": "I return to my breath. I return to myself.",
-    "es": "Vuelvo a mi respiración. Vuelvo a mí."
+    "ja": "私は今のままで十分です。",
+    "en": "i am enough as i am right now."
   }
 }
 ```
 
 ### 8.1 User personalization inputs
 
-Only explicit, durable user facts affect selection:
+Only explicit, durable user facts affect selection. Every profile tag retains source references instead of becoming an unexplained model judgment:
+
+```json
+{
+  "tag": "self-worth",
+  "weight": 1.0,
+  "source_refs": ["telegram-message://..."],
+  "basis": "explicit_user_statement",
+  "observed_at": "RFC3339 timestamp",
+  "expires_at": null
+}
+```
+
+Eligible profile inputs:
 
 ```text
 preferred locale
 preferred tone: gentle / direct / spiritual-neutral
-explicit values: growth / peace / courage / self-worth / rest
+explicit statements such as low confidence, self-hatred, stress, or a wish to be more mindful
+explicit values: growth / peace / courage / self-worth / rest / boundaries
 explicit goals
-themes to avoid
+explicit themes to avoid
 recently delivered quote IDs
 current delivery window
 ```
 
-Calendar titles, silence, response time, and inferred mood do not modify the mental profile.
+Calendar titles, silence, response time, notification opens, and inferred mood do not modify the mental profile.
 
-### 8.2 Deterministic selection
+### 8.2 Gradual personalization
+
+Personalization changes with each person, but it earns specificity gradually:
+
+| Stage | Evidence | Behavior |
+|---|---|---|
+| Bootstrap | Locale, timezone, explicit current conversation, existing durable goals | Select broad matching themes immediately; no inferred mental state |
+| First 7 days | Delivery history and calendar availability | Avoid repetition and move delivery within the three safe windows; do not claim effectiveness |
+| Days 8–21 | Repeated explicit themes across conversations | Increase weight only when the person directly states the same need more than once; retain source refs |
+| Mature profile | Explicit corrections, spontaneous reactions, changed goals, stable routine | Adjust themes, tone, and timing; old themes decay or are superseded |
+
+No button is needed. Learning comes from normal conversation and explicit corrections. In the absence of a real response signal, Life Manager learns only timing and dedupe, not whether the message emotionally worked.
+
+### 8.3 Deterministic selection
 
 For every eligible quote:
 
@@ -261,26 +293,55 @@ score =
 
 Ties are broken deterministically by `uid + local_day + window + quote_id`. Selection produces the existing localized text byte-for-byte.
 
-### 8.3 Manifestation
+### 8.4 Manifestation
 
 Manifestation is a catalog classification, not newly generated prose. Only catalog items about direction, possibility, growth, and controllable action qualify. Items promising inevitable success, attraction of wealth, perfect health, destiny, or intervention by the universe are rejected.
 
 An explicit goal selects a matching quote but is not interpolated into the quote in V1. This avoids awkward or unsupported rewriting.
 
-### 8.4 Mindfulness inquiry (`問いかけ`)
+### 8.5 Mindfulness inquiry (`問いかけ`)
 
 If a catalog contains an approved question, it can be delivered verbatim. When an affirmation is converted into a question, the question must be a separately reviewed catalog variant linked to its source ID:
 
 ```json
 {
-  "id": "life-manager:inquiry:q036:ja:v1",
-  "derived_from": "anicca:q036",
-  "reviewed_text": "いま、呼吸に戻れる？",
+  "id": "life-manager:inquiry:antara-body-breathing:ja:v1",
+  "derived_from": "antara:affirmations:i-am-here-in-this-body-breathing",
+  "reviewed_text": "いま、身体と呼吸に気づいている？",
   "family": "mindfulness_inquiry"
 }
 ```
 
 Runtime generation or ad-hoc paraphrasing is prohibited. The reviewed inquiry is stored and tested like any other catalog item. It remains useful without an answer and carries no button or reply instruction.
+
+### 8.6 Physical-life management
+
+Physical management has two layers.
+
+**Layer 1 — body awareness without sensors:** the midday message selects reviewed OSS body-awareness text or inquiry. It does not claim what the body is doing.
+
+Examples derived from the approved Antara source set:
+
+- source `i am here, in this body, breathing.` -> reviewed Japanese `私はこの身体にいて、呼吸しています。`
+- source `i can unclench my jaw and mean it.` -> reviewed Japanese `顎の力を、いま少しゆるめられる。`
+- source `my shoulders are allowed to drop.` -> reviewed Japanese `肩の力を下ろしていい。`
+- source `my body is not a project, it is a home.` -> reviewed Japanese `身体は直す対象ではなく、私が暮らす場所です。`
+- source `i can drink water and call that care.` -> reviewed Japanese `水を飲むことも、自分を大切にすることです。`
+
+These are invitations, not claims that the person is dehydrated, tense, sitting, or unhealthy.
+
+**Layer 2 — actions backed by records:** existing Life Manager physical and diet organs manage explicit routines and care continuity.
+
+| Area | What Life Manager can use | What it may do |
+|---|---|---|
+| Sleep | Explicit bedtime/wake goal and calendar | Protect quiet hours, reserve sleep window, send evening release message |
+| Meals | Explicit meal preference and calendar gaps | Reserve a meal window; never claim the person ate |
+| Exercise | Explicit goal and scheduled/confirmed activity | Reserve recurring activity blocks and follow through |
+| Dental/medical/hair care | Verified visit history, explicit cadence, provider receipts | Detect due care, search, book within delegated boundaries, report confirmed appointment |
+| Medication or clinical care | Explicit professional plan only | Remind exactly as authorized; never prescribe or modify |
+| Live body state | Authorized wearable/sensor integration, added later | Use only the named fresh measurement |
+
+Physical operational receipts are separate from the three daily mental/body messages. A confirmed appointment or urgent care reminder is sent when required, even if the message budget is otherwise full.
 
 ## 9. Copy contract
 
@@ -378,7 +439,7 @@ Verify Railway deployment `commitHash`, scheduler wiring, send ledger, timezone 
 
 ### Milestone C — Japanese V1 canary
 
-Enable only the three V1 families for Dais. Deliver at most two plain messages per local day for seven days. Buttons and contextual personal claims remain zero.
+Enable the three V1 opportunities for Dais: morning affirmation, midday mindfulness/body awareness, and evening manifestation/release. Deliver at most three plain messages per local day for seven days. Buttons and unsupported personal claims remain zero.
 
 ### Milestone D — General Japanese rollout
 
@@ -388,17 +449,17 @@ Expand after canary acceptance. Context unlocks remain off independently.
 
 Add one evidence-backed context class at a time. Each needs source, freshness, test, cloud readback, and replay-zero before its copy is legal.
 
-Anicca iOS is not part of this runtime or rollout. It is a separate product created and operated by Life Manager's mobile-app loop.
+Anicca assets and Anicca iOS are not part of this runtime or rollout. Anicca iOS remains a separate product created and operated by Life Manager's mobile-app loop.
 
 ## 15. Acceptance criteria
 
 - Only `affirmation`, `manifestation`, and `mindfulness_inquiry` are enabled in V1.
 - Every production message resolves to a source ID, pinned manifest, quote ID, and approved localized text.
-- Anicca `q001`–`q200` ID parity across Japanese, English, and Spanish is preserved in the imported snapshot.
+- Only the three pinned external OSS sources listed in section 7 are eligible for V1 import.
 - No unlicensed or ambiguous external text is imported.
 - Every message is plain text with zero buttons and zero reply instruction.
-- Maximum two V1 messages per user/local day.
-- Minimum four hours between messages.
+- Maximum three V1 mental/body messages per user/local day.
+- Minimum three hours between messages.
 - Zero messages during current calendar events or quiet hours.
 - Zero personal activity, achievement, emotion, preparation, or physical-state claims without an authorized source.
 - Zero repeated template IDs within 14 days for the same user.
@@ -413,7 +474,7 @@ Anicca iOS is not part of this runtime or rollout. It is a separate product crea
 - Claiming a person prepared, focused, completed work, exercised, ate, drank, slept, or felt something without evidence.
 - Buttons, daily check-ins, required replies, surveys, journaling, or streaks.
 - A new mental daemon, database, agent framework, or mobile app.
-- Anicca iOS integration.
+- Importing Anicca catalogs or integrating Anicca iOS.
 - Clinical diagnosis, therapy, emergency automation, or treatment claims.
 - Magical manifestation or guaranteed outcomes.
 - Runtime LLM rewriting, paraphrasing, translation, or interpolation of catalog prose.

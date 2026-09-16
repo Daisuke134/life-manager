@@ -16,7 +16,7 @@
 - Do not add a daemon, scheduler, database, queue, feedback UI, inline keyboard, or LLM framework.
 - V1 enables only `affirmation`, `manifestation`, and `mindfulness_inquiry`.
 - Messages are plain Telegram text with zero buttons, zero callback data, and zero reply instruction.
-- Maximum two V1 messages per local day and minimum four hours between them.
+- Default three opportunities per local day, maximum three delivered messages, and minimum three hours between them.
 - Calendar context is used only to suppress delivery during an event.
 - No preparation, achievement, emotion, activity, hydration, posture, or physical-state claim without an exact authoritative source.
 - A template variable is legal only with a source, timestamp, freshness limit, transformation, and matching claim.
@@ -30,13 +30,15 @@
 | `apps/life-manager/lib/lm-p0.test.js` | Telnyx minimum contract |
 | `apps/life-manager/lib/mental-trigger.js` | Right-window opportunity and suppression gates |
 | `apps/life-manager/lib/mental-trigger.test.js` | Three-family decision matrix |
-| `apps/life-manager/content/mental/sources.json` | Pinned first-party and OSS provenance manifests |
-| `apps/life-manager/content/mental/catalog/{en,ja,es}.json` | Reviewed imported quote snapshots |
+| `apps/life-manager/content/mental/sources.json` | Pinned external OSS provenance manifests |
+| `apps/life-manager/content/mental/catalog/{en,ja}.json` | Reviewed external source text and Japanese translations |
 | `apps/life-manager/content/mental/metadata.json` | Quote family, themes, tones, windows, and risk flags |
 | `apps/life-manager/scripts/import-mental-catalog.js` | Deterministic catalog importer and hash checker |
 | `apps/life-manager/scripts/import-mental-catalog.test.js` | License, ID parity, hash, and rejection tests |
 | `apps/life-manager/lib/mental-catalog.js` | Load and score eligible existing quotes |
 | `apps/life-manager/lib/mental-catalog.test.js` | Deterministic personalized selection tests |
+| `apps/life-manager/lib/mental-profile.js` | Closed source-backed personalization tags and gradual weighting |
+| `apps/life-manager/lib/mental-profile.test.js` | Explicit-statement, correction, decay, and privacy tests |
 | `apps/life-manager/lib/mental-copy.js` | Verbatim catalog output and reviewed inquiry validation |
 | `apps/life-manager/lib/mental-copy.test.js` | Exact-source copy and forbidden-claim tests |
 | `apps/life-manager/lib/mental-runtime.js` | Select, send, and record one plain message |
@@ -46,6 +48,7 @@
 | `apps/life-manager/scheduler.js` | Timezone, busy-state, quiet-hours, explicit preferences |
 | `apps/life-manager/lib/mental-wiring.test.js` | Scheduler wiring and sibling isolation |
 | `apps/life-manager/migrations/2026-09-16-lm-mental-message-family.sql` | Family/template/local-day/window fields |
+| `apps/life-manager/migrations/2026-09-16-lm-mental-profile-tags.sql` | Private tag, weight, basis, hashed source ref, decay, and supersession |
 | `apps/life-manager/lib/mental-migration.test.js` | Additive schema contract |
 | `docs/evidence/life-manager-mental-canary.md` | Production truth and seven-day canary |
 
@@ -231,14 +234,14 @@ explicit important-event classification
 { decision: "suppress", reason }
 ```
 
-- [ ] Add RED suppression tests for invalid timezone, calendar unavailable, current event, quiet hours, two-message cap, four-hour gap, family already used, and no eligible template.
+- [ ] Add RED suppression tests for invalid timezone, calendar unavailable, current event, quiet hours, three-message cap, three-hour gap, family already used, and no eligible catalog item.
 
 - [ ] Add RED send cases:
 
 ```text
-07:30–10:00 -> affirmation or manifestation
-12:00–16:00 -> mindfulness_inquiry
-20:00–23:00 -> affirmation or mindfulness_inquiry
+07:30–09:30 -> personalized affirmation
+12:00–15:00 -> mindfulness or body-awareness inquiry
+20:30–22:30 -> manifestation, release, or rest
 ```
 
 - [ ] Add a deterministic-per-user/day/window minute test. The same input must return the same minute; different users may differ.
@@ -303,23 +306,15 @@ buildMentalMessage({ quote })
 // -> { text: quote.text, templateId: quote.id, sourceId: quote.sourceId }
 ```
 
-- [ ] Add RED importer tests proving the existing Anicca catalogs contain exactly 200 stable IDs, `q001`–`q200`, with identical ID sets across English, Japanese, and Spanish.
-
 - [ ] Add RED provenance tests requiring every source manifest to contain repository, 40-character commit, path, license classification, SHA-256, and item count.
 
-- [ ] Pin the first-party `Daisuke134/anicca-products` source to commit `78566da90d279c4903ed393ceed331d97a587f5c`, containing:
+- [ ] Add `humancto/antara-remarkable` as the primary source pinned to `bdaf5a19e6401c771e097e04bc3fcc16d44eb835`, path `content/collections/affirmations.json`, license `MIT`, preserving its author field.
 
-```text
-apps/api/src/modules/affirmations/catalog/en.json
-apps/api/src/modules/affirmations/catalog/ja.json
-apps/api/src/modules/affirmations/catalog/es.json
-```
+- [ ] Add `lifeLessCoder/Mental-Buddy` as the secondary source pinned to `05e0522deae5943ac2704826cbe3cdc124d9fedf`, path `assets/data/affirmations.json`, license `MIT`. Its items stay excluded until each passes safety classification.
 
-The importer accepts an explicit source checkout and writes normalized Life Manager snapshots. Production never reads `/Users/anicca/anicca-project`.
+- [ ] Add `ghall89/journal-prompts` as the inquiry source pinned to `6a180a182273f52d317d771e39546373beebac21`, path `src/data/prompts.json`, license `MIT`. Import only low-burden mindfulness, body-awareness, values, goals, and manifestation prompts.
 
-- [ ] Add `humancto/antara-remarkable` as an approved candidate source pinned to `bdaf5a19e6401c771e097e04bc3fcc16d44eb835`, path `content/collections/affirmations.json`, license `MIT`, preserving its author field.
-
-- [ ] Add `lifeLessCoder/Mental-Buddy` as a candidate source pinned to `05e0522deae5943ac2704826cbe3cdc124d9fedf`, path `assets/data/affirmations.json`, license `MIT`. Its items stay excluded until each passes safety classification.
+- [ ] Add a RED test proving no source ID, path, repository, or generated snapshot refers to Anicca or `anicca-products`.
 
 - [ ] Add RED tests proving `ContionMig/Mitsuzi-JS` and `DNSERR/confidencecrew` are not imported in V1 because their inspected catalogs mix duplicate, attributed, medical, destiny, or guaranteed-success language.
 
@@ -334,7 +329,7 @@ current emotion, safety, achievement, or activity not established by context
 third-party quotation without text-level provenance
 ```
 
-- [ ] Create metadata without editing source text. At minimum tag the approved Anicca items in spec section 7.1 with `family`, `themes`, `tones`, and `windows`.
+- [ ] Create metadata without editing source text. At minimum tag the approved source examples in spec section 7.2 with `family`, `themes`, `tones`, and `windows`.
 
 - [ ] Add RED personalized-selection tests using this explicit profile:
 
@@ -342,7 +337,7 @@ third-party quotation without text-level provenance
 const profile = {
   locale: "ja",
   tones: ["gentle"],
-  values: ["self-worth", "mindfulness"],
+  values: ["self-worth", "mindfulness", "body-awareness"],
   goals: [],
   avoidThemes: ["spiritual"],
 };
@@ -350,13 +345,13 @@ const profile = {
 
 Assert theme matches outrank generic items, avoided themes never win, a quote delivered within 14 days never wins, and identical inputs return the same quote ID.
 
-- [ ] Implement the exact scoring contract from spec section 8.2. Add no embeddings, model calls, vector database, or learning service.
+- [ ] Implement the exact scoring contract from spec section 8.3. Add no embeddings, model calls, vector database, or learning service.
 
 - [ ] Add exact-source tests:
 
 ```js
-assert.equal(selectById("anicca:q031", "ja").text, "私は今、ここに在ります。それで十分です。");
-assert.equal(selectById("anicca:q036", "ja").text, "私は呼吸に戻り、自分自身に戻ります。");
+assert.equal(selectById("antara:affirmations:enough-right-now", "en").text, "i am enough as i am right now.");
+assert.equal(selectById("antara:affirmations:body-home", "en").text, "my body is not a project, it is a home.");
 assert.equal(buildMentalMessage({ quote }).text, quote.text);
 ```
 
@@ -389,6 +384,77 @@ git commit -m "feat(life-manager): personalize licensed mental catalogs"
 git push
 ```
 
+### Task 5A: Build a gradual source-backed mental profile
+
+**Files:**
+- Create: `apps/life-manager/migrations/2026-09-16-lm-mental-profile-tags.sql`
+- Create: `apps/life-manager/lib/mental-profile.js`
+- Create: `apps/life-manager/lib/mental-profile.test.js`
+
+**Closed tags:**
+
+```js
+const MENTAL_TAGS = Object.freeze([
+  "self-worth", "confidence", "self-compassion", "mindfulness",
+  "calm", "rest", "boundaries", "courage", "growth",
+  "body-awareness", "discipline", "future-direction",
+]);
+```
+
+**Stored row:**
+
+```js
+{
+  uid,
+  tag,
+  weight,
+  basis: "explicit_user_statement|explicit_goal|explicit_correction",
+  sourceRefHash,
+  observedAt,
+  expiresAt,
+  supersededBy,
+}
+```
+
+- [ ] Add RED tests proving raw Telegram text, chat ID, name, diagnosis, free-form model label, and inferred mood cannot be stored.
+
+- [ ] Add RED tests for explicit statements:
+
+```text
+"自分を嫌いになる" -> self-worth + self-compassion
+"自信がない" -> confidence
+"もっと今に集中したい" -> mindfulness
+"休むことに罪悪感がある" -> rest + self-compassion
+```
+
+Each accepted tag retains an HMAC source reference to the user-authored message and `basis=explicit_user_statement`; it does not store the raw text.
+
+- [ ] Add RED tests rejecting inference from silence, calendar title, missed message, late reply, notification non-response, job rejection, or financial loss.
+
+- [ ] Add RED tests for gradual weighting:
+
+```text
+first explicit statement -> weight 1.0
+second explicit statement on another day -> weight 1.5
+explicit correction "that is not my issue" -> old tag superseded and excluded
+90 days without fresh evidence -> weight decays but history is retained
+```
+
+- [ ] Implement a closed classifier contract. A model may map explicit user text to the closed tags, but the output is accepted only when it cites the exact source message, marks `explicit=true`, uses an allowed tag, and passes schema validation. The model never generates message copy.
+
+- [ ] Add read projection `readMentalProfile(uid)` returning only active tags, weights, explicit tone/locale, goals, avoid themes, and source counts.
+
+- [ ] Run and commit:
+
+```bash
+cd apps/life-manager
+node --test lib/mental-profile.test.js lib/mental-catalog.test.js
+git add migrations/2026-09-16-lm-mental-profile-tags.sql \
+  lib/mental-profile.js lib/mental-profile.test.js
+git commit -m "feat(life-manager): ground gradual mental personalization"
+git push
+```
+
 ---
 
 ## Milestone 5: Extend send receipts without feedback UI
@@ -411,7 +477,7 @@ recordMentalSend(uid, messageId, { family, templateId, localDay, window }, supa)
 
 - [ ] Write an additive migration. Backfill historical rows with `legacy` values; do not delete or rewrite receipts.
 
-- [ ] Add RED store tests for strict unreadable-history failure, two-message cap, four-hour gap, same-family/day lookup, 14-day template lookup, duplicate Telegram message ID, and replay of the same user/day/window.
+- [ ] Add RED store tests for strict unreadable-history failure, three-message cap, three-hour gap, same-family/day lookup, 14-day template lookup, duplicate Telegram message ID, and replay of the same user/day/window.
 
 - [ ] Implement with existing Supabase REST helpers. Add no ORM and no feedback fields.
 
@@ -453,7 +519,7 @@ row failure after delivery -> reconciliation_required with message ID
 same user/day/window replay -> zero additional Telegram sends
 ```
 
-- [ ] Add RED wiring tests proving scheduler provides current `nowMs`, user timezone, event start/end only, quiet hours, explicit preferences, and strict send history.
+- [ ] Add RED wiring tests proving scheduler provides current `nowMs`, user timezone, event start/end only, quiet hours, `readMentalProfile(uid)`, and strict send history.
 
 - [ ] Prove scheduler does not map `location` or `attendees` to `important`, does not map duration to `focused`, and does not supply completed count, mood, hydration, or posture.
 
@@ -461,8 +527,9 @@ same user/day/window replay -> zero additional Telegram sends
 
 ```text
 read strict send history
+read active source-backed profile tags
 evaluate opportunity gate
-select non-repeated approved catalog quote by explicit profile tags
+select non-repeated approved catalog quote by tag weights, tone, avoid themes, and window
 validate source manifest, quote metadata, and verbatim localized text
 send plain Telegram text
 record message ID and template identity
@@ -507,7 +574,7 @@ npm test
 
 - [ ] Verify startup logs show `node scripts/runtime-up.js internal-worker` and no import/schema failure.
 
-- [ ] Enable the three V1 families for the Dais tenant only, cap two/day, gap four hours.
+- [ ] Enable the three V1 opportunities for the Dais tenant only: morning affirmation, midday mindfulness/body awareness, and evening manifestation/release. Cap three/day and gap three hours.
 
 - [ ] Read one natural `organ:mental` tick. Record deployment ID, SHA, decision, family/window, template ID, Telegram message ID if sent, and send row ID.
 
@@ -534,8 +601,8 @@ daily count and spacing
 - [ ] Assert across all seven days:
 
 ```text
-messages per day <= 2
-gap >= 4 hours
+messages per day <= 3
+gap >= 3 hours
 busy-event sends = 0
 quiet-hour sends = 0
 buttons/callbacks = 0
@@ -545,7 +612,7 @@ same-template repeat within 14 days = 0
 duplicate external sends = 0
 ```
 
-- [ ] Ensure at least one real delivered message from each family. Use a reversible canary preference/window adjustment if natural selection misses a family; do not fabricate user context.
+- [ ] Ensure at least one real delivered message from morning affirmation, midday mindfulness/body awareness, and evening manifestation/release. Use a reversible window adjustment if natural selection misses a family; do not fabricate user context.
 
 - [ ] Replay one processed user/day/window. Require zero additional Telegram message IDs.
 
@@ -565,7 +632,7 @@ These are not V1 tasks. Add a separate spec and plan for each:
 4. Authorized activity/focus duration.
 5. Explicit failure/rejection aftercare.
 
-Each unlock must define source, freshness, transformation, exact legal claim, tests, production readback, and replay-zero. Anicca iOS remains a separate product operated by the mobile-app loop and is not a Life Manager mental-runtime dependency.
+Each unlock must define source, freshness, transformation, exact legal claim, tests, production readback, and replay-zero. Sensor-backed body-state messages require a separately authorized wearable/device connector.
 
 ## Final verification checklist
 
@@ -576,4 +643,4 @@ Each unlock must define source, freshness, transformation, exact legal claim, te
 - [ ] Every delivered item is plain Telegram text.
 - [ ] Seven-day canary has zero unsupported context claims.
 - [ ] Cap, spacing, busy suppression, quiet suppression, 14-day dedupe, and replay-zero all pass.
-- [ ] No Anicca iOS dependency, feedback UI, or second mental loop was added.
+- [ ] No Anicca source, Anicca iOS dependency, feedback UI, or second mental loop was added.
