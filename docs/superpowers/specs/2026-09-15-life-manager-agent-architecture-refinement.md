@@ -260,6 +260,13 @@ productionへの反映はまだ未完である。
 失敗時はplist書込みやlaunchd操作へ進まずfail-closedする。apply suiteは **89 tests / 30 subtests
 PASS**。これは候補preflightであり、production plist・自然wake・provider receiptはまだ未完である。
 
+**R2-02 claim heartbeat atomic (candidate `c6e91551b1`):** protocol v2 claimへheartbeat時刻と
+bounded timeoutを追加し、`heartbeat_durable`はprocess identityを再確認したうえで同じclaimだけを更新する。
+期限切れの`claimed` / `running` ownerは既存のstale sweepでqueueへ戻り、occurrenceもqueuedへ戻る。
+legacy claimにheartbeat metadataが無い場合は、従来のprocess identity判定を維持する。admission・
+registry・loop-run・apply focused suiteは **260 tests / 164 subtests PASS**。runnerの定期heartbeat
+更新、自然wake、productionへの反映はまだ未完である。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
