@@ -744,7 +744,11 @@ both file-held and DB-held unknown-effect fences. Related host/runner tests
 The production `claimed/0` orphans above have *no* owner file, so this
 prevention patch cannot infer their attempted targets or clear them. They
 remain unresolved, and source/test PASS is not Connector admission or provider
-success. Main integration, immutable release, targeted load, and natural
+success. Latest main `ba9246eeaf` is now an ancestor of the candidate via
+merge commit `29227d9c3f`; the merge tree was byte-identical to the previous
+candidate tree and both conflicted test files kept the candidate's added
+occurrence assertions. Their 40 focused Node tests PASS. This is **main into
+candidate**, not candidate into main. Immutable release, targeted load, and natural
 effect/readback/replay proof remain open.
 **Next natural Connector wake (21:29 UTC):** Exact loaded SHA `cf655388`
 started outer run `18d5ea6415f656d8-98545` at 21:29:02.540 and ended
