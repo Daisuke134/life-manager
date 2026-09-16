@@ -26,16 +26,21 @@ import argparse
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
 import urllib.parse
+import uuid
 
 
 AGENT_BROWSER = os.environ.get("LIFE_MANAGER_AGENT_BROWSER", "agent-browser")
-AGENT_BROWSER_SESSION = os.environ.get(
-    "LIFE_MANAGER_AGENT_BROWSER_SESSION", "life-manager-lateness-route",
-)
+AGENT_BROWSER_SESSION = f"life-manager-lateness-route-{uuid.uuid4().hex}"
+
+
+def _terminate_route(_signal_number, _frame):
+    """Let fetch_transit_route's finally close this run's browser on timeout."""
+    raise SystemExit(143)
 
 
 def _run_ab(args: list[str], timeout: int = 30) -> str:
@@ -65,9 +70,9 @@ def fetch_transit_route(origin: str, destination: str) -> dict:
         snapshot = _run_ab(["snapshot"], timeout=20)
     finally:
         try:
-            _run_ab(["close"], timeout=20)
+            _run_ab(["close"], timeout=8)
         except (OSError, RuntimeError, subprocess.SubprocessError):
-            pass
+            print("route_lookup: owned browser close failed", file=sys.stderr)
 
     # The first transit suggestion shows up as a single anchor / button whose
     # accessible name concatenates: "公共交通機関 N 分 HH:MM - HH:MM 電車 LINE_NAME ...
@@ -149,6 +154,7 @@ def fetch_transit_route(origin: str, destination: str) -> dict:
 
 
 def main():
+    signal.signal(signal.SIGTERM, _terminate_route)
     ap = argparse.ArgumentParser()
     ap.add_argument("--origin", required=True, help="lat,lon")
     ap.add_argument("--destination", required=True, help="address or landmark")

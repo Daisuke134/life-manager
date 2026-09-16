@@ -621,6 +621,17 @@ def _in_quiet_hours(now):
     return cur_min >= start_min or cur_min < end_min  # cross-midnight
 
 
+def run_route_lookup(origin: str, destination: str) -> subprocess.CompletedProcess:
+    """Give the route child SIGTERM and a bounded session-close grace on timeout."""
+    return subprocess.run(
+        [sys.executable, str(REPO_ROOT / "runtime/run-with-timeout.py"),
+         "--grace-seconds", "10", "45", sys.executable,
+         str(SCRIPT_DIR / "route_lookup.py"),
+         "--origin", origin, "--destination", destination],
+        capture_output=True, text=True,
+    )
+
+
 def main():
     now = datetime.now(JST)
     # Capafy reject R2: 全停止スイッチ。lifeManager.enabled:false で routine call/mail を止める。
@@ -772,13 +783,7 @@ def main():
         if loc_now and dest_addr:
             try:
                 origin_str = f"{loc_now['lat']},{loc_now['lon']}"
-                r = subprocess.run(
-                    [sys.executable,
-                     str(Path(__file__).resolve().parent / "route_lookup.py"),
-                     "--origin", origin_str,
-                     "--destination", dest_addr],
-                    capture_output=True, text=True, timeout=45,
-                )
+                r = run_route_lookup(origin_str, dest_addr)
                 if r.returncode == 0:
                     route = json.loads(r.stdout)
                     if route.get("ok") and route.get("summary"):
