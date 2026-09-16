@@ -35,7 +35,7 @@
 | Mobile / Metrics | Registry Mobile publication owners 18; Instagram/TikTok Metrics 2 | Candidate has absolute Node/Python and common private Marketing env code; no current-SHA natural Postiz effect proof | Verify each lane, not one group-level exit |
 | Coconala Storefront | Label loaded `2c8f83c9`, running at audit, previous exit 75 | Official listing effect/readback not established | Domain owner tracks same run; do not restart |
 
-The previous “21 lanes” shorthand means Connector 1 + Mobile publication 18 + Metrics 2. The product-loop catalog has a broader Mobile group; use the registry for launchd owner count. The all-fleet catalog has 14 product-loop rows, not 14 launchd jobs.
+The previous “21 lanes” shorthand means Connector 1 + Mobile publication 18 + Metrics 2. The `mobile-apps` product row has 22 jobs: those 20 Mobile/Metric jobs plus `life-manager-daily` and persistent `life-manager-daily-driver`. These are not two additional posting lanes. Use the registry for launchd owner count. The all-fleet catalog has 14 product-loop rows, not 14 launchd jobs.
 
 ## Existing call graph and contract boundaries
 
@@ -74,10 +74,12 @@ The model decides open-ended domain work. Deterministic runtime owns resource ac
 
 **Interface:** Input = current branch, upstream, HEAD, dirty paths and owner lease for each worktree. Output = one ownership table and explicit handoff receipt; no code or production mutation.
 
-- [ ] Re-run `git status --short --branch`, `git rev-parse HEAD`, `git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}'`, and fresh `git fetch origin main` for both owner worktrees; compare with the table above.
+- [x] Re-run `git status --short --branch`, `git rev-parse HEAD`, `git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}'`, and fresh `git fetch origin main` for both owner worktrees; compare with the table above.
 - [ ] Assign foundation files (`runtime/host/*`, shared `runtime/loop/*`, manifest/gates/Eval) to one implementation owner; assign Coconala provider/state/browser to the domain owner; keep independent read-only review separate.
-- [ ] Record the direct-scope decisions: Claude-p excluded here, no Coconala provider edits, no new scheduler, no Cloud before Local/Eval, no mock as production proof.
+- [x] Record the direct-scope decisions: Claude-p excluded here, no Coconala provider edits, no new scheduler, no Cloud before Local/Eval, no mock as production proof.
 - [ ] Obtain a handoff from any currently running owner before touching its exact branch, state, browser or release. If ownership cannot be established, stop mutation but continue read-only audit.
+
+**Task 1 checkpoint — partial, read-only:** Foundation worktree is clean at `3a70e98867`, its lock names `codex-foundation`, and its lease is expired but the worktree remains locked. Domain TODO worktree is clean at `ac1bdbe361`, lock owner `codex-root`, lease active. This plan's isolated worktree is clean and actively leased. Remote main is `ae55b6f3`. The available cross-agent team does not list `codex-foundation`; the current shell resolves to a different agent identity, so no message was sent under that identity. Neither an expired lease nor an absent process transfers ownership. Exact Foundation/domain handoff and write authorization remain open; Tasks 2–3 may proceed read-only.
 
 ### Task 2: Inventory the complete foundation/domain seam
 
@@ -91,6 +93,8 @@ The model decides open-ended domain work. Deterministic runtime owns resource ac
 - [ ] Record each domain's effect contract: provider intent, official receipt/readback, replay-zero, and whether the latest wake made effect zero. No fresh external mutation is needed for this inventory.
 - [ ] Identify the first failing boundary per owner: schedule, queue, claim, runtime executable/env, browser lease, provider action, readback, terminal, or release drift. Put one owner/one boundary on each repair row.
 
+**Task 2 checkpoint — partial, read-only:** Candidate registry has 165 jobs. The 18 `mobile-app` entrypoints are `resource_class=agent`, `priority=revenue`, `admission_class=revenue`; Connector is `browser/revenue/revenue`; Instagram/TikTok Metrics are `deterministic/support/borrow`. The catalog has 14 product rows and maps Connector to one job and Mobile Apps to 22 jobs, including the daily and persistent-browser owners. Code path is registry → `lm_loop_run._run_admitted` → `enqueue_durable/claim_durable/release_and_reserve` → domain entrypoint → outer event → `product-onboarding.buildRuntimeEvidence` → Local gate/recovery. Live gates for Connector, Mobile Apps and all 14 rows remain `BLOCK / blocked_product_loop` in the latest inspected private receipts. Per-job loaded SHA, exact latest outer terminal and official effect map are still open; do not mark this task complete from catalog structure alone.
+
 ### Task 3: Audit the candidate and keep only coherent foundation slices
 
 **Files:** Read changed paths from `git diff origin/main...HEAD --name-only` in candidate; focus on `runtime/host/resource_admission.py`, `runtime/loop/lm_loop_run.py`, `runtime/loop/lm_loop_apply.py`, `runtime/loop/lm_loop.py`, `apps/life-manager/lib/product-onboarding.js`, `apps/life-manager/eval/agent-contract/*`.
@@ -102,6 +106,19 @@ The model decides open-ended domain work. Deterministic runtime owns resource ac
 - [ ] Check compatibility of protocol-v2 SQLite migration and mixed loaded releases before changing queue logic. Snapshot queue counts and schema read-only; never edit the live DB by hand.
 - [ ] Reject duplicate observer, scheduler, retry store or agent harness when the existing runtime already owns that contract.
 - [ ] Produce a small merge ledger: source commits/SHA, target path, conflict owner, required gate, and whether production is currently using it.
+
+**Task 3 checkpoint — provisional disposition, no merge:** The candidate changes 83 files overall; 48 inspected foundation/adjacent files account for roughly 4,687 additions and 121 deletions. The following is a review queue, not approval to merge.
+
+| Slice / candidate commits | Exact paths | Provisional disposition | Required next evidence |
+|---|---|---|---|
+| Admission priority, occurrence, heartbeat, browser class (`0e2f0d6e50`, `43382934ad`, `7f96d7dfd4`, `c6e91551b1`, `fb637d5492`, `d1617edc69`, `3bfd49d39e`) | `runtime/host/resource_admission.py`, `runtime/loop/lm_loop_run.py`, focused tests | Retain for Local; inspect old `borrow` floor and migration before promotion | Task 4/5 regression, queue schema/row preservation, natural owner claim/release |
+| Launchd runtime and Marketing env (`96af987b43`, `fc918a2a2b`, `ee36f14718`) | `runtime/loop/lm_loop_apply.py`, `apps/life-manager/scripts/mobile-app`, both metrics boots, env loader | Retain for Local; do not reimplement | Exact loaded argv/env-key presence and lane-specific natural readback |
+| Outer terminal/status/recovery (`94c52d50a5`, `72d9619339` and related) | `runtime/loop/lm_loop.py`, `harness-health*.mjs`, `bin/reconcile-agent-runner-release.sh`, tests | Retain for Local if same-owner-only contract survives review | Nested-report race, one-owner repair and no effect resend |
+| Connector-specific diagnosis | `skills/connector/native-pass.js`, its test | Connector owner review; not a generic foundation kernel by default | Same-wake deadline/provider/Calendar evidence |
+| Lancers-specific behavior | `skills/earn/lancers/scripts/{application_tick,paid_adapter,work_sync}.py`, tests | Return to Lancers owner; keep out of foundation merge unless a shared call-site dependency is proven | Domain tests and official provider effect/readback |
+| Eval/Cloud and global instructions | `apps/life-manager/eval/agent-contract/*`, `cloud-promotion-gate.js`, `AGENTS.md`, new skill packages | Defer to S-04/Cloud or separate governance review; do not make Local canary depend on their deployment | Held-out/safety/cost/live evidence, exact policy approval |
+
+The active production `current` is main SHA `ae55b6f3`; Connector alone was loaded from candidate `3a70e988` at the last audit. No current production label is proven to use the candidate's full fleet behavior. Foundation owner handoff, complete per-file review, mixed-release migration evidence and domain-owner acceptance are still open, so Task 3 is not complete.
 
 ### Task 4: Prove paid-first without indefinite starvation
 
