@@ -101,6 +101,27 @@ The model decides open-ended domain work. Deterministic runtime owns resource ac
 
 **Fresh scoped runtime inventory:** Candidate-release `lm-loop status all` returned the 21 Connector/Mobile/Metrics rows. Mobile publication 18/18 were loaded-idle on older immutable releases: 16 latest outer terminals were `host_admission_deferred` (`capacity_busy` or `fifo_wait`), while `life-manager-anicca-jp1-tiktok` and `life-manager-anicca-main-tiktok` were `entrypoint_exit_1`. Those two entrypoint causes require exact same-run log/receipt inspection; do not infer Node solely from an older shared stderr line. Instagram and TikTok Metrics were both loaded-idle on old release `2a53ce25`, latest `resource_capacity_busy`. Connector alone was candidate-loaded `3a70e988` and still outer-running. This snapshot proves the admission boundary for 18 blocked Mobile/Metric lanes, but does not prove any current Postiz/provider effect.
 
+**Fourteen-row status census:** A later read-only `3a70e988` status snapshot grouped the catalog's jobs as follows. Counts are lifecycle states, not official provider effects. `other` includes rows without one of the three displayed terminal classes.
+
+| Product row | Jobs | pass | blocked | fail/running | loaded SHA differs from candidate |
+|---|---:|---:|---:|---:|---:|
+| gig-coconala | 7 | 0 | 3 | 4 | 7 |
+| gig-lancers | 7 | 0 | 3 | 4 | 7 |
+| gig-crowdworks | 4 | 1 | 2 | 1 | 4 |
+| writer | 7 | 0 | 5 | 1 | 7 |
+| affiliate | 6 | 0 | 1 | 5 | 6 |
+| investment | 1 | 0 | 0 | 1 | 1 |
+| agent-economy | 19 | 0 | 11 | 3 | 19 |
+| job-hunter | 7 | 0 | 5 | 2 | 7 |
+| fundraiser | 1 | 0 | 0 | 1 | 1 |
+| connector | 1 | 1 | 0 | 0 | 0 |
+| self-build | 3 | 0 | 3 | 0 | 3 |
+| mobile-apps | 22 | 0 | 19 | 2 | 22 |
+| capafy | 8 | 0 | 8 | 0 | 8 |
+| cfo | 3 | 0 | 2 | 1 | 3 |
+
+Only Connector was loaded from candidate `3a70e988`. A Local gate demanding one candidate SHA across all 14 rows will remain blocked until release convergence; that gate does not establish whether each domain did or did not produce an external result from its own loaded SHA. Exact official-effect rows and the two Mobile entrypoint failure causes remain open.
+
 ### Task 3: Audit the candidate and keep only coherent foundation slices
 
 **Files:** Read changed paths from `git diff origin/main...HEAD --name-only` in candidate; focus on `runtime/host/resource_admission.py`, `runtime/loop/lm_loop_run.py`, `runtime/loop/lm_loop_apply.py`, `runtime/loop/lm_loop.py`, `apps/life-manager/lib/product-onboarding.js`, `apps/life-manager/eval/agent-contract/*`.
