@@ -231,6 +231,7 @@ test("local completion gate passes only explicit setup states or verified receip
     release_sha: releaseSha,
     official_receipt: true,
     official_receipt_ref: "ledger://local/owner-1/receipt-1",
+    official_receipt_release_sha: releaseSha,
     replay_zero: true,
     resource_class: "agent",
     contract,
@@ -279,6 +280,7 @@ test("local completion gate blocks a verified row without runtime evidence", () 
       release_sha: releaseSha,
       official_receipt: true,
       official_receipt_ref: "ledger://local/owner-1/receipt-runtime-missing",
+      official_receipt_release_sha: releaseSha,
       replay_zero: true,
       resource_class: "agent",
       contract,
@@ -314,6 +316,7 @@ test("local completion gate blocks a tampered runtime evidence summary", () => {
     release_sha: releaseSha,
     official_receipt: true,
     official_receipt_ref: "ledger://local/owner-1/receipt-runtime-tamper",
+    official_receipt_release_sha: releaseSha,
     replay_zero: true,
     resource_class: "agent",
     contract,
@@ -364,6 +367,7 @@ test("cloud promotion gate blocks a tampered runtime evidence summary", () => {
       release_sha: releaseSha,
       official_receipt: true,
       official_receipt_ref: "ledger://cloud/owner-1/receipt-runtime-tamper",
+      official_receipt_release_sha: releaseSha,
       replay_zero: true,
       resource_class: "agent",
       contract,
@@ -428,6 +432,7 @@ test("local completion gate blocks a verified row whose receipt reference or rep
       release_sha: releaseSha,
       official_receipt: true,
       official_receipt_ref: "ledger://local/owner-1/receipt-1",
+      official_receipt_release_sha: releaseSha,
       replay_zero: true,
       resource_class: "agent",
       contract,
@@ -547,6 +552,7 @@ test("cloud promotion gate blocks a verified row without runtime evidence", () =
       release_sha: releaseSha,
       official_receipt: true,
       official_receipt_ref: "ledger://cloud/owner-1/receipt-runtime-missing",
+      official_receipt_release_sha: releaseSha,
       replay_zero: true,
       resource_class: "agent",
       contract,
@@ -656,6 +662,44 @@ test("verified completion requires an official receipt and the canonical release
   );
 });
 
+test("verified completion requires the official receipt to carry the canonical release", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "e".repeat(40);
+  const contract = {
+    goal: true,
+    context: true,
+    admission: true,
+    receipt: true,
+    observability: true,
+    evaluation: true,
+  };
+  const observations = catalog.loops.map((loop, index) => index === 0 ? {
+    id: loop.id,
+    state: "verified",
+    owner_id: "owner-1",
+    release_sha: releaseSha,
+    official_receipt: true,
+    official_receipt_ref: "ledger://local/owner-1/receipt-release-unbound",
+    replay_zero: true,
+    resource_class: "agent",
+    contract,
+  } : {
+    id: loop.id,
+    state: "setup_required",
+    reason: "host_adapter_pending",
+    contract: {},
+  });
+
+  assert.throws(
+    () => buildProductLoopCompletionManifest({
+      host: "local",
+      release_sha: releaseSha,
+      observations,
+    }),
+    /official receipt and matching release/u,
+  );
+});
+
 test("verified completion requires a receipt reference and replay-zero proof", () => {
   const catalog = readProductLoopCatalog();
   const releaseSha = "a".repeat(40);
@@ -713,10 +757,11 @@ test("verified completion requires an explicit resource class and notification b
     id: catalog.loops[0].id,
     state: "verified",
     owner_id: "owner-1",
-    release_sha: releaseSha,
-    official_receipt: true,
-    official_receipt_ref: "ledger://local/owner-1/receipt-resource",
-    replay_zero: true,
+      release_sha: releaseSha,
+      official_receipt: true,
+      official_receipt_ref: "ledger://local/owner-1/receipt-resource",
+      official_receipt_release_sha: releaseSha,
+      replay_zero: true,
     notification_state: "invalid_boundary",
     contract,
   };
@@ -852,6 +897,7 @@ test("verified completion rejects missing or stale mapped runtime evidence", () 
     release_sha: releaseSha,
     official_receipt: true,
     official_receipt_ref: "ledger://cloud/owner-1/receipt-1",
+    official_receipt_release_sha: releaseSha,
     replay_zero: true,
     resource_class: "agent",
     contract,
@@ -899,6 +945,7 @@ test("completion is true only when every loop is verified or explicitly unsuppor
     release_sha: releaseSha,
     official_receipt: true,
     official_receipt_ref: "ledger://cloud/owner-1/receipt-verified",
+    official_receipt_release_sha: releaseSha,
     replay_zero: true,
     resource_class: "agent",
     contract,

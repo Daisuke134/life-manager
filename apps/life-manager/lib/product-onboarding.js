@@ -279,6 +279,10 @@ function evaluateCloudPromotionGate(input = {}, options = {}) {
         && !runtimeEvidenceMatchesCatalog(loop, expectedById.get(loop.id)))) {
         reasons.push("cloud_manifest_runtime_evidence_invalid");
       }
+      if (cloudManifest.loops.some((loop) => loop && loop.state === "verified"
+        && loop.official_receipt_release_sha !== releaseSha)) {
+        reasons.push("cloud_manifest_receipt_release_mismatch");
+      }
     }
     if (cloudManifest.completion !== true || cloudManifest.unknown_count !== 0) {
       reasons.push("cloud_manifest_incomplete");
@@ -351,6 +355,7 @@ function evaluateLocalCompletionGate(manifest, options = {}) {
         if (state === "verified" && (
           loop.official_receipt !== true
           || typeof loop.official_receipt_ref !== "string" || !RECEIPT_REF.test(loop.official_receipt_ref)
+          || loop.official_receipt_release_sha !== manifest.release_sha
           || loop.replay_zero !== true
           || loop.resource_class === "unknown"
           || loop.notification_state === "not_configured"
@@ -428,6 +433,9 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
     const officialReceipt = observation.official_receipt === true;
     const officialReceiptRef = typeof observation.official_receipt_ref === "string"
       && observation.official_receipt_ref.trim() ? observation.official_receipt_ref.trim() : null;
+    const officialReceiptReleaseSha = typeof observation.official_receipt_release_sha === "string"
+      && RELEASE_SHA.test(observation.official_receipt_release_sha.trim())
+      ? observation.official_receipt_release_sha.trim() : null;
     const resourceClass = typeof observation.resource_class === "string"
       && observation.resource_class.trim() ? observation.resource_class.trim() : "unknown";
     if (!RESOURCE_CLASS.test(resourceClass)) {
@@ -447,7 +455,7 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
     const replayZero = observation.replay_zero === true;
     if (state === "verified"
       && (!officialReceipt || !ownerId || observedRelease !== releaseSha
-        || !officialReceiptRef || !replayZero
+        || !officialReceiptRef || officialReceiptReleaseSha !== releaseSha || !replayZero
         || resourceClass === "unknown" || notificationState === "not_configured"
         || COMPLETION_CONTRACT_FIELDS.some((field) => contract[field] !== true))) {
       throw new Error(`verified loop requires official receipt and matching release: ${catalogLoop.id}`);
@@ -466,6 +474,7 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
       release_sha: observedRelease,
       official_receipt: officialReceipt,
       official_receipt_ref: officialReceiptRef,
+      official_receipt_release_sha: officialReceiptReleaseSha,
       replay_zero: replayZero,
       resource_class: resourceClass,
       notification_state: notificationState,
