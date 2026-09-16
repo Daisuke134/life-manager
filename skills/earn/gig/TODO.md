@@ -731,6 +731,18 @@ not a provider-success receipt. Connector's latest old-SHA wake still ended
 `wake_deadline`; its same-wake log shows Connpass submit attempts rejected by
 tier/questionnaire/unsafe-agent fences, and a later long TechPlay discovery.
 No successful registration/Calendar readback is established by those logs.
+**Next natural Connector wake (21:29 UTC):** Exact loaded SHA `cf655388`
+started outer run `18d5ea6415f656d8-98545` at 21:29:02.540 and ended
+`blocked/host_admission_deferred:resource_capacity_busy` at 21:29:02.843,
+exit 75. The Connector child/provider was not reached; this is a truthful
+scheduled-wake result, not R2-03/R2-04 success. Read-only admission immediately
+afterward showed four live revenue `agent` owners (Storefront, Reply detector,
+CrowdWorks Paid and Apply), no live browser owner, Connector queue now nine,
+and the same two old `claimed` ledger rows. The precise occupied capacity at
+the claim instant was not captured, so do not attribute this single deferral
+solely to those orphan rows or raise the finite cap from it. The next release
+gate must prove that a released physical slot automatically admits the oldest
+eligible Connector occurrence, with exact outer terminal and effect separation.
 After the exact Connector rollback, old candidate SHA `cf655388` naturally
 woke at 20:48:54 UTC as outer run `18d5e83356635230-73022`. The same PID
 stayed live through provider discovery, then ended `FAIL/wake_deadline` at
