@@ -606,20 +606,29 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                     and row.get("resource_class") in set(RESOURCE_CLASSES)):
                 occurrence_id = row.get("occurrence_id")
                 if row.get("phase", "claimed") == "claimed":
-                    # No effect child started: returning this claim to the queue is safe.
-                    connection.execute(
-                        "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
-                        (row["sequence"], row["owner_id"], row["resource_class"]))
-                    connection.execute(
-                        """INSERT OR IGNORE INTO priorities(
-                               owner_id,admission_class,admission_policy,base_priority,queued_at
-                           ) VALUES(?,?,?,?,?)""",
-                        (row["owner_id"], row.get("admission_class", "borrow"),
-                         row.get("admission_policy"), row.get("base_priority"),
-                         row.get("queued_at", now)))
+                    occurrence_state = None
+                    if isinstance(occurrence_id, str) and occurrence_id:
+                        existing = connection.execute(
+                            "SELECT state FROM occurrences WHERE occurrence_id=?",
+                            (occurrence_id,),
+                        ).fetchone()
+                        occurrence_state = existing[0] if existing else None
+                    # A pre-effect claim is retryable only while its occurrence
+                    # still says claimed; a committed terminal row never revives.
+                    if not occurrence_id or occurrence_state == "claimed":
+                        connection.execute(
+                            "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
+                            (row["sequence"], row["owner_id"], row["resource_class"]))
+                        connection.execute(
+                            """INSERT OR IGNORE INTO priorities(
+                                   owner_id,admission_class,admission_policy,base_priority,queued_at
+                               ) VALUES(?,?,?,?,?)""",
+                            (row["owner_id"], row.get("admission_class", "borrow"),
+                             row.get("admission_policy"), row.get("base_priority"),
+                             row.get("queued_at", now)))
                 if isinstance(occurrence_id, str) and occurrence_id and row.get("phase", "claimed") == "claimed":
                     connection.execute(
-                        "UPDATE occurrences SET state='queued' WHERE occurrence_id=?",
+                        "UPDATE occurrences SET state='queued' WHERE occurrence_id=? AND state='claimed'",
                         (occurrence_id,),
                     )
                 elif isinstance(occurrence_id, str) and occurrence_id:
@@ -786,6 +795,13 @@ def claim_durable(resource_class: str, owner_id: str, *,
             available, occupied = _durable_capacity(
                 connection, owners, resource_class, admission_class, instant,
                 starts, snapshot_started_ns)
+            if connection.execute(
+                "SELECT 1 FROM occurrences WHERE owner_id=? AND effect_unknown=1 LIMIT 1",
+                (owner_id,),
+            ).fetchone():
+                connection.execute(
+                    "DELETE FROM reservations WHERE owner_id=?", (owner_id,))
+                return None, "effect_unknown"
             reservation = connection.execute(
                 "SELECT resource_class,lease_until FROM reservations WHERE owner_id=?",
                 (owner_id,)).fetchone()

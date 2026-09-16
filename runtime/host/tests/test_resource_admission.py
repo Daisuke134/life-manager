@@ -671,6 +671,84 @@ def test_dead_running_claim_parks_effect_unknown_without_requeue(
     assert queued == 0
 
 
+def test_released_occurrence_does_not_revive_from_lingering_claim_file(
+        tmp_path, monkeypatch):
+    """DB completion must survive a crash before its owner file is unlinked."""
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "mobile-publication", admission_class="revenue",
+        occurrence_id="mobile-slot-released", now=100)
+    claim, reason = admission.claim_durable(
+        "agent", "mobile-publication", admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        connection.execute(
+            "UPDATE occurrences SET state='released' WHERE occurrence_id=?",
+            ("mobile-slot-released",),
+        )
+    row = json.loads(claim.read_text())
+    admission.atomic_json(claim, {
+        **row, "pid": 999_999_999, "process_start": "dead",
+    })
+
+    assert admission.reserve_available(now=200, lease_seconds=30) == []
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        state = connection.execute(
+            "SELECT state FROM occurrences WHERE occurrence_id=?",
+            ("mobile-slot-released",),
+        ).fetchone()[0]
+        queued = connection.execute(
+            "SELECT COUNT(*) FROM queue WHERE owner_id='mobile-publication'"
+        ).fetchone()[0]
+    assert state == "released"
+    assert queued == 0
+
+
+def test_uncertain_running_effect_blocks_reserved_followup_occurrence(
+        tmp_path, monkeypatch):
+    """A reservation cannot bypass an older same-owner effect needing readback."""
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "mobile-publication", admission_class="revenue",
+        occurrence_id="mobile-slot-A", now=100)
+    claim, reason = admission.claim_durable(
+        "agent", "mobile-publication", admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    admission.enqueue_durable(
+        "agent", "mobile-publication", admission_class="revenue",
+        occurrence_id="mobile-slot-B", now=150)
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        sequence = connection.execute(
+            "SELECT sequence FROM queue WHERE owner_id='mobile-publication'"
+        ).fetchone()[0]
+        connection.execute(
+            "INSERT INTO reservations(owner_id,resource_class,sequence,lease_until) VALUES(?,?,?,?)",
+            ("mobile-publication", "agent", sequence, 999),
+        )
+    row = json.loads(claim.read_text())
+    admission.atomic_json(claim, {
+        **row, "pid": 999_999_999, "process_start": "dead", "phase": "running",
+    })
+
+    second, reason = admission.claim_durable(
+        "agent", "mobile-publication", admission_class="revenue", now=200)
+    assert second is None and reason == "effect_unknown"
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        states = connection.execute(
+            "SELECT occurrence_id,state,effect_unknown FROM occurrences ORDER BY occurrence_id"
+        ).fetchall()
+        reservations = connection.execute(
+            "SELECT COUNT(*) FROM reservations WHERE owner_id='mobile-publication'"
+        ).fetchone()[0]
+    assert states == [
+        ("mobile-slot-A", "claimed", 1),
+        ("mobile-slot-B", "queued", 0),
+    ]
+    assert reservations == 0
+
+
 def test_heartbeat_updates_only_the_owned_claim(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     admission.activate_durable_v2()
