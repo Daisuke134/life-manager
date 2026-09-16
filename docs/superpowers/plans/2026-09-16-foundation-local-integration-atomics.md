@@ -501,6 +501,14 @@ per pass for one owner/route. Pushed follow-up `f822af6c78` uses existing
 one-shot fleet readback and keeps four loaded-idle applies/route; 166 focused
 tests and 136 subtests pass, full loop 448 has only two unchanged live-v2
 sparse-cut test failures. Fresh review and CI/promotion remain open.
+Fresh read-only review returned `ship` for `f822af6c78`, no new P0/P1.
+PR #5293 is open with CI running. The cap is four ordinary owners per route,
+plus possible Disk Cleanup control-plane label on deterministic. Because the
+reconciler excludes itself while running, the old e447 shell remains at
+`--max-owners 1` until its exact outer terminal and an owner-scoped idle
+apply from a later main-derived release. Verify its loaded argv/SHA and next
+natural wake command before claiming faster convergence. Candidate SHAs and
+running marketplace owners remain protected.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

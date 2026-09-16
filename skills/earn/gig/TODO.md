@@ -858,6 +858,16 @@ loaded-idle/ancestor/effect gates, and cap mutations at four owners/route.
 Focused 166 tests plus 136 subtests pass; full loop 448 has only two local
 protocol-v2 sparse-cut fixture failures identical to the unchanged main
 condition. Fresh read-only review is running; no second PR/main merge yet.
+Fresh read-only review then returned `ship` with no new code P0/P1. It
+confirmed bulk snapshot fails before apply on readback error, non-ancestor and
+running owners remain excluded, and each apply rechecks idle. PR #5293 is
+open with CI running. The cap is four ordinary owners per route; deterministic
+may additionally apply Disk Cleanup, so its total can be five. Self-exclusion
+means the old e447 reconciler shell remains at one owner/route until its exact
+outer terminal and owner-scoped idle apply from the new main-derived release.
+Read back loaded argv/SHA and the next natural wake's four-owner command
+before claiming acceleration. No candidate-provider effect or fourteen-loop
+completion is established by this PR.
 The user-owned goal cannot pass its Local queue gate while old main dispatchers
 delete candidate queue rows. The later instruction to take ownership and not
 stall the goal is therefore used for a narrow exception to the previous
