@@ -357,7 +357,7 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
 
 
 def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, str],
-                  receipt: Path) -> int:
+                  receipt: Path, *, occurrence_id: str | None = None) -> int:
     limit = _runtime_limit(entry)
     if loop_id in {"life-manager-release-reconciler", "life-manager-disk-cleanup"}:
         _atomic_json(receipt, {"status": "pass", "effect": 0,
@@ -395,6 +395,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             enqueue_kwargs = {"admission_class": admission_class}
             if queue_priority is not None:
                 enqueue_kwargs["priority"] = queue_priority
+            if occurrence_id is not None:
+                enqueue_kwargs["occurrence_id"] = occurrence_id
             ticket, admission_reason = (
                 enqueue_durable_resource(
                     resource_class, loop_id, **enqueue_kwargs)
@@ -531,7 +533,7 @@ def main(argv: list[str] | None = None) -> int:
         return_code = _run_admitted(command, entry, loop_id, {
             **os.environ, "LIFE_MANAGER_RELEASE_ROOT": str(release_root),
             "TMPDIR": f"{scratch}/", "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
-        }, host_receipt)
+        }, host_receipt, occurrence_id=f"{loop_id}:{run_id}")
         host_deferred = _host_admission_deferred(host_receipt, started_ns)
         terminal_saved = False
         try:
