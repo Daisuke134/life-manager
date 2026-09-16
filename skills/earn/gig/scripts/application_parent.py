@@ -3184,6 +3184,20 @@ def commit_decisions(
                 existing = store._read_locked(request_id)
                 recovered_prepared = False
                 if existing is not None:
+                    if (existing["state"] == fence.PREPARED
+                            and existing.get("effect_phase") == fence.IRREVERSIBLE_ATTEMPT_STARTED
+                            and not str((existing.get("lease_fence") or {}).get("task") or "").startswith(
+                                f"{snapshot['pass_id']}-")):
+                        # Its external effect is uncertain. The bounded full-history
+                        # reconciler owns this case; per-candidate deep scans in the
+                        # revenue foreground repeatedly hit provider 403 and cannot
+                        # establish absence. Keep the duplicate fence intact.
+                        results.append({
+                            "request_id": request_id,
+                            "status": "background_reconcile_pending",
+                            "business_class": DUPLICATE_FENCED,
+                        })
+                        continue
                     existing_readback = False
                     if existing["state"] in {fence.CONFIRMED, fence.PREPARED}:
                         try:
