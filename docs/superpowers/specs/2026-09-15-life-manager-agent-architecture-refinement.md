@@ -195,6 +195,10 @@ current release SHA `913aaa9cc9ac1e40b54eb0f0899c69fc17b52c2f`で
 `local-completion-gate.js --runtime-status`を実行しても同じ`BLOCK / unknown_product_loop`だった。
 これは実機statusを使ったgate確認であり、providerの公式receiptや外部effectの成功を意味しない。
 
+このrunでR1-01の観測artifact（runtime status 267行、Local manifest、gate projection）をGit外private
+領域へ保存した。artifactは`state=unknown`、`reason=runtime_release_drift`を保持し、観測atomicは完了。
+公式effectの`verified`昇格はまだ行わない。
+
 その後のmain由来current-truth反映後のstatus再実測では、CoconalaのApplyだけはruntimeの
 `last_terminal_result=pass`（SHA `913aaa9cc9`）になったが、Browser `fail`、残り5 jobは
 `blocked`のままだった。Applyだけのruntime healthは外部効果を証明しない。公式結果はなお
