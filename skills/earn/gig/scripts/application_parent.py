@@ -4447,7 +4447,10 @@ def run_parent(
                 observed_ids = effects._official_readback(
                     set(uncertain_intents), full_history_path,
                     max_pages=_APPLIED_OFFERS_RECONCILE_MAX_PAGES,
-                    include_retainer_history=True,
+                    include_retainer_history=any(
+                        _is_retainer_request(request_id)
+                        for request_id in uncertain_intents
+                    ),
                 )
                 reconciliation = reconcile_durable_intents_from_full_history(
                     store=intent_store, targets=uncertain_intents,

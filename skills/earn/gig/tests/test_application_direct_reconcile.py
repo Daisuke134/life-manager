@@ -131,6 +131,7 @@ def test_full_history_reconcile_runs_before_fresh_snapshot_collection():
         "snapshot = collect_snapshot_with_readonly_retry"
     )
     assert "max_pages=_APPLIED_OFFERS_RECONCILE_MAX_PAGES" in source
+    assert "include_retainer_history=any(" in source
 
     wrapper_source = inspect.getsource(application_direct._validate_parent_result)
     assert 'rglob("parent-B2-applied-full-history.json")' in wrapper_source
