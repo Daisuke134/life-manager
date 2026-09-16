@@ -649,6 +649,14 @@ SQLite regression RED→GREEN, 187 focused tests and 133 subtests PASS, independ
 P0/P1 in the slice. No other loop opted in. It is **source-only** until main integration, sufficient disk
 headroom, immutable release, targeted apply, natural outer terminal and fresh provider/Calendar readback.
 Do not count it as Connector registration or all-fleet starvation recovery.
+Source integration now combines that foundation branch, Mobile's 17-target runtime/env fix and Obou Mobile
+retirement, plus latest main's Capafy admission rows, at candidate `cf65538879`. The pre-main-sync combined
+source passed control-plane 462/462, and after main-sync Mobile 21/21 and registry/apply 158/158 passed.
+Nothing was merged to main or applied to live labels. Disk free space recovered naturally to about 5.9 GiB
+without deleting browser or session state; full control-plane tests were rerun at exact `cf65538879` and
+passed 462/462. This remains source proof, not Local/provider acceptance or permission to promote Cloud.
+The earlier Reply-lease GC request is withdrawn: 14 dead-PID ledger entries match zero live CDP contexts,
+so it would not recover physical capacity.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/
