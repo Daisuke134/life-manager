@@ -788,7 +788,15 @@ def _next_applied_history_page(current: str, candidates: object) -> str | None:
             current, candidate, path=_APPLIED_OFFERS_PATH,
         )) is not None
     }
-    return min(valid, key=_page_index) if valid else None
+    if not valid:
+        return None
+    expected_page = _page_index(current) + 1
+    adjacent = {url for url in valid if _page_index(url) == expected_page}
+    if not adjacent:
+        raise ReadbackScanTimeout(
+            f"official_readback_noncontiguous_pagination:expected_page={expected_page}"
+        )
+    return sorted(adjacent)[0]
 
 
 class CdpParentEffects:
@@ -1959,9 +1967,11 @@ class CdpParentEffects:
                             offer_urls:[...document.querySelectorAll('a[href*="/mypage/offers/"]')]
                               .map(a=>a.href).filter((value,index,all)=>value&&all.indexOf(value)===index),
                             next_href:next?.href||null,
-                            pagination_hrefs:anchors.map(a=>a.href).filter(
-                              href=>href&&href.includes('/mypage/job_matching/applied/offers')&&href.includes('page=')
-                            ),
+                            pagination_hrefs:anchors.filter(
+                              a=>/^\\d+$/u.test((a.innerText||'').trim())&&
+                                a.href&&a.href.includes('/mypage/job_matching/applied/offers')&&
+                                a.href.includes('page=')
+                            ).map(a=>a.href),
                             body:(document.body?.innerText||'').slice(0,12000),
                             access_denied:document.title==='403 Forbidden'||document.title==='Access Denied',
                             not_found:/404|ページが見つかりません|お探しのページ/.test(document.title)};

@@ -4,6 +4,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "application_direct.py"
 sys.path.insert(0, str(SCRIPT.parent))
@@ -151,3 +153,10 @@ def test_applied_history_uses_numeric_pagination_when_next_label_is_absent():
     assert application_parent._next_applied_history_page(
         "https://coconala.com/mypage/job_matching/applied/offers?page=10", candidates,
     ) is None
+    with pytest.raises(application_parent.ReadbackScanTimeout):
+        application_parent._next_applied_history_page(
+            current,
+            ["https://coconala.com/mypage/job_matching/applied/offers?page=10"],
+        )
+    source = inspect.getsource(application_parent.CdpParentEffects._official_readback_async)
+    assert r"/^\\d+$/u.test" in source
