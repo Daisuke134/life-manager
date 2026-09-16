@@ -479,6 +479,8 @@ def _reconcile_applied_target(registry: dict, row: dict, result: dict) -> bool:
     return any(
         isinstance(item, dict)
         and (item.get("loop_id") == row.get("job_id") or item.get("label") == label)
+        and item.get("changed") is True
+        and not item.get("skipped")
         for item in applied
     )
 
@@ -1188,7 +1190,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             rows = snapshot(registry, "all")
         explicitly_reloadable = {
-            loop_id for loop_id in effective_requested_ids
+            loop_id for loop_id in loop_ids
             if registry["loops"][loop_id].get("cadence", {}).get("keep_alive") is True
         }
         eligible_states = ({"loaded-idle", "loaded-running"} if include_running else

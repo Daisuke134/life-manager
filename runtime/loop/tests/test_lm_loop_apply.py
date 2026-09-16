@@ -162,6 +162,37 @@ def test_reconcile_recovery_intent_targets_only_the_named_owner(tmp_path):
     assert json.loads(output.getvalue())["eligible"] == 1
 
 
+def test_recovery_intent_never_reloads_running_keep_alive_owner(tmp_path):
+    release = tmp_path / "release"
+    (release / "config").mkdir(parents=True)
+    (release / "RELEASE.json").write_text(json.dumps({"sha": SHA}))
+    value = registry()
+    value["loops"]["example"] = {
+        **value["loops"]["example"],
+        "cadence": {"keep_alive": True},
+    }
+    (release / "config/loop-registry.json").write_text(json.dumps(value))
+    recovery = tmp_path / "recovery.json"
+    recovery.write_text(json.dumps({
+        "schema_version": "recovery.intents.v1",
+        "decisions": [{"action": "retry_owner", "owner_id": "example",
+                       "job_id": "example"}],
+    }))
+    row = {"classification": "managed", "provider_route": "deterministic",
+           "launchd_state": "loaded-running", "installed_release_sha": "b" * 40,
+           "loop_id": "example"}
+    with (patch.object(lm_loop, "ROOT", release),
+          patch.object(lm_loop, "targeted_snapshot", return_value=[row]) as targeted,
+          patch.object(lm_loop, "apply_live") as apply,
+          patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release)}),
+          redirect_stdout(io.StringIO()) as output):
+        assert lm_loop.main(["reconcile", "deterministic", "--loaded-idle-only",
+                             "--recovery-intent", str(recovery)]) == 0
+    targeted.assert_called_once()
+    apply.assert_not_called()
+    assert json.loads(output.getvalue())["eligible"] == 0
+
+
 def _repair_recovery(*decisions):
     return {
         "schema_version": "recovery.intents.v1",
@@ -337,7 +368,7 @@ def test_dispatch_one_repair_calls_existing_reconcile_and_closes_one_row(tmp_pat
         return {
             "ok": True,
             "eligible": 1,
-            "applied": [{"label": "ai.anicca.example"}],
+            "applied": [{"label": "ai.anicca.example", "changed": True}],
             "failed": [],
         }
 
@@ -351,6 +382,29 @@ def test_dispatch_one_repair_calls_existing_reconcile_and_closes_one_row(tmp_pat
     assert seen[0][2]["decisions"][0]["action"] == "retry_owner"
     assert not seen[0][1].exists()
     assert json.loads(queue.read_text())["state"] == "repaired"
+
+
+def test_repair_does_not_close_when_apply_rechecks_owner_as_running(tmp_path):
+    recovery = tmp_path / "recovery.json"
+    queue = tmp_path / "repair-queue.jsonl"
+    recovery.write_text(json.dumps(_repair_recovery(_escalated_repair())))
+    registry_value = two_loop_registry()
+    assert enqueue_repair_intent(
+        recovery, registry_value, "deterministic", queue_path=queue,
+        recorded_at="2026-09-16T05:00:00+00:00",
+    )["queued"] is True
+
+    result = dispatch_one_repair(
+        registry_value, "deterministic", queue, now=100,
+        reconcile=lambda _route, _projection: {
+            "ok": True, "eligible": 1, "failed": [],
+            "applied": [{"label": "ai.anicca.example", "changed": False,
+                         "skipped": "loaded-running"}],
+        },
+    )
+    assert result == {"ok": False, "state": "queued", "reason": "reconcile_failed",
+                      "event_key": "example:example:w1:escalate_repair:2"}
+    assert json.loads(queue.read_text())["state"] == "queued"
 
 
 def test_dispatch_one_repair_returns_transient_reconcile_to_queue(tmp_path):
