@@ -278,6 +278,11 @@ classへ分類し、agent・browser・deterministicのcapacity環境変数を分
 超えて占有しない回帰を追加し、基盤suiteは **262 tests / 163 subtests PASS**。capacity canary、
 browser session実測、自然wake、production反映はまだ未完である。
 
+**R2-02 class-limit atomic (candidate `3bfd49d39e`):** revenue ownerも`browser` / `deterministic`
+のclass上限を越えないよう、`_limits`とcapacity集計を修正した。agent revenueの既存host-wide
+互換上限は維持し、browser revenueだけがbrowser枠を独占する回帰を追加した。Admission suiteは
+**61 tests PASS**。capacity canaryとproduction反映はまだ未完である。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
