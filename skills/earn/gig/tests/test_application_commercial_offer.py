@@ -180,3 +180,67 @@ def test_disk_headroom_is_rechecked_before_irreversible_submit(tmp_path, monkeyp
 
     assert effects.click_count == 1
     assert results[0]["status"] == "pre_submit_aborted:pre_submit_headroom:ParentContractError"
+
+
+def test_old_effect_started_intent_stays_fenced_out_of_foreground_apply(tmp_path) -> None:
+    snapshot = _single_application_snapshot()
+    proposal = application_parent.commercial_proposal_text(
+        "既存業務の自動化を設計から検証まで担当します。" * 8,
+        price_jpy=20_000, deliver_date="2026-09-01",
+    )
+    decisions = {"decisions": [{
+        "request_id": "123", "business_class": "submit_required", "reason_codes": [],
+        "proposal_text": proposal, "price_jpy": 20_000,
+        "deliver_date": "2026-09-01", "work_frequency": None,
+        "weekly_hours_min": None, "weekly_hours_max": None,
+        "screening_answers": [],
+    }]}
+    store = application_parent.fence.IntentStore(tmp_path)
+    payload = application_parent.fence.intent_payload(
+        request_id="123", snapshot_sha256="a" * 64,
+        proposal_text=proposal, price_jpy=20_000,
+        deliver_date="2026-09-01",
+        lease_fence={"task": "prior-run", "token": "b" * 32, "generation": 1},
+    )
+    with store.locked("123"):
+        application_parent.fence._durable_replace(store.intent_path("123"), payload)
+        store.mark_irreversible_attempt_started_locked("123", expected_cas=payload["cas"])
+    effects = application_parent.FixtureEffects(snapshot, {})
+
+    result = application_parent.commit_decisions(snapshot, decisions, store=store, effects=effects)
+
+    assert result[0]["status"] == "background_reconcile_pending"
+    assert effects.exact_id_readback_ids == []
+    assert effects.click_count == 0
+    assert store.read("123")["state"] == application_parent.fence.PREPARED
+
+
+def test_same_wake_effect_started_intent_gets_exact_readback(tmp_path) -> None:
+    snapshot = _single_application_snapshot()
+    proposal = application_parent.commercial_proposal_text(
+        "既存業務の自動化を設計から検証まで担当します。" * 8,
+        price_jpy=20_000, deliver_date="2026-09-01",
+    )
+    decision = {"decisions": [{
+        "request_id": "123", "business_class": "submit_required", "reason_codes": [],
+        "proposal_text": proposal, "price_jpy": 20_000,
+        "deliver_date": "2026-09-01", "work_frequency": None,
+        "weekly_hours_min": None, "weekly_hours_max": None,
+        "screening_answers": [],
+    }]}
+    store = application_parent.fence.IntentStore(tmp_path)
+    payload = application_parent.fence.intent_payload(
+        request_id="123", snapshot_sha256="a" * 64,
+        proposal_text=proposal, price_jpy=20_000,
+        deliver_date="2026-09-01",
+        lease_fence={"task": "test-pass-commit-123", "token": "b" * 32, "generation": 1},
+    )
+    with store.locked("123"):
+        application_parent.fence._durable_replace(store.intent_path("123"), payload)
+        store.mark_irreversible_attempt_started_locked("123", expected_cas=payload["cas"])
+    effects = application_parent.FixtureEffects(snapshot, {"official_applied_ids": ["123"]})
+
+    result = application_parent.commit_decisions(snapshot, decision, store=store, effects=effects)
+
+    assert result[0]["status"] == "reconciled_confirmed"
+    assert effects.exact_id_readback_ids == ["123"]
