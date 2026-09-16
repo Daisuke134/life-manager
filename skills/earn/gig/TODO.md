@@ -588,14 +588,13 @@ independent production effects.
 
 **Done:** Ryu, both Kokoro rooms and Chii are seller-last with official Coconala readback and replay fences;
 Atsugi is settlement-only. Paid's later natural wake read back all four open rooms with no duplicate effect.
-Reply has a natural terminal pass. Apply's earlier six one-off effects replayed zero in later runs. The current
-`0401cb6a` run observed both one-off and continuous sources and confirmed four more eligible one-off effects
-with four official exact-ID readbacks, zero failures and zero pending.
+Reply has a natural terminal pass. Apply's earlier six one-off effects and the next four and three effects
+each replayed zero on later natural wakes. Release `0401cb6a` produced seven new eligible one-off effects
+across two runs, each with exact-ID official readback and no failure or pending result.
 
-**Not done:** four latest Apply effects still need replay-zero on a subsequent natural wake. The prior ULID retainer attempt has no official
-submit/readback and remains duplicate-fenced; the
-current continuous page has no active listing with which to prove a fresh screening-answer effect. Apply still
-needs replay-zero for the six new official effects. Fifty-four historical uncertain applications remain a
+**Not done:** the prior ULID retainer attempt has no official submit/readback and remains duplicate-fenced;
+the current continuous source had zero eligible candidates in the latest natural wake, so a fresh
+screening-answer effect remains unproved. Fifty-four historical uncertain applications remain a
 preemptible background reconciliation; Reply has 15 pending threads; Storefront demand, payout
 attribution, 24-hour cadence, no-starvation, zombie-free browser teardown and every later platform remain open.
 
@@ -607,9 +606,9 @@ Storefront must all be revenue-priority owners. Maintenance may borrow unused ca
 of five finite runs is not accepted as the final architecture; production must use measured resource-class
 capacity and prove 24 hours without a missed revenue cadence or fleet starvation.
 
-**Next order:** (1) prove replay-zero for the four newest one-off effects and keep one-off/retainer refresh live,
-(2) repair shared admission/cadence
-and owner-scoped tab teardown, (4) resolve Reply 15 and Coconala payout, (5) reconcile the 54 historical
+**Next order:** (1) keep one-off/retainer refresh live and prove a fresh eligible retainer screening-answer
+effect when one exists, (2) repair shared admission/cadence and owner-scoped tab teardown,
+(3) resolve Reply 15 and Coconala payout, (4) reconcile the 54 historical
 uncertain intents as preemptible background work without blocking current revenue, (6) prove all four Coconala
 lanes for 24 hours, then (7) CrowdWorks paid contracts, Lancers, Mercor,
 Freelancer.com and Upwork in that order.
@@ -979,10 +978,13 @@ work item and leave a sibling trace unchanged.
   `5266799` as already applied, did not send them again, and instead confirmed three distinct eligible
   applications (`5275054`, `5270900`, `5268989`) with three official readbacks. Its terminal result was
   `status=ok`, `effect=3`, `readback=3`, `failed=0`, `pending=0` under immutable release `0401cb6a`.
-- [ ] Keep submitting every eligible high-fit one-off and continuous application. The earlier six and
-  subsequent four one-off effects are duplicate-fenced in later runs. The continuous source was observed
-  but had zero active cards in the first `0401cb6a` wake; its next eligible listing must exercise the
-  screening-answer submit/readback path. The newest three effects need replay-zero on a later natural wake.
+- [x] Prove the next three one-off effects replay zero. Natural wake
+  `gig-apply-direct-1789547386893730000-13356` recognized `5275054`, `5270900`, and `5268989` as
+  already applied and ended `status=ok`, `effect=0`, `failed=0`, `pending=0` without resending them.
+- [ ] Keep submitting every eligible high-fit one-off and continuous application. The earlier six,
+  subsequent four, and next three one-off effects are duplicate-fenced. The continuous source was observed
+  but had zero eligible cards in the latest natural wake; its next eligible listing must exercise the
+  screening-answer submit/readback path.
 - [ ] Create Calendar events and five-minute Telegram reminders for every accepted meeting.
 - [ ] Keep Reply processing every talkroom independently with cumulative context and attachment recovery. Its
   latest pass observed 179 threads, read back 164, and left 15 pending; resolve each pending thread without
