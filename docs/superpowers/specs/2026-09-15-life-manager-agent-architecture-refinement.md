@@ -27,6 +27,18 @@ TODO・受入から除外する」という記述は無効です。`agent-econom
 文字列を根拠に除外しません。Codex modelの実際のprovider/model receiptが無い場合は、成功と
 断定せず`runtime_provider_unverified`として残します。
 
+Codex brainの実装をcandidate `72390b7c3d`へ追加した。`runtime/loop/brain.mjs`の
+`ANICCA_BRAIN=codex`分岐は、既存`runtime/agent-runner/agent_runner.py`のCodex-only
+`codex-brain-agent` task classをread-only・180秒上限・厳格なJSON schemaで呼び、skillを
+直接実行せず、既存`parse-tool-call.mjs`が読む判断だけを返す。Codexのprofile/evidence/
+timeout/usage管理は既存agent-runnerを再利用し、別のparallel harnessは作らない。
+`runtime/loop/lm_loop_apply.py`で`agent-economy-loop`の新しいplistは`ANICCA_BRAIN=codex`
+と`gpt-5.6-terra`のtierを明示する。read-only実Codex probe（Codex CLI/agent-runnerともに
+`tool_calls` JSONを返す）と関連testsはPASSしたが、稼働中のproduction processはまだ旧release
+（agent-economy `e8e8…`、x402 seller `b53…`）であり、再起動・即時切替はしていない。
+したがって、Codex routeのコードはcandidate完了、production activationと同一SHAの自然wakeは
+R2/R3/R6の受入で未完のままとする。`x402-claude-p`のlegacy labelも観測対象から除外しない。
+
 完了済みの共通基盤:
 
 - Product Loop/job identity、runtime state/event、context capsule（FND-02〜FND-10）
