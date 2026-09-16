@@ -659,9 +659,14 @@ The earlier Reply-lease GC request is withdrawn: 14 dead-PID ledger entries matc
 so it would not recover physical capacity.
 Later, a pushed-SHA Local candidate release `20260916T233946-cf655388` was cut without moving `current`.
 Only Connector and Instagram Metrics were loaded-idle target-applied after GUI preflight; loaded argv and
-Metrics' private Marketing env/absolute runtimes were read back. Candidate doctor still BLOCKS on the
+Metrics' private Marketing env/absolute runtimes were read back. At that checkpoint candidate doctor BLOCKED on the
 installed retired Obou Mobile label. Require each target's next natural outer terminal and its real
 provider/Calendar or Postiz readback before any Local gate claim. Main/Cloud remain untouched.
+The obsolete Obou Mobile label was then exactly retired while idle: launchctl service and plist are absent,
+no ebook account/asset/ledger was deleted, and candidate doctor now reports `ok=true`, registry 164,
+missing/unmanaged/retired-installed all zero. This removes only the incorrect Mobile scheduling row;
+it does not prove any of the 17 authorized publisher lanes or ebook marketing. The old plist is recoverable
+from its prior immutable release.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/
