@@ -283,6 +283,11 @@ browser session実測、自然wake、production反映はまだ未完である。
 互換上限は維持し、browser revenueだけがbrowser枠を独占する回帰を追加した。Admission suiteは
 **61 tests PASS**。capacity canaryとproduction反映はまだ未完である。
 
+**R2-02 migration atomic (candidate `301af42dce`):** 旧protocol-2のqueue/occurrences schemaを
+browser対応schemaへ移行する回帰を追加し、既存sequence・occurrence行が失われないことを確認した。
+Admission suiteは **62 tests PASS**。実production database migrationはimmutable release反映時に
+一度だけ行い、自然wakeでreadbackするまで未完とする。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
