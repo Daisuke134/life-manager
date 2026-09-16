@@ -678,7 +678,9 @@ clears it, so liveness would be lost after a timeout. Exact next slices:
    construction, including retries after a failed sync. A sync failure stops
    the awaited intent call before provider action. RED→GREEN first/retry and
    nested-ancestor fixtures, operations25 and relevant Connector/native171
-   tests PASS; fresh read-only review SHIP. It is not a closed target-set
+   tests PASS; full Connector library suite 765/765 PASS using the existing
+   immutable dependency bundle as a *test-only* `NODE_PATH`. Fresh read-only
+   review SHIP. It is not a closed target-set
    snapshot or production effect proof.
 2. **OPEN — child-closed snapshot:** For an exact host occurrence, first prove the
    child is terminal/dead and can no longer append an intent. Include the
