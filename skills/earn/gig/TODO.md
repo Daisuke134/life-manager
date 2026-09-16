@@ -27,7 +27,7 @@ runtime/provider readback before acting; conversation claims are not completion 
   official seller-last attachment wait reducer; PRs `#5252` and `#5254`
   add the revenue floor, legacy-reservation migration fence and Paid Account 1→2 Codex route; `#5250`
   browser/child-cleanup remains an ancestor. Apply is exact-loaded from `6e1dcc42`, Reply and Storefront retain
-  `0aba1191`, and Paid is still exact-loaded from `c21f2caa` until the current idle-only cutover to `dde0efae`.
+  `0aba1191`, and Paid is exact-loaded from `dde0efae` under the bounded operator brake.
   A natural Reply wake passed and a bounded Paid decision
   selected `codex/acct1/gpt-5.6-terra`.
   Do not create another runtime worktree or use the Capify checkout as source.
@@ -54,7 +54,7 @@ runtime/provider readback before acting; conversation claims are not completion 
   superseded historical state, not another client-work project.
 - Paid now tries the existing Account 1 Codex profile first and falls back to Account 2 through the shared
   runner; the first bounded Account 1 receipt is proved. Preserve both accounts and all unrelated sessions.
-- First safe action: exact-load `dde0efae` into idle Paid only, release the bounded Paid brake and close Ryu's
+- First safe action: release the bounded Paid brake and close Ryu's
   three-outcome cycle with official remote readbacks, ordinary Coconala readback and replay-zero. Then complete
   replay-zero for the current Apply release and move to shared admission/cadence and owner-scoped browser
   teardown. A natural `6e1dcc42` wake observed both
@@ -82,7 +82,7 @@ that the provider currently has an authenticated account, a verified external ef
 
 | Platform | As-Is now | To-Be finish condition |
 |---|---|---|
-| Coconala | Apply is exact-loaded from `6e1dcc42`; Reply and Storefront retain `0aba1191`; Paid remains on `c21f2caa` until the prepared `dde0efae` idle cutover. Ryu has three newer buyer outcomes and is not seller-last; the incomplete partial send was stopped at effect zero. Reply's latest natural pass observed 179 threads with 164 official readbacks and 15 pending. Apply observed both one-off and continuous sources, applied to six eligible one-off jobs and officially read back all six with zero failures; the current continuous page had zero active cards. The fleet still has a static five-finite-run default and only two durable revenue-priority owners, so 24/7 no-starvation is not proved. | Every active client has its own durable work item, newest-buyer coverage, provider effect/readback, replay-zero and payout attribution; every lane meets its cadence without a fixed global-slot bottleneck, and one client's failure never pauses another lane. |
+| Coconala | Apply is exact-loaded from `6e1dcc42`; Reply and Storefront retain `0aba1191`; Paid is exact-loaded from `dde0efae` under a bounded operator brake. Ryu has three newer buyer outcomes and is not seller-last; the incomplete partial send was stopped at effect zero. Reply's latest natural pass observed 179 threads with 164 official readbacks and 15 pending. Apply observed both one-off and continuous sources, applied to six eligible one-off jobs and officially read back all six with zero failures; the current continuous page had zero active cards. The fleet still has a static five-finite-run default and only two durable revenue-priority owners, so 24/7 no-starvation is not proved. | Every active client has its own durable work item, newest-buyer coverage, provider effect/readback, replay-zero and payout attribution; every lane meets its cadence without a fixed global-slot bottleneck, and one client's failure never pauses another lane. |
 | Lancers | Application, browser, negotiation, paid, storefront, work-sync and report owners are registered. Production fixes exist in main, but durable login and the full Apply→Paid→payout proof are not closed. | One persistent account/browser owner runs the complete lifecycle with official proposal, work, payment and payout receipts. |
 | CrowdWorks | Application, Reply, Paid and Report owners are registered. Existing contracts still need fulfillment from buyer instruction/link through actual submission and readback. | Each accepted contract becomes an independent fulfillment item and reaches artifact submission, official receipt, payout and replay-zero; Storefront is explicitly `not_applicable` unless the provider exposes it. |
 | Mercor | Application, Reply and Paid owners are registered, but repeated-login/authentication and full contract proof remain open. | Persistent authenticated account state, application, reply/interview handoff, contract, paid work and payout are independently evidenced. |
@@ -604,7 +604,7 @@ Storefront must all be revenue-priority owners. Maintenance may borrow unused ca
 of five finite runs is not accepted as the final architecture; production must use measured resource-class
 capacity and prove 24 hours without a missed revenue cadence or fleet starvation.
 
-**Next order:** (1) load `dde0efae` to idle Paid and close Ryu's latest three-outcome cycle, (2) prove replay-zero
+**Next order:** (1) release the Paid brake and close Ryu's latest three-outcome cycle, (2) prove replay-zero
 for the six new one-off effects and keep one-off/retainer refresh live, (3) repair shared admission/cadence
 and owner-scoped tab teardown, (4) resolve Reply 15 and Coconala payout, (5) reconcile the 54 historical
 uncertain intents as preemptible background work without blocking current revenue, (6) prove all four Coconala
@@ -939,7 +939,8 @@ work item and leave a sibling trace unchanged.
 - [ ] Ryu `18211957`: the older digest is covered by a later ordinary seller message, but three newer buyer
   messages are now one active cycle: configure both form destinations, consolidate easy-edit sections and edit
   profiles from easy edit. The old owner omitted the first outcome and the Paid brake stopped Coconala effect at
-  zero. Exact-load `dde0efae`, require all `required_outcomes` and matching `outcome_coverage`, verify the live
+  zero. Release the brake on exact-loaded `dde0efae`, require all `required_outcomes` and matching
+  `outcome_coverage`, verify the live
   target, send one ordinary message with formal delivery OFF, read it back seller-last and prove replay-zero.
 - [x] Kokoro `18223833`: retained inputs were recovered and the room has its own verified submission; replay zero
   unless a newer buyer event appears.
