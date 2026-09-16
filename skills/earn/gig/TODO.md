@@ -894,6 +894,17 @@ but old-cancel wrappers remain and candidate Metrics still ended
 `capacity_busy` before provider work. Continue automatic loaded-idle
 roll-forward and measure queue-to-claim/terminal; do not call the fourteen
 product loops verified from reconciler `pass`.
+**First bounded Affiliate natural effect-zero progress:** Candidate SHA
+`5f7a0ce8` natural outer run `18d5e02e16e0f840-33963` started 18:21:55
+UTC and terminated `pass` at 18:23:02, with the admission owner released.
+The durable `source-refresh.json` changed from the old 83-plan `PARTIAL` to
+`IN_PROGRESS`, one exact `CAPTURED` plan, `pending_count=82`; that plan's
+`composition-inbox` receipt exists with two sources and the matching
+`source_set_sha256`. This verifies one real bounded read/capture transition
+and downstream handoff, not a provider submission, publication or revenue.
+The next natural wake must process the **next** plan without repeating this
+one, terminate and release again; other borrow waiters must also claim, or
+the 14 queued Affiliate occurrences could still starve sibling Metrics.
 The user-owned goal cannot pass its Local queue gate while old main dispatchers
 delete candidate queue rows. The later instruction to take ownership and not
 stall the goal is therefore used for a narrow exception to the previous

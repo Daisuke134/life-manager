@@ -526,6 +526,13 @@ non-ancestor skip/readback. Fleet snapshot: 12 new-main, 10 previous-main,
 21 candidate-safe, 121 other. This proves accelerated reconciler lifecycle,
 not queue-to-claim or provider effect; Metrics/Affiliate remain
 capacity-blocked and old dispatchers remain loaded.
+At 18:21:55 UTC candidate Affiliate finally claimed a slot on a **natural**
+wake, ended outer `pass` at 18:23:02, released its owner and wrote a durable
+`IN_PROGRESS` source-refresh cursor: one of 83 plans `CAPTURED`, 82 pending.
+The corresponding `composition-inbox` receipt contains two sources with the
+same `source_set_sha256`. This closes the first bounded Affiliate transition,
+but not replay/no-starvation: the next natural wake must advance to a distinct
+plan, and Instagram/TikTok still need actual Postiz metric readbacks.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.
