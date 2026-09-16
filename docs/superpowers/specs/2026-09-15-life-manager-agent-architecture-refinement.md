@@ -104,11 +104,12 @@ provider/state/browserを触らない。handoff receiptができるまで、未�
 #### TODO 1の現在のslice: `gig-coconala`
 
 Git外のCoconala receiptをread-onlyで確認した結果、認証済み・公式talkroom参照・
-`exact_readback=true`・`quality_status=qualified`の実receiptは存在します。しかしcatalogの7 jobは、
-最新statusで`pass`が1件、`blocked`が4件、`fail`が1件、別releaseの`pass`が1件でした。したがって
-`runtime_evidence.ready=false`であり、`gig-coconala`を`verified`へ接続していません。次の一手は、
-provider ownerが同じimmutable releaseで7 jobを再確認し、公式receipt・release SHA・replay-zeroを
-揃えることです。古いreceiptを再利用したり、mock/fixtureで穴埋めしたりしません。
+`exact_readback=true`・`quality_status=qualified`の実receiptは存在します。しかし再確認時点でcatalogの7 jobは、
+`pass=1 / blocked=5 / fail=1`でした。新しいofficial receiptは増えておらず、最新の一時terminalは
+`unrecorded`で空でした。したがって`runtime_evidence.ready=false`であり、`gig-coconala`を
+`verified`へ接続していません。次の一手は、provider ownerが同じimmutable releaseで7 jobを再確認し、
+公式receipt・release SHA・replay-zeroを揃えることです。古いreceiptを再利用したり、mock/fixtureで
+穴埋めしたりしません。
 
 **別Codexのprovider TODO（参照用）:** 下記の細かいprovider表はGig/Coconala/Lancers/Mercorの
 外部effect ownerが進める資料です。私のfoundation cursorでは、mock・Claude-p・provider操作を実行しません。
