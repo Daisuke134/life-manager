@@ -103,7 +103,7 @@ providerへ応募する仕事ではありません。
 Life Managerの実際の応募・契約・納品・報酬・cloud運用が動いたことを意味しません。現在の
 origin/mainは `913aaa9cc9`（Coconala current-truth merge後の最新remote main参照）まで進み、本番selectorも
 `913aaa9cc9ac1e40b54eb0f0899c69fc17b52c2f`を指しています。候補branchはこのmainへまだ統合しておらず、ownerのinstalled/event SHAもまだ混在しています。
-統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `67a0374a10`）はpush済みですが、候補はまだmainへmergeしていません。
+統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `1d66bc1049`）はpush済みですが、候補はまだmainへmergeしていません。
 本番へはまだ統合していません。
 したがって、次の作業は「さらにスキルを読む」ではなく、候補をmain由来immutable releaseへ
 昇格し、ownerごとの自然wakeで公式効果を確認することです。
@@ -170,11 +170,26 @@ R2を実際のatomicに分けると、(a) `R2-01` gateを一度判定する、(b
 同じprivate manifestでgateを再実行する、の順になる。R2-02は外部effectではなく、既存reconcile・
 queue・resource契約を直す作業である。
 
+**R2の現在cursor（2026-09-16 03:57 UTC）:** `R2-01`は一度実測して`BLOCK`を記録済み。
+`R2-02`では外部effectを持たない`life-manager-connector-native`と`job-search-daily`を、
+preflight PASS後に一ownerずつcurrent `bce56bc9d8f3fce5367a12fe07601a8e79765241`へ再配置した。
+Connectorを一度だけkickstartした結果、installed/eventは同SHAへ一致したが、最後のterminalは
+`blocked / host_admission_deferred:resource_control_busy`（exit 75）だった。これは「起動できた」や
+「Connectorの外部登録成功」ではなく、制御ロック競合を最新eventで観測した証拠である。
+候補では`lm-loop-run`が`control_busy`だけを最大3回（0.05s間隔の上限付き）再試行し、
+`capacity_busy`/`fifo_wait`とは混同しない修正を`1d66bc1049`へ固定した。JS 36件、Python
+`test_lm_loop_run_bounds.py` 36件、`test_resource_admission.py` 54件がPASS。R2-03はこの
+Connectorの自然terminalがblockedのため未完、`R2-04` Local gate再実行はまだ行わない。
+なお、同時刻のadmission実測ではCoconala/Lancersのrevenue ownerが3件稼働し、maintenance用の
+deterministic reservationが1件あり、revenue floorを守るためborrow枠が止まっていた。これはFIFOが
+消えたのではなく、収益処理を優先している既知状態であり、他ownerを停止して解消しない。
+
 同日、外部effectを持たないConnector ownerだけをcurrent immutable releaseへtargeted reconcileした。
-installed SHAはcurrentへ揃ったが、最新report/eventは旧SHAのままで、自然wakeのterminal/readbackは未確認である。
+installed SHAはcurrentへ揃ったが、その一回のkickstart後の最新eventに制御ロック競合が残り、
+スケジュールされた自然wakeの成功terminal/readbackは未確認である。
 install eventだけを業務成功receiptとは数えず、次回statusでcurrent releaseの自然wakeを確認する。
 
-S-01の共有kernel実装もcandidate `67a0374a10`へ固定した。failure intentへcanonical `job_id`を付与し、
+S-01の共有kernel実装もcandidate `67a0374a10`から`1d66bc1049`へ継承した。failure intentへcanonical `job_id`を付与し、
 `lm-loop reconcile --recovery-intent PATH`はretry対象を1 owner/jobだけへ限定する。複数intent・owner不一致・
 route不一致・job ID欠落は実行前に拒否し、兄弟再起動とeffect再送を防ぐ。本番ownerへはまだ配布していない。
 
