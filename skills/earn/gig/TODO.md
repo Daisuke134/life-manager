@@ -604,11 +604,44 @@ attribution, cadence correctness, no-starvation, zombie-free browser teardown an
 lane must start within its declared 1–30 minute cadence, perform one bounded durable transition, write a terminal
 receipt and exit. When one wake releases capacity, the next eligible revenue wake must start automatically.
 Light deterministic work must not consume the same scarce capacity as browser/model work. Apply, Reply, Paid and
-Storefront must all be revenue-priority owners. Maintenance may borrow unused capacity only. The static default
-of five finite runs is not accepted as the final architecture; production must use measured resource-class
-capacity and prove bounded queue-to-claim progress under controlled load and recovery tests, followed by
+Storefront must all be revenue-priority owners. Maintenance may borrow unused capacity only. Keep the current
+five-run total as a provisional memory-safety guard; do not delete or raise it by guess. The number alone is
+not a scheduler: production must use measured resource-class capacity and prove bounded queue-to-claim
+progress under controlled load and recovery tests, followed by
 targeted natural wakes. Continuous monitoring detects later cadence misses or starvation; it is not a
 pre-promotion 24-hour wait.
+
+**Cadence decision from official implementation research:** OpenClaw currently
+uses one Gateway timer, shared SQLite jobs/runs, top-of-hour staggering and a
+fixed eight-run cron admission pool with capacity-release rechecks; OpenAI
+Symphony, Browserless, Temporal and BullMQ also bound worker concurrency or
+define overlap policies. Therefore “nobody uses fixed slots” is false. The
+Life Manager has observed mixed-cost work, orphaned claim rows, multi-hour
+waiters, old release drift and missing effect reconciliation. The exact cause
+of each admission deferral and release→dispatch liveness remains to be proved.
+An hourly schedule for *every* loop would delay paid/buyer work and would not
+drain the existing queue. The registry has 39 five-minute and six one-minute
+interval jobs (828 theoretical starts/hour for those groups); staggering only
+spreads the peak, while per-owner durable catch-up preserves actual work.
+See the architecture spec §B1 for exact upstream code links and the 14-row
+22:29 UTC runtime snapshot; no row has full current 24/7 proof.
+
+**Atomic cadence/capacity follow-up, without a fleet-wide timer edit:**
+1. Read the last real service times, RSS/browser-owner pressure and queue ages
+   by owner/resource class; distinguish no-work wakes from effectful work and
+   current loaded SHA from checkout/main.
+2. Finish existing queue release, stale-claim and uncertain-effect recovery
+   so one freed physical slot admits the next eligible owner automatically.
+   Re-run saturation/timeout/owner-death fixtures and one exact-SHA natural wake.
+3. Audit the 39 five-minute jobs for actual expensive, low-urgency polling.
+   Only if one qualifies, test that specific owner at an hourly cadence with
+   its durable missed-work cursor; compare completed work, queue age, memory
+   and official effect/readback before/after. Keep paid/Reply/buyer event and
+   time-specific publication cadences intact.
+4. Keep a measured host safety ceiling, separate cheap deterministic work from
+   browser/model admission, and adjust class limits only from observed headroom.
+   For each of the 14 product rows, prove applicable lanes' natural outer
+   terminal, official effect or truthful no-work, replay-zero and monitor alarm.
 
 **Finite release gate, continuous operating guard:** Do not serialize fourteen 24-hour observations. Evaluate
 all fourteen *product rows* in parallel; a product row may own several launchd jobs. For each applicable owner:
