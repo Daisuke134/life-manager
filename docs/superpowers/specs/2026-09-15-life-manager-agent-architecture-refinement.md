@@ -229,6 +229,12 @@ applyを合わせた **251 tests / 143 subtests PASS**。実際のloop行へのp
 回帰を含む`test_lm_loop_run_bounds.py`はPASS。本番registryへのpriority値付与、occurrence_id、
 自然wakeはまだ未完である。
 
+**R2-02 scoped owner classification atomic (candidate `67c7bb86ca`):** registryのMobile App
+18件とConnectorを`resource_class=agent` / `admission_class=revenue` / `priority=revenue`へ、
+Instagram/TikTok Metricsを`deterministic` / `borrow` / `support`へ明示した。生成済みjob fixtureを
+同期し、registryとrunnerの既存テストを含む **253 tests / 164 subtests PASS**。これはcandidateの
+分類契約であり、launchd plist、自然wake、Postiz receipt、production release反映はまだ未完である。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
