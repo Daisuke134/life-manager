@@ -549,6 +549,26 @@ arguments agree exactly; stale loaded arguments keep it queued. Focused
 105 tests plus 33 subtests, full control-plane 466/466 and OSS verification
 pass. This is not loaded production evidence; the next gate remains exact
 candidate natural queue-to-claim, terminal and official effect/readback.
+The mixed-release handoff audit found a lease-expiry duplicate-occurrence
+race: a reserved launchd wake could arrive after its 60-second reservation
+expired, create a second occurrence, then claim the older one. Connector's
+scan-only owner now opts into durable **queued** coalescing even after lease
+expiry (`450147dc70`, marker/runner activation `1eae8a2e27`); independent
+business items such as Mobile publication do not opt in. A separate
+latest-main branch `57cd52c349` allows cross-release kickstart only for a
+sealed, complete, main-ancestor release whose exact owner contract and both
+coalescing markers match, with pre/post-kick loaded-argv readback. Fresh
+read-only review initially returned FIX-FIRST for older-release eligibility,
+partial owner-contract comparison and manifest-only authenticity; those
+findings drove the marker, full row comparison, main provenance and read-only
+release checks. The two source branches are combined at pushed `ff5b2df143`.
+Combined focused runner tests 53, host/registry 149 plus 132 subtests,
+candidate doctor 164 and OSS verification pass. Complete control-plane run
+had 466 passing tests and one Git write-tree error solely because the merge
+index was not yet committed; after commit that exact test passes. A clean
+post-merge full run and production Local gate remain open. Current loaded
+Connector/Affiliate/Metrics releases still lack the new queued marker; do not
+dispatch or promote them as if this source fix were already live.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

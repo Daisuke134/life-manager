@@ -928,6 +928,22 @@ peak and free-slot handoff, preserve candidate occurrence identity, then prove
 one candidate light owner claims automatically without downgrading it or
 replaying a provider effect. Do not raise the cap or remove the revenue floor
 solely to make a test green.
+The follow-up source repair is pushed, not deployed: Connector's queued scan
+coalesces after reservation expiry in `450147dc70`, a new explicit marker
+activates that behavior in `1eae8a2e27`, and the separate main-derived
+cross-release bridge `57cd52c349` requires the marker, identical complete
+owner contract, sealed full main-ancestor release and exact pre/post launchd
+argv. Fresh read-only review initially returned FIX-FIRST for old-candidate
+eligibility, incomplete contract comparison and self-asserted provenance;
+these were narrowed before source integration. Combined foundation source is
+pushed at `ff5b2df143`: runner focused 53 PASS, admission/registry 149 PASS
+plus 132 subtests, doctor164 PASS, OSS PASS. The complete control-plane run
+passed 466 cases but one Git write-tree fixture failed while the merge index
+was uncommitted; that exact case PASSed after commit. Re-run the complete
+suite on committed source, then Local queue-to-claim and provider gates.
+None of this changes the current loaded old candidate SHA or proves the 14
+loops have resumed. At 19:23 Affiliate remained 82 pending and Connector's
+19:22 natural wake was capacity-blocked.
 Connector's 18:39 natural outer run failed `wake_deadline` at 18:52, despite
 an inner PASS at 18:41. The same wake's audit shows TechPlay discovery taking
 302674 ms after earlier provider work; the workflow can inspect up to 50 RSS
