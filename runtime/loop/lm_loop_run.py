@@ -163,6 +163,12 @@ def _admission_class(entry: dict) -> str:
     return entry.get("admission_class", "borrow")
 
 
+def _queue_priority(entry: dict) -> str | None:
+    """Return an explicitly declared queue priority, if present."""
+    value = entry.get("priority")
+    return value if isinstance(value, str) and value else None
+
+
 def _host_admission_deferred(path: Path, started_ns: int) -> str | None:
     try:
         if path.stat().st_mtime_ns < started_ns:
@@ -383,11 +389,15 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             previous[signum] = signal.signal(signum, interrupt_wait)
         resource_class = _resource_class(entry)
         admission_class = _admission_class(entry)
+        queue_priority = _queue_priority(entry)
         try:
             durable = durable_protocol_version() == 2
+            enqueue_kwargs = {"admission_class": admission_class}
+            if queue_priority is not None:
+                enqueue_kwargs["priority"] = queue_priority
             ticket, admission_reason = (
                 enqueue_durable_resource(
-                    resource_class, loop_id, admission_class=admission_class)
+                    resource_class, loop_id, **enqueue_kwargs)
                 if durable else (None, "legacy")
             )
         except (OSError, RuntimeError):

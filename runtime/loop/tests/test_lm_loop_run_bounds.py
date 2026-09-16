@@ -11,7 +11,8 @@ from unittest.mock import call, patch
 
 from runtime.host import resource_admission as admission
 from runtime.loop.lm_loop_run import (
-    _admission_class, _dispatch_reserved, _host_admission_deferred, _resource_class,
+    _admission_class, _dispatch_reserved, _host_admission_deferred, _queue_priority,
+    _resource_class,
     _run_admitted, _run_entrypoint, _runtime_limit, _terminal_outcome,
 )
 
@@ -59,6 +60,28 @@ def test_revenue_admission_requires_an_explicit_registry_contract():
     assert _admission_class({
         "domain": "earn", "admission_class": "revenue",
     }) == "revenue"
+
+
+def test_explicit_registry_priority_is_forwarded_to_durable_admission(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 60},
+        "provider_route": "deterministic",
+        "admission_class": "revenue",
+        "priority": "critical_paid",
+    }
+    receipt = tmp_path / "receipt"
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "capacity_busy")) as enqueue,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(["/bin/true"], entry, "paid", {}, receipt) == 75
+
+    assert _queue_priority(entry) == "critical_paid"
+    enqueue.assert_called_once_with(
+        "deterministic", "paid", admission_class="revenue",
+        priority="critical_paid",
+    )
+    run.assert_not_called()
 
 
 def test_memory_admission_exit_is_deferred_not_failed():
