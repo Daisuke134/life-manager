@@ -594,6 +594,44 @@ def test_multiple_occurrences_drain_one_owner_queue_without_loss(
     ]
 
 
+def test_expired_running_heartbeat_is_reclaimed_to_durable_queue(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    started = admission.process_start(os.getpid())
+    stale = tmp_path / "owners/stale-heartbeat.json"
+    admission.atomic_json(stale, {
+        "version": 2, "pid": os.getpid(), "process_start": started,
+        "owner_id": "stale-heartbeat", "resource_class": "agent",
+        "admission_class": "revenue", "admission_policy": admission.ADMISSION_POLICY,
+        "base_priority": "revenue", "queued_at": 0,
+        "heartbeat_at": 0, "heartbeat_timeout_seconds": 10, "phase": "running",
+        "sequence": 1,
+    })
+
+    ticket, reason = admission.enqueue_durable(
+        "agent", "next-owner", admission_class="revenue", now=100)
+
+    assert ticket is not None and reason == "fifo_wait"
+    assert not stale.exists()
+    assert [row["owner_id"] for row in durable_rows(tmp_path, "queue")] == [
+        "stale-heartbeat", "next-owner"
+    ]
+
+
+def test_heartbeat_updates_only_the_owned_claim(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.activate_durable_v2()
+    admission.enqueue_durable("agent", "heartbeat-owner", admission_class="revenue")
+    claim, reason = admission.claim_durable(
+        "agent", "heartbeat-owner", admission_class="revenue")
+    assert claim is not None and reason == "acquired"
+
+    assert admission.heartbeat_durable(claim, now=123) is True
+    assert json.loads(claim.read_text())["heartbeat_at"] == 123
+    admission.release_and_reserve(claim, reserve=False)
+
+
 def test_revenue_priority_applies_across_resource_classes(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_RUNS", "1")
