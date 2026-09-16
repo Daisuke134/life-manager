@@ -132,7 +132,8 @@ def test_full_history_reconcile_runs_before_fresh_snapshot_collection():
     assert source.index("uncertain_intents = _durable_uncertain_intents") < source.index(
         "snapshot = collect_snapshot_with_readonly_retry"
     )
-    assert "max_pages=_APPLIED_OFFERS_RECONCILE_MAX_PAGES" in source
+    assert "max_pages=_APPLIED_OFFERS_RECONCILE_PAGES_PER_WAKE" in source
+    assert 'scan_state_path = intent_root / "full-history-scan-state.json"' in source
     assert "include_retainer_history=any(" in source
 
     wrapper_source = inspect.getsource(application_direct._validate_parent_result)
@@ -160,3 +161,38 @@ def test_applied_history_uses_numeric_pagination_when_next_label_is_absent():
         )
     source = inspect.getsource(application_parent.CdpParentEffects._official_readback_async)
     assert r"/^\\d+$/u.test" in source
+
+
+def test_full_history_scan_state_accumulates_across_wakes():
+    state = {
+        "version": 1, "targets_sha256": "a" * 64,
+        "next_url": "https://coconala.com/mypage/job_matching/applied/offers",
+        "observed_ids": [], "pages_walked": 0, "cards_seen": 0, "chunks": [],
+        "urls": ["https://coconala.com/mypage/job_matching/applied/offers"],
+    }
+    targets = {"111": "cas-1", "222": "cas-2"}
+
+    state = application_parent._advance_full_history_scan_state(state, {
+        "source": "code_owned_cdp_readback", "observed": True, "not_found": False,
+        "request_ids": ["111", "999"], "pages_walked": 2, "cards_seen": 40,
+        "next_url": "https://coconala.com/mypage/job_matching/applied/offers?page=3",
+        "urls": ["https://coconala.com/mypage/job_matching/applied/offers"],
+    }, targets)
+    state = application_parent._advance_full_history_scan_state(state, {
+        "source": "code_owned_cdp_readback", "observed": True, "not_found": False,
+        "request_ids": ["222"], "pages_walked": 1, "cards_seen": 18,
+        "next_url": None,
+        "urls": [
+            "https://coconala.com/mypage/job_matching/applied/offers",
+            "https://coconala.com/mypage/job_matching/applied/outsource_applications",
+        ],
+    }, targets)
+
+    assert state["observed_ids"] == ["111", "222"]
+    assert state["pages_walked"] == 3
+    assert state["cards_seen"] == 58
+    assert state["next_url"] is None
+    assert state["urls"] == [
+        "https://coconala.com/mypage/job_matching/applied/offers",
+        "https://coconala.com/mypage/job_matching/applied/outsource_applications",
+    ]
