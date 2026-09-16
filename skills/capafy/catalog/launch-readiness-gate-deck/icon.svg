@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Launch Readiness Gate Deck icon</title>
+  <desc id="desc">A launch path passing through a readiness gate with three evidence markers.</desc>
+  <rect width="512" height="512" rx="96" fill="#10233D"/>
+  <path d="M92 356H420" stroke="#F5C451" stroke-width="18" stroke-linecap="round"/>
+  <path d="M112 356C178 356 180 178 256 178C332 178 334 356 400 356" fill="none" stroke="#44C4A1" stroke-width="24" stroke-linecap="round"/>
+  <path d="M236 132H276V260H236z" fill="#F5C451"/>
+  <path d="M205 144L256 92L307 144" fill="none" stroke="#F5C451" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="144" cy="356" r="18" fill="#F5C451"/>
+  <circle cx="256" cy="178" r="18" fill="#F5C451"/>
+  <circle cx="368" cy="356" r="18" fill="#F5C451"/>
+</svg>
