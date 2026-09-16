@@ -29,11 +29,11 @@ reconcile_release() {
   local release_root="$1"
   local status=0
   if ! LIFE_MANAGER_RELEASE_ROOT="$release_root" "$release_root/bin/lm-loop" \
-    reconcile shared-agent-runner --loaded-idle-only --max-owners 1; then
+    reconcile shared-agent-runner --loaded-idle-only --max-owners 4; then
     status=1
   fi
   if ! LIFE_MANAGER_RELEASE_ROOT="$release_root" "$release_root/bin/lm-loop" \
-    reconcile deterministic --loaded-idle-only --max-owners 1; then
+    reconcile deterministic --loaded-idle-only --max-owners 4; then
     status=1
   fi
   local admission_root="${LIFE_MANAGER_RESOURCE_ADMISSION_ROOT:-$HOME/.local/state/life-manager/host-admission/resources}"

@@ -858,7 +858,9 @@ def main(argv: list[str] | None = None) -> int:
         release_root = Path(os.environ.get("LIFE_MANAGER_RELEASE_ROOT", ROOT)).expanduser().resolve(strict=True)
         current_sha = json.loads((release_root / "RELEASE.json").read_text()).get("sha")
         skipped_non_ancestor: list[str] = []
-        if requested_ids:
+        if automatic_release_reconciler and not requested_ids:
+            targets = set()
+        elif requested_ids:
             targets = set(effective_requested_ids)
         elif max_owners is not None:
             targets = _bounded_reconcile_candidates(
@@ -867,9 +869,13 @@ def main(argv: list[str] | None = None) -> int:
                 targets.add("life-manager-disk-cleanup")
         else:
             targets = set()
-        rows = (targeted_snapshot(
-            registry, targets, release_root / "bin/launchctl-safe")
-            if requested_ids or max_owners is not None else snapshot(registry, "all"))
+        if automatic_release_reconciler and not requested_ids:
+            rows = snapshot(registry, "all")
+        elif requested_ids or max_owners is not None:
+            rows = targeted_snapshot(
+                registry, targets, release_root / "bin/launchctl-safe")
+        else:
+            rows = snapshot(registry, "all")
         explicitly_reloadable = {
             loop_id for loop_id in effective_requested_ids
             if registry["loops"][loop_id].get("cadence", {}).get("keep_alive") is True
@@ -881,6 +887,8 @@ def main(argv: list[str] | None = None) -> int:
         ancestry_cache: dict[str, bool] = {}
         if automatic_release_reconciler:
             for row in rows:
+                if row.get("provider_route") != route:
+                    continue
                 installed_sha = row.get("installed_release_sha")
                 if installed_sha and installed_sha != current_sha:
                     if installed_sha not in ancestry_cache:

@@ -1156,7 +1156,7 @@ class LmLoopApplyTest(unittest.TestCase):
                 value, "deterministic", main_sha, 1)
         self.assertEqual(selected, {"b-old"})
 
-    def test_automatic_disk_cleanup_addition_keeps_bounded_ancestor_selection(self):
+    def test_automatic_disk_cleanup_is_in_fleet_readback_without_hiding_owners(self):
         release = self._release("release-auto-bounded").resolve()
         value = registry()
         value["loops"]["life-manager-disk-cleanup"] = {
@@ -1175,7 +1175,9 @@ class LmLoopApplyTest(unittest.TestCase):
             patch.object(lm_loop, "_bounded_reconcile_candidates",
                          return_value={"example"}) as bounded,
             patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
-            patch.object(lm_loop, "targeted_snapshot", return_value=rows) as targeted,
+            patch.object(lm_loop, "snapshot", return_value=rows) as fleet,
+            patch.object(lm_loop, "targeted_snapshot",
+                         side_effect=AssertionError("per-label scan")) as targeted,
             patch.object(lm_loop, "apply_live",
                          side_effect=lambda *args, **kwargs: applied.append(kwargs["target"]) or [{"ok": True}]),
             patch.dict(os.environ, {
@@ -1187,11 +1189,48 @@ class LmLoopApplyTest(unittest.TestCase):
             self.assertEqual(lm_loop.main([
                 "reconcile", "deterministic", "--loaded-idle-only", "--max-owners", "1",
             ]), 0)
-        bounded.assert_called_once()
-        self.assertEqual(targeted.call_args.args[1], {
-            "example", "life-manager-disk-cleanup",
-        })
+        bounded.assert_not_called()
+        fleet.assert_called_once()
+        targeted.assert_not_called()
         self.assertEqual(applied, ["example", "life-manager-disk-cleanup"])
+
+    def test_automatic_reconcile_uses_one_fleet_readback_then_bounded_apply(self):
+        release = self._release("release-auto-fleet").resolve()
+        value = registry()
+        for loop_id in ("candidate", "life-manager-disk-cleanup"):
+            value["loops"][loop_id] = {
+                **value["loops"]["example"], "label": f"ai.anicca.{loop_id}",
+            }
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        rows = [{
+            "classification": "managed", "provider_route": "deterministic",
+            "launchd_state": "loaded-idle", "installed_release_sha": sha,
+            "event_release_sha": sha, "loop_id": loop_id,
+        } for loop_id, sha in (("example", "b" * 40),
+                              ("candidate", "c" * 40),
+                              ("life-manager-disk-cleanup", "b" * 40))]
+        applied = []
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "snapshot", return_value=rows) as fleet,
+            patch.object(lm_loop, "targeted_snapshot", return_value=rows) as targeted,
+            patch.object(lm_loop, "apply_live",
+                         side_effect=lambda *args, **kwargs: applied.append(kwargs["target"]) or [{"ok": True}]),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor",
+                         side_effect=lambda installed, _current: installed == "b" * 40),
+            patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+            }),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(lm_loop.main([
+                "reconcile", "deterministic", "--loaded-idle-only", "--max-owners", "1",
+            ]), 0)
+        fleet.assert_called_once()
+        targeted.assert_not_called()
+        self.assertEqual(applied, ["example", "life-manager-disk-cleanup"])
+        self.assertEqual(json.loads(output.getvalue())["skipped_non_ancestor"], ["candidate"])
 
     def test_bounded_reconcile_does_not_hide_later_idle_owner_behind_eight_stale_rows(self):
         value = registry()
