@@ -320,6 +320,13 @@ targeted reconcileし、`eligible=1`、`failed=[]`、plist/loaded argvはSHA
 存在しない。repair queueは空で、これはrepaired/verifiedではなく、自然wake待ちとしてR2-03を
 未完のまま保持する。
 
+その後のfresh read-only gate（`2026-09-16T07:38:19Z`）では、`~/loops/current`がSHA
+`2e0716c7f64fc272cf23a15d2ab65808706a2c59`へ進んだ一方、ConnectorのplistはSHA
+`9c6c81233de69d84771738277d80c79ffa86e447`のままで、自然wakeはまだ`runs=0`だった。14行の
+manifestはすべて`blocked`、Local gateは`blocked_product_loop`となった。release selectorが
+自然wake待ちのownerより先に動くと、reconcile済みownerが再びrelease driftになることを示す実測で
+あり、current immutable releaseが安定し同一ownerのterminalを得るまでR2-03/R2-04をPASSへ昇格しない。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
