@@ -1,5 +1,7 @@
 "use strict";
 
+const { execFileSync } = require("node:child_process");
+const { createHash, randomUUID } = require("node:crypto");
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -25,6 +27,8 @@ const UNCERTAIN_KEYS = "quarantined_at,reason,schema_version,wake_id";
 const POSITIVE_PROVIDER_ID = /^[1-9][0-9]*$/;
 const UNCERTAIN_REASONS = new Set(["delivery_unknown", "missing_message_id", "provider_rejection", "transport"]);
 const STATUSES = new Set(["applied_bundle", "completed_no_effect", "circuit_open"]);
+const MAX_EFFECT_INTENT_BYTES = 5_000_000;
+const MAX_EFFECT_FENCE_BYTES = 6_000_000;
 // Ceiling for observed/normalized/window/free_open/calendar_free counts: matches the
 // `rows.length > 5_000` per-page guard in connector-connpass-workflow.js, the real limit
 // on how many rows discovery can ever observe (measured live: connpass can legitimately
@@ -50,6 +54,8 @@ function privateDirectory(value) {
   const directory = path.resolve(String(value || ""));
   if (!path.isAbsolute(directory) || directory === path.parse(directory).root) invalid();
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const stat = fs.lstatSync(directory);
+  if (!stat.isDirectory() || stat.isSymbolicLink()) invalid();
   fs.chmodSync(directory, 0o700);
   // A retry must not mistake an unflushed ancestor from an earlier failed
   // attempt for a durable directory. Sync every parent entry up to the root.
@@ -308,6 +314,12 @@ function createMinimalProductionOperations(options = {}) {
   const telegramTarget = String(options.telegramTarget || "").trim();
   const now = options.now || (() => new Date());
   const telegramToken = String(options.telegramToken || "").trim();
+  const readOuterTerminal = (id, sha) => JSON.parse(execFileSync(
+    path.resolve(__dirname, "../../../bin/lm-loop"),
+    ["terminal", "life-manager-connector-native",
+      id.slice("life-manager-connector-native:".length), sha],
+    { encoding: "utf8", timeout: 60_000, maxBuffer: 1_000_000 },
+  ));
   const sendMessage = options.sendMessage || (telegramToken
     ? (message, deliveryOptions) => sendTelegramMessage(telegramToken, deliveryOptions.telegramTarget, message)
     : null);
@@ -318,7 +330,9 @@ function createMinimalProductionOperations(options = {}) {
     || typeof now !== "function" || typeof sendMessage !== "function"
   ) invalid();
   const historyFile = path.join(stateDir, "action-history.jsonl");
-  const effectIntentFile = path.join(stateDir, "effect-intents.jsonl");
+  const effectIntentDir = path.join(stateDir, "effect-intents");
+  const effectIntentFile = (id) => path.join(effectIntentDir,
+    `${createHash("sha256").update(id).digest("hex")}.jsonl`);
   const reportFile = path.join(stateDir, "wake-reports.jsonl");
   const deliveryFile = path.join(stateDir, "wake-report-deliveries.jsonl");
   const claimFile = path.join(stateDir, "wake-report-send-claims.jsonl");
@@ -385,24 +399,106 @@ function createMinimalProductionOperations(options = {}) {
 
   async function recordEffectIntent(input) {
     const row = normalizeEffectIntent(input, occurrenceId, wakeId, now());
-    appendDurable(effectIntentFile, row);
+    const fenceFile = path.join(stateDir, "effect-fences",
+      `${createHash("sha256").update(occurrenceId).digest("hex")}.json`);
+    try { fs.lstatSync(fenceFile); invalid(); }
+    catch (error) { if (!error || error.code !== "ENOENT") throw error; }
+    privateDirectory(effectIntentDir);
+    const file = effectIntentFile(occurrenceId);
+    let size = 0;
+    try {
+      const stat = fs.lstatSync(file);
+      if (!stat.isFile() || stat.isSymbolicLink()) invalid();
+      size = stat.size;
+    } catch (error) { if (!error || error.code !== "ENOENT") throw error; }
+    if (size + Buffer.byteLength(`${JSON.stringify(row)}\n`, "utf8") > MAX_EFFECT_INTENT_BYTES) invalid();
+    appendDurable(file, row);
     return row;
   }
 
   async function listEffectIntents(requestedOccurrenceId) {
     if (!/^life-manager-connector-native:[A-Za-z0-9._:-]{1,90}$/.test(String(requestedOccurrenceId || ""))
       || String(requestedOccurrenceId).length > 128) invalid();
-    const rows = readRows(effectIntentFile).map((row) => {
+    const rows = readRows(effectIntentFile(requestedOccurrenceId)).map((row) => {
       if (!row || typeof row !== "object" || Array.isArray(row)
         || Object.keys(row).sort().join(",") !== "canonical_url,effect_kind,effect_url,event_ref,occurrence_id,provider,readback_candidate,recorded_at,schema_version,wake_id"
-        || row.schema_version !== 1) invalid();
+        || row.schema_version !== 1 || row.occurrence_id !== requestedOccurrenceId) invalid();
       const canonical = normalizeEffectIntent({ candidate: row.readback_candidate,
         effect_kind: row.effect_kind, effect_url: row.effect_url },
       row.occurrence_id, row.wake_id, row.recorded_at);
       if (JSON.stringify(canonical) !== JSON.stringify(row)) invalid();
       return Object.freeze(row);
     });
-    return Object.freeze(rows.filter((row) => row.occurrence_id === requestedOccurrenceId));
+    return Object.freeze(rows);
+  }
+
+  async function prepareEffectFence(requestedOccurrenceId, releaseSha) {
+    // Admission gives this occurrence to one Connector child, and lm-loop
+    // emits its outer report only after that child is reaped. The report is
+    // therefore the writer-closed boundary for the normal production path;
+    // arbitrary non-owner processes must never write with a borrowed ID.
+    if (!/^life-manager-connector-native:[A-Za-z0-9._:-]{1,90}$/.test(String(requestedOccurrenceId || ""))
+      || !/^[0-9a-f]{40}$/.test(String(releaseSha || ""))) invalid();
+    const runId = requestedOccurrenceId.slice("life-manager-connector-native:".length);
+    const proof = await readOuterTerminal(requestedOccurrenceId, releaseSha);
+    const terminal = proof && proof.terminal;
+    if (!proof || proof.ok !== true || !terminal || typeof terminal !== "object"
+      || terminal.loop_id !== "life-manager-connector-native" || terminal.run_id !== runId
+      || terminal.release_sha !== releaseSha || terminal.phase !== "report"
+      || !["pass", "fail", "blocked"].includes(terminal.status)
+      || terminal.provider !== "deterministic" || terminal.profile_alias !== null
+      || !Array.isArray(terminal.evidence_refs)
+      || JSON.stringify(terminal.evidence_refs) !== JSON.stringify([
+        `lm-loop://life-manager-connector-native/${runId}/summary.json`])
+      || !/^[0-9a-f]{24,64}$/.test(String(terminal.event_id || ""))
+      || typeof terminal.timestamp !== "string" || !Number.isFinite(Date.parse(terminal.timestamp))) invalid();
+    const intents = await listEffectIntents(requestedOccurrenceId);
+    if (intents.length === 0) invalid();
+    const intentsSha = createHash("sha256").update(JSON.stringify(intents)).digest("hex");
+    const directory = privateDirectory(path.join(stateDir, "effect-fences"));
+    const name = createHash("sha256").update(requestedOccurrenceId).digest("hex");
+    const file = path.join(directory, `${name}.json`);
+    const value = { schema_version: 1, occurrence_id: requestedOccurrenceId,
+      release_sha: releaseSha, status: "active", terminal_event_id: terminal.event_id,
+      terminal_status: terminal.status, terminal_timestamp: terminal.timestamp,
+      intents_count: intents.length, intents_sha256: intentsSha, intents,
+      prepared_at: exactInstant(now()) };
+    const receipt = (stored) => Object.freeze({ schema_version: 1,
+      occurrence_id: requestedOccurrenceId, intents_count: intents.length,
+      intents_sha256: intentsSha, terminal_event_id: terminal.event_id,
+      prepared_at: stored.prepared_at,
+      fence_ref: `connector-effect-fence://sha256/${name}` });
+    const existing = () => {
+      let stat;
+      try { stat = fs.lstatSync(file); }
+      catch (error) { if (error && error.code === "ENOENT") return null; throw error; }
+      if (!stat.isFile() || stat.isSymbolicLink() || (stat.mode & 0o777) !== 0o600
+        || stat.size > MAX_EFFECT_FENCE_BYTES) invalid();
+      let stored;
+      try { stored = JSON.parse(fs.readFileSync(file, "utf8")); } catch { invalid(); }
+      if (!stored || typeof stored !== "object" || Array.isArray(stored)
+        || exactInstant(stored.prepared_at) !== stored.prepared_at
+        || JSON.stringify(stored) !== JSON.stringify({ ...value, prepared_at: stored.prepared_at })) invalid();
+      return stored;
+    };
+    let stored = existing();
+    if (!stored) {
+      const serialized = `${JSON.stringify(value)}\n`;
+      if (Buffer.byteLength(serialized, "utf8") > MAX_EFFECT_FENCE_BYTES) invalid();
+      const temporary = path.join(directory, `.${name}.${randomUUID()}.tmp`);
+      const fd = fs.openSync(temporary, "wx", 0o600);
+      try {
+        fs.writeFileSync(fd, serialized, "utf8");
+        fs.fsyncSync(fd);
+      } finally { fs.closeSync(fd); }
+      try {
+        try { fs.linkSync(temporary, file); stored = value; }
+        catch (error) { if (!error || error.code !== "EEXIST") throw error; stored = existing(); }
+      } finally { fs.unlinkSync(temporary); }
+    }
+    const directoryFd = fs.openSync(directory, "r");
+    try { fs.fsyncSync(directoryFd); } finally { fs.closeSync(directoryFd); }
+    return receipt(stored);
   }
 
   async function recordDiscoveryAudit(input) {
@@ -514,7 +610,7 @@ function createMinimalProductionOperations(options = {}) {
   }
 
   return Object.freeze({
-    recordAction, recordEffectIntent, listEffectIntents,
+    recordAction, recordEffectIntent, listEffectIntents, prepareEffectFence,
     recordDiscoveryAudit, recordConnpassDiscoveryAudit,
     recordRankingAudit, recordPeatixDiscoveryAudit,
     recordMeetupDiscoveryAudit, recordDoorkeeperDiscoveryAudit, recordEventbriteDiscoveryAudit, reportWake,

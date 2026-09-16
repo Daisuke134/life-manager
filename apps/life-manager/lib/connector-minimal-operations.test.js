@@ -775,7 +775,8 @@ test("Connector durably records exact host occurrence target before an effect", 
       candidate: { provider: "luma", event_ref: "luma-event://event/second",
         canonical_url: "https://luma.com/second", title: "Another event",
         starts_at: "2026-08-20T09:00:00.000Z", ends_at: "2026-08-20T10:00:00.000Z" } });
-    const file = path.join(stateDir, "effect-intents.jsonl");
+    const [name] = fs.readdirSync(path.join(stateDir, "effect-intents"));
+    const file = path.join(stateDir, "effect-intents", name);
     const rows = fs.readFileSync(file, "utf8").trim().split("\n").map(JSON.parse);
     const row = rows[0];
     assert.deepEqual(row, {
@@ -800,6 +801,188 @@ test("Connector durably records exact host occurrence target before an effect", 
     assert.doesNotMatch(JSON.stringify(row), /private-target|must-not-persist|token|password|email/i);
     fs.appendFileSync(file, '{"unexpected":"row"}\n');
     await assert.rejects(() => operations.listEffectIntents(row.occurrence_id));
+  } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
+});
+
+test("Connector freezes every intent only after exact outer terminal", async () => {
+  const hostRoot = fs.mkdtempSync(path.join(os.tmpdir(), "connector-closed-intents-"));
+  const stateDir = path.join(hostRoot, "connector-native");
+  const priorHostRoot = process.env.LIFE_MANAGER_STATE_ROOT;
+  process.env.LIFE_MANAGER_STATE_ROOT = hostRoot;
+  const occurrenceId = "life-manager-connector-native:run-closed-123";
+  const releaseSha = "b".repeat(40);
+  const terminal = { version: 1, event_id: "a".repeat(24), timestamp: "2026-08-12T08:31:00.000Z",
+    loop_id: "life-manager-connector-native", run_id: "run-closed-123",
+    release_sha: releaseSha, phase: "report", status: "fail",
+    domain: "system", effect_class: "none", effect_status: "not_applicable",
+    blocker: "wake_deadline", provider: "deterministic", profile_alias: null,
+    evidence_refs: ["lm-loop://life-manager-connector-native/run-closed-123/summary.json"] };
+  try {
+    fs.writeFileSync(path.join(hostRoot, "events.jsonl"), `${JSON.stringify(terminal)}\n`, "utf8");
+    const operations = createMinimalProductionOperations({
+      stateDir, wakeId: "wake-closed-123", occurrenceId,
+      telegramTarget: "private-target", now: () => new Date("2026-08-12T08:30:00.000Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    });
+    await assert.rejects(() => operations.prepareEffectFence(occurrenceId, releaseSha));
+    assert.equal(fs.existsSync(path.join(stateDir, "effect-fences")), false);
+    for (const event of ["first", "second"]) {
+      await operations.recordEffectIntent({ effect_kind: "registration",
+        effect_url: `https://luma.com/${event}`,
+        candidate: { provider: "luma", event_ref: `luma-event://event/${event}`,
+          canonical_url: `https://luma.com/${event}` } });
+    }
+    const redirected = path.join(hostRoot, "redirected-fences");
+    fs.mkdirSync(redirected);
+    const directory = path.join(stateDir, "effect-fences");
+    fs.symlinkSync(redirected, directory);
+    await assert.rejects(() => operations.prepareEffectFence(occurrenceId, releaseSha));
+    assert.deepEqual(fs.readdirSync(redirected), []);
+    fs.unlinkSync(directory);
+    const [receipt, parallelReceipt] = await Promise.all([
+      operations.prepareEffectFence(occurrenceId, releaseSha),
+      operations.prepareEffectFence(occurrenceId, releaseSha),
+    ]);
+    assert.deepEqual(parallelReceipt, receipt);
+    assert.equal(receipt?.occurrence_id, occurrenceId);
+    assert.equal(receipt?.intents_count, 2);
+    assert.equal(receipt?.terminal_event_id, terminal.event_id);
+    assert.match(receipt?.intents_sha256, /^[0-9a-f]{64}$/);
+    const files = fs.readdirSync(directory);
+    assert.equal(files.length, 1);
+    const stored = JSON.parse(fs.readFileSync(path.join(directory, files[0]), "utf8"));
+    assert.equal(stored.status, "active");
+    assert.deepEqual(stored.intents.map((row) => row.event_ref), [
+      "luma-event://event/first", "luma-event://event/second",
+    ]);
+    assert.deepEqual(await operations.prepareEffectFence(occurrenceId, releaseSha), receipt);
+    await assert.rejects(() => operations.recordEffectIntent({ effect_kind: "registration",
+      effect_url: "https://luma.com/late",
+      candidate: { provider: "luma", event_ref: "luma-event://event/late",
+        canonical_url: "https://luma.com/late" } }));
+    const fenceFile = path.join(directory, files[0]);
+    fs.writeFileSync(fenceFile, "null\n", "utf8");
+    await assert.rejects(() => operations.prepareEffectFence(occurrenceId, releaseSha));
+    assert.equal(fs.readFileSync(fenceFile, "utf8"), "null\n");
+  } finally {
+    if (priorHostRoot == null) delete process.env.LIFE_MANAGER_STATE_ROOT;
+    else process.env.LIFE_MANAGER_STATE_ROOT = priorHostRoot;
+    fs.rmSync(hostRoot, { recursive: true, force: true });
+  }
+});
+
+test("Connector cannot activate a fence from an injected terminal claim", async () => {
+  const hostRoot = fs.mkdtempSync(path.join(os.tmpdir(), "connector-false-terminal-"));
+  const priorHostRoot = process.env.LIFE_MANAGER_STATE_ROOT;
+  process.env.LIFE_MANAGER_STATE_ROOT = hostRoot;
+  const occurrenceId = "life-manager-connector-native:run-no-terminal";
+  const releaseSha = "b".repeat(40);
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir: path.join(hostRoot, "connector-native"), occurrenceId,
+      wakeId: "wake-no-terminal", telegramTarget: "private-target",
+      now: () => new Date("2026-08-12T08:30:00.000Z"),
+      readOuterTerminal: async () => ({ ok: true, terminal: {
+        event_id: "a".repeat(24), timestamp: "2026-08-12T08:31:00.000Z",
+        loop_id: "life-manager-connector-native", run_id: "run-no-terminal",
+        release_sha: releaseSha, phase: "report", status: "fail",
+        provider: "deterministic", profile_alias: null,
+        evidence_refs: ["lm-loop://life-manager-connector-native/run-no-terminal/summary.json"],
+      } }),
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    });
+    await operations.recordEffectIntent({ effect_kind: "registration",
+      effect_url: "https://luma.com/no-terminal",
+      candidate: { provider: "luma", event_ref: "luma-event://event/no-terminal",
+        canonical_url: "https://luma.com/no-terminal" } });
+    await assert.rejects(() => operations.prepareEffectFence(occurrenceId, releaseSha));
+    assert.equal(fs.existsSync(path.join(hostRoot, "connector-native", "effect-fences")), false);
+  } finally {
+    if (priorHostRoot == null) delete process.env.LIFE_MANAGER_STATE_ROOT;
+    else process.env.LIFE_MANAGER_STATE_ROOT = priorHostRoot;
+    fs.rmSync(hostRoot, { recursive: true, force: true });
+  }
+});
+
+test("Connector's next occurrence is not blocked by an oversized older intent journal", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-intent-isolation-"));
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir, wakeId: "wake-new-occurrence", telegramTarget: "private-target",
+      occurrenceId: "life-manager-connector-native:run-new-occurrence",
+      now: () => new Date("2026-08-12T08:30:00.000Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    });
+    const legacyJournal = path.join(stateDir, "effect-intents.jsonl");
+    fs.writeFileSync(legacyJournal, "x", { mode: 0o600 });
+    fs.truncateSync(legacyJournal, 5_000_001);
+    await operations.recordEffectIntent({ effect_kind: "registration",
+      effect_url: "https://luma.com/new-occurrence",
+      candidate: { provider: "luma", event_ref: "luma-event://event/new-occurrence",
+        canonical_url: "https://luma.com/new-occurrence" } });
+    const rows = await operations.listEffectIntents("life-manager-connector-native:run-new-occurrence");
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].event_ref, "luma-event://event/new-occurrence");
+  } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
+});
+
+test("Connector can reopen a valid fence larger than one megabyte", async () => {
+  const hostRoot = fs.mkdtempSync(path.join(os.tmpdir(), "connector-large-fence-"));
+  const priorHostRoot = process.env.LIFE_MANAGER_STATE_ROOT;
+  process.env.LIFE_MANAGER_STATE_ROOT = hostRoot;
+  const occurrenceId = "life-manager-connector-native:run-large-fence";
+  const releaseSha = "b".repeat(40);
+  try {
+    fs.writeFileSync(path.join(hostRoot, "events.jsonl"), `${JSON.stringify({
+      version: 1, event_id: "a".repeat(24), timestamp: "2026-08-12T08:31:00.000Z",
+      loop_id: "life-manager-connector-native", run_id: "run-large-fence",
+      release_sha: releaseSha, phase: "report", status: "fail", domain: "system",
+      effect_class: "none", effect_status: "not_applicable", blocker: "wake_deadline",
+      provider: "deterministic", profile_alias: null,
+      evidence_refs: ["lm-loop://life-manager-connector-native/run-large-fence/summary.json"],
+    })}\n`, "utf8");
+    const stateDir = path.join(hostRoot, "connector-native");
+    const operations = createMinimalProductionOperations({
+      stateDir, occurrenceId, wakeId: "wake-large-fence", telegramTarget: "private-target",
+      now: () => new Date("2026-08-12T08:30:00.000Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    });
+    await operations.recordEffectIntent({ effect_kind: "registration",
+      effect_url: "https://luma.com/large-fence",
+      candidate: { provider: "luma", event_ref: "luma-event://event/large-fence",
+        canonical_url: "https://luma.com/large-fence", venue_address: "A".repeat(2000) } });
+    const intentDir = path.join(stateDir, "effect-intents");
+    const intentFile = path.join(intentDir, fs.readdirSync(intentDir)[0]);
+    const row = fs.readFileSync(intentFile, "utf8");
+    fs.appendFileSync(intentFile, row.repeat(510));
+    const first = await operations.prepareEffectFence(occurrenceId, releaseSha);
+    assert.ok(first.intents_count > 500);
+    assert.deepEqual(await operations.prepareEffectFence(occurrenceId, releaseSha), first);
+  } finally {
+    if (priorHostRoot == null) delete process.env.LIFE_MANAGER_STATE_ROOT;
+    else process.env.LIFE_MANAGER_STATE_ROOT = priorHostRoot;
+    fs.rmSync(hostRoot, { recursive: true, force: true });
+  }
+});
+
+test("Connector stops before effect when one occurrence journal reaches its bound", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-intent-bound-"));
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir, wakeId: "wake-intent-bound", telegramTarget: "private-target",
+      occurrenceId: "life-manager-connector-native:run-intent-bound",
+      now: () => new Date("2026-08-12T08:30:00.000Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    });
+    const input = { effect_kind: "registration", effect_url: "https://luma.com/bound",
+      candidate: { provider: "luma", event_ref: "luma-event://event/bound",
+        canonical_url: "https://luma.com/bound" } };
+    await operations.recordEffectIntent(input);
+    const directory = path.join(stateDir, "effect-intents");
+    const file = path.join(directory, fs.readdirSync(directory)[0]);
+    fs.truncateSync(file, 4_999_900);
+    await assert.rejects(() => operations.recordEffectIntent(input));
+    assert.equal(fs.statSync(file).size, 4_999_900);
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });
 
