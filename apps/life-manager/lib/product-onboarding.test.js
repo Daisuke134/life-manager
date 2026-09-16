@@ -165,9 +165,10 @@ test("default product observations make unsupported hosts explicit and never inv
   assert.equal(observations.find((observation) => observation.id === "gig-lancers").state,
     "setup_required");
   assert.equal(observations.find((observation) => observation.id === "gig-coconala").state,
-    "unknown");
+    "blocked");
   assert.equal(observations.find((observation) => observation.id === "gig-coconala").reason,
     "runtime_evidence_missing");
+  assert.equal(observations.some((observation) => observation.state === "unknown"), false);
   assert.equal(observations.every((observation) => observation.resource_class === "unknown"), true);
   assert.equal(observations.every((observation) => observation.notification_state === "internal_only"), true);
   assert.deepEqual(catalog.loops.map((loop) => loop.id), observations.map((observation) => observation.id));
@@ -189,7 +190,27 @@ test("default observations preserve a known runtime diagnosis for setup-required
   });
 
   const row = observations.find((observation) => observation.id === "gig-lancers");
-  assert.equal(row.state, "setup_required");
+  assert.equal(row.state, "blocked");
+  assert.equal(row.reason, "runtime_release_drift");
+});
+
+test("default observations classify a known guided-loop runtime failure as blocked", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "a".repeat(40);
+  const coconala = catalog.loops.find((loop) => loop.id === "gig-coconala");
+  const observations = buildDefaultProductLoopObservations({
+    host: "local",
+    release_sha: releaseSha,
+    runtime_rows: coconala.job_ids.map((loopId) => ({
+      loop_id: loopId,
+      installed_release_sha: "b".repeat(40),
+      event_release_sha: "b".repeat(40),
+      last_terminal_result: "pass",
+    })),
+  });
+
+  const row = observations.find((observation) => observation.id === "gig-coconala");
+  assert.equal(row.state, "blocked");
   assert.equal(row.reason, "runtime_release_drift");
 });
 
@@ -225,6 +246,26 @@ test("local completion gate blocks a manifest that still contains unknown loops"
     release_sha: releaseSha,
     reasons: ["unknown_product_loop"],
   });
+});
+
+test("local completion gate blocks a diagnosed blocked loop", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "4".repeat(40);
+  const observations = catalog.loops.map((loop, index) => ({
+    id: loop.id,
+    state: index === 0 ? "blocked" : "setup_required",
+    reason: index === 0 ? "runtime_release_drift" : "host_adapter_pending",
+    contract: {},
+  }));
+  const manifest = buildProductLoopCompletionManifest({
+    host: "local",
+    release_sha: releaseSha,
+    observations,
+  });
+
+  const gate = evaluateLocalCompletionGate(manifest);
+  assert.equal(gate.decision, "block");
+  assert.deepEqual(gate.reasons, ["blocked_product_loop"]);
 });
 
 test("local completion gate passes only explicit setup states or verified receipts", () => {
@@ -1166,7 +1207,7 @@ test("completion manifest CLI builds a safe baseline when only runtime status is
   assert.equal(result.status, 0, result.stderr);
   const manifest = JSON.parse(fs.readFileSync(outputPath, "utf8"));
   assert.equal(manifest.loops.length, 14);
-  assert.equal(manifest.loops.find((loop) => loop.id === "gig-coconala").state, "unknown");
+  assert.equal(manifest.loops.find((loop) => loop.id === "gig-coconala").state, "blocked");
   assert.equal(manifest.loops.find((loop) => loop.id === "gig-lancers").state, "setup_required");
   assert.equal(manifest.completion, false);
   fs.rmSync(root, { recursive: true, force: true });

@@ -5,7 +5,7 @@ const path = require("node:path");
 
 const DEFAULT_CATALOG = path.resolve(__dirname, "../config/product-loop-catalog.json");
 const HOSTS = new Set(["local", "cloud"]);
-const COMPLETION_STATES = new Set(["verified", "setup_required", "not_applicable", "unknown"]);
+const COMPLETION_STATES = new Set(["verified", "setup_required", "not_applicable", "blocked", "unknown"]);
 const COMPLETION_CONTRACT_FIELDS = [
   "goal",
   "context",
@@ -210,10 +210,12 @@ function buildDefaultProductLoopObservations(input = {}, options = {}) {
   return Object.freeze(catalog.loops.map((loop) => {
     const runtimeEvidence = buildRuntimeEvidence(loop, runtimeByJobId, releaseSha);
     const setupRequired = loop.hosts[host].availability === "setup_required";
+    const setupPending = setupRequired && runtimeEvidence.observed_job_ids.length === 0;
     return Object.freeze({
       id: loop.id,
-      state: setupRequired ? "setup_required" : "unknown",
-      reason: runtimeEvidence.reason || (setupRequired ? "host_adapter_pending" : "official_receipt_required"),
+      state: setupPending ? "setup_required" : "blocked",
+      reason: setupPending ? "host_adapter_pending"
+        : (runtimeEvidence.reason || "official_receipt_required"),
       owner_id: null,
       release_sha: null,
       official_receipt: false,
@@ -264,10 +266,13 @@ function evaluateCloudPromotionGate(input = {}, options = {}) {
         && [...actualIds].sort().every((id, index) => id === [...expectedIds].sort()[index]);
       if (!sameIds) reasons.push("cloud_manifest_loop_identity_mismatch");
       if (cloudManifest.loops.some((loop) => !loop
-        || !["verified", "setup_required", "not_applicable"].includes(loop.state)
+        || !["verified", "setup_required", "not_applicable", "blocked"].includes(loop.state)
         || typeof loop.resource_class !== "string" || !RESOURCE_CLASS.test(loop.resource_class)
         || typeof loop.notification_state !== "string" || !NOTIFICATION_STATES.has(loop.notification_state))) {
         reasons.push("cloud_manifest_state_invalid");
+      }
+      if (cloudManifest.loops.some((loop) => loop && loop.state === "blocked")) {
+        reasons.push("cloud_manifest_blocked_loop");
       }
       if (cloudManifest.loops.some((loop) => loop && loop.state === "verified"
         && (!loop.runtime_evidence || loop.runtime_evidence.ready !== true))) {
@@ -339,6 +344,8 @@ function evaluateLocalCompletionGate(manifest, options = {}) {
         const state = String(loop.state || "").trim();
         if (state === "unknown") {
           reasons.push("unknown_product_loop");
+        } else if (state === "blocked") {
+          reasons.push("blocked_product_loop");
         } else if (!["verified", "setup_required", "not_applicable"].includes(state)) {
           reasons.push("invalid_product_loop_state");
         }
@@ -373,7 +380,10 @@ function evaluateLocalCompletionGate(manifest, options = {}) {
       if (manifest.loops.length !== catalog.loops.length) reasons.push("manifest_loop_count_mismatch");
       const unknownCount = manifest.loops.filter((loop) => loop && loop.state === "unknown").length;
       if (manifest.unknown_count !== unknownCount) reasons.push("manifest_unknown_count_mismatch");
-      if (manifest.completion !== (unknownCount === 0)) reasons.push("manifest_completion_mismatch");
+      const blockedCount = manifest.loops.filter((loop) => loop && loop.state === "blocked").length;
+      if (manifest.completion !== (unknownCount === 0 && blockedCount === 0)) {
+        reasons.push("manifest_completion_mismatch");
+      }
     }
   }
   const uniqueReasons = [...new Set(reasons)];
@@ -491,7 +501,7 @@ function buildProductLoopCompletionManifest(input = {}, options = {}) {
     loops: Object.freeze(loops),
     counts: Object.freeze(counts),
     unknown_count: counts.unknown,
-    completion: counts.unknown === 0,
+    completion: counts.unknown === 0 && counts.blocked === 0,
   });
 }
 
