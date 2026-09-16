@@ -41,6 +41,19 @@ maintenance用途として別途判断し、現在のproduction gateには含め
 `docs/agent-engineering-skills-20260915`のcommitへ記録します。テストgreenだけではprovider
 成功や収益を意味せず、公式receiptがない状態は未完了です。
 
+### Scope-drift incident analysis（再発防止）
+
+- **症状:** foundationの確認中にrepo全体のtest commandを実行し、既存のClaude-p期待やmock
+  integrationまで修正対象として扱いかけた。
+- **誤った本能:** 「全testをgreenにすれば仕事が進む」と考え、ユーザーが指定したfoundationの
+  境界より、テスト一覧をTODOとして優先した。
+- **正しい手:** 作業開始時にscope（foundationのみ）、禁止対象（Claude-p/mock/provider）、
+  完了証拠（実データ・公式receipt）を先に固定する。範囲外のtest failureは記録するだけで、
+  productionやspecのTODOを広げない。
+- **一般則:** testは実装の回帰検査、receiptは外部効果の証明、と役割を分ける。test名や古い
+  fixtureが現在のscopeを上書きしてはならない。各atomic taskは指定ファイルだけを変更する。
+- **実例:** 今回のClaude-p/mock差分は未commitのまま破棄し、foundationの確定commitだけを残した。
+
 ### Foundation scope（platform作業との境界）
 
 このspecでいうfoundationは、Lancers/CrowdWorks/Coconala/Mercorの案件を処理することではなく、
@@ -138,6 +151,32 @@ flowchart LR
 URL・DOM・receiptだけを担当します。成功は「プロセスが動いた」ではなく、公式readbackと
 replay-zeroが揃った時だけです。人間が必要なのは、Mercorの面接や購入者確認のような
 `human_gate`だけで、通常のwake・失敗回復・評価は自動で続きます。
+
+### ユーザー体験（Local / Cloud共通）
+
+ユーザーが見るのは、処理中の細かいログではなく、重要な結果と本当に必要な確認だけです。
+通常のwake、retry、health、eval、recoveryはGit外のprivate control roomに保存します。
+LocalではMac上のheadless worker、Cloudではworker上のSteelを使いますが、目標・状態・receipt・
+human gateは同じ契約です。ユーザーはスマホだけで状態を確認し、必要な時だけ同じ作業へ戻ります。
+
+```mermaid
+flowchart TD
+  A[ユーザーのスマホ<br/>相談・確認] --> B[Life Manager<br/>private control room]
+  B --> C{現在の状態}
+  C -->|処理中| D[画面に出さずworker実行]
+  C -->|人間の確認が必要| E[スマホへ重要通知1件]
+  E --> F[同じowner・同じ作業を再開]
+  C -->|公式receipt確認済み| G[完了結果だけ表示]
+  C -->|失敗| H[内部recovery intent]
+  H --> I[同じownerをbounded retry]
+  I -->|上限到達| J[内部repair queue]
+  D --> K{実行場所}
+  K --> L[Local<br/>Mac + headless browser]
+  K --> M[Cloud<br/>worker + Steel]
+  L --> N[同じstate・contract・receipt]
+  M --> N
+  N --> C
+```
 
 ### 引き継ぎ判定（gig work）
 
