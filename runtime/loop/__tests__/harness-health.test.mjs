@@ -311,6 +311,22 @@ test('R10: recovery fields use the trailing same-slot failure streak and reset a
   assert.equal(third.preserve_siblings, true);
 });
 
+test('R10: recovery fields preserve the canonical job identity for targeted reconcile', () => {
+  const decision = buildRecoveryDecisionFields({
+    ownerId: 'hf-gig-apply-direct',
+    jobId: 'hf-gig-apply-direct',
+    slot: 'gig-apply',
+    kind: 'skill_error',
+    recentRecords: [
+      { ts: 1, wake_id: 'clean', kind: 'wake', slot: 'gig-apply' },
+    ],
+    currentRecord: { ts: 2, wake_id: 'failed', kind: 'skill_error', slot: 'gig-apply' },
+  });
+  assert.equal(decision.action, 'retry_owner');
+  assert.equal(decision.owner_id, 'hf-gig-apply-direct');
+  assert.equal(decision.job_id, 'hf-gig-apply-direct');
+});
+
 test('R10: unsupported failure kinds fail closed without inventing an owner or action', () => {
   assert.deepEqual(buildRecoveryDecisionFields({
     ownerId: 'runtime:router',
@@ -374,6 +390,19 @@ test('R10: recovery intent projection keeps the latest decision per owner and ne
   assert.equal(projected.decisions.find((item) => item.owner_id === 'runtime:other').action, 'retry_owner');
   assert.equal(projected.decisions.some((item) => JSON.stringify(item).includes('secret-like')), false);
   assert.equal(projected.pending_count, 2);
+});
+
+test('R10: recovery intent projection preserves an optional canonical job identity', () => {
+  const projected = projectRecoveryIntents([{
+    recovery: {
+      schema_version: 'recovery.decision.v1', event_key: 'job:apply:w1:retry_owner:1',
+      action: 'retry_owner', owner_id: 'hf-gig-apply-direct', job_id: 'hf-gig-apply-direct',
+      slot: 'gig-apply', reason: 'bounded_retry', retry_attempt: 1, preserve_siblings: true,
+    },
+  }]);
+  assert.equal(projected.decisions.length, 1);
+  assert.equal(projected.decisions[0].owner_id, 'hf-gig-apply-direct');
+  assert.equal(projected.decisions[0].job_id, 'hf-gig-apply-direct');
 });
 
 // ── R8 cross-language parity anchor (JS side) — shared fixture with harness_health.py ──

@@ -1133,6 +1133,9 @@ function buildSkillEnv(slot, wakeId, config, scrub, scrubPII, args) {
  */
 async function appendHarnessFailure({ ts, wakeId, slot, kind, layer, exitCode, rawDetail, recentRecords = [] }) {
   const detail = capFailureDetail(rawDetail);
+  const jobId = typeof process.env.LIFE_MANAGER_LOOP_ID === 'string'
+    && /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(process.env.LIFE_MANAGER_LOOP_ID)
+    ? process.env.LIFE_MANAGER_LOOP_ID : null;
   const fields = {
     ts,
     wake_id: wakeId,
@@ -1144,7 +1147,8 @@ async function appendHarnessFailure({ ts, wakeId, slot, kind, layer, exitCode, r
     // R10: persist a bounded recovery intent beside the diagnostic event. This is consumed by a
     // supervisor later; it never restarts a process, touches a browser/provider, or sends Telegram.
     recovery: buildRecoveryDecisionFields({
-      ownerId: slot != null ? `runtime:${slot}` : null,
+      ownerId: jobId || (slot != null ? `runtime:${slot}` : null),
+      jobId,
       slot: slot != null ? slot : null,
       kind,
       recentRecords,

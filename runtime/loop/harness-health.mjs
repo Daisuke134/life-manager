@@ -221,10 +221,11 @@ const RECOVERY_KIND = /^[a-z][a-z0-9_]{0,63}$/;
  * interleaved sibling failures do not affect this owner.  The input window is capped at 64 rows so
  * a malformed caller cannot turn one failure into an unbounded memory scan.
  *
- * @param {{ownerId?: string, slot?: string|null, kind?: string, recentRecords?: object[],
- *   currentRecord?: object, retryLimit?: number, streakThreshold?: number}} input
- * @returns {{schema_version:string,event_key:string,action:string,owner_id:string|null,slot:string|null,
- *   reason:string,retry_attempt:number,preserve_siblings:true}}
+ * @param {{ownerId?: string, jobId?: string, slot?: string|null, kind?: string,
+ *   recentRecords?: object[], currentRecord?: object, retryLimit?: number,
+ *   streakThreshold?: number}} input
+ * @returns {{schema_version:string,event_key:string,action:string,owner_id:string|null,job_id?:string,
+ *   slot:string|null,reason:string,retry_attempt:number,preserve_siblings:true}}
  */
 export function buildRecoveryDecisionFields(input = {}) {
   const kind = typeof input.kind === 'string'
@@ -235,6 +236,12 @@ export function buildRecoveryDecisionFields(input = {}) {
   const currentSlot = typeof input.slot === 'string'
     ? input.slot
     : (typeof current.slot === 'string' ? current.slot : null);
+  const jobIdInput = typeof input.jobId === 'string' ? input.jobId
+    : (typeof current.job_id === 'string' ? current.job_id
+      : (typeof current.loop_id === 'string' ? current.loop_id : null));
+  const jobId = typeof jobIdInput === 'string' && RECOVERY_ID.test(jobIdInput)
+    ? jobIdInput : null;
+  const jobIdentity = jobId ? { job_id: jobId } : {};
   const kindKey = typeof kind === 'string' && RECOVERY_KIND.test(kind) ? kind : 'unknown';
   const wakeId = typeof current.wake_id === 'string' && RECOVERY_ID.test(current.wake_id)
     ? current.wake_id : 'unknown';
@@ -245,6 +252,7 @@ export function buildRecoveryDecisionFields(input = {}) {
       event_key: `recovery:block:${kindKey}:${wakeId}`,
       action: 'block',
       owner_id: null,
+      ...jobIdentity,
       slot: null,
       reason: 'unsupported_failure_kind',
       retry_attempt: 0,
@@ -280,6 +288,7 @@ export function buildRecoveryDecisionFields(input = {}) {
       event_key: `recovery:block:${kindKey}:${wakeId}`,
       action: 'block',
       owner_id: null,
+      ...jobIdentity,
       slot: null,
       reason: 'invalid_recovery_input',
       retry_attempt: 0,
@@ -303,6 +312,7 @@ export function buildRecoveryDecisionFields(input = {}) {
     event_key: eventKey,
     action: decision.action,
     owner_id: decision.ownerId,
+    ...jobIdentity,
     slot: decision.slot,
     reason: decision.reason,
     retry_attempt: decision.retryAttempt,
@@ -329,7 +339,9 @@ function validRecoveryIntent(value) {
     || (typeof value.owner_id === 'string' && RECOVERY_ID.test(value.owner_id));
   const slotValid = value.slot === null
     || (typeof value.slot === 'string' && RECOVERY_ID.test(value.slot));
-  if (!ownerValid || !slotValid) return false;
+  const jobValid = value.job_id === undefined
+    || (typeof value.job_id === 'string' && RECOVERY_ID.test(value.job_id));
+  if (!ownerValid || !slotValid || !jobValid) return false;
   if (value.action === 'block') return value.owner_id === null && value.slot === null;
   return value.owner_id !== null && value.slot !== null;
 }
@@ -355,6 +367,7 @@ export function projectRecoveryIntents(records = []) {
       event_key: intent.event_key,
       action: intent.action,
       owner_id: intent.owner_id,
+      ...(typeof intent.job_id === 'string' ? { job_id: intent.job_id } : {}),
       slot: intent.slot,
       reason: intent.reason,
       retry_attempt: intent.retry_attempt,

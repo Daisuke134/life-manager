@@ -40,6 +40,89 @@ def two_loop_registry():
     return value
 
 
+def test_recovery_intent_selects_one_canonical_owner_without_siblings(tmp_path):
+    recovery = tmp_path / "harness-recovery.json"
+    recovery.write_text(json.dumps({
+        "schema_version": "recovery.intents.v1",
+        "decisions": [{
+            "schema_version": "recovery.decision.v1",
+            "event_key": "example:example:w1:retry_owner:1",
+            "action": "retry_owner",
+            "owner_id": "example",
+            "job_id": "example",
+            "slot": "example",
+            "reason": "bounded_retry",
+            "retry_attempt": 1,
+            "preserve_siblings": True,
+        }, {
+            "schema_version": "recovery.decision.v1",
+            "event_key": "second:second:w2:retry_owner:1",
+            "action": "retry_owner",
+            "owner_id": "second",
+            "job_id": "second",
+            "slot": "second",
+            "reason": "bounded_retry",
+            "retry_attempt": 1,
+            "preserve_siblings": True,
+        }],
+        "pending_count": 2,
+    }))
+
+    targets, reason = lm_loop.recovery_target_loop_ids(
+        two_loop_registry(), "deterministic", recovery)
+
+    assert targets == set()
+    assert reason == "recovery_intent_count_invalid"
+
+
+def test_reconcile_recovery_intent_targets_only_the_named_owner(tmp_path):
+    release = tmp_path / "release"
+    release.mkdir()
+    (release / "config").mkdir()
+    (release / "RELEASE.json").write_text(json.dumps({"sha": SHA}))
+    (release / "config/loop-registry.json").write_text(json.dumps(registry()))
+    recovery = tmp_path / "harness-recovery.json"
+    recovery.write_text(json.dumps({
+        "schema_version": "recovery.intents.v1",
+        "decisions": [{
+            "schema_version": "recovery.decision.v1",
+            "event_key": "example:example:w1:retry_owner:1",
+            "action": "retry_owner",
+            "owner_id": "example",
+            "job_id": "example",
+            "slot": "example",
+            "reason": "bounded_retry",
+            "retry_attempt": 1,
+            "preserve_siblings": True,
+        }],
+        "pending_count": 1,
+    }))
+    row = {
+        "classification": "managed",
+        "provider_route": "deterministic",
+        "launchd_state": "loaded-idle",
+        "installed_release_sha": "b" * 40,
+        "loop_id": "example",
+    }
+    applied = []
+    with (
+        patch.object(lm_loop, "ROOT", release),
+        patch.object(lm_loop, "targeted_snapshot", return_value=[row]) as targeted,
+        patch.object(lm_loop, "apply_live", side_effect=lambda *args, **kwargs: applied.append(kwargs["target"]) or [{"ok": True}]),
+        patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release)}),
+        redirect_stdout(io.StringIO()) as output,
+    ):
+        assert lm_loop.main([
+            "reconcile", "deterministic", "--loaded-idle-only",
+            "--recovery-intent", str(recovery),
+        ]) == 0
+
+    targeted.assert_called_once()
+    assert targeted.call_args.args[1] == {"example"}
+    assert applied == ["example"]
+    assert json.loads(output.getvalue())["eligible"] == 1
+
+
 def money_printer_registry(
     entrypoint="bin/example.sh",
     loop_id="money-printer-symphony-bridge",

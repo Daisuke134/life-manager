@@ -301,6 +301,45 @@ def _select(rows: list[dict], target: str) -> list[dict]:
     return selected
 
 
+def recovery_target_loop_ids(registry: dict, route: str,
+                             recovery_path: Path) -> tuple[set[str], str | None]:
+    """Return exactly one retry owner from the derived recovery projection.
+
+    Recovery is intentionally narrower than ordinary reconciliation: a supervisor must provide
+    one canonical ``job_id`` and the projection's owner must match that job.  Missing, stale, or
+    multi-owner projections fail closed so a retry intent can never widen into a sibling restart.
+    """
+    try:
+        value = json.loads(recovery_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return set(), "recovery_intent_invalid"
+    if (not isinstance(value, dict)
+            or value.get("schema_version") != "recovery.intents.v1"
+            or not isinstance(value.get("decisions"), list)):
+        return set(), "recovery_intent_invalid"
+    retry = [item for item in value["decisions"]
+             if isinstance(item, dict) and item.get("action") == "retry_owner"]
+    if len(retry) != 1:
+        return set(), "recovery_intent_count_invalid"
+    intent = retry[0]
+    job_id = intent.get("job_id")
+    owner_id = intent.get("owner_id")
+    if (not isinstance(job_id, str) or not job_id.strip()
+            or not isinstance(owner_id, str) or owner_id.strip() != job_id.strip()):
+        return set(), "recovery_intent_owner_mismatch"
+    job_id = job_id.strip()
+    entry = registry.get("loops", {}).get(job_id)
+    if not isinstance(entry, dict):
+        return set(), "recovery_intent_job_unknown"
+    expected_owner = entry.get("owner_id") if isinstance(entry.get("owner_id"), str) \
+        and entry.get("owner_id").strip() else job_id
+    if owner_id.strip() != expected_owner:
+        return set(), "recovery_intent_owner_mismatch"
+    if entry.get("provider_route") != route:
+        return set(), "recovery_intent_route_mismatch"
+    return {job_id}, None
+
+
 def _bounded_reconcile_candidates(registry: dict, route: str,
                                   current_sha: str, max_owners: int) -> set[str]:
     """Find a small deterministic set of stale installed owners before launchd probing."""
@@ -751,7 +790,7 @@ def main(argv: list[str] | None = None) -> int:
         "start", "stop", "restart", "status", "watch",
     }
     if not args or args[0] not in commands:
-        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]... [--recovery-intent PATH]|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
@@ -806,6 +845,7 @@ def main(argv: list[str] | None = None) -> int:
     registry = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))
     if command == "reconcile":
         positionals, loop_ids, loaded_idle_only, include_running = [], [], False, False
+        recovery_intent = None
         max_owners = None
         reconcile_args = args[1:]
         index = 0
@@ -840,6 +880,17 @@ def main(argv: list[str] | None = None) -> int:
                     print(json.dumps({"ok": False, "error": "--loop-id requires a value"}))
                     return 2
                 loop_ids.append(loop_id)
+            elif value == "--recovery-intent":
+                if index + 1 >= len(reconcile_args) or reconcile_args[index + 1].startswith("--"):
+                    print(json.dumps({"ok": False, "error": "--recovery-intent requires a path"}))
+                    return 2
+                recovery_intent = reconcile_args[index + 1]
+                index += 1
+            elif value.startswith("--recovery-intent="):
+                recovery_intent = value.split("=", 1)[1]
+                if not recovery_intent:
+                    print(json.dumps({"ok": False, "error": "--recovery-intent requires a path"}))
+                    return 2
             elif value.startswith("--"):
                 print(json.dumps({"ok": False, "error": f"unknown reconcile option: {value}"}))
                 return 2
@@ -851,6 +902,17 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         route = positionals[0]
         requested_ids = set(loop_ids)
+        if recovery_intent and (loop_ids or (max_owners is not None and max_owners != 1)):
+            print(json.dumps({"ok": False,
+                              "error": "--recovery-intent conflicts with --loop-id/--max-owners"}))
+            return 2
+        if recovery_intent:
+            requested_ids, recovery_reason = recovery_target_loop_ids(
+                registry, route, Path(recovery_intent).expanduser())
+            if recovery_reason:
+                print(json.dumps({"ok": False, "error": recovery_reason}))
+                return 2
+            max_owners = 1
         if (route == "deterministic"
                 and os.environ.get("LIFE_MANAGER_LOOP_ID") == "life-manager-release-reconciler"):
             requested_ids.add("life-manager-disk-cleanup")
