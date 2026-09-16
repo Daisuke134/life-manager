@@ -90,8 +90,8 @@ providerへ応募する仕事ではありません。
 実行せず、自己修復を直接行うものでもありません。自己修復は、この観測結果を入力にして後続の
 `S-01`〜`S-03`が同じownerだけを再開する仕組みです。
 
-`OBS-01`の実装はcandidate `fix/lm-fundamental-runtime-20260916` の `b470ec3ead` に固定済みで、
-関連テスト43件がPASSしました。既知のruntime診断をsetup_required行にも残し、観測済みの既知障害は
+`OBS-01`の実装はcandidate `fix/lm-fundamental-runtime-20260916` の `67a0374a10` に固定済みで、
+関連のproduct/gateテスト43件とself-healのPython 84件（30 subtests）、JS 36件がPASSしました。既知のruntime診断をsetup_required行にも残し、観測済みの既知障害は
 `blocked`として扱う回帰を追加し、
 実機status 267件を使ったLocal gateは、公式receipt不足を
 `BLOCK / unknown_product_loop`として正しく残しました。したがって、これは「他Codexの修正を
@@ -103,7 +103,7 @@ providerへ応募する仕事ではありません。
 Life Managerの実際の応募・契約・納品・報酬・cloud運用が動いたことを意味しません。現在の
 origin/mainは `913aaa9cc9`（Coconala current-truth merge後の最新remote main参照）まで進み、本番selectorも
 `913aaa9cc9ac1e40b54eb0f0899c69fc17b52c2f`を指しています。候補branchはこのmainへまだ統合しておらず、ownerのinstalled/event SHAもまだ混在しています。
-統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `b470ec3ead`）はpush済みですが、候補はまだmainへmergeしていません。
+統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `67a0374a10`）はpush済みですが、候補はまだmainへmergeしていません。
 本番へはまだ統合していません。
 したがって、次の作業は「さらにスキルを読む」ではなく、候補をmain由来immutable releaseへ
 昇格し、ownerごとの自然wakeで公式効果を確認することです。
@@ -173,6 +173,10 @@ queue・resource契約を直す作業である。
 同日、外部effectを持たないConnector ownerだけをcurrent immutable releaseへtargeted reconcileした。
 installed SHAはcurrentへ揃ったが、最新report/eventは旧SHAのままで、自然wakeのterminal/readbackは未確認である。
 install eventだけを業務成功receiptとは数えず、次回statusでcurrent releaseの自然wakeを確認する。
+
+S-01の共有kernel実装もcandidate `67a0374a10`へ固定した。failure intentへcanonical `job_id`を付与し、
+`lm-loop reconcile --recovery-intent PATH`はretry対象を1 owner/jobだけへ限定する。複数intent・owner不一致・
+route不一致・job ID欠落は実行前に拒否し、兄弟再起動とeffect再送を防ぐ。本番ownerへはまだ配布していない。
 
 同じ手順で外部effectを持たない`self-improve-evolve` ownerもtargeted reconcileした。preflightはPASSし、
 installed SHAはcurrentへ揃ったが、最後のruntime report/eventは旧SHAで`resource_capacity_busy`のままである。
@@ -370,7 +374,7 @@ Telegram報告、テストgreen、ブラウザ画面表示だけでは完了に�
 先に配布しません。全体のlocal/cloud受入が揃った最後に、main統合とimmutable release作成を
 一度だけ行います。
 
-**現在のfoundation cursor:** Architecture側の`OBS-01`は完了しています。`CAND-01`と`CAND-02`の内部canaryも完了しています。R1の14 loop観測も完了し、R2 Local gateを実測してBLOCKを記録しました。次は既知runtime障害を解消してR2を再実行することです。`LOCAL-01/02`
+**現在のfoundation cursor:** Architecture側の`OBS-01`とS-01はcandidateで完了しています。`CAND-01`と`CAND-02`の内部canaryも完了しています。R1の14 loop観測も完了し、R2 Local gateを実測してBLOCKを記録しました。次は既知runtime障害を一件ずつ解消してR2を再実行することです。`LOCAL-01/02`
 ではcompletion manifestの契約と`lm-loop status` JSON接続、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、失敗記録へのrecovery intent保存、`harness-recovery.json`へのowner/slot別最新intent投影、7つのskill索引、`CONTROL-01`のexternal owner登録、管理statusの安定`job_id`/`owner_id`出力、常駐non-effect jobのruntime health判定、completion CLIの既存親ディレクトリ権限保護、runtime rowのjob identity一致検査、Local/Cloud verified行のruntime evidence必須化、Local/Cloud gateのruntime evidence整合性検査、official receiptのrelease SHA結合必須化をcandidate `b470ec3ead`へ実装済みです。
 Graph/Eval/notificationの契約も同candidateへ接続済みです。Local gate CLIのruntime status再束縛、非runtime manifest契約の保持、schema改ざん回帰テスト（43件PASS）、setup_required行の既知runtime診断保持、既知runtime障害の`blocked`分類も同candidateへ固定しました。次は14行のLocal gateを一度判定する作業であり、platformの外部effectを私が実行する項目ではありません。
 
