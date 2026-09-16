@@ -640,10 +640,15 @@ code verdict; recover disk headroom through owner-safe cleanup before rerunning 
 Connector's current reconciliation store retains only potentially effected/unknown candidates, not every
 newly discovered event. A test-first ordinary-candidate inbox was rejected before commit because replayed
 snapshots bypass provider date/open/free and Calendar eligibility checks, and unpruned rows could fill the
-store. Decide per-domain whether Connector wake signals may coalesce against *fresh* provider inventory, or
-retain refs with official current-state revalidation before action; test closed/busy changes explicitly.
+store. Connector uses fresh-provider-inventory wake-signal coalescing; if later evidence requires retaining
+candidate refs, revalidate official current eligibility before action. Test closed/busy changes explicitly.
 The live disk governor passes but preserves open paths and 31 referenced releases; do not bypass those
 protections to make the test suite fit.
+The chosen Connector-only wake-signal coalescing is pushed as `9f462a0aaf` in the foundation branch: real
+SQLite regression RED→GREEN, 187 focused tests and 133 subtests PASS, independent read-only review found no
+P0/P1 in the slice. No other loop opted in. It is **source-only** until main integration, sufficient disk
+headroom, immutable release, targeted apply, natural outer terminal and fresh provider/Calendar readback.
+Do not count it as Connector registration or all-fleet starvation recovery.
 
 **Next order:** (1) keep one-off/retainer refresh live and prove a fresh eligible retainer screening-answer
 effect when one exists, (2) repair shared admission/cadence and owner-scoped tab teardown, including
