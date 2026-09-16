@@ -352,6 +352,19 @@ Luma/Connpass discoveryも成功したが、Connpassのtier/questionnaire/unsafe
 capacity経路と安全なno-effect terminalの証明であり、自然wake・公式効果receiptの代用ではない。
 外側runの自然wake terminalと同一ownerの公式readbackを得るまで、R2-03を未完のまま保持する。
 
+**実行順序の確定:** Cloud作業を先行しない。R2-03で一件の自然wake・terminal・公式readbackを
+確認し、R2-04 Local gateをPASSした後に、S-04 Eval（baseline、held-out、安全性、cost、live
+evidence、rollback）を完了する。R3 Cloud promotionはS-04と同じcandidate SHAを使い、Local gateや
+Evalの未確認をCloud canaryで代用してはならない。これにより、別CodexのCoconala provider作業と
+foundationのruntime/eval作業を分離し、main mergeは最後のR6で一度だけ行う。
+
+**自己修復と自己改善の境界:** Observabilityは「何が起きたか」をowner/run/phase/release SHAで
+記録し、Contextはその観測から一回分の小さな入力を作る。Graphはgoal・job・resource・effect・
+receipt・human gateの関係を再構築して、次に見るべき事実を返す。自己修復は既存queue/reconcileを
+同じownerへboundedに戻すだけで、provider効果を盲目的に再送しない。自己改善は別のcandidateを
+baseline/held-out/safety/cost/live evidenceで評価し、全条件PASS時だけpromotion、失敗時はrollback
+する。どの段階もidentity、permission、receipt条件、評価規則を自分で書き換えない。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
