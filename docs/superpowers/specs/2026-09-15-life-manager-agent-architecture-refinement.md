@@ -87,14 +87,42 @@ origin/mainは `30a2a2dfab`（今回確認した最新remote main参照）まで
 **前提0（最優先）:** gig workの外部effectを実行するCodexを一つに固定し、もう一方は同じ
 provider/state/browserを触らない。handoff receiptができるまで、未統合candidateの再実行も行わない。
 
-| 順番 | atomic task | 変更/参照ファイル | 具体的にすること | PASS条件 |
-|---:|---|---|---|---|
-| 1 | 14 Loopの実際の公式receiptをmanifestへ接続 | `apps/life-manager/config/product-loop-catalog.json`、`apps/life-manager/lib/product-onboarding.js`、`apps/life-manager/scripts/product-loop-completion.js`、`runtime/loop/lm_loop.py`、各ownerのGit外private evidence | 14行をcatalogのID/jobへ対応させ、各行へ公式provider/payment receipt、owner、同一release SHA、6契約、`replay_zero`を実測入力する。receiptが無い行は成功にせずtyped terminalへする | 14行のID一致、公式receiptまたは明示的terminal、effect key重複0、replay-zero |
-| 2 | Local gateを実データでPASS | `apps/life-manager/lib/product-onboarding.js`（`evaluateLocalCompletionGate`）、`apps/life-manager/scripts/local-completion-gate.js`、Git外private manifest | gateを緩めず、`unknown`を実receiptまたは理由付き`setup_required`/`not_applicable`へ解消する。manifestとgate出力はprivate mode 0600で保存する | `unknown=0`、Local gate PASS。mock/fixtureは不可 |
-| 3 | 同じimmutable releaseをCloudへ配置 | `apps/life-manager/config/product-loop-catalog.json`、`apps/life-manager/lib/product-onboarding.js`（cloud gate）、`apps/life-manager/scripts/cloud-promotion-gate.js`、既存cloud deployment artifact | Local PASSのcandidate SHAだけをcloudへ配置し、cloud側manifestの14 ID、source hash、実行artifact SHAを照合する。別実装・別releaseを作らない | cloud artifact SHAがcandidateと一致、14 ID一致、改変0 |
-| 4 | tenant分離・Steel/browser・phone-only canary | `apps/life-manager/lib/steel-cdp-client.js`、`apps/life-manager/lib/stagehand-steel-driver.js`、`apps/life-manager/lib/browser-job-runtime.js`、`apps/life-manager/scripts/browser-auth-tenant-isolation-e2e.js`、`apps/life-manager/scripts/browser-auth-production-e2e.js` | tenantごとに一つのleased sessionを作り、cookie/storage/profile/state/credentialを共有しない。Steel sessionを確実にreleaseし、phoneから状態確認・human gate再開・公式readbackを行う | tenant A/B cross-read 0、credential/state混在0、session owner重複0、phone-only公式readback |
-| 5 | Cloud gateをPASS | `apps/life-manager/lib/product-onboarding.js`（`evaluateCloudPromotionGate`）、`apps/life-manager/scripts/cloud-promotion-gate.js`、Git外cloud manifest/canary receipt | Local gate、cloud manifest、tenant canary、immutable source、公式readback、replay-zeroを同じ入力で判定する。どれか不明ならBLOCKのままにする | local PASS、cloud 14行、公式readback verified、replay-zero、local state/credential copy 0 |
-| 6 | 最後に一度だけmainへmerge・本番release化 | `/private/tmp/lm-fundamental-runtime-20260916`の専用branch、`skills/loop-development/SKILL.md` | 1〜5が全PASSした後だけ、最新mainを統合境界で一度同期し、一度だけmerge・push・immutable release化する。途中mergeやprovider再実行はしない | 全owner同一immutable SHA、production readback、重複effect 0 |
+#### R1: manifestの1行を一つずつ埋める
+
+R1のatomic単位は「14 loop全部」ではなく、**一つのproduct loopのmanifest行を一回の観測で確定すること**です。
+共通の参照・出力先は `apps/life-manager/config/product-loop-catalog.json`、
+`apps/life-manager/lib/product-onboarding.js`、`apps/life-manager/scripts/product-loop-completion.js`、
+実機status `runtime/loop/lm_loop.py`、各ownerのGit外private evidenceです。1行ごとにjob ID、owner、
+同一release SHA、公式receipt（または理由付きterminal）、6契約、`replay_zero`だけを記録します。
+mock/fixture・PID・exit 0・Telegramは証拠にしません。
+
+| 順番 | atomic task（1行だけ） | 完了条件 | 状態 |
+|---:|---|---|---|
+| R1-00 | catalogのjob IDとruntime registryのidentityを照合 | 1行のjob IDが実在し、重複0、`job_id`/`owner_id`が安定 | **完了**（candidate `d0e4c4caa3`） |
+| R1-01 | `gig-coconala`のmanifest行を確定 | 7 jobの同一release runtime、公式receipt、replay-zero、または理由付きterminal | **一時保留**（別Codexのprovider修正中。成功扱いしない） |
+| R1-02 | `gig-lancers`のmanifest行を確定 | 7 jobの同一release runtime、公式proposal/契約receipt、replay-zero | **現在のcursor**（identityは修正済み、receipt未接続） |
+| R1-03 | `gig-crowdworks`のmanifest行を確定 | 4 jobの同一release runtime、公式応募/契約receiptまたは明示的not-applicable、replay-zero | 未完了 |
+| R1-04 | `writer`のmanifest行を確定 | 7 jobのpublisher/payment receiptまたは明示的terminal、replay-zero | 未完了 |
+| R1-05 | `affiliate`のmanifest行を確定 | 6 jobの公式publication/attribution receiptまたは明示的terminal、replay-zero | 未完了 |
+| R1-06 | `investment`のmanifest行を確定 | `alpaca-investment-live`のmode、order/balance receipt、同一release、replay-zero | 未完了 |
+| R1-07 | `agent-economy`のmanifest行を確定 | 19 jobのwallet/compute/revenue receiptまたはtyped setup、replay-zero | 未完了 |
+| R1-08 | `job-hunter`のmanifest行を確定 | 7 jobのapplication/reply receiptまたはtyped terminal、replay-zero | 未完了 |
+| R1-09 | `fundraiser`のmanifest行を確定 | 1 jobの公式application/readbackまたは明示的not-applicable、replay-zero | 未完了 |
+| R1-10 | `connector`のmanifest行を確定 | 1 jobの公式registration/calendar receipt、replay-zero | 未完了 |
+| R1-11 | `self-build`のmanifest行を確定 | 3 jobのreviewed release/rollback receipt、replay-zero | 未完了 |
+| R1-12 | `mobile-apps`のmanifest行を確定 | 22 jobのbuild/publication/metrics receiptまたはtyped terminal、replay-zero | 未完了 |
+| R1-13 | `capafy`のmanifest行を確定 | 8 jobのproduct/publication/revenue receiptまたはtyped terminal、replay-zero | 未完了 |
+| R1-14 | `cfo`のmanifest行を確定 | 3 jobのverified financial snapshot/payout receipt、replay-zero | 未完了 |
+
+#### R2〜R6: R1の後に一件ずつ実行するgate
+
+| 順番 | atomic task | 変更/参照ファイル | 完了条件 |
+|---:|---|---|---|
+| R2 | Local gateを一回実行 | `apps/life-manager/scripts/local-completion-gate.js`、Git外private manifest | 14行の`unknown=0`でLocal PASS。mock/fixture不可 |
+| R3 | Local PASSと同じSHAをCloudへ一回配置 | `apps/life-manager/scripts/cloud-promotion-gate.js`、既存cloud artifact | artifact SHA、source hash、14 IDがcandidateと一致 |
+| R4 | tenant isolationを一回検証 | `apps/life-manager/lib/steel-cdp-client.js`、`stagehand-steel-driver.js`、`browser-job-runtime.js`、browser canary scripts | cross-read 0、credential/state混在0、session重複0、phone-only readback |
+| R5 | Cloud gateを一回判定 | `apps/life-manager/lib/product-onboarding.js`、`cloud-promotion-gate.js`、Git外cloud evidence | Local PASS、14行、公式readback、replay-zero、同一SHAの全PASS |
+| R6 | main mergeと本番releaseを一回だけ行う | `/private/tmp/lm-fundamental-runtime-20260916`、`skills/loop-development/SKILL.md` | R1〜R5の全PASS後だけmerge、immutable production readback、重複effect 0 |
 
 横断するfoundationの未完部分は、`runtime/loop/harness-health.mjs`、`runtime/loop/harness-health-snapshot.mjs`、
 `runtime/loop/index.mjs`に保存したrecovery intentを既存supervisorへ接続し、candidate生成→Eval→
