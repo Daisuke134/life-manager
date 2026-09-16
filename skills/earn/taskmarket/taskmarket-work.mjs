@@ -1,6 +1,8 @@
+import { accessSync, constants } from 'node:fs';
 import { appendFile, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { execFile, spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
+import { homedir } from 'node:os';
 import { promisify } from 'node:util';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -14,6 +16,25 @@ export const TASKMARKET_CLI = join(
   dirname(fileURLToPath(import.meta.url)),
   'node_modules', '.bin', 'taskmarket',
 );
+
+/** Resolve the already-installed CLI without assuming a package directory exists in every release. */
+export function resolveTaskmarketCli(env = process.env) {
+  const candidates = [
+    env.TASKMARKET_CLI,
+    TASKMARKET_CLI,
+    '/opt/homebrew/bin/taskmarket',
+    join(homedir(), '.local', 'bin', 'taskmarket'),
+  ].filter((value) => typeof value === 'string' && value.trim());
+  for (const candidate of candidates) {
+    try {
+      accessSync(candidate, constants.X_OK);
+      return candidate;
+    } catch {
+      // Try the next existing managed installation.
+    }
+  }
+  throw new Error('TaskMarket CLI unavailable');
+}
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
 const MAX_IMAGE_COST_USD = 0.07;
 const DAILY_IMAGE_CAP_USD = 0.14;
@@ -88,7 +109,7 @@ function parseTaskmarketJson(stdout, label) {
 }
 
 async function taskmarketCli(args) {
-  const { stdout } = await execFileAsync(TASKMARKET_CLI, args, {
+  const { stdout } = await execFileAsync(resolveTaskmarketCli(), args, {
     timeout: 60_000,
     maxBuffer: 2 * 1024 * 1024,
   });
@@ -97,7 +118,7 @@ async function taskmarketCli(args) {
 
 async function importTaskmarketWallet(walletKey) {
   await new Promise((resolve, reject) => {
-    const child = spawn(TASKMARKET_CLI, ['wallet', 'import', '--yes'], {
+    const child = spawn(resolveTaskmarketCli(), ['wallet', 'import', '--yes'], {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: process.env,
     });

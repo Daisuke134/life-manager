@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { TASKMARKET_CLI, classifyTask, ensureTaskmarketWallet, runTaskMarketPass, selectTask } from './taskmarket-work.mjs';
+import { TASKMARKET_CLI, classifyTask, ensureTaskmarketWallet, resolveTaskmarketCli, runTaskMarketPass, selectTask } from './taskmarket-work.mjs';
 
 const NOW = Date.parse('2026-07-28T08:00:00Z');
 const IMAGE_BRIEF = [
@@ -16,6 +16,11 @@ const IMAGE_BRIEF = [
 test('TaskMarket uses the repository-local CLI on every operating system', () => {
   assert.equal(TASKMARKET_CLI, join(import.meta.dirname, 'node_modules', '.bin', 'taskmarket'));
   assert.doesNotMatch(TASKMARKET_CLI, /homebrew/);
+});
+
+test('TaskMarket resolves an installed managed CLI when the release-local link is absent', () => {
+  const resolved = resolveTaskmarketCli({ TASKMARKET_CLI: '/does/not/exist' });
+  assert.match(resolved, /(?:taskmarket)$/);
 });
 
 test('clean tenant initializes TaskMarket with the same citizen wallet and stores no plaintext key', async () => {
