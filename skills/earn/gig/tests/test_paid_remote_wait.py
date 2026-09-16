@@ -4630,6 +4630,34 @@ def test_remote_verifier_accepts_structured_readback_reference():
     assert remote._verifier_evidence_values(result) == ["fresh-verifier-readback.json"]
 
 
+def test_remote_verifier_accepts_multiple_structured_readback_references():
+    paid = load("paid_direct")
+    remote = load("paid_remote_result")
+    result = {"verifier_evidence": [
+        {"official_url": "https://provider.example/one", "readback_source": "first.json", "exact_readback": True},
+        {"official_url": "https://provider.example/two", "readback_source": "second.json", "exact_readback": True},
+    ]}
+
+    assert paid._verifier_evidence_references(result) == [
+        ("verifier_evidence", "first.json"),
+        ("verifier_evidence", "second.json"),
+    ]
+    assert remote._verifier_evidence_values(result) == ["first.json", "second.json"]
+
+
+def test_remote_verifier_prompt_requires_identity_bound_evidence_envelopes(tmp_path):
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    requirements_sha = paid.paid_remote_result.requirements_digest(root, feedback)
+
+    prompt = paid._repair_prompt(root, tmp_path / "item.json", feedback,
+                                 requirements_sha, True, tmp_path / "cdp.py")
+
+    assert "Every referenced verifier evidence JSON must bind target, authenticated=true" in prompt
+    assert "requirements_sha256, message_sha256, and the canonical observed_state" in prompt
+    assert "Do not list a raw provider readback without that identity envelope" in prompt
+
+
 def test_remote_verifier_ignores_owner_delivery_supplements():
     paid = load("paid_direct")
     result = {"verifier_evidence": [
