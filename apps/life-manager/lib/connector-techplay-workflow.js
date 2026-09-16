@@ -1,6 +1,8 @@
 "use strict";
 
 const { createHash } = require("node:crypto");
+const fs = require("node:fs");
+const path = require("node:path");
 const { zonedSlotInstant } = require("./honne-ja-shadow-schedule.js");
 
 const TIME_ZONE = "Asia/Tokyo";
@@ -15,7 +17,47 @@ const SAFE_CODES = new Set([
   "TECHPLAY_LISTING_NAVIGATION_FAILED", "TECHPLAY_LISTING_READ_FAILED", "TECHPLAY_LISTING_RESULT_CONTRACT_FAILED",
   "TECHPLAY_DETAIL_NAVIGATION_FAILED", "TECHPLAY_DETAIL_READ_FAILED", "TECHPLAY_DETAIL_RESULT_CONTRACT_FAILED",
   "TECHPLAY_DETAIL_IDENTITY_MISMATCH_FAILED", "TECHPLAY_CALENDAR_CONFLICT_CHECK_FAILED", "TECHPLAY_AUDIT_FAILED",
+  "TECHPLAY_CURSOR_INVALID", "TECHPLAY_CURSOR_WRITE_FAILED",
+  "TECHPLAY_APPLIED_REFS_INVALID",
 ]);
+const CURSOR_FILE = "techplay-discovery-cursor.json";
+
+function readCursor(file) {
+  try {
+    const stat = fs.lstatSync(file);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 32_768) throw stageError("TECHPLAY_CURSOR_INVALID");
+    const value = JSON.parse(fs.readFileSync(file, "utf8"));
+    const valid = (rows) => Array.isArray(rows) && rows.length <= 50
+      && rows.every((ref) => typeof ref === "string" && EVENT_REF.test(ref))
+      && new Set(rows).size === rows.length;
+    const validRetry = Array.isArray(value && value.retry) && value.retry.length <= 100
+      && value.retry.every((item) => item && typeof item === "object" && !Array.isArray(item)
+        && Object.keys(item).sort().join(",") === "ends_at,event_ref"
+        && EVENT_REF.test(String(item.event_ref || ""))
+        && Number.isFinite(Date.parse(String(item.ends_at || ""))));
+    if (!value || value.schema_version !== 2 || !valid(value.pending)
+      || !valid(value.completed) || !validRetry
+      || new Set([...value.pending, ...value.completed, ...value.retry.map((item) => item.event_ref)]).size
+        !== value.pending.length + value.completed.length + value.retry.length) {
+      throw stageError("TECHPLAY_CURSOR_INVALID");
+    }
+    return value;
+  } catch (error) {
+    if (error && error.code === "ENOENT") return { schema_version: 2, pending: [], completed: [], retry: [] };
+    throw preserveSafe(error, "TECHPLAY_CURSOR_INVALID");
+  }
+}
+
+function writeCursor(file, value) {
+  const temporary = `${file}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    fs.writeFileSync(temporary, `${JSON.stringify(value)}\n`, { flag: "wx", mode: 0o600 });
+    fs.renameSync(temporary, file);
+  } catch (error) {
+    try { fs.unlinkSync(temporary); } catch { /* no temporary file to remove */ }
+    throw preserveSafe(error, "TECHPLAY_CURSOR_WRITE_FAILED");
+  }
+}
 
 function invalid() { throw new Error("TECH PLAY workflow invalid"); }
 function stageError(code) { const error = new Error("TECH PLAY workflow stage failed"); error.code = code; return error; }
@@ -294,9 +336,20 @@ function createTechPlayDiscoveryWorkflow(options = {}) {
   const readEventDetail = options.readEventDetail || defaultReadEventDetail;
   const isCalendarFree = options.isCalendarFree || defaultCalendarFree;
   const onDiscoveryAudit = options.onDiscoveryAudit || (() => {});
-  if ([now, readRss, readEventDetail, isCalendarFree, onDiscoveryAudit].some((value) => typeof value !== "function")) invalid();
+  const appliedEventRefs = options.appliedEventRefs || (async () => []);
+  const maxDetailsPerWake = options.maxDetailsPerWake == null ? null : options.maxDetailsPerWake;
+  const stateDir = options.stateDir;
+  if (maxDetailsPerWake !== null && (!Number.isInteger(maxDetailsPerWake)
+    || maxDetailsPerWake < 1 || maxDetailsPerWake > 50 || typeof stateDir !== "string"
+    || !path.isAbsolute(stateDir))) invalid();
+  const cursorFile = maxDetailsPerWake === null ? null : path.join(stateDir, CURSOR_FILE);
+  if ([now, readRss, readEventDetail, isCalendarFree, onDiscoveryAudit, appliedEventRefs]
+    .some((value) => typeof value !== "function")) invalid();
   return Object.freeze({
-    async discoverCandidates({ page, calendar }) {
+    async discoverCandidates({ page, calendar, remainingWakeMs, completionReserveMs }) {
+      if ((remainingWakeMs != null || completionReserveMs != null)
+        && (typeof remainingWakeMs !== "function" || !Number.isInteger(completionReserveMs)
+          || completionReserveMs < 1)) invalid();
       const observed = now();
       if (!(observed instanceof Date) || !Number.isFinite(observed.getTime())) invalid();
       let rows;
@@ -309,8 +362,58 @@ function createTechPlayDiscoveryWorkflow(options = {}) {
         if (!binding || seen.has(binding.event_ref)) continue;
         seen.add(binding.event_ref); bindings.push(binding);
       }
+      let cursor = null;
+      let selectedBindings = bindings.map((binding) => ({ binding, source: "pending" }));
+      if (cursorFile) {
+        cursor = readCursor(cursorFile);
+        const available = new Set(bindings.map((binding) => binding.event_ref));
+        const appliedRows = await appliedEventRefs();
+        if (!Array.isArray(appliedRows) || appliedRows.length > 10_000
+          || appliedRows.some((ref) => typeof ref !== "string" || !EVENT_REF.test(ref))
+          || new Set(appliedRows).size !== appliedRows.length) {
+          throw stageError("TECHPLAY_APPLIED_REFS_INVALID");
+        }
+        const applied = new Set(appliedRows);
+        let completed = cursor.completed.filter((ref) => available.has(ref));
+        const pending = cursor.pending.filter((ref) => available.has(ref) && !applied.has(ref));
+        const retry = cursor.retry.filter((item) => Date.parse(item.ends_at) > observed.getTime()
+          && !applied.has(item.event_ref));
+        if (pending.length === 0) completed = [];
+        for (const ref of appliedRows) {
+          if (available.has(ref) && !completed.includes(ref)) completed.push(ref);
+        }
+        const known = new Set([...pending, ...completed, ...retry.map((item) => item.event_ref)]);
+        for (const binding of bindings) {
+          if (!known.has(binding.event_ref)) pending.push(binding.event_ref);
+        }
+        cursor = { schema_version: 2, pending, completed, retry };
+        const byRef = new Map(bindings.map((binding) => [binding.event_ref, binding]));
+        const retryBudget = pending.length > 0
+          ? Math.min(retry.length, 1, maxDetailsPerWake - 1) : Math.min(retry.length, maxDetailsPerWake);
+        selectedBindings = [
+          ...retry.slice(0, retryBudget).map((item) => ({
+            binding: byRef.get(item.event_ref) || canonicalBinding({
+              event_ref: item.event_ref,
+              canonical_url: `https://techplay.jp/event/${item.event_ref.split("/").pop()}`,
+            }), source: "retry",
+          })),
+          ...pending.slice(0, maxDetailsPerWake - retryBudget)
+            .map((ref) => ({ binding: byRef.get(ref), source: "pending" })),
+        ];
+      }
+      let processedCount = 0;
+      let saturatedCount = 0;
+      const markProcessed = (binding, source, eligible, endsAt) => {
+        processedCount += 1;
+        if (!cursor) return;
+        cursor[source].shift();
+        cursor[eligible ? "retry" : "completed"].push(eligible
+          ? { event_ref: binding.event_ref, ends_at: endsAt } : binding.event_ref);
+        writeCursor(cursorFile, cursor);
+      };
       const exactCovered = []; const unprocessed = []; let withinWindowCount = 0; let eligibleCount = 0;
-      for (const binding of bindings) {
+      for (const { binding, source } of selectedBindings) {
+        if (remainingWakeMs && remainingWakeMs() <= completionReserveMs + 60_000) break;
         let raw;
         try { raw = await readEventDetail(page, binding.canonical_url); } catch (error) { throw preserveSafe(error, "TECHPLAY_DETAIL_READ_FAILED"); }
         try { assertPageUrl(page, binding.canonical_url, "TECHPLAY_DETAIL_NAVIGATION_FAILED"); }
@@ -318,20 +421,32 @@ function createTechPlayDiscoveryWorkflow(options = {}) {
         let normalized;
         try { normalized = normalizeDetail(binding, raw, observed); } catch (error) {
           if (["TECHPLAY_DETAIL_IDENTITY_MISMATCH_FAILED", "TECHPLAY_DETAIL_RESULT_CONTRACT_FAILED"].includes(String(error && error.code || ""))) throw error;
-          continue;
+          markProcessed(binding, source, false); continue;
         }
         if (!normalized || normalized.starts < window.start || normalized.starts >= window.end
-          || normalized.ends >= window.end) continue;
+          || normalized.ends >= window.end) { markProcessed(binding, source, false); continue; }
         withinWindowCount += 1;
-        if (!normalized.eligible) continue;
+        if (!normalized.eligible) { markProcessed(binding, source, false); continue; }
         eligibleCount += 1;
         let calendarFree;
         try { calendarFree = await isCalendarFree(normalized.candidate, calendar); } catch { throw stageError("TECHPLAY_CALENDAR_CONFLICT_CHECK_FAILED"); }
-        if (!calendarFree) continue;
+        if (!calendarFree) { markProcessed(binding, source, false); continue; }
+        if (cursor && source === "pending" && cursor.retry.length >= 100) {
+          saturatedCount = 1;
+          break;
+        }
         (calendarIntervals(calendar).some((busy) => exactCoverage(normalized.candidate, busy)) ? exactCovered : unprocessed).push(normalized.candidate);
+        markProcessed(binding, source, true, normalized.candidate.ends_at);
       }
       const selectedCount = exactCovered.length + unprocessed.length;
-      try { await onDiscoveryAudit(Object.freeze({ discovered_count: rows.length, within_window_count: withinWindowCount, eligible_count: eligibleCount, calendar_free_count: selectedCount, selected_count: selectedCount })); }
+      const retainedNotInRss = cursor ? cursor.retry.filter((item) => !seen.has(item.event_ref)).length : 0;
+      try { await onDiscoveryAudit(Object.freeze({ discovered_count: rows.length + retainedNotInRss,
+        rss_count: rows.length,
+        saturated_count: saturatedCount,
+        processed_count: processedCount,
+        pending_count: cursor ? cursor.pending.length + cursor.retry.length : 0,
+        within_window_count: withinWindowCount, eligible_count: eligibleCount,
+        calendar_free_count: selectedCount, selected_count: selectedCount })); }
       catch (error) { throw preserveSafe(error, "TECHPLAY_AUDIT_FAILED"); }
       return Object.freeze([...exactCovered, ...unprocessed]);
     },

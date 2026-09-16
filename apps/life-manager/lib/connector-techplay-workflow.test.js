@@ -2,6 +2,9 @@
 
 const assert = require("node:assert/strict");
 const { createHash } = require("node:crypto");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const test = require("node:test");
 
 const { createTechPlayDiscoveryWorkflow } = require("./connector-techplay-workflow.js");
@@ -86,8 +89,229 @@ test("TECH PLAY discovers free Tokyo events and returns exact candidates", async
     title: "Tokyo TECH PLAY 999180", ticket_id: "12345", ticket_price_minor: 0,
   }]);
   assert.deepEqual(reads, [row.canonical_url]);
-  assert.deepEqual(audits, [{ discovered_count: 1, within_window_count: 1, eligible_count: 1, calendar_free_count: 1, selected_count: 1 }]);
+  assert.deepEqual(audits, [{ discovered_count: 1, rss_count: 1,
+    processed_count: 1, pending_count: 0, saturated_count: 0,
+    within_window_count: 1, eligible_count: 1, calendar_free_count: 1, selected_count: 1 }]);
   assert.equal(Object.keys(audits[0]).some((key) => /title|url|ticket|identity|body|profile/i.test(key)), false);
+});
+
+test("TECH PLAY resumes bounded detail discovery across fresh wakes without starving later RSS rows", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "techplay-discovery-cursor-"));
+  const rows = ["999180", "999181", "999182", "999183", "999184"].map(binding);
+  const details = Object.fromEntries(rows.map((row) => [row.canonical_url, detail(row.event_ref.split("/").pop())]));
+  try {
+    const first = workflowFor(rows, details, { stateDir, maxDetailsPerWake: 2 });
+    assert.deepEqual((await first.workflow.discoverCandidates({ page: {}, calendar: [] }))
+      .map((row) => row.event_ref), rows.slice(0, 2).map((row) => row.event_ref));
+    assert.deepEqual(first.reads, rows.slice(0, 2).map((row) => row.canonical_url));
+    assert.equal(first.audits[0].processed_count, 2);
+    assert.equal(first.audits[0].pending_count, 5);
+    const cursorFile = path.join(stateDir, "techplay-discovery-cursor.json");
+    assert.equal(fs.statSync(cursorFile).mode & 0o777, 0o600);
+    assert.deepEqual(Object.keys(JSON.parse(fs.readFileSync(cursorFile, "utf8"))).sort(),
+      ["completed", "pending", "retry", "schema_version"]);
+    assert.doesNotMatch(fs.readFileSync(cursorFile, "utf8"), /https?:\/\/|title|email|auth/i);
+
+    const second = workflowFor([...rows].reverse(), details, { stateDir, maxDetailsPerWake: 2 });
+    assert.deepEqual((await second.workflow.discoverCandidates({ page: {}, calendar: [] }))
+      .map((row) => row.event_ref), [rows[0].event_ref, rows[2].event_ref]);
+
+    const third = workflowFor(rows, details, { stateDir, maxDetailsPerWake: 2 });
+    assert.deepEqual((await third.workflow.discoverCandidates({ page: {}, calendar: [] }))
+      .map((row) => row.event_ref), [rows[1].event_ref, rows[3].event_ref]);
+
+    const fourth = workflowFor(rows, details, { stateDir, maxDetailsPerWake: 2 });
+    assert.deepEqual((await fourth.workflow.discoverCandidates({ page: {}, calendar: [] }))
+      .map((row) => row.event_ref), [rows[0].event_ref, rows[4].event_ref]);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("TECH PLAY restarts the scan when remaining RSS rows disappear", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "techplay-discovery-shrink-"));
+  const rows = ["999180", "999181", "999182"].map(binding);
+  const details = Object.fromEntries(rows.map((row) => [row.canonical_url, detail(row.event_ref.split("/").pop())]));
+  try {
+    const first = workflowFor(rows, details, { stateDir, maxDetailsPerWake: 2 });
+    assert.equal((await first.workflow.discoverCandidates({ page: {}, calendar: [] })).length, 2);
+    const second = workflowFor(rows.slice(0, 2), details, { stateDir, maxDetailsPerWake: 2 });
+    assert.deepEqual((await second.workflow.discoverCandidates({ page: {}, calendar: [] }))
+      .map((row) => row.event_ref), rows.slice(0, 2).map((row) => row.event_ref));
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("TECH PLAY keeps the failed detail and advances past earlier verified rows", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "techplay-discovery-retry-"));
+  const rows = ["999180", "999181", "999182"].map(binding);
+  const details = Object.fromEntries(rows.map((row) => [row.canonical_url, detail(row.event_ref.split("/").pop())]));
+  try {
+    const first = workflowFor(rows, details, {
+      stateDir, maxDetailsPerWake: 2,
+      readEventDetail: async (_page, url) => {
+        if (url === rows[1].canonical_url) throw new Error("transport unavailable");
+        return details[url];
+      },
+    });
+    await assert.rejects(first.workflow.discoverCandidates({ page: {}, calendar: [] }),
+      (error) => error.code === "TECHPLAY_DETAIL_READ_FAILED");
+    const second = workflowFor(rows, details, { stateDir, maxDetailsPerWake: 2 });
+    assert.deepEqual((await second.workflow.discoverCandidates({ page: {}, calendar: [] }))
+      .map((row) => row.event_ref), rows.slice(0, 2).map((row) => row.event_ref));
+    assert.deepEqual(second.reads, rows.slice(0, 2).map((row) => row.canonical_url));
+    const third = workflowFor(rows, details, { stateDir, maxDetailsPerWake: 2 });
+    assert.deepEqual((await third.workflow.discoverCandidates({ page: {}, calendar: [] }))
+      .map((row) => row.event_ref), [rows[0].event_ref, rows[2].event_ref]);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("TECH PLAY re-presents a candidate after a later detail fails before the caller receives it", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "techplay-candidate-retry-"));
+  const rows = ["999180", "999181"].map(binding);
+  const details = Object.fromEntries(rows.map((row) => [row.canonical_url, detail(row.event_ref.split("/").pop())]));
+  try {
+    const first = workflowFor(rows, details, { stateDir, maxDetailsPerWake: 2,
+      readEventDetail: async (_page, url) => {
+        if (url === rows[1].canonical_url) throw new Error("transport unavailable");
+        return details[url];
+      },
+    });
+    await assert.rejects(first.workflow.discoverCandidates({ page: {}, calendar: [] }),
+      (error) => error.code === "TECHPLAY_DETAIL_READ_FAILED");
+    const second = workflowFor(rows, details, { stateDir, maxDetailsPerWake: 2 });
+    assert.deepEqual((await second.workflow.discoverCandidates({ page: {}, calendar: [] }))
+      .map((row) => row.event_ref), rows.map((row) => row.event_ref));
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("TECH PLAY re-presents a candidate after the audit fails before return", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "techplay-audit-retry-"));
+  const row = binding("999180");
+  const details = { [row.canonical_url]: detail("999180") };
+  try {
+    const first = workflowFor([row], details, { stateDir, maxDetailsPerWake: 1,
+      onDiscoveryAudit: async () => { throw new Error("audit unavailable"); },
+    });
+    await assert.rejects(first.workflow.discoverCandidates({ page: {}, calendar: [] }),
+      (error) => error.code === "TECHPLAY_AUDIT_FAILED");
+    const second = workflowFor([row], details, { stateDir, maxDetailsPerWake: 1 });
+    assert.deepEqual((await second.workflow.discoverCandidates({ page: {}, calendar: [] }))
+      .map((candidate) => candidate.event_ref), [row.event_ref]);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("TECH PLAY keeps a known actionable candidate after the rolling RSS evicts it", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "techplay-rss-eviction-"));
+  const row = binding("999180");
+  const details = { [row.canonical_url]: detail("999180") };
+  try {
+    const first = workflowFor([row], details, { stateDir, maxDetailsPerWake: 1 });
+    assert.equal((await first.workflow.discoverCandidates({ page: {}, calendar: [] })).length, 1);
+    const second = workflowFor([], details, { stateDir, maxDetailsPerWake: 1 });
+    assert.deepEqual((await second.workflow.discoverCandidates({ page: {}, calendar: [] }))
+      .map((candidate) => candidate.event_ref), [row.event_ref]);
+    assert.equal(second.audits[0].discovered_count, 1);
+    assert.equal(second.audits[0].rss_count, 0);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("TECH PLAY reserves most of each bounded wake for previously uninspected RSS rows", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "techplay-fair-scan-"));
+  const rows = ["999180", "999181", "999182", "999183", "999184", "999185", "999186", "999187"].map(binding);
+  const details = Object.fromEntries(rows.map((row) => [row.canonical_url, detail(row.event_ref.split("/").pop())]));
+  try {
+    const first = workflowFor(rows, details, { stateDir, maxDetailsPerWake: 4 });
+    assert.equal((await first.workflow.discoverCandidates({ page: {}, calendar: [] })).length, 4);
+    const second = workflowFor(rows, details, { stateDir, maxDetailsPerWake: 4 });
+    await second.workflow.discoverCandidates({ page: {}, calendar: [] });
+    assert.deepEqual(second.reads.slice(1), rows.slice(4, 7).map((row) => row.canonical_url));
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test("TECH PLAY keeps returning retained candidates when retry capacity is full", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "techplay-retry-full-"));
+  const row = binding("999180");
+  const retry = Array.from({ length: 100 }, (_, index) => ({
+    event_ref: binding(String(100000 + index)).event_ref,
+    ends_at: "2026-08-20T10:00:00.000Z",
+  }));
+  fs.writeFileSync(path.join(stateDir, "techplay-discovery-cursor.json"),
+    `${JSON.stringify({ schema_version: 2, pending: [], completed: [], retry })}\n`, { mode: 0o600 });
+  const firstRetry = binding("100000");
+  const details = { [row.canonical_url]: detail("999180"),
+    [firstRetry.canonical_url]: detail("100000") };
+  try {
+    const { workflow, audits } = workflowFor([row], details, { stateDir, maxDetailsPerWake: 2 });
+    const result = await workflow.discoverCandidates({ page: {}, calendar: [] });
+    assert.deepEqual(result.map((candidate) => candidate.event_ref), [firstRetry.event_ref]);
+    const stored = JSON.parse(fs.readFileSync(path.join(stateDir, "techplay-discovery-cursor.json"), "utf8"));
+    assert.equal(stored.retry.length, 100);
+    assert.equal(stored.retry.some((item) => item.event_ref === row.event_ref), false);
+    assert.equal(stored.pending.includes(row.event_ref), true);
+    assert.equal(audits[0].saturated_count, 1);
+  } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
+});
+
+test("TECH PLAY retires officially applied refs before admitting a new RSS candidate", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "techplay-applied-retirement-"));
+  const row = binding("999180");
+  const retry = Array.from({ length: 100 }, (_, index) => ({
+    event_ref: binding(String(100000 + index)).event_ref,
+    ends_at: "2026-08-20T10:00:00.000Z",
+  }));
+  fs.writeFileSync(path.join(stateDir, "techplay-discovery-cursor.json"),
+    `${JSON.stringify({ schema_version: 2, pending: [], completed: [], retry })}\n`, { mode: 0o600 });
+  try {
+    const { workflow, audits } = workflowFor([row], { [row.canonical_url]: detail("999180") }, {
+      stateDir, maxDetailsPerWake: 4,
+      appliedEventRefs: async () => retry.map((item) => item.event_ref),
+    });
+    assert.deepEqual((await workflow.discoverCandidates({ page: {}, calendar: [] }))
+      .map((candidate) => candidate.event_ref), [row.event_ref]);
+    const stored = JSON.parse(fs.readFileSync(path.join(stateDir, "techplay-discovery-cursor.json"), "utf8"));
+    assert.deepEqual(stored.retry.map((item) => item.event_ref), [row.event_ref]);
+    assert.equal(audits[0].saturated_count, 0);
+  } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
+});
+
+test("TECH PLAY stops before the action reserve and leaves uninspected rows queued", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "techplay-wake-budget-"));
+  const rows = ["999180", "999181"].map(binding);
+  const details = Object.fromEntries(rows.map((row) => [row.canonical_url, detail(row.event_ref.split("/").pop())]));
+  let remaining = 190_000;
+  try {
+    const first = workflowFor(rows, details, { stateDir, maxDetailsPerWake: 2 });
+    assert.deepEqual(await first.workflow.discoverCandidates({ page: {}, calendar: [],
+      remainingWakeMs: () => remaining, completionReserveMs: 160_000,
+    }), []);
+    assert.deepEqual(first.reads, []);
+    assert.equal(first.audits[0].processed_count, 0);
+    assert.equal(first.audits[0].pending_count, 2);
+
+    remaining = 300_000;
+    const second = workflowFor(rows, details, { stateDir, maxDetailsPerWake: 2,
+      readEventDetail: async (_page, url) => { remaining = 200_000; return details[url]; },
+    });
+    assert.deepEqual((await second.workflow.discoverCandidates({ page: {}, calendar: [],
+      remainingWakeMs: () => remaining, completionReserveMs: 160_000,
+    })).map((row) => row.event_ref), [rows[0].event_ref]);
+    assert.equal(second.audits[0].processed_count, 1);
+    assert.equal(second.audits[0].pending_count, 2);
+  } finally {
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
 });
 
 test("TECH PLAY puts exact connector coverage first and blocks unrelated overlap", async () => {

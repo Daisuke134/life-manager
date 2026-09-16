@@ -1451,6 +1451,25 @@ test("runner does not start a fallback provider without its measured completion 
   assert.deepEqual(state.calls.filter(([name]) => name === "discover").map(([, provider]) => provider), ["luma", "connpass"]);
 });
 
+test("runner gives TECH PLAY the live remaining wake budget before discovery", async () => {
+  let state;
+  let observed;
+  state = fixture({
+    async discoverCandidates(provider, _calendar, _page, budget) {
+      assert.equal(provider, "techplay");
+      observed = [budget.remainingWakeMs(), budget.completionReserveMs];
+      state.advance(1_000);
+      assert.equal(budget.remainingWakeMs(), 599_000);
+      return [];
+    },
+  });
+  const result = await runMinimalConnectorWake({
+    ownerToken: "owner-token-techplay-budget", providers: ["techplay"], maxWakeMs: 600_000,
+  }, state.dependencies);
+  assert.equal(result.status, "completed_no_effect");
+  assert.deepEqual(observed, [600_000, 160_000]);
+});
+
 test("calendar observation crossing the deadline does not create a browser target", async () => {
   let state;
   state = fixture({ async readCalendarGaps() { state.calls.push(["calendar"]); state.advance(600_001); return []; } });

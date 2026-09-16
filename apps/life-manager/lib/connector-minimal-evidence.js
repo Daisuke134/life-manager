@@ -657,12 +657,12 @@ function scanAppliedBundles(stateDir, providers, provider, candidate, status) {
     let value;
     try { value = JSON.parse(fs.readFileSync(file, "utf8")); } catch { invalid(); }
     const bundle = validateAppliedBundle(value, file, providers);
-    if (bundle.provider === provider && bundle.event_ref === candidate.event_ref) {
+    if (bundle.provider === provider && (!candidate || bundle.event_ref === candidate.event_ref)) {
       if (bundle.provider_status !== status) invalid();
       matches.push(bundle);
     }
   }
-  if (matches.length > 1) invalid();
+  if (candidate && matches.length > 1) invalid();
   return matches;
 }
 
@@ -803,6 +803,16 @@ function createMinimalEvidenceChain(options = {}) {
   ) invalid();
 
   return Object.freeze({
+    async appliedBundleEventRefs(input = {}) {
+      const provider = providers[input.provider];
+      if (!provider) invalid();
+      const status = String(input.provider_status || "");
+      if (!provider.states.includes(status)) invalid();
+      const refs = scanAppliedBundles(stateDir, providers, provider.name, null, status)
+        .map((bundle) => bundle.event_ref);
+      if (new Set(refs).size !== refs.length) invalid();
+      return Object.freeze(refs);
+    },
     // Reconciliation-only lookup: lets a discovery step ask "does this
     // provider+event already have an applied bundle?" without running the
     // rest of the evidence chain. Reuses the exact same bundle store
