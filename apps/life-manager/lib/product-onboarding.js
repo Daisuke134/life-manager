@@ -114,11 +114,18 @@ function buildRuntimeEvidence(catalogLoop, runtimeByJobId, releaseSha) {
     const row = runtimeByJobId.get(jobId);
     return row.installed_release_sha !== releaseSha || row.event_release_sha !== releaseSha;
   });
+  const runtimeJobIsHealthy = (row) => row.last_terminal_result === "pass"
+    || (row.desired_mode === "continuous"
+      && row.effect_class === "none"
+      && row.last_terminal_result === "running");
   const nonPassJobIds = observedJobIds.filter((jobId) => (
-    runtimeByJobId.get(jobId).last_terminal_result !== "pass"
+    !runtimeJobIsHealthy(runtimeByJobId.get(jobId))
   ));
   const releaseMatch = missingJobIds.length === 0 && releaseMismatchJobIds.length === 0;
-  const terminalPass = missingJobIds.length === 0 && nonPassJobIds.length === 0;
+  const terminalPass = missingJobIds.length === 0 && observedJobIds.every((jobId) => (
+    runtimeByJobId.get(jobId).last_terminal_result === "pass"
+  ));
+  const runtimeHealthy = missingJobIds.length === 0 && nonPassJobIds.length === 0;
   const reason = missingJobIds.length > 0 ? "runtime_evidence_missing"
     : releaseMismatchJobIds.length > 0 ? "runtime_release_drift"
       : nonPassJobIds.length > 0 ? "runtime_terminal_not_pass" : null;
@@ -129,7 +136,8 @@ function buildRuntimeEvidence(catalogLoop, runtimeByJobId, releaseSha) {
     non_pass_job_ids: Object.freeze([...nonPassJobIds]),
     release_match: releaseMatch,
     terminal_pass: terminalPass,
-    ready: releaseMatch && terminalPass,
+    runtime_healthy: runtimeHealthy,
+    ready: releaseMatch && runtimeHealthy,
     reason,
   });
 }

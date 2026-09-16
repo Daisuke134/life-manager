@@ -550,11 +550,43 @@ test("completion manifest binds runtime status to every mapped job without promo
     non_pass_job_ids: [],
     release_match: true,
     terminal_pass: true,
+    runtime_healthy: true,
     ready: true,
     reason: null,
   });
   assert.equal(manifest.loops.every((loop) => loop.state === "setup_required"), true);
   assert.equal(manifest.completion, true);
+});
+
+test("continuous non-effect jobs may be running without blocking runtime evidence", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "e".repeat(40);
+  const observations = catalog.loops.map((loop) => ({
+    id: loop.id,
+    state: "setup_required",
+    reason: "provider_surface_pending",
+    contract: {},
+  }));
+  const runtimeRows = catalog.loops[0].job_ids.map((jobId) => ({
+    loop_id: jobId,
+    installed_release_sha: releaseSha,
+    event_release_sha: releaseSha,
+    last_terminal_result: "running",
+    desired_mode: "continuous",
+    effect_class: "none",
+  }));
+
+  const manifest = buildProductLoopCompletionManifest({
+    host: "local",
+    release_sha: releaseSha,
+    observations,
+    runtime_rows: runtimeRows,
+  });
+
+  assert.equal(manifest.loops[0].runtime_evidence.terminal_pass, false);
+  assert.equal(manifest.loops[0].runtime_evidence.runtime_healthy, true);
+  assert.equal(manifest.loops[0].runtime_evidence.ready, true);
+  assert.equal(manifest.loops[0].runtime_evidence.non_pass_job_ids.length, 0);
 });
 
 test("verified completion rejects missing or stale mapped runtime evidence", () => {
