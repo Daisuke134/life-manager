@@ -363,6 +363,19 @@ Run from the candidate worktree. The private filenames are unique and `umask 077
 
 ## Done for this planning turn
 
+**Live checkpoint (2026-09-16 15:08 UTC):** The pushed `cf655388` Local candidate is
+exact-loaded on Connector, Instagram/TikTok Metrics, and all 17 authorized Mobile
+publication labels; aggregate Mobile status is 17/17, wrong-release 0, running 0.
+Obou's obsolete Mobile service/plist was retired exactly, and candidate doctor passes
+with 164 registry rows and no missing/unmanaged/retired-installed labels. Postiz
+analytics GET returned HTTP 200 for one Instagram and one TikTok integration; it
+does not prove a new post. The latest Connector and Metrics terminal events are from
+older SHAs, so the next atomic gate is post-load **natural outer terminal → same-wake
+provider/Calendar or Postiz readback → receipt/replay classification**. Do not
+promote Local, Cloud, or main from loaded-only evidence. Coconala Paid's latest
+outer terminal separately failed `remote_verifier` with effect 0; its domain owner
+must resolve that exact verifier/readback path.
+
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.
 - No claim that Connector, Mobile, the 14 product loops, self-healing or Cloud are already working.

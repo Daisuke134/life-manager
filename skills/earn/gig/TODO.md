@@ -667,6 +667,20 @@ no ebook account/asset/ledger was deleted, and candidate doctor now reports `ok=
 missing/unmanaged/retired-installed all zero. This removes only the incorrect Mobile scheduling row;
 it does not prove any of the 17 authorized publisher lanes or ebook marketing. The old plist is recoverable
 from its prior immutable release.
+Local candidate rollout checkpoint: all 17 authorized Mobile publication labels in
+`config/marketing-destinations.json` are now target-applied and status-read back from exact candidate
+`cf65538879532a461a164fc2705b95853235ba14` (17/17, wrong-release 0, running 0 at the
+2026-09-16 15:08 UTC sample). Both Instagram and TikTok Metrics labels and Connector are also
+candidate-loaded. Their latest terminal events still precede this candidate load, so none of these
+loaded statuses establishes a new natural wake, a post, or provider effect. Private Marketing env
+contains the required key names; official Postiz analytics GET returned HTTP 200 for the sampled
+Instagram and TikTok integrations. That proves API access only, not a publication or measured
+snapshot. Existing receipt discovery found Instagram 133 and TikTok 136 verified publication
+receipts, with snapshot windows respectively 486 complete/39 pending/7 source-delayed/0
+measurable and 449 complete/32 pending/63 source-delayed/0 measurable. Metrics tests passed
+19/19. Next: inspect each post-load natural outer terminal, classify all 17 destination outcomes,
+and reconcile any unknown submission against official Postiz state before retry; keep Local gate
+open until actual effect/readback evidence exists.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/
