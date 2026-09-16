@@ -243,6 +243,11 @@ occurrenceを再びqueuedへ戻す。既存owner単位APIとSQLite protocol v2�
 含むadmission・registry・loop-run・apply focused suiteは **255 tests / 164 subtests PASS**。
 runnerでwakeごとのoccurrence_idを生成する自然経路と本番証拠はまだ未完である。
 
+**R2-02 wake identity projection atomic (candidate `7f96d7dfd4`):** `lm-loop-run`が各wakeの
+`run_id`から`<loop_id>:<run_id>`形式のoccurrence identityを作り、既存durable enqueueへ渡すようにした。
+直接呼び出しの互換性は保ち、明示されたpriorityも同じenqueueへ渡す。loop-runの **39 tests PASS**。
+本番plistの再配置、自然wake、公式receiptはまだ未完である。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
