@@ -272,6 +272,12 @@ runnerがbounded intervalのheartbeat threadを開始し、終了処理前に停
 heartbeat失敗はprovider effectや別ownerの操作へ昇格せず、既存のstale recoveryへ委ねる。loop-runと
 admissionの回帰は **99 tests PASS**。candidateのみで、launchd自然wakeとproduction反映はまだ未完である。
 
+**R2-02 resource-class atomic (candidate `d1617edc69`):** admission/registry/schemaへ`browser` classを
+追加し、SQLite旧queue/occurrencesをbrowser対応schemaへmigrationするようにした。Connectorをbrowser
+classへ分類し、agent・browser・deterministicのcapacity環境変数を分離した。browser枠がagent枠を
+超えて占有しない回帰を追加し、基盤suiteは **262 tests / 163 subtests PASS**。capacity canary、
+browser session実測、自然wake、production反映はまだ未完である。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
