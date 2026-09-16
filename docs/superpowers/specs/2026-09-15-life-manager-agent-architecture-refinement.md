@@ -187,7 +187,8 @@ deterministic reservationが1件あり、revenue floorを守るためborrow枠�
 さらに`_last_event`がreportだけを読むことで、同じ`loop_id`の外側runが実行中でも、内側agent-runnerの
 後続reportを最後のterminalと誤認する問題を確認した。candidate `682d074041`では、未完の
 `execute/running`を`run_id`単位で保持し、対応するreportが現れるまで内側reportより優先する
-`_latest_runtime_event`をstatus readerへ接続した。実機statusでもConnectorのPID `22556`は
+`_latest_runtime_event`をstatus readerへ接続した。続くcandidate `ec2f98659c`では、外側runの終了後も
+`lm-loop://`の正規terminalを`agent-runner://`の入れ子reportより優先する。実機statusでもConnectorのPID `22556`は
 `last_terminal_result=running`、`blocker=null`、installed/eventは同じ`bce56bc9...`となり、
 `acct1`の内側report/passへすり替わらないことを確認した。readonly 87 tests/113 subtests、
 run/admission 90 tests、product/gate 43 testsがPASS。これはobservabilityの修正であり、Connectorの
