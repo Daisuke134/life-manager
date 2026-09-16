@@ -587,13 +587,9 @@ def refresh_all(
             "guard": guard,
             "plans": [],
         }
-        atomic_write(state_root / "source-refresh.json", receipt)
+        atomic_write(state_root / "source-refresh-guard.json", receipt)
         return receipt
     receipt_path = state_root / "source-refresh.json"
-    try:
-        previous = json.loads(receipt_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        previous = {}
     try:
         discovery = discover_official_plan(root, state_root, now)
     except OpportunityBudgetBlocked as error:
@@ -620,22 +616,32 @@ def refresh_all(
             "failure_type": type(error).__name__,
         }
         atomic_write(state_root / "opportunity-discovery.json", discovery)
-    plan_set = plan_set_sha256(root, state_root)
-    cycle_done = (previous.get("state") == "COMPLETE"
-                  or (previous.get("state") == "PARTIAL"
-                      and previous.get("pending_count") == 0))
-    if (cycle_done and previous.get("plan_set_sha256") == plan_set
-            and now - int(previous["completed_at"]) < cooldown_seconds):
-        return {"state": "COOLDOWN", "completed_at": previous.get("completed_at"), "plans": []}
     with (state_root / ".source-refresh.lock").open("a+") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             return {"state": "ALREADY_RUNNING", "completed_at": None, "plans": []}
         paths = plan_paths(root, state_root)
+        plan_set = plan_set_sha256(root, state_root)
+        plan_hashes = {path.stem: hashlib.sha256(path.read_bytes()).hexdigest()
+                       for path in paths}
+        try:
+            previous = json.loads(receipt_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            previous = {}
+        cycle_done = (previous.get("state") == "COMPLETE"
+                      or (previous.get("state") == "PARTIAL"
+                          and previous.get("pending_count") == 0))
+        within_cooldown = (now - int(previous.get("completed_at", 0)) < cooldown_seconds)
+        if (cycle_done and previous.get("plan_set_sha256") == plan_set
+                and within_cooldown):
+            return {"state": "COOLDOWN", "completed_at": previous.get("completed_at"), "plans": []}
         continuing = (previous.get("state") == "IN_PROGRESS"
-                      and previous.get("plan_set_sha256") == plan_set)
-        results = list(previous.get("plans", [])) if continuing else []
+                      or (cycle_done and within_cooldown))
+        results = [row for row in previous.get("plans", [])
+                   if row.get("plan_sha256") == plan_hashes.get(row.get("plan_id"))]
+        if not continuing:
+            results = []
         attempted = {row["plan_id"] for row in results}
         remaining = [path for path in paths if path.stem not in attempted]
         for path in remaining[:1]:
@@ -648,9 +654,12 @@ def refresh_all(
                     "plan_id": plan_id, "state": "CAPTURED", "source_count": len(receipts),
                     "new_count": sum(bool(row["new_capture"]) for row in receipts),
                     "source_set_sha256": bundle["source_set_sha256"],
+                    "plan_sha256": plan_hashes[plan_id],
                 })
             except (CaptureError, OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
-                results.append({"plan_id": plan_id, "state": "FAILED", "failure_type": type(error).__name__})
+                results.append({"plan_id": plan_id, "state": "FAILED",
+                                "failure_type": type(error).__name__,
+                                "plan_sha256": plan_hashes[plan_id]})
         pending_count = len(remaining) - min(len(remaining), 1)
         receipt = {
             "schema_version": 1, "receipt_type": "SOURCE_REFRESH",
