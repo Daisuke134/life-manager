@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "scope": "life-manager-foundation",
+  "global_forbidden_prefixes": [
+    "skills/earn/",
+    "skills/coconala/",
+    "skills/lancers/",
+    "skills/crowdworks/",
+    "skills/mercor/",
+    "runtime/loop/__tests__/"
+  ],
+  "tasks": {
+    "FOUNDATION-SCOPE-GUARD": {
+      "allowed_paths": [
+        "runtime/loop/foundation-scope.json",
+        "runtime/loop/foundation-scope-guard.mjs",
+        "runtime/loop/foundation-scope-guard.test.mjs",
+        "docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md"
+      ]
+    },
+    "FOUNDATION-01-RECEIPT-MANIFEST": {
+      "allowed_paths": [
+        "apps/life-manager/config/product-loop-catalog.json",
+        "apps/life-manager/lib/product-onboarding.js",
+        "apps/life-manager/scripts/product-loop-completion.js",
+        "runtime/loop/lm_loop.py",
+        "docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md"
+      ]
+    },
+    "FOUNDATION-02-LOCAL-GATE": {
+      "allowed_paths": [
+        "apps/life-manager/lib/product-onboarding.js",
+        "apps/life-manager/scripts/local-completion-gate.js",
+        "docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md"
+      ]
+    },
+    "FOUNDATION-03-CLOUD-RELEASE": {
+      "allowed_paths": [
+        "apps/life-manager/config/product-loop-catalog.json",
+        "apps/life-manager/lib/product-onboarding.js",
+        "apps/life-manager/scripts/cloud-promotion-gate.js",
+        "docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md"
+      ]
+    },
+    "FOUNDATION-04-TENANT-STEEL-PHONE": {
+      "allowed_paths": [
+        "apps/life-manager/lib/steel-cdp-client.js",
+        "apps/life-manager/lib/stagehand-steel-driver.js",
+        "apps/life-manager/lib/browser-job-runtime.js",
+        "apps/life-manager/scripts/browser-auth-tenant-isolation-e2e.js",
+        "apps/life-manager/scripts/browser-auth-production-e2e.js",
+        "docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md"
+      ]
+    },
+    "FOUNDATION-05-CLOUD-GATE": {
+      "allowed_paths": [
+        "apps/life-manager/lib/product-onboarding.js",
+        "apps/life-manager/scripts/cloud-promotion-gate.js",
+        "docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md"
+      ]
+    },
+    "FOUNDATION-06-FINAL-MERGE": {
+      "allowed_paths": [
+        "docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md"
+      ]
+    },
+    "FOUNDATION-SELF-HEAL": {
+      "allowed_paths": [
+        "runtime/loop/harness-health.mjs",
+        "runtime/loop/harness-health-snapshot.mjs",
+        "runtime/loop/index.mjs",
+        "docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md"
+      ]
+    }
+  }
+}
