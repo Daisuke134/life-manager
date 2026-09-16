@@ -85,6 +85,131 @@ file is serialized. A provider owner never waits for an unrelated platform's
 full business completion to write its own isolated fix, but no owner calls a
 platform “working” until its own acceptance evidence exists.
 
+### Patch-level execution plan: first five dependent repair slices
+
+This is the implementer's checklist beneath steps 1–6 above. Work in the
+current owner-specific worktrees, fetch latest `origin/main`, and re-read the
+loaded release and same-run terminal before each production action. A source
+candidate is not live. Use one failing regression and the named focused suite
+per patch, then integrate only reviewed slices into main and cut a main-derived
+immutable release. The marketplace owner retains provider files; this spec
+does not transfer ownership of their browser/account state.
+
+**1. Shared admission and release — root cause before provider changes**
+
+- [ ] In `runtime/host/resource_admission.py` and
+  `runtime/host/tests/test_resource_admission.py`, reproduce five active finite
+  owners plus queued Connector and Paid/Apply occurrences. Assert exact
+  occurrence identity, original queue age and no deletion on a mixed-release
+  scan; after one owner releases, the next eligible fitting owner must reserve
+  without waiting for a new cron tick. Compare the existing candidate fix to
+  current main rather than inventing another queue.
+- [ ] In `runtime/loop/lm_loop_run.py`, `config/loop-registry.json`, and
+  `runtime/loop/tests/test_lm_loop_run_bounds.py`, project the candidate's
+  `critical_paid`/`revenue`/`support` priorities and resource classes into the
+  *loaded* queue. Upgrade pre-existing lower-priority rows without resetting
+  `queued_at`; prove Paid first and bounded age promotion for Connector and
+  Apply. Preserve process-identity lease checks, the RAM hard ceiling and
+  uncertain-effect fence.
+- [ ] Test `control_busy`, `capacity_busy`, RAM pressure, owner death and exact
+  release drift as separate outcomes. Only proven pre-effect deferrals may
+  resume automatically; unknown provider effects await official readback.
+  Verify current queue age and release→claim on the host before altering the
+  five-run limit. No arbitrary change to eight or unlimited processes.
+
+**2. Connector — first shared-runtime canary, then provider/Calendar**
+
+- [ ] Read the same wake's outer terminal and private audit along
+  `skills/connector/run.sh` → `skills/connector/native-pass.js` →
+  `apps/life-manager/lib/connector-minimal-production.js`. Current loaded
+  `cf655388` ended before the provider at `resource_capacity_busy`; this is
+  evidence for step 1, not evidence that the provider adapter is broken.
+- [ ] Reconcile main's bounded TechPlay code in
+  `apps/life-manager/lib/connector-techplay-workflow.js` and
+  `apps/life-manager/lib/connector-techplay-workflow.test.js` with the target
+  immutable release and `skills/connector/test/native-entrypoint.test.js`.
+  Prove a natural same-SHA outer terminal and a durable discovery cursor.
+- [ ] Only after admission succeeds, trace candidate selection, official
+  registration, Calendar write and official readback through
+  `connector-minimal-production.js`, `connector-minimal-operations.js`, and
+  their existing tests. Reconcile old uncertain intents by exact provider
+  identity before any submit. An eligible event passes with official provider
+  registration ID, exact Google Calendar event ID and next-wake replay-zero;
+  no eligible event passes only as truthful no-work, not as registration.
+- [ ] In `config/loop-registry.json`, consider a phased hourly Connector wake
+  only after the event freshness and missed-work cursor are proved; current
+  scheduled interval is 1800 seconds. Cadence cannot repair admission or an
+  unknown external effect.
+
+**3. Coconala — four independent business lanes after the shared canary**
+
+- [ ] Verify browser owner/profile/port 9223 without restarting siblings:
+  `skills/earn/gig/scripts/launch_gig_browser.sh` plus the existing lease.
+  For each lane, capture the new-SHA natural outer terminal; a preceding
+  `pass` while `loaded-running` is not that run's terminal.
+- [ ] Apply: follow `runtime/loop/entry_dispatch.py` to the gig Apply adapter;
+  test one eligible screening-answer application against its exact official
+  applied-record ID and next-wake zero duplicate. Keep the 54 uncertain
+  historical intents fenced and reconcile them in background, not foreground.
+- [ ] Reply: use `skills/earn/gig/scripts/coconala-reply-owner` and the shared
+  Reply kernel to advance one of the 15 pending talkrooms by exact buyer
+  event. Pass only on official message readback or an explicit buyer-wait/
+  retry receipt; do not resend the 166 already-read-back threads.
+- [ ] Paid: use `skills/earn/gig/scripts/paid-direct-owner` and per-client
+  evidence namespaces; select one new funded buyer event, perform at most
+  its fenced effect, read back that exact official room, and replay zero.
+  A four-room readback with `effect=0` is useful reconciliation, not new income.
+- [ ] Storefront: inspect `runtime/loop/entry_dispatch.py` →
+  `skills/earn/gig/scripts/storefront_direct.py` at
+  `no_executable_unfenced_mutation_contract`. Determine whether no eligible
+  listing mutation exists or the executor cannot form a safe fence; only the
+  latter warrants code change. Test official listing readback. Then audit the
+  60-second registry cadence and phase against actual listing urgency so
+  no-op wakes do not repeatedly hold a scarce agent slot.
+
+**4. CrowdWorks — existing paid contracts before new applications**
+
+- [ ] `skills/earn/crowdworks/scripts/paid_adapter.py::_list_contracts` and
+  `_inventory_rows` currently produce a `provider_inventory` RuntimeError in
+  live Paid receipts. On the same owner/profile, distinguish CDP attach,
+  authentication, timeout, official list completeness and schema error.
+  Add the exact failing fixture to
+  `skills/earn/crowdworks/tests/test_paid_adapter.py`; change only the proven
+  boundary. An empty or failed inventory cannot mean zero funded contracts.
+- [ ] Route the three existing contracts independently through the existing
+  `skills/_shared/marketplace-core/scripts/paid_kernel.py`: buyer instruction
+  → artifact → official submission → exact readback → replay-zero, with a
+  per-contract terminal. Do not count a draft or empty upload form as delivery.
+- [ ] `skills/earn/crowdworks/scripts/reply-owner` and
+  `skills/earn/crowdworks/tests/test_reply_adapter.py`: reconcile each pending
+  or failed thread before resending; protect the prior officially verified
+  application. Apply may continue only from current eligible official rows.
+
+**5. Lancers — browser attach and funded work are separate failures**
+
+- [ ] For Storefront's `browser_connect_failed`, trace
+  `skills/earn/lancers/scripts/storefront-owner` → `storefront_offer.py` →
+  `application_tick.py::_default_browser_factory`. A listening CDP port is
+  not a Playwright connection or authenticated page. Reproduce the attach/
+  lease failure in `skills/earn/lancers/tests/test_application_tick_target_cleanup.py`;
+  repair only the owner-scoped failing boundary and confirm official listing
+  readback.
+- [ ] In `skills/earn/lancers/scripts/paid_adapter.py`, `work_sync.py`,
+  `apps/lancers-revenue/tests/test_paid_adapter.py` and the shared Paid kernel,
+  preserve typed account/lock/browser wait versus malformed inventory. The
+  candidate typed-wait patch is source-only; compare it with latest main.
+  A Paid outer pass with `effect=0/readback=0` is not contract completion.
+- [ ] For Application and Negotiate, read exact outer run, official proposal/
+  thread and replay fence before changing adapters. Close proposal → buyer
+  reply → funded contract → Paid delivery → payout by provider work ID.
+
+After slice 5, continue the active table at Mercor (session auth/readback),
+Freelancer.com/Upwork, all 14 Local rows, Eval, meta/self-heal, Cloud and the
+revenue/YC gate. If step 1 makes a lane's next natural provider receipt pass,
+do **not** rewrite that provider lane merely because its prior wake was
+capacity-blocked. Conversely, a new outer `pass` without official business
+readback never closes the lane.
+
 ## Implementation status (current evidence)
 
 このspecの受入状態は、次のとおりです。`PROD-01`はMarketplace側の外部effect受入cursorであり、
