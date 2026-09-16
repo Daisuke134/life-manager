@@ -569,6 +569,13 @@ index was not yet committed; after commit that exact test passes. A clean
 post-merge full run and production Local gate remain open. Current loaded
 Connector/Affiliate/Metrics releases still lack the new queued marker; do not
 dispatch or promote them as if this source fix were already live.
+The clean committed-source rerun later passed the entire control-plane suite
+467/467. At 19:33 UTC the old loaded Affiliate release still ended its
+natural wake `blocked/resource_capacity_busy` with 82 plans pending. Thus the
+source integration gate is closed, but the immutable-main release, one-owner
+loaded readback, queued occurrence claim, outer terminal and provider effect
+separation remain open. The next source defect is Connector's recorded
+TechPlay discovery overrun; do not mistake another capacity defer for its fix.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

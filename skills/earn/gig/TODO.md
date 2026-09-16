@@ -941,6 +941,11 @@ plus 132 subtests, doctor164 PASS, OSS PASS. The complete control-plane run
 passed 466 cases but one Git write-tree fixture failed while the merge index
 was uncommitted; that exact case PASSed after commit. Re-run the complete
 suite on committed source, then Local queue-to-claim and provider gates.
+The clean post-merge full rerun now passes 467/467. The exact loaded Affiliate
+release is unchanged and its 19:33 UTC natural wake again ended pre-effect
+`resource_capacity_busy` with 82 pending plans. Source-level queue safety is
+not production liveness: main integration, immutable release, loaded-idle
+targeted apply, natural claim/terminal, and official effect separation remain.
 None of this changes the current loaded old candidate SHA or proves the 14
 loops have resumed. At 19:23 Affiliate remained 82 pending and Connector's
 19:22 natural wake was capacity-blocked.
