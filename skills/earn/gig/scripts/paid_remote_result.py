@@ -93,61 +93,46 @@ def canonical_equal(left, right):
     return _canonical(left) == _canonical(right)
 
 
-def _current_buyer_message_ids(root):
-    """Return buyer messages after the latest seller reply; system rows do not split the burst."""
-    path = Path(root).resolve() / "source" / "talkroom" / "messages.jsonl"
+def _required_outcome_ids(root):
+    path = Path(root).resolve() / "context" / "paid-work-decision.json"
     if path.is_symlink() or not path.is_file():
-        return []
-    rows = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        if not isinstance(row, dict):
-            raise ValueError("invalid talkroom message row")
-        rows.append(row)
-    last_seller = max(
-        (index for index, row in enumerate(rows) if row.get("side") == "seller"),
-        default=-1,
-    )
-    ids = [
-        str(row.get("message_id") or "").strip()
-        for row in rows[last_seller + 1:]
-        if row.get("side") == "buyer"
-    ]
-    if any(not value for value in ids) or len(ids) != len(set(ids)):
-        raise ValueError("invalid buyer message identity")
+        raise ValueError("paid outcome contract missing")
+    decision = _load(path)
+    outcomes = decision.get("required_outcomes") if isinstance(decision, dict) else None
+    ids = [row.get("outcome_id") if isinstance(row, dict) else None
+           for row in outcomes] if isinstance(outcomes, list) else []
+    if not ids or any(not isinstance(value, str) or not value.strip() for value in ids) \
+            or len(ids) != len(set(ids)):
+        raise ValueError("invalid paid outcome contract")
     return ids
 
 
-def _validate_buyer_message_receipts(root, outcome):
-    expected = _current_buyer_message_ids(root)
-    if not expected:
-        return []
-    receipts = outcome.get("buyer_message_receipts") if isinstance(outcome, dict) else None
-    if not isinstance(receipts, list) or [
-        row.get("message_id") if isinstance(row, dict) else None for row in receipts
+def _validate_outcome_coverage(root, outcome):
+    expected = _required_outcome_ids(root)
+    coverage = outcome.get("outcome_coverage") if isinstance(outcome, dict) else None
+    if not isinstance(coverage, list) or [
+        row.get("outcome_id") if isinstance(row, dict) else None for row in coverage
     ] != expected:
-        raise ValueError("buyer message receipt coverage mismatch")
+        raise ValueError("paid outcome coverage mismatch")
     official = outcome.get("official_receipts")
     if not isinstance(official, list):
-        raise ValueError("invalid buyer message receipt")
+        raise ValueError("invalid paid outcome coverage")
     refs = {
         value
         for receipt in official if isinstance(receipt, dict)
         for value in (receipt.get("effect_key"), receipt.get("readback_source"))
         if isinstance(value, str) and value.strip()
     }
-    required = {"message_id", "requirement", "resolution", "evidence_refs"}
-    for row in receipts:
-        evidence_refs = row.get("evidence_refs") if isinstance(row, dict) else None
+    required = {"outcome_id", "required_output_satisfied", "required_effect_satisfied", "receipt_refs"}
+    for row in coverage:
+        evidence_refs = row.get("receipt_refs") if isinstance(row, dict) else None
         if (set(row) != required
-                or not isinstance(row.get("requirement"), str) or not row["requirement"].strip()
-                or not isinstance(row.get("resolution"), str) or not row["resolution"].strip()
+                or row.get("required_output_satisfied") is not True
+                or row.get("required_effect_satisfied") is not True
                 or not isinstance(evidence_refs, list) or not evidence_refs
                 or any(not isinstance(ref, str) or ref not in refs for ref in evidence_refs)):
-            raise ValueError("invalid buyer message receipt")
-    return receipts
+            raise ValueError("invalid paid outcome coverage")
+    return coverage
 
 
 def requirements_digest(root, feedback):
@@ -259,7 +244,7 @@ def _validate_builder_contract(root, feedback, digest, pass_start, resume=False)
             raise ValueError("unauthenticated or mismatched browser evidence")
     if not canonical_equal(_load(after).get("observed_state"), result.get("observed_state")):
         raise ValueError("observed state evidence mismatch")
-    _validate_buyer_message_receipts(root, result.get("business_outcome"))
+    _validate_outcome_coverage(root, result.get("business_outcome"))
     if not resume and min(before.stat().st_mtime, after.stat().st_mtime) < float(pass_start):
         raise ValueError("remote evidence is stale")
     return root, intent, result, requirements_sha256, message_sha256, before, after
@@ -420,12 +405,12 @@ def validate(root, feedback, digest, pass_start, resume=False, verifier=None):
     verifier_outcome = checked.get("business_outcome")
     if not isinstance(builder_outcome, dict) or not isinstance(verifier_outcome, dict):
         raise ValueError("remote verifier business outcome missing")
-    _validate_buyer_message_receipts(root, builder_outcome)
-    _validate_buyer_message_receipts(root, verifier_outcome)
+    _validate_outcome_coverage(root, builder_outcome)
+    _validate_outcome_coverage(root, verifier_outcome)
     if not canonical_equal(
-            builder_outcome.get("buyer_message_receipts"),
-            verifier_outcome.get("buyer_message_receipts")):
-        raise ValueError("remote verifier buyer message coverage mismatch")
+            builder_outcome.get("outcome_coverage"),
+            verifier_outcome.get("outcome_coverage")):
+        raise ValueError("remote verifier outcome coverage mismatch")
     verifier_evidence = _verifier_evidence_values(checked)
     if not verifier_evidence:
         raise ValueError("verifier evidence missing")

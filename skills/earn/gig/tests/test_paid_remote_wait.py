@@ -1282,39 +1282,29 @@ def test_paid_decision_requires_exact_buyer_outcome_identity_coverage():
         )
 
 
-def test_remote_completion_requires_receipt_for_every_buyer_message_after_latest_seller(tmp_path):
+def test_remote_completion_requires_receipt_for_every_required_outcome(tmp_path):
     remote = load("paid_remote_result")
     root = tmp_path / "18211957"
-    ledger = root / "source/talkroom/messages.jsonl"
-    ledger.parent.mkdir(parents=True)
-    rows = [
-        {"message_id": "old-buyer", "side": "buyer", "text": "Already handled."},
-        {"message_id": "seller", "side": "seller", "text": "Handled."},
-        {"message_id": "buyer-1", "side": "buyer", "text": "First new requirement."},
-        {"message_id": "system", "side": "system", "text": "Provider event."},
-        {"message_id": "buyer-2", "side": "buyer", "text": "Second new requirement."},
-    ]
-    ledger.write_text(
-        "\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n",
-        encoding="utf-8",
-    )
+    write_json(root / "context/paid-work-decision.json", {"required_outcomes": [
+        {"outcome_id": "first-outcome"}, {"outcome_id": "second-outcome"},
+    ]})
     complete = {
         "official_receipts": [
             {"effect_key": "effect-1", "readback_source": "evidence/one.json"},
             {"effect_key": "effect-2", "readback_source": "evidence/two.json"},
         ],
-        "buyer_message_receipts": [
-            {"message_id": "buyer-1", "requirement": "First new requirement.",
-             "resolution": "Implemented and verified.", "evidence_refs": ["effect-1"]},
-            {"message_id": "buyer-2", "requirement": "Second new requirement.",
-             "resolution": "Implemented and verified.", "evidence_refs": ["effect-2"]},
+        "outcome_coverage": [
+            {"outcome_id": "first-outcome", "required_output_satisfied": True,
+             "required_effect_satisfied": True, "receipt_refs": ["effect-1"]},
+            {"outcome_id": "second-outcome", "required_output_satisfied": True,
+             "required_effect_satisfied": True, "receipt_refs": ["effect-2"]},
         ],
     }
 
-    assert remote._validate_buyer_message_receipts(root, complete) == complete["buyer_message_receipts"]
-    with pytest.raises(ValueError, match="buyer message receipt coverage mismatch"):
-        remote._validate_buyer_message_receipts(
-            root, {**complete, "buyer_message_receipts": complete["buyer_message_receipts"][:1]},
+    assert remote._validate_outcome_coverage(root, complete) == complete["outcome_coverage"]
+    with pytest.raises(ValueError, match="paid outcome coverage mismatch"):
+        remote._validate_outcome_coverage(
+            root, {**complete, "outcome_coverage": complete["outcome_coverage"][:1]},
         )
 
 
