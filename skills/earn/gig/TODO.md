@@ -584,6 +584,48 @@ do that.
 Platform/client owners remain concurrent. This list selects the engineering cursor; it does not serialize
 independent production effects.
 
+### Urgent gig-lane repair cursor (2026-09-17 JST; live state must be re-read)
+
+Old cursor: generic shared-admission completion before provider execution. New cursor: Coconala →
+CrowdWorks → Lancers → Mercor provider failures and their shared admission dependency, then the
+remaining platforms. Reason: current real gig wakes already expose exact provider failures; fixing
+only the queue or blindly moving every timer to one hour cannot repair logged-out auth, browser
+attachment, or inventory parsing. Current cursor: Coconala Storefront and the first failing
+CrowdWorks/Lancers Paid inventory, while preserving any active paid work and existing effect fences.
+
+These observations are a snapshot, not a claim that the whole lane is healthy. For every row,
+re-read the loaded release SHA and same-run outer terminal before mutation. Do not treat `pass`,
+`loaded`, a mock, or a `latest.json` from another wake as official provider success.
+
+| Lane | Observed boundary | Smallest next edit or action | Acceptance |
+|---|---|---|---|
+| Coconala Apply | Outer pass; earlier official applications, latest no new effect | In `skills/earn/gig/scripts/` Apply owner, verify fresh candidate screening and exact official applied-record readback; do not resend uncertain intents | Natural wake either exact new applied ID + later replay-zero or truthful no-eligible receipt |
+| Coconala Reply | Outer pass; 15 pending threads, 166 read back | In `skills/earn/gig/scripts/coconala-reply-owner` and its shared Reply kernel, reconcile one pending thread by exact talkroom/event ID; keep buyer-wait items pending | Official thread readback, bounded terminal and no duplicate message |
+| Coconala Paid | Outer pass and 4 official room readbacks, zero new effects | Keep `skills/earn/gig/scripts/paid-direct-owner` per-room work; advance only an actionable funded buyer item, never infer delivery from outer pass | Exact room terminal/effect/readback or buyer-wait receipt; replay-zero |
+| Coconala Storefront | 60-second timer; recent terminal `no_executable_unfenced_mutation_contract`, no official listing effect; previous WebSocket HTTP 500 | First trace `runtime/loop/entry_dispatch.py` → Storefront owner and browser attach/intent fence. If no hourly-sensitive work exists, change only `config/loop-registry.json` `hf-gig-storefront-direct` to a phased hourly calendar wake after test; preserve durable work cursor | Natural exact-SHA wake, browser attach, official listing readback or truthful no-work, no repeated scarce-slot hold |
+| CrowdWorks Apply | Current `application-owner.json`: verified submission and `effect_delta=1` | Do not rewrite `skills/earn/crowdworks/scripts/application-owner`; reconcile the exact submitted application and next natural replay | Official application ID/readback and replay-zero; outer terminal |
+| CrowdWorks Reply | `latest.json`: 1 effect, 48 readbacks, 5 pending, 1 failed; outer exit 1 | In `skills/earn/crowdworks/scripts/reply-owner` and shared Reply kernel, isolate the failed thread and reconcile four unknown intents before any resend | Failed item becomes typed retry/pending or verified; unaffected threads remain replay-zero; outer bounded terminal |
+| CrowdWorks Paid | `paid-latest.json`: `provider_inventory` RuntimeError, effect/readback 0 | Reproduce the real inventory failure through `skills/earn/crowdworks/scripts/paid_adapter.py::_list_contracts/_inventory_rows`; retain exception code and account/browser state, fix only proven cause; do not submit without exact contract | Current funded-contract inventory, per-contract next action, official readback, natural terminal |
+| CrowdWorks Report | Outer pass, no provider effect implied | Keep `skills/earn/crowdworks/scripts/report-owner`; report from exact receipts, not job status | Report receipt matches official work state |
+| Lancers Application | Outer pass; fresh official application effect not established | Read exact `skills/earn/lancers/scripts/application-owner` receipt and official proposal history, then repair only missing provider step | Exact proposal ID/readback or no-eligible terminal; replay-zero |
+| Lancers Browser | CDP port 9227 responds, but this does not prove Playwright attach/auth | Trace `skills/earn/lancers/scripts/browser-owner` and `application_tick.py::_default_browser_factory` on the next same-run failure; preserve profile | Owner-scoped connected, authenticated browser readback without sibling restart |
+| Lancers Negotiate | Outer exit 1; previous Reply receipt stale | Trace `skills/earn/lancers/scripts/` negotiation owner stdout/receipt for same run before editing; reconcile exact thread first | Bounded natural terminal and official message/readback or honest pending |
+| Lancers Paid | `paid-latest.json`: generic `provider_inventory` RuntimeError, zero readback | Promote/test typed wait/error mapping in `skills/earn/lancers/scripts/paid_adapter.py` (candidate already exists); inspect `work_sync.py` snapshot before any provider change; reuse `skills/_shared/marketplace-core/scripts/paid_kernel.py` | Distinguishable account/lock/browser wait vs malformed inventory, then exact funded-contract readback |
+| Lancers Storefront | Outer exit 1 `browser_connect_failed`; CDP port responds now | Trace `skills/earn/lancers/scripts/storefront-owner` → `application_tick.py::_default_browser_factory`; test actual Playwright attach/lease on natural 30-minute wake; repair exact failure only | Natural terminal and official offer/listing readback or truthful no-work |
+| Lancers Work-sync / Report | Work-sync capacity deferred; Report pass | Preserve work-sync ticket in `runtime/host/resource_admission.py`; verify release→next claim and source receipts; leave cheap reporting out of scarce agent slot | Next eligible work-sync starts after slot release; exact terminal and work readback |
+| Mercor Application / Paid | Outer pass; fresh provider effects unverified | Read exact `skills/earn/mercor/scripts/{application,paid}-owner` receipts and provider state | Official application/contract readback or truthful no-work; replay-zero |
+| Mercor Reply | `session-readback.json` is `logged_out`; outer exit 2 by design before snapshot/kernel | Keep `apps/job-search-loop/job_search_loop/mercor_auth_readback.py` fail-closed. Restore only this owner's authorized session/profile via existing login path, then run `skills/earn/mercor/scripts/reply-owner` natural wake | Authenticated page readback, fresh snapshot, Reply kernel receipt and outer terminal |
+
+Shared repair in parallel with these rows: `config/loop-registry.json` marks some Paid lanes
+`critical_paid`, but the loaded `runtime/loop/lm_loop_run.py` does not project that into queue
+priority; existing `runtime/host/resource_admission.py::enqueue_durable` non-null `base_priority`
+rows also do not upgrade. Add focused priority-upgrade and release→dispatch tests before an exact
+main-derived patch/release. Keep finite RAM safety: five live agent/revenue owners were observed
+simultaneously, with about 30% free RAM and only ~5 GiB free disk. No fleet-wide cap deletion or
+blind increase to ten. Staggering is a *load smoothing* tool, not a login/inventory repair; pilot
+the wasteful Coconala Storefront 60-second cadence first and measure actual service time, queue
+age and missed buyer effects. Paid/Reply should not be moved to hourly without buyer-latency proof.
+
 ### Plain current checklist — authoritative summary
 
 **Done:** Ryu, both Kokoro rooms and Chii are seller-last with official Coconala readback and replay fences;
