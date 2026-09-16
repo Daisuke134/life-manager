@@ -286,6 +286,10 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(environment["ANICCA_HOME"], str(instance))
         self.assertEqual(environment["EARN_STATE_ROOT"], str(earn_state))
         self.assertEqual(environment["EARN_LEDGER"], str(earn_state / "earn-ledger.jsonl"))
+        self.assertEqual(environment["ANICCA_BRAIN"], "codex")
+        self.assertEqual(environment["ANICCA_FREE_MODEL"], "gpt-5.6-terra")
+        self.assertEqual(environment["ANICCA_LEAN_MODEL"], "gpt-5.6-terra")
+        self.assertEqual(environment["ANICCA_FUNDED_MODEL"], "gpt-5.6-terra")
         self.assertNotIn("CEO_EFFECTIVE_CRON_DIR", environment)
 
     def test_agent_economy_plist_uses_explicit_local_install_home(self):

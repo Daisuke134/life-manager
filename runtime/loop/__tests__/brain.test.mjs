@@ -20,7 +20,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { think } from '../brain.mjs';
+import { think, runCodexAgentWithTimeout } from '../brain.mjs';
 
 const baseCtx = (over) => ({
   wakeId: 'W1', walletAddress: '0xabc', balanceUsdc: 1.23, tier: 'lean',
@@ -107,5 +107,23 @@ test('ANICCA_BRAIN=claude-p throws instead of falling back to the proxy', async 
     () => think(baseCtx(), config),
     (err) => /claude_not_found|claude_exit|claude_p_timeout|claude_empty|claude_invalid/.test(err.message),
     'claude-p failure must surface as a claude-p error, never as a silent proxy answer',
+  );
+});
+
+test('Codex brain runner enforces its timeout and returns bounded process output', async () => {
+  const result = await runCodexAgentWithTimeout(
+    process.execPath,
+    ['-e', 'process.stdin.resume(); process.stdin.on("end", () => process.stdout.write("ok"));'],
+    { env: process.env, cwd: '/tmp', input: 'prompt', timeoutMs: 1_000 },
+  );
+  assert.equal(result.code, 0);
+  assert.equal(result.stdout, 'ok');
+  await assert.rejects(
+    () => runCodexAgentWithTimeout(
+      process.execPath,
+      ['-e', 'setTimeout(() => {}, 60_000)'],
+      { env: process.env, cwd: '/tmp', input: '', timeoutMs: 25 },
+    ),
+    /codex_brain_timeout/,
   );
 });

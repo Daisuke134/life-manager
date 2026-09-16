@@ -93,6 +93,19 @@
       "route": "deterministic",
       "candidates": []
     },
+    "codex-brain-agent": {
+      "route": "codex-brain",
+      "token_reservation": 16384,
+      "timeout_seconds": 180,
+      "candidates": [
+        {
+          "provider": "codex",
+          "model": "gpt-5.6-terra",
+          "effort": "medium",
+          "profile_alias": "acct1"
+        }
+      ]
+    },
     "composition-agent": {
       "route": "terra-medium-bounded",
       "token_reservation": 16384,
