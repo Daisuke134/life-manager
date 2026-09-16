@@ -186,6 +186,9 @@ installed SHAは更新されたが、最後のruntime report/eventは旧SHAで`r
 currentへ一致したが、`last_exit=75`、`host_admission_deferred:resource_capacity_busy`で終了した。
 この1件はrelease driftを解消したが、容量不足のためruntime成功・応募effectとは数えない。
 
+`capafy-goal-monitor`もpreflight PASS後にtargeted reconcileし、installed SHAをcurrentへ揃えた。
+最後の業務eventは旧SHAで`resource_capacity_busy`のまま、自然wakeのterminalは未確認である。
+
 #### S: 自己修復・自己改善の残りも一件ずつ記録する
 
 これは別の常駐supervisorを追加するTODOではなく、既存のreconcile/launchd supervisorとcandidate gateへ
