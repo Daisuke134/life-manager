@@ -125,23 +125,23 @@ receiptはこの観測行を作る条件ではありません。receiptが無い
 `not_applicable`などのtyped stateで記録し、公式receiptとrelease SHAが揃った時だけ`verified`へ昇格します。
 mock/fixture・PID・exit 0・Telegramは証拠にしません。
 
-| 順番 | atomic task（1行だけ） | 観測完了条件（receipt不要） | `verified`昇格条件 |
-|---:|---|---|---|
-| R1-00 | catalogのjob IDとruntime registryのidentityを照合 | 1行のjob IDが実在し、重複0、`job_id`/`owner_id`が安定し、runtime rowの`job_id === loop_id`を検査 | **完了**（candidate `25881b075e`） |
-| R1-01 | `gig-coconala`のmanifest行を観測 | 7 jobのruntime status、release、typed effect/readback状態、理由を記録 | 公式receiptがrelease SHAに結合し、replay-zeroと全必須契約が揃う時だけ昇格 |
-| R1-02 | `gig-lancers`のmanifest行を観測 | 7 jobのruntime status、release、typed effect/readback状態、理由を記録 | release結合済み公式proposal/契約receipt、replay-zero、全必須契約 |
-| R1-03 | `gig-crowdworks`のmanifest行を観測 | 4 jobのruntime status、release、typed effect/readback状態、理由を記録 | 公式応募/契約receiptまたは明示的not-applicable、replay-zero |
-| R1-04 | `writer`のmanifest行を観測 | 7 jobのruntime status、release、typed effect/readback状態、理由を記録 | publisher/payment receiptまたは明示的terminal、replay-zero |
-| R1-05 | `affiliate`のmanifest行を観測 | 6 jobのruntime status、release、typed effect/readback状態、理由を記録 | publication/attribution receiptまたは明示的terminal、replay-zero |
-| R1-06 | `investment`のmanifest行を観測 | 1 jobのmode、runtime、typed effect/readback状態、理由を記録 | order/balance receipt、同一release、replay-zero |
-| R1-07 | `agent-economy`のmanifest行を観測 | 19 jobのruntime status、release、typed effect/readback状態、理由を記録 | wallet/compute/revenue receiptまたはtyped setup、replay-zero |
-| R1-08 | `job-hunter`のmanifest行を観測 | 7 jobのruntime status、release、typed effect/readback状態、理由を記録 | application/reply receiptまたはtyped terminal、replay-zero |
-| R1-09 | `fundraiser`のmanifest行を観測 | 1 jobのruntime status、release、typed effect/readback状態、理由を記録 | 公式application/readbackまたは明示的not-applicable、replay-zero |
-| R1-10 | `connector`のmanifest行を観測 | 1 jobのruntime status、release、typed effect/readback状態、理由を記録 | 公式registration/calendar receipt、replay-zero |
-| R1-11 | `self-build`のmanifest行を観測 | 3 jobのruntime status、release、typed effect/readback状態、理由を記録 | reviewed release/rollback receipt、replay-zero |
-| R1-12 | `mobile-apps`のmanifest行を観測 | 22 jobのruntime status、release、typed effect/readback状態、理由を記録 | build/publication/metrics receiptまたはtyped terminal、replay-zero |
-| R1-13 | `capafy`のmanifest行を観測 | 8 jobのruntime status、release、typed effect/readback状態、理由を記録 | product/publication/revenue receiptまたはtyped terminal、replay-zero |
-| R1-14 | `cfo`のmanifest行を観測 | 3 jobのruntime status、release、typed effect/readback状態、理由を記録 | verified financial snapshot/payout receipt、replay-zero |
+| 順番 | atomic task（1行だけ） | 観測完了条件（receipt不要） | `verified`昇格条件 | 状態 |
+|---:|---|---|---|---|
+| R1-00 | catalogのjob IDとruntime registryのidentityを照合 | 1行のjob IDが実在し、重複0、`job_id`/`owner_id`が安定し、runtime rowの`job_id === loop_id`を検査 | **完了**（candidate `25881b075e`） | [x] 完了 |
+| R1-01 | `gig-coconala`のmanifest行を観測 | 7 jobのruntime status、release、typed effect/readback状態、理由を記録 | 公式receiptがrelease SHAに結合し、replay-zeroと全必須契約が揃う時だけ昇格 | [x] 観測済み / 未昇格 |
+| R1-02 | `gig-lancers`のmanifest行を観測 | 7 jobのruntime status、release、typed effect/readback状態、理由を記録 | release結合済み公式proposal/契約receipt、replay-zero、全必須契約 | [x] 観測済み / 未昇格 |
+| R1-03 | `gig-crowdworks`のmanifest行を観測 | 4 jobのruntime status、release、typed effect/readback状態、理由を記録 | 公式応募/契約receiptまたは明示的not-applicable、replay-zero | [x] 観測済み / 未昇格 |
+| R1-04 | `writer`のmanifest行を観測 | 7 jobのruntime status、release、typed effect/readback状態、理由を記録 | publisher/payment receiptまたは明示的terminal、replay-zero | [x] 観測済み / 未昇格 |
+| R1-05 | `affiliate`のmanifest行を観測 | 6 jobのruntime status、release、typed effect/readback状態、理由を記録 | publication/attribution receiptまたは明示的terminal、replay-zero | [x] 観測済み / 未昇格 |
+| R1-06 | `investment`のmanifest行を観測 | 1 jobのmode、runtime、typed effect/readback状態、理由を記録 | order/balance receipt、同一release、replay-zero | [x] 観測済み / 未昇格 |
+| R1-07 | `agent-economy`のmanifest行を観測 | 19 jobのruntime status、release、typed effect/readback状態、理由を記録 | wallet/compute/revenue receiptまたはtyped setup、replay-zero | [x] 観測済み / 未昇格 |
+| R1-08 | `job-hunter`のmanifest行を観測 | 7 jobのruntime status、release、typed effect/readback状態、理由を記録 | application/reply receiptまたはtyped terminal、replay-zero | [x] 観測済み / 未昇格 |
+| R1-09 | `fundraiser`のmanifest行を観測 | 1 jobのruntime status、release、typed effect/readback状態、理由を記録 | 公式application/readbackまたは明示的not-applicable、replay-zero | [x] 観測済み / 未昇格 |
+| R1-10 | `connector`のmanifest行を観測 | 1 jobのruntime status、release、typed effect/readback状態、理由を記録 | 公式registration/calendar receipt、replay-zero | [x] 観測済み / 未昇格 |
+| R1-11 | `self-build`のmanifest行を観測 | 3 jobのruntime status、release、typed effect/readback状態、理由を記録 | reviewed release/rollback receipt、replay-zero | [x] 観測済み / 未昇格 |
+| R1-12 | `mobile-apps`のmanifest行を観測 | 22 jobのruntime status、release、typed effect/readback状態、理由を記録 | build/publication/metrics receiptまたはtyped terminal、replay-zero | [x] 観測済み / 未昇格 |
+| R1-13 | `capafy`のmanifest行を観測 | 8 jobのruntime status、release、typed effect/readback状態、理由を記録 | product/publication/revenue receiptまたはtyped terminal、replay-zero | [x] 観測済み / 未昇格 |
+| R1-14 | `cfo`のmanifest行を観測 | 3 jobのruntime status、release、typed effect/readback状態、理由を記録 | verified financial snapshot/payout receipt、replay-zero | [x] 観測済み / 未昇格 |
 
 **観測cursor（2026-09-16）:** `R1-01`〜`R1-14`（Coconala、Lancers、CrowdWorks、Writer、Affiliate、
 Investment、Agent Economy、Job Hunter、Fundraiser、Connector、Self-build、Mobile Apps、Capafy、CFO）の
@@ -164,6 +164,11 @@ R2の初回実測（2026-09-16）は、267行の実機statusから生成したpr
 `blocked_product_loop`により未PASSだった。14行は`unknown=0`でも、release drift・resource busy・
 browser/readback未確認などの既知診断が残っているため、R3へ進まず、既存のreconcile/各owner修復で
 これらを解消してからR2を再実行する。
+
+R2を実際のatomicに分けると、(a) `R2-01` gateを一度判定する、(b) `R2-02`既知のruntime原因を
+一ownerずつ修復する、(c) `R2-03`修復後のinstalled/event/natural terminalを確認する、(d) `R2-04`
+同じprivate manifestでgateを再実行する、の順になる。R2-02は外部effectではなく、既存reconcile・
+queue・resource契約を直す作業である。
 
 同日、外部effectを持たないConnector ownerだけをcurrent immutable releaseへtargeted reconcileした。
 installed SHAはcurrentへ揃ったが、最新report/eventは旧SHAのままで、自然wakeのterminal/readbackは未確認である。
