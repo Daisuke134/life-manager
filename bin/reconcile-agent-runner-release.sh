@@ -28,7 +28,7 @@ fi
 reconcile_release() {
   local release_root="$1"
   local status=0
-  local reconcile_max_owners="${LIFE_MANAGER_RECONCILE_MAX_OWNERS:-8}"
+  local reconcile_max_owners="${LIFE_MANAGER_RECONCILE_MAX_OWNERS:-4}"
   case "$reconcile_max_owners" in
     ''|*[!0-9]*)
       printf 'agent-runner reconcile refused: invalid reconcile owner limit\n' >&2

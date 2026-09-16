@@ -305,6 +305,7 @@ def _database(path: Path) -> sqlite3.Connection:
             admission_policy TEXT,
             base_priority TEXT,
             queued_at REAL,
+            next_eligible_at REAL NOT NULL DEFAULT 0,
             effect_unknown INTEGER NOT NULL DEFAULT 0 CHECK(effect_unknown IN (0,1))
         );
         CREATE TABLE IF NOT EXISTS occurrences (
@@ -362,6 +363,9 @@ def _database(path: Path) -> sqlite3.Connection:
         "UPDATE priorities SET queued_at=? WHERE queued_at IS NULL",
         (migration_now,),
     )
+    if "next_eligible_at" not in priority_columns:
+        connection.execute(
+            "ALTER TABLE priorities ADD COLUMN next_eligible_at REAL NOT NULL DEFAULT 0")
     return connection
 
 
@@ -495,11 +499,12 @@ def _durable_queue_rows(connection: sqlite3.Connection, resource_class: str,
                  LEFT JOIN priorities p ON p.owner_id=q.owner_id
                 WHERE q.resource_class=? AND r.owner_id IS NULL
                   AND COALESCE(p.effect_unknown,0)=0
+                  AND COALESCE(p.next_eligible_at,0)<=?
                   AND NOT EXISTS (
                       SELECT 1 FROM occurrences o
                        WHERE o.owner_id=q.owner_id AND o.effect_unknown=1
                   )""",
-            (resource_class,),
+            (resource_class, now),
         )
     ]
     rows.sort(key=lambda row: (
@@ -707,6 +712,7 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
         if not _acquire_bounded(descriptor):
             return None, "control_busy"
         with _database(database) as connection:
+            instant = time.time() if now is None else now
             available, _ = _durable_capacity(
                 connection, owners, resource_class, admission_class,
                 instant,
@@ -961,9 +967,9 @@ def heartbeat_durable(claim: Path, *, now: float | None = None) -> bool:
         os.close(descriptor)
 
 
-def defer_durable(owner_id: str) -> bool:
+def defer_durable(owner_id: str, *, cooldown_seconds: int = 0) -> bool:
     """Return only this owner's dispatch reservation to its existing queue position."""
-    if not owner_id:
+    if not owner_id or not isinstance(cooldown_seconds, int) or not 0 <= cooldown_seconds <= 3600:
         raise RuntimeError("invalid resource identity")
     root, _, _, database = _durable_paths()
     descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
@@ -975,7 +981,14 @@ def defer_durable(owner_id: str) -> bool:
         with _database(database) as connection:
             changed = connection.execute(
                 "DELETE FROM reservations WHERE owner_id=?", (owner_id,)).rowcount
-        return changed == 1
+            delayed = 0
+            if cooldown_seconds:
+                delayed = connection.execute(
+                    """UPDATE priorities SET next_eligible_at=?
+                         WHERE owner_id=? AND EXISTS (
+                             SELECT 1 FROM queue WHERE owner_id=?)""",
+                    (time.time() + cooldown_seconds, owner_id, owner_id)).rowcount
+        return bool(changed or delayed)
     finally:
         os.close(descriptor)
 

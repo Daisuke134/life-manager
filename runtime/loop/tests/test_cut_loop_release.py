@@ -507,8 +507,8 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(
                 [line.split("|", 1)[1] for line in reconciles],
                 [
-                    "reconcile shared-agent-runner --loaded-idle-only --max-owners 8",
-                    "reconcile deterministic --loaded-idle-only --max-owners 8",
+                    "reconcile shared-agent-runner --loaded-idle-only --max-owners 4",
+                    "reconcile deterministic --loaded-idle-only --max-owners 4",
                     "admission-v2-enable",
                 ],
             )
