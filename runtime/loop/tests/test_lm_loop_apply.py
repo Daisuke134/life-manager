@@ -1115,6 +1115,47 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(applied, ["example"])
         self.assertEqual(json.loads(output.getvalue())["eligible"], 1)
 
+    def test_automatic_reconcile_skips_unmerged_candidate_before_bounded_limit(self):
+        repo = self.root / "git-source"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-q", str(repo)], check=True)
+        subprocess.run(["git", "-C", str(repo), "-c", "user.name=Test",
+                        "-c", "user.email=test@example.invalid", "commit",
+                        "--allow-empty", "-qm", "old"], check=True)
+        old_sha = subprocess.check_output(
+            ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+        subprocess.run(["git", "-C", str(repo), "switch", "-qc", "candidate"], check=True)
+        subprocess.run(["git", "-C", str(repo), "-c", "user.name=Test",
+                        "-c", "user.email=test@example.invalid", "commit",
+                        "--allow-empty", "-qm", "unmerged"], check=True)
+        candidate_sha = subprocess.check_output(
+            ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+        subprocess.run(["git", "-C", str(repo), "switch", "-q", "--detach", old_sha], check=True)
+        subprocess.run(["git", "-C", str(repo), "-c", "user.name=Test",
+                        "-c", "user.email=test@example.invalid", "commit",
+                        "--allow-empty", "-qm", "main"], check=True)
+        main_sha = subprocess.check_output(
+            ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+        value = registry()
+        value["loops"] = {
+            loop_id: {**value["loops"]["example"], "label": f"ai.anicca.{loop_id}"}
+            for loop_id in ("a-candidate", "b-old")
+        }
+        agents = self.root / "ancestor-agents"
+        agents.mkdir()
+        for loop_id, sha in (("a-candidate", candidate_sha), ("b-old", old_sha)):
+            (agents / f"ai.anicca.{loop_id}.plist").write_bytes(plistlib.dumps({
+                "EnvironmentVariables": {"LIFE_MANAGER_RELEASE_SHA": sha},
+            }))
+        with patch.dict(os.environ, {
+            "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
+            "LIFE_MANAGER_SOURCE_REPO": str(repo),
+            "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+        }):
+            selected = lm_loop._bounded_reconcile_candidates(
+                value, "deterministic", main_sha, 1)
+        self.assertEqual(selected, {"b-old"})
+
     def test_reconcile_loaded_idle_only_leaves_unloaded_rows_untouched(self):
         release = self._release("release-a").resolve()
         rows = [
