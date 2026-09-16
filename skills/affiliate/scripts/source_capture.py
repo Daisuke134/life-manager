@@ -264,6 +264,10 @@ def discover_official_plan(root, state_root, now, opportunity_selector=select_op
         previous = json.loads(receipt_path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         previous = {}
+    if (previous.get("state") == "FAILED"
+            and isinstance(previous.get("retry_after"), int)
+            and now < previous["retry_after"]):
+        return {**previous, "state": "DEFERRED"}
     plans = [load_plan(root, path.stem, state_root) for path in plan_paths(root, state_root)]
     experiment = pending_experiment(state_root, plans)
     if previous.get("completed_day") == datetime.fromtimestamp(now, timezone.utc).date().isoformat():
@@ -612,12 +616,15 @@ def refresh_all(
         discovery = {
             "schema_version": 1, "receipt_type": "OPPORTUNITY_DISCOVERY",
             "state": "FAILED", "completed_at": now,
+            "retry_after": now + 1800,
             "failure_type": type(error).__name__,
         }
         atomic_write(state_root / "opportunity-discovery.json", discovery)
     plan_set = plan_set_sha256(root, state_root)
-    if (previous.get("state") == "COMPLETE"
-            and previous.get("plan_set_sha256") == plan_set
+    cycle_done = (previous.get("state") == "COMPLETE"
+                  or (previous.get("state") == "PARTIAL"
+                      and previous.get("pending_count") == 0))
+    if (cycle_done and previous.get("plan_set_sha256") == plan_set
             and now - int(previous["completed_at"]) < cooldown_seconds):
         return {"state": "COOLDOWN", "completed_at": previous.get("completed_at"), "plans": []}
     with (state_root / ".source-refresh.lock").open("a+") as lock:
@@ -625,8 +632,13 @@ def refresh_all(
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             return {"state": "ALREADY_RUNNING", "completed_at": None, "plans": []}
-        results = []
-        for path in plan_paths(root, state_root):
+        paths = plan_paths(root, state_root)
+        continuing = (previous.get("state") == "IN_PROGRESS"
+                      and previous.get("plan_set_sha256") == plan_set)
+        results = list(previous.get("plans", [])) if continuing else []
+        attempted = {row["plan_id"] for row in results}
+        remaining = [path for path in paths if path.stem not in attempted]
+        for path in remaining[:1]:
             plan_id = path.stem
             try:
                 plan = load_plan(root, plan_id, state_root)
@@ -639,10 +651,14 @@ def refresh_all(
                 })
             except (CaptureError, OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
                 results.append({"plan_id": plan_id, "state": "FAILED", "failure_type": type(error).__name__})
+        pending_count = len(remaining) - min(len(remaining), 1)
         receipt = {
             "schema_version": 1, "receipt_type": "SOURCE_REFRESH",
-            "state": "COMPLETE" if results and all(row["state"] == "CAPTURED" for row in results) else "PARTIAL",
+            "state": ("IN_PROGRESS" if pending_count else
+                      "COMPLETE" if results and all(row["state"] == "CAPTURED" for row in results)
+                      else "PARTIAL"),
             "completed_at": now, "plan_set_sha256": plan_set,
+            "pending_count": pending_count,
             "discovery_state": discovery["state"], "plans": results,
         }
         atomic_write(receipt_path, receipt)
