@@ -656,6 +656,11 @@ For a zero-intent occurrence, outer terminal alone is insufficient: reconcile
 the same wake's action and Telegram claim/delivery evidence; if mapping is
 missing, keep the occurrence fenced and alert. No host CAS or resubmit occurs
 in the terminal-lookup slice.
+That lookup is now pushed source-only as `77b95d1c8e`: focused tests and the
+472-test runtime suite PASS, fresh read-only review SHIP. The real old-SHA
+21:29 Connector `capacity_busy` run is returned exactly, but had no child and
+no provider effect. It is not a target-set fence, admission clearance, or
+production promotion.
 Old loaded Connector `cf655388` then naturally ran at 20:48:54 UTC (outer
 `18d5e83356635230-73022`) and terminated `FAIL/wake_deadline` at 20:59:00;
 its wake report is `circuit_open/wake_deadline`. No applied bundle timestamp

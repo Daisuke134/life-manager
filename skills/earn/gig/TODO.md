@@ -692,6 +692,18 @@ clears it, so liveness would be lost after a timeout. Exact next slices:
    it marked a nonempty partial journal `active`, used a clobbering rename,
    could overwrite JSON `null`, and lacked full directory durability/path
    proof. The uncommitted draft was removed; source branch is clean.
+   **Exact outer-terminal lookup DONE at source level:** `77b95d1c8e` adds a
+   read-only `lm-loop terminal <loop-id> <run-id> <release-sha>` path through the
+   shared runtime event validator. It searches current and gzip-archived events,
+   accepts only the exact host `report` with `pass/fail/blocked`, release SHA,
+   deterministic provider and `lm-loop://` ref, and rejects inner `pass`,
+   `running`, wrong SHA or conflicting duplicate. The CLI honors the loaded
+   `LIFE_MANAGER_STATE_ROOT` override. RED→GREEN fixtures and runtime suite
+   472/472 PASS; fresh read-only review SHIP. A source-only readback of old
+   Connector run `18d5ea6415f656d8-98545` returned the known
+   `blocked/resource_capacity_busy` host terminal. This proves host-wake
+   closure only; for that pre-admission run no Connector child started. The
+   journal snapshot, zero-intent evidence check and per-target fence remain OPEN.
 3. **OPEN — atomic fence:** Persist the closed target set with exclusive,
    no-clobber creation; on EEXIST re-read and compare exact occurrence/hash/
    targets, fail closed on malformed contents or parent/symlink boundary.
