@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Daisuke134/life-manager/runtime/loop/codex-brain.schema.json",
+  "title": "Life Manager Codex brain decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tool_calls"],
+  "properties": {
+    "tool_calls": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["function"],
+        "properties": {
+          "function": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "arguments"],
+            "properties": {
+              "name": {"type": "string", "enum": ["run_skill", "sleep"]},
+              "arguments": {"type": "string"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

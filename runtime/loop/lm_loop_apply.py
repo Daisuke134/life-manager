@@ -191,6 +191,12 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             "ANICCA_CODE_ROOT": str(release_root),
             "ANICCA_RELEASE_ROOT": str(release_root.parent.parent),
             "ANICCA_HOME": agent_economy_home,
+            # Agent Economy decisions use the existing Codex-first agent-runner;
+            # the seller labels below are instance names, not a Claude brain.
+            "ANICCA_BRAIN": "codex",
+            "ANICCA_FREE_MODEL": "gpt-5.6-terra",
+            "ANICCA_LEAN_MODEL": "gpt-5.6-terra",
+            "ANICCA_FUNDED_MODEL": "gpt-5.6-terra",
             "EARN_STATE_ROOT": earn_state,
             "EARN_LEDGER": str(Path(earn_state) / "earn-ledger.jsonl"),
         })
