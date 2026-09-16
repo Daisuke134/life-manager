@@ -207,6 +207,15 @@ R2を実際のatomicに分けると、(a) `R2-01` gateを一度判定する、(b
 同じprivate manifestでgateを再実行する、の順になる。R2-02は外部effectではなく、既存reconcile・
 queue・resource契約を直す作業である。
 
+**R2-02 fairness atomic (candidate `0e2f0d6e50`):** 既存SQLite admissionの`priorities`へ
+`base_priority`と`queued_at`を追加し、`critical_paid` / `revenue` / `support`のclaim時順位と
+bounded agingを実装した。legacyの`admission_class`は互換のため残し、revenue最低枠やmixed-release
+fenceは削除していない。`_reserve_locked`と`claim_durable`は同じ既存経路で、effective priority・
+sequence・resource fitを判定する。連続する新しいPaid arrival中でも30分待機したConnectorが次の
+reservationを受ける回帰を追加した。候補の`runtime/host`、`runtime/loop` focused suiteは
+**250 tests / 143 subtests PASS**し、candidate branchへpush済み。本番owner、registry priority
+投影、occurrence_id、自然wake、Local gateはまだ未完である。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
