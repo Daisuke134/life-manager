@@ -36,6 +36,11 @@ timeout/usage管理は既存agent-runnerを再利用し、別のparallel harness
 と`gpt-5.6-terra`のtierを明示する。read-only実Codex probe（Codex CLI/agent-runnerともに
 `tool_calls` JSONを返す）と関連testsはPASSしたが、稼働中のproduction processはまだ旧release
 （agent-economy `e8e8…`、x402 seller `b53…`）であり、再起動・即時切替はしていない。
+さらにcandidateをisolated `ANICCA_SINGLE_WAKE=1`で1回実行し、agent-runner summaryの
+`selected_provider=codex`、`selected_model=gpt-5.6-terra`、Codex tool-callから既存parserと
+effectなし`cook` slotまでの到達をGit外private artifact
+`/Users/anicca/.local/state/life-manager/completion/codex-brain-e2e-20260916T044727Z.json`
+へ記録した（external effect receipt=false）。
 したがって、Codex routeのコードはcandidate完了、production activationと同一SHAの自然wakeは
 R2/R3/R6の受入で未完のままとする。`x402-claude-p`のlegacy labelも観測対象から除外しない。
 
