@@ -8,11 +8,18 @@ const { resolveMobileAppLoop } = require("./mobile-app-command.js");
 
 const root = path.resolve(__dirname, "../../..");
 const manifest = require("../config/mobile-app-loops.json");
+const destinations = require("../../../config/marketing-destinations.json");
 const products = require("../config/mobile-products.json");
 const registry = require("../../../config/loop-registry.json");
 
 test("all mobile publication loops share one command and one manifest", () => {
-  assert.equal(Object.keys(manifest.loops).length, 18);
+  assert.deepEqual(
+    new Set(Object.keys(manifest.loops)),
+    new Set(destinations.targets.map((item) => item.loop_name)),
+  );
+  for (const hold of destinations.holds) {
+    assert.ok(!destinations.targets.some((item) => item.integration_id === hold.integration_id), hold.postiz_profile);
+  }
   assert.deepEqual(
     new Set(products.products.map((item) => item.product_id)),
     new Set(Object.values(manifest.loops).map((item) => item.product_id)),
@@ -37,6 +44,21 @@ test("all mobile publication loops share one command and one manifest", () => {
       git_remote: new URL(product.source.git_remote).toString(),
     });
   }
+});
+
+test("every configured mobile publication action is accepted by its real runner", () => {
+  for (const loopId of Object.keys(manifest.loops)) {
+    const resolved = resolveMobileAppLoop(loopId);
+    const runner = require(resolved.runner);
+    assert.doesNotThrow(() => runner.parseArgs([resolved.action]), loopId);
+  }
+});
+
+test("Obou ebook hold cannot be scheduled as a Mobile publisher", () => {
+  const obou = "life-manager-anicca-obou-instagram";
+  assert.equal(manifest.loops[obou], undefined);
+  assert.equal(registry.loops[obou], undefined);
+  assert.ok(registry.retired_labels.includes("ai.anicca.life-manager-anicca-obou-instagram"));
 });
 
 test("retired per-lane boot wrappers are absent", () => {

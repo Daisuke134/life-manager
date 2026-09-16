@@ -250,7 +250,10 @@ class MacosLoopRegistryTest(unittest.TestCase):
             loop_id for loop_id, row in registry["loops"].items()
             if row["entrypoint"] == "apps/life-manager/scripts/mobile-app"
         ]
-        assert len(mobile_ids) == 18
+        destinations = json.loads((ROOT / "config/marketing-destinations.json").read_text())
+        self.assertEqual(set(mobile_ids), {
+            row["loop_name"] for row in destinations["targets"]
+        })
         for loop_id in mobile_ids:
             with self.subTest(loop_id=loop_id):
                 row = registry["loops"][loop_id]

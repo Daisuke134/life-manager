@@ -41,6 +41,28 @@ function runRequired(envFile) {
   ], { encoding: "utf8" });
 }
 
+test("Postiz launchers stop before runtime work when the key is absent", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-postiz-launcher-"));
+  const envFile = path.join(dir, "missing.env");
+  for (const [script, args] of [
+    ["mobile-app", ["life-manager-anicca-jp1-tiktok"]],
+    ["instagram-metrics-production-boot.sh", []],
+    ["tiktok-metrics-production-boot.sh", []],
+  ]) {
+    const result = spawnSync("bash", [path.join(__dirname, script), ...args], {
+      encoding: "utf8",
+      env: {
+        HOME: dir,
+        PATH: "/usr/bin:/bin",
+        LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
+        LIFE_MANAGER_ENV_FILE: envFile,
+      },
+    });
+    assert.equal(result.status, 2, `${script}: ${result.stderr}`);
+    assert.match(result.stderr, /LM_POSTIZ_API_KEY/, script);
+    assert.doesNotMatch(result.stdout + result.stderr, /private-test-value/, script);
+  }
+});
 test("a missing env file warns on stderr but keeps booting", () => {
   const missing = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "lm-env-")), "no.env");
   const result = runLoader(missing);
