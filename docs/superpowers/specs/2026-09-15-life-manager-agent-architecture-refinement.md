@@ -56,7 +56,15 @@ Local gate and Eval, build meta/self-heal on those proven contracts, then promot
 the approved source to Cloud and pass its gate.
 Reason: a candidate checkout or mock cannot be the production code authority;
 deferring main until after Cloud leaves live owners on the old admission path.
-Current cursor is step 1, with Connector as the first provider-effect canary.
+Current cursor is step 1's remaining integration map plus step 2's
+occurrence-ID safety atomic; Connector is the first provider-effect canary.
+Current difficulty is concrete, not missing planning: the foundation branch
+has diverged from advancing main; the priority-upgrade patch is only on a
+candidate branch; old loaded runs and SQLite rows still use the earlier
+admission contract; and the runner may hand a child a newer occurrence ID
+than the one it actually claimed. Therefore neither the Connector canary nor
+provider replay-zero can be certified by the source tests alone. Resolve
+these boundaries in steps 1–3 before reporting a fleet-wide fix.
 Do not perform one 87-commit big-bang merge; merge/release focused reviewed
 slices, preserving main ancestry and exact owner scope. Later historical R2–R6
 tables remain evidence of the superseded plan, not the active cursor.
@@ -65,9 +73,9 @@ tables remain evidence of the superseded plan, not the active cursor.
 
 | # | Atomic result, in dependency order | Acceptance; do not advance on source-only PASS |
 |---:|---|---|
-| 1 | Reconcile foundation candidate, provider work, and latest main by file/owner; freeze one integration map and one active cursor. | No overlapping unowned edit, dirty provider state, or missing main dependency. |
-| 2 | Close shared admission on the existing `runtime/host/resource_admission.py` + `runtime/loop/lm_loop_run.py` path: durable occurrence/queue, Paid priority and bounded aging, actual resource-class limits, release→next claim, stale-owner recovery, exact uncertain-effect fence. | Saturation, release, owner death, mixed release, RAM and disk fixtures pass; queued work is not silently lost or retried as a provider effect. A finite safety ceiling remains until measured peaks justify change. |
-| 3 | Integrate the smallest reviewed shared-runtime/CLI/observability slices into main and cut one main-derived immutable release per targeted canary. | Exact SHA/argv/dependency readback; no sibling owner or browser restart. Source-only candidate work stops being called deployed. |
+| 1 | **Inventory and ownership:** fetch latest main; compare foundation `3a70e98867`, admission source `c7ce1e9fc6`, provider branches and loaded SHAs by file and owner; keep browser/account owners untouched. Freeze the patch dependency map before any merge. | One owner/file map; no dirty or active-owner edit, and each candidate patch has a main-ancestry strategy. Read-only inspection has begun, but this gate is not closed. |
+| 2 | **Shared-runtime source gate:** `runtime/host/resource_admission.py` + `runtime/loop/lm_loop_run.py`: (a) bind the claimed oldest occurrence ID to the actual child effect, (b) finish durable queue/release→next claim and mixed-release recovery, (c) keep Paid priority plus bounded aging and owner heartbeat, (d) pressure-test RAM/disk/resource classes and uncertain-effect fence. Priority upgrade `c7ce1e9fc6` is pushed/tested, not live. | RED→GREEN focused regressions; five active owners → release → eligible waiter starts without another timer; no effect replay, lost queue row or hard-cap violation. Do not call `capacity_busy` elimination a RAM guarantee. |
+| 3 | **Integrate and deploy shared slices:** land only reviewed step-2 changes plus needed manifest/CLI/observability in main, cut main-derived immutable releases and apply one loaded-idle owner at a time. After all old loaded readers and queue rows are reconciled, migrate `borrow` maintenance rows to explicit `support` priority/resource limits and retire the legacy name with old/new schema tests. | Exact source/release/loaded argv and queue migration readback, no sibling restart. `borrow` is not yet deleted; remove it only after the mixed-release compatibility gate. |
 | 4 | Connector first: resolve the current pre-effect capacity stop, let a natural outer run terminate, and reconcile exact provider registration → Google Calendar ID → next-wake replay-zero; then tune its cadence/phase only against event freshness. | Official registration/Calendar readback where eligible, or truthful no-work; loaded PID/inner pass is insufficient. |
 | 5 | Coconala Apply, Reply, Paid, Storefront as separate lanes: current eligible screening-answer submit; 15 pending replies; per-client funded work, attachments and payout; official listing state; reconcile old 54 uncertain intents only as preemptible background work. | Each applicable lane has current same-SHA terminal, exact official effect/readback or truthful wait/no-work, and replay-zero; no account/browser interference. |
 | 6 | CrowdWorks: complete the three existing paid contracts first, then restore inventory, Reply and Apply continuity; Lancers: browser/auth, Apply→Reply→Paid→payout and supported Storefront; Mercor: persistent auth, Apply→Reply→human handoff→Paid→payout. | Each provider's actual effect/readback and per-client terminal, not generic exit 0. Unsupported Storefront is proven not-applicable. |
@@ -85,9 +93,11 @@ file is serialized. A provider owner never waits for an unrelated platform's
 full business completion to write its own isolated fix, but no owner calls a
 platform “working” until its own acceptance evidence exists.
 
-### Patch-level execution plan: first five dependent repair slices
+### Patch-level detail for the active 1–13 order
 
-This is the implementer's checklist beneath steps 1–6 above. Work in the
+This is the implementer's checklist beneath steps 1–6 above, **not a second
+numbered TODO**. Labels A–E map to shared step 2, Connector step 4, Coconala
+step 5, and CrowdWorks/Lancers within step 6. Work in the
 current owner-specific worktrees, fetch latest `origin/main`, and re-read the
 loaded release and same-run terminal before each production action. A source
 candidate is not live. Use one failing regression and the named focused suite
@@ -95,7 +105,7 @@ per patch, then integrate only reviewed slices into main and cut a main-derived
 immutable release. The marketplace owner retains provider files; this spec
 does not transfer ownership of their browser/account state.
 
-**1. Shared admission and release — root cause before provider changes**
+**A. Shared admission and release — step 2, then rollout/migration in step 3**
 
 - [x] Source-only priority migration slice: branch
   `fix/admission-priority-upgrade-20260917`, commit `c7ce1e9fc6`, makes an
@@ -138,7 +148,7 @@ does not transfer ownership of their browser/account state.
   Verify current queue age and release→claim on the host before altering the
   five-run limit. No arbitrary change to eight or unlimited processes.
 
-**2. Connector — first shared-runtime canary, then provider/Calendar**
+**B. Connector — step 4, after shared main-derived release**
 
 - [ ] Read the same wake's outer terminal and private audit along
   `skills/connector/run.sh` → `skills/connector/native-pass.js` →
@@ -162,7 +172,7 @@ does not transfer ownership of their browser/account state.
   scheduled interval is 1800 seconds. Cadence cannot repair admission or an
   unknown external effect.
 
-**3. Coconala — four independent business lanes after the shared canary**
+**C. Coconala — step 5, four independent business lanes**
 
 - [ ] Verify browser owner/profile/port 9223 without restarting siblings:
   `skills/earn/gig/scripts/launch_gig_browser.sh` plus the existing lease.
@@ -188,7 +198,7 @@ does not transfer ownership of their browser/account state.
   60-second registry cadence and phase against actual listing urgency so
   no-op wakes do not repeatedly hold a scarce agent slot.
 
-**4. CrowdWorks — existing paid contracts before new applications**
+**D. CrowdWorks — first provider in step 6, existing paid contracts first**
 
 - [ ] `skills/earn/crowdworks/scripts/paid_adapter.py::_list_contracts` and
   `_inventory_rows` currently produce a `provider_inventory` RuntimeError in
@@ -206,7 +216,7 @@ does not transfer ownership of their browser/account state.
   or failed thread before resending; protect the prior officially verified
   application. Apply may continue only from current eligible official rows.
 
-**5. Lancers — browser attach and funded work are separate failures**
+**E. Lancers — second provider in step 6, after CrowdWorks**
 
 - [ ] For Storefront's `browser_connect_failed`, trace
   `skills/earn/lancers/scripts/storefront-owner` → `storefront_offer.py` →
@@ -224,9 +234,12 @@ does not transfer ownership of their browser/account state.
   thread and replay fence before changing adapters. Close proposal → buyer
   reply → funded contract → Paid delivery → payout by provider work ID.
 
-After slice 5, continue the active table at Mercor (session auth/readback),
-Freelancer.com/Upwork, all 14 Local rows, Eval, meta/self-heal, Cloud and the
-revenue/YC gate. If step 1 makes a lane's next natural provider receipt pass,
+After E, continue step 6 at Mercor (session auth/readback), then steps 7–13
+in the active table: Freelancer.com/Upwork, all 14 Local rows, Eval,
+meta/self-heal, Cloud and the revenue/YC gate. The old 15-item chat list was
+an accidental renumbering of nested substeps, **not** a different execution
+order. Do not use it as a separate cursor. If the shared fix makes a lane's
+next natural provider receipt pass,
 do **not** rewrite that provider lane merely because its prior wake was
 capacity-blocked. Conversely, a new outer `pass` without official business
 readback never closes the lane.
