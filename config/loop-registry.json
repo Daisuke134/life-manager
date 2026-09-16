@@ -56,6 +56,7 @@
       "label": "ai.anicca.crowdworks-revenue-application",
       "log_root": "~/.local/state/anicca/crowdworks/logs",
       "provider_route": "deterministic",
+      "priority": "revenue",
       "state_root": "~/.local/state/anicca/crowdworks"
     },
     "crowdworks-revenue-report": {
@@ -86,6 +87,7 @@
       "label": "ai.anicca.crowdworks-revenue-paid",
       "log_root": "~/.local/state/anicca/crowdworks/logs",
       "provider_route": "deterministic",
+      "priority": "critical_paid",
       "state_root": "~/.local/state/anicca/crowdworks"
     },
     "crowdworks-revenue-reply": {
@@ -102,6 +104,7 @@
       "label": "ai.anicca.crowdworks-revenue-reply",
       "log_root": "~/.local/state/anicca/crowdworks/logs",
       "provider_route": "deterministic",
+      "priority": "revenue",
       "state_root": "~/.local/state/anicca/crowdworks"
     },
     "affiliate-browser": {
@@ -944,6 +947,7 @@
       "label": "ai.anicca.hf-gig-apply-direct",
       "log_root": "~/.local/state/life-manager/coconala/apply/logs",
       "provider_route": "shared-agent-runner",
+      "priority": "revenue",
       "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/coconala/apply"
     },
@@ -1003,6 +1007,7 @@
       "label": "ai.anicca.hf-gig-paid-direct",
       "log_root": "~/.local/state/life-manager/coconala/paid/logs",
       "provider_route": "deterministic",
+      "priority": "critical_paid",
       "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/coconala/paid"
     },
@@ -1023,6 +1028,7 @@
       "label": "ai.anicca.hf-gig-reply-detector",
       "log_root": "~/.local/state/life-manager/coconala/reply/logs",
       "provider_route": "shared-agent-runner",
+      "priority": "revenue",
       "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/coconala/reply"
     },
@@ -1041,6 +1047,7 @@
       "label": "ai.anicca.hf-gig-storefront-direct",
       "log_root": "~/.local/state/life-manager/coconala/storefront/logs",
       "provider_route": "deterministic",
+      "priority": "revenue",
       "resource_class": "agent",
       "state_root": "~/.local/state/life-manager/coconala/storefront"
     },
@@ -1214,6 +1221,7 @@
       "label": "ai.anicca.lancers-revenue-application",
       "log_root": "~/.local/state/anicca/lancers/logs",
       "provider_route": "deterministic",
+      "priority": "revenue",
       "state_root": "~/.local/state/anicca/lancers"
     },
     "lancers-revenue-browser": {
@@ -1257,6 +1265,7 @@
       "label": "ai.anicca.lancers-revenue-storefront",
       "log_root": "~/.local/state/anicca/lancers/logs",
       "provider_route": "deterministic",
+      "priority": "revenue",
       "state_root": "~/.local/state/anicca/lancers"
     },
     "lancers-revenue-telegram-report": {
@@ -1297,6 +1306,7 @@
       "label": "ai.anicca.lancers-revenue-negotiate",
       "log_root": "~/.local/state/anicca/lancers/logs",
       "provider_route": "deterministic",
+      "priority": "revenue",
       "state_root": "~/.local/state/anicca/lancers"
     },
     "lancers-revenue-paid": {
@@ -1318,6 +1328,7 @@
       "label": "ai.anicca.lancers-revenue-paid",
       "log_root": "~/.local/state/anicca/lancers/logs",
       "provider_route": "deterministic",
+      "priority": "critical_paid",
       "state_root": "~/.local/state/anicca/lancers"
     },
     "lancers-revenue-work-sync": {
@@ -1356,6 +1367,9 @@
       "state_root": "~/.local/state/life-manager/lateness-heartbeat"
     },
     "life-manager-anicca-en-affirmation-instagram": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           {
@@ -1387,6 +1401,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-en-card-instagram": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           {
@@ -1418,6 +1435,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-en-slideshow-tiktok": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           {
@@ -1449,6 +1469,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-en-widget-instagram": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           {
@@ -1480,6 +1503,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-ai-youtube": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           { "Hour": 7, "Minute": 45 },
@@ -1502,6 +1528,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-affirmation-youtube": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           { "Hour": 8, "Minute": 15 },
@@ -1524,6 +1553,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-he": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           {
@@ -1555,6 +1587,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-ja-widget-instagram": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           {
@@ -1586,6 +1621,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-en-affirmation-tiktok": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           { "Hour": 9, "Minute": 15 },
@@ -1605,6 +1643,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-jp1-tiktok": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           { "Hour": 6, "Minute": 30 },
@@ -1627,6 +1668,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-jp4": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           {
@@ -1658,6 +1702,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-larry-ja-instagram": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           {
@@ -1689,6 +1736,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-main-instagram": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           {
@@ -1720,6 +1770,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-buddha-tiktok": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           {"Hour": 7, "Minute": 0},
@@ -1742,6 +1795,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-main-tiktok": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           {
@@ -1773,6 +1829,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-anicca-obou-instagram": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           {
@@ -1820,6 +1879,9 @@
       "state_root": "~/.local/state/life-manager/life-manager-cfo-hourly"
     },
     "life-manager-connector-native": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "start_interval_seconds": 1800
       },
@@ -1930,6 +1992,9 @@
       "state_root": "~/.anicca"
     },
     "life-manager-honne-en": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           {
@@ -1961,6 +2026,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-honne-ja": {
+      "priority": "revenue",
+      "resource_class": "agent",
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": [
           {
@@ -1992,6 +2060,9 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-instagram-metrics": {
+      "priority": "support",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 1800
       },
@@ -2079,6 +2150,9 @@
       "state_root": "~/.local/state/life-manager/life-manager-taskmarket-ledger"
     },
     "life-manager-tiktok-metrics": {
+      "priority": "support",
+      "resource_class": "deterministic",
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 1800
       },
@@ -2312,6 +2386,7 @@
       "label": "ai.anicca.mercor-revenue-application",
       "log_root": "~/.local/state/anicca/job-search/mercor/application/logs",
       "provider_route": "shared-agent-runner",
+      "priority": "revenue",
       "state_root": "~/.local/state/anicca/job-search/mercor/application"
     },
     "mercor-revenue-paid": {
@@ -2333,6 +2408,7 @@
       "label": "ai.anicca.mercor-revenue-paid",
       "log_root": "~/.local/state/anicca/job-search/mercor/logs",
       "provider_route": "deterministic",
+      "priority": "critical_paid",
       "state_root": "~/.local/state/anicca/job-search/mercor"
     },
     "mercor-revenue-reply": {
@@ -2354,6 +2430,7 @@
       "label": "ai.anicca.mercor-revenue-reply",
       "log_root": "~/.local/state/anicca/job-search/mercor/reply/logs",
       "provider_route": "shared-agent-runner",
+      "priority": "revenue",
       "state_root": "~/.local/state/anicca/job-search/mercor/reply"
     },
     "mcp-claude-p": {

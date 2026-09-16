@@ -252,6 +252,26 @@ class MacosLoopRegistryTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid priority"):
             validate_registry({"schema_version": 2, "loops": {"example": invalid}})
 
+    def test_shared_marketing_and_connector_owners_declare_runtime_class_and_priority(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        mobile_ids = [
+            loop_id for loop_id, row in registry["loops"].items()
+            if row["entrypoint"] == "apps/life-manager/scripts/mobile-app"
+        ]
+        assert len(mobile_ids) == 18
+        for loop_id in [*mobile_ids, "life-manager-connector-native"]:
+            with self.subTest(loop_id=loop_id):
+                row = registry["loops"][loop_id]
+                self.assertEqual(row.get("resource_class"), "agent")
+                self.assertEqual(row.get("admission_class"), "revenue")
+                self.assertEqual(row.get("priority"), "revenue")
+        for loop_id in ("life-manager-instagram-metrics", "life-manager-tiktok-metrics"):
+            with self.subTest(loop_id=loop_id):
+                row = registry["loops"][loop_id]
+                self.assertEqual(row.get("resource_class"), "deterministic")
+                self.assertEqual(row.get("admission_class"), "borrow")
+                self.assertEqual(row.get("priority"), "support")
+
     def test_command_and_adapter_are_validated_as_one_contract(self):
         value = entry()
         value.update({"adapter": "python", "command": ["dashboard"]})
