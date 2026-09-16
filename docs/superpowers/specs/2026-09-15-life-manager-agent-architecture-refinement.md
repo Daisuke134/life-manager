@@ -195,6 +195,9 @@ currentへ一致したが、`last_exit=75`、`host_admission_deferred:resource_c
 `capafy-loop-healthcheck`もtargeted reconcileでinstalled SHAをcurrentへ揃えた。次回自然wake前のため
 eventは旧SHAのままで、実行結果はまだ確認していない。
 
+`capafy-goal-monitor-daily-close`もstatusから解決したrouteでtargeted reconcileし、installed SHAをcurrentへ揃えた。
+calendar wake前のためeventと自然terminalは未確認である。
+
 #### S: 自己修復・自己改善の残りも一件ずつ記録する
 
 これは別の常駐supervisorを追加するTODOではなく、既存のreconcile/launchd supervisorとcandidate gateへ
