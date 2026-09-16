@@ -399,6 +399,13 @@ Metrics has a `queued`, known-safe occurrence but no queue/priority/reservation
 row and no live owner. Preserve this evidence, reproduce the exact removal
 path test-first, then repair using the existing admission store before raising
 capacity. Do not turn unknown-effect or cancelled work into a blind retry.
+Source branch `ff4d9b07f9` now adds that bounded restoration at the existing
+reservation boundary. RED→GREEN real-SQLite reproduction, 75 admission tests,
+41 runner-bounds tests and 462 full control-plane tests passed. Unknown-effect
+and cancelled occurrences were not reserved in the safety test. This is not
+yet installed; live Instagram remains orphaned. Await fresh reviewer, then
+create a pushed immutable candidate and verify owner-scoped production
+claim/release without treating mock/provider tests as an external effect.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

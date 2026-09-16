@@ -715,6 +715,16 @@ enqueue or repair even after capacity frees. Before any queue mutation,
 reproduce the precise queue-removal path in a focused SQLite test; then
 restore the queued-occurrence/queue invariant with the existing admission
 store and verify no cancelled/effect-unknown occurrence is reactivated.
+The exact orphan invariant now has a pushed source repair `ff4d9b07f9` in the
+foundation branch. Real SQLite regression failed RED when reservation returned
+no owner after a legacy-style queue/priorities deletion, then passed GREEN.
+The shared reservation path restores only queued, effect-known occurrences;
+unknown-effect and cancelled negative tests passed. Host admission 75/75,
+runner bounds 41/41, and complete loop control-plane 462/462 passed. Fresh
+read-only high-risk review is pending. The live Instagram occurrence remains
+orphaned because production still runs candidate `cf655388`; **do not** count
+the source test as live queue recovery. A later immutable release and exact
+natural owner claim/release are required before closing this item.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/
