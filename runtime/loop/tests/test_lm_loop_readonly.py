@@ -165,6 +165,18 @@ class LmLoopReadonlyTest(unittest.TestCase):
             self.assertEqual((event["phase"], event["run_id"], event["status"]),
                              ("report", "outer-run", "blocked"))
 
+    def test_latest_runtime_event_prefers_new_outer_terminal_over_orphaned_old_run(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            old_running = {"version":1,"event_id":"a"*24,"timestamp":"2026-08-28T00:00:00Z","loop_id":"a","domain":"system","run_id":"crashed-run","phase":"execute","status":"running","release_sha":"b"*40,"provider":"deterministic","profile_alias":None,"effect_class":"none","effect_status":"not_applicable","blocker":None,"evidence_refs":["lm-loop://a/crashed-run/summary.json"]}
+            new_running = {**old_running,"event_id":"c"*24,"timestamp":"2026-08-28T00:01:00Z","run_id":"new-run","evidence_refs":["lm-loop://a/new-run/summary.json"]}
+            new_terminal = {**new_running,"event_id":"d"*24,"timestamp":"2026-08-28T00:02:00Z","phase":"report","status":"pass"}
+            (root / "events.jsonl").write_text(
+                "\n".join(json.dumps(x) for x in (old_running, new_running, new_terminal)) + "\n")
+            event = _latest_runtime_event(str(root), "a")
+            self.assertEqual((event["phase"], event["run_id"], event["status"]),
+                             ("report", "new-run", "pass"))
+
     def test_last_event_bounds_tail_reads_and_does_not_resurrect_old_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

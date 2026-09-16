@@ -255,11 +255,12 @@ def _latest_runtime_event(state_root: str, loop_id: str | None = None,
     canonical_reports: dict[str | None, dict] = {}
     active_runs: dict[str | None, dict[str, dict]] = {}
     canonical_active_runs: dict[str | None, dict[str, dict]] = {}
+    positions: dict[str, int] = {}
     try:
         lines = _read_event_tail(path, max_bytes if max_bytes is not None else _event_tail_bytes())
     except OSError:
         lines = []
-    for line in lines:
+    for position, line in enumerate(lines):
         try:
             value = json.loads(line)
             validate_runtime_event(value)
@@ -267,6 +268,7 @@ def _latest_runtime_event(state_root: str, loop_id: str | None = None,
             continue
         if value.get("phase") not in {"execute", "report"}:
             continue
+        positions[value["event_id"]] = position
         loop_key = value.get("loop_id")
         canonical = any(
             isinstance(ref, str) and ref.startswith("lm-loop://")
@@ -284,9 +286,16 @@ def _latest_runtime_event(state_root: str, loop_id: str | None = None,
             canonical_reports[loop_key] = value
     events: dict[str | None, dict] = {}
     for loop_key in set(latest_reports) | set(active_runs):
-        active = canonical_active_runs.get(loop_key) or active_runs.get(loop_key, {})
-        report = canonical_reports.get(loop_key) or latest_reports.get(loop_key)
-        events[loop_key] = next(reversed(active.values())) if active else report
+        if canonical_active_runs.get(loop_key) or canonical_reports.get(loop_key):
+            active = canonical_active_runs.get(loop_key, {})
+            report = canonical_reports.get(loop_key)
+        else:
+            active = active_runs.get(loop_key, {})
+            report = latest_reports.get(loop_key)
+        active_event = next(reversed(active.values())) if active else None
+        events[loop_key] = (active_event if active_event and (
+            report is None or positions[active_event["event_id"]] > positions[report["event_id"]]
+        ) else report)
     if use_cache:
         cache[path] = events
     return events.get(loop_id)
