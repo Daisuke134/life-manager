@@ -26,8 +26,8 @@ flowchart LR
 
 | order | state | atomic TODO | 完了の公式証拠 |
 |---|---|---|---|
-| R0 | **ACTIVE: runtime unified; natural 4/4 pending** | R0.1/R0.2とYouTube Script Writer `7686597754`のsame-Agent online化は完了。Gmail mapping、per-loop scratch、30分timeout、exact foreground render contractはmainへ統合済み。apply owner完了後、Capafy 8 labelを現行release `da6659e1`へtargeted applyした | official loaded arguments readbackは8/8同一SHA、all_loaded true。runtime split blockerは解消。次は同一世代でhourly money/daily/healthcheck/marketingの4/4自然passを確認する（未着手） |
-| R1 | pending | 全新規listingを有料subscription、No Free Trial、正のcontribution marginへfail-closedする。sandbox feeは固定値でなくpublish時の公式console値をreceiptへ保存する | lintとcandidate backlogがtrial・赤字・one-shot候補をrejectし、official CP1 readbackがsubscriptionかつtrial 0 |
+| R0 | **ACTIVE: buyer health + runtime recovery** | paid Agentの現在版はSonnet 4.6。DeepSeek版はOpenRouterで3ケース完了したが、Capafy版は未作成。8 label中daily/healthcheckの自然passは観測し、money/marketing等は資源待ち、moneyは欠損ファイルで失敗。loaded SHAも混在する。 | 同じAgentのDeepSeek新版を審査・Test Runまで閉じ、旧版を先に止めない。8 labelをmain由来同一releaseへtargeted applyし、hourly money/daily/healthcheck/marketingの4/4自然pass、公式売上とprovider effectのreadbackを得る。現在の実測 → `Verified operating baseline` |
+| R1 | pending | 全新規listingを有料subscription、No Free Trial、正のcontribution marginへfail-closedする。公開中40件のうち14件にtrialが残るため、収益上位から同じAgent IDで更新する。sandbox feeは固定値でなくpublish時の公式console値をreceiptへ保存する | lintとcandidate backlogがtrial・赤字・one-shot候補をrejectし、official CP1 readbackがsubscriptionかつtrial 0。既存版のtrialは掲載中の別問題として追跡する |
 | M0 | pending | fresh official demandから、毎周期に新inputが入り前回outputが陳腐化するcustomer jobを1件だけ選ぶ | hypothesis、renewal reason、price/cap/cost、success metric、stop conditionを持つready candidate 1件 |
 | M1 | pending | free slotの最初のwakeでsame-Agent retryを優先し、なければM0 candidateをCP1→CP2→CP3まで1件だけsubmitする | Agent/version/package、under-reviewまたはonline、billing/trial、duplicate/replay 0のofficial readback |
 | M2 | pending | listing固有のverified outputからcreativeを作り、固有campaign URLで1 native postだけ公開する | artifact hash、native URL、listing URL、view/click window、Telegram messageIdが同じrun_id |
@@ -37,24 +37,88 @@ flowchart LR
 | O1 | blocked by O0 | clean Macでone-time onboarding後に24/7 loopを自然wakeさせる | install→auth/preflight→launchd→candidate→receiptのclean-clone E2E、secret/log leak 0 |
 | O2 | blocked by O1 | README、security boundary、economics template、release artifactを公開する | signed/tagged release、reproducible install、operator-owned payout説明、fresh user readback |
 
+### Verified operating baseline
+
+このsectionは現行provider・hostのread-only観測であり、下のC0–C23や古いincident記録は履歴である。観測時点は `2026-09-17 08:25–08:33 JST`。金額はCapafyの現行ClickHouse seller APIで `2026-09-16 UTC` までの確定済み表示を読む。未来の効果や次回更新を売上として先取りしない。
+
+| 境界 | As-Is の証拠 | To-Be の判定 |
+|---|---|---|
+| 購入者向けAgent | Marketing Strategist `9563867391` v1.0.0は`status=4/audit=4/config=1`、runtime model `anthropic/claude-sonnet-4.6`。OpenRouter host keyはdaily cap `$50`、残枠約`$49.73`。自動補充は残高`< $20`で`$50`を支払い方法へ請求する設定。Capafy previewは今回の新規Test Runに`すでにタスクが実行中`を返したためfresh回答は**未証明**。前日のTest Run成功を現時点の成功に流用しない。 | 同じAgent IDのDeepSeek版を審査承認→Capafy Test Runの回答全文→現行版との品質・実費比較→購入者経路の監視へ進める。auto top-upはCapafy売上の自動振替ではなくカード請求、日次key capも独立なので絶対無障害とは報告しない。 |
+| モデル候補 | OpenRouter公式model catalogはSonnet 4.6 input/output `$3/$15` per 1M tokens、`deepseek/deepseek-v4.1-flash`は`$0.15/$0.60`。DeepSeekの`openai-responses`はHTTP 200。回収した元Marketing Strategist SKILLで3ケースが完了し、費用は`$0.0023586/$0.003369/$0.0027282`、所要時間は`30.5/12.8/14.8`秒。これはCapafy runtime品質の証明ではない。 | `publish_prepare.sh`がlistingsごとのruntime modelを封入し、`maxTokens`の候補`8192`を検証する。CP2とkey gateも同じmodelを使う。旧Sonnet版が売られている間は両modelの検査を維持する。 |
+| 掲載・候補 | 公式inventoryは`40 online / 5 under_review / free 0`。5件はいずれも9月15日から審査中。repo外backlogは`ready=9`だが、Capafyは第6新規Agentを受け付けない。17日のCAP_FULL offline buildは新ready候補を作れずrc1、その後のhourly wakeは当日claim済みとして無作業。 | review transitionを公式readbackして空きが生じた最初の適格hourly wakeで既存Agentのretryを優先し、最大1件だけsubmit。CAP_FULL中はplatform write 0、offline失敗は重複なしでbounded retry。 |
+| 8 owner | `capafy-loop-daily`と`capafy-loop-healthcheck`の自然passを観測したが、goal/IG/outcome等の直近6 labelは`host_admission_deferred:resource_capacity_busy`。loaded SHAが混在し、R0の4/4自然passは未達。healthcheckはkey gate失敗時にlogを書いて`exit 0`するfalse-green経路がある。 | 同じmain由来release・全8 loaded・4/4自然pass。軽いcontrol仕事はagent runner枠を消費せず、provider失敗はsecret-free blocked receiptと通知を出す。顧客向けの実際のCapafy応答をreadbackする。 |
+| 集客 | native IG Reel ledgerは3件、最新は8月24日。最近のmarketing ownerは資源待ち。過去の実行はimmutable releaseの`site/index.html`へ書こうとしてpermission denied、live passもnative Reelをreadbackできず終了した。 | writable stateでlandingを生成し、同じlistingのverified asset→native Reel URL→click window→sales windowを1 runへ結ぶ。投稿が無ければ成功としない。 |
+| お金 | 現行dashboard APIの9月1–16日gross sales `$71.89`、creator earnings `$51.76`。累計は`$91.87/$66.16`。9月のOpenRouter host key利用額は約`$24.17`だがTest Run等を含み、純利益ではない。銀行へのpaid payoutは`$0`。active/canceled subscriberの公式sourceは未取得なのでMRRは`unknown`。旧`/app/sales/trend`は現行ClickHouse画面と一致せず、hourly money ownerは存在しない`capafy-marketing-terminal.json`を必須読込して失敗する。 | 現行`/app/sales/clickhouse/*`と`/app/realtime-revenue/clickhouse/*`、payout、refund、fee、hosted costを同じ期間で照合。active subscription不明ならMRRは`unknown`、bankedは実支払readbackだけ。 |
+
+Readback sources: Capafy Seller Console [Sales](https://capafy.ai/developer/salesTrends) `POST /app/sales/clickhouse/trend|ranking`、[Earnings](https://capafy.ai/developer/analytics) `POST /app/realtime-revenue/clickhouse/trend|comparison`、`GET /agent/developer/payout-info`、`GET /agent/agents`。OpenRouter [Credits](https://openrouter.ai/settings/credits)、`GET /api/v1/key|credits|models`、Responses API。OpenClaw provider `maxTokens`の[一次仕様](https://github.com/openclaw/openclaw/blob/main/docs/gateway/config-tools/custom-providers.md)。provider token/keyはprivate SSOTから読んだが、このspecとreceiptには値を保存しない。
+
+`$10,000 MRR`の計算契約は、**active subscriptionごとの月換算publisher受取額 − 同じsubscriberの予測hosted request cost − refunds/fees**の合計である。30日収益、公開数、無料trial、未払残高をMRRへ変換しない。active subscriber identity・更新/解約時刻・実際のrequest costが公式sourceから揃わない限り数値は`unknown`。M0–M4は一度に一つのcustomer job/creative/price仮説だけ変え、paid renewalと正のcontributionを観測して継続する。
+
+#### As-Is: 載っていても供給・集客・監視が停滞する
+
+```mermaid
+flowchart LR
+  Buyer[購入者] --> Live[Capafy: 40 online<br/>34 Sonnet表示・14 trial有効]
+  Live --> Key[OpenRouter key<br/>auto top-up / daily cap $50]
+  Host[Mac launchd: Capafy 8 label] --> Gate[共通host admission<br/>同時finite 5]
+  Gate --> Daily[hourly supply<br/>CAP_FULL no platform write]
+  Daily --> Review[Capafy review: 5/5 occupied]
+  Gate -. capacity busy .-> Money[hourly money / marketing / outcome]
+  Money --> OldAPI[旧seller API + 欠損marketing terminal]
+  IG[IG native post] -. 最新8月24日 .-> Live
+  OldAPI -. active subscriber source無し .-> Unknown[MRR unknown / banked $0]
+```
+
+#### To-Be: 顧客効果・費用・継続収益を同じ周期で証明する
+
+```mermaid
+flowchart LR
+  Buyer[購入者] --> Live[同じAgent ID<br/>審査済みDeepSeek版]
+  Live --> Effect[Capafy Test Runと顧客応答readback]
+  Live --> Key[OpenRouter: 自動補充 + 有限key cap<br/>両modelを移行中検査]
+  Control[短いkey / seller control] --> Receipt[失敗はblocked receipt + 通知]
+  Worker[hourly supply / marketing] --> Inventory[公式review transition]
+  Inventory -->|free 1| Submit[同じAgent retry優先<br/>1 wake最大1 submit]
+  Inventory -->|CAP_FULL| Offline[1日1候補のbounded build/retry<br/>platform write 0]
+  Worker --> Reel[verified asset + native Reel URL]
+  Submit --> Sales[現行売上・収益・fee・LLM cost]
+  Reel --> Sales
+  Sales --> MRR[active subscriptionがあればnet MRR<br/>無ければunknown]
+  MRR --> Decision[正のcontributionとretentionを改善]
+  Decision --> Worker
+```
+
+#### R0 execution cursor and patch contract
+
+**順序理由:** 旧順序は`R0自然4/4 → R1 paid gate → M0候補 → M1提出 → M2集客 → M3計測`。現状は公開版のpreviewが進行中タスクでfresh検証できず、hosted原価とseller APIが不一致、6 ownerが資源待ちである。新順序は**R0内で顧客応答・control復旧・fresh moneyを先に確定**し、`R1 → M0 → M1 → M2 → M3`はその後に維持する。現在cursorは`R0-C1`。プラットフォームreview 5枠をローカルで撤廃せず、進行中の外部effectを再送しない。
+
+| 順 | owner / exact files | 最小変更 | 完了条件 |
+|---|---|---|---|
+| R0-C1 | `skills/capafy-autopublish/scripts/publish_prepare.sh`、`drive_checkpoint2.py`、`build_config.py`、`key_health_gate.sh`、new `skills/capafy/catalog/marketing-strategist/{SKILL.md,LISTING.md,test/case1.md,icon.svg}`、既存focused tests | 元SKILLとListingをcredential無しでrepo正本へ移す。OpenClaw provider contractのmodel IDと`maxTokens`をlisting別に生成し、DeepSeek `openai-responses`とCP2を一致させる。公開中Sonnetのkey probeは消さず、同じAgent IDのversion update準備をする。公開版切替は既存版継続、review承認、Capafy Test Run成功、品質と1実行costのreadbackの順。 | direct3ケースだけでは未完。same-Agent ID、旧版の提供継続、審査状態、Capafy Test Run回答全文、provider error 0、入力/出力/cost、secret leak 0。Test Run previewの`already_running`は新規成功と扱わない。 |
+| R0-C2 | `config/loop-registry.json`のCapafy 8行、`skills/self/capafy-loop/capafy-loop-healthcheck.sh`、`skills/earn/capafy-marketing/capafy-goal-monitor.sh`と`capafy-outcome-monitor.sh`、必要時のみ`runtime/host/resource_admission.py`、focused tests | LLMを呼ばないgoal/outcomeをagent classからdeterministicへ移し、短いcontrolに資源を確保する。healthcheckはkey/Capafy effect失敗時に`exit 0`で緑にせずblocked receiptと通知を残す。負荷を測り、重いIG/候補仕事を時刻分散する。host finite 5を無制限にせず、実測headroomに応じたcontrol/worker別の有界枠へ置換する。 | 8/8 loaded同一main SHA、hourly money/daily/healthcheck/marketingの同一世代4/4自然passを2周期、外部effectのreplay 0、buyer's Test Run readback、兄弟loop停止0。 |
+| R0-C3 | `skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py`、`capafy_company_receipt.py`、`tests/test_capafy_hourly_reconcile.py`、`tests/test_capafy_company_receipt.py` | seller旧GETを現行ClickHouse POSTへ置換。missing marketing terminalは`unknown`としてmoney読取を続け、実在するnative IG ledgerからmarketing receiptを作る。active/canceled subscriptionのsourceが無い間はMRRをunknownのまま出す。 | dashboardの同期間gross/earnings、payoutのpending/confirmed/payable/bankedがreceiptと一致。欠損mediaでcrash 0、旧API値の流入0、MRR捏造0。 |
+| R1→M2 | `skills/capafy-autopublish/scripts/{lint_listing.py,candidate_backlog.py}`、`skills/self/capafy-loop/{capafy_offline_cadence.py,capafy-loop-daily.sh}`、`skills/earn/capafy-marketing/{capafy-ig-marketing-daily.sh,scripts/build_landing.py}`、各focused tests | trial/赤字/one-shotを新規readyから除外。失敗した当日offline claimを同一execution IDでbounded retry。landingはreleaseでなくwritable stateへ生成し、native ReelとCTAをofficial readbackする。既存trial 14件は収益上位から同じAgent版更新で処理。 | platform free slotができた最初の適格wakeで最大1件submit、CAP_FULL platform write 0、native Reel URLとclick receipt、収益とhosted costの正のcontribution。 |
+
+**24/7の意味:** `run_online`の購入者処理はCapafy側で継続し、Macのhourly supplyが停止しても直ちに既存Agentが停止するわけではない。絶対無停止は保証しない。購入者向け実応答、key/残高、自然wake、公式money/effectを別々に監視し、失敗を通知・再試行可能状態へ収束させる。2自然周期はrelease受入れの最小証拠であり、継続稼働の主張にはC21どおり7日連続でdaily健康terminalとhourly鮮度を観測する。
+
 ### Remember / Never
 
-- **Remember:** 現在の公式seller truthはpaid order `1`、one-time `$9.99`、subscription MRR `$0`、paid payout/banked `$0`。YouTube Script Writer `7686597754`は全3 planがsubscriptionかつ`supportFreeTrial=0`で、official `platform_status=4`、`audit_status=4`、`is_confirmed_skills=true`、`is_confirmed_config_keys=true`、`package_uploaded=true`、run_onlineを同じAgentで返す。これが販売可能状態の公式gateであり、publisher自身のbuyer-side live chatは不要である。MRRへone-time売上、views、clicks、pending balanceを加算しない。Capafyは一取引を一publisher accountへ支払うため、OSS利用者の収益は各利用者自身のpublisher/payoutへ帰属し、自動的な貢献者分配は存在しない。
+- **Remember:** 現在の売上・収益・MRRとbuyer Test Runの証拠は上の`Verified operating baseline`だけを正本とする。下の旧`$9.99 / MRR $0`等は履歴であり現在値ではない。trial、one-time、views、pendingをMRRへ加算しない。Capafyは一取引を一publisher accountへ支払うため、OSS利用者の収益は各利用者自身のpublisher/payoutへ帰属し、自動的な貢献者分配は存在しない。
 - **Remember:** Capafy sourceとruntimeはすでにLife Manager public repoへ移植済み。新しいrepoや重複schedulerを作らない。
 - **Remember:** CapafyはLife Managerの共通control planeを再利用する。`config/loop-registry.json`がownership/cadence、`runtime/loop`と`lm-loop`がlifecycle・immutable release・targeted apply、`runtime/agent-runner`がmodel routing・budget・evidence、shared reportingがreceipt/Telegramを所有する。Capafy固有層はmarketplace inventory、publisher/API/DOM adapter、candidate economics、host-key healthだけを所有し、共有primitiveを複製しない。
-- **Remember:** Hosted LLM fundingは購入済み残高だけに依存させない。OpenRouter残高`< $5`で`$10` auto top-up、host key daily limit `$10`、毎時のworst-case request headroom `$2.25`とlive HTTP probeを正本とする。Capafy Hosted Configはprivate SSOTのcanonical keyと一致させ、値そのものをrepo・log・receiptへ保存しない。
+- **Remember:** Hosted LLM fundingの現行設定は上の`Verified operating baseline`だけを正本とする。Capafy Hosted Configはprivate SSOTのcanonical keyと一致させ、値そのものをrepo・log・receiptへ保存しない。自動補充はカード請求であり、Capafy売上からの振替ではない。
 - **Never:** M4前にOSS onboardingへ進まない。free listing/trialを作らない。one-shot jobをsubscriptionへ偽装しない。quota failureを5分ごとに再発火しない。slot fullで第6 Agentを作らない。rejected Agentを捨てて別Agentを作らない。generic landing pageを個別listing attributionの代用にしない。main agentがInstagram/Capafyのpublish、caption edit、profile editを直接実行しない。healthy loopを毎時blind reapply/restartしない。release applyはmain由来immutable SHAを対象labelへ1回だけ行い、loaded argv・terminal receipt・official effectをreadbackする。
 
 ### Patch-level implementation cursor
 
-行番号はcurrent main `f251205c5`の目安であり、実装時は同じ行のstable anchor/function名を正本にする。各atomは記載file以外へ広げず、表の順に1件ずつ実装する。
+この表は既存atomの実装履歴と参考anchorである。現在cursorと実行順は上の`R0 execution cursor and patch contract`を正本にする。古いSHAや行番号を現在のloaded状態とみなさず、実装時にstable anchorを確認する。
 
 | atom | exact file / anchor | patch-level change | focused verification | size target |
 |---|---|---|---|---|
 | R0.1 release root — **completed** | `skills/self/capafy-loop/capafy-loop-daily.sh:14` `LIFE_MANAGER_RELEASE_ROOT`、`LIFE_MANAGER_SOURCE_REPO` | 実行rootと書込sourceを分離済み。child/inventoryはimmutable release、candidate作成だけcanonical writable sourceを使い、releaseの`.git`へ依存しない | focused境界test 2件PASS。loaded release `5302a48e3`のdaily scriptはmainとSHA-256 `69d8fc44…`で一致し、launchd argvは同releaseの`bin/lm-loop-run`とrelease rootを渡す | completed |
 | R0.2 private publisher state — **completed** | `skills/capafy-autopublish/scripts/publish_prepare.sh`のPhase A候補選択・private state、`publish_finish.sh`のsingle prepare/upload/submit、`inventory_status.py:server_agents`のofficial list adapter、`save_review_url.py`と`cp1_agent.py`のshared strict link boundary、vendored Publisher | repo内stateとtoken出力を排除し、same-Agent、exact prepare envelope、single upload/submit、strict URL、official readbackへ統合した | natural daily/health exit `0`、Agent `7686597754` status/audit `4/4`、run_online、skills/config/package true、全3 plan subscription/trial 0、Agent/event duplicate 0、canonical source diff 0。buyer-side live chatは販売開始gateから除外 | completed |
 | R0.2.1 prepare envelope — completed | `skills/capafy-autopublish/scripts/publish_finish.sh`の`PREPARE_STATUS` gate、`skills/capafy-autopublish/test/test_agent_work_state_isolation.sh`のprepare fixture | Publisher `0.9.11`の正常`publish-submit prepare` envelopeを`valid=true AND same Agent AND status=security_review_required AND security_ready=true AND next_action=continue_upload`でのみ受理する。その他status、missing/false field、Agent mismatchはupload前FAIL。prepare/continue_upload/CP3は各最大1 effect、unknown時のretry 0 | REDで正常envelopeのcontinue count `0`を再現。GREENはvalidだけprepare `1` / continue `1`、wrong status・security false・missing next action・wrong Agentはprepare `1` / continue `0` / CP2・CP3 `0`。focused PASS×3、OSS verifier、doctor `168 / ok=true`、fresh review `ship`。PR `#3449`、merge `1b85036d24f56ca2584800731e5e2c868b663e2a` | completed; durable main gate proven |
-| R0.3 self-heal truth — **code merged; deployment active** | `skills/self/capafy-loop/capafy-loop-healthcheck.sh` | staleだけでblind kickstartしないmain実装はmerge済み。追加codeを作らず、current mainをimmutable releaseへcutし、全Capafy labelを同じSHAへapplyする | doctor `ok=true`、loaded SHA統一、自然hourly daily/healthcheck/marketing/money exit 0、同failure restart 0、fresh receipt | deployment/readback only |
+| R0.3 self-heal truth — historical code merged | `skills/self/capafy-loop/capafy-loop-healthcheck.sh` | staleだけでblind kickstartしないmain実装はmerge済み。現在はkey失敗時`exit 0`、mixed loaded SHA、money/marketing自然pass欠落が残るため上のR0-C1/C2/C3で回収する | 既存のrestart guardを保ちつつ、fresh buyer Test Run・8/8 loaded・4/4自然passを得る | superseded by current R0 cursor |
 | R1.1 paid economics contract | `skills/capafy-autopublish/references/pricing.md:8-16`、`BEST_PRACTICES.md`のtrial/copy-winner段落 | `Free Trial必須`と`人が最終承認`を削除し、approved policy内の自動paid publishへ変更する。固定sandbox `$0.07/day`を削除し、publish時console readback値を使う式 `publisher_net=(cycle_price-sandbox_fee)*0.80` と `contribution=publisher_net-hosted_cost`を唯一のgateにする。勝者はcustomer job/pricing/proof structureだけ模倣し、文面・identity・codeはcopyしない | reference grepで`trial必須`、固定sandbox、human final approval、verbatim copy 0 | 2 docs / 25 LOC |
 | R1.2 enforce paid/renewal gate | `skills/capafy-autopublish/scripts/lint_listing.py:14,81-84`、`candidate_backlog.py:96-106,132-143` | pricing row parserを追加し、全planがsubscription、`No Free Trial`、price/cap正数でなければFAIL。`## Renewal reason`、`## Unit economics`、`## Verified demonstration`を必須化し、recurring input・staleness reason・console sandbox fee・hosted max cost・positive contributionがないcandidateを`blocked_economics`にする | new `test/test_lint_listing.py`はpaid recurring PASS、trial FAIL、one-shot FAIL、negative margin FAILの4 fixture。`test_candidate_backlog.py`はblocked candidateがready countへ入らないことを1件追加 | 2 prod + 2 tests / 90 LOC |
 | M0.1 economic selector | `skills/self/capafy-loop/sales_selector.py`の`select_signal`、new `skills/self/capafy-loop/economic_selector.py` | official seller winnerがあればretained contribution順、なければfresh demand evidence順で1 candidateを返す。出力を`candidate_id,hypothesis,renewal_reason,price,cap,max_cost,success_metric,stop_condition,evidence`へ固定し、viewsだけ・one-timeだけ・source staleならwinnerを返さない | `test_sales_selector.py`既存挙動維持 + new `test_economic_selector.py`のwinner/no-signal/stale/negative-margin | 1 prod + 1 new + 1 test / 95 LOC |
@@ -530,7 +594,7 @@ Current production truth:
 
 このsectionは冒頭R0–O2 queueの短縮readbackである。実装diffは`Patch-level implementation cursor`を正本とし、常に最上段の未完了atomだけをactiveにする。
 
-1. **R0 NOW:** R0.1 completed → R0.2 completed → **R0.3 active**。self-heal修正をmain由来immutable releaseへ統合し、installed daily/healthcheckの自然wake、fresh terminal rc 0、platform write 0を確認する。
+1. **R0 NOW:** 実行cursorは上の`R0-C1 → R0-C2 → R0-C3`。旧R0.3の「8/8 unified」主張はlive readbackと不一致なので、buyer health、mixed release、money/marketing failureを同じ世代の自然wakeで回収する。
 2. **R1:** R1.1→R1.2。trial、固定sandbox、human approval、verbatim copyを契約から削除し、paid recurring・renewal・positive contributionをlint/backlogで強制する。
 3. **M0:** M0.1。fresh official evidenceからhighest contribution EVのrecurring customer jobを1件だけ選ぶ。
 4. **M1:** M1.1。same-Agent retry優先でCP1→CP2→CP3を1件だけ閉じ、subscription/trial0/remote statusをreadbackする。
@@ -548,7 +612,7 @@ Current production truth:
 | 1 | completed | R0.2.1 — `skills/capafy-autopublish/scripts/publish_finish.sh`、`skills/capafy-autopublish/test/test_agent_work_state_isolation.sh` | normal prepareを`valid=true AND same Agent AND status=security_review_required AND security_ready=true AND next_action=continue_upload`のexact envelopeでのみ通す。その他はprovider effect 0でFAIL | focused RED→GREEN、prepare 1、valid continue_upload 1、invalid continue_upload/CP2/CP3 0、fresh review ship、PR `#3449`、main merge `1b85036d2` |
 | 2 | effect completed; replay proof pending in #3 | R0.2.2 — 同じ`publish_finish.sh`、`drive_checkpoint2.py`、`drive_checkpoint3.py`の既存経路 | same-Agent `7686597754`で`continue_upload → CP2 hosted key → CP3 submit`を順に1回ずつ実行する。timeout/unknownはretryしない | natural owner official status `1`、skills/config/package true、same Agent/version、審査送信済み、duplicate Agent/version 0。新releaseの自然replay write 0で最終close |
 | 3 | completed | R0.2.3 — immutable release、`ai.anicca.capafy-loop-daily`、official Capafy readback | current release `439dc71d`の自然daily/health terminal、same-Agent official status/package/config、duplicate/replay、canonical source diffを検証 | daily execution `20260831T124856Z-67294` rc `0`、health exit `0`、Agent status/audit `4/4`、skills/config/package true、duplicate/replay 0、source diff 0。buyer-side live chatは販売開始gateではない |
-| 4 | **ACTIVE: runtime unified; natural 4/4 pending** | R0.3.1 — Capafy 8 labels、release `da6659e1` | apply owner完了確認、全8 label targeted apply、loaded arguments 8/8同一SHA・all_loaded true readback | 次は同一世代4/4自然pass→fresh valid MP4、background/orphan 0、timeout/Gmail/mktemp再発0、duplicate/platform write 0。今回は未着手 |
+| 4 | **ACTIVE: R0-C1/C2/C3** | Capafy 8 labels、same-Agent DeepSeek版、現行seller source | 上のcurrent R0 contractを順に実施する。過去の`da6659e1`はloaded全8の現在値ではない | Capafy新版Test Run、8/8 main release、4/4自然pass、fresh money/effect、duplicate/platform write 0 |
 | 5 | pending | R1.1 — `skills/capafy-autopublish/references/pricing.md`、`BEST_PRACTICES.md` | trial必須・固定sandbox・human final approval・verbatim winner copyを削除し、公式feeとpositive contributionだけを契約にする | banned contract grep 0、official fee fieldがreceiptへ保存される |
 | 6 | pending | R1.2 — `lint_listing.py`、`candidate_backlog.py`、focused tests | 全plan subscription、No Free Trial、正price/cap、renewal reason、unit economics、verified demonstrationを必須化。one-shot/trial/赤字を`blocked_economics`へ送る | paid recurring PASS、trial/one-shot/negative-margin FAIL、blocked candidate ready count 0 |
 | 7 | pending | M0.1 — `sales_selector.py`、new `economic_selector.py`、tests | fresh official evidenceからretained contribution EV最大のrecurring customer jobを1件だけ返す。stale/one-time-only/negative-marginはwinnerなし | ready candidate 1件にhypothesis、renewal reason、price/cap/max cost、metric、stop condition、evidenceが全て存在 |
@@ -562,16 +626,16 @@ Current production truth:
 
 Execution contract for every implementation atom: `locked worktree → failing focused test → minimal patch → focused GREEN → fresh read-only review → fetch/rebase → commit/push → admin merge → immutable release → lm-loop apply → natural terminal → official readback → spec/Telegram receipt`。外部effectがtimeout/unknownなら同じeffectをretryしない。
 
-Latest submission milestone: natural ownerはsame Agent `7686597754`を審査へ提出し、official status `1`、skills/config/package trueを返した。outer rc `1`はTelegram transportがmessage IDを返さなかったためで、Capafy submission failureを意味しない。Codex direct milestoneはTelegram message ID `46034`で確認済み。公式subscription MRRとbanked revenueは引き続き`$0`。
+Historical submission milestone: natural ownerはsame Agent `7686597754`を審査へ提出し、official status `1`、skills/config/package trueを返した。outer rc `1`はTelegram transportがmessage IDを返さなかったためで、Capafy submission failureを意味しない。Codex direct milestoneはTelegram message ID `46034`で確認済み。当時のmoney値を現在のMRRへ流用しない。
 
-Latest hosted-credit incident: Hook Lab Agent `8123079349` /旧Version `2063493878213660672`はOpenRouter HTTP `402`（128k max-token requestに対するcredit不足）で削除済みになった。復旧では`$10` credit購入、残高`< $5`時の`$10` auto top-up、host key daily limit `$3→$10`、Hosted Configのcanonical key一致を公式UI/APIで確認した。新Version `2096869519578132480`（v1.0.1）は審査中で、Capafy仕様上Test Runは審査承認後に実行する。再発防止はPR `#4540`、runner復旧は`#4543`、CAP_FULLを含む毎時key gateは`#4545`でmainへ統合し、production release `8bf478733f0869cc48fc875c1cddbb873e1f62ce`で`KEY_HEALTH=OK remaining=$11.5399 live_probe=200`、terminal `rc=0`、blocker `null`を実測した。このmanual recovery passはR0の4/4 natural proofへ算入しない。
+Historical hosted-credit incident: Hook Lab Agent `8123079349` /旧Version `2063493878213660672`はOpenRouter HTTP `402`（128k max-token requestに対するcredit不足）で削除済みになった。復旧では`$10` credit購入、残高`< $5`時の`$10` auto top-up、host key daily limit `$3→$10`、Hosted Configのcanonical key一致を公式UI/APIで確認した。新Version `2096869519578132480`（v1.0.1）は審査中で、Capafy仕様上Test Runは審査承認後に実行する。再発防止はPR `#4540`、runner復旧は`#4543`、CAP_FULLを含む毎時key gateは`#4545`でmainへ統合し、production release `8bf478733f0869cc48fc875c1cddbb873e1f62ce`で`KEY_HEALTH=OK remaining=$11.5399 live_probe=200`、terminal `rc=0`、blocker `null`を実測した。このmanual recovery passはR0の4/4 natural proofへ算入しない。 現行設定は上のbaselineを読む。
 
 ### Current completion and finish forecast
 
 - C0–C23は過去実装のacceptance履歴であり、現在の実行進捗はR0–O2だけで表す。過去の`21/24`を事業目標達成率に使わない。
-- Scheduler定義と毎時host-key gateはproduction release `8bf47873`へinstalledで、manual recovery passはdaily terminal `rc=0`、blocker `null`、live provider probe `200`を返す。24/7 healthyの主張には同一世代のR0 4/4 natural proofがまだ必要である。
-- 現在の公式subscription MRRは`$0`であり、`$10K`のcalendar ETAは算出不能。表示listing数、one-time売上、views、pending payoutは進捗代理にしない。
-- `$10K`達成予測はsubscriber economicsで更新する。last-known fee仮定ではCapafy net MRR目標が約304 active subscribers、hosted cost込みprofit目標が約445 active subscribersだが、公式console feeとactual costで毎時再計算する。
+- Scheduler定義とhost-key gateは現行mainに存在するが、8 labelのloaded SHAは混在し、R0 4/4 natural proofは未達。過去release `8bf47873`のmanual passを現行24/7 proofへ流用しない。
+- 現在の公式active subscription MRRは`unknown`であり、`$10K`のcalendar ETAは算出不能。現行金額は上の`Verified operating baseline`を正本とする。表示listing数、one-time売上、views、pending payoutは進捗代理にしない。
+- `$10K`達成予測はactive subscriber identity、churn、official fee、Agent別hosted costが同じ期間で揃ってから更新する。旧304/445件の仮定を現在の必要subscriber数として提示しない。
 - OSS完了率はM4達成まで`blocked`である。M4後はO0 operator boundary、O1 clean-clone E2E、O2 public releaseを順に行う。
 
 ## Test matrix
