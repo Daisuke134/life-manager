@@ -104,6 +104,33 @@ def test_retainer_terms_are_required_and_bound_to_the_durable_intent() -> None:
     assert "retainer_terms_sha256_mismatch" in fence.validate_intent(changed)
 
 
+def test_retainer_terms_are_read_from_official_listing_when_planner_returns_null() -> None:
+    base = _snapshot()
+    detail = dict(base["request_details"][0])
+    detail["visible_text"] = (
+        "稼働日数\n週1日以上\n(週あたり1~10時間)\n募集内容の詳細\n"
+        "完全在宅でWebサイトを構築してください。"
+    )
+    snapshot = parent.snapshot_contract.build_envelope({
+        "pass_id": base["pass_id"], "lease_fence": base["lease_fence"],
+        "observed_at": base["observed_at"], "objective": base["objective"],
+        "search_sources": base["search_sources"], "request_details": [detail],
+        "already_applied_ids": base["already_applied_ids"],
+    })
+    decisions = _decision()
+    row = decisions["decisions"][0]
+    row["work_frequency"] = "MONTH_ONE"
+    row["weekly_hours_min"] = None
+    row["weekly_hours_max"] = None
+
+    repaired = planner.bind_retainer_terms_from_snapshot(snapshot, decisions)
+
+    assert repaired["decisions"][0]["work_frequency"] == "WEEK_ONE"
+    assert repaired["decisions"][0]["weekly_hours_min"] == 1
+    assert repaired["decisions"][0]["weekly_hours_max"] == 10
+    assert planner.validate_decisions(snapshot, repaired) == []
+
+
 def test_retainer_commit_uses_the_existing_effect_fence_and_exact_readback(tmp_path, monkeypatch) -> None:
     snapshot = _snapshot()
     effects = parent.FixtureEffects(snapshot, {"official_applied_ids": [ULID]})

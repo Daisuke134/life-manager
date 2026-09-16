@@ -33,7 +33,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import application_effect_fence as fence
 import gig_disk_guard
 import application_snapshot as snapshot_contract
-from application_planner import validate_decisions
+from application_planner import bind_retainer_terms_from_snapshot, validate_decisions
 from coconala_applied_readback import (
     RETAINER_APPLIED_URL,
     _wait_for_retainer_page,
@@ -4185,7 +4185,9 @@ def _invoke_isolated_planner_once(
         result_path.relative_to(planner_evidence.resolve())
     except (OSError, ValueError) as error:
         raise ParentContractError("application_intent_planner_result_unowned") from error
-    decisions = _read_json_object(result_path, "planner_decisions")
+    decisions = bind_retainer_terms_from_snapshot(
+        snapshot, _read_json_object(result_path, "planner_decisions")
+    )
     return _degrade_id_mismatch(snapshot, decisions, allow_empty=True)
 
 

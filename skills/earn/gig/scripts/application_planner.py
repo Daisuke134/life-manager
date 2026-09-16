@@ -12,6 +12,7 @@ import datetime as dt
 import json
 import re
 import sys
+import unicodedata
 from pathlib import Path
 
 from application_snapshot import stable_request_text, validate_snapshot
@@ -32,9 +33,56 @@ RETAINER_WORK_FREQUENCIES = frozenset({
     "WEEK_ONE", "WEEK_TWO", "WEEK_THREE", "WEEK_FOUR", "WEEK_FIVE",
     "BIWEEKLY", "MONTH_ONE",
 })
+_RETAINER_WEEKLY_DAYS = {
+    1: "WEEK_ONE", 2: "WEEK_TWO", 3: "WEEK_THREE",
+    4: "WEEK_FOUR", 5: "WEEK_FIVE",
+}
 _RETAINER_ID = re.compile(r"[0-7][0-9A-HJKMNP-TV-Z]{25}")
 _DATE = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
 BUSINESS_CLASSES = frozenset({"submit_required", "hard_prohibited"})
+
+
+def bind_retainer_terms_from_snapshot(
+    snapshot: object, decisions: object
+) -> dict[str, object]:
+    """Bind feasible retainer terms to the official listing, not model guesses."""
+    if not isinstance(snapshot, dict) or not isinstance(decisions, dict):
+        return decisions if isinstance(decisions, dict) else {"decisions": []}
+    raw_rows = decisions.get("decisions")
+    details = snapshot.get("request_details")
+    if not isinstance(raw_rows, list) or not isinstance(details, list):
+        return decisions
+    detail_by_id = {
+        str(detail.get("request_id") or ""): detail
+        for detail in details if isinstance(detail, dict)
+    }
+    rows: list[object] = []
+    for raw_row in raw_rows:
+        if not isinstance(raw_row, dict):
+            rows.append(raw_row)
+            continue
+        row = dict(raw_row)
+        request_id = str(row.get("request_id") or "")
+        detail = detail_by_id.get(request_id)
+        if (
+            row.get("business_class") != "submit_required"
+            or _RETAINER_ID.fullmatch(request_id) is None
+            or not isinstance(detail, dict)
+        ):
+            rows.append(row)
+            continue
+        text = unicodedata.normalize("NFKC", str(detail.get("visible_text") or ""))
+        days = re.search(r"週\s*([1-5])\s*日(?:以上)?", text)
+        hours = re.search(
+            r"週あたり\s*([0-9]+)\s*[~〜～-]\s*([0-9]+)\s*時間", text
+        )
+        if days is not None:
+            row["work_frequency"] = _RETAINER_WEEKLY_DAYS[int(days.group(1))]
+        if hours is not None:
+            row["weekly_hours_min"] = int(hours.group(1))
+            row["weekly_hours_max"] = int(hours.group(2))
+        rows.append(row)
+    return {**decisions, "decisions": rows}
 def _work_fit():
     """The refusals are shared with Lancers and CrowdWorks.
 
