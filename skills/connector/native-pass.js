@@ -159,6 +159,11 @@ function resolveEnv(options) {
 
 function reportConfig(options, stateDir, ownerToken) {
   const env = resolveEnv(options);
+  const runtimeEnv = options.env && typeof options.env === "object" && !Array.isArray(options.env)
+    ? options.env : process.env;
+  const occurrenceId = String(runtimeEnv.LIFE_MANAGER_OCCURRENCE_ID || "");
+  if (occurrenceId && (!/^life-manager-connector-native:[A-Za-z0-9._:-]{1,90}$/.test(occurrenceId)
+    || occurrenceId.length > 128)) unavailable();
   const repoRoot = absoluteDirectory(options.repoRoot);
   const validatedStateDir = absoluteDirectory(stateDir);
   const validatedOwnerToken = requiredToken(ownerToken);
@@ -167,6 +172,7 @@ function reportConfig(options, stateDir, ownerToken) {
     stateDir: validatedStateDir,
     wakeId: `wake-${createHash("sha256").update(validatedOwnerToken).digest("hex").slice(0, 24)}`,
     telegramTarget: resolvedTelegramTarget(env),
+    ...(occurrenceId ? { occurrenceId } : {}),
   });
 }
 

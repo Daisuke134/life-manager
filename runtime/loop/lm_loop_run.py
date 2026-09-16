@@ -570,9 +570,12 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 heartbeat_thread.start()
 
         child_env = {
-            **env,
+            **{key: value for key, value in env.items()
+               if key != "LIFE_MANAGER_OCCURRENCE_ID"},
             "LIFE_MANAGER_RESULT_HINT_PATH": str(receipt.parent / "entrypoint-result.json"),
         }
+        if occurrence_id is not None:
+            child_env["LIFE_MANAGER_OCCURRENCE_ID"] = occurrence_id
         return_code = _run_entrypoint(
             command, env=child_env, timeout_seconds=limit, cancelled=lambda: interrupted,
             on_started=transfer_claim)

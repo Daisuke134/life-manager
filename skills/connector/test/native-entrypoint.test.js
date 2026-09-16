@@ -156,6 +156,7 @@ test("official native pass builds the production dependency boundary from allowl
         LM_CONNECTOR_SHARED_ENV_FILE: sharedEnvFile,
         LM_CONNECTOR_TENANT_ID: "dais-local",
         LM_CONNECTOR_CALENDAR_ID: "primary",
+        LIFE_MANAGER_OCCURRENCE_ID: "life-manager-connector-native:run-123",
       },
       createDependencies(input) {
         observed.push(["factory", input]);
@@ -169,6 +170,7 @@ test("official native pass builds the production dependency boundary from allowl
     assert.deepEqual(result, { status: "completed_no_effect", safe_reason: "providers_exhausted" });
     assert.equal(observed[0][0], "factory");
     assert.equal(observed[0][1].calendarAccount, "private@example.com");
+    assert.equal(observed[0][1].occurrenceId, "life-manager-connector-native:run-123");
     assert.equal(observed[0][1].gogKeyring, "private-keyring");
     assert.equal(observed[0][1].telegramTarget, "private-target");
     assert.equal(observed[0][1].telegramToken, "fixture-telegram-token");
