@@ -244,6 +244,10 @@ function evaluateCloudPromotionGate(input = {}, options = {}) {
         || typeof loop.notification_state !== "string" || !NOTIFICATION_STATES.has(loop.notification_state))) {
         reasons.push("cloud_manifest_state_invalid");
       }
+      if (cloudManifest.loops.some((loop) => loop && loop.state === "verified"
+        && (!loop.runtime_evidence || loop.runtime_evidence.ready !== true))) {
+        reasons.push("cloud_manifest_runtime_evidence_incomplete");
+      }
     }
     if (cloudManifest.completion !== true || cloudManifest.unknown_count !== 0) {
       reasons.push("cloud_manifest_incomplete");
