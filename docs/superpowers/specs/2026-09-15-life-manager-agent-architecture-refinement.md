@@ -238,6 +238,13 @@ eventは旧SHAのままで、実行結果はまだ確認していない。
 `capafy-goal-monitor-daily-close`もstatusから解決したrouteでtargeted reconcileし、installed SHAをcurrentへ揃えた。
 calendar wake前のためeventと自然terminalは未確認である。
 
+その後のcurrent selectorは`c5cae826bee7bc8c9bb414037a11c3261b9e5102`へ更新されたため、
+同じpreflight→対象1件の手順で`capafy-goal-monitor`、`capafy-goal-monitor-daily-close`、
+`affiliate-composition`、`capafy-loop-healthcheck`、`job-search-daily`を現行SHAへ再配置した。
+いずれもpreflight PASS、`eligible=1`、`failed=[]`で、provider effectは実行していない。
+最後のeventが旧SHAまたは`resource_capacity_busy`のownerは、配置成功だけではPASSへ昇格せず、
+次の自然wakeのterminalを待つ。現在の4つのrevenue ownerを停止して枠を空けることはしない。
+
 #### S: 自己修復・自己改善の残りも一件ずつ記録する
 
 これは別の常駐supervisorを追加するTODOではなく、既存のreconcile/launchd supervisorとcandidate gateへ
