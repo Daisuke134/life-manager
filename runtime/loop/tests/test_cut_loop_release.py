@@ -507,8 +507,8 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(
                 [line.split("|", 1)[1] for line in reconciles],
                 [
-                    "reconcile shared-agent-runner --loaded-idle-only --max-owners 1",
-                    "reconcile deterministic --loaded-idle-only --max-owners 1",
+                    "reconcile shared-agent-runner --loaded-idle-only --max-owners 8",
+                    "reconcile deterministic --loaded-idle-only --max-owners 8",
                     "admission-v2-enable",
                 ],
             )
@@ -563,6 +563,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "LIFE_MANAGER_SOURCE_REPO": str(root),
                     "LOOPS_ROOT": str(loops),
                     "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(admission_root),
+                    "LIFE_MANAGER_RECONCILE_MAX_OWNERS": "3",
                 },
                 capture_output=True,
                 text=True,
@@ -571,7 +572,13 @@ class CutLoopReleaseTest(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertFalse(cutter_called.exists())
-            self.assertEqual(len(calls.read_text().splitlines()), 2)
+            self.assertEqual(
+                calls.read_text().splitlines(),
+                [
+                    "reconcile shared-agent-runner --loaded-idle-only --max-owners 3",
+                    "reconcile deterministic --loaded-idle-only --max-owners 3",
+                ],
+            )
 
 
 if __name__ == "__main__":

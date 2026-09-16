@@ -28,12 +28,23 @@ fi
 reconcile_release() {
   local release_root="$1"
   local status=0
+  local reconcile_max_owners="${LIFE_MANAGER_RECONCILE_MAX_OWNERS:-8}"
+  case "$reconcile_max_owners" in
+    ''|*[!0-9]*)
+      printf 'agent-runner reconcile refused: invalid reconcile owner limit\n' >&2
+      return 1
+      ;;
+  esac
+  if [ "$reconcile_max_owners" -lt 1 ] || [ "$reconcile_max_owners" -gt 16 ]; then
+    printf 'agent-runner reconcile refused: reconcile owner limit must be 1..16\n' >&2
+    return 1
+  fi
   if ! LIFE_MANAGER_RELEASE_ROOT="$release_root" "$release_root/bin/lm-loop" \
-    reconcile shared-agent-runner --loaded-idle-only --max-owners 1; then
+    reconcile shared-agent-runner --loaded-idle-only --max-owners "$reconcile_max_owners"; then
     status=1
   fi
   if ! LIFE_MANAGER_RELEASE_ROOT="$release_root" "$release_root/bin/lm-loop" \
-    reconcile deterministic --loaded-idle-only --max-owners 1; then
+    reconcile deterministic --loaded-idle-only --max-owners "$reconcile_max_owners"; then
     status=1
   fi
   local repair_queue="${LIFE_MANAGER_REPAIR_QUEUE_PATH:-$HOME/.local/state/life-manager/recovery/repair-queue.jsonl}"
