@@ -837,6 +837,27 @@ was a stale Capafy registry fixture, mechanically resynced and passing at
 pushed `11b2f60cce` (only two existing Capafy rows gain
 `admission_class=revenue`). CI runs this fixture test. No production
 effect/readback or main promotion follows from these source checks.
+PR #5292 passed all CI and was exceptionally merged to main
+`a05fcb411095b3891101711020ccd723c3305756`. The natural release
+reconciler cut full immutable `20260917T022301-a05fcb41` and moved global
+`current` there. Its first outer run remained live about ten minutes while
+it performed per-label readback; output showed one shared-agent and two
+deterministic labels exact-applied, including Disk Cleanup, and explicitly
+skipped all 21 non-ancestor Connector/Mobile/Affiliate candidate labels.
+Owner-scoped `lm-loop reconcile --loaded-idle-only --loop-id` then safely
+applied ten additional ancestor/internal labels (no running owner touched).
+At the 17:50 UTC snapshot 15 labels were new-main-loaded, 21 candidate-safe,
+and 128 on other releases (including 24 pre-v2 keep-alive labels without the
+v2 dispatch path). Approximately 104 old-cancel labels still need terminal/
+loaded-argv convergence before queue preservation can be claimed.
+The old release reconciler's readback costs about 10–14 minutes per pass and
+applies at most one owner/route, despite a 60-second schedule. A separate
+latest-main-derived branch `fix/reconciler-bulk-readback-20260917` pushed
+`f822af6c78`: reuse one existing fleet snapshot per automatic route, keep
+loaded-idle/ancestor/effect gates, and cap mutations at four owners/route.
+Focused 166 tests plus 136 subtests pass; full loop 448 has only two local
+protocol-v2 sparse-cut fixture failures identical to the unchanged main
+condition. Fresh read-only review is running; no second PR/main merge yet.
 The user-owned goal cannot pass its Local queue gate while old main dispatchers
 delete candidate queue rows. The later instruction to take ownership and not
 stall the goal is therefore used for a narrow exception to the previous

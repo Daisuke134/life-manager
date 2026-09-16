@@ -488,6 +488,19 @@ fixture failures and one stale Capafy registry fixture. The latter was
 mechanically updated (two `admission_class=revenue` fields), its exact test
 passed, and source branch `11b2f60cce` is pushed. The bridge remains unmerged
 and uninstalled; queue recovery and all fourteen product outcomes are open.
+PR #5292 passed all CI and exceptional bridge merge `a05fcb41` is on main.
+Natural reconciler cut full main release `20260917T022301-a05fcb41` and
+switched global `current`. First long outer run applied three ancestor labels
+and reported 21 non-ancestor candidate skips; ten additional ancestor,
+loaded-idle internal labels were applied one by one through canonical
+`lm-loop reconcile`. No active old owner was interrupted. Snapshot: 15
+new-main-loaded, 21 candidate-safe, 128 other (24 pre-v2 keep-alive, about
+104 old-cancel). This is rollout progress, not queue or provider acceptance.
+The old reconciler is now the throughput bottleneck: roughly 10–14 minutes
+per pass for one owner/route. Pushed follow-up `f822af6c78` uses existing
+one-shot fleet readback and keeps four loaded-idle applies/route; 166 focused
+tests and 136 subtests pass, full loop 448 has only two unchanged live-v2
+sparse-cut test failures. Fresh review and CI/promotion remain open.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.
