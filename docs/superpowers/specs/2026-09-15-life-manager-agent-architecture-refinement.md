@@ -100,7 +100,7 @@ mock/fixture・PID・exit 0・Telegramは証拠にしません。
 |---:|---|---|---|
 | R1-00 | catalogのjob IDとruntime registryのidentityを照合 | 1行のjob IDが実在し、重複0、`job_id`/`owner_id`が安定 | **完了**（candidate `d0e4c4caa3`） |
 | R1-01 | `gig-coconala`のmanifest行を確定 | 7 jobの同一release runtime、公式receipt、replay-zero、または理由付きterminal | **一時保留**（別Codexのprovider修正中。成功扱いしない） |
-| R1-02 | `gig-lancers`のmanifest行を確定 | 7 jobの同一release runtime、公式proposal/契約receipt、replay-zero | **現在のcursor**（identityは修正済み、receipt未接続） |
+| R1-02 | `gig-lancers`のmanifest行を確定 | 7 jobの同一release runtime、公式proposal/契約receipt、replay-zero | **現在のcursor**（identityは修正済み。公式receiptは存在するがrelease SHA未結合） |
 | R1-03 | `gig-crowdworks`のmanifest行を確定 | 4 jobの同一release runtime、公式応募/契約receiptまたは明示的not-applicable、replay-zero | 未完了 |
 | R1-04 | `writer`のmanifest行を確定 | 7 jobのpublisher/payment receiptまたは明示的terminal、replay-zero | 未完了 |
 | R1-05 | `affiliate`のmanifest行を確定 | 6 jobの公式publication/attribution receiptまたは明示的terminal、replay-zero | 未完了 |
@@ -138,9 +138,6 @@ mock/fixture・PID・exit 0・Telegramは証拠にしません。
 | S-03 | repair完了後の同一owner再開を一件検証 | `runtime/loop/lm_loop_run.py`、既存owner state/event | 同じjob/effect namespaceで再開し、duplicate effect 0、official readback未確認は未完のまま |
 | S-04 | candidate→held-out/safety/cost eval→promotion/rollbackを一件閉じる | `apps/life-manager/eval/agent-contract/`、`apps/life-manager/lib/product-onboarding.js` | baseline比較、held-out、safety、cost、rollback pointerが揃い、production stateを直接変更しない |
 
-自己修復・自己改善の未完部分は、下記S-01〜S-04を一件ずつ実行します。これは別の常駐supervisorを
-作ることではなく、既存のreconcile/launchd supervisorとcandidate gateを接続する作業です。
-
 #### TODO 1の現在のslice: `gig-coconala`
 
 Git外のCoconala receiptをread-onlyで確認した結果、認証済み・公式talkroom参照・
@@ -166,6 +163,13 @@ Lancersの実測7 jobは`owner_id`が7件すべて一意だが、applicationは`
 installed/event releaseが`2ff93374f79c`と`437b5696d246`に分裂、negotiate/paid/storefront/reportは
 `resource_capacity_busy`、work-syncは`resource_fifo_wait`である。したがって公式receiptと同一release
 の接続はまだ未完了で、次の一件はLancersの実receiptをmanifestへ接続することに固定する。
+
+R1-02の追加read-only確認では、Git外のLancers marketplace ledgerに`application_verified`が176件あり、
+external IDの重複は0件だった。`general-agent/ga10/official-readback.json`には公式proposal URLと
+`state=present`があるが、receiptに`release_sha`が存在しない。したがって「公式receiptがある」ことと
+「現在のimmutable releaseの成功である」ことを分け、現在は`receipt_release_unbound`として`unknown`に
+留める。古いreceiptへ現在のSHAを後付けせず、provider ownerがrelease結合付きの新しい証拠を一件
+保存した時だけ、この1行をmanifestへ接続する。
 
 **別Codexのprovider TODO（参照用）:** 下記の細かいprovider表はGig/Coconala/Lancers/Mercorの
 外部effect ownerが進める資料です。私のfoundation cursorでは、mock・Claude-p・provider操作を実行しません。
