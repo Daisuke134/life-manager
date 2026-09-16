@@ -405,6 +405,10 @@ counterexample, then require exact pre-effect terminal/receipt or official
 effect reconciliation before owner-scoped restoration; expire stale
 reservations first. The specific Instagram 15:14 outer run was pre-effect
 `capacity_busy`, but that does not license a generic fleet replay.
+Instagram's next natural candidate wake at 15:44:04 UTC was blocked before
+Postiz, but the normal enqueue restored the missing owner queue row and kept
+both occurrences queued. No claim/effect was observed. Its queue priority age
+restarted at this enqueue, so actual dispatch latency remains the next gate.
 At 15:39 UTC the five finite slots were full: four revenue owners and
 `affiliate-source-refresh` in the single borrow slot. That owner had been
 running about 11 minutes; its loaded registry timeout is 10,800 seconds and

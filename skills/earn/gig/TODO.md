@@ -723,6 +723,14 @@ Next: test the old-claim counterexample and require positive same-run
 pre-effect evidence or official effect reconciliation before any owner-scoped
 restoration. Expire stale reservations before deciding whether restoration is
 needed. Preserve unknown-effect fences.
+At the next natural Instagram Metrics wake (15:44:04 UTC), candidate run
+`18d5d790c1708f10-99338` again ended `blocked` before Postiz work, but its
+normal enqueue recreated the owner queue row and retained both the earlier
+15:14 occurrence and new occurrence as `queued`. Thus this specific orphan
+resolved through the existing path without unsafe global auto-replay; neither
+occurrence had claimed a slot at that observation. The recreated priority
+timestamp was new, so the old wait's age did not carry over. Do not claim
+Metrics recovery until exact claim, bounded work, terminal and Postiz readback.
 Capacity diagnosis at 2026-09-16 15:39 UTC: five live owners occupied the
 five finite slots (four revenue, one borrow). The borrow owner was
 `affiliate-source-refresh`; its child had run about 11 minutes and its loaded
