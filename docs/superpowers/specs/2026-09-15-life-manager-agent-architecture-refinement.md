@@ -77,7 +77,7 @@ platform adapterの実装そのものをfoundationへ複製しません。
 Life Managerの実際の応募・契約・納品・報酬・cloud運用が動いたことを意味しません。現在の
 origin/mainは `30a2a2dfab`（今回確認した最新remote main参照）まで進み、本番selectorは
 `20260916T095649-8d366069`（SHA `8d366069ade3f1d78c64bc8b591b0d1f829f017d`）を指しています。remote mainとselectorは一致しておらず、ownerのinstalled/event SHAもまだ混在しています。
-統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `06e65fafe5`）はpush済みですが、候補はまだmainへmergeしていません。
+統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `25881b075e`）はpush済みですが、候補はまだmainへmergeしていません。
 本番へはまだ統合していません。
 したがって、次の作業は「さらにスキルを読む」ではなく、候補をmain由来immutable releaseへ
 昇格し、ownerごとの自然wakeで公式効果を確認することです。
@@ -98,7 +98,7 @@ mock/fixture・PID・exit 0・Telegramは証拠にしません。
 
 | 順番 | atomic task（1行だけ） | 完了条件 | 状態 |
 |---:|---|---|---|
-| R1-00 | catalogのjob IDとruntime registryのidentityを照合 | 1行のjob IDが実在し、重複0、`job_id`/`owner_id`が安定 | **完了**（candidate `d0e4c4caa3`） |
+| R1-00 | catalogのjob IDとruntime registryのidentityを照合 | 1行のjob IDが実在し、重複0、`job_id`/`owner_id`が安定し、runtime rowの`job_id === loop_id`を検査 | **完了**（candidate `25881b075e`） |
 | R1-01 | `gig-coconala`のmanifest行を確定 | 7 jobの同一release runtime、公式receipt、replay-zero、または理由付きterminal | **現在のcursor**（別Codexのprovider修正中。成功扱いしない） |
 | R1-02 | `gig-lancers`のmanifest行を確定 | 7 jobの同一release runtime、公式proposal/契約receipt、replay-zero | **次のcursor**（identityは修正済み。公式receiptは存在するがrelease SHA未結合） |
 | R1-03 | `gig-crowdworks`のmanifest行を確定 | 4 jobの同一release runtime、公式応募/契約receiptまたは明示的not-applicable、replay-zero | 未完了 |
@@ -169,7 +169,7 @@ Coconala行が確定した後にR1-02へ戻る。
 次のidentity修正は`runtime/loop/lm_loop.py`の管理statusに安定した`job_id`と`owner_id`を出し、
 従来の共通表示`owner=life-manager`を互換のため残しつつ、jobごとのreceipt・recovery対象を分離した。
 REDで`KeyError: job_id`を確認し、修正後はfocused 2 tests、read-only 14 tests、実機`lm-loop status all`
-（267行、管理対象のjob identity欠落0）を確認した。candidate commitは`d0e4c4caa3`。
+（267行、管理対象のjob identity欠落0）を確認した。さらにmanifest入力で`job_id !== loop_id`を拒否する回帰を追加し、candidate commitは`25881b075e`。
 Lancersの実測7 jobは`owner_id`が7件すべて一意だが、applicationは`entrypoint_exit_124`、browserは
 installed/event releaseが`2ff93374f79c`と`437b5696d246`に分裂、negotiate/paid/storefront/reportは
 `resource_capacity_busy`、work-syncは`resource_fifo_wait`である。したがって公式receiptと同一release
@@ -219,7 +219,7 @@ Telegram報告、テストgreen、ブラウザ画面表示だけでは完了に�
 一度だけ行います。
 
 **現在のfoundation cursor:** `CAND-01`と`CAND-02`の内部canaryは完了しています。`LOCAL-01/02`
-ではcompletion manifestの契約と`lm-loop status` JSON接続、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、失敗記録へのrecovery intent保存、`harness-recovery.json`へのowner/slot別最新intent投影、7つのskill索引、`CONTROL-01`のexternal owner登録、管理statusの安定`job_id`/`owner_id`出力、常駐non-effect jobのruntime health判定、completion CLIの既存親ディレクトリ権限保護をcandidate `06e65fafe5`へ実装済みです。
+ではcompletion manifestの契約と`lm-loop status` JSON接続、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、失敗記録へのrecovery intent保存、`harness-recovery.json`へのowner/slot別最新intent投影、7つのskill索引、`CONTROL-01`のexternal owner登録、管理statusの安定`job_id`/`owner_id`出力、常駐non-effect jobのruntime health判定、completion CLIの既存親ディレクトリ権限保護、runtime rowのjob identity一致検査をcandidate `25881b075e`へ実装済みです。
 Graph/Eval/notificationの契約も同candidateへ接続済みです。次は各loopのevidenceを
 このmanifestへ接続する作業であり、platformの外部effectを私が実行する項目ではありません。
 
