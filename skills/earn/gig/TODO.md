@@ -681,6 +681,16 @@ measurable and 449 complete/32 pending/63 source-delayed/0 measurable. Metrics t
 19/19. Next: inspect each post-load natural outer terminal, classify all 17 destination outcomes,
 and reconcile any unknown submission against official Postiz state before retry; keep Local gate
 open until actual effect/readback evidence exists.
+First post-load natural observation: Connector began a candidate-SHA outer run at
+2026-09-16 15:12:56 UTC and remained `running` at 15:15:59; its previous wake report
+was from an older SHA, so no candidate provider/Calendar result is yet established.
+Instagram Metrics naturally started run `18d5d5ed4e4aaf38-71194` at 15:14:02 UTC
+and terminated `blocked/host_admission_deferred:resource_capacity_busy`, exit 75,
+on the candidate SHA. This is an admission failure before a Metrics/Postiz effect,
+not a missing-key or provider success. The host admission SQLite snapshot contained
+30 agent and 13 deterministic queued rows; preserve their occurrence identity and
+investigate physical/class capacity before any capacity change. TikTok Metrics and
+the 17 publication lanes still need their own post-load natural terminals.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/

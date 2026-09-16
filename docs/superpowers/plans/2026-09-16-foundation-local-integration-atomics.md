@@ -376,6 +376,14 @@ promote Local, Cloud, or main from loaded-only evidence. Coconala Paid's latest
 outer terminal separately failed `remote_verifier` with effect 0; its domain owner
 must resolve that exact verifier/readback path.
 
+**First natural-wake result:** Connector started its candidate outer run at
+15:12:56 UTC; at 15:15:59 it was still running, so no terminal/effect verdict
+exists. Instagram Metrics started naturally at 15:14:02 and ended candidate
+`blocked/host_admission_deferred:resource_capacity_busy`, exit 75. Its Postiz
+path was not reached. Read-only host queue snapshot: 30 agent and 13
+deterministic queued rows. Next diagnosis is admission capacity/owner occupancy,
+not another Marketing env patch or a manual provider retry.
+
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.
 - No claim that Connector, Mobile, the 14 product loops, self-healing or Cloud are already working.
