@@ -304,9 +304,16 @@ calendar wake前のためeventと自然terminalは未確認である。
 | 順番 | atomic task | 変更/参照ファイル | 完了条件 |
 |---:|---|---|---|
 | S-01 | `retry_owner` intentを既存reconcileへ一件接続 | `runtime/loop/harness-health-snapshot.mjs`、`runtime/loop/lm_loop.py`、reconcile tests | `harness-recovery.json`の一件だけを同じ`owner_id`/`job_id`へ渡し、兄弟0件、effect再送0 |
-| S-02 | retry budget超過をtyped repairへ一件接続 | `runtime/loop/lm_loop.py`、`runtime/loop/lm_loop_lifecycle.py`、recovery tests | `escalate_repair`を自動再送せず、repair queueへ一件記録し、状態が再現可能 |
+| S-02 | retry budget超過をtyped repairへ一件接続 | **candidate完了** (`1f874e43e4`)。`lm-loop repair-queue <route> --recovery-intent PATH`を追加 | `escalate_repair`を自動再送せず、Git外`repair-queue.jsonl`へ同じ`event_key`を一件だけ記録。owner/job/route不一致、複数intent、壊れたqueueはfail-closed |
 | S-03 | repair完了後の同一owner再開を一件検証 | `runtime/loop/lm_loop_run.py`、既存owner state/event | 同じjob/effect namespaceで再開し、duplicate effect 0、official readback未確認は未完のまま |
 | S-04 | candidate→held-out/safety/cost eval→promotion/rollbackを一件閉じる | `apps/life-manager/eval/agent-contract/`、`apps/life-manager/lib/product-onboarding.js` | baseline比較、held-out、safety、cost、rollback pointerが揃い、production stateを直接変更しない |
+
+S-02では、recovery projectionに`escalate_repair`が一件だけある場合のみ、
+`~/.local/state/life-manager/recovery/repair-queue.jsonl`（mode 0600）へ
+`job_id`、`owner_id`、`route`、`slot`、原因、retry回数、event keyだけを記録する。
+同じevent keyは再登録せず、これは「修理待ち」を作るだけで自動restart・provider送信・effect再送をしない。
+candidateのfocused回帰はPython 195 tests/30 subtests、JS 68 testsがPASSした。production supervisorが
+このqueueを読み、同一ownerのS-03再開へ渡す実測はまだ未完である。
 
 #### R1観測結果の現在状態（2026-09-16）
 
