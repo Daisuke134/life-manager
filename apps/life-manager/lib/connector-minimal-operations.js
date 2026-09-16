@@ -329,7 +329,7 @@ function createMinimalProductionOperations(options = {}) {
     append(historyFile, Object.freeze({ schema_version: 1, wake_id: wakeId, ...action }));
   }
 
-  async function recordEffectIntent(input) {
+  function normalizeEffectIntent(input, id, wake, recordedAt) {
     if (!input || typeof input !== "object" || Array.isArray(input)
       || Object.keys(input).sort().join(",") !== "candidate,effect_kind,effect_url") invalid();
     const candidate = input.candidate;
@@ -340,7 +340,9 @@ function createMinimalProductionOperations(options = {}) {
     const effectUrl = String(input.effect_url || "");
     let parsed, effectTarget;
     try { parsed = new URL(canonicalUrl); effectTarget = new URL(effectUrl); } catch { invalid(); }
-    if (!occurrenceId || !SAFE_PROVIDER.test(provider)
+    if (!/^life-manager-connector-native:[A-Za-z0-9._:-]{1,90}$/.test(String(id || ""))
+      || String(id).length > 128 || !SAFE_ID.test(String(wake || ""))
+      || !SAFE_PROVIDER.test(provider)
       || !eventRef.startsWith(`${provider}-event://event/`)
       || eventRef.length > 200 || /[\x00-\x1f\x7f]/.test(eventRef)
       || canonicalUrl.length > 2_000 || parsed.protocol !== "https:"
@@ -365,13 +367,33 @@ function createMinimalProductionOperations(options = {}) {
       if (!Number.isInteger(candidate.ticket_price_minor) || candidate.ticket_price_minor < 0) invalid();
       readbackCandidate.ticket_price_minor = candidate.ticket_price_minor;
     }
-    const row = Object.freeze({ schema_version: 1, occurrence_id: occurrenceId,
-      wake_id: wakeId, provider, event_ref: eventRef, canonical_url: canonicalUrl,
+    return Object.freeze({ schema_version: 1, occurrence_id: id,
+      wake_id: wake, provider, event_ref: eventRef, canonical_url: canonicalUrl,
       effect_kind: effectKind, effect_url: effectUrl,
       readback_candidate: Object.freeze(readbackCandidate),
-      recorded_at: exactInstant(now()) });
+      recorded_at: exactInstant(recordedAt) });
+  }
+
+  async function recordEffectIntent(input) {
+    const row = normalizeEffectIntent(input, occurrenceId, wakeId, now());
     appendDurable(effectIntentFile, row);
     return row;
+  }
+
+  async function listEffectIntents(requestedOccurrenceId) {
+    if (!/^life-manager-connector-native:[A-Za-z0-9._:-]{1,90}$/.test(String(requestedOccurrenceId || ""))
+      || String(requestedOccurrenceId).length > 128) invalid();
+    const rows = readRows(effectIntentFile).map((row) => {
+      if (!row || typeof row !== "object" || Array.isArray(row)
+        || Object.keys(row).sort().join(",") !== "canonical_url,effect_kind,effect_url,event_ref,occurrence_id,provider,readback_candidate,recorded_at,schema_version,wake_id"
+        || row.schema_version !== 1) invalid();
+      const canonical = normalizeEffectIntent({ candidate: row.readback_candidate,
+        effect_kind: row.effect_kind, effect_url: row.effect_url },
+      row.occurrence_id, row.wake_id, row.recorded_at);
+      if (JSON.stringify(canonical) !== JSON.stringify(row)) invalid();
+      return Object.freeze(row);
+    });
+    return Object.freeze(rows.filter((row) => row.occurrence_id === requestedOccurrenceId));
   }
 
   async function recordDiscoveryAudit(input) {
@@ -483,7 +505,8 @@ function createMinimalProductionOperations(options = {}) {
   }
 
   return Object.freeze({
-    recordAction, recordEffectIntent, recordDiscoveryAudit, recordConnpassDiscoveryAudit,
+    recordAction, recordEffectIntent, listEffectIntents,
+    recordDiscoveryAudit, recordConnpassDiscoveryAudit,
     recordRankingAudit, recordPeatixDiscoveryAudit,
     recordMeetupDiscoveryAudit, recordDoorkeeperDiscoveryAudit, recordEventbriteDiscoveryAudit, reportWake,
     recordTechPlayDiscoveryAudit, recordKokuchProDiscoveryAudit,

@@ -795,7 +795,11 @@ test("Connector durably records exact host occurrence target before an effect", 
     assert.equal(rows.length, 2);
     assert.equal(rows[1].occurrence_id, row.occurrence_id);
     assert.equal(rows[1].event_ref, "luma-event://event/second");
+    assert.deepEqual(await operations.listEffectIntents(row.occurrence_id), rows);
+    assert.deepEqual(await operations.listEffectIntents("life-manager-connector-native:other"), []);
     assert.doesNotMatch(JSON.stringify(row), /private-target|must-not-persist|token|password|email/i);
+    fs.appendFileSync(file, '{"unexpected":"row"}\n');
+    await assert.rejects(() => operations.listEffectIntents(row.occurrence_id));
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });
 
