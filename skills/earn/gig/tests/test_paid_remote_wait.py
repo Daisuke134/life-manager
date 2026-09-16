@@ -609,6 +609,22 @@ def test_remote_owner_prompt_forbids_shared_daily_driver_fallback(tmp_path) -> N
     )
 
     assert "shared daily-driver CDP and its session vault are unavailable" in prompt
+
+
+def test_remote_owner_reads_private_official_buyer_rows_before_claiming_missing(tmp_path) -> None:
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    requirements_sha = paid.paid_remote_result.requirements_digest(root, feedback)
+
+    prompt = paid._repair_prompt(
+        root, tmp_path / "item.json", feedback, requirements_sha,
+        False, tmp_path / "cdp.py",
+    )
+
+    assert "source/talkroom/messages.jsonl" in prompt
+    assert "source_message_identities" in prompt
+    assert "Redaction in compiled context is not evidence that the buyer omitted the value" in prompt
+    assert "Never ask the buyer to resend a value present in those official rows" in prompt
     assert "never fall back to the shared daily driver" in prompt
     assert "resource-resolver-selected target-specific browser identity" in prompt
 
@@ -677,6 +693,14 @@ def blocked_project(tmp_path: Path) -> tuple[Path, str, str]:
         "requirements_sha256": requirements_sha,
         "required_output": "Report the completed provider outcome.",
         "required_effect": "Wait for and process the provider response.",
+        "required_outcomes": [{
+            "outcome_id": "provider-response",
+            "source_message_identities": [{
+                "message_id": "buyer-1", "content_sha256": "b" * 64, "side": "buyer",
+            }],
+            "required_output": "Report the completed provider outcome.",
+            "required_effect": "Wait for and process the provider response.",
+        }],
         "required_assets": [],
     }
     semantic_sha = hashlib.sha256(json.dumps(
@@ -1140,6 +1164,12 @@ def test_formal_approval_survives_later_seller_acknowledgement(tmp_path):
         "latest_message_identity": latest,
         "required_output": "Share the approved project package.",
         "required_effect": "Formally deliver after the share.",
+        "required_outcomes": [{
+            "outcome_id": "approved-package",
+            "source_message_identities": [latest_buyer],
+            "required_output": "Share the approved project package.",
+            "required_effect": "Formally deliver after the share.",
+        }],
         "required_assets": [{
             "asset_id": "project_package",
             "kind": "linked_asset",
@@ -1183,6 +1213,12 @@ def test_actionable_decision_rejects_agent_process_narration(
         "latest_message_identity": identity,
         "required_output": required_output,
         "required_effect": required_effect,
+        "required_outcomes": [{
+            "outcome_id": "buyer-request",
+            "source_message_identities": [identity],
+            "required_output": required_output,
+            "required_effect": required_effect,
+        }],
         "required_assets": [],
         "delivery_stage": "review",
         "formal_approval_evidence": None,
@@ -1191,6 +1227,101 @@ def test_actionable_decision_rejects_agent_process_narration(
 
     with pytest.raises(ValueError, match="(?:process narration|buyer-facing effect)"):
         paid._validate_paid_decision(decision, "a" * 64, "b" * 64, identity, identity)
+
+
+def test_current_buyer_outcome_identities_ignore_system_rows_after_latest_seller(tmp_path):
+    paid = load("paid_direct")
+    root = tmp_path / "18211957"
+    messages = root / "source/talkroom/messages.jsonl"
+    messages.parent.mkdir(parents=True)
+    def row(message_id, side, text):
+        value = {
+            "version": 1, "source": "coconala_live_talkroom",
+            "talkroom_id": root.name, "message_id": message_id,
+            "observed_at": "2026-09-16T04:44:55Z", "side": side,
+            "sent_at": None, "text": text, "attachments": [],
+        }
+        value["content_sha256"] = paid._official_content_sha256(value)
+        return value
+
+    rows = [
+        row("seller-1", "seller", "Previous reply."),
+        row("buyer-1", "buyer", "Set every form destination to the supplied address."),
+        row("system-1", "system", "Provider event."),
+        row("buyer-2", "buyer", "Move the upper easy-edit items into the lower sections."),
+        row("buyer-3", "buyer", "Make profiles editable from easy edit."),
+    ]
+    messages.write_text(
+        "\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+    write_json(root / "state.json", {"talkroom_id": root.name})
+    identities = paid._current_buyer_outcome_identities(root, "18211957")
+
+    assert [identity["message_id"] for identity in identities] == [
+        "buyer-1", "buyer-2", "buyer-3",
+    ]
+
+
+def test_paid_decision_requires_exact_buyer_outcome_identity_coverage():
+    paid = load("paid_direct")
+    identities = [
+        {"message_id": "buyer-1", "content_sha256": "a" * 64, "side": "buyer"},
+        {"message_id": "buyer-2", "content_sha256": "b" * 64, "side": "buyer"},
+    ]
+    decision = {
+        "decision": "actionable", "mode": "remote",
+        "feedback_sha256": "c" * 64, "requirements_sha256": "d" * 64,
+        "latest_message_identity": identities[-1],
+        "required_output": "Complete both buyer outcomes.",
+        "required_effect": "Apply and verify both buyer outcomes.",
+        "required_outcomes": [{
+            "outcome_id": "combined-outcome",
+            "source_message_identities": identities,
+            "required_output": "Complete both buyer outcomes.",
+            "required_effect": "Apply and verify both buyer outcomes.",
+        }],
+        "required_assets": [], "delivery_stage": "none",
+        "formal_approval_evidence": None, "unresolved": [],
+    }
+
+    assert paid._validate_paid_decision(
+        decision, "c" * 64, "d" * 64, identities[-1], identities[-1], identities,
+    ) == decision
+    with pytest.raises(ValueError, match="outcome coverage mismatch"):
+        paid._validate_paid_decision(
+            {**decision, "required_outcomes": [{
+                **decision["required_outcomes"][0],
+                "source_message_identities": identities[:1],
+            }]},
+            "c" * 64, "d" * 64, identities[-1], identities[-1], identities,
+        )
+
+
+def test_remote_completion_requires_receipt_for_every_required_outcome(tmp_path):
+    remote = load("paid_remote_result")
+    root = tmp_path / "18211957"
+    write_json(root / "context/paid-work-decision.json", {"required_outcomes": [
+        {"outcome_id": "first-outcome"}, {"outcome_id": "second-outcome"},
+    ]})
+    complete = {
+        "official_receipts": [
+            {"effect_key": "effect-1", "readback_source": "evidence/one.json"},
+            {"effect_key": "effect-2", "readback_source": "evidence/two.json"},
+        ],
+        "outcome_coverage": [
+            {"outcome_id": "first-outcome", "required_output_satisfied": True,
+             "required_effect_satisfied": True, "receipt_refs": ["effect-1"]},
+            {"outcome_id": "second-outcome", "required_output_satisfied": True,
+             "required_effect_satisfied": True, "receipt_refs": ["effect-2"]},
+        ],
+    }
+
+    assert remote._validate_outcome_coverage(root, complete) == complete["outcome_coverage"]
+    with pytest.raises(ValueError, match="paid outcome coverage mismatch"):
+        remote._validate_outcome_coverage(
+            root, {**complete, "outcome_coverage": complete["outcome_coverage"][:1]},
+        )
 
 
 def test_initial_purchase_is_buyer_authority_before_first_buyer_message(tmp_path):
@@ -1971,6 +2102,12 @@ def test_remote_semantic_decision_can_reach_formal_only_with_latest_buyer_approv
         "latest_message_identity": approval,
         "required_output": "Submit the verified live revision for formal closure.",
         "required_effect": "Formally deliver the buyer-approved live revision.",
+        "required_outcomes": [{
+            "outcome_id": "formal-live-revision",
+            "source_message_identities": [approval],
+            "required_output": "Submit the verified live revision for formal closure.",
+            "required_effect": "Formally deliver the buyer-approved live revision.",
+        }],
         "required_assets": [], "delivery_stage": "formal",
         "formal_approval_evidence": approval, "unresolved": [],
     }
@@ -2880,8 +3017,17 @@ def test_remote_prompt_requires_buyer_visible_browser_and_cache_proof(tmp_path):
     (root / "context").mkdir(parents=True)
     (root / "context" / "paid-work-decision.json").write_text(json.dumps({
         "decision": "actionable", "mode": "remote", "feedback_sha256": "b" * 64,
-        "requirements_sha256": "c" * 64, "required_output": "visible web revision",
-        "required_effect": "publish visible web revision", "required_assets": [],
+            "requirements_sha256": "c" * 64, "required_output": "visible web revision",
+            "required_effect": "publish visible web revision",
+            "required_outcomes": [{
+                "outcome_id": "visible-web-revision",
+                "source_message_identities": [{
+                    "message_id": "buyer-1", "content_sha256": "d" * 64, "side": "buyer",
+                }],
+                "required_output": "visible web revision",
+                "required_effect": "publish visible web revision",
+            }],
+            "required_assets": [],
     }))
 
     prompt = paid._repair_prompt(
@@ -3685,6 +3831,12 @@ def test_stable_decision_cache_ignores_compiled_runtime_context_churn(tmp_path, 
         "latest_message_identity": identity,
         "required_output": "Deliver the completed provider outcome.",
         "required_effect": "Publish and verify the provider outcome.",
+        "required_outcomes": [{
+            "outcome_id": "provider-outcome",
+            "source_message_identities": [identity],
+            "required_output": "Deliver the completed provider outcome.",
+            "required_effect": "Publish and verify the provider outcome.",
+        }],
         "required_assets": [], "delivery_stage": "none",
         "formal_approval_evidence": None, "unresolved": [],
     }

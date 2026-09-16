@@ -61,7 +61,23 @@ def _decision() -> dict[str, object]:
         "proposal_text": "継続開発支援の目的と優先順位を整理し、毎週の実装、検証、記録まで責任を持って進めます。" * 5,
         "price_jpy": 120_000, "deliver_date": "2026-10-01",
         "work_frequency": "WEEK_THREE", "weekly_hours_min": 12, "weekly_hours_max": 18,
+        "screening_answers": [],
     }]}
+
+
+def _snapshot_with_questions() -> dict[str, object]:
+    base = _snapshot()
+    detail = dict(base["request_details"][0])
+    detail["application_questions"] = [
+        {"question": "自治体案件の経験はありますか？", "required": True, "max_length": 1000},
+        {"question": "面談可能な候補日時を3つ記載してください。", "required": True, "max_length": 1000},
+    ]
+    return parent.snapshot_contract.build_envelope({
+        "pass_id": base["pass_id"], "lease_fence": base["lease_fence"],
+        "observed_at": base["observed_at"], "objective": base["objective"],
+        "search_sources": base["search_sources"], "request_details": [detail],
+        "already_applied_ids": base["already_applied_ids"],
+    })
 
 
 def _single_snapshot() -> dict[str, object]:
@@ -96,12 +112,82 @@ def test_retainer_terms_are_required_and_bound_to_the_durable_intent() -> None:
         proposal_text=decision["decisions"][0]["proposal_text"], price_jpy=120_000,
         deliver_date="2026-10-01", lease_fence={"task": "retainer-test", "token": "1" * 32, "generation": 1},
         retainer_terms={"work_frequency": "WEEK_THREE", "weekly_hours_min": 12, "weekly_hours_max": 18},
+        screening_answers=[],
     )
-    assert intent["version"] == 3
+    assert intent["version"] == 4
     assert fence.validate_intent(intent) == []
     changed = dict(intent)
     changed["retainer_terms"] = {**intent["retainer_terms"], "weekly_hours_max": 19}
     assert "retainer_terms_sha256_mismatch" in fence.validate_intent(changed)
+
+
+def test_retainer_screening_answers_match_snapshot_and_are_fenced() -> None:
+    snapshot = _snapshot_with_questions()
+    decision = _decision()
+    answers = [
+        {"question": "自治体案件の経験はありますか？", "answer": "自治体案件の実務経験はありません。"},
+        {"question": "面談可能な候補日時を3つ記載してください。", "answer": "9月18日10時、9月19日14時、9月21日16時が可能です。"},
+    ]
+    decision["decisions"][0]["screening_answers"] = answers
+
+    assert planner.validate_decisions(snapshot, decision) == []
+    intent = fence.intent_payload(
+        request_id=ULID, snapshot_sha256="2" * 64,
+        proposal_text=decision["decisions"][0]["proposal_text"], price_jpy=120_000,
+        deliver_date="2026-10-01", lease_fence={"task": "retainer-test", "token": "1" * 32, "generation": 1},
+        retainer_terms={"work_frequency": "WEEK_THREE", "weekly_hours_min": 12, "weekly_hours_max": 18},
+        screening_answers=answers,
+    )
+    assert intent["version"] == 4
+    assert fence.validate_intent(intent) == []
+    changed = {**intent, "screening_answers": [*answers[:-1], {**answers[-1], "answer": "別の日時"}]}
+    assert "screening_answers_sha256_mismatch" in fence.validate_intent(changed)
+
+
+def test_retainer_terms_are_read_from_official_listing_when_planner_returns_null() -> None:
+    base = _snapshot()
+    detail = dict(base["request_details"][0])
+    detail["visible_text"] = (
+        "稼働日数\n週1日以上\n(週あたり1~10時間)\n募集内容の詳細\n"
+        "完全在宅でWebサイトを構築してください。"
+    )
+    snapshot = parent.snapshot_contract.build_envelope({
+        "pass_id": base["pass_id"], "lease_fence": base["lease_fence"],
+        "observed_at": base["observed_at"], "objective": base["objective"],
+        "search_sources": base["search_sources"], "request_details": [detail],
+        "already_applied_ids": base["already_applied_ids"],
+    })
+    decisions = _decision()
+    row = decisions["decisions"][0]
+    row["work_frequency"] = "MONTH_ONE"
+    row["weekly_hours_min"] = None
+    row["weekly_hours_max"] = None
+
+    repaired = planner.bind_retainer_terms_from_snapshot(snapshot, decisions)
+
+    assert repaired["decisions"][0]["work_frequency"] == "WEEK_ONE"
+    assert repaired["decisions"][0]["weekly_hours_min"] == 1
+    assert repaired["decisions"][0]["weekly_hours_max"] == 10
+    assert planner.validate_decisions(snapshot, repaired) == []
+
+
+def test_retainer_legacy_projection_keeps_bucket_url_and_terms() -> None:
+    snapshot = _snapshot()
+    decision = _decision()
+
+    projected = parent.project_legacy_b2(
+        snapshot,
+        decision,
+        [{"request_id": ULID, "status": "submission_failed:test"}],
+    )
+
+    inspected = projected["current_b2"]["inspected_requests"][0]
+    assert inspected["bucket"] == "retainer"
+    assert inspected["url"] == f"https://coconala.com/job_matching/outsources/{ULID}"
+    assert inspected["compensation_type"] == "recurring"
+    assert inspected["weekly_days"] == "WEEK_THREE"
+    assert inspected["weekly_hours_min"] == 12
+    assert inspected["weekly_hours_max"] == 18
 
 
 def test_retainer_commit_uses_the_existing_effect_fence_and_exact_readback(tmp_path, monkeypatch) -> None:
@@ -116,6 +202,74 @@ def test_retainer_commit_uses_the_existing_effect_fence_and_exact_readback(tmp_p
     assert effects.exact_id_readback_ids == [ULID]
     assert results[0]["application"]["bucket"] == "retainer"
     assert results[0]["application"]["weekly_days"] == "WEEK_THREE"
+
+
+def test_retainer_commit_fills_and_reads_back_screening_answers(tmp_path, monkeypatch) -> None:
+    snapshot = _snapshot_with_questions()
+    decision = _decision()
+    decision["decisions"][0]["screening_answers"] = [
+        {"question": "自治体案件の経験はありますか？", "answer": "自治体案件の実務経験はありません。"},
+        {"question": "面談可能な候補日時を3つ記載してください。", "answer": "9月18日10時、9月19日14時、9月21日16時が可能です。"},
+    ]
+    effects = parent.FixtureEffects(snapshot, {"official_applied_ids": [ULID]})
+    monkeypatch.setattr(parent.gig_disk_guard, "disk_headroom_ok", lambda: True)
+
+    results = parent.commit_decisions(
+        snapshot, decision, store=fence.IntentStore(tmp_path), effects=effects
+    )
+
+    assert results[0]["status"] == "confirmed"
+    assert effects._filled[ULID]["screening_answers"] == decision["decisions"][0]["screening_answers"]
+    assert fence.validate_intent(json.loads((tmp_path / f"{ULID}.json").read_text())) == []
+
+
+def test_retainer_confirmation_failure_stays_pre_effect_and_retryable(tmp_path, monkeypatch) -> None:
+    class ConfirmationBlocked(parent.FixtureEffects):
+        def preflight_submit(self, request_id: str) -> None:
+            raise parent.ParentContractError("retainer_application_confirmation_invalid")
+
+    snapshot = _snapshot()
+    effects = ConfirmationBlocked(snapshot, {})
+    monkeypatch.setattr(parent.gig_disk_guard, "disk_headroom_ok", lambda: True)
+
+    results = parent.commit_decisions(
+        snapshot, _decision(), store=fence.IntentStore(tmp_path), effects=effects
+    )
+
+    assert results[0]["status"].startswith("pre_submit_aborted:submit_preflight")
+    retired = json.loads((tmp_path / f"{ULID}.json").read_text())
+    assert retired["state"] == fence.RETIRED_ABSENT
+    assert retired["effect_phase"] == fence.PRE_EFFECT
+    assert effects.click_count == 1
+
+
+def test_old_retainer_confirmation_failure_is_safe_nonlanding_evidence(tmp_path) -> None:
+    origin_pass = "gig-apply-direct-123-456"
+    origin_evidence = tmp_path / origin_pass / "coverage-evidence-2"
+    worker = origin_evidence / "commit-workers" / ULID
+    worker.mkdir(parents=True)
+    (worker / f"gig-{origin_pass}-B2-{ULID}-retainer-form.png").write_bytes(b"png")
+    (origin_evidence / "parent-commit.json").write_text(json.dumps({
+        "results": [{
+            "request_id": ULID,
+            "status": "submission_failed:retainer_application_confirmation_invalid",
+        }],
+    }))
+    current = tmp_path / "gig-apply-direct-999-888" / "coverage-evidence"
+    current.mkdir(parents=True)
+    effects = parent.CdpParentEffects(
+        ws_url="ws://example.test/devtools/page/1",
+        evidence_dir=current,
+        ledger_path=tmp_path / "ledger.jsonl",
+        pass_id="gig-apply-direct-999-888",
+    )
+    intent = {
+        "lease_fence": {
+            "task": f"{origin_pass}-coverage-2-commit-{ULID}"
+        }
+    }
+
+    assert effects.saved_nonlanding_submit_evidence(ULID, intent) is True
 
 
 def test_retainer_submit_has_no_effect_fence_bypass() -> None:
@@ -141,6 +295,16 @@ def test_retainer_confirmation_requires_exact_canonical_ulid() -> None:
         ULID, url=f"https://coconala.com/job_matching/outsources/{'0' * 26}/apply",
         title="応募内容を確認する | ココナラ",
     )
+
+
+def test_retainer_question_selector_does_not_assume_native_required_or_fixed_limit() -> None:
+    observer = inspect.getsource(parent.CdpParentEffects._retainer_form_state_async)
+    filler = inspect.getsource(parent.CdpParentEffects._fill_retainer_async)
+    assert 'textarea[placeholder="回答を入力"]' in observer
+    assert 'textarea[placeholder="回答を入力"][required]' not in observer
+    assert "area.maxLength>0" in observer
+    assert "aria-required" in observer
+    assert 'textarea[placeholder="回答を入力"]' in filler
 
 
 def test_retainer_exact_readback_waits_past_the_previous_document(tmp_path, monkeypatch) -> None:
@@ -231,6 +395,12 @@ def test_context_requires_the_retainer_source_and_target() -> None:
     )
 
 
+def test_each_refresh_collects_single_and_retainer_sources_together() -> None:
+    source = inspect.getsource(direct.main)
+    refresh = '("refresh", run_dir / "refresh-evidence", run_dir / "refresh-legacy-b2.json",\n             None, f"gig-apply-direct-{pass_id}")'
+    assert refresh in source
+
+
 def test_retainer_identity_survives_applied_exclusion_projection() -> None:
     assert parent.snapshot_applied_ids({"20", ULID, "dm-20"}) == ["20", ULID]
 
@@ -319,19 +489,27 @@ def test_fence_rejects_cross_bucket_versions_and_noncanonical_ulids() -> None:
     ))
     assert "request_id_invalid" in _fence_error(lambda: fence.intent_payload(request_id="8" + ULID[1:], **base))
     retainer = fence.intent_payload(
-        request_id=ULID, retainer_terms={"work_frequency": "WEEK_ONE", "weekly_hours_min": 1, "weekly_hours_max": 2}, **base
+        request_id=ULID, retainer_terms={"work_frequency": "WEEK_ONE", "weekly_hours_min": 1, "weekly_hours_max": 2},
+        screening_answers=[], **base
     )
-    old_retainer = {key: value for key, value in retainer.items() if key not in {"retainer_terms", "retainer_terms_sha256"}}
-    old_retainer["version"] = 2
-    old_retainer["cas"] = fence.build_cas(ULID, base["snapshot_sha256"], fence.proposal_sha256(base["proposal_text"]), 10_000, "2026-10-01")
-    assert "retainer_intent_version_invalid" in fence.validate_intent(old_retainer)
-    numeric_v3 = dict(retainer)
-    numeric_v3["request_id"] = "123"
-    numeric_v3["cas"] = fence.build_cas(
+    old_retainer = {
+        key: value for key, value in retainer.items()
+        if key not in {"screening_answers", "screening_answers_sha256"}
+    }
+    old_retainer["version"] = 3
+    old_retainer["cas"] = fence.build_cas(
+        ULID, base["snapshot_sha256"], fence.proposal_sha256(base["proposal_text"]),
+        10_000, "2026-10-01", old_retainer["retainer_terms_sha256"],
+    )
+    assert fence.validate_intent(old_retainer) == []
+    numeric_v4 = dict(retainer)
+    numeric_v4["request_id"] = "123"
+    numeric_v4["cas"] = fence.build_cas(
         "123", base["snapshot_sha256"], fence.proposal_sha256(base["proposal_text"]),
-        10_000, "2026-10-01", numeric_v3["retainer_terms_sha256"],
+        10_000, "2026-10-01", numeric_v4["retainer_terms_sha256"],
+        numeric_v4["screening_answers_sha256"],
     )
-    assert "single_intent_version_invalid" in fence.validate_intent(numeric_v3)
+    assert "single_intent_version_invalid" in fence.validate_intent(numeric_v4)
     noncanonical = "8" + ULID[1:]
     assert parent._is_retainer_request(noncanonical) is False
     assert gate._valid_request_id(noncanonical) is False

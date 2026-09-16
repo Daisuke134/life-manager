@@ -23,6 +23,7 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import application_direct  # noqa: E402
+import b2_result_gate  # noqa: E402
 
 
 def _completed(error: str | None, *, error_type: str = "ParentContractError") -> subprocess.CompletedProcess:
@@ -51,6 +52,22 @@ def test_an_unrelated_contract_error_still_ends_the_pass():
     assert application_direct._temporary_source_denial(
         _completed("snapshot_required_sources_invalid")
     ) is None
+
+
+def test_single_source_failure_advances_to_retainer_source(tmp_path):
+    context = tmp_path / "b2-context.json"
+    context.write_text(json.dumps({
+        "required_search_source_ids": ["single:new", "retainer:new"],
+    }), encoding="utf-8")
+
+    assert b2_result_gate.next_required_source_cursor(
+        context, "single:new", skipped_source_ids={"single:new"},
+    ) == {
+        "source_id": "retainer:new",
+        "previous_url": "",
+        "next_url": "https://coconala.com/job_matching/outsources",
+        "reason": "continue_after_temporary_source_failure",
+    }
 
 
 def test_a_non_contract_failure_still_ends_the_pass():

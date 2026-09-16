@@ -167,8 +167,8 @@ def _run_private_model_serialized(root: Path, command: list[str], label: str, st
         if effect_descriptor is not None:
             fcntl.flock(effect_descriptor, fcntl.LOCK_UN)
             os.close(effect_descriptor)
-PAID_DECISION_SCHEMA_VERSION = 4
-PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v23"
+PAID_DECISION_SCHEMA_VERSION = 5
+PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v25"
 PAID_DECISION_MODEL = "gpt-5.6-terra"
 PAID_FILE_MODEL = "gpt-5.6-terra"
 PAID_OWNER_TASK_CLASS = "paid-owner-agent"
@@ -200,7 +200,8 @@ PAID_SOURCE_CENSUS_SKILLS = ("music-score-omr", "buyma-work", "ai-video-work")
 PAID_FILE_OPERATOR_POLICY = "paid-file-operator-policy.json"
 PAID_DECISION_FIELDS = frozenset((
     "decision", "mode", "feedback_sha256", "requirements_sha256",
-    "latest_message_identity", "required_output", "required_effect", "required_assets", "delivery_stage",
+    "latest_message_identity", "required_output", "required_effect", "required_outcomes",
+    "required_assets", "delivery_stage",
     "formal_approval_evidence", "unresolved",
 ))
 
@@ -1184,9 +1185,25 @@ def _latest_official_buyer_identity(root: Path, talkroom_id: str) -> dict[str, s
     raise Failure("paid_work_decision")
 
 
+def _current_buyer_outcome_identities(root: Path, talkroom_id: str) -> list[dict[str, str]]:
+    """Return authenticated buyer identities after the latest seller boundary."""
+    rows = _official_message_rows(root, talkroom_id)
+    last_seller = max(
+        (index for index, row in enumerate(rows) if row.get("side") == "seller"),
+        default=-1,
+    )
+    identities: list[dict[str, str]] = []
+    for row in rows[last_seller + 1:]:
+        if row.get("side") != "buyer":
+            continue
+        identities.append(_official_identity(row, talkroom_id))
+    return identities or [_latest_official_buyer_identity(root, talkroom_id)]
+
+
 def _validate_paid_decision(value: dict[str, Any], feedback: str, requirements: str,
                             identity: dict[str, str],
-                            buyer_identity: dict[str, str] | None = None) -> dict[str, Any]:
+                            buyer_identity: dict[str, str] | None = None,
+                            required_identities: list[dict[str, str]] | None = None) -> dict[str, Any]:
     if not isinstance(value, dict) or set(value) != PAID_DECISION_FIELDS:
         raise ValueError("invalid paid semantic decision")
     decision, mode = value.get("decision"), value.get("mode")
@@ -1235,6 +1252,31 @@ def _validate_paid_decision(value: dict[str, Any], feedback: str, requirements: 
         raise ValueError("paid semantic decision contains agent process narration")
     if decision == "actionable" and no_effect.search(required_effect):
         raise ValueError("actionable paid decision requires a buyer-facing effect")
+    outcomes = value.get("required_outcomes")
+    outcome_fields = {"outcome_id", "source_message_identities", "required_output", "required_effect"}
+    if not isinstance(outcomes, list) or not outcomes:
+        raise ValueError("invalid paid semantic decision required outcomes")
+    outcome_ids: set[str] = set()
+    covered: list[dict[str, str]] = []
+    for outcome in outcomes:
+        sources = outcome.get("source_message_identities") if isinstance(outcome, dict) else None
+        if (not isinstance(outcome, dict) or set(outcome) != outcome_fields
+                or not re.fullmatch(r"[a-z0-9][a-z0-9._-]*", _text(outcome.get("outcome_id")))
+                or outcome.get("outcome_id") in outcome_ids
+                or not isinstance(sources, list) or not sources
+                or any(not isinstance(source, dict) or set(source) != {"message_id", "content_sha256", "side"}
+                       or source.get("side") != "buyer" for source in sources)
+                or not _text(outcome.get("required_output"))
+                or not _text(outcome.get("required_effect"))
+                or protocol_leak.search(_text(outcome.get("required_output")))
+                or protocol_leak.search(_text(outcome.get("required_effect")))):
+            raise ValueError("invalid paid semantic decision required outcome")
+        outcome_ids.add(outcome["outcome_id"])
+        covered.extend(sources)
+    expected = required_identities or [buyer_identity or identity]
+    if ({json.dumps(item, sort_keys=True, separators=(",", ":")) for item in covered}
+            != {json.dumps(item, sort_keys=True, separators=(",", ":")) for item in expected}):
+        raise ValueError("paid semantic decision outcome coverage mismatch")
     unresolved = value.get("unresolved")
     if not isinstance(unresolved, list) or any(not isinstance(item, str) for item in unresolved):
         raise ValueError("invalid paid semantic decision unresolved")
@@ -1793,7 +1835,9 @@ def _decision_prompt(context: Path, context_sha256: str, feedback: str,
                     buyer_identity: dict[str, str],
                     operator_policy: dict[str, Any] | None = None,
                     operator_policy_sha256: str = "",
-                    pending_review: dict[str, Any] | None = None) -> bytes:
+                    pending_review: dict[str, Any] | None = None,
+                    required_identities: list[dict[str, str]] | None = None) -> bytes:
+    required_identities = required_identities or [buyer_identity]
     policy_instruction = ""
     if operator_policy:
         formal_after_remote = operator_policy.get("formal_delivery_after_remote") is True
@@ -1825,6 +1869,11 @@ def _decision_prompt(context: Path, context_sha256: str, feedback: str,
         f"context_sha256={context_sha256}; current feedback_sha256={feedback}; requirements_sha256={requirements}; "
         f"latest_message_identity={json.dumps(identity, sort_keys=True)}; "
         f"latest_buyer_message_identity={json.dumps(buyer_identity, sort_keys=True)}. "
+        f"buyer_outcome_source_identities={json.dumps(required_identities, sort_keys=True)}. "
+        "Return required_outcomes as the model-decided decomposition of the current work. Each outcome has a stable "
+        "lowercase outcome_id, one or more source_message_identities from buyer_outcome_source_identities, and its "
+        "buyer-facing required_output and required_effect. Cover every supplied identity at least once and include no "
+        "identity outside that exact set. You may group messages into one outcome when they require one inseparable effect. "
         "Use decision actionable, await_buyer, satisfied_noop, or blocked. "
         "Actionable requires mode file, remote, or answer; every other decision requires mode null. "
         "Choose mode from the required effect: remote only for an authenticated system mutation outside the Coconala "
@@ -1943,7 +1992,8 @@ def _cached_paid_decision(root: Path, receipt: Any, prompt: Path,
                           prompt_sha256: str, schema_sha256: str, context_sha256: str,
                           context_inputs_sha256: str, feedback: str, requirements: str,
                           identity: dict[str, str], buyer_identity: dict[str, str],
-                          operator_policy_sha256: str) -> dict[str, Any]:
+                          operator_policy_sha256: str,
+                          required_identities: list[dict[str, str]] | None = None) -> dict[str, Any]:
     if (not isinstance(receipt, dict)
             or receipt.get("schema_version") != PAID_DECISION_SCHEMA_VERSION
             or receipt.get("prompt_version") != PAID_DECISION_PROMPT_VERSION
@@ -1977,7 +2027,9 @@ def _cached_paid_decision(root: Path, receipt: Any, prompt: Path,
         raise ValueError("tampered paid decision evidence")
     result_path = _consultation_result_path(evidence)
     value = _load(result_path)
-    validated = _validate_paid_decision(value, feedback, requirements, identity, buyer_identity)
+    validated = _validate_paid_decision(
+        value, feedback, requirements, identity, buyer_identity, required_identities,
+    )
     cached_value = {key: receipt.get(key) for key in PAID_DECISION_FIELDS}
     if validated != cached_value:
         raise ValueError("paid decision result does not match receipt")
@@ -1988,7 +2040,8 @@ def _stable_cached_paid_decision(root: Path, receipt: Any, schema_sha256: str,
                                  context_inputs_sha256: str, feedback: str,
                                  requirements: str, identity: dict[str, str],
                                  buyer_identity: dict[str, str],
-                                 operator_policy_sha256: str) -> dict[str, Any]:
+                                 operator_policy_sha256: str,
+                                 required_identities: list[dict[str, str]] | None = None) -> dict[str, Any]:
     """Reuse a proved decision when only compiled runtime context changed.
 
     Delivery receipts and other seller-owned runtime events may change the compiled
@@ -2014,7 +2067,7 @@ def _stable_cached_paid_decision(root: Path, receipt: Any, schema_sha256: str,
         raise ValueError("tampered paid decision evidence")
     validated = _validate_paid_decision(
         _load(_consultation_result_path(evidence)), feedback, requirements,
-        identity, buyer_identity,
+        identity, buyer_identity, required_identities,
     )
     cached_value = {key: receipt.get(key) for key in PAID_DECISION_FIELDS}
     if validated != cached_value:
@@ -2033,6 +2086,7 @@ def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, A
     talkroom_id = _text(item.get("talkroom_id"))
     identity = _latest_official_identity(root, talkroom_id)
     buyer_identity = _latest_official_buyer_identity(root, talkroom_id)
+    required_identities = _current_buyer_outcome_identities(root, talkroom_id)
     schema = args.decision_schema
     schema_snapshot = _file_snapshot(schema)
     schema_sha256 = schema_snapshot[1]
@@ -2064,20 +2118,23 @@ def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, A
     prompt = base / "mode" / "decision.prompt.txt"
     prompt_bytes = _decision_prompt(
         context, context_sha256, feedback, requirements, identity, buyer_identity,
-        operator_policy, operator_policy_sha256, pending_review)
+        operator_policy, operator_policy_sha256, pending_review,
+        required_identities=required_identities)
     prompt_sha256 = hashlib.sha256(prompt_bytes).hexdigest()
     receipt = _load_paid_decision_receipt(receipt_path)
     try:
         return _cached_paid_decision(root, receipt, prompt, prompt_sha256,
                                      schema_sha256, context_sha256, context_inputs_sha256,
                                      feedback, requirements, identity, buyer_identity,
-                                     operator_policy_sha256)
+                                     operator_policy_sha256,
+                                     required_identities=required_identities)
     except (AttributeError, Failure, OSError, ValueError, TypeError, json.JSONDecodeError):
         pass
     try:
         return _stable_cached_paid_decision(
             root, receipt, schema_sha256, context_inputs_sha256, feedback,
             requirements, identity, buyer_identity, operator_policy_sha256,
+            required_identities=required_identities,
         )
     except (AttributeError, Failure, OSError, ValueError, TypeError, json.JSONDecodeError):
         pass
@@ -2117,7 +2174,9 @@ def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, A
             # already-known contract before generic validation so model wording cannot turn
             # unfinished remote repair into premature marketplace formal delivery.
             value = _bind_pending_review_contract(value, pending_review, pending_review_mode)
-        value = _validate_paid_decision(value, feedback, requirements, identity, buyer_identity)
+        value = _validate_paid_decision(
+            value, feedback, requirements, identity, buyer_identity, required_identities,
+        )
         if pending_review_mode and (
                 value.get("decision") != "actionable"
                 or value.get("mode") != pending_review_mode):
@@ -2266,10 +2325,12 @@ def _semantic_effect_contract(project_root: Path) -> tuple[dict[str, Any], str]:
     decision = _load(project_root / "context" / "paid-work-decision.json")
     contract = {key: decision.get(key) for key in (
         "decision", "mode", "feedback_sha256", "requirements_sha256",
-        "required_output", "required_effect", "required_assets",
+        "required_output", "required_effect", "required_outcomes", "required_assets",
     )}
     if (contract["decision"] != "actionable" or contract["mode"] != "remote"
             or not _text(contract["required_output"]) or not _text(contract["required_effect"])
+            or not isinstance(contract["required_outcomes"], list)
+            or not contract["required_outcomes"]
             or not isinstance(contract["required_assets"], list)):
         raise ValueError("invalid semantic effect contract")
     encoded = json.dumps(contract, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
@@ -2737,7 +2798,10 @@ def _current_paid_decision(root: Path, item: dict[str, Any]) -> dict[str, Any]:
     talkroom_id = _text(item.get("talkroom_id"))
     identity = _latest_official_identity(root, talkroom_id)
     buyer_identity = _latest_official_buyer_identity(root, talkroom_id)
-    return _validate_paid_decision(value, feedback, requirements, identity, buyer_identity)
+    required_identities = _current_buyer_outcome_identities(root, talkroom_id)
+    return _validate_paid_decision(
+        value, feedback, requirements, identity, buyer_identity, required_identities,
+    )
 
 
 def _file_mode(root: Path, item: dict[str, Any]) -> bool:
@@ -4621,8 +4685,12 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
         "Its official_receipts must preserve every builder effect_key and official_url exactly; never replace them with verifier-specific "
         "receipt identities. Put fresh independent proof in verifier_evidence, before_evidence, after_evidence, or evidence instead. "
         "The copied outcome must have required_effect_satisfied=true, required_output_satisfied=true, remaining_work=[], and a nonempty "
-        "official_receipts array whose records contain effect_key, official_url, readback_source, and exact_readback=true. If any required work "
-        "remains, return blocked; never describe a partial target, draft, internal state, or public proxy as business completion. "
+        "official_receipts array whose records contain effect_key, official_url, readback_source, and exact_readback=true. "
+        "The copied outcome must also preserve outcome_coverage from the builder. Verify exactly one row for every required_outcomes "
+        "outcome_id, in contract order. Each row must contain exactly outcome_id, required_output_satisfied=true, "
+        "required_effect_satisfied=true, and receipt_refs naming builder official_receipts effect_key or readback_source values that "
+        "independently prove that outcome. "
+        "If any required work remains, return blocked; never describe a partial target, draft, internal state, or public proxy as business completion. "
         "For a correctable mismatch write verified=false, classification=quality_mismatch, and a nonempty delta array whose "
         "objects contain only requirement, expected, observed, evidence, and repair strings, then return status=blocked. "
         "For a temporary browser failure use auth_transient or cdp_transient with no delta."
@@ -4637,7 +4705,10 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
         "readback file; never reuse a prior-cycle owner file or verifier-owned evidence as this cycle's before/after evidence. "
         "Once the required official checks are sufficient to decide completion or a proved external dependency, write the durable result immediately before any optional exploration; do not exhaustively inspect unrelated historical attachments or messages. "
         "paid-remote-result.json must include business_outcome with required_effect_satisfied, required_output_satisfied, "
-        "remaining_work, and official_receipts. Each completion receipt must contain effect_key, official_url, "
+        "remaining_work, official_receipts, and outcome_coverage. For every semantic required_outcomes outcome_id, in contract order, "
+        "write exactly one outcome_coverage row containing outcome_id, required_output_satisfied, required_effect_satisfied, and nonempty "
+        "receipt_refs naming official_receipts effect_key or readback_source values. Never mark the aggregate complete while any outcome lacks proof. "
+        "Each completion receipt must contain effect_key, official_url, "
         "readback_source, and exact_readback=true. remaining_work must always be an array. Set both satisfied fields true only "
         "after the complete semantic contract has official provider readback. Only an external dependency may use status=blocked; "
         "then use a nonempty remaining_work and the wait_receipt contract below. Self-actionable incomplete work must continue "
@@ -4686,6 +4757,10 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
             f"{operator_instruction}"
             f"The canonical accumulated buyer requirements are {root / 'requirements/live-buyer-reply.json'} "
             f"with accumulated requirements SHA256={requirements_sha256}. Independently read that file; its feedback_sha256 must match the current feedback. "
+            f"Before claiming any buyer-provided value is missing, directly read {root / 'source/talkroom/messages.jsonl'} "
+            "for every source_message_identities entry in required_outcomes. Redaction in compiled context is not evidence that the buyer omitted the value. "
+            "Use values from those authenticated official rows only for the authorized effect, without copying private values into evidence or the customer message. "
+            "Never ask the buyer to resend a value present in those official rows. "
             f"{target_contract} "
             "For any buyer-visible web change, raw HTML, JavaScript, CSS, or API content is not buyer-visible proof. "
             "Use a fresh browser context, complete every entrance, consent, cookie, or overlay flow, navigate the exact buyer route, "

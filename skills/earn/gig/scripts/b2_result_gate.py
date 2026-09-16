@@ -294,6 +294,8 @@ def _missing_required_source_url(source_id: str) -> str | None:
         })
     if source_id == "single:new":
         return "https://coconala.com/requests?sort=new&recruiting=true"
+    if source_id == "retainer:new":
+        return "https://coconala.com/job_matching/outsources"
     return None
 
 
