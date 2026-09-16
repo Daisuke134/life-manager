@@ -273,7 +273,7 @@ node --test apps/life-manager/scripts/load-env-file.test.js apps/life-manager/sc
 - Read: runtime events and host-admission SQLite state.
 
 **Interfaces:**
-- Consumes: per-run start/terminal timestamps over 24 hours.
+- Consumes: available recent production start/terminal timestamps and bounded load-test traces; no fresh 24-hour wait.
 - Produces: observed arrivals, average runtime, p95 runtime, slot-hours/day, maximum queue age, and orphan-owner count by resource class.
 
 - [ ] **Step 1: Calculate actual demand**
@@ -346,7 +346,7 @@ For Mobile require Postiz receipt and intended account/content provider readback
 
 - [ ] **Step 3: Run the observation window**
 
-Observe at least one full cadence for every scoped loop and a 24-hour fleet window. Record maximum queue age and assert every scheduled occurrence either completes or remains durably queued; none disappear.
+Observe a targeted natural wake for every changed owner/adapter, while other owners are evaluated in parallel. Run bounded saturation, crash, restart and uncertain-effect regressions against the shared lifecycle; record maximum queue age and assert every business item either completes or remains durably discoverable. Existing multi-day telemetry informs capacity but is not an elapsed-time acceptance gate. Require official provider readback for attempted effects; a no-work wake proves lifecycle readiness only. Keep automatic cadence/receipt monitoring active after promotion.
 
 - [ ] **Step 4: Close the TODO only from receipts**
 

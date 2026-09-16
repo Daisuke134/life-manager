@@ -69,7 +69,7 @@ runtime/provider readback before acting; conversation claims are not completion 
   The durable full-history cursor is page 29 after 28 pages, 527 cards and 14 hash-bound chunks, with all 54
   uncertain intents unchanged. Paid's current four-client set is closed by a natural
   `172d3f2e` replay-zero pass. Admission protocol `2` is live and one four-lane overlap is proved, but the
-  24-hour/seven-day fairness and no-starvation gates remain open.
+  fleet fairness and no-starvation acceptance remain open; a fixed 24-hour/seven-day wait is not a release gate.
 
 ## Outcome
 
@@ -299,7 +299,7 @@ send. Runtime health uses process identity plus heartbeat plus durable progress,
 | 9 | Terminal release handoff updates one exact idle label without restarting siblings or losing state | `test_terminal_release_handoff_is_label_scoped` plus loaded argv/readback |
 | 10 | Every active client independently covers its newest buyer event, official effect and replay-zero | Client-by-client official matrix for Ryu, both Kokoro contracts, Chii and Atsugi |
 | 11 | Apply, Reply, Paid and Storefront continue across reboot and one owner crash | Four-lane reboot/fault-injection canary |
-| 12 | The same contracts hold at fleet scale | 500-loop admission test, 24-hour canary, then seven-day soak with zero starvation and zero duplicate effects |
+| 12 | The same contracts hold at fleet scale | 500-loop admission/load regression, controlled crash/pressure/recovery tests, then targeted natural wakes and continuous automated SLO monitoring; no fixed-duration soak gate |
 | 13 | A handover resumes only in its named worktree/branch and refuses the Capafy/shared checkout | `test_handover_worktree_route_fails_closed` plus HEAD/upstream/dirty-state receipt |
 
 E2E judgment:
@@ -345,7 +345,7 @@ freeze protocol 1
 -> restore project-scoped Paid concurrency and attachment retention
 -> prove Coconala four-lane/client canary
 -> activate the corrected protocol 2
--> 24-hour and seven-day fleet proof
+-> reproducible fleet fault/load proof plus targeted natural wakes and continuous automated monitoring
 -> continue platform revenue order
 ```
 
@@ -438,7 +438,7 @@ never by deleting the guard.
   natural wakes now write bounded effect-zero `host_admission_deferred:resource_control_busy` terminal events;
   they do not yet prove business recovery or official provider readback. That rollout snapshot reduced finite
   installed mismatches from 51 to 38 and observed protocol `1`, owners `3`, legacy tickets `4`; those counts are
-  historical. V2 activation, natural fairness, recovery, replay-zero and 24-hour proof remain open.
+  historical. V2 activation, natural fairness, recovery and replay-zero proof remain open; a fixed-duration wait is not a gate.
 - PR `#5192`, main SHA `6a901db5011da29a05ef91422c7ee745c8fa6e51`, is the compatibility-first
   admission rollout. It preserves future-version durable tickets during mixed-release convergence and records
   the exact bounded admission reason instead of collapsing every deferral to `host_admission_deferred`.
@@ -598,7 +598,7 @@ screening-answer effect remains unproved. Fifty-four historical uncertain applic
 preemptible background reconciliation; Reply has 15 pending threads. Storefront's page-2 retirement
 fix is loaded but its first natural run failed before the effect with browser WebSocket HTTP 500;
 official Storefront effect/readback, demand and payout
-attribution, 24-hour cadence, no-starvation, zombie-free browser teardown and every later platform remain open.
+attribution, cadence correctness, no-starvation, zombie-free browser teardown and every later platform remain open.
 
 **24/7 acceptance:** every registered loop remains scheduled, but that alone is not success. Each applicable
 lane must start within its declared 1–30 minute cadence, perform one bounded durable transition, write a terminal
@@ -606,14 +606,36 @@ receipt and exit. When one wake releases capacity, the next eligible revenue wak
 Light deterministic work must not consume the same scarce capacity as browser/model work. Apply, Reply, Paid and
 Storefront must all be revenue-priority owners. Maintenance may borrow unused capacity only. The static default
 of five finite runs is not accepted as the final architecture; production must use measured resource-class
-capacity and prove 24 hours without a missed revenue cadence or fleet starvation.
+capacity and prove bounded queue-to-claim progress under controlled load and recovery tests, followed by
+targeted natural wakes. Continuous monitoring detects later cadence misses or starvation; it is not a
+pre-promotion 24-hour wait.
+
+**Finite release gate, continuous operating guard:** Do not serialize fourteen 24-hour observations. Evaluate
+all fourteen *product rows* in parallel; a product row may own several launchd jobs. For each applicable owner:
+
+1. Test the real lifecycle and ledger under normal, saturated-capacity, memory-pressure, timeout, process-death,
+   browser-loss and uncertain-effect fixtures. Prove work remains durable, released capacity admits the next
+   eligible owner, retries require official reconciliation, and duplicate provider effects remain zero. Measure
+   safe resource ceilings; do not raise concurrency from a passing mock.
+2. On the exact immutable release, observe a targeted **natural** wake with matching outer terminal, claim
+   release and next-work eligibility. Where that wake performs a real external action, require official
+   provider/account readback and same-item replay-zero. A no-eligible-work wake may prove lifecycle readiness,
+   but must be marked `ready_no_work`, never `effect_verified` or revenue-complete.
+3. Keep the existing internal monitor checking each declared cadence plus a measured grace, queue age,
+   terminal freshness, release drift and receipt/readback completeness after promotion. Inject a stalled-owner
+   fixture to prove detection, bounded same-owner repair or alert, and no sibling mutation. Later failures
+   reopen the item automatically; no finite observation can guarantee that software will run forever.
+
+The gate is the passing **evidence matrix**, not elapsed wall-clock time. Historical 24-hour/seven-day charts
+may inform capacity and incidents but cannot be mandatory waits or substitutes for fault tests and official
+effects. Do not count a mock as production evidence or claim a provider result for a lane with no eligible work.
 
 **Next order:** (1) keep one-off/retainer refresh live and prove a fresh eligible retainer screening-answer
 effect when one exists, (2) repair shared admission/cadence and owner-scoped tab teardown, including
 the currently failing Storefront browser connection and exact provider readback,
 (3) resolve Reply 15 and Coconala payout, (4) reconcile the 54 historical
 uncertain intents as preemptible background work without blocking current revenue, (5) prove all four Coconala
-lanes for 24 hours, then (6) CrowdWorks paid contracts, Lancers, Mercor,
+lanes through the finite acceptance matrix below, then (6) CrowdWorks paid contracts, Lancers, Mercor,
 Freelancer.com and Upwork in that order.
 
 ### 1. Shared runtime production convergence and account 1 cutover — current cursor
@@ -669,11 +691,12 @@ Freelancer.com and Upwork in that order.
 - [ ] Re-run Coconala Apply, Reply, Paid and Storefront concurrently under saturated maintenance load. Prove one
   owner crash, timeout or blocked client does not change the other lanes' schedules, states or effects.
 - [ ] Protocol `2` is already live. Prove FIFO within each lane, sleeping-head dispatch, crash recovery,
-  cross-class progress, uncertain-effect reconciliation and duplicate effect zero over 24 hours, then seven
-  days; do not treat activation itself as acceptance.
-- [ ] Produce continuous terminal receipts and real official progress for 24 hours, then seven days, including
-  reboot recovery and measured browser/CPU/memory/process ceilings. Any progress regression fails the rollout
-  and restores the last proven release.
+  cross-class progress, uncertain-effect reconciliation and duplicate effect zero in controlled fault/load
+  regressions plus targeted natural wakes; do not treat activation itself as acceptance.
+- [ ] Prove restart/crash recovery, terminal receipts, official effect separation, replay-zero and measured
+  browser/CPU/memory/process ceilings with bounded tests and current-SHA natural wakes. Keep automated cadence,
+  queue-age, orphan and provider-readback monitors running after promotion; a later regression opens an incident
+  and triggers only the tested owner-scoped recovery or rollback. Do not wait 24 hours or seven days to advance.
 - [x] Prove the Paid Account 1→2 Codex route with one bounded invocation and retain both account sessions.
 - [x] Roll the repository's Codex task classes to Account 1 first with existing Account 2 failover through
   PR `#5257`; route configuration and 71 agent-runner tests plus 93 subtests passed before merge.
@@ -916,7 +939,7 @@ The shared runtime admission review then found a separate fleet-wide hang class:
 handoff fix, APFS clone detector, Storefront one-pass fix and stale-release guard are now merged in PRs `#5244`,
 `#5246` and `#5247` (main `62716e997b`). Their focused runtime tests pass; production still needs the new
 release's natural wake and
-24-hour/seven-day proof.
+finite fault/load, natural-wake and official-effect proof; longer observation remains operational telemetry.
 
 Observability remains a current architecture gap. Existing JSONL events and provider receipts stay the source
 of truth, while OpenTelemetry becomes the shared trace envelope rather than a second business ledger. One

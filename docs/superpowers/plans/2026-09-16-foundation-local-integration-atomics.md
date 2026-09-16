@@ -22,6 +22,16 @@
 - Identity, permissions, receipt rules, and Eval acceptance are not self-modifying.
 - Local natural-wake proof and S-04 Eval precede Cloud. Production releases come from pushed main; a candidate release is explicitly a bounded Local canary, not final production acceptance.
 
+## Verification wording — no fixed-duration wait gate
+
+The objective is an architecture that **continues to make durable progress and detects/repairs failures**, not a stopwatch exercise. Fourteen product rows run concurrently; do not multiply 24 hours by fourteen or require a 24-hour/seven-day soak before moving to the next platform. One bounded evidence matrix replaces elapsed-time gates:
+
+1. Exercise admission, release, queue fairness, crash/restart, memory pressure, browser loss, unknown-effect fencing and rollback with real shared components and controlled failure fixtures. Assert no work loss, no duplicate effect and no sibling mutation under measured host limits.
+2. From the exact installed immutable SHA, observe a targeted natural wake per changed owner/adapter, matching outer terminal and claim release. For a real attempted effect require the provider's official readback and replay-zero. A no-eligible-work wake is `ready_no_work`, not `effect_verified`.
+3. Keep cadence, queue-age, terminal, release-drift and receipt/readback monitors operating after promotion. Prove by injected stalled-owner fixture that a failure is detected and owner-scoped recovery or escalation occurs; later failures reopen the item. Multi-day history is useful operational telemetry, never a required passive wait or a substitute for an effect receipt.
+
+This follows [Google SRE's separation of user-visible symptoms and internal signals](https://sre.google/sre-book/monitoring-distributed-systems/), [AWS's controlled resilience/fault-injection tests](https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/rel_testing_resiliency_failure_injection_resiliency.html) and [tested, observable automated recovery](https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/rel_planning_for_recovery_auto_recovery.html). These are design analogies; Life Manager's launchd/SQLite/provider contract, not Kubernetes, is the implementation.
+
 ## Ownership and current evidence (audit completed; re-read before execution)
 
 | Surface | Owner / exact path | Current evidence | Boundary |
@@ -276,7 +286,7 @@ Run from the candidate worktree. The private filenames are unique and `umask 077
 
 - [ ] Run existing focused candidate tests for absolute Node/Python, bounded version/import smoke and shared Marketing env. Do not recreate already-green implementation.
 - [ ] For each current registry Mobile publication row, verify intended account/content slot and loaded release. Confirm the real process receives required key names without printing values.
-- [ ] After owner-scoped apply from an allowed release, wait for one natural wake per lane. Classify each as published+official readback, queued/deferred, no-content/no-approval, or failed. A group-level pass does not substitute for 18 lane receipts.
+- [ ] After owner-scoped apply from an allowed release, observe targeted natural wakes for each of the 17 authorized publication destinations, in parallel where safe. Classify each as published+official readback, queued/deferred, no-content/no-approval, or failed. Do not mark no-content as a verified publication or impose a fixed 24-hour wait.
 - [ ] For Instagram and TikTok Metrics, verify correct Postiz env/API readback and deterministic class without consuming a browser/model slot.
 - [ ] Reconcile unknown Postiz submissions before retry, and require replay-zero for exact slot/account/content identity.
 
@@ -304,7 +314,7 @@ Run from the candidate worktree. The private filenames are unique and `umask 077
 **Interface:** Output = fresh Local gate result, list of non-verified domain rows, candidate SHA, and an Eval/Cloud handoff; no Cloud mutation here.
 
 - [ ] Run focused foundation tests and `~/loops/current/bin/lm-loop doctor`; verify the candidate diff is free of unintended provider mutations and secrets.
-- [ ] Build one fresh 14-row manifest from exact current runtime and official receipts using the Task 6 command contract. Execute Local gate without reusing a stale manifest; retain `BLOCK` if any row is actually blocked.
+- [ ] Build one fresh 14-row manifest from exact current runtime and official receipts using the Task 6 command contract. Execute Local gate against the finite evidence matrix above without reusing a stale manifest; retain `BLOCK` if an applicable row is actually blocked, but do not block solely because 24 hours have not elapsed.
 - [ ] Distinguish foundation Local readiness from domain outcome verification in the report. Do not claim all 14 product loops verified merely because the observation projection works.
 - [ ] Prepare S-04 Eval as its own atomic plan: baseline, held-out, safety, cost, live evidence and rollback pointer. Cloud tenant/Steel/phone canaries remain later and cannot substitute for Local proof.
 - [ ] Before a single main merge, fetch main, inspect every conflicting file/owner, rerun the required checks and obtain fresh read-only review. After merge, cut a main-derived immutable release, target-apply idle labels and re-prove the same Local natural wake. Only then use the same main SHA for Cloud promotion.
