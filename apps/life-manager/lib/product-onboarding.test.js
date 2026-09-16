@@ -1115,6 +1115,17 @@ test("local gate CLI rebinds runtime evidence from supplied status", () => {
   const gate = JSON.parse(fs.readFileSync(outputPath, "utf8"));
   assert.equal(gate.decision, "pass");
   assert.deepEqual(gate.reasons, []);
+
+  tampered.schema_version = "tampered.v999";
+  fs.writeFileSync(manifestPath, JSON.stringify(tampered));
+  const schemaResult = spawnSync(process.execPath, [
+    path.join(ROOT, "apps/life-manager/scripts/local-completion-gate.js"),
+    "--manifest", manifestPath,
+    "--runtime-status", runtimePath,
+  ], { cwd: ROOT, encoding: "utf8" });
+
+  assert.equal(schemaResult.status, 1);
+  assert.deepEqual(JSON.parse(schemaResult.stdout).reasons, ["manifest_schema_invalid"]);
   fs.rmSync(root, { recursive: true, force: true });
 });
 

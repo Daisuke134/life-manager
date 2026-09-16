@@ -8,6 +8,7 @@ const path = require("node:path");
 const {
   buildProductLoopCompletionManifest,
   evaluateLocalCompletionGate,
+  readProductLoopCatalog,
 } = require("../lib/product-onboarding.js");
 
 function usage() {
@@ -46,11 +47,49 @@ function writePrivate(pathname, content) {
   fs.chmodSync(pathname, 0o600);
 }
 
+function evaluateManifestEnvelope(manifest) {
+  if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)
+    || !Array.isArray(manifest.loops)) {
+    return evaluateLocalCompletionGate(manifest);
+  }
+  const catalog = readProductLoopCatalog();
+  const catalogById = new Map(catalog.loops.map((loop) => [loop.id, loop]));
+  const envelopeManifest = {
+    ...manifest,
+    loops: manifest.loops.map((loop) => {
+      const catalogLoop = catalogById.get(loop && loop.id);
+      if (!catalogLoop || loop.state !== "verified") return loop;
+      return {
+        ...loop,
+        runtime_evidence: {
+          observed_job_ids: [...catalogLoop.job_ids],
+          missing_job_ids: [],
+          release_mismatch_job_ids: [],
+          non_pass_job_ids: [],
+          release_match: true,
+          terminal_pass: true,
+          runtime_healthy: true,
+          ready: true,
+          reason: null,
+        },
+      };
+    }),
+  };
+  return evaluateLocalCompletionGate(envelopeManifest);
+}
+
 function main(args = process.argv.slice(2)) {
   const options = parseArgs(args);
   const manifest = JSON.parse(fs.readFileSync(options.manifest, "utf8"));
   const runtimeRows = options.runtime_status
     ? JSON.parse(fs.readFileSync(options.runtime_status, "utf8")) : undefined;
+  const envelopeGate = options.runtime_status ? evaluateManifestEnvelope(manifest) : null;
+  if (envelopeGate && envelopeGate.reasons.length) {
+    const content = `${JSON.stringify(envelopeGate, null, 2)}\n`;
+    if (options.output) writePrivate(options.output, content);
+    else process.stdout.write(content);
+    return 1;
+  }
   const effectiveManifest = runtimeRows === undefined ? manifest : buildProductLoopCompletionManifest({
     host: manifest.host,
     release_sha: manifest.release_sha,
