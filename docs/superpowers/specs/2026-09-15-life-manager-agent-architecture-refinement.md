@@ -169,6 +169,10 @@ browser/readback未確認などの既知診断が残っているため、R3へ�
 installed SHAはcurrentへ揃ったが、最新report/eventは旧SHAのままで、自然wakeのterminal/readbackは未確認である。
 install eventだけを業務成功receiptとは数えず、次回statusでcurrent releaseの自然wakeを確認する。
 
+同じ手順で外部effectを持たない`self-improve-evolve` ownerもtargeted reconcileした。preflightはPASSし、
+installed SHAはcurrentへ揃ったが、最後のruntime report/eventは旧SHAで`resource_capacity_busy`のままである。
+これはrelease整合性の修復であり、自己改善が成功したというreceiptではない。自然wake後に再確認する。
+
 #### S: 自己修復・自己改善の残りも一件ずつ記録する
 
 これは別の常駐supervisorを追加するTODOではなく、既存のreconcile/launchd supervisorとcandidate gateへ
