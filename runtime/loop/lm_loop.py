@@ -262,22 +262,43 @@ def _select(rows: list[dict], target: str) -> list[dict]:
     return selected
 
 
+def _loaded_sha_is_ancestor(installed_sha: str, current_sha: str) -> bool:
+    source = Path(os.environ.get(
+        "LIFE_MANAGER_SOURCE_REPO", "~/Projects/life-manager-main")).expanduser()
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(source), "merge-base", "--is-ancestor",
+             installed_sha, current_sha],
+            capture_output=True, check=False, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0
+
+
 def _bounded_reconcile_candidates(registry: dict, route: str,
-                                  current_sha: str, max_owners: int) -> set[str]:
-    """Find a small deterministic set of stale installed owners before launchd probing."""
+                                  current_sha: str, max_owners: int,
+                                  skipped_non_ancestor: list[str] | None = None) -> set[str]:
+    """Inspect the finite registry so an ineligible prefix cannot hide later owners."""
     agents_dir = Path(os.environ.get(
         "LIFE_MANAGER_LAUNCH_AGENTS_DIR", "~/Library/LaunchAgents")).expanduser()
     candidates: list[str] = []
-    candidate_limit = min(64, max_owners * 8)
+    automatic = os.environ.get("LIFE_MANAGER_LOOP_ID") == "life-manager-release-reconciler"
+    ancestry: dict[str, bool] = {}
     for loop_id, entry in sorted(registry["loops"].items()):
         if entry.get("provider_route") != route:
             continue
         plist_path = agents_dir / f"{entry['label']}.plist"
         installed_sha = _release_from_plist(plist_path)
         if installed_sha and installed_sha != current_sha:
+            if automatic:
+                if installed_sha not in ancestry:
+                    ancestry[installed_sha] = _loaded_sha_is_ancestor(
+                        installed_sha, current_sha)
+                if not ancestry[installed_sha]:
+                    if skipped_non_ancestor is not None:
+                        skipped_non_ancestor.append(loop_id)
+                    continue
             candidates.append(loop_id)
-        if len(candidates) >= candidate_limit:
-            break
     return set(candidates)
 
 
@@ -812,9 +833,11 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         route = positionals[0]
         requested_ids = set(loop_ids)
-        if (route == "deterministic"
-                and os.environ.get("LIFE_MANAGER_LOOP_ID") == "life-manager-release-reconciler"):
-            requested_ids.add("life-manager-disk-cleanup")
+        automatic_release_reconciler = (
+            os.environ.get("LIFE_MANAGER_LOOP_ID") == "life-manager-release-reconciler")
+        auto_disk_cleanup = automatic_release_reconciler and route == "deterministic"
+        effective_requested_ids = requested_ids | (
+            {"life-manager-disk-cleanup"} if auto_disk_cleanup else set())
         if include_running and not requested_ids:
             print(json.dumps({"ok": False,
                               "error": "--include-running requires --loop-id"}))
@@ -834,32 +857,42 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
         release_root = Path(os.environ.get("LIFE_MANAGER_RELEASE_ROOT", ROOT)).expanduser().resolve(strict=True)
         current_sha = json.loads((release_root / "RELEASE.json").read_text()).get("sha")
+        skipped_non_ancestor: list[str] = []
+        if requested_ids:
+            targets = set(effective_requested_ids)
+        elif max_owners is not None:
+            targets = _bounded_reconcile_candidates(
+                registry, route, current_sha, max_owners, skipped_non_ancestor)
+            if auto_disk_cleanup:
+                targets.add("life-manager-disk-cleanup")
+        else:
+            targets = set()
         rows = (targeted_snapshot(
-            registry, requested_ids, release_root / "bin/launchctl-safe")
-            if requested_ids else (
-                targeted_snapshot(
-                    registry,
-                    _bounded_reconcile_candidates(
-                        registry, route, current_sha, max_owners),
-                    release_root / "bin/launchctl-safe",
-                ) if max_owners is not None else snapshot(registry, "all")
-            ))
-        automatic_release_reconciler = (
-            os.environ.get("LIFE_MANAGER_LOOP_ID") == "life-manager-release-reconciler"
-        )
+            registry, targets, release_root / "bin/launchctl-safe")
+            if requested_ids or max_owners is not None else snapshot(registry, "all"))
         explicitly_reloadable = {
-            loop_id for loop_id in requested_ids
+            loop_id for loop_id in effective_requested_ids
             if registry["loops"][loop_id].get("cadence", {}).get("keep_alive") is True
         }
         eligible_states = ({"loaded-idle", "loaded-running"} if include_running else
                            {"loaded-idle", "loaded-running"} if explicitly_reloadable else
                            {"loaded-idle"} if loaded_idle_only else
                            {"loaded-idle", "unloaded"})
+        ancestry_cache: dict[str, bool] = {}
+        if automatic_release_reconciler:
+            for row in rows:
+                installed_sha = row.get("installed_release_sha")
+                if installed_sha and installed_sha != current_sha:
+                    if installed_sha not in ancestry_cache:
+                        ancestry_cache[installed_sha] = _loaded_sha_is_ancestor(
+                            installed_sha, current_sha)
+                    if not ancestry_cache[installed_sha]:
+                        skipped_non_ancestor.append(row["loop_id"])
         eligible = [row for row in rows if (
             row["classification"] == "managed"
             and row["loop_id"] != os.environ.get("LIFE_MANAGER_LOOP_ID")
             and row["provider_route"] == route
-            and (not requested_ids or row["loop_id"] in requested_ids)
+            and (not requested_ids or row["loop_id"] in effective_requested_ids)
             and row["launchd_state"] in eligible_states
             and (row["launchd_state"] != "loaded-running"
                  or include_running
@@ -867,11 +900,16 @@ def main(argv: list[str] | None = None) -> int:
             and row["installed_release_sha"]
             and row["installed_release_sha"] != current_sha
             and (not automatic_release_reconciler
+                 or ancestry_cache.get(row["installed_release_sha"], False))
+            and (not automatic_release_reconciler
                  or row["loop_id"] in explicitly_reloadable
                  or row.get("event_release_sha") == row["installed_release_sha"])
         )]
         if max_owners is not None:
-            eligible = eligible[:max_owners]
+            extra = [row for row in eligible if auto_disk_cleanup
+                     and row["loop_id"] == "life-manager-disk-cleanup"]
+            eligible = [row for row in eligible if row not in extra][:max_owners] + extra
+        skipped_non_ancestor = sorted(set(skipped_non_ancestor))
         applied, failed = [], []
         for row in eligible:
             try:
@@ -888,6 +926,7 @@ def main(argv: list[str] | None = None) -> int:
                 failed.append({"loop_id": row["loop_id"], "error": str(exc)})
         print(json.dumps({
             "ok": not failed, "route": route, "release_sha": current_sha,
+            "skipped_non_ancestor": skipped_non_ancestor,
             "eligible": len(eligible), "applied": applied, "failed": failed,
             "skipped_running": [row["loop_id"] for row in rows if (
                 row["classification"] == "managed"

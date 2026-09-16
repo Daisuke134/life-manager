@@ -286,6 +286,9 @@ def _database(path: Path) -> sqlite3.Connection:
     }
     if "admission_policy" not in priority_columns:
         connection.execute("ALTER TABLE priorities ADD COLUMN admission_policy TEXT")
+    if "next_eligible_at" not in priority_columns:
+        connection.execute(
+            "ALTER TABLE priorities ADD COLUMN next_eligible_at REAL NOT NULL DEFAULT 0")
     return connection
 
 
@@ -443,9 +446,10 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
         if not _acquire_bounded(descriptor):
             return None, "control_busy"
         with _database(database) as connection:
+            instant = time.time() if now is None else now
             available, _ = _durable_capacity(
                 connection, owners, resource_class, admission_class,
-                time.time() if now is None else now,
+                instant,
                 starts, snapshot_started_ns)
             if any(item.get("owner_id") == owner_id for item in (
                     _row(path) or {} for path in owners.glob("*.json"))):
@@ -471,10 +475,10 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
             head = connection.execute("""
                 SELECT q.owner_id FROM queue q
                 LEFT JOIN priorities p ON p.owner_id=q.owner_id
-                WHERE q.resource_class=?
+                WHERE q.resource_class=? AND COALESCE(p.next_eligible_at,0)<=?
                 ORDER BY CASE COALESCE(p.admission_class,'borrow')
                     WHEN 'revenue' THEN 0 ELSE 1 END, q.sequence LIMIT 1
-            """, (resource_class,)).fetchone()
+            """, (resource_class, instant)).fetchone()
             ready = (available and not _legacy_waiter_exists(
                          tickets, resource_class, starts, snapshot_started_ns)
                      and head and head[0] == owner_id)
@@ -519,10 +523,10 @@ def claim_durable(resource_class: str, owner_id: str, *,
             head = connection.execute("""
                 SELECT q.owner_id FROM queue q
                 LEFT JOIN priorities p ON p.owner_id=q.owner_id
-                WHERE q.resource_class=?
+                WHERE q.resource_class=? AND COALESCE(p.next_eligible_at,0)<=?
                 ORDER BY CASE COALESCE(p.admission_class,'borrow')
                     WHEN 'revenue' THEN 0 ELSE 1 END, q.sequence LIMIT 1
-            """, (resource_class,)).fetchone()
+            """, (resource_class, instant)).fetchone()
             if any(item.get("owner_id") == owner_id for item in (
                     _row(path) or {} for path in owners.glob("*.json"))):
                 return None, "owner_busy"
@@ -588,9 +592,9 @@ def transfer_durable(claim: Path, child_pid: int) -> None:
         os.close(descriptor)
 
 
-def defer_durable(owner_id: str) -> bool:
+def defer_durable(owner_id: str, *, cooldown_seconds: int = 0) -> bool:
     """Return only this owner's dispatch reservation to its existing queue position."""
-    if not owner_id:
+    if not owner_id or not isinstance(cooldown_seconds, int) or not 0 <= cooldown_seconds <= 3600:
         raise RuntimeError("invalid resource identity")
     root, _, _, database = _durable_paths()
     descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
@@ -602,7 +606,14 @@ def defer_durable(owner_id: str) -> bool:
         with _database(database) as connection:
             changed = connection.execute(
                 "DELETE FROM reservations WHERE owner_id=?", (owner_id,)).rowcount
-        return changed == 1
+            delayed = 0
+            if cooldown_seconds:
+                delayed = connection.execute(
+                    """UPDATE priorities SET next_eligible_at=?
+                         WHERE owner_id=? AND EXISTS (
+                             SELECT 1 FROM queue WHERE owner_id=?)""",
+                    (time.time() + cooldown_seconds, owner_id, owner_id)).rowcount
+        return bool(changed or delayed)
     finally:
         os.close(descriptor)
 
@@ -647,9 +658,10 @@ def _reserve_locked(connection: sqlite3.Connection, owners: Path, tickets: Path,
                 LEFT JOIN reservations r ON r.owner_id=q.owner_id
                 LEFT JOIN priorities p ON p.owner_id=q.owner_id
                 WHERE q.resource_class=? AND r.owner_id IS NULL
+                  AND COALESCE(p.next_eligible_at,0)<=?
                 ORDER BY CASE COALESCE(p.admission_class,'borrow')
                     WHEN 'revenue' THEN 0 ELSE 1 END, q.sequence LIMIT 1
-            """, (resource_class,)).fetchone()
+            """, (resource_class, instant)).fetchone()
             if candidate:
                 owner_id, sequence, admission_class = candidate
                 available, _ = _durable_capacity(

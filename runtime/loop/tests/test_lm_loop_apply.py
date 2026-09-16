@@ -1067,7 +1067,7 @@ class LmLoopApplyTest(unittest.TestCase):
         (release / "config/loop-registry.json").write_text(json.dumps(value))
         agents_dir = self.root / "agents"
         agents_dir.mkdir()
-        old_root = "/Users/anicca/loops/releases/" + ("b" * 40)
+        old_root = "/opt/loops/releases/" + ("b" * 40)
         for loop_id, entry in value["loops"].items():
             (agents_dir / f"{entry['label']}.plist").write_bytes(plistlib.dumps({
                 "Label": entry["label"],
@@ -1114,6 +1114,105 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(targeted.call_args.args[1], {"example", "second"})
         self.assertEqual(applied, ["example"])
         self.assertEqual(json.loads(output.getvalue())["eligible"], 1)
+
+    def test_automatic_reconcile_skips_unmerged_candidate_before_bounded_limit(self):
+        repo = self.root / "git-source"
+        repo.mkdir()
+        subprocess.run(["git", "init", "-q", str(repo)], check=True)
+        subprocess.run(["git", "-C", str(repo), "-c", "user.name=Test",
+                        "-c", "user.email=test@example.invalid", "commit",
+                        "--allow-empty", "-qm", "old"], check=True)
+        old_sha = subprocess.check_output(
+            ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+        subprocess.run(["git", "-C", str(repo), "switch", "-qc", "candidate"], check=True)
+        subprocess.run(["git", "-C", str(repo), "-c", "user.name=Test",
+                        "-c", "user.email=test@example.invalid", "commit",
+                        "--allow-empty", "-qm", "unmerged"], check=True)
+        candidate_sha = subprocess.check_output(
+            ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+        subprocess.run(["git", "-C", str(repo), "switch", "-q", "--detach", old_sha], check=True)
+        subprocess.run(["git", "-C", str(repo), "-c", "user.name=Test",
+                        "-c", "user.email=test@example.invalid", "commit",
+                        "--allow-empty", "-qm", "main"], check=True)
+        main_sha = subprocess.check_output(
+            ["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+        value = registry()
+        value["loops"] = {
+            loop_id: {**value["loops"]["example"], "label": f"ai.anicca.{loop_id}"}
+            for loop_id in ("a-candidate", "b-old")
+        }
+        agents = self.root / "ancestor-agents"
+        agents.mkdir()
+        for loop_id, sha in (("a-candidate", candidate_sha), ("b-old", old_sha)):
+            (agents / f"ai.anicca.{loop_id}.plist").write_bytes(plistlib.dumps({
+                "EnvironmentVariables": {"LIFE_MANAGER_RELEASE_SHA": sha},
+            }))
+        with patch.dict(os.environ, {
+            "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
+            "LIFE_MANAGER_SOURCE_REPO": str(repo),
+            "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+        }):
+            selected = lm_loop._bounded_reconcile_candidates(
+                value, "deterministic", main_sha, 1)
+        self.assertEqual(selected, {"b-old"})
+
+    def test_automatic_disk_cleanup_addition_keeps_bounded_ancestor_selection(self):
+        release = self._release("release-auto-bounded").resolve()
+        value = registry()
+        value["loops"]["life-manager-disk-cleanup"] = {
+            **value["loops"]["example"],
+            "label": "ai.anicca.life-manager-disk-cleanup",
+        }
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        rows = [{
+            "classification": "managed", "provider_route": "deterministic",
+            "launchd_state": "loaded-idle", "installed_release_sha": "b" * 40,
+            "event_release_sha": "b" * 40, "loop_id": loop_id,
+        } for loop_id in ("example", "life-manager-disk-cleanup")]
+        applied = []
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "_bounded_reconcile_candidates",
+                         return_value={"example"}) as bounded,
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
+            patch.object(lm_loop, "targeted_snapshot", return_value=rows) as targeted,
+            patch.object(lm_loop, "apply_live",
+                         side_effect=lambda *args, **kwargs: applied.append(kwargs["target"]) or [{"ok": True}]),
+            patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+            }),
+            redirect_stdout(io.StringIO()),
+        ):
+            self.assertEqual(lm_loop.main([
+                "reconcile", "deterministic", "--loaded-idle-only", "--max-owners", "1",
+            ]), 0)
+        bounded.assert_called_once()
+        self.assertEqual(targeted.call_args.args[1], {
+            "example", "life-manager-disk-cleanup",
+        })
+        self.assertEqual(applied, ["example", "life-manager-disk-cleanup"])
+
+    def test_bounded_reconcile_does_not_hide_later_idle_owner_behind_eight_stale_rows(self):
+        value = registry()
+        value["loops"] = {
+            f"owner-{index:02d}": {
+                **value["loops"]["example"],
+                "label": f"ai.anicca.owner-{index:02d}",
+            }
+            for index in range(9)
+        }
+        agents = self.root / "nine-agents"
+        agents.mkdir()
+        for entry in value["loops"].values():
+            (agents / f"{entry['label']}.plist").write_bytes(plistlib.dumps({
+                "EnvironmentVariables": {"LIFE_MANAGER_RELEASE_SHA": "b" * 40},
+            }))
+        with patch.dict(os.environ, {"LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents)}):
+            selected = lm_loop._bounded_reconcile_candidates(
+                value, "deterministic", "a" * 40, 1)
+        self.assertEqual(len(selected), 9)
+        self.assertIn("owner-08", selected)
 
     def test_reconcile_loaded_idle_only_leaves_unloaded_rows_untouched(self):
         release = self._release("release-a").resolve()
@@ -1248,6 +1347,7 @@ class LmLoopApplyTest(unittest.TestCase):
 
         with (
             patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
             patch.object(lm_loop, "snapshot", return_value=rows),
             patch.object(lm_loop, "apply_live", side_effect=record_apply),
             patch.dict(os.environ, {
@@ -1356,6 +1456,7 @@ class LmLoopApplyTest(unittest.TestCase):
 
         with (
             patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
             patch.object(lm_loop, "targeted_snapshot", return_value=rows),
             patch.object(lm_loop, "apply_live", side_effect=record_apply),
             patch.dict(os.environ, {

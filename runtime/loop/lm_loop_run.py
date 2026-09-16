@@ -284,6 +284,8 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
         return []
     safe = root / "bin/launchctl-safe"
     started = []
+    pending = list(loop_ids)
+    attempted: set[str] = set()
 
     def cancel(loop_id: str) -> None:
         try:
@@ -291,7 +293,19 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
         except (OSError, RuntimeError):
             pass
 
-    for loop_id in loop_ids:
+    def defer(loop_id: str) -> None:
+        try:
+            if defer_durable_resource(loop_id, cooldown_seconds=60) is True:
+                pending.extend(reserve_available_resource())
+        except (OSError, RuntimeError):
+            pass
+
+    for loop_id in pending:
+        if loop_id in attempted:
+            continue
+        if len(attempted) >= 16:
+            break
+        attempted.add(loop_id)
         entry = registry["loops"].get(loop_id)
         if not isinstance(entry, dict) or entry.get("cadence", {}).get("keep_alive"):
             cancel(loop_id)
@@ -301,11 +315,11 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
         try:
             arguments = plistlib.loads(plist.read_bytes()).get("ProgramArguments")
         except (OSError, ValueError, plistlib.InvalidFileException):
-            cancel(loop_id)
+            defer(loop_id)
             continue
         expected = [str(root / "bin/lm-loop-run"), loop_id, str(root)]
         if arguments != expected:
-            cancel(loop_id)
+            defer(loop_id)
             continue
         service = f"gui/{os.getuid()}/{label}"
         try:
@@ -313,13 +327,13 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
                 [str(safe), "print", service], capture_output=True, text=True,
                 check=False, timeout=10)
             if observed.returncode != 0 or _loaded_arguments(observed.stdout) != expected:
-                cancel(loop_id)
+                defer(loop_id)
                 continue
             if (re.search(r"\bstate\s*=\s*running\b", observed.stdout)
                     or re.search(r"\bpid\s*=\s*[1-9][0-9]*\b", observed.stdout)):
                 continue
             if not re.search(r"\bstate\s*=\s*(?:not running|waiting)\b", observed.stdout):
-                cancel(loop_id)
+                defer(loop_id)
                 continue
             kicked = subprocess.run(
                 [str(safe), "kickstart", service], capture_output=True, text=True,
