@@ -64,7 +64,8 @@ def test_full_history_reconcile_confirms_present_and_retires_absent(tmp_path, mo
 
     result = application_parent.reconcile_durable_intents_from_full_history(
         store=store, targets=targets, observed_ids={"123"},
-        evidence_path=tmp_path / "history.json", ledger_path=ledger, pass_id="pass",
+        evidence_path=tmp_path / "history.json", ledger_path=ledger,
+        evidence_dir=tmp_path / "evidence", pass_id="pass",
     )
 
     assert result == {"checked": 2, "confirmed": 1, "retired_absent": 1}
@@ -75,6 +76,12 @@ def test_full_history_reconcile_confirms_present_and_retires_absent(tmp_path, mo
     ledger_row = json.loads(ledger.read_text(encoding="utf-8"))
     assert ledger_row["recorded_by"] == "application_report_intent_recovery"
     assert ledger_row["applied_page_evidence"] == str((tmp_path / "history.json").resolve())
+    recovery = json.loads((
+        tmp_path / "evidence/gig-pass-B2-123-submitted.intent.json"
+    ).read_text(encoding="utf-8"))
+    assert recovery["state"] == fence.CONFIRMED
+    assert recovery["cas"] == present["cas"]
+    assert recovery["official_readback"] == str((tmp_path / "history.json").resolve())
 
 
 def test_full_history_reconcile_does_not_touch_non_started_intent(tmp_path):
@@ -91,7 +98,8 @@ def test_full_history_reconcile_does_not_touch_non_started_intent(tmp_path):
     result = application_parent.reconcile_durable_intents_from_full_history(
         store=store, targets=targets, observed_ids=set(),
         evidence_path=tmp_path / "history.json",
-        ledger_path=tmp_path / "applied.jsonl", pass_id="pass",
+        ledger_path=tmp_path / "applied.jsonl", evidence_dir=tmp_path / "evidence",
+        pass_id="pass",
     )
 
     assert result == {"checked": 0, "confirmed": 0, "retired_absent": 0}
@@ -107,7 +115,8 @@ def test_full_history_reconcile_ignores_intent_created_after_target_snapshot(tmp
     result = application_parent.reconcile_durable_intents_from_full_history(
         store=store, targets=targets, observed_ids=set(),
         evidence_path=tmp_path / "history.json",
-        ledger_path=tmp_path / "applied.jsonl", pass_id="pass",
+        ledger_path=tmp_path / "applied.jsonl", evidence_dir=tmp_path / "evidence",
+        pass_id="pass",
     )
 
     assert result == {"checked": 1, "confirmed": 0, "retired_absent": 1}

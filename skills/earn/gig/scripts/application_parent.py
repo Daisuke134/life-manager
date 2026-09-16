@@ -4452,7 +4452,8 @@ def run_parent(
                 reconciliation = reconcile_durable_intents_from_full_history(
                     store=intent_store, targets=uncertain_intents,
                     observed_ids=observed_ids, evidence_path=full_history_path,
-                    ledger_path=ledger_path, pass_id=pass_id,
+                    ledger_path=ledger_path, evidence_dir=evidence_dir,
+                    pass_id=pass_id,
                 )
                 _publish_instant_work_events(ledger_path, pass_id)
                 _atomic_json(
@@ -4887,7 +4888,7 @@ def _append_full_history_ledger_row(
 
 def reconcile_durable_intents_from_full_history(
     *, store: "fence.IntentStore", targets: dict[str, str], observed_ids: set[str],
-    evidence_path: Path, ledger_path: Path, pass_id: str,
+    evidence_path: Path, ledger_path: Path, evidence_dir: Path, pass_id: str,
 ) -> dict[str, int]:
     """Settle only effect-started intents after a complete official-history read."""
     counts = {"checked": len(targets), "confirmed": 0, "retired_absent": 0}
@@ -4904,7 +4905,16 @@ def reconcile_durable_intents_from_full_history(
                     ledger_path=ledger_path, pass_id=pass_id, request_id=request_id,
                     intent=current, evidence_path=evidence_path,
                 )
-                _confirm_locked(store, request_id, current)
+                recovery_path = (
+                    evidence_dir / f"gig-{pass_id}-B2-{request_id}-submitted.intent.json"
+                )
+                recovery = {
+                    **current, "official_readback": str(evidence_path.resolve()),
+                    "recovery_kind": "official_full_history_exact_id",
+                }
+                _atomic_json(recovery_path, recovery)
+                confirmed = _confirm_locked(store, request_id, current)
+                _atomic_json(recovery_path, {**recovery, **confirmed})
                 counts["confirmed"] += 1
             else:
                 store.retire_prepared_locked(
