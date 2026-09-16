@@ -120,14 +120,26 @@ mock/fixture・PID・exit 0・Telegramは証拠にしません。
 |---:|---|---|---|
 | R2 | Local gateを一回実行 | `apps/life-manager/scripts/local-completion-gate.js`、Git外private manifest | 14行の`unknown=0`でLocal PASS。mock/fixture不可 |
 | R3 | Local PASSと同じSHAをCloudへ一回配置 | `apps/life-manager/scripts/cloud-promotion-gate.js`、既存cloud artifact | artifact SHA、source hash、14 IDがcandidateと一致 |
-| R4 | tenant isolationを一回検証 | `apps/life-manager/lib/steel-cdp-client.js`、`stagehand-steel-driver.js`、`browser-job-runtime.js`、browser canary scripts | cross-read 0、credential/state混在0、session重複0、phone-only readback |
+| R4-01 | tenant A/Bの分離を一回検証 | `apps/life-manager/lib/browser-job-runtime.js`、tenant canary script | cross-read 0、credential/state混在0 |
+| R4-02 | Steel sessionのlease/releaseを一回検証 | `apps/life-manager/lib/steel-cdp-client.js`、`stagehand-steel-driver.js` | session owner重複0、終了後lease残留0 |
+| R4-03 | phone-only status/human-gate/readbackを一回検証 | `apps/life-manager/scripts/browser-auth-production-e2e.js`、通知outbox | phoneから再開でき、公式readbackが記録される |
 | R5 | Cloud gateを一回判定 | `apps/life-manager/lib/product-onboarding.js`、`cloud-promotion-gate.js`、Git外cloud evidence | Local PASS、14行、公式readback、replay-zero、同一SHAの全PASS |
 | R6 | main mergeと本番releaseを一回だけ行う | `/private/tmp/lm-fundamental-runtime-20260916`、`skills/loop-development/SKILL.md` | R1〜R5の全PASS後だけmerge、immutable production readback、重複effect 0 |
 
-横断するfoundationの未完部分は、`runtime/loop/harness-health.mjs`、`runtime/loop/harness-health-snapshot.mjs`、
-`runtime/loop/index.mjs`に保存したrecovery intentを既存supervisorへ接続し、candidate生成→Eval→
-昇格/rollbackを無人で閉じることです。supervisorの実動作は未接続です。
-これはmock成功では完了にせず、1〜5の受入と同じく実データで確認します。
+#### S: 自己修復・自己改善の残りも一件ずつ記録する
+
+これは別の常駐supervisorを追加するTODOではなく、既存のreconcile/launchd supervisorとcandidate gateへ
+接続する小タスクです。各タスクは同じownerだけを対象にし、兄弟loopを再起動しません。
+
+| 順番 | atomic task | 変更/参照ファイル | 完了条件 |
+|---:|---|---|---|
+| S-01 | `retry_owner` intentを既存reconcileへ一件接続 | `runtime/loop/harness-health-snapshot.mjs`、`runtime/loop/lm_loop.py`、reconcile tests | `harness-recovery.json`の一件だけを同じ`owner_id`/`job_id`へ渡し、兄弟0件、effect再送0 |
+| S-02 | retry budget超過をtyped repairへ一件接続 | `runtime/loop/lm_loop.py`、`runtime/loop/lm_loop_lifecycle.py`、recovery tests | `escalate_repair`を自動再送せず、repair queueへ一件記録し、状態が再現可能 |
+| S-03 | repair完了後の同一owner再開を一件検証 | `runtime/loop/lm_loop_run.py`、既存owner state/event | 同じjob/effect namespaceで再開し、duplicate effect 0、official readback未確認は未完のまま |
+| S-04 | candidate→held-out/safety/cost eval→promotion/rollbackを一件閉じる | `apps/life-manager/eval/agent-contract/`、`apps/life-manager/lib/product-onboarding.js` | baseline比較、held-out、safety、cost、rollback pointerが揃い、production stateを直接変更しない |
+
+自己修復・自己改善の未完部分は、下記S-01〜S-04を一件ずつ実行します。これは別の常駐supervisorを
+作ることではなく、既存のreconcile/launchd supervisorとcandidate gateを接続する作業です。
 
 #### TODO 1の現在のslice: `gig-coconala`
 
