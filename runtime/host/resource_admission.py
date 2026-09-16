@@ -1076,6 +1076,7 @@ def reserve_available(*, now: float | None = None,
 
 
 def release_and_reserve(claim: Path, *, requeue: bool = False,
+                        effect_unknown: bool = False,
                         reserve: bool = True, now: float | None = None,
                         lease_seconds: int = 60) -> list[str]:
     """Release one claim and reserve newly available capacity for queued owners.
@@ -1084,6 +1085,8 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
     original runner reaches its ``finally`` block.  Missing claims are already
     released; do not turn that harmless race into a recovery warning.
     """
+    if type(effect_unknown) is not bool or (requeue and effect_unknown):
+        raise RuntimeError("invalid effect disposition")
     value = _row(claim)
     if not value and not claim.exists():
         return reserve_available(now=now, lease_seconds=lease_seconds) if reserve else []
@@ -1114,9 +1117,30 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                      value.get("queued_at", instant)))
             occurrence_id = value.get("occurrence_id")
             if isinstance(occurrence_id, str) and occurrence_id:
+                if effect_unknown:
+                    connection.execute(
+                        """UPDATE occurrences SET effect_unknown=1
+                             WHERE occurrence_id=? AND state='claimed'""",
+                        (occurrence_id,),
+                    )
+                else:
+                    connection.execute(
+                        "UPDATE occurrences SET state=? WHERE occurrence_id=?",
+                        ("queued" if requeue else "released", occurrence_id),
+                    )
+            elif effect_unknown:
                 connection.execute(
-                    "UPDATE occurrences SET state=? WHERE occurrence_id=?",
-                    ("queued" if requeue else "released", occurrence_id),
+                    """INSERT OR IGNORE INTO priorities(
+                           owner_id,admission_class,admission_policy,
+                           base_priority,queued_at,effect_unknown)
+                       VALUES(?,?,?,?,?,1)""",
+                    (value["owner_id"], value.get("admission_class", "borrow"),
+                     value.get("admission_policy"), value.get("base_priority"),
+                     value.get("queued_at", instant)),
+                )
+                connection.execute(
+                    "UPDATE priorities SET effect_unknown=1 WHERE owner_id=?",
+                    (value["owner_id"],),
                 )
             if not requeue:
                 remaining = connection.execute(

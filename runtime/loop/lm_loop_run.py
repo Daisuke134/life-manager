@@ -458,6 +458,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     durable = False
     dispatch_after_release: list[str] = []
     interrupted = False
+    return_code: int | None = None
     previous = {}
 
     def interrupt_wait(_signum, _frame):
@@ -588,9 +589,11 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         if claim is not None:
             try:
                 if durable:
-                    dispatch_after_release = release_and_reserve_resource(
-                        claim, requeue=not claim_started_child,
-                        reserve=claim_started_child)
+                    release_options = {"requeue": not claim_started_child,
+                                       "reserve": claim_started_child}
+                    if claim_started_child and return_code != 0:
+                        release_options["effect_unknown"] = True
+                    dispatch_after_release = release_and_reserve_resource(claim, **release_options)
                 else:
                     release_resource(claim)
             except (OSError, RuntimeError) as error:
