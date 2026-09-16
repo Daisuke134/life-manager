@@ -1,529 +1,389 @@
-# Life Manager Mental and Physical Care Implementation Plan
+# Life Manager Mental Messages V1 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` or `superpowers:executing-plans`. Follow the tasks in order and preserve checkbox state.
 
-**Goal:** Repair Telnyx call-limit rejection and extend the existing cloud MENTAL organ into a Japanese-first, context-aware mental and physical care system without creating another loop.
+**Goal:** Repair Telnyx call-limit rejection and ship Japanese affirmation, manifestation, and mindfulness-inquiry messages that never invent personal context.
 
-**Architecture:** The Telnyx fix lives in the shared dial-body builder and ships independently. Mental and physical interventions continue through `scheduler.js -> mentalUserOnce -> evaluateMentalTrigger -> buildMentalMessage -> Telegram -> lm_mental_send_log`, with new structured intents, fail-closed context handling, one shared attention budget, and Dais-only canary rollout.
+**Architecture:** The Telnyx repair ships independently through the actual observed `/calls` producer. Mental V1 reuses `scheduler.js -> mentalUserOnce -> evaluateMentalTrigger -> buildMentalMessage -> Telegram -> lm_mental_send_log`; context is used first to avoid interruption, while copy uses only context-free templates or explicit stable user preferences.
 
-**Tech Stack:** Node.js CommonJS, `node:test`, Supabase/Postgres REST, Telegram Bot API, Telnyx Call Control, Railway cloud worker, immutable Life Manager releases.
+**Tech Stack:** Node.js CommonJS, `node:test`, Supabase/Postgres REST, Telegram Bot API, Telnyx Call Control, Railway.
 
 **Spec:** `docs/superpowers/specs/2026-09-16-life-manager-mental-physical-design.md`
 
-## Global Constraints
+## Global constraints
 
-- Reuse the existing cloud scheduler, Telegram transport, `lm_mental_send_log`, runtime preferences, and main-to-Railway deployment flow.
-- Do not add a new daemon, scheduler, database, queue, transport, or LLM framework.
-- Japanese ships first; localization starts only after the seven-day Japanese canary passes.
-- Every care message uses observed facts, a believable reframe, and at most one 10–60 second action.
-- The shared MENTAL/precepts hard ceiling remains three messages per local day; Dais canary uses a lower ceiling of two care messages.
-- No diagnosis, treatment claim, crisis conclusion, passive mood inference, destiny claim, or guaranteed manifestation outcome.
-- Provider effects require provider receipt/readback and replay-zero evidence; source code and exit 0 alone are insufficient.
-- Railway production truth is the deployment `commitHash` plus service logs; local immutable releases are not proof of a cloud deployment.
-- Work from latest `main` in a dedicated worktree; commit and push each independently testable task before continuing.
-
----
+- Reuse the existing scheduler, Telegram transport, send ledger, runtime preferences, and Railway deployment path.
+- Do not add a daemon, scheduler, database, queue, feedback UI, inline keyboard, or LLM framework.
+- V1 enables only `affirmation`, `manifestation`, and `mindfulness_inquiry`.
+- Messages are plain Telegram text with zero buttons, zero callback data, and zero reply instruction.
+- Maximum two V1 messages per local day and minimum four hours between them.
+- Calendar context is used only to suppress delivery during an event.
+- No preparation, achievement, emotion, activity, hydration, posture, or physical-state claim without an exact authoritative source.
+- A template variable is legal only with a source, timestamp, freshness limit, transformation, and matching claim.
+- Railway production truth is the deployment `commitHash`, live service logs, Telegram message ID, durable send row, and replay-zero.
 
 ## File map
 
 | File | Responsibility |
 |---|---|
-| `apps/life-manager/lib/call-logic.js` | Build Telnyx dial request and enforce provider minimum |
-| `apps/life-manager/lib/lm-p0.test.js` | Focused Telnyx body contract |
-| `apps/life-manager/lib/mental-trigger.js` | Pure eligibility, intent priority, caps, gaps, quiet/mute gates |
-| `apps/life-manager/lib/mental-trigger.test.js` | Decision matrix for all mental/physical intents |
-| `apps/life-manager/lib/mental-copy.js` | Structured Japanese templates and hard validation |
-| `apps/life-manager/lib/mental-copy.test.js` | Copy safety, grounding, and exact-template tests |
-| `apps/life-manager/lib/mental-runtime.js` | Context composition, delivery, and post-send recording |
-| `apps/life-manager/lib/mental-runtime.test.js` | Runtime delivery and failure semantics |
-| `apps/life-manager/lib/mental-send-log.js` | Shared attention history, unique feedback key, and feedback persistence |
-| `apps/life-manager/lib/mental-send-log.test.js` | Strict read, append, feedback, and idempotency tests |
-| `apps/life-manager/lib/mental-feedback.js` | Parse and apply the three feedback actions |
-| `apps/life-manager/lib/mental-feedback.test.js` | Callback authorization and replay tests |
-| `apps/life-manager/scheduler.js` | Supply structured context and log outcome receipts |
-| `apps/life-manager/lib/mental-wiring.test.js` | Cloud scheduler wiring and sibling isolation |
-| `apps/life-manager/migrations/2026-09-16-lm-mental-intents-feedback.sql` | Ledger intent/template/fingerprint/feedback fields |
-| `apps/life-manager/lib/mental-migration.test.js` | Closed migration and append-only contract |
-| `docs/evidence/life-manager-mental-canary.md` | Loaded release, provider effects, suppression, replay-zero, seven-day evidence |
+| `apps/life-manager/lib/call-logic.js` | Shared Telnyx dial-body boundary |
+| `apps/life-manager/lib/lm-p0.test.js` | Telnyx minimum contract |
+| `apps/life-manager/lib/mental-trigger.js` | Right-window opportunity and suppression gates |
+| `apps/life-manager/lib/mental-trigger.test.js` | Three-family decision matrix |
+| `apps/life-manager/lib/mental-copy.js` | Deterministic Japanese message bank and validation |
+| `apps/life-manager/lib/mental-copy.test.js` | Exact copy and forbidden-claim tests |
+| `apps/life-manager/lib/mental-runtime.js` | Select, send, and record one plain message |
+| `apps/life-manager/lib/mental-runtime.test.js` | Delivery, failure, and no-button contracts |
+| `apps/life-manager/lib/mental-send-log.js` | Cap, spacing, 14-day template dedupe, receipt |
+| `apps/life-manager/lib/mental-send-log.test.js` | Strict history and replay tests |
+| `apps/life-manager/scheduler.js` | Timezone, busy-state, quiet-hours, explicit preferences |
+| `apps/life-manager/lib/mental-wiring.test.js` | Scheduler wiring and sibling isolation |
+| `apps/life-manager/migrations/2026-09-16-lm-mental-message-family.sql` | Family/template/local-day/window fields |
+| `apps/life-manager/lib/mental-migration.test.js` | Additive schema contract |
+| `docs/evidence/life-manager-mental-canary.md` | Production truth and seven-day canary |
 
-## Milestone 1: Telnyx provider-boundary repair
+---
 
-### Task 1: Locate the failing Telnyx request producer
+## Milestone 1: Repair Telnyx 422 independently
+
+### Task 1: Locate the actual `time_limit_secs` producer
 
 **Files:**
-- Modify: `docs/evidence/life-manager-mental-canary.md`
+- Create: `docs/evidence/life-manager-mental-canary.md`
 
-**Interfaces:**
-- Consumes: 08:02 Railway/Telnyx logs, current Railway service deployment metadata, and current `main`
-- Produces: exact producer file/function, deployed commit SHA, and sanitized `time_limit_secs` value
+**Produces:** Exact service, deployment SHA, producer, sanitized bad value, and comparison with current `main`.
 
-- [ ] **Step 1: Create the evidence document with a closed incident table**
+- [ ] Add this incident table to the evidence file:
 
 ```markdown
 | Field | Observed value | PASS condition |
 |---|---|---|
 | Railway service | | exact service name |
-| Deployment commitHash | | 40-char SHA |
-| Request producer | | file and function or external tool name |
-| Sanitized time_limit_secs | | integer value, no phone/credential |
-| Current main comparison | | same producer, drift, or second path |
+| Deployment commitHash | | 40-character SHA |
+| Request producer | | exact file/function or external tool |
+| Sanitized time_limit_secs | | numeric value only |
+| Current-main comparison | | same path, deployment drift, or second producer |
 ```
 
-- [ ] **Step 2: Read current Railway service and deployment metadata**
-
-Run: `cd apps/life-manager && railway status --json`
-Run: `cd apps/life-manager && railway deployment list --json`
-Record the exact service, environment, deployment ID, status, and `commitHash`. Do not print environment variables.
-
-- [ ] **Step 3: Read the bounded 08:02 error window**
-
-Run: `cd apps/life-manager && railway logs --service life-call --since 2026-09-16T07:58:00+09:00 --until 2026-09-16T08:06:00+09:00`
-If the service name from Step 2 differs, rerun against that exact service. Record only the producer marker and numeric limit; redact phone numbers, tokens, and user text.
-
-- [ ] **Step 4: Compare the deployed SHA with current main**
-
-Set `DEPLOYED_SHA` to the exact `commitHash` recorded in Step 2.
-Run: `git show "$DEPLOYED_SHA":apps/life-manager/lib/call-logic.js | rg -n "time_limit_secs|telnyxDialBody"`
-Run: `git show "$DEPLOYED_SHA":apps/life-manager/lib/dial.js | rg -n "time_limit_secs|telnyxDialBody|/calls"`
-Run: `rg -n "time_limit_secs|telnyxDialBody|/v2/calls" apps/life-manager --glob '!node_modules'`.
-
-- [ ] **Step 5: Close the producer identity**
-
-The task passes only with one of these exact findings:
-
-```text
-deployed_drift plus exact SHA, file, and function
-second_repo_path plus exact absolute source identity and function
-external_call_tool plus exact tool name and request-field source
-```
-
-Do not begin Task 2 with only a guessed file.
-
-- [ ] **Step 6: Commit and push the sanitized evidence**
+- [ ] Read deployment metadata without printing variables:
 
 ```bash
-git add docs/evidence/life-manager-mental-canary.md
-git commit -m "docs(life-manager): identify Telnyx limit failure producer"
-git push -u origin HEAD
+cd apps/life-manager
+railway status --json
+railway deployment list --json
 ```
 
-### Task 2: Clamp explicit Telnyx call limits
+- [ ] Read the bounded failure window:
+
+```bash
+railway logs --service life-call \
+  --since 2026-09-16T07:58:00+09:00 \
+  --until 2026-09-16T08:06:00+09:00
+```
+
+- [ ] Set `DEPLOYED_SHA` to the observed `commitHash` and compare paths:
+
+```bash
+git show "$DEPLOYED_SHA":apps/life-manager/lib/call-logic.js | rg -n 'time_limit_secs|telnyxDialBody'
+git show "$DEPLOYED_SHA":apps/life-manager/lib/dial.js | rg -n 'time_limit_secs|telnyxDialBody|/calls'
+rg -n 'time_limit_secs|telnyxDialBody|/v2/calls' apps/life-manager --glob '!node_modules'
+```
+
+- [ ] Stop unless the producer is proven as deployed drift, an exact second code path, or an exact external call tool.
+
+- [ ] Commit and push the sanitized evidence.
+
+### Task 2: Clamp the verified producer at the shared boundary
 
 **Files:**
-- Modify: `apps/life-manager/lib/call-logic.js:337-357`
+- Modify: `apps/life-manager/lib/call-logic.js`
 - Modify: `apps/life-manager/lib/lm-p0.test.js`
+- Modify the exact second producer only if Task 1 proves one exists.
 
-**Interfaces:**
-- Consumes: `telnyxDialBody({ connectionId, to, from, streamUrl, timeLimitSecs? })`
-- Produces: Telnyx `/v2/calls` JSON with absent `time_limit_secs` or an integer `>= 30`
-
-- [ ] **Step 1: Add the failing body-contract tests**
+**Interface:**
 
 ```js
-test("Telnyx dial clamps explicit limits to the provider minimum", () => {
+telnyxDialBody({ connectionId, to, from, streamUrl, timeLimitSecs })
+```
+
+- [ ] Add RED tests:
+
+```js
+test("explicit Telnyx limits are integer and at least 30", () => {
   const base = { connectionId: "c", to: "+1", from: "+2", streamUrl: "wss://x" };
   assert.equal(telnyxDialBody({ ...base, timeLimitSecs: 29 }).time_limit_secs, 30);
   assert.equal(telnyxDialBody({ ...base, timeLimitSecs: 30 }).time_limit_secs, 30);
   assert.equal(telnyxDialBody({ ...base, timeLimitSecs: 90.9 }).time_limit_secs, 90);
-});
-
-test("Telnyx dial omits an absent or invalid call limit", () => {
-  const base = { connectionId: "c", to: "+1", from: "+2", streamUrl: "wss://x" };
   assert.equal("time_limit_secs" in telnyxDialBody(base), false);
   assert.equal("time_limit_secs" in telnyxDialBody({ ...base, timeLimitSecs: "bad" }), false);
 });
 ```
 
-- [ ] **Step 2: Run the focused test and observe RED**
+- [ ] Run RED:
 
-Run: `cd apps/life-manager && node --test lib/lm-p0.test.js`
-Expected: FAIL because `time_limit_secs` is absent for `29`.
+```bash
+cd apps/life-manager
+node --test lib/lm-p0.test.js
+```
 
-- [ ] **Step 3: Implement the shared clamp**
+- [ ] Implement only the shared clamp:
 
 ```js
-function telnyxDialBody({ connectionId, to, from, streamUrl, timeLimitSecs }) {
-  const limit = Number(timeLimitSecs);
-  return {
-    connection_id: connectionId,
-    to,
-    from,
-    stream_url: streamUrl,
-    stream_track: "inbound_track",
-    stream_bidirectional_mode: "rtp",
-    stream_bidirectional_codec: "PCMU",
-    stream_bidirectional_target_legs: "self",
-    ...(Number.isFinite(limit) ? { time_limit_secs: Math.max(30, Math.trunc(limit)) } : {}),
-  };
-}
+const limit = Number(timeLimitSecs);
+const safeLimit = Number.isFinite(limit) ? Math.max(30, Math.trunc(limit)) : null;
 ```
 
-- [ ] **Step 4: Run focused and adjacent call tests**
+Include `time_limit_secs` only when `safeLimit !== null`.
 
-Run: `cd apps/life-manager && node --test lib/lm-p0.test.js lib/dial.test.js test/testcall-amd-hangup.test.js test/testcall-amd-hangup-http-contract.test.js`
-Expected: all PASS.
-
-- [ ] **Step 5: Route the observed producer through the shared builder**
-
-If Task 1 found a direct raw `/calls` body, replace that construction with `telnyxDialBody(...)` and add its exact calling test to this task. If it found deployment drift, no second implementation is added; deploying current main plus this shared guard is the repair.
-
-- [ ] **Step 6: Commit and push**
+- [ ] Run focused call tests:
 
 ```bash
-git add apps/life-manager/lib/call-logic.js apps/life-manager/lib/lm-p0.test.js
-git commit -m "fix(life-manager): clamp Telnyx call time limit"
-git push -u origin HEAD
+node --test \
+  lib/lm-p0.test.js \
+  lib/dial.test.js \
+  test/testcall-amd-hangup.test.js \
+  test/testcall-amd-hangup-http-contract.test.js
 ```
 
-### Task 3: Deploy and prove the call repair
+- [ ] Commit, push, merge, and wait for the Railway deployment whose `commitHash` equals merged `main`.
 
-**Files:**
-- Create: `docs/evidence/life-manager-mental-canary.md`
+- [ ] Place one authorized real test call. Record non-empty `call_control_id`, terminal provider state, absence of `90029`, and replay-zero.
 
-**Interfaces:**
-- Consumes: merged Tasks 1–2 commits and Railway main deployment
-- Produces: successful Railway deployment `commitHash` plus one real Telnyx call-control receipt
+---
 
-- [ ] **Step 1: Merge the Telnyx repair only after focused tests pass**
+## Milestone 2: Prove current mental-runtime inputs
 
-Run the repository's existing PR creation and `--admin` merge path. Record PR URL and merge SHA in the evidence document.
-
-- [ ] **Step 2: Observe the Railway deployment created from merged `main`**
-
-Run: `cd apps/life-manager && railway deployment list --json`
-Wait for the deployment whose `commitHash` equals the merge SHA to reach `SUCCESS`. A successful deployment for an older SHA does not pass.
-
-- [ ] **Step 3: Verify the exact Railway service role**
-
-Read `LM_DEPLOYMENT_ROLE` only as a redacted role value through Railway metadata and confirm whether the caller is the web/call service or worker. Do not redeploy or restart sibling services.
-
-- [ ] **Step 4: Place one authorized real test call**
-
-Expected evidence:
-
-```text
-HTTP /v2/calls accepted
-call_control_id is non-empty
-error 90029 absent
-Railway deployment commitHash equals merged main SHA
-```
-
-- [ ] **Step 5: Re-read provider and service state**
-
-Record Telnyx call ID, terminal call state, Railway deployment SHA, and one retry/replay check proving no duplicate call.
-
-- [ ] **Step 6: Commit and push the evidence**
-
-```bash
-git add docs/evidence/life-manager-mental-canary.md
-git commit -m "docs(life-manager): prove Telnyx call limit repair"
-git push
-```
-
-## Milestone 2: Establish current cloud MENTAL truth
-
-### Task 4: Audit loaded cloud wiring before changing behavior
+### Task 3: Audit what production can truthfully know
 
 **Files:**
 - Modify: `docs/evidence/life-manager-mental-canary.md`
 
-**Interfaces:**
-- Consumes: current cloud worker deployment, database schema, scheduler logs, Dais tenant preferences
-- Produces: PASS/FAIL table for runtime prerequisites
+- [ ] Record the worker service deployment ID, `commitHash`, start command, and health.
 
-- [ ] **Step 1: Read the loaded deployment SHA and command**
+- [ ] Read back the production `lm_mental_send_log` schema and constraints.
 
-Record the Railway/cloud worker deployment commit and the command that starts `internal-worker`.
-
-- [ ] **Step 2: Verify the loaded source contains MENTAL wiring**
-
-Confirm the loaded artifact includes calls to `mentalUserOnce`, `mentalDeps`, `readMentalSendState`, and `recordMentalSend`.
-
-- [ ] **Step 3: Verify the production table and constraints**
-
-Read `lm_mental_send_log` schema and confirm the existing unique/dedup and append-only protections. Do not write test data during this step.
-
-- [ ] **Step 4: Verify Dais eligibility and configuration without exposing secrets**
-
-Record only booleans or redacted values for:
+- [ ] Record only redacted/boolean results for:
 
 ```text
-daily_automation_enabled
-notifications_enabled
-telegram_chat_id present
-LM_MENTAL_SLEEP_TARGET parseable
-user timezone/offset source
+timezone source present and parseable
+calendar read available
+notifications enabled
+Telegram chat id present
 Telegram token present
+quiet-hours preference available
+explicit values/goals profile available
 ```
 
-- [ ] **Step 5: Read one natural tick**
+- [ ] Record current unsupported inputs as absent unless proven:
 
-Capture one `organ:mental` timing receipt and its terminal decision or suppression reason. Source wiring without a natural tick is FAIL.
-
-- [ ] **Step 6: Update evidence and commit**
-
-```bash
-git add docs/evidence/life-manager-mental-canary.md
-git commit -m "docs(life-manager): record cloud mental runtime truth"
-git push
+```text
+preparation receipt
+completed-action count
+mood input
+focus-duration measurement
+hydration state
+posture or sitting duration
+explicit important-event classification
 ```
 
-## Milestone 3: Expand pure trigger decisions
+- [ ] Capture one natural `organ:mental` tick and its exact terminal decision.
 
-### Task 5: Add shared gates and eight intent decisions
+- [ ] Commit and push the audit. This audit is the boundary for all later copy claims.
+
+---
+
+## Milestone 3: Implement right-window opportunity gates
+
+### Task 4: Replace event-story triggers with three V1 families
 
 **Files:**
 - Modify: `apps/life-manager/lib/mental-trigger.js`
 - Modify: `apps/life-manager/lib/mental-trigger.test.js`
 
-**Interfaces:**
-- Consumes: `evaluateMentalTrigger(input: MentalTriggerInput)` with existing time/event/send fields and new `quietHours`, `recentSignals`, and `preferences`
-- Produces: `{ decision: "send", intent, reason, facts }` or `{ decision: "suppress", reason }`
-
-- [ ] **Step 1: Add RED tests for global suppression gates**
-
-Add table-driven cases asserting suppression for:
+**Consumes:**
 
 ```js
-[
-  ["muted", { preferences: { mutedUntilMs: NOW + 1 } }],
-  ["quiet-hours", { quietHours: { start: "22:30", end: "07:30" } }],
-  ["daily-cap-reached", { sentTodayCount: 3 }],
-  ["too-soon-after-last", { lastSentMs: NOW - 30 * 60_000 }],
-  ["mid-event", { events: [{ startMs: NOW - 1, endMs: NOW + 1, important: true, intense: false, summary: "x" }] }],
-  ["user-moving", { location: { state: "moving" } }],
-];
+{
+  nowMs,
+  utcOffsetHours,
+  events: [{ startMs, endMs }],
+  sentTodayCount,
+  lastSentMs,
+  sentFamiliesToday,
+  quietHours,
+  recentTemplateIds,
+  explicitPreferences
+}
 ```
 
-- [ ] **Step 2: Add RED tests for all eight send intents and priority**
-
-Create one grounded case each for `pre_event`, `post_strain`, `mindful_pause`, `small_win`, `self_compassion`, `intention`, `pre_sleep`, and `physical_reset`. Add one collision case where `self_compassion` wins over `pre_event`.
-
-- [ ] **Step 3: Run the trigger tests and observe RED**
-
-Run: `cd apps/life-manager && node --test lib/mental-trigger.test.js`
-Expected: FAIL on new input keys/intents.
-
-- [ ] **Step 4: Extend validation with closed key sets**
-
-Define and export:
+**Produces:**
 
 ```js
-const INTENTS = Object.freeze([
-  "pre_event", "post_strain", "mindful_pause", "small_win",
-  "self_compassion", "intention", "pre_sleep", "physical_reset",
-]);
-const INTENT_PRIORITY = Object.freeze([
-  "self_compassion", "pre_event", "physical_reset", "post_strain",
-  "mindful_pause", "small_win", "intention", "pre_sleep",
-]);
+{ decision: "send", family, window, localDay }
+// or
+{ decision: "suppress", reason }
 ```
 
-Reject unknown keys and invalid enums before evaluating decisions.
+- [ ] Add RED suppression tests for invalid timezone, calendar unavailable, current event, quiet hours, two-message cap, four-hour gap, family already used, and no eligible template.
 
-- [ ] **Step 5: Implement smallest candidate-list evaluator**
+- [ ] Add RED send cases:
 
-Each intent appends either zero or one `{ intent, reason, facts }` candidate. Select the first candidate by `INTENT_PRIORITY`. Do not introduce classes, plugins, or a rule engine.
+```text
+07:30–10:00 -> affirmation or manifestation
+12:00–16:00 -> mindfulness_inquiry
+20:00–23:00 -> affirmation or mindfulness_inquiry
+```
 
-- [ ] **Step 6: Run trigger tests GREEN**
+- [ ] Add a deterministic-per-user/day/window minute test. The same input must return the same minute; different users may differ.
 
-Run: `cd apps/life-manager && node --test lib/mental-trigger.test.js`
-Expected: all PASS.
-
-- [ ] **Step 7: Commit and push**
+- [ ] Run RED:
 
 ```bash
-git add apps/life-manager/lib/mental-trigger.js apps/life-manager/lib/mental-trigger.test.js
-git commit -m "feat(life-manager): expand contextual mental intents"
+cd apps/life-manager
+node --test lib/mental-trigger.test.js
+```
+
+- [ ] Define the only V1 families:
+
+```js
+const FAMILIES = Object.freeze([
+  "affirmation",
+  "manifestation",
+  "mindfulness_inquiry",
+]);
+```
+
+- [ ] Delete `pre_event`, `between_events`, and context claims from the V1 decision path. Calendar events become suppression inputs only.
+
+- [ ] Implement local-day/window calculation with existing timezone helpers. Do not create a scheduling framework.
+
+- [ ] Run GREEN and commit:
+
+```bash
+node --test lib/mental-trigger.test.js
+git add lib/mental-trigger.js lib/mental-trigger.test.js
+git commit -m "feat(life-manager): gate context-light mental messages"
 git push
 ```
 
-## Milestone 4: Grounded Japanese copy
+---
 
-### Task 6: Replace hash-only stances with structured intent templates
+## Milestone 4: Build the Japanese plain-message bank
+
+### Task 5: Add deterministic affirmation, manifestation, and inquiry copy
 
 **Files:**
 - Modify: `apps/life-manager/lib/mental-copy.js`
 - Modify: `apps/life-manager/lib/mental-copy.test.js`
 
-**Interfaces:**
-- Consumes: `buildMentalMessage({ intent, facts, templateIndex? })`
-- Produces: `{ text, templateId }` satisfying `validateMentalMessage(text, facts)`
-
-- [ ] **Step 1: Add RED exact-output tests for one template per intent**
-
-Use deterministic facts:
+**Interface:**
 
 ```js
-const FACTS = {
-  eventName: "14時の発表",
-  completedCount: 3,
-  completedItem: "提案書",
-  goalName: "英語で発表すること",
-  nextAction: "冒頭の一文を開くこと",
-  sittingMinutes: 90,
-};
+buildMentalMessage({ family, templateIndex, explicitGoal })
+// -> { text, templateId }
 ```
 
-Assert exact Japanese output and stable `templateId` for all eight intents.
+- [ ] Add exact-output RED tests for all messages listed in spec sections 7.1–7.3.
 
-- [ ] **Step 2: Add RED safety tests**
+- [ ] Add RED rejection tests for:
 
-Reject messages containing question marks, reply requests, more than one emoji, more than 120 characters, unsupported placeholders, destiny/guarantee phrases, diagnosis terms, or facts absent from the supplied fact object.
+```text
+more than 80 Japanese characters
+inline keyboard or callback payload in the returned value
+reply-seeking phrases
+unsupported template variable
+numeric personal achievement
+preparation claim
+activity-duration claim
+emotion claim
+diagnosis or guaranteed outcome
+```
 
-- [ ] **Step 3: Run copy tests and observe RED**
+- [ ] Prove that `？` is legal only for `mindfulness_inquiry`; `返信して`, `教えて`, `答えて`, `押して`, and `選んで` remain illegal in every family.
 
-Run: `cd apps/life-manager && node --test lib/mental-copy.test.js`.
+- [ ] Run RED:
 
-- [ ] **Step 4: Add the structured Japanese template bank**
+```bash
+cd apps/life-manager
+node --test lib/mental-copy.test.js
+```
 
-Use a frozen object:
+- [ ] Implement frozen `JA_TEMPLATES` arrays with stable IDs such as:
 
 ```js
 const JA_TEMPLATES = Object.freeze({
-  pre_event: Object.freeze([
-    Object.freeze({ id: "ja.pre_event.01", text: "必要なものは持ってきています。あとは最初の一文を、ゆっくり話すだけです。" }),
+  affirmation: Object.freeze([
+    Object.freeze({ id: "ja.affirmation.01", text: "そのままの自分で、今日を始めていい。" }),
+    Object.freeze({ id: "ja.affirmation.02", text: "全部を完璧にしなくても、価値は減らない。" }),
   ]),
-  post_strain: Object.freeze([
-    Object.freeze({ id: "ja.post_strain.01", text: "連続した予定をここまで終えました。次の10分は、水と呼吸に使っていい時間です。" }),
+  manifestation: Object.freeze([
+    Object.freeze({ id: "ja.manifestation.01", text: "望む未来は、今日の小さな選択から形になる。" }),
+    Object.freeze({ id: "ja.manifestation.02", text: "未来を保証する必要はない。向かう方向は、いま選べる。" }),
   ]),
-  mindful_pause: Object.freeze([
-    Object.freeze({ id: "ja.mindful_pause.01", text: "いま息を一度、吸うより長く吐きます。次に触るものは一つだけで十分です。" }),
-  ]),
-  small_win: Object.freeze([
-    Object.freeze({ id: "ja.small_win.01", text: "今日はすでに{completedCount}件を終えています。進んでいないという感覚より、この事実を残します。" }),
-  ]),
-  self_compassion: Object.freeze([
-    Object.freeze({ id: "ja.self_compassion.01", text: "{eventName}がうまくいかなかったことと、あなた自身の価値は別です。修正を一つ選べば十分です。" }),
-  ]),
-  intention: Object.freeze([
-    Object.freeze({ id: "ja.intention.01", text: "{goalName}を望む気持ちは、今日の一動作に変えられます。まず{nextAction}から始めます。" }),
-  ]),
-  pre_sleep: Object.freeze([
-    Object.freeze({ id: "ja.pre_sleep.01", text: "🌙 今日はここまでで十分です。未完了は失敗ではなく、明日の続きです。" }),
-  ]),
-  physical_reset: Object.freeze([
-    Object.freeze({ id: "ja.physical_reset.01", text: "{sittingMinutes}分座っています。立って10歩だけ歩く時間です。" }),
+  mindfulness_inquiry: Object.freeze([
+    Object.freeze({ id: "ja.mindfulness.01", text: "いま、何に意識を使っている？" }),
+    Object.freeze({ id: "ja.mindfulness.02", text: "いまの呼吸は、浅い？ 深い？" }),
   ]),
 });
 ```
 
-Every placeholder must have an explicit formatter and maximum length. Event/goal/item text is single-line and truncated before interpolation.
+Add every remaining exact message from the spec, not generated variations.
 
-- [ ] **Step 5: Return text and template identity together**
+- [ ] Permit `{goal}` only when `explicitGoal` is non-empty, user-authored, single-line, and length-bounded. Otherwise select a context-free manifestation.
 
-```js
-function buildMentalMessage({ intent, facts = {}, templateIndex = 0 }) {
-  const templates = JA_TEMPLATES[intent];
-  if (!templates) throw new Error(`unknown mental intent ${String(intent)}`);
-  const template = templates[templateIndex % templates.length];
-  const text = renderTemplate(template.text, facts);
-  const verdict = validateMentalMessage(text, facts);
-  if (!verdict.ok) throw new Error(`invalid mental message: ${verdict.reason}`);
-  return { text, templateId: template.id };
-}
-```
-
-- [ ] **Step 6: Run copy tests GREEN**
-
-Run: `cd apps/life-manager && node --test lib/mental-copy.test.js`.
-
-- [ ] **Step 7: Generate and inspect the sample matrix**
-
-Generate at least three grounded samples per intent. Confirm no invented personal detail, guarantee, diagnosis, or question.
-
-- [ ] **Step 8: Commit and push**
+- [ ] Run GREEN and commit:
 
 ```bash
-git add apps/life-manager/lib/mental-copy.js apps/life-manager/lib/mental-copy.test.js
-git commit -m "feat(life-manager): add grounded Japanese care messages"
+node --test lib/mental-copy.test.js
+git add lib/mental-copy.js lib/mental-copy.test.js
+git commit -m "feat(life-manager): add Japanese mental message bank"
 git push
 ```
 
-## Milestone 5: Durable intent receipts and feedback
+---
 
-### Task 7: Extend the mental send ledger
+## Milestone 5: Extend send receipts without feedback UI
+
+### Task 6: Record family, template, day, and window
 
 **Files:**
-- Create: `apps/life-manager/migrations/2026-09-16-lm-mental-intents-feedback.sql`
+- Create: `apps/life-manager/migrations/2026-09-16-lm-mental-message-family.sql`
 - Create: `apps/life-manager/lib/mental-migration.test.js`
 - Modify: `apps/life-manager/lib/mental-send-log.js`
 - Modify: `apps/life-manager/lib/mental-send-log.test.js`
 
-**Interfaces:**
-- Consumes: `recordMentalSend(uid, intent, messageId, { templateId, contextFingerprint, feedbackKey }, supa)`
-- Produces: append-only send row with deterministic feedback target
+**Interface:**
 
-- [ ] **Step 1: Add RED migration contract tests**
+```js
+recordMentalSend(uid, messageId, { family, templateId, localDay, window }, supa)
+```
 
-Assert the migration adds non-empty `intent`, `template_id`, a 64-character lowercase hex `context_fingerprint`, and a unique 22-character base64url `feedback_key`; permits nullable `feedback` and `feedback_at`; restricts feedback to `effective|not_for_me|mute_today`; and preserves append-only identity fields.
+- [ ] Add RED migration tests for closed family values, non-empty template ID, valid local day, closed window, and append-only preservation.
 
-- [ ] **Step 2: Write the additive migration**
+- [ ] Write an additive migration. Backfill historical rows with `legacy` values; do not delete or rewrite receipts.
 
-Use `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, backfill historical rows with explicit `legacy` values, then apply `NOT NULL` and checks. Do not delete or rewrite existing receipts.
+- [ ] Add RED store tests for strict unreadable-history failure, two-message cap, four-hour gap, same-family/day lookup, 14-day template lookup, duplicate Telegram message ID, and replay of the same user/day/window.
 
-- [ ] **Step 3: Add RED store tests**
+- [ ] Implement with existing Supabase REST helpers. Add no ORM and no feedback fields.
 
-Cover strict unreadable-state suppression, successful append, malformed fingerprint/key rejection, duplicate Telegram message ID idempotency, duplicate feedback-key rejection, feedback update, and duplicate feedback replay.
-
-- [ ] **Step 4: Implement the minimal store changes**
-
-Keep existing Supabase REST helpers. Add no ORM and no repository abstraction.
-
-- [ ] **Step 5: Run migration and store tests**
-
-Run: `cd apps/life-manager && node --test lib/mental-migration.test.js lib/mental-send-log.test.js`.
-
-- [ ] **Step 6: Commit and push**
+- [ ] Run and commit:
 
 ```bash
-git add apps/life-manager/migrations/2026-09-16-lm-mental-intents-feedback.sql apps/life-manager/lib/mental-migration.test.js apps/life-manager/lib/mental-send-log.js apps/life-manager/lib/mental-send-log.test.js
-git commit -m "feat(life-manager): record mental intent and feedback identity"
+cd apps/life-manager
+node --test lib/mental-migration.test.js lib/mental-send-log.test.js
+git add migrations/2026-09-16-lm-mental-message-family.sql \
+  lib/mental-migration.test.js \
+  lib/mental-send-log.js \
+  lib/mental-send-log.test.js
+git commit -m "feat(life-manager): record plain mental message identity"
 git push
 ```
 
-### Task 8: Add three feedback callbacks
+---
 
-**Files:**
-- Create: `apps/life-manager/lib/mental-feedback.js`
-- Create: `apps/life-manager/lib/mental-feedback.test.js`
-- Modify: `apps/life-manager/server.js`
+## Milestone 6: Wire plain Telegram delivery
 
-**Interfaces:**
-- Consumes: callback payload `mental:<feedbackKey>:e|n|m`
-- Produces: one idempotent feedback update and optional `muted_until` preference change
-
-- [ ] **Step 1: Add RED parser and authorization tests**
-
-Require exact callback grammar, a 22-character base64url feedback key, matching Telegram chat/user ownership from the keyed ledger row, and one of the three closed action codes. Unrelated callbacks return `handled: false`.
-
-- [ ] **Step 2: Add RED replay tests**
-
-The same callback update ID twice must perform one durable update and one callback acknowledgment, with no second preference mutation.
-
-- [ ] **Step 3: Implement pure parsing and bounded handler**
-
-Export `parseMentalFeedback(data)` and `handleMentalFeedback(input, deps)`. Reuse existing Telegram callback acknowledgment and runtime-preference update functions.
-
-- [ ] **Step 4: Wire the handler before generic callback routing**
-
-In `server.js`, route only callbacks beginning with `mental:` to the new handler. Preserve every existing callback path unchanged.
-
-- [ ] **Step 5: Run feedback and existing callback tests**
-
-Run: `cd apps/life-manager && node --test lib/mental-feedback.test.js test/telegram-callback-http-contract.test.js lib/precepts-runtime.test.js`.
-
-- [ ] **Step 6: Commit and push**
-
-```bash
-git add apps/life-manager/lib/mental-feedback.js apps/life-manager/lib/mental-feedback.test.js apps/life-manager/server.js
-git commit -m "feat(life-manager): collect mental message feedback"
-git push
-```
-
-## Milestone 6: Runtime and scheduler wiring
-
-### Task 9: Compose grounded context and deliver validated messages
+### Task 7: Send one message with no buttons or reply contract
 
 **Files:**
 - Modify: `apps/life-manager/lib/mental-runtime.js`
@@ -531,219 +391,140 @@ git push
 - Modify: `apps/life-manager/scheduler.js`
 - Create: `apps/life-manager/lib/mental-wiring.test.js`
 
-**Interfaces:**
-- Consumes: trigger verdict `{ intent, reason, facts }` and structured scheduler signals
-- Produces: delivered Telegram message plus ledger identity, or explicit suppression/failure result
-
-- [ ] **Step 1: Add RED runtime tests**
-
-Cover:
+- [ ] Add RED runtime tests proving:
 
 ```text
-trigger suppression performs zero Telegram and zero write
-valid intent sends exact validated text
-Telegram failure performs zero send-log write
-send success plus ledger failure returns reconciliation_required with Telegram message ID
-unreadable strict ledger suppresses
-same context fingerprint already sent suppresses replay
+suppress verdict -> zero Telegram, zero row
+eligible window -> one exact plain text message
+Telegram call has no reply_markup
+Telegram call has no callback_data
+Telegram call has no sender signature
+Telegram failure -> zero row
+row failure after delivery -> reconciliation_required with message ID
+same user/day/window replay -> zero additional Telegram sends
 ```
 
-- [ ] **Step 2: Add RED wiring tests**
+- [ ] Add RED wiring tests proving scheduler provides current `nowMs`, user timezone, event start/end only, quiet hours, explicit preferences, and strict send history.
 
-Prove the scheduler supplies real `nowMs` to bedtime resolution, user timezone rather than fleet-wide default when present, sanitized event summary, recent completion/failure signals, and Dais canary cap. Prove a MENTAL failure does not block wake, care, diet, or precepts siblings.
+- [ ] Prove scheduler does not map `location` or `attendees` to `important`, does not map duration to `focused`, and does not supply completed count, mood, hydration, or posture.
 
-- [ ] **Step 3: Implement canonical context fingerprinting**
-
-Use Node `crypto.createHash("sha256")` over stable JSON containing only intent-relevant non-secret fields. Sort object keys deterministically. Do not hash raw credentials, message bodies, coordinates, or journal text.
-
-- [ ] **Step 4: Update runtime delivery order**
-
-Required order:
+- [ ] Required runtime order:
 
 ```text
-read strict attention state
-evaluate trigger
-build and validate copy
-check context replay
-create randomBytes(16) base64url feedback key
-send Telegram with compact feedback callbacks
-record receipt with the same feedback key
+read strict send history
+evaluate opportunity gate
+select non-repeated template
+validate copy and authorized variables
+send plain Telegram text
+record message ID and template identity
 return terminal outcome
 ```
 
-- [ ] **Step 5: Add inline feedback buttons using Task 8**
-
-Generate `feedbackKey = crypto.randomBytes(16).toString("base64url")` before delivery and build exactly three callback buttons: `効いた` -> `mental:${feedbackKey}:e`, `合わない` -> `mental:${feedbackKey}:n`, `今日は静かに` -> `mental:${feedbackKey}:m`. After delivery, persist the same key with the Telegram message ID. If persistence fails, return `reconciliation_required` with both values and never resend blindly.
-
-- [ ] **Step 6: Run focused runtime and wiring tests**
-
-Run: `cd apps/life-manager && node --test lib/mental-runtime.test.js lib/mental-wiring.test.js lib/mental-trigger.test.js lib/mental-copy.test.js lib/mental-send-log.test.js lib/precepts-wiring.test.js`.
-
-- [ ] **Step 7: Run the Life Manager test command**
-
-Read `apps/life-manager/package.json` and run its canonical full test script. Expected: zero failures.
-
-- [ ] **Step 8: Commit and push**
+- [ ] Run focused tests:
 
 ```bash
-git add apps/life-manager/lib/mental-runtime.js apps/life-manager/lib/mental-runtime.test.js apps/life-manager/scheduler.js apps/life-manager/lib/mental-wiring.test.js
-git commit -m "feat(life-manager): wire grounded mental care context"
-git push
+cd apps/life-manager
+node --test \
+  lib/mental-trigger.test.js \
+  lib/mental-copy.test.js \
+  lib/mental-send-log.test.js \
+  lib/mental-runtime.test.js \
+  lib/mental-wiring.test.js \
+  lib/precepts-wiring.test.js
 ```
 
-## Milestone 7: Cloud deployment and Dais-only canary
+- [ ] Run the canonical Life Manager test script and require zero failures:
 
-### Task 10: Apply migration and deploy the cloud worker
+```bash
+npm test
+```
+
+- [ ] Commit and push.
+
+---
+
+## Milestone 7: Deploy Dais-only Japanese canary
+
+### Task 8: Apply migration and exact Railway deployment
 
 **Files:**
 - Modify: `docs/evidence/life-manager-mental-canary.md`
 
-**Interfaces:**
-- Consumes: merged main SHA containing Tasks 5–9
-- Produces: migrated production schema and successful Railway worker deployment with exact `commitHash` readback
+- [ ] Merge only after focused and full tests pass.
 
-- [ ] **Step 1: Merge only after all focused and full tests pass**
+- [ ] Apply the additive migration and read columns/constraints back from production.
 
-Create one PR for the mental behavior milestones. Use the repository-required merge path and record the PR URL and merge SHA.
+- [ ] Require the Railway worker deployment with the merge `commitHash` to reach `SUCCESS`.
 
-- [ ] **Step 2: Apply the additive migration**
+- [ ] Verify startup logs show `node scripts/runtime-up.js internal-worker` and no import/schema failure.
 
-Run the existing production migration mechanism. Read the resulting columns and constraints back from production.
+- [ ] Enable the three V1 families for the Dais tenant only, cap two/day, gap four hours.
 
-- [ ] **Step 3: Observe the Railway worker deployment from the merge SHA**
+- [ ] Read one natural `organ:mental` tick. Record deployment ID, SHA, decision, family/window, template ID, Telegram message ID if sent, and send row ID.
 
-Run: `cd apps/life-manager && railway deployment list --json`. Require the worker service deployment with the exact merge `commitHash` to reach `SUCCESS`, then verify startup logs show `node scripts/runtime-up.js internal-worker` and no dependency/import failure.
+- [ ] Verify the actual Telegram message contains no button, callback, sender signature, reply instruction, or unsupported context claim.
 
-- [ ] **Step 4: Configure Dais-only canary**
+- [ ] Commit and push the deployment evidence.
 
-Set the existing runtime-preference or cohort gate so only the Dais tenant receives expanded intents. Configure care cap `2`; retain shared MENTAL/precepts hard cap `3`.
-
-- [ ] **Step 5: Verify only the named cloud worker owner**
-
-Read back deployment ID, `commitHash`, start command, process health, and one natural `organ:mental` tick. Do not redeploy the web/call service unless its artifact also changed in the merged commit.
-
-- [ ] **Step 6: Record deployment evidence and push**
-
-```bash
-git add docs/evidence/life-manager-mental-canary.md
-git commit -m "docs(life-manager): record mental canary deployment"
-git push
-```
-
-### Task 11: Complete the seven-day Japanese canary
+### Task 9: Close the seven-day canary
 
 **Files:**
 - Modify: `docs/evidence/life-manager-mental-canary.md`
 
-**Interfaces:**
-- Consumes: seven local days of cloud outcomes
-- Produces: rollout decision backed by message receipts, feedback, suppressions, and replay-zero
-
-- [ ] **Step 1: Record each day's natural outcomes**
-
-For every day record counts only, with private content redacted:
+- [ ] For each local day record:
 
 ```text
-eligible ticks by intent
+eligible windows
 suppression reasons
-delivered Telegram message IDs
-template IDs
-context fingerprints
-feedback values
-shared daily cap usage
+family and template ID
+Telegram message ID
+durable row ID
+daily count and spacing
 ```
 
-- [ ] **Step 2: Stage only missing acceptance intents**
-
-If natural context does not produce required coverage by day 6, create a reversible test calendar event or explicit test completion/failure signal for Dais. Label it as staged and remove it after receipt. Do not fabricate a production outcome.
-
-- [ ] **Step 3: Verify daily cap and quiet behavior**
-
-For all seven days assert care sends `<= 2`, shared MENTAL/precepts sends `<= 3`, quiet-hour sends `0`, mid-event sends `0`, and moving sends `0`.
-
-- [ ] **Step 4: Verify replay-zero**
-
-Replay at least one already-processed context/tick through the same owner. Expected: zero additional Telegram message IDs and a durable duplicate/suppression result.
-
-- [ ] **Step 5: Make the rollout decision**
-
-Pass only if:
+- [ ] Assert across all seven days:
 
 ```text
-0 invented-fact incidents
-0 duplicate sends
-0 cap violations
-0 quiet/mid-event/moving violations
->= 1 pre_event receipt
->= 1 mindful_pause or physical_reset receipt
->= 1 self_compassion or small_win receipt
-all provider message IDs read back successfully
+messages per day <= 2
+gap >= 4 hours
+busy-event sends = 0
+quiet-hour sends = 0
+buttons/callbacks = 0
+reply instructions = 0
+unsupported personal claims = 0
+same-template repeat within 14 days = 0
+duplicate external sends = 0
 ```
 
-- [ ] **Step 6: Commit and push final canary evidence**
+- [ ] Ensure at least one real delivered message from each family. Use a reversible canary preference/window adjustment if natural selection misses a family; do not fabricate user context.
 
-```bash
-git add docs/evidence/life-manager-mental-canary.md
-git commit -m "docs(life-manager): close Japanese mental care canary"
-git push
-```
+- [ ] Replay one processed user/day/window. Require zero additional Telegram message IDs.
 
-## Milestone 8: Localization and Anicca iOS reuse
+- [ ] Mark V1 PASS only when every condition holds. General rollout remains locked otherwise.
 
-### Task 12: Promote measured intents to shared catalogs
+- [ ] Commit and push final evidence.
 
-**Files:**
-- Modify only after canary PASS: `anicca-project/apps/api/src/modules/affirmations/catalog/ja.json`
-- Modify only after canary PASS: locale sibling catalogs selected by product priority
-- Modify only if the iOS app still embeds a separate bank: `anicca-project/mobile-apps/rork-thankful-gratitude-app/ThankfulGratitudeApp/Models/AffirmationData.swift`
-- Test: existing affirmation catalog/API tests in `anicca-project`
+---
 
-**Interfaces:**
-- Consumes: canary-approved intent stances and template IDs
-- Produces: locale-native affirmation catalog entries; no cloud runtime dependency added to iOS
+## Future work: context unlocks, one at a time
 
-- [ ] **Step 1: Select only measured templates**
+These are not V1 tasks. Add a separate spec and plan for each:
 
-Include templates with no safety incident and no `not_for_me` majority. Strip personal facts and placeholders before promotion to the generic iOS catalog.
+1. Explicit important-event classification.
+2. Event-bound preparation completion receipt.
+3. Current-day completed-action receipts.
+4. Authorized activity/focus duration.
+5. Explicit failure/rejection aftercare.
 
-- [ ] **Step 2: Add Japanese catalog tests before catalog changes**
-
-Assert stable IDs, non-empty text, locale match, duplicate-free entries, and absence of guarantee/diagnosis phrases.
-
-- [ ] **Step 3: Add Japanese catalog entries**
-
-Map the approved stances into the existing schema. Do not introduce a second catalog format.
-
-- [ ] **Step 4: Localize semantic intent, not Japanese wording**
-
-For each locale, write native copy preserving the intent and action contract. Do not machine-copy Japanese sentence structure.
-
-- [ ] **Step 5: Remove embedded duplication only if the existing app loading path supports the API catalog**
-
-If the iOS app cannot yet consume the API catalog, leave `AffirmationData.swift` intact and record the duplication as a bounded follow-up. Do not build a sync framework in this task.
-
-- [ ] **Step 6: Run catalog/API and focused iOS tests**
-
-Run: `cd /Users/anicca/anicca-project/apps/api && npm test -- src/modules/affirmations`
-Run: `cd /Users/anicca/anicca-project/mobile-apps/rork-thankful-gratitude-app && xcodebuild test -project ThankfulGratitudeApp.xcodeproj -scheme ThankfulGratitudeApp -destination 'platform=iOS Simulator,name=iPhone 16 Pro' -only-testing:ThankfulGratitudeAppTests`
-Expected: all related tests PASS. If the named simulator is unavailable, select the first installed iPhone simulator from `xcrun simctl list devices available` and record its exact destination; do not skip the iOS test.
-
-- [ ] **Step 7: Commit and push in the Anicca repository**
-
-```bash
-git add apps/api/src/modules/affirmations/catalog mobile-apps/rork-thankful-gratitude-app/ThankfulGratitudeApp/Models/AffirmationData.swift
-git commit -m "feat(affirmations): promote measured mental care messages"
-git push -u origin HEAD
-```
+Each unlock must define source, freshness, transformation, exact legal claim, tests, production readback, and replay-zero. Anicca iOS remains a separate product operated by the mobile-app loop and is not a Life Manager mental-runtime dependency.
 
 ## Final verification checklist
 
-- [ ] Telnyx real call receipt proves error `90029` is gone.
-- [ ] Loaded cloud worker SHA equals the merged main SHA.
-- [ ] Production migration readback matches the checked-in migration.
-- [ ] Focused mental tests and canonical Life Manager full tests pass.
-- [ ] Seven-day Dais canary meets every quantitative acceptance condition.
-- [ ] Replay of processed context produces zero duplicate Telegram effects.
-- [ ] No sibling loop or unrelated owner was restarted.
-- [ ] Japanese rollout decision is recorded before localization begins.
-- [ ] Anicca iOS reuses approved stances without adding a parallel cloud generator.
+- [ ] Telnyx real-call receipt proves `90029` is gone.
+- [ ] Railway worker `commitHash` equals merged `main`.
+- [ ] Production schema matches the additive migration.
+- [ ] V1 has exactly three message families.
+- [ ] Every delivered item is plain Telegram text.
+- [ ] Seven-day canary has zero unsupported context claims.
+- [ ] Cap, spacing, busy suppression, quiet suppression, 14-day dedupe, and replay-zero all pass.
+- [ ] No Anicca iOS dependency, feedback UI, or second mental loop was added.

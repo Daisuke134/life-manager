@@ -1,49 +1,114 @@
-# Life Manager Mental and Physical Care Design
+# Life Manager Mental Messages V1 Design
 
-**Status:** Approved design, ready for implementation planning
+**Status:** Revised after context-grounding review
 **Owner:** Life Manager cloud runtime
 **Primary locale:** Japanese
-**Related incident:** Telnyx `/v2/calls` rejects `time_limit_secs < 30` with error `90029`
+**Scope:** Affirmation, manifestation, and mindfulness inquiry messages only
 
 ## 1. Outcome
 
-Life Manager manages the person's mental and physical state as part of the same cloud life context that already manages calendar, calls, care, diet, and Telegram. It sends short, factual, personalized interventions at moments when they are useful, especially before demanding events, after strain, during unproductive loops, and before sleep.
+Life Manager sends brief Japanese messages that support confidence, intention, self-compassion, and present-moment awareness without asking the user to manage another interface.
 
-The first production beneficiary is the Dais tenant. Japanese ships first. Other locales reuse the same semantic message intents only after the Japanese canary is measured.
+V1 is deliberately narrow:
 
-This design also fixes the independent Telnyx call failure before mental work begins. The call fix and mental extension are separate releasable milestones.
+1. affirmation messages;
+2. manifestation messages that turn an intention into a controllable action;
+3. mindfulness prompts and reflective questions (`問いかけ`).
 
-## 2. Product principles
+Messages contain no buttons, no repeated sender prefix, no mandatory reply, and no claim about the user's current activity, emotion, achievement, location, preparation, or physical state unless Life Manager has an authoritative source for that exact claim.
 
-1. **One Life Manager, not another huge loop.** Reuse the existing 60-second cloud scheduler, user context, Telegram transport, `lm_mental_send_log`, main-to-Railway deployment path, and receipt conventions.
-2. **Right moment beats fixed time.** Calendar, recent events, user timezone, location state, and send history determine whether to speak.
-3. **Facts before slogans.** A message may mention only observed context or durable user-authored preferences. It must not invent feelings, success, failure, location, or health status.
-4. **Affirmation means values and self-compassion, not magical certainty.** Manifestation copy converts intention into one immediate action. It never promises that thoughts alone cause an external outcome.
-5. **Silence is a valid decision.** Mid-event, moving, quiet hours, missing context, unreadable send history, recent delivery, and daily-cap exhaustion suppress delivery.
-6. **Mental health support is not diagnosis or treatment.** The loop does not diagnose depression, infer crisis from ordinary inactivity, replace professional care, or generate clinical claims.
-7. **Physical and mental prompts share one attention budget.** A water, posture, breathing, or walking prompt competes with affirmation and mindfulness messages instead of opening another notification channel.
+The independent Telnyx `/calls` error `90029` remains the first repair milestone, but it is not part of mental-message semantics.
 
-## 3. Evidence and OSS patterns
+## 2. Correction to the previous design
 
-### 3.1 External evidence
+The previous version treated future context sources as though they were already available. Current source inspection proves that is unsafe:
 
-- Telnyx documents `time_limit_secs` on the Dial endpoint; the observed provider response establishes the current minimum as 30 seconds: <https://developers.telnyx.com/api-reference/call-commands/dial>.
-- Self-affirmation research supports reflecting on personally important values rather than repeating implausible generic praise: <https://pmc.ncbi.nlm.nih.gov/articles/PMC4814782/>.
-- Strong positive self-statements can make some people with low self-esteem feel worse, so generated copy must be believable and evidence-based: <https://doi.org/10.1111/j.1467-9280.2009.02370.x>.
-- Just-in-time adaptive intervention research treats timing, receptivity, burden, and context as parts of the intervention rather than delivery details: <https://pmc.ncbi.nlm.nih.gov/articles/PMC11862764/>.
+- `scheduler.js` marks an event `important` when it has a location or attendees. That does not prove it is a presentation or that the user has prepared.
+- An event lasting at least 90 minutes is marked `intense`. That does not prove the user concentrated for 90 minutes.
+- Production location may be `unknown`.
+- The current mental runtime has no authoritative completed-task count, mood signal, preparation receipt, screen-time duration, hydration state, or posture state.
 
-### 3.2 OSS patterns to reuse conceptually
+Therefore these messages are prohibited in V1:
 
-| Project | Useful pattern | What is not copied |
-|---|---|---|
-| [Mindfulness at the Computer](https://github.com/mindfulness-at-the-computer/mindfulness-at-the-computer) | Tiny breathing, body-awareness, and break interventions | Its desktop application and GPL code |
-| [SampleU](https://github.com/forzaz/Mobile-Experience-Sampling-Master) | Signal-contingent intervention, notification scheduling, and intervention logs | Its Cordova/MySQL/Firebase stack |
-| [Baseline](https://github.com/nkalupahana/baseline) | Mood/journal history as optional user-authored context | A new journaling product in this milestone |
-| [MindfulnessMeditation](https://github.com/vbresan/MindfulnessMeditation) | Short guided breathing sessions and offline-first content | Audio sessions and a second mobile application |
+- `必要なものは持ってきてる。あとは話すだけ。`
+- `今日はすでに3件終えています。`
+- `90分集中していました。`
+- `落ち込んでいる今も、立て直そうとしています。`
 
-## 4. Existing system
+They may become legal later only when the exact premise has a named, current, authoritative source and a freshness rule.
 
-The repository already contains the correct core path:
+## 3. Product principles
+
+1. **No invented context.** Unknown never becomes a personalized claim.
+2. **Context is first used to avoid interruption.** Calendar busy state, quiet hours, daily cap, and recent-send state decide when to stay silent.
+3. **Stable personalization before live personalization.** Locale, tone, values, and explicit goals are safer than inferred emotions or activity.
+4. **No interaction debt.** A message does not include buttons and does not require a reply.
+5. **A question may be contemplative, not operational.** `問いかけ` may use `？`, but must remain useful when unanswered and must not say `返信して`, `教えて`, or equivalent.
+6. **Manifestation is action-oriented.** It may express possibility and intention, but never promise that thought alone changes external reality.
+7. **Silence is a valid output.** Missing timezone, unreadable send history, quiet hours, active calendar event, daily cap, or duplicate context suppresses delivery.
+8. **No new loop.** Reuse the existing scheduler, Telegram transport, mental runtime, and send ledger.
+
+## 4. What Life Manager actually knows
+
+### 4.1 V1-authorized sources
+
+| Claim class | Authoritative source | Freshness | Allowed use |
+|---|---|---|---|
+| Local time/day | User timezone or explicit UTC offset | Current tick | Select morning/day/evening family |
+| User is in a calendar event | Calendar start/end | Current tick | Suppress delivery only |
+| Recent message count/time | `lm_mental_send_log` | Current local day | Cap, spacing, dedupe |
+| Quiet hours | Runtime preferences | Current preference | Suppress delivery |
+| Locale and tone | Explicit runtime preference | Until changed | Select copy bank |
+| Values or goal | Explicit user-authored durable profile entry | Until superseded | Select relevant affirmation/manifestation; never claim progress |
+| Bedtime goal | Explicit preference | Current local day | Select evening/release family |
+
+### 4.2 Not known in V1
+
+The following remain `unknown` unless a later milestone adds the stated receipt:
+
+| Proposed fact | Required future evidence |
+|---|---|
+| `準備できている` | Explicit preparation completion receipt |
+| `3件終えた` | Durable completed-action ledger rows with current-day scope |
+| `90分集中した` | Authorized activity/focus-session measurement |
+| `落ち込んでいる` | User-authored mood input; never inferred from silence |
+| `水分不足` | User-authored or authorized sensor evidence |
+| `座り続けている` | Authorized device/activity evidence |
+| `発表が重要` | Explicit event classification, not attendees/location heuristic |
+
+### 4.3 Truth rule
+
+Every variable in a message template must declare:
+
+```text
+source -> timestamp -> freshness limit -> transformation -> rendered claim
+```
+
+If any link is absent, stale, ambiguous, or unreadable, that variable is unavailable. The runtime either selects a context-free template or stays silent.
+
+## 5. V1 architecture
+
+```mermaid
+flowchart LR
+  TZ[Timezone] --> G[Opportunity gate]
+  BUSY[Calendar busy only] --> G
+  Q[Quiet hours] --> G
+  LOG[Send history] --> G
+  PREF[Explicit tone, values, goals] --> S[Message selector]
+  G -->|suppress| N[No message]
+  G -->|open window| S
+  S --> A[Affirmation]
+  S --> M[Manifestation]
+  S --> I[Mindfulness inquiry]
+  A --> V[Copy validator]
+  M --> V
+  I --> V
+  V -->|valid| T[Plain Telegram message]
+  V -->|invalid| N
+  T --> R[Durable send receipt]
+```
+
+Current execution path remains:
 
 ```text
 scheduler.js
@@ -55,270 +120,209 @@ scheduler.js
   -> recordMentalSend(...)
 ```
 
-Existing files:
+## 6. Delivery timing
 
-- `apps/life-manager/scheduler.js`: runs MENTAL on the shared cloud organ tick.
-- `apps/life-manager/lib/mental-trigger.js`: pure trigger decision with a three-per-day cap and two-hour minimum gap.
-- `apps/life-manager/lib/mental-runtime.js`: context read, message delivery, and receipt recording.
-- `apps/life-manager/lib/mental-copy.js`: Japanese one-way message builder.
-- `apps/life-manager/lib/mental-send-log.js`: shared attention ledger used by MENTAL and precepts.
-- `apps/life-manager/migrations/2026-07-25-lm-mental-send-log.sql`: durable send history.
-- `apps/life-manager/lib/care-daily-runtime.js` and `diet-runtime.js`: existing physical-life organs.
-- `anicca-project/mobile-apps/rork-thankful-gratitude-app/ThankfulGratitudeApp/Models/AffirmationData.swift`: current Anicca affirmation seed bank.
+Without live mental/body context, V1 is not described as perfect just-in-time personalization. It is **right-window delivery**: Life Manager finds a low-interruption opportunity and sends a low-assumption message.
 
-The design extends these boundaries. It does not add a new daemon, scheduler, database, transport, LLM framework, or notification budget.
+Default opportunity windows in the user's local time:
 
-## 5. Architecture
+| Window | Time | Eligible family |
+|---|---:|---|
+| Morning orientation | 07:30–10:00 | affirmation or manifestation |
+| Day reset | 12:00–16:00 | mindfulness inquiry |
+| Evening release | 20:00–23:00 | affirmation or mindfulness inquiry |
 
-```mermaid
-flowchart LR
-  C[Calendar and recent events] --> X[Mental context]
-  L[Location state] --> X
-  P[User-authored values and preferences] --> X
-  R[Recent delivery and feedback] --> X
-  W[Measured work and small wins] --> X
+Rules:
 
-  X --> T[evaluateMentalTrigger]
-  T -->|suppress| S[No delivery plus reason]
-  T -->|send intent| M[buildMentalMessage]
-  M --> V[validateMentalMessage]
-  V -->|valid| G[Telegram]
-  V -->|invalid| S
-  G --> E[lm_mental_send_log receipt]
-  E --> R
-```
+- Maximum two V1 mental messages per local day.
+- Minimum four hours between V1 messages.
+- Never send during a current calendar event.
+- Never send inside quiet hours.
+- Use a deterministic per-user/per-day minute inside the selected window so the whole fleet does not fire at one time.
+- Do not describe the selected minute as emotionally optimal.
+- A user-authored goal may influence message selection, not timing, until a matching goal/work-block contract exists.
 
-### 5.1 Telnyx call boundary
+## 7. Message families
 
-Current `main` does not emit `time_limit_secs` from `telnyxDialBody`, while the observed Telnyx 422 proves the failing cloud request did contain that field. Therefore the first repair step is a read-only deployment/payload audit: identify the Railway deployment `commitHash`, the exact service that issued the request, and the sanitized numeric limit. This distinguishes deployment drift from a second raw `/calls` producer.
+### 7.1 Affirmation
 
-After the actual producer is located, all Life Manager outbound calls must converge on `telnyxDialBody`. It gains optional `timeLimitSecs` input and includes `time_limit_secs` only when the input is a finite number. The included value is `Math.max(30, Math.trunc(timeLimitSecs))`. Any direct request-body construction found by the audit is removed or routed through this builder.
+Purpose: strengthen a believable posture toward oneself without claiming a current achievement or emotional state.
 
-The default call body remains byte-for-byte equivalent when no limit is supplied. This prevents an unrelated behavior change while making every future caller safe at the shared provider boundary.
+- `そのままの自分で、今日を始めていい。`
+- `全部を完璧にしなくても、価値は減らない。`
+- `自分に向ける言葉も、少しやさしくしていい。`
+- `うまくできない瞬間があっても、自分全体が失敗になるわけではない。`
+- `急がなくても、進む方向は選べる。`
+- `他人の評価より先に、自分の味方でいていい。`
+- `今日の自分に必要なのは、罰ではなく余白かもしれない。`
+- `できる自分だけでなく、迷っている自分もここにいていい。`
 
-### 5.2 Mental context
+### 7.2 Manifestation
 
-The context passed to the pure trigger contains only structured facts:
+Purpose: connect an explicit aspiration to agency. A message must stay valid even when no progress data exists.
 
-```js
-{
-  nowMs,
-  sentTodayCount,
-  lastSentMs,
-  events: [{ startMs, endMs, important, intense, summary }],
-  sleepTargetMs,
-  quietHours: { start: "22:30", end: "07:30" },
-  location: { state: "home|venue|moving|unknown" },
-  recentSignals: {
-    completedCount,
-    rejectedOrFailed,
-    longScreenSessionMinutes,
-    lastMealAgeMinutes
-  },
-  preferences: {
-    locale,
-    tone,
-    enabledIntents,
-    mutedUntilMs
-  }
-}
-```
+- `望む未来は、今日の小さな選択から形になる。`
+- `なりたい自分を思い出して、次の一歩だけ選べばいい。`
+- `未来を保証する必要はない。向かう方向は、いま選べる。`
+- `言葉にした願いを、今日できる一つへ小さくしていい。`
+- `大きな変化は、繰り返せる小さな行動から始まる。`
+- `まだ見えていない可能性のために、今日の余白を残しておく。`
 
-`summary` is used only to name the next or previous event after sanitization and truncation. Absence of any optional signal never becomes a negative inference.
+Explicit-goal examples, legal only when the goal is user-authored:
 
-### 5.3 Trigger intents
+- `「{goal}」を大切にするなら、今日はそれに近づく一つを選べる。`
+- `目指している「{goal}」は、完璧さより続けられる一歩から育つ。`
 
-| Intent | Evidence required | Window | Default action |
-|---|---|---|---|
-| `pre_event` | Next important event | 10–45 minutes before | Ground confidence in preparation and suggest the first sentence/action |
-| `post_strain` | Intense event ended and next event is at least 60 minutes away | Within 30 minutes | Permit recovery and separate performance from identity |
-| `mindful_pause` | Long screen/work block or explicit focus block ended | Within 15 minutes | One breath/body/attention action |
-| `small_win` | Durable completed action count or explicit completion receipt | Within 60 minutes | Name the actual completed work |
-| `self_compassion` | Explicit failure/rejection/late receipt, never inferred mood | Within 60 minutes | Separate the event from the person's worth and name the next repair |
-| `intention` | User-authored goal plus a matching scheduled work block | 5–20 minutes before | Convert desired future into one immediate action |
-| `pre_sleep` | User bedtime target, no upcoming event | 15–60 minutes before | End the day and protect sleep |
-| `physical_reset` | Measured long sitting/screen interval or explicit meal/water reminder | After threshold | Water, posture, breathing, or ten steps |
+These do not say the user has already acted or will certainly succeed.
 
-Priority when more than one intent qualifies:
+### 7.3 Mindfulness inquiry (`問いかけ`)
 
-```text
-self_compassion > pre_event > physical_reset > post_strain > mindful_pause > small_win > intention > pre_sleep
-```
+Purpose: interrupt autopilot and return attention to the present. No answer is requested or stored.
 
-Only one intent may win per tick. All intents spend the same daily cap and minimum-gap budget.
+- `いま、何に意識を使っている？`
+- `いまの呼吸は、浅い？ 深い？`
+- `いま必要なのは、続けること？ 少し止まること？`
+- `いま手放しても困らない考えはある？`
+- `身体のどこに、いちばん力が入っている？`
+- `次の一分を、どんな気持ちで使いたい？`
+- `いま目の前にあるものを、ひとつだけ丁寧に見られる？`
+- `その考えは事実？ それとも、いま浮かんでいる物語？`
 
-### 5.4 Copy contract
+Questions are rhetorical prompts. No keyboard, button, callback, or reply instruction is attached.
 
-Every Japanese message follows:
+## 8. Copy contract
+
+All V1 copy must satisfy:
+
+- 80 Japanese characters or fewer.
+- Plain Telegram text only.
+- No inline keyboard or callback data.
+- No sender signature such as `Life Manager:::`.
+- No user name unless explicitly required later.
+- No exclamation-heavy encouragement.
+- No diagnosis, therapy claim, crisis inference, wealth promise, or guaranteed result.
+- No `あなたは今〜している`, `〜を完了した`, or numeric personal fact without an authorized source.
+- Affirmation may be a statement.
+- Manifestation must preserve agency and avoid magical causation.
+- Mindfulness inquiry may use `？` but cannot ask for a reply.
+
+The validator rejects reply-seeking phrases:
 
 ```text
-observed fact + believable reframe + one action that takes 10–60 seconds
+返信して / 教えて / 答えて / 押して / 選んで / let me know / reply / tell me
 ```
 
-Hard rules:
+## 9. Selection and repetition
 
-- Maximum 120 Japanese characters by default.
-- One-way statement; no reply request and no question mark.
-- At most one emoji.
-- No diagnosis, treatment claim, crisis conclusion, destiny claim, or promise of success.
-- No invented count, event, feeling, relationship, body state, or achievement.
-- Do not say `私は完璧`, `必ず成功する`, `宇宙が叶える`, or semantic equivalents.
-- A manifestation line must include an immediate controllable action.
-- A self-compassion line must not excuse harm; it may pair kindness with a specific repair.
+V1 uses a deterministic content bank, not free-form LLM generation.
 
-### 5.5 Japanese message bank
+Selection key:
 
-The bank is stored as structured templates keyed by intent. These are canonical initial examples, not messages selected randomly without context.
-
-#### `pre_event`
-
-- `必要なものは持ってきています。あとは最初の一文を、ゆっくり話すだけです。`
-- `準備したものはもう手の中にあります。全部を証明せず、一つ伝われば十分です。`
-- `緊張と能力は別です。足を床につけて、最初の要点から始められます。`
-
-#### `post_strain`
-
-- `連続した予定をここまで終えました。次の10分は、水と呼吸に使っていい時間です。`
-- `いま終えたところです。反省は休んだあとでもできます。まず肩を下ろせます。`
-- `一つの言い間違いより、最後まで参加した事実の方が大きいです。`
-
-#### `mindful_pause`
-
-- `いま息を一度、吸うより長く吐きます。次に触るものは一つだけで十分です。`
-- `画面から目を離して、見えるものを三つ確認します。焦りは命令ではありません。`
-- `速く進む前に、足の裏と肩の力を一度確認する時間です。`
-
-#### `small_win`
-
-- `今日はすでに{completedCount}件を終えています。進んでいないという感覚より、この事実を残します。`
-- `{completedItem}を完了しました。小さく見えても、望む方向へ動いた一件です。`
-- `前回も不安なまま始めて完了しています。今回も最初の一歩は同じです。`
-
-#### `self_compassion`
-
-- `{eventName}がうまくいかなかったことと、あなた自身の価値は別です。修正を一つ選べば十分です。`
-- `今日の失敗は、あなた全体の評価ではありません。いま必要なのは罰ではなく次の一手です。`
-- `あの時の自分は、持っていた情報の中で動いていました。次は一つだけ変えられます。`
-- `今日は弱い日ではなく、負荷が高い日です。まず呼吸を戻してから続けられます。`
-
-#### `intention`
-
-- `{goalName}を望む気持ちは、今日の一動作に変えられます。まず{nextAction}から始めます。`
-- `未来を保証する必要はありません。未来に近づく{nextAction}は、いま選べます。`
-- `言葉を行動に変える時間です。{nextAction}を30秒だけ始めます。`
-
-#### `pre_sleep`
-
-- `🌙 今日はここまでで十分です。未完了は失敗ではなく、明日の続きです。`
-- `眠ることも明日の仕事の一部です。今夜解かなくていい問題を置いておけます。`
-- `今日できたことを一つ残して、画面を閉じる時間です。`
-
-#### `physical_reset`
-
-- `水を一杯飲んでから次へ進みます。身体は作業を運んでいる側です。`
-- `{sittingMinutes}分座っています。立って10歩だけ歩く時間です。`
-- `顎と肩の力を一度抜いてから続けます。`
-- `食事を飛ばして進むより、まず身体へ燃料を戻す時間です。`
-
-### 5.6 Feedback
-
-The initial feedback surface has exactly three actions:
-
-- `効いた` — increase the winning intent's per-user weight.
-- `合わない` — reduce that intent's weight and record the template identifier.
-- `今日は静かに` — set `muted_until` to the next local day at 07:30.
-
-Feedback is optional. Messages remain useful without a response. The first production release may ship one-way delivery and add feedback in the following milestone; both use the same send ledger and daily cap.
-
-Before sending, the runtime creates a random 16-byte base64url `feedback_key`. Callback data uses the compact form `mental:<feedback_key>:e|n|m`, which stays below Telegram's 64-byte callback-data limit. The same key is recorded only after Telegram returns a positive message ID. A send failure creates no ledger row; a post-send ledger failure enters reconciliation with the Telegram message ID and feedback key.
-
-## 6. Data and privacy
-
-Extend the existing ledger only with fields required for deterministic feedback and audit:
-
-```sql
-intent text not null,
-template_id text not null,
-context_fingerprint text not null,
-feedback_key text not null unique,
-feedback text null,
-feedback_at timestamptz null
+```text
+uid + local_day + window + enabled_family + explicit_tone
 ```
 
-`context_fingerprint` is a SHA-256 over canonical non-secret structured context. `feedback_key` is 22 base64url characters generated from 16 random bytes and carries no user identity. Raw calendar titles, journal text, private messages, and location coordinates are not written to the mental ledger.
+- Do not repeat the same template for the same user within 14 days.
+- Do not send the same family twice on the same day.
+- If no non-repeated eligible template exists, stay silent.
+- LLM generation is a later option only after deterministic safety and reception are measured.
 
-User preference storage reuses the existing runtime-preference path. No new profile database is introduced.
+No feedback buttons exist. V1 does not claim to learn message preference from silence. Any later adaptation must name a real signal such as explicit conversation, reaction, or settings change.
 
-## 7. Failure behavior
+## 10. Data and privacy
+
+Reuse `lm_mental_send_log`. Extend it only if current columns cannot store:
+
+```text
+family
+template_id
+local_day
+window
+delivered Telegram message_id
+```
+
+Do not add raw calendar titles, inferred mood, message-reply tracking, location coordinates, journal content, or a new mental profile database.
+
+The durable profile may contain only explicit, user-authored values/goals and presentation preferences. A system inference is never written back as a user fact.
+
+## 11. Future context unlocks
+
+Future contextual messages are separate milestones. Each is disabled until its evidence contract passes production readback.
+
+| Unlock | Required contract | Then-legal example |
+|---|---|---|
+| Important-event support | Explicit event type + current calendar event | `14時の発表まで30分。最初の一文だけ整えればいい。` |
+| Preparation confidence | Current preparation receipt tied to event | `必要なものは揃っている。あとは話すだけ。` |
+| Small-win reflection | Current-day completed-action receipts | `今日は3件終えている。その事実は残っている。` |
+| Physical reset | Authorized current activity measurement | `90分座っている。少し歩く時間です。` |
+| Self-compassion after setback | Explicit failure/rejection receipt | `今回の結果と、あなた自身の価値は別です。` |
+
+The receipt authorizes only the matching claim. For example, a calendar event never authorizes `準備済み`, and a task completion never authorizes an inferred mood.
+
+## 12. Failure behavior
 
 | Failure | Behavior |
 |---|---|
-| Calendar unavailable | Suppress contextual intents; do not fabricate a generic substitute |
-| Send ledger unreadable | Suppress all attention-budget messages fail-closed |
-| Location unavailable | Permit only intents that do not depend on place; still suppress if moving cannot be ruled out for a movement-sensitive prompt |
-| Invalid generated copy | Suppress and log the validation reason; never send raw model output |
-| Telegram failure | Do not record a successful send or spend the daily cap |
-| Receipt write fails after Telegram success | Record an explicit reconciliation item keyed by Telegram message ID; do not resend blindly |
-| Feedback callback duplicated | Idempotent update by unique feedback key and callback update ID |
-| Crisis language received | Route to the existing safety policy; do not answer with an affirmation or claim emergency resolution |
+| Timezone absent or invalid | Suppress |
+| Calendar unavailable | Suppress rather than risk interrupting an event |
+| Send history unreadable | Suppress rather than exceed cap or repeat |
+| No eligible non-repeated template | Suppress |
+| Template uses unavailable variable | Reject before Telegram |
+| Telegram failure | Do not record a delivered send |
+| Receipt write fails after delivery | Record reconciliation evidence by Telegram message ID; never resend blindly |
 
-## 8. Rollout
+## 13. Rollout
 
 ### Milestone A — Telnyx repair
 
-Ship and verify the provider-boundary clamp independently. Completion is a successful Railway deployment whose `commitHash` equals merged `main`, followed by a real call that returns a Telnyx call-control ID without error `90029`.
+Locate the actual producer of `time_limit_secs`, fix the shared provider boundary, deploy from merged `main`, and verify one real call without `90029`.
 
-### Milestone B — Existing MENTAL truth audit
+### Milestone B — Current MENTAL truth audit
 
-Before behavior changes, verify the loaded immutable cloud release contains the scheduler wiring, required migration, configured timezone/bedtime, and current Dais tenant eligibility. A historical test or source checkout is not runtime proof.
+Verify Railway deployment `commitHash`, scheduler wiring, send ledger, timezone source, calendar availability, and Dais tenant eligibility.
 
-### Milestone C — Japanese canary
+### Milestone C — Japanese V1 canary
 
-Enable the expanded intent set for Dais only, at two messages per local day for seven days. Preserve the global hard ceiling of three shared MENTAL/precepts messages. Observe provider message IDs, context fingerprints, suppression reasons, and explicit feedback.
+Enable only the three V1 families for Dais. Deliver at most two plain messages per local day for seven days. Buttons and contextual personal claims remain zero.
 
 ### Milestone D — General Japanese rollout
 
-Expand only after all canary acceptance conditions pass. Users retain `notifications_enabled`, per-intent controls, and mute behavior.
+Expand after canary acceptance. Context unlocks remain off independently.
 
-### Milestone E — Localization and Anicca iOS
+### Milestone E — Context unlocks
 
-Translate semantic intents, not Japanese strings. Promote only measured high-performing stances into the existing Anicca affirmation catalog. Do not add a second generator or cloud loop to the iOS app.
+Add one evidence-backed context class at a time. Each needs source, freshness, test, cloud readback, and replay-zero before its copy is legal.
 
-## 9. Acceptance criteria
+Anicca iOS is not part of this runtime or rollout. It is a separate product created and operated by Life Manager's mobile-app loop.
 
-### Telnyx
+## 14. Acceptance criteria
 
-- Every explicit limit below 30 produces `time_limit_secs: 30`.
-- Integer limits at or above 30 are unchanged.
-- An omitted or invalid limit leaves the field absent.
-- A real cloud call produces a Telnyx call-control ID and no `90029`.
+- Only `affirmation`, `manifestation`, and `mindfulness_inquiry` are enabled in V1.
+- Every message is plain text with zero buttons and zero reply instruction.
+- Maximum two V1 messages per user/local day.
+- Minimum four hours between messages.
+- Zero messages during current calendar events or quiet hours.
+- Zero personal activity, achievement, emotion, preparation, or physical-state claims without an authorized source.
+- Zero repeated template IDs within 14 days for the same user.
+- Every delivered message has a positive Telegram message ID and one durable send receipt.
+- Replaying the same user/day/window produces zero duplicate messages.
+- Seven-day Dais canary contains at least one delivered message from each family.
+- Telnyx acceptance remains independently satisfied.
 
-### Mental and physical care
+## 15. Non-goals
 
-- The running cloud worker, not a local shell, evaluates the Dais tenant.
-- All eight intents have pure decision tests and copy-contract tests.
-- Mid-event, movement, quiet hours, daily cap, minimum gap, unreadable ledger, and muted state suppress delivery.
-- Every delivered message has a positive Telegram message ID and durable send row.
-- No message contains an invented personal fact.
-- Seven-day canary delivers no more than two care messages per local day and no more than three shared MENTAL/precepts messages.
-- Replaying the same tick and context produces zero duplicate external sends.
-- At least one `pre_event`, one `mindful_pause` or `physical_reset`, and one `self_compassion` or `small_win` case is observed or deliberately staged in the canary.
-- Localization work begins only after the Japanese canary passes.
+- Inferring mood from silence, calendar gaps, response time, or message opens.
+- Claiming a person prepared, focused, completed work, exercised, ate, drank, slept, or felt something without evidence.
+- Buttons, daily check-ins, required replies, surveys, journaling, or streaks.
+- A new mental daemon, database, agent framework, or mobile app.
+- Anicca iOS integration.
+- Clinical diagnosis, therapy, emergency automation, or treatment claims.
+- Magical manifestation or guaranteed outcomes.
 
-## 10. Explicit non-goals
+## 16. Decision record
 
-- A new mental-health daemon, agent, queue, transport, database, or LLM framework.
-- Clinical diagnosis, therapy, suicide-risk classification, medication advice, or emergency-service automation.
-- Passive surveillance or prompts such as `今何してる？` without an explicit user request.
-- Always-on mood inference from calendar gaps, response latency, or location.
-- Audio meditation, journaling UI, streaks, gamification, social sharing, or a dashboard in the first release.
-- Copying GPL application code into Life Manager.
-- Claiming that manifestation guarantees money, relationships, health, or success.
+**Chosen:** context-light, plain-message V1 using only stable preferences and low-interruption opportunity windows.
 
-## 11. Decision record
+**Deferred:** event-specific confidence, completed-task reflection, failure aftercare, and sensor-based physical prompts until their exact evidence sources exist and are verified in production.
 
-**Chosen:** extend the existing MENTAL organ and shared attention ledger.
-
-**Rejected:** create a separate cloud mental loop. It would duplicate scheduling, context reads, Telegram delivery, deduplication, preferences, and notification budgets, creating two competing agents for one person.
-
-**Main uncertainties:** the failing Telnyx producer is not present in the current `main` builder, and MENTAL source wiring may exist while the currently deployed Railway commit or database migration does not. The initial read-only audits resolve both before mutation.
+**Reason:** a less personalized true message is better than a highly personalized false one.
