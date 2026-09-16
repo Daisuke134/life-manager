@@ -704,6 +704,34 @@ test("completion manifest CLI writes a private deterministic projection", () => 
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test("completion manifest CLI does not change an existing output parent mode", () => {
+  const catalog = readProductLoopCatalog();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-completion-parent-mode-"));
+  const observationsPath = path.join(root, "observations.json");
+  const outputPath = path.join(root, "completion.json");
+  const observations = catalog.loops.map((loop) => ({
+    id: loop.id,
+    state: "setup_required",
+    reason: "host_adapter_pending",
+    contract: {},
+  }));
+  fs.writeFileSync(observationsPath, JSON.stringify(observations));
+  fs.chmodSync(root, 0o755);
+
+  const result = spawnSync(process.execPath, [
+    path.join(ROOT, "apps/life-manager/scripts/product-loop-completion.js"),
+    "--host", "cloud",
+    "--release-sha", "f".repeat(40),
+    "--observations", observationsPath,
+    "--output", outputPath,
+  ], { cwd: ROOT, encoding: "utf8" });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(fs.statSync(root).mode & 0o777, 0o755);
+  assert.equal(fs.statSync(outputPath).mode & 0o777, 0o600);
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test("completion manifest CLI binds lm-loop status JSON when requested", () => {
   const catalog = readProductLoopCatalog();
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-completion-runtime-cli-"));
