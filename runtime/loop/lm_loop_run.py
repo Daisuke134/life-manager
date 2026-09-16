@@ -302,6 +302,56 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
     return return_code if return_code >= 0 else 128 - return_code
 
 
+def _coalescing_release_arguments(arguments: object, loop_id: str,
+                                  entry: dict) -> list[str] | None:
+    """Accept an exact immutable owner only when its runner opts into reservation reuse."""
+    if (not isinstance(arguments, list) or len(arguments) != 3
+            or any(not isinstance(part, str) for part in arguments)):
+        return None
+    release = Path(arguments[2])
+    if (not release.is_absolute() or release.parent.name != "releases"
+            or not re.fullmatch(r"[0-9]{8}T[0-9]{6}-[0-9a-f]{8,40}", release.name)):
+        return None
+    try:
+        if release.resolve(strict=True) != release:
+            return None
+        protected = (
+            release, release / "bin", release / "config",
+            release / "RELEASE.json", release / "config/loop-registry.json",
+            release / "bin/lm-loop-run",
+        )
+        if any(path.stat().st_mode & 0o222 for path in protected):
+            return None
+        runner = release / "bin/lm-loop-run"
+        if not runner.is_file() or not runner.stat().st_mode & 0o111:
+            return None
+        manifest = json.loads((release / "RELEASE.json").read_text())
+        if not isinstance(manifest, dict):
+            return None
+        sha = manifest.get("sha")
+        if (not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha)
+                or not sha.startswith(release.name.rsplit("-", 1)[1])
+                or manifest.get("provenance") != "ancestor-of-origin-main"
+                or manifest.get("release_paths") != "ALL"):
+            return None
+        target = json.loads((release / "config/loop-registry.json").read_text())
+        loops = target.get("loops") if isinstance(target, dict) else None
+        owner = loops.get(loop_id) if isinstance(loops, dict) else None
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return None
+    if (not isinstance(owner, dict) or not isinstance(owner.get("cadence"), dict)
+            or owner.get("coalesce_reserved_wakes") is not True
+            or owner.get("coalesce_queued_wakes") is not True
+            or owner["cadence"].get("keep_alive")):
+        return None
+    markers = {"coalesce_reserved_wakes", "coalesce_queued_wakes"}
+    if ({key: value for key, value in owner.items() if key not in markers}
+            != {key: value for key, value in entry.items() if key not in markers}):
+        return None
+    expected = [str(release / "bin/lm-loop-run"), loop_id, str(release)]
+    return expected if arguments == expected else None
+
+
 def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
                        agents_dir: Path | None = None) -> list[str]:
     """Kick only validated loaded-idle owners; reservations recover on failure."""
@@ -347,8 +397,10 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
         except (OSError, ValueError, plistlib.InvalidFileException):
             defer(loop_id)
             continue
-        expected = [str(root / "bin/lm-loop-run"), loop_id, str(root)]
-        if arguments != expected:
+        current_expected = [str(root / "bin/lm-loop-run"), loop_id, str(root)]
+        expected = (current_expected if arguments == current_expected else
+                    _coalescing_release_arguments(arguments, loop_id, entry))
+        if expected is None:
             defer(loop_id)
             continue
         service = f"gui/{os.getuid()}/{label}"
@@ -375,8 +427,10 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
                 check=False, timeout=10)
         except (OSError, subprocess.TimeoutExpired):
             continue
-        if readback.returncode == 0:
+        if readback.returncode == 0 and _loaded_arguments(readback.stdout) == expected:
             started.append(loop_id)
+        else:
+            defer(loop_id)
     return started
 
 
