@@ -1880,7 +1880,7 @@
     },
     "life-manager-connector-native": {
       "priority": "revenue",
-      "resource_class": "agent",
+      "resource_class": "browser",
       "admission_class": "revenue",
       "cadence": {
         "start_interval_seconds": 1800

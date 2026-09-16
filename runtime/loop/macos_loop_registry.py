@@ -62,7 +62,7 @@ def validate_registry(registry: dict) -> dict:
             _fail(f"{loop_id}: invalid effect_class")
         if row["provider_route"] not in ROUTES:
             _fail(f"{loop_id}: invalid provider_route")
-        if row.get("resource_class") not in {None, "agent", "deterministic"}:
+        if row.get("resource_class") not in {None, "agent", "browser", "deterministic"}:
             _fail(f"{loop_id}: invalid resource_class")
         if row.get("admission_class") not in {None, "borrow", "revenue"}:
             _fail(f"{loop_id}: invalid admission_class")
@@ -206,7 +206,7 @@ def loop_json_schema() -> dict:
             },
             "provider_route": {"type": "string", "enum": sorted(ROUTES)},
             "admission_class": {"type": "string", "enum": ["borrow", "revenue"]},
-            "resource_class": {"type": "string", "enum": ["agent", "deterministic"]},
+            "resource_class": {"type": "string", "enum": ["agent", "browser", "deterministic"]},
             "priority": {"type": "string", "enum": sorted(QUEUE_PRIORITIES)},
             "runtime_timeout_seconds": positive_integer,
             "adapter": {"type": "string", "enum": ["exec", "python"]},

@@ -259,12 +259,16 @@ class MacosLoopRegistryTest(unittest.TestCase):
             if row["entrypoint"] == "apps/life-manager/scripts/mobile-app"
         ]
         assert len(mobile_ids) == 18
-        for loop_id in [*mobile_ids, "life-manager-connector-native"]:
+        for loop_id in mobile_ids:
             with self.subTest(loop_id=loop_id):
                 row = registry["loops"][loop_id]
                 self.assertEqual(row.get("resource_class"), "agent")
                 self.assertEqual(row.get("admission_class"), "revenue")
                 self.assertEqual(row.get("priority"), "revenue")
+        connector = registry["loops"]["life-manager-connector-native"]
+        self.assertEqual(connector.get("resource_class"), "browser")
+        self.assertEqual(connector.get("admission_class"), "revenue")
+        self.assertEqual(connector.get("priority"), "revenue")
         for loop_id in ("life-manager-instagram-metrics", "life-manager-tiktok-metrics"):
             with self.subTest(loop_id=loop_id):
                 row = registry["loops"][loop_id]
@@ -834,6 +838,9 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "account_mutation", "application", "message", "money", "none", "publish", "trade",
         ])
         self.assertEqual(schema["properties"]["adapter"]["enum"], ["exec", "python"])
+        self.assertEqual(schema["properties"]["resource_class"]["enum"], [
+            "agent", "browser", "deterministic",
+        ])
         self.assertEqual(schema["properties"]["command"]["items"], {
             "type": "string", "minLength": 1,
         })
