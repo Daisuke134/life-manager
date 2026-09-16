@@ -665,6 +665,10 @@ Paid's exact owner stdout explains its rapid `exit 1`: repeated `disk_headroom_l
 `effect=0`, `readback=0` (one observation 212,004,864 bytes available). This is a pre-effect safety stop,
 not a failed Coconala send. Keep the floor; obtain real free bytes above it, then verify the next natural
 Paid terminal and official room readback. Host-admission deferrals are a separate failure boundary.
+The next natural Paid wake at 2026-09-16 13:25:58 UTC failed the same pre-effect gate: 320,815,104 bytes
+available, 536,870,912 required, `effect=0`, `readback=0`. A brief earlier rise above the floor was not
+durable. Do not keep polling the unchanged failure or claim a client effect; repair physical headroom before
+the next owner-scoped acceptance check.
 
 **Next order:** (1) restore safe disk/memory headroom and verify next natural revenue wakes, then keep
 one-off/retainer refresh live and prove a fresh eligible retainer screening-answer effect when one exists,
