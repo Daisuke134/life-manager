@@ -463,9 +463,33 @@ def _invoke_existing_reconcile(route: str, projection: Path) -> dict:
     return value
 
 
+def _exact_target_loaded(registry: dict, row: dict, result: dict) -> bool:
+    """Verify the claimed owner already runs the exact immutable target release."""
+    entry = registry.get("loops", {}).get(row.get("job_id"))
+    sha = result.get("release_sha")
+    if not isinstance(entry, dict) or not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+        return False
+    try:
+        release = Path(os.environ.get("LIFE_MANAGER_RELEASE_ROOT", ROOT)).expanduser().resolve(strict=True)
+        if json.loads((release / "RELEASE.json").read_text()).get("sha") != sha:
+            return False
+        label = entry["label"]
+        expected = [str(release / "bin/lm-loop-run"), row["job_id"], str(release)]
+        agents = Path(os.environ.get(
+            "LIFE_MANAGER_LAUNCH_AGENTS_DIR", "~/Library/LaunchAgents")).expanduser()
+        with (agents / f"{label}.plist").open("rb") as handle:
+            if plistlib.load(handle).get("ProgramArguments") != expected:
+                return False
+        rc, output = _safe_launchctl(
+            release / "bin/launchctl-safe", ["print", f"gui/{os.getuid()}/{label}"])
+        return rc == 0 and _loaded_arguments(output) == expected
+    except (OSError, ValueError, TypeError, KeyError, subprocess.TimeoutExpired):
+        return False
+
+
 def _reconcile_applied_target(registry: dict, row: dict, result: dict) -> bool:
-    """Require the existing reconcile result to name the claimed owner explicitly."""
-    if result.get("ok") is not True or result.get("eligible") != 1:
+    """Close only an applied target or an independently verified exact loaded target."""
+    if result.get("ok") is not True or result.get("eligible") not in (0, 1):
         return False
     if result.get("failed") != []:
         return False
@@ -476,13 +500,16 @@ def _reconcile_applied_target(registry: dict, row: dict, result: dict) -> bool:
     if not isinstance(entry, dict):
         return False
     label = entry.get("label")
-    return any(
-        isinstance(item, dict)
-        and (item.get("loop_id") == row.get("job_id") or item.get("label") == label)
-        and item.get("changed") is True
-        and not item.get("skipped")
-        for item in applied
-    )
+    if result["eligible"] == 0:
+        return not applied and _exact_target_loaded(registry, row, result)
+    matching = [item for item in applied if isinstance(item, dict)
+                and (item.get("loop_id") == row.get("job_id") or item.get("label") == label)]
+    if not matching or any(item.get("skipped") for item in matching):
+        return False
+    if any(item.get("changed") is True for item in matching):
+        return True
+    return (any(item.get("changed") is False for item in matching)
+            and _exact_target_loaded(registry, row, result))
 
 
 def dispatch_one_repair(registry: dict, route: str, queue_path: Path | None = None, *,

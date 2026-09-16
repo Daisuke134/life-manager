@@ -407,6 +407,118 @@ def test_repair_does_not_close_when_apply_rechecks_owner_as_running(tmp_path):
     assert json.loads(queue.read_text())["state"] == "queued"
 
 
+def test_repair_closes_after_another_reconcile_already_loaded_exact_target(tmp_path):
+    recovery = tmp_path / "recovery.json"
+    queue = tmp_path / "repair-queue.jsonl"
+    recovery.write_text(json.dumps(_repair_recovery(_escalated_repair())))
+    registry_value = two_loop_registry()
+    assert enqueue_repair_intent(
+        recovery, registry_value, "deterministic", queue_path=queue,
+        recorded_at="2026-09-16T05:00:00+00:00",
+    )["queued"] is True
+
+    with patch.object(lm_loop, "_exact_target_loaded", return_value=True,
+                      create=True) as readback:
+        result = dispatch_one_repair(
+            registry_value, "deterministic", queue, now=100,
+            reconcile=lambda _route, _projection: {
+                "ok": True, "eligible": 0, "failed": [], "applied": [],
+                "release_sha": SHA,
+            },
+        )
+    assert result == {"ok": True, "state": "repaired",
+                      "event_key": "example:example:w1:escalate_repair:2"}
+    readback.assert_called_once()
+    assert json.loads(queue.read_text())["state"] == "repaired"
+
+
+def test_repair_closes_nochange_only_with_exact_loaded_readback(tmp_path):
+    recovery = tmp_path / "recovery.json"
+    queue = tmp_path / "repair-queue.jsonl"
+    recovery.write_text(json.dumps(_repair_recovery(_escalated_repair())))
+    registry_value = two_loop_registry()
+    assert enqueue_repair_intent(
+        recovery, registry_value, "deterministic", queue_path=queue,
+        recorded_at="2026-09-16T05:00:00+00:00",
+    )["queued"] is True
+
+    with patch.object(lm_loop, "_exact_target_loaded", return_value=False,
+                      create=True):
+        blocked = dispatch_one_repair(
+            registry_value, "deterministic", queue, now=100,
+            reconcile=lambda _route, _projection: {
+                "ok": True, "eligible": 1, "failed": [], "release_sha": SHA,
+                "applied": [{"label": "ai.anicca.example", "changed": False}],
+            },
+        )
+    assert blocked["state"] == "queued"
+    with patch.object(lm_loop, "_exact_target_loaded", return_value=True,
+                      create=True):
+        repaired = dispatch_one_repair(
+            registry_value, "deterministic", queue, now=101,
+            reconcile=lambda _route, _projection: {
+                "ok": True, "eligible": 1, "failed": [], "release_sha": SHA,
+                "applied": [{"label": "ai.anicca.example", "changed": False}],
+            },
+        )
+    assert repaired["state"] == "repaired"
+
+
+def test_repair_already_current_requires_real_plist_and_loaded_argv(tmp_path):
+    release = tmp_path / "release"
+    release.mkdir()
+    (release / "RELEASE.json").write_text(json.dumps({"sha": SHA}))
+    agents = tmp_path / "agents"
+    agents.mkdir()
+    expected = [str(release / "bin/lm-loop-run"), "example", str(release)]
+    (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
+        "ProgramArguments": expected,
+    }))
+    recovery = tmp_path / "recovery.json"
+    queue = tmp_path / "repair-queue.jsonl"
+    recovery.write_text(json.dumps(_repair_recovery(_escalated_repair())))
+    registry_value = two_loop_registry()
+    assert enqueue_repair_intent(
+        recovery, registry_value, "deterministic", queue_path=queue,
+        recorded_at="2026-09-16T05:00:00+00:00",
+    )["queued"] is True
+    loaded = "arguments = {\n" + "\n".join(expected) + "\n}\nstate = waiting"
+    with (patch.object(lm_loop, "_safe_launchctl", return_value=(0, loaded)),
+          patch.dict(os.environ, {
+              "LIFE_MANAGER_RELEASE_ROOT": str(release),
+              "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
+          })):
+        result = dispatch_one_repair(
+            registry_value, "deterministic", queue, now=100,
+            reconcile=lambda _route, _projection: {
+                "ok": True, "eligible": 0, "failed": [], "applied": [],
+                "release_sha": SHA,
+            },
+        )
+    assert result["state"] == "repaired"
+
+
+def test_repair_exact_target_readback_rejects_stale_loaded_argv(tmp_path):
+    release = tmp_path / "release"
+    release.mkdir()
+    (release / "RELEASE.json").write_text(json.dumps({"sha": SHA}))
+    agents = tmp_path / "agents"
+    agents.mkdir()
+    expected = [str(release / "bin/lm-loop-run"), "example", str(release)]
+    (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
+        "ProgramArguments": expected,
+    }))
+    stale_loaded = "arguments = {\n/old/bin/lm-loop-run\nexample\n/old\n}\n"
+    with (patch.object(lm_loop, "_safe_launchctl", return_value=(0, stale_loaded)),
+          patch.dict(os.environ, {
+              "LIFE_MANAGER_RELEASE_ROOT": str(release),
+              "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
+          })):
+        assert lm_loop._exact_target_loaded(
+            two_loop_registry(), {"job_id": "example"}, {"release_sha": SHA},
+        ) is False
+
+
 def test_dispatch_one_repair_returns_transient_reconcile_to_queue(tmp_path):
     recovery = tmp_path / "harness-recovery.json"
     queue = tmp_path / "repair-queue.jsonl"
