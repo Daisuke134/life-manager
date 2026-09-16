@@ -6,6 +6,7 @@ ENV_FILE="${LIFE_MANAGER_ENV_FILE:-${HOME}/.local/state/life-manager/.env}"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/load-env-file.sh"
 lm_load_env_file "$ENV_FILE"
+lm_require_env_keys LM_POSTIZ_API_KEY || exit 2
 source "$SCRIPT_DIR/lib/portable-runtime.sh"
 lm_prepare_portable_runtime "$REPO_ROOT"
 exec "$LM_PYTHON" "$LM_TIMEOUT_RUNNER" 300 "$LM_NODE" "$SCRIPT_DIR/tiktok-metrics-due.js"

@@ -28,3 +28,17 @@ lm_load_env_file() {
   fi
   return 0
 }
+
+lm_require_env_keys() {
+  for env_key in "$@"; do
+    case "$env_key" in
+      [A-Z][A-Z0-9_]*) ;;
+      *) printf 'required env key name invalid\n' >&2; return 2 ;;
+    esac
+    if [ -z "${!env_key:-}" ]; then
+      printf 'required env key missing: %s\n' "$env_key" >&2
+      return 2
+    fi
+  done
+  return 0
+}
