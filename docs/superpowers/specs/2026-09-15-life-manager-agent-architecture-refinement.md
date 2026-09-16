@@ -75,9 +75,9 @@ platform adapterの実装そのものをfoundationへ複製しません。
 
 **この仕事は完了していません。** スキルの調査・読み込みと候補branchのテストgreenは、
 Life Managerの実際の応募・契約・納品・報酬・cloud運用が動いたことを意味しません。現在の
-origin/mainは `4d0f8cfbaa`（今回確認した最新main）まで進み、本番selectorは
-`20260916T093051-4d0f8cfb`（SHA `4d0f8cfbaa6b21165a575bab11f4c4ce4e1c5c82`）です。ownerのinstalled/event SHAはまだ混在しています。
-統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `42b3e0a964`）はpush済みですが、最新main `4d0f8cfbaa`はまだ候補へ同期していません。候補をmainへmergeする前に、統合境界で一度だけ同期します。
+origin/mainは `7d2548c8cc`（今回確認した最新remote main）まで進み、本番selectorは
+`20260916T095649-8d366069`（SHA `8d366069ade3f1d78c64bc8b591b0d1f829f017d`）を指しています。remote mainとselectorは一致しておらず、ownerのinstalled/event SHAもまだ混在しています。
+統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `341dbabf3e`）は`7d2548c8cc`を取り込みpush済みですが、候補はまだmainへmergeしていません。
 本番へはまだ統合していません。
 したがって、次の作業は「さらにスキルを読む」ではなく、候補をmain由来immutable releaseへ
 昇格し、ownerごとの自然wakeで公式効果を確認することです。
@@ -94,11 +94,21 @@ provider/state/browserを触らない。handoff receiptができるまで、未�
 | 3 | 同じimmutable releaseをCloudへ配置 | `apps/life-manager/config/product-loop-catalog.json`、`apps/life-manager/lib/product-onboarding.js`（cloud gate）、`apps/life-manager/scripts/cloud-promotion-gate.js`、既存cloud deployment artifact | Local PASSのcandidate SHAだけをcloudへ配置し、cloud側manifestの14 ID、source hash、実行artifact SHAを照合する。別実装・別releaseを作らない | cloud artifact SHAがcandidateと一致、14 ID一致、改変0 |
 | 4 | tenant分離・Steel/browser・phone-only canary | `apps/life-manager/lib/steel-cdp-client.js`、`apps/life-manager/lib/stagehand-steel-driver.js`、`apps/life-manager/lib/browser-job-runtime.js`、`apps/life-manager/scripts/browser-auth-tenant-isolation-e2e.js`、`apps/life-manager/scripts/browser-auth-production-e2e.js` | tenantごとに一つのleased sessionを作り、cookie/storage/profile/state/credentialを共有しない。Steel sessionを確実にreleaseし、phoneから状態確認・human gate再開・公式readbackを行う | tenant A/B cross-read 0、credential/state混在0、session owner重複0、phone-only公式readback |
 | 5 | Cloud gateをPASS | `apps/life-manager/lib/product-onboarding.js`（`evaluateCloudPromotionGate`）、`apps/life-manager/scripts/cloud-promotion-gate.js`、Git外cloud manifest/canary receipt | Local gate、cloud manifest、tenant canary、immutable source、公式readback、replay-zeroを同じ入力で判定する。どれか不明ならBLOCKのままにする | local PASS、cloud 14行、公式readback verified、replay-zero、local state/credential copy 0 |
-| 6 | 最後に一度だけmainへmerge・本番release化 | `/private/tmp/lm-fundamental-runtime-20260916`の専用branch、`skills/loop-development/SKILL.md`、Git/immutable release手順 | 1〜5が全PASSした後だけ、最新mainを統合境界で一度同期し、一度だけmerge・push・immutable release化する。途中mergeやprovider再実行はしない | 全owner同一immutable SHA、production readback、重複effect 0 |
+| 6 | 最後に一度だけmainへmerge・本番release化 | `/private/tmp/lm-fundamental-runtime-20260916`の専用branch、`skills/loop-development/SKILL.md` | 1〜5が全PASSした後だけ、最新mainを統合境界で一度同期し、一度だけmerge・push・immutable release化する。途中mergeやprovider再実行はしない | 全owner同一immutable SHA、production readback、重複effect 0 |
 
 横断するfoundationの未完部分は、`runtime/loop/harness-health.mjs`、`runtime/loop/harness-health-snapshot.mjs`、
 `runtime/loop/index.mjs`に保存したrecovery intentを既存supervisorへ接続し、candidate生成→Eval→
-昇格/rollbackを無人で閉じることです。これはmock成功では完了にせず、1〜5の受入と同じく実データで確認します。
+昇格/rollbackを無人で閉じることです。supervisorの実動作は未接続です。
+これはmock成功では完了にせず、1〜5の受入と同じく実データで確認します。
+
+#### TODO 1の現在のslice: `gig-coconala`
+
+Git外のCoconala receiptをread-onlyで確認した結果、認証済み・公式talkroom参照・
+`exact_readback=true`・`quality_status=qualified`の実receiptは存在します。しかしcatalogの7 jobは、
+最新statusで`pass`が1件、`blocked`が4件、`fail`が1件、別releaseの`pass`が1件でした。したがって
+`runtime_evidence.ready=false`であり、`gig-coconala`を`verified`へ接続していません。次の一手は、
+provider ownerが同じimmutable releaseで7 jobを再確認し、公式receipt・release SHA・replay-zeroを
+揃えることです。古いreceiptを再利用したり、mock/fixtureで穴埋めしたりしません。
 
 **別Codexのprovider TODO（参照用）:** 下記の細かいprovider表はGig/Coconala/Lancers/Mercorの
 外部effect ownerが進める資料です。私のfoundation cursorでは、mock・Claude-p・provider操作を実行しません。
