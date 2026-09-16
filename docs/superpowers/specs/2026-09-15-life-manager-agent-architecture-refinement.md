@@ -327,6 +327,14 @@ manifestはすべて`blocked`、Local gateは`blocked_product_loop`となった�
 自然wake待ちのownerより先に動くと、reconcile済みownerが再びrelease driftになることを示す実測で
 あり、current immutable releaseが安定し同一ownerのterminalを得るまでR2-03/R2-04をPASSへ昇格しない。
 
+**R2-02 release-reconcile backlog atomic (candidate `673098786e`):** 既存のrelease-reconcilerが
+routeごとに一回1 ownerだけを処理していたため、deterministic stale plistが98件ある実機で
+Connectorが58番目まで待たされる状態を確認した。既存`lm-loop reconcile`の順序とloaded-idle
+境界は変えず、reconciler一回あたりの上限を既定8件へ広げ、`LIFE_MANAGER_RECONCILE_MAX_OWNERS`
+は1〜16だけを受け付ける。これはplist再配置を順番に行うだけで、loop/browser同時実行数や
+provider effectを増やさない。reconciler回帰は12 tests PASS。candidateはpush済みだがmain/production
+へ未反映であり、ConnectorのGoogle Calendar公式登録・自然wake E2Eはまだ未確認である。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
