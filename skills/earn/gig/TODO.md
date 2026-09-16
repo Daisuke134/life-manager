@@ -672,6 +672,14 @@ clears it, so liveness would be lost after a timeout. Exact next slices:
    malformed rows fail closed rather than disappearing from the recovery set.
    Connector780, host/runner131 and OSS checks still PASS. The global journal
    remains a precursor, not an official receipt or autonomous resolver.
+   Source-only `c43c45aaa7` makes the write-ahead row's first creation durable:
+   the file and its containing directory are fsynced before return, and the
+   state directory's full newly created ancestor chain is fsynced on every
+   construction, including retries after a failed sync. A sync failure stops
+   the awaited intent call before provider action. RED→GREEN first/retry and
+   nested-ancestor fixtures, operations25 and relevant Connector/native171
+   tests PASS; fresh read-only review SHIP. It is not a closed target-set
+   snapshot or production effect proof.
 2. **OPEN — child-closed snapshot:** For an exact host occurrence, first prove the
    child is terminal/dead and can no longer append an intent. Include the
    zero-intent case: reconcile the same wake's action/Telegram claim before
