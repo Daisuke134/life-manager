@@ -661,6 +661,10 @@ Read-only lease audit: Apply's 14 gig contexts are parked and preserved. Reply's
 that are no longer running, but the authenticated `:9223` profile is shared with other Codex work. Do not
 run Reply-ledger GC until that exact cross-session resource is coordinated; then use the existing CAS-guarded
 owner GC, not raw target deletion, and verify sibling tabs plus physical free bytes afterward.
+Paid's exact owner stdout explains its rapid `exit 1`: repeated `disk_headroom_low` with a 512 MiB floor,
+`effect=0`, `readback=0` (one observation 212,004,864 bytes available). This is a pre-effect safety stop,
+not a failed Coconala send. Keep the floor; obtain real free bytes above it, then verify the next natural
+Paid terminal and official room readback. Host-admission deferrals are a separate failure boundary.
 
 **Next order:** (1) restore safe disk/memory headroom and verify next natural revenue wakes, then keep
 one-off/retainer refresh live and prove a fresh eligible retainer screening-answer effect when one exists,
