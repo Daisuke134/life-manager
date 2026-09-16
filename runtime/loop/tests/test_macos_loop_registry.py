@@ -234,6 +234,18 @@ class MacosLoopRegistryTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "secret-like"):
             validate_registry(secret)
 
+    def test_registry_accepts_only_the_explicit_queue_priorities(self):
+        value = entry()
+        value["priority"] = "revenue"
+        self.assertEqual(
+            validate_registry({"schema_version": 2, "loops": {"example": value}})["loops"]["example"]["priority"],
+            "revenue",
+        )
+        invalid = entry()
+        invalid["priority"] = "urgent"
+        with self.assertRaisesRegex(ValueError, "invalid priority"):
+            validate_registry({"schema_version": 2, "loops": {"example": invalid}})
+
     def test_command_and_adapter_are_validated_as_one_contract(self):
         value = entry()
         value.update({"adapter": "python", "command": ["dashboard"]})

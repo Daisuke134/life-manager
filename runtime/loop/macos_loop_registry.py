@@ -17,8 +17,9 @@ FIELDS = {
 }
 OPTIONAL_FIELDS = {
     "adapter", "admission_class", "browser_owner", "command",
-    "runtime_timeout_seconds", "resource_class",
+    "priority", "runtime_timeout_seconds", "resource_class",
 }
+QUEUE_PRIORITIES = {"critical_paid", "revenue", "support"}
 SECRET_FIELD = re.compile(r"token|secret|password|credential|auth|api.?key", re.I)
 LAUNCHD_LABEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
@@ -65,6 +66,8 @@ def validate_registry(registry: dict) -> dict:
             _fail(f"{loop_id}: invalid resource_class")
         if row.get("admission_class") not in {None, "borrow", "revenue"}:
             _fail(f"{loop_id}: invalid admission_class")
+        if row.get("priority") not in {None, *QUEUE_PRIORITIES}:
+            _fail(f"{loop_id}: invalid priority")
         adapter_present = "adapter" in row
         command_present = "command" in row
         if adapter_present != command_present:
@@ -204,6 +207,7 @@ def loop_json_schema() -> dict:
             "provider_route": {"type": "string", "enum": sorted(ROUTES)},
             "admission_class": {"type": "string", "enum": ["borrow", "revenue"]},
             "resource_class": {"type": "string", "enum": ["agent", "deterministic"]},
+            "priority": {"type": "string", "enum": sorted(QUEUE_PRIORITIES)},
             "runtime_timeout_seconds": positive_integer,
             "adapter": {"type": "string", "enum": ["exec", "python"]},
             "command": {
