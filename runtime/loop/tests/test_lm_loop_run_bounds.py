@@ -11,7 +11,8 @@ from unittest.mock import call, patch
 
 from runtime.host import resource_admission as admission
 from runtime.loop.lm_loop_run import (
-    _admission_class, _dispatch_reserved, _host_admission_deferred, _resource_class,
+    _admission_class, _coalescing_release_arguments, _dispatch_reserved,
+    _host_admission_deferred, _resource_class,
     _run_admitted, _run_entrypoint, _runtime_limit, _terminal_outcome,
 )
 
@@ -557,8 +558,10 @@ def test_dispatch_reserved_kicks_exact_immutable_coalescing_release(tmp_path):
     (current / "config").mkdir(parents=True)
     (current / "bin").mkdir()
     (candidate / "config").mkdir(parents=True)
+    (candidate / "bin").mkdir()
     agents.mkdir()
     (current / "bin/launchctl-safe").write_text("safe")
+    (candidate / "bin/lm-loop-run").write_text("runner")
     row = {
         "label": "ai.anicca.example", "domain": "earn", "entrypoint": "bin/example",
         "cadence": {"start_interval_seconds": 300}, "effect_class": "message",
@@ -575,7 +578,15 @@ def test_dispatch_reserved_kicks_exact_immutable_coalescing_release(tmp_path):
             **row, "coalesce_reserved_wakes": True, "coalesce_queued_wakes": True,
         }},
     }))
-    (candidate / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+    (candidate / "RELEASE.json").write_text(json.dumps({
+        "sha": "a" * 40, "provenance": "ancestor-of-origin-main", "release_paths": "ALL",
+    }))
+    for directory in (candidate / "bin", candidate / "config", candidate):
+        directory.chmod(0o555)
+    for file in (candidate / "bin/lm-loop-run", candidate / "RELEASE.json",
+                 candidate / "config/loop-registry.json"):
+        file.chmod(0o444)
+    (candidate / "bin/lm-loop-run").chmod(0o555)
     expected = [str(candidate / "bin/lm-loop-run"), "example", str(candidate)]
     (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
         "ProgramArguments": expected,
@@ -599,8 +610,10 @@ def test_dispatch_reserved_does_not_report_candidate_after_post_kick_release_swa
     (current / "config").mkdir(parents=True)
     (current / "bin").mkdir()
     (candidate / "config").mkdir(parents=True)
+    (candidate / "bin").mkdir()
     agents.mkdir()
     (current / "bin/launchctl-safe").write_text("safe")
+    (candidate / "bin/lm-loop-run").write_text("runner")
     row = {
         "label": "ai.anicca.example", "domain": "earn", "entrypoint": "bin/example",
         "cadence": {"start_interval_seconds": 300}, "effect_class": "message",
@@ -617,7 +630,15 @@ def test_dispatch_reserved_does_not_report_candidate_after_post_kick_release_swa
             **row, "coalesce_reserved_wakes": True, "coalesce_queued_wakes": True,
         }},
     }))
-    (candidate / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+    (candidate / "RELEASE.json").write_text(json.dumps({
+        "sha": "a" * 40, "provenance": "ancestor-of-origin-main", "release_paths": "ALL",
+    }))
+    for directory in (candidate / "bin", candidate / "config", candidate):
+        directory.chmod(0o555)
+    for file in (candidate / "bin/lm-loop-run", candidate / "RELEASE.json",
+                 candidate / "config/loop-registry.json"):
+        file.chmod(0o444)
+    (candidate / "bin/lm-loop-run").chmod(0o555)
     expected = [str(candidate / "bin/lm-loop-run"), "example", str(candidate)]
     (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
         "ProgramArguments": expected,
@@ -666,6 +687,93 @@ def test_dispatch_reserved_defers_old_reservation_only_candidate(tmp_path):
         assert _dispatch_reserved(["example"], current=current, agents_dir=agents) == []
     defer.assert_called_once_with("example", cooldown_seconds=60)
     run.assert_not_called()
+
+
+def test_coalescing_release_rejects_changed_entrypoint(tmp_path):
+    candidate = tmp_path / "releases" / f"20260917T010743-{'a' * 8}"
+    (candidate / "config").mkdir(parents=True)
+    current_row = {
+        "label": "ai.anicca.example", "domain": "earn", "entrypoint": "bin/current",
+        "cadence": {"start_interval_seconds": 300}, "effect_class": "message",
+        "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic",
+    }
+    (candidate / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": {
+            **current_row, "entrypoint": "bin/other",
+            "coalesce_reserved_wakes": True, "coalesce_queued_wakes": True,
+        }},
+    }))
+    (candidate / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+    args = [str(candidate / "bin/lm-loop-run"), "example", str(candidate)]
+    assert _coalescing_release_arguments(args, "example", current_row) is None
+
+
+def test_coalescing_release_rejects_unmerged_candidate_provenance(tmp_path):
+    candidate = tmp_path / "releases" / f"20260917T010743-{'a' * 8}"
+    (candidate / "config").mkdir(parents=True)
+    row = {
+        "label": "ai.anicca.example", "domain": "earn", "entrypoint": "bin/example",
+        "cadence": {"start_interval_seconds": 300}, "effect_class": "message",
+        "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic",
+    }
+    (candidate / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": {
+            **row, "coalesce_reserved_wakes": True, "coalesce_queued_wakes": True,
+        }},
+    }))
+    (candidate / "RELEASE.json").write_text(json.dumps({
+        "sha": "a" * 40, "provenance": "pushed-not-yet-on-main", "release_paths": "ALL",
+    }))
+    args = [str(candidate / "bin/lm-loop-run"), "example", str(candidate)]
+    assert _coalescing_release_arguments(args, "example", row) is None
+
+
+def test_coalescing_release_rejects_writable_release_files(tmp_path):
+    candidate = tmp_path / "releases" / f"20260917T010743-{'a' * 8}"
+    (candidate / "config").mkdir(parents=True)
+    (candidate / "bin").mkdir()
+    (candidate / "bin/lm-loop-run").write_text("runner")
+    row = {
+        "label": "ai.anicca.example", "domain": "earn", "entrypoint": "bin/example",
+        "cadence": {"start_interval_seconds": 300}, "effect_class": "message",
+        "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic",
+    }
+    (candidate / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": {
+            **row, "coalesce_reserved_wakes": True, "coalesce_queued_wakes": True,
+        }},
+    }))
+    (candidate / "RELEASE.json").write_text(json.dumps({
+        "sha": "a" * 40, "provenance": "ancestor-of-origin-main", "release_paths": "ALL",
+    }))
+    args = [str(candidate / "bin/lm-loop-run"), "example", str(candidate)]
+    assert _coalescing_release_arguments(args, "example", row) is None
+
+
+def test_coalescing_release_rejects_nonobject_manifest(tmp_path):
+    candidate = tmp_path / "releases" / f"20260917T010743-{'a' * 8}"
+    (candidate / "config").mkdir(parents=True)
+    (candidate / "bin").mkdir()
+    (candidate / "bin/lm-loop-run").write_text("runner")
+    (candidate / "config/loop-registry.json").write_text('{"loops":{}}')
+    (candidate / "RELEASE.json").write_text("[]")
+    for directory in (candidate / "bin", candidate / "config", candidate):
+        directory.chmod(0o555)
+    for file in (candidate / "bin/lm-loop-run", candidate / "RELEASE.json",
+                 candidate / "config/loop-registry.json"):
+        file.chmod(0o444)
+    (candidate / "bin/lm-loop-run").chmod(0o555)
+    args = [str(candidate / "bin/lm-loop-run"), "example", str(candidate)]
+    assert _coalescing_release_arguments(args, "example", {"label": "ai.anicca.example"}) is None
 
 
 def test_dispatch_reserved_defers_mixed_release_without_coalescing_contract(tmp_path):

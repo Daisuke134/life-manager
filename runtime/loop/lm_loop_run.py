@@ -285,9 +285,24 @@ def _coalescing_release_arguments(arguments: object, loop_id: str,
     try:
         if release.resolve(strict=True) != release:
             return None
-        sha = json.loads((release / "RELEASE.json").read_text()).get("sha")
+        protected = (
+            release, release / "bin", release / "config",
+            release / "RELEASE.json", release / "config/loop-registry.json",
+            release / "bin/lm-loop-run",
+        )
+        if any(path.stat().st_mode & 0o222 for path in protected):
+            return None
+        runner = release / "bin/lm-loop-run"
+        if not runner.is_file() or not runner.stat().st_mode & 0o111:
+            return None
+        manifest = json.loads((release / "RELEASE.json").read_text())
+        if not isinstance(manifest, dict):
+            return None
+        sha = manifest.get("sha")
         if (not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha)
-                or not sha.startswith(release.name.rsplit("-", 1)[1])):
+                or not sha.startswith(release.name.rsplit("-", 1)[1])
+                or manifest.get("provenance") != "ancestor-of-origin-main"
+                or manifest.get("release_paths") != "ALL"):
             return None
         target = json.loads((release / "config/loop-registry.json").read_text())
         loops = target.get("loops") if isinstance(target, dict) else None
@@ -297,12 +312,11 @@ def _coalescing_release_arguments(arguments: object, loop_id: str,
     if (not isinstance(owner, dict) or not isinstance(owner.get("cadence"), dict)
             or owner.get("coalesce_reserved_wakes") is not True
             or owner.get("coalesce_queued_wakes") is not True
-            or owner.get("label") != entry.get("label")
-            or owner.get("state_root") != entry.get("state_root")
-            or owner.get("effect_class") != entry.get("effect_class")
-            or owner.get("provider_route") != entry.get("provider_route")
-            or owner.get("cadence") != entry.get("cadence")
-            or owner.get("cadence", {}).get("keep_alive")):
+            or owner["cadence"].get("keep_alive")):
+        return None
+    markers = {"coalesce_reserved_wakes", "coalesce_queued_wakes"}
+    if ({key: value for key, value in owner.items() if key not in markers}
+            != {key: value for key, value in entry.items() if key not in markers}):
         return None
     expected = [str(release / "bin/lm-loop-run"), loop_id, str(release)]
     return expected if arguments == expected else None
