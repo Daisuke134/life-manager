@@ -533,6 +533,13 @@ The corresponding `composition-inbox` receipt contains two sources with the
 same `source_set_sha256`. This closes the first bounded Affiliate transition,
 but not replay/no-starvation: the next natural wake must advance to a distinct
 plan, and Instagram/TikTok still need actual Postiz metric readbacks.
+The next 18:33 natural Affiliate wake was `blocked/resource_capacity_busy`
+before source work; its cursor remained one captured plan/82 pending.
+Foundation source integrates latest main's bridge/reconciler changes in
+pushed merge `b5805f4352`; focused 302 tests+165 subtests, 466 complete
+control-plane tests, Marketing21, candidate doctor164 and OSS boundary PASS.
+Fresh conflict-resolution review is pending. The loaded Affiliate label still
+uses earlier immutable `5f7a0ce8`, so the merge is not production proof.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

@@ -905,6 +905,20 @@ and downstream handoff, not a provider submission, publication or revenue.
 The next natural wake must process the **next** plan without repeating this
 one, terminate and release again; other borrow waiters must also claim, or
 the 14 queued Affiliate occurrences could still starve sibling Metrics.
+The following 18:33 natural Affiliate wake ended pre-effect
+`host_admission_deferred:resource_capacity_busy`; the durable cursor remained
+one captured plan/82 pending. This is a truthful capacity wait, **not**
+replay-zero or second-plan completion. Keep its queued occurrence while
+revenue owners occupy the finite slots.
+Separately, the 90-file foundation candidate integrated latest main's two
+bridge commits with conflict-aware merge `b5805f4352`. Candidate admission
+combines occurrence/priority/heartbeat fences with main's 60-second drift
+cooldown and bounded follower handoff; recovery-intent still targets one
+owner, while automatic reconcile uses ancestry protection and fleet readback.
+Post-merge focused tests 302 plus 165 subtests, full control-plane 466/466,
+Marketing Node 21/21, candidate doctor 164/164 and OSS boundary PASS. Fresh
+read-only conflict-resolution review is pending. This is source convergence,
+not a new immutable candidate load, main domain merge or provider success.
 The user-owned goal cannot pass its Local queue gate while old main dispatchers
 delete candidate queue rows. The later instruction to take ownership and not
 stall the goal is therefore used for a narrow exception to the previous
