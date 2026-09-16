@@ -20,7 +20,8 @@
           "deliver_date",
           "work_frequency",
           "weekly_hours_min",
-          "weekly_hours_max"
+          "weekly_hours_max",
+          "screening_answers"
         ],
         "properties": {
           "request_id": {"type": "string", "pattern": "^(?:[0-9]+|[0-7][0-9A-HJKMNP-TV-Z]{25})$"},
@@ -40,7 +41,20 @@
             "enum": ["WEEK_ONE", "WEEK_TWO", "WEEK_THREE", "WEEK_FOUR", "WEEK_FIVE", "BIWEEKLY", "MONTH_ONE", null]
           },
           "weekly_hours_min": {"type": ["integer", "null"], "minimum": 0},
-          "weekly_hours_max": {"type": ["integer", "null"], "minimum": 0}
+          "weekly_hours_max": {"type": ["integer", "null"], "minimum": 0},
+          "screening_answers": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["question", "answer"],
+              "properties": {
+                "question": {"type": "string", "minLength": 1, "maxLength": 1000},
+                "answer": {"type": "string", "minLength": 1, "maxLength": 5000}
+              }
+            }
+          }
         }
       }
     }

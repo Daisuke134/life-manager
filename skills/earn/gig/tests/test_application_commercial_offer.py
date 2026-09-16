@@ -166,6 +166,7 @@ def test_disk_headroom_is_rechecked_before_irreversible_submit(tmp_path, monkeyp
         "work_frequency": None,
         "weekly_hours_min": None,
         "weekly_hours_max": None,
+        "screening_answers": [],
     }]}
     effects = application_parent.FixtureEffects(snapshot, {})
     monkeypatch.setattr(gig_disk_guard, "disk_headroom_ok", lambda: False)
