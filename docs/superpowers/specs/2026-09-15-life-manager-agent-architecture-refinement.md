@@ -184,6 +184,15 @@ Connectorの自然terminalがblockedのため未完、`R2-04` Local gate再実�
 deterministic reservationが1件あり、revenue floorを守るためborrow枠が止まっていた。これはFIFOが
 消えたのではなく、収益処理を優先している既知状態であり、他ownerを停止して解消しない。
 
+さらに`_last_event`がreportだけを読むことで、同じ`loop_id`の外側runが実行中でも、内側agent-runnerの
+後続reportを最後のterminalと誤認する問題を確認した。candidate `682d074041`では、未完の
+`execute/running`を`run_id`単位で保持し、対応するreportが現れるまで内側reportより優先する
+`_latest_runtime_event`をstatus readerへ接続した。実機statusでもConnectorのPID `22556`は
+`last_terminal_result=running`、`blocker=null`、installed/eventは同じ`bce56bc9...`となり、
+`acct1`の内側report/passへすり替わらないことを確認した。readonly 87 tests/113 subtests、
+run/admission 90 tests、product/gate 43 testsがPASS。これはobservabilityの修正であり、Connectorの
+外部登録receiptではない。現在のlive runが終了して一致するreportを出すまで、R2-03は未完のままとする。
+
 同日、外部effectを持たないConnector ownerだけをcurrent immutable releaseへtargeted reconcileした。
 installed SHAはcurrentへ揃ったが、その一回のkickstart後の最新eventに制御ロック競合が残り、
 スケジュールされた自然wakeの成功terminal/readbackは未確認である。
