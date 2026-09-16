@@ -21,6 +21,7 @@ from typing import Callable
 
 ADMISSION_CLASSES = {"borrow", "revenue"}
 ADMISSION_POLICY = "revenue-floor-v1"
+RESOURCE_CLASSES = ("agent", "browser", "deterministic")
 
 # ``admission_class`` remains the mixed-release capacity fence.  These
 # explicit priorities are an ordering policy for durable waiters and are
@@ -276,11 +277,21 @@ def _database(path: Path) -> sqlite3.Connection:
     if version not in {0, 2}:
         connection.close()
         raise RuntimeError("unsupported durable admission schema")
+    legacy_class_tables = []
+    for table in ("queue", "occurrences"):
+        existing = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name=?",
+            (table,),
+        ).fetchone()
+        if existing and "'browser'" not in str(existing[0]):
+            legacy_name = f"{table}_legacy_browser"
+            connection.execute(f"ALTER TABLE {table} RENAME TO {legacy_name}")
+            legacy_class_tables.append((table, legacy_name))
     connection.executescript("""
         CREATE TABLE IF NOT EXISTS queue (
             sequence INTEGER PRIMARY KEY AUTOINCREMENT,
             owner_id TEXT NOT NULL UNIQUE,
-            resource_class TEXT NOT NULL CHECK(resource_class IN ('agent','deterministic'))
+            resource_class TEXT NOT NULL CHECK(resource_class IN ('agent','browser','deterministic'))
         );
         CREATE TABLE IF NOT EXISTS reservations (
             owner_id TEXT PRIMARY KEY,
@@ -298,7 +309,7 @@ def _database(path: Path) -> sqlite3.Connection:
         CREATE TABLE IF NOT EXISTS occurrences (
             occurrence_id TEXT PRIMARY KEY,
             owner_id TEXT NOT NULL,
-            resource_class TEXT NOT NULL CHECK(resource_class IN ('agent','deterministic')),
+            resource_class TEXT NOT NULL CHECK(resource_class IN ('agent','browser','deterministic')),
             admission_class TEXT NOT NULL CHECK(admission_class IN ('borrow','revenue')),
             base_priority TEXT NOT NULL,
             queued_at REAL NOT NULL,
@@ -307,6 +318,15 @@ def _database(path: Path) -> sqlite3.Connection:
         );
         PRAGMA user_version=2;
     """)
+    for table, legacy_name in legacy_class_tables:
+        columns = "sequence,owner_id,resource_class" if table == "queue" else (
+            "occurrence_id,owner_id,resource_class,admission_class,base_priority,"
+            "queued_at,state,sequence"
+        )
+        connection.execute(
+            f"INSERT OR IGNORE INTO {table}({columns}) SELECT {columns} FROM {legacy_name}"
+        )
+        connection.execute(f"DROP TABLE {legacy_name}")
     priority_columns = {
         row[1] for row in connection.execute("PRAGMA table_info(priorities)")
     }
@@ -341,8 +361,9 @@ def _limits(resource_class: str, admission_class: str = "borrow") -> tuple[int, 
         return total, _capacity("LIFE_MANAGER_HOST_MAX_REVENUE_RUNS", total)
     per_class = _capacity(
         "LIFE_MANAGER_HOST_MAX_AGENT_RUNS" if resource_class == "agent"
+        else "LIFE_MANAGER_HOST_MAX_BROWSER_RUNS" if resource_class == "browser"
         else "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS",
-        1 if resource_class == "agent" else 2,
+        1 if resource_class in {"agent", "browser"} else 2,
     )
     return total, per_class
 
@@ -567,7 +588,7 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                     and isinstance(row.get("sequence"), int)
                     and not isinstance(row.get("sequence"), bool)
                     and isinstance(row.get("owner_id"), str) and row["owner_id"]
-                    and row.get("resource_class") in {"agent", "deterministic"}):
+                    and row.get("resource_class") in set(RESOURCE_CLASSES)):
                 connection.execute(
                     "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
                     (row["sequence"], row["owner_id"], row["resource_class"]))
@@ -618,7 +639,7 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                     occurrence_id: str | None = None,
                     now: float | None = None) -> tuple[Path | None, str]:
     """Persist a process-independent, priority-aware queue position."""
-    if (resource_class not in {"agent", "deterministic"} or not owner_id
+    if (resource_class not in set(RESOURCE_CLASSES) or not owner_id
             or admission_class not in ADMISSION_CLASSES):
         raise RuntimeError("invalid resource identity")
     priority_name = _normalize_priority(priority, admission_class)
@@ -899,12 +920,12 @@ def _reserve_locked(connection: sqlite3.Connection, owners: Path, tickets: Path,
     dispatched = []
     while True:
         connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (instant,))
-        for resource_class in ("agent", "deterministic"):
+        for resource_class in RESOURCE_CLASSES:
             _durable_capacity(
                 connection, owners, resource_class, "borrow", instant,
                 starts, snapshot_started_ns)
         candidates = []
-        for resource_class in ("agent", "deterministic"):
+        for resource_class in RESOURCE_CLASSES:
             candidate = _next_durable_candidate(
                 connection, owners, tickets, resource_class, instant,
                 starts, snapshot_started_ns)
@@ -1019,7 +1040,7 @@ def try_acquire(resource_class: str, owner_id: str, *,
                 retain_ticket: bool = True,
                 required_protocol: int | None = None) -> tuple[Path | None, str]:
     """Atomically claim a slot; live waiters are served FIFO within each class."""
-    if (resource_class not in {"agent", "deterministic"} or not owner_id
+    if (resource_class not in set(RESOURCE_CLASSES) or not owner_id
             or admission_class not in ADMISSION_CLASSES):
         raise RuntimeError("invalid resource identity")
     root = state_root()

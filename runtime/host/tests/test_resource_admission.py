@@ -655,6 +655,28 @@ def test_heartbeat_updates_only_the_owned_claim(tmp_path, monkeypatch):
     admission.release_and_reserve(claim, reserve=False)
 
 
+def test_browser_resource_class_has_independent_capacity(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="3")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_RUNS", "1")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_BROWSER_RUNS", "1")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS", "1")
+    admission.activate_durable_v2()
+
+    agent, reason = admission.try_acquire("agent", "agent-owner", retain_ticket=False)
+    browser, reason = admission.try_acquire("browser", "browser-owner", retain_ticket=False)
+    second_browser, browser_reason = admission.try_acquire(
+        "browser", "browser-second", retain_ticket=False)
+    deterministic, deterministic_reason = admission.try_acquire(
+        "deterministic", "deterministic-owner", retain_ticket=False)
+
+    assert agent and browser and deterministic
+    assert second_browser is None and browser_reason == "capacity_busy"
+    assert deterministic_reason == "acquired"
+    admission.release(agent)
+    admission.release(browser)
+    admission.release(deterministic)
+
+
 def test_revenue_priority_applies_across_resource_classes(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_RUNS", "1")
