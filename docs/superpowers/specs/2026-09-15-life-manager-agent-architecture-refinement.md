@@ -218,8 +218,9 @@ terminalの修復であり、自己改善が成功したというreceiptでは�
 自然wake後に再確認する。
 
 さらに外部effectを持たない`life-manager-selfbuild` ownerも同じtargeted reconcileでcurrent SHAへ揃えた。
-installed SHAは更新されたが、最後のruntime report/eventは旧SHAで`resource_control_busy`のため、自然wakeの
-成功とは扱わない。
+最新のpreflightはPASSし、installed SHAはcurrent `c5cae826bee7bc8c9bb414037a11c3261b9e5102`へ一致した。
+ただし自己変更を伴うownerの即時kickstartは行わず、最後のruntime report/eventは旧SHAで
+`resource_control_busy`のままなので、自然wakeの成功とは扱わない。
 
 `job-search-daily`もpreflight PASS後にtargeted reconcileし、自然terminalを観測した。installed/event SHAは
 currentへ一致したが、`last_exit=75`、`host_admission_deferred:resource_capacity_busy`で終了した。
