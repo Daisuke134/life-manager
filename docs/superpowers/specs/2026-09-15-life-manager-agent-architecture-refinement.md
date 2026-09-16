@@ -74,14 +74,18 @@ origin/mainは `4d0f8cfbaa`（今回確認した最新main）まで進み、本�
 **前提0（最優先）:** gig workの外部effectを実行するCodexを一つに固定し、もう一方は同じ
 provider/state/browserを触らない。handoff receiptができるまで、未統合candidateの再実行も行わない。
 
-| 順番 | atomic task | 現在 | 完了条件 |
-|---:|---|---|---|
-| 1 | 14 Loopの実際の公式receiptをmanifestへ接続 | **未完**。manifestは`verified=0 / setup_required=6 / unknown=8` | 14 Loopごとに公式provider/payment receiptまたは明示的typed terminal、effect key重複0、replay-zero |
-| 2 | Local gateを実データでPASS | **BLOCK**。`lm-loop status all`は13秒・267行、`unknown_product_loop` | `unknown=0`でLocal gate PASS。mock/fixtureは不可 |
-| 3 | 同じimmutable releaseをCloudへ配置 | 未実施 | Local gate PASS後、candidateと同一SHAのcloud artifactを配置しsource hashを検証 |
-| 4 | tenant分離・Steel/browser・phone-only canary | 未実施 | tenant A/B cross-read 0、credential/state混在0、session owner分離、phone-only公式readback |
-| 5 | Cloud gateをPASS | 未実施 | local PASS、cloud 14行、公式readback verified、replay-zero、local state/credential copy 0 |
-| 6 | 最後に一度だけmainへmerge・本番release化 | 未実施 | 1〜5全PASS後に一度だけmerge、全owner同一immutable SHA、production readback |
+| 順番 | atomic task | 変更/参照ファイル | 具体的にすること | PASS条件 |
+|---:|---|---|---|---|
+| 1 | 14 Loopの実際の公式receiptをmanifestへ接続 | `apps/life-manager/config/product-loop-catalog.json`、`apps/life-manager/lib/product-onboarding.js`、`apps/life-manager/scripts/product-loop-completion.js`、`runtime/loop/lm_loop.py`、各ownerのGit外private evidence | 14行をcatalogのID/jobへ対応させ、各行へ公式provider/payment receipt、owner、同一release SHA、6契約、`replay_zero`を実測入力する。receiptが無い行は成功にせずtyped terminalへする | 14行のID一致、公式receiptまたは明示的terminal、effect key重複0、replay-zero |
+| 2 | Local gateを実データでPASS | `apps/life-manager/lib/product-onboarding.js`（`evaluateLocalCompletionGate`）、`apps/life-manager/scripts/local-completion-gate.js`、Git外private manifest | gateを緩めず、`unknown`を実receiptまたは理由付き`setup_required`/`not_applicable`へ解消する。manifestとgate出力はprivate mode 0600で保存する | `unknown=0`、Local gate PASS。mock/fixtureは不可 |
+| 3 | 同じimmutable releaseをCloudへ配置 | `apps/life-manager/config/product-loop-catalog.json`、`apps/life-manager/lib/product-onboarding.js`（cloud gate）、`apps/life-manager/scripts/cloud-promotion-gate.js`、既存cloud deployment artifact | Local PASSのcandidate SHAだけをcloudへ配置し、cloud側manifestの14 ID、source hash、実行artifact SHAを照合する。別実装・別releaseを作らない | cloud artifact SHAがcandidateと一致、14 ID一致、改変0 |
+| 4 | tenant分離・Steel/browser・phone-only canary | `apps/life-manager/lib/steel-cdp-client.js`、`apps/life-manager/lib/stagehand-steel-driver.js`、`apps/life-manager/lib/browser-job-runtime.js`、`apps/life-manager/scripts/browser-auth-tenant-isolation-e2e.js`、`apps/life-manager/scripts/browser-auth-production-e2e.js` | tenantごとに一つのleased sessionを作り、cookie/storage/profile/state/credentialを共有しない。Steel sessionを確実にreleaseし、phoneから状態確認・human gate再開・公式readbackを行う | tenant A/B cross-read 0、credential/state混在0、session owner重複0、phone-only公式readback |
+| 5 | Cloud gateをPASS | `apps/life-manager/lib/product-onboarding.js`（`evaluateCloudPromotionGate`）、`apps/life-manager/scripts/cloud-promotion-gate.js`、Git外cloud manifest/canary receipt | Local gate、cloud manifest、tenant canary、immutable source、公式readback、replay-zeroを同じ入力で判定する。どれか不明ならBLOCKのままにする | local PASS、cloud 14行、公式readback verified、replay-zero、local state/credential copy 0 |
+| 6 | 最後に一度だけmainへmerge・本番release化 | `/private/tmp/lm-fundamental-runtime-20260916`の専用branch、`skills/loop-development/SKILL.md`、Git/immutable release手順 | 1〜5が全PASSした後だけ、最新mainを統合境界で一度同期し、一度だけmerge・push・immutable release化する。途中mergeやprovider再実行はしない | 全owner同一immutable SHA、production readback、重複effect 0 |
+
+横断するfoundationの未完部分は、`runtime/loop/harness-health.mjs`、`runtime/loop/harness-health-snapshot.mjs`、
+`runtime/loop/index.mjs`に保存したrecovery intentを既存supervisorへ接続し、candidate生成→Eval→
+昇格/rollbackを無人で閉じることです。これはmock成功では完了にせず、1〜5の受入と同じく実データで確認します。
 
 **別Codexのprovider TODO（参照用）:** 下記の細かいprovider表はGig/Coconala/Lancers/Mercorの
 外部effect ownerが進める資料です。私のfoundation cursorでは、mock・Claude-p・provider操作を実行しません。
