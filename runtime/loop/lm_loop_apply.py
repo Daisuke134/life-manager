@@ -64,6 +64,25 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
         "StandardOutPath": str(Path(log_root) / "launchd.out.log"),
         "StandardErrorPath": str(Path(log_root) / "launchd.err.log"),
     }
+    if entry["entrypoint"] in {
+        "apps/life-manager/scripts/mobile-app",
+        "apps/life-manager/scripts/instagram-metrics-production-boot.sh",
+        "apps/life-manager/scripts/tiktok-metrics-production-boot.sh",
+    }:
+        node = shutil.which("node")
+        python = (runtime_python or Path(sys.executable).resolve()).resolve()
+        if (not node or not Path(node).is_absolute() or not os.access(node, os.X_OK)
+                or not python.is_file() or not os.access(python, os.X_OK)):
+            raise ValueError(f"{loop_id}: managed Node/Python executable is unavailable")
+        marketing_env = str(Path.home() / ".local/state/life-manager/private/marketing.env")
+        value["EnvironmentVariables"].update({
+            "LIFE_MANAGER_NODE": str(Path(node).resolve()),
+            "NODE_BIN": str(Path(node).resolve()),
+            "LIFE_MANAGER_PYTHON": str(python),
+            "PYTHON_BIN": str(python),
+            "LIFE_MANAGER_MARKETING_ENV_FILE": marketing_env,
+            "LIFE_MANAGER_ENV_FILE": marketing_env,
+        })
     browser_owner = entry.get("browser_owner")
     if browser_owner:
         value["EnvironmentVariables"].update({

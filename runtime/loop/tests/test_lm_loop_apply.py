@@ -367,6 +367,40 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(environment["COMPUTE_PROXY_PORT"], "18402")
         self.assertEqual(environment["LIFE_MANAGER_NODE"], "/managed/bin/node")
 
+    def test_mobile_marketing_plists_pin_runtime_and_private_env(self):
+        node = shutil.which("node")
+        self.assertIsNotNone(node)
+        for loop_id, entrypoint in (
+            ("life-manager-anicca-jp1-tiktok", "apps/life-manager/scripts/mobile-app"),
+            ("life-manager-instagram-metrics",
+             "apps/life-manager/scripts/instagram-metrics-production-boot.sh"),
+            ("life-manager-tiktok-metrics",
+             "apps/life-manager/scripts/tiktok-metrics-production-boot.sh"),
+        ):
+            with self.subTest(loop_id=loop_id):
+                script = self.root / entrypoint
+                script.parent.mkdir(parents=True, exist_ok=True)
+                script.write_text("#!/bin/sh\nexit 0\n")
+                script.chmod(0o755)
+                value = registry(entrypoint)
+                value["loops"][loop_id] = value["loops"].pop("example")
+                value["loops"][loop_id]["label"] = f"ai.anicca.{loop_id}"
+                environment = plistlib.loads(
+                    build_apply_plan(value, self.root, SHA)[0]["plist_bytes"]
+                )["EnvironmentVariables"]
+                for key in ("LIFE_MANAGER_NODE", "NODE_BIN", "LIFE_MANAGER_PYTHON", "PYTHON_BIN",
+                            "LIFE_MANAGER_MARKETING_ENV_FILE"):
+                    self.assertIn(key, environment)
+                self.assertEqual(environment["LIFE_MANAGER_NODE"], str(Path(node).resolve()))
+                self.assertEqual(environment["NODE_BIN"], str(Path(node).resolve()))
+                self.assertEqual(environment["LIFE_MANAGER_PYTHON"], str(Path(sys.executable).resolve()))
+                self.assertEqual(environment["PYTHON_BIN"], str(Path(sys.executable).resolve()))
+                self.assertEqual(environment["LIFE_MANAGER_MARKETING_ENV_FILE"],
+                                 str(Path.home() / ".local/state/life-manager/private/marketing.env"))
+                if "metrics" in loop_id:
+                    self.assertEqual(environment["LIFE_MANAGER_ENV_FILE"],
+                                     environment["LIFE_MANAGER_MARKETING_ENV_FILE"])
+
     def test_writer_plist_projects_one_state_log_and_env_contract(self):
         writer_entrypoint = self.root / "skills/writer-agent/article-daily.sh"
         writer_entrypoint.parent.mkdir(parents=True)
