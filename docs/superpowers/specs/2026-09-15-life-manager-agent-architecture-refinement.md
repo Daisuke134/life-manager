@@ -67,7 +67,7 @@ platform adapterの実装そのものをfoundationへ複製しません。
 
 | foundation領域 | 現在 | 残り |
 |---|---|---|
-| FND（goal/wake/context/admission/effect/readback） | 共通契約とcandidate testsあり。runtime healthと業務effectの判定、completion CLIのprivate出力境界を分離済み | 14 loopすべてを同じcontractへ接続し、local completion manifestを埋める |
+| FND（goal/wake/context/admission/effect/readback） | 共通契約とcandidate testsあり。runtime healthと業務effectの判定、completion CLIのprivate出力境界を分離済み。14 loopのcatalog/job identity接続は`OBS-01`で完了 | 各loopの実機statusをmanifestへ取り込み、未確認はtyped stateのまま残す |
 | GRAPH | projection/queryの部品あり | 全loopのissue・receipt・resource・human gateを一つのcontrol planeで再構築する |
 | EVAL | case/run/score/gateの部品あり | held-out・safety・cost・live canary・promotion/rollbackを実運用へ接続する |
 | OBSERVABILITY | runtime event・metrics・Telegram境界を定義 | 内部control room、通知抑制、失敗からの自動issue生成を全loopへ接続する |
@@ -110,32 +110,35 @@ origin/mainは `913aaa9cc9`（Coconala current-truth merge後の最新remote mai
 **前提0（最優先）:** gig workの外部effectを実行するCodexを一つに固定し、もう一方は同じ
 provider/state/browserを触らない。handoff receiptができるまで、未統合candidateの再実行も行わない。
 
-#### R1: manifestの1行を一つずつ埋める
+#### R1: manifestの1行を一つずつ観測・昇格する（provider受入確認）
 
-R1のatomic単位は「14 loop全部」ではなく、**一つのproduct loopのmanifest行を一回の観測で確定すること**です。
+R1は共通契約へ接続するコードTODOではありません。コード接続は`OBS-01`で完了しています。
+R1のatomic単位は、**一つのproduct loopのmanifest行を一回の実機観測で更新すること**です。
 共通の参照・出力先は `apps/life-manager/config/product-loop-catalog.json`、
 `apps/life-manager/lib/product-onboarding.js`、`apps/life-manager/scripts/product-loop-completion.js`、
 実機status `runtime/loop/lm_loop.py`、各ownerのGit外private evidenceです。1行ごとにjob ID、owner、
-同一release SHA、release結合済みの公式receipt（または理由付きterminal）、6契約、`replay_zero`だけを記録します。
+同一release SHA、runtime health、effect/readback状態、理由、`replay_zero`を記録します。
+receiptはこの観測行を作る条件ではありません。receiptが無い場合は`unknown`・`blocked`・
+`not_applicable`などのtyped stateで記録し、公式receiptとrelease SHAが揃った時だけ`verified`へ昇格します。
 mock/fixture・PID・exit 0・Telegramは証拠にしません。
 
-| 順番 | atomic task（1行だけ） | 完了条件 | 状態 |
+| 順番 | atomic task（1行だけ） | 観測完了条件（receipt不要） | `verified`昇格条件 |
 |---:|---|---|---|
 | R1-00 | catalogのjob IDとruntime registryのidentityを照合 | 1行のjob IDが実在し、重複0、`job_id`/`owner_id`が安定し、runtime rowの`job_id === loop_id`を検査 | **完了**（candidate `25881b075e`） |
-| R1-01 | `gig-coconala`のmanifest行を確定 | 7 jobの同一release runtime、公式receipt、replay-zero、または理由付きterminal | **現在のcursor**（別Codexのprovider修正中。成功扱いしない） |
-| R1-02 | `gig-lancers`のmanifest行を確定 | 7 jobの同一release runtime、release結合済みの公式proposal/契約receipt、replay-zero | **次のcursor**（identityは修正済み。公式receiptは存在するがrelease SHA未結合） |
-| R1-03 | `gig-crowdworks`のmanifest行を確定 | 4 jobの同一release runtime、公式応募/契約receiptまたは明示的not-applicable、replay-zero | 未完了 |
-| R1-04 | `writer`のmanifest行を確定 | 7 jobのpublisher/payment receiptまたは明示的terminal、replay-zero | 未完了 |
-| R1-05 | `affiliate`のmanifest行を確定 | 6 jobの公式publication/attribution receiptまたは明示的terminal、replay-zero | 未完了 |
-| R1-06 | `investment`のmanifest行を確定 | `alpaca-investment-live`のmode、order/balance receipt、同一release、replay-zero | 未完了 |
-| R1-07 | `agent-economy`のmanifest行を確定 | 19 jobのwallet/compute/revenue receiptまたはtyped setup、replay-zero | 未完了 |
-| R1-08 | `job-hunter`のmanifest行を確定 | 7 jobのapplication/reply receiptまたはtyped terminal、replay-zero | 未完了 |
-| R1-09 | `fundraiser`のmanifest行を確定 | 1 jobの公式application/readbackまたは明示的not-applicable、replay-zero | 未完了 |
-| R1-10 | `connector`のmanifest行を確定 | 1 jobの公式registration/calendar receipt、replay-zero | 未完了 |
-| R1-11 | `self-build`のmanifest行を確定 | 3 jobのreviewed release/rollback receipt、replay-zero | 未完了 |
-| R1-12 | `mobile-apps`のmanifest行を確定 | 22 jobのbuild/publication/metrics receiptまたはtyped terminal、replay-zero | 未完了 |
-| R1-13 | `capafy`のmanifest行を確定 | 8 jobのproduct/publication/revenue receiptまたはtyped terminal、replay-zero | 未完了 |
-| R1-14 | `cfo`のmanifest行を確定 | 3 jobのverified financial snapshot/payout receipt、replay-zero | 未完了 |
+| R1-01 | `gig-coconala`のmanifest行を観測 | 7 jobのruntime status、release、typed effect/readback状態、理由を記録 | 公式receiptがrelease SHAに結合し、replay-zeroと全必須契約が揃う時だけ昇格 |
+| R1-02 | `gig-lancers`のmanifest行を観測 | 7 jobのruntime status、release、typed effect/readback状態、理由を記録 | release結合済み公式proposal/契約receipt、replay-zero、全必須契約 |
+| R1-03 | `gig-crowdworks`のmanifest行を観測 | 4 jobのruntime status、release、typed effect/readback状態、理由を記録 | 公式応募/契約receiptまたは明示的not-applicable、replay-zero |
+| R1-04 | `writer`のmanifest行を観測 | 7 jobのruntime status、release、typed effect/readback状態、理由を記録 | publisher/payment receiptまたは明示的terminal、replay-zero |
+| R1-05 | `affiliate`のmanifest行を観測 | 6 jobのruntime status、release、typed effect/readback状態、理由を記録 | publication/attribution receiptまたは明示的terminal、replay-zero |
+| R1-06 | `investment`のmanifest行を観測 | 1 jobのmode、runtime、typed effect/readback状態、理由を記録 | order/balance receipt、同一release、replay-zero |
+| R1-07 | `agent-economy`のmanifest行を観測 | 19 jobのruntime status、release、typed effect/readback状態、理由を記録 | wallet/compute/revenue receiptまたはtyped setup、replay-zero |
+| R1-08 | `job-hunter`のmanifest行を観測 | 7 jobのruntime status、release、typed effect/readback状態、理由を記録 | application/reply receiptまたはtyped terminal、replay-zero |
+| R1-09 | `fundraiser`のmanifest行を観測 | 1 jobのruntime status、release、typed effect/readback状態、理由を記録 | 公式application/readbackまたは明示的not-applicable、replay-zero |
+| R1-10 | `connector`のmanifest行を観測 | 1 jobのruntime status、release、typed effect/readback状態、理由を記録 | 公式registration/calendar receipt、replay-zero |
+| R1-11 | `self-build`のmanifest行を観測 | 3 jobのruntime status、release、typed effect/readback状態、理由を記録 | reviewed release/rollback receipt、replay-zero |
+| R1-12 | `mobile-apps`のmanifest行を観測 | 22 jobのruntime status、release、typed effect/readback状態、理由を記録 | build/publication/metrics receiptまたはtyped terminal、replay-zero |
+| R1-13 | `capafy`のmanifest行を観測 | 8 jobのruntime status、release、typed effect/readback状態、理由を記録 | product/publication/revenue receiptまたはtyped terminal、replay-zero |
+| R1-14 | `cfo`のmanifest行を観測 | 3 jobのruntime status、release、typed effect/readback状態、理由を記録 | verified financial snapshot/payout receipt、replay-zero |
 
 #### R2〜R6: R1の後に一件ずつ実行するgate
 
@@ -167,14 +170,15 @@ Git外のCoconala receiptをread-onlyで確認した結果、認証済み・公�
 `exact_readback=true`・`quality_status=qualified`の実receiptは存在します。しかし再確認時点でcatalogの7 jobは、
 `pass=1 / blocked=5 / fail=1`でした。新しいofficial receiptは増えておらず、最新の一時terminalは
 `unrecorded`で空でした。したがって`runtime_evidence.ready=false`であり、`gig-coconala`を
-`verified`へ接続していません。次の一手は、provider ownerが同じimmutable releaseで7 jobを再確認し、
-公式receipt・release SHA・replay-zeroを揃えることです。古いreceiptを再利用したり、mock/fixtureで
-穴埋めしたりしません。
+`verified`へ接続していません。観測行自体はこの状態のまま記録でき、次の一手はprovider ownerが
+同じimmutable releaseで7 jobを再確認することです。公式receipt・release SHA・replay-zeroが揃った時だけ
+`verified`へ昇格します。古いreceiptを再利用したり、mock/fixtureで穴埋めしたりしません。
 
 その後のGit外最新runでも、Applyは`observed=19 / actionable=0 / effect=0 / readback=0 / failed=1`、
 Storefrontは`effect=0 / readback=0 / status=pending`（`reason=disk_pressure`）だった。runtime statusは
 Apply/Paid/Storefrontのeffectを`unknown`または`fail`としており、同じimmutable releaseで7 jobが揃って
-いない。このため、R1-01は未完了のままprovider ownerの修正receiptを待つ。
+いない。このため、R1-01の観測は記録済みだが、`verified`昇格は未完了である。provider ownerの新しい
+実測が届いたら、その差分だけを再評価する。
 
 最新のstatus再確認では、Applyは`pass`だがeffectは`unknown`、Replyは`pass/not_applicable`、
 Apply-evidence-gc/Daily-reportは`resource_capacity_busy`、Paidは`resource_control_busy`、
