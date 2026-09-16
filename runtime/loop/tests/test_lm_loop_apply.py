@@ -1156,6 +1156,43 @@ class LmLoopApplyTest(unittest.TestCase):
                 value, "deterministic", main_sha, 1)
         self.assertEqual(selected, {"b-old"})
 
+    def test_automatic_disk_cleanup_addition_keeps_bounded_ancestor_selection(self):
+        release = self._release("release-auto-bounded").resolve()
+        value = registry()
+        value["loops"]["life-manager-disk-cleanup"] = {
+            **value["loops"]["example"],
+            "label": "ai.anicca.life-manager-disk-cleanup",
+        }
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        rows = [{
+            "classification": "managed", "provider_route": "deterministic",
+            "launchd_state": "loaded-idle", "installed_release_sha": "b" * 40,
+            "event_release_sha": "b" * 40, "loop_id": loop_id,
+        } for loop_id in ("example", "life-manager-disk-cleanup")]
+        applied = []
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "_bounded_reconcile_candidates",
+                         return_value={"example"}) as bounded,
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
+            patch.object(lm_loop, "targeted_snapshot", return_value=rows) as targeted,
+            patch.object(lm_loop, "apply_live",
+                         side_effect=lambda *args, **kwargs: applied.append(kwargs["target"]) or [{"ok": True}]),
+            patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+            }),
+            redirect_stdout(io.StringIO()),
+        ):
+            self.assertEqual(lm_loop.main([
+                "reconcile", "deterministic", "--loaded-idle-only", "--max-owners", "1",
+            ]), 0)
+        bounded.assert_called_once()
+        self.assertEqual(targeted.call_args.args[1], {
+            "example", "life-manager-disk-cleanup",
+        })
+        self.assertEqual(applied, ["example", "life-manager-disk-cleanup"])
+
     def test_reconcile_loaded_idle_only_leaves_unloaded_rows_untouched(self):
         release = self._release("release-a").resolve()
         rows = [
@@ -1289,6 +1326,7 @@ class LmLoopApplyTest(unittest.TestCase):
 
         with (
             patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
             patch.object(lm_loop, "snapshot", return_value=rows),
             patch.object(lm_loop, "apply_live", side_effect=record_apply),
             patch.dict(os.environ, {
@@ -1397,6 +1435,7 @@ class LmLoopApplyTest(unittest.TestCase):
 
         with (
             patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
             patch.object(lm_loop, "targeted_snapshot", return_value=rows),
             patch.object(lm_loop, "apply_live", side_effect=record_apply),
             patch.dict(os.environ, {

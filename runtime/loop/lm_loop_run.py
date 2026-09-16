@@ -284,6 +284,8 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
         return []
     safe = root / "bin/launchctl-safe"
     started = []
+    pending = list(loop_ids)
+    attempted: set[str] = set()
 
     def cancel(loop_id: str) -> None:
         try:
@@ -293,11 +295,17 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
 
     def defer(loop_id: str) -> None:
         try:
-            defer_durable_resource(loop_id, cooldown_seconds=60)
+            if defer_durable_resource(loop_id, cooldown_seconds=60) is True:
+                pending.extend(reserve_available_resource())
         except (OSError, RuntimeError):
             pass
 
-    for loop_id in loop_ids:
+    for loop_id in pending:
+        if loop_id in attempted:
+            continue
+        if len(attempted) >= 16:
+            break
+        attempted.add(loop_id)
         entry = registry["loops"].get(loop_id)
         if not isinstance(entry, dict) or entry.get("cadence", {}).get("keep_alive"):
             cancel(loop_id)

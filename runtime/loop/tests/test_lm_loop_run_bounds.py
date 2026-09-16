@@ -585,6 +585,56 @@ def test_dispatch_release_drift_preserves_real_sqlite_waiter(tmp_path, monkeypat
         ).fetchone() is None
 
 
+def test_dispatch_drift_immediately_hands_free_slot_to_healthy_follower(
+        tmp_path, monkeypatch):
+    admission_root = tmp_path / "admission"
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(admission_root))
+    admission.activate_durable_v2()
+    admission.enqueue_durable("deterministic", "drifted", admission_class="borrow")
+    admission.enqueue_durable("deterministic", "healthy", admission_class="borrow")
+    assert admission.reserve_available() == ["drifted"]
+
+    current = tmp_path / "release"
+    agents = tmp_path / "agents"
+    (current / "config").mkdir(parents=True)
+    agents.mkdir()
+    rows = {}
+    for loop_id in ("drifted", "healthy"):
+        rows[loop_id] = {
+            "label": f"ai.anicca.{loop_id}", "domain": "earn",
+            "entrypoint": "bin/example", "cadence": {"start_interval_seconds": 300},
+            "effect_class": "none", "state_root": f"~/.local/state/life-manager/{loop_id}",
+            "log_root": f"~/.local/state/life-manager/{loop_id}/logs",
+            "cleanup": {"max_runs": 10, "max_age_days": 7},
+            "provider_route": "deterministic",
+        }
+    (current / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": rows,
+    }))
+    healthy_args = [str(current.resolve() / "bin/lm-loop-run"),
+                    "healthy", str(current.resolve())]
+    (agents / "ai.anicca.drifted.plist").write_bytes(plistlib.dumps({
+        "ProgramArguments": ["/old/bin/lm-loop-run", "drifted", "/old"],
+    }))
+    (agents / "ai.anicca.healthy.plist").write_bytes(plistlib.dumps({
+        "ProgramArguments": healthy_args,
+    }))
+
+    def launchctl_result(args, **_kwargs):
+        if args[1] == "kickstart":
+            return subprocess.CompletedProcess(args, 0, "")
+        detail = "arguments = {\n" + "\n".join(healthy_args) + "\n}\nstate = waiting"
+        return subprocess.CompletedProcess(args, 0, detail)
+
+    with patch("runtime.loop.lm_loop_run.subprocess.run", side_effect=launchctl_result):
+        started = _dispatch_reserved(["drifted"], current=current, agents_dir=agents)
+    assert started == ["healthy"]
+    with sqlite3.connect(admission_root / "admission-v2.sqlite3") as connection:
+        assert connection.execute(
+            "SELECT owner_id FROM queue WHERE owner_id='drifted'"
+        ).fetchone() == ("drifted",)
+
+
 def test_dispatch_reserved_keeps_running_owner_reservation(tmp_path):
     current = tmp_path / "release"
     agents = tmp_path / "agents"
