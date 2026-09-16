@@ -160,6 +160,11 @@ Investment、Agent Economy、Job Hunter、Fundraiser、Connector、Self-build、
 | R5 | Cloud gateを一回判定 | `apps/life-manager/lib/product-onboarding.js`、`cloud-promotion-gate.js`、Git外cloud evidence | Local PASS、14行、verified行のruntime evidence整合性とready、公式readback、replay-zero、同一SHAの全PASS |
 | R6 | main mergeと本番releaseを一回だけ行う | `/private/tmp/lm-fundamental-runtime-20260916`、`skills/loop-development/SKILL.md` | R1〜R5の全PASS後だけmerge、immutable production readback、重複effect 0 |
 
+R2の初回実測（2026-09-16）は、267行の実機statusから生成したprivate manifestで実行済みだが、
+`blocked_product_loop`により未PASSだった。14行は`unknown=0`でも、release drift・resource busy・
+browser/readback未確認などの既知診断が残っているため、R3へ進まず、既存のreconcile/各owner修復で
+これらを解消してからR2を再実行する。
+
 #### S: 自己修復・自己改善の残りも一件ずつ記録する
 
 これは別の常駐supervisorを追加するTODOではなく、既存のreconcile/launchd supervisorとcandidate gateへ
@@ -332,7 +337,7 @@ Telegram報告、テストgreen、ブラウザ画面表示だけでは完了に�
 先に配布しません。全体のlocal/cloud受入が揃った最後に、main統合とimmutable release作成を
 一度だけ行います。
 
-**現在のfoundation cursor:** Architecture側の`OBS-01`は完了しています。`CAND-01`と`CAND-02`の内部canaryも完了しています。R1の14 loop観測も完了し、次は`R2 Local gate`です。`LOCAL-01/02`
+**現在のfoundation cursor:** Architecture側の`OBS-01`は完了しています。`CAND-01`と`CAND-02`の内部canaryも完了しています。R1の14 loop観測も完了し、R2 Local gateを実測してBLOCKを記録しました。次は既知runtime障害を解消してR2を再実行することです。`LOCAL-01/02`
 ではcompletion manifestの契約と`lm-loop status` JSON接続、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、失敗記録へのrecovery intent保存、`harness-recovery.json`へのowner/slot別最新intent投影、7つのskill索引、`CONTROL-01`のexternal owner登録、管理statusの安定`job_id`/`owner_id`出力、常駐non-effect jobのruntime health判定、completion CLIの既存親ディレクトリ権限保護、runtime rowのjob identity一致検査、Local/Cloud verified行のruntime evidence必須化、Local/Cloud gateのruntime evidence整合性検査、official receiptのrelease SHA結合必須化をcandidate `b470ec3ead`へ実装済みです。
 Graph/Eval/notificationの契約も同candidateへ接続済みです。Local gate CLIのruntime status再束縛、非runtime manifest契約の保持、schema改ざん回帰テスト（43件PASS）、setup_required行の既知runtime診断保持、既知runtime障害の`blocked`分類も同candidateへ固定しました。次は14行のLocal gateを一度判定する作業であり、platformの外部effectを私が実行する項目ではありません。
 
