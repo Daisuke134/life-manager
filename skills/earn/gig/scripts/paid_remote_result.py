@@ -83,7 +83,9 @@ def _verifier_evidence_values(result):
         if isinstance(readback_source, str) and readback_source.strip():
             values = [readback_source]
     if not values and isinstance(alias, list):
-        values = [value for value in alias if isinstance(value, str) and value.strip()]
+        values = [source for value in alias
+                  if (source := value.get("readback_source") if isinstance(value, dict) else value)
+                  and isinstance(source, str) and source.strip()]
     if not values and isinstance(result.get("evidence"), list):
         values = result["evidence"]
     return values

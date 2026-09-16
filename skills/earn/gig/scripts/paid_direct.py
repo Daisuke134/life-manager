@@ -2445,8 +2445,9 @@ def _verifier_evidence_references(result: dict[str, Any]) -> list[tuple[str, str
         if isinstance(readback_source, str) and readback_source.strip():
             references = [("verifier_evidence", readback_source)]
     if not references and isinstance(single, list):
-        references = [("verifier_evidence", value) for value in single
-                      if isinstance(value, str) and value.strip()]
+        references = [("verifier_evidence", source) for value in single
+                      if (source := value.get("readback_source") if isinstance(value, dict) else value)
+                      and isinstance(source, str) and source.strip()]
     if not references and isinstance(result.get("evidence"), list):
         references = [("evidence", value) for value in result["evidence"]
                       if isinstance(value, str) and value.strip()]
@@ -4684,6 +4685,8 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
         "required_output. After checking every builder receipt against the official provider, copy the builder's business_outcome. "
         "Its official_receipts must preserve every builder effect_key and official_url exactly; never replace them with verifier-specific "
         "receipt identities. Put fresh independent proof in verifier_evidence, before_evidence, after_evidence, or evidence instead. "
+        "Every referenced verifier evidence JSON must bind target, authenticated=true, requirements_sha256, message_sha256, and the canonical observed_state. "
+        "Do not list a raw provider readback without that identity envelope; retain the raw source separately and reference its path inside the envelope. "
         "The copied outcome must have required_effect_satisfied=true, required_output_satisfied=true, remaining_work=[], and a nonempty "
         "official_receipts array whose records contain effect_key, official_url, readback_source, and exact_readback=true. "
         "The copied outcome must also preserve outcome_coverage from the builder. Verify exactly one row for every required_outcomes "
