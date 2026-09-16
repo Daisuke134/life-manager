@@ -76,8 +76,8 @@ platform adapterの実装そのものをfoundationへ複製しません。
 
 **この仕事は完了していません。** スキルの調査・読み込みと候補branchのテストgreenは、
 Life Managerの実際の応募・契約・納品・報酬・cloud運用が動いたことを意味しません。現在の
-origin/mainは `30a2a2dfab`（今回確認した最新remote main参照）まで進み、本番selectorは
-`20260916T095649-8d366069`（SHA `8d366069ade3f1d78c64bc8b591b0d1f829f017d`）を指しています。remote mainとselectorは一致しておらず、ownerのinstalled/event SHAもまだ混在しています。
+origin/mainは `913aaa9cc9`（Coconala current-truth merge後の最新remote main参照）まで進み、本番selectorも
+`913aaa9cc9ac1e40b54eb0f0899c69fc17b52c2f`を指しています。候補branchはこのmainへまだ統合しておらず、ownerのinstalled/event SHAもまだ混在しています。
 統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `6715084a30`）はpush済みですが、候補はまだmainへmergeしていません。
 本番へはまだ統合していません。
 したがって、次の作業は「さらにスキルを読む」ではなく、候補をmain由来immutable releaseへ
@@ -169,7 +169,11 @@ current release SHA `913aaa9cc9ac1e40b54eb0f0899c69fc17b52c2f`で
 `local-completion-gate.js --runtime-status`を実行しても同じ`BLOCK / unknown_product_loop`だった。
 これは実機statusを使ったgate確認であり、providerの公式receiptや外部effectの成功を意味しない。
 
-同じ再実測でCoconalaの7 jobは、Apply `blocked`、Browser `fail`、残りも`blocked`で、
+その後のmain由来current-truth反映後のstatus再実測では、CoconalaのApplyだけはruntimeの
+`last_terminal_result=pass`（SHA `913aaa9cc9`）になったが、Browser `fail`、残り5 jobは
+`blocked`のままだった。Applyだけのruntime healthは外部効果を証明しない。公式結果はなお
+`effect=0 / readback=0 / failed=1`であり、7 jobは同一SHAに揃っていない。
+同じ再実測でCoconalaの7 jobは、Apply `pass`、Browser `fail`、残り5 jobが`blocked`で、
 installed/event SHAは`913aaa9cc9ac`、`2a53ce2528`、`172d3f2eaa4`、`0aba1191a451`、
 `e8e8a2b2645`/`3c95ef5f3db6`に分裂していた。最新Apply結果も`observed=20 / effect=0 /
 readback=0 / failed=1`、Storefrontは`completed`でも`effect=0 / readback=0`かつ
