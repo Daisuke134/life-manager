@@ -910,6 +910,23 @@ The following 18:33 natural Affiliate wake ended pre-effect
 one captured plan/82 pending. This is a truthful capacity wait, **not**
 replay-zero or second-plan completion. Keep its queued occurrence while
 revenue owners occupy the finite slots.
+At 18:53 the next Affiliate natural wake again ended pre-effect
+`resource_capacity_busy`, leaving 82 plans. At 19:00 readback the owner set
+had fallen to three revenue claims; inspect the next natural Affiliate wake
+for a distinct second captured plan before deciding whether the queue itself
+starves. SQLite held 17 queued Affiliate occurrences and eight each for
+Instagram/TikTok Metrics, so a loaded job alone is not progress.
+Connector's 18:39 natural outer run failed `wake_deadline` at 18:52, despite
+an inner PASS at 18:41. The same wake's audit shows TechPlay discovery taking
+302674 ms after earlier provider work; the workflow can inspect up to 50 RSS
+detail pages serially at up to 30 seconds each without a durable page cursor.
+No provider submit or Calendar effect is proven by this run. Next atomic
+Connector work: reproduce the unbounded discovery against the recorded wake,
+choose a bounded cursor/continuation contract that cannot silently skip deep
+RSS rows or repeat an uncertain effect, write a failing regression, then ship
+one provider-scoped slice and verify natural outer terminal plus official
+readback. Do not count the inner PASS or a `completed_no_effect` report as a
+Connector success.
 Separately, the 90-file foundation candidate integrated latest main's two
 bridge commits with conflict-aware merge `b5805f4352`. Candidate admission
 combines occurrence/priority/heartbeat fences with main's 60-second drift
