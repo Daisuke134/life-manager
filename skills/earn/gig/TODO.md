@@ -590,9 +590,10 @@ Storefront must all be revenue-priority owners. Maintenance may borrow unused ca
 of five finite runs is not accepted as the final architecture; production must use measured resource-class
 capacity and prove 24 hours without a missed revenue cadence or fleet starvation.
 
-**Next order:** (1) finish and read back the current retainer application, (2) finish the 54-history scan,
-(3) repair shared admission/cadence and owner-scoped tab teardown, (4) resolve Reply 15 and Coconala payout,
-(5) prove all four Coconala lanes for 24 hours, then (6) CrowdWorks paid contracts, Lancers, Mercor,
+**Next order:** (1) fix and read back current one-off/retainer applications, (2) repair shared admission/cadence
+and owner-scoped tab teardown, (3) resolve Reply 15 and Coconala payout, (4) reconcile the 54 historical
+uncertain intents as preemptible background work without blocking current revenue, (5) prove all four Coconala
+lanes for 24 hours, then (6) CrowdWorks paid contracts, Lancers, Mercor,
 Freelancer.com and Upwork in that order.
 
 ### 1. Shared runtime production convergence and account 1 cutover — current cursor
@@ -942,10 +943,10 @@ work item and leave a sibling trace unchanged.
   seller message. Keep it settlement/payout-waiting and reopen only for a newer buyer event.
 - [x] Ryu and both Kokoro rooms have later official seller effects; Chii has its workbook effect. All four
   independently replayed zero in the natural Paid wake. Atsugi remains settlement-only unless reopened.
-- [ ] **Current cursor:** release and prove the retainer-term binding fix, then continue the resumable official
-  applied-history scan from page 17. Pages 1-16 observed 302 cards, matched zero of the 54 frozen CAS targets,
-  persisted eight hash-bound chunks and changed no intent.
-  Reconcile all 54 only after the final page proves complete.
+- [ ] Keep the 54 historical uncertain intents duplicate-fenced, but remove their full-history scan from the
+  foreground Apply path. Continue current one-off/retainer discovery and effects first. Reconcile the frozen
+  54 as preemptible background work from the durable page-29 cursor; retire an intent only after the final
+  official history page proves it absent. Never delete the records blindly or let them delay current revenue.
 - [x] Restore authenticated discovery for both `single:new` and `retainer:new`. Release `30a2a2df` observed the
   current single page and the official retainer page; the latter contained one active listing.
 - [ ] Submit every eligible high-fit one-off and continuous application; verify each officially; replay zero.
