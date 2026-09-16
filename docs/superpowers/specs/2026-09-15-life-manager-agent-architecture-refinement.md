@@ -293,6 +293,12 @@ Admission suiteは **62 tests PASS**。実production database migrationはimmuta
 exit 2するようにした。keyの値はstdout/stderrへ出さない。Nodeの **8 tests PASS**、shell syntaxも
 PASS。plist反映後の実env、自然wake、Postiz公式readbackはまだ未完である。
 
+**S-03 repair-claim atomic (candidate `abd1feb606`):** 既存private repair queueから一件だけを
+短いlease付きでclaimし、同じevent keyの二重claimを防ぎ、処理後に`repaired`または`blocked`へ
+原子的に確定する関数を追加した。lease失効時は再claim可能で、queue破損・route不一致・不正stateは
+fail-closedする。既存apply/recovery suiteは **90 tests / 30 subtests PASS**。reconcile実行へ
+渡す接続、自然wake、production反映はまだ未完である。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
