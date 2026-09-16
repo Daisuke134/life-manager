@@ -669,6 +669,11 @@ The next natural Paid wake at 2026-09-16 13:25:58 UTC failed the same pre-effect
 available, 536,870,912 required, `effect=0`, `readback=0`. A brief earlier rise above the floor was not
 durable. Do not keep polling the unchanged failure or claim a client effect; repair physical headroom before
 the next owner-scoped acceptance check.
+One observed browser orphan class now has a source-only repair at `e75f5f826e`: lateness route lookup gets
+a unique agent-browser session and its parent uses the existing TERM/grace timeout so `finally` can close
+that exact session. Five small tests passed; the real signal integration test was blocked by `ENOSPC`, and
+the prior orphan plus the larger shared gig/daily-driver profiles remain untouched. Do not count this as
+physical capacity recovery or a production natural-wake pass.
 
 **Next order:** (1) restore safe disk/memory headroom and verify next natural revenue wakes, then keep
 one-off/retainer refresh live and prove a fresh eligible retainer screening-answer effect when one exists,
