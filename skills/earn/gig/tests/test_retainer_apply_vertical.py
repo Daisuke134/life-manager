@@ -131,6 +131,25 @@ def test_retainer_terms_are_read_from_official_listing_when_planner_returns_null
     assert planner.validate_decisions(snapshot, repaired) == []
 
 
+def test_retainer_legacy_projection_keeps_bucket_url_and_terms() -> None:
+    snapshot = _snapshot()
+    decision = _decision()
+
+    projected = parent.project_legacy_b2(
+        snapshot,
+        decision,
+        [{"request_id": ULID, "status": "submission_failed:test"}],
+    )
+
+    inspected = projected["current_b2"]["inspected_requests"][0]
+    assert inspected["bucket"] == "retainer"
+    assert inspected["url"] == f"https://coconala.com/job_matching/outsources/{ULID}"
+    assert inspected["compensation_type"] == "recurring"
+    assert inspected["weekly_days"] == "WEEK_THREE"
+    assert inspected["weekly_hours_min"] == 12
+    assert inspected["weekly_hours_max"] == 18
+
+
 def test_retainer_commit_uses_the_existing_effect_fence_and_exact_readback(tmp_path, monkeypatch) -> None:
     snapshot = _snapshot()
     effects = parent.FixtureEffects(snapshot, {"official_applied_ids": [ULID]})

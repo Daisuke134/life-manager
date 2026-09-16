@@ -3521,19 +3521,20 @@ def project_legacy_b2(
             # attempted this wake, not silently vanished -- see planner_missing_request_ids.
             continue
         reasons = decision["reason_codes"]
+        retainer = _is_retainer_request(detail["request_id"])
         inspected.append({
             "request_id": detail["request_id"],
-            "bucket": "single",
+            "bucket": "retainer" if retainer else "single",
             "url": detail["canonical_url"],
             "applicants": detail["applicants_count"],
             "contracted": detail["contracted_count"],
             "budget_max_jpy": detail["budget_max_jpy"],
-            "compensation_type": None,
+            "compensation_type": "recurring" if retainer else None,
             "compensation_min_jpy": None,
             "compensation_max_jpy": None,
-            "weekly_days": None,
-            "weekly_hours_min": None,
-            "weekly_hours_max": None,
+            "weekly_days": decision.get("work_frequency") if retainer else None,
+            "weekly_hours_min": decision.get("weekly_hours_min") if retainer else None,
+            "weekly_hours_max": decision.get("weekly_hours_max") if retainer else None,
             "remote": None,
             "synchronous_interview_required": None,
             "human_identity_required": None,
