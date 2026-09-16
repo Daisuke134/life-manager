@@ -672,15 +672,33 @@ clears it, so liveness would be lost after a timeout. Exact next slices:
    malformed rows fail closed rather than disappearing from the recovery set.
    Connector780, host/runner131 and OSS checks still PASS. The global journal
    remains a precursor, not an official receipt or autonomous resolver.
-2. **OPEN:** Add a same-owner, readback-only recovery path for each attempted target,
-   using existing provider adapters and official Calendar/provider state.
-   No submit is permitted while the occurrence is fenced. Clear that exact
-   occurrence only after every attempted target has a terminal official
-   receipt; missing/mismatched intent stays fenced with an alert.
-3. **OPEN:** Test kill before intent, kill after durable intent but before effect, kill
-   during effect, mixed registered/absent targets, malformed/missing mapping,
-   and replay-zero. Then merge latest main `ba9246eeaf` into the candidate,
-   re-run full Local/Eval gates, and only then propose shared-v2 main promotion.
+2. **OPEN — child-closed snapshot:** For an exact host occurrence, first prove the
+   child is terminal/dead and can no longer append an intent. Include the
+   zero-intent case: reconcile the same wake's action/Telegram claim before
+   deciding that no external effect was attempted. Then validate *all* journal
+   rows for that occurrence and create an immutable per-occurrence target set.
+   Do not trust a caller-supplied `terminal=true` or a running child's partial
+   journal. A draft `prepareEffectFence` was rejected by fresh read-only review:
+   it marked a nonempty partial journal `active`, used a clobbering rename,
+   could overwrite JSON `null`, and lacked full directory durability/path
+   proof. The uncommitted draft was removed; source branch is clean.
+3. **OPEN — atomic fence:** Persist the closed target set with exclusive,
+   no-clobber creation; on EEXIST re-read and compare exact occurrence/hash/
+   targets, fail closed on malformed contents or parent/symlink boundary.
+   Flush file and containing directory (and newly created parent) before any
+   admission clearance. A fence receipt means recovery ownership, never
+   provider-effect success.
+4. **OPEN — readback-only resolver:** For each fenced target, use existing
+   provider adapters and official provider/Calendar readback. Persist one
+   terminal result per target; absent/unknown stays fenced and is never
+   resubmitted. Cover Talk and Connpass notice as distinct effect kinds.
+5. **OPEN — exact CAS and replay:** Clear only that host occurrence under the
+   existing admission lock after every attempted target has an official
+   terminal receipt; next wake checks the target fence before *every* effect
+   path, while unrelated safe candidates may progress. Test kill before
+   intent, after intent, during effect, 4+ mixed targets, duplicate recovery,
+   malformed/missing mapping and replay-zero. Merge latest main into the
+   candidate, rerun Local/Eval, then propose shared-v2 main promotion.
 No Connector registration, Affiliate second plan, Metrics snapshot or 14-loop
 success is established by this source safety patch.
 After the exact Connector rollback, old candidate SHA `cf655388` naturally

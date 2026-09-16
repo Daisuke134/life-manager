@@ -627,6 +627,18 @@ resolver must still use each stored public candidate snapshot and effect
 kind/URL for fresh provider readback, persist a terminal receipt for *all*
 intents, and clear only that exact host occurrence. The present journal
 readback API is not itself provider readback.
+Fresh review of an uncommitted per-occurrence fence draft found four unsafe
+assumptions: a running child can still append after the draft snapshots the
+journal; rename can overwrite a concurrent fence; JSON `null` is mistaken for
+no existing file; and crash durability/path boundaries are incomplete. The
+draft was removed without a commit. The next atomic implementation order is
+exact child-closed proof (including zero-intent wake/Telegram claims), complete
+validated intent set, exclusive immutable fence write with fail-closed
+conflict handling, per-target official readback-only recovery, exact-occurrence
+admission CAS, then replay-zero fault fixtures. The fence receipt may release
+same-owner *capacity* only when this chain is sound; it never proves an
+external effect. This resolves the safety/liveness tension without promoting
+the source-only global `effect_unknown` fence alone.
 Old loaded Connector `cf655388` then naturally ran at 20:48:54 UTC (outer
 `18d5e83356635230-73022`) and terminated `FAIL/wake_deadline` at 20:59:00;
 its wake report is `circuit_open/wake_deadline`. No applied bundle timestamp
