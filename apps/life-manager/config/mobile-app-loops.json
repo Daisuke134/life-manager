@@ -16,7 +16,6 @@
     "life-manager-anicca-main-instagram": { "product_id": "anicca-ios", "runner": "honne-ja-cycle.js", "action": "run-anicca-main-instagram" },
     "life-manager-anicca-buddha-tiktok": { "product_id": "anicca-ios", "runner": "anicca-larry-ja-canary.js", "action": "run-ja-buddha-tiktok-production" },
     "life-manager-anicca-main-tiktok": { "product_id": "anicca-ios", "runner": "anicca-larry-ja-canary.js", "action": "run-ja-main-tiktok-production" },
-    "life-manager-anicca-obou-instagram": { "product_id": "anicca-ios", "runner": "anicca-obou-instagram-canary.js", "action": "run-production" },
     "life-manager-honne-en": { "product_id": "honne-ai", "runner": "honne-en-cycle.js", "action": "run" },
     "life-manager-honne-ja": { "product_id": "honne-ai", "runner": "honne-ja-cycle.js", "action": "run" }
   }

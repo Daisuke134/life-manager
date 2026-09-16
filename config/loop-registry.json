@@ -1767,37 +1767,6 @@
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager"
     },
-    "life-manager-anicca-obou-instagram": {
-      "cadence": {
-        "calendar_interval": [
-          {
-            "Hour": 7,
-            "Minute": 0
-          },
-          {
-            "Hour": 14,
-            "Minute": 0
-          },
-          {
-            "Hour": 20,
-            "Minute": 0
-          }
-        ]
-      },
-      "cleanup": {
-        "max_age_days": 14,
-        "max_runs": 100
-      },
-      "domain": "growth",
-      "effect_class": "publish",
-      "adapter": "exec",
-      "command": ["life-manager-anicca-obou-instagram"],
-      "entrypoint": "apps/life-manager/scripts/mobile-app",
-      "label": "ai.anicca.life-manager-anicca-obou-instagram",
-      "log_root": "~/.local/state/life-manager/logs",
-      "provider_route": "deterministic",
-      "state_root": "~/.local/state/life-manager"
-    },
     "life-manager-cfo-hourly": {
       "cadence": {
         "start_interval_seconds": 3600
@@ -3208,6 +3177,7 @@
     "ai.anicca.life-manager-connector-healer-shadow",
     "ai.anicca.life-manager-connector-host-bridge",
     "ai.anicca.life-manager-connector-native-healthcheck",
+    "ai.anicca.life-manager-anicca-obou-instagram",
     "ai.anicca.life-manager-money-printer-symphony",
     "ai.anicca.life-manager-money-printer-symphony-bridge",
     "ai.anicca.life-manager-upwork-browser",
