@@ -28,6 +28,63 @@ BASE = {
 
 
 class RuntimeEventTest(unittest.TestCase):
+    def test_exact_outer_terminal_ignores_inner_report_until_host_child_closes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "events.jsonl"
+            inner = {**BASE, "loop_id": "life-manager-connector-native",
+                     "run_id": "outer-123", "provider": "codex", "event_id": "c" * 24,
+                     "evidence_refs": ["agent-runner://life-manager-connector-native/outer-123/summary.json"]}
+            outer = {**inner, "provider": "deterministic", "event_id": "d" * 24,
+                     "profile_alias": None,
+                     "evidence_refs": ["lm-loop://life-manager-connector-native/outer-123/summary.json"]}
+            path.write_text(json.dumps(inner) + "\n", encoding="utf-8")
+            find = getattr(runtime_event, "find_exact_outer_terminal", lambda *_: None)
+            self.assertIsNone(find(path, "life-manager-connector-native", "outer-123", "b" * 40))
+            with path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(outer) + "\n")
+            self.assertEqual(find(path, "life-manager-connector-native", "outer-123", "b" * 40), outer)
+
+    def test_exact_outer_terminal_reads_rotated_archive(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "events.jsonl"
+            outer = {**BASE, "loop_id": "life-manager-connector-native",
+                     "run_id": "archived-123", "provider": "deterministic", "event_id": "e" * 24,
+                     "profile_alias": None,
+                     "evidence_refs": ["lm-loop://life-manager-connector-native/archived-123/summary.json"]}
+            archive = path.with_name("events-20260916T010000Z.jsonl.gz")
+            with gzip.open(archive, "wt", encoding="utf-8") as handle:
+                handle.write(json.dumps(outer) + "\n")
+            find = getattr(runtime_event, "find_exact_outer_terminal", lambda *_: None)
+            self.assertEqual(find(path, "life-manager-connector-native", "archived-123", "b" * 40), outer)
+
+    def test_exact_outer_terminal_rejects_wrong_sha_and_conflicting_report(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "events.jsonl"
+            outer = {**BASE, "loop_id": "life-manager-connector-native",
+                     "run_id": "outer-456", "provider": "deterministic", "event_id": "f" * 24,
+                     "profile_alias": None,
+                     "evidence_refs": ["lm-loop://life-manager-connector-native/outer-456/summary.json"]}
+            path.write_text(json.dumps(outer) + "\n", encoding="utf-8")
+            find = getattr(runtime_event, "find_exact_outer_terminal", lambda *_: None)
+            with self.assertRaises(ValueError):
+                find(path, "life-manager-connector-native", "outer-456", "a" * 40)
+            with path.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps({**outer, "event_id": "1" * 24, "status": "fail"}) + "\n")
+            with self.assertRaises(ValueError):
+                find(path, "life-manager-connector-native", "outer-456", "b" * 40)
+
+    def test_exact_outer_terminal_rejects_report_still_marked_running(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "events.jsonl"
+            row = {**BASE, "loop_id": "life-manager-connector-native",
+                   "run_id": "outer-running", "provider": "deterministic",
+                   "profile_alias": None, "status": "running",
+                   "evidence_refs": ["lm-loop://life-manager-connector-native/outer-running/summary.json"]}
+            path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                runtime_event.find_exact_outer_terminal(
+                    path, "life-manager-connector-native", "outer-running", "b" * 40)
+
     def test_valid_event_appends_one_private_jsonl_row(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "events.jsonl"

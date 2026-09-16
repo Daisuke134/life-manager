@@ -123,6 +123,54 @@ def validate_runtime_event(event: dict) -> dict:
     return event
 
 
+def find_exact_outer_terminal(path: Path, loop_id: str, run_id: str,
+                              release_sha: str) -> dict | None:
+    """Read one exact host terminal from the current ledger or its archives.
+
+    The host writes this after the admitted entrypoint child has been reaped,
+    or after a pre-admission deferral with no child. It proves host-wake
+    closure, not that a provider child ran or any external effect occurred.
+    """
+    if (not isinstance(loop_id, str) or not SAFE_ID.fullmatch(loop_id)
+            or not isinstance(run_id, str) or not SAFE_ID.fullmatch(run_id)
+            or not isinstance(release_sha, str)
+            or not re.fullmatch(r"[0-9a-f]{40}", release_sha)):
+        raise ValueError("invalid exact terminal identity")
+    path = Path(path)
+    expected_ref = f"lm-loop://{loop_id}/{run_id}/summary.json"
+    found = None
+    sources = [path, *sorted(path.parent.glob(f"{path.stem}-*{path.suffix}.gz"))]
+    for source in sources:
+        try:
+            opener = gzip.open if source.suffix == ".gz" else open
+            with opener(source, "rt", encoding="utf-8") as handle:
+                for line in handle:
+                    try:
+                        event = json.loads(line)
+                    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                        if run_id in line:
+                            raise ValueError("malformed exact terminal row") from error
+                        continue
+                    if not isinstance(event, dict) or (event.get("loop_id"), event.get("run_id")) != (loop_id, run_id):
+                        continue
+                    validate_runtime_event(event)
+                    if (event["phase"] != "report" or event["provider"] != "deterministic"
+                            or event["profile_alias"] is not None
+                            or event["evidence_refs"] != [expected_ref]):
+                        continue
+                    if event["status"] not in {"pass", "fail", "blocked"}:
+                        raise ValueError("exact outer report is not terminal")
+                    if event["release_sha"] != release_sha:
+                        raise ValueError("exact terminal release mismatch")
+                    if found is not None and event != found:
+                        raise ValueError("conflicting exact terminal rows")
+                    found = event
+        except FileNotFoundError:
+            if source != path:
+                raise
+    return found
+
+
 def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: str,
                         provider: str, profile_alias: str | None, effect_class: str,
                         succeeded: bool, blocker: str | None,

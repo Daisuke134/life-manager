@@ -1,5 +1,7 @@
 import unittest
 import json
+from contextlib import redirect_stdout
+from io import StringIO
 import subprocess
 import tempfile
 import plistlib
@@ -10,6 +12,7 @@ from runtime.loop.lm_loop import (
     _last_event, _latest_runtime_event, _release_from_plist, _state_root_from_plist,
     doctor_report, snapshot, status_rows,
 )
+from runtime.loop import lm_loop
 
 
 REGISTRY = {"schema_version": 2, "loops": {"example": {
@@ -23,6 +26,34 @@ REGISTRY = {"schema_version": 2, "loops": {"example": {
 
 
 class LmLoopReadonlyTest(unittest.TestCase):
+    def test_terminal_command_returns_only_exact_outer_receipt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "repo"
+            (root / "config").mkdir(parents=True)
+            registry = {**REGISTRY, "loops": {"example": {
+                **REGISTRY["loops"]["example"], "state_root": "~/wrong-state",
+            }}}
+            (root / "config/loop-registry.json").write_text(json.dumps(registry), encoding="utf-8")
+            outer = {
+                "version": 1, "event_id": "a" * 24,
+                "timestamp": "2026-09-16T21:00:00+00:00", "loop_id": "example",
+                "domain": "earn", "run_id": "outer-run", "phase": "report",
+                "status": "fail", "release_sha": "b" * 40,
+                "provider": "deterministic", "profile_alias": None,
+                "effect_class": "application", "effect_status": "unknown",
+                "blocker": "wake_deadline",
+                "evidence_refs": ["lm-loop://example/outer-run/summary.json"],
+            }
+            (Path(directory) / "state").mkdir()
+            (Path(directory) / "state/events.jsonl").write_text(json.dumps(outer) + "\n", encoding="utf-8")
+            output = StringIO()
+            with patch.object(lm_loop, "ROOT", root), patch.dict("os.environ", {
+                "HOME": directory, "LIFE_MANAGER_STATE_ROOT": str(Path(directory) / "state"),
+            }), redirect_stdout(output):
+                code = lm_loop.main(["terminal", "example", "outer-run", "b" * 40])
+            self.assertEqual(code, 0)
+            self.assertEqual(json.loads(output.getvalue()), {"ok": True, "terminal": outer})
+
     def test_status_separates_runtime_and_business_truth(self):
         events = {"example": {"timestamp": "2026-08-28T00:00:00Z", "status": "blocked",
                   "effect_status": "unknown", "blocker": "provider_capacity",

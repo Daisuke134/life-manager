@@ -33,7 +33,10 @@ from runtime.loop.lm_loop_lifecycle import (
     lifecycle_one,
     release_repair_intent,
 )
-from runtime.loop.runtime_event import append_runtime_event, build_install_event, validate_runtime_event
+from runtime.loop.runtime_event import (
+    append_runtime_event, build_install_event, find_exact_outer_terminal,
+    validate_runtime_event,
+)
 from runtime.host.resource_admission import activate_durable_v2, durable_protocol_version
 
 
@@ -1025,10 +1028,10 @@ def main(argv: list[str] | None = None) -> int:
     commands = {
         "admission-v2-enable", "apply", "doctor", "reconcile", "repair-queue",
         "repair-dispatch",
-        "start", "stop", "restart", "status", "watch",
+        "start", "stop", "restart", "status", "watch", "terminal",
     }
     if not args or args[0] not in commands:
-        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]... [--recovery-intent PATH]|repair-queue <provider-route> --recovery-intent PATH|repair-dispatch <provider-route> [--queue PATH]|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]... [--recovery-intent PATH]|repair-queue <provider-route> --recovery-intent PATH|repair-dispatch <provider-route> [--queue PATH]|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]|terminal <loop-id> <run-id> <release-sha>", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
@@ -1081,6 +1084,21 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
     registry = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))
+    if command == "terminal":
+        if len(args) != 4 or args[1] not in registry["loops"]:
+            print(json.dumps({"ok": False, "error": "terminal requires <loop-id> <run-id> <release-sha>"}))
+            return 2
+        state_root = os.environ.get("LIFE_MANAGER_STATE_ROOT", registry["loops"][args[1]]["state_root"])
+        event_path = Path(os.path.expanduser(state_root)) / "events.jsonl"
+        try:
+            event = find_exact_outer_terminal(event_path, args[1], args[2], args[3])
+        except (OSError, ValueError) as error:
+            print(json.dumps({"ok": False, "error": str(error)}, sort_keys=True))
+            return 1
+        print(json.dumps({"ok": event is not None,
+                          **({"terminal": event} if event is not None else {"reason": "outer_terminal_missing"})},
+                         sort_keys=True))
+        return 0 if event is not None else 1
     if command == "repair-queue":
         if len(args) != 4 or args[2] != "--recovery-intent":
             print(json.dumps({"ok": False, "error": "repair-queue requires <provider-route> --recovery-intent PATH"}))
