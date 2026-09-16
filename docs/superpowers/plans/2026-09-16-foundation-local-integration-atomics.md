@@ -621,6 +621,12 @@ separate intents. Host/runner131, Connector780 and OSS tests PASS; fresh
 read-only review SHIP for this slice. The official readback-only resolver,
 exact occurrence clearance, kill/replay tests and latest-main merge remain
 open; neither source commit is production-promotable alone.
+`8768edf168` then added validated exact-occurrence reads of the write-ahead
+journal; 780 Connector, 131 host/runner and OSS checks remain green. A
+resolver must still use each stored public candidate snapshot and effect
+kind/URL for fresh provider readback, persist a terminal receipt for *all*
+intents, and clear only that exact host occurrence. The present journal
+readback API is not itself provider readback.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

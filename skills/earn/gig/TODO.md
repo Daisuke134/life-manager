@@ -668,6 +668,10 @@ clears it, so liveness would be lost after a timeout. Exact next slices:
    cannot cover kill during submit. Focused host/runner131 and Connector780
    tests PASS; fresh read-only review SHIP for this source slice. No provider
    readback or live release is proven by those tests.
+   Source-only `8768edf168` adds validated, exact-occurrence journal reads;
+   malformed rows fail closed rather than disappearing from the recovery set.
+   Connector780, host/runner131 and OSS checks still PASS. The global journal
+   remains a precursor, not an official receipt or autonomous resolver.
 2. **OPEN:** Add a same-owner, readback-only recovery path for each attempted target,
    using existing provider adapters and official Calendar/provider state.
    No submit is permitted while the occurrence is fenced. Clear that exact
