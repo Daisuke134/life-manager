@@ -4860,7 +4860,7 @@ def _append_full_history_ledger_row(
         "url": (f"https://coconala.com/job_matching/outsources/{request_id}"
                 if _is_retainer_request(request_id)
                 else f"https://coconala.com/requests/{request_id}"),
-        "evidence": None, "recorded_by": "application_parent_full_history",
+        "evidence": None, "recorded_by": "application_report_intent_recovery",
         "submit_verified": True, "applied_page_verified": True,
         "applied_page_evidence": str(evidence_path.resolve()),
         "proposal_sha256": intent["proposal_sha256"],

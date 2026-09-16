@@ -251,7 +251,10 @@ def _validate_parent_result(
     """Reuse the legacy B2 postcondition before direct advances its cursor."""
     files = [path for path in run_dir.rglob("*") if path.is_file()]
     min_mtime = min((path.stat().st_mtime for path in files), default=time.time())
-    readback_files = sorted(run_dir.rglob("parent-B2-applied-readback-*.json"))
+    readback_files = sorted({
+        *run_dir.rglob("parent-B2-applied-readback-*.json"),
+        *run_dir.rglob("parent-B2-applied-full-history.json"),
+    })
     if readback_files:
         request_ids: set[str] = set()
         absent_ids: set[str] = set()
@@ -287,7 +290,11 @@ def _validate_parent_result(
             cards_seen += int(payload.get("cards_seen") or 0)
             has_next_page = has_next_page or payload.get("has_next_page") is True
             for value in payload.get("urls") or [payload.get("url")]:
-                if isinstance(value, str) and value:
+                if (isinstance(value, str) and value
+                        and urlsplit(value).path.rstrip("/") in {
+                            "/mypage/job_matching/applied/offers",
+                            "/mypage/job_matching/applied/outsource_applications",
+                        }):
                     urls.add(value)
         _atomic_json(run_dir / "code-applied-readback.json", {
             "source": "code_owned_cdp_readback",

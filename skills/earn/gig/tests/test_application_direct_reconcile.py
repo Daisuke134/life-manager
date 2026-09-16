@@ -1,5 +1,6 @@
 import importlib.util
 import inspect
+import json
 import sys
 from pathlib import Path
 
@@ -71,6 +72,9 @@ def test_full_history_reconcile_confirms_present_and_retires_absent(tmp_path, mo
     assert store.read("456")["state"] == fence.RETIRED_ABSENT
     assert present["cas"] == store.read("123")["cas"]
     assert absent["cas"] == store.read("456")["cas"]
+    ledger_row = json.loads(ledger.read_text(encoding="utf-8"))
+    assert ledger_row["recorded_by"] == "application_report_intent_recovery"
+    assert ledger_row["applied_page_evidence"] == str((tmp_path / "history.json").resolve())
 
 
 def test_full_history_reconcile_does_not_touch_non_started_intent(tmp_path):
@@ -118,3 +122,6 @@ def test_full_history_reconcile_runs_before_fresh_snapshot_collection():
         "snapshot = collect_snapshot_with_readonly_retry"
     )
     assert "max_pages=_APPLIED_OFFERS_RECONCILE_MAX_PAGES" in source
+
+    wrapper_source = inspect.getsource(application_direct._validate_parent_result)
+    assert 'rglob("parent-B2-applied-full-history.json")' in wrapper_source
