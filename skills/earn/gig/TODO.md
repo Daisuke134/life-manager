@@ -46,9 +46,9 @@ runtime/provider readback before acting; conversation claims are not completion 
   superseded historical state, not another client-work project.
 - Paid now tries the existing Account 1 Codex profile first and falls back to Account 2 through the shared
   runner; the first bounded Account 1 receipt is proved. Preserve both accounts and all unrelated sessions.
-- First safe action: fix Coconala's official applied-history collector so it extracts request IDs across the
-  complete pagination surface, then reconcile the 54 uncertain intents. The natural `427972bf` Apply wake
-  passed resource admission and planner execution without schema HTTP 400. Paid's current four-client set is closed by a natural
+- First safe action: let Coconala Apply continue its durable full-history cursor from page 3 in two-page chunks
+  until all pages are complete, then reconcile the 54 uncertain intents. Release `8d366069` passed page 1-2 in
+  production with 36 cards, zero target matches and zero intent mutations. Paid's current four-client set is closed by a natural
   `172d3f2e` replay-zero pass. Admission protocol `2` is live and one four-lane overlap is proved, but the
   24-hour/seven-day fairness and no-starvation gates remain open.
 
@@ -344,9 +344,10 @@ Paid wake at `2026-09-15T23:09:25Z` observed all four open rooms with `actionabl
 `allOf`) is fixed by PR `#5262`, live Codex output-schema probe PASS, and immutable release
 `20260916T082615-427972bf` is loaded. Four idle CrowdWorks revenue labels were reconciled to the same protocol-2
 release, removing the observed mixed-release borrower gate. A later natural Apply wake passed, judged five
-new listings correctly as prohibited, and retained exactly 54 duplicate-fenced intents. The current official
-history reader renders the applied page but extracts zero request IDs and does not prove full pagination, so
-collector repair and 54-intent reconciliation are the cursor.
+new listings correctly as prohibited, and retained exactly 54 duplicate-fenced intents. PRs `#5265`-`#5268`
+add CAS-frozen, ledger-first, contiguous and resumable official-history reconciliation. Two incorrect page-1
+absence runs changed 54 intents; both were restored exactly from their CAS-bound recovery archives before the
+resumable release was loaded. Production scan state is now page 3 with all 54 still PREPARED.
 Do not create another worktree, edit the Capify checkout, globally kill browsers/apps, or call a process receipt
 a provider effect.
 
@@ -911,9 +912,9 @@ work item and leave a sibling trace unchanged.
   seller message. Keep it settlement/payout-waiting and reopen only for a newer buyer event.
 - [x] Ryu and both Kokoro rooms have later official seller effects; Chii has its workbook effect. All four
   independently replayed zero in the natural Paid wake. Atsugi remains settlement-only unless reopened.
-- [ ] **Current cursor:** repair the official applied-history reader to extract exact request IDs across complete
-  pagination, then reconcile all 54 uncertain application intents. The natural `427972bf` wake already passes
-  admission and planner execution without schema HTTP 400.
+- [ ] **Current cursor:** continue the resumable official applied-history scan from page 3. Page 1-2 observed
+  36 cards, matched zero of the 54 frozen CAS targets, persisted one hash-bound chunk and changed no intent.
+  Reconcile all 54 only after the final page proves complete.
 - [ ] Restore authenticated discovery for both `single:new` and `retainer:new`.
 - [ ] Submit every eligible high-fit one-off and continuous application; verify each officially; replay zero.
 - [ ] Create Calendar events and five-minute Telegram reminders for every accepted meeting.
