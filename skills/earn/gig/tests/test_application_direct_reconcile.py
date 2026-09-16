@@ -126,12 +126,20 @@ def test_full_history_reconcile_ignores_intent_created_after_target_snapshot(tmp
     assert store.read("222")["state"] == fence.PREPARED
 
 
-def test_full_history_reconcile_runs_before_fresh_snapshot_collection():
+def test_full_history_reconcile_is_background_only(monkeypatch):
+    monkeypatch.delenv("GIG_RUN_FULL_HISTORY_RECONCILE", raising=False)
+    assert application_parent._full_history_reconcile_enabled() is False
+    monkeypatch.setenv("GIG_RUN_FULL_HISTORY_RECONCILE", "1")
+    assert application_parent._full_history_reconcile_enabled() is True
+
+
+def test_background_full_history_reconcile_runs_before_fresh_snapshot_collection():
     source = inspect.getsource(application_parent.run_parent)
 
     assert source.index("uncertain_intents = _durable_uncertain_intents") < source.index(
         "snapshot = collect_snapshot_with_readonly_retry"
     )
+    assert "uncertain_intents and _full_history_reconcile_enabled()" in source
     assert "max_pages=_APPLIED_OFFERS_RECONCILE_PAGES_PER_WAKE" in source
     assert 'scan_state_path = intent_root / "full-history-scan-state.json"' in source
     assert "include_retainer_history=any(" in source
