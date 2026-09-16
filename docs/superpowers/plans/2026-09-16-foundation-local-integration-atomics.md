@@ -405,6 +405,12 @@ counterexample, then require exact pre-effect terminal/receipt or official
 effect reconciliation before owner-scoped restoration; expire stale
 reservations first. The specific Instagram 15:14 outer run was pre-effect
 `capacity_busy`, but that does not license a generic fleet replay.
+At 15:39 UTC the five finite slots were full: four revenue owners and
+`affiliate-source-refresh` in the single borrow slot. That owner had been
+running about 11 minutes; its loaded registry timeout is 10,800 seconds and
+its pass combines model-driven discovery with source capture. Deterministic
+borrow queue count reached 27. The next capacity investigation is bounded
+service time/isolation of this existing owner, not a blind 5→10/20 cap jump.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

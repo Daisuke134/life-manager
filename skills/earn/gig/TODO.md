@@ -723,6 +723,16 @@ Next: test the old-claim counterexample and require positive same-run
 pre-effect evidence or official effect reconciliation before any owner-scoped
 restoration. Expire stale reservations before deciding whether restoration is
 needed. Preserve unknown-effect fences.
+Capacity diagnosis at 2026-09-16 15:39 UTC: five live owners occupied the
+five finite slots (four revenue, one borrow). The borrow owner was
+`affiliate-source-refresh`; its child had run about 11 minutes and its loaded
+registry allows a 10,800-second (three-hour) wake. The same owner performs
+model-driven official plan discovery and source capture inside one pass.
+Deterministic borrow waiters grew to 27; Metrics cannot reach Postiz while the
+one borrow slot is held. This is service-time/class isolation evidence, not
+permission to raise the host cap. Next measure that wake's exact child/terminal
+and separate or bound the long model stage using existing scheduler/cursor
+contracts before increasing concurrency; preserve paid-first capacity.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/
