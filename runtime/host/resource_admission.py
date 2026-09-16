@@ -584,8 +584,7 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
     live = []
     for path in owners.glob("*.json"):
         row = _row(path) or {}
-        if (_live(path, starts, snapshot_started_ns)
-                and not _heartbeat_expired(row, now)):
+        if _live(path, starts, snapshot_started_ns):
             live.append(row)
         else:
             if (row.get("version") == 2 and row.get("phase", "claimed") in {"claimed", "running"}

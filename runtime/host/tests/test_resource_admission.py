@@ -617,7 +617,7 @@ def test_multiple_occurrences_drain_one_owner_queue_without_loss(
     ]
 
 
-def test_expired_running_heartbeat_is_reclaimed_to_durable_queue(
+def test_expired_running_heartbeat_keeps_live_child_claim(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
     admission.activate_durable_v2()
@@ -635,10 +635,10 @@ def test_expired_running_heartbeat_is_reclaimed_to_durable_queue(
     ticket, reason = admission.enqueue_durable(
         "agent", "next-owner", admission_class="revenue", now=100)
 
-    assert ticket is not None and reason == "fifo_wait"
-    assert not stale.exists()
+    assert ticket is not None and reason == "capacity_busy"
+    assert stale.exists()
     assert [row["owner_id"] for row in durable_rows(tmp_path, "queue")] == [
-        "stale-heartbeat", "next-owner"
+        "next-owner"
     ]
 
 
