@@ -394,6 +394,11 @@ Instagram was `capacity_busy`, a distinct admission reason. The immediate
 atomic repair queue is (1) analyze finite-slot occupancy and deterministic
 service demand, (2) keep revenue priority without indefinitely starving
 lightweight support, (3) only then re-canary Metrics and 17 publishers.
+Read-only SQLite audit also found one stronger invariant failure: Instagram
+Metrics has a `queued`, known-safe occurrence but no queue/priority/reservation
+row and no live owner. Preserve this evidence, reproduce the exact removal
+path test-first, then repair using the existing admission store before raising
+capacity. Do not turn unknown-effect or cancelled work into a blind retry.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

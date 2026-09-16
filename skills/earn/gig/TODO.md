@@ -706,6 +706,15 @@ its Postiz/metrics path was not reached. Distinguish this from Instagram's
 capacity-busy result. Admission snapshot later showed five live revenue owners
 occupying the five finite slots, and a growing deterministic borrow queue;
 do not raise the cap without physical-memory and service-time evidence.
+Read-only invariant audit after these wakes found Instagram Metrics occurrence
+`life-manager-instagram-metrics:18d5d5ed4e4aaf38-71194` still `queued` with
+`effect_unknown=0`, but **no matching queue, priority or reservation row**.
+No live Instagram owner existed at the sample. Other queued occurrences did
+not show this mismatch. This can delay that exact occurrence until a later
+enqueue or repair even after capacity frees. Before any queue mutation,
+reproduce the precise queue-removal path in a focused SQLite test; then
+restore the queued-occurrence/queue invariant with the existing admission
+store and verify no cancelled/effect-unknown occurrence is reactivated.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/
