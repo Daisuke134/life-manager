@@ -512,6 +512,31 @@ def test_revenue_waiter_gets_released_slot_before_older_borrow_waiter(
         running, now=100, lease_seconds=30) == ["coconala-paid"]
 
 
+def test_aged_revenue_waiter_advances_during_continuous_paid_arrivals(
+        tmp_path, monkeypatch):
+    """Aged acquisition work receives service despite newer critical work."""
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    running, reason = admission.try_acquire(
+        "agent", "paid-running", retain_ticket=False,
+        admission_class="revenue")
+    assert running is not None and reason == "acquired"
+
+    admission.enqueue_durable(
+        "agent", "connector-aged", admission_class="revenue",
+        priority="revenue", now=0)
+    for index in range(5):
+        ticket, reason = admission.enqueue_durable(
+            "agent", f"paid-new-{index}", admission_class="revenue",
+            priority="critical_paid", now=1801 + index)
+        assert ticket is not None and reason in {"capacity_busy", "fifo_wait"}
+
+    reserved = admission.release_and_reserve(
+        running, now=1801, lease_seconds=30)
+
+    assert reserved == ["connector-aged"]
+
+
 def test_revenue_priority_applies_across_resource_classes(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_RUNS", "1")
