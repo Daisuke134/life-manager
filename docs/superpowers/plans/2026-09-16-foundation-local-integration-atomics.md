@@ -586,12 +586,19 @@ Order amendment for this one Connector slice: previous Local-before-final-main
 sequence is unexecutable under the main-derived-production-release rule.
 The reviewed TechPlay commit is isolated on latest-main branch
 `fix/connector-techplay-bounded-main-20260917` at pushed `b9bb48268c`;
-that branch passed 775 Connector tests and OSS verification. Advance this
-domain-only PR [#5294](https://github.com/Daisuke134/life-manager/pull/5294)
-through CI/main (open, mergeable, checks pending at creation), cut its immutable main release, apply only
-idle Connector, then run the unchanged Local natural-wake/effect gates. This
-does not merge the 101-file foundation candidate, touch the Coconala owner,
-promote Cloud, or turn mock/code success into provider success.
+that branch passed 775 Connector tests and OSS verification. PR
+[#5294](https://github.com/Daisuke134/life-manager/pull/5294) passed all CI
+and merged as main `ba9246eeaf`. Full immutable release
+`20260917T051509-ba9246ee` was cut with `current` unchanged. Exact idle-only
+Connector apply loaded that SHA, but the mandatory resource-contract readback
+found main's registry had no `browser`/`revenue` classification while the
+existing durable Connector queue uses `browser`; main admission also rejects
+that class. No new-SHA natural run occurred (`runs=0`). Connector alone was
+restored idle-only to prior `cf655388`, and plist plus launchd argv matched.
+The narrow main release must not be reapplied. The next source cursor is a
+fresh review of the 101-file shared-v2 foundation/domain diff, then its
+main-derived release and unchanged Local queue/effect gates. Keep Coconala's
+provider owner untouched; Cloud still follows Local/Eval.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

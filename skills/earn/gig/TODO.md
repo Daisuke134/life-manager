@@ -633,18 +633,23 @@ effects. Do not count a mock as production evidence or claim a provider result f
 **Connector order amendment:** Old order was Connector Local effect gate, then
 the final main merge. This cannot prove the new TechPlay code in production:
 production accepts only main-derived immutable releases, while loaded
-`cf655388` predates the fix. New narrow order is Connector-only main-derived
-source PR/CI/merge → exact immutable release → idle-only Connector apply →
-natural outer terminal/TechPlay `processed_count>0` → official provider and
-Calendar readback/replay-zero → remaining foundation/domain integration.
-Reason: move the smallest reviewed domain slice across the release boundary
-without loading unmerged candidate code or touching Coconala's provider owner.
-The current engineering cursor is the Connector-only branch
-`fix/connector-techplay-bounded-main-20260917` at pushed `b9bb48268c`;
-independent branch tests 775/775 and OSS PASS, but no main merge or live effect
-yet. Connector-only PR [#5294](https://github.com/Daisuke134/life-manager/pull/5294)
-is open on `b9bb48268c`, mergeable with CI pending; do not read a pending
-check as release evidence. The prior two compatibility PRs were the same explicitly recorded
+`cf655388` predates the fix. Connector-only PR
+[#5294](https://github.com/Daisuke134/life-manager/pull/5294) passed all CI
+and merged into main `ba9246eeaf`; a full immutable release
+`20260917T051509-ba9246ee` was cut without moving `current`. Idle-only
+Connector apply returned exact loaded argv, but immediate contract readback
+found that main's Connector row lacked the live v2 `browser` resource class
+and `revenue` admission class. No new-SHA wake/external effect occurred
+(`runs=0`). The same idle-only path restored only Connector to `cf655388`,
+with plist and loaded argv readback. Do not reapply the narrow release:
+main's old admission code also cannot claim existing `browser` queue rows.
+The corrected order is reviewed shared-v2 runtime+domain integration →
+new main immutable release → exact idle-only Connector apply → natural
+queue claim/outer terminal/TechPlay `processed_count>0` → official provider
+and Calendar readback/replay-zero. Reason: the domain code alone cannot use
+the production queue; integrating the 101-file foundation needs fresh scope
+review and must not edit Coconala's provider owner. The prior two compatibility
+PRs were the same explicitly recorded
 exception to the one-final-merge ordering. This does not relax Cloud/Local,
 identity, permission, receipt or Eval gates.
 
