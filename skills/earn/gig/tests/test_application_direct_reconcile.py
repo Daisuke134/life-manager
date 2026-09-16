@@ -135,3 +135,19 @@ def test_full_history_reconcile_runs_before_fresh_snapshot_collection():
 
     wrapper_source = inspect.getsource(application_direct._validate_parent_result)
     assert 'rglob("parent-B2-applied-full-history.json")' in wrapper_source
+
+
+def test_applied_history_uses_numeric_pagination_when_next_label_is_absent():
+    current = "https://coconala.com/mypage/job_matching/applied/offers"
+    candidates = [
+        "https://coconala.com/mypage/job_matching/applied/offers?page=10",
+        "https://coconala.com/mypage/job_matching/applied/offers?page=2",
+        "https://evil.example/mypage/job_matching/applied/offers?page=2",
+    ]
+
+    assert application_parent._next_applied_history_page(current, candidates) == (
+        "https://coconala.com/mypage/job_matching/applied/offers?page=2"
+    )
+    assert application_parent._next_applied_history_page(
+        "https://coconala.com/mypage/job_matching/applied/offers?page=10", candidates,
+    ) is None

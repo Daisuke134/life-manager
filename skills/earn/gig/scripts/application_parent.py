@@ -779,6 +779,18 @@ def _strict_next_page(current: str, candidate: object, *, path: str = "/requests
     return urlunsplit(("https", "coconala.com", after.path.rstrip("/"), urlencode(retained), ""))
 
 
+def _next_applied_history_page(current: str, candidates: object) -> str | None:
+    if not isinstance(candidates, list):
+        return None
+    valid = {
+        next_url for candidate in candidates
+        if (next_url := _strict_next_page(
+            current, candidate, path=_APPLIED_OFFERS_PATH,
+        )) is not None
+    }
+    return min(valid, key=_page_index) if valid else None
+
+
 class CdpParentEffects:
     """The only live browser adapter for the application commit boundary.
 
@@ -1947,6 +1959,9 @@ class CdpParentEffects:
                             offer_urls:[...document.querySelectorAll('a[href*="/mypage/offers/"]')]
                               .map(a=>a.href).filter((value,index,all)=>value&&all.indexOf(value)===index),
                             next_href:next?.href||null,
+                            pagination_hrefs:anchors.map(a=>a.href).filter(
+                              href=>href&&href.includes('/mypage/job_matching/applied/offers')&&href.includes('page=')
+                            ),
                             body:(document.body?.innerText||'').slice(0,12000),
                             access_denied:document.title==='403 Forbidden'||document.title==='Access Denied',
                             not_found:/404|ページが見つかりません|お探しのページ/.test(document.title)};
@@ -2043,8 +2058,9 @@ class CdpParentEffects:
                         observed.add(request_id)
                 if single_expected and single_expected.issubset(observed):
                     break
-                next_url = _strict_next_page(
-                    str(page.get("url") or ""), page.get("next_href"), path=_APPLIED_OFFERS_PATH
+                next_url = _next_applied_history_page(
+                    str(page.get("url") or ""),
+                    [page.get("next_href"), *(page.get("pagination_hrefs") or [])],
                 )
                 has_next_page = next_url is not None
                 if next_url is None:
