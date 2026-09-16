@@ -178,6 +178,10 @@ install eventだけを業務成功receiptとは数えず、次回statusでcurren
 installed SHAはcurrentへ揃ったが、最後のruntime report/eventは旧SHAで`resource_capacity_busy`のままである。
 これはrelease整合性の修復であり、自己改善が成功したというreceiptではない。自然wake後に再確認する。
 
+さらに外部effectを持たない`life-manager-selfbuild` ownerも同じtargeted reconcileでcurrent SHAへ揃えた。
+installed SHAは更新されたが、最後のruntime report/eventは旧SHAで`resource_control_busy`のため、自然wakeの
+成功とは扱わない。
+
 #### S: 自己修復・自己改善の残りも一件ずつ記録する
 
 これは別の常駐supervisorを追加するTODOではなく、既存のreconcile/launchd supervisorとcandidate gateへ
