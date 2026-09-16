@@ -1193,6 +1193,48 @@ def test_actionable_decision_rejects_agent_process_narration(
         paid._validate_paid_decision(decision, "a" * 64, "b" * 64, identity, identity)
 
 
+def test_current_buyer_burst_is_bound_into_actionable_contract(tmp_path):
+    paid = load("paid_direct")
+    root = tmp_path / "18211957"
+    messages = root / "source/talkroom/messages.jsonl"
+    messages.parent.mkdir(parents=True)
+    def row(message_id, side, text):
+        value = {
+            "version": 1, "source": "coconala_live_talkroom",
+            "talkroom_id": root.name, "message_id": message_id,
+            "observed_at": "2026-09-16T04:44:55Z", "side": side,
+            "sent_at": None, "text": text, "attachments": [],
+        }
+        value["content_sha256"] = paid._official_content_sha256(value)
+        return value
+
+    rows = [
+        row("seller-1", "seller", "Previous reply."),
+        row("buyer-1", "buyer", "Set every form destination to the supplied address."),
+        row("buyer-2", "buyer", "Move the upper easy-edit items into the lower sections."),
+        row("buyer-3", "buyer", "Make profiles editable from easy edit."),
+    ]
+    messages.write_text(
+        "\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+    write_json(root / "state.json", {"talkroom_id": root.name})
+    decision = {
+        "decision": "actionable",
+        "required_output": "Update the management screen.",
+        "required_effect": "Deploy the easy-edit profile controls.",
+    }
+
+    bound = paid._bind_current_buyer_burst_contract(root, "18211957", decision)
+
+    for row in rows[1:]:
+        assert row["message_id"] in bound["required_effect"]
+        assert row["text"] in bound["required_effect"]
+        assert row["message_id"] in bound["required_output"]
+        assert row["text"] in bound["required_output"]
+    assert "Previous reply." not in bound["required_effect"]
+
+
 def test_initial_purchase_is_buyer_authority_before_first_buyer_message(tmp_path):
     paid = load("paid_direct")
     room = "18250352"
