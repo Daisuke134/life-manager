@@ -267,6 +267,11 @@ legacy claimにheartbeat metadataが無い場合は、従来のprocess identity�
 registry・loop-run・apply focused suiteは **260 tests / 164 subtests PASS**。runnerの定期heartbeat
 更新、自然wake、productionへの反映はまだ未完である。
 
+**R2-02 runner heartbeat atomic (candidate `fb637d5492`):** child processへのclaim handoff後に
+runnerがbounded intervalのheartbeat threadを開始し、終了処理前に停止・joinするようにした。
+heartbeat失敗はprovider effectや別ownerの操作へ昇格せず、既存のstale recoveryへ委ねる。loop-runと
+admissionの回帰は **99 tests PASS**。candidateのみで、launchd自然wakeとproduction反映はまだ未完である。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
