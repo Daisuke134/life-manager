@@ -652,11 +652,16 @@ Do not count it as Connector registration or all-fleet starvation recovery.
 Source integration now combines that foundation branch, Mobile's 17-target runtime/env fix and Obou Mobile
 retirement, plus latest main's Capafy admission rows, at candidate `cf65538879`. The pre-main-sync combined
 source passed control-plane 462/462, and after main-sync Mobile 21/21 and registry/apply 158/158 passed.
-Nothing was merged to main or applied to live labels. Disk free space recovered naturally to about 5.9 GiB
+At that source checkpoint nothing was merged to main or applied to live labels. Disk free space recovered naturally to about 5.9 GiB
 without deleting browser or session state; full control-plane tests were rerun at exact `cf65538879` and
 passed 462/462. This remains source proof, not Local/provider acceptance or permission to promote Cloud.
 The earlier Reply-lease GC request is withdrawn: 14 dead-PID ledger entries match zero live CDP contexts,
 so it would not recover physical capacity.
+Later, a pushed-SHA Local candidate release `20260916T233946-cf655388` was cut without moving `current`.
+Only Connector and Instagram Metrics were loaded-idle target-applied after GUI preflight; loaded argv and
+Metrics' private Marketing env/absolute runtimes were read back. Candidate doctor still BLOCKS on the
+installed retired Obou Mobile label. Require each target's next natural outer terminal and its real
+provider/Calendar or Postiz readback before any Local gate claim. Main/Cloud remain untouched.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/
@@ -677,6 +682,10 @@ The next natural Paid wake at 2026-09-16 13:25:58 UTC failed the same pre-effect
 available, 536,870,912 required, `effect=0`, `readback=0`. A brief earlier rise above the floor was not
 durable. Do not keep polling the unchanged failure or claim a client effect; repair physical headroom before
 the next owner-scoped acceptance check.
+Later free space recovered naturally and Paid started a new outer run `18d5d336ca66b6c0-26709`.
+The installed status reader temporarily reported `pass` from a different inner Codex run ID, but the
+`cf655388` candidate status reader correctly classified the outer run as `running`. Keep this exact
+process until its own terminal and official talkroom readback; inner agent success is not Paid completion.
 One observed browser orphan class now has a source-only repair at `e75f5f826e`: lateness route lookup gets
 a unique agent-browser session and its parent uses the existing TERM/grace timeout so `finally` can close
 that exact session. Five small tests passed; the real signal integration test was blocked by `ENOSPC`, and
