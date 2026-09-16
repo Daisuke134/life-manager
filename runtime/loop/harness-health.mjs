@@ -207,6 +207,7 @@ export function decideRecoveryAction(input = {}) {
 }
 
 const RECOVERY_FAILURE_KINDS = new Set(['skill_missing', 'skill_timeout', 'skill_error', 'wake_error']);
+const RECOVERY_KIND = /^[a-z][a-z0-9_]{0,63}$/;
 
 /**
  * R10 shell seam — derive one durable, secret-free recovery decision from the bounded recent
@@ -234,13 +235,14 @@ export function buildRecoveryDecisionFields(input = {}) {
   const currentSlot = typeof input.slot === 'string'
     ? input.slot
     : (typeof current.slot === 'string' ? current.slot : null);
+  const kindKey = typeof kind === 'string' && RECOVERY_KIND.test(kind) ? kind : 'unknown';
   const wakeId = typeof current.wake_id === 'string' && RECOVERY_ID.test(current.wake_id)
     ? current.wake_id : 'unknown';
 
   if (!RECOVERY_FAILURE_KINDS.has(kind)) {
     return Object.freeze({
       schema_version: 'recovery.decision.v1',
-      event_key: `recovery:block:${kind || 'unknown'}:${wakeId}`,
+      event_key: `recovery:block:${kindKey}:${wakeId}`,
       action: 'block',
       owner_id: null,
       slot: null,
@@ -268,14 +270,14 @@ export function buildRecoveryDecisionFields(input = {}) {
     health = computeSlotHealth(records, currentSlot);
   }
 
-  const ownerInput = typeof input.ownerId === 'string' && RECOVERY_ID.test(input.ownerId)
+  const ownerInput = kind !== 'wake_error' && typeof input.ownerId === 'string' && RECOVERY_ID.test(input.ownerId)
     ? input.ownerId : null;
   const ownerId = ownerInput || (decisionSlot && RECOVERY_ID.test(`runtime:${decisionSlot}`)
     ? `runtime:${decisionSlot}` : null);
   if (!health || !ownerId || !decisionSlot || !RECOVERY_ID.test(decisionSlot)) {
     return Object.freeze({
       schema_version: 'recovery.decision.v1',
-      event_key: `recovery:block:${kind}:${wakeId}`,
+      event_key: `recovery:block:${kindKey}:${wakeId}`,
       action: 'block',
       owner_id: null,
       slot: null,

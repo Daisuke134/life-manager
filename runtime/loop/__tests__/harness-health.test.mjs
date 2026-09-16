@@ -329,6 +329,18 @@ test('R10: unsupported failure kinds fail closed without inventing an owner or a
   });
 });
 
+test('R10: untrusted failure labels cannot expand or leak into the recovery event key', () => {
+  const decision = buildRecoveryDecisionFields({
+    ownerId: 'runtime:router',
+    slot: null,
+    kind: `bad\n${'x'.repeat(200)}secret`,
+    currentRecord: { ts: 1, wake_id: 'router-2', kind: 'ignored' },
+  });
+  assert.equal(decision.action, 'block');
+  assert.equal(decision.event_key, 'recovery:block:unknown:router-2');
+  assert.ok(decision.event_key.length < 64);
+});
+
 // ── R8 cross-language parity anchor (JS side) — shared fixture with harness_health.py ──
 
 test('R8 (JS side): computeHarnessHealth on the shared parity fixture matches its expected field-for-field (generatedAt excluded)', async () => {
