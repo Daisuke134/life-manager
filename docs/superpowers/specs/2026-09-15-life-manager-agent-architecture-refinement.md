@@ -10,6 +10,11 @@ claim that the target control plane, marketplace effects, or cloud deployment ar
 共通契約、skill、fixture、read-only診断だけを進めます。両者を同じファイルや稼働browserで
 同時に変更しません。
 
+このfoundationの完了条件は実データです。mock/fixture、テストgreen、PID、exit 0、Telegram文面は
+公式receipt・Local gate・Cloud gateの証拠にしません。Claude-pは現在のLife Managerで使用しないため、
+このspecのTODO・受入・昇格条件から除外します。Agents APIは必要になった場合だけread-only
+maintenance用途として別途判断し、現在のproduction gateには含めません。
+
 完了済みの共通基盤:
 
 - Product Loop/job identity、runtime state/event、context capsule（FND-02〜FND-10）
@@ -28,7 +33,7 @@ claim that the target control plane, marketplace effects, or cloud deployment ar
 - `ADMISSION-01`: protocol v2のmain由来release反映と有効化は実測済み。current releaseと各ownerの自然terminal確認は継続中
 - `BROWSER-04` / `ADMISSION-02`: branch実装・テスト済み。main由来release反映と自然wake canaryは未完了
 - `CONTROL-01`: registry外Browser provisionerの所有者分類とhandoff
-- Responses APIの通常Loopへの昇格、Agents API maintenance pilot
+- Responses APIの通常Loopへの昇格（既存adapterの受入整理）
 - 14 Loopのlocal completion gate
 - tenant分離したcloud、cloud canary、phone-only経路、本番昇格
 
@@ -57,17 +62,29 @@ platform adapterの実装そのものをfoundationへ複製しません。
 
 **この仕事は完了していません。** スキルの調査・読み込みと候補branchのテストgreenは、
 Life Managerの実際の応募・契約・納品・報酬・cloud運用が動いたことを意味しません。現在の
-origin/mainは `6184a493a7`（統合境界で確認した最新main）まで進み、本番selectorは
-`20260916T091559-6184a493`（SHA `6184a493a7f6c45388412556dc7ecd425f6fef85`）です。ownerのinstalled/event SHAはまだ混在しています。
-統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `42b3e0a964`）は最新mainを取り込みpush済みで、
+origin/mainは `4d0f8cfbaa`（今回確認した最新main）まで進み、本番selectorは
+`20260916T093051-4d0f8cfb`（SHA `4d0f8cfbaa6b21165a575bab11f4c4ce4e1c5c82`）です。ownerのinstalled/event SHAはまだ混在しています。
+統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `42b3e0a964`）はpush済みですが、最新main `4d0f8cfbaa`はまだ候補へ同期していません。候補をmainへmergeする前に、統合境界で一度だけ同期します。
 本番へはまだ統合していません。
 したがって、次の作業は「さらにスキルを読む」ではなく、候補をmain由来immutable releaseへ
 昇格し、ownerごとの自然wakeで公式効果を確認することです。
 
-### 残りTODO（実行順の短い正本）
+### 残りTODO（Foundationの正本・実行順）
 
 **前提0（最優先）:** gig workの外部effectを実行するCodexを一つに固定し、もう一方は同じ
 provider/state/browserを触らない。handoff receiptができるまで、未統合candidateの再実行も行わない。
+
+| 順番 | atomic task | 現在 | 完了条件 |
+|---:|---|---|---|
+| 1 | 14 Loopの実際の公式receiptをmanifestへ接続 | **未完**。manifestは`verified=0 / setup_required=6 / unknown=8` | 14 Loopごとに公式provider/payment receiptまたは明示的typed terminal、effect key重複0、replay-zero |
+| 2 | Local gateを実データでPASS | **BLOCK**。`lm-loop status all`は13秒・267行、`unknown_product_loop` | `unknown=0`でLocal gate PASS。mock/fixtureは不可 |
+| 3 | 同じimmutable releaseをCloudへ配置 | 未実施 | Local gate PASS後、candidateと同一SHAのcloud artifactを配置しsource hashを検証 |
+| 4 | tenant分離・Steel/browser・phone-only canary | 未実施 | tenant A/B cross-read 0、credential/state混在0、session owner分離、phone-only公式readback |
+| 5 | Cloud gateをPASS | 未実施 | local PASS、cloud 14行、公式readback verified、replay-zero、local state/credential copy 0 |
+| 6 | 最後に一度だけmainへmerge・本番release化 | 未実施 | 1〜5全PASS後に一度だけmerge、全owner同一immutable SHA、production readback |
+
+**別Codexのprovider TODO（参照用）:** 下記の細かいprovider表はGig/Coconala/Lancers/Mercorの
+外部effect ownerが進める資料です。私のfoundation cursorでは、mock・Claude-p・provider操作を実行しません。
 
 | 順番 | atomic task | いま残っている理由 | 完了条件 |
 |---:|---|---|---|
@@ -148,8 +165,8 @@ runtime event、provider ledgerを突き合わせた現在cursorです。後続�
 
 | 対象 | 実測状態 | 判定 |
 |---|---|---|
-| source | `origin/main=6184a493a7f6c45388412556dc7ecd425f6fef85`（統合境界で確認した最新main）; 統合候補branch `fix/lm-fundamental-runtime-20260916`（HEAD `42b3e0a964`）はpush済み・未統合 | mainにはCodex account failover、Gig/TODOの公式seller-artifact wait修正、Coconala Ryu/Kokoro/Paid handoff、Apply cursor更新が追加済み。候補にはLancers shared browser session lease、stale claim解放の冪等化、CrowdWorks/Mercor finite lane timeout、Mercor stale provisioning auto-GC、sparse releaseのadmission capability自動同梱、14-loop completion manifest契約/CLI、`lm-loop status` JSONからのruntime evidence結合、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、既存`harness-failures.jsonl`へのrecovery intent保存、`harness-recovery.json`への最新intent投影、canonical job mapping、7つのagent-engineering skill、Graph/Eval/notification契約、submitted Browserのexternal owner分類を追加。merge後focused基盤43 tests・Python read-only 13 testsがPASS |
-| release selector | `~/loops/current`は`20260916T091559-6184a493`（SHA `6184a493a7f6c45388412556dc7ecd425f6fef85`、`origin/main`由来）を指す。ownerのinstalled/event SHAは混在 | current自体はorigin/mainと一致するが、Lancers/CrowdWorks/Mercorのowner drift gateはFAIL。protocol v2は有効、候補branchは未反映、全体gateは未完 |
+| source | `origin/main=4d0f8cfbaa6b21165a575bab11f4c4ce4e1c5c82`（今回確認した最新main）; 統合候補branch `fix/lm-fundamental-runtime-20260916`（HEAD `42b3e0a964`）はpush済み・未統合 | mainにはCodex account failover、Gig/TODOの公式seller-artifact wait修正、Coconala Ryu/Kokoro/Paid handoff、Apply cursor更新が追加済み。候補にはLancers shared browser session lease、stale claim解放の冪等化、CrowdWorks/Mercor finite lane timeout、Mercor stale provisioning auto-GC、sparse releaseのadmission capability自動同梱、14-loop completion manifest契約/CLI、`lm-loop status` JSONからのruntime evidence結合、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、既存`harness-failures.jsonl`へのrecovery intent保存、`harness-recovery.json`への最新intent投影、canonical job mapping、7つのagent-engineering skill、Graph/Eval/notification契約、submitted Browserのexternal owner分類を追加。候補のfocused基盤43 tests・Python read-only 13 testsがPASS |
+| release selector | `~/loops/current`は`20260916T093051-4d0f8cfb`（SHA `4d0f8cfbaa6b21165a575bab11f4c4ce4e1c5c82`、`origin/main`由来）を指す。ownerのinstalled/event SHAは混在 | current自体はorigin/mainと一致するが、Lancers/CrowdWorks/Mercorのowner drift gateはFAIL。protocol v2は有効、候補branchは未反映、全体gateは未完 |
 | Lancers Application | 以前のe789/current wakeでproposal 20件を公式ledgerへ記録（pendingは134→101）。直近current ownerは`entrypoint_exit_124`でblocked | 20件のApplication公式receiptは保持するが、現在の自然wakeは成功扱いにしない。pending 101件と再現可能なterminalが残る |
 | Lancers Browser | `loaded-running`、9227 CDPはlisten中だがinstalled SHA `2ff93374`、event SHA `437b5696`でcurrent `6184a493`と不一致 | 9227 healthだけではrelease gate PASSにならない。候補反映後に同時接続とlease releaseを確認 |
 | Lancers Negotiate/Storefront/work-sync/report | Negotiate/Telegram-report/Work-syncは`resource_control_busy`/FIFO blocked、Storefrontは`entrypoint_exit_1`。installed/eventは2ff | current自然wakeを成功扱いせず、候補反映後にownerごとのterminalと公式readbackを確認 |
