@@ -512,8 +512,9 @@ def _next_durable_candidate(connection: sqlite3.Connection, owners: Path,
 
 def _uses_limited_capacity(row: dict[str, object], resource_class: str,
                            admission_class: str) -> bool:
-    if admission_class == "revenue" and resource_class == "agent":
-        return row.get("admission_class", "borrow") == "revenue"
+    if resource_class == "agent":
+        return (row.get("resource_class") == "agent"
+                and row.get("admission_class", "borrow") == admission_class)
     return row.get("resource_class") == resource_class
 
 

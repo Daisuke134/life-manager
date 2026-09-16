@@ -543,6 +543,36 @@ def test_aged_support_gets_released_slot_before_new_paid(
         admission.release_and_reserve(claim, reserve=False)
 
 
+def test_aged_agent_support_uses_one_borrow_slot_beside_paid_agents(
+        tmp_path, monkeypatch):
+    """Four Paid agent claims must not consume the one borrow agent allowance."""
+    isolated(tmp_path, monkeypatch, total="5")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "4")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_RUNS", "1")
+    admission.activate_durable_v2()
+
+    paid_claims = []
+    for index in range(5):
+        owner = f"paid-running-{index}"
+        admission.enqueue_durable("agent", owner, admission_class="revenue")
+        claim, reason = admission.claim_durable(
+            "agent", owner, admission_class="revenue")
+        assert claim is not None and reason == "acquired"
+        paid_claims.append(claim)
+
+    admission.enqueue_durable(
+        "agent", "support-aged", admission_class="borrow",
+        priority="support", now=0)
+    admission.enqueue_durable(
+        "agent", "paid-new", admission_class="revenue",
+        priority="critical_paid", now=7201)
+
+    assert admission.release_and_reserve(
+        paid_claims.pop(), now=7201, lease_seconds=30) == ["support-aged"]
+    for claim in paid_claims:
+        admission.release_and_reserve(claim, reserve=False)
+
+
 def test_explicit_occurrence_survives_owner_busy_and_reaches_terminal(
         tmp_path, monkeypatch):
     """A scheduled wake is durable even when the owner is already running."""
