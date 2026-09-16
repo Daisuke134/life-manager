@@ -713,6 +713,24 @@ remain blocked by capacity. This is a selector/status snapshot, not a
 same-run official Postiz readback or all-fleet acceptance result. Foundation
 and Mobile source worktrees have separate active owner leases; this TODO
 update does not authorize writing in either worktree or restarting any label.
+**Connector exact-occurrence ledger defect (21:17 UTC):** The live v2 SQLite
+has two `claimed/effect_unknown=0` Connector occurrences
+(`18d5cc1bd5aeb4a0-9766`, `18d5d38a21bdf160-33935`) whose outer runtime
+events both ended `pass` at 12:21:55 and 14:38:11 UTC. No matching live owner
+claim file or Connector reservation remains; eight newer Connector occurrences
+are `queued`, with one queue row. Thus the occurrence ledger fails the
+terminal→released invariant. The exact causal race is not yet proven; the
+loaded release's `release_and_reserve` can return when the claim file is
+missing, and one shared stderr line reports `resource claim ownership mismatch`,
+but that line has no run ID. Preserve DB/state without manual SQL surgery.
+Add a focused regression for a terminal owner whose claim vanishes/changes
+before wrapper release: reconcile only the exact occurrence with terminal
+event + child-death + official-effect disposition, then prove FIFO moves and
+unknown effects cannot be blindly retried. This is a shared admission repair,
+not a provider-success receipt. Connector's latest old-SHA wake still ended
+`wake_deadline`; its same-wake log shows Connpass submit attempts rejected by
+tier/questionnaire/unsafe-agent fences, and a later long TechPlay discovery.
+No successful registration/Calendar readback is established by those logs.
 After the exact Connector rollback, old candidate SHA `cf655388` naturally
 woke at 20:48:54 UTC as outer run `18d5e83356635230-73022`. The same PID
 stayed live through provider discovery, then ended `FAIL/wake_deadline` at
