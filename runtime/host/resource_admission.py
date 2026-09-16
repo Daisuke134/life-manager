@@ -314,7 +314,8 @@ def _database(path: Path) -> sqlite3.Connection:
             base_priority TEXT NOT NULL,
             queued_at REAL NOT NULL,
             state TEXT NOT NULL CHECK(state IN ('queued','claimed','released','cancelled')),
-            sequence INTEGER
+            sequence INTEGER,
+            effect_unknown INTEGER NOT NULL DEFAULT 0 CHECK(effect_unknown IN (0,1))
         );
         PRAGMA user_version=2;
     """)
@@ -339,6 +340,13 @@ def _database(path: Path) -> sqlite3.Connection:
         connection.execute("ALTER TABLE priorities ADD COLUMN base_priority TEXT")
     if "queued_at" not in priority_columns:
         connection.execute("ALTER TABLE priorities ADD COLUMN queued_at REAL")
+    occurrence_columns = {
+        row[1] for row in connection.execute("PRAGMA table_info(occurrences)")
+    }
+    if "effect_unknown" not in occurrence_columns:
+        connection.execute(
+            "ALTER TABLE occurrences ADD COLUMN effect_unknown INTEGER NOT NULL DEFAULT 0"
+        )
     # Backfill old v2 rows once.  A missing timestamp is not evidence that a
     # waiter has been present forever, so use the first migration observation.
     migration_now = time.time()
@@ -484,7 +492,11 @@ def _durable_queue_rows(connection: sqlite3.Connection, resource_class: str,
                  LEFT JOIN reservations r ON r.owner_id=q.owner_id
                  LEFT JOIN priorities p ON p.owner_id=q.owner_id
                 WHERE q.resource_class=? AND r.owner_id IS NULL
-                  AND COALESCE(p.next_eligible_at,0)<=?""",
+                  AND COALESCE(p.next_eligible_at,0)<=?
+                   AND NOT EXISTS (
+                       SELECT 1 FROM occurrences o
+                        WHERE o.owner_id=q.owner_id AND o.effect_unknown=1
+                   )""",
             (resource_class, now),
         )
     ]
@@ -592,20 +604,30 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                     and not isinstance(row.get("sequence"), bool)
                     and isinstance(row.get("owner_id"), str) and row["owner_id"]
                     and row.get("resource_class") in set(RESOURCE_CLASSES)):
-                connection.execute(
-                    "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
-                    (row["sequence"], row["owner_id"], row["resource_class"]))
-                connection.execute(
-                    """INSERT OR IGNORE INTO priorities(
-                           owner_id,admission_class,admission_policy,base_priority,queued_at
-                       ) VALUES(?,?,?,?,?)""",
-                    (row["owner_id"], row.get("admission_class", "borrow"),
-                     row.get("admission_policy"), row.get("base_priority"),
-                     row.get("queued_at", now)))
                 occurrence_id = row.get("occurrence_id")
-                if isinstance(occurrence_id, str) and occurrence_id:
+                if row.get("phase", "claimed") == "claimed":
+                    # No effect child started: returning this claim to the queue is safe.
+                    connection.execute(
+                        "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
+                        (row["sequence"], row["owner_id"], row["resource_class"]))
+                    connection.execute(
+                        """INSERT OR IGNORE INTO priorities(
+                               owner_id,admission_class,admission_policy,base_priority,queued_at
+                           ) VALUES(?,?,?,?,?)""",
+                        (row["owner_id"], row.get("admission_class", "borrow"),
+                         row.get("admission_policy"), row.get("base_priority"),
+                         row.get("queued_at", now)))
+                if isinstance(occurrence_id, str) and occurrence_id and row.get("phase", "claimed") == "claimed":
                     connection.execute(
                         "UPDATE occurrences SET state='queued' WHERE occurrence_id=?",
+                        (occurrence_id,),
+                    )
+                elif isinstance(occurrence_id, str) and occurrence_id:
+                    # A running child may have acted externally. Park for official
+                    # reconciliation; never turn process death into a blind retry.
+                    connection.execute(
+                        """UPDATE occurrences SET effect_unknown=1
+                             WHERE occurrence_id=? AND state='claimed'""",
                         (occurrence_id,),
                     )
             path.unlink(missing_ok=True)
