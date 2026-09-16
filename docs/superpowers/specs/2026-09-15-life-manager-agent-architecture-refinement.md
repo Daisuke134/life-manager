@@ -235,7 +235,7 @@ Telegram報告、テストgreen、ブラウザ画面表示だけでは完了に�
 一度だけ行います。
 
 **現在のfoundation cursor:** `CAND-01`と`CAND-02`の内部canaryは完了しています。`LOCAL-01/02`
-ではcompletion manifestの契約と`lm-loop status` JSON接続、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、失敗記録へのrecovery intent保存、`harness-recovery.json`へのowner/slot別最新intent投影、7つのskill索引、`CONTROL-01`のexternal owner登録、管理statusの安定`job_id`/`owner_id`出力、常駐non-effect jobのruntime health判定、completion CLIの既存親ディレクトリ権限保護、runtime rowのjob identity一致検査、Local/Cloud verified行のruntime evidence必須化、Local/Cloud gateのruntime evidence整合性検査、official receiptのrelease SHA結合必須化をcandidate `035d42dbff`へ実装済みです。
+ではcompletion manifestの契約と`lm-loop status` JSON接続、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、失敗記録へのrecovery intent保存、`harness-recovery.json`へのowner/slot別最新intent投影、7つのskill索引、`CONTROL-01`のexternal owner登録、管理statusの安定`job_id`/`owner_id`出力、常駐non-effect jobのruntime health判定、completion CLIの既存親ディレクトリ権限保護、runtime rowのjob identity一致検査、Local/Cloud verified行のruntime evidence必須化、Local/Cloud gateのruntime evidence整合性検査、official receiptのrelease SHA結合必須化をcandidate `6715084a30`へ実装済みです。
 Graph/Eval/notificationの契約も同candidateへ接続済みです。Local gate CLIのruntime status再束縛、非runtime manifest契約の保持、schema改ざん回帰テスト（37件PASS）も同candidateへ固定しました。次は各loopのevidenceを
 このmanifestへ接続する作業であり、platformの外部effectを私が実行する項目ではありません。
 
