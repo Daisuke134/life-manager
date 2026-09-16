@@ -697,6 +697,26 @@ def test_opted_in_connector_reuses_queued_scan_after_reservation_expires(
     admission.release_and_reserve(claim, reserve=False, now=109)
 
 
+def test_started_child_timeout_fences_occurrence_and_preserves_next_owner(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable("browser", "connector", admission_class="revenue",
+                              occurrence_id="connector:first", now=100)
+    claim, reason = admission.claim_durable(
+        "browser", "connector", admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    admission.enqueue_durable("browser", "connector", admission_class="revenue",
+                              occurrence_id="connector:next", now=102)
+    admission.release_and_reserve(claim, effect_unknown=True, now=103)
+    assert [(row["occurrence_id"], row["state"], row["effect_unknown"])
+            for row in durable_rows(tmp_path, "occurrences")] == [
+        ("connector:first", "claimed", 1), ("connector:next", "queued", 0),
+    ]
+    blocked, reason = admission.claim_durable(
+        "browser", "connector", admission_class="revenue", now=104)
+    assert blocked is None and reason == "effect_unknown"
+
+
 def test_expired_running_heartbeat_keeps_live_child_claim(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")

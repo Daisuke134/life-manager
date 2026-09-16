@@ -331,6 +331,34 @@ def test_v1_protocol_uses_legacy_nonretaining_admission(tmp_path):
     release.assert_called_once_with(claim)
 
 
+def test_started_child_timeout_and_signal_mark_effect_unknown_before_release(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "deterministic", "resource_class": "browser",
+             "admission_class": "revenue"}
+    for exit_code in (124, 143):
+        claim = tmp_path / f"claim-{exit_code}"
+        claim.write_text("owned")
+
+        def run_child(*_args, **kwargs):
+            kwargs["on_started"](4242)
+            return exit_code
+
+        with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+              patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                    return_value=(tmp_path / "ticket", "ready")),
+              patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                    return_value=(claim, "acquired")),
+              patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+              patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                    return_value=[]) as release,
+              patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+              patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+            assert _run_admitted(["/bin/true"], entry, "connector", {},
+                                 tmp_path / f"receipt-{exit_code}") == exit_code
+        release.assert_called_once_with(
+            claim, requeue=False, reserve=True, effect_unknown=True)
+
+
 def test_v1_protocol_coexists_with_live_legacy_owner_without_sqlite(tmp_path, monkeypatch):
     root = tmp_path / "admission"
     monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(root))
