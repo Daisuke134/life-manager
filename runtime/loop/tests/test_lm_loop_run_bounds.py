@@ -545,7 +545,7 @@ def test_dispatch_reserved_rejects_stale_loaded_release_prefix(tmp_path):
             ["example"], current=current, agents_dir=agents,
         ) == []
 
-    defer.assert_called_once_with("example")
+    defer.assert_called_once_with("example", cooldown_seconds=60)
     assert run.call_count == 1
 
 
@@ -651,7 +651,7 @@ def test_dispatch_reserved_rejects_loaded_output_without_explicit_idle_state(tmp
             ["example"], current=current, agents_dir=agents,
         ) == []
 
-    defer.assert_called_once_with("example")
+    defer.assert_called_once_with("example", cooldown_seconds=60)
     assert run.call_count == 1
 
 
@@ -683,7 +683,7 @@ def test_dispatch_reserved_rejects_noncanonical_installed_argv(tmp_path):
             ["example"], current=current, agents_dir=agents,
         ) == []
 
-    defer.assert_called_once_with("example")
+    defer.assert_called_once_with("example", cooldown_seconds=60)
     run.assert_not_called()
 
 
@@ -710,7 +710,7 @@ def test_dispatch_reserved_defers_owner_with_missing_plist(tmp_path):
             ["example"], current=current, agents_dir=agents,
         ) == []
 
-    defer.assert_called_once_with("example")
+    defer.assert_called_once_with("example", cooldown_seconds=60)
     run.assert_not_called()
 
 

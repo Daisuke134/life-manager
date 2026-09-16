@@ -393,6 +393,23 @@ def test_expired_reservation_returns_to_original_fifo_position(tmp_path, monkeyp
     assert claim is not None and reason == "acquired"
 
 
+def test_dispatch_defer_temporarily_skips_incompatible_head_without_dropping_it(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    base = time.time()
+    admission.enqueue_durable("deterministic", "old-release", now=base)
+    admission.enqueue_durable("deterministic", "healthy", now=base)
+    assert admission.reserve_available(now=base, lease_seconds=30) == ["old-release"]
+
+    assert admission.defer_durable("old-release", cooldown_seconds=60) is True
+    assert admission.reserve_available(now=base + 1, lease_seconds=30) == ["healthy"]
+    healthy, reason = admission.claim_durable("deterministic", "healthy", now=base + 2)
+    assert healthy is not None and reason == "acquired"
+    admission.release_and_reserve(healthy, reserve=False)
+    assert [row["owner_id"] for row in durable_rows(tmp_path, "queue")] == ["old-release"]
+    assert admission.reserve_available(now=base + 181, lease_seconds=30) == ["old-release"]
+
+
 def test_post_claim_deferral_requeues_original_sequence(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     ticket, reason = admission.enqueue_durable("deterministic", "first")

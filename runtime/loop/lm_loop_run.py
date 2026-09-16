@@ -293,7 +293,7 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
 
     def defer(loop_id: str) -> None:
         try:
-            defer_durable_resource(loop_id)
+            defer_durable_resource(loop_id, cooldown_seconds=60)
         except (OSError, RuntimeError):
             pass
 
