@@ -155,6 +155,16 @@ class LmLoopReadonlyTest(unittest.TestCase):
             self.assertEqual((event["phase"], event["run_id"], event["status"]),
                              ("execute", "new-run", "running"))
 
+    def test_latest_runtime_event_keeps_outer_terminal_after_a_nested_report(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            outer_report = {"version":1,"event_id":"a"*24,"timestamp":"2026-08-28T00:01:00Z","loop_id":"a","domain":"system","run_id":"outer-run","phase":"report","status":"blocked","release_sha":"b"*40,"provider":"deterministic","profile_alias":None,"effect_class":"none","effect_status":"not_applicable","blocker":"provider_capacity","evidence_refs":["lm-loop://a/outer-run/summary.json"]}
+            nested_report = {"version":1,"event_id":"c"*24,"timestamp":"2026-08-28T00:02:00Z","loop_id":"a","domain":"system","run_id":"nested-run","phase":"report","status":"pass","release_sha":"b"*40,"provider":"codex","profile_alias":"acct1","effect_class":"none","effect_status":"not_applicable","blocker":None,"evidence_refs":["agent-runner://a/nested-run/summary.json"]}
+            (root / "events.jsonl").write_text("\n".join(json.dumps(x) for x in (outer_report, nested_report)) + "\n")
+            event = _latest_runtime_event(str(root), "a")
+            self.assertEqual((event["phase"], event["run_id"], event["status"]),
+                             ("report", "outer-run", "blocked"))
+
     def test_last_event_bounds_tail_reads_and_does_not_resurrect_old_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -243,7 +243,9 @@ def _latest_runtime_event(state_root: str, loop_id: str | None = None,
     if use_cache and path in cache:
         return cache[path].get(loop_id)
     latest_reports: dict[str | None, dict] = {}
+    canonical_reports: dict[str | None, dict] = {}
     active_runs: dict[str | None, dict[str, dict]] = {}
+    canonical_active_runs: dict[str | None, dict[str, dict]] = {}
     try:
         lines = _read_event_tail(path, max_bytes if max_bytes is not None else _event_tail_bytes())
     except OSError:
@@ -257,15 +259,25 @@ def _latest_runtime_event(state_root: str, loop_id: str | None = None,
         if value.get("phase") not in {"execute", "report"}:
             continue
         loop_key = value.get("loop_id")
+        canonical = any(
+            isinstance(ref, str) and ref.startswith("lm-loop://")
+            for ref in value.get("evidence_refs", [])
+        )
         if value.get("phase") == "execute" and value.get("status") == "running":
             active_runs.setdefault(loop_key, {})[value["run_id"]] = value
+            if canonical:
+                canonical_active_runs.setdefault(loop_key, {})[value["run_id"]] = value
             continue
         active_runs.setdefault(loop_key, {}).pop(value["run_id"], None)
+        canonical_active_runs.setdefault(loop_key, {}).pop(value["run_id"], None)
         latest_reports[loop_key] = value
+        if canonical:
+            canonical_reports[loop_key] = value
     events: dict[str | None, dict] = {}
     for loop_key in set(latest_reports) | set(active_runs):
-        active = active_runs.get(loop_key, {})
-        events[loop_key] = next(reversed(active.values())) if active else latest_reports[loop_key]
+        active = canonical_active_runs.get(loop_key) or active_runs.get(loop_key, {})
+        report = canonical_reports.get(loop_key) or latest_reports.get(loop_key)
+        events[loop_key] = next(reversed(active.values())) if active else report
     if use_cache:
         cache[path] = events
     return events.get(loop_id)
