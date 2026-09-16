@@ -395,6 +395,12 @@ def test_context_requires_the_retainer_source_and_target() -> None:
     )
 
 
+def test_each_refresh_collects_single_and_retainer_sources_together() -> None:
+    source = inspect.getsource(direct.main)
+    refresh = '("refresh", run_dir / "refresh-evidence", run_dir / "refresh-legacy-b2.json",\n             None, f"gig-apply-direct-{pass_id}")'
+    assert refresh in source
+
+
 def test_retainer_identity_survives_applied_exclusion_projection() -> None:
     assert parent.snapshot_applied_ids({"20", ULID, "dm-20"}) == ["20", ULID]
 

@@ -1317,7 +1317,7 @@ def main(argv: list[str] | None = None) -> int:
         [("main", evidence_dir, legacy_path, None, f"gig-apply-direct-{pass_id}")]
         if wake is None else [
             ("refresh", run_dir / "refresh-evidence", run_dir / "refresh-legacy-b2.json",
-             refresh_cursor_path, f"gig-apply-direct-{pass_id}"),
+             None, f"gig-apply-direct-{pass_id}"),
             ("coverage", run_dir / "coverage-evidence", run_dir / "coverage-legacy-b2.json",
              coverage_cursor_path, f"gig-apply-direct-{pass_id}-coverage"),
         ]
