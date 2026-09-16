@@ -734,6 +734,7 @@ its SSPL/commercial licensing.
 |---|---|---|
 | Topology | 14 Product Loops backed by 165 registry jobs; 26 keep-alives and frequent interval jobs | Product loop is a logical goal stream; jobs are queued lifecycle work owned by one scheduler |
 | Capacity | Memory/load pressure can admit work; browser/ledger I/O has caused cross-owner stalls | Resource-class admission, durable deferral, per-owner leases, and host-pressure telemetry |
+| Scale | More loops currently mean more independent launchd/browser processes competing for the same Mac, with no safe promise that `start all` will fit | 100+ loops share one bounded queue and the same kernel; only capacity-fitting owners run, the rest resume from durable queue, and cloud workers scale horizontally without sharing tenant state |
 | Wake | `runtime/loop/index.mjs` has finite wake/retry/sleep behavior, but context is still recent-ledger oriented | One wake contract with goal/context/effect/readback evidence and explicit next eligibility |
 | Context | `runtime/loop/context.mjs` passes bounded fields and the last 20 ledger lines | Hash-bound source capsules with freshness and artifact offload |
 | Browser | Visible Chromium and persistent owners consume host resources; browser choice is mixed across lanes | Headless Steel sessions with per-owner state, measured concurrency, timeout/cleanup, and same-session viewer handoff |
@@ -743,6 +744,13 @@ its SSPL/commercial licensing.
 | Human loop | Mercor and marketplace gates exist in lane-specific work | Provider-neutral typed `human_gate` lifecycle and Telegram outbox idempotency |
 | Learning | Self-eval and promotion helpers exist in separate areas | One candidate → baseline → eval → tripwire → promotion/rollback contract |
 | Hosts | Local and cloud share a target architecture but portability is incomplete | Same recipes/contracts; host adapters own only infrastructure differences |
+
+「100 loopを同時に100 browserで起動する」ことがスケールではない。各loopは同じ共有kernelを使い、
+`resource_class`、CPU/メモリ、browser session、provider/account、tenantの上限を先に確認する。
+空きがなければ仕事を捨てずにdurable queueへ戻し、次のwakeで再開する。これにより、loop数が増えても
+メモリ不足やbrowser衝突を「成功」に見せず、遅延・停止・修復を個別に観測できる。LocalはMacの容量に
+合わせて小さく動き、Cloudは同じjob/effect/receipt契約のworkerを増やす。コードと判定をLocal/Cloudで
+別実装にしない。
 
 ## 4. Target Architecture
 
