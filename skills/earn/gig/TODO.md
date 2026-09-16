@@ -731,6 +731,21 @@ not a provider-success receipt. Connector's latest old-SHA wake still ended
 `wake_deadline`; its same-wake log shows Connpass submit attempts rejected by
 tier/questionnaire/unsafe-agent fences, and a later long TechPlay discovery.
 No successful registration/Calendar readback is established by those logs.
+**Source-only crash-window repair:** Foundation commit `fcd3eb533a` is pushed,
+not merged or loaded. A retained real failure fixture showed legacy
+`try_acquire` could unlink a stale v2 owner claim without changing its SQLite
+occurrence. A second fixture showed the v2 sweep could unlink its claim before
+SQLite commit, leaving `claimed/effect_unknown=0` after a crash; another showed
+legacy same-owner admission bypass after `effect_unknown=1`. All failed RED,
+then passed GREEN. The patch leaves v2 files to the durable sweep, commits
+the v2 ledger disposition before unlink, and makes legacy admission respect
+both file-held and DB-held unknown-effect fences. Related host/runner tests
+135/135 and full loop runtime 467/467 PASS; fresh read-only review SHIP.
+The production `claimed/0` orphans above have *no* owner file, so this
+prevention patch cannot infer their attempted targets or clear them. They
+remain unresolved, and source/test PASS is not Connector admission or provider
+success. Main integration, immutable release, targeted load, and natural
+effect/readback/replay proof remain open.
 **Next natural Connector wake (21:29 UTC):** Exact loaded SHA `cf655388`
 started outer run `18d5ea6415f656d8-98545` at 21:29:02.540 and ended
 `blocked/host_admission_deferred:resource_capacity_busy` at 21:29:02.843,
