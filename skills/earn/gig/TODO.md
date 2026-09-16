@@ -691,6 +691,21 @@ not a missing-key or provider success. The host admission SQLite snapshot contai
 30 agent and 13 deterministic queued rows; preserve their occurrence identity and
 investigate physical/class capacity before any capacity change. TikTok Metrics and
 the 17 publication lanes still need their own post-load natural terminals.
+Connector's same candidate outer run `18d5d5ddeb0865c8-70673` ended `pass` at
+15:21:12 UTC and released its owner. The matching domain wake
+`wake-261670f7fe0f608527215ed8` reported `completed_no_effect` with
+`fallback_deferred_for_wake_budget`. Its action history has three successful
+provider-state readbacks but **zero successful submits or Calendar writes**;
+Connpass direct attempts were fenced by tier/questionnaire conditions and one
+browser-harness action was unsafe. Therefore lifecycle recovery is observed,
+but Connector's provider outcome R2-03 is not achieved. The inner `pass` at
+15:15:41 had a different run ID and was not used as the outer verdict.
+TikTok Metrics naturally started on the candidate and ended `blocked` at
+15:21:50 UTC with `host_admission_deferred:resource_fifo_wait`, exit 75;
+its Postiz/metrics path was not reached. Distinguish this from Instagram's
+capacity-busy result. Admission snapshot later showed five live revenue owners
+occupying the five finite slots, and a growing deterministic borrow queue;
+do not raise the cap without physical-memory and service-time evidence.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/

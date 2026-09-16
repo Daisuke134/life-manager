@@ -384,6 +384,17 @@ path was not reached. Read-only host queue snapshot: 30 agent and 13
 deterministic queued rows. Next diagnosis is admission capacity/owner occupancy,
 not another Marketing env patch or a manual provider retry.
 
+**Connector/TikTok terminal checkpoint (15:22 UTC):** Connector's candidate
+outer run `18d5d5ddeb0865c8-70673` passed, but the same domain wake was
+`completed_no_effect/fallback_deferred_for_wake_budget`: three provider-state
+readbacks, no successful submit or Calendar write. Thus R2-03 effect remains
+open; outer lifecycle is not the provider outcome. TikTok Metrics naturally
+ended candidate `blocked/resource_fifo_wait`, exit 75, before Postiz work.
+Instagram was `capacity_busy`, a distinct admission reason. The immediate
+atomic repair queue is (1) analyze finite-slot occupancy and deterministic
+service demand, (2) keep revenue priority without indefinitely starving
+lightweight support, (3) only then re-canary Metrics and 17 publishers.
+
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.
 - No claim that Connector, Mobile, the 14 product loops, self-healing or Cloud are already working.
