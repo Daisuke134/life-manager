@@ -12,6 +12,7 @@ import {
   computeSlotHealth,
   computeBrainTransportHealth,
   computeHarnessHealth,
+  buildRecoveryDecisionFields,
   decideRecoveryAction,
   shouldEscalate,
   DEFAULT_STREAK_THRESHOLD,
@@ -269,6 +270,62 @@ test('R10: exhausted retries become a typed blocker', () => {
     reason: 'retry_budget_exhausted',
     retryAttempt: 2,
     preserveSiblings: true,
+  });
+});
+
+test('R10: recovery fields use the trailing same-slot failure streak and reset after a clean wake', () => {
+  const first = buildRecoveryDecisionFields({
+    ownerId: 'runtime:earn/gig',
+    slot: 'earn/gig',
+    kind: 'skill_error',
+    recentRecords: [
+      { ts: 1, wake_id: 'clean', kind: 'wake', slot: 'earn/gig' },
+    ],
+    currentRecord: { ts: 2, wake_id: 'failed-1', kind: 'skill_error', slot: 'earn/gig' },
+  });
+  assert.deepEqual(first, {
+    schema_version: 'recovery.decision.v1',
+    event_key: 'runtime:earn/gig:earn/gig:failed-1:retry_owner:1',
+    action: 'retry_owner',
+    owner_id: 'runtime:earn/gig',
+    slot: 'earn/gig',
+    reason: 'bounded_retry',
+    retry_attempt: 1,
+    preserve_siblings: true,
+  });
+
+  const third = buildRecoveryDecisionFields({
+    ownerId: 'runtime:earn/gig',
+    slot: 'earn/gig',
+    kind: 'skill_error',
+    recentRecords: [
+      { ts: 1, wake_id: 'failed-1', kind: 'skill_error', slot: 'earn/gig' },
+      { ts: 2, wake_id: 'failed-2', kind: 'skill_error', slot: 'earn/gig' },
+    ],
+    currentRecord: { ts: 3, wake_id: 'failed-3', kind: 'skill_error', slot: 'earn/gig' },
+  });
+  assert.equal(third.action, 'escalate_repair');
+  assert.equal(third.reason, 'retry_budget_exhausted');
+  assert.equal(third.retry_attempt, 2);
+  assert.equal(third.preserve_siblings, true);
+});
+
+test('R10: unsupported failure kinds fail closed without inventing an owner or action', () => {
+  assert.deepEqual(buildRecoveryDecisionFields({
+    ownerId: 'runtime:router',
+    slot: null,
+    kind: 'router_menu_empty',
+    recentRecords: [],
+    currentRecord: { ts: 1, wake_id: 'router-1', kind: 'router_menu_empty' },
+  }), {
+    schema_version: 'recovery.decision.v1',
+    event_key: 'recovery:block:router_menu_empty:router-1',
+    action: 'block',
+    owner_id: null,
+    slot: null,
+    reason: 'unsupported_failure_kind',
+    retry_attempt: 0,
+    preserve_siblings: true,
   });
 });
 

@@ -145,7 +145,10 @@ export function shouldEscalate(consecutiveFailureStreak, threshold) {
   return Number(consecutiveFailureStreak) >= Number(threshold);
 }
 
-const RECOVERY_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+// Runtime slots are namespaced paths (for example `earn/gig`).  Keep the same bounded identifier
+// contract while allowing the slash that is already part of the canonical slot name; callers never
+// receive an unbounded log/detail string here.
+const RECOVERY_ID = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
 
 /**
  * R10 — decideRecoveryAction: pure recovery routing for one owner.  It returns a plan only;
@@ -200,6 +203,108 @@ export function decideRecoveryAction(input = {}) {
   return Object.freeze({
     action: 'retry_owner', ownerId, slot, reason: 'bounded_retry',
     retryAttempt: retryAttempts + 1, preserveSiblings: true,
+  });
+}
+
+const RECOVERY_FAILURE_KINDS = new Set(['skill_missing', 'skill_timeout', 'skill_error', 'wake_error']);
+
+/**
+ * R10 shell seam — derive one durable, secret-free recovery decision from the bounded recent
+ * ledger window plus the failure that is about to be recorded.  This is still pure: it does not
+ * append, retry, restart, notify, or touch a provider.  The caller may persist the returned fields
+ * alongside the existing failure record so a later supervisor can resume from evidence instead of
+ * guessing from a PID or an exit code.
+ *
+ * `retry_attempt` is derived from the trailing same-owner failure streak (`streak - 1`) and capped
+ * by the retry limit.  A clean wake in `recentRecords` therefore resets the bounded retry budget;
+ * interleaved sibling failures do not affect this owner.  The input window is capped at 64 rows so
+ * a malformed caller cannot turn one failure into an unbounded memory scan.
+ *
+ * @param {{ownerId?: string, slot?: string|null, kind?: string, recentRecords?: object[],
+ *   currentRecord?: object, retryLimit?: number, streakThreshold?: number}} input
+ * @returns {{schema_version:string,event_key:string,action:string,owner_id:string|null,slot:string|null,
+ *   reason:string,retry_attempt:number,preserve_siblings:true}}
+ */
+export function buildRecoveryDecisionFields(input = {}) {
+  const kind = typeof input.kind === 'string'
+    ? input.kind
+    : (input.currentRecord && typeof input.currentRecord.kind === 'string' ? input.currentRecord.kind : null);
+  const current = input.currentRecord && typeof input.currentRecord === 'object' && !Array.isArray(input.currentRecord)
+    ? input.currentRecord : {};
+  const currentSlot = typeof input.slot === 'string'
+    ? input.slot
+    : (typeof current.slot === 'string' ? current.slot : null);
+  const wakeId = typeof current.wake_id === 'string' && RECOVERY_ID.test(current.wake_id)
+    ? current.wake_id : 'unknown';
+
+  if (!RECOVERY_FAILURE_KINDS.has(kind)) {
+    return Object.freeze({
+      schema_version: 'recovery.decision.v1',
+      event_key: `recovery:block:${kind || 'unknown'}:${wakeId}`,
+      action: 'block',
+      owner_id: null,
+      slot: null,
+      reason: 'unsupported_failure_kind',
+      retry_attempt: 0,
+      preserve_siblings: true,
+    });
+  }
+
+  const recent = Array.isArray(input.recentRecords) ? input.recentRecords.slice(-64) : [];
+  const currentRecord = { ...current, kind, ...(currentSlot == null ? {} : { slot: currentSlot }) };
+  const records = [...recent, currentRecord];
+
+  let health;
+  let decisionSlot = currentSlot;
+  if (kind === 'wake_error') {
+    const brain = computeBrainTransportHealth(records);
+    decisionSlot = 'brain-transport';
+    health = {
+      slot: decisionSlot,
+      failures: brain.failures,
+      consecutiveFailureStreak: brain.consecutiveFailureStreak,
+    };
+  } else if (typeof currentSlot === 'string' && RECOVERY_ID.test(currentSlot)) {
+    health = computeSlotHealth(records, currentSlot);
+  }
+
+  const ownerInput = typeof input.ownerId === 'string' && RECOVERY_ID.test(input.ownerId)
+    ? input.ownerId : null;
+  const ownerId = ownerInput || (decisionSlot && RECOVERY_ID.test(`runtime:${decisionSlot}`)
+    ? `runtime:${decisionSlot}` : null);
+  if (!health || !ownerId || !decisionSlot || !RECOVERY_ID.test(decisionSlot)) {
+    return Object.freeze({
+      schema_version: 'recovery.decision.v1',
+      event_key: `recovery:block:${kind}:${wakeId}`,
+      action: 'block',
+      owner_id: null,
+      slot: null,
+      reason: 'invalid_recovery_input',
+      retry_attempt: 0,
+      preserve_siblings: true,
+    });
+  }
+
+  const retryLimit = input.retryLimit == null ? 2 : input.retryLimit;
+  const retryAttempts = Number.isSafeInteger(retryLimit) && retryLimit >= 1
+    ? Math.max(0, Math.min(health.consecutiveFailureStreak - 1, retryLimit)) : 0;
+  const decision = decideRecoveryAction({
+    ownerId,
+    health: { ...health, slot: decisionSlot },
+    retryAttempts,
+    retryLimit,
+    streakThreshold: input.streakThreshold,
+  });
+  const eventKey = `${decision.ownerId || 'recovery'}:${decision.slot || 'none'}:${wakeId}:${decision.action}:${decision.retryAttempt}`;
+  return Object.freeze({
+    schema_version: 'recovery.decision.v1',
+    event_key: eventKey,
+    action: decision.action,
+    owner_id: decision.ownerId,
+    slot: decision.slot,
+    reason: decision.reason,
+    retry_attempt: decision.retryAttempt,
+    preserve_siblings: true,
   });
 }
 

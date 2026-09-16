@@ -41,7 +41,7 @@ import { classifyEarnResult, defaultEarnLedgerPath } from './earn-detect.mjs';
 import { summarizeSkillResult } from './result-summary.mjs';
 import { redactPrivateKeyPatterns } from './env-filter.mjs';
 import { liveSlotNames } from './prompt.mjs';
-import { classifyLayer, capFailureDetail } from './harness-health.mjs';
+import { classifyLayer, capFailureDetail, buildRecoveryDecisionFields } from './harness-health.mjs';
 import {
   filterCatalog,
   DEFAULT_BOOTSTRAP_RESERVE_USDC,
@@ -620,7 +620,7 @@ async function runOneWake() {
     rawResponse = await think(ctx, config);
   } catch (err) {
     await writeAlwaysActNotEngagedIfNeeded();
-    await writeWakeErrorAndSleep({ wakeId, ts, err });
+    await writeWakeErrorAndSleep({ wakeId, ts, err, recentRecords: recentLedger });
     return;
   }
   await writeAlwaysActNotEngagedIfNeeded();
@@ -716,6 +716,7 @@ async function runOneWake() {
         layer: failureLayer,
         exitCode: skillResult.exitCode != null ? skillResult.exitCode : null,
         rawDetail: skillResult.output || '',
+        recentRecords: recentLedger,
       });
     }
   }
@@ -792,7 +793,7 @@ async function runAlwaysActWake({ ctx, wakeId, ts, alwaysActMenu }) {
     } catch (err) {
       // Brain-transport failure mid-attempt: identical handling to the non-always-act wake_error
       // path (REQ-509: never a money-safety guard interaction; no fabricated success).
-      await writeWakeErrorAndSleep({ wakeId, ts, err });
+      await writeWakeErrorAndSleep({ wakeId, ts, err, recentRecords: ctx.recentLedgerLines });
       return;
     }
 
@@ -869,6 +870,7 @@ async function runAlwaysActWake({ ctx, wakeId, ts, alwaysActMenu }) {
         ts, wakeId, slot, kind, layer: failureLayer,
         exitCode: skillResult.exitCode != null ? skillResult.exitCode : null,
         rawDetail: skillResult.output || '',
+        recentRecords: ctx.recentLedgerLines,
       });
     }
 
@@ -966,7 +968,7 @@ async function runAlwaysActWake({ ctx, wakeId, ts, alwaysActMenu }) {
  * act path writes, and sleeps — used by both the always-act and non-always-act code paths so a brain-
  * transport failure is recorded/backed-off identically regardless of which path hit it.
  */
-async function writeWakeErrorAndSleep({ wakeId, ts, err }) {
+async function writeWakeErrorAndSleep({ wakeId, ts, err, recentRecords = [] }) {
   process.stderr.write(`[loop] THINK failed: ${err.message}\n`);
   const sleepS = cfgNum(config.SLEEP_ERROR_S, 60);
   // CLAUDE-P-1 (2026-07-17): this was hardcoded to the literal string 'proxy_down' for EVERY
@@ -987,6 +989,7 @@ async function writeWakeErrorAndSleep({ wakeId, ts, err }) {
   await appendHarnessFailure({
     ts, wakeId, kind: 'wake_error', layer: 'brain_transport', exitCode: null,
     rawDetail: redactPrivateKeyPatterns(err.message || ''),
+    recentRecords,
   });
   await sleepSecs(sleepS);
 }
@@ -1128,7 +1131,7 @@ function buildSkillEnv(slot, wakeId, config, scrub, scrubPII, args) {
  * capFailureDetail(rawDetail) — whitespace-collapsed and capped at 4000 chars, distinct from and
  * never affecting ledger.jsonl's own 900-char `result` cap (INV-NO-PROMPT-REGRESSION).
  */
-async function appendHarnessFailure({ ts, wakeId, slot, kind, layer, exitCode, rawDetail }) {
+async function appendHarnessFailure({ ts, wakeId, slot, kind, layer, exitCode, rawDetail, recentRecords = [] }) {
   const detail = capFailureDetail(rawDetail);
   const fields = {
     ts,
@@ -1138,6 +1141,15 @@ async function appendHarnessFailure({ ts, wakeId, slot, kind, layer, exitCode, r
     layer,
     exit_code: exitCode != null ? exitCode : null,
     detail,
+    // R10: persist a bounded recovery intent beside the diagnostic event. This is consumed by a
+    // supervisor later; it never restarts a process, touches a browser/provider, or sends Telegram.
+    recovery: buildRecoveryDecisionFields({
+      ownerId: slot != null ? `runtime:${slot}` : null,
+      slot: slot != null ? slot : null,
+      kind,
+      recentRecords,
+      currentRecord: { ts, wake_id: wakeId, kind, ...(slot != null ? { slot } : {}) },
+    }),
   };
   try {
     await appendLedgerLine(HARNESS_FAILURES_PATH, formatRecord(fields));

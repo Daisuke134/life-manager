@@ -164,6 +164,11 @@ test('R6: wake_error wake -> exactly one harness-failures.jsonl line, no slot ke
     assert.equal(line.kind, 'wake_error');
     assert.ok(line.detail.length <= 4000);
     assert.ok('ts' in line && 'wake_id' in line && 'exit_code' in line);
+    assert.equal(line.recovery.action, 'retry_owner');
+    assert.equal(line.recovery.owner_id, 'runtime:brain-transport');
+    assert.equal(line.recovery.slot, 'brain-transport');
+    assert.equal(line.recovery.retry_attempt, 1);
+    assert.equal(line.recovery.preserve_siblings, true);
   } finally {
     server.close();
     proc.kill('SIGTERM');
@@ -246,6 +251,12 @@ test('R6: skill_error wake with >2000-char stdout -> detail LONGER than 900 char
     assert.ok(failLine.detail.length > 900, `detail must exceed the 900-char result cap, got ${failLine.detail.length}`);
     assert.equal(failLine.slot, 'earn');
     assert.ok('exit_code' in failLine);
+    assert.equal(failLine.recovery.schema_version, 'recovery.decision.v1');
+    assert.equal(failLine.recovery.action, 'retry_owner');
+    assert.equal(failLine.recovery.owner_id, 'runtime:earn');
+    assert.equal(failLine.recovery.slot, 'earn');
+    assert.equal(failLine.recovery.retry_attempt, 1);
+    assert.equal(failLine.recovery.preserve_siblings, true);
 
     const ledgerLines = readJsonl(ledgerPath);
     const skillErrorLine = ledgerLines.find((l) => l.kind === 'skill_error');
