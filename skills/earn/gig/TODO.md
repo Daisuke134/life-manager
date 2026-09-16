@@ -691,6 +691,10 @@ Later free space recovered naturally and Paid started a new outer run `18d5d336c
 The installed status reader temporarily reported `pass` from a different inner Codex run ID, but the
 `cf655388` candidate status reader correctly classified the outer run as `running`. Keep this exact
 process until its own terminal and official talkroom readback; inner agent success is not Paid completion.
+That exact outer run later ended `fail/entrypoint_exit_1` at 14:52:24 UTC. Its private Paid receipt says
+`failed_step=remote_verifier`, `effect=0`, `readback=3`, `actionable=1`. The earlier disk-headroom failures
+are a different cause. Reconcile the exact verifier evidence before any client retry; do not count the two
+inner Codex `pass` reports as a Paid delivery or modify foundation to mask this domain failure.
 One observed browser orphan class now has a source-only repair at `e75f5f826e`: lateness route lookup gets
 a unique agent-browser session and its parent uses the existing TERM/grace timeout so `finally` can close
 that exact session. Five small tests passed; the real signal integration test was blocked by `ENOSPC`, and
