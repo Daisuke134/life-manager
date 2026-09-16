@@ -395,9 +395,10 @@ function createProductionProviderRouter(options = {}) {
   }
 
   return Object.freeze({
-    discoverCandidates(provider, calendar, page) {
+    discoverCandidates(provider, calendar, page, budget) {
       const route = selected({ provider });
-      const discovered = route.workflow.discoverCandidates({ page, calendar });
+      const discovered = route.workflow.discoverCandidates({ page, calendar,
+        ...(provider === "techplay" && budget ? budget : {}) });
       return (async () => {
         const discoveredCandidates = await discovered;
         const pendingReconciliation = reconciliationStore.list(provider);
@@ -712,6 +713,11 @@ function createMinimalProductionDependencies(options = {}) {
   });
   const techplayWorkflow = options.techplayWorkflow || createTechPlayDiscoveryWorkflow({
     now,
+    stateDir,
+    maxDetailsPerWake: 4,
+    appliedEventRefs: () => evidenceChain.appliedBundleEventRefs({
+      provider: "techplay", provider_status: "registered",
+    }),
     onDiscoveryAudit: operations.recordTechPlayDiscoveryAudit || (() => {}),
   });
   const kokuchproWorkflow = options.kokuchproWorkflow || createKokuchProDiscoveryWorkflow({

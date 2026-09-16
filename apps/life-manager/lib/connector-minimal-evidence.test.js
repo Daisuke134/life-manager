@@ -298,6 +298,7 @@ test("hasAppliedBundle reports false before completion and true after, without t
     await chain.hasAppliedBundle({ provider: "luma", event_ref: candidate.event_ref, provider_status: "registered" }),
     false,
   );
+  assert.deepEqual(await chain.appliedBundleEventRefs({ provider: "luma", provider_status: "registered" }), []);
 
   const before = calls.length;
   await chain.completeEvidence({
@@ -309,6 +310,8 @@ test("hasAppliedBundle reports false before completion and true after, without t
     await chain.hasAppliedBundle({ provider: "luma", event_ref: candidate.event_ref, provider_status: "registered" }),
     true,
   );
+  assert.deepEqual(await chain.appliedBundleEventRefs({ provider: "luma", provider_status: "registered" }),
+    [candidate.event_ref]);
   const afterReads = calls.length;
   assert.equal(
     await chain.hasAppliedBundle({ provider: "luma", event_ref: candidate.event_ref, provider_status: "registered" }),

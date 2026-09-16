@@ -257,6 +257,30 @@ function safeDoorkeeperDiscoveryAudit(input, wakeId, recordedAt) {
   });
 }
 
+function safeTechPlayDiscoveryAudit(input, wakeId, recordedAt) {
+  const countKeys = [
+    "calendar_free_count", "discovered_count", "eligible_count", "pending_count",
+    "processed_count", "rss_count", "saturated_count", "selected_count", "within_window_count",
+  ];
+  if (!input || typeof input !== "object" || Array.isArray(input)
+    || Object.keys(input).sort().join(",") !== countKeys.join(",")
+    || !Number.isInteger(input.processed_count) || !Number.isInteger(input.pending_count)
+    || !Number.isInteger(input.rss_count)
+    || !Number.isInteger(input.saturated_count)
+    || input.processed_count < 0 || input.pending_count < 0
+    || input.saturated_count < 0 || input.saturated_count > 1
+    || input.saturated_count > input.pending_count
+    || input.rss_count < 0 || input.rss_count > input.discovered_count
+    || input.processed_count > input.discovered_count
+    || input.pending_count > input.discovered_count
+    || input.within_window_count > input.processed_count) invalid();
+  const base = Object.fromEntries(countKeys.filter((key) => !["processed_count", "pending_count", "rss_count", "saturated_count"].includes(key))
+    .map((key) => [key, input[key]]));
+  return Object.freeze({ ...safeDoorkeeperDiscoveryAudit(base, wakeId, recordedAt),
+    processed_count: input.processed_count, pending_count: input.pending_count,
+    rss_count: input.rss_count, saturated_count: input.saturated_count });
+}
+
 function reportMessage(row) {
   const label = row.status === "applied_bundle" ? "申込と証拠保存が完了"
     : row.status === "circuit_open" ? "安全停止" : "今回の新規申込なし";
@@ -328,7 +352,7 @@ function createMinimalProductionOperations(options = {}) {
     append(eventbriteDiscoveryAuditFile, safeDoorkeeperDiscoveryAudit(input, wakeId, exactInstant(now())));
   }
   async function recordTechPlayDiscoveryAudit(input) {
-    append(techPlayDiscoveryAuditFile, safeDoorkeeperDiscoveryAudit(input, wakeId, exactInstant(now())));
+    append(techPlayDiscoveryAuditFile, safeTechPlayDiscoveryAudit(input, wakeId, exactInstant(now())));
   }
   async function recordKokuchProDiscoveryAudit(input) {
     append(kokuchproDiscoveryAuditFile, safeDoorkeeperDiscoveryAudit(input, wakeId, exactInstant(now())));

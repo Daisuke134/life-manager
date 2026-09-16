@@ -83,7 +83,7 @@ test("official native pass forwards only the bounded minimal wake contract", asy
 
     assert.deepEqual(result, { status: "circuit_open", safe_reason: "fixture" });
     assert.equal(observed.length, 1);
-    assert.deepEqual(observed[0].input.providers, ["luma", "connpass", "peatix", "meetup", "doorkeeper", "eventbrite", "techplay", "kokuchpro"]);
+    assert.deepEqual(observed[0].input.providers, ["luma", "connpass", "techplay", "peatix", "meetup", "doorkeeper", "eventbrite", "kokuchpro"]);
     assert.equal(observed[0].input.maxConsecutiveFailures, 3);
     assert.equal(observed[0].input.maxWakeMs, 600_000);
     assert.equal(observed[0].input.maxAgentSteps, 15);
@@ -109,11 +109,28 @@ test("official native pass alternates Luma and Connpass priority every 30-minute
       });
     }
     assert.deepEqual(observed, [
-      ["luma", "connpass", "peatix", "meetup", "doorkeeper", "eventbrite", "techplay", "kokuchpro"],
-      ["connpass", "luma", "peatix", "meetup", "doorkeeper", "eventbrite", "techplay", "kokuchpro"],
-      ["luma", "connpass", "peatix", "meetup", "doorkeeper", "eventbrite", "techplay", "kokuchpro"],
+      ["luma", "connpass", "techplay", "peatix", "meetup", "doorkeeper", "eventbrite", "kokuchpro"],
+      ["connpass", "luma", "peatix", "meetup", "doorkeeper", "eventbrite", "kokuchpro", "techplay"],
+      ["luma", "connpass", "techplay", "meetup", "doorkeeper", "eventbrite", "kokuchpro", "peatix"],
     ]);
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+test("native fallback order gives every provider an early slot without dropping TECH PLAY", async () => {
+  const observed = [];
+  for (let slot = 0; slot < 10; slot += 1) {
+    await runNativePass({
+      repoRoot: REPO_ROOT, stateDir: `/tmp/connector-slot-${slot}`,
+      ownerToken: `native-fallback-slot-owner-${slot}`, now: () => slot * 1_800_000,
+      dependencies: Object.freeze({ boundary: "fixture" }),
+      async runWake(input) { observed.push(input.providers); return { status: "completed_no_effect" }; },
+    });
+  }
+  assert.deepEqual(observed.filter((_, slot) => slot % 2 === 0).map((rows) => rows[2]),
+    Array(5).fill("techplay"));
+  assert.deepEqual(observed.filter((_, slot) => slot % 2 === 1).map((rows) => rows[2]),
+    ["peatix", "meetup", "doorkeeper", "eventbrite", "kokuchpro"]);
+  for (const providers of observed) assert.equal(new Set(providers).size, 8);
 });
 
 test("official native pass builds the production dependency boundary from allowlisted config", async () => {
@@ -161,7 +178,7 @@ test("official native pass builds the production dependency boundary from allowl
     assert.equal(observed[0][1].connpassAutomatedSubmitAllowed, false);
     assert.match(observed[0][1].wakeId, /^wake-[0-9a-f]{24}$/);
     assert.equal(observed[0][1].wakeId.includes("native-pass-minimal-owner"), false);
-    assert.deepEqual(observed[1][1].providers, ["luma", "connpass", "peatix", "meetup", "doorkeeper", "eventbrite", "techplay", "kokuchpro"]);
+    assert.deepEqual(observed[1][1].providers, ["luma", "connpass", "techplay", "peatix", "meetup", "doorkeeper", "eventbrite", "kokuchpro"]);
     assert.equal("geminiApiKey" in observed[1][1], false);
     assert.deepEqual(observed[1][2], { boundary: "production" });
   } finally {
@@ -237,7 +254,7 @@ test("native Peatix profile is frozen at the factory boundary and invalid identi
     assert.deepEqual(factoryInput.peatixAttendeeProfile, { name: "Dais Example", email: "private@example.com", given_name: "Dais", family_name: "Example", family_name_kana: VALID_KANA.family, given_name_kana: VALID_KANA.given, name_kanji: VALID_NAME_JA, name_hiragana: "さくら てすと", accept_organizer_privacy: true });
     assert.equal(Object.isFrozen(factoryInput), true);
     assert.equal(Object.isFrozen(factoryInput.peatixAttendeeProfile), true);
-    assert.deepEqual(wakeInputs[0].providers, ["luma", "connpass", "peatix", "meetup", "doorkeeper", "eventbrite", "techplay", "kokuchpro"]);
+    assert.deepEqual(wakeInputs[0].providers, ["luma", "connpass", "techplay", "peatix", "meetup", "doorkeeper", "eventbrite", "kokuchpro"]);
     assert.equal("peatixAttendeeProfile" in wakeInputs[0], false);
     assert.doesNotMatch(JSON.stringify(wakeInputs[0]), /Dais Example|private@example\.com|family_name_kana|given_name_kana|name_kanji|name_hiragana|桜 太郎|さくら てすと|サクラ|テスト/);
     for (const override of [{ DAIS_LEGAL_NAME_ROMAJI: "" }, { DAIS_LEGAL_NAME_ROMAJI: "x".repeat(201) }, { GOG_ACCOUNT: "not-an-email" }]) {

@@ -296,7 +296,9 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
           if (deadlineReached()) return finish("circuit_open", "wake_deadline");
         }
         const discovered = await action(
-          "observe", "provider_discovery", () => deps.discoverCandidates(provider, gaps, owned.page),
+          "observe", "provider_discovery", () => deps.discoverCandidates(provider, gaps, owned.page,
+            Object.freeze({ remainingWakeMs: () => Math.max(0, settings.maxWakeMs - elapsed()),
+              completionReserveMs: FALLBACK_COMPLETION_RESERVE_MS })),
           (error) => {
             const errorClass = safeErrorClass(error);
             return Object.freeze({

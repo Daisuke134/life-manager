@@ -28,9 +28,12 @@ const DEFAULT_PROVIDERS = Object.freeze([
 
 function providersForSlot(nowMs) {
   const slot = Math.floor(nowMs / 1_800_000);
+  const fallback = DEFAULT_PROVIDERS.slice(2).filter((provider) => provider !== "techplay");
+  const offset = Math.floor(slot / 2) % fallback.length;
+  const rotated = [...fallback.slice(offset), ...fallback.slice(0, offset)];
   return Object.freeze(slot % 2 === 0
-    ? [...DEFAULT_PROVIDERS]
-    : ["connpass", "luma", ...DEFAULT_PROVIDERS.slice(2)]);
+    ? ["luma", "connpass", "techplay", ...rotated]
+    : ["connpass", "luma", ...rotated, "techplay"]);
 }
 
 function unavailable() {
