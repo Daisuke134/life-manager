@@ -30,8 +30,15 @@
 | `apps/life-manager/lib/lm-p0.test.js` | Telnyx minimum contract |
 | `apps/life-manager/lib/mental-trigger.js` | Right-window opportunity and suppression gates |
 | `apps/life-manager/lib/mental-trigger.test.js` | Three-family decision matrix |
-| `apps/life-manager/lib/mental-copy.js` | Deterministic Japanese message bank and validation |
-| `apps/life-manager/lib/mental-copy.test.js` | Exact copy and forbidden-claim tests |
+| `apps/life-manager/content/mental/sources.json` | Pinned first-party and OSS provenance manifests |
+| `apps/life-manager/content/mental/catalog/{en,ja,es}.json` | Reviewed imported quote snapshots |
+| `apps/life-manager/content/mental/metadata.json` | Quote family, themes, tones, windows, and risk flags |
+| `apps/life-manager/scripts/import-mental-catalog.js` | Deterministic catalog importer and hash checker |
+| `apps/life-manager/scripts/import-mental-catalog.test.js` | License, ID parity, hash, and rejection tests |
+| `apps/life-manager/lib/mental-catalog.js` | Load and score eligible existing quotes |
+| `apps/life-manager/lib/mental-catalog.test.js` | Deterministic personalized selection tests |
+| `apps/life-manager/lib/mental-copy.js` | Verbatim catalog output and reviewed inquiry validation |
+| `apps/life-manager/lib/mental-copy.test.js` | Exact-source copy and forbidden-claim tests |
 | `apps/life-manager/lib/mental-runtime.js` | Select, send, and record one plain message |
 | `apps/life-manager/lib/mental-runtime.test.js` | Delivery, failure, and no-button contracts |
 | `apps/life-manager/lib/mental-send-log.js` | Cap, spacing, 14-day template dedupe, receipt |
@@ -268,75 +275,117 @@ git push
 
 ---
 
-## Milestone 4: Build the Japanese plain-message bank
+## Milestone 4: Import and personalize existing catalogs
 
-### Task 5: Add deterministic affirmation, manifestation, and inquiry copy
+### Task 5: Import licensed catalogs and select existing words
 
 **Files:**
+- Create: `apps/life-manager/content/mental/sources.json`
+- Create: `apps/life-manager/content/mental/catalog/en.json`
+- Create: `apps/life-manager/content/mental/catalog/ja.json`
+- Create: `apps/life-manager/content/mental/catalog/es.json`
+- Create: `apps/life-manager/content/mental/metadata.json`
+- Create: `apps/life-manager/scripts/import-mental-catalog.js`
+- Create: `apps/life-manager/scripts/import-mental-catalog.test.js`
+- Create: `apps/life-manager/lib/mental-catalog.js`
+- Create: `apps/life-manager/lib/mental-catalog.test.js`
 - Modify: `apps/life-manager/lib/mental-copy.js`
 - Modify: `apps/life-manager/lib/mental-copy.test.js`
 
-**Interface:**
+**Interfaces:**
 
 ```js
-buildMentalMessage({ family, templateIndex, explicitGoal })
-// -> { text, templateId }
+loadMentalCatalog(locale)
+selectMentalQuote({ uid, localDay, window, family, profile, recentQuoteIds })
+// -> { id, sourceId, sourceQuoteId, family, text, themes }
+
+buildMentalMessage({ quote })
+// -> { text: quote.text, templateId: quote.id, sourceId: quote.sourceId }
 ```
 
-- [ ] Add exact-output RED tests for all messages listed in spec sections 7.1–7.3.
+- [ ] Add RED importer tests proving the existing Anicca catalogs contain exactly 200 stable IDs, `q001`–`q200`, with identical ID sets across English, Japanese, and Spanish.
 
-- [ ] Add RED rejection tests for:
+- [ ] Add RED provenance tests requiring every source manifest to contain repository, 40-character commit, path, license classification, SHA-256, and item count.
+
+- [ ] Pin the first-party `Daisuke134/anicca-products` source to commit `78566da90d279c4903ed393ceed331d97a587f5c`, containing:
 
 ```text
-more than 80 Japanese characters
-inline keyboard or callback payload in the returned value
-reply-seeking phrases
-unsupported template variable
-numeric personal achievement
-preparation claim
-activity-duration claim
-emotion claim
-diagnosis or guaranteed outcome
+apps/api/src/modules/affirmations/catalog/en.json
+apps/api/src/modules/affirmations/catalog/ja.json
+apps/api/src/modules/affirmations/catalog/es.json
 ```
 
-- [ ] Prove that `？` is legal only for `mindfulness_inquiry`; `返信して`, `教えて`, `答えて`, `押して`, and `選んで` remain illegal in every family.
+The importer accepts an explicit source checkout and writes normalized Life Manager snapshots. Production never reads `/Users/anicca/anicca-project`.
+
+- [ ] Add `humancto/antara-remarkable` as an approved candidate source pinned to `bdaf5a19e6401c771e097e04bc3fcc16d44eb835`, path `content/collections/affirmations.json`, license `MIT`, preserving its author field.
+
+- [ ] Add `lifeLessCoder/Mental-Buddy` as a candidate source pinned to `05e0522deae5943ac2704826cbe3cdc124d9fedf`, path `assets/data/affirmations.json`, license `MIT`. Its items stay excluded until each passes safety classification.
+
+- [ ] Add RED tests proving `ContionMig/Mitsuzi-JS` and `DNSERR/confidencecrew` are not imported in V1 because their inspected catalogs mix duplicate, attributed, medical, destiny, or guaranteed-success language.
+
+- [ ] Add RED rejection cases for:
+
+```text
+perfect health or recovery from illness
+inevitable success or limitless outcomes
+wealth or opportunities attracted by thought
+universe or divine intervention presented as fact
+current emotion, safety, achievement, or activity not established by context
+third-party quotation without text-level provenance
+```
+
+- [ ] Create metadata without editing source text. At minimum tag the approved Anicca items in spec section 7.1 with `family`, `themes`, `tones`, and `windows`.
+
+- [ ] Add RED personalized-selection tests using this explicit profile:
+
+```js
+const profile = {
+  locale: "ja",
+  tones: ["gentle"],
+  values: ["self-worth", "mindfulness"],
+  goals: [],
+  avoidThemes: ["spiritual"],
+};
+```
+
+Assert theme matches outrank generic items, avoided themes never win, a quote delivered within 14 days never wins, and identical inputs return the same quote ID.
+
+- [ ] Implement the exact scoring contract from spec section 8.2. Add no embeddings, model calls, vector database, or learning service.
+
+- [ ] Add exact-source tests:
+
+```js
+assert.equal(selectById("anicca:q031", "ja").text, "私は今、ここに在ります。それで十分です。");
+assert.equal(selectById("anicca:q036", "ja").text, "私は呼吸に戻り、自分自身に戻ります。");
+assert.equal(buildMentalMessage({ quote }).text, quote.text);
+```
+
+- [ ] Store mindfulness questions only as reviewed derived catalog entries with `derived_from`. Prove runtime cannot create or paraphrase a question.
+
+- [ ] Prove `？` is legal only for reviewed `mindfulness_inquiry` entries; `返信して`, `教えて`, `答えて`, `押して`, and `選んで` remain illegal.
 
 - [ ] Run RED:
 
 ```bash
 cd apps/life-manager
-node --test lib/mental-copy.test.js
+node --test \
+  scripts/import-mental-catalog.test.js \
+  lib/mental-catalog.test.js \
+  lib/mental-copy.test.js
 ```
 
-- [ ] Implement frozen `JA_TEMPLATES` arrays with stable IDs such as:
-
-```js
-const JA_TEMPLATES = Object.freeze({
-  affirmation: Object.freeze([
-    Object.freeze({ id: "ja.affirmation.01", text: "そのままの自分で、今日を始めていい。" }),
-    Object.freeze({ id: "ja.affirmation.02", text: "全部を完璧にしなくても、価値は減らない。" }),
-  ]),
-  manifestation: Object.freeze([
-    Object.freeze({ id: "ja.manifestation.01", text: "望む未来は、今日の小さな選択から形になる。" }),
-    Object.freeze({ id: "ja.manifestation.02", text: "未来を保証する必要はない。向かう方向は、いま選べる。" }),
-  ]),
-  mindfulness_inquiry: Object.freeze([
-    Object.freeze({ id: "ja.mindfulness.01", text: "いま、何に意識を使っている？" }),
-    Object.freeze({ id: "ja.mindfulness.02", text: "いまの呼吸は、浅い？ 深い？" }),
-  ]),
-});
-```
-
-Add every remaining exact message from the spec, not generated variations.
-
-- [ ] Permit `{goal}` only when `explicitGoal` is non-empty, user-authored, single-line, and length-bounded. Otherwise select a context-free manifestation.
+- [ ] Implement `sources.json`, normalized catalog snapshots, metadata, deterministic scoring, and verbatim output. The importer fails nonzero on ID drift, hash drift, missing provenance, or rejected text.
 
 - [ ] Run GREEN and commit:
 
 ```bash
-node --test lib/mental-copy.test.js
-git add lib/mental-copy.js lib/mental-copy.test.js
-git commit -m "feat(life-manager): add Japanese mental message bank"
+node --test \
+  scripts/import-mental-catalog.test.js \
+  lib/mental-catalog.test.js \
+  lib/mental-copy.test.js
+git add content/mental scripts/import-mental-catalog.js scripts/import-mental-catalog.test.js \
+  lib/mental-catalog.js lib/mental-catalog.test.js lib/mental-copy.js lib/mental-copy.test.js
+git commit -m "feat(life-manager): personalize licensed mental catalogs"
 git push
 ```
 
@@ -413,8 +462,8 @@ same user/day/window replay -> zero additional Telegram sends
 ```text
 read strict send history
 evaluate opportunity gate
-select non-repeated template
-validate copy and authorized variables
+select non-repeated approved catalog quote by explicit profile tags
+validate source manifest, quote metadata, and verbatim localized text
 send plain Telegram text
 record message ID and template identity
 return terminal outcome
