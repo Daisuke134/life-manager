@@ -75,9 +75,9 @@ platform adapterの実装そのものをfoundationへ複製しません。
 
 **この仕事は完了していません。** スキルの調査・読み込みと候補branchのテストgreenは、
 Life Managerの実際の応募・契約・納品・報酬・cloud運用が動いたことを意味しません。現在の
-origin/mainは `7d2548c8cc`（今回確認した最新remote main）まで進み、本番selectorは
+origin/mainは `30a2a2dfab`（今回確認した最新remote main参照）まで進み、本番selectorは
 `20260916T095649-8d366069`（SHA `8d366069ade3f1d78c64bc8b591b0d1f829f017d`）を指しています。remote mainとselectorは一致しておらず、ownerのinstalled/event SHAもまだ混在しています。
-統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `341dbabf3e`）は`7d2548c8cc`を取り込みpush済みですが、候補はまだmainへmergeしていません。
+統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `d0e4c4caa3`）はpush済みですが、候補はまだmainへmergeしていません。
 本番へはまだ統合していません。
 したがって、次の作業は「さらにスキルを読む」ではなく、候補をmain由来immutable releaseへ
 昇格し、ownerごとの自然wakeで公式効果を確認することです。
@@ -111,6 +111,22 @@ Git外のCoconala receiptをread-onlyで確認した結果、認証済み・公�
 公式receipt・release SHA・replay-zeroを揃えることです。古いreceiptを再利用したり、mock/fixtureで
 穴埋めしたりしません。
 
+#### 2026-09-16 cursor変更: Coconalaを一時保留し、Lancers identityへ進む
+
+Daisの明示指示により、別CodexがCoconala providerを修正している間だけ、`gig-coconala`の
+外部effect確認を一時保留し、TODO #1の次の独立sliceを`gig-lancers`へ進める。これはTODO #1を
+飛ばすことでも、Coconalaを成功扱いにすることでもない。Coconalaは`unknown`のままLocal gateを
+BLOCKし、Lancers sliceの後に同じreceipt条件で再確認する。
+
+次のidentity修正は`runtime/loop/lm_loop.py`の管理statusに安定した`job_id`と`owner_id`を出し、
+従来の共通表示`owner=life-manager`を互換のため残しつつ、jobごとのreceipt・recovery対象を分離した。
+REDで`KeyError: job_id`を確認し、修正後はfocused 2 tests、read-only 14 tests、実機`lm-loop status all`
+（267行、管理対象のjob identity欠落0）を確認した。candidate commitは`d0e4c4caa3`。
+Lancersの実測7 jobは`owner_id`が7件すべて一意だが、applicationは`entrypoint_exit_124`、browserは
+installed/event releaseが`2ff93374f79c`と`437b5696d246`に分裂、negotiate/paid/storefront/reportは
+`resource_capacity_busy`、work-syncは`resource_fifo_wait`である。したがって公式receiptと同一release
+の接続はまだ未完了で、次の一件はLancersの実receiptをmanifestへ接続することに固定する。
+
 **別Codexのprovider TODO（参照用）:** 下記の細かいprovider表はGig/Coconala/Lancers/Mercorの
 外部effect ownerが進める資料です。私のfoundation cursorでは、mock・Claude-p・provider操作を実行しません。
 
@@ -134,7 +150,7 @@ Telegram報告、テストgreen、ブラウザ画面表示だけでは完了に�
 一度だけ行います。
 
 **現在のfoundation cursor:** `CAND-01`と`CAND-02`の内部canaryは完了しています。`LOCAL-01/02`
-ではcompletion manifestの契約と`lm-loop status` JSON接続、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、失敗記録へのrecovery intent保存、`harness-recovery.json`へのowner/slot別最新intent投影、7つのskill索引、`CONTROL-01`のexternal owner登録をcandidate `42b3e0a964`へ実装済みです。
+ではcompletion manifestの契約と`lm-loop status` JSON接続、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、失敗記録へのrecovery intent保存、`harness-recovery.json`へのowner/slot別最新intent投影、7つのskill索引、`CONTROL-01`のexternal owner登録、管理statusの安定`job_id`/`owner_id`出力をcandidate `d0e4c4caa3`へ実装済みです。
 Graph/Eval/notificationの契約も同candidateへ接続済みです。次は各loopのevidenceを
 このmanifestへ接続する作業であり、platformの外部effectを私が実行する項目ではありません。
 
@@ -219,7 +235,7 @@ runtime event、provider ledgerを突き合わせた現在cursorです。後続�
 
 | 対象 | 実測状態 | 判定 |
 |---|---|---|
-| source | `origin/main=4d0f8cfbaa6b21165a575bab11f4c4ce4e1c5c82`（今回確認した最新main）; 統合候補branch `fix/lm-fundamental-runtime-20260916`（HEAD `42b3e0a964`）はpush済み・未統合 | mainにはCodex account failover、Gig/TODOの公式seller-artifact wait修正、Coconala Ryu/Kokoro/Paid handoff、Apply cursor更新が追加済み。候補にはLancers shared browser session lease、stale claim解放の冪等化、CrowdWorks/Mercor finite lane timeout、Mercor stale provisioning auto-GC、sparse releaseのadmission capability自動同梱、14-loop completion manifest契約/CLI、`lm-loop status` JSONからのruntime evidence結合、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、既存`harness-failures.jsonl`へのrecovery intent保存、`harness-recovery.json`への最新intent投影、canonical job mapping、7つのagent-engineering skill、Graph/Eval/notification契約、submitted Browserのexternal owner分類を追加。候補のfocused基盤43 tests・Python read-only 13 testsがPASS |
+| source | `origin/main=30a2a2dfab16cdefe3834f15e083965b32dabc7c`（今回確認した最新main参照）; 統合候補branch `fix/lm-fundamental-runtime-20260916`（HEAD `d0e4c4caa3`）はpush済み・未統合 | mainにはCodex account failover、Gig/TODOの公式seller-artifact wait修正、Coconala Ryu/Kokoro/Paid handoff、Apply cursor更新が追加済み。候補にはLancers shared browser session lease、stale claim解放の冪等化、CrowdWorks/Mercor finite lane timeout、Mercor stale provisioning auto-GC、sparse releaseのadmission capability自動同梱、14-loop completion manifest契約/CLI、`lm-loop status` JSONからのruntime evidence結合、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、既存`harness-failures.jsonl`へのrecovery intent保存、`harness-recovery.json`への最新intent投影、canonical job mapping、7つのagent-engineering skill、Graph/Eval/notification契約、submitted Browserのexternal owner分類、管理statusの`job_id`/`owner_id`分離を追加。候補のfocused基盤43 tests・Python read-only 13 testsがPASS |
 | release selector | `~/loops/current`は`20260916T093051-4d0f8cfb`（SHA `4d0f8cfbaa6b21165a575bab11f4c4ce4e1c5c82`、`origin/main`由来）を指す。ownerのinstalled/event SHAは混在 | current自体はorigin/mainと一致するが、Lancers/CrowdWorks/Mercorのowner drift gateはFAIL。protocol v2は有効、候補branchは未反映、全体gateは未完 |
 | Lancers Application | 以前のe789/current wakeでproposal 20件を公式ledgerへ記録（pendingは134→101）。直近current ownerは`entrypoint_exit_124`でblocked | 20件のApplication公式receiptは保持するが、現在の自然wakeは成功扱いにしない。pending 101件と再現可能なterminalが残る |
 | Lancers Browser | `loaded-running`、9227 CDPはlisten中だがinstalled SHA `2ff93374`、event SHA `437b5696`でcurrent `6184a493`と不一致 | 9227 healthだけではrelease gate PASSにならない。候補反映後に同時接続とlease releaseを確認 |
