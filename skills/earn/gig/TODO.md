@@ -811,6 +811,19 @@ a bridge main release could downgrade the already candidate-loaded Affiliate
 and Marketing labels. Fail closed on non-ancestor/unknown installed SHAs and
 record skipped owners before any early-main exception. This is part of the
 same compatibility rollout contract, not proof that `10c77389e3` is ready.
+Bridge follow-up is pushed at `04b4420cdc`: a 60-second persisted
+`next_eligible_at` applies only to release-drift dispatch deferrals; ordinary
+memory deferral remains immediate. A real-SQLite RED→GREEN test proves a
+healthy second owner claims behind a mismatched first owner and the first
+remains queued for later retry. Automatic bounded reconcile now filters
+installed SHAs to ancestors of its target main SHA, reports
+`skipped_non_ancestor`, and a temporary-Git-history test proves it skips an
+unmerged candidate before the bounded owner limit. Related apply/admission/
+runner tests passed 173 plus 30 subtests; full loop suite ran 445 with exactly
+the same three main-baseline failures noted above. Fresh read-only review of
+the final diff is running. No main merge, current switch or fleet apply yet;
+old immutable dispatchers will still cause a migration window until their
+loaded-idle owners are reconciled.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/

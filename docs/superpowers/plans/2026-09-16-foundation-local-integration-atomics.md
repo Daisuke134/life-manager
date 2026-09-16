@@ -462,6 +462,14 @@ an incompatible owner at the queue head indefinitely, so a finite persisted
 skip/expiry must let a healthy follower claim; automatic bounded reconcile
 must not downgrade loaded candidate SHAs outside the ancestry of its target
 main SHA. Test both against real SQLite/plist fixtures before any promotion.
+Pushed `04b4420cdc` now has both tests GREEN: a drifted queue head is
+temporarily ineligible for 60 seconds while a healthy follower reserves and
+claims; memory defer retains its old immediate behavior. Automatic bounded
+reconcile skips and reports non-ancestor installed SHAs before its owner
+limit. Related tests 173 plus 30 subtests pass; full control-plane 445 has
+only the three unchanged-main baseline failures. Fresh final reviewer is
+running. Old loaded runners remain an explicit rollout window, not fixed by
+source tests or a main merge alone.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.
