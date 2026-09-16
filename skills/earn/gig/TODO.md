@@ -916,6 +916,18 @@ had fallen to three revenue claims; inspect the next natural Affiliate wake
 for a distinct second captured plan before deciding whether the queue itself
 starves. SQLite held 17 queued Affiliate occurrences and eight each for
 Instagram/TikTok Metrics, so a loaded job alone is not progress.
+At 19:03 the next natural Affiliate wake also ended pre-effect capacity-busy,
+with five finite claims live just before it and still 82 pending. A read-only
+host check showed 16 GiB RAM and 32% system-wide memory free at 19:03; this
+does **not** justify blindly raising the finite cap because peak browser/model
+use is not established. The current resource classifier puts light Affiliate
+capture and Postiz Metrics in the same five-run total as paid agent/browser
+work; mixed-release dispatch also defers exact candidate-loaded labels whose
+argv differs from `current`. Atomic shared-runtime next step: measure per-class
+peak and free-slot handoff, preserve candidate occurrence identity, then prove
+one candidate light owner claims automatically without downgrading it or
+replaying a provider effect. Do not raise the cap or remove the revenue floor
+solely to make a test green.
 Connector's 18:39 natural outer run failed `wake_deadline` at 18:52, despite
 an inner PASS at 18:41. The same wake's audit shows TechPlay discovery taking
 302674 ms after earlier provider work; the workflow can inspect up to 50 RSS
