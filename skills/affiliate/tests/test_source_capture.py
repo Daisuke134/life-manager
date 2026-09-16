@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 import sys
 import tempfile
@@ -259,6 +260,84 @@ class SourceCaptureTest(unittest.TestCase):
             self.assertEqual(result["state"], "IN_PROGRESS")
             self.assertEqual([row["plan_id"] for row in result["plans"]], ["alpha-en"])
             self.assertEqual(result["pending_count"], 1)
+
+    def test_new_plan_does_not_restart_unchanged_pending_cycle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "skill"
+            plans = root / "config" / "source-plans"
+            plans.mkdir(parents=True)
+            for plan_id in ("alpha-en", "beta-en"):
+                (plans / f"{plan_id}.json").write_text(json.dumps({
+                    "schema_version": 1, "plan_id": plan_id, "locale": "en", "sources": [],
+                }))
+            state = Path(directory) / "state"
+            with (mock.patch.object(MODULE, "discover_official_plan", return_value={"state": "COOLDOWN"}),
+                  mock.patch.object(MODULE, "capture", return_value=[])):
+                first = MODULE.refresh_all(root, state, now=1000, disk_floor_bytes=1)
+                (plans / "gamma-en.json").write_text(json.dumps({
+                    "schema_version": 1, "plan_id": "gamma-en", "locale": "en", "sources": [],
+                }))
+                second = MODULE.refresh_all(root, state, now=1001, disk_floor_bytes=1)
+            self.assertEqual([row["plan_id"] for row in first["plans"]], ["alpha-en"])
+            self.assertEqual([row["plan_id"] for row in second["plans"]], ["alpha-en", "beta-en"])
+            self.assertEqual(second["pending_count"], 1)
+
+    def test_rechecks_checkpoint_after_discovery_before_advancing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "skill"
+            plans = root / "config" / "source-plans"
+            plans.mkdir(parents=True)
+            for plan_id in ("alpha-en", "beta-en", "gamma-en"):
+                (plans / f"{plan_id}.json").write_text(json.dumps({
+                    "schema_version": 1, "plan_id": plan_id, "locale": "en", "sources": [],
+                }))
+            state = Path(directory) / "state"
+            state.mkdir()
+            checkpoint = {
+                "schema_version": 1, "receipt_type": "SOURCE_REFRESH",
+                "state": "IN_PROGRESS", "completed_at": 1000,
+                "plan_set_sha256": MODULE.plan_set_sha256(root, state),
+                "plans": [{"plan_id": "alpha-en", "state": "CAPTURED",
+                           "plan_sha256": hashlib.sha256((plans / "alpha-en.json").read_bytes()).hexdigest()}],
+            }
+            (state / "source-refresh.json").write_text(json.dumps(checkpoint))
+
+            def concurrent_progress(*_args):
+                advanced = {**checkpoint, "plans": [*checkpoint["plans"], {
+                    "plan_id": "beta-en", "state": "CAPTURED",
+                    "plan_sha256": hashlib.sha256((plans / "beta-en.json").read_bytes()).hexdigest(),
+                }]}
+                (state / "source-refresh.json").write_text(json.dumps(advanced))
+                return {"state": "COOLDOWN"}
+
+            with (mock.patch.object(MODULE, "discover_official_plan", side_effect=concurrent_progress),
+                  mock.patch.object(MODULE, "capture", return_value=[])):
+                result = MODULE.refresh_all(root, state, now=1001, disk_floor_bytes=1)
+            self.assertEqual([row["plan_id"] for row in result["plans"]], [
+                "alpha-en", "beta-en", "gamma-en",
+            ])
+
+    def test_disk_guard_preserves_partial_cycle_cursor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "skill"
+            plans = root / "config" / "source-plans"
+            plans.mkdir(parents=True)
+            for plan_id in ("alpha-en", "beta-en"):
+                (plans / f"{plan_id}.json").write_text(json.dumps({
+                    "schema_version": 1, "plan_id": plan_id, "locale": "en", "sources": [],
+                }))
+            state = Path(directory) / "state"
+            with (mock.patch.object(MODULE, "discover_official_plan", return_value={"state": "COOLDOWN"}),
+                  mock.patch.object(MODULE, "capture", return_value=[])):
+                first = MODULE.refresh_all(root, state, now=1000, disk_floor_bytes=1)
+                with mock.patch.object(MODULE, "runtime_guard", return_value={"state": "DISK_BLOCKED"}):
+                    blocked = MODULE.refresh_all(root, state, now=1001, disk_floor_bytes=1)
+                resumed = MODULE.refresh_all(root, state, now=1002, disk_floor_bytes=1)
+            self.assertEqual(first["state"], "IN_PROGRESS")
+            self.assertEqual(blocked["state"], "DISK_BLOCKED")
+            self.assertEqual([row["plan_id"] for row in resumed["plans"]], [
+                "alpha-en", "beta-en",
+            ])
 
 
 if __name__ == "__main__":
