@@ -51,6 +51,9 @@ function config(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) invalid();
   const ownerToken = String(input.ownerToken || "").trim();
   if (!/^[A-Za-z0-9._-]{16,200}$/.test(ownerToken)) invalid();
+  const occurrenceId = input.occurrenceId == null ? "" : String(input.occurrenceId);
+  if (occurrenceId && (!/^life-manager-connector-native:[A-Za-z0-9._:-]{1,90}$/.test(occurrenceId)
+    || occurrenceId.length > 128)) invalid();
   if (
     !Array.isArray(input.providers) || input.providers.length < 1
     || input.providers.length > 20
@@ -58,6 +61,7 @@ function config(input) {
   ) invalid();
   return Object.freeze({
     ownerToken,
+    occurrenceId,
     providers: Object.freeze(input.providers.map(String)),
     maxConsecutiveFailures: positiveInteger(input.maxConsecutiveFailures, 3),
     maxWakeMs: positiveInteger(input.maxWakeMs, 600_000),
@@ -200,6 +204,7 @@ function safeEvidenceReason(error) {
 async function runMinimalConnectorWake(input = {}, injected = {}) {
   const settings = config(input);
   const deps = dependencies(injected);
+  if (settings.occurrenceId && typeof deps.recordEffectIntent !== "function") invalid();
   const startedAt = Date.parse(exactInstant(deps.now()));
   let owned = null;
   let consecutiveFailures = 0;
@@ -316,6 +321,14 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         }
         if (provider === "connpass" && candidates.length > 0 && typeof deps.reportConnpassActionBoundary === "function") {
           try {
+            if (typeof deps.recordEffectIntent === "function") {
+              for (const selected of candidates) {
+                await action("observe", "effect_intent", () => deps.recordEffectIntent({
+                  candidate: selected, effect_kind: "manual_boundary_notice",
+                  effect_url: selected.canonical_url,
+                }));
+              }
+            }
             await action(
               "submit",
               "connpass_action_boundary",
@@ -347,6 +360,12 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         const hasTalk = typeof deps.runTalkApplication === "function"
           && selected.talk_opportunity && selected.talk_opportunity.should_create_talk_application === true
           && selected.talk_pack && typeof selected.talk_pack === "object";
+        if (typeof deps.recordEffectIntent === "function") {
+          await action("observe", "effect_intent", () => deps.recordEffectIntent({
+            candidate: selected, effect_kind: hasTalk ? "talk_application" : "registration",
+            effect_url: hasTalk ? selected.talk_opportunity.application_url : selected.canonical_url,
+          }));
+        }
         if (deadlineReached()) return finish("circuit_open", "wake_deadline");
         let navigationTaskThrew = false;
         let navigationTaskError;
@@ -398,6 +417,12 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
           }
           await action("navigate", "browser_rail", () => deps.browserRail.navigate(owned, selected.canonical_url));
           if (deadlineReached()) return finish("circuit_open", "wake_deadline");
+          if (typeof deps.recordEffectIntent === "function") {
+            await action("observe", "effect_intent", () => deps.recordEffectIntent({
+              candidate: selected, effect_kind: "registration",
+              effect_url: selected.canonical_url,
+            }));
+          }
         }
 
         let operation;

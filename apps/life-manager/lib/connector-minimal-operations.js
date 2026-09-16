@@ -295,6 +295,7 @@ function reportMessage(row) {
 function createMinimalProductionOperations(options = {}) {
   const stateDir = privateDirectory(options.stateDir);
   const wakeId = String(options.wakeId || "");
+  const occurrenceId = String(options.occurrenceId || "");
   const telegramTarget = String(options.telegramTarget || "").trim();
   const now = options.now || (() => new Date());
   const telegramToken = String(options.telegramToken || "").trim();
@@ -303,9 +304,12 @@ function createMinimalProductionOperations(options = {}) {
     : null);
   if (
     !SAFE_ID.test(wakeId) || !telegramTarget || telegramTarget.length > 200
+    || (occurrenceId && (!/^life-manager-connector-native:[A-Za-z0-9._:-]{1,90}$/.test(occurrenceId)
+      || occurrenceId.length > 128))
     || typeof now !== "function" || typeof sendMessage !== "function"
   ) invalid();
   const historyFile = path.join(stateDir, "action-history.jsonl");
+  const effectIntentFile = path.join(stateDir, "effect-intents.jsonl");
   const reportFile = path.join(stateDir, "wake-reports.jsonl");
   const deliveryFile = path.join(stateDir, "wake-report-deliveries.jsonl");
   const claimFile = path.join(stateDir, "wake-report-send-claims.jsonl");
@@ -323,6 +327,51 @@ function createMinimalProductionOperations(options = {}) {
   async function recordAction(input) {
     const action = safeAction(input);
     append(historyFile, Object.freeze({ schema_version: 1, wake_id: wakeId, ...action }));
+  }
+
+  async function recordEffectIntent(input) {
+    if (!input || typeof input !== "object" || Array.isArray(input)
+      || Object.keys(input).sort().join(",") !== "candidate,effect_kind,effect_url") invalid();
+    const candidate = input.candidate;
+    const provider = String(candidate && candidate.provider || "");
+    const eventRef = String(candidate && candidate.event_ref || "");
+    const canonicalUrl = String(candidate && candidate.canonical_url || "");
+    const effectKind = String(input.effect_kind || "");
+    const effectUrl = String(input.effect_url || "");
+    let parsed, effectTarget;
+    try { parsed = new URL(canonicalUrl); effectTarget = new URL(effectUrl); } catch { invalid(); }
+    if (!occurrenceId || !SAFE_PROVIDER.test(provider)
+      || !eventRef.startsWith(`${provider}-event://event/`)
+      || eventRef.length > 200 || /[\x00-\x1f\x7f]/.test(eventRef)
+      || canonicalUrl.length > 2_000 || parsed.protocol !== "https:"
+      || parsed.username || parsed.password
+      || !["registration", "talk_application", "manual_boundary_notice"].includes(effectKind)
+      || effectUrl.length > 2_000 || effectTarget.protocol !== "https:"
+      || effectTarget.username || effectTarget.password) invalid();
+    const readbackCandidate = { provider, event_ref: eventRef, canonical_url: canonicalUrl };
+    for (const [key, limit] of [
+      ["title", 500], ["ticket_id", 128], ["registration_status", 40],
+      ["ticket_price_status", 40], ["venue_name", 2_000], ["venue_address", 2_000],
+    ]) {
+      if (candidate[key] == null) continue;
+      if (typeof candidate[key] !== "string" || !candidate[key]
+        || candidate[key].length > limit || /[\x00-\x1f\x7f]/.test(candidate[key])) invalid();
+      readbackCandidate[key] = candidate[key];
+    }
+    for (const key of ["starts_at", "ends_at"]) {
+      if (candidate[key] != null) readbackCandidate[key] = exactInstant(candidate[key]);
+    }
+    if (candidate.ticket_price_minor != null) {
+      if (!Number.isInteger(candidate.ticket_price_minor) || candidate.ticket_price_minor < 0) invalid();
+      readbackCandidate.ticket_price_minor = candidate.ticket_price_minor;
+    }
+    const row = Object.freeze({ schema_version: 1, occurrence_id: occurrenceId,
+      wake_id: wakeId, provider, event_ref: eventRef, canonical_url: canonicalUrl,
+      effect_kind: effectKind, effect_url: effectUrl,
+      readback_candidate: Object.freeze(readbackCandidate),
+      recorded_at: exactInstant(now()) });
+    appendDurable(effectIntentFile, row);
+    return row;
   }
 
   async function recordDiscoveryAudit(input) {
@@ -434,7 +483,8 @@ function createMinimalProductionOperations(options = {}) {
   }
 
   return Object.freeze({
-    recordAction, recordDiscoveryAudit, recordConnpassDiscoveryAudit, recordRankingAudit, recordPeatixDiscoveryAudit,
+    recordAction, recordEffectIntent, recordDiscoveryAudit, recordConnpassDiscoveryAudit,
+    recordRankingAudit, recordPeatixDiscoveryAudit,
     recordMeetupDiscoveryAudit, recordDoorkeeperDiscoveryAudit, recordEventbriteDiscoveryAudit, reportWake,
     recordTechPlayDiscoveryAudit, recordKokuchProDiscoveryAudit,
   });

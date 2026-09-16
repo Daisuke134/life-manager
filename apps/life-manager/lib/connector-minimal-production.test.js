@@ -228,7 +228,7 @@ test("official production factory exposes the complete minimal wake dependency c
     assert.equal(dependencies.browserRail, browserRail);
     assert.deepEqual(Object.keys(dependencies).sort(), [
       "browserRail", "completeEvidence", "completeTalkEvidence", "discoverCandidates", "now", "readCalendarGaps",
-      "readProviderState", "recordAction", "reportConnpassActionBoundary", "reportWake", "runAgentFallback", "runCachedAction",
+      "readProviderState", "recordAction", "recordEffectIntent", "reportConnpassActionBoundary", "reportWake", "runAgentFallback", "runCachedAction",
       "runDirectAction", "runTalkApplication", "saveRepairedActions",
     ]);
     assert.deepEqual(await dependencies.readCalendarGaps(), await calendarReader.readCalendarGaps());

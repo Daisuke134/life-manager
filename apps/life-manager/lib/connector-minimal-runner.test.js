@@ -140,6 +140,33 @@ test("one wake reuses one owned page and ordinary failures do not cross provider
   );
 });
 
+test("Connector writes every candidate intent before the first possible provider effect", async () => {
+  const state = fixture({
+    async recordEffectIntent(input) {
+      state.calls.push(["intent", input.candidate.event_ref, input.effect_kind, input.effect_url]);
+    },
+  });
+  await runMinimalConnectorWake({
+    ownerToken: "owner-token-connector-intent-123", providers: ["luma"],
+    occurrenceId: "life-manager-connector-native:run-123",
+  }, state.dependencies);
+  for (const slug of ["one", "two"]) {
+    const ref = `luma-event://event/${slug}`;
+    const intent = state.calls.findIndex((row) => row[0] === "intent" && row[1] === ref);
+    const direct = state.calls.findIndex((row) => row[0] === "direct" && row[1] === ref);
+    assert.ok(intent >= 0 && direct > intent, ref);
+  }
+});
+
+test("Connector cannot start an effect-capable wake without its durable intent writer", async () => {
+  const state = fixture();
+  await assert.rejects(runMinimalConnectorWake({
+    ownerToken: "owner-token-connector-no-intent", providers: ["luma"],
+    occurrenceId: "life-manager-connector-native:run-123",
+  }, state.dependencies), /Connector minimal runner invalid/);
+  assert.equal(state.calls.length, 0);
+});
+
 test("connpass candidates produce one action-boundary receipt and skip every provider action", async () => {
   let state = fixture({
     async discoverCandidates(provider) {
@@ -150,11 +177,16 @@ test("connpass candidates produce one action-boundary receipt and skip every pro
       state.calls.push(["connpass-boundary", candidates.map((row) => row.event_ref)]);
       return { telegram_provider_id: "7711" };
     },
+    async recordEffectIntent(input) {
+      state.calls.push(["intent", input.candidate.event_ref, input.effect_kind, input.effect_url]);
+    },
   });
-  await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-boundary", providers: ["connpass"] }, state.dependencies);
+  await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-boundary", providers: ["connpass"],
+    occurrenceId: "life-manager-connector-native:run-123" }, state.dependencies);
   const boundary = state.calls.findIndex(([name]) => name === "connpass-boundary");
+  const intent = state.calls.findIndex(([name]) => name === "intent");
   const direct = state.calls.findIndex(([name]) => name === "direct");
-  assert.ok(boundary >= 0);
+  assert.ok(intent >= 0 && boundary > intent);
   assert.equal(direct, -1);
   for (const name of ["cache", "agent", "readback"]) assert.equal(state.calls.some(([call]) => call === name), false, name);
   assert.equal(state.calls.filter(([name]) => name === "connpass-boundary").length, 1);
@@ -854,6 +886,9 @@ test("open talk consumes the one-effect budget and defers attendance to a later 
   });
   let state = fixture({
     async discoverCandidates() { return [selected]; },
+    async recordEffectIntent(input) {
+      state.calls.push(["intent", input.candidate.event_ref, input.effect_kind, input.effect_url]);
+    },
     async runTalkApplication({ candidate: supplied }) {
       state.calls.push(["talk-submit", supplied.event_ref]);
       return { status: "provider_verified", receipt_ref: "provider-receipt://connector/talk/1" };
@@ -866,8 +901,41 @@ test("open talk consumes the one-effect budget and defers attendance to a later 
   const result = await runMinimalConnectorWake({ ownerToken: "owner-token-talk-budget-123456", providers: ["luma"] }, state.dependencies);
   assert.deepEqual(result, { status: "applied_bundle", bundle_id: "talk-bundle-1", telegram_provider_id: "9001" });
   assert.deepEqual(state.calls.filter(([name]) => name === "navigate").map((row) => row[4]), ["https://forms.example.com/talk"]);
+  const intentIndex = state.calls.findIndex(([name]) => name === "intent");
+  const submitIndex = state.calls.findIndex(([name]) => name === "talk-submit");
+  assert.ok(intentIndex >= 0 && submitIndex > intentIndex);
+  assert.deepEqual(state.calls[intentIndex], ["intent", selected.event_ref,
+    "talk_application", "https://forms.example.com/talk"]);
   assert.equal(state.calls.some(([name]) => ["cache", "direct", "agent"].includes(name)), false);
   assert.deepEqual(state.calls.filter(([name]) => name === "talk-submit" || name === "talk-evidence").map(([name]) => name), ["talk-submit", "talk-evidence"]);
+});
+
+test("Connector records a separate registration intent if talk failure falls through", async () => {
+  const selected = Object.freeze({
+    ...candidate("luma", "talk-fallthrough"),
+    talk_opportunity: Object.freeze({ application_url: "https://forms.example.com/talk",
+      should_create_talk_application: true }),
+    talk_pack: Object.freeze({ title: "Life Manager talk" }),
+  });
+  const state = fixture({
+    async discoverCandidates() { return [selected]; },
+    async recordEffectIntent(input) {
+      state.calls.push(["intent", input.effect_kind, input.effect_url]);
+    },
+    async runTalkApplication() {
+      state.calls.push(["talk-submit"]);
+      return { status: "failed", safe_reason: "talk_application_failed" };
+    },
+    async completeTalkEvidence() { throw new Error("no verified talk effect"); },
+  });
+  await runMinimalConnectorWake({ ownerToken: "owner-token-talk-fallthrough",
+    providers: ["luma"], occurrenceId: "life-manager-connector-native:run-123" },
+  state.dependencies);
+  const talk = state.calls.findIndex(([name]) => name === "talk-submit");
+  const registration = state.calls.findIndex(([name, kind]) => name === "intent" && kind === "registration");
+  const direct = state.calls.findIndex(([name]) => name === "direct");
+  assert.ok(talk >= 0 && registration > talk && direct > registration);
+  assert.deepEqual(state.calls[registration], ["intent", "registration", selected.canonical_url]);
 });
 
 test("a verified cached replay skips both direct and agent actions", async () => {

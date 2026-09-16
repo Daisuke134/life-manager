@@ -181,6 +181,7 @@ test("official native pass builds the production dependency boundary from allowl
     assert.match(observed[0][1].wakeId, /^wake-[0-9a-f]{24}$/);
     assert.equal(observed[0][1].wakeId.includes("native-pass-minimal-owner"), false);
     assert.deepEqual(observed[1][1].providers, ["luma", "connpass", "techplay", "peatix", "meetup", "doorkeeper", "eventbrite", "kokuchpro"]);
+    assert.equal(observed[1][1].occurrenceId, "life-manager-connector-native:run-123");
     assert.equal("geminiApiKey" in observed[1][1], false);
     assert.deepEqual(observed[1][2], { boundary: "production" });
   } finally {

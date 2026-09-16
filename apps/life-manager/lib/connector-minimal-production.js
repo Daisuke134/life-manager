@@ -617,6 +617,7 @@ function createMinimalProductionDependencies(options = {}) {
   const operations = options.operations || createMinimalProductionOperations({
     stateDir,
     wakeId,
+    occurrenceId: options.occurrenceId,
     telegramTarget,
     telegramToken,
     sendMessage: options.reportSendMessage || createDirectReportSender(telegramToken),
@@ -784,6 +785,7 @@ function createMinimalProductionDependencies(options = {}) {
     now: nowIso,
     browserRail,
     readCalendarGaps: calendarReader.readCalendarGaps,
+    recordEffectIntent: operations.recordEffectIntent,
     discoverCandidates: providerRouter.discoverCandidates,
     runCachedAction: providerRouter.runCachedAction,
     runDirectAction: providerRouter.runDirectAction,

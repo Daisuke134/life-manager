@@ -157,13 +157,18 @@ function resolveEnv(options) {
   };
 }
 
-function reportConfig(options, stateDir, ownerToken) {
-  const env = resolveEnv(options);
+function runtimeOccurrenceId(options) {
   const runtimeEnv = options.env && typeof options.env === "object" && !Array.isArray(options.env)
     ? options.env : process.env;
   const occurrenceId = String(runtimeEnv.LIFE_MANAGER_OCCURRENCE_ID || "");
   if (occurrenceId && (!/^life-manager-connector-native:[A-Za-z0-9._:-]{1,90}$/.test(occurrenceId)
     || occurrenceId.length > 128)) unavailable();
+  return occurrenceId;
+}
+
+function reportConfig(options, stateDir, ownerToken) {
+  const env = resolveEnv(options);
+  const occurrenceId = runtimeOccurrenceId(options);
   const repoRoot = absoluteDirectory(options.repoRoot);
   const validatedStateDir = absoluteDirectory(stateDir);
   const validatedOwnerToken = requiredToken(ownerToken);
@@ -223,10 +228,12 @@ async function runNativePass(options = {}) {
     productionConfig(options, stateDir, ownerToken),
   );
   if (!dependencies || typeof dependencies !== "object" || Array.isArray(dependencies)) unavailable();
+  const occurrenceId = runtimeOccurrenceId(options);
 
   return runWake(Object.freeze({
     ownerToken,
     stateDir,
+    ...(occurrenceId ? { occurrenceId } : {}),
     providers: providersForSlot(nowMs),
     maxConsecutiveFailures: 3,
     maxWakeMs: 600_000,

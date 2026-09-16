@@ -753,6 +753,52 @@ test("operations persist only safe TECH PLAY discovery aggregate counts", async 
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });
 
+test("Connector durably records exact host occurrence target before an effect", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-effect-intent-"));
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir, wakeId: "wake-effect-intent-123", telegramTarget: "private-target",
+      occurrenceId: "life-manager-connector-native:run-123",
+      now: () => new Date("2026-08-12T08:30:00.000Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    });
+    await operations.recordEffectIntent({ effect_kind: "registration",
+      effect_url: "https://techplay.jp/event/999180",
+      candidate: { provider: "techplay", event_ref: "techplay-event://event/999180",
+        canonical_url: "https://techplay.jp/event/999180", title: "Tokyo event",
+        starts_at: "2026-08-20T09:00:00.000Z", ends_at: "2026-08-20T10:00:00.000Z",
+        ticket_id: "12345", registration_status: "available",
+        ticket_price_status: "free", ticket_price_minor: 0,
+        talk_pack: { private_bio: "must-not-persist" } } });
+    await operations.recordEffectIntent({ effect_kind: "registration",
+      effect_url: "https://luma.com/second",
+      candidate: { provider: "luma", event_ref: "luma-event://event/second",
+        canonical_url: "https://luma.com/second", title: "Another event",
+        starts_at: "2026-08-20T09:00:00.000Z", ends_at: "2026-08-20T10:00:00.000Z" } });
+    const file = path.join(stateDir, "effect-intents.jsonl");
+    const rows = fs.readFileSync(file, "utf8").trim().split("\n").map(JSON.parse);
+    const row = rows[0];
+    assert.deepEqual(row, {
+      schema_version: 1, occurrence_id: "life-manager-connector-native:run-123",
+      wake_id: "wake-effect-intent-123", provider: "techplay",
+      event_ref: "techplay-event://event/999180",
+      canonical_url: "https://techplay.jp/event/999180",
+      effect_kind: "registration", effect_url: "https://techplay.jp/event/999180",
+      readback_candidate: { provider: "techplay", event_ref: "techplay-event://event/999180",
+        canonical_url: "https://techplay.jp/event/999180", title: "Tokyo event",
+        starts_at: "2026-08-20T09:00:00.000Z", ends_at: "2026-08-20T10:00:00.000Z",
+        ticket_id: "12345", registration_status: "available",
+        ticket_price_status: "free", ticket_price_minor: 0 },
+      recorded_at: "2026-08-12T08:30:00.000Z",
+    });
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+    assert.equal(rows.length, 2);
+    assert.equal(rows[1].occurrence_id, row.occurrence_id);
+    assert.equal(rows[1].event_ref, "luma-event://event/second");
+    assert.doesNotMatch(JSON.stringify(row), /private-target|must-not-persist|token|password|email/i);
+  } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
+});
+
 test("TECH PLAY audit keeps a retained candidate visible after RSS eviction", async () => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-techplay-retained-audit-"));
   try {
