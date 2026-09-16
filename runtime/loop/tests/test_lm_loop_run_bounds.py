@@ -539,14 +539,50 @@ def test_dispatch_reserved_rejects_stale_loaded_release_prefix(tmp_path):
         [], 0, "arguments = {\n" + "\n".join(stale) + "\n}\nstate = not running",
     )
 
-    with (patch("runtime.loop.lm_loop_run.cancel_durable_resource") as cancel,
+    with (patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
           patch("runtime.loop.lm_loop_run.subprocess.run", return_value=observed) as run):
         assert _dispatch_reserved(
             ["example"], current=current, agents_dir=agents,
         ) == []
 
-    cancel.assert_called_once_with("example")
+    defer.assert_called_once_with("example")
     assert run.call_count == 1
+
+
+def test_dispatch_release_drift_preserves_real_sqlite_waiter(tmp_path, monkeypatch):
+    admission_root = tmp_path / "admission"
+    monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(admission_root))
+    admission.activate_durable_v2()
+    admission.enqueue_durable("deterministic", "example", admission_class="borrow")
+    assert admission.reserve_available() == ["example"]
+
+    current = tmp_path / "release"
+    agents = tmp_path / "agents"
+    (current / "config").mkdir(parents=True)
+    agents.mkdir()
+    row = {
+        "label": "ai.anicca.example", "domain": "earn", "entrypoint": "bin/example",
+        "cadence": {"start_interval_seconds": 300}, "effect_class": "message",
+        "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic",
+    }
+    (current / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": row},
+    }))
+    (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
+        "ProgramArguments": ["/old-release/bin/lm-loop-run", "example", "/old-release"],
+    }))
+
+    assert _dispatch_reserved(["example"], current=current, agents_dir=agents) == []
+    with sqlite3.connect(admission_root / "admission-v2.sqlite3") as connection:
+        assert connection.execute(
+            "SELECT owner_id FROM queue WHERE owner_id='example'"
+        ).fetchone() == ("example",)
+        assert connection.execute(
+            "SELECT owner_id FROM reservations WHERE owner_id='example'"
+        ).fetchone() is None
 
 
 def test_dispatch_reserved_keeps_running_owner_reservation(tmp_path):
@@ -574,13 +610,13 @@ def test_dispatch_reserved_keeps_running_owner_reservation(tmp_path):
         [], 0, "arguments = {\n" + "\n".join(expected) + "\n}\nstate = running",
     )
 
-    with (patch("runtime.loop.lm_loop_run.cancel_durable_resource") as cancel,
+    with (patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
           patch("runtime.loop.lm_loop_run.subprocess.run", return_value=observed) as run):
         assert _dispatch_reserved(
             ["example"], current=current, agents_dir=agents,
         ) == []
 
-    cancel.assert_not_called()
+    defer.assert_not_called()
     assert run.call_count == 1
 
 
@@ -609,13 +645,13 @@ def test_dispatch_reserved_rejects_loaded_output_without_explicit_idle_state(tmp
         [], 0, "arguments = {\n" + "\n".join(expected) + "\n}\nruns = 1",
     )
 
-    with (patch("runtime.loop.lm_loop_run.cancel_durable_resource") as cancel,
+    with (patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
           patch("runtime.loop.lm_loop_run.subprocess.run", return_value=observed) as run):
         assert _dispatch_reserved(
             ["example"], current=current, agents_dir=agents,
         ) == []
 
-    cancel.assert_called_once_with("example")
+    defer.assert_called_once_with("example")
     assert run.call_count == 1
 
 
@@ -641,17 +677,17 @@ def test_dispatch_reserved_rejects_noncanonical_installed_argv(tmp_path):
         "ProgramArguments": prefixed,
     }))
 
-    with (patch("runtime.loop.lm_loop_run.cancel_durable_resource") as cancel,
+    with (patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
           patch("runtime.loop.lm_loop_run.subprocess.run") as run):
         assert _dispatch_reserved(
             ["example"], current=current, agents_dir=agents,
         ) == []
 
-    cancel.assert_called_once_with("example")
+    defer.assert_called_once_with("example")
     run.assert_not_called()
 
 
-def test_dispatch_reserved_cancels_owner_with_missing_plist(tmp_path):
+def test_dispatch_reserved_defers_owner_with_missing_plist(tmp_path):
     current = tmp_path / "release"
     agents = tmp_path / "agents"
     (current / "config").mkdir(parents=True)
@@ -668,13 +704,13 @@ def test_dispatch_reserved_cancels_owner_with_missing_plist(tmp_path):
         "schema_version": 2, "loops": {"example": row},
     }))
 
-    with (patch("runtime.loop.lm_loop_run.cancel_durable_resource") as cancel,
+    with (patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
           patch("runtime.loop.lm_loop_run.subprocess.run") as run):
         assert _dispatch_reserved(
             ["example"], current=current, agents_dir=agents,
         ) == []
 
-    cancel.assert_called_once_with("example")
+    defer.assert_called_once_with("example")
     run.assert_not_called()
 
 
