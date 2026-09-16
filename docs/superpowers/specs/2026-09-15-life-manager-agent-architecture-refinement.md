@@ -223,6 +223,12 @@ priority未指定行との互換性を保持した。registry 72 tests / 113 sub
 applyを合わせた **251 tests / 143 subtests PASS**。実際のloop行へのpriority投影と自然wakeは
 次のatomicであり、本番へは未反映である。
 
+**R2-02 runner projection atomic (candidate `d77a3af0f1`):** 明示されたregistry `priority`を
+`runtime/loop/lm_loop_run.py`のdurable enqueueへ渡す接続を追加した。未指定行は既存の
+`admission_class`互換経路を保ち、既存の呼び出し引数を変えない。`critical_paid`のrunner接続
+回帰を含む`test_lm_loop_run_bounds.py`はPASS。本番registryへのpriority値付与、occurrence_id、
+自然wakeはまだ未完である。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
