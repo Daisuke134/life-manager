@@ -701,6 +701,18 @@ clears it, so liveness would be lost after a timeout. Exact next slices:
    candidate, rerun Local/Eval, then propose shared-v2 main promotion.
 No Connector registration, Affiliate second plan, Metrics snapshot or 14-loop
 success is established by this source safety patch.
+**Fresh live read-only snapshot (2026-09-16 21:13 UTC):** `lm-loop status all`
+still reports Connector loaded `cf655388`, latest outer `fail/wake_deadline`;
+both Instagram/TikTok Metrics are loaded `cf655388` but last terminal is
+admission-blocked (`resource_fifo_wait` / `resource_capacity_busy`), with no
+metrics effect proof. The 17 loaded Mobile publishing labels share
+`cf655388`; most last terminals are admission-blocked, while `jp1-tiktok`
+remains `entrypoint_exit_1`. `obou-instagram` is an unloaded retired registry
+label, not an 18th active posting lane. Affiliate plan/source-refresh also
+remain blocked by capacity. This is a selector/status snapshot, not a
+same-run official Postiz readback or all-fleet acceptance result. Foundation
+and Mobile source worktrees have separate active owner leases; this TODO
+update does not authorize writing in either worktree or restarting any label.
 After the exact Connector rollback, old candidate SHA `cf655388` naturally
 woke at 20:48:54 UTC as outer run `18d5e83356635230-73022`. The same PID
 stayed live through provider discovery, then ended `FAIL/wake_deadline` at
