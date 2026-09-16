@@ -194,6 +194,14 @@ deterministic reservationが1件あり、revenue floorを守るためborrow枠�
 run/admission 90 tests、product/gate 43 testsがPASS。これはobservabilityの修正であり、Connectorの
 外部登録receiptではない。現在のlive runが終了して一致するreportを出すまで、R2-03は未完のままとする。
 
+そのlive runは`2026-09-16T04:12:29Z`に終了し、正規`lm-loop://` reportは`fail`だった。private
+`wake-reports.jsonl`では同じwakeの原因が`circuit_open / wake_deadline`、最後のprovider discoveryが
+`214780ms`と確認できた。従来はentrypointの終了コードだけが`entrypoint_exit_1`として残り、この既知原因を
+失っていた。candidate `94c52d50a5`ではentrypointが生成するprivateな`entrypoint-result.json`の
+`safe_reason`（status/reasonのみ、mode 0600）を外側eventへ伝播し、`wake_deadline`などのbounded
+原因を保持する。未知文字列は破棄し、外部effectの成功へ昇格しない。これはR2-02の修正であり、
+Connectorの外部登録receiptではない。
+
 同日、外部effectを持たないConnector ownerだけをcurrent immutable releaseへtargeted reconcileした。
 installed SHAはcurrentへ揃ったが、その一回のkickstart後の最新eventに制御ロック競合が残り、
 スケジュールされた自然wakeの成功terminal/readbackは未確認である。
