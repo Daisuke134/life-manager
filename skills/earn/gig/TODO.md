@@ -630,13 +630,13 @@ The gate is the passing **evidence matrix**, not elapsed wall-clock time. Histor
 may inform capacity and incidents but cannot be mandatory waits or substitutes for fault tests and official
 effects. Do not count a mock as production evidence or claim a provider result for a lane with no eligible work.
 
-**Current shared-runtime blocker:** The unmerged foundation candidate still amplifies a queued owner when its
-internal `kickstart` creates a fresh occurrence. A host-only reservation-coalescing attempt was rejected: it
-also erased a genuine natural wake during the same lease. The focused real-SQLite preservation regression is
-pushed as `a4de1b9c2c` (71 host-admission tests PASS); dispatch itself is not fixed or production-promoted.
-Before changing that behavior, prove the domain's durable business-item cursor and both overlapping-wake
-trajectories. A full control-plane test attempt hit `ENOSPC` at about 209 MiB free and cannot be counted as a
-code verdict; recover disk headroom through owner-safe cleanup before rerunning release/export tests.
+**Current shared-runtime blocker:** The *loaded* candidate still uses the earlier reservation-only protocol,
+so a mixed-release dispatch cannot safely wake it. The foundation source now has queued-scan coalescing,
+explicit version marker and a fenced main-derived cross-release path at `ff5b2df143`, but that is not an
+immutable-main production release or a Local queue-to-claim proof. The earlier host-only reservation attempt
+was rejected because it erased a genuine independent natural wake; this new behavior is Connector scan-only,
+not Mobile publication or a generic provider-effect retry. An older full control-plane attempt hit `ENOSPC`
+at about 209 MiB free; the current committed source suite passes 467/467 after owner-safe headroom recovery.
 Connector's current reconciliation store retains only potentially effected/unknown candidates, not every
 newly discovered event. A test-first ordinary-candidate inbox was rejected before commit because replayed
 snapshots bypass provider date/open/free and Calendar eligibility checks, and unpruned rows could fill the
