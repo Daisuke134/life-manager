@@ -255,6 +255,11 @@ Metrics、Connectorの生成plistへ絶対`LIFE_MANAGER_NODE` / `NODE_BIN` / `LI
 **88 tests / 30 subtests PASS**。version/import smoke、launchd自然wake、Postiz receipt、
 productionへの反映はまだ未完である。
 
+**R2-02 runtime smoke atomic (candidate `fc918a2a2b`):** 対象entrypointを含むapply計画の生成前に、
+管理Nodeの`--version`とrelease Pythonの標準importをbounded subprocessで確認するようにした。
+失敗時はplist書込みやlaunchd操作へ進まずfail-closedする。apply suiteは **89 tests / 30 subtests
+PASS**。これは候補preflightであり、production plist・自然wake・provider receiptはまだ未完である。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
