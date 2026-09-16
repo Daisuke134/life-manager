@@ -168,6 +168,7 @@ def test_full_history_scan_state_accumulates_across_wakes():
         "version": 1, "targets_sha256": "a" * 64,
         "next_url": "https://coconala.com/mypage/job_matching/applied/offers",
         "observed_ids": [], "pages_walked": 0, "cards_seen": 0, "chunks": [],
+        "urls": ["https://coconala.com/mypage/job_matching/applied/offers"],
     }
     targets = {"111": "cas-1", "222": "cas-2"}
 
@@ -175,14 +176,23 @@ def test_full_history_scan_state_accumulates_across_wakes():
         "source": "code_owned_cdp_readback", "observed": True, "not_found": False,
         "request_ids": ["111", "999"], "pages_walked": 2, "cards_seen": 40,
         "next_url": "https://coconala.com/mypage/job_matching/applied/offers?page=3",
+        "urls": ["https://coconala.com/mypage/job_matching/applied/offers"],
     }, targets)
     state = application_parent._advance_full_history_scan_state(state, {
         "source": "code_owned_cdp_readback", "observed": True, "not_found": False,
         "request_ids": ["222"], "pages_walked": 1, "cards_seen": 18,
         "next_url": None,
+        "urls": [
+            "https://coconala.com/mypage/job_matching/applied/offers",
+            "https://coconala.com/mypage/job_matching/applied/outsource_applications",
+        ],
     }, targets)
 
     assert state["observed_ids"] == ["111", "222"]
     assert state["pages_walked"] == 3
     assert state["cards_seen"] == 58
     assert state["next_url"] is None
+    assert state["urls"] == [
+        "https://coconala.com/mypage/job_matching/applied/offers",
+        "https://coconala.com/mypage/job_matching/applied/outsource_applications",
+    ]

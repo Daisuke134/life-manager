@@ -4495,11 +4495,13 @@ def run_parent(
                         or not isinstance(scan_state.get("observed_ids"), list)
                         or not isinstance(scan_state.get("pages_walked"), int)
                         or not isinstance(scan_state.get("cards_seen"), int)
-                        or not isinstance(scan_state.get("chunks"), list)):
+                        or not isinstance(scan_state.get("chunks"), list)
+                        or not isinstance(scan_state.get("urls"), list)):
                     scan_state = {
                         "version": 1, "targets_sha256": target_sha256,
                         "next_url": _APPLIED_OFFERS_URL, "observed_ids": [],
                         "pages_walked": 0, "cards_seen": 0, "chunks": [],
+                        "urls": [_APPLIED_OFFERS_URL],
                     }
                 chunk_index = int(scan_state["pages_walked"]) + 1
                 chunk_path = evidence_dir / f"parent-B2-history-scan-chunk-{chunk_index}.json"
@@ -4532,7 +4534,7 @@ def run_parent(
                         "not_found": False, "pass_id": pass_id,
                         "observed_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
                         "url": _APPLIED_OFFERS_URL,
-                        "urls": [_APPLIED_OFFERS_URL],
+                        "urls": scan_state["urls"],
                         "request_ids": sorted(observed_ids, key=sort_key),
                         "expected_ids": sorted(uncertain_intents, key=sort_key),
                         "expected_request_ids": sorted(uncertain_intents, key=sort_key),
@@ -5029,6 +5031,7 @@ def _advance_full_history_scan_state(
             or chunk.get("observed") is not True
             or chunk.get("not_found") is not False
             or not isinstance(chunk.get("request_ids"), list)
+            or not isinstance(chunk.get("urls"), list)
             or not isinstance(chunk.get("pages_walked"), int)
             or chunk["pages_walked"] < 1
             or not isinstance(chunk.get("cards_seen"), int)
@@ -5039,11 +5042,23 @@ def _advance_full_history_scan_state(
     observed = set(state["observed_ids"]) | {
         str(value) for value in chunk["request_ids"] if str(value) in targets
     }
+    canonical_paths = {
+        "/mypage/job_matching/applied/offers",
+        "/mypage/job_matching/applied/outsource_applications",
+    }
+    urls = set(state["urls"])
+    urls.update(
+        str(value) for value in chunk["urls"]
+        if isinstance(value, str)
+        and urlsplit(value).hostname in _COCONALA_HOSTS
+        and urlsplit(value).path.rstrip("/") in canonical_paths
+    )
     return {
         **state, "next_url": chunk.get("next_url"),
         "observed_ids": sorted(observed),
         "pages_walked": int(state["pages_walked"]) + chunk["pages_walked"],
         "cards_seen": int(state["cards_seen"]) + chunk["cards_seen"],
+        "urls": sorted(urls),
     }
 
 
