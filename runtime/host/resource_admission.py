@@ -606,11 +606,14 @@ def defer_durable(owner_id: str, *, cooldown_seconds: int = 0) -> bool:
         with _database(database) as connection:
             changed = connection.execute(
                 "DELETE FROM reservations WHERE owner_id=?", (owner_id,)).rowcount
-            if changed and cooldown_seconds:
-                connection.execute(
-                    "UPDATE priorities SET next_eligible_at=? WHERE owner_id=?",
-                    (time.time() + cooldown_seconds, owner_id))
-        return changed == 1
+            delayed = 0
+            if cooldown_seconds:
+                delayed = connection.execute(
+                    """UPDATE priorities SET next_eligible_at=?
+                         WHERE owner_id=? AND EXISTS (
+                             SELECT 1 FROM queue WHERE owner_id=?)""",
+                    (time.time() + cooldown_seconds, owner_id, owner_id)).rowcount
+        return bool(changed or delayed)
     finally:
         os.close(descriptor)
 

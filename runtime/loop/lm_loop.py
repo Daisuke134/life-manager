@@ -278,11 +278,10 @@ def _loaded_sha_is_ancestor(installed_sha: str, current_sha: str) -> bool:
 def _bounded_reconcile_candidates(registry: dict, route: str,
                                   current_sha: str, max_owners: int,
                                   skipped_non_ancestor: list[str] | None = None) -> set[str]:
-    """Find a small deterministic set of stale installed owners before launchd probing."""
+    """Inspect the finite registry so an ineligible prefix cannot hide later owners."""
     agents_dir = Path(os.environ.get(
         "LIFE_MANAGER_LAUNCH_AGENTS_DIR", "~/Library/LaunchAgents")).expanduser()
     candidates: list[str] = []
-    candidate_limit = min(64, max_owners * 8)
     automatic = os.environ.get("LIFE_MANAGER_LOOP_ID") == "life-manager-release-reconciler"
     ancestry: dict[str, bool] = {}
     for loop_id, entry in sorted(registry["loops"].items()):
@@ -300,8 +299,6 @@ def _bounded_reconcile_candidates(registry: dict, route: str,
                         skipped_non_ancestor.append(loop_id)
                     continue
             candidates.append(loop_id)
-        if len(candidates) >= candidate_limit:
-            break
     return set(candidates)
 
 

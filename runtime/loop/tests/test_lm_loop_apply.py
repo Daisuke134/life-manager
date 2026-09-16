@@ -1193,6 +1193,27 @@ class LmLoopApplyTest(unittest.TestCase):
         })
         self.assertEqual(applied, ["example", "life-manager-disk-cleanup"])
 
+    def test_bounded_reconcile_does_not_hide_later_idle_owner_behind_eight_stale_rows(self):
+        value = registry()
+        value["loops"] = {
+            f"owner-{index:02d}": {
+                **value["loops"]["example"],
+                "label": f"ai.anicca.owner-{index:02d}",
+            }
+            for index in range(9)
+        }
+        agents = self.root / "nine-agents"
+        agents.mkdir()
+        for entry in value["loops"].values():
+            (agents / f"{entry['label']}.plist").write_bytes(plistlib.dumps({
+                "EnvironmentVariables": {"LIFE_MANAGER_RELEASE_SHA": "b" * 40},
+            }))
+        with patch.dict(os.environ, {"LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents)}):
+            selected = lm_loop._bounded_reconcile_candidates(
+                value, "deterministic", "a" * 40, 1)
+        self.assertEqual(len(selected), 9)
+        self.assertIn("owner-08", selected)
+
     def test_reconcile_loaded_idle_only_leaves_unloaded_rows_untouched(self):
         release = self._release("release-a").resolve()
         rows = [
