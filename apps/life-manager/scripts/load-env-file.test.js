@@ -31,6 +31,51 @@ function runLoader(envFile) {
   ], { encoding: "utf8" });
 }
 
+function runRequired(envFile) {
+  return spawnSync("bash", [
+    "-c",
+    'set -euo pipefail; source "$1"; lm_load_env_file "$2"; lm_require_env_keys LM_POSTIZ_API_KEY; echo READY',
+    "bash", LIB, envFile,
+  ], { encoding: "utf8" });
+}
+
+test("Postiz key preflight is fail-closed and never prints the value", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-postiz-env-"));
+  const missing = runRequired(path.join(dir, "missing.env"));
+  assert.equal(missing.status, 2, missing.stderr);
+  assert.match(missing.stderr, /LM_POSTIZ_API_KEY/);
+
+  const present = path.join(dir, "present.env");
+  fs.writeFileSync(present, "LM_POSTIZ_API_KEY=private-test-value\n");
+  const ready = runRequired(present);
+  assert.equal(ready.status, 0, ready.stderr);
+  assert.match(ready.stdout, /READY/);
+  assert.doesNotMatch(ready.stdout + ready.stderr, /private-test-value/);
+});
+
+test("Postiz launchers stop before runtime work when the key is absent", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-postiz-launcher-"));
+  const envFile = path.join(dir, "missing.env");
+  for (const [script, args] of [
+    ["mobile-app", ["life-manager-anicca-jp1-tiktok"]],
+    ["instagram-metrics-production-boot.sh", []],
+    ["tiktok-metrics-production-boot.sh", []],
+  ]) {
+    const result = spawnSync("bash", [path.join(__dirname, script), ...args], {
+      encoding: "utf8",
+      env: {
+        HOME: dir,
+        PATH: "/usr/bin:/bin",
+        LIFE_MANAGER_MARKETING_ENV_FILE: envFile,
+        LIFE_MANAGER_ENV_FILE: envFile,
+      },
+    });
+    assert.equal(result.status, 2, `${script}: ${result.stderr}`);
+    assert.match(result.stderr, /LM_POSTIZ_API_KEY/, script);
+    assert.doesNotMatch(result.stdout + result.stderr, /private-test-value/, script);
+  }
+});
+
 test("a missing env file warns on stderr but keeps booting", () => {
   const missing = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "lm-env-")), "no.env");
   const result = runLoader(missing);
