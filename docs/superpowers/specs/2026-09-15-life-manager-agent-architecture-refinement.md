@@ -302,7 +302,16 @@ fail-closedする。既存apply/recovery suiteは **90 tests / 30 subtests PASS*
 **S-03 retry projection atomic (candidate `8277dd29bc`):** claimed repair rowを既存の
 `recovery.intents.v1` / `retry_owner`形式へ投影し、transient失敗時は同じrowをqueuedへ戻す
 pure helperを追加した。兄弟ownerを含めない一件限定のpayloadを固定し、apply/recovery suiteは
-**91 tests / 30 subtests PASS**。既存reconcileを実際に呼ぶsupervisor接続と自然wakeはまだ未完である。
+**91 tests / 30 subtests PASS**。
+
+**S-03 supervisor dispatch atomic (candidate `72d9619339`):** 既存の
+`life-manager-release-reconciler`からrouteごとに一件だけrepair queueをclaimし、secret-freeな
+projectionを作り、既存`lm-loop reconcile --recovery-intent`へ渡す接続を追加した。reconcile結果が
+claimed ownerのlabel/loop_idを明示し、`eligible=1`かつ`failed=[]`の時だけrowを`repaired`へ閉じる。
+それ以外は同じevent keyのrowを`queued`へ戻し、projectionは消去する。新しいscheduler、provider
+effect、兄弟owner再起動は追加していない。apply/recovery suiteは**93 tests / 30 subtests PASS**、
+`lm-loop`/reconcilerのsyntaxとrun/admission **102 tests PASS**。自然wake後の同一owner state/event、
+duplicate effect 0、公式readbackはまだ未確認であり、S-03のproduction受入は未完である。
 
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
@@ -402,7 +411,7 @@ calendar wake前のためeventと自然terminalは未確認である。
 |---:|---|---|---|
 | S-01 | `retry_owner` intentを既存reconcileへ一件接続 | `runtime/loop/harness-health-snapshot.mjs`、`runtime/loop/lm_loop.py`、reconcile tests | `harness-recovery.json`の一件だけを同じ`owner_id`/`job_id`へ渡し、兄弟0件、effect再送0 |
 | S-02 | retry budget超過をtyped repairへ一件接続 | **candidate完了** (`1f874e43e4`)。`lm-loop repair-queue <route> --recovery-intent PATH`を追加 | `escalate_repair`を自動再送せず、Git外`repair-queue.jsonl`へ同じ`event_key`を一件だけ記録。owner/job/route不一致、複数intent、壊れたqueueはfail-closed |
-| S-03 | repair完了後の同一owner再開を一件検証 | `runtime/loop/lm_loop_run.py`、既存owner state/event | 同じjob/effect namespaceで再開し、duplicate effect 0、official readback未確認は未完のまま |
+| S-03 | repair完了後の同一owner再開を一件検証 | `runtime/loop/lm_loop.py`、`bin/reconcile-agent-runner-release.sh`、既存owner state/event | **candidate接続済み** (`72d9619339`)。同じjob/effect namespaceで再開し、duplicate effect 0、自然wakeとofficial readbackを実測するまで未完 |
 | S-04 | candidate→held-out/safety/cost eval→promotion/rollbackを一件閉じる | `apps/life-manager/eval/agent-contract/`、`apps/life-manager/lib/product-onboarding.js` | baseline比較、held-out、safety、cost、rollback pointerが揃い、production stateを直接変更しない |
 
 S-02では、recovery projectionに`escalate_repair`が一件だけある場合のみ、
