@@ -192,6 +192,9 @@ currentへ一致したが、`last_exit=75`、`host_admission_deferred:resource_c
 `affiliate-composition`もtargeted reconcile後に自然terminalを観測した。installed/event SHAはcurrentへ一致し、
 `last_exit=75 / host_admission_deferred:resource_capacity_busy`だったため、release driftは解消したが容量待ちが残る。
 
+`capafy-loop-healthcheck`もtargeted reconcileでinstalled SHAをcurrentへ揃えた。次回自然wake前のため
+eventは旧SHAのままで、実行結果はまだ確認していない。
+
 #### S: 自己修復・自己改善の残りも一件ずつ記録する
 
 これは別の常駐supervisorを追加するTODOではなく、既存のreconcile/launchd supervisorとcandidate gateへ
