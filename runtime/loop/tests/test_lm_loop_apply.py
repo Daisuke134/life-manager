@@ -18,7 +18,11 @@ from unittest.mock import patch
 import runtime.loop.lm_loop as lm_loop
 from runtime.loop.lm_loop import apply_live
 from runtime.loop.lm_loop_apply import _plist, apply_registry, build_apply_plan, install_one
-from runtime.loop.lm_loop_lifecycle import enqueue_repair_intent
+from runtime.loop.lm_loop_lifecycle import (
+    claim_repair_intent,
+    enqueue_repair_intent,
+    finish_repair_intent,
+)
 
 
 SHA = "a" * 40
@@ -252,6 +256,34 @@ def test_repair_queue_cli_records_one_escalated_owner_without_restarting(tmp_pat
     result = json.loads(output.getvalue())
     assert result["ok"] is True and result["queued"] is True
     assert len(queue.read_text().splitlines()) == 1
+
+
+def test_repair_queue_claim_and_finish_are_idempotent_and_owner_scoped(tmp_path):
+    recovery = tmp_path / "harness-recovery.json"
+    queue = tmp_path / "repair-queue.jsonl"
+    recovery.write_text(json.dumps(_repair_recovery(_escalated_repair())))
+    registry_value = two_loop_registry()
+    assert enqueue_repair_intent(
+        recovery, registry_value, "deterministic", queue_path=queue,
+        recorded_at="2026-09-16T05:00:00+00:00",
+    )["queued"] is True
+
+    claimed = claim_repair_intent(queue, "deterministic", now=100)
+    assert claimed["ok"] is True
+    assert claimed["row"]["event_key"] == "example:example:w1:escalate_repair:2"
+    assert claim_repair_intent(queue, "deterministic", now=101) == {
+        "ok": False, "reason": "repair_already_claimed",
+    }
+
+    assert finish_repair_intent(
+        queue, claimed["row"]["event_key"], "repaired"
+    ) == {"ok": True, "state": "repaired"}
+    assert claim_repair_intent(queue, "deterministic", now=102) == {
+        "ok": False, "reason": "repair_not_queued",
+    }
+
+    rows = [json.loads(line) for line in queue.read_text().splitlines()]
+    assert rows[0]["state"] == "repaired"
 
 
 def money_printer_registry(

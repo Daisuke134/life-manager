@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import fcntl
+import hashlib
 import json
 import os
 from pathlib import Path
 import re
+import tempfile
+import time
 from typing import Callable
 
 from runtime.loop.macos_loop_registry import validate_registry
@@ -166,6 +169,145 @@ def enqueue_repair_intent(recovery_path: Path, registry: dict, route: str, *,
         os.close(descriptor)
     return {"ok": True, "queued": True, "queue_path": str(target),
             "event_key": event_key}
+
+
+def _repair_claim_path(target: Path, event_key: str) -> Path:
+    digest = hashlib.sha256(event_key.encode("utf-8")).hexdigest()[:24]
+    return target.with_name(f".{target.name}.{digest}.claim")
+
+
+def _repair_pid_live(pid: object) -> bool:
+    if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def _read_repair_rows(target: Path) -> list[dict]:
+    if target.is_symlink() or not target.is_file():
+        raise ValueError("repair queue path invalid")
+    rows = []
+    for line in target.read_text(encoding="utf-8").splitlines():
+        try:
+            row = json.loads(line)
+        except (ValueError, json.JSONDecodeError) as error:
+            raise ValueError("repair queue corrupt") from error
+        if not _valid_repair_row(row):
+            raise ValueError("repair queue corrupt")
+        rows.append(row)
+    return rows
+
+
+def _write_repair_rows(target: Path, rows: list[dict]) -> None:
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f".{target.name}.", dir=target.parent
+    )
+    try:
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            for row in rows:
+                handle.write(json.dumps(
+                    row, ensure_ascii=False, sort_keys=True,
+                    separators=(",", ":"),
+                ) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, target)
+        os.chmod(target, 0o600)
+    finally:
+        Path(temporary).unlink(missing_ok=True)
+
+
+def claim_repair_intent(queue_path: Path, route: str, *,
+                        lease_seconds: int = 120,
+                        now: float | None = None) -> dict:
+    """Claim one repair row with a short private lease; never widens its owner."""
+    if route not in {"deterministic", "shared-agent-runner"}:
+        return {"ok": False, "reason": "repair_route_invalid"}
+    if not isinstance(lease_seconds, int) or isinstance(lease_seconds, bool) \
+            or not 1 <= lease_seconds <= 3600:
+        return {"ok": False, "reason": "repair_lease_invalid"}
+    target = _repair_queue_path(queue_path)
+    if target.is_symlink() or not target.is_file():
+        return {"ok": False, "reason": "repair_queue_missing"}
+    target.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    lock_path = target.with_name(f".{target.name}.lock")
+    descriptor = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        os.fchmod(descriptor, 0o600)
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        try:
+            rows = _read_repair_rows(target)
+        except ValueError as error:
+            return {"ok": False, "reason": str(error)}
+        instant = time.time() if now is None else now
+        saw_claimed = False
+        for index, row in enumerate(rows):
+            if row["route"] != route:
+                continue
+            if row["state"] not in {"queued", "claimed"}:
+                continue
+            claim_path = _repair_claim_path(target, row["event_key"])
+            claim = None
+            if claim_path.exists():
+                try:
+                    claim = json.loads(claim_path.read_text(encoding="utf-8"))
+                except (OSError, ValueError, json.JSONDecodeError):
+                    claim = None
+                if (isinstance(claim, dict)
+                        and claim.get("lease_until", 0) > instant
+                        and _repair_pid_live(claim.get("pid"))):
+                    saw_claimed = True
+                    continue
+                claim_path.unlink(missing_ok=True)
+            rows[index] = {**row, "state": "claimed"}
+            _write_repair_rows(target, rows)
+            claim_path.write_text(json.dumps({
+                "event_key": row["event_key"], "pid": os.getpid(),
+                "lease_until": instant + lease_seconds,
+            }, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+            os.chmod(claim_path, 0o600)
+            return {"ok": True, "row": rows[index], "claim_path": str(claim_path)}
+        if saw_claimed:
+            return {"ok": False, "reason": "repair_already_claimed"}
+        return {"ok": False, "reason": "repair_not_queued"}
+    finally:
+        os.close(descriptor)
+
+
+def finish_repair_intent(queue_path: Path, event_key: str, state: str) -> dict:
+    """Atomically close one claimed repair row and remove its private lease."""
+    if state not in {"repaired", "blocked"}:
+        return {"ok": False, "reason": "repair_state_invalid"}
+    if not isinstance(event_key, str) or not _REPAIR_EVENT_KEY.fullmatch(event_key):
+        return {"ok": False, "reason": "repair_event_key_invalid"}
+    target = _repair_queue_path(queue_path)
+    if target.is_symlink() or not target.is_file():
+        return {"ok": False, "reason": "repair_queue_missing"}
+    lock_path = target.with_name(f".{target.name}.lock")
+    descriptor = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        os.fchmod(descriptor, 0o600)
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        try:
+            rows = _read_repair_rows(target)
+        except ValueError as error:
+            return {"ok": False, "reason": str(error)}
+        for index, row in enumerate(rows):
+            if row["event_key"] != event_key:
+                continue
+            if row["state"] not in {"claimed", state}:
+                return {"ok": False, "reason": "repair_not_claimed"}
+            rows[index] = {**row, "state": state}
+            _write_repair_rows(target, rows)
+            _repair_claim_path(target, event_key).unlink(missing_ok=True)
+            return {"ok": True, "state": state}
+        return {"ok": False, "reason": "repair_not_found"}
+    finally:
+        os.close(descriptor)
 
 
 def lifecycle_one(action: str, loop_id: str, entry: dict, agents_dir: Path,
