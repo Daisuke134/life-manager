@@ -77,7 +77,7 @@ platform adapterの実装そのものをfoundationへ複製しません。
 Life Managerの実際の応募・契約・納品・報酬・cloud運用が動いたことを意味しません。現在の
 origin/mainは `30a2a2dfab`（今回確認した最新remote main参照）まで進み、本番selectorは
 `20260916T095649-8d366069`（SHA `8d366069ade3f1d78c64bc8b591b0d1f829f017d`）を指しています。remote mainとselectorは一致しておらず、ownerのinstalled/event SHAもまだ混在しています。
-統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `af5790efaf`）はpush済みですが、候補はまだmainへmergeしていません。
+統合候補 `fix/lm-fundamental-runtime-20260916`（HEAD `34eff65f66`）はpush済みですが、候補はまだmainへmergeしていません。
 本番へはまだ統合していません。
 したがって、次の作業は「さらにスキルを読む」ではなく、候補をmain由来immutable releaseへ
 昇格し、ownerごとの自然wakeで公式効果を確認することです。
@@ -123,7 +123,7 @@ mock/fixture・PID・exit 0・Telegramは証拠にしません。
 | R4-01 | tenant A/Bの分離を一回検証 | `apps/life-manager/lib/browser-job-runtime.js`、tenant canary script | cross-read 0、credential/state混在0 |
 | R4-02 | Steel sessionのlease/releaseを一回検証 | `apps/life-manager/lib/steel-cdp-client.js`、`stagehand-steel-driver.js` | session owner重複0、終了後lease残留0 |
 | R4-03 | phone-only status/human-gate/readbackを一回検証 | `apps/life-manager/scripts/browser-auth-production-e2e.js`、通知outbox | phoneから再開でき、公式readbackが記録される |
-| R5 | Cloud gateを一回判定 | `apps/life-manager/lib/product-onboarding.js`、`cloud-promotion-gate.js`、Git外cloud evidence | Local PASS、14行、公式readback、replay-zero、同一SHAの全PASS |
+| R5 | Cloud gateを一回判定 | `apps/life-manager/lib/product-onboarding.js`、`cloud-promotion-gate.js`、Git外cloud evidence | Local PASS、14行、verified行のruntime evidence全件ready、公式readback、replay-zero、同一SHAの全PASS |
 | R6 | main mergeと本番releaseを一回だけ行う | `/private/tmp/lm-fundamental-runtime-20260916`、`skills/loop-development/SKILL.md` | R1〜R5の全PASS後だけmerge、immutable production readback、重複effect 0 |
 
 #### S: 自己修復・自己改善の残りも一件ずつ記録する
@@ -223,7 +223,7 @@ Telegram報告、テストgreen、ブラウザ画面表示だけでは完了に�
 一度だけ行います。
 
 **現在のfoundation cursor:** `CAND-01`と`CAND-02`の内部canaryは完了しています。`LOCAL-01/02`
-ではcompletion manifestの契約と`lm-loop status` JSON接続、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、失敗記録へのrecovery intent保存、`harness-recovery.json`へのowner/slot別最新intent投影、7つのskill索引、`CONTROL-01`のexternal owner登録、管理statusの安定`job_id`/`owner_id`出力、常駐non-effect jobのruntime health判定、completion CLIの既存親ディレクトリ権限保護、runtime rowのjob identity一致検査、verified行のruntime evidence必須化をcandidate `af5790efaf`へ実装済みです。
+ではcompletion manifestの契約と`lm-loop status` JSON接続、初期観測生成、Local/Cloud gate CLI、receipt参照・replay-zero検査、cloud manifest ID検証、resource class/notification boundary、bounded event-tail scan、bounded self-heal recovery decision、失敗記録へのrecovery intent保存、`harness-recovery.json`へのowner/slot別最新intent投影、7つのskill索引、`CONTROL-01`のexternal owner登録、管理statusの安定`job_id`/`owner_id`出力、常駐non-effect jobのruntime health判定、completion CLIの既存親ディレクトリ権限保護、runtime rowのjob identity一致検査、Local/Cloud verified行のruntime evidence必須化をcandidate `34eff65f66`へ実装済みです。
 Graph/Eval/notificationの契約も同candidateへ接続済みです。次は各loopのevidenceを
 このmanifestへ接続する作業であり、platformの外部effectを私が実行する項目ではありません。
 
