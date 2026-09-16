@@ -634,11 +634,14 @@ class ParentEffects(Protocol):
     def fill_form(
         self, request_id: str, proposal_text: str, price_jpy: int,
         deliver_date: str, retainer_terms: dict[str, object] | None = None,
+        screening_answers: list[dict[str, str]] | None = None,
     ) -> None: ...
 
     def readback_form(self, request_id: str) -> dict[str, object]: ...
 
     def click_confirm(self, request_id: str) -> None: ...
+
+    def preflight_submit(self, request_id: str) -> None: ...
 
     def click_submit(self, request_id: str) -> None: ...
 
@@ -1310,10 +1313,16 @@ class CdpParentEffects:
                 deadline_state, deadline_value = "unknown", None
         structured = any(field in page for field in _LIFECYCLE_FIELDS) and not access_denied
         form_state = None
+        application_questions: list[dict[str, object]] = []
         if structured and page_state == "present":
             try:
                 if _is_retainer_request(request_id):
-                    await self._retainer_form_state_async(request_id, navigate=True)
+                    retainer_form = await self._retainer_form_state_async(request_id, navigate=True)
+                    raw_questions = retainer_form.get("application_questions", [])
+                    if isinstance(raw_questions, list):
+                        application_questions = [
+                            dict(item) for item in raw_questions if isinstance(item, dict)
+                        ]
                 else:
                     await self._form_state_async(request_id, navigate=True)
             except Exception as error:
@@ -1353,6 +1362,7 @@ class CdpParentEffects:
             "applicants_count": market.get("applicants_at_bid"),
             "contracted_count": market.get("contracted_count"),
             "applicants": [],
+            "application_questions": application_questions,
             "observed_at": _utc_now(),
             # T3 (2026-08-09): ranking-only. application_snapshot._DETAIL_FIELDS
             # deliberately omits this key, so _normalise_detail drops it before the
@@ -1461,10 +1471,16 @@ class CdpParentEffects:
                     frequencyValues.every(value=>[...s.options].some(o=>o.value===value)));
                   const confirm=[...document.querySelectorAll('button,[role="button"]')].filter(b=>
                     b.offsetParent!==null&&(b.innerText||'').trim()==='確認画面に進む');
+                  const questionAreas=[...document.querySelectorAll('textarea[placeholder="回答を入力"]')];
+                  const questionLimit=area=>{if(area.maxLength>0)return area.maxLength;let node=area;for(let i=0;i<6&&node;i++,node=node.parentElement){const match=(node.innerText||'').match(/(?:^|\n)[0-9]+\\/([0-9]+)(?:\n|$)/);if(match)return Number(match[1]);}return 5000;};
+                  const applicationQuestions=questionAreas
+                    .map(area=>({question:(document.querySelector(`label[for="${area.id}"]`)?.innerText||'').trim(),required:area.required||area.getAttribute('aria-required')==='true',max_length:questionLimit(area)}));
+                  const screeningAnswers=questionAreas
+                    .map(area=>({question:(document.querySelector(`label[for="${area.id}"]`)?.innerText||'').trim(),answer:area.value||''}));
                   return {url:location.href,title:document.title,
                     compensation:compensation[0]?.value||'',message:message[0]?.value||'',
                     weekly_hours_min:hoursStart[0]?.value||'',weekly_hours_max:hoursEnd[0]?.value||'',
-                    work_frequency:frequency[0]?.value||'',
+                    work_frequency:frequency[0]?.value||'',application_questions:applicationQuestions,screening_answers:screeningAnswers,
                     dom_counts:{compensation:compensation.length,message:message.length,
                       weekly_hours_min:hoursStart.length,weekly_hours_max:hoursEnd.length,
                       work_frequency:frequency.length,confirm:confirm.length}};
@@ -1496,7 +1512,8 @@ class CdpParentEffects:
         return state
 
     async def _fill_retainer_async(
-        self, request_id: str, proposal_text: str, price_jpy: int, terms: dict[str, object]
+        self, request_id: str, proposal_text: str, price_jpy: int,
+        terms: dict[str, object], screening_answers: list[dict[str, str]],
     ) -> None:
         expected_url = _application_form_url(request_id)
         payload = json.dumps({
@@ -1505,6 +1522,7 @@ class CdpParentEffects:
             "work_frequency": terms["work_frequency"],
             "weekly_hours_min": str(terms["weekly_hours_min"]),
             "weekly_hours_max": str(terms["weekly_hours_max"]),
+            "screening_answers": screening_answers,
         }, ensure_ascii=False)
         expression = """JSON.stringify((()=>{
           const values=%s;
@@ -1514,10 +1532,15 @@ class CdpParentEffects:
           const minimum=[...document.querySelectorAll('input[name="weeklyWorkingHoursStart"]')];
           const maximum=[...document.querySelectorAll('input[name="weeklyWorkingHoursEnd"]')];
           const frequency=[...document.querySelectorAll('select')].filter(s=>[...s.options].some(o=>o.value===values.work_frequency));
-          const counts={compensation:compensation.length,message:message.length,weekly_hours_min:minimum.length,weekly_hours_max:maximum.length,work_frequency:frequency.length};
-          if(Object.values(counts).some(value=>value!==1))return {ok:false,url:location.href,title:document.title,dom_counts:counts};
+          const answerAreas=[...document.querySelectorAll('textarea[placeholder="回答を入力"]')];
+          const answerByQuestion=new Map(values.screening_answers.map(item=>[item.question,item.answer]));
+          const labels=answerAreas.map(area=>(document.querySelector(`label[for="${area.id}"]`)?.innerText||'').trim());
+          const counts={compensation:compensation.length,message:message.length,weekly_hours_min:minimum.length,weekly_hours_max:maximum.length,work_frequency:frequency.length,screening_answers:answerAreas.length};
+          if([counts.compensation,counts.message,counts.weekly_hours_min,counts.weekly_hours_max,counts.work_frequency].some(value=>value!==1)||counts.screening_answers!==values.screening_answers.length)return {ok:false,url:location.href,title:document.title,dom_counts:counts};
+          if(answerAreas.length!==values.screening_answers.length||labels.some(label=>!answerByQuestion.has(label)))return {ok:false,url:location.href,title:document.title,dom_counts:counts,question_labels:labels};
           set(compensation[0],values.price_jpy);set(message[0],values.proposal_text);set(minimum[0],values.weekly_hours_min);set(maximum[0],values.weekly_hours_max);set(frequency[0],values.work_frequency);
-          return {ok:true,url:location.href,title:document.title,dom_counts:counts,proposal_text:message[0].value,price:compensation[0].value,weekly_hours_min:minimum[0].value,weekly_hours_max:maximum[0].value,work_frequency:frequency[0].value};
+          answerAreas.forEach((area,index)=>set(area,answerByQuestion.get(labels[index])));
+          return {ok:true,url:location.href,title:document.title,dom_counts:counts,proposal_text:message[0].value,price:compensation[0].value,weekly_hours_min:minimum[0].value,weekly_hours_max:maximum[0].value,work_frequency:frequency[0].value,screening_answers:answerAreas.map((area,index)=>({question:labels[index],answer:area.value}))};
         })())""" % payload
         async with await _cdp_connect(self.ws_url) as ws:
             call_id = 1
@@ -1526,8 +1549,8 @@ class CdpParentEffects:
         if state.get("ok") is not True or not _is_expected_application_form_url(request_id, state.get("url")):
             raise ParentContractError("retainer_application_form_fill_failed")
 
-    async def _submit_retainer_async(self, request_id: str) -> tuple[dict[str, object], bytes]:
-        """Confirm the exact final checkbox/button sequence; success remains readback-only."""
+    async def _preflight_retainer_submit_async(self, request_id: str) -> None:
+        """Validate and unlock the final button before the irreversible marker."""
         async with await _cdp_connect(self.ws_url) as ws:
             call_id = 1
             await self._call(ws, "Page.enable", {}, call_id)
@@ -1551,6 +1574,9 @@ class CdpParentEffects:
             )
             if toggled.get("ok") is not True:
                 raise ParentContractError("retainer_application_checkbox_failed")
+
+    async def _submit_retainer_async(self, request_id: str) -> tuple[dict[str, object], bytes]:
+        """Dispatch the already-preflighted final click; success remains readback-only."""
         return await self._click_button_async(request_id, "応募する")
 
     def _record_form_failure(
@@ -1612,7 +1638,30 @@ class CdpParentEffects:
             return False
         name = f"gig-{origin_pass_id}-B2-{request_id}-submit-attempt.png"
         proofs = [path for path in origin.glob(f"*/{name}") if path.is_file()]
-        return bool(proofs) and all(path.stat().st_size > 0 for path in proofs)
+        if proofs and all(path.stat().st_size > 0 for path in proofs):
+            return True
+        # Retainer confirmation validation runs before the final submit control.
+        # Older releases marked the intent too early, so preserve their exact
+        # parent result + filled-form screenshot as deterministic no-click proof.
+        for commit_path in origin.glob("*/parent-commit.json"):
+            try:
+                commit = json.loads(commit_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            results = commit.get("results") if isinstance(commit, dict) else None
+            if not isinstance(results, list) or not any(
+                isinstance(row, dict)
+                and str(row.get("request_id") or "") == request_id
+                and row.get("status") == "submission_failed:retainer_application_confirmation_invalid"
+                for row in results
+            ):
+                continue
+            form_proofs = list(commit_path.parent.glob(
+                f"commit-workers/{request_id}/gig-{origin_pass_id}-B2-{request_id}-retainer-form.png"
+            ))
+            if form_proofs and all(path.is_file() and path.stat().st_size > 0 for path in form_proofs):
+                return True
+        return False
 
     async def _fill_async(
         self, request_id: str, proposal_text: str, price_jpy: int, deliver_date: str
@@ -1655,11 +1704,16 @@ class CdpParentEffects:
     def fill_form(
         self, request_id: str, proposal_text: str, price_jpy: int,
         deliver_date: str, retainer_terms: dict[str, object] | None = None,
+        screening_answers: list[dict[str, str]] | None = None,
     ) -> None:
         if _is_retainer_request(request_id):
             if retainer_terms is None:
                 raise ParentContractError("retainer_terms_missing")
-            asyncio.run(self._fill_retainer_async(request_id, proposal_text, price_jpy, retainer_terms))
+            if screening_answers is None:
+                raise ParentContractError("screening_answers_missing")
+            asyncio.run(self._fill_retainer_async(
+                request_id, proposal_text, price_jpy, retainer_terms, screening_answers
+            ))
             return
         asyncio.run(self._fill_async(request_id, proposal_text, price_jpy, deliver_date))
 
@@ -1672,6 +1726,7 @@ class CdpParentEffects:
                 "work_frequency": state.get("work_frequency"),
                 "weekly_hours_min": int(re.sub(r"[^0-9]", "", str(state.get("weekly_hours_min") or "")) or 0),
                 "weekly_hours_max": int(re.sub(r"[^0-9]", "", str(state.get("weekly_hours_max") or "")) or 0),
+                "screening_answers": state.get("screening_answers"),
             }
         state = asyncio.run(self._form_state_async(request_id, navigate=False))
         raw_price = str(state.get("price") or "")
@@ -1886,6 +1941,10 @@ class CdpParentEffects:
                 "確認画面に進む" if _is_retainer_request(request_id) else "確認する",
             )
         )
+
+    def preflight_submit(self, request_id: str) -> None:
+        if _is_retainer_request(request_id):
+            asyncio.run(self._preflight_retainer_submit_async(request_id))
 
     def click_submit(self, request_id: str) -> None:
         if _is_retainer_request(request_id):
@@ -2966,6 +3025,7 @@ def _offer_matches_readback(decision: dict[str, object], readback: object) -> bo
             and readback.get("work_frequency") == decision.get("work_frequency")
             and readback.get("weekly_hours_min") == decision.get("weekly_hours_min")
             and readback.get("weekly_hours_max") == decision.get("weekly_hours_max")
+            and readback.get("screening_answers") == decision.get("screening_answers")
         )
     return (
         readback.get("proposal_text") == decision["proposal_text"]
@@ -3283,6 +3343,10 @@ def commit_decisions(
                         }
                         if _is_retainer_request(request_id) else None
                     ),
+                    screening_answers=(
+                        decision["screening_answers"]
+                        if _is_retainer_request(request_id) else None
+                    ),
                 )
                 fence._durable_replace(store.intent_path(request_id), intent)
                 phase = "open_form"
@@ -3312,6 +3376,10 @@ def commit_decisions(
                                 }
                                 if _is_retainer_request(request_id) else None
                             ),
+                            screening_answers=(
+                                decision["screening_answers"]
+                                if _is_retainer_request(request_id) else None
+                            ),
                         )
                         fence._durable_replace(store.intent_path(request_id), intent)
                     phase = "fill_form"
@@ -3326,6 +3394,10 @@ def commit_decisions(
                                 "weekly_hours_min": decision["weekly_hours_min"],
                                 "weekly_hours_max": decision["weekly_hours_max"],
                             }
+                            if _is_retainer_request(request_id) else None
+                        ),
+                        (
+                            decision["screening_answers"]
                             if _is_retainer_request(request_id) else None
                         ),
                     )
@@ -3355,6 +3427,8 @@ def commit_decisions(
                         continue
                     if attempt_budget_path is None:
                         submit_attempts += 1
+                    phase = "submit_preflight"
+                    effects.preflight_submit(request_id)
                     phase = "irreversible_attempt_marker"
                     intent = store.mark_irreversible_attempt_started_locked(
                         request_id, expected_cas=intent["cas"]
@@ -3660,6 +3734,7 @@ class FixtureEffects:
     def fill_form(
         self, request_id: str, proposal_text: str, price_jpy: int,
         deliver_date: str, retainer_terms: dict[str, object] | None = None,
+        screening_answers: list[dict[str, str]] | None = None,
     ) -> None:
         self.fill_count += 1
         self._filled[request_id] = {
@@ -3669,6 +3744,8 @@ class FixtureEffects:
         }
         if retainer_terms is not None:
             self._filled[request_id].update(retainer_terms)
+        if screening_answers is not None:
+            self._filled[request_id]["screening_answers"] = screening_answers
 
     def readback_form(self, request_id: str) -> dict[str, object]:
         override = (self.fixture.get("form_readbacks") or {}).get(request_id)
@@ -3676,6 +3753,9 @@ class FixtureEffects:
 
     def click_confirm(self, request_id: str) -> None:
         self.click_count += 1
+
+    def preflight_submit(self, request_id: str) -> None:
+        return None
 
     def click_submit(self, request_id: str) -> None:
         self.click_count += 1
@@ -3771,7 +3851,7 @@ def default_planner_cache_path() -> Path:
 # answers were available to the planner. Keeping version 1 would suppress a
 # corrected request for seven days after the planner policy changed.
 INELIGIBLE_CACHE_VERSION = 3
-PLANNER_CACHE_VERSION = 3
+PLANNER_CACHE_VERSION = 4
 INELIGIBLE_CACHE_TTL_SECONDS = 7 * 24 * 60 * 60
 
 def default_ineligible_cache_path() -> Path:
@@ -4941,7 +5021,7 @@ def _durable_uncertain_intents(store: "fence.IntentStore") -> dict[str, str]:
         except (OSError, ValueError):
             continue
         if (isinstance(value, dict)
-                and value.get("version") in {2, 3}
+                and value.get("version") in {2, 3, 4}
                 and value.get("state") == fence.PREPARED
                 and value.get("effect_phase") == fence.IRREVERSIBLE_ATTEMPT_STARTED):
             request_id = str(value.get("request_id") or "")

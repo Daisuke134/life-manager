@@ -49,8 +49,9 @@ _SOURCE_FIELDS = frozenset({
 _DETAIL_FIELDS = frozenset({
     "request_id", "canonical_url", "title", "category", "visible_text",
     "accepting_applications", "budget_min_jpy", "budget_max_jpy", "applicants_count",
-    "contracted_count", "applicants", "observed_at", "content_sha256",
+    "contracted_count", "applicants", "application_questions", "observed_at", "content_sha256",
 })
+_QUESTION_FIELDS = frozenset({"question", "required", "max_length"})
 _APPLICANT_FIELDS = frozenset({
     "user_id", "name", "applied_at", "profile_url", "rating", "sales_count",
     "public_services", "profile_summary",
@@ -189,6 +190,7 @@ def detail_content_payload(detail: dict[str, object]) -> dict[str, object]:
         "accepting_applications": detail["accepting_applications"],
         "budget_min_jpy": detail["budget_min_jpy"],
         "budget_max_jpy": detail["budget_max_jpy"],
+        "application_questions": detail["application_questions"],
     }
 
 
@@ -227,6 +229,30 @@ def _nonnegative_int_or_none(value: object, field: str) -> int | None:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise SnapshotContractError(f"{field}_must_be_nonnegative_integer_or_null")
     return value
+
+
+def _normalise_application_questions(value: object) -> list[dict[str, object]]:
+    if value is None:
+        return []
+    if not isinstance(value, list) or len(value) > 20:
+        raise SnapshotContractError("application_questions_invalid")
+    result: list[dict[str, object]] = []
+    for item in value:
+        if not isinstance(item, dict) or set(item) != _QUESTION_FIELDS:
+            raise SnapshotContractError("application_question_fields_invalid")
+        question = _nonempty_text(item["question"], "application_question")
+        required = item["required"]
+        maximum = item["max_length"]
+        if len(question) > 1000:
+            raise SnapshotContractError("application_question_too_long")
+        if not isinstance(required, bool):
+            raise SnapshotContractError("application_question_required_invalid")
+        if isinstance(maximum, bool) or not isinstance(maximum, int) or not 1 <= maximum <= 5000:
+            raise SnapshotContractError("application_question_max_length_invalid")
+        result.append({"question": question, "required": required, "max_length": maximum})
+    if len({str(item["question"]) for item in result}) != len(result):
+        raise SnapshotContractError("application_questions_duplicate")
+    return result
 
 
 def _string_list(value: object, field: str) -> list[str]:
@@ -351,6 +377,9 @@ def _normalise_detail(detail: object) -> dict[str, object]:
                 detail["contracted_count"], "contracted_count"
             ),
             "applicants": _normalise_applicants(detail["applicants"]),
+            "application_questions": _normalise_application_questions(
+                detail.get("application_questions", [])
+            ),
             "observed_at": _nonempty_text(detail["observed_at"], "detail_observed_at"),
         }
     except KeyError as error:
@@ -577,6 +606,13 @@ def validate_snapshot(envelope: object) -> list[str]:
                     errors.append("detail_applicants_not_normalised")
             except SnapshotContractError:
                 errors.append("detail_applicants_invalid")
+            try:
+                if detail["application_questions"] != _normalise_application_questions(
+                    detail["application_questions"]
+                ):
+                    errors.append("detail_application_questions_not_normalised")
+            except SnapshotContractError:
+                errors.append("detail_application_questions_invalid")
             if not isinstance(detail["observed_at"], str) or not detail["observed_at"]:
                 errors.append("detail_observed_at_invalid")
             expected_hash = sha256_json(detail_content_payload(detail))

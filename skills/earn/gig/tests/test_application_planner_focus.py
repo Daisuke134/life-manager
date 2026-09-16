@@ -63,7 +63,7 @@ def test_policy_change_invalidates_coconala_decision_caches():
         encoding="utf-8"
     )
     assert "INELIGIBLE_CACHE_VERSION = 3" in source
-    assert "PLANNER_CACHE_VERSION = 3" in source
+    assert "PLANNER_CACHE_VERSION = 4" in source
 
 
 def test_coconala_prompt_scopes_music_boundary_and_preserves_other_prohibitions():

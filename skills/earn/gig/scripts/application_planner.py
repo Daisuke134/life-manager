@@ -26,7 +26,7 @@ MAX_PROPOSAL_CHARS = 3000
 _ROOT_FIELDS = frozenset({"decisions"})
 _DECISION_FIELDS = frozenset({
     "request_id", "business_class", "reason_codes", "proposal_text", "price_jpy", "deliver_date",
-    "work_frequency", "weekly_hours_min", "weekly_hours_max",
+    "work_frequency", "weekly_hours_min", "weekly_hours_max", "screening_answers",
 })
 _RETAINER_DECISION_FIELDS = _DECISION_FIELDS
 RETAINER_WORK_FREQUENCIES = frozenset({
@@ -220,6 +220,11 @@ def validate_decisions(
         price = row["price_jpy"]
         date = row["deliver_date"]
         row_detail = detail_by_id.get(request_id) if isinstance(request_id, str) else None
+        screening_answers = row["screening_answers"]
+        expected_questions = (
+            row_detail.get("application_questions", [])
+            if isinstance(row_detail, dict) else []
+        )
         if business_class == "submit_required":
             if reasons:
                 errors.append(f"decision[{index}]_submit_required_reason_codes_must_be_empty")
@@ -273,6 +278,23 @@ def validate_decisions(
                     or hours_max < hours_min if isinstance(hours_min, int) and not isinstance(hours_min, bool) else True
                 ):
                     errors.append(f"decision[{index}]_retainer_weekly_hours_max_invalid")
+            if not isinstance(screening_answers, list) or len(screening_answers) != len(expected_questions):
+                errors.append(f"decision[{index}]_screening_answers_count_invalid")
+            else:
+                for answer_index, (answer, question) in enumerate(zip(screening_answers, expected_questions)):
+                    if not isinstance(answer, dict) or set(answer) != {"question", "answer"}:
+                        errors.append(f"decision[{index}]_screening_answer_fields_invalid:{answer_index}")
+                        continue
+                    expected_text = question.get("question") if isinstance(question, dict) else None
+                    maximum = question.get("max_length") if isinstance(question, dict) else None
+                    if answer.get("question") != expected_text:
+                        errors.append(f"decision[{index}]_screening_answer_question_mismatch:{answer_index}")
+                    text = answer.get("answer")
+                    if (
+                        not isinstance(text, str) or not text.strip()
+                        or not isinstance(maximum, int) or len(text) > maximum
+                    ):
+                        errors.append(f"decision[{index}]_screening_answer_invalid:{answer_index}")
         else:
             if not isinstance(reasons, list) or not reasons:
                 errors.append(f"decision[{index}]_hard_prohibited_reason_required")
@@ -299,6 +321,8 @@ def validate_decisions(
                         )
             if proposal is not None or price is not None or date is not None:
                 errors.append(f"decision[{index}]_hard_prohibited_offer_must_be_null")
+            if screening_answers != []:
+                errors.append(f"decision[{index}]_hard_prohibited_screening_answers_must_be_empty")
             if _RETAINER_ID.fullmatch(str(request_id or "")) and any(
                 row[field] is not None
                 for field in ("work_frequency", "weekly_hours_min", "weekly_hours_max")
@@ -347,7 +371,10 @@ def planner_prompt(envelope: dict) -> str:
         "A single-work decision has exactly these six fields: request_id, business_class, reason_codes, proposal_text, price_jpy, deliver_date. "
         "A retainer decision (ULID request_id) additionally has work_frequency, weekly_hours_min, weekly_hours_max. "
         "work_frequency is one of WEEK_ONE, WEEK_TWO, WEEK_THREE, WEEK_FOUR, WEEK_FIVE, BIWEEKLY, MONTH_ONE. "
-        "For a feasible retainer choose those terms from the listing; for hard_prohibited set all three to null.\n"
+        "For a feasible retainer choose those terms from the listing; for hard_prohibited set all three to null. "
+        "Every decision also has screening_answers. For submit_required, return one {question, answer} row in the exact "
+        "snapshot application_questions order, using only verified facts and answering missing experience honestly. "
+        "For hard_prohibited or no application questions, return an empty array.\n"
         "submit_required coding, AI, system, automation, and other high-reward work; within that group prefer higher expected\n"
         "reward, then place every other submit_required row. Never omit lower-priority feasible work. Put hard_prohibited rows\n"
         "after submit_required rows. If more than 20 rows are feasible, the first 20 submit_required rows must be the strongest\n"

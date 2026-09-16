@@ -24,7 +24,8 @@ from provider_adapter import EffectIntent
 from provider_authorization import AuthorizationDecision, AuthorizationState
 
 
-VERSION = 3
+VERSION = 4
+PREVIOUS_RETAINER_VERSION = 3
 PREVIOUS_VERSION = 2
 LEGACY_VERSION = 1
 PREPARED = "prepared"
@@ -45,7 +46,9 @@ _FIELDS_V2 = _LEGACY_FIELDS | {"effect_phase"}
 _RETAINER_TERMS_FIELDS = frozenset({
     "work_frequency", "weekly_hours_min", "weekly_hours_max",
 })
-_FIELDS = _FIELDS_V2 | {"retainer_terms", "retainer_terms_sha256"}
+_FIELDS_V3 = _FIELDS_V2 | {"retainer_terms", "retainer_terms_sha256"}
+_FIELDS = _FIELDS_V3 | {"screening_answers", "screening_answers_sha256"}
+_SCREENING_ANSWER_FIELDS = frozenset({"question", "answer"})
 _LEASE_FIELDS = frozenset({"task", "token", "generation"})
 _HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 _HEX_32 = re.compile(r"^[0-9a-f]{32}$")
@@ -112,9 +115,12 @@ def build_cas(
     price_jpy: int,
     deliver_date: str,
     retainer_terms_sha256: str | None = None,
+    screening_answers_sha256: str | None = None,
 ) -> str:
     base = f"{request_id}:{snapshot_sha256}:{proposal_hash}:{price_jpy}:{deliver_date}"
-    return base if retainer_terms_sha256 is None else f"{base}:{retainer_terms_sha256}"
+    if retainer_terms_sha256 is not None:
+        base = f"{base}:{retainer_terms_sha256}"
+    return base if screening_answers_sha256 is None else f"{base}:{screening_answers_sha256}"
 
 
 def default_root() -> Path:
@@ -171,6 +177,25 @@ def _retainer_terms(value: object) -> dict[str, object]:
     }
 
 
+def _screening_answers(value: object) -> list[dict[str, str]]:
+    if not isinstance(value, list) or len(value) > 20:
+        raise IntentFenceError("screening_answers_invalid")
+    result: list[dict[str, str]] = []
+    for item in value:
+        if not isinstance(item, dict) or set(item) != _SCREENING_ANSWER_FIELDS:
+            raise IntentFenceError("screening_answer_fields_invalid")
+        question = item["question"]
+        answer = item["answer"]
+        if not isinstance(question, str) or not question.strip() or len(question) > 1000:
+            raise IntentFenceError("screening_answer_question_invalid")
+        if not isinstance(answer, str) or not answer.strip() or len(answer) > 5000:
+            raise IntentFenceError("screening_answer_value_invalid")
+        result.append({"question": question.strip(), "answer": answer.strip()})
+    if len({item["question"] for item in result}) != len(result):
+        raise IntentFenceError("screening_answers_duplicate")
+    return result
+
+
 def _lease_fence(value: object) -> dict[str, object]:
     if not isinstance(value, dict) or set(value) != _LEASE_FIELDS:
         raise IntentFenceError("lease_fence_fields_invalid")
@@ -195,6 +220,7 @@ def intent_payload(
     deliver_date: object,
     lease_fence: object,
     retainer_terms: object | None = None,
+    screening_answers: object | None = None,
     state: str = PREPARED,
     effect_phase: str = PRE_EFFECT,
 ) -> dict[str, object]:
@@ -217,6 +243,10 @@ def intent_payload(
         raise IntentFenceError("retainer_terms_required")
     if not is_retainer and retainer_terms is not None:
         raise IntentFenceError("retainer_terms_for_single_forbidden")
+    if is_retainer and screening_answers is None:
+        raise IntentFenceError("screening_answers_required")
+    if not is_retainer and screening_answers is not None:
+        raise IntentFenceError("screening_answers_for_single_forbidden")
     base = {
         "version": VERSION,
         "state": state,
@@ -240,11 +270,17 @@ def intent_payload(
     terms_hash = hashlib.sha256(
         json.dumps(terms, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
+    answers = _screening_answers(screening_answers)
+    answers_hash = hashlib.sha256(
+        json.dumps(answers, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
     return {
         **base,
         "retainer_terms": terms,
         "retainer_terms_sha256": terms_hash,
-        "cas": build_cas(request, snapshot, proposal_hash, price, date, terms_hash),
+        "screening_answers": answers,
+        "screening_answers_sha256": answers_hash,
+        "cas": build_cas(request, snapshot, proposal_hash, price, date, terms_hash, answers_hash),
     }
 
 
@@ -256,6 +292,7 @@ def validate_intent(value: object) -> list[str]:
     expected_fields = (
         _LEGACY_FIELDS if version == LEGACY_VERSION
         else _FIELDS_V2 if version == PREVIOUS_VERSION
+        else _FIELDS_V3 if version == PREVIOUS_RETAINER_VERSION
         else _FIELDS
     )
     actual = set(value)
@@ -267,18 +304,18 @@ def validate_intent(value: object) -> list[str]:
         errors.append("intent_additional:" + ",".join(additional))
     if errors:
         return errors
-    if version not in {LEGACY_VERSION, PREVIOUS_VERSION, VERSION}:
+    if version not in {LEGACY_VERSION, PREVIOUS_VERSION, PREVIOUS_RETAINER_VERSION, VERSION}:
         errors.append("intent_version_invalid")
     if value["state"] not in _STATES:
         errors.append("intent_state_invalid")
-    if version in {PREVIOUS_VERSION, VERSION} and value["effect_phase"] not in _EFFECT_PHASES:
+    if version in {PREVIOUS_VERSION, PREVIOUS_RETAINER_VERSION, VERSION} and value["effect_phase"] not in _EFFECT_PHASES:
         errors.append("intent_effect_phase_invalid")
     try:
         request = _request_id(value["request_id"])
         is_retainer = _RETAINER_ULID.fullmatch(request) is not None
-        if is_retainer and version != VERSION:
+        if is_retainer and version not in {PREVIOUS_RETAINER_VERSION, VERSION}:
             errors.append("retainer_intent_version_invalid")
-        if not is_retainer and version == VERSION:
+        if not is_retainer and version in {PREVIOUS_RETAINER_VERSION, VERSION}:
             errors.append("single_intent_version_invalid")
         snapshot = _sha256(value["snapshot_sha256"], "snapshot_sha256")
         proposal = _sha256(value["proposal_sha256"], "proposal_sha256")
@@ -286,7 +323,8 @@ def validate_intent(value: object) -> list[str]:
         date = _date(value["deliver_date"])
         _lease_fence(value["lease_fence"])
         terms_hash = None
-        if version == VERSION:
+        answers_hash = None
+        if version in {PREVIOUS_RETAINER_VERSION, VERSION}:
             terms = _retainer_terms(value["retainer_terms"])
             terms_hash = str(value["retainer_terms_sha256"])
             calculated_terms_hash = hashlib.sha256(
@@ -294,7 +332,15 @@ def validate_intent(value: object) -> list[str]:
             ).hexdigest()
             if terms_hash != calculated_terms_hash:
                 errors.append("retainer_terms_sha256_mismatch")
-        if value["cas"] != build_cas(request, snapshot, proposal, price, date, terms_hash):
+        if version == VERSION:
+            answers = _screening_answers(value["screening_answers"])
+            answers_hash = str(value["screening_answers_sha256"])
+            calculated_answers_hash = hashlib.sha256(
+                json.dumps(answers, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            if answers_hash != calculated_answers_hash:
+                errors.append("screening_answers_sha256_mismatch")
+        if value["cas"] != build_cas(request, snapshot, proposal, price, date, terms_hash, answers_hash):
             errors.append("intent_cas_mismatch")
     except IntentFenceError as error:
         errors.append(str(error))
@@ -304,7 +350,7 @@ def validate_intent(value: object) -> list[str]:
 def is_pre_effect(intent: dict[str, object]) -> bool:
     """Only versioned intents can prove that no irreversible attempt started."""
     return (
-        intent.get("version") in {PREVIOUS_VERSION, VERSION}
+        intent.get("version") in {PREVIOUS_VERSION, PREVIOUS_RETAINER_VERSION, VERSION}
         and intent.get("state") == PREPARED
         and intent.get("effect_phase") == PRE_EFFECT
     )
