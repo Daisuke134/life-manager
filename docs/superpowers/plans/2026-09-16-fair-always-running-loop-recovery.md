@@ -1,5 +1,7 @@
 # Fair Always-Running Loop Recovery Implementation Plan
 
+> Superseded for execution by [Foundation Local Integration Atomics](2026-09-16-foundation-local-integration-atomics.md). This earlier design proposed changes already present in the foundation candidate and treated queue-age targets as guarantees without proving host capacity. Do not execute its tasks independently.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Restore every registered money-making loop to continuous scheduled progress without unbounded parallel processes, `borrow` starvation, or launchd-only runtime failures.
