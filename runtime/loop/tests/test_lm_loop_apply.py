@@ -19,9 +19,11 @@ import runtime.loop.lm_loop as lm_loop
 from runtime.loop.lm_loop import apply_live
 from runtime.loop.lm_loop_apply import _plist, apply_registry, build_apply_plan, install_one
 from runtime.loop.lm_loop_lifecycle import (
+    build_recovery_projection,
     claim_repair_intent,
     enqueue_repair_intent,
     finish_repair_intent,
+    release_repair_intent,
 )
 
 
@@ -284,6 +286,39 @@ def test_repair_queue_claim_and_finish_are_idempotent_and_owner_scoped(tmp_path)
 
     rows = [json.loads(line) for line in queue.read_text().splitlines()]
     assert rows[0]["state"] == "repaired"
+
+
+def test_repair_queue_claim_can_be_released_as_one_retry_owner(tmp_path):
+    recovery = tmp_path / "harness-recovery.json"
+    queue = tmp_path / "repair-queue.jsonl"
+    recovery.write_text(json.dumps(_repair_recovery(_escalated_repair())))
+    assert enqueue_repair_intent(
+        recovery, two_loop_registry(), "deterministic", queue_path=queue,
+        recorded_at="2026-09-16T05:00:00+00:00",
+    )["queued"] is True
+    claimed = claim_repair_intent(queue, "deterministic", now=100)
+    assert claimed["ok"] is True
+
+    projection = build_recovery_projection(claimed["row"])
+    assert projection == {
+        "schema_version": "recovery.intents.v1",
+        "decisions": [{
+            "schema_version": "recovery.decision.v1",
+            "event_key": "example:example:w1:escalate_repair:2",
+            "action": "retry_owner",
+            "owner_id": "example",
+            "job_id": "example",
+            "slot": "example",
+            "reason": "retry_budget_exhausted",
+            "retry_attempt": 2,
+            "preserve_siblings": True,
+        }],
+        "pending_count": 1,
+    }
+    assert release_repair_intent(
+        queue, claimed["row"]["event_key"]
+    ) == {"ok": True, "state": "queued"}
+    assert claim_repair_intent(queue, "deterministic", now=101)["ok"] is True
 
 
 def money_printer_registry(

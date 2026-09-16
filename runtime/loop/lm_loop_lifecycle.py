@@ -221,6 +221,27 @@ def _write_repair_rows(target: Path, rows: list[dict]) -> None:
         Path(temporary).unlink(missing_ok=True)
 
 
+def build_recovery_projection(row: dict) -> dict:
+    """Project one repair row into the existing single-owner retry contract."""
+    if not _valid_repair_row(row):
+        raise ValueError("repair row invalid")
+    return {
+        "schema_version": "recovery.intents.v1",
+        "decisions": [{
+            "schema_version": "recovery.decision.v1",
+            "event_key": row["event_key"],
+            "action": "retry_owner",
+            "owner_id": row["owner_id"],
+            "job_id": row["job_id"],
+            "slot": row["slot"],
+            "reason": row["reason"],
+            "retry_attempt": row["retry_attempt"],
+            "preserve_siblings": True,
+        }],
+        "pending_count": 1,
+    }
+
+
 def claim_repair_intent(queue_path: Path, route: str, *,
                         lease_seconds: int = 120,
                         now: float | None = None) -> dict:
@@ -305,6 +326,36 @@ def finish_repair_intent(queue_path: Path, event_key: str, state: str) -> dict:
             _write_repair_rows(target, rows)
             _repair_claim_path(target, event_key).unlink(missing_ok=True)
             return {"ok": True, "state": state}
+        return {"ok": False, "reason": "repair_not_found"}
+    finally:
+        os.close(descriptor)
+
+
+def release_repair_intent(queue_path: Path, event_key: str) -> dict:
+    """Return one claimed repair row to queued state after a transient failure."""
+    if not isinstance(event_key, str) or not _REPAIR_EVENT_KEY.fullmatch(event_key):
+        return {"ok": False, "reason": "repair_event_key_invalid"}
+    target = _repair_queue_path(queue_path)
+    if target.is_symlink() or not target.is_file():
+        return {"ok": False, "reason": "repair_queue_missing"}
+    lock_path = target.with_name(f".{target.name}.lock")
+    descriptor = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        os.fchmod(descriptor, 0o600)
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        try:
+            rows = _read_repair_rows(target)
+        except ValueError as error:
+            return {"ok": False, "reason": str(error)}
+        for index, row in enumerate(rows):
+            if row["event_key"] != event_key:
+                continue
+            if row["state"] in {"repaired", "blocked"}:
+                return {"ok": False, "reason": "repair_not_claimed"}
+            rows[index] = {**row, "state": "queued"}
+            _write_repair_rows(target, rows)
+            _repair_claim_path(target, event_key).unlink(missing_ok=True)
+            return {"ok": True, "state": "queued"}
         return {"ok": False, "reason": "repair_not_found"}
     finally:
         os.close(descriptor)
