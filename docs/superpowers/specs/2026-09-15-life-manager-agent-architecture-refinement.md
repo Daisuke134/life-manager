@@ -245,6 +245,14 @@ calendar wake前のためeventと自然terminalは未確認である。
 最後のeventが旧SHAまたは`resource_capacity_busy`のownerは、配置成功だけではPASSへ昇格せず、
 次の自然wakeのterminalを待つ。現在の4つのrevenue ownerを停止して枠を空けることはしない。
 
+`2026-09-16T04:22:22Z`に、最新実機statusから
+`/Users/anicca/.local/state/life-manager/completion/manifest-r2-20260916T042222Z.json`を生成し、
+`local-gate-r2-20260916T042222Z.json`でR2-04を再判定した。gateは`BLOCK / blocked_product_loop`で、
+14行すべてが`runtime_release_drift`だった。current SHAは
+`c5cae826bee7bc8c9bb414037a11c3261b9e5102`だが、各mapped jobのinstalled/eventが同一SHAへ
+揃っていないためである。これは、古いmanifestを再利用せず、次のownerごとのreconcileを必要とする
+実測結果である。provider effect ownerを停止・再送せず、外部effectなしのownerを先に揃える。
+
 #### S: 自己修復・自己改善の残りも一件ずつ記録する
 
 これは別の常駐supervisorを追加するTODOではなく、既存のreconcile/launchd supervisorとcandidate gateへ
