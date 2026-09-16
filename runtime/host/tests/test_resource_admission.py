@@ -671,6 +671,52 @@ def test_browser_capacity_applies_to_revenue_owners_too(tmp_path, monkeypatch):
     admission.release(first)
 
 
+def test_legacy_queue_schema_migrates_without_losing_rows(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    database = tmp_path / "admission-v2.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.executescript("""
+            CREATE TABLE queue (
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_id TEXT NOT NULL UNIQUE,
+                resource_class TEXT NOT NULL CHECK(resource_class IN ('agent','deterministic'))
+            );
+            CREATE TABLE occurrences (
+                occurrence_id TEXT PRIMARY KEY,
+                owner_id TEXT NOT NULL,
+                resource_class TEXT NOT NULL CHECK(resource_class IN ('agent','deterministic')),
+                admission_class TEXT NOT NULL CHECK(admission_class IN ('borrow','revenue')),
+                base_priority TEXT NOT NULL,
+                queued_at REAL NOT NULL,
+                state TEXT NOT NULL,
+                sequence INTEGER
+            );
+            INSERT INTO queue(sequence,owner_id,resource_class) VALUES(1,'legacy-agent','agent');
+            INSERT INTO occurrences VALUES(
+                'legacy-wake','legacy-agent','agent','revenue','revenue',100,'queued',1
+            );
+        """)
+
+    connection = admission._database(database)
+    try:
+        queue_sql = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE name='queue'"
+        ).fetchone()[0]
+        occurrence_sql = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE name='occurrences'"
+        ).fetchone()[0]
+        assert "'browser'" in queue_sql
+        assert "'browser'" in occurrence_sql
+        assert connection.execute(
+            "SELECT owner_id FROM queue WHERE sequence=1"
+        ).fetchone() == ("legacy-agent",)
+        assert connection.execute(
+            "SELECT occurrence_id FROM occurrences"
+        ).fetchone() == ("legacy-wake",)
+    finally:
+        connection.close()
+
+
 def test_revenue_priority_applies_across_resource_classes(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_RUNS", "1")
