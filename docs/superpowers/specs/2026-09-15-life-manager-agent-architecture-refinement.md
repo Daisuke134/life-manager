@@ -144,8 +144,8 @@ mock/fixture・PID・exit 0・Telegramは証拠にしません。
 
 **観測cursor（2026-09-16）:** `R1-01` Coconala、`R1-02` Lancers、`R1-03` CrowdWorks、
 `R1-04` Writer、`R1-05` Affiliate、`R1-06` Investment、`R1-07` Agent Economy、
-`R1-08` Job Hunter、`R1-09` Fundraiser、`R1-10` Connectorの観測行は、receiptの有無にかかわらず
-Git外private artifactへ記録済みです。次の観測atomicは`R1-11 Self-build`です。
+`R1-08` Job Hunter、`R1-09` Fundraiser、`R1-10` Connector、`R1-11` Self-buildの観測行は、
+receiptの有無にかかわらずGit外private artifactへ記録済みです。次の観測atomicは`R1-12 Mobile Apps`です。
 `verified`昇格は別判定であり、release結合済みreceiptが無い行は`unknown`のまま保持します。
 
 #### R2〜R6: R1の後に一件ずつ実行するgate
@@ -279,6 +279,10 @@ Connectorの同日観測では、過去のnative passに`provider_readback=none`
 `provider_discovery_failed`または`fallback_deferred_for_wake_budget`だった。公式registration/calendar
 receiptは確認できないため、`state=blocked / reason=provider_discovery_failed /
 official_receipt=false / replay_zero=false`で保存した。
+
+Self-buildの同日観測では、過去の候補・評価記録はあるが、最新の自己改善runは`skipped`で、
+reviewed release/rollback receiptは確認できなかった。3 jobのruntimeもcapacity/control busyだったため、
+`state=blocked / reason=candidate_not_promoted / official_receipt=false / replay_zero=false`で保存した。
 
 #### CLIのOSS化方針
 
