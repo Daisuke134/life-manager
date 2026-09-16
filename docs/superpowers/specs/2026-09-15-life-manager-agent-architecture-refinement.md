@@ -165,6 +165,10 @@ R2の初回実測（2026-09-16）は、267行の実機statusから生成したpr
 browser/readback未確認などの既知診断が残っているため、R3へ進まず、既存のreconcile/各owner修復で
 これらを解消してからR2を再実行する。
 
+同日、外部effectを持たないConnector ownerだけをcurrent immutable releaseへtargeted reconcileした。
+installed SHAはcurrentへ揃ったが、最新report/eventは旧SHAのままで、自然wakeのterminal/readbackは未確認である。
+install eventだけを業務成功receiptとは数えず、次回statusでcurrent releaseの自然wakeを確認する。
+
 #### S: 自己修復・自己改善の残りも一件ずつ記録する
 
 これは別の常駐supervisorを追加するTODOではなく、既存のreconcile/launchd supervisorとcandidate gateへ
