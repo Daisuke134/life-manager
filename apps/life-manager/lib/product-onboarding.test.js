@@ -296,6 +296,117 @@ test("local completion gate blocks a verified row without runtime evidence", () 
   assert.equal(gate.decision, "block");
 });
 
+test("local completion gate blocks a tampered runtime evidence summary", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "c".repeat(40);
+  const contract = {
+    goal: true,
+    context: true,
+    admission: true,
+    receipt: true,
+    observability: true,
+    evaluation: true,
+  };
+  const observations = catalog.loops.map((loop, index) => index === 0 ? {
+    id: loop.id,
+    state: "verified",
+    owner_id: "owner-1",
+    release_sha: releaseSha,
+    official_receipt: true,
+    official_receipt_ref: "ledger://local/owner-1/receipt-runtime-tamper",
+    replay_zero: true,
+    resource_class: "agent",
+    contract,
+  } : {
+    id: loop.id,
+    state: "setup_required",
+    reason: "host_adapter_pending",
+    contract: {},
+  });
+  const manifest = buildProductLoopCompletionManifest({
+    host: "local",
+    release_sha: releaseSha,
+    observations,
+    runtime_rows: catalog.loops[0].job_ids.map((jobId) => ({
+      loop_id: jobId,
+      installed_release_sha: releaseSha,
+      event_release_sha: releaseSha,
+      last_terminal_result: "pass",
+    })),
+  });
+  const tampered = JSON.parse(JSON.stringify(manifest));
+  tampered.loops[0].runtime_evidence.observed_job_ids = [];
+
+  const gate = evaluateLocalCompletionGate(tampered);
+
+  assert.deepEqual(gate.reasons, ["verified_runtime_evidence_invalid"]);
+  assert.equal(gate.decision, "block");
+});
+
+test("cloud promotion gate blocks a tampered runtime evidence summary", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "d".repeat(40);
+  const contract = {
+    goal: true,
+    context: true,
+    admission: true,
+    receipt: true,
+    observability: true,
+    evaluation: true,
+  };
+  const cloudManifest = buildProductLoopCompletionManifest({
+    host: "cloud",
+    release_sha: releaseSha,
+    observations: catalog.loops.map((loop, index) => index === 0 ? {
+      id: loop.id,
+      state: "verified",
+      owner_id: "owner-1",
+      release_sha: releaseSha,
+      official_receipt: true,
+      official_receipt_ref: "ledger://cloud/owner-1/receipt-runtime-tamper",
+      replay_zero: true,
+      resource_class: "agent",
+      contract,
+    } : {
+      id: loop.id,
+      state: "setup_required",
+      reason: "host_adapter_pending",
+      contract: {},
+    }),
+    runtime_rows: catalog.loops[0].job_ids.map((jobId) => ({
+      loop_id: jobId,
+      installed_release_sha: releaseSha,
+      event_release_sha: releaseSha,
+      last_terminal_result: "pass",
+    })),
+  });
+  const tampered = JSON.parse(JSON.stringify(cloudManifest));
+  tampered.loops[0].runtime_evidence.release_match = false;
+
+  const gate = evaluateCloudPromotionGate({
+    release_sha: releaseSha,
+    local_gate: {
+      schema_version: "product.local.completion.v1",
+      decision: "pass",
+      host: "local",
+      release_sha: releaseSha,
+      reasons: [],
+    },
+    cloud_manifest: tampered,
+    cloud_canary: {
+      tenant_isolated: true,
+      immutable_source: true,
+      official_readback: "verified",
+      replay_zero: true,
+      local_state_copied: false,
+      local_credentials_copied: false,
+    },
+  });
+
+  assert.deepEqual(gate.reasons, ["cloud_manifest_runtime_evidence_invalid"]);
+  assert.equal(gate.decision, "block");
+});
+
 test("local completion gate blocks a verified row whose receipt reference or replay proof was removed", () => {
   const catalog = readProductLoopCatalog();
   const releaseSha = "6".repeat(40);

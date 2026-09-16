@@ -142,6 +142,29 @@ function buildRuntimeEvidence(catalogLoop, runtimeByJobId, releaseSha) {
   });
 }
 
+function runtimeEvidenceMatchesCatalog(loop, catalogLoop) {
+  const evidence = loop && loop.runtime_evidence;
+  if (!evidence || typeof evidence !== "object" || Array.isArray(evidence)
+    || !catalogLoop || !Array.isArray(catalogLoop.job_ids)
+    || !Array.isArray(evidence.observed_job_ids)
+    || !Array.isArray(evidence.missing_job_ids)
+    || !Array.isArray(evidence.release_mismatch_job_ids)
+    || !Array.isArray(evidence.non_pass_job_ids)) {
+    return false;
+  }
+  const sameSequence = (actual, expected) => actual.length === expected.length
+    && actual.every((value, index) => value === expected[index]);
+  return sameSequence(evidence.observed_job_ids, catalogLoop.job_ids)
+    && evidence.missing_job_ids.length === 0
+    && evidence.release_mismatch_job_ids.length === 0
+    && evidence.non_pass_job_ids.length === 0
+    && evidence.release_match === true
+    && evidence.runtime_healthy === true
+    && evidence.ready === true
+    && evidence.reason === null
+    && typeof evidence.terminal_pass === "boolean";
+}
+
 function indexRuntimeRows(runtimeRows, catalog) {
   if (!Array.isArray(runtimeRows)) throw new Error("completion runtime rows invalid");
   const catalogJobIds = new Set(catalog.loops.flatMap((loop) => loop.job_ids));
@@ -229,12 +252,15 @@ function evaluateCloudPromotionGate(input = {}, options = {}) {
       reasons.push("cloud_manifest_loop_count_mismatch");
     } else {
       const actualIds = cloudManifest.loops.map((loop) => loop && loop.id);
+      let expectedLoops = [];
       let expectedIds = [];
       try {
-        expectedIds = readProductLoopCatalog(options.catalogFile).loops.map((loop) => loop.id);
+        expectedLoops = readProductLoopCatalog(options.catalogFile).loops;
+        expectedIds = expectedLoops.map((loop) => loop.id);
       } catch {
         reasons.push("cloud_manifest_catalog_invalid");
       }
+      const expectedById = new Map(expectedLoops.map((loop) => [loop.id, loop]));
       const sameIds = actualIds.length === expectedIds.length
         && [...actualIds].sort().every((id, index) => id === [...expectedIds].sort()[index]);
       if (!sameIds) reasons.push("cloud_manifest_loop_identity_mismatch");
@@ -247,6 +273,11 @@ function evaluateCloudPromotionGate(input = {}, options = {}) {
       if (cloudManifest.loops.some((loop) => loop && loop.state === "verified"
         && (!loop.runtime_evidence || loop.runtime_evidence.ready !== true))) {
         reasons.push("cloud_manifest_runtime_evidence_incomplete");
+      }
+      if (cloudManifest.loops.some((loop) => loop && loop.state === "verified"
+        && loop.runtime_evidence
+        && !runtimeEvidenceMatchesCatalog(loop, expectedById.get(loop.id)))) {
+        reasons.push("cloud_manifest_runtime_evidence_invalid");
       }
     }
     if (cloudManifest.completion !== true || cloudManifest.unknown_count !== 0) {
@@ -329,6 +360,10 @@ function evaluateLocalCompletionGate(manifest, options = {}) {
           || !loop.runtime_evidence || loop.runtime_evidence.ready !== true
         )) {
           reasons.push("verified_evidence_incomplete");
+        }
+        if (state === "verified" && loop.runtime_evidence
+          && !runtimeEvidenceMatchesCatalog(loop, catalogLoop)) {
+          reasons.push("verified_runtime_evidence_invalid");
         }
       }
       if (manifest.loops.length !== catalog.loops.length) reasons.push("manifest_loop_count_mismatch");
