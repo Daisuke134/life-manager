@@ -3,6 +3,88 @@
 状態: IN PROGRESS（未完了） — this document defines the next architecture boundary; it does not
 claim that the target control plane, marketplace effects, or cloud deployment are complete.
 
+## Current handover and one-program execution order
+
+This file is the architecture/specification SSOT:
+`docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md`
+in `/private/tmp/lm-agent-engineering-skills-20260915`. The marketplace execution
+checklist remains `skills/earn/gig/TODO.md` in its active owner worktree until an
+owner-safe main integration establishes one repository copy; these are not two
+independent Life Manager programs. This spec owns the *cross-domain order and gates*;
+the marketplace TODO owns exact provider/client items. Do not edit another owner's
+worktree to make the files appear merged.
+
+**User outcome:** unify the foundation and platform execution work through the
+existing `runtime/loop`/registry/release path; make Connector and each applicable
+platform lane progress without babysitting, then turn real failures into bounded
+self-heal/eval/self-improvement, promote the same business kernel to tenant-isolated
+Cloud/phone-only, and prove attributable revenue. “24/7” means continuous durable
+eligibility, bounded queue wait, owner-scoped recovery, and verified provider effects;
+it does not mean one immortal process or unlimited simultaneous Codex/Chrome runs.
+
+**Verified integration snapshot:** foundation candidate
+`/private/tmp/lm-fundamental-runtime-20260916` is clean at `3a70e98867`, ahead
+of `origin/main` by 87 commits and behind it by 22 at the readback. Its full
+admission/manifest/Graph/Eval/repair candidate is **not merged to main**. Smaller
+release-drift and TechPlay slices are already in main `ba9246eeaf`; they do not
+equal the candidate. The live Connector still loads `cf655388` and its last
+outer terminal was pre-effect `resource_capacity_busy`, not a new Calendar
+registration. Coconala has historical official effects and some current passes,
+but four-lane continuous progress and Storefront publication are unproved.
+The observed source/test work and documentation are real; the requested
+combined production outcome is not complete.
+
+**Agent/harness skills already exist in this repository:**
+`skills/goal-engineering/`, `skills/context-engineering/`,
+`skills/graph-engineering/`, `skills/eval-engineering/`,
+`skills/harness-engineering/`, `skills/loop-engineering/`, and
+`skills/observability-engineering/` each contain a `SKILL.md`.
+`skills/loop-development/SKILL.md` governs release/owner operations. These are
+development method references, not a second runtime, production proof, or
+permission to self-modify identity, permissions, receipt criteria, or Eval gates.
+Use only the relevant skill per repair; the runtime remains repository-owned.
+
+**Order correction:** the old R2→R3→R4→R5→R6 wording placed the only main merge
+after Cloud. That conflicts with this repository's main-derived immutable
+production-release rule and with the user's request to combine the two workstreams
+before sequential provider repair. Replace that execution order with the steps
+below. Old order: candidate Connector canary → all-loop Local gate → Eval →
+candidate Cloud → Cloud gate → one final main merge → provider completion.
+New order: integrate the smallest reviewed foundation slices into main, prove
+Connector and provider lanes on main-derived targeted releases, pass the 14-loop
+Local gate and Eval, build meta/self-heal on those proven contracts, then promote
+the approved source to Cloud and pass its gate.
+Reason: a candidate checkout or mock cannot be the production code authority;
+deferring main until after Cloud leaves live owners on the old admission path.
+Current cursor is step 1, with Connector as the first provider-effect canary.
+Do not perform one 87-commit big-bang merge; merge/release focused reviewed
+slices, preserving main ancestry and exact owner scope. Later historical R2–R6
+tables remain evidence of the superseded plan, not the active cursor.
+
+### Active remaining TODO — one program, through the final outcome
+
+| # | Atomic result, in dependency order | Acceptance; do not advance on source-only PASS |
+|---:|---|---|
+| 1 | Reconcile foundation candidate, provider work, and latest main by file/owner; freeze one integration map and one active cursor. | No overlapping unowned edit, dirty provider state, or missing main dependency. |
+| 2 | Close shared admission on the existing `runtime/host/resource_admission.py` + `runtime/loop/lm_loop_run.py` path: durable occurrence/queue, Paid priority and bounded aging, actual resource-class limits, release→next claim, stale-owner recovery, exact uncertain-effect fence. | Saturation, release, owner death, mixed release, RAM and disk fixtures pass; queued work is not silently lost or retried as a provider effect. A finite safety ceiling remains until measured peaks justify change. |
+| 3 | Integrate the smallest reviewed shared-runtime/CLI/observability slices into main and cut one main-derived immutable release per targeted canary. | Exact SHA/argv/dependency readback; no sibling owner or browser restart. Source-only candidate work stops being called deployed. |
+| 4 | Connector first: resolve the current pre-effect capacity stop, let a natural outer run terminate, and reconcile exact provider registration → Google Calendar ID → next-wake replay-zero; then tune its cadence/phase only against event freshness. | Official registration/Calendar readback where eligible, or truthful no-work; loaded PID/inner pass is insufficient. |
+| 5 | Coconala Apply, Reply, Paid, Storefront as separate lanes: current eligible screening-answer submit; 15 pending replies; per-client funded work, attachments and payout; official listing state; reconcile old 54 uncertain intents only as preemptible background work. | Each applicable lane has current same-SHA terminal, exact official effect/readback or truthful wait/no-work, and replay-zero; no account/browser interference. |
+| 6 | CrowdWorks: complete the three existing paid contracts first, then restore inventory, Reply and Apply continuity; Lancers: browser/auth, Apply→Reply→Paid→payout and supported Storefront; Mercor: persistent auth, Apply→Reply→human handoff→Paid→payout. | Each provider's actual effect/readback and per-client terminal, not generic exit 0. Unsupported Storefront is proven not-applicable. |
+| 7 | Freelancer.com and Upwork: verify current account/policy, then applicable Apply→Reply→Paid→payout and Storefront only if official surface exists. | Official receipts, payout attribution and replay-zero. |
+| 8 | Observe every job in all 14 Product Loops (the marketplace lanes plus Writer, Affiliate, Investment, Agent Economy, Job Hunter, Fundraiser, Connector, Self-Build, Mobile Apps, Capafy and CFO); repair each remaining typed blocker, including Mobile/Metrics. | Local manifest binds current installed SHA, outer terminal, official receipt or explicit setup/not-applicable state; no starvation in controlled pressure/recovery tests. |
+| 9 | Run Local completion gate and S-04 Eval on the actual main-derived candidate: baseline, held-out, safety, latency/cost, live evidence and rollback. | Both PASS without mock as external success; a failed gate stays failed. No fixed 24-hour waiting gate is invented, but later cadence misses remain monitored. |
+| 10 | New-platform meta loop: qualify policy and net value, create a thin adapter, canary its official effect, and promote only the passing result. | A new platform reuses the shared runtime without a new scheduler or provider-specific queue. |
+| 11 | Activate bounded self-heal and self-improve through existing supervisor/reconcile/eval paths: missed-cadence alert → exact-owner recovery → isolated candidate → held-out/safety/cost/live gate → promotion or rollback. | A real injected failure resumes only its owner with terminal repair receipt and leaves siblings unchanged; identity, permissions and gate criteria are immutable to self-improvement. |
+| 12 | Promote the identical approved business kernel/source SHA to tenant-isolated Cloud; test Steel owner lease/release and phone-only status/human handoff/readback; run Cloud gate. | Tenant cross-read 0, credential/state mix 0, official effects and replay-zero, Local/Eval/Cloud all PASS. |
+| 13 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
+
+Independent provider *development* may run in separate owned worktrees while
+steps 1–4 proceed. Only the exact shared browser/account/effect or integration
+file is serialized. A provider owner never waits for an unrelated platform's
+full business completion to write its own isolated fix, but no owner calls a
+platform “working” until its own acceptance evidence exists.
+
 ## Implementation status (current evidence)
 
 このspecの受入状態は、次のとおりです。`PROD-01`はMarketplace側の外部effect受入cursorであり、
