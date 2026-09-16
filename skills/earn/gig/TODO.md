@@ -650,9 +650,17 @@ P0/P1 in the slice. No other loop opted in. It is **source-only** until main int
 headroom, immutable release, targeted apply, natural outer terminal and fresh provider/Calendar readback.
 Do not count it as Connector registration or all-fleet starvation recovery.
 
-**Next order:** (1) keep one-off/retainer refresh live and prove a fresh eligible retainer screening-answer
-effect when one exists, (2) repair shared admission/cadence and owner-scoped tab teardown, including
-the currently failing Storefront browser connection and exact provider readback,
+**Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
+shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/
+Storefront latest terminals are fail, Data free space is about 195 MiB and swap about 25 GiB. Reply passed.
+Current cursor is owner-scoped browser/tab/lease reconciliation and safe physical headroom recovery; do not
+interrupt a current external effect or erase protected sessions. A proposed exact temporary lint dependency
+removal was rejected by the execution safety layer and was not performed. This reorders engineering work,
+not independent live platform owners.
+
+**Next order:** (1) restore safe disk/memory headroom and verify next natural revenue wakes, then keep
+one-off/retainer refresh live and prove a fresh eligible retainer screening-answer effect when one exists,
+(2) repair shared admission/cadence and the Storefront browser connection with exact provider readback,
 (3) resolve Reply 15 and Coconala payout, (4) reconcile the 54 historical
 uncertain intents as preemptible background work without blocking current revenue, (5) prove all four Coconala
 lanes through the finite acceptance matrix below, then (6) CrowdWorks paid contracts, Lancers, Mercor,
