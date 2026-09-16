@@ -654,6 +654,23 @@ def test_browser_resource_class_has_independent_capacity(tmp_path, monkeypatch):
     admission.release(deterministic)
 
 
+def test_browser_capacity_applies_to_revenue_owners_too(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="3")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_BROWSER_RUNS", "1")
+    admission.activate_durable_v2()
+
+    first, reason = admission.try_acquire(
+        "browser", "browser-revenue-one", retain_ticket=False,
+        admission_class="revenue")
+    second, second_reason = admission.try_acquire(
+        "browser", "browser-revenue-two", retain_ticket=False,
+        admission_class="revenue")
+
+    assert first and reason == "acquired"
+    assert second is None and second_reason == "capacity_busy"
+    admission.release(first)
+
+
 def test_revenue_priority_applies_across_resource_classes(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_AGENT_RUNS", "1")
