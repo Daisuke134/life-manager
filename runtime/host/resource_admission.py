@@ -663,6 +663,10 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                         "UPDATE priorities SET effect_unknown=1 WHERE owner_id=?",
                         (row["owner_id"],),
                     )
+                # A file cannot be restored after unlink. Commit its ledger
+                # disposition first so a crash never leaves claimed/0 with
+                # no recovery handle. The control lock remains held.
+                connection.commit()
             path.unlink(missing_ok=True)
     connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (now,))
     reserved = [dict(zip(("owner_id", "resource_class", "sequence", "lease_until",
@@ -1213,13 +1217,29 @@ def try_acquire(resource_class: str, owner_id: str, *,
         owner_rows = []
         for path in owners.glob("*.json"):
             if not _live(path, live_starts, snapshot_started_ns, probe_missing=True):
-                path.unlink(missing_ok=True); continue
+                # v2 owns its occurrence ledger. Only its locked durable sweep
+                # may remove this file after parking or requeuing that row.
+                stale = _row(path) or {}
+                if stale.get("version") == 2:
+                    if stale.get("owner_id") == owner_id:
+                        return None, "owner_busy"
+                else:
+                    path.unlink(missing_ok=True)
+                continue
             owner_rows.append(_row(path) or {})
         if any(row.get("owner_id") == owner_id for row in owner_rows):
             return None, "owner_busy"
         reserved_rows = []
         if observed_protocol == 2:
             with _database(root / "admission-v2.sqlite3") as connection:
+                if (connection.execute(
+                    "SELECT 1 FROM occurrences WHERE owner_id=? AND effect_unknown=1 LIMIT 1",
+                    (owner_id,),
+                ).fetchone() or connection.execute(
+                    "SELECT 1 FROM priorities WHERE owner_id=? AND effect_unknown=1",
+                    (owner_id,),
+                ).fetchone()):
+                    return None, "effect_unknown"
                 connection.execute(
                     "DELETE FROM reservations WHERE lease_until <= ?", (time.time(),))
                 reserved_rows = [

@@ -841,6 +841,114 @@ def test_dead_running_claim_parks_effect_unknown_without_requeue(
     assert queued == 0
 
 
+def test_legacy_acquire_cannot_delete_dead_v2_claim_before_reconciliation(
+        tmp_path, monkeypatch):
+    """A legacy capacity scan must preserve the v2 occurrence recovery handle."""
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "connector", admission_class="revenue",
+        occurrence_id="connector:terminal-race", now=100)
+    claim, reason = admission.claim_durable(
+        "agent", "connector", admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    row = json.loads(claim.read_text())
+    admission.atomic_json(claim, {
+        **row, "pid": 999_999_999, "process_start": "dead", "phase": "running",
+    })
+
+    other, reason = admission.try_acquire(
+        "deterministic", "legacy-observer", retain_ticket=False)
+    assert claim.exists(), "the v2 recovery handle must survive a legacy scan"
+    if other is not None:
+        admission.release(other)
+    admission.reserve_available(now=200)
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        state = connection.execute(
+            "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+            ("connector:terminal-race",),
+        ).fetchone()
+    assert state == ("claimed", 1)
+
+
+def test_legacy_acquire_cannot_bypass_unreconciled_same_owner_v2_effect(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="2")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "connector", admission_class="revenue",
+        occurrence_id="connector:unknown", now=100)
+    claim, reason = admission.claim_durable(
+        "agent", "connector", admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    row = json.loads(claim.read_text())
+    admission.atomic_json(claim, {
+        **row, "pid": 999_999_999, "process_start": "dead", "phase": "running",
+    })
+
+    duplicate, reason = admission.try_acquire(
+        "agent", "connector", admission_class="revenue", retain_ticket=False)
+    assert duplicate is None
+    assert reason in {"owner_busy", "effect_unknown"}
+    assert claim.exists()
+
+
+def test_legacy_acquire_cannot_bypass_parked_same_owner_v2_effect(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="2")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "connector", admission_class="revenue",
+        occurrence_id="connector:parked", now=100)
+    claim, reason = admission.claim_durable(
+        "agent", "connector", admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    row = json.loads(claim.read_text())
+    admission.atomic_json(claim, {
+        **row, "pid": 999_999_999, "process_start": "dead", "phase": "running",
+    })
+    admission.reserve_available(now=200)
+    assert not claim.exists()
+
+    duplicate, reason = admission.try_acquire(
+        "agent", "connector", admission_class="revenue", retain_ticket=False)
+    assert duplicate is None
+    assert reason == "effect_unknown"
+
+
+def test_dead_v2_claim_db_is_committed_before_owner_file_is_removed(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "connector", admission_class="revenue",
+        occurrence_id="connector:crash-window", now=100)
+    claim, reason = admission.claim_durable(
+        "agent", "connector", admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    row = json.loads(claim.read_text())
+    admission.atomic_json(claim, {
+        **row, "pid": 999_999_999, "process_start": "dead", "phase": "running",
+    })
+    original_unlink = Path.unlink
+
+    def crash_after_unlink(path, *args, **kwargs):
+        result = original_unlink(path, *args, **kwargs)
+        if path == claim:
+            raise OSError("simulated crash after owner file removal")
+        return result
+
+    monkeypatch.setattr(Path, "unlink", crash_after_unlink)
+    with pytest.raises(OSError, match="simulated crash"):
+        admission.reserve_available(now=200)
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        state = connection.execute(
+            "SELECT state,effect_unknown FROM occurrences WHERE occurrence_id=?",
+            ("connector:crash-window",),
+        ).fetchone()
+    assert state == ("claimed", 1)
+
+
 def test_released_occurrence_does_not_revive_from_lingering_claim_file(
         tmp_path, monkeypatch):
     """DB completion must survive a crash before its owner file is unlinked."""
