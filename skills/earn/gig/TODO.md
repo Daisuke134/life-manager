@@ -766,6 +766,17 @@ plist and launchd argv exact-match. Its RunAtLoad wake then ended
 `blocked/resource_fifo_wait` exit 75 before entering source capture. A new
 bounded plan receipt and natural scheduled wake remain unproven. No main/Cloud
 promotion is implied by this Local cutover.
+At 16:20 UTC the first scheduled post-load Affiliate wake again ended
+`blocked/resource_fifo_wait`, preserving two candidate occurrences but
+producing no new `source-refresh.json` receipt. A single owner-scoped manual
+`lm-loop start` at 16:21 also ended FIFO wait; this is diagnostic only, not a
+natural PASS. Instagram Metrics naturally retried at 16:14 and was still
+capacity-blocked; its old/new queued occurrences, like TikTok's, repeatedly
+lost their queue rows between wakes under the mixed-release fleet. No public
+effect was observed. Shared admission needs exact queue-removal provenance and
+positive pre-effect/effect-reconciliation gating before any replay; do not
+reintroduce the reverted generic auto-restore. Affiliate's bounded logic is
+loaded but not yet observed processing even one plan.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/

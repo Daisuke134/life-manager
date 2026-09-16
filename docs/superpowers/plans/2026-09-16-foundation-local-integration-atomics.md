@@ -434,6 +434,14 @@ exact-applied to candidate SHA. Its first RunAtLoad wake was
 `blocked/resource_fifo_wait`, so bounded source progress is not yet proven.
 The next natural wake must claim, process at most one plan, write a durable
 receipt, release, and allow another queued owner through.
+The 16:20 scheduled Affiliate wake and 16:21 exact-target manual kick both
+terminated `resource_fifo_wait` before source capture. Neither proved the
+new bounded plan cursor. Instagram's 16:14 natural candidate wake was also
+capacity-blocked. Read-only SQLite samples show Metrics queued occurrences
+can lose queue rows again between wakes, not merely once. The next shared
+runtime slice must trace the deleter and establish positive pre-effect or
+official reconciliation for each orphan before replay; the unsafe global
+restoration remains reverted.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.
