@@ -169,6 +169,12 @@ current release SHA `913aaa9cc9ac1e40b54eb0f0899c69fc17b52c2f`で
 `local-completion-gate.js --runtime-status`を実行しても同じ`BLOCK / unknown_product_loop`だった。
 これは実機statusを使ったgate確認であり、providerの公式receiptや外部effectの成功を意味しない。
 
+同じ再実測でCoconalaの7 jobは、Apply `blocked`、Browser `fail`、残りも`blocked`で、
+installed/event SHAは`913aaa9cc9ac`、`2a53ce2528`、`172d3f2eaa4`、`0aba1191a451`、
+`e8e8a2b2645`/`3c95ef5f3db6`に分裂していた。最新Apply結果も`observed=20 / effect=0 /
+readback=0 / failed=1`、Storefrontは`completed`でも`effect=0 / readback=0`かつ
+`no_executable_unfenced_mutation_contract`であり、外部成功のreceiptではない。よってR1-01は未完了である。
+
 #### 2026-09-16 cursor変更: Coconalaを先頭へ戻す
 
 Daisの明示指示により、`gig-coconala`をR1の現在cursorへ戻す。別Codexがproviderを修正している
