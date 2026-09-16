@@ -457,6 +457,11 @@ remain loaded. Recommended exceptional order: bridge review/main promotion,
 main-derived release with loaded-idle dispatcher convergence, then
 Local/Eval/Cloud/domain merge. It conflicts with the earlier one-final-merge
 rule; no main merge or global current/label mutation is performed here.
+Bridge review still needs two protections: reservation-only `defer` can leave
+an incompatible owner at the queue head indefinitely, so a finite persisted
+skip/expiry must let a healthy follower claim; automatic bounded reconcile
+must not downgrade loaded candidate SHAs outside the ancestry of its target
+main SHA. Test both against real SQLite/plist fixtures before any promotion.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

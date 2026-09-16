@@ -800,6 +800,17 @@ natural canaries, (4) finish Local/Eval/Cloud, (5) merge remaining domain work.
 This would be an explicit exception to the earlier one-main-merge rule;
 current cursor is bridge review and safe rollout contract, not an unreviewed
 merge.
+Bridge review expansion before any promotion: `10c77389e3` preserves the
+queue row but existing `defer_durable` removes only the reservation. A
+permanently release-drifted head can therefore be reserved/deferred on every
+handoff and starve healthy followers. Require a bounded `next_eligible_at`
+or equivalent non-destructive skip with expiry, then demonstrate a healthy
+second owner claims under a drifted first owner. Also, automatic release
+reconcile currently selects loaded-idle SHA mismatch without source ancestry;
+a bridge main release could downgrade the already candidate-loaded Affiliate
+and Marketing labels. Fail closed on non-ancestor/unknown installed SHAs and
+record skipped owners before any early-main exception. This is part of the
+same compatibility rollout contract, not proof that `10c77389e3` is ready.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/
