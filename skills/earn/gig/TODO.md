@@ -586,6 +586,74 @@ independent production effects.
 
 ### Urgent gig-lane repair cursor (2026-09-17 JST; live state must be re-read)
 
+#### First two product slices: Connector, then Coconala (08:13 JST readback)
+
+**Do not mark Connector fixed.** `bin/lm-loop status life-manager-connector-native` reads loaded
+`cf655388`, latest outer terminal `blocked/host_admission_deferred:resource_capacity_busy`, exit 75.
+Registry `config/loop-registry.json` schedules it every 1800 seconds, not hourly. Main
+`ba9246eeaf` includes PR #5294's bounded TechPlay discovery, but the loaded release predates it.
+The separate foundation candidate `7d2450f6fb` is not in main. Neither a current same-wake
+provider registration nor a fresh Google Calendar event was proved. Older historical bundles
+must not be used as this wake's success.
+
+Connector atomic sequence:
+1. Read `skills/connector/run.sh` → `skills/connector/native-pass.js` →
+   `apps/life-manager/lib/connector-minimal-production.js` and
+   `connector-minimal-operations.js`; capture one exact natural run's outer event,
+   private write audit, provider registration ID, and Google Calendar ID. Distinguish
+   pre-effect admission from TechPlay discovery timeout and uncertain submit.
+2. In `runtime/host/resource_admission.py` and `runtime/loop/lm_loop_run.py`, test the
+   saturated five-owner case where Connector is due; after release, prove it claims
+   the next eligible slot without a new scheduled tick or an old release deleting its
+   queued occurrence. Preserve memory headroom and exact occurrence/effect fences.
+   Integrate only reviewed necessary main-derived source, not the whole 90-file candidate.
+3. Test/merge the bounded TechPlay work already on main against the loaded argv/dependency
+   contract, cut an immutable main release, and apply only the idle Connector label via
+   the safe control path. Do not restart Coconala or other browser owners to make room.
+4. Observe a natural outer terminal from the new exact SHA. If an eligible event exists,
+   require its official provider registration, Calendar exact-ID readback and next-wake
+   replay-zero. If there is no eligible event, record a truthful no-work terminal; this
+   proves lifecycle recovery, **not** Calendar registration. Only after that decide
+   whether a phased hourly Connector cadence in `config/loop-registry.json` meets the
+   event-discovery freshness contract.
+
+**Coconala sub-lanes:** Apply and Reply last outer results pass; Apply's effect status
+remains unknown and Reply's 08:09 receipt is `observed=181/actionable=15/effect=0/
+readback=166/pending=15`. Paid's 08:04 receipt is `observed=4/actionable=1/effect=0/
+readback=4`, but the 08:09 outer wake was capacity-blocked and another run was in
+progress. Storefront's 08:12 receipt is `no_executable_unfenced_mutation_contract`,
+effect/readback 0, despite a 60-second schedule. Persistent `hf-gig-browser` has a
+stale failed event SHA and currently reports a running PID; verify its actual CDP
+session/ownership before any browser mutation. `loaded-running` plus a preceding
+`pass` is not the current run's terminal.
+
+Coconala atomic sequence:
+1. `config/loop-registry.json`: retain fast buyer-sensitive Paid/Reply discovery; pilot
+   a phased hourly Storefront wake only after proving no deadline-bearing listing work
+   is lost. Keep a durable pending-work cursor; staggering alone cannot preserve work.
+2. `runtime/loop/lm_loop_run.py` + `runtime/host/resource_admission.py`: project
+   `critical_paid` into durable queue priority, upgrade existing non-null lower-priority
+   rows without changing their original queued age, and prove release→Paid claim and
+   an aged Apply/Reply claim under saturation. Never bypass actual RAM/Chrome safety.
+3. `skills/earn/gig/scripts/launch_gig_browser.sh` and owner-scoped browser lease:
+   compare live PID, port 9223, authenticated page and exact profile; only that owner
+   repairs its own stale context. No global Chromium teardown or sibling logout.
+4. Apply (`runtime/loop/entry_dispatch.py` → gig Apply adapter): exact candidate,
+   screening answer, provider applied-record readback, durable fence, next-wake zero
+   duplicate. Reply (`coconala-reply-owner`): one of 15 pending talkrooms to official
+   message/buyer-wait receipt. Paid (`paid-direct-owner`): per-client actionable buyer
+   work to official room readback. Storefront (`entry_dispatch.py`): prove an executable
+   fenced listing contract, then official listing readback; a no-op cannot count as
+   publication. Every sub-lane needs a same-SHA natural outer terminal.
+
+External comparison: OpenClaw's official automation docs use persistent SQLite jobs/runs,
+bounded isolated turns and schedule staggering (top-of-hour up to five minutes);
+Kubernetes CronJob exposes explicit overlap/missed-start policies; Celery and BullMQ
+separate scheduled due work from worker concurrency. The inference for this host is
+*stagger + bounded work + release-triggered durable dispatch*, not unbounded Chrome/model
+fan-out and not a universal one-hour delay. Reassess the five-run cap from measured
+peak per resource class only after the next eligible work actually drains.
+
 Old cursor: generic shared-admission completion before provider execution. New cursor: Coconala →
 CrowdWorks → Lancers → Mercor provider failures and their shared admission dependency, then the
 remaining platforms. Reason: current real gig wakes already expose exact provider failures; fixing
