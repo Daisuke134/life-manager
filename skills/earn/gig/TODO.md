@@ -595,7 +595,9 @@ across two runs, each with exact-ID official readback and no failure or pending 
 **Not done:** the prior ULID retainer attempt has no official submit/readback and remains duplicate-fenced;
 the current continuous source had zero eligible candidates in the latest natural wake, so a fresh
 screening-answer effect remains unproved. Fifty-four historical uncertain applications remain a
-preemptible background reconciliation; Reply has 15 pending threads; Storefront demand, payout
+preemptible background reconciliation; Reply has 15 pending threads. Storefront's page-2 retirement
+fix is loaded but its first natural run failed before the effect with browser WebSocket HTTP 500;
+official Storefront effect/readback, demand and payout
 attribution, 24-hour cadence, no-starvation, zombie-free browser teardown and every later platform remain open.
 
 **24/7 acceptance:** every registered loop remains scheduled, but that alone is not success. Each applicable
@@ -607,10 +609,11 @@ of five finite runs is not accepted as the final architecture; production must u
 capacity and prove 24 hours without a missed revenue cadence or fleet starvation.
 
 **Next order:** (1) keep one-off/retainer refresh live and prove a fresh eligible retainer screening-answer
-effect when one exists, (2) repair shared admission/cadence and owner-scoped tab teardown,
+effect when one exists, (2) repair shared admission/cadence and owner-scoped tab teardown, including
+the currently failing Storefront browser connection and exact provider readback,
 (3) resolve Reply 15 and Coconala payout, (4) reconcile the 54 historical
-uncertain intents as preemptible background work without blocking current revenue, (6) prove all four Coconala
-lanes for 24 hours, then (7) CrowdWorks paid contracts, Lancers, Mercor,
+uncertain intents as preemptible background work without blocking current revenue, (5) prove all four Coconala
+lanes for 24 hours, then (6) CrowdWorks paid contracts, Lancers, Mercor,
 Freelancer.com and Upwork in that order.
 
 ### 1. Shared runtime production convergence and account 1 cutover — current cursor
@@ -991,7 +994,14 @@ work item and leave a sibling trace unchanged.
   changing already closed/no-reply rows.
 - [ ] Recover and verify Kokoro's 15 retained files without another buyer request.
 - [ ] Complete every funded Paid work item, deliver exactly once and verify official room state.
-- [ ] Keep Storefront published where supported and measure official demand.
+- [ ] Keep Storefront published where supported and measure official demand. PR `#5288` merged as main
+  `2c8f83c9`; immutable release `20260916T180214-2c8f83c9` is exact-loaded for Storefront only.
+  Root cause of repeated `storefront_retire_control_absent_at_submit`: service `4330105` was observed
+  on seller-list page 2 while the old executor opened page 1. The focused test was red before the fix;
+  50 Storefront tests and CI passed. The first natural run from the new release ended `failed`,
+  `effect=0`, `readback=0`, reason `server rejected WebSocket connection: HTTP 500` before the
+  archive/readback path; another natural run was live at 2026-09-16 18:13 JST. Do not call the
+  provider effect fixed until its terminal receipt and official listing-state readback prove it.
 - [ ] Attribute accepted payout and bank receipt to its originating application and contract.
 
 ### 3. CrowdWorks vertical proof
