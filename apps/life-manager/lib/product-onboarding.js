@@ -151,6 +151,10 @@ function indexRuntimeRows(runtimeRows, catalog) {
       || typeof row.loop_id !== "string" || !row.loop_id.trim()) {
       throw new Error("completion runtime row invalid");
     }
+    if (Object.hasOwn(row, "job_id")
+      && (typeof row.job_id !== "string" || row.job_id.trim() !== row.loop_id)) {
+      throw new Error("completion runtime job identity mismatch");
+    }
     for (const field of ["installed_release_sha", "event_release_sha", "last_terminal_result"]) {
       if (!Object.hasOwn(row, field)) throw new Error(`completion runtime row missing ${field}`);
     }

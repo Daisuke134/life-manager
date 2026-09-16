@@ -558,6 +558,34 @@ test("completion manifest binds runtime status to every mapped job without promo
   assert.equal(manifest.completion, true);
 });
 
+test("completion rejects runtime rows whose job identity disagrees with loop_id", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "b".repeat(40);
+  const observations = catalog.loops.map((loop) => ({
+    id: loop.id,
+    state: "setup_required",
+    reason: "provider_surface_pending",
+    contract: {},
+  }));
+  const runtimeRows = [{
+    loop_id: catalog.loops[0].job_ids[0],
+    job_id: "different-runtime-job",
+    installed_release_sha: releaseSha,
+    event_release_sha: releaseSha,
+    last_terminal_result: "pass",
+  }];
+
+  assert.throws(
+    () => buildProductLoopCompletionManifest({
+      host: "local",
+      release_sha: releaseSha,
+      observations,
+      runtime_rows: runtimeRows,
+    }),
+    /job identity mismatch/u,
+  );
+});
+
 test("continuous non-effect jobs may be running without blocking runtime evidence", () => {
   const catalog = readProductLoopCatalog();
   const releaseSha = "e".repeat(40);
