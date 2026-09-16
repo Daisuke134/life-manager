@@ -639,6 +639,23 @@ admission CAS, then replay-zero fault fixtures. The fence receipt may release
 same-owner *capacity* only when this chain is sound; it never proves an
 external effect. This resolves the safety/liveness tension without promoting
 the source-only global `effect_unknown` fence alone.
+**Next implementation contract — exact child-closed proof:** Add one read-only
+shared-runtime lookup, `find_exact_outer_terminal(event_path, loop_id, run_id,
+release_sha)`, exposed through the existing `lm-loop` CLI for the Connector
+recovery owner. It searches the current validated `events.jsonl` and its
+existing gzip archives for the exact outer `phase=report`, `provider=deterministic`,
+`lm-loop://<loop>/<run>/summary.json` event. An inner agent report, missing
+terminal, wrong SHA, malformed matching row or contradictory duplicate returns
+no clearance proof. The outer report is emitted only after `_run_entrypoint`
+has waited/reaped the child; it proves writer closure, **not** provider effect
+or zero attempts. TDD fixtures: current event, archive-only event, inner-pass
+before outer terminal, wrong SHA, ambiguous duplicate and missing event. A
+subsequent Connector fence builder must require this exact proof and the
+validated all-target journal before it can write an active, no-clobber fence.
+For a zero-intent occurrence, outer terminal alone is insufficient: reconcile
+the same wake's action and Telegram claim/delivery evidence; if mapping is
+missing, keep the occurrence fenced and alert. No host CAS or resubmit occurs
+in the terminal-lookup slice.
 Old loaded Connector `cf655388` then naturally ran at 20:48:54 UTC (outer
 `18d5e83356635230-73022`) and terminated `FAIL/wake_deadline` at 20:59:00;
 its wake report is `circuit_open/wake_deadline`. No applied bundle timestamp
