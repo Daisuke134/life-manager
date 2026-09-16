@@ -23,7 +23,7 @@ from runtime.loop.lm_loop_apply import (
     apply_registry,
     install_one,
 )
-from runtime.loop.lm_loop_lifecycle import lifecycle, lifecycle_one
+from runtime.loop.lm_loop_lifecycle import enqueue_repair_intent, lifecycle, lifecycle_one
 from runtime.loop.runtime_event import append_runtime_event, build_install_event, validate_runtime_event
 from runtime.host.resource_admission import activate_durable_v2, durable_protocol_version
 
@@ -840,11 +840,11 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
 def main(argv: list[str] | None = None) -> int:
     args = argv or sys.argv[1:]
     commands = {
-        "admission-v2-enable", "apply", "doctor", "reconcile",
+        "admission-v2-enable", "apply", "doctor", "reconcile", "repair-queue",
         "start", "stop", "restart", "status", "watch",
     }
     if not args or args[0] not in commands:
-        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]... [--recovery-intent PATH]|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]... [--recovery-intent PATH]|repair-queue <provider-route> --recovery-intent PATH|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
@@ -897,6 +897,15 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
     registry = validate_registry(json.loads((ROOT / "config/loop-registry.json").read_text()))
+    if command == "repair-queue":
+        if len(args) != 4 or args[2] != "--recovery-intent":
+            print(json.dumps({"ok": False, "error": "repair-queue requires <provider-route> --recovery-intent PATH"}))
+            return 2
+        result = enqueue_repair_intent(
+            Path(args[3]).expanduser(), registry, args[1],
+        )
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return 0 if result.get("ok") else 1
     if command == "reconcile":
         positionals, loop_ids, loaded_idle_only, include_running = [], [], False, False
         recovery_intent = None

@@ -18,6 +18,7 @@ from unittest.mock import patch
 import runtime.loop.lm_loop as lm_loop
 from runtime.loop.lm_loop import apply_live
 from runtime.loop.lm_loop_apply import apply_registry, build_apply_plan, install_one
+from runtime.loop.lm_loop_lifecycle import enqueue_repair_intent
 
 
 SHA = "a" * 40
@@ -121,6 +122,104 @@ def test_reconcile_recovery_intent_targets_only_the_named_owner(tmp_path):
     assert targeted.call_args.args[1] == {"example"}
     assert applied == ["example"]
     assert json.loads(output.getvalue())["eligible"] == 1
+
+
+def _repair_recovery(*decisions):
+    return {
+        "schema_version": "recovery.intents.v1",
+        "decisions": list(decisions),
+        "pending_count": len(decisions),
+    }
+
+
+def _escalated_repair(owner="example", job="example", slot="example", key="w1"):
+    return {
+        "schema_version": "recovery.decision.v1",
+        "event_key": f"{owner}:{slot}:{key}:escalate_repair:2",
+        "action": "escalate_repair",
+        "owner_id": owner,
+        "job_id": job,
+        "slot": slot,
+        "reason": "retry_budget_exhausted",
+        "retry_attempt": 2,
+        "preserve_siblings": True,
+    }
+
+
+def test_escalated_recovery_is_recorded_once_in_a_typed_repair_queue(tmp_path):
+    recovery = tmp_path / "harness-recovery.json"
+    queue = tmp_path / "repair-queue.jsonl"
+    recovery.write_text(json.dumps(_repair_recovery(_escalated_repair())))
+
+    first = enqueue_repair_intent(
+        recovery, two_loop_registry(), "deterministic", queue_path=queue,
+        recorded_at="2026-09-16T05:00:00+00:00",
+    )
+    second = enqueue_repair_intent(
+        recovery, two_loop_registry(), "deterministic", queue_path=queue,
+        recorded_at="2026-09-16T05:01:00+00:00",
+    )
+
+    assert first == {
+        "ok": True, "queued": True, "queue_path": str(queue),
+        "event_key": "example:example:w1:escalate_repair:2",
+    }
+    assert second == {
+        "ok": True, "queued": False, "queue_path": str(queue),
+        "event_key": "example:example:w1:escalate_repair:2",
+        "reason": "already_queued",
+    }
+    rows = [json.loads(line) for line in queue.read_text().splitlines()]
+    assert rows == [{
+        "event_key": "example:example:w1:escalate_repair:2",
+        "job_id": "example",
+        "owner_id": "example",
+        "reason": "retry_budget_exhausted",
+        "recorded_at": "2026-09-16T05:00:00+00:00",
+        "retry_attempt": 2,
+        "route": "deterministic",
+        "slot": "example",
+        "state": "queued",
+        "schema_version": "repair.queue.v1",
+    }]
+
+
+def test_repair_queue_rejects_multiple_or_mismatched_escalations(tmp_path):
+    recovery = tmp_path / "harness-recovery.json"
+    queue = tmp_path / "repair-queue.jsonl"
+    registry_value = two_loop_registry()
+    recovery.write_text(json.dumps(_repair_recovery(
+        _escalated_repair(), _escalated_repair(owner="second", job="second", slot="second", key="w2")),
+    ))
+    assert enqueue_repair_intent(
+        recovery, registry_value, "deterministic", queue_path=queue,
+    ) == {"ok": False, "error": "recovery_repair_intent_count_invalid"}
+
+    recovery.write_text(json.dumps(_repair_recovery(
+        _escalated_repair(owner="example", job="second"),
+    )))
+    assert enqueue_repair_intent(
+        recovery, registry_value, "deterministic", queue_path=queue,
+    ) == {"ok": False, "error": "recovery_repair_intent_owner_mismatch"}
+
+
+def test_repair_queue_cli_records_one_escalated_owner_without_restarting(tmp_path):
+    release = tmp_path / "release"
+    (release / "config").mkdir(parents=True)
+    (release / "RELEASE.json").write_text(json.dumps({"sha": SHA}))
+    (release / "config/loop-registry.json").write_text(json.dumps(registry()))
+    recovery = tmp_path / "harness-recovery.json"
+    queue = tmp_path / "repair-queue.jsonl"
+    recovery.write_text(json.dumps(_repair_recovery(_escalated_repair())))
+    with patch.object(lm_loop, "ROOT", release), \
+         patch.dict(os.environ, {"LIFE_MANAGER_REPAIR_QUEUE_PATH": str(queue)}), \
+         redirect_stdout(io.StringIO()) as output:
+        assert lm_loop.main([
+            "repair-queue", "deterministic", "--recovery-intent", str(recovery),
+        ]) == 0
+    result = json.loads(output.getvalue())
+    assert result["ok"] is True and result["queued"] is True
+    assert len(queue.read_text().splitlines()) == 1
 
 
 def money_printer_registry(

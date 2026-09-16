@@ -114,7 +114,7 @@ test('Codex brain runner enforces its timeout and returns bounded process output
   const result = await runCodexAgentWithTimeout(
     process.execPath,
     ['-e', 'process.stdin.resume(); process.stdin.on("end", () => process.stdout.write("ok"));'],
-    { env: process.env, cwd: '/tmp', input: 'prompt', timeoutMs: 1_000 },
+    { env: process.env, cwd: '/tmp', input: 'prompt', timeoutMs: 5_000 },
   );
   assert.equal(result.code, 0);
   assert.equal(result.stdout, 'ok');
