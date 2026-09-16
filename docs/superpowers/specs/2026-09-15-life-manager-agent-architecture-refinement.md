@@ -143,8 +143,8 @@ mock/fixture・PID・exit 0・Telegramは証拠にしません。
 | R1-14 | `cfo`のmanifest行を観測 | 3 jobのruntime status、release、typed effect/readback状態、理由を記録 | verified financial snapshot/payout receipt、replay-zero |
 
 **観測cursor（2026-09-16）:** `R1-01` Coconala、`R1-02` Lancers、`R1-03` CrowdWorks、
-`R1-04` Writer、`R1-05` Affiliateの観測行は、receiptの有無にかかわらずGit外private artifactへ
-記録済みです。次の観測atomicは`R1-06 Investment`です。
+`R1-04` Writer、`R1-05` Affiliate、`R1-06` Investmentの観測行は、receiptの有無にかかわらず
+Git外private artifactへ記録済みです。次の観測atomicは`R1-07 Agent Economy`です。
 `verified`昇格は別判定であり、release結合済みreceiptが無い行は`unknown`のまま保持します。
 
 #### R2〜R6: R1の後に一件ずつ実行するgate
@@ -255,6 +255,10 @@ publisher/paymentの公式receiptは確認できなかった。`state=blocked / 
 Affiliateの同日観測では、自サイト公開記事の公式URLとPartnerStackリンクの`VERIFIED`記録をreceipt参照として
 確認した。しかし6 jobのruntime releaseがcurrent releaseと一致せず、replay-zeroも未確認だったため、
 `official_receipt=true / state=blocked / reason=runtime_release_drift / replay_zero=false`として記録した。
+
+Investmentの同日観測では、mode=`live`、live-canary/closeの検査receiptとrepeatability passは確認したが、
+order/balanceの公式receiptは無かった。runtimeは`resource_capacity_busy`で、`state=blocked /
+reason=resource_capacity_busy / official_receipt=false / replay_zero=false`として記録した。
 
 #### CLIのOSS化方針
 
