@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 import runtime.loop.lm_loop as lm_loop
 from runtime.loop.lm_loop import apply_live
-from runtime.loop.lm_loop_apply import apply_registry, build_apply_plan, install_one
+from runtime.loop.lm_loop_apply import _plist, apply_registry, build_apply_plan, install_one
 from runtime.loop.lm_loop_lifecycle import enqueue_repair_intent
 
 
@@ -74,6 +74,38 @@ def test_recovery_intent_selects_one_canonical_owner_without_siblings(tmp_path):
 
     assert targets == set()
     assert reason == "recovery_intent_count_invalid"
+
+
+def test_shared_marketing_plists_pin_absolute_runtimes_and_private_env():
+    base = {
+        "label": "ai.anicca.example",
+        "domain": "growth",
+        "cadence": {"start_interval_seconds": 1800},
+        "effect_class": "publish",
+        "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic",
+    }
+    for loop_id, entrypoint in (
+        ("life-manager-mobile", "apps/life-manager/scripts/mobile-app"),
+        ("life-manager-instagram-metrics", "apps/life-manager/scripts/instagram-metrics-production-boot.sh"),
+        ("life-manager-tiktok-metrics", "apps/life-manager/scripts/tiktok-metrics-production-boot.sh"),
+        ("life-manager-connector-native", "skills/connector/run.sh"),
+    ):
+        entry = {**base, "label": f"ai.anicca.{loop_id}", "entrypoint": entrypoint}
+        environment = plistlib.loads(
+            _plist(loop_id, entry, Path("/tmp/release"), SHA, Path(sys.executable))
+        )["EnvironmentVariables"]
+        for key in ("LIFE_MANAGER_NODE", "NODE_BIN", "LIFE_MANAGER_PYTHON", "PYTHON_BIN"):
+            assert Path(environment[key]).is_absolute(), key
+            assert Path(environment[key]).is_file(), key
+        if "metrics" in loop_id or loop_id == "life-manager-mobile":
+            assert environment["LIFE_MANAGER_ENV_FILE"] == str(
+                Path.home() / ".local/state/life-manager/private/marketing.env"
+            )
+            if loop_id == "life-manager-mobile":
+                assert environment["LIFE_MANAGER_MARKETING_ENV_FILE"] == environment["LIFE_MANAGER_ENV_FILE"]
 
 
 def test_reconcile_recovery_intent_targets_only_the_named_owner(tmp_path):
