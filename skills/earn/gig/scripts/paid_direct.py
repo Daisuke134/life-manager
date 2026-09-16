@@ -168,7 +168,7 @@ def _run_private_model_serialized(root: Path, command: list[str], label: str, st
             fcntl.flock(effect_descriptor, fcntl.LOCK_UN)
             os.close(effect_descriptor)
 PAID_DECISION_SCHEMA_VERSION = 4
-PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v23"
+PAID_DECISION_PROMPT_VERSION = "paid-semantic-decision-v24"
 PAID_DECISION_MODEL = "gpt-5.6-terra"
 PAID_FILE_MODEL = "gpt-5.6-terra"
 PAID_OWNER_TASK_CLASS = "paid-owner-agent"
@@ -1184,6 +1184,28 @@ def _latest_official_buyer_identity(root: Path, talkroom_id: str) -> dict[str, s
     raise Failure("paid_work_decision")
 
 
+def _bind_current_buyer_burst_contract(root: Path, talkroom_id: str,
+                                       value: dict[str, Any]) -> dict[str, Any]:
+    """Keep every consecutive buyer message after the last seller reply in scope."""
+    if value.get("decision") != "actionable":
+        return value
+    rows = _official_message_rows(root, talkroom_id)
+    burst: list[tuple[str, str]] = []
+    for row in reversed(rows):
+        if row.get("side") != "buyer":
+            break
+        identity = _official_identity(row, talkroom_id)
+        burst.append((identity["message_id"], _text(row.get("text"))))
+    burst.reverse()
+    if not burst:
+        return value
+    binding = "\n".join(f"[{message_id}] {text}" for message_id, text in burst)
+    suffix = f"\n\nCurrent unresolved buyer burst (all items are required):\n{binding}"
+    value["required_output"] = _text(value.get("required_output")) + suffix
+    value["required_effect"] = _text(value.get("required_effect")) + suffix
+    return value
+
+
 def _validate_paid_decision(value: dict[str, Any], feedback: str, requirements: str,
                             identity: dict[str, str],
                             buyer_identity: dict[str, str] | None = None) -> dict[str, Any]:
@@ -2117,6 +2139,7 @@ def _paid_decision(args, item_path: Path, root: Path, base: Path) -> dict[str, A
             # already-known contract before generic validation so model wording cannot turn
             # unfinished remote repair into premature marketplace formal delivery.
             value = _bind_pending_review_contract(value, pending_review, pending_review_mode)
+        value = _bind_current_buyer_burst_contract(root, talkroom_id, value)
         value = _validate_paid_decision(value, feedback, requirements, identity, buyer_identity)
         if pending_review_mode and (
                 value.get("decision") != "actionable"
