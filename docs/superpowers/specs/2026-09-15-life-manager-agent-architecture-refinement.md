@@ -235,6 +235,14 @@ Instagram/TikTok Metricsを`deterministic` / `borrow` / `support`へ明示した
 同期し、registryとrunnerの既存テストを含む **253 tests / 164 subtests PASS**。これはcandidateの
 分類契約であり、launchd plist、自然wake、Postiz receipt、production release反映はまだ未完である。
 
+**R2-02 occurrence durability atomic (candidate `43382934ad`):** durable admissionへprivateな
+`occurrences` ledgerを追加し、明示`occurrence_id`をowner busy時にも`queued`として保存するようにした。
+claim時は最古のqueued occurrenceを同じowner claimへ結び付け、release時に`released`へ遷移し、
+同じownerに残る次のoccurrenceは既存queue/dispatch経路で続けて処理する。stale claim回収時は
+occurrenceを再びqueuedへ戻す。既存owner単位APIとSQLite protocol v2は互換のまま。occurrence回帰を
+含むadmission・registry・loop-run・apply focused suiteは **255 tests / 164 subtests PASS**。
+runnerでwakeごとのoccurrence_idを生成する自然経路と本番証拠はまだ未完である。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
