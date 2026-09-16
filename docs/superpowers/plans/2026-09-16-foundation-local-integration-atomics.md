@@ -415,6 +415,14 @@ running about 11 minutes; its loaded registry timeout is 10,800 seconds and
 its pass combines model-driven discovery with source capture. Deterministic
 borrow queue count reached 27. The next capacity investigation is bounded
 service time/isolation of this existing owner, not a blind 5→10/20 cap jump.
+An independent latest-main-derived Affiliate branch now contains pushed
+`48c7ae0f2d`: one plan per wake, durable resume in existing
+`source-refresh.json`, 30-minute failed-discovery retry, and legacy PARTIAL
+migration. Per-plan `composition-inbox` remains the downstream feed. Ten
+source-capture tests pass; the wider Affiliate suite has identical pre-existing
+2 failures/6 errors on edited and unchanged worktrees. Review and Local
+candidate integration remain open. The old owner was still running at 30
+minutes, so source changes alone do not free the live borrow slot.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.

@@ -741,6 +741,17 @@ one borrow slot is held. This is service-time/class isolation evidence, not
 permission to raise the host cap. Next measure that wake's exact child/terminal
 and separate or bound the long model stage using existing scheduler/cursor
 contracts before increasing concurrency; preserve paid-first capacity.
+The bounded Affiliate source-refresh fix is pushed on a latest-main-derived
+dedicated branch at `48c7ae0f2d`. Existing per-plan composition receipts stay;
+each wake attempts one plan and writes an `IN_PROGRESS` cursor, resumes next
+wake, then finishes `COMPLETE` or `PARTIAL`. Failed official discovery has a
+30-minute retry receipt instead of hammering every 10 minutes or waiting a
+full day. Source-capture tests 10/10 and syntax/diff checks pass. The wider
+Affiliate suite has the same 2 failures/6 errors on both edited and unchanged
+baseline worktrees (agent-routing/repost tests); do not call it all-green.
+Fresh review and candidate integration are pending. The old Affiliate child
+was still running after 30 minutes; source code alone has not freed the live
+borrow slot.
 
 **Order correction from live evidence:** Old engineering cursor was fresh Apply/retainer effect before
 shared-capacity repair. At 2026-09-16 13:14 UTC, Apply and Storefront logs contain `ENOSPC`, Paid/Apply/
