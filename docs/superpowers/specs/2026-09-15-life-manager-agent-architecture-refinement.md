@@ -44,6 +44,16 @@ effectなし`cook` slotまでの到達をGit外private artifact
 したがって、Codex routeのコードはcandidate完了、production activationと同一SHAの自然wakeは
 R2/R3/R6の受入で未完のままとする。`x402-claude-p`のlegacy labelも観測対象から除外しない。
 
+Agent Economyの実ログには、`skills/earn/taskmarket/taskmarket-work.mjs`がrelease内の
+`node_modules/.bin/taskmarket`だけを参照し、managed installationが存在するhostでも
+`ENOENT`になっていた。candidate `1fbfe93b41`ではrepository-local CLIを優先し、無い場合に
+既存のmanaged CLIを実行可能性検査付きで解決する。実production stateを使ったread-only
+`ANICCA_ARGS={"action":"poll"}`は`ok=true / openTasks=1 / ownedSubmissions=0 /
+supportedUnsubmitted=[]`で完了し、証拠を
+`/Users/anicca/.local/state/life-manager/completion/agent-economy-taskmarket-poll-20260916T045100Z.json`
+へ保存した。これはCLI到達の修正であり、購入・画像生成・提出receiptではない。古い
+agent-economy processはまだ旧releaseなので、次のimmutable releaseで自然wakeを確認する。
+
 完了済みの共通基盤:
 
 - Product Loop/job identity、runtime state/event、context capsule（FND-02〜FND-10）
