@@ -659,17 +659,21 @@ official readback. Source-only `618fb4f6b7` now leaves those occurrences
 `effect_unknown=1`; focused admission/runner 130/130 PASS. **Do not promote
 this fence alone:** no API or autonomous official-readback route currently
 clears it, so liveness would be lost after a timeout. Exact next slices:
-1. Propagate the host `occurrence_id` into the Connector child; persist a
-   write-ahead set of `(occurrence_id, provider, event_ref, canonical_url)`
-   before each possible provider/Calendar effect. One wake can attempt more
-   than one candidate. The existing after-result reconciliation store is not
-   sufficient for a kill during submit.
-2. Add a same-owner, readback-only recovery path for each attempted target,
+1. **Source-only DONE:** `7fb027f0f1` propagates host occurrence ID into
+   Connector. `817237f334` uses the existing fsync append path to persist a
+   write-ahead *set* for every attempted candidate, including provider/event,
+   canonical URL, a whitelist-only public readback snapshot and effect kind/
+   actual effect URL. Talk and a later normal registration get separate
+   intents; private talk text is not persisted. The after-result store alone
+   cannot cover kill during submit. Focused host/runner131 and Connector780
+   tests PASS; fresh read-only review SHIP for this source slice. No provider
+   readback or live release is proven by those tests.
+2. **OPEN:** Add a same-owner, readback-only recovery path for each attempted target,
    using existing provider adapters and official Calendar/provider state.
    No submit is permitted while the occurrence is fenced. Clear that exact
    occurrence only after every attempted target has a terminal official
    receipt; missing/mismatched intent stays fenced with an alert.
-3. Test kill before intent, kill after durable intent but before effect, kill
+3. **OPEN:** Test kill before intent, kill after durable intent but before effect, kill
    during effect, mixed registered/absent targets, malformed/missing mapping,
    and replay-zero. Then merge latest main `ba9246eeaf` into the candidate,
    re-run full Local/Eval gates, and only then propose shared-v2 main promotion.

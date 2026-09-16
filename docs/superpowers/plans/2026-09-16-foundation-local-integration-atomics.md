@@ -613,6 +613,14 @@ same-owner recovery for all intents, and clear the exact fence only after
 official provider/Calendar terminal receipts. Tests must cover 124/143,
 kill-before/after-intent, mixed registered/absent, missing mapping and
 replay-zero. Merge latest main into candidate before any release cut.
+The first two write-ahead prerequisites are source-only complete: host
+occurrence propagation `7fb027f0f1` and fsync-backed, multi-target Connector
+intent journal `817237f334`. Records include only public readback candidate
+fields and exact effect URL/kind; Talk and subsequent registration have
+separate intents. Host/runner131, Connector780 and OSS tests PASS; fresh
+read-only review SHIP for this slice. The official readback-only resolver,
+exact occurrence clearance, kill/replay tests and latest-main merge remain
+open; neither source commit is production-promotable alone.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.
