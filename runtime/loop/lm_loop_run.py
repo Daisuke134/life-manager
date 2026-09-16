@@ -423,7 +423,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 enqueue_kwargs["priority"] = queue_priority
             if occurrence_id is not None:
                 enqueue_kwargs["occurrence_id"] = occurrence_id
-            if entry.get("coalesce_reserved_wakes") is True:
+            if entry.get("coalesce_queued_wakes") is True:
                 enqueue_kwargs["coalesce_reserved"] = True
             ticket, admission_reason = (
                 enqueue_durable_resource(
