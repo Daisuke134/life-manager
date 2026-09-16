@@ -97,6 +97,27 @@ does not transfer ownership of their browser/account state.
 
 **1. Shared admission and release — root cause before provider changes**
 
+- [x] Source-only priority migration slice: branch
+  `fix/admission-priority-upgrade-20260917`, commit `c7ce1e9fc6`, makes an
+  existing queued owner's `base_priority` monotonically upgrade on normal,
+  same-owner-running and coalesced wakes without resetting `queued_at`;
+  mixed-release resource/admission class disagreement fails closed. New tests
+  were RED before the change, then admission 84/84 and runner 55/55 PASS;
+  independent read-only review SHIP for this narrow diff. It is pushed, **not
+  merged or loaded**. It does not fix the separate case where `claim_durable`
+  selects an older queued occurrence but the runner passes the current wake's
+  occurrence ID to the effect child. That identity binding is the next safety
+  atomic before any provider-effect promotion.
+- [ ] `borrow` is **not deleted**: current `resource_admission.py` SQLite
+  schema/capacity calculations and `lm_loop_run.py` default still use
+  `admission_class=borrow` for maintenance. It is an old reserved-capacity
+  compatibility class, not a financial loan. Retire the name/policy only as
+  a separate migration after the occurrence-ID fix: map maintenance to
+  explicit `support` priority/resource limits, preserve the revenue safety
+  floor during mixed releases, test old/new queue rows and no-starvation,
+  then remove legacy schema/runner references after exact loaded-SHA rollout.
+  Deleting the string now would strand live old-release rows; do not report
+  this cleanup as already done.
 - [ ] In `runtime/host/resource_admission.py` and
   `runtime/host/tests/test_resource_admission.py`, reproduce five active finite
   owners plus queued Connector and Paid/Apply occurrences. Assert exact
