@@ -13,15 +13,18 @@ runtime/provider readback before acting; conversation claims are not completion 
   `Daisuke134/life-manager`. The folder name on this Mac is **`life-manager-main`**. No separate project or
   repository named `life-manager/` was created.
 - Current task worktree: `/private/tmp/lm-runtime-admission-reservations-20260914`, branch
-  `docs/coconala-24x7-current-20260916`, lease
+  `docs/coconala-apply-current-20260916`, lease
   `ac1f02d45387233d8866ce7dbd62c01a5b1a28987c9e2614a873535c1d766f69`. This is a linked Git worktree of
   the same `life-manager-main` repository, not another project. The main checkout is currently on the unrelated
   Capify branch `capafy/account-plan-deck-offline-20260912`, so it remains read-only for this workstream.
-- Canonical runtime source is `origin/main` at `913aaa9cc9ac1e40b54eb0f0899c69fc17b52c2f`. The current
-  immutable release is `/Users/anicca/loops/releases/20260916T112359-913aaa9c`. PR `#5258` adds the
+- Canonical runtime source is `origin/main` at `6e1dcc42fd0159890b1d6f1a7e2405c5ab7370d7`. The current
+  immutable release is `/Users/anicca/loops/releases/20260916T133109-6e1dcc42`. PR `#5276` makes each
+  Apply refresh collect both `single:new` and `retainer:new`; PR `#5274` fills mandatory retainer screening
+  answers through the existing shared application lifecycle; PR `#5275` moves the repeated full-history scan
+  out of the foreground wake. PR `#5258` adds the
   official seller-last attachment wait reducer; PRs `#5252` and `#5254`
   add the revenue floor, legacy-reservation migration fence and Paid Account 1→2 Codex route; `#5250`
-  browser/child-cleanup remains an ancestor. Apply is exact-loaded from `913aaa9c`, Reply and Storefront retain
+  browser/child-cleanup remains an ancestor. Apply is exact-loaded from `6e1dcc42`, Reply and Storefront retain
   `0aba1191`, and Paid retains `172d3f2e`. A natural Reply wake passed and a bounded Paid decision
   selected `codex/acct1/gpt-5.6-terra`.
   Do not create another runtime worktree or use the Capify checkout as source.
@@ -46,12 +49,12 @@ runtime/provider readback before acting; conversation claims are not completion 
   superseded historical state, not another client-work project.
 - Paid now tries the existing Account 1 Codex profile first and falls back to Account 2 through the shared
   runner; the first bounded Account 1 receipt is proved. Preserve both accounts and all unrelated sessions.
-- First safe action: repair the retainer provider identity/URL projection exposed by the completed natural wake.
-  PR `#5271`, main/release `913aaa9c`, fixed null retainer terms by binding the official listing values before
-  the strict effect fence. The wake reached the retainer form with `WEEK_ONE / 1 / 10` and `actionable=1`, but
-  ended `effect=0`, `readback=0`, `failed=1`: the gate reported `request_bucket_identity_mismatch`,
-  `request_url_invalid` and retainer/application count mismatch for the ULID request. No official application
-  receipt exists, so the intent remains uncertain and must be reconciled before any retry.
+- First safe action: complete replay-zero for the current Apply release, then move to the shared
+  admission/cadence and owner-scoped browser teardown item below. A natural `6e1dcc42` wake observed both
+  `single:new` and `retainer:new` in one snapshot, found the current retainer page empty, and completed six
+  eligible one-off applications with six official applied-list readbacks, zero failures and zero pending.
+  The prior ULID retainer attempt remains duplicate-fenced; retry it only if a fresh official listing makes it
+  active and the old no-click evidence reconciles safely.
   The durable full-history cursor is page 29 after 28 pages, 527 cards and 14 hash-bound chunks, with all 54
   uncertain intents unchanged. Paid's current four-client set is closed by a natural
   `172d3f2e` replay-zero pass. Admission protocol `2` is live and one four-lane overlap is proved, but the
@@ -72,7 +75,7 @@ that the provider currently has an authenticated account, a verified external ef
 
 | Platform | As-Is now | To-Be finish condition |
 |---|---|---|
-| Coconala | Paid is exact-loaded from `172d3f2e`; Apply is exact-loaded from `913aaa9c`; Reply and Storefront retain `0aba1191`. Paid naturally replayed all four open clients with effect zero/readback four. Reply's latest natural pass observed 179 threads with 164 official readbacks and 15 pending. Apply reached a real retainer form with official `WEEK_ONE / 1 / 10` terms and `actionable=1`, then failed before verified effect because the provider projection treated the ULID retainer as the wrong bucket/URL. The fleet still has a static five-finite-run default and only two durable revenue-priority owners, so 24/7 no-starvation is not proved. | Every active client has its own durable work item, newest-buyer coverage, provider effect/readback, replay-zero and payout attribution; every lane meets its cadence without a fixed global-slot bottleneck, and one client's failure never pauses another lane. |
+| Coconala | Paid is exact-loaded from `172d3f2e`; Apply is exact-loaded from `6e1dcc42`; Reply and Storefront retain `0aba1191`. Paid naturally replayed all four open clients with effect zero/readback four. Reply's latest natural pass observed 179 threads with 164 official readbacks and 15 pending. Apply's latest natural pass observed both one-off and continuous sources, applied to six eligible one-off jobs and officially read back all six with zero failures; the current continuous page had zero active cards. The fleet still has a static five-finite-run default and only two durable revenue-priority owners, so 24/7 no-starvation is not proved. | Every active client has its own durable work item, newest-buyer coverage, provider effect/readback, replay-zero and payout attribution; every lane meets its cadence without a fixed global-slot bottleneck, and one client's failure never pauses another lane. |
 | Lancers | Application, browser, negotiation, paid, storefront, work-sync and report owners are registered. Production fixes exist in main, but durable login and the full Apply→Paid→payout proof are not closed. | One persistent account/browser owner runs the complete lifecycle with official proposal, work, payment and payout receipts. |
 | CrowdWorks | Application, Reply, Paid and Report owners are registered. Existing contracts still need fulfillment from buyer instruction/link through actual submission and readback. | Each accepted contract becomes an independent fulfillment item and reaches artifact submission, official receipt, payout and replay-zero; Storefront is explicitly `not_applicable` unless the provider exposes it. |
 | Mercor | Application, Reply and Paid owners are registered, but repeated-login/authentication and full contract proof remain open. | Persistent authenticated account state, application, reply/interview handoff, contract, paid work and payout are independently evidenced. |
@@ -574,12 +577,13 @@ independent production effects.
 
 **Done:** Ryu, both Kokoro rooms and Chii are seller-last with official Coconala readback and replay fences;
 Atsugi is settlement-only. Paid naturally read back all four open rooms with no duplicate effect. Reply has a
-natural terminal pass. The one-off and retainer discovery surfaces are authenticated. The retainer null-term
-failure is merged, released and loaded, and the current natural wake reached a real retainer form.
+natural terminal pass. Apply release `6e1dcc42` naturally observed both one-off and continuous sources in one
+wake and completed six one-off applications with six official readbacks, zero failures and zero pending.
 
-**Not done:** the retainer application failed before verified effect because its ULID identity was projected to
-the wrong bucket/URL, and has no official submit/readback; 54 historical uncertain
-applications still need final-page reconciliation; Reply has 15 pending threads; Storefront demand, payout
+**Not done:** the prior ULID retainer attempt has no official submit/readback and remains duplicate-fenced; the
+current continuous page has no active listing with which to prove a fresh screening-answer effect. Apply still
+needs replay-zero for the six new official effects. Fifty-four historical uncertain applications remain a
+preemptible background reconciliation; Reply has 15 pending threads; Storefront demand, payout
 attribution, 24-hour cadence, no-starvation, zombie-free browser teardown and every later platform remain open.
 
 **24/7 acceptance:** every registered loop remains scheduled, but that alone is not success. Each applicable
@@ -590,7 +594,8 @@ Storefront must all be revenue-priority owners. Maintenance may borrow unused ca
 of five finite runs is not accepted as the final architecture; production must use measured resource-class
 capacity and prove 24 hours without a missed revenue cadence or fleet starvation.
 
-**Next order:** (1) fix and read back current one-off/retainer applications, (2) repair shared admission/cadence
+**Next order:** (1) prove replay-zero for the six new one-off effects and keep one-off/retainer refresh live,
+(2) repair shared admission/cadence
 and owner-scoped tab teardown, (3) resolve Reply 15 and Coconala payout, (4) reconcile the 54 historical
 uncertain intents as preemptible background work without blocking current revenue, (5) prove all four Coconala
 lanes for 24 hours, then (6) CrowdWorks paid contracts, Lancers, Mercor,
@@ -949,7 +954,10 @@ work item and leave a sibling trace unchanged.
   official history page proves it absent. Never delete the records blindly or let them delay current revenue.
 - [x] Restore authenticated discovery for both `single:new` and `retainer:new`. Release `30a2a2df` observed the
   current single page and the official retainer page; the latter contained one active listing.
-- [ ] Submit every eligible high-fit one-off and continuous application; verify each officially; replay zero.
+- [ ] Keep submitting every eligible high-fit one-off and continuous application. The first natural
+  `6e1dcc42` wake completed six one-off effects and six official readbacks with zero failures; prove replay-zero
+  on the next wake. The continuous source was observed in the same wake but had zero active cards, so its next
+  eligible listing must exercise the screening-answer submit/readback path.
 - [ ] Create Calendar events and five-minute Telegram reminders for every accepted meeting.
 - [ ] Keep Reply processing every talkroom independently with cumulative context and attachment recovery. Its
   latest pass observed 179 threads, read back 164, and left 15 pending; resolve each pending thread without
