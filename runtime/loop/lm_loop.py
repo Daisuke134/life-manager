@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, redirect_stdout
 import fcntl
 import json
 import os
@@ -23,7 +23,16 @@ from runtime.loop.lm_loop_apply import (
     apply_registry,
     install_one,
 )
-from runtime.loop.lm_loop_lifecycle import enqueue_repair_intent, lifecycle, lifecycle_one
+from runtime.loop.lm_loop_lifecycle import (
+    _repair_queue_path,
+    build_recovery_projection,
+    claim_repair_intent,
+    enqueue_repair_intent,
+    finish_repair_intent,
+    lifecycle,
+    lifecycle_one,
+    release_repair_intent,
+)
 from runtime.loop.runtime_event import append_runtime_event, build_install_event, validate_runtime_event
 from runtime.host.resource_admission import activate_durable_v2, durable_protocol_version
 
@@ -392,6 +401,121 @@ def recovery_target_loop_ids(registry: dict, route: str,
     if entry.get("provider_route") != route:
         return set(), "recovery_intent_route_mismatch"
     return {job_id}, None
+
+
+def _write_recovery_projection(queue_path: Path, row: dict) -> Path:
+    """Write one secret-free retry projection beside the private repair queue."""
+    queue_path = Path(queue_path).expanduser()
+    descriptor, temporary = tempfile.mkstemp(
+        prefix=f".{queue_path.name}.", suffix=".recovery", dir=queue_path.parent,
+    )
+    try:
+        os.fchmod(descriptor, 0o600)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            json.dump(build_recovery_projection(row), handle, sort_keys=True,
+                      separators=(",", ":"))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary, 0o600)
+        return Path(temporary)
+    except BaseException:
+        try:
+            os.close(descriptor)
+        except OSError:
+            pass
+        Path(temporary).unlink(missing_ok=True)
+        raise
+
+
+def _invoke_existing_reconcile(route: str, projection: Path) -> dict:
+    """Call the existing reconcile command in-process and return its JSON result."""
+    output = tempfile.TemporaryFile(mode="w+")
+    try:
+        with redirect_stdout(output):
+            return_code = main([
+                "reconcile", route, "--loaded-idle-only",
+                "--recovery-intent", str(projection),
+            ])
+        output.seek(0)
+        raw = output.read().strip()
+    finally:
+        output.close()
+    try:
+        value = json.loads(raw)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return {"ok": False, "reason": "reconcile_output_invalid",
+                "return_code": return_code}
+    if not isinstance(value, dict):
+        return {"ok": False, "reason": "reconcile_output_invalid",
+                "return_code": return_code}
+    if return_code != 0:
+        value = {**value, "ok": False, "return_code": return_code}
+    return value
+
+
+def _reconcile_applied_target(registry: dict, row: dict, result: dict) -> bool:
+    """Require the existing reconcile result to name the claimed owner explicitly."""
+    if result.get("ok") is not True or result.get("eligible") != 1:
+        return False
+    if result.get("failed") != []:
+        return False
+    applied = result.get("applied")
+    if not isinstance(applied, list):
+        return False
+    entry = registry.get("loops", {}).get(row.get("job_id"))
+    if not isinstance(entry, dict):
+        return False
+    label = entry.get("label")
+    return any(
+        isinstance(item, dict)
+        and (item.get("loop_id") == row.get("job_id") or item.get("label") == label)
+        for item in applied
+    )
+
+
+def dispatch_one_repair(registry: dict, route: str, queue_path: Path | None = None, *,
+                        reconcile=None, now: float | None = None) -> dict:
+    """Consume one durable repair row through the existing single-owner reconcile path."""
+    queue = _repair_queue_path(queue_path)
+    claimed = claim_repair_intent(queue, route, now=now)
+    if not claimed.get("ok"):
+        reason = claimed.get("reason", "repair_claim_failed")
+        if reason in {"repair_not_queued", "repair_already_claimed"}:
+            return {"ok": True, "state": "idle", "reason": reason}
+        return {"ok": False, "state": "blocked", "reason": reason}
+
+    row = claimed["row"]
+    event_key = row["event_key"]
+    projection = None
+
+    def release_after_failure(reason: str) -> dict:
+        released = release_repair_intent(queue, event_key)
+        if released.get("ok"):
+            return {"ok": False, "state": "queued", "reason": reason,
+                    "event_key": event_key}
+        return {"ok": False, "state": "blocked", "reason": "repair_release_failed",
+                "detail": released.get("reason"), "event_key": event_key}
+
+    try:
+        projection = _write_recovery_projection(
+            queue, row,
+        )
+        result = (reconcile or _invoke_existing_reconcile)(route, projection)
+        if not isinstance(result, dict):
+            return release_after_failure("reconcile_output_invalid")
+        if _reconcile_applied_target(registry, row, result):
+            closed = finish_repair_intent(queue, event_key, "repaired")
+            if closed.get("ok"):
+                return {"ok": True, "state": "repaired", "event_key": event_key}
+            return {"ok": False, "state": "blocked", "reason": "repair_close_failed",
+                    "detail": closed.get("reason"), "event_key": event_key}
+        return release_after_failure("reconcile_failed")
+    except Exception:
+        return release_after_failure("reconcile_exception")
+    finally:
+        if projection is not None:
+            projection.unlink(missing_ok=True)
 
 
 def _bounded_reconcile_candidates(registry: dict, route: str,
@@ -841,10 +965,11 @@ def main(argv: list[str] | None = None) -> int:
     args = argv or sys.argv[1:]
     commands = {
         "admission-v2-enable", "apply", "doctor", "reconcile", "repair-queue",
+        "repair-dispatch",
         "start", "stop", "restart", "status", "watch",
     }
     if not args or args[0] not in commands:
-        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]... [--recovery-intent PATH]|repair-queue <provider-route> --recovery-intent PATH|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]... [--recovery-intent PATH]|repair-queue <provider-route> --recovery-intent PATH|repair-dispatch <provider-route> [--queue PATH]|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
@@ -904,6 +1029,17 @@ def main(argv: list[str] | None = None) -> int:
         result = enqueue_repair_intent(
             Path(args[3]).expanduser(), registry, args[1],
         )
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return 0 if result.get("ok") else 1
+    if command == "repair-dispatch":
+        if len(args) not in {2, 4} or (len(args) == 4 and args[2] != "--queue"):
+            print(json.dumps({
+                "ok": False,
+                "error": "repair-dispatch requires <provider-route> [--queue PATH]",
+            }))
+            return 2
+        queue_path = Path(args[3]).expanduser() if len(args) == 4 else None
+        result = dispatch_one_repair(registry, args[1], queue_path)
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0 if result.get("ok") else 1
     if command == "reconcile":

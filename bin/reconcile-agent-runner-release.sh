@@ -36,6 +36,17 @@ reconcile_release() {
     reconcile deterministic --loaded-idle-only --max-owners 1; then
     status=1
   fi
+  local repair_queue="${LIFE_MANAGER_REPAIR_QUEUE_PATH:-$HOME/.local/state/life-manager/recovery/repair-queue.jsonl}"
+  if [ -f "$repair_queue" ]; then
+    if ! LIFE_MANAGER_RELEASE_ROOT="$release_root" "$release_root/bin/lm-loop" \
+      repair-dispatch shared-agent-runner --queue "$repair_queue"; then
+      status=1
+    fi
+    if ! LIFE_MANAGER_RELEASE_ROOT="$release_root" "$release_root/bin/lm-loop" \
+      repair-dispatch deterministic --queue "$repair_queue"; then
+      status=1
+    fi
+  fi
   local admission_root="${LIFE_MANAGER_RESOURCE_ADMISSION_ROOT:-$HOME/.local/state/life-manager/host-admission/resources}"
   if [ ! -f "$admission_root/protocol.json" ] && \
     ! LIFE_MANAGER_RELEASE_ROOT="$release_root" "$release_root/bin/lm-loop" admission-v2-enable; then

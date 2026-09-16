@@ -16,7 +16,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import runtime.loop.lm_loop as lm_loop
-from runtime.loop.lm_loop import apply_live
+from runtime.loop.lm_loop import apply_live, dispatch_one_repair
 from runtime.loop.lm_loop_apply import _plist, apply_registry, build_apply_plan, install_one
 from runtime.loop.lm_loop_lifecycle import (
     build_recovery_projection,
@@ -319,6 +319,62 @@ def test_repair_queue_claim_can_be_released_as_one_retry_owner(tmp_path):
         queue, claimed["row"]["event_key"]
     ) == {"ok": True, "state": "queued"}
     assert claim_repair_intent(queue, "deterministic", now=101)["ok"] is True
+
+
+def test_dispatch_one_repair_calls_existing_reconcile_and_closes_one_row(tmp_path):
+    recovery = tmp_path / "harness-recovery.json"
+    queue = tmp_path / "repair-queue.jsonl"
+    recovery.write_text(json.dumps(_repair_recovery(_escalated_repair())))
+    registry_value = two_loop_registry()
+    assert enqueue_repair_intent(
+        recovery, registry_value, "deterministic", queue_path=queue,
+        recorded_at="2026-09-16T05:00:00+00:00",
+    )["queued"] is True
+    seen = []
+
+    def reconcile(route, projection):
+        seen.append((route, projection, json.loads(projection.read_text())))
+        return {
+            "ok": True,
+            "eligible": 1,
+            "applied": [{"label": "ai.anicca.example"}],
+            "failed": [],
+        }
+
+    result = dispatch_one_repair(
+        registry_value, "deterministic", queue,
+        reconcile=reconcile, now=100,
+    )
+
+    assert result == {"ok": True, "state": "repaired", "event_key": "example:example:w1:escalate_repair:2"}
+    assert seen[0][0] == "deterministic"
+    assert seen[0][2]["decisions"][0]["action"] == "retry_owner"
+    assert not seen[0][1].exists()
+    assert json.loads(queue.read_text())["state"] == "repaired"
+
+
+def test_dispatch_one_repair_returns_transient_reconcile_to_queue(tmp_path):
+    recovery = tmp_path / "harness-recovery.json"
+    queue = tmp_path / "repair-queue.jsonl"
+    recovery.write_text(json.dumps(_repair_recovery(_escalated_repair())))
+    registry_value = two_loop_registry()
+    assert enqueue_repair_intent(
+        recovery, registry_value, "deterministic", queue_path=queue,
+        recorded_at="2026-09-16T05:00:00+00:00",
+    )["queued"] is True
+
+    result = dispatch_one_repair(
+        registry_value, "deterministic", queue,
+        reconcile=lambda *_args: {"ok": False, "reason": "resource_control_busy"}, now=100,
+    )
+
+    assert result == {
+        "ok": False,
+        "state": "queued",
+        "reason": "reconcile_failed",
+        "event_key": "example:example:w1:escalate_repair:2",
+    }
+    assert json.loads(queue.read_text())["state"] == "queued"
 
 
 def money_printer_registry(
