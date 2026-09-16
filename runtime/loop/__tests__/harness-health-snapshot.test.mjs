@@ -98,3 +98,36 @@ test('R7: re-running overwrites -- output reflects only the latest run, no unbou
 
   fs.rmSync(home, { recursive: true, force: true });
 });
+
+test('R10: snapshot writes a bounded recovery projection from failure intents without copying raw detail', () => {
+  const home = makeTmpHome();
+  const statePath = path.join(home, 'state');
+  fs.mkdirSync(statePath, { recursive: true });
+  const failurePath = path.join(statePath, 'harness-failures.jsonl');
+  const retry = {
+    schema_version: 'recovery.decision.v1', event_key: 'runtime:earn:earn:w1:retry_owner:1',
+    action: 'retry_owner', owner_id: 'runtime:earn', slot: 'earn', reason: 'bounded_retry',
+    retry_attempt: 1, preserve_siblings: true,
+  };
+  const escalated = {
+    schema_version: 'recovery.decision.v1', event_key: 'runtime:earn:earn:w2:escalate_repair:2',
+    action: 'escalate_repair', owner_id: 'runtime:earn', slot: 'earn', reason: 'retry_budget_exhausted',
+    retry_attempt: 2, preserve_siblings: true,
+  };
+  fs.writeFileSync(failurePath, [
+    { recovery: retry, detail: 'do not copy this detail' },
+    { recovery: escalated, detail: 'do not copy this detail either' },
+  ].map((row) => JSON.stringify(row)).join('\n') + '\n');
+
+  const result = runSnapshot({ ANICCA_HOME: home, HARNESS_HEALTH_NOW: '1700000000000' });
+  assert.equal(result.status, 0, `snapshot script must exit 0; stderr: ${result.stderr}`);
+  const recoveryPath = path.join(statePath, 'harness-recovery.json');
+  assert.ok(fs.existsSync(recoveryPath), 'harness-recovery.json must be written');
+  const written = JSON.parse(fs.readFileSync(recoveryPath, 'utf8'));
+  assert.equal(written.schema_version, 'recovery.intents.v1');
+  assert.equal(written.pending_count, 1);
+  assert.equal(written.decisions[0].action, 'escalate_repair');
+  assert.equal(JSON.stringify(written).includes('do not copy'), false);
+
+  fs.rmSync(home, { recursive: true, force: true });
+});

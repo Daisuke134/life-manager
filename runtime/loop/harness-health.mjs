@@ -310,6 +310,65 @@ export function buildRecoveryDecisionFields(input = {}) {
   });
 }
 
+const RECOVERY_ACTIONS = new Set(['retry_owner', 'escalate_repair', 'block']);
+const RECOVERY_REASONS = new Set([
+  'bounded_retry', 'failure_streak_threshold', 'retry_budget_exhausted',
+  'invalid_recovery_input', 'unsupported_failure_kind',
+]);
+const RECOVERY_EVENT_KEY = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,255}$/;
+
+function validRecoveryIntent(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+    || value.schema_version !== 'recovery.decision.v1'
+    || typeof value.event_key !== 'string' || !RECOVERY_EVENT_KEY.test(value.event_key)
+    || !RECOVERY_ACTIONS.has(value.action)
+    || !RECOVERY_REASONS.has(value.reason)
+    || !Number.isSafeInteger(value.retry_attempt) || value.retry_attempt < 0
+    || value.preserve_siblings !== true) return false;
+  const ownerValid = value.owner_id === null
+    || (typeof value.owner_id === 'string' && RECOVERY_ID.test(value.owner_id));
+  const slotValid = value.slot === null
+    || (typeof value.slot === 'string' && RECOVERY_ID.test(value.slot));
+  if (!ownerValid || !slotValid) return false;
+  if (value.action === 'block') return value.owner_id === null && value.slot === null;
+  return value.owner_id !== null && value.slot !== null;
+}
+
+/**
+ * R10 control-room projection — reduce the append-only failure stream to the latest valid intent
+ * for each owner/slot scope.  It deliberately copies only the typed recovery fields: raw failure
+ * detail, prompts, credentials, and provider identifiers never cross into this derived view.
+ * Rebuilding it is idempotent and bounded; it does not execute the requested action.
+ *
+ * @param {object[]} records
+ * @returns {{schema_version:string,decisions:object[],pending_count:number}}
+ */
+export function projectRecoveryIntents(records = []) {
+  const arr = Array.isArray(records) ? records.slice(-1024) : [];
+  const latest = new Map();
+  for (const record of arr) {
+    const intent = record && typeof record === 'object' ? record.recovery : null;
+    if (!validRecoveryIntent(intent)) continue;
+    const scope = `${intent.owner_id || 'none'}\u0000${intent.slot || 'none'}`;
+    latest.set(scope, Object.freeze({
+      schema_version: intent.schema_version,
+      event_key: intent.event_key,
+      action: intent.action,
+      owner_id: intent.owner_id,
+      slot: intent.slot,
+      reason: intent.reason,
+      retry_attempt: intent.retry_attempt,
+      preserve_siblings: true,
+    }));
+  }
+  const decisions = Object.freeze([...latest.values()]);
+  return Object.freeze({
+    schema_version: 'recovery.intents.v1',
+    decisions,
+    pending_count: decisions.length,
+  });
+}
+
 /**
  * R4 — computeHarnessHealth(records, opts): whole-ledger report shape covering every distinct slot
  * value present in the R2 subset (SLOT_HEALTH_KINDS), plus loop-level brain-transport health, each

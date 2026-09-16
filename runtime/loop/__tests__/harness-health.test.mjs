@@ -13,6 +13,7 @@ import {
   computeBrainTransportHealth,
   computeHarnessHealth,
   buildRecoveryDecisionFields,
+  projectRecoveryIntents,
   decideRecoveryAction,
   shouldEscalate,
   DEFAULT_STREAK_THRESHOLD,
@@ -339,6 +340,40 @@ test('R10: untrusted failure labels cannot expand or leak into the recovery even
   assert.equal(decision.action, 'block');
   assert.equal(decision.event_key, 'recovery:block:unknown:router-2');
   assert.ok(decision.event_key.length < 64);
+});
+
+test('R10: recovery intent projection keeps the latest decision per owner and never copies failure detail', () => {
+  const projected = projectRecoveryIntents([
+    {
+      recovery: {
+        schema_version: 'recovery.decision.v1', event_key: 'runtime:earn:earn:w1:retry_owner:1',
+        action: 'retry_owner', owner_id: 'runtime:earn', slot: 'earn', reason: 'bounded_retry',
+        retry_attempt: 1, preserve_siblings: true,
+      },
+      detail: 'secret-like failure detail must not be projected',
+    },
+    {
+      recovery: {
+        schema_version: 'recovery.decision.v1', event_key: 'runtime:other:other:w2:retry_owner:1',
+        action: 'retry_owner', owner_id: 'runtime:other', slot: 'other', reason: 'bounded_retry',
+        retry_attempt: 1, preserve_siblings: true,
+      },
+    },
+    {
+      recovery: {
+        schema_version: 'recovery.decision.v1', event_key: 'runtime:earn:earn:w3:escalate_repair:2',
+        action: 'escalate_repair', owner_id: 'runtime:earn', slot: 'earn', reason: 'retry_budget_exhausted',
+        retry_attempt: 2, preserve_siblings: true,
+      },
+    },
+    { recovery: { schema_version: 'recovery.decision.v1', event_key: 'bad', action: 'made_up' } },
+  ]);
+  assert.equal(projected.schema_version, 'recovery.intents.v1');
+  assert.equal(projected.decisions.length, 2);
+  assert.equal(projected.decisions.find((item) => item.owner_id === 'runtime:earn').action, 'escalate_repair');
+  assert.equal(projected.decisions.find((item) => item.owner_id === 'runtime:other').action, 'retry_owner');
+  assert.equal(projected.decisions.some((item) => JSON.stringify(item).includes('secret-like')), false);
+  assert.equal(projected.pending_count, 2);
 });
 
 // ── R8 cross-language parity anchor (JS side) — shared fixture with harness_health.py ──
