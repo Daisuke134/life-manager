@@ -630,6 +630,14 @@ The gate is the passing **evidence matrix**, not elapsed wall-clock time. Histor
 may inform capacity and incidents but cannot be mandatory waits or substitutes for fault tests and official
 effects. Do not count a mock as production evidence or claim a provider result for a lane with no eligible work.
 
+**Current shared-runtime blocker:** The unmerged foundation candidate still amplifies a queued owner when its
+internal `kickstart` creates a fresh occurrence. A host-only reservation-coalescing attempt was rejected: it
+also erased a genuine natural wake during the same lease. The focused real-SQLite preservation regression is
+pushed as `a4de1b9c2c` (71 host-admission tests PASS); dispatch itself is not fixed or production-promoted.
+Before changing that behavior, prove the domain's durable business-item cursor and both overlapping-wake
+trajectories. A full control-plane test attempt hit `ENOSPC` at about 209 MiB free and cannot be counted as a
+code verdict; recover disk headroom through owner-safe cleanup before rerunning release/export tests.
+
 **Next order:** (1) keep one-off/retainer refresh live and prove a fresh eligible retainer screening-answer
 effect when one exists, (2) repair shared admission/cadence and owner-scoped tab teardown, including
 the currently failing Storefront browser connection and exact provider readback,
