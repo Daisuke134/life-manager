@@ -216,6 +216,13 @@ reservationを受ける回帰を追加した。候補の`runtime/host`、`runtim
 **250 tests / 143 subtests PASS**し、candidate branchへpush済み。本番owner、registry priority
 投影、occurrence_id、自然wake、Local gateはまだ未完である。
 
+**R2-02 priority schema atomic (candidate `3c29ca2094`):** registry validatorと生成済み
+`runtime/loop/loop.schema.json`がoptionalな`priority`を`critical_paid` / `revenue` / `support`
+だけ受け付ける契約を追加した。未知priorityはfail-closedする回帰を追加し、既存registryの
+priority未指定行との互換性を保持した。registry 72 tests / 113 subtestsと、admission・loop-run・
+applyを合わせた **251 tests / 143 subtests PASS**。実際のloop行へのpriority投影と自然wakeは
+次のatomicであり、本番へは未反映である。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
