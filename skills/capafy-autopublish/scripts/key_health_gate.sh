@@ -32,8 +32,9 @@ set -uo pipefail
 MIN="${1:-20.00}"
 # Capafy currently asks OpenRouter to admit up to 128k completion tokens. At
 # Sonnet 4.6's $15/M completion price that is $1.92 before prompt cost. Require
-# enough per-key daily headroom for one worst-case admission, not merely > $0.
-REQUEST_HEADROOM="${CAPAFY_REQUEST_HEADROOM_USD:-2.25}"
+# room for a full admission plus prompt/context growth and concurrent buyers.
+# The former $2.25 floor passed while the live Agent returned 402 at a $15 cap.
+REQUEST_HEADROOM="${CAPAFY_REQUEST_HEADROOM_USD:-20.00}"
 SELF_HEAL_RESERVE="${CAPAFY_KEY_SELF_HEAL_RESERVE_USD:-10.00}"
 SELF_HEAL_HARD_CAP="$(python3 - "${CAPAFY_KEY_DAILY_HARD_CAP_USD:-50.00}" <<'PY'
 import math, sys
