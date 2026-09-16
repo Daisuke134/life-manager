@@ -630,6 +630,22 @@ The gate is the passing **evidence matrix**, not elapsed wall-clock time. Histor
 may inform capacity and incidents but cannot be mandatory waits or substitutes for fault tests and official
 effects. Do not count a mock as production evidence or claim a provider result for a lane with no eligible work.
 
+**Connector order amendment:** Old order was Connector Local effect gate, then
+the final main merge. This cannot prove the new TechPlay code in production:
+production accepts only main-derived immutable releases, while loaded
+`cf655388` predates the fix. New narrow order is Connector-only main-derived
+source PR/CI/merge → exact immutable release → idle-only Connector apply →
+natural outer terminal/TechPlay `processed_count>0` → official provider and
+Calendar readback/replay-zero → remaining foundation/domain integration.
+Reason: move the smallest reviewed domain slice across the release boundary
+without loading unmerged candidate code or touching Coconala's provider owner.
+The current engineering cursor is the Connector-only branch
+`fix/connector-techplay-bounded-main-20260917` at pushed `b9bb48268c`;
+independent branch tests 775/775 and OSS PASS, but no main merge or live effect
+yet. The prior two compatibility PRs were the same explicitly recorded
+exception to the one-final-merge ordering. This does not relax Cloud/Local,
+identity, permission, receipt or Eval gates.
+
 **Current shared-runtime blocker:** The *loaded* candidate still uses the earlier reservation-only protocol,
 so a mixed-release dispatch cannot safely wake it. The foundation source now has queued-scan coalescing,
 explicit version marker and a fenced main-derived cross-release path at `ff5b2df143`, but that is not an

@@ -582,6 +582,15 @@ Connector 776/776 and TechPlay26/26 tests PASS; the 19:52 UTC loaded old-SHA
 Connector wake still deferred on capacity before this code could run. Do not
 mistake code tests or a later capacity defer for natural `processed_count>0`,
 outer terminal, official provider readback or replay-zero.
+Order amendment for this one Connector slice: previous Local-before-final-main
+sequence is unexecutable under the main-derived-production-release rule.
+The reviewed TechPlay commit is isolated on latest-main branch
+`fix/connector-techplay-bounded-main-20260917` at pushed `b9bb48268c`;
+that branch passed 775 Connector tests and OSS verification. Advance this
+domain-only PR through CI/main, cut its immutable main release, apply only
+idle Connector, then run the unchanged Local natural-wake/effect gates. This
+does not merge the 101-file foundation candidate, touch the Coconala owner,
+promote Cloud, or turn mock/code success into provider success.
 
 - Read-only ownership and call-graph audit are captured above. Live owner handoff and per-slice merge disposition are **not** complete.
 - The next implementation cursor is Task 1, then Task 2 and Task 3. Task 4 starts only after current owners revalidate those findings.
