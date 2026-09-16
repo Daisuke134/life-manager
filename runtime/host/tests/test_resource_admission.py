@@ -1378,11 +1378,17 @@ def test_release_control_lock_contention_is_time_bounded(tmp_path, monkeypatch):
 
 def test_cancel_retired_owner_removes_queue_and_reservation(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
-    admission.enqueue_durable("agent", "retired")
+    admission.enqueue_durable(
+        "agent", "retired", occurrence_id="retired-wake-001")
     admission.reserve_available(now=100, lease_seconds=30)
     assert admission.cancel_durable("retired") is True
     assert durable_rows(tmp_path, "queue") == []
     assert durable_rows(tmp_path, "reservations") == []
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        state = connection.execute(
+            "SELECT state FROM occurrences WHERE occurrence_id='retired-wake-001'"
+        ).fetchone()[0]
+    assert state == "cancelled"
 
 
 def test_five_hundred_durable_waiters_remain_bounded(tmp_path, monkeypatch):

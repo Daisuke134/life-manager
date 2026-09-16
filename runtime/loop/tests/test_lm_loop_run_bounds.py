@@ -669,12 +669,14 @@ def test_dispatch_reserved_rejects_stale_loaded_release_prefix(tmp_path):
     )
 
     with (patch("runtime.loop.lm_loop_run.cancel_durable_resource") as cancel,
+          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
           patch("runtime.loop.lm_loop_run.subprocess.run", return_value=observed) as run):
         assert _dispatch_reserved(
             ["example"], current=current, agents_dir=agents,
         ) == []
 
-    cancel.assert_called_once_with("example")
+    cancel.assert_not_called()
+    defer.assert_called_once_with("example")
     assert run.call_count == 1
 
 
@@ -739,12 +741,14 @@ def test_dispatch_reserved_rejects_loaded_output_without_explicit_idle_state(tmp
     )
 
     with (patch("runtime.loop.lm_loop_run.cancel_durable_resource") as cancel,
+          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
           patch("runtime.loop.lm_loop_run.subprocess.run", return_value=observed) as run):
         assert _dispatch_reserved(
             ["example"], current=current, agents_dir=agents,
         ) == []
 
-    cancel.assert_called_once_with("example")
+    cancel.assert_not_called()
+    defer.assert_called_once_with("example")
     assert run.call_count == 1
 
 
@@ -771,16 +775,18 @@ def test_dispatch_reserved_rejects_noncanonical_installed_argv(tmp_path):
     }))
 
     with (patch("runtime.loop.lm_loop_run.cancel_durable_resource") as cancel,
+          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
           patch("runtime.loop.lm_loop_run.subprocess.run") as run):
         assert _dispatch_reserved(
             ["example"], current=current, agents_dir=agents,
         ) == []
 
-    cancel.assert_called_once_with("example")
+    cancel.assert_not_called()
+    defer.assert_called_once_with("example")
     run.assert_not_called()
 
 
-def test_dispatch_reserved_cancels_owner_with_missing_plist(tmp_path):
+def test_dispatch_reserved_defers_owner_with_missing_plist(tmp_path):
     current = tmp_path / "release"
     agents = tmp_path / "agents"
     (current / "config").mkdir(parents=True)
@@ -798,12 +804,14 @@ def test_dispatch_reserved_cancels_owner_with_missing_plist(tmp_path):
     }))
 
     with (patch("runtime.loop.lm_loop_run.cancel_durable_resource") as cancel,
+          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
           patch("runtime.loop.lm_loop_run.subprocess.run") as run):
         assert _dispatch_reserved(
             ["example"], current=current, agents_dir=agents,
         ) == []
 
-    cancel.assert_called_once_with("example")
+    cancel.assert_not_called()
+    defer.assert_called_once_with("example")
     run.assert_not_called()
 
 

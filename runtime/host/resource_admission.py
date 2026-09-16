@@ -977,6 +977,11 @@ def cancel_durable(owner_id: str) -> bool:
             return False
         with _database(database) as connection:
             connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
+            connection.execute(
+                """UPDATE occurrences SET state='cancelled'
+                     WHERE owner_id=? AND state='queued' AND effect_unknown=0""",
+                (owner_id,),
+            )
             connection.execute("DELETE FROM priorities WHERE owner_id=?", (owner_id,))
             changed = connection.execute(
                 "DELETE FROM queue WHERE owner_id=?", (owner_id,)).rowcount
