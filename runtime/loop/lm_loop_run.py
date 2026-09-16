@@ -11,6 +11,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Callable
@@ -27,6 +28,7 @@ from runtime.host.resource_admission import (
     defer_durable as defer_durable_resource,
     durable_protocol_version,
     enqueue_durable as enqueue_durable_resource,
+    heartbeat_durable as heartbeat_durable_resource,
     process_start,
     release as release_resource,
     release_and_reserve as release_and_reserve_resource,
@@ -38,6 +40,10 @@ from runtime.host.resource_admission import (
 
 EXEC_GATE = Path(__file__).resolve().parents[1] / "host/exec_gate.py"
 SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
+SAFE_RESULT_HINT = re.compile(r"[a-z][a-z0-9_:-]{1,99}\Z")
+ADMISSION_CONTROL_RETRY_ATTEMPTS = 3
+ADMISSION_CONTROL_RETRY_DELAY_SECONDS = 0.05
+HEARTBEAT_INTERVAL_SECONDS = 30.0
 
 
 def build_loop_command(registry: dict, loop_id: str, release_root: Path) -> list[str]:
@@ -167,6 +173,12 @@ def _queue_priority(entry: dict) -> str | None:
     """Return an explicitly declared queue priority, if present."""
     value = entry.get("priority")
     return value if isinstance(value, str) and value else None
+
+
+def _heartbeat_loop(claim: Path, stop: threading.Event) -> None:
+    while not stop.wait(HEARTBEAT_INTERVAL_SECONDS):
+        if not heartbeat_durable_resource(claim):
+            return
 
 
 def _host_admission_deferred(path: Path, started_ns: int) -> str | None:
@@ -375,6 +387,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         return 64
     claim = None
     claim_started_child = False
+    heartbeat_stop = threading.Event()
+    heartbeat_thread: threading.Thread | None = None
     durable = False
     dispatch_after_release: list[str] = []
     interrupted = False
@@ -467,9 +481,15 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             return 75
 
         def transfer_claim(child_pid: int) -> None:
-            nonlocal claim_started_child
+            nonlocal claim_started_child, heartbeat_thread
             transfer_durable_resource(claim, child_pid)
             claim_started_child = True
+            if durable:
+                heartbeat_thread = threading.Thread(
+                    target=_heartbeat_loop, args=(claim, heartbeat_stop),
+                    name=f"lm-heartbeat-{loop_id}", daemon=True,
+                )
+                heartbeat_thread.start()
 
         return_code = _run_entrypoint(
             command, env=env, timeout_seconds=limit, cancelled=lambda: interrupted,
@@ -479,6 +499,9 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                                   "reason": "resource_admission_interrupted"})
         return return_code
     finally:
+        heartbeat_stop.set()
+        if heartbeat_thread is not None:
+            heartbeat_thread.join(timeout=1)
         for signum, handler in previous.items():
             signal.signal(signum, handler)
         if claim is not None:
