@@ -143,8 +143,9 @@ mock/fixture・PID・exit 0・Telegramは証拠にしません。
 | R1-14 | `cfo`のmanifest行を観測 | 3 jobのruntime status、release、typed effect/readback状態、理由を記録 | verified financial snapshot/payout receipt、replay-zero |
 
 **観測cursor（2026-09-16）:** `R1-01` Coconala、`R1-02` Lancers、`R1-03` CrowdWorks、
-`R1-04` Writer、`R1-05` Affiliate、`R1-06` Investment、`R1-07` Agent Economyの観測行は、
-receiptの有無にかかわらずGit外private artifactへ記録済みです。次の観測atomicは`R1-08 Job Hunter`です。
+`R1-04` Writer、`R1-05` Affiliate、`R1-06` Investment、`R1-07` Agent Economy、
+`R1-08` Job Hunter、`R1-09` Fundraiserの観測行は、receiptの有無にかかわらずGit外private artifactへ
+記録済みです。次の観測atomicは`R1-10 Connector`です。
 `verified`昇格は別判定であり、release結合済みreceiptが無い行は`unknown`のまま保持します。
 
 #### R2〜R6: R1の後に一件ずつ実行するgate
@@ -264,6 +265,15 @@ Agent Economyの同日観測では、x402のsettled revenue receiptを確認し�
 `failed_output`（HTTP 429）だった。Claude-p関連jobは対象外とし、既存revenue receiptのfile参照だけを
 保存した。19 jobのruntime releaseが混在しているため、`official_receipt=true / state=blocked /
 reason=runtime_release_drift / replay_zero=false`として記録した。
+
+Job Hunterの同日観測では、ATS summaryのsubmitted 41件・confirmed application 35件とMercor reply
+readback 92件を確認した。しかし未確認adapterが残り、Mercor earningsは0、7 jobのruntime releaseも
+混在していたため、summaryをreceipt参照として`state=blocked / reason=runtime_release_drift /
+official_receipt=true / replay_zero=false`で保存した。
+
+Fundraiserの同日観測では、既存のsubmitted_verifiedを再送せず保持したが、新規submittedは0件だった。
+CDP endpointは応答したもののowned-tab helperのtarget IDが無かったため、
+`state=blocked / reason=browser_target_missing / official_receipt=false / replay_zero=false`で保存した。
 
 #### CLIのOSS化方針
 
