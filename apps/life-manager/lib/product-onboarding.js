@@ -213,8 +213,7 @@ function buildDefaultProductLoopObservations(input = {}, options = {}) {
     return Object.freeze({
       id: loop.id,
       state: setupRequired ? "setup_required" : "unknown",
-      reason: setupRequired ? "host_adapter_pending"
-        : (runtimeEvidence.reason || "official_receipt_required"),
+      reason: runtimeEvidence.reason || (setupRequired ? "host_adapter_pending" : "official_receipt_required"),
       owner_id: null,
       release_sha: null,
       official_receipt: false,

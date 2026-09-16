@@ -173,6 +173,26 @@ test("default product observations make unsupported hosts explicit and never inv
   assert.deepEqual(catalog.loops.map((loop) => loop.id), observations.map((observation) => observation.id));
 });
 
+test("default observations preserve a known runtime diagnosis for setup-required loops", () => {
+  const catalog = readProductLoopCatalog();
+  const releaseSha = "a".repeat(40);
+  const lancers = catalog.loops.find((loop) => loop.id === "gig-lancers");
+  const observations = buildDefaultProductLoopObservations({
+    host: "local",
+    release_sha: releaseSha,
+    runtime_rows: lancers.job_ids.map((loopId) => ({
+      loop_id: loopId,
+      installed_release_sha: "b".repeat(40),
+      event_release_sha: "b".repeat(40),
+      last_terminal_result: "pass",
+    })),
+  });
+
+  const row = observations.find((observation) => observation.id === "gig-lancers");
+  assert.equal(row.state, "setup_required");
+  assert.equal(row.reason, "runtime_release_drift");
+});
+
 test("local completion gate blocks a manifest that still contains unknown loops", () => {
   const catalog = readProductLoopCatalog();
   const releaseSha = "4".repeat(40);
