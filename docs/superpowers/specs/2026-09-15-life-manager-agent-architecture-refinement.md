@@ -299,6 +299,11 @@ PASS。plist反映後の実env、自然wake、Postiz公式readbackはまだ未�
 fail-closedする。既存apply/recovery suiteは **90 tests / 30 subtests PASS**。reconcile実行へ
 渡す接続、自然wake、production反映はまだ未完である。
 
+**S-03 retry projection atomic (candidate `8277dd29bc`):** claimed repair rowを既存の
+`recovery.intents.v1` / `retry_owner`形式へ投影し、transient失敗時は同じrowをqueuedへ戻す
+pure helperを追加した。兄弟ownerを含めない一件限定のpayloadを固定し、apply/recovery suiteは
+**91 tests / 30 subtests PASS**。既存reconcileを実際に呼ぶsupervisor接続と自然wakeはまだ未完である。
+
 今回のCodex routing correctionに伴う追加atomicは次の一件だけである。
 
 | atomic task | candidate状態 | 残りの受入条件 |
