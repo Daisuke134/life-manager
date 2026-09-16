@@ -465,7 +465,8 @@ def test_dispatch_reserved_kicks_only_current_loaded_idle_label(tmp_path):
             + "\n}\nstate = not running",
         ),
         subprocess.CompletedProcess([], 0, ""),
-        subprocess.CompletedProcess([], 0, "state = running"),
+        subprocess.CompletedProcess([], 0, "arguments = {\n" + "\n".join(plist["ProgramArguments"])
+                                    + "\n}\nstate = running"),
     ]
     with patch("runtime.loop.lm_loop_run.subprocess.run", side_effect=outputs) as run:
         assert _dispatch_reserved(["example"], current=current, agents_dir=agents) == ["example"]
@@ -547,6 +548,189 @@ def test_dispatch_reserved_rejects_stale_loaded_release_prefix(tmp_path):
 
     defer.assert_called_once_with("example", cooldown_seconds=60)
     assert run.call_count == 1
+
+
+def test_dispatch_reserved_kicks_exact_immutable_coalescing_release(tmp_path):
+    current = tmp_path / "current"
+    candidate = tmp_path / "releases" / f"20260917T010743-{'a' * 8}"
+    agents = tmp_path / "agents"
+    (current / "config").mkdir(parents=True)
+    (current / "bin").mkdir()
+    (candidate / "config").mkdir(parents=True)
+    agents.mkdir()
+    (current / "bin/launchctl-safe").write_text("safe")
+    row = {
+        "label": "ai.anicca.example", "domain": "earn", "entrypoint": "bin/example",
+        "cadence": {"start_interval_seconds": 300}, "effect_class": "message",
+        "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic",
+    }
+    (current / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": row},
+    }))
+    (candidate / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": {
+            **row, "coalesce_reserved_wakes": True, "coalesce_queued_wakes": True,
+        }},
+    }))
+    (candidate / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+    expected = [str(candidate / "bin/lm-loop-run"), "example", str(candidate)]
+    (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
+        "ProgramArguments": expected,
+    }))
+    outputs = [
+        subprocess.CompletedProcess([], 0, "arguments = {\n" + "\n".join(expected)
+                                    + "\n}\nstate = waiting"),
+        subprocess.CompletedProcess([], 0, ""),
+        subprocess.CompletedProcess([], 0, "arguments = {\n" + "\n".join(expected)
+                                    + "\n}\nstate = running"),
+    ]
+    with patch("runtime.loop.lm_loop_run.subprocess.run", side_effect=outputs) as run:
+        assert _dispatch_reserved(["example"], current=current, agents_dir=agents) == ["example"]
+    assert [item.args[0][1] for item in run.call_args_list] == ["print", "kickstart", "print"]
+
+
+def test_dispatch_reserved_does_not_report_candidate_after_post_kick_release_swap(tmp_path):
+    current = tmp_path / "current"
+    candidate = tmp_path / "releases" / f"20260917T010743-{'a' * 8}"
+    agents = tmp_path / "agents"
+    (current / "config").mkdir(parents=True)
+    (current / "bin").mkdir()
+    (candidate / "config").mkdir(parents=True)
+    agents.mkdir()
+    (current / "bin/launchctl-safe").write_text("safe")
+    row = {
+        "label": "ai.anicca.example", "domain": "earn", "entrypoint": "bin/example",
+        "cadence": {"start_interval_seconds": 300}, "effect_class": "message",
+        "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic",
+    }
+    (current / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": row},
+    }))
+    (candidate / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": {
+            **row, "coalesce_reserved_wakes": True, "coalesce_queued_wakes": True,
+        }},
+    }))
+    (candidate / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+    expected = [str(candidate / "bin/lm-loop-run"), "example", str(candidate)]
+    (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
+        "ProgramArguments": expected,
+    }))
+    outputs = [
+        subprocess.CompletedProcess([], 0, "arguments = {\n" + "\n".join(expected)
+                                    + "\n}\nstate = waiting"),
+        subprocess.CompletedProcess([], 0, ""),
+        subprocess.CompletedProcess([], 0, "arguments = {\n/old/bin/lm-loop-run\n"
+                                    "example\n/old\n}\nstate = running"),
+    ]
+    with (patch("runtime.loop.lm_loop_run.subprocess.run", side_effect=outputs),
+          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer):
+        assert _dispatch_reserved(["example"], current=current, agents_dir=agents) == []
+    defer.assert_called_once_with("example", cooldown_seconds=60)
+
+
+def test_dispatch_reserved_defers_old_reservation_only_candidate(tmp_path):
+    current = tmp_path / "current"
+    candidate = tmp_path / "releases" / f"20260917T010743-{'a' * 8}"
+    agents = tmp_path / "agents"
+    (current / "config").mkdir(parents=True)
+    (candidate / "config").mkdir(parents=True)
+    agents.mkdir()
+    row = {
+        "label": "ai.anicca.example", "domain": "earn", "entrypoint": "bin/example",
+        "cadence": {"start_interval_seconds": 300}, "effect_class": "message",
+        "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic",
+    }
+    (current / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": row},
+    }))
+    (candidate / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": {**row, "coalesce_reserved_wakes": True}},
+    }))
+    (candidate / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+    expected = [str(candidate / "bin/lm-loop-run"), "example", str(candidate)]
+    (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
+        "ProgramArguments": expected,
+    }))
+    with (patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
+          patch("runtime.loop.lm_loop_run.subprocess.run") as run):
+        assert _dispatch_reserved(["example"], current=current, agents_dir=agents) == []
+    defer.assert_called_once_with("example", cooldown_seconds=60)
+    run.assert_not_called()
+
+
+def test_dispatch_reserved_defers_mixed_release_without_coalescing_contract(tmp_path):
+    current = tmp_path / "current"
+    candidate = tmp_path / "releases" / f"20260917T010743-{'a' * 8}"
+    agents = tmp_path / "agents"
+    (current / "config").mkdir(parents=True)
+    (candidate / "config").mkdir(parents=True)
+    agents.mkdir()
+    row = {
+        "label": "ai.anicca.example", "domain": "earn", "entrypoint": "bin/example",
+        "cadence": {"start_interval_seconds": 300}, "effect_class": "message",
+        "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic",
+    }
+    registry = {"schema_version": 2, "loops": {"example": row}}
+    (current / "config/loop-registry.json").write_text(json.dumps(registry))
+    (candidate / "config/loop-registry.json").write_text(json.dumps(registry))
+    (candidate / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+    expected = [str(candidate / "bin/lm-loop-run"), "example", str(candidate)]
+    (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
+        "ProgramArguments": expected,
+    }))
+    with (patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
+          patch("runtime.loop.lm_loop_run.subprocess.run") as run):
+        assert _dispatch_reserved(["example"], current=current, agents_dir=agents) == []
+    defer.assert_called_once_with("example", cooldown_seconds=60)
+    run.assert_not_called()
+
+
+def test_dispatch_reserved_defers_malformed_candidate_registry(tmp_path):
+    current = tmp_path / "current"
+    candidate = tmp_path / "releases" / f"20260917T010743-{'a' * 8}"
+    agents = tmp_path / "agents"
+    (current / "config").mkdir(parents=True)
+    (candidate / "config").mkdir(parents=True)
+    agents.mkdir()
+    row = {
+        "label": "ai.anicca.example", "domain": "earn", "entrypoint": "bin/example",
+        "cadence": {"start_interval_seconds": 300}, "effect_class": "message",
+        "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic",
+    }
+    (current / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": row},
+    }))
+    (candidate / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": {
+            **row, "coalesce_reserved_wakes": True, "cadence": None,
+        }},
+    }))
+    (candidate / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+    expected = [str(candidate / "bin/lm-loop-run"), "example", str(candidate)]
+    (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
+        "ProgramArguments": expected,
+    }))
+    with (patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
+          patch("runtime.loop.lm_loop_run.subprocess.run") as run):
+        assert _dispatch_reserved(["example"], current=current, agents_dir=agents) == []
+    defer.assert_called_once_with("example", cooldown_seconds=60)
+    run.assert_not_called()
 
 
 def test_dispatch_release_drift_preserves_real_sqlite_waiter(tmp_path, monkeypatch):

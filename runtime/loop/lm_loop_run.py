@@ -272,6 +272,42 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
     return return_code if return_code >= 0 else 128 - return_code
 
 
+def _coalescing_release_arguments(arguments: object, loop_id: str,
+                                  entry: dict) -> list[str] | None:
+    """Accept an exact immutable owner only when its runner opts into reservation reuse."""
+    if (not isinstance(arguments, list) or len(arguments) != 3
+            or any(not isinstance(part, str) for part in arguments)):
+        return None
+    release = Path(arguments[2])
+    if (not release.is_absolute() or release.parent.name != "releases"
+            or not re.fullmatch(r"[0-9]{8}T[0-9]{6}-[0-9a-f]{8,40}", release.name)):
+        return None
+    try:
+        if release.resolve(strict=True) != release:
+            return None
+        sha = json.loads((release / "RELEASE.json").read_text()).get("sha")
+        if (not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha)
+                or not sha.startswith(release.name.rsplit("-", 1)[1])):
+            return None
+        target = json.loads((release / "config/loop-registry.json").read_text())
+        loops = target.get("loops") if isinstance(target, dict) else None
+        owner = loops.get(loop_id) if isinstance(loops, dict) else None
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return None
+    if (not isinstance(owner, dict) or not isinstance(owner.get("cadence"), dict)
+            or owner.get("coalesce_reserved_wakes") is not True
+            or owner.get("coalesce_queued_wakes") is not True
+            or owner.get("label") != entry.get("label")
+            or owner.get("state_root") != entry.get("state_root")
+            or owner.get("effect_class") != entry.get("effect_class")
+            or owner.get("provider_route") != entry.get("provider_route")
+            or owner.get("cadence") != entry.get("cadence")
+            or owner.get("cadence", {}).get("keep_alive")):
+        return None
+    expected = [str(release / "bin/lm-loop-run"), loop_id, str(release)]
+    return expected if arguments == expected else None
+
+
 def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
                        agents_dir: Path | None = None) -> list[str]:
     """Kick only validated loaded-idle owners; reservations recover on failure."""
@@ -317,8 +353,10 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
         except (OSError, ValueError, plistlib.InvalidFileException):
             defer(loop_id)
             continue
-        expected = [str(root / "bin/lm-loop-run"), loop_id, str(root)]
-        if arguments != expected:
+        current_expected = [str(root / "bin/lm-loop-run"), loop_id, str(root)]
+        expected = (current_expected if arguments == current_expected else
+                    _coalescing_release_arguments(arguments, loop_id, entry))
+        if expected is None:
             defer(loop_id)
             continue
         service = f"gui/{os.getuid()}/{label}"
@@ -345,8 +383,10 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
                 check=False, timeout=10)
         except (OSError, subprocess.TimeoutExpired):
             continue
-        if readback.returncode == 0:
+        if readback.returncode == 0 and _loaded_arguments(readback.stdout) == expected:
             started.append(loop_id)
+        else:
+            defer(loop_id)
     return started
 
 
