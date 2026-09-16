@@ -154,6 +154,7 @@ _COCONALA_HOSTS = {"coconala.com", "www.coconala.com"}
 # every extra page costs one more live navigate. 10 pages (~200 rows at ~20/page) comfortably
 # covers a day's application volume for one exact id without letting one pass scan forever.
 _APPLIED_OFFERS_MAX_PAGES = 10
+_APPLIED_OFFERS_RECONCILE_MAX_PAGES = 50
 
 SUBMIT_REQUIRED = "submit_required"
 HARD_PROHIBITED = "hard_prohibited"
@@ -4439,12 +4440,33 @@ def run_parent(
                 # snapshot starts.  Projection and outbox event keys make this idempotent.
                 _publish_instant_work_events(ledger_path, pass_id)
             effects.ws_recycler = lease.recycle
+            intent_store = fence.IntentStore(intent_root)
+            uncertain_intents = _durable_uncertain_intents(intent_store)
+            if uncertain_intents:
+                full_history_path = evidence_dir / "parent-B2-applied-full-history.json"
+                observed_ids = effects._official_readback(
+                    set(uncertain_intents), full_history_path,
+                    max_pages=_APPLIED_OFFERS_RECONCILE_MAX_PAGES,
+                    include_retainer_history=True,
+                )
+                reconciliation = reconcile_durable_intents_from_full_history(
+                    store=intent_store, targets=uncertain_intents,
+                    observed_ids=observed_ids, evidence_path=full_history_path,
+                    ledger_path=ledger_path, evidence_dir=evidence_dir,
+                    pass_id=pass_id,
+                )
+                _publish_instant_work_events(ledger_path, pass_id)
+                _atomic_json(
+                    evidence_dir / "durable-intent-full-history-reconciliation.json",
+                    {"version": 1, "official_readback": str(full_history_path.resolve()),
+                     **reconciliation},
+                )
             collector = CdpSnapshotCollector(
                 effects,
                 pass_id=pass_id,
                 objective=objective,
                 excluded_request_ids=quarantined_request_ids(intent_root),
-                intent_store=fence.IntentStore(intent_root),
+                intent_store=intent_store,
                 cursor_contract=cursor_contract,
                 ineligible_cache=(
                     load_ineligible_cache(
@@ -4805,6 +4827,102 @@ def ledger_applied_ids(ledger_path: Path) -> set[str]:
         if value is not None and str(value).strip():
             identifiers.add(str(value).strip())
     return identifiers
+
+
+def _durable_uncertain_intents(store: "fence.IntentStore") -> dict[str, str]:
+    targets: dict[str, str] = {}
+    if not store.root.is_dir():
+        return targets
+    for path in store.root.glob("*.json"):
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if (isinstance(value, dict)
+                and value.get("version") in {2, 3}
+                and value.get("state") == fence.PREPARED
+                and value.get("effect_phase") == fence.IRREVERSIBLE_ATTEMPT_STARTED):
+            request_id = str(value.get("request_id") or "")
+            if request_id.isdigit() or _is_retainer_request(request_id):
+                targets[request_id] = str(value.get("cas") or "")
+    return targets
+
+
+def _append_full_history_ledger_row(
+    *, ledger_path: Path, pass_id: str, request_id: str,
+    intent: dict[str, object], evidence_path: Path,
+) -> None:
+    row = {
+        "ts": int(time.time()), "pass_id": pass_id, "requestId": request_id,
+        "bucket": _bucket_for_request(request_id), "status": "applied",
+        "category": "", "category_source": "official_full_history",
+        "title": "", "price_jpy": intent["price_jpy"],
+        "deliver_date": intent["deliver_date"],
+        "url": (f"https://coconala.com/job_matching/outsources/{request_id}"
+                if _is_retainer_request(request_id)
+                else f"https://coconala.com/requests/{request_id}"),
+        "evidence": None, "recorded_by": "application_report_intent_recovery",
+        "submit_verified": True, "applied_page_verified": True,
+        "applied_page_evidence": str(evidence_path.resolve()),
+        "proposal_sha256": intent["proposal_sha256"],
+    }
+    ledger_path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor = os.open(ledger_path, os.O_CREAT | os.O_RDWR | os.O_APPEND, 0o600)
+    with os.fdopen(descriptor, "a+", encoding="utf-8") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        handle.seek(0)
+        for raw in handle:
+            try:
+                existing = json.loads(raw)
+            except json.JSONDecodeError:
+                continue
+            if str(existing.get("requestId") or existing.get("request_id") or "") == request_id:
+                break
+        else:
+            handle.seek(0, os.SEEK_END)
+            handle.write(json.dumps(row, ensure_ascii=False, separators=(",", ":")) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def reconcile_durable_intents_from_full_history(
+    *, store: "fence.IntentStore", targets: dict[str, str], observed_ids: set[str],
+    evidence_path: Path, ledger_path: Path, evidence_dir: Path, pass_id: str,
+) -> dict[str, int]:
+    """Settle only effect-started intents after a complete official-history read."""
+    counts = {"checked": len(targets), "confirmed": 0, "retired_absent": 0}
+    for request_id, expected_cas in sorted(targets.items()):
+        with store.locked(request_id):
+            current = store._read_locked(request_id)
+            if (not isinstance(current, dict)
+                    or current.get("cas") != expected_cas
+                    or current.get("state") != fence.PREPARED
+                    or current.get("effect_phase") != fence.IRREVERSIBLE_ATTEMPT_STARTED):
+                continue
+            if request_id in observed_ids:
+                _append_full_history_ledger_row(
+                    ledger_path=ledger_path, pass_id=pass_id, request_id=request_id,
+                    intent=current, evidence_path=evidence_path,
+                )
+                recovery_path = (
+                    evidence_dir / f"gig-{pass_id}-B2-{request_id}-submitted.intent.json"
+                )
+                recovery = {
+                    **current, "official_readback": str(evidence_path.resolve()),
+                    "recovery_kind": "official_full_history_exact_id",
+                }
+                _atomic_json(recovery_path, recovery)
+                confirmed = _confirm_locked(store, request_id, current)
+                _atomic_json(recovery_path, {**recovery, **confirmed})
+                counts["confirmed"] += 1
+            else:
+                store.retire_prepared_locked(
+                    request_id, expected_cas=current["cas"],
+                    reason=f"official_full_history_exact_id_absent:{evidence_path}",
+                )
+                counts["retired_absent"] += 1
+    return counts
 
 
 def snapshot_applied_ids(identifiers: object) -> list[str]:
