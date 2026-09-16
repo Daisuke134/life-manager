@@ -143,8 +143,8 @@ mock/fixture・PID・exit 0・Telegramは証拠にしません。
 | R1-14 | `cfo`のmanifest行を観測 | 3 jobのruntime status、release、typed effect/readback状態、理由を記録 | verified financial snapshot/payout receipt、replay-zero |
 
 **観測cursor（2026-09-16）:** `R1-01` Coconala、`R1-02` Lancers、`R1-03` CrowdWorks、
-`R1-04` Writer、`R1-05` Affiliate、`R1-06` Investmentの観測行は、receiptの有無にかかわらず
-Git外private artifactへ記録済みです。次の観測atomicは`R1-07 Agent Economy`です。
+`R1-04` Writer、`R1-05` Affiliate、`R1-06` Investment、`R1-07` Agent Economyの観測行は、
+receiptの有無にかかわらずGit外private artifactへ記録済みです。次の観測atomicは`R1-08 Job Hunter`です。
 `verified`昇格は別判定であり、release結合済みreceiptが無い行は`unknown`のまま保持します。
 
 #### R2〜R6: R1の後に一件ずつ実行するgate
@@ -259,6 +259,11 @@ Affiliateの同日観測では、自サイト公開記事の公式URLとPartnerS
 Investmentの同日観測では、mode=`live`、live-canary/closeの検査receiptとrepeatability passは確認したが、
 order/balanceの公式receiptは無かった。runtimeは`resource_capacity_busy`で、`state=blocked /
 reason=resource_capacity_busy / official_receipt=false / replay_zero=false`として記録した。
+
+Agent Economyの同日観測では、x402のsettled revenue receiptを確認した一方、compute receiptは
+`failed_output`（HTTP 429）だった。Claude-p関連jobは対象外とし、既存revenue receiptのfile参照だけを
+保存した。19 jobのruntime releaseが混在しているため、`official_receipt=true / state=blocked /
+reason=runtime_release_drift / replay_zero=false`として記録した。
 
 #### CLIのOSS化方針
 
