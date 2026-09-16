@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from runtime.loop.lm_loop import (
-    _last_event, _release_from_plist, _state_root_from_plist,
+    _last_event, _latest_runtime_event, _release_from_plist, _state_root_from_plist,
     doctor_report, snapshot, status_rows,
 )
 
@@ -35,6 +35,19 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertEqual((row["last_terminal_result"], row["effect_status"], row["blocker"]),
                          ("blocked", "unknown", "provider_capacity"))
         self.assertNotEqual(row["installed_release_sha"], row["event_release_sha"])
+
+    def test_status_prefers_a_live_execute_event_over_a_stale_terminal(self):
+        events = {"example": {
+            "timestamp": "2026-08-28T00:01:00Z", "phase": "execute", "status": "running",
+            "effect_status": "started", "blocker": None, "release_sha": "b" * 40,
+            "provider": "openai", "profile_alias": "acct2",
+        }}
+        row = status_rows(REGISTRY,
+            loaded={"ai.anicca.example": {"pid": "123", "last_exit": "75"}}, disabled={},
+            events=events, installed_releases={"ai.anicca.example": "b" * 40})[0]
+        self.assertEqual(row["launchd_state"], "loaded-running")
+        self.assertEqual((row["last_terminal_result"], row["effect_status"], row["blocker"]),
+                         ("running", "started", None))
 
     def test_status_exposes_stable_job_and_owner_identity(self):
         row = status_rows(REGISTRY, loaded={}, disabled={}, events={}, installed_releases={})[0]
@@ -130,6 +143,17 @@ class LmLoopReadonlyTest(unittest.TestCase):
             event = _last_event(str(root), "a")
             self.assertEqual((event["status"], event["timestamp"]),
                              ("pass", "2026-08-28T00:00:00Z"))
+
+    def test_latest_runtime_event_does_not_report_a_stale_terminal_while_running(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = {"version":1,"event_id":"a"*24,"timestamp":"2026-08-28T00:00:00Z","loop_id":"a","domain":"system","run_id":"old-run","phase":"report","status":"blocked","release_sha":"b"*40,"provider":"deterministic","profile_alias":None,"effect_class":"none","effect_status":"not_applicable","blocker":"provider_capacity","evidence_refs":["lm-loop://a/old-run/summary.json"]}
+            running = {"version":1,"event_id":"c"*24,"timestamp":"2026-08-28T00:01:00Z","loop_id":"a","domain":"system","run_id":"new-run","phase":"execute","status":"running","release_sha":"b"*40,"provider":"deterministic","profile_alias":None,"effect_class":"none","effect_status":"not_applicable","blocker":None,"evidence_refs":["lm-loop://a/new-run/summary.json"]}
+            nested_report = {"version":1,"event_id":"d"*24,"timestamp":"2026-08-28T00:02:00Z","loop_id":"a","domain":"system","run_id":"nested-run","phase":"report","status":"pass","release_sha":"b"*40,"provider":"codex","profile_alias":"acct1","effect_class":"none","effect_status":"not_applicable","blocker":None,"evidence_refs":["agent-runner://a/nested-run/summary.json"]}
+            (root / "events.jsonl").write_text("\n".join(json.dumps(x) for x in (report, running, nested_report)) + "\n")
+            event = _latest_runtime_event(str(root), "a")
+            self.assertEqual((event["phase"], event["run_id"], event["status"]),
+                             ("execute", "new-run", "running"))
 
     def test_last_event_bounds_tail_reads_and_does_not_resurrect_old_evidence(self):
         with tempfile.TemporaryDirectory() as directory:

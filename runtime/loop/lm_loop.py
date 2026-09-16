@@ -229,6 +229,48 @@ def _last_event(state_root: str, loop_id: str | None = None,
     return reports.get(loop_id)
 
 
+def _latest_runtime_event(state_root: str, loop_id: str | None = None,
+                          cache: dict[Path, dict[str | None, dict]] | None = None,
+                          max_bytes: int | None = None) -> dict | None:
+    """Return the latest execute/report event, including an active run.
+
+    A report-only reader can expose the previous failure while a new process is
+    still running.  Status consumers need the active execute event so recovery
+    cannot mistake a live owner for a stale terminal.
+    """
+    path = Path(os.path.expanduser(state_root)) / "events.jsonl"
+    use_cache = cache is not None and max_bytes is None
+    if use_cache and path in cache:
+        return cache[path].get(loop_id)
+    latest_reports: dict[str | None, dict] = {}
+    active_runs: dict[str | None, dict[str, dict]] = {}
+    try:
+        lines = _read_event_tail(path, max_bytes if max_bytes is not None else _event_tail_bytes())
+    except OSError:
+        lines = []
+    for line in lines:
+        try:
+            value = json.loads(line)
+            validate_runtime_event(value)
+        except (json.JSONDecodeError, ValueError):
+            continue
+        if value.get("phase") not in {"execute", "report"}:
+            continue
+        loop_key = value.get("loop_id")
+        if value.get("phase") == "execute" and value.get("status") == "running":
+            active_runs.setdefault(loop_key, {})[value["run_id"]] = value
+            continue
+        active_runs.setdefault(loop_key, {}).pop(value["run_id"], None)
+        latest_reports[loop_key] = value
+    events: dict[str | None, dict] = {}
+    for loop_key in set(latest_reports) | set(active_runs):
+        active = active_runs.get(loop_key, {})
+        events[loop_key] = next(reversed(active.values())) if active else latest_reports[loop_key]
+    if use_cache:
+        cache[path] = events
+    return events.get(loop_id)
+
+
 def _release_from_plist(path: Path) -> str | None:
     try:
         with path.open("rb") as handle:
@@ -285,7 +327,7 @@ def collect_live(registry: dict, *, full_inventory: bool = True
         label = entry["label"]
         plist_path = plist_dir / f"{label}.plist"
         releases[label] = _release_from_plist(plist_path)
-        event = _last_event(
+        event = _latest_runtime_event(
             _state_root_from_plist(plist_path, entry["state_root"]), loop_id, event_cache)
         if event:
             events[loop_id] = event
@@ -406,7 +448,7 @@ def targeted_snapshot(registry: dict, targets: set[str],
                 "last_exit": last_exit.group(1) if last_exit else None,
             }
         plist_path = plist_dir / f"{label}.plist"
-        event = _last_event(
+        event = _latest_runtime_event(
             _state_root_from_plist(plist_path, entry["state_root"]), loop_id)
         selected_registry = {**registry, "loops": {loop_id: entry}}
         rows.extend(status_rows(
