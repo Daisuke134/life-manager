@@ -39,6 +39,14 @@ test("all mobile publication loops share one command and one manifest", () => {
   }
 });
 
+test("every configured mobile publication action is accepted by its real runner", () => {
+  for (const loopId of Object.keys(manifest.loops)) {
+    const resolved = resolveMobileAppLoop(loopId);
+    const runner = require(resolved.runner);
+    assert.doesNotThrow(() => runner.parseArgs([resolved.action]), loopId);
+  }
+});
+
 test("retired per-lane boot wrappers are absent", () => {
   for (const file of fs.readdirSync(path.join(root, "apps/life-manager/scripts"))) {
     assert.ok(!/-production-boot\.sh$/.test(file) || /^(instagram|tiktok)-metrics-production-boot\.sh$/.test(file), file);
