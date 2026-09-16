@@ -609,6 +609,22 @@ def test_remote_owner_prompt_forbids_shared_daily_driver_fallback(tmp_path) -> N
     )
 
     assert "shared daily-driver CDP and its session vault are unavailable" in prompt
+
+
+def test_remote_owner_reads_private_official_buyer_rows_before_claiming_missing(tmp_path) -> None:
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    requirements_sha = paid.paid_remote_result.requirements_digest(root, feedback)
+
+    prompt = paid._repair_prompt(
+        root, tmp_path / "item.json", feedback, requirements_sha,
+        False, tmp_path / "cdp.py",
+    )
+
+    assert "source/talkroom/messages.jsonl" in prompt
+    assert "source_message_identities" in prompt
+    assert "Redaction in compiled context is not evidence that the buyer omitted the value" in prompt
+    assert "Never ask the buyer to resend a value present in those official rows" in prompt
     assert "never fall back to the shared daily driver" in prompt
     assert "resource-resolver-selected target-specific browser identity" in prompt
 
