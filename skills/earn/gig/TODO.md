@@ -637,6 +637,10 @@ pushed as `a4de1b9c2c` (71 host-admission tests PASS); dispatch itself is not fi
 Before changing that behavior, prove the domain's durable business-item cursor and both overlapping-wake
 trajectories. A full control-plane test attempt hit `ENOSPC` at about 209 MiB free and cannot be counted as a
 code verdict; recover disk headroom through owner-safe cleanup before rerunning release/export tests.
+Connector's current reconciliation store retains only potentially effected/unknown candidates, not every
+newly discovered event. Add an owner-scoped candidate inbox and prove two overlapping discoveries survive
+replay before Connector can safely use host wake coalescing. The live disk governor passes but preserves open
+paths and 31 referenced releases; do not bypass those protections to make the test suite fit.
 
 **Next order:** (1) keep one-off/retainer refresh live and prove a fresh eligible retainer screening-answer
 effect when one exists, (2) repair shared admission/cadence and owner-scoped tab teardown, including
