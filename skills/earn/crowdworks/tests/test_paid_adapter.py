@@ -176,6 +176,8 @@ def test_all_selected_forms_advance_to_separate_formal_delivery():
         "payload": {
             "milestone_id": contract["milestone_id"],
             "message": "Googleフォームへの回答を完了しました。ご確認のほどよろしくお願いいたします。",
+            "completed_form_urls": [url],
+            "ignored_form_urls": [],
         },
     }
 

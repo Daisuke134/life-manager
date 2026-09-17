@@ -672,10 +672,12 @@ class CrowdWorksPaidAdapter:
         urls = [url for url in raw_urls if url not in completed]
         if not urls:
             return FORM_SELECTION_COMPLETE
+        if not isinstance(candidates, list):
+            return None
         candidates = [candidate for candidate in candidates
                       if isinstance(candidate, Mapping) and candidate.get("url") in urls]
         if (not urls or not all(isinstance(url, str) and _google_form_url(url) for url in urls) or
-                not isinstance(candidates, list) or len(candidates) != len(urls)):
+                len(candidates) != len(urls)):
             return None
         if self.candidate_profile is None or self.provider_profile is None or self.state_path is None:
             return None
@@ -684,7 +686,7 @@ class CrowdWorksPaidAdapter:
                 candidate_profile_path=self.candidate_profile,
                 provider_profile=self.provider_profile,
             )
-            source = "\n\n".join(
+            source = "契約本文:\n" + str(item.get("buyer_context") or "") + "\n\n" + "\n\n".join(
                 f"URL: {candidate.get('url')}\nタイトル: {candidate.get('title')}\n本文:\n{candidate.get('body')}"
                 for candidate in candidates if isinstance(candidate, Mapping)
             )
@@ -701,7 +703,10 @@ class CrowdWorksPaidAdapter:
             }, state_root=self.state_path / "compose", task_label="crowdworks-paid-form-selection")
         except Exception:
             return None
-        return value.strip() if isinstance(value, str) and value.strip() in [*urls, FORM_SELECTION_COMPLETE] else None
+        selected = value.strip() if isinstance(value, str) else None
+        if selected == FORM_SELECTION_COMPLETE:
+            item["ignored_form_urls"] = sorted(urls)
+        return selected if selected in [*urls, FORM_SELECTION_COMPLETE] else None
 
     def context(self, work_id: str) -> dict[str, Any]:
         try:
@@ -922,6 +927,12 @@ class CrowdWorksPaidAdapter:
                 current = self._targeted_detail(work_id)
                 if current.get("provider_state") != "funded":
                     raise RuntimeError("crowdworks_paid_context_changed")
+                form_urls = set(current.get("form_urls") or [])
+                completed = set(payload.get("completed_form_urls") or [])
+                ignored = set(payload.get("ignored_form_urls") or [])
+                if form_urls and (not completed.issubset(set(current.get("completed_form_urls") or []))
+                                  or completed | ignored != form_urls):
+                    raise RuntimeError("crowdworks_paid_form_progress_changed")
                 self._complete_once(current, payload)
                 return
             if intent.get("action") != "submit" or not isinstance(intent.get("payload"), Mapping):
@@ -929,11 +940,16 @@ class CrowdWorksPaidAdapter:
             payload = intent["payload"]
             work_id = _text(intent.get("work_id"))
             current = self._targeted_detail(work_id)
-            url = current.get("form_url")
+            url = payload.get("form_url")
+            available = set(current.get("form_urls") or [])
+            if isinstance(current.get("form_url"), str):
+                available.add(current["form_url"])
             if (current.get("provider_state") != "funded" or payload.get("milestone_id") != current.get("milestone_id")
-                    or payload.get("form_url") != url or payload.get("form_sha256") != hashlib.sha256(str(url).encode()).hexdigest()):
+                    or not isinstance(url, str) or url not in available
+                    or url in set(current.get("completed_form_urls") or [])
+                    or payload.get("form_sha256") != hashlib.sha256(url.encode()).hexdigest()):
                 raise RuntimeError("crowdworks_paid_context_changed")
-            self._submit_form_once(current)
+            self._submit_form_once({**current, "form_url": url})
         finally:
             self.close()
 
@@ -1030,9 +1046,16 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
             if not isinstance(milestone_id, str):
                 return {"action": "wait", "reason": "buyer_task_detail_required",
                         "remaining_work": ["read the official funded contract task before any delivery effect"]}
+            ignored = set(contract.get("ignored_form_urls") or [])
+            remaining = set(form_urls or []) - completed
+            if remaining - ignored:
+                return {"action": "wait", "reason": "form_selection_required",
+                        "remaining_work": ["model must select or explicitly exclude every remaining official form"]}
             return {"action": "formal_delivery", "payload": {
                 "milestone_id": milestone_id,
                 "message": "Googleフォームへの回答を完了しました。ご確認のほどよろしくお願いいたします。",
+                "completed_form_urls": sorted(completed),
+                "ignored_form_urls": sorted(ignored),
             }}
         form_url = selected
         if not isinstance(form_url, str) or not _google_form_url(form_url):
