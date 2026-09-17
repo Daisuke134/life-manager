@@ -412,8 +412,12 @@ def plan(run_dir: Path | str, ledger: Path | str) -> dict[str, Any]:
     ):
         return _refused("not-a-quality-replacement")
     prior_repair = _read_json(gates / "quality-repair-state.json")
-    if prior_repair is not None and prior_repair.get("status") != "terminal-blocked":
-        return _refused("prior-quality-repair-not-terminal")
+    if prior_repair is not None:
+        prior_status = prior_repair.get("status")
+        if prior_status not in {"terminal-blocked", "terminal-incomplete"}:
+            return _refused("prior-quality-repair-not-terminal")
+        if prior_status == "terminal-incomplete" and not _publication_handoff_ready(run_dir):
+            return _refused("prior-quality-repair-not-terminal")
 
     state_path = gates / STATE_NAME
     state = _read_json(state_path)
