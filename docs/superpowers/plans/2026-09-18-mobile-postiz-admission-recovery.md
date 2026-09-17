@@ -81,6 +81,7 @@
 - Read: admission SQLite before and after the wake
 
 - [x] Re-read the admission ledger, loaded argv and target's last terminal event. The ledger still has 17 mobile/Honne `effect_unknown=1` rows (14 released, 3 claimed); `life-manager-honne-ja` is `loaded-idle` but terminal `blocked`, exit 75, blocker `host_admission_deferred:resource_effect_unknown`.
+  - Fresh 2026-09-18 host readback: `~/loops/current/RELEASE.json` reports immutable release `47b010350d9487e6c16f039c7b91dbbcb93f9ba3` and both `apps/mobile/anicca-ios` and `apps/mobile/honne-ai` are present. The authoritative SQLite query still returns exactly 17 mobile/Honne unknown rows (14 released, 3 claimed); all four checked identity-sidecar locations are absent. `lm-loop status life-manager-honne-ja` remains `loaded-idle`, installed/event release `61036e1e…`, terminal `blocked`, exit 75, with the same admission fence. No provider request, SQL mutation, release cutover or retry was made.
 - [ ] Permit one natural scheduled wake for one verified owner through the existing owner path; do not post a synthetic test item. No owner is currently eligible because no historical row has an exact identity proof.
 - [ ] Verify separate process result, terminal runtime event, official provider receipt, exact content/account mapping and replay-zero.
 - [ ] Repeat only after the prior owner has a terminal receipt; leave inconclusive/claimed rows fenced.
