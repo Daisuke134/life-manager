@@ -87,6 +87,18 @@ escalate a repeated/unclassified failure. It must never mutate a provider,
 browser, credential, scheduler, or sibling owner directly. A later supervisor
 may execute only the action allowed by the intent and its existing lease.
 
+Before execution, compile the intent into a bounded owner plan:
+
+```bash
+./bin/lm-recovery-apply-plan --intent <intent.json>
+```
+
+The plan may contain only one `loaded-idle-only` reconcile command for the
+canonical `loop_id`, with `max-owners=1`. `hold_effect_unknown` and escalation
+intents produce no command. The planner is pure; a supervisor remains
+responsible for checking the immutable release SHA and executing through the
+existing `lm-loop reconcile` path.
+
 ## Source, state, and ownership
 
 - Executable code, adapters, schemas, prompts, and dependency lockfiles live in
