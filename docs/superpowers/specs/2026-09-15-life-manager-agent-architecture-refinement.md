@@ -28,12 +28,14 @@ itself is insufficient because some such entrypoints send notifications.
 
 Remaining A15 actions, in order; each checkbox is one observable action:
 
-- [ ] **A15-01 — verify the rebased shared plist repair.** Run
+- [x] **A15-01 — verify the rebased shared plist repair.** Run
   `python3 -m pytest -q runtime/loop/tests/test_lm_loop_apply.py` and
   `git diff --check` on branch `fix/lm-a15-plist-recovery-plan-20260917`.
   Files: `runtime/loop/lm_loop_apply.py` and
   `runtime/loop/tests/test_lm_loop_apply.py`. The pre-rebase run passed 91 tests
-  and 30 subtests; the post-rebase run was interrupted, so it is not PASS yet.
+  and 30 subtests. Post-rebase verification on `58a1cdb5e7`: 91 tests and
+  30 subtests passed; `git diff --check` passed. The source-boundary check
+  confirmed the dedicated Life Manager worktree and canonical origin.
 - [ ] **A15-02 — integrate that exact shared repair.** The branch is already
   pushed; require CI checks to pass, then merge the focused PR to main.
   No Writer provider code, account, browser profile, or private state is changed.
