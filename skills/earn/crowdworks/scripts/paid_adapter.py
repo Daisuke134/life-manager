@@ -930,7 +930,8 @@ class CrowdWorksPaidAdapter:
                 form_urls = set(current.get("form_urls") or [])
                 completed = set(payload.get("completed_form_urls") or [])
                 ignored = set(payload.get("ignored_form_urls") or [])
-                if form_urls and (not completed.issubset(set(current.get("completed_form_urls") or []))
+                if form_urls and (not completed
+                                  or not completed.issubset(set(current.get("completed_form_urls") or []))
                                   or completed | ignored != form_urls):
                     raise RuntimeError("crowdworks_paid_form_progress_changed")
                 self._complete_once(current, payload)
@@ -1048,9 +1049,9 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
                         "remaining_work": ["read the official funded contract task before any delivery effect"]}
             ignored = set(contract.get("ignored_form_urls") or [])
             remaining = set(form_urls or []) - completed
-            if remaining - ignored:
+            if not completed or remaining - ignored:
                 return {"action": "wait", "reason": "form_selection_required",
-                        "remaining_work": ["model must select or explicitly exclude every remaining official form"]}
+                        "remaining_work": ["complete one official form and select or explicitly exclude every remaining form"]}
             return {"action": "formal_delivery", "payload": {
                 "milestone_id": milestone_id,
                 "message": "Googleフォームへの回答を完了しました。ご確認のほどよろしくお願いいたします。",

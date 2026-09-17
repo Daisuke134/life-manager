@@ -182,6 +182,19 @@ def test_all_selected_forms_advance_to_separate_formal_delivery():
     }
 
 
+def test_formal_delivery_requires_at_least_one_form_receipt():
+    module = load()
+    urls = ["https://forms.gle/ads", "https://forms.gle/common"]
+    contract = {**funded(), "form_url": None, "form_urls": urls,
+                "completed_form_urls": [], "ignored_form_urls": urls}
+
+    action = module.decide({"context": {"contract": contract}},
+                           form_selector=lambda _item: module.FORM_SELECTION_COMPLETE)
+
+    assert action["action"] == "wait"
+    assert action["reason"] == "form_selection_required"
+
+
 def test_form_selector_uses_candidate_context_and_exact_allowed_url(tmp_path, monkeypatch):
     module = load()
     urls = ["https://forms.gle/video", "https://forms.gle/ads"]
