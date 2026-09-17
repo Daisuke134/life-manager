@@ -14,6 +14,7 @@ AUTH_READBACK_JSON="$STATE_ROOT/auth-readback.json"
 EMAIL_AUTH_JSON="$STATE_ROOT/email-auth.json"
 LEASE_TOKEN=""
 LEASE_GENERATION=""
+RETAIN_LEASE_CONTEXT=1
 RESULT_HINT="${LIFE_MANAGER_RESULT_HINT_PATH:-}"
 EMAIL_AUTH_ATTEMPTED=0
 
@@ -44,8 +45,13 @@ export AI_BROWSER_HOLDER_PID=$$
 
 park_lease() {
   if [[ -n "$LEASE_TOKEN" && -n "$LEASE_GENERATION" ]]; then
-    "$LEASE_PYTHON" "$LEASE_SCRIPT" park "$TASK" \
-      --token "$LEASE_TOKEN" --generation "$LEASE_GENERATION" >/dev/null 2>&1 || true
+    if (( RETAIN_LEASE_CONTEXT == 1 )); then
+      "$LEASE_PYTHON" "$LEASE_SCRIPT" park "$TASK" \
+        --token "$LEASE_TOKEN" --generation "$LEASE_GENERATION" >/dev/null 2>&1 || true
+    else
+      "$LEASE_PYTHON" "$LEASE_SCRIPT" release "$TASK" \
+        --token "$LEASE_TOKEN" --generation "$LEASE_GENERATION" >/dev/null 2>&1 || true
+    fi
   fi
 }
 trap park_lease EXIT
@@ -100,6 +106,7 @@ commit_auth_writeback() {
 }
 run_auth_readback || true
 if [[ "$AUTH_STATUS" == "indeterminate" && "$(read_profile_readback_status)" == "False" ]]; then
+  RETAIN_LEASE_CONTEXT=0
   print -u2 "mercor application owner: profile authentication readback failed; retry on next wake"
   pre_effect_failure
   exit 75

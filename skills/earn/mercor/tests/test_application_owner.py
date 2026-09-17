@@ -46,6 +46,8 @@ def test_owner_uses_shared_browser_lease_and_revenue_name():
         '"$ROOT/apps/job-search-loop/scripts/run-mercor.sh"'
     )
     assert "firebase_profile_readback_verified" in source
+    assert "RETAIN_LEASE_CONTEXT=0" in source
+    assert 'release "$TASK"' in source
     assert source.index("read_profile_readback_status") < source.index(
         'if [[ "$AUTH_STATUS" == "indeterminate" ]]; then\n  sleep 1'
     )
@@ -155,6 +157,8 @@ def test_owner_stops_after_failed_profile_readback_without_retrying(tmp_path):
     observed_calls = calls.read_text(encoding="utf-8").splitlines()
     assert observed_calls.count("job_search_loop.mercor_auth_readback") == 1
     assert "commit-cookies" not in observed_calls
+    assert "release" in observed_calls
+    assert "park" not in observed_calls
     assert json.loads(hint.read_text(encoding="utf-8")) == {
         "status": "pre_effect_failure",
         "effect": 0,
