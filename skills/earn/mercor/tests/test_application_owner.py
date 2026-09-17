@@ -31,13 +31,29 @@ def test_owner_uses_shared_browser_lease_and_revenue_name():
     assert '"reason":"authenticated_readback_required"' in source
     assert '--origin https://work.mercor.com --local-storage-key mercor-auth-store' in source
     assert '--session-storage-key mercor-session-id --session-storage-key mercor-user-ip' in source
+    assert '--indexeddb firebaseLocalStorageDb/firebaseLocalStorage' in source
     assert 'CLOAK_SESSION_VAULT_WRITEBACK_FILE="$STATE_ROOT/auth-overlay.json"' in source
     assert 'CLOAK_CONTEXT_COOKIE_DOMAINS="mercor.com"' in source
+    assert 'LIFE_MANAGER_RESULT_HINT_PATH' in source
+    assert 'pre_effect_failure' in source
     reply = (ROOT / "skills/earn/mercor/scripts/reply-owner").read_text()
     assert 'CLOAK_CONTEXT_COOKIE_DOMAINS="mercor.com"' in reply
     assert 'session-writeback.json' in source
     assert '--token "$LEASE_TOKEN" --generation "$LEASE_GENERATION"' in source
     assert "9334" not in source
+
+
+def test_owner_only_requests_email_auth_after_confirmed_logout():
+    source = (ROOT / "skills/earn/mercor/scripts/application-owner").read_text()
+    assert 'AUTH_STATUS=' in source
+    assert '[[ "$AUTH_STATUS" == "indeterminate" ]]' in source
+    assert '[[ "$AUTH_STATUS" == "logged_out" ]]' in source
+    assert 'authenticated_readback_required' in source
+    assert source.index('[[ "$AUTH_STATUS" == "logged_out" ]]') < source.index(
+        "job_search_loop.mercor_email_auth"
+    )
+    assert source.count('[[ "$AUTH_STATUS" == "logged_out" ]]') >= 2
+    assert "second bounded observation" in source
 
 
 def test_mercor_pass_binds_exact_leased_page():

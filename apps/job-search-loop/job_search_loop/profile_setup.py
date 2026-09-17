@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping, Sequence
 
 from .config import ConfigError, validate_profile
 
@@ -22,6 +23,86 @@ PLACEHOLDERS = {
 
 class ProfileSetupError(RuntimeError):
     pass
+
+
+def propose_profile(
+    *,
+    facts: Sequence[Mapping[str, Any]],
+    claims: Sequence[Mapping[str, Any]],
+    resume_path: Path,
+) -> dict[str, Any]:
+    """Build a Mercor profile proposal bound to private verified facts and a PDF."""
+    if not resume_path.expanduser().is_file():
+        raise ProfileSetupError("resume file is unavailable")
+    fact_map: dict[str, Mapping[str, Any]] = {}
+    for fact in facts:
+        identifier = fact.get("id") if isinstance(fact, Mapping) else None
+        if not isinstance(identifier, str) or not identifier.strip():
+            continue
+        fact_map[identifier.strip()] = fact
+    if not fact_map:
+        raise ProfileSetupError("verified fact bank is empty")
+    normalized_claims: list[dict[str, str]] = []
+    fact_ids: list[str] = []
+    for claim in claims:
+        fact_id = claim.get("fact_id") if isinstance(claim, Mapping) else None
+        text = claim.get("text") if isinstance(claim, Mapping) else None
+        if not isinstance(fact_id, str) or fact_id.strip() not in fact_map:
+            raise ProfileSetupError("claim requires a verified fact id")
+        if not isinstance(text, str) or not text.strip():
+            raise ProfileSetupError("profile claim text is required")
+        if _contains_placeholder(text):
+            raise ProfileSetupError("profile claim contains a placeholder")
+        row = {"fact_id": fact_id.strip(), "text": text.strip()}
+        section = claim.get("section") if isinstance(claim, Mapping) else None
+        if section is not None:
+            if not isinstance(section, str) or not section.strip():
+                raise ProfileSetupError("profile claim section is invalid")
+            row["section"] = section.strip()
+        normalized_claims.append(row)
+        if row["fact_id"] not in fact_ids:
+            fact_ids.append(row["fact_id"])
+    if not normalized_claims:
+        raise ProfileSetupError("profile proposal needs at least one verified claim")
+    resume_sha256 = hashlib.sha256(resume_path.expanduser().read_bytes()).hexdigest()
+    fields = {"claims": normalized_claims}
+    field_hashes = {
+        key: hashlib.sha256(
+            json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        for key, value in fields.items()
+    }
+    version_payload = {
+        "fact_ids": fact_ids,
+        "fields": fields,
+        "field_hashes": field_hashes,
+        "resume_sha256": resume_sha256,
+    }
+    profile_version = hashlib.sha256(
+        json.dumps(version_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    return {
+        "version": 1,
+        "profile_version": profile_version,
+        "fact_ids": fact_ids,
+        "fields": fields,
+        "field_hashes": field_hashes,
+        "resume_sha256": resume_sha256,
+    }
+
+
+def activate_profile(proposal: Mapping[str, Any], readback: Mapping[str, Any]) -> bool:
+    """Activate only an authenticated, exact profile and résumé readback."""
+    return (
+        isinstance(proposal, Mapping)
+        and isinstance(readback, Mapping)
+        and readback.get("authenticated") is True
+        and readback.get("resume_visible") is True
+        and readback.get("parser_reviewed") is True
+        and readback.get("profile_version") == proposal.get("profile_version")
+        and readback.get("resume_sha256") == proposal.get("resume_sha256")
+        and readback.get("field_hashes") == proposal.get("field_hashes")
+    )
 
 
 def _contains_placeholder(value: Any) -> bool:

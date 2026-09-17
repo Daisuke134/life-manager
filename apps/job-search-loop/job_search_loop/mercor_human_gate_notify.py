@@ -51,18 +51,26 @@ def record_and_notify(
     *, gate_store: Path, outbox: Path, telegram_env: Path, run_id: str,
     listing_id: str, title: str, reason: str, evidence_ref: str,
     url: str = "", deadline: str = "公式期限表示なし",
+    account_id: str | None = None, step_id: str | None = None,
 ) -> dict[str, Any]:
+    exact_key = bool(step_id and step_id.strip())
+    if exact_key and (not isinstance(account_id, str) or not account_id.strip()):
+        raise ValueError("account_id is required when step_id is supplied")
     gate = HumanGateStore(gate_store).record(
-        run_id=run_id, reason=f"{listing_id}: {reason}", evidence_ref=evidence_ref
+        run_id=run_id, reason=f"{listing_id}: {reason}", evidence_ref=evidence_ref,
+        account_id=account_id if exact_key else None,
+        listing_id=listing_id if exact_key else None,
+        step_id=step_id if exact_key else None,
     )
     chat_id = _chat_id(telegram_env)
     if not chat_id:
         raise RuntimeError("job_search_telegram_chat_unavailable")
+    account_label = account_id.strip() if exact_key else "Mercorの既存Daisukeアカウント"
     message = (
         "Codex::: Mercor応募に人間操作が必要です\n\n"
         f"案件: {title.strip()}\n"
         f"リンク: {url.strip() or evidence_ref.strip()}\n"
-        "アカウント: Mercorの既存Daisukeアカウント\n"
+        f"アカウント: {account_label}\n"
         f"必要な操作: {reason.strip()}\n"
         f"期限: {deadline.strip() or '公式期限表示なし'}\n"
         "状態: 人間操作の直前まで進行済みです。完了後、次のwakeが自動再開します。"
@@ -89,6 +97,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--reason", required=True)
     parser.add_argument("--url", default="")
     parser.add_argument("--deadline", default="公式期限表示なし")
+    parser.add_argument("--account-id", default="")
+    parser.add_argument("--step-id", default="")
     parser.add_argument("--evidence-ref", required=True)
     args = parser.parse_args(argv)
     result = record_and_notify(
@@ -96,6 +106,7 @@ def main(argv: list[str] | None = None) -> int:
         run_id=args.run_id, listing_id=args.listing_id, title=args.title,
         reason=args.reason, evidence_ref=args.evidence_ref,
         url=args.url, deadline=args.deadline,
+        account_id=args.account_id or None, step_id=args.step_id or None,
     )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0

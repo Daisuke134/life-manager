@@ -9,8 +9,20 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from job_search_loop.ledger import Ledger
+from job_search_loop.learning import summarize_mercor_sources
+from job_search_loop.mercor_learning import (
+    build_learning_candidate,
+    decide_change,
+    evaluate_source_claim,
+)
+from job_search_loop.mercor_learning_sources import (
+    build_source_observation,
+    collect_sources,
+    classify_x_source_kind,
+)
 
 
 BASELINE = {
@@ -27,6 +39,277 @@ REPLAY_CASES = [
 
 
 class LearningPassTests(unittest.TestCase):
+    def test_collect_sources_keeps_transport_metadata_out_of_candidate_builder(self):
+        import job_search_loop.mercor_learning_sources as sources
+
+        def fake_run(command, *, timeout=30):
+            if command[0].endswith("crwl"):
+                return 0, "Navigate to Explore; Job fit; Newest; Submit Application; Resume Later", ""
+            if command[0].endswith("gh"):
+                return 0, json.dumps([{
+                    "fullName": "example/mercor-jobs",
+                    "url": "https://github.com/example/mercor-jobs",
+                    "description": "listing index",
+                }]), ""
+            return 2, "", "no x tab"
+
+        with patch.object(sources, "_run", side_effect=fake_run), patch.object(
+            sources.Path, "is_file", return_value=False
+        ):
+            result = collect_sources(
+                query="Mercor Japanese AI evaluator application",
+                observed_at="2026-09-17T11:30:00Z",
+            )
+        self.assertEqual(result["source_count"], 3)
+        self.assertEqual(result["income_receipts_promoted"], 0)
+
+    def test_official_source_requires_expected_document_markers(self):
+        import job_search_loop.mercor_learning_sources as sources
+
+        def fake_run(command, *, timeout=30):
+            if command[0].endswith("crwl"):
+                return 0, "transport succeeded but document body is absent", ""
+            return 2, "", "source unavailable"
+
+        with patch.object(sources, "_run", side_effect=fake_run), patch.object(
+            sources.Path, "is_file", return_value=False
+        ):
+            result = collect_sources(observed_at="2026-09-17T11:30:00Z")
+        official = result["sources"][0]
+        self.assertTrue(official["source_unavailable"])
+        self.assertEqual(official["evidence_grade"], "unavailable")
+
+    def test_source_hypothesis_targets_measured_application_to_reply_loss(self):
+        import job_search_loop.mercor_learning_sources as sources
+
+        def fake_run(command, *, timeout=30):
+            if command[0].endswith("crwl"):
+                return 0, "Navigate to Explore; Job fit; Newest; Submit Application; Resume Later", ""
+            return 2, "", "source unavailable"
+
+        with patch.object(sources, "_run", side_effect=fake_run), patch.object(
+            sources.Path, "is_file", return_value=False
+        ):
+            result = collect_sources(
+                observed_at="2026-09-17T11:30:00Z",
+                funnel={
+                    "source": "official-snapshot",
+                    "resolved": 80,
+                    "stage_counts": {
+                        "application": 95, "reply": 0, "offer": 0,
+                        "trial": 0, "contract": 0, "work": 0, "payment": 0,
+                    },
+                },
+            )
+        official = result["sources"][0]
+        self.assertEqual(result["funnel_context"]["loss_stage"], "reply")
+        self.assertEqual(official["target_stage"], "reply")
+        self.assertEqual(official["one_variable"], "application_presentation")
+        self.assertEqual(official["baseline_cohort"]["resolved"], 80)
+        self.assertEqual(official["proposed_change"], {
+            "application_presentation": "profile_fit_summary",
+        })
+
+    def test_learning_wake_collects_bounded_mercor_sources_before_strategy_run(self):
+        script = (Path(__file__).resolve().parents[1] / "scripts" / "run-learning.sh").read_text()
+        self.assertIn("mercor_learning_sources collect", script)
+        self.assertIn("mercor-learning-sources.json", script)
+        self.assertIn('--mercor-sources "$MERCOR_SOURCES"', script)
+        self.assertIn('chmod 600 "$MERCOR_SOURCES" "$MERCOR_SOURCES_SUMMARY"', script)
+        self.assertIn('source_unavailable', script)
+        self.assertIn('source collection failed; strategy learning continues', script)
+        self.assertIn("--query", script)
+        self.assertIn("--official-snapshot", script)
+
+    def test_x_source_requires_first_person_outcome_language(self):
+        self.assertEqual(
+            classify_x_source_kind("New Mercor roles and rates are available."),
+            "marketing",
+        )
+        self.assertEqual(
+            classify_x_source_kind("We offer paid Mercor roles to applicants."),
+            "marketing",
+        )
+        self.assertEqual(
+            classify_x_source_kind("I received your application and will review it."),
+            "marketing",
+        )
+        self.assertEqual(
+            classify_x_source_kind("My offer to candidates starts next week."),
+            "marketing",
+        )
+        self.assertEqual(
+            classify_x_source_kind("I applied, got hired, and received my first payout."),
+            "first_person",
+        )
+
+    def test_learning_report_keeps_source_links_without_promoting_income(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "sources.json"
+            path.write_text(json.dumps({
+                "version": 1,
+                "source_count": 1,
+                "income_receipts_promoted": 0,
+                "sources": [{
+                    "source_url": "https://talent.docs.mercor.com/how-to/apply",
+                    "source_kind": "official_guidance",
+                    "evidence_grade": "official",
+                    "source_unavailable": False,
+                    "published_at": None,
+                    "observed_at": "2026-09-17T11:30:00Z",
+                    "author": "Mercor",
+                    "claimed_outcome": "Guidance only",
+                }],
+            }), encoding="utf-8")
+            result = summarize_mercor_sources(path)
+        self.assertEqual(result["source_count"], 1)
+        self.assertEqual(result["income_receipts_promoted"], 0)
+        self.assertEqual(result["sources"][0]["source_url"], "https://talent.docs.mercor.com/how-to/apply")
+
+    def test_learning_report_preserves_funnel_loss_context(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "sources.json"
+            path.write_text(json.dumps({
+                "version": 1,
+                "source_count": 1,
+                "income_receipts_promoted": 0,
+                "funnel_context": {
+                    "resolved": 80,
+                    "loss_stage": "reply",
+                    "source": "official-snapshot",
+                    "stage_counts": {"application": 95, "reply": 0},
+                },
+                "sources": [{
+                    "source_url": "https://talent.docs.mercor.com/how-to/apply",
+                    "source_kind": "official_guidance",
+                    "evidence_grade": "official",
+                    "source_unavailable": False,
+                    "published_at": None,
+                    "observed_at": "2026-09-17T11:30:00Z",
+                    "author": "Mercor",
+                    "claimed_outcome": "Guidance only",
+                    "target_stage": "reply",
+                    "one_variable": "application_presentation",
+                    "strategy_version": "mercor-fit-evidence-v1",
+                    "baseline_cohort": {
+                        "resolved": 80,
+                        "stage_counts": {"application": 95, "reply": 0},
+                        "loss_stage": "reply",
+                    },
+                    "proposed_change": {"application_presentation": "profile_fit_summary"},
+                }],
+            }), encoding="utf-8")
+            result = summarize_mercor_sources(path)
+        self.assertEqual(result["funnel_context"]["loss_stage"], "reply")
+        self.assertEqual(result["sources"][0]["target_stage"], "reply")
+
+    def test_source_observation_keeps_provenance_and_unavailable_surfaces_explicit(self):
+        source = build_source_observation(
+            source_url="https://talent.docs.mercor.com/how-to/apply",
+            source_kind="official_guidance",
+            observation="Mercor documents Job fit and Newest filters.",
+            hypothesis="Reviewing page one through four keeps plausible roles in the queue.",
+            target_stage="application",
+            one_variable="listing_order",
+            strategy_version="mercor-fit-evidence-v1",
+            baseline_cohort={"resolved": 0},
+            proposed_change={"listing_order": "page_one_to_four"},
+            published_at=None,
+            observed_at="2026-09-17T11:30:00Z",
+            author="Mercor",
+            claimed_outcome="No hiring or payout claim; guidance only.",
+            evidence_grade="official",
+            source_unavailable=False,
+        )
+        self.assertEqual(source["source_kind"], "official_guidance")
+        self.assertIsNone(source["published_at"])
+        self.assertEqual(source["author"], "Mercor")
+        self.assertFalse(source["source_unavailable"])
+
+        unavailable = build_source_observation(
+            source_url="https://html.duckduckgo.com/html/?q=mercor",
+            source_kind="first_person",
+            observation="Search surface returned a bot challenge.",
+            hypothesis="Search unavailable; retain the official guidance hypothesis.",
+            target_stage="application",
+            one_variable="listing_order",
+            strategy_version="mercor-fit-evidence-v1",
+            baseline_cohort={"resolved": 0},
+            proposed_change={"listing_order": "page_one_to_four"},
+            published_at=None,
+            observed_at="2026-09-17T11:30:00Z",
+            author="",
+            claimed_outcome="",
+            evidence_grade="unavailable",
+            source_unavailable=True,
+        )
+        self.assertTrue(unavailable["source_unavailable"])
+        self.assertEqual(unavailable["evidence_grade"], "unavailable")
+
+    def test_external_claim_never_becomes_income_without_official_receipt(self):
+        result = evaluate_source_claim({
+            "source_kind": "marketing",
+            "source_url": "https://example.com/post",
+            "claimed_income_usd": 10000,
+        })
+        self.assertEqual(result["verified_income_usd"], 0)
+        self.assertEqual(result["evidence_grade"], "hypothesis_only")
+
+    def test_only_verified_official_receipt_contributes_income(self):
+        result = evaluate_source_claim({
+            "source_kind": "official_receipt",
+            "claimed_income_usd": 125.50,
+            "provider": "mercor",
+            "receipt_status": "received",
+            "verified": True,
+            "provider_receipt_id": "earnings-1",
+            "evidence_ref": "earnings-readback.json",
+            "evidence_sha256": "a" * 64,
+        })
+        self.assertEqual(result["verified_income_usd"], 125.50)
+        self.assertEqual(result["evidence_grade"], "official_receipt")
+
+    def test_small_cohorts_are_insufficient_for_a_strategy_change(self):
+        result = decide_change(
+            before=[{"stage": "submitted"}],
+            after=[{"stage": "offer"}],
+        )
+        self.assertEqual(result["decision"], "insufficient_evidence")
+
+    def test_explicit_negative_outcomes_are_resolved_for_revert_decision(self):
+        before = [{"stage": "rejected", "evidence_grade": "official", "evidence_ref": f"before-{i}"} for i in range(5)]
+        after = [{"stage": "offer", "evidence_grade": "official", "evidence_ref": f"after-{i}"} for i in range(5)]
+        result = decide_change(before=before, after=after)
+        self.assertEqual(result["decision"], "keep")
+        self.assertEqual(result["before_resolved"], 5)
+
+    def test_learning_candidate_changes_one_strategy_variable(self):
+        candidate = build_learning_candidate(
+            source_url="https://talent.docs.mercor.com/how-to/apply",
+            source_kind="official_guidance",
+            observation="Mercor recommends the Job fit and Newest views.",
+            hypothesis="Job-fit ordering will increase offer-stage conversion.",
+            target_stage="offer",
+            one_variable="listing_order",
+            strategy_version="mercor-fit-evidence-v1",
+            baseline_cohort={"resolved": 12, "strategy_version": "v0"},
+            proposed_change={"listing_order": "job_fit_then_newest"},
+        )
+        self.assertEqual(candidate["one_variable"], "listing_order")
+        self.assertEqual(list(candidate["proposed_change"]), ["listing_order"])
+        with self.assertRaisesRegex(ValueError, "exactly one variable"):
+            build_learning_candidate(
+                source_url="https://talent.docs.mercor.com/how-to/apply",
+                source_kind="official_guidance",
+                observation="observation",
+                hypothesis="hypothesis",
+                target_stage="offer",
+                one_variable="listing_order",
+                strategy_version="v1",
+                baseline_cohort={"resolved": 12},
+                proposed_change={"listing_order": "job_fit", "copy": "short"},
+            )
+
     def _module(self):
         try:
             from job_search_loop import learning
@@ -426,6 +709,7 @@ class LearningPassTests(unittest.TestCase):
                 ),
                 "TELEGRAM_BOT_TOKEN": "test-token",
                 "JOB_SEARCH_TELEGRAM_CHAT_ID": "test-chat",
+                "MERCOR_LEARNING_SOURCES_SKIP": "1",
             }
 
             first = subprocess.run(

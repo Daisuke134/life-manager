@@ -8,6 +8,9 @@ RUN_ID="learning-$(date +%Y%m%d-%H%M%S)-$$"
 EVIDENCE="$JOB_SEARCH_STATE_ROOT/evidence/$RUN_ID"
 REPORT="$EVIDENCE/learning-decision.json"
 SUMMARY="$EVIDENCE/summary.json"
+MERCOR_SOURCES="$EVIDENCE/mercor-learning-sources.json"
+MERCOR_SOURCES_SUMMARY="$EVIDENCE/mercor-learning-sources-summary.json"
+MERCOR_OFFICIAL_SNAPSHOT="${MERCOR_OFFICIAL_SNAPSHOT:-$JOB_SEARCH_STATE_ROOT/mercor/reply/official-snapshot.json}"
 TELEGRAM_OUTBOX="$JOB_SEARCH_STATE_ROOT/telegram-outbox.sqlite3"
 
 mkdir -p "$EVIDENCE" "$JOB_SEARCH_STATE_ROOT/logs"
@@ -18,11 +21,33 @@ chmod 700 \
   "$JOB_SEARCH_STATE_ROOT/logs"
 export PYTHONPATH="$JOB_SEARCH_APP_ROOT"
 
+if [[ "${MERCOR_LEARNING_SOURCES_SKIP:-0}" == "1" ]]; then
+  printf '%s\n' '{"version":1,"source_count":0,"sources":[],"income_receipts_promoted":0}' >"$MERCOR_SOURCES"
+  printf '%s\n' '{"status":"skipped"}' >"$MERCOR_SOURCES_SUMMARY"
+else
+  set +e
+  "$JOB_SEARCH_PYTHON" -m job_search_loop.mercor_learning_sources collect \
+    --output "$MERCOR_SOURCES" \
+    --query "${MERCOR_LEARNING_QUERY:-Mercor Japanese AI evaluator application}" \
+    --official-snapshot "$MERCOR_OFFICIAL_SNAPSHOT" \
+    >"$MERCOR_SOURCES_SUMMARY"
+  SOURCE_RC=$?
+  set -e
+  if [[ "$SOURCE_RC" -ne 0 ]]; then
+    printf '%s\n' "Mercor source collection failed; strategy learning continues" >&2
+    printf '%s\n' '{"version":1,"source_count":1,"sources":[{"source_url":"https://talent.docs.mercor.com/how-to/apply","source_kind":"official_guidance","evidence_grade":"unavailable","source_unavailable":true,"published_at":null,"observed_at":"unknown","author":"","claimed_outcome":""}],"income_receipts_promoted":0}' >"$MERCOR_SOURCES"
+  fi
+  [[ -f "$MERCOR_SOURCES" ]] || printf '%s\n' '{"version":1,"source_count":1,"sources":[{"source_url":"https://talent.docs.mercor.com/how-to/apply","source_kind":"official_guidance","evidence_grade":"unavailable","source_unavailable":true,"published_at":null,"observed_at":"unknown","author":"","claimed_outcome":""}],"income_receipts_promoted":0}' >"$MERCOR_SOURCES"
+  [[ -f "$MERCOR_SOURCES_SUMMARY" ]] || printf '%s\n' '{"status":"source_unavailable"}' >"$MERCOR_SOURCES_SUMMARY"
+fi
+chmod 600 "$MERCOR_SOURCES" "$MERCOR_SOURCES_SUMMARY"
+
 "$JOB_SEARCH_PYTHON" -m job_search_loop.learning run \
   --ledger "$JOB_SEARCH_STATE_ROOT/ledger.sqlite3" \
   --strategy "$JOB_SEARCH_APP_ROOT/config/strategy.default.json" \
   --replay "$JOB_SEARCH_APP_ROOT/config/learning-replay.v1.json" \
   --report "$REPORT" \
+  --mercor-sources "$MERCOR_SOURCES" \
   --outbox "$TELEGRAM_OUTBOX" \
   >"$SUMMARY"
 chmod 600 "$REPORT" "$SUMMARY"

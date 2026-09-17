@@ -42,6 +42,11 @@ class FakeWebSocket:
                 "body": json.dumps(self.bodies[request_id]),
             }})
             return
+        if method == "Runtime.evaluate":
+            self.messages.append({"id": identifier, "result": {
+                "result": {"value": True},
+            }})
+            return
         self.messages.append({"id": identifier, "result": {}})
 
     async def recv(self):
@@ -68,6 +73,24 @@ def test_capture_reads_each_body_at_loading_finished_without_losing_queued_event
     result = snapshot.asyncio.run(snapshot._capture("ws://127.0.0.1/devtools/page/1"))
 
     assert result == {name: {"source": name} for name in snapshot.ENDPOINTS}
+
+
+def test_current_notifications_api_payload_is_normalized_for_reply_adapter():
+    assert snapshot.ENDPOINTS["notifications"] == (
+        "https://coil.mercor.com/v1/notifications?limit=25&filter=all"
+    )
+    payload = {
+        "items": [{"id": "notification-1", "event": "APPLICATION/ADVANCED"}],
+        "nextCursor": None,
+        "hasMore": False,
+    }
+
+    normalized = snapshot._normalize_response("notifications", payload)
+    assert normalized["notifications"][0]["commId"] == "notification-1"
+    assert normalized["notifications"][0]["commEvent"] == "APPLICATION/ADVANCED"
+    assert normalized["notifications"][0]["content"] == "APPLICATION/ADVANCED"
+    assert normalized["nextCursor"] is None
+    assert normalized["hasMore"] is False
 
 
 def test_gmail_inventory_groups_full_history_by_thread_and_excludes_auth(monkeypatch):
