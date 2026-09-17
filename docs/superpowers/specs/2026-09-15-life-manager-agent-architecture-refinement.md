@@ -175,6 +175,16 @@ does not transfer ownership of their browser/account state.
   review SHIP. **Not merged, loaded or a provider/Calendar success.** The
   `coalesce_queued_wakes` marker and this claim binding MUST enter one
   main-derived immutable release together; marker-only rollout is forbidden.
+- [x] **Source-only non-coalesced A/B binding:** main-derived branch
+  `fix/connector-admission-main-20260917` commit `39f58c45e1` reads the
+  exact v2 claim A, gives A to the effect child, and records the A→host-run-B
+  relationship in the existing terminal `evidence_refs` envelope. This keeps
+  the v1 event field schema valid for old readers; Connector's A=B terminal
+  retains its exact single reference. RED→GREEN, runtime event/runner/read-only
+  71/71 PASS, independent read-only review SHIP. **Not main/loaded**. The next
+  shared-runtime blocker is nonzero-child `effect_unknown` liveness: a proven
+  pre-effect failure must not permanently freeze an owner, while an uncertain
+  external effect must remain fenced until official reconciliation.
 - [ ] `borrow` is **not deleted**: current `resource_admission.py` SQLite
   schema/capacity calculations and `lm_loop_run.py` default still use
   `admission_class=borrow` for maintenance. It is an old reserved-capacity
