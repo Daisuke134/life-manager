@@ -1026,13 +1026,15 @@ work item and leave a sibling trace unchanged.
 - `63568785` buyer Google Doc is known but currently shows `編集権限をリクエスト`.
 - Host headroom is currently about 7.5 GiB after the bounded cleanup pass (`free_after=8,080,977,920`,
   `reclaimed=0`, `preserved=5`, `errors=1`); capacity recovered, but the cleanup error remains open.
+- Paid admission progress: occurrences `16007`, `26778` and `36919` are reconciled to exact effect/no-effect
+  evidence and now `released/effect_unknown=0`.
 
 **Not done / blockers:**
 
 - Paid launchd is `not running`, exit `75`; stale occurrence
-  `crowdworks-revenue-paid:18d62a63b8860a80-16007` remains `claimed`/`effect_unknown=1`. Reconcile probes
-  for `63657015` and `63659463` both returned `exact_persisted_form_intent_unavailable`; the current
-  pre-effect code refuses an unbound legacy clear.
+  `crowdworks-revenue-paid:18d62cf32eb0c678-48194` remains `claimed`/`effect_unknown=1` after a
+  provider-inventory failure without a durable marker. The current pre-effect code refuses an unbound
+  legacy clear.
 - `63657015` timed out with durable common-form intent `intent_persisted` and no confirmed receipt.
 - `63570481` correction has not been submitted; the buyer-visible result and formal delivery are open.
 - `63568785` has no artifact until permission/content is supplied.
@@ -1045,9 +1047,9 @@ work item and leave a sibling trace unchanged.
 
 - [x] **CW-F1a — host headroom:** Existing cleanup pass read back about 7.5 GiB free. It reclaimed zero
   artifacts and recorded one error, so capacity recovery is observed but cleanup health is not green.
-- [ ] **CW-F1b — admission reconcile:** Reconcile occurrence `18d62a63b8860a80-16007` only with exact
-  run-wide pre-effect evidence or official provider receipt. Both candidate probes are currently
-  `exact_persisted_form_intent_unavailable`; do not clear it by guess.
+- [ ] **CW-F1b — admission reconcile:** Reconcile occurrence `18d62cf32eb0c678-48194` only with exact
+  run-wide pre-effect evidence or official provider receipt. Its provider-inventory run has no durable
+  marker/intent; do not clear it by guess.
 - [ ] **CW-F2 — installed-owner wake:** Kickstart the targeted Paid owner without waiting for a global
   slot; read terminal receipt, 5-contract inventory and per-contract detail. Keep blocked contracts
   independent.

@@ -52,15 +52,16 @@ not a claim that money has been earned.
   `free_after=8,080,977,920` bytes (about 7.5 GiB). It reclaimed no allow-listed artifact and preserved
   five candidates (`errors=1`), so capacity is currently above the immediate ENOSPC floor but the cleanup
   pass itself is not a clean success.
+- **Admission progress:** occurrence `16007` was reconciled to the exact `63659463` common-form receipt;
+  occurrences `26778` and `36919` were reconciled from durable `completed/effect=0` run markers. Their
+  rows are now `released/effect_unknown=0`.
 
 ### Not done (current blockers and open work)
 
 - **Admission blocker:** the Paid owner remains stopped by the exact stale occurrence
-  `crowdworks-revenue-paid:18d62a63b8860a80-16007` (`claimed`, `effect_unknown=1`). The current code
-  safely refuses to clear this legacy occurrence without an exact occurrence-bound, run-wide pre-effect
-  proof. Reconcile probes for both persisted-form candidates (`63657015` and `63659463`) returned
-  `exact_persisted_form_intent_unavailable`; the DB row is still unchanged. The latest launchd readback
-  is `state=not running`, `last exit code=75`.
+  `crowdworks-revenue-paid:18d62cf32eb0c678-48194` (`claimed`, `effect_unknown=1`). It came from a
+  provider-inventory failure with no durable run marker, so it cannot be cleared as no-effect. The latest
+  launchd readback is `state=not running`, `last exit code=75`.
 - **`63657015` Orecon:** the latest wake timed out with `CrowdWorksPaidContractTimeout`; its durable
   form intent for `https://forms.gle/GxTdS4kZr8fbvej68` remains `intent_persisted` with no confirmed
   receipt. Do not retry from the intent alone; first reconcile the official form/provider state.
@@ -78,10 +79,9 @@ not a claim that money has been earned.
 ### Remaining TODO, in execution order
 
 1. **Reconcile the exact admission occurrence.** Headroom recovery is read back, but the cleanup error
-   remains open. Use the existing pre-effect reconciliation path for occurrence
-   `18d62a63b8860a80-16007` only when an exact run-wide marker and matching persisted intent exist. Clear it
-   only with exact evidence or an official provider receipt; never guess and never reinterpret a browser
-   timeout as a provider effect.
+   remains open. Use the existing provider/no-effect reconciliation path for occurrence
+   `18d62cf32eb0c678-48194` only when an exact run receipt or run-wide marker exists. Clear it only with
+   exact evidence; never guess and never reinterpret a browser timeout as a provider effect.
 2. **Wake the installed Paid owner without waiting for a global slot.** After reconciliation, kickstart the
    targeted owner and read back its terminal receipt, per-contract state and official active inventory. A
    blocked or slow contract must stay independently represented so other contracts can advance.
