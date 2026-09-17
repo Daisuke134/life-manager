@@ -101,6 +101,38 @@ def test_two_official_active_contracts_normalize_to_unique_stable_observations()
     assert len({row["latest_event_id"] for row in rows}) == 2
 
 
+def test_active_inventory_waits_for_contract_rows_after_commit_navigation():
+    module = load()
+    calls = []
+
+    class Links:
+        def nth(self, _index): return self
+        def wait_for(self, *, state, timeout): calls.append((state, timeout))
+        def evaluate_all(self, _expression):
+            return [
+                {"href": "/contracts/63659463", "title": "Web広告運用", "row": "オンジョブ株式会社\tWeb広告運用\t進行中\t-"},
+                {"href": "/contracts/63568785", "title": "教材フィードバック", "row": "undym67231\t教材フィードバック\t進行中\t-"},
+            ]
+
+    class Page:
+        url = module.ACTIVE_CONTRACTS_URL
+        def set_default_timeout(self, _timeout): pass
+        def goto(self, _url, *, wait_until, timeout):
+            calls.append((wait_until, timeout))
+        def locator(self, selector):
+            assert selector == 'a[href^="/contracts/"]'
+            return Links()
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._open = lambda: None
+    assert adapter._list_contracts_once() == [
+        {"work_id": "63659463", "title": "Web広告運用", "client": "オンジョブ株式会社", "provider_state": "funded"},
+        {"work_id": "63568785", "title": "教材フィードバック", "client": "undym67231", "provider_state": "funded"},
+    ]
+    assert ("attached", 20_000) in calls
+
+
 def test_detail_expands_folded_buyer_messages_before_readback():
     module = load()
     events = []
@@ -1368,6 +1400,9 @@ def test_active_contract_dom_timeout_has_same_safe_stage_code():
     module = load()
 
     class Locator:
+        def nth(self, _index): return self
+        def wait_for(self, **_kwargs):
+            raise module.PlaywrightTimeoutError("untrusted provider text")
         def evaluate_all(self, *_):
             raise module.PlaywrightTimeoutError("untrusted provider text")
 
@@ -1407,6 +1442,8 @@ def test_empty_active_contract_inventory_fails_closed_instead_of_reporting_zero(
     module = load()
 
     class Locator:
+        def nth(self, _index): return self
+        def wait_for(self, **_kwargs): pass
         def evaluate_all(self, *_): return []
 
     class Page:
