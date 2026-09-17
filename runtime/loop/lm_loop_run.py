@@ -23,6 +23,7 @@ from runtime.loop.macos_loop_registry import validate_registry
 from runtime.loop.runtime_event import append_runtime_event, build_runtime_event, build_runtime_start_event
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.resource_admission import (
+    OCCURRENCE_ID_PATTERN,
     cancel_durable as cancel_durable_resource,
     claim_durable as claim_durable_resource,
     defer_durable as defer_durable_resource,
@@ -369,7 +370,8 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
 
 
 def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, str],
-                  receipt: Path, *, occurrence_id: str | None = None) -> int:
+                  receipt: Path, *, occurrence_id: str | None = None,
+                  on_claimed: Callable[[str], None] = lambda _value: None) -> int:
     limit = _runtime_limit(entry)
     if loop_id in {"life-manager-release-reconciler", "life-manager-disk-cleanup"}:
         _atomic_json(receipt, {"status": "pass", "effect": 0,
@@ -477,6 +479,20 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             if durable and not interrupted:
                 _dispatch_reserved(reserve_available_resource())
             return 75
+        claimed_occurrence_id = occurrence_id
+        if durable and occurrence_id is not None:
+            try:
+                claimed_occurrence_id = json.loads(claim.read_text(encoding="utf-8")).get(
+                    "occurrence_id")
+                if (not isinstance(claimed_occurrence_id, str)
+                        or not OCCURRENCE_ID_PATTERN.fullmatch(claimed_occurrence_id)
+                        or not claimed_occurrence_id.startswith(f"{loop_id}:")):
+                    raise ValueError("invalid claimed occurrence")
+            except (OSError, ValueError, AttributeError):
+                _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                      "reason": "resource_claim_identity_invalid"})
+                return 75
+            on_claimed(claimed_occurrence_id)
         available = memory_free_percent()
         if interrupted:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
@@ -511,8 +527,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                if key != "LIFE_MANAGER_OCCURRENCE_ID"},
             "LIFE_MANAGER_RESULT_HINT_PATH": str(receipt.parent / "entrypoint-result.json"),
         }
-        if occurrence_id is not None:
-            child_env["LIFE_MANAGER_OCCURRENCE_ID"] = occurrence_id
+        if claimed_occurrence_id is not None:
+            child_env["LIFE_MANAGER_OCCURRENCE_ID"] = claimed_occurrence_id
         return_code = _run_entrypoint(
             command, env=child_env, timeout_seconds=limit, cancelled=lambda: interrupted,
             on_started=transfer_claim)
@@ -577,10 +593,14 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"lm-loop-run: start event failed: {error}", file=sys.stderr)
         host_receipt = scratch / "host-admission.json"
         started_ns = time.time_ns()
+        claimed_occurrence_id = None
+        def record_claimed(value: str) -> None:
+            nonlocal claimed_occurrence_id
+            claimed_occurrence_id = value
         return_code = _run_admitted(command, entry, loop_id, {
             **os.environ, "LIFE_MANAGER_RELEASE_ROOT": str(release_root),
             "TMPDIR": f"{scratch}/", "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
-        }, host_receipt, occurrence_id=f"{loop_id}:{run_id}")
+        }, host_receipt, occurrence_id=f"{loop_id}:{run_id}", on_claimed=record_claimed)
         host_deferred = _host_admission_deferred(host_receipt, started_ns)
         terminal_saved = False
         try:
@@ -592,6 +612,7 @@ def main(argv: list[str] | None = None) -> int:
                 profile_alias=None, effect_class=entry["effect_class"],
                 succeeded=succeeded, deferred=deferred, blocker=blocker,
                 evidence_scheme="lm-loop",
+                claimed_occurrence_id=claimed_occurrence_id,
             )
             append_runtime_event(event_path, event)
             terminal_saved = True

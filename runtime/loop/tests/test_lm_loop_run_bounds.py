@@ -163,7 +163,7 @@ def test_running_child_receives_periodic_claim_heartbeat(tmp_path, monkeypatch):
     }
     receipt = tmp_path / "receipt"
     claim = tmp_path / "claim"
-    claim.write_text("owned")
+    claim.write_text(json.dumps({"occurrence_id": "heartbeat-owner:run-1"}))
     heartbeat_seen = threading.Event()
     calls = []
 
@@ -361,7 +361,7 @@ def test_started_child_timeout_and_signal_mark_effect_unknown_before_release(tmp
 
 def test_admitted_child_receives_exact_host_occurrence_identity(tmp_path):
     claim = tmp_path / "claim"
-    claim.write_text("owned")
+    claim.write_text(json.dumps({"occurrence_id": "connector:run-123"}))
     observed = {}
 
     def run_child(*_args, **kwargs):
@@ -383,11 +383,41 @@ def test_admitted_child_receives_exact_host_occurrence_identity(tmp_path):
             "provider_route": "deterministic", "resource_class": "browser",
             "admission_class": "revenue", "coalesce_queued_wakes": True,
         }, "connector", {}, tmp_path / "receipt",
-            occurrence_id="life-manager-connector-native:run-123") == 0
+            occurrence_id="connector:run-123") == 0
     claim_admission.assert_called_once_with(
         "browser", "connector", admission_class="revenue",
-        coalesced_occurrence_id="life-manager-connector-native:run-123")
-    assert observed["LIFE_MANAGER_OCCURRENCE_ID"] == "life-manager-connector-native:run-123"
+        coalesced_occurrence_id="connector:run-123")
+    assert observed["LIFE_MANAGER_OCCURRENCE_ID"] == "connector:run-123"
+
+
+def test_noncoalesced_child_uses_claimed_older_occurrence(tmp_path):
+    claim = tmp_path / "claim"
+    claim.write_text(json.dumps({"occurrence_id": "example:older"}))
+    observed = {}
+    claimed = []
+
+    def run_child(*_args, **kwargs):
+        observed.update(kwargs["env"])
+        kwargs["on_started"](4242)
+        return 0
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 60},
+            "provider_route": "deterministic", "resource_class": "agent",
+            "admission_class": "revenue",
+        }, "example", {}, tmp_path / "receipt", occurrence_id="example:new",
+            on_claimed=claimed.append) == 0
+    assert observed["LIFE_MANAGER_OCCURRENCE_ID"] == "example:older"
+    assert claimed == ["example:older"]
 
 
 def test_v1_protocol_coexists_with_live_legacy_owner_without_sqlite(tmp_path, monkeypatch):
