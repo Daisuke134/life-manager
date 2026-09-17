@@ -152,6 +152,39 @@ test("provider discovery success keeps its provider in action history", async ()
   assert.equal(discovery[1].provider, "connpass");
 });
 
+test("browser open success keeps the transport component in action history", async () => {
+  const state = fixture({ async discoverCandidates() { return []; } });
+
+  await runMinimalConnectorWake({ ownerToken: "owner-token-browser-open-success", providers: ["connpass"] }, state.dependencies);
+
+  const opened = state.calls.find(([name, action]) => name === "history" && action.method === "browser_open");
+  assert.equal(opened[1].provider, "browser");
+});
+
+test("browser open failure keeps a bounded transport reason in action history", async () => {
+  const state = fixture();
+  state.dependencies.browserRail.open = async () => {
+    const error = new Error("private CDP detail");
+    error.name = "TimeoutError";
+    throw error;
+  };
+
+  const result = await runMinimalConnectorWake({ ownerToken: "owner-token-browser-open-failure", providers: ["connpass"] }, state.dependencies);
+
+  assert.equal(result.safe_reason, "wake_boundary_failed");
+  const failed = state.calls.find(([name, action]) => name === "history" && action.method === "browser_open");
+  assert.deepEqual(failed[1], {
+    purpose: "observe",
+    method: "browser_open",
+    timestamp: "2026-08-07T02:00:00.000Z",
+    result: "failed",
+    duration_ms: 0,
+    provider: "browser",
+    safe_reason: "browser_open_failed",
+    error_class: "Error",
+  });
+});
+
 test("connpass candidates produce one action-boundary receipt and skip every provider action", async () => {
   let state = fixture({
     async discoverCandidates(provider) {

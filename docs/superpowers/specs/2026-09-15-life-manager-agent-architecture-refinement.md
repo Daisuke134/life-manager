@@ -774,11 +774,12 @@ these rows to `candidate-selection-audits.jsonl`; focused production and
 operations contracts are green. This remains source evidence until a loaded
 release produces a real primary wake with the row.
 
-**Provider action trace source change (branch):** successful
-`provider_discovery` action rows now carry the bounded provider name, while
-failure rows retain their existing safe reason/error class. The runner and
-operations contracts are green; this is not a live proof until a release
-containing the change records a primary wake.
+**Provider/browser action trace source change (branch):** successful
+`provider_discovery` rows carry the bounded provider name, and the existing
+browser target-open boundary records `provider=browser` on success or its safe
+failure reason/error class. Failure rows retain their existing redaction. The
+runner and operations contracts are green; this is not a live proof until a
+release containing the change records a primary wake.
 
 **As-is readback:**
 

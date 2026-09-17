@@ -285,7 +285,21 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
     const gaps = await action("observe", "calendar_busy", () => deps.readCalendarGaps());
     if (!Array.isArray(gaps)) invalid();
     if (deadlineReached()) return finish("circuit_open", "wake_deadline");
-    owned = verifiedOwned(await deps.browserRail.open(Object.freeze({ ownerToken: settings.ownerToken })));
+    owned = await action(
+      "observe",
+      "browser_open",
+      async () => verifiedOwned(await deps.browserRail.open(Object.freeze({ ownerToken: settings.ownerToken }))),
+      (error) => {
+        const errorClass = safeErrorClass(error);
+        return Object.freeze({
+          provider: "browser",
+          safe_reason: "browser_open_failed",
+          ...(errorClass ? { error_class: errorClass } : {}),
+        });
+      },
+      null,
+      { provider: "browser" },
+    );
     if (deadlineReached()) return finish("circuit_open", "wake_deadline");
 
     for (let providerIndex = 0; providerIndex < settings.providers.length; providerIndex += 1) {
