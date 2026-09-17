@@ -52,6 +52,41 @@ locked worktree -> focused test -> merged main -> immutable release -> lm-loop a
 3. Name the exact loop IDs and files owned by one registry TODO. Do not modify a
    sibling loop unless the root cause is its shared runtime boundary.
 
+## Mandatory Loop Contract gate
+
+Every new or changed Product Loop must pass the repository-owned contract gate
+before its PR is opened:
+
+```bash
+./bin/lm-loop-contract
+```
+
+The gate joins `apps/life-manager/config/product-loop-catalog.json` to
+`config/loop-registry.json` and rejects a loop whose canonical jobs are missing,
+whose entrypoint leaves the repository, or whose owner/provider/effect/cadence
+fields are incomplete. This is a structural gate; it does not claim an external
+provider effect. External success still requires `lm-loop` runtime evidence,
+official readback, receipt, and replay-zero through the Local/Cloud completion
+gates.
+
+The same command is required for loops created by Codex, Life Manager's
+self-build loop, self-heal repair work, and self-improvement candidates. A Skill
+document is guidance; this contract gate is the machine-enforced shared boundary.
+
+## Self-heal decision boundary
+
+Self-heal code must first produce a typed, owner-scoped recovery intent:
+
+```bash
+./bin/lm-recovery-intent --input <failure-summary.json>
+```
+
+The intent is a decision record, not a restart command. It may request
+owner reconciliation, hold an uncertain effect for official readback, or
+escalate a repeated/unclassified failure. It must never mutate a provider,
+browser, credential, scheduler, or sibling owner directly. A later supervisor
+may execute only the action allowed by the intent and its existing lease.
+
 ## Source, state, and ownership
 
 - Executable code, adapters, schemas, prompts, and dependency lockfiles live in

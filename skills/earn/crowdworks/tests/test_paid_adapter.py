@@ -864,7 +864,7 @@ def test_milestone_completion_opens_the_contract_dialog_anchor():
         def __init__(self, visible=True): self.visible = visible
         def is_visible(self): return self.visible
         def count(self): return 1
-        def click(self): events.append("dialog"); page.dialog_open = True
+        def click(self, **kwargs): events.append(("dialog", kwargs)); page.dialog_open = True
         def fill(self, value): events.append(("fill", value))
         def is_disabled(self): return False
         def wait_for(self, **kwargs): events.append(("wait", kwargs))
@@ -900,7 +900,7 @@ def test_milestone_completion_opens_the_contract_dialog_anchor():
 
     adapter._complete_once(funded(), {"milestone_id": "13798056"})
 
-    assert "dialog" in events
+    assert any(item[0] == "dialog" for item in events if isinstance(item, tuple))
     assert any(item[0] == "fill" for item in events if isinstance(item, tuple))
 
 def test_delivery_primes_visible_duplicate_message_textareas():

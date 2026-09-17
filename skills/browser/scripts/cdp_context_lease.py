@@ -815,7 +815,14 @@ def _has_web_storage_for_origin(target_url, origins):
     return any(
         isinstance(row, dict)
         and _normalized_origin(row.get("origin")) == target_origin
-        and (row.get("localStorage") or row.get("sessionStorage"))
+        and (
+            row.get("localStorage")
+            or row.get("sessionStorage")
+            or any(
+                isinstance(spec, dict) and spec.get("records")
+                for spec in row.get("indexedDB", [])
+            )
+        )
         for row in origins if isinstance(origins, list)
     )
 
@@ -824,6 +831,7 @@ def _seed_web_storage(ws_url, target_url, origins):
     target_origin = _normalized_origin(target_url)
     matching_local = []
     matching_session = []
+    matching_indexeddb = []
     for row in origins if isinstance(origins, list) else []:
         if not isinstance(row, dict) or _normalized_origin(row.get("origin")) != target_origin:
             continue
@@ -839,8 +847,24 @@ def _seed_web_storage(ws_url, target_url, origins):
             and isinstance(item.get("name"), str)
             and isinstance(item.get("value"), str)
         ]
+        matching_indexeddb = [
+            {
+                "database": spec.get("database"),
+                "version": spec.get("version", 1),
+                "objectStore": spec.get("objectStore"),
+                "keyPath": spec.get("keyPath"),
+                "autoIncrement": spec.get("autoIncrement", False),
+                "records": spec.get("records", []),
+            }
+            for spec in row.get("indexedDB", [])
+            if isinstance(spec, dict)
+            and isinstance(spec.get("database"), str)
+            and isinstance(spec.get("objectStore"), str)
+            and isinstance(spec.get("records"), list)
+            and spec.get("records")
+        ]
         break
-    if not target_origin or not (matching_local or matching_session):
+    if not target_origin or not (matching_local or matching_session or matching_indexeddb):
         return 0
 
     source = """(()=>{
@@ -848,18 +872,99 @@ def _seed_web_storage(ws_url, target_url, origins):
       for(const item of %s) localStorage.setItem(item.name,item.value);
       for(const item of %s) sessionStorage.setItem(item.name,item.value);
     })()""" % (
-        json.dumps(target_origin), json.dumps(matching_local), json.dumps(matching_session)
+        json.dumps(target_origin),
+        json.dumps(matching_local),
+        json.dumps(matching_session),
     )
+    if not matching_indexeddb:
+        asyncio.run(_page_calls(ws_url, [
+            ("Page.addScriptToEvaluateOnNewDocument", {"source": source}),
+            ("Page.navigate", {"url": target_url}),
+        ], timeout=15.0))
+        return len(matching_local) + len(matching_session)
+
+    restore_expression = """(async()=>{
+      const specs=%s;
+      for(const spec of specs){
+        await new Promise((resolve,reject)=>{
+          let request;
+          try { request=indexedDB.open(spec.database,Number(spec.version)||1); }
+          catch(error){ reject(error); return; }
+          request.onupgradeneeded=()=>{
+            const db=request.result;
+            if(!db.objectStoreNames.contains(spec.objectStore)){
+              const options={autoIncrement:!!spec.autoIncrement};
+              if(spec.keyPath) options.keyPath=spec.keyPath;
+              db.createObjectStore(spec.objectStore,options);
+            }
+          };
+          request.onerror=()=>reject(request.error||new Error('indexeddb_open_failed'));
+          request.onsuccess=()=>{
+            const db=request.result;
+            if(!db.objectStoreNames.contains(spec.objectStore)){
+              db.close(); reject(new Error('indexeddb_store_missing')); return;
+            }
+            let transaction;
+            try { transaction=db.transaction(spec.objectStore,'readwrite'); }
+            catch(error){ db.close(); reject(error); return; }
+            const store=transaction.objectStore(spec.objectStore);
+            try {
+              for(const record of spec.records){
+                if(spec.keyPath) store.put(record);
+                else if(record && Object.prototype.hasOwnProperty.call(record,'key')) store.put(record.value,record.key);
+                else store.put(record);
+              }
+            } catch(error){ db.close(); reject(error); return; }
+            transaction.oncomplete=()=>{db.close();resolve();};
+            transaction.onerror=()=>{db.close();reject(transaction.error||new Error('indexeddb_write_failed'));};
+            transaction.onabort=()=>{db.close();reject(transaction.error||new Error('indexeddb_write_aborted'));};
+          };
+        });
+      }
+      return true;
+    })()""" % json.dumps(matching_indexeddb)
+    hold_url = target_origin + "/login"
     asyncio.run(_page_calls(ws_url, [
         ("Page.addScriptToEvaluateOnNewDocument", {"source": source}),
+        ("Page.navigate", {"url": hold_url}),
+    ], timeout=15.0))
+    deadline = time.monotonic() + 15.0
+    while time.monotonic() < deadline:
+        try:
+            result = asyncio.run(_page_calls(ws_url, [
+                ("Runtime.evaluate", {
+                    "expression": "JSON.stringify({origin:location.origin,ready:document.readyState})",
+                    "returnByValue": True,
+                }),
+            ], timeout=2.0))[0]
+            value = json.loads(result.get("result", {}).get("value") or "{}")
+            if value.get("origin") == target_origin and value.get("ready") in {"interactive", "complete"}:
+                break
+        except Exception:
+            pass
+        time.sleep(0.1)
+    else:
+        raise RuntimeError("indexeddb_seed_origin_not_ready")
+    restored = asyncio.run(_page_calls(ws_url, [
+        ("Runtime.evaluate", {
+            "expression": restore_expression,
+            "awaitPromise": True,
+            "returnByValue": True,
+        }),
+    ], timeout=15.0))[0]
+    if restored.get("result", {}).get("value") is not True:
+        raise RuntimeError("indexeddb_seed_failed")
+    asyncio.run(_page_calls(ws_url, [
         ("Page.navigate", {"url": target_url}),
     ], timeout=15.0))
-    return len(matching_local) + len(matching_session)
+    return len(matching_local) + len(matching_session) + sum(
+        len(spec["records"]) for spec in matching_indexeddb
+    )
 
 
 def commit_cookies(
     task, domains, token=None, generation=None, origin=None, local_storage_keys=None,
-    session_storage_keys=None,
+    session_storage_keys=None, indexeddb=None,
 ):
     """Merge one leased context's provider cookies into its seed vault.
 
@@ -880,10 +985,23 @@ def commit_cookies(
         key for key in (session_storage_keys or [])
         if isinstance(key, str) and key and len(key) <= 256
     })
+    indexeddb_specs = []
+    for spec in indexeddb or []:
+        if (
+            isinstance(spec, (tuple, list))
+            and len(spec) == 2
+            and all(isinstance(value, str) and value and len(value) <= 256 for value in spec)
+            and all("/" not in value for value in spec)
+        ):
+            indexeddb_specs.append({"database": spec[0], "objectStore": spec[1]})
+        else:
+            return {"ok": False, "reason": "invalid_indexeddb_scope"}
     if (origin or storage_keys or session_keys) and (
         not normalized_storage_origin or not (storage_keys or session_keys)
     ):
         return {"ok": False, "reason": "invalid_local_storage_scope"}
+    if indexeddb_specs and not normalized_storage_origin:
+        return {"ok": False, "reason": "invalid_indexeddb_scope"}
 
     with _ledger_lock():
         held = _leases().get(task)
@@ -904,18 +1022,34 @@ def commit_cookies(
             )]))
             storage_items = []
             session_items = []
-            if storage_keys or session_keys:
+            indexeddb_items = []
+            if storage_keys or session_keys or indexeddb_specs:
                 expression = (
-                    "JSON.stringify({local:Object.fromEntries(%s.map(k=>[k,localStorage.getItem(k)])),"
-                    "session:Object.fromEntries(%s.map(k=>[k,sessionStorage.getItem(k)]))})"
-                    % (json.dumps(storage_keys), json.dumps(session_keys))
+                    "(async()=>{const out={local:Object.fromEntries(%s.map(k=>[k,localStorage.getItem(k)])),"
+                    "session:Object.fromEntries(%s.map(k=>[k,sessionStorage.getItem(k)])),indexedDB:[]};"
+                    "for(const spec of %s){const db=await new Promise((resolve,reject)=>{"
+                    "let request;try{request=indexedDB.open(spec.database)}catch(e){reject(e);return}"
+                    "request.onerror=()=>reject(request.error||new Error('indexeddb_open_failed'));"
+                    "request.onsuccess=()=>resolve(request.result);});"
+                    "if(!db.objectStoreNames.contains(spec.objectStore)){db.close();throw new Error('indexeddb_store_missing')}"
+                    "const store=db.transaction(spec.objectStore,'readonly').objectStore(spec.objectStore);"
+                    "const records=await new Promise((resolve,reject)=>{const request=store.getAll();"
+                    "request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('indexeddb_read_failed'))});"
+                    "out.indexedDB.push({database:spec.database,version:db.version,objectStore:spec.objectStore,"
+                    "keyPath:store.keyPath,autoIncrement:store.autoIncrement,records});db.close();}"
+                    "return JSON.stringify(out)})()"
+                    % (json.dumps(storage_keys), json.dumps(session_keys), json.dumps(indexeddb_specs))
                 )
                 (storage_result,) = asyncio.run(_page_calls(
                     held["ws"],
-                    [("Runtime.evaluate", {"expression": expression, "returnByValue": True})],
+                    [("Runtime.evaluate", {
+                        "expression": expression,
+                        "awaitPromise": True,
+                        "returnByValue": True,
+                    })],
                 ))
                 if storage_result.get("exceptionDetails"):
-                    return {"ok": False, "reason": "local_storage_read_failed"}
+                    return {"ok": False, "reason": "indexeddb_read_failed" if indexeddb_specs else "local_storage_read_failed"}
                 raw = storage_result.get("result", {}).get("value")
                 values = json.loads(raw) if isinstance(raw, str) else {}
                 local_values = values.get("local", {}) if isinstance(values, dict) else {}
@@ -930,6 +1064,9 @@ def commit_cookies(
                     for key in session_keys
                     if isinstance(session_values.get(key), str) and session_values[key]
                 ]
+                indexeddb_items = values.get("indexedDB", []) if isinstance(values, dict) else []
+                if not isinstance(indexeddb_items, list):
+                    return {"ok": False, "reason": "indexeddb_read_failed"}
         finally:
             fcntl.flock(operation_lock.fileno(), fcntl.LOCK_UN)
 
@@ -944,6 +1081,13 @@ def commit_cookies(
         return {"ok": False, "reason": "no_matching_local_storage"}
     if session_keys and not session_items:
         return {"ok": False, "reason": "no_matching_session_storage"}
+    if indexeddb_specs:
+        captured = {(item.get("database"), item.get("objectStore")): item
+                    for item in indexeddb_items if isinstance(item, dict)}
+        if any((spec["database"], spec["objectStore"]) not in captured
+               or not captured[(spec["database"], spec["objectStore"])].get("records")
+               for spec in indexeddb_specs):
+            return {"ok": False, "reason": "no_matching_indexeddb"}
 
     vault_path = _vault_writeback_path()
     with _vault_lock():
@@ -959,17 +1103,25 @@ def commit_cookies(
         payload = dict(prior) if isinstance(prior, dict) else {}
         payload["ts"] = int(time.time())
         payload["cookies"] = preserved + matching
-        if storage_keys or session_keys:
+        if storage_keys or session_keys or indexeddb_specs:
             prior_origins = payload.get("origins", [])
+            prior_origin = next((row for row in prior_origins
+                                 if isinstance(row, dict)
+                                 and _normalized_origin(row.get("origin")) == normalized_storage_origin), {})
+            origin_payload = {
+                "origin": normalized_storage_origin,
+                "localStorage": storage_items if storage_keys else prior_origin.get("localStorage", []),
+                "sessionStorage": session_items if session_keys else prior_origin.get("sessionStorage", []),
+            }
+            if indexeddb_specs:
+                origin_payload["indexedDB"] = indexeddb_items
+            elif prior_origin.get("indexedDB"):
+                origin_payload["indexedDB"] = prior_origin["indexedDB"]
             payload["origins"] = [
                 row for row in prior_origins
                 if isinstance(row, dict)
                 and _normalized_origin(row.get("origin")) != normalized_storage_origin
-            ] + [{
-                "origin": normalized_storage_origin,
-                "localStorage": storage_items,
-                "sessionStorage": session_items,
-            }]
+            ] + [origin_payload]
         os.makedirs(os.path.dirname(vault_path), mode=0o700, exist_ok=True)
         temporary = f"{vault_path}.{os.getpid()}.tmp"
         with open(temporary, "w", encoding="utf-8") as handle:
@@ -986,6 +1138,10 @@ def commit_cookies(
         "cookies_preserved": len(preserved),
         "local_storage_committed": len(storage_items),
         "session_storage_committed": len(session_items),
+        "indexeddb_records_committed": sum(
+            len(item.get("records", [])) for item in indexeddb_items
+            if isinstance(item, dict)
+        ),
     }
 
 
@@ -1265,6 +1421,11 @@ if __name__ == "__main__":
                     sys.argv[index + 1]
                     for index, value in enumerate(sys.argv[:-1])
                     if value == "--session-storage-key"
+                ],
+                indexeddb=[
+                    tuple(sys.argv[index + 1].split("/", 1))
+                    for index, value in enumerate(sys.argv[:-1])
+                    if value == "--indexeddb" and "/" in sys.argv[index + 1]
                 ],
             )
         elif cmd == "gc":

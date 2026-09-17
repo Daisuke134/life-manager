@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import hashlib
 import importlib.util
 import json
 import os
@@ -16,6 +17,10 @@ from typing import Any
 from .agent_runner import AgentRunner, PassAlreadyRunning
 from .mercor_provider import run_pass
 from .mercor_submit_guard import fenced_listing_ids
+from .profile_setup import activate_profile
+
+
+MERCOR_STRATEGY_VERSION = "mercor-fit-evidence-v1"
 
 
 def deny_mercor_media_permissions(
@@ -136,6 +141,37 @@ def _recent_listing_ids(path: Path, limit: int = 200) -> list[str]:
     return list(dict.fromkeys(identifiers))
 
 
+def _profile_material(profile_path: Path, resume_path: Path) -> dict[str, Any]:
+    """Bind each pass to the exact private facts and résumé it inspected.
+
+    The model receives only hashes and fact identifiers here.  The underlying
+    profile and résumé remain private files owned by the parent loop.
+    """
+    profile = profile_path.expanduser()
+    resume = resume_path.expanduser()
+    profile_sha256 = ""
+    verified_fact_ids: list[str] = []
+    if profile.is_file():
+        profile_sha256 = hashlib.sha256(profile.read_bytes()).hexdigest()
+        try:
+            value = json.loads(profile.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            value = {}
+        facts = value.get("facts") if isinstance(value, dict) else None
+        if isinstance(facts, list):
+            for fact in facts:
+                identifier = fact.get("id") if isinstance(fact, dict) else None
+                if isinstance(identifier, str) and identifier.strip():
+                    verified_fact_ids.append(identifier.strip())
+    return {
+        "profile_sha256": profile_sha256,
+        "resume_sha256": (
+            hashlib.sha256(resume.read_bytes()).hexdigest() if resume.is_file() else ""
+        ),
+        "verified_fact_ids": list(dict.fromkeys(verified_fact_ids)),
+    }
+
+
 def build_context(
     *,
     state_root: Path,
@@ -156,6 +192,8 @@ def build_context(
         "state_root": str(state_root.resolve()),
         "profile_path": str(profile_path.expanduser().resolve()),
         "resume_path": str(resume_path.expanduser().resolve()),
+        "profile_material": _profile_material(profile_path, resume_path),
+        "strategy_version": MERCOR_STRATEGY_VERSION,
         "applications_ledger": str(ledger.resolve()),
         "submission_fence_ledger": str(fence_ledger.resolve()),
         "application_report_outbox": str((state_root / "telegram.sqlite3").resolve()),
@@ -175,6 +213,9 @@ def build_context(
         "cdp_url": cdp_url,
         "cdp_page_ws": cdp_page_ws,
     }
+    proposal_path = state_root / "profile-proposal.json"
+    if proposal_path.is_file():
+        context["profile_proposal_path"] = str(proposal_path.resolve())
     if evidence_dir is not None:
         context["evidence_dir"] = str(evidence_dir.expanduser().resolve())
     return context
@@ -231,9 +272,96 @@ def record_inspections(state_root: Path, result: dict[str, Any], *, run_id: str)
                 "ranking_band": str(item.get("ranking_band") or ""),
                 "ranking_evidence": item.get("ranking_evidence")
                 if isinstance(item.get("ranking_evidence"), list) else [],
+                "provider_fit_status": str(item.get("provider_fit_status") or "unknown"),
+                "requirement_evidence": item.get("requirement_evidence")
+                if isinstance(item.get("requirement_evidence"), list) else [],
+                "strategy_version": str(item.get("strategy_version") or MERCOR_STRATEGY_VERSION),
                 "run_id": run_id,
                 "observed_at": datetime.now(timezone.utc).isoformat(),
             }, ensure_ascii=False, sort_keys=True) + "\n")
+        output.flush()
+        os.fsync(output.fileno())
+    os.chmod(ledger, 0o600)
+
+
+def record_profile_sync(
+    state_root: Path,
+    result: dict[str, Any],
+    *,
+    run_id: str,
+    expected_resume_sha256: str = "",
+    evidence_root: Path | None = None,
+) -> None:
+    """Persist a provider profile readback without copying private field values."""
+    sync = result.get("profile_sync")
+    if not isinstance(sync, dict):
+        return
+    status = sync.get("status")
+    if not isinstance(status, str) or status not in {"synced", "unchanged", "unknown", "blocked"}:
+        return
+    authenticated = sync.get("authenticated") is True
+    resume_visible = sync.get("resume_visible") is True
+    parser_reviewed = sync.get("parser_reviewed") is True
+    if status in {"synced", "unchanged"} and not (
+        authenticated and resume_visible and parser_reviewed
+    ):
+        status = "unknown"
+    resume_sha256 = str(sync.get("resume_sha256") or "")
+    if (
+        status in {"synced", "unchanged"}
+        and expected_resume_sha256
+        and resume_sha256 != expected_resume_sha256
+    ):
+        status = "unknown"
+    evidence_ref = str(sync.get("evidence_ref") or "")
+    if status in {"synced", "unchanged"}:
+        if evidence_root is not None:
+            evidence_path = Path(evidence_ref).expanduser()
+            if not evidence_path.is_absolute():
+                evidence_path = evidence_root / evidence_path
+            try:
+                evidence_path = evidence_path.resolve()
+                evidence_path.relative_to(evidence_root.expanduser().resolve())
+                evidence_ok = evidence_path.is_file()
+            except (OSError, ValueError):
+                evidence_ok = False
+            if not evidence_ok:
+                status = "unknown"
+            elif status in {"synced", "unchanged"}:
+                evidence_ref = str(evidence_path)
+        if status not in {"synced", "unchanged"}:
+            evidence_ref = str(sync.get("evidence_ref") or "")
+        proposal_path = state_root / "profile-proposal.json"
+        try:
+            proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            proposal = None
+        readback = {
+            "authenticated": authenticated,
+            "resume_visible": resume_visible,
+            "parser_reviewed": parser_reviewed,
+            "profile_version": str(sync.get("profile_version") or ""),
+            "field_hashes": sync.get("field_hashes") if isinstance(sync.get("field_hashes"), dict) else {},
+            "resume_sha256": resume_sha256,
+        }
+        if not isinstance(proposal, dict) or not activate_profile(proposal, readback):
+            status = "unknown"
+    ledger = state_root / "profile-sync.jsonl"
+    ledger.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    row = {
+        "status": status,
+        "authenticated": authenticated,
+        "resume_visible": resume_visible,
+        "parser_reviewed": parser_reviewed,
+        "profile_version": str(sync.get("profile_version") or ""),
+        "field_hashes": sync.get("field_hashes") if isinstance(sync.get("field_hashes"), dict) else {},
+        "resume_sha256": resume_sha256,
+        "evidence_ref": evidence_ref,
+        "run_id": run_id,
+        "observed_at": datetime.now(timezone.utc).isoformat(),
+    }
+    with ledger.open("a", encoding="utf-8") as output:
+        output.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
         output.flush()
         os.fsync(output.fileno())
     os.chmod(ledger, 0o600)
@@ -333,6 +461,29 @@ def validate_priority_scan(result: dict[str, Any], evidence_root: Path) -> None:
         raise ValueError(f"priority_scan_incomplete:{','.join(missing)}")
 
 
+def validate_submission_fit(result: dict[str, Any]) -> None:
+    """Reject provider-blocked or explicitly low-fit listings before recording a submit."""
+    submitted = result.get("submitted")
+    if not isinstance(submitted, list) or not submitted:
+        return
+    inspected = {
+        item.get("listing_id"): item
+        for item in result.get("inspected_listings", [])
+        if isinstance(item, dict) and isinstance(item.get("listing_id"), str)
+    }
+    for item in submitted:
+        if not isinstance(item, dict):
+            continue
+        listing_id = item.get("listing_id")
+        row = inspected.get(listing_id)
+        if not isinstance(row, dict):
+            raise ValueError(f"submitted_listing_not_inspected:{listing_id}")
+        if row.get("provider_fit_status") == "blocked":
+            raise ValueError(f"blocked_fit_submitted:{listing_id}")
+        if row.get("ranking_band") == "low":
+            raise ValueError(f"low_fit_submitted:{listing_id}")
+
+
 def _blocked_for_evidence_violation(
     result: dict[str, Any], evidence_dir: Path, error: ValueError
 ) -> dict[str, Any]:
@@ -406,10 +557,20 @@ def main(argv: list[str] | None = None) -> int:
         validate_evidence_paths(result, args.evidence_dir.parent)
         validate_bounded_scan(result)
         validate_priority_scan(result, args.evidence_dir.parent)
+        validate_submission_fit(result)
     except ValueError as error:
         result = _blocked_for_evidence_violation(result, args.evidence_dir, error)
     record_verified_submissions(args.state_root, result, run_id=args.run_id)
     record_inspections(args.state_root, result, run_id=args.run_id)
+    record_profile_sync(
+        args.state_root,
+        result,
+        run_id=args.run_id,
+        expected_resume_sha256=str(
+            (context.get("profile_material") or {}).get("resume_sha256") or ""
+        ),
+        evidence_root=Path(str(context.get("evidence_dir") or args.evidence_dir)),
+    )
     output = args.evidence_dir / "mercor-pass-summary.json"
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     os.chmod(output, 0o600)
