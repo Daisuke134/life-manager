@@ -29,12 +29,12 @@ selection; `63657015` exposes a hearing sheet plus a common test and a designer-
 provides a Google Docs assignment and no current form. The model must read the full conversation and linked
 content before choosing the action; code must not choose the first form or infer work from a URL.
 
-**Current code/runtime evidence:** PR `#5393` adds a 180-second runtime bound and PR `#5401` preserves
-the provider-inventory pre-effect hint across the owner shell. Current main is `e4f50c91`, cut into
-immutable release `20260918T002409-e4f50c91`, and the targeted Paid plist readback points to that exact SHA.
-The installed kickstart ended at the bound with `entrypoint_exit_124`, `effect=0`, and the claimed
-occurrence returned to `queued/effect_unknown=0`; no new external effect was accepted. The next live gate
-is authenticated browser readback and bounded context, not slot availability.
+**Current code/runtime evidence:** PRs `#5393`, `#5401`, `#5411`, `#5412`, and `#5413` add the 180-second
+bound, preserve pre-effect hints, retry CDP, recover the locked persistent context, and start navigation at
+`commit`. Current main is loaded from immutable release `20260918T010429-6943af4c`, and the targeted Paid
+plist readback points to that exact SHA. The latest kickstart reached active inventory but ended at contract
+detail timeout with `effect=0`; the occurrence returned to `queued/effect_unknown=0` and no external effect
+was accepted. The next live gate is authenticated contract detail readback, not slot availability.
 
 ## Global constraints
 
