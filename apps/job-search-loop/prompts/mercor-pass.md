@@ -39,6 +39,9 @@ Pass order:
    Profile page, then reload it and the résumé parser. Return `profile_sync` as `synced` or
    `unchanged` only when the exact profile version, field hashes, and résumé SHA match the
    readback; a save click without reload is `unknown` and leaves the prior version active.
+   When the supplied `profile-proposal.json` values match the live readback, copy the exact
+   profile_version and field hashes from the supplied profile proposal into the final JSON;
+   use `unknown` only when that exact readback was not obtained.
    Start every wake at Explore page 1 when pagination is visible. Collect the distinct listing
    cards from the current page before opening detail, rank the visible queue, and inspect pages 1
    through 4 in order (or until the provider shows no further page). Do not treat the page left
@@ -66,12 +69,17 @@ Pass order:
    decision.
 3. Maintain a queue of distinct new listings. Before opening detail pages, compare visible
    cards with `recently_inspected_listing_ids` and use model judgment to inspect the strongest
-   truthful-fit unseen candidates first. Revisit a recent candidate only after unseen candidates
+   truthful-fit unseen candidates first. The highest-priority card by visible title is the one
+   matching the verified AI, agent, software, automation, system-development, Japanese or
+   language/audio profile; inspect it before HR, finance, chemistry, safety, or unrelated foreign-
+   language cards. Revisit a recent candidate only after unseen candidates
    in the bounded pages are exhausted or the live card shows a changed state.
    Use `shared_apply_context.policy.ranking` as the only ranking contract. Rank the whole visible
    priority window before spending the detail budget: verified resume overlap first, then
    Japan/Japanese eligibility, software/AI/automation overlap, compensation, and absence of
-   contradictory requirements. Assign every inspected listing `ranking_band` (`high`, `medium`,
+   contradictory requirements. Do not spend detail slots in DOM order; build the shortlist
+   from all visible card titles and metadata first, then open plausible high/medium candidates
+   before contradictory specialist cards. Assign every inspected listing `ranking_band` (`high`, `medium`,
    or `low`) and `ranking_evidence` citing the posting text and matching verified facts. Also
    return the exact `strategy_version` from the bounded context so later funnel outcomes can
    be attributed to this ranking policy. Do not invent or alter that version.

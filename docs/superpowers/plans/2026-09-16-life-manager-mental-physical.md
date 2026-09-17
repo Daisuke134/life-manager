@@ -169,7 +169,7 @@ node --test \
 
 - [ ] Commit, push, merge, and wait for the Railway deployment whose `commitHash` equals merged `main`.
 
-- [ ] Place one authorized real test call. Record non-empty `call_control_id`, terminal provider state, absence of `90029`, and replay-zero.
+- [ ] Place one authorized real test call. Partial evidence is recorded in `docs/evidence/life-manager-mental-canary.md`: provider control ID, HTTP 200, 18-second provider duration, AMD `machine`, and no `90029`; duplicate-call replay-zero remains unrun.
 
 ---
 
@@ -658,7 +658,7 @@ npm test
 
 - [x] Apply additive migrations and read columns/constraints/RLS back from production.
 
-- [x] Require the Railway `life-call` deployment with merged main `commitHash=abbf2927b45aafd385b156b5877e22ecbe5c0a70` to reach `SUCCESS`.
+- [x] Require the Railway `life-call` deployment with merged main `commitHash=92e9fc01664b65e8a22d37d3969b8379c67cb1fe` to reach `SUCCESS`.
 
 - [x] Verify startup logs show the standalone scheduler loops and no import/schema failure.
 
