@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 import runtime.loop.lm_loop as lm_loop
 from runtime.loop.lm_loop import apply_live
-from runtime.loop.lm_loop_apply import apply_registry, build_apply_plan, install_one
+from runtime.loop.lm_loop_apply import _plist, apply_registry, build_apply_plan, install_one
 
 
 SHA = "a" * 40
@@ -195,6 +195,23 @@ class LmLoopApplyTest(unittest.TestCase):
             value["EnvironmentVariables"]["LIFE_MANAGER_HOST_MIN_REVENUE_RUNS"],
             "3",
         )
+
+    def test_writer_plist_projects_the_canonical_daily_driver_browser(self):
+        entry = registry()["loops"]["example"]
+        value = plistlib.loads(_plist("article-daily", entry, self.root, SHA))
+        environment = value["EnvironmentVariables"]
+        self.assertEqual(environment["CLOAK_BROWSER_LAUNCHD_LABEL"],
+                         "ai.anicca.life-manager-daily-driver")
+        self.assertEqual(environment["CLOAK_CDP_BASE_URL"], "http://127.0.0.1:9222")
+        self.assertEqual(environment["CDP_DAILY_DRIVER_PORT"], "9222")
+        self.assertEqual(environment["CDP_DAILY_DRIVER_PROFILE"],
+                         str(Path.home() / ".cloak/profiles/daily-driver"))
+        self.assertEqual(environment["WRITER_BROWSER_LAUNCHD_LABEL"],
+                         "ai.anicca.life-manager-daily-driver")
+        self.assertEqual(environment["WRITER_CDP_URL"], "http://127.0.0.1:9222")
+        self.assertEqual(environment["WRITER_CDP_PORT"], "9222")
+        self.assertEqual(environment["WRITER_CDP_PROFILE"],
+                         str(Path.home() / ".cloak/profiles/daily-driver"))
 
     def test_release_runtime_python_cache_tag_must_match(self):
         manifest = self.root / "RELEASE.json"

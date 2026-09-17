@@ -189,6 +189,18 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
                 Path.home() / ".local/share/life-manager/venv/bin/python"
             ),
             "LIFE_MANAGER_REPO": str(release_root),
+            "CLOAK_BROWSER_LAUNCHD_LABEL": "ai.anicca.life-manager-daily-driver",
+            "CLOAK_CDP_BASE_URL": "http://127.0.0.1:9222",
+            "CDP_DAILY_DRIVER_PORT": "9222",
+            "CDP_DAILY_DRIVER_PROFILE": str(
+                Path.home() / ".cloak/profiles/daily-driver"
+            ),
+            "WRITER_BROWSER_LAUNCHD_LABEL": "ai.anicca.life-manager-daily-driver",
+            "WRITER_CDP_URL": "http://127.0.0.1:9222",
+            "WRITER_CDP_PORT": "9222",
+            "WRITER_CDP_PROFILE": str(
+                Path.home() / ".cloak/profiles/daily-driver"
+            ),
         })
     if loop_id == "agent-economy-loop":
         agent_economy_state = state_root
