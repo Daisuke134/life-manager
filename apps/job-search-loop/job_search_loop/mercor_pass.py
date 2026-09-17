@@ -17,6 +17,7 @@ from typing import Any
 from .agent_runner import AgentRunner, PassAlreadyRunning
 from .mercor_provider import run_pass
 from .mercor_submit_guard import fenced_listing_ids
+from .profile_setup import activate_profile
 
 
 MERCOR_STRATEGY_VERSION = "mercor-fit-evidence-v1"
@@ -298,7 +299,11 @@ def record_profile_sync(
     if not isinstance(status, str) or status not in {"synced", "unchanged", "unknown", "blocked"}:
         return
     authenticated = sync.get("authenticated") is True
-    if status in {"synced", "unchanged"} and not authenticated:
+    resume_visible = sync.get("resume_visible") is True
+    parser_reviewed = sync.get("parser_reviewed") is True
+    if status in {"synced", "unchanged"} and not (
+        authenticated and resume_visible and parser_reviewed
+    ):
         status = "unknown"
     resume_sha256 = str(sync.get("resume_sha256") or "")
     if (
@@ -307,11 +312,29 @@ def record_profile_sync(
         and resume_sha256 != expected_resume_sha256
     ):
         status = "unknown"
+    if status in {"synced", "unchanged"}:
+        proposal_path = state_root / "profile-proposal.json"
+        try:
+            proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            proposal = None
+        readback = {
+            "authenticated": authenticated,
+            "resume_visible": resume_visible,
+            "parser_reviewed": parser_reviewed,
+            "profile_version": str(sync.get("profile_version") or ""),
+            "field_hashes": sync.get("field_hashes") if isinstance(sync.get("field_hashes"), dict) else {},
+            "resume_sha256": resume_sha256,
+        }
+        if not isinstance(proposal, dict) or not activate_profile(proposal, readback):
+            status = "unknown"
     ledger = state_root / "profile-sync.jsonl"
     ledger.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     row = {
         "status": status,
         "authenticated": authenticated,
+        "resume_visible": resume_visible,
+        "parser_reviewed": parser_reviewed,
         "profile_version": str(sync.get("profile_version") or ""),
         "field_hashes": sync.get("field_hashes") if isinstance(sync.get("field_hashes"), dict) else {},
         "resume_sha256": resume_sha256,

@@ -12,10 +12,12 @@
     "profile_sync": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "authenticated", "profile_version", "field_hashes", "resume_sha256", "evidence_ref"],
+      "required": ["status", "authenticated", "resume_visible", "parser_reviewed", "profile_version", "field_hashes", "resume_sha256", "evidence_ref"],
       "properties": {
         "status": {"type": "string", "enum": ["synced", "unchanged", "unknown", "blocked"]},
         "authenticated": {"type": "boolean"},
+        "resume_visible": {"type": "boolean"},
+        "parser_reviewed": {"type": "boolean"},
         "profile_version": {"type": "string", "minLength": 1},
         "field_hashes": {
           "type": "object",

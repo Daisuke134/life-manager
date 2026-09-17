@@ -9,11 +9,13 @@ class MercorAuthReadbackTests(unittest.TestCase):
             url="https://work.mercor.com/explore",
             visible_text="Explore Applications Earnings Profile",
             login_form_visible=False,
+            authenticated_api_status=200,
         ), "authenticated")
         self.assertEqual(classify_auth_snapshot(
             url="https://work.mercor.com/explore",
             visible_text="Explore Profile Sign in",
             login_form_visible=False,
+            authenticated_api_status=200,
         ), "authenticated")
         self.assertEqual(classify_auth_snapshot(
             url="https://work.mercor.com/login",
@@ -38,12 +40,19 @@ class MercorAuthReadbackTests(unittest.TestCase):
                 "Your application has been submitted!\nView application"
             ),
             login_form_visible=False,
+            authenticated_api_status=200,
         ), "authenticated")
         self.assertEqual(classify_auth_snapshot(
             url="https://work.mercor.com/jobs/apply/candidate-one?returnPath=%2Fexplore",
             visible_text="Sign in to continue your application",
             login_form_visible=True,
         ), "logged_out")
+        self.assertEqual(classify_auth_snapshot(
+            url="https://work.mercor.com/explore",
+            visible_text="Explore Applications Earnings Profile",
+            login_form_visible=False,
+            authenticated_navigation_visible=True,
+        ), "indeterminate")
         self.assertEqual(classify_auth_snapshot(
             url="https://example.com/",
             visible_text="Explore Applications Earnings Profile",

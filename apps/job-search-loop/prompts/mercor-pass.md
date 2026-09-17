@@ -130,7 +130,9 @@ Pass order:
    listing title and selected candidate profile. Immediately before the modal's own
    `Submit application` button, run `python3 -m job_search_loop.mercor_submit_guard` with
    `--fence-ledger`, `--listing-id`, `--title`, `--url`, `--pre-submit-evidence`,
-   and `--run-id` from the bounded context. Click only when its JSON says
+   `--run-id`, the exact inspected `--provider-fit-status`, `--ranking-band`, and
+   `--application-state`. The guard rejects blocked Fit, low ranking, or closed state
+   before it writes the submission fence. Click only when its JSON says
    `"claimed": true`; when it says `"claimed": false`, treat the listing as an
    existing attempt and do not click. Click the modal's final submit exactly once, then reopen the application result and require the visible
    success/read-back. Add it to `submitted` and the current-pass submitted set, then

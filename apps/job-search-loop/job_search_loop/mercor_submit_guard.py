@@ -83,11 +83,20 @@ def claim_submission_once(
     url: str,
     pre_submit_evidence: Path,
     run_id: str,
+    provider_fit_status: str = "unknown",
+    ranking_band: str = "medium",
+    application_state: str = "ready_to_submit",
 ) -> bool:
     """Durably fence one listing before the browser click."""
     listing_id = listing_id.strip()
     if not listing_id or not is_approved_mercor_url(url):
         raise MercorSubmitGuardError("invalid Mercor submission identity")
+    if provider_fit_status == "blocked":
+        raise MercorSubmitGuardError("provider fit is blocked")
+    if ranking_band == "low":
+        raise MercorSubmitGuardError("listing ranking is low fit")
+    if application_state.casefold() in {"closed", "expired", "archived", "unavailable"}:
+        raise MercorSubmitGuardError("listing is closed")
     evidence = pre_submit_evidence.expanduser().resolve()
     if not evidence.is_file():
         raise MercorSubmitGuardError("pre-submit evidence is missing")
@@ -170,6 +179,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--url", required=True)
     parser.add_argument("--pre-submit-evidence", required=True, type=Path)
     parser.add_argument("--run-id", required=True)
+    parser.add_argument("--provider-fit-status", required=True,
+                        choices=("allowed", "warning", "blocked", "not_shown", "unknown"))
+    parser.add_argument("--ranking-band", required=True, choices=("high", "medium", "low"))
+    parser.add_argument("--application-state", required=True)
     args = parser.parse_args(argv)
     claimed = claim_submission_once(
         fence_ledger=args.fence_ledger,
@@ -178,6 +191,9 @@ def main(argv: list[str] | None = None) -> int:
         url=args.url,
         pre_submit_evidence=args.pre_submit_evidence,
         run_id=args.run_id,
+        provider_fit_status=args.provider_fit_status,
+        ranking_band=args.ranking_band,
+        application_state=args.application_state,
     )
     print(json.dumps({"claimed": claimed, "listing_id": args.listing_id}))
     return 0

@@ -142,10 +142,17 @@ class MercorPassContractTests(unittest.TestCase):
     def test_profile_sync_readback_is_recorded_without_private_field_values(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
+            (state / "profile-proposal.json").write_text(json.dumps({
+                "profile_version": "profile-v1",
+                "field_hashes": {"summary": "hash"},
+                "resume_sha256": "resume-hash",
+            }), encoding="utf-8")
             record_profile_sync(state, {
                 "profile_sync": {
                     "status": "synced",
                     "authenticated": True,
+                    "resume_visible": True,
+                    "parser_reviewed": True,
                     "profile_version": "profile-v1",
                     "field_hashes": {"summary": "hash"},
                     "resume_sha256": "resume-hash",
@@ -153,6 +160,7 @@ class MercorPassContractTests(unittest.TestCase):
                 }
             }, run_id="run-profile")
             row = json.loads((state / "profile-sync.jsonl").read_text(encoding="utf-8"))
+            self.assertEqual(row["status"], "synced")
             self.assertEqual(row["profile_version"], "profile-v1")
             self.assertTrue(row["authenticated"])
             self.assertEqual(row["field_hashes"], {"summary": "hash"})
@@ -166,6 +174,8 @@ class MercorPassContractTests(unittest.TestCase):
                 "profile_sync": {
                     "status": "synced",
                     "authenticated": False,
+                    "resume_visible": True,
+                    "parser_reviewed": True,
                     "profile_version": "profile-v1",
                     "field_hashes": {"summary": "hash"},
                     "resume_sha256": "resume-hash",
@@ -182,6 +192,8 @@ class MercorPassContractTests(unittest.TestCase):
                 "profile_sync": {
                     "status": "synced",
                     "authenticated": True,
+                    "resume_visible": True,
+                    "parser_reviewed": True,
                     "profile_version": "profile-v1",
                     "field_hashes": {"summary": "hash"},
                     "resume_sha256": "stale-resume",
@@ -278,6 +290,9 @@ class MercorPassContractTests(unittest.TestCase):
             "do not spend the current wake's terminal budget after an accepted provider effect",
             "current-pass submitted set",
             "python3 -m job_search_loop.mercor_submit_guard",
+            "--provider-fit-status",
+            "--ranking-band",
+            "--application-state",
             '"claimed": true',
             '"claimed": false',
             "capability_catalog_path",

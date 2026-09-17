@@ -134,6 +134,7 @@ async def authenticate(ws_url: str, action_url: str) -> dict[str, str]:
         for index in range(120):
             observed = await _call(ws, 10 + index, "Runtime.evaluate", {
                 "expression": auth_snapshot_expression(),
+                "awaitPromise": True,
                 "returnByValue": True,
             })
             value = json.loads(observed.get("result", {}).get("value") or "{}")
@@ -142,6 +143,7 @@ async def authenticate(ws_url: str, action_url: str) -> dict[str, str]:
                 visible_text=value.get("text"),
                 login_form_visible=value.get("login_form_visible"),
                 authenticated_navigation_visible=value.get("authenticated_navigation_visible"),
+                authenticated_api_status=value.get("authenticated_api_status"),
             )
             if status == "authenticated":
                 return {"status": status, "url": value["url"]}
