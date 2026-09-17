@@ -118,7 +118,7 @@ tables remain evidence of the superseded plan, not the active cursor.
 | 12 | Promote the identical approved business kernel/source SHA to tenant-isolated Cloud; test Steel owner lease/release and phone-only status/human handoff/readback; run Cloud gate. | Tenant cross-read 0, credential/state mix 0, official effects and replay-zero, Local/Eval/Cloud all PASS. |
 | 13 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
 
-### Atomic remaining execution list — current cursor A12b
+### Atomic remaining execution list — current cursor A12c
 
 Order correction: the prior order was CN01 → CN02 → A12. Dais clarified that the two
 historical `effect_unknown` records are **observability**, not a completion or admission gate.
@@ -146,7 +146,7 @@ inventory rather than invented here; one selected ID is handled per item.
 - [x] A10 — Observe that agent owner's natural release→next-claim→outer terminal without a manual kickstart. `hf-gig-reply-detector` naturally ran at 2026-09-17 02:08 UTC on SHA `7047b6adef`, occurrence `hf-gig-reply-detector:18d5f9a355324ae8-30601` reached `released/effect_unknown=0`, outer report was `pass`, and launchd returned `exit 0`/idle. This is lifecycle evidence, not proof that all Reply threads are resolved.
 - [x] A11 — Apply the same release to one loaded-idle browser owner and read back exact loaded argv/SHA. `life-manager-connector-native` alone was reconciled from `loaded-idle`; independent plist and launchctl readback both show release `20260917T110101-7047b6ad` and SHA `7047b6adef`, with no running Connector process at apply time. Its last business terminal remains on old SHA with `resource_admission_unavailable`; A12 is not yet proved.
 - [x] A12a — Keep historical Connector unknown rows observable without blocking a fresh occurrence, and fail closed when a new candidate's official pre-submit readback is unavailable. Candidate branch `43ec132c90`: a reproducing admission test failed before the change; 139 Python and 78 Connector runner tests PASS after it. No live claim is inferred.
-- [ ] A12b — Merge only candidate `43ec132c90` after CI; do not mutate the two historical rows.
+- [x] A12b — Merge only candidate `43ec132c90` after CI; do not mutate the two historical rows. PR #5312 passed all nine CI jobs and merged at main `889c767056`; live admission DB rows remain unchanged until the new release runs.
 - [ ] A12c — Cut a main-derived immutable release and apply it to the Connector label only when loaded-idle; read back exact argv/SHA.
 - [ ] A12 — Observe that browser owner's natural release→next-claim→outer terminal without a manual kickstart.
 - [ ] A13 — Apply the same release to one loaded-idle deterministic owner and read back exact loaded argv/SHA.
