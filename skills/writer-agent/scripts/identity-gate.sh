@@ -66,7 +66,7 @@ text = re.sub(
 # hosts, partial queries, paths, and reader-visible link text stay intact.
 required = {"product_id", "run_id", "artifact_id", "variant_id", "click_id"}
 pattern = re.compile(
-    r"https://(?:www\.)?aniccaai\.com/[^\s)\]>\x22\x27]*"
+    r"https://(?:www\.)?aniccaai\.com(?:[/\?][^\s)\]>\x22\x27]*)"
 )
 def project_owned_cta(match):
     url = match.group(0)
