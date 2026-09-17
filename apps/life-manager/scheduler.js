@@ -23,6 +23,7 @@ const { relationsUserOnce } = require("./lib/relations-runtime.js");
 const { readMentalSendState, recordMentalSend } = require("./lib/mental-send-log.js");
 const { runVerifiedOutcomes } = require("./lib/mental-outcome-runtime.js");
 const { readOutcomeSendState, readVerifiedOutcomes, recordOutcomeSend } = require("./lib/mental-outcome-store.js");
+const { readMentalProfile } = require("./lib/mental-profile-store.js");
 
 // 12c: TROUGH_AFTER_MS (30 min) plus margin — how far back the tick looks for ended events.
 const MENTAL_LOOKBACK_MS = 35 * 60000;
@@ -418,6 +419,7 @@ function mentalV1Deps(u, events, deps = {}) {
     sendMessage: deps.sendMessage || sendMessage,
     telegramToken: deps.telegramToken !== undefined ? deps.telegramToken : process.env.LM_TELEGRAM_BOT_TOKEN,
     profile: deps.mentalProfile || {},
+    readProfile: deps.readMentalProfile || ((uid, now) => readMentalProfile(uid, now, supa)),
     quietHours: deps.quietHours || null,
     tzOffsetH: deps.tzOffsetH,
     allowedUids: deps.allowedUids || allowedUids,

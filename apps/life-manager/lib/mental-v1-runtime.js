@@ -36,6 +36,11 @@ async function mentalV1UserOnce(user, nowMs, deps = {}) {
   } catch {
     return { decision: "suppress", reason: "calendar-unavailable" };
   }
+  let profile = deps.profile || {};
+  if (typeof deps.readProfile === "function") {
+    try { profile = await deps.readProfile(user.uid, nowMs); }
+    catch { return { decision: "suppress", reason: "profile-unavailable" }; }
+  }
   let state;
   try {
     state = await deps.readSendState(user.uid, nowMs, { strict: true });
@@ -53,7 +58,7 @@ async function mentalV1UserOnce(user, nowMs, deps = {}) {
     eligibleQuoteIds: null,
     calendarBusy: calendarBusy(events, nowMs),
     quietHours: deps.quietHours || null,
-    profile: deps.profile || {},
+    profile,
   });
   if (base.decision !== "send") return base;
 
@@ -66,9 +71,9 @@ async function mentalV1UserOnce(user, nowMs, deps = {}) {
       localDay: day,
       window: base.window,
       family,
-      profile: deps.profile || {},
+      profile,
       recentQuoteIds: state.recentQuoteIds || [],
-      locale: (deps.profile && deps.profile.locale) || "ja",
+      locale: profile.locale || "ja",
     });
     if (quote) { selectedFamily = family; break; }
   }

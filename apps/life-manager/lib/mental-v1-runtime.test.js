@@ -69,3 +69,9 @@ test("V1 canary allowlist suppresses every tenant outside the explicit UID set",
   assert.deepEqual(result, { decision: "suppress", reason: "mental-v1-not-allowlisted" });
   assert.equal(d.sent.length, 0);
 });
+
+test("V1 reads explicit profile tags before selecting catalog text", async () => {
+  const d = deps({ readProfile: async () => ({ themes: ["courage"], tones: ["gentle"], avoidThemes: [], goals: [], weights: { courage: 1 } }) });
+  const result = await mentalV1UserOnce(USER, NOW, d.base);
+  assert.equal(result.templateId, "antara:courage-quiet:ja");
+});
