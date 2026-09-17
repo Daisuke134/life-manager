@@ -108,6 +108,10 @@ flowchart LR
 
 **R0-C1追加の提出安全ゲート:** 同じpublisher accountのprepare/finishをOS lockで直列化し、Agent IDごと（新規は一意のbootstrap）のHOME/workspace・package入力を分離する。継承されたOpenClaw config/state overrideを消し、Publisher manifestのAgent ID、version ID、runtime_dir、選択Skill sourceとlistings/OpenClaw model/capを提出前に照合し、CP1の公式detail `model`も同じ版で確認する。直接`publish_prepare`を5/5の実inventoryで実行すると`CAP_FULL`で新版作成前に停止し、公式Agent版IDは変わらなかった。次版候補のfocused pytest 58件、同一Agent作業状態fixture、listing lintはPASS。これはレビュー枠が空いた後のCapafy版提出・buyer Test Runを代用しない。
 
+**CAP_FULLの既存draft例外:** 5/5ではfresh Agentと新versionの`publish_prepare`を止める。一方、すでに5枠の一つを占める同一Agentのdraftは新versionを作らず、既存manifest・版IDを検証して`publish_finish`へ進める。bindingや公式版が不明なら送信せず失敗として残す。この例外を第6Agent/第6審査枠の作成に使わない。
+
+**有料Agent更新の供給順:** repo catalogの`marketing-strategist/UPDATE.json`は既存Agent `9563867391` と旧版 `2070737929294868480` を指定する。公式review空きが生じ、同じAgentがonlineかつ旧版のままなら、既存のretryの後・fresh新規候補の前に`update_existing`を1件選ぶ。`publish_prepare`はそのAgent/旧版をpublisher lock内で作成直前に再検査し、不一致ならplatform write 0。更新後はそのwakeで次のfresh Agentを送らず、審査結果とbuyer Test Runを別の自然wakeで確認する。現時点の公式review枠5/5では更新要求は待機し、公開中Sonnet v1.0.0を維持する。
+
 | 順 | owner / exact files | 最小変更 | 完了条件 |
 |---|---|---|---|
 | R0-C1 | `skills/capafy-autopublish/scripts/{publish_prepare.sh,publish_finish.sh,build_config.py,drive_checkpoint2.py,key_health_gate.sh,select_publish_agent.py,publish_input_contract.py,verify_cp1_model.py,with_publish_lock.py}`、`skills/capafy/catalog/marketing-strategist/{SKILL.md,LISTING.md,test/case1.md,icon.webp}`、focused tests | 元SKILLとListingをcredential無しでrepo正本へ移し、model ID/capをlisting別に封入する。Agent/版/manifest/source/CP1/CP2を同一契約へ結び、CAP_FULLではplatform write 0。公開中Sonnetのkey probeは維持する。 | code＋公式CAP_FULL no-writeはPASS。残りは同じAgent IDの新版提出、旧版の継続、審査承認、Capafy Test Run全文、provider error 0、品質と1実行costのreadback、secret leak 0。previewの`already_running`は成功と扱わない。 |

@@ -20,6 +20,8 @@ SKILL_DIR="${1:?skill-dir required}"
 LISTING="${2:?LISTING.md required}"
 ICON="${3:?icon path required}"
 REUSE_AGENT_ID="${4:-}"
+EXPECTED_UPDATE_ID="${CAPAFY_EXPECTED_AGENT_ID:-}"
+EXPECTED_UPDATE_FROM_VERSION="${CAPAFY_EXPECTED_FROM_VERSION_ID:-}"
 
 # The workflow changes directory to the publisher before it reads LISTING again.
 # Resolve caller-relative paths once at the boundary so a valid repo-owned source
@@ -61,6 +63,10 @@ step "[0] LINT $LISTING"
 python3 "$AUTO/scripts/lint_listing.py" "$LISTING" || die "lint FAIL — fix the listing first"
 [ -f "$ICON" ] || die "icon not found: $ICON"
 [ -d "$SKILL_DIR" ] || die "skill dir not found: $SKILL_DIR"
+if [ -f "$SKILL_DIR/UPDATE.json" ] && [ -z "$REUSE_AGENT_ID" ]; then
+  [ -n "$EXPECTED_UPDATE_ID" ] && [ -n "$EXPECTED_UPDATE_FROM_VERSION" ] \
+    || die "online update requires its exact Agent/source-version precondition"
+fi
 TITLE="$(grep -A1 '^## Title' "$LISTING" | tail -1)"
 # Resolve the Agent identity before writing its package inputs. Existing Agents
 # get an ID-owned HOME; fresh candidates get a unique bootstrap HOME.
@@ -73,6 +79,13 @@ PRELIST="$(python3 packager.py publish-list 2>/dev/null)" \
   || die "publish-list failed before preparing inputs"
 PRESELECTOR=(--title "$TITLE" --require-free-slot)
 [ -z "$REUSE_AGENT_ID" ] || PRESELECTOR+=(--reuse-agent-id "$REUSE_AGENT_ID")
+if [ -n "$EXPECTED_UPDATE_ID$EXPECTED_UPDATE_FROM_VERSION" ]; then
+  [ -n "$EXPECTED_UPDATE_ID" ] && [ -n "$EXPECTED_UPDATE_FROM_VERSION" ] \
+    && [ -z "$REUSE_AGENT_ID" ] \
+    || die "same-Agent update requires an exact Agent/source-version pair"
+  PRESELECTOR+=(--expected-agent-id "$EXPECTED_UPDATE_ID" \
+                --expected-version-id "$EXPECTED_UPDATE_FROM_VERSION")
+fi
 PRESELECTED_ID="$(printf '%s' "$PRELIST" | python3 "$AUTO/scripts/select_publish_agent.py" "${PRESELECTOR[@]}")" \
   || die "cannot bind package inputs to a unique Agent"
 if [ -n "$PRESELECTED_ID" ]; then
@@ -88,6 +101,17 @@ WS="$CAPAFY_PUBLISH_HOME/.openclaw/workspace"
 CFG_ONE="$CAPAFY_PUBLISH_HOME/listing-config.json"
 python3 "$AUTO/scripts/build_config.py" "$LISTING" "$ICON" "$CFG_ONE" >/dev/null \
   || die "build_config failed"
+if [ -f "$SKILL_DIR/UPDATE.json" ] && [ -z "$REUSE_AGENT_ID" ]; then
+  python3 - "$SKILL_DIR/UPDATE.json" "$CFG_ONE" "$EXPECTED_UPDATE_ID" "$EXPECTED_UPDATE_FROM_VERSION" <<'PY' \
+    || die "catalog update request differs from Agent/source version/model"
+import json,sys
+request, config = (json.load(open(path, encoding="utf-8")) for path in sys.argv[1:3])
+if (str(request.get("agent_id")) != sys.argv[3]
+        or str(request.get("from_version_id")) != sys.argv[4]
+        or request.get("target_model_id") != config.get("model_id")):
+    raise SystemExit(1)
+PY
+fi
 read -r CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS < <(
   python3 - "$CFG_ONE" <<'PY'
 import json, sys
@@ -144,6 +168,8 @@ LIST_OUT="$(python3 packager.py publish-list 2>/dev/null)" \
   || die "publish-list failed; cannot select an Agent safely"
 SELECTOR_ARGS=(--title "$TITLE" --require-free-slot)
 [ -z "$REUSE_AGENT_ID" ] || SELECTOR_ARGS+=(--reuse-agent-id "$REUSE_AGENT_ID")
+[ -z "$EXPECTED_UPDATE_ID" ] || SELECTOR_ARGS+=(--expected-agent-id "$EXPECTED_UPDATE_ID" \
+                                                   --expected-version-id "$EXPECTED_UPDATE_FROM_VERSION")
 if ! ID="$(printf '%s' "$LIST_OUT" | python3 "$AUTO/scripts/select_publish_agent.py" "${SELECTOR_ARGS[@]}")"; then
   die "publish-list Agent selection failed closed (duplicate or invalid official shape)"
 fi

@@ -65,27 +65,36 @@ monitoring/deferred work.
       `scripts/publish_prepare.sh <skill-dir> <LISTING.md> <icon> <ID>` so Phase A and
       `publish-init --selections-file` create a new version under the same Agent ID.
       Then complete CP1 if `is_confirmed_skills` is not already true, and continue with
-      `publish_finish.sh`. Never point CP3 at the stale rejected package.
-   d. Else the next canonical `skills/capafy/catalog/*/{SKILL.md,LISTING.md,icon.svg}` (legacy
+      `publish_finish.sh` with the prepare-emitted `AGENT_VERSION_ID`. Never point CP3 at the stale rejected package.
+   d. For `update_existing`, use the exact catalog `UPDATE.json` Agent ID and
+      `from_version_id`. Set `CAPAFY_EXPECTED_AGENT_ID` and
+      `CAPAFY_EXPECTED_FROM_VERSION_ID` when calling `publish_prepare.sh`; it
+      checks both against fresh official inventory under the publisher lock
+      before creating one new version. Complete CP1 and `publish_finish.sh` with
+      the emitted `AGENT_VERSION_ID`, verify same Agent/new version is under
+      review, then STOP. Do not create a fresh Agent in this wake.
+   e. Else the next canonical `skills/capafy/catalog/<slug>/` listing with SKILL.md, LISTING.md and a valid icon (legacy
       `$LIFE_MANAGER_STATE_HOME/features/capafy-*` remains readable during migration) whose title
       is not online, in-flight, or rejected under an existing Agent ID.
-   If neither → STOP, report "inventory empty (all items online); bottleneck = need NEW
-   inventory — the interactive Opus session must add a fresh proven-niche listing".
-3. **For `resume_draft`, `retry_existing`, or `create_fresh` only — Lint**:
+   If neither → STOP and report the typed inventory state. Never start a second
+   platform action after this wake's official effect readback.
+3. **For `resume_draft`, `retry_existing`, `update_existing`, or `create_fresh` — Lint**:
    `scripts/lint_listing.py <LISTING.md>` → must PASS. If FAIL → STOP, report the failure.
 4. **Sanity re-read** (you, Sonnet): open the LISTING + SKILL.md; confirm against BEST_PRACTICES.md
    §6 (no overclaim: no browse/scrape/live/retrieval/posts/sends/guarantee). If anything reads like
    an overclaim the linter missed → STOP, report it. (This is your cheap adversary pass.)
 5. **Publish** (agentic CP1 — the card-save step needs YOUR eyes, not a brittle script):
-   a. `scripts/publish_prepare.sh <skill-dir> <LISTING.md> <icon>` → prints `AGENT_ID=`,
-      `EDIT_URL_FILE=`, and the TARGET pricing. Deterministic, fail-closed on lint.
+   a. For new/retry/update only, `scripts/publish_prepare.sh <skill-dir> <LISTING.md> <icon>`
+      → prints `AGENT_ID=`, `AGENT_VERSION_ID=`, `EDIT_URL_FILE=`, and target pricing.
+      `resume_draft` uses its existing manifest and official refreshed URL without
+      creating another version. Deterministic, fail-closed on lint and capacity.
    b. **Drive CP1 agentically** per `CP1_AGENTIC.md`: with `scripts/cp1_agent.py`, open the
       exact URL read from `EDIT_URL_FILE`, LOOK at each screenshot, fix the 価格設定 plan cards to the target values
       until the price tab is GREEN, then 下書きを保存 → 提出を確認. Loop until server
       `publish-remote-status --agent-id <AGENT_ID>` shows
       `latest_version.is_confirmed_skills=true`.
       Do NOT re-tune coordinates blindly — read the screenshot and decide each click.
-   c. `scripts/publish_finish.sh <AGENT_ID> <skill-name> <LISTING.md>` → verify CP1 →
+   c. `scripts/publish_finish.sh <AGENT_ID> <skill-name> <LISTING.md> <AGENT_VERSION_ID>` → verify CP1 →
       ordinary `publish-submit --action prepare` and require strict same-Agent
       `security_ready` →
       `publish-submit --action continue_upload` exactly once → use the final review
@@ -106,5 +115,5 @@ monitoring/deferred work.
 ## Notes
 - Browser = CloakBrowser daily-driver (CDP :9222), already running. Never close it.
 - Keys: CAPAFY_HOST_OPENROUTER_KEY / CAPAFY_HOST_OPENAI_KEY in $LIFE_MANAGER_STATE_HOME/.env.
-- Model for THIS run = Sonnet (cheap). The published skill's own runtime LLM = OpenRouter Claude (buyer-funded via cap).
+- The published Skill's hosted model comes from its LISTING.md contract and the same-Agent CP1/CP2 readback; never assume Sonnet or buyer-funded provider cost.
 - Keep total work tiny: 1 listing, ≤ ~15 tool calls. This protects the Claude subscription quota.

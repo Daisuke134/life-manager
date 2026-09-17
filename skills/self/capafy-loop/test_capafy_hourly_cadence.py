@@ -21,7 +21,8 @@ def test_daily_separates_immutable_execution_from_writable_public_source() -> No
     assert 'LIFE_MANAGER_RELEASE_ROOT=' in script
     assert 'LIFE_MANAGER_SOURCE_REPO=' in script
     assert '[ -w "$LIFE_MANAGER_SOURCE_REPO" ]' in script
-    assert 'CAPAFY_CATALOG_DIR="$LIFE_MANAGER_SOURCE_REPO/skills/capafy/catalog"' in script
+    assert 'CAPAFY_CATALOG_DIR="$LIFE_MANAGER_RELEASE_ROOT/skills/capafy/catalog"' in script
+    assert '--catalog "$LIFE_MANAGER_SOURCE_REPO/skills/capafy/catalog"' in script
     assert 'python3 "$LIFE_MANAGER_RELEASE_ROOT/skills/capafy-autopublish/scripts/inventory_status.py"' in script
     assert 'inside $LIFE_MANAGER_SOURCE_REPO/skills/capafy/catalog/<new-slug>/' in script
 
