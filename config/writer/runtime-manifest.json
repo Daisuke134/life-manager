@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "runtime_root": "skills/writer-agent",
-  "runtime_tree_sha256": "8fbd6b30b46c038e0c6d8672759fd1851c345a791a7da78fb4736b8741f2ab13",
-  "runtime_file_count": 533,
+  "runtime_tree_sha256": "c3058b20dd45f260af38a3925567828201c9be561f7789ae40910eb4434ceafc",
+  "runtime_file_count": 560,
   "hash_algorithm": "sha256(sorted relative path + NUL + file bytes + NUL; excludes state and cache directories)",
   "source": {
     "repository": "https://github.com/Daisuke134/life-manager.git",
     "path": "skills/writer-agent",
-    "commit": "3cea3ba5846d6e536cc35e019164cc66a709a12b",
+    "commit": "b5fdb7ae0483555a2cf077f720d2f2c06abceb4d",
     "status": "canonical source on merged main"
   },
   "active_release": {
