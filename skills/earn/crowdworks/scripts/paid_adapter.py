@@ -407,7 +407,11 @@ class CrowdWorksPaidAdapter:
             try:
                 return self._detail_once(basic)
             except PlaywrightTimeoutError:
-                raise CrowdWorksPaidContractTimeout() from None
+                try:
+                    self._switch_to_narrow_contract(_text(basic.get("work_id")))
+                    return self._detail_once(basic)
+                except (PlaywrightTimeoutError, CrowdWorksPaidContractTimeout):
+                    raise CrowdWorksPaidContractTimeout() from None
 
     def _detail_once(self, basic: Mapping[str, Any]) -> dict[str, Any]:
         work_id = _text(basic.get("work_id"))

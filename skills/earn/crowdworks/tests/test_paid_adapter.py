@@ -761,6 +761,36 @@ def test_contract_detail_dom_timeout_retries_once_on_fresh_page():
     assert calls == [("close",), ("new_page",), ("timeout", 15_000)]
 
 
+def test_contract_detail_timeout_falls_back_to_narrow_surface():
+    module = load()
+    calls = []
+
+    class Page:
+        def set_default_timeout(self, _timeout): pass
+        def close(self): calls.append("close")
+
+    class Context:
+        def new_page(self): return Page()
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter.owned_context = Context()
+    adapter._fallback_to_source_context = lambda: False
+    attempts = [0]
+
+    def detail_once(_basic):
+        attempts[0] += 1
+        if attempts[0] < 3:
+            raise module.PlaywrightTimeoutError("detail timeout")
+        return {"work_id": "63570481", "provider_state": "funded"}
+
+    adapter._detail_once = detail_once
+    adapter._switch_to_narrow_contract = lambda work_id: calls.append(("narrow", work_id))
+
+    assert adapter._detail(funded()) == {"work_id": "63570481", "provider_state": "funded"}
+    assert ("narrow", "63570481") in calls
+
+
 def test_contract_navigation_timeout_retries_once_on_fresh_page():
     module = load()
     calls = []
