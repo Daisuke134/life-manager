@@ -379,6 +379,44 @@ def _adopted_staged_prepublication(
     )
 
 
+def _adopted_current_prepublication(
+    run_dir: Path,
+    run_id: str,
+    prompt_file: Path,
+    ledger: Path,
+    state: dict[str, Any],
+) -> bool:
+    """Recognize an exact adoption receipt after quality artifacts were added.
+
+    Once a provider has produced quality receipts, the staged-resume predicate
+    intentionally no longer applies.  The run is still safely movable when its
+    adoption receipt binds the complete current manifest and no public effect
+    exists; this lets a pruned immutable release be replaced without copying
+    prompt references by hand.
+    """
+    if state.get("status") != "quality-repair-ready":
+        return False
+    if (run_dir / "gates/publication-state.json").exists() or ledger_has_public_effect(
+        ledger, run_id
+    ):
+        return False
+    receipt_path = run_dir / "gates/prepublication-adoption.json"
+    if receipt_path.is_symlink() or not receipt_path.is_file():
+        return False
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        drafts, artifacts = _adoption_manifests(run_dir)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError, GenerationInvariant):
+        return False
+    return _adoption_receipt_matches(
+        receipt,
+        run_id,
+        str(state.get("prompt_sha256", "")),
+        drafts,
+        artifacts,
+    )
+
+
 def adopt_prepublication(
     run_dir: Path, run_id: str, prompt_file: Path, ledger: Path
 ) -> dict[str, Any]:
@@ -559,17 +597,20 @@ def rebind_release(
         staged_resume = _adopted_staged_prepublication(
             resolved, run_id, prompt_file, ledger, state
         )
+        adopted_resume = staged_resume or _adopted_current_prepublication(
+            resolved, run_id, prompt_file, ledger, state
+        )
         allowed_statuses = {
             "provider-failed-safe",
             "provider-failed-ambiguous",
             "interrupted-safe",
         }
-        if staged_resume:
+        if adopted_resume:
             allowed_statuses.add("quality-repair-ready")
         if state.get("run_id") != run_id or state.get("status") not in allowed_statuses:
             raise GenerationInvariant("generation state is not safely resumable")
         safe, reason = prepublication_empty(resolved, run_id, ledger)
-        if staged_resume:
+        if adopted_resume:
             safe, reason = True, "adopted-staged-prepublication"
         if not safe:
             raise GenerationInvariant(reason)
@@ -613,7 +654,7 @@ def rebind_release(
             }
         )
         _atomic_write(state_path, state)
-        if staged_resume:
+        if adopted_resume:
             adoption_path = resolved / "gates/prepublication-adoption.json"
             adoption = json.loads(adoption_path.read_text(encoding="utf-8"))
             adoption["prompt_sha256"] = state["prompt_sha256"]
