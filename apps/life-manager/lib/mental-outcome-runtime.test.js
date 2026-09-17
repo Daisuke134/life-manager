@@ -2,7 +2,7 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { handleVerifiedOutcome } = require("./mental-outcome-runtime.js");
+const { handleVerifiedOutcome, runVerifiedOutcomes } = require("./mental-outcome-runtime.js");
 
 const NOW = Date.parse("2026-09-17T12:00:00+09:00");
 const OUTCOME = {
@@ -60,4 +60,17 @@ test("Telegram failure does not record a mental outcome send", async () => {
   assert.equal(result.decision, "send");
   assert.equal(result.delivered, false);
   assert.equal(d.recorded.length, 0);
+});
+
+test("verified outcome runner is a no-op without a provider and processes provider receipts once", async () => {
+  assert.deepEqual(await runVerifiedOutcomes({ uid: "u1" }, NOW, {}), []);
+  const d = deps({
+    fetchVerifiedOutcomes: async () => [OUTCOME],
+    readOutcomeSendState: async () => ({ sentOutcomeIds: [], sentTodayCount: 0, lastSentMs: null }),
+  });
+  const results = await runVerifiedOutcomes({ uid: "u1", telegram_chat_id: "7" }, NOW, d.base);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].delivered, true);
+  assert.equal(d.sent.length, 1);
+  assert.equal(d.recorded.length, 1);
 });
