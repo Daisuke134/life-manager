@@ -16,6 +16,9 @@ The five active official contracts are currently all `funded`; formal CrowdWorks
 `63583795` only, and that row is awaiting buyer inspection. Historical form receipts exist for `63583795`
 and `63570481`; the former also has a buyer-visible seller message and inspection-pending readback. The
 local Paid row for `63583795` must be reconciled before any retry, and the form/delivery must not be replayed.
+The previous 180-second Paid owner bound also terminated a wake during generation of a required 13-field
+form (`63659463`), leaving `intent_persisted` without a confirmed receipt; the next release raises only this
+owner's finite bound to 900 seconds. The loaded `a0a4e522` release remains on 180 seconds until targeted apply.
 The installed efedb39c owner still has a local `reconcile_unknown` row after the earlier provider-detail timeout;
 the successful read-only probe is evidence for the next reconciliation, not a new external effect.
 The next implementation cursor is browser recovery and bounded contract context for the other four
