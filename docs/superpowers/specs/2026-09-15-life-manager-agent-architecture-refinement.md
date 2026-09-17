@@ -81,7 +81,7 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   12:28:15Z, claimed `18d619fc6f2cbdd8-32593`, and reached outer pass at
   12:30:16Z; that occurrence is also released/known. Both status readbacks
   show installed/event SHA `f1f5bcb91d`.
-- [ ] **A15-08 — prove a browser-class handoff.** Join the same four events for
+- [x] **A15-08 — prove a browser-class handoff.** Join the same four events for
   two browser owners without starting a provider submission or touching a
   sibling profile. A no-work terminal is valid lifecycle evidence only.
   Current registry and admission SQLite have only one browser-class owner,
@@ -216,6 +216,66 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   contract, generated job fixture and OSS verification passed locally. The
   change is not A15-08 evidence until CI, main-derived apply and natural
   lifecycle readback pass.
+  Current readback at 21:06Z: PR #5495's 300-second registry change is on
+  `origin/main` and complete `current` release `20260918T055806-fc31d122`
+  (`release_paths=ALL`, `provenance=ancestor-of-origin-main`). The installed
+  probe plist still names `47b01035` with `StartInterval=1800`; the installed
+  Connector plist names `b2feb56c` with `StartInterval=1800`. The private
+  admission database has known browser occurrences queued for probe
+  `18d637a70561daa0-193` (sequence 33287) and Connector
+  `18d637a69e0e1260-99735` (sequence 33288), plus a Connector reservation.
+  Thus the remaining mismatch is at loaded job reconciliation and natural
+  lifecycle evidence; changing the registry again does not repair the loaded
+  plists. A concurrent deterministic reconciler was active, so no targeted
+  apply or forced bootout was performed. The latest disk-cleanup terminal was
+  `fail/entrypoint_exit_1` on loaded `a0a4e522`; its latest receipt had
+  `errors=2`, `protected_deletions=0`, and no reclaim, while `df -Pk` showed
+  about 272 MiB free. This is below the 512 MiB producer floor and blocks a
+  new release cut or broad verification run until headroom recovers.
+
+  Next exact patch to production state, using existing code: wait for the
+  active reconciler and browser pending work to reach terminal; verify the
+  browser queue and reservation are clear, cleanup has errors 0/protected
+  deletions 0, and disk is above the producer floor. Then run the existing
+  loaded-idle-only `bin/lm-loop reconcile deterministic --max-owners 1
+  --loop-id <id>` separately for `life-manager-browser-capacity-probe` and
+  `life-manager-connector-native` from the complete main-derived release.
+  Read back both loaded argv and the probe's installed `StartInterval=300`.
+  Keep any `effect_unknown` occurrence fenced. Finally join two *natural*
+  different-owner claims, terminals, releases and the next claim on that
+  same installed SHA; a manual kick or a `pass` on different SHAs cannot
+  close A15-08. If an old runner still rebinds a queued owner, capture its
+  exact PID/release/dispatch event before changing `runtime/loop/lm_loop_run.py`
+  again.
+  Follow-up readback: disk availability recovered to 7,892,796 KiB and the
+  natural disk-cleanup run reached outer pass at 21:23:08Z; its matching
+  receipt at 21:22:54Z reports errors 0, protected deletions 0 and
+  145,262,807 bytes reclaimed. Browser pending occurrences and reservations
+  were empty. Existing reconciliation installed the complete main-derived
+  `fc31d1227b63` release on probe at 21:25:11Z (event
+  `a2814c6ad734d8d98e51c897`) and Connector at 21:25:42Z (event
+  `ce8f8de463ad0dca32d7c111`). Both installed plists and loaded-idle
+  status name this SHA; the probe plist now has `StartInterval=300`.
+  Probe natural run `18d639069c002cb8-54450` claimed browser at
+  21:30:02Z, reached outer pass at 21:30:30Z, and its occurrence is
+  `released/effect_unknown=0`. No Connector natural claim on `fc31d1227b63`
+  had yet been observed at that readback. The next natural Connector run
+  `18d63a6d2b0a4738-90273` claimed browser on that same SHA at 21:55:42Z,
+  reached outer `fail/entrypoint_exit_1` at 21:56:07Z, and released its
+  occurrence with `effect_unknown=0`. This is a Connector-internal failure
+  for its separate owner, not an unreturned browser claim. The following
+  natural probe run `18d63a77cd9b67c0-91102` started at 21:56:28Z, reached
+  outer pass at 21:56:43Z, and released its occurrence with
+  `effect_unknown=0`; the browser queue and reservation ended at zero.
+  Probe queue age fell from under 15 seconds to zero. Both loaded plists,
+  events and admission occurrences retain SHA `fc31d1227b63`. The
+  Connector wake `wake-80c07bbd05aaaa6ea4320a9a` recorded only
+  `observe/calendar_busy` in action history; its wake report was
+  `circuit_open/wake_boundary_failed`, and no matching candidate-attempt or
+  delivery receipt exists. Its Telegram status report is not a provider
+  submission. Probe used its isolated temporary profile and reported no
+  effect. A fresh read-only review accepted this lifecycle chain while
+  keeping Connector business repair with its separate owner.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
@@ -288,8 +348,9 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   0; free bytes rose 638,849,024 to 1,236,148,224. A second natural run
   `18d61e7fd253a1d8-92885` reached outer pass at 13:30:01Z on loaded SHA
   `deb086429a1a` while global `current` had advanced to complete main release
-  `f4d701999f1`. **A15 Foundation verdict: NOT DONE pending a same-SHA
-  browser handoff.** A distinct-owner lifecycle was observed in A15-08's
+  `f4d701999f1`. At that snapshot, A15 was not Done because the same-SHA
+  browser handoff was still missing. A distinct-owner lifecycle was observed
+  in A15-08's
   Connector `18d624c67945c920-61315` → probe
   `18d624f5e990c7f0-67714` natural terminal chain and released SQLite
   occurrences. Its waiting age fell from about 1.7 minutes to zero; the
@@ -323,6 +384,47 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   loaded/event SHA `d0401d93`. These observations do not claim provider effects
   or every loop's business outcome: Capafy and other exact effect/readback
   fences remain with their owners.
+  Interim final-audit blocker: the global `current` symlink advanced to
+  main-derived `9b917377820c` at 22:00:57Z. All 7,374 files tracked by
+  that commit were present in the release, but its `RELEASE.json` omitted
+  `release_paths`, `runtime_python` and `runtime_python_cache_tag`. The
+  A15-03/A15-14 complete-release readback requires explicit
+  `release_paths=ALL`, so content presence alone does not close this gate.
+  The canonical main `bin/cut-loop-release.sh` writes these fields and
+  guards a full main-derived `current`; recut `origin/main` through that
+  existing path after the release-cut owner lock is free, then read back the
+  new manifest and loaded SHA without touching Connector's separate repair.
+  That repair cut completed through the existing lock at 22:09:17Z:
+  `current` is `20260918T070830-311c9194`, SHA `311c919497bad2afbb0dd12f60765ea1bfae322a`, an `origin/main`
+  ancestor with `release_paths=ALL` and runtime Python metadata. All 7,374
+  tracked files are present. The browser handoff owners remain installed on
+  their same proven SHA `fc31d122`; the release reconciler remains on
+  `d0401d93`. Its post-cut natural run `18d63b2ceaee1470-15244` reached
+  outer pass at 22:11:19Z. `lm-loop doctor` on complete `current` returned
+  `ok=true`, 166 entries, missing/unmanaged/retired 0. The disk-cleanup
+  natural run `18d63b048e6e15b0-3413` reached outer pass at 22:09:52Z;
+  matching receipt at 22:09:51Z reports errors 0 and protected deletions 0.
+  Disk availability was 16,000,084 KiB and memory free 46%. Runtime-eligible
+  queues were agent 23 (oldest 28.9 minutes), browser 0, deterministic 13
+  (oldest 4.5 minutes); effect-unknown occurrences remain fenced separately
+  for agent 37 and deterministic 35 owners, browser 0. Connector's internal
+  `entrypoint_exit_1` remains with its separate owner and is not a claim of
+  Connector business success.
+  A later probe wake `18d63b1049945420-4126` exposed one more Foundation
+  terminal gap: it wrote `execute/running` at 22:07:23Z on `fc31d122`, but
+  `enqueue_durable_resource` raised `sqlite3.OperationalError: database is
+  locked` at the admission database commit before any claim or child. The
+  runner did not catch `sqlite3.Error`, so no outer terminal or occurrence
+  was recorded. This is pre-effect and does not authorize an
+  `effect_unknown` clear. A bounded fix in `runtime/loop/lm_loop_run.py`
+  converts SQLite admission failures to an effect-0 deferred receipt and
+  normal blocked terminal. Best-effort reservation dispatch also preserves
+  that terminal if its database probe is locked. Focused regressions failed
+  on the exact enqueue, claim, reservation and dispatch exceptions before
+  the fix; all 63 runner-bound tests passed after it. A15-14
+  remains open until this fix is on main, a complete main-derived release
+  is loaded, and a follow-up natural probe terminal plus final host readback
+  pass. No extra scheduler or provider submission is needed.
 
 A15-02 integration observation: an earlier PR #5362 head at `eb72e7cb1b` had
 one failing `OSS self-contained boundary` check. The exact inventory digest

@@ -545,14 +545,14 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
     def cancel(loop_id: str) -> None:
         try:
             cancel_durable_resource(loop_id)
-        except (OSError, RuntimeError):
+        except (OSError, RuntimeError, sqlite3.Error):
             pass
 
     def defer(loop_id: str) -> None:
         try:
             if defer_durable_resource(loop_id, cooldown_seconds=60) is True:
                 pending.extend(reserve_available_resource())
-        except (OSError, RuntimeError):
+        except (OSError, RuntimeError, sqlite3.Error):
             pass
 
     for loop_id in pending:
@@ -678,7 +678,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                     break
                 if attempt + 1 < ADMISSION_CONTROL_RETRY_ATTEMPTS:
                     time.sleep(ADMISSION_CONTROL_RETRY_DELAY_SECONDS * (attempt + 1))
-        except (OSError, RuntimeError):
+        except (OSError, RuntimeError, sqlite3.Error):
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
             return 75
@@ -691,7 +691,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             if durable:
                 try:
                     defer_durable_resource(loop_id)
-                except (OSError, RuntimeError):
+                except (OSError, RuntimeError, sqlite3.Error):
                     pass
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_interrupted"})
@@ -700,7 +700,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             if durable:
                 try:
                     defer_durable_resource(loop_id)
-                except (OSError, RuntimeError):
+                except (OSError, RuntimeError, sqlite3.Error):
                     pass
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                          "reason": "memory_headroom_unavailable" if available is None
@@ -726,7 +726,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                     break
                 if attempt + 1 < ADMISSION_CONTROL_RETRY_ATTEMPTS:
                     time.sleep(ADMISSION_CONTROL_RETRY_DELAY_SECONDS * (attempt + 1))
-        except (OSError, RuntimeError):
+        except (OSError, RuntimeError, sqlite3.Error):
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
             return 75
@@ -734,7 +734,11 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": f"resource_{admission_reason}"})
             if durable and not interrupted:
-                _dispatch_reserved(reserve_available_resource())
+                try:
+                    _dispatch_reserved(reserve_available_resource())
+                except (OSError, RuntimeError, sqlite3.Error) as error:
+                    print(f"lm-loop-run: reservation dispatch deferred: {error}",
+                          file=sys.stderr)
             return 75
         claimed_occurrence_id = occurrence_id
         if durable and occurrence_id is not None:
@@ -813,7 +817,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                     dispatch_after_release = release_and_reserve_resource(claim, **release_options)
                 else:
                     release_resource(claim)
-            except (OSError, RuntimeError) as error:
+            except (OSError, RuntimeError, sqlite3.Error) as error:
                 print(f"lm-loop-run: resource release deferred to stale recovery: {error}",
                       file=sys.stderr)
         if dispatch_after_release:
