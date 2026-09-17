@@ -23,7 +23,9 @@ const { mailAvailable, resetMailAvailabilityCache } = require("./mail-availabili
 
 test("LM-24: both Telnyx streaming bodies target the caller leg", () => {
   assert.equal(telnyxDialBody({ connectionId: "c", to: "+1", from: "+2", streamUrl: "wss://x" }).stream_bidirectional_target_legs, "self");
+  assert.equal(telnyxDialBody({ connectionId: "c", to: "+1", from: "+2", streamUrl: "wss://x" }).stream_codec, "PCMU");
   assert.equal(telnyxStreamingStartBody({ streamUrl: "wss://x" }).stream_bidirectional_target_legs, "self");
+  assert.equal(telnyxStreamingStartBody({ streamUrl: "wss://x" }).stream_codec, "PCMU");
 });
 
 test("LM-30: webhook subscribes to edited live-location updates; callbacks are answered", async () => {

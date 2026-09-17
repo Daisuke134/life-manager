@@ -124,8 +124,7 @@ test("a /test-call that reaches voicemail is hung up on, and writes nothing", as
     assert.equal(placed.status, 200);
     assert.equal(dialBodies.length, 1);
 
-    // 2. THE REGRESSION: this dial body used to carry no client_state, which is the entire reason a
-    //    test call could never be hung up on.
+    // The test-call still carries a correlated client_state for the signed detection webhook.
     const clientState = dialBodies[0].client_state;
     assert.ok(clientState, "a /test-call dial body must carry a client_state");
     assert.deepEqual(decodeCallClientState(clientState), { kind: "test", testUid: uid });
@@ -139,30 +138,30 @@ test("a /test-call that reaches voicemail is hung up on, and writes nothing", as
       ["dateTime", "lang", "location", "name", "sig", "summary", "urgency", "wakeEventKey", "wakeUid"],
       "buildStreamUrl's signed query must not gain items");
 
-    // 4. Voicemail → the call is ended, and the response says so rather than "no wake context".
+    // An AMD machine guess is recorded but never cuts off a possible human caller.
     const machine = await detection({ result: "machine", call_control_id: "v2:fixture-ccid", client_state: clientState });
     assert.equal(machine.status, 200);
-    assert.equal(machine.text, "test hangup");
-    assert.deepEqual(hangups, ["/v2/calls/v2%3Afixture-ccid/actions/hangup"]);
+    assert.equal(machine.text, "test noop");
+    assert.deepEqual(hangups, []);
 
     // 5. A human who pressed "Call me now" and picked up is left alone.
     const human = await detection({ result: "human", call_control_id: "v2:fixture-ccid", client_state: clientState });
     assert.equal(human.status, 200);
     assert.equal(human.text, "test noop");
-    assert.equal(hangups.length, 1, "a human must never be hung up on");
+    assert.equal(hangups.length, 0, "a human must never be hung up on");
 
     // 6. A result we could not read is a parse failure, not an AMD verdict; nobody gets cut off.
     const unreadable = await detection({ result: "", call_control_id: "v2:fixture-ccid", client_state: clientState });
     assert.equal(unreadable.status, 200);
     assert.equal(unreadable.text, "test noop");
-    assert.equal(hangups.length, 1);
+    assert.equal(hangups.length, 0);
 
     // 7. A call that is neither ours nor decodable still takes the old honest path — the test branch
     //    must not have widened into a catch-all that hangs up on strangers' calls.
     const foreign = await detection({ result: "machine", call_control_id: "v2:fixture-ccid", client_state: "" });
     assert.equal(foreign.status, 200);
     assert.equal(foreign.text, "no wake context");
-    assert.equal(hangups.length, 1);
+    assert.equal(hangups.length, 0);
   } finally {
     global.fetch = originalFetch;
     http.createServer = originalCreateServer;

@@ -24,7 +24,7 @@ const MINUTE = 60_000;
 const EVENT_START_ISO = "2026-08-05T14:00:00+09:00";
 const EVENT_START_MS = Date.parse(EVENT_START_ISO);
 const TRAVEL_MIN = 35; // + resolveDeparture's 5-min buffer → departure = start − 40 min
-const DEPARTURE_MS = EVENT_START_MS - 40 * MINUTE;
+const DEPARTURE_MS = EVENT_START_MS; // legacy test name; wake calls now use the event start
 const TEST_PHONE = "+99900000000";
 
 const USER = {
@@ -89,7 +89,7 @@ test("monthly allowance exhaustion performs zero inline route and zero Telnyx ca
   let routes = 0, reserves = 0;
   h.deps.reserveManagedAction = async (_uid, actionKey) => {
     reserves += 1;
-    assert.equal(actionKey, EVENT.id);
+    assert.equal(actionKey, `${EVENT.id}|wake:5`);
     return { allowed: false, notify: true };
   };
   h.deps.directionsMinutes = async () => { routes += 1; return TRAVEL_MIN; };

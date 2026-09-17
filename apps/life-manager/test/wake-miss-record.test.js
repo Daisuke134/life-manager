@@ -11,6 +11,7 @@
 // Run: node --test test/wake-miss-record.test.js
 const { test } = require("node:test");
 const assert = require("node:assert");
+const crypto = require("node:crypto");
 
 process.env.LM_CALL_SECRET = "unit_secret";
 process.env.PUBLIC_WSS = "wss://life-call.invalid";
@@ -21,8 +22,8 @@ const { WAKE_MISS_REASONS } = require("../lib/wake-miss.js");
 const MINUTE = 60_000;
 const EVENT_START_ISO = "2026-08-05T14:00:00+09:00";
 const EVENT_START_MS = Date.parse(EVENT_START_ISO);
-const TRAVEL_MIN = 35; // + resolveDeparture's 5-min buffer → departure = start − 40 min
-const DEPARTURE_MS = EVENT_START_MS - 40 * MINUTE;
+const TRAVEL_MIN = 35;
+const DEPARTURE_MS = EVENT_START_MS; // legacy test name; calls use event start
 const TEST_PHONE = "+99900000000";
 
 const USER = {
@@ -45,9 +46,10 @@ const EVENT = {
   startIso: EVENT_START_ISO,
   endMs: EVENT_START_MS + 60 * MINUTE,
 };
+const EVENT_KEY_PREFIX = `${EVENT_START_ISO}|${crypto.createHash("sha256").update(EVENT.id).digest("base64url").slice(0, 22)}`;
 
 function harness({ dial, recordThrows = false } = {}) {
-  const held = new Set();
+  const held = new Set([`${EVENT_KEY_PREFIX}|10`]); // these cases isolate the later T-5 outcome
   const dialed = [];
   const released = [];
   const missed = [];
@@ -90,7 +92,7 @@ test("a dial failure is recorded with its reason, not just erased with the claim
   assert.equal(row.eventStartIso, EVENT_START_ISO);
   assert.equal(Date.parse(row.dueAtIso), DEPARTURE_MS - 5 * MINUTE,
     "due_at is when the call was owed — the clock time /status shows the user");
-  assert.equal(row.eventKey, `${USER.uid}|${EVENT_START_ISO}|5`,
+  assert.equal(row.eventKey, `${EVENT_KEY_PREFIX}|5`,
     "keyed per (event, level) so a repeat refreshes one row instead of duplicating");
 });
 
@@ -101,20 +103,20 @@ test("a call that goes through records no miss", async () => {
   assert.deepEqual(h.missed, [], "success must never leave a failure row behind");
 });
 
-test("a departure that passes with nothing ever claimed records one no-call row", async () => {
+test("an event that starts with nothing claimed records one no-call row", async () => {
   const h = harness();
   await wakeUserOnce(USER, DEPARTURE_MS - LATE_CUTOFF_MIN * MINUTE + MINUTE, h.deps); // ~1 min past cutoff
 
   assert.deepEqual(h.dialed, [], "past the cutoff the late-notice organ owns this, not a wake call");
   assert.equal(h.missed.length, 1, "silence is the thing being recorded");
   const row = h.missed[0];
-  assert.equal(row.reason, WAKE_MISS_REASONS.NO_CALL_BEFORE_DEPARTURE);
-  assert.equal(row.eventKey, `${USER.uid}|${EVENT_START_ISO}|departure`,
+  assert.equal(row.reason, WAKE_MISS_REASONS.NO_CALL_BEFORE_EVENT);
+  assert.equal(row.eventKey, `${EVENT_KEY_PREFIX}|event`,
     "its own key, so it never overwrites a per-level dial failure");
-  assert.equal(Date.parse(row.dueAtIso), DEPARTURE_MS, "the departure time the user was owed a call before");
+  assert.equal(Date.parse(row.dueAtIso), DEPARTURE_MS, "the event time the user was owed a call before");
 });
 
-test("a departure that passes AFTER a real call records nothing", async () => {
+test("an event that starts AFTER a real call records nothing", async () => {
   const h = harness();
   await wakeUserOnce(USER, DEPARTURE_MS - 5 * MINUTE, h.deps); // rings for real
   h.missed.length = 0;

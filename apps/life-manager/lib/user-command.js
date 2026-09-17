@@ -144,7 +144,7 @@ async function buildControlCenter(scope, deps = {}) {
     settings: {
       ...prefs,
       call_language: user.call_language != null ? user.call_language : null,
-      wake_policy: user.wake_policy != null ? user.wake_policy : "travel-only",
+      wake_policy: user.wake_policy != null ? user.wake_policy : "all-events",
     },
     controls: { delegation: { state: "unavailable", reason: "No safe delegated-action runtime is available" }, physical_automation: { state: "unavailable" }, mental_automation: { state: "unavailable" }, financial_automation: { state: "unavailable" } },
   };

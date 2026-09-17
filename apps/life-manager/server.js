@@ -725,34 +725,22 @@ const server = http.createServer(async (req, res) => {
             return;
           }
         }
-        if (wake.managedActionKey && wake.managedPeriodStart && wake.managedReservationToken) {
-          await releaseManagedAction(wake.wakeUid, wake.managedActionKey, SUPA_URL, SUPA_KEY, {
-            reservation: { periodStart: wake.managedPeriodStart, reservationToken: wake.managedReservationToken },
-          });
-        }
+        // AMD may arrive after hangup. Leave the managed-action reservation pending so a later
+        // human/not_sure result can settle it; stale pending rows expire through the existing ledger.
         res.writeHead(200);
         res.end(receipt.matched === 1 ? "recorded" : "receipt unmatched");
         return;
       }
       // spec §3 row 2d: a /test-call detection arrives here too, and it is handled BEFORE the wake
       // path because it has no lm_wake_log row to write on — the code below would PATCH nothing and
-      // report matched=0 forever. It still costs the same money on a voicemail, so it still hangs up.
+      // report matched=0 forever. AMD is observed but never cuts off the caller.
       if (call && call.kind === "test") {
         const detection = await applyTestCallDetection({
           result: payload.result, callControlId: payload.call_control_id,
         });
         const tag = `test=${call.testUid.slice(0, 12)} result=${detection.result || "missing"}`;
-        // Logged apart from the wake path's writes for the same reason the wake hangup is: this fails
-        // against Telnyx, not Supabase, and it costs money rather than evidence. Silence would put us
-        // back at "we are paying for two minutes of voicemail and nothing says we tried to stop it".
-        if (detection.hangup && !detection.hangup.ok) {
-          console.error(`[telnyx-events] test-call hangup FAILED (provider_error) ${tag} — still speaking to a machine`);
-        } else if (detection.hangup) {
-          console.log(`[telnyx-events] test-call hung up on a ${detection.result} ${tag}`);
-        } else {
-          console.log(`[telnyx-events] test-call ${tag}; left running`);
-        }
-        res.writeHead(200); res.end(detection.hangup ? "test hangup" : "test noop"); return;
+        console.log(`[telnyx-events] test-call ${tag}; no automatic hangup`);
+        res.writeHead(200); res.end("test noop"); return;
       }
       const wake = call && call.kind === "wake" ? call : null;
       if (!wake) {
@@ -764,10 +752,8 @@ const server = http.createServer(async (req, res) => {
       // spec §3 row 2: persist EVERY detection, not only human ones. amd_result='machine' is a
       // voicemail we reached; amd_result IS NULL is a webhook that never arrived. Before this, both
       // were answered_at IS NULL and a rotated signing key would have gone unnoticed forever.
-      // spec §3 row 2b / §5.2.1: the same event that tells us it is a machine also carries the handle
-      // needed to end the call. `data.payload.call_control_id` is on every call.machine.detection.ended
-      // (Telnyx sample webhook, team-telnyx/demo-node-telnyx voicemail-detection/contentful.md) — the
-      // same identifier placeCall returns as `ccid` and the bridge already uses for record_start.
+      // Keep the provider identity and raw result for the call receipt; neither proves the human
+      // can hear the AI, and an uncertain machine label never authorizes a hangup.
       const detection = await applyAmdDetection(wake.wakeUid, wake.wakeEventKey, {
         result: payload.result, supaUrl: SUPA_URL, supaKey: SUPA_KEY,
         callControlId: payload.call_control_id,
@@ -786,30 +772,26 @@ const server = http.createServer(async (req, res) => {
       };
       report("amd_result", detection.amd);
       if (detection.answered) report("answered_at", detection.answered);
-      if (wake.managedActionKey && wake.managedPeriodStart && wake.managedReservationToken) {
+      if (wake.managedActionKey && wake.managedPeriodStart && wake.managedReservationToken
+        && detection.amd.ok === true && detection.amd.matched === 1) {
         const reservation = {
           periodStart: wake.managedPeriodStart,
           reservationToken: wake.managedReservationToken,
         };
-        const allowanceReceipt = detection.result === "human" && detection.answered
-          && detection.answered.ok === true && detection.answered.matched === 1
+        const allowanceReceipt = (detection.result === "human" || detection.result === "not_sure")
           ? await completeManagedAction(wake.wakeUid, wake.managedActionKey, SUPA_URL, SUPA_KEY, { reservation })
-          : await releaseManagedAction(wake.wakeUid, wake.managedActionKey, SUPA_URL, SUPA_KEY, { reservation });
+          : detection.result === "machine"
+            ? await releaseManagedAction(wake.wakeUid, wake.managedActionKey, SUPA_URL, SUPA_KEY, { reservation })
+            : null;
+        if (!allowanceReceipt && !["human", "not_sure", "machine"].includes(detection.result)) {
+          res.writeHead(503); res.end("unknown AMD result; send it again"); return;
+        }
         if (!allowanceReceipt || allowanceReceipt.allowed !== true) {
           console.error("[telnyx-events] allowance receipt reconciliation required");
           res.writeHead(503, { "content-type": "text/plain" });
           res.end("allowance receipt failed; send it again");
           return;
         }
-      }
-      // The hangup is best-effort and is logged apart from the writes above, because it fails for a
-      // different reason (Telnyx, not Supabase) and costs a different thing: money, never evidence.
-      // Silence here would put us back where we started — paying for two minutes of voicemail with
-      // nothing anywhere saying we tried to stop it.
-      if (detection.hangup && !detection.hangup.ok) {
-        console.error(`[telnyx-events] hangup FAILED (provider_error) ${tag} — still speaking to a machine`);
-      } else if (detection.hangup) {
-        console.log(`[telnyx-events] hung up on a ${detection.result} ${tag}`);
       }
       // spec §3 row 2a: Telnyx reads 2xx as "it arrived" and redelivers ONLY when it gets something
       // else (developers.telnyx.com/development/api-fundamentals/webhooks/receiving-webhooks: "All

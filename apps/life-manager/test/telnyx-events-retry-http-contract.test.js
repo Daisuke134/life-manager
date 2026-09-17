@@ -356,7 +356,7 @@ test("non-terminal, test-call, legacy, and unreadable hangup states do not write
   }
 });
 
-test("a signed claim-bound machine event writes one exact receipt before the existing hangup", async () => {
+test("a signed machine event writes its exact receipt without cutting off the caller", async () => {
   upstreamCalls.length = 0;
   const rpcBodies = [];
   const sentinels = [
@@ -396,14 +396,9 @@ test("a signed claim-bound machine event writes one exact receipt before the exi
   assert.equal(res.text, "recorded");
   assert.deepEqual(rpcBodies, [claimReceiptBody()]);
   assert.equal(upstreamCalls.filter((call) => pathOf(call) === "/rest/v1/rpc/record_lm_wake_telnyx_receipt").length, 1);
-  assert.equal(upstreamCalls.filter((call) => pathOf(call).endsWith("/actions/hangup")).length, 1);
+  assert.equal(upstreamCalls.filter((call) => pathOf(call).endsWith("/actions/hangup")).length, 0);
   assert.equal(upstreamCalls.filter((call) => pathOf(call) === "/v2/calls").length, 0,
     "receipt wiring must not add outbound call creation");
-  assert.ok(
-    upstreamCalls.findIndex((call) => pathOf(call) === "/rest/v1/rpc/record_lm_wake_telnyx_receipt")
-      < upstreamCalls.findIndex((call) => pathOf(call).endsWith("/actions/hangup")),
-    "the durable receipt must be written before the existing machine hangup",
-  );
   assert.ok(logs.length >= 1);
   assert.ok(logs.every((line) => sentinels.every((sentinel) => !line.includes(sentinel))),
     `provider identity/client state leaked into logs: ${JSON.stringify(logs)}`);
@@ -461,6 +456,51 @@ test("a human-confirmed call completes the same managed event allowance after wa
   });
   assert.equal(res.status, 200);
   assert.deepEqual(order, ["receipt", "answered", "allowance"]);
+});
+
+test("hangup before human AMD leaves the action pending for the later exact receipt", async () => {
+  const writes = [];
+  const supabase = (url) => {
+    const path = new URL(url).pathname;
+    writes.push(path);
+    if (path.endsWith("record_lm_wake_telnyx_receipt")) return response(200, 1);
+    if (path === "/rest/v1/lm_wake_log") return response(200, [{ event_key: CLAIM_EVENT_KEY }]);
+    if (path.endsWith("complete_lm_managed_action")) return response(200, {
+      allowed: true, used: 1, limit: 500, periodStart: MANAGED_PERIOD, resetAt: "2026-10-01",
+    });
+    throw new Error(`unexpected write ${path}`);
+  };
+  const hangup = await postSignedAmdEvent({ eventType: "call.hangup", clientState: managedClaimClientState,
+    eventId: "hangup-first", callControlId: "v2:claim-control-id", supabase });
+  assert.equal(hangup.status, 200);
+  assert.equal(writes.some((path) => path.endsWith("release_lm_managed_action")), false);
+  const human = await postSignedAmdEvent({ clientState: managedClaimClientState, result: "human",
+    eventId: "human-later", callControlId: "v2:claim-control-id", supabase });
+  assert.equal(human.status, 200);
+  assert.equal(writes.filter((path) => path.endsWith("complete_lm_managed_action")).length, 1);
+});
+
+test("replayed human AMD completes idempotently even when answered_at was already latched", async () => {
+  let answeredWrites = 0, completions = 0;
+  const supabase = (url) => {
+    const path = new URL(url).pathname;
+    if (path.endsWith("record_lm_wake_telnyx_receipt")) return response(200, 1);
+    if (path === "/rest/v1/lm_wake_log") {
+      answeredWrites++;
+      return response(200, answeredWrites === 1 ? [{ event_key: CLAIM_EVENT_KEY }] : []);
+    }
+    if (path.endsWith("complete_lm_managed_action")) {
+      completions++;
+      return response(200, { allowed: true, used: 1, limit: 500,
+        periodStart: MANAGED_PERIOD, resetAt: "2026-10-01" });
+    }
+    throw new Error(`unexpected write ${path}`);
+  };
+  const input = { clientState: managedClaimClientState, result: "human",
+    eventId: "same-human-id", callControlId: "v2:claim-control-id", supabase };
+  assert.equal((await postSignedAmdEvent(input)).status, 200);
+  assert.equal((await postSignedAmdEvent(input)).status, 200);
+  assert.equal(completions, 2, "the owner-token RPC makes replay harmless");
 });
 
 test("managed allowance receipt failure returns 5xx for replay without creating another call", async () => {
@@ -545,7 +585,7 @@ test("a claim-bound human with receipt matched=0 writes no answered_at and answe
   assert.equal(patchCalls, 0, "matched zero cannot latch answered_at");
 });
 
-test("claim-bound receipt HTTP failure and thrown fetch return 5xx after the existing machine hangup attempt", async () => {
+test("claim-bound receipt failures return 5xx without a guessed machine hangup", async () => {
   for (const [supabase, forbidden] of [
     [() => response(503, { provider_secret_body: "must-not-escape" }), "must-not-escape"],
     [() => { throw new Error("raw-provider-error-must-not-escape"); }, "raw-provider-error-must-not-escape"],
@@ -567,7 +607,7 @@ test("claim-bound receipt HTTP failure and thrown fetch return 5xx after the exi
       console.log = originalLog;
     }
     assert.equal(res.status >= 500 && res.status < 600, true);
-    assert.equal(upstreamCalls.filter((call) => pathOf(call).endsWith("/actions/hangup")).length, 1);
+    assert.equal(upstreamCalls.filter((call) => pathOf(call).endsWith("/actions/hangup")).length, 0);
     assert.equal(upstreamCalls.filter((call) => pathOf(call) === "/v2/calls").length, 0);
     assert.ok(logs.every((line) => !line.includes(forbidden)), `raw provider failure leaked: ${JSON.stringify(logs)}`);
   }

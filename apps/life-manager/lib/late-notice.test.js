@@ -455,10 +455,10 @@ test("AMD not_sure is recorded as itself, not folded into machine or dropped", a
   const out = await applyAmdDetection("lm_u", "k", { result: "not_sure", ...SUPA, fetchImpl });
 
   assert.equal(out.amd.matched, 1);
-  assert.equal(out.answered, null);
-  assert.equal(calls.length, 1);
+  assert.equal(out.answered.matched, 1);
+  assert.equal(calls.length, 2);
   assert.equal(calls[0].body.amd_result, "not_sure");
-  assert.equal("answered_at" in calls[0].body, false);
+  assert.equal("answered_at" in calls[1].body, true);
 });
 
 // The defect §1.3 names outright: markAnswered returned false for "matched zero rows" AND for "the
@@ -537,103 +537,27 @@ test("a detection with no wake identifiers writes nothing and says so", async ()
 // voicemail be told apart from a webhook that never arrived.
 // ---------------------------------------------------------------------------
 
-const TELNYX_HANGUP = /^https:\/\/api\.telnyx\.com\/v2\/calls\/[^/]+\/actions\/hangup$/;
-
-// Routes by host so one stub serves both sides: Supabase PATCHes and the Telnyx hangup POST.
-function amdFetch({ telnyx = async () => ({ ok: true, status: 200, json: async () => ({ data: {} }) }) } = {}) {
-  return stubFetch(async (url, init) =>
-    (/api\.telnyx\.com/.test(url)
-      ? telnyx(url, init)
-      : { ok: true, status: 200, json: async () => [{ event_key: "k" }] }));
+// A probabilistic machine result is evidence, not permission to cut off a paying human.
+function amdFetch() {
+  return stubFetch(async () => ({ ok: true, status: 200, json: async () => [{ event_key: "k" }] }));
 }
 
-const HANGUP_OPTS = { callControlId: "v2:CCID-abc/def", telnyxApiKey: "test-telnyx-key" };
-
-for (const result of ["machine", "not_sure"]) {
-  test(`AMD ${result} hangs the call up instead of paying to speak to a recording`, async () => {
+for (const result of ["machine", "not_sure", "human"]) {
+  test(`AMD ${result} records its result without hanging up the caller`, async () => {
     const { fetchImpl, calls } = amdFetch();
-    const out = await applyAmdDetection("lm_u", "k", { result, ...HANGUP_OPTS, ...SUPA, fetchImpl });
-
-    assert.equal(out.amd.ok, true, "spec row 2 must not regress: the raw AMD result is still recorded");
+    const out = await applyAmdDetection("lm_u", "k", { result, ...SUPA, fetchImpl });
     assert.equal(out.amd.matched, 1);
-    assert.equal(out.answered, null, `a ${result} is not a human and never sets answered_at`);
-    assert.equal(out.hangup.ok, true, "the call must actually be ended");
-
-    const amdWrite = calls.find((c) => c.body && "amd_result" in c.body);
-    const hangup = calls.find((c) => TELNYX_HANGUP.test(c.url));
-    assert.ok(amdWrite, "the raw AMD result must be persisted");
-    assert.equal(amdWrite.body.amd_result, result);
-    assert.ok(hangup, `a ${result} must be hung up, not spoken to`);
-    // The ccid is URL-encoded: Telnyx call_control_ids are opaque base64-ish strings that can contain
-    // `/` and `+`, which would otherwise walk out of the /calls/{id}/actions/hangup path.
-    assert.equal(hangup.url, `https://api.telnyx.com/v2/calls/${encodeURIComponent(HANGUP_OPTS.callControlId)}/actions/hangup`);
-    assert.equal(hangup.init.method, "POST");
-    assert.match(String(hangup.init.headers.Authorization), /Bearer test-telnyx-key/);
-    // Persist FIRST, hang up SECOND. Reversed, a hangup that throws would take the amd_result row
-    // with it and put this call straight back into the NULL bucket §1.3 exists to empty.
-    assert.ok(calls.indexOf(amdWrite) < calls.indexOf(hangup), "the record is written before the call is cut");
+    assert.equal(out.hangup, null);
+    assert.equal(calls.some((call) => /api\.telnyx\.com/.test(call.url)), false);
+    assert.equal(calls.find((call) => call.body && "amd_result" in call.body).body.amd_result, result);
+    if (result === "machine") assert.equal(out.answered, null);
+    else assert.equal(out.answered.matched, 1);
   });
 }
 
-// This is the assertion that protects the product itself. Everything above is a cost saving; if this
-// one ever goes red, Life Manager hangs up on the user it just woke.
-test("AMD human is never hung up on — the call it just placed is the whole product", async () => {
-  const { fetchImpl, calls } = amdFetch({
-    telnyx: async () => { throw new Error("hangup must not be attempted for a human"); },
-  });
-  const out = await applyAmdDetection("lm_u", "k", {
-    result: "human", nowMs: Date.parse("2026-08-01T00:10:00Z"), ...HANGUP_OPTS, ...SUPA, fetchImpl,
-  });
-
-  assert.equal(out.amd.matched, 1);
-  assert.equal(out.answered.ok, true, "a human still latches answered_at");
-  assert.equal(out.answered.matched, 1);
-  assert.equal(out.hangup, null, "no hangup may even be attempted");
-  assert.equal(calls.some((c) => /api\.telnyx\.com/.test(c.url)), false);
-  assert.ok(calls.find((c) => c.body && "amd_result" in c.body));
-  assert.ok(calls.find((c) => c.body && "answered_at" in c.body));
-});
-
-// A hangup is a best-effort cost saving. The amd_result row is evidence. If Telnyx is down, we lose
-// the saving; losing the evidence too would be trading a $0.05 problem for the blindness of §1.3.
-test("a failed hangup costs the saving, never the amd_result row, and never throws", async () => {
-  for (const telnyx of [
-    async () => ({ ok: false, status: 503, json: async () => ({ errors: [{ detail: "unavailable" }] }) }),
-    async () => { throw new Error("ECONNRESET"); },
-  ]) {
-    const { fetchImpl, calls } = amdFetch({ telnyx });
-    const out = await applyAmdDetection("lm_u", "k", { result: "machine", ...HANGUP_OPTS, ...SUPA, fetchImpl });
-
-    assert.equal(out.amd.ok, true, "the voicemail is still recorded as a voicemail");
-    assert.equal(out.amd.matched, 1);
-    assert.equal(out.hangup.ok, false);
-    assert.ok(out.hangup.error, "the failure must name itself so the caller can log it");
-    assert.ok(calls.find((c) => c.body && "amd_result" in c.body));
-  }
-});
-
-// Belt and braces: with no call_control_id there is nothing to hang up, and inventing a request would
-// be worse than doing nothing. Keeps every existing applyAmdDetection call site byte-identical.
-test("a detection carrying no call_control_id records the result and attempts no hangup", async () => {
-  const { fetchImpl, calls } = amdFetch({
-    telnyx: async () => { throw new Error("must not be called"); },
-  });
-  const out = await applyAmdDetection("lm_u", "k", { result: "machine", ...SUPA, fetchImpl });
-  assert.equal(out.amd.matched, 1);
-  assert.equal(out.hangup.ok, false);
-  assert.equal(out.hangup.error, "no ccid");
-  assert.equal(calls.length, 1);
-});
-
-// Telnyx's own docs say `not_sure` is "recommended to treat as if human answered"; we deliberately do
-// not (see above — the measured ratio is 17 machines to 3 humans). A result we cannot read at all is
-// a DIFFERENT thing: it is not an AMD verdict, it is a payload we failed to understand. Hanging up on
-// that would turn one Telnyx schema change into "no wake call ever completes again", which is exactly
-// the silent-total-failure class §1.3 was written to kill. Fail open, record nothing, stay loud.
-test("an unreadable detection result hangs up on nobody", async () => {
-  const { fetchImpl } = amdFetch({ telnyx: async () => { throw new Error("must not be called"); } });
-  const out = await applyAmdDetection("lm_u", "k", { result: "", ...HANGUP_OPTS, ...SUPA, fetchImpl });
-  assert.equal(out.amd.ok, false, "there is no verdict to record");
+test("an unreadable detection records no verdict and never hangs up", async () => {
+  const { fetchImpl } = amdFetch();
+  const out = await applyAmdDetection("lm_u", "k", { result: "", ...SUPA, fetchImpl });
   assert.equal(out.amd.error, "missing_result");
-  assert.equal(out.hangup, null, "an unparsed payload is not evidence of a machine");
+  assert.equal(out.hangup, null);
 });
