@@ -12,6 +12,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  agent-contract:
+    name: Agent instruction contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify canonical agent instructions and cleanup contract
+        run: bash scripts/verify-agent-contract.sh "$GITHUB_WORKSPACE"
+
   loop-control:
     name: Loop control contracts
     runs-on: macos-latest

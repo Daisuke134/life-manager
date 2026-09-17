@@ -1,6 +1,7 @@
 # This workflow is a security contract, not the repository's general test runner.
 scripts/security/test_pii_shape_scan.py
 scripts/security/test_sec_scan_contract.py
+scripts/security/test_agent_contract.py
 skills/video/tests/test_x_owner_launch_gate.py
 runtime/agent-runner/tests/test_terra_default.py
 runtime/agent-runner/tests/test_application_intent_isolation.py
