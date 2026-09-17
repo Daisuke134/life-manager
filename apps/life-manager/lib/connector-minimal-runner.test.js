@@ -770,12 +770,38 @@ test("Connpass candidate-specific form blockers do not exhaust the wake before a
   assert.equal(state.calls.some(([name, eventRef]) => name === "direct" && eventRef.endsWith("/next")), true);
 });
 
+test("Connpass reaches a simple candidate beyond six questionnaire blockers in one wake", async () => {
+  let state = fixture({
+    async discoverCandidates() {
+      return [...Array.from({ length: 6 }, (_, index) => candidate("connpass", `question-${index}`)),
+        candidate("connpass", "simple")];
+    },
+    async runDirectAction({ candidate: selected }) {
+      state.calls.push(["direct", selected.event_ref]);
+      return selected.event_ref.endsWith("/simple")
+        ? { status: "completed", provider_state: { status: "registered" } }
+        : { status: "failed", safe_reason: "connpass_questionnaire_required" };
+    },
+    async runAgentFallback() { return { status: "failed", safe_reason: "unsafe_agent_action" }; },
+    async readProviderState({ candidate: selected, phase }) {
+      return { status: phase === "pre_submit" || !selected.event_ref.endsWith("/simple")
+        ? "absent" : "registered" };
+    },
+    async completeEvidence() {
+      return { status: "applied_bundle", bundle_id: "bundle-simple", completion_disposition: "created" };
+    },
+  });
+  const result = await runMinimalConnectorWake({ ownerToken: "owner-token-later-simple", providers: ["connpass"] }, state.dependencies);
+  assert.equal(result.status, "applied_bundle");
+  assert.equal(state.calls.filter(([name]) => name === "direct").length, 7);
+});
+
 test("a long Connpass blocker queue leaves time for Luma and rotates next wake", async () => {
   const state = fixture({
     async discoverCandidates(provider) {
       state.calls.push(["discover", provider]);
       return provider === "connpass"
-        ? Array.from({ length: 8 }, (_, index) => candidate("connpass", String(index + 1)))
+        ? Array.from({ length: 24 }, (_, index) => candidate("connpass", String(index + 1)))
         : [];
     },
     async runDirectAction({ candidate: selected }) {
@@ -786,14 +812,14 @@ test("a long Connpass blocker queue leaves time for Luma and rotates next wake",
   const input = { ownerToken: "owner-token-connpass-rotation", providers: ["connpass", "luma"] };
   await runMinimalConnectorWake(input, state.dependencies);
   const first = state.calls.filter(([name]) => name === "direct").map(([, ref]) => ref);
-  assert.equal(first.length, 4);
+  assert.equal(first.length, 12);
   assert.ok(state.calls.some(([name, provider]) => name === "discover" && provider === "luma"));
 
   state.calls.length = 0;
   state.advance(1_800_000);
   await runMinimalConnectorWake(input, state.dependencies);
   const second = state.calls.filter(([name]) => name === "direct").map(([, ref]) => ref);
-  assert.equal(second.length, 4);
+  assert.equal(second.length, 12);
   assert.equal(first.some((ref) => second.includes(ref)), false);
 });
 
