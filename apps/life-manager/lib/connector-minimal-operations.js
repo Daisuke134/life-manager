@@ -18,6 +18,7 @@ const RESULT = /^(?:success|failed)$/;
 const ACTION_KEYS = "duration_ms,method,purpose,result,timestamp";
 const ACTION_FAILURE_CONTEXT_KEYS = "duration_ms,method,provider,purpose,result,safe_reason,timestamp";
 const ACTION_FAILURE_CONTEXT_WITH_CLASS_KEYS = "duration_ms,error_class,method,provider,purpose,result,safe_reason,timestamp";
+const ACTION_CANDIDATE_FAILURE_KEYS = "candidate_ref,duration_ms,method,provider,purpose,result,safe_reason,timestamp";
 const REPORT_KEYS = "consecutive_failure_count,created_at,safe_reason,schema_version,status,wake_id";
 const DELIVERY_KEYS = "delivered_at,schema_version,telegram_provider_id,wake_id";
 const CLAIM_KEYS = "claimed_at,schema_version,wake_id";
@@ -90,7 +91,8 @@ function safeAction(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) invalid();
   const keys = Object.keys(input).sort().join(",");
   const hasErrorClass = keys === ACTION_FAILURE_CONTEXT_WITH_CLASS_KEYS;
-  const hasFailureContext = keys === ACTION_FAILURE_CONTEXT_KEYS || hasErrorClass;
+  const hasCandidateRef = keys === ACTION_CANDIDATE_FAILURE_KEYS;
+  const hasFailureContext = keys === ACTION_FAILURE_CONTEXT_KEYS || hasErrorClass || hasCandidateRef;
   if (
     (keys !== ACTION_KEYS && !hasFailureContext)
     || !PURPOSE.test(String(input.purpose || ""))
@@ -103,6 +105,8 @@ function safeAction(input) {
       || !SAFE_REASON.test(String(input.safe_reason || ""))
     ))
     || (hasErrorClass && !ERROR_CLASS.test(String(input.error_class || "")))
+    || (hasCandidateRef && (input.method !== "browser_harness" || input.provider !== "connpass"
+      || !/^connpass-event:\/\/event\/[1-9][0-9]*$/.test(String(input.candidate_ref || ""))))
   ) invalid();
   return Object.freeze({
     purpose: input.purpose,
@@ -112,6 +116,7 @@ function safeAction(input) {
     duration_ms: input.duration_ms,
     ...(hasFailureContext ? { provider: input.provider, safe_reason: input.safe_reason } : {}),
     ...(hasErrorClass ? { error_class: input.error_class } : {}),
+    ...(hasCandidateRef ? { candidate_ref: input.candidate_ref } : {}),
   });
 }
 
