@@ -34,6 +34,27 @@ r=e/'result.json'; r.write_text('{"classification":"ACCEPTED"}')
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(json.loads(result.stdout), {"classification": "ACCEPTED"})
 
+    def test_judge_salvages_contract_json_after_provider_preamble(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fake = root / "agent-runner.py"
+            fake.write_text("""#!/usr/bin/env python3
+import json,pathlib,sys
+a=sys.argv[1:]; e=pathlib.Path(a[a.index('--evidence-dir')+1]); e.mkdir(parents=True)
+r=e/'result.json'; r.write_text('I checked the article.\\n{"verdict":"PASS","violations":[]}\\n')
+(e/'summary.json').write_text(json.dumps({'result_path':str(r)}))
+""")
+            fake.chmod(0o755)
+            prompt = root / "prompt.txt"; prompt.write_text("check identity")
+            env = {**os.environ, "AGENT_RUNNER_BIN": str(fake),
+                   "WRITER_SHARED_RUNNER_STATE": str(root / "state")}
+            result = subprocess.run(
+                [sys.executable, str(ADAPTER), "judge", "--prompt-file", str(prompt)],
+                env=env, capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(json.loads(result.stdout), {"verdict": "PASS", "violations": []})
+
     def test_adapter_contains_no_direct_provider_or_auth_selection(self):
         source = ADAPTER.read_text(encoding="utf-8")
         for forbidden in ("CODEX_HOME", "auth.json", "codex exec", "ARTICLE_PROVIDER"):

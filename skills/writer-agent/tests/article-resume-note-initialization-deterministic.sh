@@ -12,7 +12,27 @@ mkdir -p "$FAKE_ROOT/scripts" "$FAKE_ROOT/runtime" "$RUN_DIR/gates"
 cp "$ROOT/scripts/article-resume-pending.sh" "$FAKE_ROOT/scripts/"
 cp "$ROOT/scripts/publication_contract_resolver.py" "$FAKE_ROOT/scripts/"
 cp "$ROOT/scripts/publication_contract.py" "$FAKE_ROOT/scripts/"
+cp "$ROOT/scripts/article_adoption_selection.py" "$FAKE_ROOT/scripts/"
 cp "$ROOT/scripts/execute-initialization-pair.py" "$FAKE_ROOT/scripts/" 2>/dev/null || true
+
+cat >"$FAKE_ROOT/scripts/writer-runtime-env.sh" <<'SH'
+ARTICLE_ROOT="${ARTICLE_ROOT:?}"
+ARTICLE_SKILL_DIR="$ARTICLE_ROOT"
+STATE_DIR="${ARTICLE_STATE_DIR:?}"
+WRITER_STATE_DIR="$STATE_DIR"
+WRITER_LOG_DIR="${ARTICLE_RESUME_LOG%/*}"
+WRITER_BROWSER_PYTHON="$(command -v python3)"
+WRITER_CLOAK_PYTHON="$WRITER_BROWSER_PYTHON"
+LIFE_MANAGER_PYTHON="$WRITER_BROWSER_PYTHON"
+export ARTICLE_ROOT ARTICLE_SKILL_DIR STATE_DIR WRITER_STATE_DIR WRITER_LOG_DIR
+export WRITER_BROWSER_PYTHON WRITER_CLOAK_PYTHON LIFE_MANAGER_PYTHON
+SH
+cat >"$FAKE_ROOT/scripts/writer_capacity_floor.py" <<'PY'
+print(1155780608)
+PY
+cat >"$FAKE_ROOT/scripts/writer_unavailable_incident_bridge.py" <<'PY'
+raise SystemExit(0)
+PY
 
 cat >"$FAKE_ROOT/scripts/article_daily_start_control.py" <<'PY'
 print('{"action":"skip-pending-worker"}')
@@ -41,6 +61,11 @@ touch "$TMP/model-was-called"
 exit 91
 SH
 chmod +x "$FAKE_ROOT/runtime/model-runner.sh"
+cat >"$FAKE_ROOT/runtime/judge-broker.sh" <<'SH'
+#!/usr/bin/env bash
+exit 0
+SH
+chmod +x "$FAKE_ROOT/runtime/judge-broker.sh"
 
 cat >"$FAKE_ROOT/scripts/fake-note-stage.py" <<'PY'
 import json, os
@@ -65,6 +90,7 @@ JSONL
 if ! ARTICLE_ROOT="$FAKE_ROOT" \
 ARTICLE_STATE_DIR="$STATE_DIR" \
 ARTICLE_LOCAL_DATE="2026-07-29" \
+ARTICLE_OWNER_FENCE_ACTIVE=1 \
 ARTICLE_RESUME_LOG="$TMP/resume.log" \
 ARTICLE_MODEL_RUNNER="$FAKE_ROOT/runtime/model-runner.sh" \
 bash "$FAKE_ROOT/scripts/article-resume-pending.sh"; then

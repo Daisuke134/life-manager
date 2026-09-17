@@ -578,6 +578,90 @@ def _is_nonpublication_quality_audit(
     )
 
 
+def _is_nonpublication_preflight_row(
+    row: dict[str, Any],
+    state: dict[str, Any],
+) -> bool:
+    """Recognize a legacy pending preflight row that proves no publisher ran.
+
+    Early Writer runs recorded destination-shaped rows while quality/media
+    preflight was still failing.  Those rows have no target, URL, provider
+    identifier, or receipt; treating them as a publication boundary strands a
+    run whose durable state is explicitly waiting for target initialization.
+    Keep this allowlist narrower than a generic ``published=false`` check so
+    an effect-capable or unfamiliar schema remains fail-closed.
+    """
+    if set(row) - _NO_EFFECT_LEDGER_KEYS:
+        return False
+    pair = f"{row.get('platform', '')}/{row.get('lang', '')}"
+    if pair not in SUPPORTED_PAIRS:
+        return False
+    state_value = row.get("state")
+    if not isinstance(state_value, str):
+        return False
+    lowered = state_value.lower()
+    if any(token in lowered for token in _NO_EFFECT_STATE_FORBIDDEN_TOKENS):
+        return False
+    if (
+        row.get("run_id") != state.get("run_id")
+        or row.get("topic_id") != state.get("topic_id")
+        or row.get("published") is not False
+        or row.get("reality_gate") not in {None, ""}
+    ):
+        return False
+    if any(
+        row.get(key) not in {None, ""}
+        for key in ("live_url", "public_id", "receipt", "published_at")
+    ):
+        return False
+    draft_url = row.get("draft_url")
+    if draft_url not in {None, ""}:
+        # A draft is an allowed non-live effect only when its URL is the exact
+        # target already persisted in this run.  This prevents initialization
+        # from creating a second draft after a crash while rejecting a
+        # conflicting or donor-derived URL.
+        entry = state.get("pairs", {}).get(pair)
+        target = str(entry.get("target", "")) if isinstance(entry, dict) else ""
+        if not target or not isinstance(entry, dict) or entry.get("status") not in {
+            "intent",
+            "repair-required",
+            "live",
+        }:
+            return False
+        if pair.startswith("substack/"):
+            if re.fullmatch(
+                rf"https://[a-z0-9-]+\.substack\.com/publish/post/{re.escape(target)}",
+                str(draft_url).rstrip("/"),
+            ) is None:
+                return False
+        elif pair.startswith("x-article/"):
+            if str(draft_url).rstrip("/") != target.rstrip("/"):
+                return False
+        elif pair == "note/ja":
+            if not str(draft_url).rstrip("/").endswith(f"/{target}"):
+                return False
+        else:
+            return False
+        return True
+    if row.get("verified_logged_in") is not False:
+        return False
+    prefix = state_value.split(":", 1)[0].lower()
+    if prefix == "pending":
+        return True
+    if prefix == "failed" and any(
+        marker in lowered
+        for marker in (
+            "before-draft",
+            "module-unavailable",
+            "api-http-400",
+            "api-http-404",
+            "required-headline-media-api-key-unavailable",
+        )
+    ):
+        return True
+    return False
+
+
 def is_self_owned_publication_receipt(
     row: dict[str, Any], state: dict[str, Any]
 ) -> bool:
@@ -3354,6 +3438,7 @@ class PublicationStore:
             if any(
                 not (
                     _is_nonpublication_quality_audit(row, state)
+                    or _is_nonpublication_preflight_row(row, state)
                     or is_self_owned_publication_receipt(row, state)
                     or (
                         row.get("topic_id") == state.get("topic_id")

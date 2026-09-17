@@ -141,6 +141,12 @@ def test_force_advisory_resume_goes_directly_to_publication_handoff(tmp_path, mo
     _advance_to_force(run, monkeypatch)
     ledger = tmp_path / "articles.jsonl"
     ledger.write_text("", encoding="utf-8")
+    _write(run / "gates" / "quality-repair-state.json", {
+        "version": 1,
+        "status": "terminal-incomplete",
+        "run_id": run.name,
+        "attempts": 2,
+    })
 
     decision = RECOVERY.plan(run, ledger)
     assert decision["reason"] == "terminal-quality-publication-handoff"

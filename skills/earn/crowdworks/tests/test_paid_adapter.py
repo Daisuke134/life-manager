@@ -24,6 +24,39 @@ def load():
     return module
 
 
+def test_cdp_connection_retries_until_one_browser_context_is_available():
+    module = load()
+    attempts = []
+    stopped = []
+
+    class Browser:
+        contexts = [object()]
+
+    class Chromium:
+        def connect_over_cdp(self, _url, timeout):
+            attempts.append(timeout)
+            if len(attempts) < 3:
+                raise RuntimeError("transient cdp failure")
+            return Browser()
+
+    class Runtime:
+        chromium = Chromium()
+        def stop(self): stopped.append(True)
+
+    class Launcher:
+        def start(self): return Runtime()
+
+    module.sync_playwright = lambda: Launcher()
+    module.time.sleep = lambda _seconds: None
+
+    runtime, browser = module._connect_existing_cdp()
+
+    assert len(attempts) == 3
+    assert browser.contexts == [browser.contexts[0]]
+    assert stopped == [True, True]
+    runtime.stop()
+
+
 def funded():
     return {"work_id": "63570481", "title": "Webデザイン業務", "client": "buyer",
             "provider_state": "funded", "milestone_id": "13798056",
@@ -380,6 +413,78 @@ def test_default_open_clones_auth_into_owned_context_and_closes_it():
     ]
 
 
+def test_open_falls_back_to_source_context_when_clone_creation_fails():
+    module = load()
+    calls = []
+
+    class Page:
+        def set_default_timeout(self, timeout): calls.append(("timeout", timeout))
+        def close(self): calls.append(("page_close",))
+
+    class SourceContext:
+        def storage_state(self): return {"cookies": [], "origins": []}
+        def new_page(self): calls.append(("source_page",)); return Page()
+
+    source = SourceContext()
+
+    class Browser:
+        contexts = [source]
+        def new_context(self, **_kwargs): raise RuntimeError("clone unavailable")
+
+    class Runtime:
+        def stop(self): calls.append(("runtime_stop",))
+
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()))
+    adapter._open()
+
+    assert adapter.owned_context is source
+    assert adapter.owns_context is False
+    assert ("source_page",) in calls
+    adapter.close()
+
+
+def test_active_inventory_falls_back_to_locked_persistent_context_after_clone_timeout():
+    module = load()
+    calls = []
+
+    class Page:
+        def set_default_timeout(self, timeout): calls.append(("timeout", timeout))
+        def close(self): calls.append(("page_close",))
+
+    class SourceContext:
+        def storage_state(self): return {"cookies": [], "origins": []}
+        def new_page(self): calls.append(("source_page",)); return Page()
+
+    class OwnedContext:
+        def new_page(self): calls.append(("owned_page",)); return Page()
+        def close(self): calls.append(("context_close",))
+
+    class Browser:
+        contexts = [SourceContext()]
+        def new_context(self, **_kwargs): return OwnedContext()
+
+    class Runtime:
+        def stop(self): calls.append(("runtime_stop",))
+
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()))
+    adapter._open()
+    attempts = [0]
+
+    def list_once():
+        attempts[0] += 1
+        if attempts[0] == 1:
+            raise module.PlaywrightTimeoutError("clone timeout")
+        return [{"work_id": "63583795"}]
+
+    adapter._list_contracts_once = list_once
+    assert adapter._list_contracts() == [{"work_id": "63583795"}]
+    assert attempts == [2]
+    assert ("source_page",) in calls
+    adapter.close()
+
+
 def test_three_workers_never_open_a_page_in_the_persistent_context():
     module = load()
     lock, created, seen = threading.Lock(), [], []
@@ -450,7 +555,8 @@ def test_connect_existing_cdp_retries_once_with_bounded_timeout(monkeypatch):
         def stop(self):
             calls.append(("stop",))
 
-    runtimes = iter((Runtime(TimeoutError()), Runtime("browser")))
+    runtimes = iter((Runtime(TimeoutError()), Runtime(TimeoutError()),
+                     Runtime(TimeoutError()), Runtime("browser")))
     monkeypatch.setattr(module, "sync_playwright", lambda: type(
         "Starter", (), {"start": lambda self: next(runtimes)})())
     monkeypatch.setattr(module.time, "sleep", lambda seconds: calls.append(("sleep", seconds)))
@@ -460,7 +566,9 @@ def test_connect_existing_cdp_retries_once_with_bounded_timeout(monkeypatch):
     assert browser == "browser"
     assert runtime.chromium.result == "browser"
     assert calls == [
-        ("connect", module.account.CDP_URL, 10_000), ("stop",), ("sleep", 0.25),
+        ("connect", module.account.CDP_URL, 10_000), ("stop",), ("sleep", 0.5),
+        ("connect", module.account.CDP_URL, 10_000), ("stop",), ("sleep", 0.5),
+        ("connect", module.account.CDP_URL, 10_000), ("stop",), ("sleep", 0.5),
         ("connect", module.account.CDP_URL, 10_000),
     ]
 
@@ -485,7 +593,7 @@ def test_connect_existing_cdp_stops_both_failed_runtimes(monkeypatch):
 
     with pytest.raises(RuntimeError, match="^crowdworks_paid_browser_unavailable$"):
         module._connect_existing_cdp()
-    assert stopped == [True, True]
+    assert stopped == [True, True, True, True]
 
 
 def test_active_contract_timeout_has_bounded_stage_specific_name():
@@ -517,6 +625,19 @@ def test_active_contract_timeout_has_bounded_stage_specific_name():
     assert str(error.value) == ""
     assert error.value.paid_error_code == "crowdworks_paid_active_contracts_timeout"
     adapter.close()
+
+
+def test_provider_navigation_starts_after_commit_and_uses_locator_timeout():
+    module = load()
+    observed = []
+
+    class Page:
+        def goto(self, url, *, wait_until, timeout):
+            observed.append((url, wait_until, timeout))
+
+    module.CrowdWorksPaidAdapter._goto(Page(), module.ACTIVE_CONTRACTS_URL, "active_contracts")
+
+    assert observed == [(module.ACTIVE_CONTRACTS_URL, "commit", 20_000)]
 
 
 def test_active_contract_dom_timeout_has_same_safe_stage_code():
@@ -555,6 +676,35 @@ def test_active_contract_dom_timeout_has_same_safe_stage_code():
     with pytest.raises(module.CrowdWorksPaidActiveContractsTimeout) as error:
         adapter._list_contracts()
     assert error.value.paid_error_code == "crowdworks_paid_active_contracts_timeout"
+    adapter.close()
+
+
+def test_empty_active_contract_inventory_fails_closed_instead_of_reporting_zero():
+    module = load()
+
+    class Locator:
+        def evaluate_all(self, *_): return []
+
+    class Page:
+        url = module.ACTIVE_CONTRACTS_URL
+        def set_default_timeout(self, _timeout): pass
+        def goto(self, *_args, **_kwargs): pass
+        def locator(self, _selector): return Locator()
+
+    class Context:
+        def new_page(self): return Page()
+
+    class Browser:
+        contexts = [Context()]
+
+    class Runtime:
+        def stop(self): pass
+
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()),
+        context_factory=lambda _browser, source: source)
+    with pytest.raises(RuntimeError, match="crowdworks_paid_contract_source_unavailable"):
+        adapter._list_contracts_once()
     adapter.close()
 
 
@@ -609,6 +759,36 @@ def test_contract_detail_dom_timeout_retries_once_on_fresh_page():
 
     assert adapter._detail(funded()) == funded()
     assert calls == [("close",), ("new_page",), ("timeout", 15_000)]
+
+
+def test_contract_detail_timeout_falls_back_to_narrow_surface():
+    module = load()
+    calls = []
+
+    class Page:
+        def set_default_timeout(self, _timeout): pass
+        def close(self): calls.append("close")
+
+    class Context:
+        def new_page(self): return Page()
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter.owned_context = Context()
+    adapter._fallback_to_source_context = lambda: False
+    attempts = [0]
+
+    def detail_once(_basic):
+        attempts[0] += 1
+        if attempts[0] < 3:
+            raise module.PlaywrightTimeoutError("detail timeout")
+        return {"work_id": "63570481", "provider_state": "funded"}
+
+    adapter._detail_once = detail_once
+    adapter._switch_to_narrow_contract = lambda work_id: calls.append(("narrow", work_id))
+
+    assert adapter._detail(funded()) == {"work_id": "63570481", "provider_state": "funded"}
+    assert ("narrow", "63570481") in calls
 
 
 def test_contract_navigation_timeout_retries_once_on_fresh_page():

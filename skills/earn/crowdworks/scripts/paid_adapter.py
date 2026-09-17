@@ -68,14 +68,18 @@ class CrowdWorksPaidBrowserUnavailable(RuntimeError):
 
 def _connect_existing_cdp() -> tuple[Any, Any]:
     """Connect only; never create, repair, or close the CrowdWorks browser process."""
-    for attempt in range(2):
+    for attempt in range(4):
         runtime = sync_playwright().start()
         try:
-            return runtime, runtime.chromium.connect_over_cdp(account.CDP_URL, timeout=10_000)
+            browser = runtime.chromium.connect_over_cdp(account.CDP_URL, timeout=10_000)
+            contexts = getattr(browser, "contexts", None)
+            if contexts is not None and len(contexts) != 1:
+                raise RuntimeError("crowdworks_paid_browser_context_unavailable")
+            return runtime, browser
         except Exception:
             runtime.stop()
-            if attempt == 0:
-                time.sleep(0.25)
+            if attempt < 3:
+                time.sleep(0.5)
     raise CrowdWorksPaidBrowserUnavailable("crowdworks_paid_browser_unavailable") from None
 
 
@@ -167,6 +171,22 @@ class CrowdWorksPaidAdapter:
     def owned_context(self, value) -> None:
         self._local.owned_context = value
 
+    @property
+    def source_context(self):
+        return getattr(self._local, "source_context", None)
+
+    @source_context.setter
+    def source_context(self, value) -> None:
+        self._local.source_context = value
+
+    @property
+    def owns_context(self) -> bool:
+        return bool(getattr(self._local, "owns_context", False))
+
+    @owns_context.setter
+    def owns_context(self, value: bool) -> None:
+        self._local.owns_context = bool(value)
+
     def _open(self) -> None:
         if self.page is not None:
             return
@@ -177,19 +197,53 @@ class CrowdWorksPaidAdapter:
             self.runtime = self.browser = None
             raise RuntimeError("crowdworks_paid_browser_unavailable")
         try:
+            self.source_context = contexts[0]
             self.owned_context = self.context_factory(self.browser, contexts[0])
+            self.owns_context = self.owned_context is not contexts[0]
             if self._requires_isolation and self.owned_context is contexts[0]:
                 raise RuntimeError("crowdworks_paid_browser_state_invalid")
             self.page = self.owned_context.new_page()
             self.page.set_default_timeout(15_000)
-        except Exception:
-            if self.owned_context is not None and self.owned_context is not contexts[0]:
+        except Exception as error:
+            if (self.source_context is not None
+                    and str(error) != "crowdworks_paid_browser_state_invalid"):
+                try:
+                    if self.owns_context and self.owned_context is not None:
+                        self.owned_context.close()
+                    self.owned_context = self.source_context
+                    self.owns_context = False
+                    self.page = self.source_context.new_page()
+                    self.page.set_default_timeout(15_000)
+                    return
+                except Exception:
+                    pass
+            if self.owned_context is not None and self.owns_context:
                 try: self.owned_context.close()
                 except Exception: pass
             self.owned_context = None
             self.runtime.stop()
             self.runtime = self.browser = None
             raise
+
+    def _fallback_to_source_context(self) -> bool:
+        source = self.source_context
+        if source is None or self.owned_context is source:
+            return False
+        try:
+            if self.page is not None:
+                self.page.close()
+        except Exception:
+            pass
+        if self.owns_context and self.owned_context is not None:
+            try:
+                self.owned_context.close()
+            except Exception:
+                pass
+        self.owned_context = source
+        self.owns_context = False
+        self.page = source.new_page()
+        self.page.set_default_timeout(15_000)
+        return True
 
     @staticmethod
     def _isolated_context(browser: Any, source_context: Any) -> Any:
@@ -201,7 +255,7 @@ class CrowdWorksPaidAdapter:
     @staticmethod
     def _goto(page: Any, url: str, stage: str) -> None:
         try:
-            page.goto(url, wait_until="domcontentloaded", timeout=20_000)
+            page.goto(url, wait_until="commit", timeout=20_000)
         except PlaywrightTimeoutError:
             raise _TIMEOUTS[stage]() from None
 
@@ -256,17 +310,20 @@ class CrowdWorksPaidAdapter:
             mobile_context.close()
             raise
         old_page = self.page
+        old_owns_context = self.owns_context
         self.page = mobile_page
         self.owned_context = mobile_context
+        self.owns_context = True
         if old_page is not None:
             try:
                 old_page.close()
             except Exception:
                 pass
-        try:
-            source_context.close()
-        except Exception:
-            pass
+        if old_owns_context:
+            try:
+                source_context.close()
+            except Exception:
+                pass
         self._goto_contract(work_id)
 
     @staticmethod
@@ -295,6 +352,11 @@ class CrowdWorksPaidAdapter:
         try:
             return self._list_contracts_once()
         except PlaywrightTimeoutError:
+            if self._fallback_to_source_context():
+                try:
+                    return self._list_contracts_once()
+                except PlaywrightTimeoutError:
+                    pass
             raise CrowdWorksPaidActiveContractsTimeout() from None
 
     def _list_contracts_once(self) -> list[dict[str, str]]:
@@ -326,6 +388,8 @@ class CrowdWorksPaidAdapter:
                 raise RuntimeError("crowdworks_paid_contract_state_invalid")
             result.append({"work_id": match.group(1), "title": _text(value.get("title")),
                            "client": parts[0], "provider_state": state})
+        if not result:
+            raise RuntimeError("crowdworks_paid_contract_source_unavailable")
         if len({row["work_id"] for row in result}) != len(result):
             raise RuntimeError("crowdworks_paid_contract_duplicate")
         return result
@@ -343,7 +407,11 @@ class CrowdWorksPaidAdapter:
             try:
                 return self._detail_once(basic)
             except PlaywrightTimeoutError:
-                raise CrowdWorksPaidContractTimeout() from None
+                try:
+                    self._switch_to_narrow_contract(_text(basic.get("work_id")))
+                    return self._detail_once(basic)
+                except (PlaywrightTimeoutError, CrowdWorksPaidContractTimeout):
+                    raise CrowdWorksPaidContractTimeout() from None
 
     def _detail_once(self, basic: Mapping[str, Any]) -> dict[str, Any]:
         work_id = _text(basic.get("work_id"))
@@ -791,7 +859,7 @@ class CrowdWorksPaidAdapter:
             try: self.page.close()
             except Exception: pass
         self.page = self.browser = None
-        if self.owned_context is not None:
+        if self.owns_context and self.owned_context is not None:
             try: self.owned_context.close()
             except Exception: pass
         self.owned_context = None

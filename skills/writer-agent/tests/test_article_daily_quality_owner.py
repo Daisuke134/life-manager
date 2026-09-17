@@ -58,7 +58,7 @@ class ArticleDailyQualityOwnerTest(unittest.TestCase):
         GENERATION.adopt_prepublication(run, run_id, prompt, ledger)
         return run, ledger
 
-    def test_quality_repair_ready_is_named_owner_and_missing_receipt_falls_through(self):
+    def test_staged_adoption_without_quality_receipt_returns_to_generation(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             run, ledger = self.make_adopted(root)
@@ -67,9 +67,9 @@ class ArticleDailyQualityOwnerTest(unittest.TestCase):
             self.assertEqual(
                 decision,
                 {
-                    "action": "skip-pending-worker",
+                    "action": "resume-generation",
                     "run_id": run.name,
-                    "reason": "same-jst-day-owned-by-quality-repair",
+                    "reason": "same-jst-day-prepublication-provider-failure",
                 },
             )
 
@@ -82,6 +82,32 @@ class ArticleDailyQualityOwnerTest(unittest.TestCase):
                     "action": "block-incomplete",
                     "run_id": run.name,
                     "reason": "same-jst-day-unclassified-run",
+                },
+            )
+
+    def test_quality_receipt_keeps_quality_repair_owner(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run, ledger = self.make_adopted(root)
+            state_path = run / "gates/generation-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["status"] = "provider-failed-ambiguous"
+            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+            (run / "gates/prepublication-adoption.json").unlink()
+            (run / "gates/quality-self-heal.json").write_text(
+                '{"version":2,"action":"block_freeze"}\n', encoding="utf-8"
+            )
+            GENERATION.adopt_prepublication(
+                run, run.name, run / "article-daily-prompt.txt", ledger
+            )
+            with patch.object(START, "proof", side_effect=START.QuarantineError("no proof")):
+                decision = START.decide(root, "2026-08-21")
+            self.assertEqual(
+                decision,
+                {
+                    "action": "skip-pending-worker",
+                    "run_id": run.name,
+                    "reason": "same-jst-day-owned-by-quality-repair",
                 },
             )
 

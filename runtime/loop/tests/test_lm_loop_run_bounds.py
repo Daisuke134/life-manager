@@ -461,6 +461,36 @@ def test_proven_pre_effect_failure_releases_owner_for_next_wake(tmp_path):
     release.assert_called_once_with(claim, requeue=False, reserve=True)
 
 
+def test_writer_article_resume_pre_effect_failure_releases_without_unknown_fence(tmp_path):
+    claim = tmp_path / "claim-writer-resume"
+    claim.write_text("owned")
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        hint = Path(kwargs["env"]["LIFE_MANAGER_RESULT_HINT_PATH"])
+        hint.write_text('{"status":"pre_effect_failure","effect":0}\n')
+        hint.chmod(0o600)
+        return 1
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 300},
+            "provider_route": "shared-agent-runner", "resource_class": "agent",
+            "admission_class": "borrow",
+            "entrypoint": "skills/writer-agent/scripts/article-resume-pending.sh",
+        }, "article-resume", {}, tmp_path / "receipt") == 1
+    release.assert_called_once_with(claim, requeue=False, reserve=True)
+
+
 def test_mercor_application_and_reply_pre_effect_hints_are_allowlisted():
     assert "skills/earn/mercor/scripts/application-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
     assert "skills/earn/mercor/scripts/reply-owner" in PRE_EFFECT_HINT_ENTRYPOINTS

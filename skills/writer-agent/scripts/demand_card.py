@@ -34,6 +34,15 @@ class DemandCardError(ValueError):
     """A selected topic cannot be trusted as a paid-demand card."""
 
 
+def normalize_observation_id(value: Any, field: str) -> str:
+    """Normalize one observation or binding ID through the shared text boundary."""
+
+    try:
+        return _text(value, field)
+    except ValueError as error:
+        raise DemandCardError(str(error)) from error
+
+
 _BINDING_FIELDS = (
     "buyer",
     "problem",
@@ -100,9 +109,16 @@ def select_demand_observations(
     grouped: dict[str, list[Mapping[str, Any]]] = {
         family: [] for family in DEMAND_SOURCE_FAMILIES
     }
+    observation_ids: set[str] = set()
     for index, observation in enumerate(observations):
         if not isinstance(observation, Mapping):
             raise DemandCardError(f"observation[{index}] must be an object")
+        observation_id = normalize_observation_id(
+            observation.get("observation_id"), "observation_id"
+        )
+        if observation_id in observation_ids:
+            raise DemandCardError("demand card observation IDs must be unique")
+        observation_ids.add(observation_id)
         family = observation.get("source_family")
         if family not in grouped:
             raise DemandCardError(f"observation[{index}] has unsupported source family")
@@ -157,9 +173,12 @@ def select_demand_observations(
                 if body_hash:
                     used_body_hashes.add(body_hash)
         selected.extend(family_selected)
-        selected_ids = {str(row.get("observation_id")) for row in family_selected}
+        selected_ids = {
+            normalize_observation_id(row.get("observation_id"), "observation_id")
+            for row in family_selected
+        }
         for row in ordered:
-            if str(row.get("observation_id")) not in selected_ids:
+            if normalize_observation_id(row.get("observation_id"), "observation_id") not in selected_ids:
                 dropped.append(
                     {
                         **_observation_receipt(row),
@@ -337,13 +356,14 @@ def _validate_bindings(
                 )
             clean_values: list[str] = []
             for value in values:
-                if not isinstance(value, str) or not value.strip():
+                value = normalize_observation_id(
+                    value, f"binding_observation_ids.{field}"
+                )
+                if value in clean_values:
                     raise DemandCardError(
-                        f"binding_observation_ids.{field} must contain strings"
+                        f"binding_observation_ids.{field} must list unique IDs"
                     )
-                value = value.strip()
-                if value not in clean_values:
-                    clean_values.append(value)
+                clean_values.append(value)
             if observation_ids is not None and not set(clean_values) <= observation_ids:
                 raise DemandCardError(
                     f"binding_observation_ids.{field} references an unsupported "
@@ -366,11 +386,19 @@ def build_demand_card(
     """
     if not isinstance(observations, list) or not observations:
         raise DemandCardError("demand card observations must be a non-empty list")
-    observation_ids = {
-        str(observation.get("observation_id"))
-        for observation in observations
-        if isinstance(observation, Mapping)
-    }
+    observation_ids: set[str] = set()
+    for observation in observations:
+        if not isinstance(observation, Mapping):
+            continue
+        try:
+            observation_id = normalize_observation_id(
+                observation.get("observation_id"), "observation_id"
+            )
+        except DemandCardError:
+            continue
+        if observation_id in observation_ids:
+            raise DemandCardError("demand card observation IDs must be unique")
+        observation_ids.add(observation_id)
     normalized_bindings = _validate_bindings(
         bindings,
         observation_ids=observation_ids,
@@ -390,10 +418,9 @@ def build_demand_card(
             raise DemandCardError(
                 f"source family cap exceeded: {family} > {MAX_OBSERVATIONS_PER_FAMILY}"
             )
-        try:
-            observation_id = _text(observation.get("observation_id"), "observation_id")
-        except ValueError as error:
-            raise DemandCardError(str(error)) from error
+        observation_id = normalize_observation_id(
+            observation.get("observation_id"), "observation_id"
+        )
         url = _source_url(observation.get("source_url"))
         capture_method = observation.get("capture_method")
         try:
@@ -506,10 +533,9 @@ def validate_demand_card(card: Mapping[str, Any]) -> dict[str, Any]:
     for index, body in enumerate(source_bodies):
         if not isinstance(body, Mapping):
             raise DemandCardError(f"demand_card.source_bodies[{index}] must be an object")
-        try:
-            body_id = _text(body.get("observation_id"), "source body observation_id")
-        except ValueError as error:
-            raise DemandCardError(str(error)) from error
+        body_id = normalize_observation_id(
+            body.get("observation_id"), "source body observation_id"
+        )
         if body_id in body_by_id:
             raise DemandCardError("demand_card source body IDs must be unique")
         body_by_id[body_id] = body
@@ -518,7 +544,7 @@ def validate_demand_card(card: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(observation, Mapping):
             raise DemandCardError(f"demand_card.observations[{index}] must be an object")
         try:
-            observation_id = _text(
+            observation_id = normalize_observation_id(
                 observation.get("observation_id"), "observation.observation_id"
             )
             source_url = _text(observation.get("url"), "observation.url")

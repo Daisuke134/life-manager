@@ -121,6 +121,248 @@ class PrepublicationAdoptionTest(unittest.TestCase):
             with self.assertRaises(generation.GenerationInvariant):
                 generation.adopt_prepublication(run, run_id, prompt, ledger)
 
+    def test_refreshes_prior_adoption_after_a_later_failed_attempt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run, run_id, prompt, ledger = self.fixture(Path(tmp))
+            state_path = run / "gates/generation-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["attempts"] = state["attempts"][:2]
+            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+
+            generation.adopt_prepublication(run, run_id, prompt, ledger)
+            prior = json.loads(
+                (run / "gates/prepublication-adoption.json").read_text(encoding="utf-8")
+            )
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["status"] = "provider-failed-ambiguous"
+            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+            (run / "article-ja.md").write_text("日本語 retry draft\n", encoding="utf-8")
+            (run / "gates/quality-self-heal.json").write_text(
+                "{\"status\":\"PENDING\"}\n", encoding="utf-8"
+            )
+
+            result = generation.adopt_prepublication(run, run_id, prompt, ledger)
+
+            self.assertEqual(result["action"], "adopted-after-retry")
+            history = run / "gates/prepublication-adoption-history" / f"{prior['receipt_sha256']}.json"
+            self.assertTrue(history.is_file())
+            current = json.loads(
+                (run / "gates/prepublication-adoption.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(current["supersedes_receipt_sha256"], prior["receipt_sha256"])
+            self.assertEqual(
+                current["receipt_sha256"], generation._adoption_receipt_hash(current)
+            )
+
+    def test_staged_adoption_without_quality_receipt_can_resume_same_prompt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run, run_id, prompt, ledger = self.fixture(Path(tmp))
+            state_path = run / "gates/generation-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["attempts"] = state["attempts"][:1]
+            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+
+            generation.adopt_prepublication(run, run_id, prompt, ledger)
+
+            decision = generation.resume_decision(run, run_id, prompt, ledger)
+            self.assertEqual(decision["resumable"], True)
+            self.assertEqual(decision["reason"], "adopted-staged-prepublication")
+            generation.begin(run, run_id, prompt, ledger, owner_pid=os.getpid())
+            resumed = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertEqual(resumed["status"], "invoking")
+            self.assertEqual(len(resumed["attempts"]), 2)
+
+    def test_start_control_returns_generation_resume_for_staged_adoption(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run, run_id, prompt, ledger = self.fixture(Path(tmp))
+            state_path = run / "gates/generation-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["attempts"] = state["attempts"][:1]
+            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+            generation.adopt_prepublication(run, run_id, prompt, ledger)
+
+            with patch.object(start_control, "proof", side_effect=start_control.QuarantineError("no proof")):
+                decision = start_control.decide(Path(tmp), "2026-08-30")
+            self.assertEqual(decision["action"], "resume-generation")
+            self.assertEqual(decision["run_id"], run_id)
+            self.assertEqual(decision["reason"], "same-jst-day-prepublication-provider-failure")
+
+    def test_rebind_accepts_current_symlink_root_for_staged_adoption(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_id = "20260917-120000"
+            run = root / "runs" / run_id
+            gates = run / "gates"
+            gates.mkdir(parents=True)
+            current_link = root / "loops" / "current" / "skills" / "writer-agent"
+            current_link.mkdir(parents=True)
+            target_root = root / "loops" / "releases" / "next" / "skills" / "writer-agent"
+            target_root.mkdir(parents=True)
+            prompt = run / "article-daily-prompt.txt"
+            prompt.write_text(f"writer_root={current_link}\n", encoding="utf-8")
+            ledger = root / "articles.jsonl"
+            ledger.write_text("", encoding="utf-8")
+            state = generation.initialize(run, run_id, prompt, ledger)
+            state["status"] = "provider-failed-ambiguous"
+            state["attempts"] = [{
+                "attempt": 1,
+                "status": "provider-failed-ambiguous",
+                "return_code": 1,
+                "boundary": "generated-or-staged-artifacts:article-ja.md",
+            }]
+            (gates / "generation-state.json").write_text(
+                json.dumps(state) + "\n", encoding="utf-8"
+            )
+            (run / "article-ja.md").write_text("日本語 draft\n", encoding="utf-8")
+            (run / "article-en.md").write_text("English draft\n", encoding="utf-8")
+            generation.adopt_prepublication(run, run_id, prompt, ledger)
+
+            with patch.dict(os.environ, {"LOOPS_ROOT": str(root / "loops")}):
+                result = generation.rebind_release(
+                    run, run_id, prompt, ledger, target_root
+                )
+
+            self.assertEqual(result["action"], "rebound")
+            self.assertIn(str(target_root), prompt.read_text(encoding="utf-8"))
+            receipt = json.loads((gates / "prepublication-adoption.json").read_text())
+            self.assertEqual(receipt["prompt_sha256"], generation.file_sha256(prompt))
+            self.assertEqual(
+                receipt["receipt_sha256"], generation._adoption_receipt_hash(receipt)
+            )
+            rebound_state = json.loads(
+                (gates / "generation-state.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                rebound_state["transitions"][-1]["receipt_sha256"],
+                receipt["receipt_sha256"],
+            )
+
+    def test_rebind_accepts_exact_adoption_with_quality_artifacts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_id = "20260917-120001"
+            run = root / "runs" / run_id
+            gates = run / "gates"
+            gates.mkdir(parents=True)
+            current_link = root / "loops" / "current" / "skills" / "writer-agent"
+            current_link.mkdir(parents=True)
+            target_root = root / "loops" / "releases" / "next" / "skills" / "writer-agent"
+            target_root.mkdir(parents=True)
+            prompt = run / "article-daily-prompt.txt"
+            prompt.write_text(f"writer_root={current_link}\n", encoding="utf-8")
+            ledger = root / "articles.jsonl"
+            ledger.write_text("", encoding="utf-8")
+            state = generation.initialize(run, run_id, prompt, ledger)
+            state["status"] = "provider-failed-ambiguous"
+            state["attempts"] = [{
+                "attempt": 1,
+                "status": "provider-failed-ambiguous",
+                "return_code": 1,
+                "boundary": "generated-or-staged-artifacts:article-ja.md",
+            }]
+            (gates / "generation-state.json").write_text(
+                json.dumps(state) + "\n", encoding="utf-8"
+            )
+            (run / "article-ja.md").write_text("日本語 draft\n", encoding="utf-8")
+            (run / "article-en.md").write_text("English draft\n", encoding="utf-8")
+            (gates / "quality-self-heal.json").write_text(
+                "{\"status\":\"PENDING\"}\n", encoding="utf-8"
+            )
+            generation.adopt_prepublication(run, run_id, prompt, ledger)
+
+            with patch.dict(os.environ, {"LOOPS_ROOT": str(root / "loops")}):
+                result = generation.rebind_release(
+                    run, run_id, prompt, ledger, target_root
+                )
+
+            self.assertEqual(result["action"], "rebound")
+            self.assertIn(str(target_root), prompt.read_text(encoding="utf-8"))
+            receipt = json.loads((gates / "prepublication-adoption.json").read_text())
+            self.assertEqual(receipt["prompt_sha256"], generation.file_sha256(prompt))
+            self.assertEqual(
+                receipt["receipt_sha256"], generation._adoption_receipt_hash(receipt)
+            )
+
+    def test_rebind_accepts_unpublished_continuous_advisory_after_repair_terminal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_id = "20260917-120002"
+            run = root / "runs" / run_id
+            gates = run / "gates"
+            gates.mkdir(parents=True)
+            current_link = root / "loops" / "current" / "skills" / "writer-agent"
+            current_link.mkdir(parents=True)
+            target_root = root / "loops" / "releases" / "next" / "skills" / "writer-agent"
+            target_root.mkdir(parents=True)
+            prompt = run / "article-daily-prompt.txt"
+            prompt.write_text(f"writer_root={current_link}\n", encoding="utf-8")
+            ledger = root / "articles.jsonl"
+            ledger.write_text("", encoding="utf-8")
+            state = generation.initialize(run, run_id, prompt, ledger)
+            state["status"] = "provider-failed-ambiguous"
+            state["attempts"] = [{
+                "attempt": 1,
+                "status": "provider-failed-ambiguous",
+                "return_code": 1,
+                "boundary": "generated-or-staged-artifacts:article-ja.md",
+            }]
+            (gates / "generation-state.json").write_text(
+                json.dumps(state) + "\n", encoding="utf-8"
+            )
+            (run / "article-ja.md").write_text("日本語 draft\n", encoding="utf-8")
+            (run / "article-en.md").write_text("English draft\n", encoding="utf-8")
+            generation.adopt_prepublication(run, run_id, prompt, ledger)
+            hashes = {
+                lang: generation.file_sha256(run / f"article-{lang}.md")
+                for lang in ("ja", "en")
+            }
+            quality = {
+                "version": 2,
+                "run_id": run_id,
+                "attempt": 1,
+                "action": "force_publish_advisory",
+                "publication_policy": "continuous",
+                "quality_advisory": True,
+                "force_publish_after_iterations": 1,
+                "quality": {
+                    lang: {
+                        "article_sha256": digest,
+                        "identity": "PASS",
+                    }
+                    for lang, digest in hashes.items()
+                },
+            }
+            quality["receipt_sha256"] = generation._adoption_receipt_hash(quality)
+            (gates / "quality-self-heal.json").write_text(
+                json.dumps(quality) + "\n", encoding="utf-8"
+            )
+            (gates / "quality-self-heal-attempt-1.json").write_text(
+                json.dumps(quality) + "\n", encoding="utf-8"
+            )
+            state = json.loads((gates / "generation-state.json").read_text())
+            state["status"] = "quality-repair-ready"
+            (gates / "generation-state.json").write_text(
+                json.dumps(state) + "\n", encoding="utf-8"
+            )
+            (gates / "quality-repair-state.json").write_text(
+                json.dumps({
+                    "version": 1,
+                    "status": "terminal-incomplete",
+                    "run_id": run_id,
+                    "attempts": 2,
+                }) + "\n",
+                encoding="utf-8",
+            )
+
+            with patch.dict(os.environ, {"LOOPS_ROOT": str(root / "loops")}):
+                result = generation.rebind_release(
+                    run, run_id, prompt, ledger, target_root
+                )
+
+            self.assertEqual(result["action"], "rebound")
+            self.assertIn(str(target_root), prompt.read_text(encoding="utf-8"))
+            self.assertFalse((gates / "publication-state.json").exists())
+
     def test_refuses_unsafe_evidence_before_mutation(self):
         cases = {
             "prompt hash drift": lambda run, prompt, ledger: prompt.write_text(
