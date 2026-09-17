@@ -262,8 +262,9 @@ PRE_START_REASON="$(printf '%s' "$PRE_START_DECISION" | jq -r '.reason // empty'
 ADOPTION_ACTIVE=0
 # A calendar rollover must not strand the exact unpublished run that already
 # has durable pending ledger rows. Prefer the start controller's selected run;
-# otherwise adopt only one ledger-backed candidate. Multiple candidates are
-# ambiguous and fail closed instead of silently choosing or creating a run.
+# otherwise adopt one persisted publication candidate. Multiple publication
+# candidates remain ambiguous; generation-only quality markers are left to
+# their quality owner instead of blocking today's publication queue.
 ADOPTION_RUN_ID="$(python3 - "$STATE_DIR" "$QUALITY_LEDGER" "$PRE_START_DECISION" <<'PY'
 import json
 from pathlib import Path
@@ -289,6 +290,41 @@ def status(run_id):
     value = json.loads(state_path.read_text(encoding="utf-8"))
     return value.get("status")
 
+def publication_complete(run_id):
+    """Exclude a generation-repair marker whose publication contract is terminal."""
+    path = runs / run_id / "gates/publication-state.json"
+    if path.is_symlink() or not path.is_file():
+        return False
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    pairs = value.get("pairs")
+    if not isinstance(pairs, dict):
+        return False
+    required = (
+        ("note/ja", "substack/ja", "substack/en", "x-article/ja")
+        if value.get("publication_contract") != "legacy-exact8"
+        else (
+            "note/ja",
+            "zenn-article/ja",
+            "devto/en",
+            "substack/ja",
+            "substack/en",
+            "x-article/ja",
+            "x-article/en",
+            "x-post/ja",
+        )
+    )
+    )
+    return all(
+        isinstance(pairs.get(pair), dict)
+        and pairs[pair].get("status") == "live"
+        and isinstance(pairs[pair].get("receipt", {}).get("live_url"), str)
+        and pairs[pair]["receipt"]["live_url"].startswith("https://")
+        for pair in required
+    )
+
 selected = decision.get("run_id")
 if isinstance(selected, str) and status(selected) in allowed:
     print(selected)
@@ -304,9 +340,27 @@ if ledger.is_file() and not ledger.is_symlink():
         run_id = row.get("run_id") if isinstance(row, dict) else None
         if isinstance(run_id, str) and run_id:
             ledger_ids.add(run_id)
-candidates = sorted(run_id for run_id in ledger_ids if status(run_id) in allowed)
+candidates = sorted(
+    run_id
+    for run_id in ledger_ids
+    if status(run_id) in allowed and not publication_complete(run_id)
+)
 if len(candidates) > 1:
-    raise ValueError("multiple ledger-backed adoption candidates")
+    # Multiple generation-only repair markers have no publication target to
+    # resume.  Leave them to their quality owner and let this publication
+    # worker continue to today's run; a single persisted publication candidate
+    # remains safe to adopt, while multiple publication candidates stay
+    # fail-closed as before.
+    publication_candidates = [
+        run_id for run_id in candidates
+        if (runs / run_id / "gates/publication-state.json").is_file()
+    ]
+    if len(publication_candidates) == 1:
+        print(publication_candidates[0])
+        raise SystemExit(0)
+    if len(publication_candidates) > 1:
+        raise ValueError("multiple ledger-backed publication adoption candidates")
+    raise SystemExit(0)
 if candidates:
     print(candidates[0])
 PY
