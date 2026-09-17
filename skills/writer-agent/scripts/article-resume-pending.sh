@@ -31,6 +31,29 @@ export ARTICLE_ROOT ARTICLE_STATE_DIR STATE_DIR ARTICLE_SKILL_DIR \
   ARTICLE_PROVIDER ARTICLE_PROVIDER_COOLDOWN_SECONDS
 mkdir -p "$(dirname "$LOG")"
 
+# lm-loop-run uses this receipt only for failures proven to happen before any
+# publisher invocation. If it cannot be persisted, the outer runtime keeps the
+# conservative effect-unknown fence instead of guessing.
+write_pre_effect_failure_hint() {
+  local hint_path="${LIFE_MANAGER_RESULT_HINT_PATH:-}"
+  [ -n "$hint_path" ] || return 0
+  python3 - "$hint_path" <<'PY'
+import os
+import sys
+
+path = sys.argv[1]
+flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
+fd = os.open(path, flags, 0o600)
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write('{"status":"pre_effect_failure","effect":0}\n')
+        handle.flush()
+        os.fsync(handle.fileno())
+finally:
+    os.chmod(path, 0o600)
+PY
+}
+
 [ -d "$STATE_DIR/runs" ] || exit 0
 
 # A durable local pause is the emergency brake for an external-publication
@@ -77,6 +100,7 @@ export GIG_DISK_HEADROOM_KIB
 case "$GIG_DISK_HEADROOM_KIB" in
   ''|*[!0-9]*|0)
     echo "article-resume: disk floor configuration invalid" >>"$LOG"
+    write_pre_effect_failure_hint || true
     exit 1
     ;;
 esac
@@ -86,17 +110,20 @@ if [ -n "${ARTICLE_RESUME_MIN_FREE_BYTES:-}" ]; then
 fi
 DISK_MIN_FREE_BYTES="$(python3 "$ARTICLE_ROOT/scripts/writer_capacity_floor.py" --state-dir "$STATE_DIR")" || {
   echo "article-resume: capacity receipt invalid" >>"$LOG"
+  write_pre_effect_failure_hint || true
   exit 1
 }
 case "$DISK_MIN_FREE_BYTES" in
   ''|*[!0-9]*|0)
     echo "article-resume: disk floor configuration invalid" >>"$LOG"
+    write_pre_effect_failure_hint || true
     exit 1
     ;;
 esac
 if [ "$GIG_DISK_HEADROOM_KIB" -lt "$CANONICAL_DISK_HEADROOM_KIB" ] \
   || [ "$DISK_MIN_FREE_BYTES" -lt "$((CANONICAL_DISK_HEADROOM_KIB * 1024))" ]; then
   echo "article-resume: disk floor configuration below canonical minimum" >>"$LOG"
+  write_pre_effect_failure_hint || true
   exit 1
 fi
 disk_free_bytes() {
@@ -107,6 +134,7 @@ disk_free_bytes() {
 DISK_FREE_BYTES="$(disk_free_bytes)"
 if [ "${DISK_FREE_BYTES:-0}" -lt "$DISK_MIN_FREE_BYTES" ]; then
   echo "article-resume: disk floor blocked publication free=${DISK_FREE_BYTES}bytes required=${DISK_MIN_FREE_BYTES}bytes" >>"$LOG"
+  write_pre_effect_failure_hint || true
   exit 1
 fi
 
