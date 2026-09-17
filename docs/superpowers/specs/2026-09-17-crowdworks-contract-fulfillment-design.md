@@ -36,16 +36,23 @@ observed state differs. The read-only CrowdWorks owner re-read all five active c
 - Confirmed Google Form receipts exist for `63583795` and `63570481`. The `63583795` row now also has a buyer-visible seller message and official inspection-pending readback; the `63570481` form receipt still does not prove formal CrowdWorks delivery or buyer acceptance.
 - The local Paid item for `63583795` was persisted before the later provider readback and must be reconciled from the official contract before any retry. The provider readback is authoritative; do not resend a form or delivery from a stale local row.
 - The latest Paid attempts have `effect=0`; no new form or formal-delivery effect is accepted as successful.
-- The shared Paid kernel pre-effect-failure fix is merged in PR `#5365` and is loaded in immutable release
-  `c16f437b`. A timed Paid readback was stopped after it exceeded the useful bounded wake; the contract
-  item remains open and must be reconciled from official state before retry.
-- PRs `#5393`, `#5401`, `#5411`, `#5412`, `#5413`, and `#5419` bound the Paid wake, preserve pre-effect
-  hints, retry/recover CDP contexts, start navigation at `commit`, and fail closed on empty inventory. The
-  current main-derived immutable release is `20260918T012630-c6e5c654`, and the Paid plist readback points
-  to that release. The latest targeted wake refused a false zero, ended with `effect=0`, and left no sticky
-  `effect_unknown` after reconciliation. No form, message, or formal-delivery effect was accepted.
-- The CrowdWorks CDP listener is present, but the authenticated provider context is currently unstable
-  during context/page creation. This is a browser-readback blocker, not evidence of a provider submission.
+- The Paid label is now loaded from immutable release `20260918T041155-d0401d93` (`d0401d93f3`),
+  whose registry gives this owner a finite 900-second timeout. The first kickstart on that release was
+  blocked before the child started by the stale CrowdWorks occurrence
+  `crowdworks-revenue-paid:18d62a4c364cf0e0-11226` with `effect_unknown=1`; do not clear it without a
+  contract-specific proof.
+- The shared Paid kernel pre-effect-failure fix is merged in PR `#5365`. The CrowdWorks-specific timeout
+  correction is merged in PR `#5476` and is loaded in immutable release `20260918T041155-d0401d93`.
+  A timed Paid readback was stopped after it exceeded the old bounded wake; the contract item remains open
+  and must be reconciled from official state before retry.
+- PRs `#5393`, `#5401`, `#5411`, `#5412`, `#5413`, `#5419`, and `#5476` bound the Paid wake, preserve
+  pre-effect hints, retry/recover CDP contexts, start navigation at `commit`, fail closed on empty inventory,
+  and give CrowdWorks Paid the 900-second finite bound required by its model-generated forms. The Paid plist
+  readback points to `d0401d93f3`. The latest targeted wake was blocked by the stale occurrence named above,
+  ended with `effect=0`, and did not create a new form, message, or formal-delivery effect.
+- The authenticated CrowdWorks context is readable again: a fresh official inventory readback at
+  `2026-09-17T19:20:19Z` returned 5/5 contracts (four `funded`, `63583795` `delivered`). The stale
+  admission occurrence remains the current blocker; this readback is not a new work effect.
 - The Paid owner is the only post-contract effect owner. Reply may hand off an exact contract ID but must
   not send an ordinary post-contract reply or external form for a Paid-owned contract.
 

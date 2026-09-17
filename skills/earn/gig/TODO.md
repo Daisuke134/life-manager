@@ -1009,25 +1009,30 @@ work item and leave a sibling trace unchanged.
 **Plan:** `docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md` and
 `docs/superpowers/plans/2026-09-17-crowdworks-contract-fulfillment.md`. Current cursor remains **CW-F1 (browser recovery + context readback)**, with the inspection-pending reconciliation slice merged and installed.
 
-**Live verified state (2026-09-18):** official readback shows five active contracts, all `funded`. Contract
+**Live verified state (2026-09-18):** official readback shows five active contracts: four `funded`, with
+`63583795` `delivered` and awaiting buyer inspection. Contract
 `63583795` now has formal delivery read back and is awaiting buyer inspection; the other four have no formal
 delivery read back. Historical confirmed form receipts exist for `63583795` and `63570481`; `63583795` also
 has a buyer-visible seller message and inspection-pending readback. Its local Paid row remains
 `reconcile_unknown` after the latest provider-detail timeout and must be reconciled before any retry; do not
 resend the form or delivery. PR `#5437` classifies the exact inspection-pending body as delivered/no-op,
 and PR `#5443` keeps a detail-timeout contract as a waiting item so other contracts are not erased. The
-targeted Paid owner is now applied to immutable release `20260918T023325-efedb39c`; adapter/kernel tests
-are green (142 tests). The last successful locked read-only probe read all five contracts and returned
-`63583795=delivered`; the latest owner wake stopped before any new effect at the Admission/provider boundary.
-No contract has buyer acceptance, settlement, payout, or verified MRR yet.
+targeted Paid owner is now applied to immutable release `20260918T041155-d0401d93` (`d0401d93f3`); adapter/kernel
+tests are green (198 focused tests plus 126 subtests). A fresh locked official inventory readback at
+`2026-09-17T19:20:19Z` returned all five contracts (four `funded`, `63583795=delivered`); the first
+900-second-release kickstart stopped before the child at the stale Admission occurrence
+`crowdworks-revenue-paid:18d62a4c364cf0e0-11226` (`effect_unknown=1`). No new form, message, or formal-delivery
+effect was accepted. No contract has buyer acceptance, settlement, payout, or verified MRR yet.
 
-PRs `#5393`, `#5401`, `#5411`, `#5412`, `#5413`, `#5419`, `#5437`, and `#5443` bound the Paid wake, preserve
+PRs `#5393`, `#5401`, `#5411`, `#5412`, `#5413`, `#5419`, `#5437`, `#5443`, and `#5476` bound the Paid wake, preserve
 pre-effect hints, retry CDP, recover the locked persistent context, start navigation at `commit`, fail
 closed on empty inventory, classify official inspection-pending delivery as a no-op, and isolate one contract
-detail timeout as a retryable waiting item. Current main is loaded from immutable release
-`20260918T023325-efedb39c`; targeted Paid apply read back the exact SHA. The latest owner wake ended
-before a provider terminal receipt with `effect=0`; no new form, message, or formal-delivery effect was
-accepted. Authenticated contract detail readback still needs a successful terminal Paid wake.
+detail timeout as a retryable waiting item, and give only CrowdWorks Paid a finite 900-second bound. Current
+main is loaded from immutable release `20260918T041155-d0401d93` (`d0401d93f3`); targeted Paid apply read
+back the exact SHA. The latest owner wake was blocked before the child by the stale Admission occurrence
+`crowdworks-revenue-paid:18d62a4c364cf0e0-11226` with `effect_unknown=1`; no new form, message, or formal-delivery
+effect was accepted. Authenticated contract detail readback itself is available again, but the Paid child must
+first pass the exact occurrence reconcile.
 
 **Merged code slices (live proof still open):** bounded context/readback PR `#5369`, delivery dialog/field
 fixes PRs `#5372`, `#5373`, `#5375`, `#5381`, contract answer action PR `#5385`, runtime bound PR `#5393`,
@@ -1037,11 +1042,11 @@ buyer-visible result, and closes the official provider stages.
 
 - [ ] **CW-F1 — browser recovery + bounded context:** Restore the authenticated CrowdWorks context, then
   read and persist the full current buyer conversation, expanded hidden messages, linked documents/forms,
-  scope, corrections, milestone and newest buyer event per contract. The next CrowdWorks Paid release uses
-  a finite 900-second owner bound: the previous 180-second bound terminated while generating the required
-  fields of a 13-field form, leaving `intent_persisted` with no confirmed receipt. The loaded `a0a4e522`
-  release still has the old bound until the targeted release apply; a slow contract must remain replayable
-  and must not hold the Paid owner indefinitely.
+  scope, corrections, milestone and newest buyer event per contract. The loaded Paid owner uses a finite
+  900-second bound. The previous 180-second bound terminated while generating the required fields of a
+  13-field form, leaving `intent_persisted` with no confirmed receipt. The next wake is blocked by the exact
+  stale Admission occurrence above; a slow contract must remain replayable and must not hold the Paid owner
+  indefinitely.
 - [ ] **CW-F2 — correct work selection:** Expose all exact form URLs with visible titles, required fields
   and choices to the model. Never select the first URL, submit every candidate, or infer work from a URL.
   For `63659463`, the current body lists common, Web-ad and video candidates; the model must confirm the
@@ -1063,10 +1068,11 @@ buyer-visible result, and closes the official provider stages.
 - [ ] **CW-F5 — formal delivery and acceptance:** For each contract, read back `納品 → 検収/acceptance →
   settlement → payout`, preserve revisions as new buyer-event versions, and prove replay-zero. A wrong or
   incomplete result keeps the row open and triggers focused repair plus a new natural wake.
-- [ ] **CW-F6 — installed-owner proof:** Immutable release `20260918T023325-efedb39c` and the targeted Paid
-  apply are complete. Timeout isolation is tested, but the latest kickstart has no provider terminal receipt
-  yet (`effect=0`). Re-run without waiting for a global slot and verify the terminal receipt plus exact official
-  provider readback for every ready row. Keep other loop owners/releases unchanged.
+- [ ] **CW-F6 — installed-owner proof:** Immutable release `20260918T041155-d0401d93` and the targeted Paid
+  apply are complete. Timeout isolation is tested, but the latest kickstart was blocked before the child by
+  the exact stale `effect_unknown` occurrence; no provider effect occurred. Resolve that occurrence only with
+  contract-specific evidence, then re-run without waiting for a global slot and verify the terminal receipt
+  plus exact official provider readback for every ready row. Keep other loop owners/releases unchanged.
 - [ ] **CW-F7 — revenue:** Close all five existing contracts before pursuing repeat/retainer work. Separate
   cash received from verified recurring MRR; USD 10,000 MRR remains open until collected/settled evidence.
 - [ ] Share the contract-ID handoff, quality gate and receipt rules through the existing shared marketplace
