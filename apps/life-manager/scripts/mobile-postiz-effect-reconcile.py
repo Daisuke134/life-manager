@@ -39,6 +39,7 @@ def _valid_identity(value: Any, owner_id: str, occurrence_id: str) -> bool:
     if (not OCCURRENCE.fullmatch(occurrence_id)
             or not ID.fullmatch(str(value.get("runtime_run_id", "")))
             or not ID.fullmatch(str(value.get("job_id", "")))
+            or not isinstance(value.get("effect_key"), str)
             or not ID.fullmatch(str(value.get("product_id", "")))
             or not ID.fullmatch(str(value.get("format_id", "")))
             or not ID.fullmatch(str(value.get("form", "")))
@@ -65,11 +66,11 @@ def _valid_identity(value: Any, owner_id: str, occurrence_id: str) -> bool:
         return False
     video_key = re.fullmatch(
         r"marketing:video:([^:]+):(instagram|tiktok|youtube):([^:]+):([0-9a-f]{64}):([0-9a-f]{64})(?::([0-9a-f]{64}))?",
-        str(value["effect_key"]),
+        str(value.get("effect_key", "")),
     )
     carousel_key = re.fullmatch(
         r"marketing:carousel:([^:]+):([^:]+):([0-9a-f]{64}):([0-9a-f]{64}):([0-9a-f]{64})(?::([0-9a-f]{64}))?",
-        str(value["effect_key"]),
+        str(value.get("effect_key", "")),
     )
     if video_key:
         if (value["product_id"] != video_key.group(1)

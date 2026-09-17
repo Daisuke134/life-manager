@@ -87,6 +87,12 @@ def test_proof_must_match_every_effect_identity_field():
         missing_hashes, {**proof_for(value), "identity": missing_hashes},
     )["status"] == "inconclusive"
 
+    missing_effect_key = {**value}
+    missing_effect_key.pop("effect_key")
+    assert MODULE.evaluate_proof(
+        missing_effect_key, {**proof_for(value), "identity": missing_effect_key},
+    )["status"] == "inconclusive"
+
 
 def test_missing_or_unverified_provider_receipt_stays_held():
     value = identity()
