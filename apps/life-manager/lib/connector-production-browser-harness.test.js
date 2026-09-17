@@ -951,6 +951,26 @@ test("Connpass agent may select a private fact key for a newly worded question, 
   assert.equal(await rejecting({ ...base, control }), null);
 });
 
+test("Connpass radio questions use one semantic lookup of an existing approved answer", async () => {
+  let lookups = 0;
+  const resolver = createPrivateValueResolver({
+    readFormProfile: async () => ({ form_answers: { "本イベントをどこでお知りになりましたか？": "Connpass" } }),
+    async selectFactKey({ question, available_keys }) {
+      lookups += 1;
+      assert.equal(question, "何をきっかけに知りましたか？");
+      assert.deepEqual(available_keys, ["本イベントをどこでお知りになりましたか？"]);
+      return available_keys[0];
+    },
+  });
+  const input = (label) => ({ provider: "connpass", state: "connpass_join",
+    candidate: { event_ref: "connpass-event://event/405705" },
+    control: { control: `control_${label.toLowerCase()}`, kind: "radio", label,
+      question: "何をきっかけに知りましたか？", required: true, completed: false, submittable: false } });
+  assert.equal(await resolver(input("Connpass")), true);
+  assert.equal(await resolver(input("SNS")), null);
+  assert.equal(lookups, 1);
+});
+
 test("Connpass exact join does not adopt a generic question outside .question_list", async () => {
   const form = {};
   const genericTitle = { textContent: "必須 参加枠" };

@@ -1702,7 +1702,8 @@ function nativeDoorkeeperTrigger(provider, controls) {
 }
 
 async function safeProfile(read) { try { const value = await read(); return value && typeof value === "object" && !Array.isArray(value) ? value : null; } catch { return null; } } function answerFor(profile, label) { const answers = profile && profile.form_answers; const value = answers && typeof answers === "object" && !Array.isArray(answers) ? Object.entries(answers).find(([key]) => normalizedLabel(key) === label)?.[1] : null; return typeof value === "string" || Array.isArray(value) ? value : null; }
-function approvedOption(profile, question, label) { const answers = profile && profile.form_answers; const exactQuestion = normalizedLabel(question); if (!exactQuestion) return false; const value = answers && typeof answers === "object" && !Array.isArray(answers) && Object.entries(answers).find(([key]) => normalizedLabel(key) === exactQuestion)?.[1]; return typeof value === "string" ? normalizedLabel(value) === label : Array.isArray(value) && value.some((item) => typeof item === "string" && normalizedLabel(item) === label); }
+function approvedValue(value, label) { return typeof value === "string" ? normalizedLabel(value) === label : Array.isArray(value) && value.some((item) => typeof item === "string" && normalizedLabel(item) === label); }
+function approvedOption(profile, question, label) { const answers = profile && profile.form_answers; const exactQuestion = normalizedLabel(question); if (!exactQuestion) return false; const value = answers && typeof answers === "object" && !Array.isArray(answers) && Object.entries(answers).find(([key]) => normalizedLabel(key) === exactQuestion)?.[1]; return approvedValue(value, label); }
 function connpassOrganizerPrivacyQuestion(value) {
   const question = String(value || "").replace(/\s+/g, " ").trim();
   return /^本応募フォームで取得した回答内容及び、個人情報は株式会社[^。]{1,80}が取り扱いいたします。 詳細は以下よりご確認ください。/.test(question)
@@ -1769,6 +1770,7 @@ function createPrivateValueResolver(options = {}) {
   const readPeatixProfile = options.readPeatixProfile || (() => null);
   const readFormProfile = options.readFormProfile || (() => null);
   const selectFactKey = options.selectFactKey || null;
+  const selectedRadioFacts = new Map();
   const now = Object.prototype.hasOwnProperty.call(options, "now") ? options.now : () => new Date();
   if (typeof readPeatixProfile !== "function" || typeof readFormProfile !== "function"
     || (selectFactKey !== null && typeof selectFactKey !== "function")) invalid();
@@ -1797,7 +1799,21 @@ function createPrivateValueResolver(options = {}) {
           const profile = await safeProfile(readPeatixProfile);
           return profile && profile.accept_organizer_privacy === true ? true : null;
         }
-        return approvedOption(await safeProfile(readFormProfile), question, label) ? true : null;
+        const profile = await safeProfile(readFormProfile);
+        if (approvedOption(profile, question, label)) return true;
+        if (control.kind !== "radio" || control.required !== true || !question || !selectFactKey) return null;
+        const answers = profile?.form_answers;
+        if (!answers || typeof answers !== "object" || Array.isArray(answers)) return null;
+        const available_keys = Object.keys(answers).filter((key) => typeof answers[key] === "string" || Array.isArray(answers[key]));
+        if (!available_keys.length) return null;
+        // The model sees keys only; the parent checks the selected private value against this exact option.
+        const cacheKey = `${input.candidate?.event_ref || ""}\u0000${question}`;
+        if (!selectedRadioFacts.has(cacheKey)) {
+          let chosen = null;
+          try { chosen = await selectFactKey({ question: control.question, available_keys }); } catch {}
+          selectedRadioFacts.set(cacheKey, available_keys.includes(chosen) ? chosen : null);
+        }
+        return approvedValue(answers[selectedRadioFacts.get(cacheKey)], label) ? true : null;
       }
       const profile = await safeProfile(readPeatixProfile);
       const knownPrivacyOption = label === normalizedLabel("確認し同意する。") && /^.+のプライバシーポリシーを読んだ・確認した$/.test(question);
