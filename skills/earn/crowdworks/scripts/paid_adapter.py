@@ -420,9 +420,12 @@ class CrowdWorksPaidAdapter:
         title, client = (_text(basic.get(key)) for key in ("title", "client"))
         if title not in body or client not in body:
             raise RuntimeError("crowdworks_paid_contract_context_invalid")
-        state = ("funded" if "業務を開始しています" in body else
+        inspection_pending = ("クライアント（発注者）が検収を行っています" in body
+                              and "検収完了まで" in body)
+        state = ("delivered" if inspection_pending else
+                 "funded" if "業務を開始しています" in body else
                  "awaiting_escrow" if "仮払いを行っています" in body and "業務を開始しない" in body else
-                 "delivered" if any(token in body for token in ("検収", "納品済み", "納品完了")) else "")
+                 "delivered" if any(token in body for token in ("納品済み", "納品完了")) else "")
         if not state:
             raise RuntimeError("crowdworks_paid_contract_state_changed")
         if state == "awaiting_escrow":
@@ -430,8 +433,13 @@ class CrowdWorksPaidAdapter:
                     "milestone_id": None, "form_url": None, "proposal_id": None,
                     "application_date": None, "buyer_context": body}
         if state == "delivered":
+            if inspection_pending:
+                return {"work_id": work_id, "title": title, "client": client,
+                        "provider_state": state, "milestone_id": None,
+                        "form_url": None, "proposal_id": None,
+                        "application_date": None, "buyer_context": body}
             forms = self.page.locator('form[action^="/milestones/"][action$="/complete"]')
-            if forms.count() or not any(token in body for token in ("検収", "納品済み", "納品完了")):
+            if forms.count() or not any(token in body for token in ("納品済み", "納品完了")):
                 raise RuntimeError("crowdworks_paid_contract_state_changed")
             return {"work_id": work_id, "title": title, "client": client, "provider_state": state,
                     "milestone_id": None, "form_url": None, "proposal_id": None,
