@@ -872,7 +872,7 @@ def test_dispatch_reserved_rejects_stale_loaded_release_prefix(tmp_path):
     assert run.call_count == 1
 
 
-def test_dispatch_drift_syncs_one_idle_owner_without_resending(tmp_path):
+def test_dispatch_drift_syncs_and_starts_one_idle_owner(tmp_path):
     current = tmp_path / "release"
     agents = tmp_path / "agents"
     (current / "config").mkdir(parents=True)
@@ -893,16 +893,32 @@ def test_dispatch_drift_syncs_one_idle_owner_without_resending(tmp_path):
     }))
     expected = [str(current.resolve() / "bin/lm-loop-run"),
                 "example", str(current.resolve())]
+    loaded_idle = subprocess.CompletedProcess(
+        [], 0, "arguments = {\n" + "\n".join(expected) + "\n}\nstate = not running",
+    )
+    kicked = subprocess.CompletedProcess([], 0, "")
+    loaded_running = subprocess.CompletedProcess(
+        [], 0, "arguments = {\n" + "\n".join(expected) + "\n}\nstate = running",
+    )
     with (patch("runtime.loop.lm_loop_run.apply_live", create=True,
                 return_value=[{"ok": True, "loaded_arguments": expected}]) as apply,
           patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
-          patch("runtime.loop.lm_loop_run.subprocess.run") as run):
-        assert _dispatch_reserved(["example"], current=current, agents_dir=agents) == []
+          patch("runtime.loop.lm_loop_run.subprocess.run",
+                side_effect=[loaded_idle, kicked, loaded_running]) as run):
+        assert _dispatch_reserved(["example"], current=current, agents_dir=agents) == ["example"]
     apply.assert_called_once()
     assert apply.call_args.kwargs["target"] == "example"
     assert apply.call_args.kwargs["skip_busy"] is True
     defer.assert_not_called()
-    run.assert_not_called()
+    assert [item.args[0][1] for item in run.call_args_list] == [
+        "print", "kickstart", "print",
+    ]
+    with (patch("runtime.loop.lm_loop_run.apply_live",
+                return_value=[{"ok": True, "loaded_arguments": expected}]),
+          patch("runtime.loop.lm_loop_run.subprocess.run",
+                return_value=loaded_running) as run):
+        assert _dispatch_reserved(["example"], current=current, agents_dir=agents) == []
+    assert [item.args[0][1] for item in run.call_args_list] == ["print"]
 
 
 def test_dispatch_release_drift_preserves_real_sqlite_waiter(tmp_path, monkeypatch):
