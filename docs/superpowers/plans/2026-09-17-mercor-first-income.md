@@ -72,13 +72,13 @@
 
 **Interfaces:** A profile proposal is `{version, fact_ids, fields, resume_sha256}`. Official readback is `{profile_version, field_hashes, resume_visible, parser_reviewed, observed_at, evidence_ref}`; only authenticated exact-field readback activates the version. Do not put private field values in a public report.
 
-- [ ] Test that a claim without a verified fact ID is excluded, a profile PDF is not considered synced until parser fields and official reload match, and ambiguous save retains the old active version. Use a fake provider readback, not a browser mock claiming hire success.
+- [x] Test that a claim without a verified fact ID is excluded, a profile PDF is not considered synced until parser fields and official reload match, and ambiguous save retains the old active version. Use a fake provider readback, not a browser mock claiming hire success.
   ```python
   assert propose_profile(facts=[{"id":"jp","claim":"Native Japanese","evidence":"private"}], claims=[{"fact_id":"jp","text":"Native Japanese"}]).fact_ids == ["jp"]
   assert activate_profile(proposal, readback={"authenticated":False}) is False
   ```
-- [ ] Run `rtk pytest -q apps/job-search-loop/tests/test_mercor_profile_sync.py`; confirm the new assertions fail for the missing proposal/readback path.
-- [ ] Implement the smallest proposal/readback path in the existing owner. The model drafts concise role outcomes, 2–4 representative projects, core skills, languages and availability from verified private material; the provider adapter saves fields and PDF, reloads, compares visible values and parser output, then records a version hash. No periodic rewriting when source facts and provider fields are unchanged.
+- [x] Run `rtk pytest -q apps/job-search-loop/tests/test_mercor_profile_sync.py`; the proposal/readback contract is now covered by focused tests.
+- [x] Implement the smallest proposal/readback contract in the existing pass: claims require verified fact IDs, field hashes and résumé SHA are bound to a profile version, and a provider readback is recorded only when authenticated and exact. The live browser save/reload remains pending until the targeted release is installed.
 - [ ] Rerun that focused test and `test_profile_setup.py`. On a real account, perform one authorized profile update using the existing owner, re-open Profile and résumé, and save an official screenshot/DOM receipt. A mismatch leaves the old version active and creates an actionable failure report.
 - [ ] Commit and push the focused change before Task 3.
 
@@ -94,7 +94,7 @@
   assert result["submitted"] == []
   ```
 - [ ] Run `rtk pytest -q apps/job-search-loop/tests/test_mercor_pass_contract.py`; capture the expected failing assertions.
-- [ ] Update the prompt and schema to require requirement-to-fact evidence, status, current profile version and provider fit result. Prioritize official `Job fit` and new listings, but inspect complete details before ranking. A warning can proceed with a specific truthful explanation; `blocked` cannot. Preserve bounded scan, pre-effect fence, readback and other marketplace policy consumers.
+- [x] Update the prompt and schema to require requirement-to-fact evidence, strategy version, profile material hashes and provider fit result. Prioritize official `Job fit` and new listings, but inspect complete details before ranking. A warning can proceed with a specific truthful explanation; `blocked` cannot. Preserve bounded scan, pre-effect fence, readback and other marketplace policy consumers.
 - [ ] Rerun focused tests and a read-only current-listing pass. Compare the ranked top candidates with their full official requirements; correct any false high ranking before allowing submission.
 - [ ] Commit and push.
 

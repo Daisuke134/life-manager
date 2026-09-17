@@ -1,4 +1,5 @@
 import json
+import hashlib
 import os
 from pathlib import Path
 import subprocess
@@ -13,6 +14,7 @@ from job_search_loop.mercor_pass import (
     deny_mercor_media_permissions,
     main,
     record_inspections,
+    record_profile_sync,
     record_verified_submissions,
     validate_bounded_scan,
     validate_evidence_paths,
@@ -103,6 +105,42 @@ class MercorPassContractTests(unittest.TestCase):
                 "login_method": "email",
                 "account_email": "operator@example.invalid",
             })
+
+    def test_context_binds_private_profile_and_resume_versions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            profile = self._profile(state / "profile.json")
+            resume = state / "resume.pdf"
+            resume.write_bytes(b"resume")
+            context = build_context(
+                state_root=state,
+                profile_path=profile,
+                resume_path=resume,
+                cdp_url="http://127.0.0.1:9222",
+            )
+            self.assertEqual(context["profile_material"]["profile_sha256"],
+                             hashlib.sha256(profile.read_bytes()).hexdigest())
+            self.assertEqual(context["profile_material"]["resume_sha256"],
+                             hashlib.sha256(resume.read_bytes()).hexdigest())
+            self.assertEqual(context["profile_material"]["verified_fact_ids"], ["education"])
+
+    def test_profile_sync_readback_is_recorded_without_private_field_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            record_profile_sync(state, {
+                "profile_sync": {
+                    "status": "synced",
+                    "profile_version": "profile-v1",
+                    "field_hashes": {"summary": "hash"},
+                    "resume_sha256": "resume-hash",
+                    "evidence_ref": "profile-readback.json",
+                }
+            }, run_id="run-profile")
+            row = json.loads((state / "profile-sync.jsonl").read_text(encoding="utf-8"))
+            self.assertEqual(row["profile_version"], "profile-v1")
+            self.assertEqual(row["field_hashes"], {"summary": "hash"})
+            self.assertNotIn("summary", row)
+            self.assertEqual((state / "profile-sync.jsonl").stat().st_mode & 0o777, 0o600)
 
     @patch("job_search_loop.mercor_pass.subprocess.run")
     def test_host_capabilities_keep_unknown_sysctl_values_explicit(self, run):
@@ -219,6 +257,10 @@ class MercorPassContractTests(unittest.TestCase):
             "owned by the deterministic email-auth adapter",
             "Never submit or retry login from this model pass",
             "do not use Job Hunter policy",
+            "profile_material",
+            "2–4 representative",
+            "profile_sync",
+            "field hashes",
         ):
             self.assertIn(required, prompt)
         self.assertNotIn("Choose at most one new listing", prompt)
@@ -234,6 +276,19 @@ class MercorPassContractTests(unittest.TestCase):
             (ROOT / "schemas" / "mercor-pass-result.v1.schema.json").read_text(encoding="utf-8")
         )
         self.assertEqual(schema["properties"]["submitted"]["maxItems"], 12)
+
+    def test_result_contract_requires_provider_fit_evidence(self):
+        schema = json.loads(
+            (ROOT / "schemas" / "mercor-pass-result.v1.schema.json").read_text(encoding="utf-8")
+        )
+        inspected = schema["properties"]["inspected_listings"]["items"]
+        self.assertIn("provider_fit_status", inspected["required"])
+        self.assertIn("requirement_evidence", inspected["required"])
+        self.assertIn("strategy_version", inspected["required"])
+        self.assertEqual(
+            inspected["properties"]["provider_fit_status"]["enum"],
+            ["allowed", "warning", "blocked", "not_shown", "unknown"],
+        )
 
     def test_nonblocked_pass_cannot_quit_after_two_of_twelve_visible_candidates(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -307,6 +362,15 @@ class MercorPassContractTests(unittest.TestCase):
                 "application_state": "3/3",
                 "submit_visible": True,
                 "decision": "submitted",
+                "ranking_band": "high",
+                "ranking_evidence": ["verified resume overlap"],
+                "provider_fit_status": "allowed",
+                "requirement_evidence": [{
+                    "requirement": "Relevant AI experience",
+                    "fact_id": "verified-ai",
+                    "disposition": "verified",
+                }],
+                "strategy_version": "mercor-fit-evidence-v1",
             }],
             "submitted": [{
                 "listing_id": "list-test",

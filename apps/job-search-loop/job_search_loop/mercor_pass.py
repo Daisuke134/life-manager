@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import hashlib
 import importlib.util
 import json
 import os
@@ -16,6 +17,9 @@ from typing import Any
 from .agent_runner import AgentRunner, PassAlreadyRunning
 from .mercor_provider import run_pass
 from .mercor_submit_guard import fenced_listing_ids
+
+
+MERCOR_STRATEGY_VERSION = "mercor-fit-evidence-v1"
 
 
 def deny_mercor_media_permissions(
@@ -136,6 +140,37 @@ def _recent_listing_ids(path: Path, limit: int = 200) -> list[str]:
     return list(dict.fromkeys(identifiers))
 
 
+def _profile_material(profile_path: Path, resume_path: Path) -> dict[str, Any]:
+    """Bind each pass to the exact private facts and résumé it inspected.
+
+    The model receives only hashes and fact identifiers here.  The underlying
+    profile and résumé remain private files owned by the parent loop.
+    """
+    profile = profile_path.expanduser()
+    resume = resume_path.expanduser()
+    profile_sha256 = ""
+    verified_fact_ids: list[str] = []
+    if profile.is_file():
+        profile_sha256 = hashlib.sha256(profile.read_bytes()).hexdigest()
+        try:
+            value = json.loads(profile.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            value = {}
+        facts = value.get("facts") if isinstance(value, dict) else None
+        if isinstance(facts, list):
+            for fact in facts:
+                identifier = fact.get("id") if isinstance(fact, dict) else None
+                if isinstance(identifier, str) and identifier.strip():
+                    verified_fact_ids.append(identifier.strip())
+    return {
+        "profile_sha256": profile_sha256,
+        "resume_sha256": (
+            hashlib.sha256(resume.read_bytes()).hexdigest() if resume.is_file() else ""
+        ),
+        "verified_fact_ids": list(dict.fromkeys(verified_fact_ids)),
+    }
+
+
 def build_context(
     *,
     state_root: Path,
@@ -156,6 +191,8 @@ def build_context(
         "state_root": str(state_root.resolve()),
         "profile_path": str(profile_path.expanduser().resolve()),
         "resume_path": str(resume_path.expanduser().resolve()),
+        "profile_material": _profile_material(profile_path, resume_path),
+        "strategy_version": MERCOR_STRATEGY_VERSION,
         "applications_ledger": str(ledger.resolve()),
         "submission_fence_ledger": str(fence_ledger.resolve()),
         "application_report_outbox": str((state_root / "telegram.sqlite3").resolve()),
@@ -231,9 +268,39 @@ def record_inspections(state_root: Path, result: dict[str, Any], *, run_id: str)
                 "ranking_band": str(item.get("ranking_band") or ""),
                 "ranking_evidence": item.get("ranking_evidence")
                 if isinstance(item.get("ranking_evidence"), list) else [],
+                "provider_fit_status": str(item.get("provider_fit_status") or "unknown"),
+                "requirement_evidence": item.get("requirement_evidence")
+                if isinstance(item.get("requirement_evidence"), list) else [],
+                "strategy_version": str(item.get("strategy_version") or MERCOR_STRATEGY_VERSION),
                 "run_id": run_id,
                 "observed_at": datetime.now(timezone.utc).isoformat(),
             }, ensure_ascii=False, sort_keys=True) + "\n")
+        output.flush()
+        os.fsync(output.fileno())
+    os.chmod(ledger, 0o600)
+
+
+def record_profile_sync(state_root: Path, result: dict[str, Any], *, run_id: str) -> None:
+    """Persist a provider profile readback without copying private field values."""
+    sync = result.get("profile_sync")
+    if not isinstance(sync, dict):
+        return
+    status = sync.get("status")
+    if not isinstance(status, str) or status not in {"synced", "unchanged", "unknown", "blocked"}:
+        return
+    ledger = state_root / "profile-sync.jsonl"
+    ledger.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    row = {
+        "status": status,
+        "profile_version": str(sync.get("profile_version") or ""),
+        "field_hashes": sync.get("field_hashes") if isinstance(sync.get("field_hashes"), dict) else {},
+        "resume_sha256": str(sync.get("resume_sha256") or ""),
+        "evidence_ref": str(sync.get("evidence_ref") or ""),
+        "run_id": run_id,
+        "observed_at": datetime.now(timezone.utc).isoformat(),
+    }
+    with ledger.open("a", encoding="utf-8") as output:
+        output.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
         output.flush()
         os.fsync(output.fileno())
     os.chmod(ledger, 0o600)
@@ -410,6 +477,7 @@ def main(argv: list[str] | None = None) -> int:
         result = _blocked_for_evidence_violation(result, args.evidence_dir, error)
     record_verified_submissions(args.state_root, result, run_id=args.run_id)
     record_inspections(args.state_root, result, run_id=args.run_id)
+    record_profile_sync(args.state_root, result, run_id=args.run_id)
     output = args.evidence_dir / "mercor-pass-summary.json"
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     os.chmod(output, 0o600)

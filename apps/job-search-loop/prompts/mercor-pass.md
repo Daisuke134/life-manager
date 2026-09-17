@@ -17,6 +17,14 @@ Pass order:
    marketplace Apply lanes. Prioritize Japan-eligible Japanese-language, bilingual,
    software, AI, automation, system-development and catalog-matching work. This is
    priority, not an allow-list: continue through other truthful-fit work too.
+   Before ranking, compare the current Mercor Profile and résumé parser readback with the
+   bounded context's `profile_material`. If a material field is missing, draft a concise
+   provider profile update from verified fact IDs only: a role summary, 2–4 representative
+   outcomes/projects, core and occasional skills, languages, and availability. Do not change
+   contact or legal fields during routine refinement. Save only through the authenticated owned
+   Profile page, then reload it and the résumé parser. Return `profile_sync` as `synced` or
+   `unchanged` only when the exact profile version, field hashes, and résumé SHA match the
+   readback; a save click without reload is `unknown` and leaves the prior version active.
    Inspect every Japanese/Japan card found in the bounded pages before spending the
    twelve-detail budget on lower-priority work. A nonblocked pass is invalid if that
    priority queue was observed but omitted. `submitted_pending_review` entries are
@@ -35,7 +43,14 @@ Pass order:
    priority window before spending the detail budget: verified resume overlap first, then
    Japan/Japanese eligibility, software/AI/automation overlap, compensation, and absence of
    contradictory requirements. Assign every inspected listing `ranking_band` (`high`, `medium`,
-   or `low`) and `ranking_evidence` citing the posting text and matching verified facts. Inspect
+   or `low`) and `ranking_evidence` citing the posting text and matching verified facts. Also
+   return the exact `strategy_version` from the bounded context so later funnel outcomes can
+   be attributed to this ranking policy. Do not invent or alter that version.
+   return `provider_fit_status` as the live Mercor Application Fit result (`allowed`, `warning`,
+   `blocked`, `not_shown`, or `unknown`) and `requirement_evidence`, one object per material
+   requirement with the posting requirement, matching verified `fact_id`, and a disposition such
+   as `verified`, `missing_preferred`, `contradiction`, or `unknown`. If the live fit control is not
+   visible, use `not_shown` or `unknown`; never infer `allowed` from a card. Inspect
    high before medium before low. Missing or preferred evidence stays medium and later in the
    queue; it is not a rejection. A material contradiction with a required language, location,
    domain specialization, or seniority makes the candidate low and `no_reasonable_shot`.
