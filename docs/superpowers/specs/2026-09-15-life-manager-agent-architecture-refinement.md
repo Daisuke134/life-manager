@@ -105,6 +105,16 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   the loop contract and OSS boundary also passed. This is local evidence only:
   main integration, immutable-release apply, natural terminal and a distinct
   `life-manager-connector-native` handoff are still required for A15-08.
+  On 2026-09-18, a complete main-derived release `e4f50c914b...` was cut
+  after the prior current release was found truncated by `ENOSPC`; its
+  `release_paths=ALL`, Python metadata, `playwright-core` and `jsqr` were
+  verified. `life-manager-browser-capacity-probe` and
+  `life-manager-connector-native` were both loaded-idle and targeted-synced to
+  that release without provider submission. The probe's first queued occurrence
+  was deferred by browser capacity, then a later occurrence ran and passed after
+  the connector occurrence released (`sequence 30568 → 30609`). A natural
+  connector terminal on the same exact release is still required, so this item
+  remains open.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
