@@ -100,6 +100,31 @@ def test_funded_contract_without_google_form_waits_without_blocking_inventory():
     assert action["reason"] == "buyer_task_detail_required"
 
 
+def test_no_form_contract_does_not_require_application_date():
+    module = load()
+    contract = {key: value for key, value in funded().items()
+                if key not in {"form_url", "application_date"}}
+    action = module.decide({"context": {"contract": contract}})
+
+    assert action["action"] == "wait"
+    assert action["reason"] == "buyer_task_detail_required"
+
+
+def test_cached_inventory_detail_is_reused_until_explicit_refresh():
+    module = load()
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    calls = []
+    row = funded()
+    adapter._list_contracts = lambda: [row]
+    adapter._detail = lambda value: calls.append(value["work_id"]) or dict(value)
+
+    adapter._inventory()
+    adapter.observe_one(row["work_id"])
+    adapter.refresh_one(row["work_id"])
+
+    assert calls == [row["work_id"], row["work_id"]]
+
+
 def test_detail_retains_multiple_buyer_form_links_for_later_task_selection():
     module = load()
     title, client = "buyer task", "buyer"
@@ -681,9 +706,9 @@ def test_real_kernel_paths_close_every_thread_owned_runtime(tmp_path):
     for index, adapter in enumerate((waiting, completed, failing, submitted)):
         kernel.run_wake(adapter=adapter, decide=module.decide, state_root=tmp_path / str(index), max_workers=1)
     assert events.count("page") == events.count("runtime")
-    # All four kernel paths perform multiple independent public calls; no
-    # browser/page/runtime can survive ThreadPoolExecutor worker teardown.
-    assert events.count("runtime") >= 15
+    # Every public adapter call owns and tears down its runtime; cached
+    # observations intentionally avoid reopening the browser for wait/no-op rows.
+    assert events.count("runtime") >= 11
 
 
 def test_kernel_does_not_repeat_full_inventory_for_each_worker_call(tmp_path):
@@ -697,10 +722,10 @@ def test_kernel_does_not_repeat_full_inventory_for_each_worker_call(tmp_path):
 
     assert result["failed"] == 0
     assert list_calls == ["full"]
-    # Initial observation details both contracts once; each worker then refreshes
-    # exactly its own contract.  context consumes the fresh pure-data cache.
+    # Initial inventory details both contracts once. Wait/no-op rows consume the
+    # cached facts and do not reopen a browser; mutation rows use refresh_one.
     assert details[:2] == ["63568785", "63570481"]
-    assert sorted(details[2:]) == ["63568785", "63570481"]
+    assert details[2:] == []
 
 
 def test_mutation_targeted_refresh_rejects_changed_contract_before_submit(tmp_path):
