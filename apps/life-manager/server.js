@@ -1591,7 +1591,7 @@ wss.on("connection", (carrierWs, req) => {
     }
     if (msg.event === "error") {
       state.streamErrors++;
-      console.error(`[bridge] carrier media error code=${String(msg.payload?.code || "unknown").slice(0, 32)}`);
+      console.error(`[bridge] carrier media error ccid=${state.callControlId || "unknown"} code=${String(msg.payload?.code || "unknown").slice(0, 32)}`);
     }
     if (kind === "start") {
       if (callStartedAtMs == null) callStartedAtMs = Date.now();
@@ -1628,7 +1628,7 @@ wss.on("connection", (carrierWs, req) => {
     const audioRmsDb = state.audioSamples
       ? Math.round(20 * Math.log10(Math.sqrt(state.audioSquares / state.audioSamples) / 32768)) : null;
     // A mark can also be echoed after `clear`; these counters are diagnostics, not proof of audible speech.
-    console.log(`[bridge] media diagnostics firstAudioMs=${state.firstAudioAtMs && callStartedAtMs
+    console.log(`[bridge] media diagnostics ccid=${state.callControlId || "unknown"} firstAudioMs=${state.firstAudioAtMs && callStartedAtMs
       ? state.firstAudioAtMs - callStartedAtMs : "none"} audioMs=${Math.round(state.audioBytes / 8)} invalidChunks=${state.invalidAudioChunks}
       audioRmsDb=${audioRmsDb}
       markAck=${state.markAck} markAckAfterClear=${state.markAckAfterClear}
