@@ -24,6 +24,16 @@ const PEATIX_FORM_URL = /^https:\/\/peatix\.com\/sales\/event\/([1-9][0-9]*)\/fo
 const PEATIX_CONFIRM_URL = /^https:\/\/peatix\.com\/sales\/event\/([1-9][0-9]*)\/confirm$/;
 const CONNPASS_FINAL_LABEL = "申し込みを確定する";
 const CONNPASS_REFERRAL_QUESTION = "このイベントは何を見て知りましたか？";
+// Only pre-existing factual profile fields may be reused for newly worded radio questions.
+// Consent, speaking, and other commitments still require an exact saved question/answer.
+const CONNPASS_SEMANTIC_RADIO_FACT_FAMILIES = [
+  { question: /^(?:(?:この|本)イベント(?:を|は))?(?:何をきっかけに|どこで|何を見て)(?:このイベントを)?(?:知りました|見つけました)(?:か)?[？?]?$|^(?:how|where) did you (?:hear|find) (?:about )?(?:this |the )?event[?]?$/i,
+    keys: new Set(["本イベントをどこでお知りになりましたか？", CONNPASS_REFERRAL_QUESTION]) },
+  { question: /^(?:現在の)?(?:キャリア状況|職種|職業|役職)(?:を教えてください|は何ですか)?[？?]?$|^(?:what is your )?(?:career status|job role)[?]?$/i,
+    keys: new Set(["キャリア状況", "職種", "会社区分", "Career status"]) },
+];
+const CONNPASS_SEMANTIC_RADIO_COMMITMENT = /同意|承諾|許可|提供|共有|渡して|登壇|発表|営業|勧誘|販売|撮影|録画|録音|公開|掲載|約束|agree|consent|share|speak|present|record|photograph|marketing|sell|third.party/i;
+const CONNPASS_SEMANTIC_RADIO_GENERIC = /^(?:はい|いいえ|yes|no|同意します|承諾します|i agree)[。.!！]?$/i;
 const CONNPASS_ONLINE_LABEL = /^オンライン視聴枠（YouTube） 無料(?: 参加者数 \d+人)?$/i;
 const CONNPASS_ATTENDEE_LABEL = /^(?:参加者|オーディエンス枠) 無料 先着順(?:（抽選終了）)? \d+\/\d+人$/;
 const CONNPASS_JOIN_URL = /^https:\/\/(?:[a-z0-9-]+\.)?connpass\.com\/event\/([1-9][0-9]*)\/join\/$/;
@@ -1801,10 +1811,15 @@ function createPrivateValueResolver(options = {}) {
         }
         const profile = await safeProfile(readFormProfile);
         if (approvedOption(profile, question, label)) return true;
-        if (control.kind !== "radio" || control.required !== true || !question || !selectFactKey) return null;
+        if (control.kind !== "radio" || control.required !== true || !question || !selectFactKey
+          || CONNPASS_SEMANTIC_RADIO_COMMITMENT.test(question)
+          || CONNPASS_SEMANTIC_RADIO_GENERIC.test(label)) return null;
         const answers = profile?.form_answers;
         if (!answers || typeof answers !== "object" || Array.isArray(answers)) return null;
-        const available_keys = Object.keys(answers).filter((key) => typeof answers[key] === "string" || Array.isArray(answers[key]));
+        const factFamily = CONNPASS_SEMANTIC_RADIO_FACT_FAMILIES.find((family) => family.question.test(question));
+        if (!factFamily) return null;
+        const available_keys = Object.keys(answers).filter((key) => factFamily.keys.has(key)
+          && (typeof answers[key] === "string" || Array.isArray(answers[key])));
         if (!available_keys.length) return null;
         // The model sees keys only; the parent checks the selected private value against this exact option.
         const cacheKey = `${input.candidate?.event_ref || ""}\u0000${question}`;

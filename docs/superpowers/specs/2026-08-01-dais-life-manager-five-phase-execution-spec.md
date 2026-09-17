@@ -10227,4 +10227,6 @@ Connector候補巡回とreconciliation優先の差分はPR #5306、main merge `1
 
 既存のbounded private fact selectorは自由記述欄で新しい質問表現を保存済み本人情報のキーに結び付けるが、選択式の質問には接続されていなかった。Connpassの選択式質問でも同じselectorを一質問につき一回だけ使い、保存済み回答と正確に一致する選択肢だけを許す最小差分を作成した。focused testは修正前RED、修正後`connector-production-browser-harness.test.js` 180/180 PASS。新しい本人事実、同意、登壇・営業等の約束は捏造せず、情報が無ければ申込前に停止する。main統合とlive申込・Calendar readbackは未完。
 
+fresh read-only reviewで、別質問に保存された「はい」や紹介元「Connpass」を未知の同意・スポンサー連絡の質問へ流用できる経路を検出した。双方をREDで再現し、意味照合の対象を質問全体で一致する紹介元または職種・キャリアの事実質問に限定し、同じ事実群の保存済みキーだけを提示するよう修正した。複合質問、同意、汎用yes/noはsemantic fallbackで承認しない。正当な言い換えからradio選択→確定までの統合テストを保持し、focused 181/181 PASS。再レビューは指摘経路の解消を確認した。依然としてmain・loaded release・live provider effectへは未反映である。
+
 基盤specのcurrent cursorはA15で、別ownerの`/private/tmp/lm-agent-engineering-skills-20260915`とhost-admission DB、稼働中PIDを触らない。このConnector差分は専用worktreeで進め、A15合格後に同ownerとbrowser資源を調整したmain由来releaseで実申込→Calendar exact 1→次回重複0を再検証する。Connector全体は**NOT DONE**。
