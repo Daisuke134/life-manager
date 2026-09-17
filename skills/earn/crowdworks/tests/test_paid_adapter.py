@@ -679,6 +679,35 @@ def test_active_contract_dom_timeout_has_same_safe_stage_code():
     adapter.close()
 
 
+def test_empty_active_contract_inventory_fails_closed_instead_of_reporting_zero():
+    module = load()
+
+    class Locator:
+        def evaluate_all(self, *_): return []
+
+    class Page:
+        url = module.ACTIVE_CONTRACTS_URL
+        def set_default_timeout(self, _timeout): pass
+        def goto(self, *_args, **_kwargs): pass
+        def locator(self, _selector): return Locator()
+
+    class Context:
+        def new_page(self): return Page()
+
+    class Browser:
+        contexts = [Context()]
+
+    class Runtime:
+        def stop(self): pass
+
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()),
+        context_factory=lambda _browser, source: source)
+    with pytest.raises(RuntimeError, match="crowdworks_paid_contract_source_unavailable"):
+        adapter._list_contracts_once()
+    adapter.close()
+
+
 def test_contract_detail_dom_timeout_has_safe_contract_stage_code():
     module = load()
 

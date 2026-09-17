@@ -388,6 +388,8 @@ class CrowdWorksPaidAdapter:
                 raise RuntimeError("crowdworks_paid_contract_state_invalid")
             result.append({"work_id": match.group(1), "title": _text(value.get("title")),
                            "client": parts[0], "provider_state": state})
+        if not result:
+            raise RuntimeError("crowdworks_paid_contract_source_unavailable")
         if len({row["work_id"] for row in result}) != len(result):
             raise RuntimeError("crowdworks_paid_contract_duplicate")
         return result
