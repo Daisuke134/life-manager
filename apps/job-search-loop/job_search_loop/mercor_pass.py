@@ -185,6 +185,15 @@ def build_context(
     ledger = state_root / "applications.jsonl"
     fence_ledger = state_root / "submission-fences.jsonl"
     inspection_ledger = state_root / "inspections.jsonl"
+    configured_job_search_state = os.environ.get("JOB_SEARCH_STATE_ROOT", "").strip()
+    if configured_job_search_state:
+        job_search_state_root = Path(configured_job_search_state).expanduser()
+    elif state_root.name == "application" and state_root.parent.name == "mercor":
+        job_search_state_root = state_root.parent.parent
+    elif state_root.name == "mercor":
+        job_search_state_root = state_root.parent
+    else:
+        job_search_state_root = state_root.parent
     submitted_listing_ids = set(_ledger_listing_ids(ledger))
     submitted_listing_ids.update(fenced_listing_ids(fence_ledger))
     context = {
@@ -196,7 +205,10 @@ def build_context(
         "strategy_version": MERCOR_STRATEGY_VERSION,
         "applications_ledger": str(ledger.resolve()),
         "submission_fence_ledger": str(fence_ledger.resolve()),
-        "application_report_outbox": str((state_root / "telegram.sqlite3").resolve()),
+        "human_gate_store": str((state_root / "human-gates.jsonl").resolve()),
+        "application_report_outbox": str(
+            (job_search_state_root / "telegram-outbox.sqlite3").resolve()
+        ),
         "application_report_telegram_env": str(
             (Path.home() / ".config/anicca/job-search/telegram.env").resolve()
         ),
@@ -441,7 +453,7 @@ def validate_evidence_paths(result: dict[str, Any], evidence_root: Path) -> None
 
 def validate_bounded_scan(result: dict[str, Any]) -> None:
     """Do not accept a model's early exit while its evidence exposes a full queue."""
-    if result.get("status") == "blocked":
+    if result.get("status") in {"blocked", "submitted"}:
         return
     evidence = result.get("evidence")
     dom_path = evidence.get("dom_path") if isinstance(evidence, dict) else None
@@ -466,7 +478,7 @@ def validate_bounded_scan(result: dict[str, Any]) -> None:
 
 def validate_priority_scan(result: dict[str, Any], evidence_root: Path) -> None:
     """Require observed Japanese and resumable candidates before a successful pass."""
-    if result.get("status") == "blocked":
+    if result.get("status") in {"blocked", "submitted"}:
         return
     inspected = {
         item.get("listing_id")
