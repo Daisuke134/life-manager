@@ -55,6 +55,32 @@ test("connpass action boundary sends normalized candidate fields and persists a 
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });
 
+test("questionnaire report sends public questions once and reuses its durable receipt", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connpass-questionnaire-telegram-"));
+  const sent = [];
+  try {
+    const reporter = createConnpassActionTelegram({
+      stateDir, wakeId: "wake-connpass-questionnaire-1", telegramTarget: "private-target",
+      now: () => new Date("2026-09-17T08:00:00.000Z"),
+      send: async (message, options) => { sent.push({ message, options }); return { messageId: "8811" }; },
+    });
+    const input = {
+      candidate: candidate({ event_ref: "connpass-event://event/404531", canonical_url: "https://findy.connpass.com/event/404531/" }),
+      questions: ["注意事項への同意", "Xアカウント（なければ「なし」）"],
+    };
+    const result = await reporter.reportQuestionnaire(input);
+    assert.equal(result.telegram_provider_id, "8811");
+    assert.match(sent[0].message, /自動申込: 0件/);
+    assert.match(sent[0].message, /404531/);
+    assert.match(sent[0].message, /注意事項への同意/);
+    assert.match(sent[0].message, /回答を保存後/);
+    assert.match(sent[0].options.idempotencyKey, /connpass-questionnaire/);
+    const reused = await reporter.reportQuestionnaire(input);
+    assert.equal(reused.completion_disposition, "reused");
+    assert.equal(sent.length, 1);
+  } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
+});
+
 test("missing provider message ID and malformed candidate never write a receipt", async () => {
   for (const candidates of [[candidate()], [candidate({ canonical_url: "https://evil.example/event/901/" })]]) {
     const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connpass-action-reject-"));

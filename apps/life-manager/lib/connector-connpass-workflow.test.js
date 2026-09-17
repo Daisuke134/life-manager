@@ -402,6 +402,26 @@ test("Connpass direct action reports a login-wall submit as a session problem, n
   });
 });
 
+test("Connpass direct action returns bounded questionnaire labels for the existing fallback boundary", async () => {
+  const candidate = event(113);
+  const page = Object.freeze({ page_id: "same-owned-page", url() { return candidate.canonical_url; } });
+  const workflow = createConnpassScriptFirstWorkflow({
+    allowAutomatedSubmit: true,
+    async discoverOnPage() { return []; },
+    async submitOnPage() {
+      const error = new Error("Connpass questionnaire requires an answer");
+      error.code = "CONNPASS_QUESTIONNAIRE_REQUIRED";
+      error.question_labels = ["Xアカウント（なければ「なし」）"];
+      throw error;
+    },
+  });
+  assert.deepEqual(await workflow.runDirectAction({ page, candidate }), {
+    status: "failed",
+    safe_reason: "connpass_questionnaire_required",
+    question_labels: ["Xアカウント（なければ「なし」）"],
+  });
+});
+
 test("Connpass direct action still propagates every other submit error unchanged, never mistaking it for a session problem", async () => {
   const candidate = event(112);
   const page = Object.freeze({ page_id: "same-owned-page", url() { return candidate.canonical_url; } });

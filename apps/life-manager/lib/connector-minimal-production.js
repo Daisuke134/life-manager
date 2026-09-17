@@ -806,6 +806,8 @@ function createMinimalProductionDependencies(options = {}) {
     completeTalkEvidence: talkEvidenceChain.completeTalkEvidence,
     reportConnpassActionBoundary: options.connpassAutomatedSubmitAllowed === true
       ? undefined : connpassActionTelegram.report,
+    reportConnpassQuestionnaire: options.connpassAutomatedSubmitAllowed === true
+      ? connpassActionTelegram.reportQuestionnaire : undefined,
     reportWake: operations.reportWake,
     recordAction: operations.recordAction,
   });
