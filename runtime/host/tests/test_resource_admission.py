@@ -46,6 +46,38 @@ def hold_control_lock(path, ready):
         os.close(descriptor)
 
 
+@pytest.mark.parametrize("operation", ["enqueue", "claim", "try"])
+def test_owner_deploy_lock_defers_only_its_admission(tmp_path, monkeypatch, operation):
+    isolated(tmp_path, monkeypatch)
+    owner = f"deploy-{operation}"
+    if operation == "claim":
+        admission.enqueue_durable("browser", owner, occurrence_id=f"{owner}:wake")
+    lock_file = tmp_path / "deploy-locks" / f"{hashlib.sha256(owner.encode()).hexdigest()}.lock"
+    lock_file.parent.mkdir(exist_ok=True)
+    context = multiprocessing.get_context("spawn")
+    ready = context.Event()
+    holder = context.Process(target=hold_control_lock, args=(lock_file, ready))
+    holder.start()
+    try:
+        assert ready.wait(timeout=5)
+        if operation == "enqueue":
+            result = admission.enqueue_durable("browser", owner,
+                                               occurrence_id=f"{owner}:wake")
+        elif operation == "claim":
+            result = admission.claim_durable("browser", owner)
+        else:
+            result = admission.try_acquire("browser", owner, retain_ticket=False)
+        assert result == (None, "control_busy")
+        other, reason = admission.enqueue_durable("browser", "unrelated-owner",
+                                                  occurrence_id="unrelated-owner:wake")
+        assert other is not None and reason in {"ready", "capacity_busy", "fifo_wait"}
+    finally:
+        holder.join(timeout=5)
+        if holder.is_alive():
+            holder.terminate()
+            holder.join(timeout=5)
+
+
 def test_slot_releases_for_next_owner(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     first, reason = admission.try_acquire("deterministic", "first")

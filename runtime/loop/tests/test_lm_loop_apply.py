@@ -1,4 +1,5 @@
 import fcntl
+import hashlib
 import io
 import json
 import os
@@ -1549,6 +1550,56 @@ class LmLoopApplyTest(unittest.TestCase):
                 "reconcile", "shared-agent-runner", "--loaded-idle-only", "--max-owners", "1",
             ]), 0)
             self.assertEqual(applied, ["example", "example"])
+
+    def test_reconcile_apply_rechecks_queue_under_owner_lock(self):
+        release = self._release("release-atomic-admission").resolve()
+        current = self.root / "current-atomic-admission"
+        current.symlink_to(release)
+        values = self._apply_kwargs(current, self.root / "apply-atomic.lock")
+        admission_root = self.root / "admission"
+        admission_root.mkdir(exist_ok=True)
+        database = admission_root / "admission-v2.sqlite3"
+        with sqlite3.connect(database) as connection:
+            connection.execute("CREATE TABLE queue (owner_id TEXT)")
+            connection.execute("CREATE TABLE occurrences (owner_id TEXT, state TEXT, effect_unknown INTEGER)")
+            connection.execute("INSERT INTO queue VALUES ('example')")
+            connection.execute("INSERT INTO occurrences VALUES ('example', 'queued', 0)")
+        with patch.object(lm_loop, "install_one", side_effect=AssertionError("pending owner reloaded")):
+            result = apply_live(
+                release, values["agents_dir"], values["launchctl_safe"],
+                target="example", current=current, lock_path=values["lock_path"],
+                preserve_pending_admission=True, event_writer=lambda *_: None,
+            )
+        self.assertEqual(result[0]["skipped"], "pending-admission")
+
+        with sqlite3.connect(database) as connection:
+            connection.execute("UPDATE occurrences SET state='released'")
+        owner_lock = (admission_root / "deploy-locks" /
+                      f"{hashlib.sha256(b'example').hexdigest()}.lock")
+        global_lock = admission_root / "control.lock"
+        global_lock.touch()
+        observed = []
+
+        def install_with_lock_check(item, *_args, **_kwargs):
+            check_lock = (
+                "import fcntl,os,sys; fd=os.open(sys.argv[1],os.O_RDWR); "
+                "fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)"
+            )
+            owner_contender = subprocess.run(
+                [sys.executable, "-c", check_lock, str(owner_lock)], capture_output=True)
+            global_contender = subprocess.run(
+                [sys.executable, "-c", check_lock, str(global_lock)], capture_output=True)
+            observed.append((owner_contender.returncode, global_contender.returncode))
+            return {"ok": True, "label": item["label"], "loaded_arguments": [], "release_sha": SHA}
+
+        with patch.object(lm_loop, "install_one", side_effect=install_with_lock_check):
+            result = apply_live(
+                release, values["agents_dir"], values["launchctl_safe"],
+                target="example", current=current, lock_path=values["lock_path"],
+                preserve_pending_admission=True, event_writer=lambda *_: None,
+            )
+        self.assertTrue(result[0]["changed"])
+        self.assertEqual(observed, [(1, 0)])
 
     def test_reconcile_loop_ids_limit_same_route_to_explicit_ids(self):
         release = self._release("release-a").resolve()

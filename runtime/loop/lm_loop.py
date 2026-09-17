@@ -27,7 +27,10 @@ from runtime.loop.lm_loop_apply import (
 )
 from runtime.loop.lm_loop_lifecycle import lifecycle, lifecycle_one
 from runtime.loop.runtime_event import append_runtime_event, build_install_event, validate_runtime_event
-from runtime.host.resource_admission import activate_durable_v2, durable_protocol_version, state_root as admission_root
+from runtime.host.resource_admission import (
+    activate_durable_v2, durable_protocol_version, owner_deploy_lock,
+    state_root as admission_root,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -46,6 +49,17 @@ def _pending_admission_owners() -> set[str]:
                SELECT o.owner_id FROM occurrences o
                  JOIN queue q ON q.owner_id=o.owner_id
                 WHERE o.state='queued' AND o.effect_unknown=0""")}
+
+
+@contextmanager
+def _admission_rebind_guard(loop_id: str, enabled: bool):
+    if not enabled:
+        yield False
+        return
+    with owner_deploy_lock(loop_id) as acquired:
+        if not acquired:
+            raise RuntimeError("owner deploy busy")
+        yield loop_id in _pending_admission_owners()
 
 
 def _next_eligible(cadence: dict) -> str:
@@ -599,6 +613,7 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                lock_path: Path | None = None,
                preserve_unloaded: bool = False,
                skip_busy: bool = False,
+               preserve_pending_admission: bool = False,
                reload_running: bool = False,
                require_current: bool = False,
                protocol_reader: Callable[[], int] = _protocol_v1,
@@ -611,6 +626,7 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                 release_root, agents_dir, launchctl_safe, target,
                 current=current, lock_path=lock_path,
                 preserve_unloaded=preserve_unloaded, skip_busy=skip_busy,
+                preserve_pending_admission=preserve_pending_admission,
                 reload_running=reload_running, require_current=require_current,
                 protocol_reader=protocol_reader,
                 event_writer=event_writer, _protocol_guarded=True,
@@ -642,7 +658,13 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
         item_lock = (None if reload_running else
                      _label_apply_lock_path(current, item["label"], lock_path))
         try:
-            with _apply_lock(current, item_lock):
+            with _apply_lock(current, item_lock), _admission_rebind_guard(
+                    item["loop_id"], preserve_pending_admission) as pending_admission:
+                if pending_admission:
+                    results.append({"ok": True, "label": item["label"],
+                                    "release_sha": release_sha, "changed": False,
+                                    "skipped": "pending-admission"})
+                    continue
                 if skip_busy:
                     skipped = _skip_if_not_loaded_idle(
                         item, release_sha, launchctl_safe)
@@ -989,6 +1011,7 @@ def main(argv: list[str] | None = None) -> int:
                     preserve_unloaded=row["launchd_state"] == "unloaded",
                     skip_busy=(loaded_idle_only and
                                row["loop_id"] not in explicitly_reloadable),
+                    preserve_pending_admission=True,
                     require_current=True,
                     reload_running=row["launchd_state"] == "loaded-running",
                     protocol_reader=durable_protocol_version))
