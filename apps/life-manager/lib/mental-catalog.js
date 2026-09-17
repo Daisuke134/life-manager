@@ -3,12 +3,13 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const CATALOG_PATH = path.join(__dirname, "../content/mental/catalog/ja.json");
 const FAMILIES = Object.freeze(["affirmation", "manifestation", "mindfulness_inquiry"]);
+const LOCALES = Object.freeze(["ja", "en"]);
 
 function loadMentalCatalog(locale = "ja") {
-  if (locale !== "ja") throw new Error("V1 catalog currently ships Japanese only");
-  const rows = JSON.parse(fs.readFileSync(CATALOG_PATH, "utf8"));
+  if (!LOCALES.includes(locale)) throw new Error("unsupported mental catalog locale");
+  const catalogPath = path.join(__dirname, `../content/mental/catalog/${locale}.json`);
+  const rows = JSON.parse(fs.readFileSync(catalogPath, "utf8"));
   if (!Array.isArray(rows)) throw new Error("mental catalog must be an array");
   rows.forEach(validateQuote);
   return rows;
@@ -44,4 +45,4 @@ function selectMentalQuote({ uid, localDay, window, family, profile = {}, recent
   return scored[0].quote;
 }
 
-module.exports = { FAMILIES, loadMentalCatalog, selectMentalQuote, validateQuote };
+module.exports = { FAMILIES, LOCALES, loadMentalCatalog, selectMentalQuote, validateQuote };
