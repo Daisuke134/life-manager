@@ -629,6 +629,47 @@ def test_aged_support_gets_one_borrow_slot_beside_aged_revenue(tmp_path, monkeyp
         admission.release_and_reserve(claim, reserve=False)
 
 
+def test_aged_support_uses_preserved_wait_age_before_queue_sequence(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="5")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "4")
+    admission.activate_durable_v2()
+    admission.enqueue_durable("agent", "running-support", now=100)
+    running, reason = admission.claim_durable("agent", "running-support", now=100)
+    assert running is not None and reason == "acquired"
+
+    admission.enqueue_durable("agent", "earlier-sequence", now=200)
+    admission.enqueue_durable("agent", "older-wait", now=300)
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        connection.execute(
+            "UPDATE priorities SET queued_at=0 WHERE owner_id='older-wait'")
+
+    assert admission.release_and_reserve(running, now=8000) == ["older-wait"]
+
+
+def test_aged_support_uses_preserved_wait_age_across_resource_classes(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="5")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "4")
+    admission.activate_durable_v2()
+    running = []
+    for index in range(5):
+        owner = f"paid-running-{index}"
+        admission.enqueue_durable("agent", owner, admission_class="revenue", now=100)
+        claim, reason = admission.claim_durable(
+            "agent", owner, admission_class="revenue", now=100)
+        assert claim is not None and reason == "acquired"
+        running.append(claim)
+
+    admission.enqueue_durable("deterministic", "earlier-sequence", now=200)
+    admission.enqueue_durable("agent", "older-wait", now=300)
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        connection.execute(
+            "UPDATE priorities SET queued_at=0 WHERE owner_id='older-wait'")
+
+    assert admission.release_and_reserve(running.pop(), now=8000) == ["older-wait"]
+    for claim in running:
+        admission.release_and_reserve(claim, reserve=False)
+
+
 def test_aged_revenue_beats_older_aged_support_backlog(tmp_path, monkeypatch):
     """A long support backlog must not park a revenue loop for hours."""
     isolated(tmp_path, monkeypatch, total="1")
