@@ -14,8 +14,11 @@ function validateDecisionRow(row) {
   if (row.selectedQuoteId !== null && (!row.selectedQuoteId || !row.candidateQuoteIds.includes(row.selectedQuoteId))) fail("selected quote invalid");
   if (row.selectedQuoteId === null && !row.silenceReason) fail("silence reason missing");
   if (row.selectedQuoteId !== null && row.silenceReason !== null) fail("send cannot have silence reason");
-  if (row.calendarBusy && row.telegramMessageId !== null) fail("busy send");
-  if (!WINDOWS.has(row.window) || !LOCALES.has(row.locale)) fail("window or locale invalid");
+  // Policy violations are observations the scorecard must count, not malformed input. In
+  // particular, a busy-time send and an unsupported locale are valid replay rows that should
+  // increase the violation counters below. Keep structural validation (window shape and a
+  // non-empty locale) separate from policy validation.
+  if (!WINDOWS.has(row.window) || typeof row.locale !== "string" || !row.locale) fail("window or locale invalid");
   if (row.selectedQuoteId !== null && !FAMILIES.has(row.family)) fail("family invalid");
   if (row.telegramMessageId !== null && !String(row.telegramMessageId)) fail("telegram message ID invalid");
   if (!Number.isFinite(Date.parse(row.observedAt))) fail("observedAt invalid");

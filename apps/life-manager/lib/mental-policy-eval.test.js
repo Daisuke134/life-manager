@@ -15,7 +15,7 @@ test("decision row is closed, provenance-safe, and allows silence", () => {
   assert.deepEqual(validateDecisionRow(BASE), BASE);
   assert.deepEqual(validateDecisionRow({ ...BASE, selectedQuoteId: null, telegramMessageId: null, silenceReason: "calendar-busy" }).silenceReason, "calendar-busy");
   assert.throws(() => validateDecisionRow({ ...BASE, raw_mail_body: "secret" }), /unknown/);
-  assert.throws(() => validateDecisionRow({ ...BASE, calendarBusy: true, telegramMessageId: "1" }), /busy/);
+  assert.equal(validateDecisionRow({ ...BASE, calendarBusy: true }).calendarBusy, true);
 });
 
 test("offline scorecard counts only observable operational violations", () => {
@@ -30,6 +30,15 @@ test("offline scorecard counts only observable operational violations", () => {
   assert.equal(score.cap_overflow, 0);
   assert.equal(score.busy_send, 0);
   assert.equal(score.unsupported_locale, 0);
+});
+
+test("offline scorecard counts busy sends and unsupported locale instead of rejecting the observations", () => {
+  const score = scorePolicyRows([
+    { ...BASE, calendarBusy: true },
+    { ...BASE, locale: "fr" },
+  ]);
+  assert.equal(score.busy_send, 1);
+  assert.equal(score.unsupported_locale, 1);
 });
 
 test("policy comparison accepts only lower safety violations without losing material reports", () => {
