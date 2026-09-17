@@ -41,7 +41,9 @@ Pass order:
    readback; a save click without reload is `unknown` and leaves the prior version active.
    When the supplied `profile-proposal.json` values match the live readback, copy the exact
    profile_version and field hashes from the supplied profile proposal into the final JSON;
-   use `unknown` only when that exact readback was not obtained.
+   save a fresh local Profile/Résumé readback JSON under the current `evidence_dir` and use
+   that file as `evidence_ref`; a provider URL alone is not evidence. Use `unknown` only when
+   that exact readback was not obtained.
    Start every wake at Explore page 1 when pagination is visible. Collect the distinct listing
    cards from the current page before opening detail, rank the visible queue, and inspect pages 1
    through 4 in order (or until the provider shows no further page). Do not treat the page left
