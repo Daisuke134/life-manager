@@ -144,6 +144,27 @@ def test_two_overlapping_wakes_mutate_same_effect_once(tmp_path: Path) -> None:
     assert sorted(result["effect"] for result in results) == [0, 1]
 
 
+def test_refresh_one_is_used_only_before_mutation(tmp_path: Path) -> None:
+    class RefreshingAdapter(Adapter):
+        def __init__(self):
+            super().__init__([observation("work-1")])
+            self.observation_calls = []
+
+        def observe_one(self, work_id: str) -> dict:
+            self.observation_calls.append(("observe", work_id))
+            return super().observe_one(work_id)
+
+        def refresh_one(self, work_id: str) -> dict:
+            self.observation_calls.append(("refresh", work_id))
+            return super().observe_one(work_id)
+
+    adapter = RefreshingAdapter()
+    result = paid.run_wake(adapter=adapter, decide=submit, state_root=tmp_path)
+
+    assert result["effect"] == 1
+    assert adapter.observation_calls == [("observe", "work-1"), ("refresh", "work-1")]
+
+
 def test_one_failed_decision_does_not_stop_ready_sibling(tmp_path: Path) -> None:
     adapter = Adapter([observation("bad"), observation("ready")])
 
