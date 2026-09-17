@@ -255,7 +255,7 @@ class CrowdWorksPaidAdapter:
     @staticmethod
     def _goto(page: Any, url: str, stage: str) -> None:
         try:
-            page.goto(url, wait_until="domcontentloaded", timeout=20_000)
+            page.goto(url, wait_until="commit", timeout=20_000)
         except PlaywrightTimeoutError:
             raise _TIMEOUTS[stage]() from None
 

@@ -627,6 +627,19 @@ def test_active_contract_timeout_has_bounded_stage_specific_name():
     adapter.close()
 
 
+def test_provider_navigation_starts_after_commit_and_uses_locator_timeout():
+    module = load()
+    observed = []
+
+    class Page:
+        def goto(self, url, *, wait_until, timeout):
+            observed.append((url, wait_until, timeout))
+
+    module.CrowdWorksPaidAdapter._goto(Page(), module.ACTIVE_CONTRACTS_URL, "active_contracts")
+
+    assert observed == [(module.ACTIVE_CONTRACTS_URL, "commit", 20_000)]
+
+
 def test_active_contract_dom_timeout_has_same_safe_stage_code():
     module = load()
 
