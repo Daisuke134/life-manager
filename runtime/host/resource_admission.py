@@ -398,7 +398,7 @@ def _database(path: Path) -> sqlite3.Connection:
 
 
 def _limits(resource_class: str, admission_class: str = "borrow") -> tuple[int, int]:
-    total = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 5)
+    total = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 8)
     if admission_class == "revenue":
         if resource_class == "agent":
             return total, _capacity("LIFE_MANAGER_HOST_MAX_REVENUE_RUNS", total)
@@ -418,7 +418,7 @@ def _revenue_floor(total: int) -> int:
     """Return capacity that borrow-only work must leave for revenue work."""
     # Older callers explicitly set the total for isolated/v1 operation and do
     # not know about the floor. New launchd plists carry the floor explicitly;
-    # the default keeps an unconfigured five-run host safe during migration.
+    # the default keeps an unconfigured host safe during migration.
     default = (
         min(4, total)
         if "LIFE_MANAGER_HOST_MAX_FINITE_RUNS" not in os.environ else 0
@@ -540,7 +540,7 @@ def _queue_order(row: dict[str, object], now: float) -> tuple[int, int, int, flo
             and isinstance(queued_at, (int, float)) and not isinstance(queued_at, bool)
             and now - float(queued_at) >= PRIORITY_AGE_SECONDS[priority])
     # The revenue floor leaves one borrow slot; let an aged support owner use it.
-    borrow_slot = _revenue_floor(_capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 5)) > 0
+    borrow_slot = _revenue_floor(_capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 8)) > 0
     overdue_support = aged and priority == "support" and row.get("admission_class") == "borrow" and borrow_slot
     wait_started = (float(queued_at) if isinstance(queued_at, (int, float))
                     and not isinstance(queued_at, bool) else float("inf"))

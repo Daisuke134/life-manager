@@ -961,6 +961,8 @@ def test_dispatch_drift_immediately_hands_free_slot_to_healthy_follower(
         tmp_path, monkeypatch):
     admission_root = tmp_path / "admission"
     monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(admission_root))
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", "1")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS", "1")
     admission.activate_durable_v2()
     admission.enqueue_durable("deterministic", "drifted", admission_class="borrow")
     admission.enqueue_durable("deterministic", "healthy", admission_class="borrow")
