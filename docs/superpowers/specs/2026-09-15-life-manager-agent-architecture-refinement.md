@@ -172,11 +172,18 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   behind global `current` and called `apply_live` at 18:41:44Z, moving probe
   to `a0a4e522` and cancelling its queued occurrence before dispatch. Probe
   run `18d62fd876d2e548-83976` then passed on the new SHA. This is still
-  not the same-SHA handoff. The branch-local dispatch fix validates an older
-  main-derived complete loaded release and kickstarts it without rebinding;
-  unverified old paths defer without deleting the queue. Its focused RED-to-
-  green test and the full runner bounds suite (60 tests) passed locally.
-  Main integration and natural readback remain required for A15-08.
+  not the same-SHA handoff. The dispatch fix validates an older main-derived
+  complete loaded release and kickstarts it without rebinding; unverified old
+  paths defer without deleting the queue. Focused RED-to-green and runner
+  bounds (60 tests) passed; fresh read-only review found no blocker. PR #5472
+  passed nine CI checks and merged as `b2feb56c1408`. Its main-derived
+  complete release `20260918T040215-b2feb56c` has `release_paths=ALL`, the
+  dispatch fix, owner lock and Connector dependencies. Targeted loaded-idle
+  reconciles installed the exact SHA on Connector (event
+  `ecdd8a1ec104fb486502ec9c`) and probe (event
+  `054f8dc63aa17754b3a6a92e`); both loaded argv match and the browser
+  pending set was empty. The next natural same-SHA handoff remains to be
+  measured for A15-08.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
