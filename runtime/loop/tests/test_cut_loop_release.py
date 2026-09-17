@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -18,6 +19,119 @@ DEPENDENCY_ROOTS = (
 
 
 class CutLoopReleaseTest(unittest.TestCase):
+    def test_pushed_branch_stays_candidate_and_main_release_restores_current(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = root / "repo"
+            origin = root / "origin.git"
+            loops = root / "loops"
+            subprocess.run(
+                ["git", "init", "--bare", str(origin)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            repo.mkdir()
+
+            def git(*args: str) -> str:
+                return subprocess.check_output(
+                    ["git", *args], cwd=repo, text=True,
+                ).strip()
+
+            def git_run(*args: str) -> None:
+                subprocess.run(
+                    ["git", *args], cwd=repo, check=True,
+                    capture_output=True, text=True,
+                )
+
+            git_run("init", "-b", "main", ".")
+            git_run("config", "user.email", "release-test@example.invalid")
+            git_run("config", "user.name", "Release Test")
+            (repo / "bin").mkdir()
+            shutil.copy2(ROOT / "bin/cut-loop-release.sh", repo / "bin/cut-loop-release.sh")
+            (repo / "runtime" / "host").mkdir(parents=True)
+            (repo / "runtime" / "loop").mkdir(parents=True)
+            (repo / "runtime" / "__init__.py").write_text("", encoding="utf-8")
+            (repo / "runtime" / "host" / "__init__.py").write_text("", encoding="utf-8")
+            (repo / "runtime" / "loop" / "__init__.py").write_text("", encoding="utf-8")
+            (repo / "runtime" / "host" / "resource_admission.py").write_text(
+                "def durable_protocol_version():\n    return 1\n",
+                encoding="utf-8",
+            )
+            (repo / "runtime" / "loop" / "central_cleanup.py").write_text(
+                "raise SystemExit(0)\n", encoding="utf-8",
+            )
+            (repo / "runtime" / "loop" / "lm_loop.py").write_text(
+                "from pathlib import Path\n"
+                "import os\n"
+                "def activate_current(current, release_root, lock_path=None, *, protocol_reader):\n"
+                "    current = Path(current)\n"
+                "    target = Path(release_root).resolve()\n"
+                "    swap = current.with_name(current.name + '.swap')\n"
+                "    swap.unlink(missing_ok=True)\n"
+                "    swap.symlink_to(target)\n"
+                "    os.replace(swap, current)\n",
+                encoding="utf-8",
+            )
+            (repo / "marker.txt").write_text("main\n", encoding="utf-8")
+            git_run("add", ".")
+            git_run("commit", "-m", "main")
+            main_sha = git("rev-parse", "HEAD")
+            git_run("remote", "add", "origin", str(origin))
+            git_run("push", "-u", "origin", "main")
+            git_run("checkout", "-b", "candidate")
+            (repo / "marker.txt").write_text("candidate\n", encoding="utf-8")
+            git_run("add", "marker.txt")
+            git_run("commit", "-m", "candidate")
+            branch_sha = git("rev-parse", "HEAD")
+            git_run("push", "-u", "origin", "candidate")
+
+            main_release = loops / "releases" / "main-release"
+            main_release.mkdir(parents=True)
+            (main_release / "RELEASE.json").write_text(
+                json.dumps({"sha": main_sha, "release_paths": "runtime/loop"}) + "\n",
+                encoding="utf-8",
+            )
+            current = loops / "current"
+            current.symlink_to(main_release)
+            env = {
+                **os.environ,
+                "HOME": str(root),
+                "LOOPS_ROOT": str(loops),
+                "LOOPS_RELEASE_PATHS": "runtime/loop",
+                "LOOPS_ACTIVATE_CURRENT": "1",
+                "LIFE_MANAGER_SOURCE_REPO": str(repo),
+                "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
+                "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
+                "NPM_BIN": "",
+            }
+
+            candidate_result = subprocess.run(
+                ["bash", str(repo / "bin/cut-loop-release.sh"), branch_sha],
+                cwd=repo, env=env, capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(candidate_result.returncode, 0, candidate_result.stderr)
+            self.assertEqual(current.resolve(), main_release.resolve())
+            self.assertIn("current unchanged", candidate_result.stdout)
+            candidate_releases = [
+                path for path in (loops / "releases").iterdir()
+                if path != main_release
+            ]
+            self.assertEqual(len(candidate_releases), 1)
+            candidate_release = candidate_releases[0]
+
+            # Model a branch candidate that was selected by an older builder.
+            current.unlink()
+            current.symlink_to(candidate_release)
+            main_result = subprocess.run(
+                ["bash", str(repo / "bin/cut-loop-release.sh"), main_sha],
+                cwd=repo, env=env, capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(main_result.returncode, 0, main_result.stderr)
+            self.assertNotEqual(current.resolve(), candidate_release.resolve())
+            restored = json.loads((current / "RELEASE.json").read_text())
+            self.assertEqual(restored["sha"], main_sha)
+
     def test_release_builds_immutable_bytecode_for_its_runtime_python(self):
         with tempfile.TemporaryDirectory() as directory:
             loops = Path(directory) / "loops"

@@ -188,6 +188,14 @@ else
   die "$SHORT exists only locally -- push it before cutting a release"
 fi
 
+# A pushed candidate is reproducible, but it is not production code until main
+# contains it. Build the candidate normally while keeping the shared current
+# pointer on the last main-derived release.
+ACTIVATE_CURRENT_EFFECTIVE="$ACTIVATE_CURRENT"
+if [ "$ACTIVATE_CURRENT" = "1" ] && [ "$PROVENANCE" != "ancestor-of-origin-main" ]; then
+  ACTIVATE_CURRENT_EFFECTIVE=0
+fi
+
 DEST="$RELEASES/$(date +%Y%m%dT%H%M%S)-$SHORT"
 [ -e "$DEST" ] && die "$DEST already exists"
 # Prune before export as well as after it. Waiting until after extraction requires enough free
@@ -378,7 +386,7 @@ BUILD_COMPLETE=1
 
 chmod -R a-w "$DEST" 2>/dev/null || true
 
-if [ "$ACTIVATE_CURRENT" = "1" ]; then
+if [ "$ACTIVATE_CURRENT_EFFECTIVE" = "1" ]; then
   # A release builder can finish after a newer builder has already activated current.
   # Never let that late, older ancestor move the shared pointer backwards.
   CURRENT_SHA=""
@@ -394,7 +402,13 @@ except (OSError, ValueError, TypeError):
 PY
 )"
   fi
+  CURRENT_IS_MAIN_ANCESTOR=0
+  if [ -n "$CURRENT_SHA" ] \
+    && git -C "$REPO_ROOT" merge-base --is-ancestor "$CURRENT_SHA" origin/main 2>/dev/null; then
+    CURRENT_IS_MAIN_ANCESTOR=1
+  fi
   if [ -n "$CURRENT_SHA" ] && [ "$CURRENT_SHA" != "$SHA" ] \
+    && [ "$CURRENT_IS_MAIN_ANCESTOR" -eq 1 ] \
     && git -C "$REPO_ROOT" merge-base --is-ancestor "$SHA" "$CURRENT_SHA" 2>/dev/null; then
     BUILD_COMPLETE=0
     die "refusing to move current backwards from $CURRENT_SHA to $SHA"
