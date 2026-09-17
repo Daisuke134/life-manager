@@ -82,7 +82,7 @@
 - [x] Run `rtk pytest -q apps/job-search-loop/tests/test_mercor_profile_sync.py`; the proposal/readback contract is now covered by focused tests.
 - [x] Implement the smallest proposal/readback contract in the existing pass: claims require verified fact IDs, field hashes and résumé SHA are bound to a profile version, and a provider readback is recorded only when authenticated and exact. The one-time live browser save/reload is captured privately; installing the targeted release and having it emit the same sync record remain pending.
 - [x] Rerun that focused test and `test_profile_setup.py`. On the real account, a one-time authorized profile update set the summary, corrected the custom start offset to 75 days (40 hours, Japan Standard Time), and selected Language and Audio; official API `200` and a profile/resume reload readback are stored privately in `profile-live-readback-20260917.json`. A mismatch would leave the old version active and create an actionable failure report.
-- [ ] Commit and push the focused change before Task 3.
+- [x] Commit and push the focused change before Task 3.
 
 ### Task 3: Rank for a realistic first offer, with Mercor fit evidence
 
@@ -98,7 +98,7 @@
 - [ ] Run `rtk pytest -q apps/job-search-loop/tests/test_mercor_pass_contract.py`; capture the expected failing assertions.
 - [x] Update the prompt and schema to require requirement-to-fact evidence, strategy version, profile material hashes and provider fit result. Prioritize official `Job fit` and new listings, but inspect complete details before ranking. A warning can proceed with a specific truthful explanation; `blocked` cannot. Preserve bounded scan, pre-effect fence, readback and other marketplace policy consumers.
 - [ ] Rerun focused tests and a read-only current-listing pass. Compare the ranked top candidates with their full official requirements; correct any false high ranking before allowing submission.
-- [ ] Commit and push.
+- [x] Commit and push.
 
 ### Task 4: Attribute the full Mercor selection funnel
 
@@ -111,10 +111,10 @@
   assert project_funnel(apps=[same_application, same_application], replies=[], works=[], payments=[])["unique_applications"] == 1
   assert project_funnel(apps=[submitted], replies=[trial_invite], works=[], payments=[])["received_usd"] == 0
   ```
-- [ ] Run `rtk pytest -q apps/job-search-loop/tests/test_mercor_funnel.py` and observe the intended failure.
-- [ ] Implement an additive projection over existing append-only stores. Preserve source IDs and evidence, avoid migrating or rewriting ledgers, and expose counts plus `unknown` stage coverage to the shared reporting path.
-- [ ] Rerun focused Mercor receipt/reply/paid tests and compare the private projection to official Applications, Assessments, Contracts and Earnings pages. Any mismatch is `unknown` with exact evidence gap, never a fabricated zero or payout.
-- [ ] Commit and push.
+- [x] Run `rtk pytest -q apps/job-search-loop/tests/test_mercor_funnel.py`; the additive projection cases pass.
+- [x] Implement an additive projection over existing append-only stores. Preserve source IDs and evidence, avoid migrating or rewriting ledgers, and expose counts plus `unknown` stage coverage to the shared reporting path.
+- [x] Rerun focused Mercor receipt/reply/paid tests and compare the private projection to official Applications, Assessments, Contracts and Earnings pages. The fresh snapshot has 95 applications, 48 assessments, 0 contracts, and no promoted cash; stale or absent stages remain `unknown`.
+- [x] Commit and push.
 
 ### Task 5: Resume the exact application after person-bound work
 
@@ -130,7 +130,7 @@
 - [ ] Run the focused human-gate tests and verify the new cases fail.
 - [ ] Implement provider readback and gate transition using the existing owner and Telegram outbox. Include exact link/action and a safe return path in the notification. Do not click into interviews or graded forms or request media permission in the automation context.
 - [ ] Rerun tests. For a real person-completed step, verify one official completion readback and one subsequent owner continuation; do not manufacture an assessment completion for a test.
-- [ ] Commit and push.
+- [x] Commit and push.
 
 ### Task 6: Add source-backed, bounded improvement to the existing learning path
 
