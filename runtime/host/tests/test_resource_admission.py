@@ -437,6 +437,19 @@ def test_durable_waiter_survives_process_lifetime_and_is_reserved_fifo(tmp_path,
     assert durable_rows(tmp_path, "reservations") == []
 
 
+@pytest.mark.parametrize("resource_class", ["agent", "browser", "deterministic"])
+def test_freed_slot_reserves_next_waiter_in_each_class(
+        tmp_path, monkeypatch, resource_class):
+    isolated(tmp_path, monkeypatch, total="1")
+    first, reason = admission.try_acquire(
+        resource_class, "running", retain_ticket=False)
+    assert first is not None and reason == "acquired"
+    ticket, reason = admission.enqueue_durable(resource_class, "waiting")
+    assert ticket is not None and reason == "capacity_busy"
+    assert admission.release_and_reserve(first, now=100) == ["waiting"]
+    assert durable_rows(tmp_path, "reservations")[0]["owner_id"] == "waiting"
+
+
 def test_expired_reservation_returns_to_original_fifo_position(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     first, _ = admission.try_acquire("agent", "first", retain_ticket=False)
