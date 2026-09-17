@@ -1037,9 +1037,11 @@ buyer-visible result, and closes the official provider stages.
 
 - [ ] **CW-F1 — browser recovery + bounded context:** Restore the authenticated CrowdWorks context, then
   read and persist the full current buyer conversation, expanded hidden messages, linked documents/forms,
-  scope, corrections, milestone and newest buyer event per contract. The owner now has a 180-second bound;
-  a slow contract must terminate as a replayable `waiting_external`/failure item and must not hold the Paid
-  owner indefinitely.
+  scope, corrections, milestone and newest buyer event per contract. The next CrowdWorks Paid release uses
+  a finite 900-second owner bound: the previous 180-second bound terminated while generating the required
+  fields of a 13-field form, leaving `intent_persisted` with no confirmed receipt. The loaded `a0a4e522`
+  release still has the old bound until the targeted release apply; a slow contract must remain replayable
+  and must not hold the Paid owner indefinitely.
 - [ ] **CW-F2 — correct work selection:** Expose all exact form URLs with visible titles, required fields
   and choices to the model. Never select the first URL, submit every candidate, or infer work from a URL.
   For `63659463`, the current body lists common, Web-ad and video candidates; the model must confirm the

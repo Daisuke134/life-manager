@@ -51,8 +51,12 @@ observed state differs. The read-only CrowdWorks owner re-read all five active c
 
 ### Remaining TODO, in execution order
 
-1. **Restore bounded browser readback and reconcile the already-observed delivery.** Keep the new 180-second
-   owner bound. Restore the authenticated CrowdWorks context, read the five contract pages, and promote the
+1. **Restore bounded browser readback and reconcile the already-observed delivery.** Keep a finite 900-second
+   bound for the Paid owner. The prior 180-second bound terminated a wake while the model was generating
+   the required fields of a 13-field Google Form; the observed state was `intent_persisted` with no new
+   confirmed receipt. The 900-second limit remains owner-specific and bounded, so it lets a correct work
+   item finish without making the shared loop fleet unbounded. Restore the authenticated CrowdWorks context,
+   read the five contract pages, and promote the
    official `63583795` delivery/inspection readback into the durable Paid receipt without replaying it. A
    slow contract must become a terminal, replayable `waiting_external`/failure item; it must not hold the
    Paid owner indefinitely or block other contracts.
