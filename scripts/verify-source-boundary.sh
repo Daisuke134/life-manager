@@ -4,10 +4,15 @@
 set -euo pipefail
 
 CANONICAL_ROOT="/Users/anicca/Projects/life-manager-main"
+EXPECTED_COMMON="$CANONICAL_ROOT/.git"
 EXPECTED_REMOTE="https://github.com/Daisuke134/life-manager.git"
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)" || {
   printf 'source-boundary FAIL: current directory is not a Git repository\n' >&2
+  exit 2
+}
+COMMON="$(cd "$(git rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd -P)" || {
+  printf 'source-boundary FAIL: Git common directory is unavailable (root=%s)\n' "$ROOT" >&2
   exit 2
 }
 REMOTE="$(git remote get-url origin 2>/dev/null)" || {
@@ -22,6 +27,11 @@ case "$ROOT" in
     exit 2
     ;;
 esac
+
+if [ "$COMMON" != "$EXPECTED_COMMON" ]; then
+  printf 'source-boundary FAIL: wrong Git common dir=%s expected=%s\n' "$COMMON" "$EXPECTED_COMMON" >&2
+  exit 2
+fi
 
 case "$REMOTE" in
   "$EXPECTED_REMOTE"|"git@github.com:Daisuke134/life-manager.git") ;;
