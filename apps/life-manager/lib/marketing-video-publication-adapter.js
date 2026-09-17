@@ -10,6 +10,11 @@ const { buildRuntimeJob } = require("./runtime-job-store.js");
 const { createContentObjectStore } = require("./content-object-store.js");
 const { resolveRuntimePaths } = require("./runtime-paths.js");
 const { assertMarketingProductFormat } = require("./marketing-format-policy.js");
+const { writeMarketingEffectIdentity } = require("./marketing-effect-identity.js");
+const {
+  findMarketingDestinationTarget,
+  loadMarketingDestinationContract,
+} = require("./marketing-destination-contract.js");
 
 const ADAPTER_ID = "marketing-video-publication";
 const LOOP_ID = "marketing.video.publish";
@@ -485,11 +490,32 @@ function defaultServices(deps) {
     profileProvider: deps.profileProvider,
     secretProvider: deps.secretProvider,
     integrationProvider: deps.integrationProvider,
+    accountResolver: deps.accountResolver || defaultAccountResolver,
     ledgerPath: deps.ledgerPath
       || ((tenantId, productId) => defaultLedgerPath(tenantId, productId, runtimePaths())),
     runDistribution: deps.runDistribution || runDistributionProcess,
     now: deps.now || (() => new Date().toISOString()),
   };
+}
+
+function defaultAccountResolver(contract) {
+  const match = /^integration:\/\/postiz\/[^/]+\/([A-Za-z0-9._:-]+)$/i.exec(
+    String(contract?.postizIntegrationRef || ""),
+  );
+  if (!match) return null;
+  try {
+    const target = findMarketingDestinationTarget(loadMarketingDestinationContract(), {
+      jobProductId: contract.productId,
+      locale: contract.locale,
+      platform: contract.platform,
+      integrationId: match[1],
+      jobFormatId: contract.formatId,
+      mediaForm: contract.form,
+    });
+    return target?.postiz_profile || null;
+  } catch {
+    return null;
+  }
 }
 
 async function executeMarketingVideoPublicationJob(job, deps = {}) {
@@ -531,6 +557,22 @@ async function executeMarketingVideoPublicationJob(job, deps = {}) {
     job.tenant_id,
     contract.postizIntegrationRef,
   );
+  const accountId = services.accountResolver(contract) || profile?.handle;
+  writeMarketingEffectIdentity({
+    jobId: job.job_id,
+    effectKey: job.effect_key,
+    productId: contract.productId,
+    formatId: contract.formatId,
+    form: contract.form,
+    locale: contract.locale,
+    platform: contract.platform,
+    creativeId: contract.creativeId,
+    slot: contract.slot,
+    integrationRef: contract.postizIntegrationRef,
+    accountId,
+    videoSha256: videoHash,
+    captionSha256: captionHash,
+  });
   const ledgerPath = services.ledgerPath(job.tenant_id, contract.productId);
   fs.mkdirSync(path.dirname(ledgerPath), { recursive: true, mode: 0o700 });
   let result;

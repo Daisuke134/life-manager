@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import signal
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -16,6 +17,7 @@ TASK_CLASSES = {
     "submit": "browser-lane-agent",
     "improve": "high-value-agent",
 }
+AGENT_RUNNER_TIMEOUT_SECONDS = 1_000
 
 
 class ContractError(RuntimeError):
@@ -24,6 +26,48 @@ class ContractError(RuntimeError):
 
 class PassAlreadyRunning(RuntimeError):
     pass
+
+
+def _terminate_process_group(process: subprocess.Popen) -> None:
+    """Stop an agent-runner process and its provider descendants after timeout."""
+    if os.name == "posix":
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+        group_alive = True
+        try:
+            os.killpg(process.pid, 0)
+        except ProcessLookupError:
+            group_alive = False
+        except PermissionError:
+            pass
+        if group_alive:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
+    else:
+        process.kill()
+        process.wait(timeout=5)
+
+
+def _forward_signal_after_cleanup(
+    signum: int, _frame: Any, process: subprocess.Popen,
+) -> None:
+    """Stop the owned runner group before preserving the parent's signal."""
+    _terminate_process_group(process)
+    signal.signal(signum, signal.SIG_DFL)
+    os.kill(os.getpid(), signum)
 
 
 def wrap_untrusted(name: str, text: str) -> str:
@@ -101,13 +145,39 @@ class AgentRunner:
             "--task-label",
             task,
         ])
-        completed = subprocess.run(
+        process = subprocess.Popen(
             argv,
-            check=False,
-            capture_output=True,
-            input=prompt_input,
+            stdin=subprocess.PIPE if prompt_input is not None else subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=1_000,
+            start_new_session=os.name == "posix",
+        )
+        previous_handlers: dict[int, Any] = {}
+        if os.name == "posix":
+            for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+                previous_handlers[signum] = signal.getsignal(signum)
+                signal.signal(
+                    signum,
+                    lambda received, frame, process=process: _forward_signal_after_cleanup(
+                        received, frame, process
+                    ),
+                )
+        try:
+            stdout, stderr = process.communicate(
+                input=prompt_input, timeout=AGENT_RUNNER_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired as error:
+            _terminate_process_group(process)
+            raise ContractError("agent runner timed out") from error
+        except BaseException:
+            _terminate_process_group(process)
+            raise
+        finally:
+            for signum, handler in previous_handlers.items():
+                signal.signal(signum, handler)
+        completed = subprocess.CompletedProcess(
+            argv, process.returncode, stdout, stderr,
         )
         if (
             completed.returncode == 75

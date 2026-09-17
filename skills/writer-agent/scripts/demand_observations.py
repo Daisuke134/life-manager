@@ -440,13 +440,21 @@ def _techi_evidence_artifacts(
 
     normalized = _techi_visible_text(body)
     lowered = normalized.casefold()
+    # TECHi changed the visible application heading from "Apply to write for
+    # TECHi" to "Apply as Author" without changing the program or payment
+    # terms.  Keep the evidence unit stable while accepting either observed
+    # heading, and hash the exact phrase captured in the current receipt.
     required = {
-        "techi.title": "apply to write for techi",
-        "techi.accepted_work": "accepted work",
-        "techi.pay_per_publish": "pay per publish",
-        "techi.paid_monthly": "paid monthly via stripe",
+        "techi.title": ("apply to write for techi", "apply as author"),
+        "techi.accepted_work": ("accepted work",),
+        "techi.pay_per_publish": ("pay per publish",),
+        "techi.paid_monthly": ("paid monthly via stripe",),
     }
-    missing = [unit_id for unit_id, phrase in required.items() if phrase not in lowered]
+    matched = {
+        unit_id: next((phrase for phrase in phrases if phrase in lowered), None)
+        for unit_id, phrases in required.items()
+    }
+    missing = [unit_id for unit_id, phrase in matched.items() if phrase is None]
     if missing:
         raise DemandObservationError(
             "full official TECHi demand source missing evidence units: "
@@ -455,7 +463,7 @@ def _techi_evidence_artifacts(
     evidence_units = [
         {
             "id": unit_id,
-            "sha256": hashlib.sha256(phrase.encode("utf-8")).hexdigest(),
+            "sha256": hashlib.sha256(str(matched[unit_id]).encode("utf-8")).hexdigest(),
         }
         for unit_id, phrase in required.items()
     ]

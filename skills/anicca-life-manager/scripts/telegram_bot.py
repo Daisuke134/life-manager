@@ -64,12 +64,12 @@ for line in ENV_PATH.read_text().splitlines() if ENV_PATH.exists() else []:
         )
         break
 
-# Live Stripe Payment Link for the $20/mo Anicca Life Manager subscription
+# Live Stripe Payment Link for the $29/mo Anicca Life Manager subscription
 # (price_1TjytgEeDsUAcaLSFDgoYqyL). Falls back to the known-live link if the
 # env var is missing or still points at a test-mode link.
 STRIPE_LM_URL = os.environ.get("NEXT_PUBLIC_STRIPE_LM_URL", "")
 if "buy.stripe.com/test_" in STRIPE_LM_URL or not STRIPE_LM_URL:
-    STRIPE_LM_URL = "https://buy.stripe.com/9B600j6C204S7LadIG2880V"
+    STRIPE_LM_URL = "https://buy.stripe.com/cNifZhgcC3h44yYeMK2880X"
 
 STATE_DIR = ANICCA_HOME / "state" / "location"
 STATE_DIR.mkdir(parents=True, exist_ok=True)
@@ -124,7 +124,7 @@ async def cmd_start(update: Update, _ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"Hi {user.first_name}! I'm Anicca — I watch your calendar and "
         "call you when you're running late, then mail your stakeholders "
-        "for you. $20/mo, cancel anytime — ready whenever you are, no "
+        "for you. $29/mo, cancel anytime — ready whenever you are, no "
         "setup required first:\n\n"
         f"{STRIPE_LM_URL}\n\n"
         "Want the full setup (calls + auto-mail) instead of just "
@@ -212,7 +212,7 @@ async def cmd_help(update: Update, _ctx: ContextTypes.DEFAULT_TYPE):
         "  /where    show what location I currently know\n"
         "  /status   show daemon + cron health\n"
         "  /invest   show investment setup and loop status\n"
-        "  /subscribe  get the $20/mo checkout link\n"
+        "  /subscribe  get the $29/mo checkout link\n"
         "  /connect  link Google Calendar/Gmail (if you skipped it)\n"
         "  /payout   set or change your payout destination\n"
         "  /reset    clear your onboarding state to start over\n"
@@ -287,9 +287,9 @@ def _get_dot(d, dotpath):
 
 
 async def cmd_subscribe(update: Update, _ctx: ContextTypes.DEFAULT_TYPE):
-    """Send the live Stripe checkout link for the $20/mo LM plan."""
+    """Send the live Stripe checkout link for the $29/mo LM plan."""
     await update.message.reply_text(
-        "Anicca Life Manager — $20/mo, cancel anytime. Calls you, mails "
+        "Anicca Life Manager — $29/mo, cancel anytime. Calls you, mails "
         "your stakeholders when you're late, watches your calendar:\n\n"
         f"{STRIPE_LM_URL}"
     )
@@ -497,7 +497,7 @@ async def on_text(update: Update, _ctx: ContextTypes.DEFAULT_TYPE):
         )
         await msg.reply_text(
             "One more thing — I only actually call you and mail your "
-            "stakeholders on the paid plan ($20/mo, cancel anytime):\n\n"
+            "stakeholders on the paid plan ($29/mo, cancel anytime):\n\n"
             f"{STRIPE_LM_URL}\n\n"
             "Subscribe now and I'll start watching your calendar today. "
             "/subscribe any time to get this link again."

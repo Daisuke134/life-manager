@@ -433,19 +433,60 @@ Life Manager has three cooperating business paths:
    `plan_status`, `current_period_end`, and `stripe_subscription_id` were all null. The entitlement
    flag is therefore not an active-subscription or MRR receipt.
 
+### 2026-09-18 Stripe CLI recovery and production readback
+
+The previous `STRIPE-KEY-MISSING` finding covered the money loop's runtime secret path, not the
+Stripe account itself. The operator CLI path was recovered through the existing Stripe owner session:
+
+- `stripe login --complete` returned `Done!` for the existing `anicca` account (`acct_1RT5QgEeDsUAcaLS`).
+  The active CLI profile now has a refreshed live credential expiring 2026-12-16. No credential value is
+  recorded here.
+- `stripe customers list --live --limit 1` returned a live customer list successfully.
+- `stripe balance retrieve --live` returned `livemode=true` with available and pending JPY balances of
+  zero. This is a current balance readback, not lifetime revenue.
+- `stripe subscriptions list --live --status active --limit 100` returned `has_more=false` and
+  `page_count=0`. Provider-side active-subscription MRR is therefore USD 0 at this readback; there are
+  no subscription rows from which to read a price or period end.
+- The browser flow used the existing Google login and Stripe two-factor authentication. Credentials are
+  not stored in the repository or this spec.
+
+The product money loop was incomplete at the 2026-09-17 measurement because its private runtime key path
+was missing. The implementation below adds a secure CLI-backed read path for the authenticated local
+operator and records the provider readbacks in the loop state; no credential value is copied into Git.
+
+**2026-09-18 implementation readback:** `loop.sh` now accepts Stripe restricted live keys and falls back
+to the authenticated Stripe CLI when no private runtime key is present. The bounded run returned
+`stripe_source=cli`, `lm_mrr_usd=0.0`, `active_subscription_count=0`, no subscription period end,
+`refund_count=3`, and `failed_payment_count=91`, with `heal=none`. Fixture coverage is 11/11 PASS.
+The private runtime does not retain the invalid CLI config value; the OAuth-backed CLI is the read path.
+
+**2026-09-18 price/link alignment readback:** The live product had an existing `$20/month` price and
+Payment Link. A new live `$29/month` price was created under the same `Anicca Life Manager` product with
+lookup key `life_manager_monthly_29`; a new Payment Link was created at
+`https://buy.stripe.com/cNifZhgcC3h44yYeMK2880X`, verified active with `unit_amount=2900`, USD monthly,
+and Managed Payments disabled. The old `$20` Payment Link was disabled after the new link was verified.
+Railway production `LM_STRIPE_PAYMENT_LINK` now reads back as the new URL and `/health` remains 200.
+
+**2026-09-18 funnel/self-build readback:** The same money-loop wake now reads Supabase production
+funnel counts without persisting personal fields: `funnel_users=315`, stage counts
+`calendar=4,done=1,null=310`, Calendar connections `3`, saved phones `3`, call opt-ins `2`,
+`paid=1`, and `active_plan=0`. The self-build picker now reads this private state, identifies the
+largest measured funnel drop (`calendar` here), and prioritizes a loop-authored PR carrying the matching
+`[lm-metric-focus:<stage>]` marker while preserving the existing eligibility and merge guard.
+The picker/runtime suites pass 79/79; this proves metric-aware selection, not a growth result.
+
 **Remaining revenue TODO, in order:**
 
-1. Restore the Stripe live-key runtime path from the private credential source and read back active
-   subscriptions, status, period end, refunds, and failed payments. Until this succeeds, MRR is
-   `unknown`, not zero.
-2. Choose one canonical price. The current product spec says `$29/month`, while older landing and
-   payment-link tests still describe `$20/month`. Update the Stripe price/link, landing copy, Telegram
-   `/subscribe` copy, and tests together after the price is selected. Do not advertise one price while
-   charging another.
-3. Measure the marketing funnel: landing visit → Telegram start → Calendar connection → phone opt-in
-   → first successful wake → paid subscription → renewal/referral.
-4. Make the self-build loop select fixes using those production metrics, then prove each change with
-   a receipt-backed release and a movement in activation, retention, cost, or MRR.
+1. **DONE:** Wire the confirmed Stripe live account into the money-loop runtime and record active
+   subscriptions, period end, refunds, failed payments, and `lm_mrr_usd` in the loop state.
+2. **DONE:** Make `$29/month` canonical across the live Price, Payment Link, Railway runtime, landing
+   comments, Telegram copy, and money-path tests. The old `$20` link is disabled.
+3. **DONE (measurement path):** Read back the product funnel from Supabase and persist only aggregate
+   counts in the bounded money-loop state. Landing visits, renewal, and referral remain unavailable until
+   their provider adapters produce a real receipt.
+4. **IN PROGRESS (outcome proof):** The self-build loop now selects metric-matched PRs, but each merged
+   change still needs a receipt-backed release and a measured movement in activation, retention, cost, or
+   MRR.
 5. Scale the selected plan to the required active paid count. At `$29/month`, 345 active subscribers
    produce `$10,005` gross MRR.
 

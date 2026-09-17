@@ -68,14 +68,18 @@ class CrowdWorksPaidBrowserUnavailable(RuntimeError):
 
 def _connect_existing_cdp() -> tuple[Any, Any]:
     """Connect only; never create, repair, or close the CrowdWorks browser process."""
-    for attempt in range(2):
+    for attempt in range(4):
         runtime = sync_playwright().start()
         try:
-            return runtime, runtime.chromium.connect_over_cdp(account.CDP_URL, timeout=10_000)
+            browser = runtime.chromium.connect_over_cdp(account.CDP_URL, timeout=10_000)
+            contexts = getattr(browser, "contexts", None)
+            if contexts is not None and len(contexts) != 1:
+                raise RuntimeError("crowdworks_paid_browser_context_unavailable")
+            return runtime, browser
         except Exception:
             runtime.stop()
-            if attempt == 0:
-                time.sleep(0.25)
+            if attempt < 3:
+                time.sleep(0.5)
     raise CrowdWorksPaidBrowserUnavailable("crowdworks_paid_browser_unavailable") from None
 
 
@@ -200,7 +204,19 @@ class CrowdWorksPaidAdapter:
                 raise RuntimeError("crowdworks_paid_browser_state_invalid")
             self.page = self.owned_context.new_page()
             self.page.set_default_timeout(15_000)
-        except Exception:
+        except Exception as error:
+            if (self.source_context is not None
+                    and str(error) != "crowdworks_paid_browser_state_invalid"):
+                try:
+                    if self.owns_context and self.owned_context is not None:
+                        self.owned_context.close()
+                    self.owned_context = self.source_context
+                    self.owns_context = False
+                    self.page = self.source_context.new_page()
+                    self.page.set_default_timeout(15_000)
+                    return
+                except Exception:
+                    pass
             if self.owned_context is not None and self.owns_context:
                 try: self.owned_context.close()
                 except Exception: pass
@@ -239,7 +255,7 @@ class CrowdWorksPaidAdapter:
     @staticmethod
     def _goto(page: Any, url: str, stage: str) -> None:
         try:
-            page.goto(url, wait_until="domcontentloaded", timeout=20_000)
+            page.goto(url, wait_until="commit", timeout=20_000)
         except PlaywrightTimeoutError:
             raise _TIMEOUTS[stage]() from None
 
@@ -372,6 +388,8 @@ class CrowdWorksPaidAdapter:
                 raise RuntimeError("crowdworks_paid_contract_state_invalid")
             result.append({"work_id": match.group(1), "title": _text(value.get("title")),
                            "client": parts[0], "provider_state": state})
+        if not result:
+            raise RuntimeError("crowdworks_paid_contract_source_unavailable")
         if len({row["work_id"] for row in result}) != len(result):
             raise RuntimeError("crowdworks_paid_contract_duplicate")
         return result
@@ -389,7 +407,11 @@ class CrowdWorksPaidAdapter:
             try:
                 return self._detail_once(basic)
             except PlaywrightTimeoutError:
-                raise CrowdWorksPaidContractTimeout() from None
+                try:
+                    self._switch_to_narrow_contract(_text(basic.get("work_id")))
+                    return self._detail_once(basic)
+                except (PlaywrightTimeoutError, CrowdWorksPaidContractTimeout):
+                    raise CrowdWorksPaidContractTimeout() from None
 
     def _detail_once(self, basic: Mapping[str, Any]) -> dict[str, Any]:
         work_id = _text(basic.get("work_id"))
@@ -398,9 +420,12 @@ class CrowdWorksPaidAdapter:
         title, client = (_text(basic.get(key)) for key in ("title", "client"))
         if title not in body or client not in body:
             raise RuntimeError("crowdworks_paid_contract_context_invalid")
-        state = ("funded" if "業務を開始しています" in body else
+        inspection_pending = ("クライアント（発注者）が検収を行っています" in body
+                              and "検収完了まで" in body)
+        state = ("delivered" if inspection_pending else
+                 "funded" if "業務を開始しています" in body else
                  "awaiting_escrow" if "仮払いを行っています" in body and "業務を開始しない" in body else
-                 "delivered" if any(token in body for token in ("検収", "納品済み", "納品完了")) else "")
+                 "delivered" if any(token in body for token in ("納品済み", "納品完了")) else "")
         if not state:
             raise RuntimeError("crowdworks_paid_contract_state_changed")
         if state == "awaiting_escrow":
@@ -408,8 +433,13 @@ class CrowdWorksPaidAdapter:
                     "milestone_id": None, "form_url": None, "proposal_id": None,
                     "application_date": None, "buyer_context": body}
         if state == "delivered":
+            if inspection_pending:
+                return {"work_id": work_id, "title": title, "client": client,
+                        "provider_state": state, "milestone_id": None,
+                        "form_url": None, "proposal_id": None,
+                        "application_date": None, "buyer_context": body}
             forms = self.page.locator('form[action^="/milestones/"][action$="/complete"]')
-            if forms.count() or not any(token in body for token in ("検収", "納品済み", "納品完了")):
+            if forms.count() or not any(token in body for token in ("納品済み", "納品完了")):
                 raise RuntimeError("crowdworks_paid_contract_state_changed")
             return {"work_id": work_id, "title": title, "client": client, "provider_state": state,
                     "milestone_id": None, "form_url": None, "proposal_id": None,
@@ -533,7 +563,15 @@ class CrowdWorksPaidAdapter:
 
     def _inventory(self) -> list[dict[str, Any]]:
         rows = self._inventory_rows()
-        details = rows if self.inventory_reader is not None else [self._detail(row) for row in rows]
+        if self.inventory_reader is not None:
+            details = rows
+        else:
+            details = []
+            for row in rows:
+                try:
+                    details.append(self._detail(row))
+                except CrowdWorksPaidContractTimeout:
+                    details.append({**row, "detail_unavailable": True})
         self._cache_replace(details)
         return [self._observation(item) for item in details]
 
@@ -861,6 +899,9 @@ def decide(row: Mapping[str, Any]) -> dict[str, Any]:
     context = row.get("context"); contract = context.get("contract") if isinstance(context, Mapping) else None
     if not isinstance(contract, Mapping):
         raise RuntimeError("crowdworks_paid_context_unavailable")
+    if contract.get("detail_unavailable") is True:
+        return {"action": "wait", "reason": "contract_detail_timeout",
+                "remaining_work": ["retry official CrowdWorks contract detail readback"]}
     if contract.get("provider_state") == "awaiting_escrow":
         return {"action": "wait", "reason": "awaiting_client_escrow", "remaining_work": ["wait for official CrowdWorks escrow completion before beginning work"]}
     if contract.get("provider_state") == "delivered":

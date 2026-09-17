@@ -8,6 +8,7 @@ const { spawnSync } = require("node:child_process");
 const { buildRuntimeJob } = require("./runtime-job-store.js");
 const { createContentObjectStore, sha256File } = require("./content-object-store.js");
 const { resolveRuntimePaths } = require("./runtime-paths.js");
+const { writeMarketingEffectIdentity } = require("./marketing-effect-identity.js");
 
 const ADAPTER_ID = "marketing-native-carousel-publication";
 const LOOP_ID = "marketing.video.publish";
@@ -539,6 +540,23 @@ async function executeMarketingNativeCarouselPublicationJob(job, deps = {}) {
   assertApproval(readJson(approvalPath, "marketing native carousel approval"), contract, lane);
   const token = await s.secretProvider.get(job.tenant_id, contract.postizTokenRef);
   if (typeof token !== "string" || !token.trim()) fail("marketing native carousel Postiz token is invalid");
+  writeMarketingEffectIdentity({
+    jobId: job.job_id,
+    effectKey: job.effect_key,
+    productId: lane.productId,
+    formatId: lane.formatId,
+    form: lane.form,
+    locale: lane.locale,
+    platform: lane.platform,
+    creativeId: contract.creativeId,
+    slot: contract.slot,
+    integrationRef: contract.integrationRef,
+    accountId: lane.accountId,
+    captionSha256: contract.captionHash,
+    mediaSha256: contract.mediaHashes,
+    packSha256: contract.packHash,
+    mediaOrderSha256: mediaOrderHash(contract.mediaHashes),
+  });
   let result;
   try { result = await s.runDistribution({ tenantId: job.tenant_id, productId: lane.productId, formatId: lane.formatId, form: lane.form, locale: lane.locale, platform: lane.platform, title: pack.slides[0].text, creativeId: contract.creativeId, accountId: lane.accountId, integrationRef: contract.integrationRef, integrationId: lane.integrationId, packPath, mediaPaths: [...mediaPaths], captionPath, token }); } catch (cause) { const error = new Error(cause && cause.message ? cause.message : String(cause)); error.unknownEffect = true; throw error; }
   const published = provider(result, lane);

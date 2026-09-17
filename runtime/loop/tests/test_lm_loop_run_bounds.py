@@ -1,4 +1,5 @@
 import json
+import hashlib
 import os
 import signal
 import plistlib
@@ -14,7 +15,7 @@ from runtime.host import resource_admission as admission
 from runtime.loop.lm_loop_run import (
     PRE_EFFECT_HINT_ENTRYPOINTS,
     _admission_class, _dispatch_reserved, _host_admission_deferred, _queue_priority,
-    _resource_class,
+    _persist_effect_identity, _resource_class,
     _run_admitted, _run_entrypoint, _runtime_limit, _terminal_outcome,
 )
 
@@ -92,6 +93,40 @@ def test_explicit_registry_priority_is_forwarded_to_durable_admission(tmp_path):
         priority="critical_paid",
     )
     run.assert_not_called()
+
+
+def test_transient_admission_lock_contention_is_retried_before_deferring(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 60},
+        "provider_route": "deterministic",
+        "admission_class": "revenue",
+        "priority": "critical_paid",
+    }
+    claim = tmp_path / "claim"
+    claim.write_text("owned")
+    enqueue_results = [
+        (None, "control_busy"),
+        (None, "control_busy"),
+        (tmp_path / "ticket", "ready"),
+    ]
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                side_effect=enqueue_results) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0),
+          patch("runtime.loop.lm_loop_run.time.sleep") as sleep):
+        assert _run_admitted(
+            ["/bin/true"], entry, "crowdworks-revenue-paid", {},
+            tmp_path / "receipt",
+        ) == 0
+
+    assert enqueue.call_count == 3
+    assert sleep.call_count == 2
 
 
 def test_wake_occurrence_identity_is_forwarded_to_durable_admission(tmp_path):
@@ -460,6 +495,36 @@ def test_proven_pre_effect_failure_releases_owner_for_next_wake(tmp_path):
     release.assert_called_once_with(claim, requeue=False, reserve=True)
 
 
+def test_writer_article_resume_pre_effect_failure_releases_without_unknown_fence(tmp_path):
+    claim = tmp_path / "claim-writer-resume"
+    claim.write_text("owned")
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        hint = Path(kwargs["env"]["LIFE_MANAGER_RESULT_HINT_PATH"])
+        hint.write_text('{"status":"pre_effect_failure","effect":0}\n')
+        hint.chmod(0o600)
+        return 1
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 300},
+            "provider_route": "shared-agent-runner", "resource_class": "agent",
+            "admission_class": "borrow",
+            "entrypoint": "skills/writer-agent/scripts/article-resume-pending.sh",
+        }, "article-resume", {}, tmp_path / "receipt") == 1
+    release.assert_called_once_with(claim, requeue=False, reserve=True)
+
+
 def test_mercor_application_and_reply_pre_effect_hints_are_allowlisted():
     assert "skills/earn/mercor/scripts/application-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
     assert "skills/earn/mercor/scripts/reply-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
@@ -525,6 +590,155 @@ def test_admitted_child_receives_exact_host_occurrence_identity(tmp_path):
         "browser", "connector", admission_class="revenue",
         coalesced_occurrence_id="connector:run-123")
     assert observed["LIFE_MANAGER_OCCURRENCE_ID"] == "connector:run-123"
+
+
+def test_unknown_effect_identity_moves_from_scratch_to_private_state(tmp_path):
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    sidecar = scratch / "effect-identity.jsonl"
+    sidecar.write_text(json.dumps({
+        "schema_version": 1,
+        "kind": "life_manager_effect_identity",
+        "runtime_run_id": "run-1",
+        "occurrence_id": "life-manager-honne-ja:run-1",
+        "loop_id": "life-manager-honne-ja",
+        "job_id": "job-1",
+        "effect_key": "marketing:video:honne-ai:tiktok:creative:" + "a" * 64 + ":" + "b" * 64,
+        "product_id": "honne-ai",
+        "format_id": "reelclaw",
+        "form": "relationship-confession",
+        "locale": "ja",
+        "platform": "tiktok",
+        "creative_id": "creative",
+        "slot": "2026-07-30T12:30:00.000Z",
+        "integration_ref": "integration://postiz/tiktok/honne-ai-ja",
+        "account_id": "@honnevideo",
+        "video_sha256": "a" * 64,
+        "caption_sha256": "b" * 64,
+    }) + "\n", encoding="utf-8")
+    sidecar.chmod(0o600)
+    state_root = tmp_path / "state"
+
+    ref = _persist_effect_identity(
+        sidecar, state_root, "life-manager-honne-ja", "run-1",
+        "life-manager-honne-ja:run-1",
+    )
+
+    assert ref == "lm-effect://life-manager-honne-ja/run-1/identity.jsonl"
+    persisted = state_root / "effect-identities" / "run-1.jsonl"
+    assert json.loads(persisted.read_text(encoding="utf-8"))["job_id"] == "job-1"
+    assert persisted.stat().st_mode & 0o777 == 0o600
+
+
+def test_unknown_effect_identity_rejects_symlink_and_malformed_sidecars(tmp_path):
+    state_root = tmp_path / "state"
+    outside = tmp_path / "outside.jsonl"
+    outside.write_text('{"job_id":"outside"}\n', encoding="utf-8")
+    outside.chmod(0o600)
+    symlink = tmp_path / "symlink.jsonl"
+    symlink.symlink_to(outside)
+    assert _persist_effect_identity(
+        symlink, state_root, "life-manager-honne-ja", "run-1",
+        "life-manager-honne-ja:run-1",
+    ) is None
+    assert not (state_root / "effect-identities" / "run-1.jsonl").exists()
+
+    malformed = tmp_path / "malformed.jsonl"
+    malformed.write_text('{"job_id":"missing-schema"}\n', encoding="utf-8")
+    malformed.chmod(0o600)
+    assert _persist_effect_identity(
+        malformed, state_root, "life-manager-honne-ja", "run-2",
+        "life-manager-honne-ja:run-2",
+    ) is None
+
+
+def test_unknown_effect_identity_rejects_cross_field_mismatch_and_destination_symlink(tmp_path):
+    def row(**overrides):
+        value = {
+            "schema_version": 1,
+            "kind": "life_manager_effect_identity",
+            "runtime_run_id": "run-3",
+            "occurrence_id": "life-manager-honne-ja:run-3",
+            "loop_id": "life-manager-honne-ja",
+            "job_id": "marketing-video-publication:job-3",
+            "effect_key": "marketing:video:honne-ai:tiktok:creative:" + "a" * 64 + ":" + "b" * 64,
+            "product_id": "honne-ai",
+            "format_id": "reelclaw",
+            "form": "relationship-confession",
+            "locale": "ja",
+            "platform": "tiktok",
+            "creative_id": "creative",
+            "slot": "2026-07-30T12:30:00.000Z",
+            "integration_ref": "integration://postiz/tiktok/honne-ai-ja",
+            "account_id": "@honnevideo",
+            "video_sha256": "a" * 64,
+            "caption_sha256": "b" * 64,
+        }
+        value.update(overrides)
+        return value
+
+    state_root = tmp_path / "state"
+    mismatch = tmp_path / "mismatch.jsonl"
+    mismatch.write_text(json.dumps(row(video_sha256="c" * 64)) + "\n", encoding="utf-8")
+    mismatch.chmod(0o600)
+    assert _persist_effect_identity(
+        mismatch, state_root, "life-manager-honne-ja", "run-3",
+        "life-manager-honne-ja:run-3",
+    ) is None
+
+    mismatch.write_text(json.dumps(row(integration_ref="integration://postiz/instagram/honne-ai-ja")) + "\n", encoding="utf-8")
+    mismatch.chmod(0o600)
+    assert _persist_effect_identity(
+        mismatch, state_root, "life-manager-honne-ja", "run-3",
+        "life-manager-honne-ja:run-3",
+    ) is None
+
+    state_root.mkdir()
+    destination = state_root / "effect-identities"
+    outside = tmp_path / "outside-identities"
+    outside.mkdir()
+    destination.symlink_to(outside, target_is_directory=True)
+    valid = tmp_path / "valid.jsonl"
+    valid.write_text(json.dumps(row()) + "\n", encoding="utf-8")
+    valid.chmod(0o600)
+    assert _persist_effect_identity(
+        valid, state_root, "life-manager-honne-ja", "run-3",
+        "life-manager-honne-ja:run-3",
+    ) is None
+    assert not (outside / "run-3.jsonl").exists()
+
+    media = [f"{chr(97 + i)}" * 64 for i in range(6)]
+    media_order = hashlib.sha256(
+        json.dumps(media, ensure_ascii=False, separators=(",", ":")).encode(),
+    ).hexdigest()
+    carousel = row(
+        product_id="anicca-ios",
+        platform="instagram",
+        effect_key="marketing:carousel:anicca-ios:creative:" + "d" * 64 + ":" + media_order + ":" + "e" * 64,
+        integration_ref="integration://postiz/instagram/anicca-carousel",
+        account_id="@anicca.carousel",
+        video_sha256=None,
+        caption_sha256="e" * 64,
+        pack_sha256="d" * 64,
+        media_sha256=media,
+        media_order_sha256=media_order,
+    )
+    carousel_path = tmp_path / "carousel.jsonl"
+    carousel_path.write_text(json.dumps(carousel) + "\n", encoding="utf-8")
+    carousel_path.chmod(0o600)
+    assert _persist_effect_identity(
+        carousel_path, tmp_path / "carousel-state", "life-manager-honne-ja", "run-3",
+        "life-manager-honne-ja:run-3",
+    ) == "lm-effect://life-manager-honne-ja/run-3/identity.jsonl"
+    carousel["product_id"] = "anicca-ios"
+    carousel["effect_key"] = "marketing:carousel:anicca-ios:creative:" + "d" * 64 + ":" + media_order + ":" + "e" * 64
+    carousel["media_sha256"] = None
+    carousel_path.write_text(json.dumps(carousel) + "\n", encoding="utf-8")
+    carousel_path.chmod(0o600)
+    assert _persist_effect_identity(
+        carousel_path, tmp_path / "carousel-state", "life-manager-honne-ja", "run-3",
+        "life-manager-honne-ja:run-3",
+    ) is None
 
 
 def test_noncoalesced_child_uses_claimed_older_occurrence(tmp_path):

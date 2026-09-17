@@ -4,6 +4,7 @@ import asyncio
 import base64
 import json
 from typing import Any
+from urllib.parse import urlparse
 
 
 _MISSING = object()
@@ -129,14 +130,19 @@ class DirectCDPPage:
 
     async def goto(self, url: str, **_: Any) -> None:
         await self.call("Page.navigate", {"url": url}, timeout=20)
-        await self.wait_ready()
+        await self.wait_ready(require_https=True)
 
-    async def wait_ready(self, timeout: float = 25) -> None:
+    async def wait_ready(self, timeout: float = 25, *, require_https: bool = False) -> None:
         deadline = asyncio.get_running_loop().time() + timeout
         while True:
             state = await self.evaluate("() => document.readyState")
-            self.url = str(await self.evaluate("() => location.href") or self.url)
-            if state in {"interactive", "complete"}:
+            current_url = str(await self.evaluate("() => location.href") or self.url)
+            self.url = current_url
+            parsed = urlparse(current_url)
+            if (
+                state in {"interactive", "complete"}
+                and (not require_https or (parsed.scheme == "https" and bool(parsed.hostname)))
+            ):
                 return
             if asyncio.get_running_loop().time() >= deadline:
                 raise TimeoutError("leased page navigation did not become ready")
@@ -144,7 +150,17 @@ class DirectCDPPage:
 
     async def wait_for_timeout(self, milliseconds: int) -> None:
         await asyncio.sleep(milliseconds / 1000)
-        self.url = str(await self.evaluate("() => location.href") or self.url)
+        previous_url = self.url
+        current_url = str(await self.evaluate("() => location.href") or previous_url)
+        previous = urlparse(previous_url)
+        if (
+            current_url in {"", "about:blank"}
+            and previous.scheme == "https"
+            and bool(previous.hostname)
+        ):
+            await self.goto(previous_url)
+            return
+        self.url = current_url
 
     def is_closed(self) -> bool:
         return self._closed

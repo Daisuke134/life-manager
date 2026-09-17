@@ -1916,6 +1916,7 @@
       "label": "ai.anicca.life-manager-connector-native",
       "log_root": "~/.local/state/life-manager/logs",
       "provider_route": "deterministic",
+      "runtime_timeout_seconds": 720,
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-daily": {

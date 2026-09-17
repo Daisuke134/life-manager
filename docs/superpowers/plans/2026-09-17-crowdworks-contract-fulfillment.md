@@ -16,6 +16,8 @@ The five active official contracts are currently all `funded`; formal CrowdWorks
 `63583795` only, and that row is awaiting buyer inspection. Historical form receipts exist for `63583795`
 and `63570481`; the former also has a buyer-visible seller message and inspection-pending readback. The
 local Paid row for `63583795` must be reconciled before any retry, and the form/delivery must not be replayed.
+The installed efedb39c owner still has a local `reconcile_unknown` row after the earlier provider-detail timeout;
+the successful read-only probe is evidence for the next reconciliation, not a new external effect.
 The next implementation cursor is browser recovery and bounded contract context for the other four
 contracts, followed by separate external receipt and `納品する` readback. Do not treat the old
 three-contract example below as the current scope; the current scope is all five IDs: `63659463`, `63657015`,
@@ -29,12 +31,14 @@ selection; `63657015` exposes a hearing sheet plus a common test and a designer-
 provides a Google Docs assignment and no current form. The model must read the full conversation and linked
 content before choosing the action; code must not choose the first form or infer work from a URL.
 
-**Current code/runtime evidence:** PR `#5393` adds a 180-second runtime bound and PR `#5401` preserves
-the provider-inventory pre-effect hint across the owner shell. Current main is `e4f50c91`, cut into
-immutable release `20260918T002409-e4f50c91`, and the targeted Paid plist readback points to that exact SHA.
-The installed kickstart ended at the bound with `entrypoint_exit_124`, `effect=0`, and the claimed
-occurrence returned to `queued/effect_unknown=0`; no new external effect was accepted. The next live gate
-is authenticated browser readback and bounded context, not slot availability.
+**Current code/runtime evidence:** PRs `#5393`, `#5401`, `#5411`, `#5412`, `#5413`, `#5419`, `#5437`, and `#5443`
+bound the Paid wake, preserve pre-effect hints, retry/recover CDP, start navigation at `commit`, fail
+closed on empty inventory, classify the official inspection-pending contract state as delivered/no-op, and
+isolate one contract-detail timeout as a retryable waiting item. CrowdWorks Paid is loaded from immutable
+release `20260918T023325-efedb39c`, with loaded argv and SHA read back. The adapter tests and
+CrowdWorks/kernel tests are green (142 tests). A locked read-only provider probe read five active contracts
+and classified `63583795` as `delivered`; the latest owner wake stopped before a provider terminal receipt
+with `effect=0`. The next live gate is a successful Paid inventory/detail wake, not slot availability.
 
 ## Global constraints
 

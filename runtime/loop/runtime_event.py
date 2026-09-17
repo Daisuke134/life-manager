@@ -128,7 +128,8 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
                         succeeded: bool, blocker: str | None,
                         deferred: bool = False,
                         evidence_scheme: str = "agent-runner",
-                        claimed_occurrence_id: str | None = None) -> dict:
+                        claimed_occurrence_id: str | None = None,
+                        effect_identity_ref: str | None = None) -> dict:
     timestamp = datetime.now(timezone.utc).isoformat()
     if succeeded and deferred:
         raise ValueError("runtime event cannot be both succeeded and deferred")
@@ -160,6 +161,10 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
     if claimed_occurrence_id is not None and claimed_occurrence_id != f"{loop_id}:{run_id}":
         suffix = claimed_occurrence_id[len(loop_id) + 1:]
         event["evidence_refs"].append(f"lm-occurrence://{loop_id}/{suffix}/claim")
+    if effect_identity_ref is not None:
+        if not isinstance(effect_identity_ref, str) or not SAFE_REF.fullmatch(effect_identity_ref):
+            raise ValueError("invalid effect identity reference")
+        event["evidence_refs"].append(effect_identity_ref)
     return validate_runtime_event(event)
 
 

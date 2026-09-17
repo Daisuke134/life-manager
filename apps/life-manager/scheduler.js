@@ -13,6 +13,7 @@ const { schedulerCohortFilter, isCallablePhone } = require("./lib/user-selector.
 const { DEFAULTS: RUNTIME_DEFAULTS, readRuntimePreferences } = require("./lib/runtime-preferences.js");
 const { shouldWake, isHelperBlock } = require("./lib/wake-filter.js");
 const { mentalUserOnce, resolveSleepTarget } = require("./lib/mental-runtime.js");
+const { mentalV1UserOnce } = require("./lib/mental-v1-runtime.js");
 const { careUserOnce } = require("./lib/care-daily-runtime.js");
 const { dietUserOnce } = require("./lib/diet-runtime.js");
 const { dietNudgeOnce } = require("./lib/diet-nudge.js");
@@ -20,6 +21,9 @@ const { preceptsUserOnce } = require("./lib/precepts-runtime.js");
 const { preceptsMirrorOnce } = require("./lib/precepts-mirror.js");
 const { relationsUserOnce } = require("./lib/relations-runtime.js");
 const { readMentalSendState, recordMentalSend } = require("./lib/mental-send-log.js");
+const { runVerifiedOutcomes } = require("./lib/mental-outcome-runtime.js");
+const { readOutcomeSendState, readVerifiedOutcomes, recordOutcomeSend } = require("./lib/mental-outcome-store.js");
+const { readMentalProfile } = require("./lib/mental-profile-store.js");
 
 // 12c: TROUGH_AFTER_MS (30 min) plus margin — how far back the tick looks for ended events.
 const MENTAL_LOOKBACK_MS = 35 * 60000;
@@ -402,6 +406,44 @@ function mentalDeps(u, events, deps = {}) {
   };
 }
 
+function mentalV1Deps(u, events, deps = {}) {
+  const supa = SUPA();
+  const allowedUids = String(process.env.LM_MENTAL_V1_ALLOWED_UIDS || "")
+    .split(",").map((value) => value.trim()).filter(Boolean);
+  return {
+    fetchUpcomingEvents: async () => events,
+    readSendState: deps.readMentalState
+      || ((uid, now, opts) => readMentalSendState(uid, now, supa, undefined, { strict: true, ...opts })),
+    recordSend: deps.recordMentalSend
+      || ((row) => recordMentalSend(row.uid, row, row.telegramMessageId, supa)),
+    sendMessage: deps.sendMessage || sendMessage,
+    telegramToken: deps.telegramToken !== undefined ? deps.telegramToken : process.env.LM_TELEGRAM_BOT_TOKEN,
+    profile: deps.mentalProfile || {},
+    readProfile: deps.readMentalProfile || ((uid, now) => readMentalProfile(uid, now, supa)),
+    quietHours: deps.quietHours || null,
+    tzOffsetH: deps.tzOffsetH,
+    allowedUids: deps.allowedUids || allowedUids,
+  };
+}
+
+function mentalOutcomeDeps(u, nowMs, deps = {}) {
+  const supa = SUPA();
+  return {
+    fetchVerifiedOutcomes: deps.fetchVerifiedOutcomes
+      || ((uid, context) => readVerifiedOutcomes(uid, context && context.nowMs, supa)),
+    readOutcomeSendState: deps.readOutcomeSendState
+      || ((uid, now, opts) => readOutcomeSendState(uid, now, supa, undefined, opts)),
+    recordOutcomeSend: deps.recordOutcomeSend
+      || ((row) => recordOutcomeSend(row, supa)),
+    sendMessage: deps.sendMessage || sendMessage,
+    telegramToken: deps.telegramToken !== undefined ? deps.telegramToken : process.env.LM_TELEGRAM_BOT_TOKEN,
+    profile: deps.mentalProfile || {},
+    calendarBusy: Boolean(deps.calendarBusy),
+    nowMs,
+    localDay: deps.localDay,
+  };
+}
+
 // readMentalSendState / recordMentalSend moved to lib/mental-send-log.js (imported above) — H4 ⑤
 // makes lm_mental_send_log a SHARED budget, and a budget only one module can reach is not a budget.
 // MENTAL's semantics are unchanged: it still calls them non-strict, so an unreadable log still reads
@@ -742,6 +784,8 @@ async function organsUserOnce(u, nowMs, deps = {}) {
     }
   }
   const futureEvents = (events || []).filter((e) => Number(e.startMs) >= now);
+  const calendarBusy = (events || []).some((event) => Number(event.startMs) <= now
+    && Number(event.endMs || event.startMs) > now);
 
   // Every runOrgan label is namespaced `organ:<name>` so the stopwatch receipt can never be confused
   // with the organ's OWN outcome line. Both are `[…] uid=…`, the receipt prints on EVERY tick (an
@@ -760,10 +804,22 @@ async function organsUserOnce(u, nowMs, deps = {}) {
     }
   }
 
+  // Verified mail outcomes are an optional owner projection. With no provider seam, this is a strict no-op;
+  // MENTAL never reads Gmail itself and never turns an ambiguous message into a personal claim.
+  const outcomeResults = await runOrgan({
+    label: "organ:mental-outcome", uid: u.uid, log,
+    run: () => runVerifiedOutcomes(u, now, mentalOutcomeDeps(u, now, { ...deps, calendarBusy })),
+  });
+  for (const outcome of Array.isArray(outcomeResults) ? outcomeResults : []) {
+    if (outcome && outcome.delivered) {
+      log(`[mental-outcome] uid=${String(u.uid).slice(0, 12)} source=${outcome.sourceOutcomeId} tg_message_id=${outcome.telegramMessageId}`);
+    }
+  }
+
   // MEN-c: the MENTAL organ rides the same 60s tick. It stays silent unless the day itself says now.
   const mental = await runOrgan({
     label: "organ:mental", uid: u.uid, log,
-    run: () => (deps.mental || mentalUserOnce)(u, now, mentalDeps(u, events, deps)),
+    run: () => (deps.mental || mentalV1UserOnce)(u, now, mentalV1Deps(u, events, deps)),
   });
   if (mental && mental.delivered) {
     log(`[mental] uid=${String(u.uid).slice(0, 12)} trigger=${mental.trigger} tg_message_id=${mental.telegramMessageId}`);

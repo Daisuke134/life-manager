@@ -284,6 +284,12 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 self.assertEqual(row.get("admission_class"), "borrow")
                 self.assertEqual(row.get("priority"), "support")
 
+    def test_connector_runtime_timeout_bounds_provider_hang_to_one_wake_budget(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        connector = registry["loops"]["life-manager-connector-native"]
+        self.assertEqual(connector.get("runtime_timeout_seconds"), 720)
+        self.assertGreater(connector["runtime_timeout_seconds"], 600)
+
     def test_command_and_adapter_are_validated_as_one_contract(self):
         value = entry()
         value.update({"adapter": "python", "command": ["dashboard"]})

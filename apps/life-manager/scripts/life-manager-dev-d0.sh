@@ -19,6 +19,29 @@ LOCK_DIR="${LM_DEV_LOCK_DIR:-/tmp/anicca-life-manager-dev-d0.lock.d}"
 RESULT_PATH="${LM_DEV_RESULT_PATH:-}"
 mkdir -p "$STATE" "$LOG_DIR"
 
+MONEY_STATE="${LM_DEV_MONEY_STATE:-$HOME/.local/state/life-manager/state/STATE.md}"
+METRIC_FOCUS="$(MONEY_STATE="$MONEY_STATE" python3 - <<'PY'
+import os, re
+from pathlib import Path
+values = {}
+try:
+    for line in Path(os.environ["MONEY_STATE"]).read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^([a-z_]+):\s*(-?\d+(?:\.\d+)?)\s*$", line)
+        if m: values[m.group(1)] = float(m.group(2))
+except OSError:
+    pass
+stages = [
+    ("calendar", "funnel_users", "funnel_calendar_connected"),
+    ("phone", "funnel_calendar_connected", "funnel_phone_saved"),
+    ("call", "funnel_phone_saved", "funnel_call_opt_in"),
+    ("paid", "funnel_call_opt_in", "funnel_paid"),
+]
+available = [(name, max(0, values[a] - values[b])) for name, a, b in stages if a in values and b in values]
+print(max(available, key=lambda row: (row[1], -stages.index(next(x for x in stages if x[0] == row[0]))))[0] if available else "unknown")
+PY
+)"
+METRIC_MARKER="[lm-metric-focus:${METRIC_FOCUS}]"
+
 log() {
   printf '%s life-manager-dev: %s\n' "$(date '+%F %T')" "$*" >&2
 }
@@ -135,7 +158,7 @@ else
   fi
 fi
 
-PROMPT="You are the fresh Life Manager D0 implementation agent. Fix GitHub issue #$NUM in this canonical Daisuke134/life-manager worktree. Title: $TITLE. Privacy-safe body: $BODY. Work only inside apps/life-manager. Use test-driven development: add a failing regression test first, verify RED, implement the smallest fix, then run focused tests. Preserve every existing test and privacy invariant. Do not touch docs, specs, CI, secrets, production providers, or any path outside apps/life-manager. Commit the complete apps/life-manager change on branch $BRANCH with a message referencing #$NUM. Do not push, open a PR, merge, or deploy; the caller performs those steps after independent full test/eval gates."
+PROMPT="You are the fresh Life Manager D0 implementation agent. Fix GitHub issue #$NUM in this canonical Daisuke134/life-manager worktree. Title: $TITLE. Privacy-safe body: $BODY. Current production funnel focus: $METRIC_FOCUS. Work only inside apps/life-manager. Use test-driven development: add a failing regression test first, verify RED, implement the smallest fix, then run focused tests. Preserve every existing test and privacy invariant. Do not touch docs, specs, CI, secrets, production providers, or any path outside apps/life-manager. Commit the complete apps/life-manager change on branch $BRANCH with a message referencing #$NUM. Do not push, open a PR, merge, or deploy; the caller performs those steps after independent full test/eval gates."
 AGENT_OUT="$LOG_DIR/life-manager-dev-agent-last.out"
 EVIDENCE_DIR="$HOME/.local/state/life-manager/state/agent-runner-evidence/life-manager-dev-$NUM/$(date +%s)-$$"
 printf '%s\n' "$PROMPT" | "$RUN_AGENT" \
@@ -189,6 +212,8 @@ if [ -z "$PR_URL" ]; then
     --body "Fixes #$NUM.
 
 Unattended canonical Life Manager D0 pass. Full app tests and every eval passed before this PR was opened. The loop does not merge or deploy.
+
+[lm-metric-focus:$METRIC_FOCUS]
 
 [lm-dev-loop]
 

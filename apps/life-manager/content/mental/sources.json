@@ -1,0 +1,26 @@
+[
+  {
+    "source_id": "antara-remarkable-affirmations",
+    "repository": "humancto/antara-remarkable",
+    "commit": "bdaf5a19e6401c771e097e04bc3fcc16d44eb835",
+    "path": "content/collections/affirmations.json",
+    "license": "MIT",
+    "license_url": "https://github.com/humancto/antara-remarkable/blob/bdaf5a19e6401c771e097e04bc3fcc16d44eb835/LICENSE"
+  },
+  {
+    "source_id": "mental-buddy-affirmations",
+    "repository": "lifeLessCoder/Mental-Buddy",
+    "commit": "05e0522deae5943ac2704826cbe3cdc124d9fedf",
+    "path": "assets/data/affirmations.json",
+    "license": "MIT",
+    "license_url": "https://github.com/lifeLessCoder/Mental-Buddy/blob/05e0522deae5943ac2704826cbe3cdc124d9fedf/LICENSE"
+  },
+  {
+    "source_id": "journal-prompts",
+    "repository": "ghall89/journal-prompts",
+    "commit": "6a180a182273f52d317d771e39546373beebac21",
+    "path": "src/data/prompts.json",
+    "license": "MIT",
+    "license_url": "https://github.com/ghall89/journal-prompts/blob/6a180a182273f52d317d771e39546373beebac21/LICENSE.md"
+  }
+]

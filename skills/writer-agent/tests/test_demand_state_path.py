@@ -47,6 +47,16 @@ def _body() -> bytes:
     ).encode("utf-8")
 
 
+def _current_techi_body() -> bytes:
+    return (
+        "Apply as Author. Authors do not pay TECHi. Approved contributors can receive "
+        "a public byline and payment terms tied to accepted work. Pay per publish: "
+        "flat rate per accepted piece, and contributors are paid monthly via Stripe. "
+        "This current-page context keeps the receipt above the minimum body size and "
+        "represents the visible application guidance."
+    ).encode("utf-8")
+
+
 def test_configured_publisher_receipt_uses_external_state_dir(tmp_path: Path) -> None:
     skill_dir = tmp_path / "release" / "skills" / "writer-agent"
     state_dir = tmp_path / "state"
@@ -105,3 +115,20 @@ def test_configured_publisher_receipt_reuses_verified_body_after_untrusted_fetch
     assert reused[0]["source_sha256"] == hashlib.sha256(
         _body().decode("utf-8").encode("utf-8")
     ).hexdigest()
+
+
+def test_configured_publisher_accepts_current_techi_author_heading(tmp_path: Path) -> None:
+    skill_dir = tmp_path / "release" / "skills" / "writer-agent"
+    state_dir = tmp_path / "state"
+    config = _config(skill_dir)
+
+    rows = MODULE.configured_full_body_observations(
+        skill_dir,
+        config,
+        state_dir=state_dir,
+        observed_at="2026-09-18T00:00:00Z",
+        fetcher=lambda _source: _current_techi_body(),
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["evidence_units"]

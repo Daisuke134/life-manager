@@ -16,7 +16,7 @@ Restore the mobile publishing cadence without losing the one-to-one mapping betw
 ## To-be
 
 1. Every publish occurrence carries or can deterministically recover its exact `effect_key`, `job_id`, product, platform, account, Postiz integration reference and media/caption hashes.
-2. A released unknown occurrence is cleared only by `runtime.host.resource_admission.resolve_unknown_occurrence()` with a proof whose `owner_id` and `occurrence_id` match and whose provider receipt is official, exact and reconciled.
+2. A released unknown occurrence is eventually cleared only by `runtime.host.resource_admission.resolve_unknown_occurrence()` after a provider-owned executor performs fresh official readback with a proof whose `owner_id` and `occurrence_id` match and whose provider receipt is exact and reconciled. The checked-in proof gate never clears state.
 3. A claimed unknown occurrence stays fenced. Missing local summaries, a provider dashboard draft, a planned job, a browser URL, or a non-exact receipt never authorizes a retry.
 4. Reconciliation runs one owner at a time, then allows one natural scheduled wake. The result must distinguish process exit, runtime terminal status, provider receipt and replay-zero.
 5. `config/marketing-destinations.json`, mobile loop IDs, cadence slots, Postiz integration IDs and the OBOU hold remain unchanged by this recovery.
@@ -44,7 +44,7 @@ unknown occurrence
 
 ## Completion evidence
 
-- A redacted reconciliation ledger lists every mobile/Honne unknown occurrence and one of `verified`, `inconclusive` or `claimed-held`, with no guessed mapping.
+- A redacted reconciliation ledger lists every mobile/Honne unknown occurrence and one of `ready`, `inconclusive` or `claimed-held`, with no guessed mapping. `ready` is a precondition for a fresh provider-owned readback, not a state mutation.
 - Verified rows have the exact provider receipt ID and official account/integration/content readback; the admission ledger shows `effect_unknown=0` only for those rows.
 - One natural wake per verified owner produces a terminal event. If the effect already exists, provider execution delta is zero; if it does not, the single new execution has an official receipt. Duplicate executions are zero.
 - Targeted `lm-loop status` shows no `resource_effect_unknown` for the reconciled owner and still reports the immutable release argv. The destination and mobile mapping contract tests remain green.
@@ -52,6 +52,10 @@ unknown occurrence
 ## Inventory evidence
 
 The first read-only inventory is recorded at `docs/superpowers/evidence/mobile-postiz-admission/mobile-fence-inventory.json`. It contains 17 mobile/Honne unknown occurrences, with 0 exact identities recovered, 14 released rows and 3 claimed rows held. The current runtime event format does not carry the occurrence's `effect_key`/`job_id` or the provider account identity, so every row remains inconclusive until the identity bridge and official readback are implemented.
+
+## Implementation evidence
+
+The identity bridge is now in `runtime/loop/lm_loop_run.py`, `runtime/loop/runtime_event.py`, `apps/life-manager/lib/marketing-effect-identity.js`, and the existing video/native-carousel adapters. It records the exact occurrence, runtime run, job/effect key, destination integration, account and content hashes before a provider call, then preserves only validated nonzero-effect sidecars outside scratch. PR #5423 merged at `c947b72dbc7f`; 109 focused Python tests and 37 mobile publication tests pass. The read-only proof gate is in `apps/life-manager/scripts/mobile-postiz-effect-reconcile.py`; PR #5431 merged at `b325a34d5b8e3ca9eaecc396311026d58d0ce399`, with six reconciler tests passing. It only reports `ready` after an exact proof and never calls `resolve_unknown_occurrence`; a provider-owned executor and fresh official Postiz readback are still required. This changes future evidence quality only; it does not clear the 17 historical fences.
 
 ## Non-goals
 

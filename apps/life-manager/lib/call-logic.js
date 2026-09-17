@@ -356,7 +356,7 @@ function telnyxDialBody({ connectionId, to, from, streamUrl, timeLimitSeconds })
     stream_bidirectional_mode: "rtp",
     stream_bidirectional_codec: "PCMU",
     stream_bidirectional_target_legs: "self",
-    ...(Number.isInteger(limit) && limit >= 1 && limit <= 14400 ? { time_limit_secs: limit } : {}),
+    ...(Number.isInteger(limit) && limit >= 30 && limit <= 14400 ? { time_limit_secs: limit } : {}),
   };
 }
 

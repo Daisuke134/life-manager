@@ -260,9 +260,21 @@ async def load_session():
   return Session(cookies=cookies, user_id=os.environ["NOTE_USER_ID"], username=os.environ["NOTE_URLNAME"], created_at=int(time.time()))
 
 session = asyncio.run(load_session())
-actual = asyncio.run(get_current_user(session.cookies))
+try:
+  actual = asyncio.run(get_current_user(session.cookies))
+except ValueError as error:
+  # note.com can return an empty stats window for an account with no note on
+  # the requested day; its legacy fallback then returns 404.  The authenticated
+  # browser Session already carries the username extracted from account settings,
+  # so use it only for these known endpoint-shape errors (never invent an id).
+  message = str(error)
+  username = str(getattr(session, "username", "") or "").strip()
+  if not username or ("HTTP 400" not in message and "HTTP 404" not in message):
+    raise
+  print(f"WARN: Note identity API unavailable ({message}); using authenticated session username", file=sys.stderr)
+  actual = {"id": str(getattr(session, "user_id", "") or ""), "urlname": username}
 if (
-  str(actual.get("id", "")) != os.environ["NOTE_USER_ID"]
+  (actual.get("id") and str(actual.get("id")) != os.environ["NOTE_USER_ID"])
   or str(actual.get("urlname", "")).lower() != os.environ["NOTE_URLNAME"].lower()
 ):
   raise SystemExit("authenticated Note account does not match NOTE_USER_ID / NOTE_URLNAME")

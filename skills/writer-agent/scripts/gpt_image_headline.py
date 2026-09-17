@@ -17,10 +17,15 @@ from pathlib import Path
 from typing import Any, Callable
 
 MODEL = "gpt-image-2-2026-04-21"
+# The local OpenAI-compatible proxy accepts the same dated model identity as
+# the public API.  The short alias can ignore the requested 1536x1024 size and
+# return a square image, which is rejected by the immutable media contract.
+CLIPROXY_MODEL = MODEL
 ENDPOINT = "https://api.openai.com/v1/images/generations"
 SIZE = "1536x1024"
 QUALITY = "high"
 EXPECTED_DIMENSIONS = (1536, 1024)
+KNOWN_PRE_EFFECT_REFUSALS = {"OPENAI_API_KEY-unavailable"}
 
 
 class HeadlineImageRefused(RuntimeError):
@@ -85,9 +90,26 @@ def _png_dimensions(data: bytes) -> tuple[int, int]:
     return width, height
 
 
-def _fingerprint(prompt: bytes, output: Path) -> dict[str, Any]:
-    return {"endpoint": ENDPOINT, "model": MODEL, "output": str(output.resolve()),
+def _fingerprint(
+    prompt: bytes,
+    output: Path,
+    endpoint: str = ENDPOINT,
+    model: str = MODEL,
+) -> dict[str, Any]:
+    return {"endpoint": endpoint, "model": model, "output": str(output.resolve()),
             "prompt_sha256": _sha(prompt), "quality": QUALITY, "size": SIZE}
+
+
+def _api_credentials() -> tuple[str, str, str]:
+    """Resolve the owner-configured OpenAI-compatible image endpoint without exposing keys."""
+    key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if key:
+        return ENDPOINT, key, "openai"
+    key = os.environ.get("CLIPROXY_API_KEY", "").strip()
+    base = os.environ.get("ARTICLE_CODEX_PROVIDER_BASE_URL", "").strip().rstrip("/")
+    if key and base:
+        return f"{base}/images/generations", key, "cliproxy"
+    return ENDPOINT, "", "none"
 
 
 def verify(candidate: Path, receipt_path: Path) -> dict[str, Any]:
@@ -100,7 +122,14 @@ def verify(candidate: Path, receipt_path: Path) -> dict[str, Any]:
                 "byte_length": len(data), "width": width, "height": height}
     if any(receipt.get(key) != value for key, value in required.items()):
         raise HeadlineImageRefused("headline-api-receipt-mismatch")
-    for key in ("x_request_id", "prompt_sha256", "response_sha256", "alt", "rights_provenance"):
+    for key in (
+        "x_request_id",
+        "request_sha256",
+        "prompt_sha256",
+        "response_sha256",
+        "alt",
+        "rights_provenance",
+    ):
         if not isinstance(receipt.get(key), str) or not str(receipt[key]).strip():
             raise HeadlineImageRefused(f"headline-api-receipt-missing:{key}")
     return receipt
@@ -109,37 +138,77 @@ def verify(candidate: Path, receipt_path: Path) -> dict[str, Any]:
 def generate(*, prompt_path: Path, alt_path: Path, candidate: Path, intent_path: Path,
              receipt_path: Path, opener: Callable[..., Any] = urllib.request.urlopen) -> dict[str, Any]:
     if receipt_path.exists():
-        return {**verify(candidate, receipt_path), "replay": "reused"}
+        recorded = _read_object(receipt_path, "headline-api-receipt-invalid")
+        known_refusal = (
+            recorded.get("status") == "refused"
+            and recorded.get("reason") in KNOWN_PRE_EFFECT_REFUSALS
+        )
+        if not known_refusal:
+            return {**verify(candidate, receipt_path), "replay": "reused"}
+        retryable_intent = False
+        if intent_path.exists():
+            prior_intent = _read_object(intent_path, "headline-api-intent-invalid")
+            retryable_intent = (
+                prior_intent.get("status") == "failed_known"
+                and prior_intent.get("http_status") in {400, 404, 422}
+            ) or (
+                prior_intent.get("status") == "response_missing_request_id"
+                and bool(os.environ.get("CLIPROXY_API_KEY", "").strip())
+                and bool(os.environ.get("ARTICLE_CODEX_PROVIDER_BASE_URL", "").strip())
+            )
+        if candidate.exists() or (intent_path.exists() and not retryable_intent):
+            raise HeadlineImageRefused("headline-api-refusal-state-conflict")
     prompt = prompt_path.read_bytes()
     alt = alt_path.read_text(encoding="utf-8").strip()
     if not prompt.strip() or not alt:
         raise HeadlineImageRefused("headline-prompt-or-alt-empty")
-    fingerprint = _fingerprint(prompt, candidate)
+    endpoint, key, key_source = _api_credentials()
+    provider_model = CLIPROXY_MODEL if key_source == "cliproxy" else MODEL
+    fingerprint = _fingerprint(prompt, candidate, endpoint, provider_model)
+    client_request_id = "lm-" + _sha(
+        json.dumps(fingerprint, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    )[:32]
     if intent_path.exists():
         intent = _read_object(intent_path, "headline-api-intent-invalid")
-        if intent.get("fingerprint") != fingerprint:
+        known_http_refusal = (
+            intent.get("status") == "failed_known"
+            and intent.get("http_status") in {400, 404, 422}
+            and not candidate.exists()
+        ) or (
+            intent.get("status") == "response_missing_request_id"
+            and bool(os.environ.get("CLIPROXY_API_KEY", "").strip())
+            and bool(os.environ.get("ARTICLE_CODEX_PROVIDER_BASE_URL", "").strip())
+            and not candidate.exists()
+        )
+        if not known_http_refusal and intent.get("fingerprint") != fingerprint:
             raise HeadlineImageRefused("headline-api-intent-conflict")
-        raise HeadlineImageRefused("headline-api-outcome-unknown-reconcile-before-retry")
+        if not known_http_refusal:
+            raise HeadlineImageRefused("headline-api-outcome-unknown-reconcile-before-retry")
     if candidate.exists():
         raise HeadlineImageRefused("headline-candidate-without-receipt")
-    key = os.environ.get("OPENAI_API_KEY", "").strip()
     if not key:
-        raise HeadlineImageRefused("OPENAI_API_KEY-unavailable")
+        raise HeadlineImageRefused("OPENAI_API_KEY/CLIPROXY_API_KEY-unavailable")
     intent = {"schema": "writer.gpt-image-headline-intent", "version": 1,
               "status": "request_started", "fingerprint": fingerprint,
               "created_at": datetime.now(timezone.utc).isoformat()}
     _atomic_json(intent_path, intent)
-    body = json.dumps({"model": MODEL, "prompt": prompt.decode("utf-8"),
+    body = json.dumps({"model": provider_model, "prompt": prompt.decode("utf-8"),
                        "quality": QUALITY, "size": SIZE, "output_format": "png"},
                       ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    request_sha256 = _sha(body)
     request = urllib.request.Request(
-        ENDPOINT, data=body,
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        endpoint, data=body,
+        headers={
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "X-Request-ID": client_request_id,
+        },
         method="POST")
     try:
         with opener(request, timeout=300) as response:
             raw = response.read()
             request_id = str(response.headers.get("x-request-id") or "").strip()
+            request_id_source = "provider-header"
     except urllib.error.HTTPError as error:
         raw = error.read()
         _atomic_json(intent_path, {**intent, "status": "failed_known", "http_status": error.code,
@@ -157,6 +226,9 @@ def generate(*, prompt_path: Path, alt_path: Path, candidate: Path, intent_path:
         _atomic_json(intent_path, {**intent, "status": "response_invalid",
                                    "response_sha256": _sha(raw), "x_request_id": request_id})
         raise HeadlineImageRefused("headline-api-response-invalid") from error
+    if not request_id and key_source == "cliproxy":
+        request_id = client_request_id
+        request_id_source = "client-generated"
     if not request_id:
         _atomic_json(intent_path, {**intent, "status": "response_missing_request_id",
                                    "response_sha256": _sha(raw)})
@@ -165,12 +237,15 @@ def generate(*, prompt_path: Path, alt_path: Path, candidate: Path, intent_path:
     _atomic_bytes(candidate, image)
     receipt = {"schema": "writer.gpt-image-headline-receipt", "version": 1,
                "status": "committed", "candidate": str(candidate.resolve()),
-               "request_model": MODEL, "x_request_id": request_id,
+               "request_model": MODEL, "provider_model": provider_model,
+               "x_request_id": request_id, "request_id_source": request_id_source,
+               "request_sha256": request_sha256,
                "prompt_sha256": _sha(prompt), "response_sha256": _sha(raw),
                "file_sha256": _sha(image), "byte_length": len(image),
                "width": width, "height": height, "size": SIZE, "quality": QUALITY,
                "alt": alt,
-               "rights_provenance": "Generated for the account owner through the OpenAI Image API; use is subject to current OpenAI terms.",
+               "rights_provenance": "Generated for the account owner through the configured OpenAI-compatible Image API; use is subject to the provider terms.",
+               "endpoint": endpoint, "api_key_source": key_source,
                "created_at": datetime.now(timezone.utc).isoformat()}
     _atomic_json(receipt_path, receipt)
     _atomic_json(intent_path, {**intent, "status": "committed",

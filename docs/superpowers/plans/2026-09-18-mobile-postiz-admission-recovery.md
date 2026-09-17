@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` to implement this plan task by task. Read each applicable current Superpowers skill before acting. Steps use checkbox syntax for tracking.
 
-**Goal:** Clear only provider-verified mobile publish fences and resume one idempotent natural wake per owner without changing Postiz routing.
+**Goal:** Prove which mobile publish fences are eligible for provider reconciliation and prepare a safe one-owner executor without changing Postiz routing.
 
-**Architecture:** Keep the existing host admission ledger and `resolve_unknown_occurrence()` as the only fence-clearing boundary. Add the smallest missing identity/readback bridge in the existing publication adapters, then run a serialized recovery pass and verify provider receipt plus replay-zero.
+**Architecture:** Keep the existing host admission ledger and `resolve_unknown_occurrence()` as the only eventual fence-clearing boundary. The checked-in reconciler is deliberately read-only: it validates a private identity sidecar and an explicit Postiz readback proof, then reports `ready`; a provider-owned executor must perform the live readback again immediately before any future resolve.
 
 **Tech Stack:** Python 3.14, Node.js, SQLite admission ledger, existing Life Manager runtime events, Postiz publication adapters and launchd-owned `lm-loop` commands.
 
@@ -41,10 +41,10 @@
 - Modify: `runtime/loop/runtime_event.py` only if the existing schema needs the identity fields
 - Test: `runtime/loop/tests/test_lm_loop_run_bounds.py` and the runtime-event tests
 
-- [ ] Write a failing test that a publish occurrence's summary/event contains the exact occurrence ID, `effect_key`, `job_id`, account/integration reference and media/caption hashes before an effect-bearing child exits.
-- [ ] Write a failing test that a missing or malformed identity produces a held `effect_unknown` result and never becomes retryable.
-- [ ] Implement the smallest repository-owned identity record using existing event/summary paths; keep credentials and provider tokens outside the release.
-- [ ] Run the focused Python tests and validate the event schema.
+- [x] Write a failing test that a publish occurrence's summary/event contains the exact occurrence ID, `effect_key`, `job_id`, account/integration reference and media/caption hashes before an effect-bearing child exits.
+- [x] Write a failing test that a missing or malformed identity produces a held `effect_unknown` result and never becomes retryable.
+- [x] Implement the smallest repository-owned identity record using the existing runtime scratch and private state paths; keep credentials and provider tokens outside the release. Nonzero effect-bearing runs persist only a validated sidecar and add an `lm-effect://` evidence reference.
+- [x] Run the focused Python tests and validate the event schema: 109 focused tests pass (110 when the isolated CEO light-pass check is included).
 
 ### Task 3: Add provider-owned official readback proof
 
@@ -53,22 +53,23 @@
 - Modify: `apps/life-manager/lib/marketing-native-carousel-publication-adapter.js`
 - Test: the corresponding adapter and publication-chain tests
 
+- [x] Add pre-effect identity emission to the existing video and native-carousel adapters. Video account IDs resolve through the canonical destination contract; native carousel lanes use their exact account and integration IDs. PR #5423 merged as `c947b72dbc7f`.
 - [ ] Write failing tests for exact account, integration, provider post ID, content hash and reconciled status; reject a same-platform different-account receipt.
 - [ ] Reuse each adapter's existing `reconcile()`/receipt verifier. Do not add a second Postiz client or a local-only proof path.
 - [ ] Return an explicit proof object containing `owner_id`, `occurrence_id`, `verified`, `provider_receipt_id` and the exact matched identity.
-- [ ] Run the focused adapter tests and the existing 149-test mobile/Postiz suite.
+- [x] Run the focused adapter tests: 37 tests pass. The provider official-readback portion remains open; no new provider request was made.
 
-### Task 4: Reconcile released rows only
+### Task 4: Gate released rows for a provider executor
 
 **Files:**
 - Create: `apps/life-manager/scripts/mobile-postiz-effect-reconcile.py`
 - Test: `apps/life-manager/tests/test_mobile_postiz_effect_reconcile.py`
-- Reuse: `runtime.host.resource_admission.resolve_unknown_occurrence`
+- Read: `runtime.host.resource_admission.resolve_unknown_occurrence` contract; the live executor is not part of this read-only change.
 
-- [ ] Write a failing test proving the script skips `claimed` rows and inconclusive/mismatched receipts.
-- [ ] Write a failing test proving one exact official proof clears one `released` unknown occurrence and does not touch another owner.
-- [ ] Implement owner-scoped, one-occurrence-at-a-time reconciliation with a redacted evidence output. Never issue direct SQL updates.
-- [ ] Run the script in read-only/dry inventory mode first; execute clearing only for rows with official proof.
+- [x] Write tests proving the script skips `claimed` rows and inconclusive/mismatched receipts.
+- [x] Implement owner-scoped, read-only proof gating with a redacted output. The script never issues SQL updates or calls `resolve_unknown_occurrence`.
+- [x] Run the script in read-only mode for a historical occurrence; it returned `identity_missing_or_invalid` and left the ledger unchanged. PR #5431 merged as `b325a34d5b8e3ca9eaecc396311026d58d0ce399`.
+- [ ] Implement a provider-owned executor that performs official Postiz API/account readback in the same call and invokes `resolve_unknown_occurrence` only after that fresh proof. This remains blocked for historical rows whose exact identity is missing.
 
 ### Task 5: Resume and verify one natural wake
 
@@ -95,6 +96,6 @@
 
 ### Task 7: Close out
 
-- [ ] Run focused tests, `git diff --check`, source-boundary verification and the relevant `lm-loop` targeted status checks.
-- [ ] Update the spec evidence with verified/inconclusive counts and the exact remaining fences.
-- [ ] Commit and push the dedicated branch, merge after checks pass, and remove the exact worktree without force.
+- [x] Run focused tests, `git diff --check`, source-boundary verification and the relevant `lm-loop` targeted status checks for the read-only reconciler; six reconciler tests pass and no ledger row changed.
+- [x] Update the spec evidence with verified/inconclusive counts and the exact remaining fences; the 17 historical mobile/Honne rows remain inconclusive or claimed-held.
+- [x] Commit and push the dedicated branch, merge after checks pass, and remove the exact worktree without force. PR #5438 merged as `e3e44eb76d8e12d6476c9c3d74662ab4bb7f0a41`; the worktree path and Git registration were then removed without force.

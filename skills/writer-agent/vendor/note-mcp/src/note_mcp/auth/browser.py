@@ -211,8 +211,11 @@ async def get_current_user(cookies: dict[str, str], xsrf_token: str | None = Non
         if xsrf_token:
             headers["X-XSRF-TOKEN"] = xsrf_token
 
+        # note.com now requires a valid stats window; an unfiltered request
+        # returns HTTP 400 ("filter is missing") even with valid cookies.
         response = await client.get(
             "https://note.com/api/v1/stats/pv",
+            params={"filter": "day"},
             headers=headers,
         )
 
@@ -226,6 +229,17 @@ async def get_current_user(cookies: dict[str, str], xsrf_token: str | None = Non
         user_data = data.get("data", {})
         user_id = user_data.get("user_id") or user_data.get("id")
         urlname = user_data.get("urlname") or user_data.get("username")
+
+        # The current stats response exposes the authenticated URL name on
+        # each note row but no account id.  Keep that browser/API identity
+        # proof instead of rejecting an otherwise valid session solely because
+        # the legacy id field disappeared.
+        if not urlname and isinstance(user_data.get("note_stats"), list):
+            for note in user_data["note_stats"]:
+                owner = note.get("user") if isinstance(note, dict) else None
+                if isinstance(owner, dict) and owner.get("urlname"):
+                    urlname = owner["urlname"]
+                    break
 
         if not user_id or not urlname:
             # Try alternative endpoint
@@ -242,8 +256,8 @@ async def get_current_user(cookies: dict[str, str], xsrf_token: str | None = Non
             user_id = user_data.get("id", "")
             urlname = user_data.get("urlname", "")
 
-        if not user_id:
-            raise ValueError("Could not retrieve user ID")
+        if not user_id and not urlname:
+            raise ValueError("Could not retrieve authenticated user")
 
         return {"id": str(user_id), "urlname": urlname or ""}
 
@@ -638,4 +652,3 @@ async def login_with_browser(
     session_manager.save(session)
 
     return session
-

@@ -179,6 +179,14 @@ def test_note_publish_checks_real_account_before_any_draft_effect():
     )
 
 
+def test_note_publish_can_fall_back_to_authenticated_session_username():
+    source = (ROOT / "skills/writer-agent/scripts/publish-note.sh").read_text(
+        encoding="utf-8"
+    )
+    assert "getattr(session, \"username\"" in source
+    assert "get_current_user(session.cookies)" in source
+
+
 def test_legacy_self_owned_state_upgrades_from_receipt_once(tmp_path):
     module = load(
         "portable_self_owned_upgrade",

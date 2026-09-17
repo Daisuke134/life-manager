@@ -1586,8 +1586,8 @@ def current_experiment(skill_dir: Path) -> dict[str, Any]:
     }
 
 
-def verify_latest(skill_dir: Path) -> dict[str, Any]:
-    state_root = skill_dir / "state"
+def verify_latest(skill_dir: Path, state_dir: Path | None = None) -> dict[str, Any]:
+    state_root = Path(state_dir) if state_dir is not None else skill_dir / "state"
     ledger = state_root / "articles.jsonl"
     states = sorted(
         state_root.glob("runs/*/gates/publication-state.json")
@@ -1692,13 +1692,14 @@ def main() -> int:
     current.add_argument("--skill-dir", type=Path, default=SCRIPTS.parent)
     verify = subparsers.add_parser("verify")
     verify.add_argument("--skill-dir", type=Path, default=SCRIPTS.parent)
+    verify.add_argument("--state-dir", type=Path)
     args = parser.parse_args()
 
     try:
         if args.command == "current":
             result = current_experiment(args.skill_dir)
         elif args.command == "verify":
-            result = verify_latest(args.skill_dir)
+            result = verify_latest(args.skill_dir, args.state_dir)
         elif args.command == "record-application":
             experiment = active_experiment(args.skill_dir / "state")
             if experiment is None:
