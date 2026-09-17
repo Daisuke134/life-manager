@@ -12,9 +12,10 @@
     "profile_sync": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["status", "profile_version", "field_hashes", "resume_sha256", "evidence_ref"],
+      "required": ["status", "authenticated", "profile_version", "field_hashes", "resume_sha256", "evidence_ref"],
       "properties": {
         "status": {"type": "string", "enum": ["synced", "unchanged", "unknown", "blocked"]},
+        "authenticated": {"type": "boolean"},
         "profile_version": {"type": "string", "minLength": 1},
         "field_hashes": {
           "type": "object",

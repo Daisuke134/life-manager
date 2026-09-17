@@ -288,10 +288,14 @@ def record_profile_sync(state_root: Path, result: dict[str, Any], *, run_id: str
     status = sync.get("status")
     if not isinstance(status, str) or status not in {"synced", "unchanged", "unknown", "blocked"}:
         return
+    authenticated = sync.get("authenticated") is True
+    if status in {"synced", "unchanged"} and not authenticated:
+        status = "unknown"
     ledger = state_root / "profile-sync.jsonl"
     ledger.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     row = {
         "status": status,
+        "authenticated": authenticated,
         "profile_version": str(sync.get("profile_version") or ""),
         "field_hashes": sync.get("field_hashes") if isinstance(sync.get("field_hashes"), dict) else {},
         "resume_sha256": str(sync.get("resume_sha256") or ""),

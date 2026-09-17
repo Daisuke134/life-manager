@@ -130,6 +130,7 @@ class MercorPassContractTests(unittest.TestCase):
             record_profile_sync(state, {
                 "profile_sync": {
                     "status": "synced",
+                    "authenticated": True,
                     "profile_version": "profile-v1",
                     "field_hashes": {"summary": "hash"},
                     "resume_sha256": "resume-hash",
@@ -138,9 +139,26 @@ class MercorPassContractTests(unittest.TestCase):
             }, run_id="run-profile")
             row = json.loads((state / "profile-sync.jsonl").read_text(encoding="utf-8"))
             self.assertEqual(row["profile_version"], "profile-v1")
+            self.assertTrue(row["authenticated"])
             self.assertEqual(row["field_hashes"], {"summary": "hash"})
             self.assertNotIn("summary", row)
             self.assertEqual((state / "profile-sync.jsonl").stat().st_mode & 0o777, 0o600)
+
+    def test_profile_sync_cannot_be_marked_synced_without_authentication(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            record_profile_sync(state, {
+                "profile_sync": {
+                    "status": "synced",
+                    "authenticated": False,
+                    "profile_version": "profile-v1",
+                    "field_hashes": {"summary": "hash"},
+                    "resume_sha256": "resume-hash",
+                    "evidence_ref": "profile-readback.json",
+                }
+            }, run_id="run-profile")
+            row = json.loads((state / "profile-sync.jsonl").read_text(encoding="utf-8"))
+            self.assertEqual(row["status"], "unknown")
 
     @patch("job_search_loop.mercor_pass.subprocess.run")
     def test_host_capabilities_keep_unknown_sysctl_values_explicit(self, run):
