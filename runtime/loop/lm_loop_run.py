@@ -191,7 +191,8 @@ def _persist_effect_identity(sidecar: Path, state_root: Path,
                 os.close(descriptor)
     except (FileNotFoundError, OSError):
         return None
-    if not data.strip() or len(data) > 1024 * 1024 or b"/Users/" in data:
+    home_prefix = str(Path.home()).encode()
+    if not data.strip() or len(data) > 1024 * 1024 or (home_prefix and home_prefix in data):
         return None
 
     identifier = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$")
