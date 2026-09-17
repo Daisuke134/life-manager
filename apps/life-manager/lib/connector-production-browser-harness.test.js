@@ -6,6 +6,7 @@ const test = require("node:test");
 
 const {
   createBoundedActionProposer,
+  createBoundedPrivateFactSelector,
   createPrivateValueResolver,
   createLumaPrivateValueResolver,
   createProductionBrowserHarness,
@@ -13,6 +14,22 @@ const {
   operatePageControl,
 } = require("./connector-production-browser-harness.js");
 const { createBrowserHarnessAdapter } = require("./connector-browser-harness-adapter.js");
+
+test("bounded fact selector maps new question wording to a key without seeing private values", async () => {
+  let request;
+  const select = createBoundedPrivateFactSelector({
+    repoRoot: "/private/repo", evidenceDir: "/private/evidence",
+    async runAgentRunner(input) {
+      request = input;
+      return { summary: { status: "success" }, value: { source_key: "Affiliation / company name" } };
+    },
+  });
+  assert.equal(await select({ question: "現在お勤めの企業を教えてください", available_keys: ["Affiliation / company name"] }),
+    "Affiliation / company name");
+  assert.equal(request.readOnly, true);
+  assert.equal(request.schema.properties.source_key.enum.includes("__abstain__"), true);
+  assert.equal(request.prompt.includes("Private Company"), false);
+});
 
 test("bounded proposer requests one structured action from Terra with sanitized controls only", async () => {
   let request;
@@ -904,6 +921,32 @@ test("Connpass resolver uses parent-owned identity, form answers, and explicit p
   ]) assert.equal(await resolver(privacy(question)), null);
   const rejecting = createPrivateValueResolver({ readPeatixProfile: async () => ({ accept_organizer_privacy: false }), readFormProfile: async () => ({ form_answers: {} }) });
   assert.equal(await rejecting(privacy(exactPrivacy)), null);
+});
+
+test("Connpass agent may select a private fact key for a newly worded question, never invent its value", async () => {
+  let request;
+  const resolver = createPrivateValueResolver({
+    readPeatixProfile: async () => ({ name: "Private Name", email: "private@example.test" }),
+    readFormProfile: async () => ({ form_answers: { "Affiliation / company name": "Private Company" } }),
+    async selectFactKey(input) { request = input; return "Affiliation / company name"; },
+  });
+  const base = { provider: "connpass", state: "connpass_join", action: { purpose: "fill" } };
+  const control = { control: "control_11", kind: "input", label: "現在お勤めの企業を教えてください",
+    required: true, completed: false, submittable: false };
+  assert.equal(await resolver({ ...base, control }), "Private Company");
+  assert.equal(request.question, control.label);
+  assert.equal(request.available_keys.includes("Affiliation / company name"), true);
+  assert.equal(JSON.stringify(request).includes("Private Company"), false);
+  request = null;
+  assert.equal(await resolver({ ...base, control: { ...control, kind: "checkbox",
+    label: "注意事項に同意します", question: "必須 注意事項を確認し同意しますか" } }), null);
+  assert.equal(request, null);
+  const rejecting = createPrivateValueResolver({
+    readPeatixProfile: async () => ({}),
+    readFormProfile: async () => ({ form_answers: { "Affiliation / company name": "Private Company" } }),
+    async selectFactKey() { return "fabricated-key"; },
+  });
+  assert.equal(await rejecting({ ...base, control }), null);
 });
 
 test("Connpass exact join does not adopt a generic question outside .question_list", async () => {
