@@ -82,6 +82,63 @@ def test_durable_protocol_defaults_v1_and_activates_only_when_idle(tmp_path, mon
     assert admission.durable_protocol_version() == 2
 
 
+def test_interrupted_browser_schema_migration_recovers_renamed_queue(tmp_path):
+    database = tmp_path / "admission-v2.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.executescript("""
+            CREATE TABLE queue_legacy_browser (
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_id TEXT NOT NULL UNIQUE,
+                resource_class TEXT NOT NULL CHECK(resource_class IN ('agent','deterministic'))
+            );
+            INSERT INTO queue_legacy_browser VALUES(7,'waiting-agent','agent');
+            CREATE TABLE occurrences_legacy_browser (
+                occurrence_id TEXT PRIMARY KEY, owner_id TEXT NOT NULL,
+                resource_class TEXT NOT NULL CHECK(resource_class IN ('agent','deterministic')),
+                admission_class TEXT NOT NULL, base_priority TEXT NOT NULL,
+                queued_at REAL NOT NULL, state TEXT NOT NULL, sequence INTEGER,
+                effect_unknown INTEGER NOT NULL DEFAULT 0
+            );
+            INSERT INTO occurrences_legacy_browser VALUES(
+                'waiting-agent:old','waiting-agent','agent','revenue','revenue',100,'claimed',7,1);
+            PRAGMA user_version=2;
+        """)
+    with admission._database(database) as connection:
+        assert connection.execute(
+            "SELECT sequence,owner_id,resource_class FROM queue").fetchall() == [
+                (7, "waiting-agent", "agent")]
+        assert connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='queue_legacy_browser'").fetchone() is None
+        assert connection.execute(
+            "SELECT effect_unknown FROM occurrences WHERE occurrence_id='waiting-agent:old'").fetchone() == (1,)
+        assert connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='occurrences_legacy_browser'").fetchone() is None
+
+
+def test_browser_migration_keeps_legacy_table_on_conflicting_owner(tmp_path):
+    database = tmp_path / "admission-v2.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.executescript("""
+            CREATE TABLE queue (
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_id TEXT NOT NULL UNIQUE,
+                resource_class TEXT NOT NULL CHECK(resource_class IN ('agent','browser','deterministic'))
+            );
+            INSERT INTO queue VALUES(8,'same-owner','browser');
+            CREATE TABLE queue_legacy_browser (
+                sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_id TEXT NOT NULL UNIQUE, resource_class TEXT NOT NULL
+            );
+            INSERT INTO queue_legacy_browser VALUES(7,'same-owner','agent');
+            PRAGMA user_version=2;
+        """)
+    with pytest.raises(sqlite3.IntegrityError):
+        admission._database(database)
+    with sqlite3.connect(database) as connection:
+        assert connection.execute(
+            "SELECT sequence FROM queue_legacy_browser WHERE owner_id='same-owner'").fetchone() == (7,)
+
+
 def test_preflighted_v2_activation_preserves_live_v1_owner(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     claim, reason = admission.try_acquire(

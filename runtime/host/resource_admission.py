@@ -278,16 +278,26 @@ def _database(path: Path) -> sqlite3.Connection:
         connection.close()
         raise RuntimeError("unsupported durable admission schema")
     legacy_class_tables = []
+    renames = []
     for table in ("queue", "occurrences"):
         existing = connection.execute(
             "SELECT sql FROM sqlite_master WHERE type='table' AND name=?",
             (table,),
         ).fetchone()
-        if existing and "'browser'" not in str(existing[0]):
-            legacy_name = f"{table}_legacy_browser"
-            connection.execute(f"ALTER TABLE {table} RENAME TO {legacy_name}")
+        legacy_name = f"{table}_legacy_browser"
+        interrupted = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+            (legacy_name,),
+        ).fetchone()
+        if interrupted:
             legacy_class_tables.append((table, legacy_name))
-    connection.executescript("""
+        if existing and "'browser'" not in str(existing[0]):
+            if interrupted:
+                connection.close()
+                raise RuntimeError("conflicting browser schema migration")
+            renames.append(f"ALTER TABLE {table} RENAME TO {legacy_name}")
+            legacy_class_tables.append((table, legacy_name))
+    schema = """
         CREATE TABLE IF NOT EXISTS queue (
             sequence INTEGER PRIMARY KEY AUTOINCREMENT,
             owner_id TEXT NOT NULL UNIQUE,
@@ -319,52 +329,70 @@ def _database(path: Path) -> sqlite3.Connection:
             effect_unknown INTEGER NOT NULL DEFAULT 0 CHECK(effect_unknown IN (0,1))
         );
         PRAGMA user_version=2;
-    """)
-    for table, legacy_name in legacy_class_tables:
-        columns = "sequence,owner_id,resource_class" if table == "queue" else (
-            "occurrence_id,owner_id,resource_class,admission_class,base_priority,"
-            "queued_at,state,sequence"
+    """
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        for statement in [*renames, *schema.split(";")]:
+            if statement.strip():
+                connection.execute(statement)
+        for table, legacy_name in legacy_class_tables:
+            columns = "sequence,owner_id,resource_class" if table == "queue" else (
+                "occurrence_id,owner_id,resource_class,admission_class,base_priority,"
+                "queued_at,state,sequence"
+            )
+            if table == "occurrences" and any(
+                    row[1] == "effect_unknown"
+                    for row in connection.execute(f"PRAGMA table_info({legacy_name})")):
+                columns += ",effect_unknown"
+            connection.execute(
+                f"INSERT INTO {table}({columns}) SELECT {columns} FROM {legacy_name}"
+            )
+            connection.execute(f"DROP TABLE {legacy_name}")
+    except Exception:
+        connection.rollback()
+        connection.close()
+        raise
+    try:
+        priority_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(priorities)")
+        }
+        if "admission_policy" not in priority_columns:
+            connection.execute("ALTER TABLE priorities ADD COLUMN admission_policy TEXT")
+        if "next_eligible_at" not in priority_columns:
+            connection.execute(
+                "ALTER TABLE priorities ADD COLUMN next_eligible_at REAL NOT NULL DEFAULT 0")
+        if "base_priority" not in priority_columns:
+            connection.execute("ALTER TABLE priorities ADD COLUMN base_priority TEXT")
+        if "queued_at" not in priority_columns:
+            connection.execute("ALTER TABLE priorities ADD COLUMN queued_at REAL")
+        if "effect_unknown" not in priority_columns:
+            connection.execute(
+                "ALTER TABLE priorities ADD COLUMN effect_unknown INTEGER NOT NULL DEFAULT 0"
+            )
+        occurrence_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(occurrences)")
+        }
+        if "effect_unknown" not in occurrence_columns:
+            connection.execute(
+                "ALTER TABLE occurrences ADD COLUMN effect_unknown INTEGER NOT NULL DEFAULT 0"
+            )
+        # A missing timestamp is not evidence that a waiter has been present forever.
+        migration_now = time.time()
+        connection.execute(
+            """UPDATE priorities
+                  SET base_priority = CASE admission_class
+                      WHEN 'revenue' THEN 'revenue' ELSE 'support' END
+                WHERE base_priority IS NULL"""
         )
         connection.execute(
-            f"INSERT OR IGNORE INTO {table}({columns}) SELECT {columns} FROM {legacy_name}"
+            "UPDATE priorities SET queued_at=? WHERE queued_at IS NULL",
+            (migration_now,),
         )
-        connection.execute(f"DROP TABLE {legacy_name}")
-    priority_columns = {
-        row[1] for row in connection.execute("PRAGMA table_info(priorities)")
-    }
-    if "admission_policy" not in priority_columns:
-        connection.execute("ALTER TABLE priorities ADD COLUMN admission_policy TEXT")
-    if "next_eligible_at" not in priority_columns:
-        connection.execute(
-            "ALTER TABLE priorities ADD COLUMN next_eligible_at REAL NOT NULL DEFAULT 0")
-    if "base_priority" not in priority_columns:
-        connection.execute("ALTER TABLE priorities ADD COLUMN base_priority TEXT")
-    if "queued_at" not in priority_columns:
-        connection.execute("ALTER TABLE priorities ADD COLUMN queued_at REAL")
-    if "effect_unknown" not in priority_columns:
-        connection.execute(
-            "ALTER TABLE priorities ADD COLUMN effect_unknown INTEGER NOT NULL DEFAULT 0"
-        )
-    occurrence_columns = {
-        row[1] for row in connection.execute("PRAGMA table_info(occurrences)")
-    }
-    if "effect_unknown" not in occurrence_columns:
-        connection.execute(
-            "ALTER TABLE occurrences ADD COLUMN effect_unknown INTEGER NOT NULL DEFAULT 0"
-        )
-    # Backfill old v2 rows once.  A missing timestamp is not evidence that a
-    # waiter has been present forever, so use the first migration observation.
-    migration_now = time.time()
-    connection.execute(
-        """UPDATE priorities
-              SET base_priority = CASE admission_class
-                  WHEN 'revenue' THEN 'revenue' ELSE 'support' END
-            WHERE base_priority IS NULL"""
-    )
-    connection.execute(
-        "UPDATE priorities SET queued_at=? WHERE queued_at IS NULL",
-        (migration_now,),
-    )
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        connection.close()
+        raise
     return connection
 
 
