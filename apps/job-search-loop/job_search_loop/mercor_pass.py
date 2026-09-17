@@ -280,7 +280,13 @@ def record_inspections(state_root: Path, result: dict[str, Any], *, run_id: str)
     os.chmod(ledger, 0o600)
 
 
-def record_profile_sync(state_root: Path, result: dict[str, Any], *, run_id: str) -> None:
+def record_profile_sync(
+    state_root: Path,
+    result: dict[str, Any],
+    *,
+    run_id: str,
+    expected_resume_sha256: str = "",
+) -> None:
     """Persist a provider profile readback without copying private field values."""
     sync = result.get("profile_sync")
     if not isinstance(sync, dict):
@@ -291,6 +297,13 @@ def record_profile_sync(state_root: Path, result: dict[str, Any], *, run_id: str
     authenticated = sync.get("authenticated") is True
     if status in {"synced", "unchanged"} and not authenticated:
         status = "unknown"
+    resume_sha256 = str(sync.get("resume_sha256") or "")
+    if (
+        status in {"synced", "unchanged"}
+        and expected_resume_sha256
+        and resume_sha256 != expected_resume_sha256
+    ):
+        status = "unknown"
     ledger = state_root / "profile-sync.jsonl"
     ledger.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     row = {
@@ -298,7 +311,7 @@ def record_profile_sync(state_root: Path, result: dict[str, Any], *, run_id: str
         "authenticated": authenticated,
         "profile_version": str(sync.get("profile_version") or ""),
         "field_hashes": sync.get("field_hashes") if isinstance(sync.get("field_hashes"), dict) else {},
-        "resume_sha256": str(sync.get("resume_sha256") or ""),
+        "resume_sha256": resume_sha256,
         "evidence_ref": str(sync.get("evidence_ref") or ""),
         "run_id": run_id,
         "observed_at": datetime.now(timezone.utc).isoformat(),
@@ -481,7 +494,14 @@ def main(argv: list[str] | None = None) -> int:
         result = _blocked_for_evidence_violation(result, args.evidence_dir, error)
     record_verified_submissions(args.state_root, result, run_id=args.run_id)
     record_inspections(args.state_root, result, run_id=args.run_id)
-    record_profile_sync(args.state_root, result, run_id=args.run_id)
+    record_profile_sync(
+        args.state_root,
+        result,
+        run_id=args.run_id,
+        expected_resume_sha256=str(
+            (context.get("profile_material") or {}).get("resume_sha256") or ""
+        ),
+    )
     output = args.evidence_dir / "mercor-pass-summary.json"
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     os.chmod(output, 0o600)
