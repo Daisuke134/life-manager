@@ -630,6 +630,22 @@ class CrowdWorksPaidAdapter:
                 "contract_id": _text(item.get("work_id")), "milestone_id": _text(item.get("milestone_id")),
                 "form_revision_sha256": form_sha256}
 
+    def _fill_delivery_message(self, value: str, form: Any | None = None) -> None:
+        """Prime CrowdWorks' duplicate message fields before enabling delivery submit."""
+        areas = self.page.locator('textarea[name="message[body]"]')
+        filled = False
+        for index in range(areas.count()):
+            try:
+                area = areas.nth(index)
+                visible = area.is_visible()
+            except (AttributeError, TypeError):
+                continue
+            if visible:
+                area.fill(value)
+                filled = True
+        if not filled and form is not None:
+            form.locator('textarea[name="message[body]"]').fill(value)
+
     def _complete_once(self, item: Mapping[str, Any], payload: Mapping[str, Any]) -> None:
         self._goto_contract(_text(item.get("work_id")))
         selector = f'form[action="/milestones/{_text(payload.get("milestone_id"))}/complete"]'
@@ -673,8 +689,8 @@ class CrowdWorksPaidAdapter:
         if len(visible) != 1:
             raise RuntimeError("crowdworks_paid_milestone_unavailable")
         form = visible[0]
-        form.locator('textarea[name="message[body]"]').fill(
-            "Googleフォームへの回答を完了しました。ご確認のほどよろしくお願いいたします。")
+        self._fill_delivery_message(
+            "Googleフォームへの回答を完了しました。ご確認のほどよろしくお願いいたします。", form)
         # The official form has duplicate milestone forms in the DOM.  Fence the
         # effect to the selected milestone's named submit control, rather than a
         # same-looking generic submit input.
