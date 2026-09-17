@@ -9,6 +9,7 @@ Status: `IN_PROGRESS` — production code and schema are live; the seven-day nat
 - Production Supabase tables: `lm_verified_outcomes`, `lm_mental_outcome_send_log`, and `lm_mental_profile_tags` exist with additive columns, checks, unique keys, and RLS enabled.
 - `LM_MENTAL_OUTCOME_INGEST_SECRET` is present in production Railway variables.
 - `LM_MENTAL_V1_ALLOWED_UIDS` is present and contains only the Dais tenant UID; the value is never written here.
+- Production preflight for that allowlisted tenant returned one matching `lm_users` row and one preferences row; Telegram chat, Calendar, Gmail, paid entitlement, timezone, notifications, and daily automation were all present/enabled. Raw identifiers are intentionally omitted.
 - `lm_mental_profile_tags` is present with RLS, closed kind/basis/explicit/source-hash checks, expiry/supersession columns, and zero rows until an explicit source-backed profile statement is available.
 - Production scheduler logs show `organ:mental-outcome` and `organ:mental` startup/ticks.
 
