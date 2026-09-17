@@ -1742,6 +1742,34 @@ def test_durable_reservation_fills_revenue_floor_around_one_borrower(
         admission.release(claim)
 
 
+def test_three_revenue_slots_remain_with_two_support_owners(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="5")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "3")
+    admission.activate_durable_v2()
+    claims = []
+    for resource_class, owner in (("agent", "support-agent"),
+                                  ("deterministic", "support-deterministic")):
+        admission.enqueue_durable(resource_class, owner, admission_class="borrow")
+        claim, reason = admission.claim_durable(
+            resource_class, owner, admission_class="borrow")
+        assert claim is not None and reason == "acquired"
+        claims.append(claim)
+
+    admission.enqueue_durable("browser", "third-support", admission_class="borrow")
+    claim, reason = admission.claim_durable(
+        "browser", "third-support", admission_class="borrow")
+    assert claim is None and reason == "capacity_busy"
+    for index in range(3):
+        owner = f"paid-{index}"
+        admission.enqueue_durable("agent", owner, admission_class="revenue")
+        claim, reason = admission.claim_durable(
+            "agent", owner, admission_class="revenue")
+        assert claim is not None and reason == "acquired"
+        claims.append(claim)
+    for claim in claims:
+        admission.release_and_reserve(claim, reserve=False)
+
+
 def test_legacy_revenue_uses_host_capacity_beyond_borrow_agent_limit(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="3")
