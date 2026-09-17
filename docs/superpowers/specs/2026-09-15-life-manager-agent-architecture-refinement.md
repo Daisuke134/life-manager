@@ -195,6 +195,13 @@ does not transfer ownership of their browser/account state.
   independent read-only review SHIP. **Not main/loaded.** Historical unknown
   rows and other lanes still need official readback-driven reconciliation;
   this bounded patch must not be reported as fleet-wide natural recovery.
+- [x] **Source-only browser-class DB migration recovery:** main-derived branch
+  `fix/connector-admission-main-20260917` commit `ab9118d139` makes old-table
+  rename, copy, drop, column additions and priority backfill one SQLite
+  transaction. It resumes an interrupted `*_legacy_browser` table without
+  losing queued work or `occurrences.effect_unknown=1`; conflicting owner
+  rows fail closed without dropping the legacy table. RED→GREEN, admission
+  85/85 PASS, fresh read-only review SHIP. **Not main/loaded.**
 - [ ] `borrow` is **not deleted**: current `resource_admission.py` SQLite
   schema/capacity calculations and `lm_loop_run.py` default still use
   `admission_class=borrow` for maintenance. It is an old reserved-capacity
