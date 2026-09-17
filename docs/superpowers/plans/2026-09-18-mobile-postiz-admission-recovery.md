@@ -44,7 +44,7 @@
 - [x] Write a failing test that a publish occurrence's summary/event contains the exact occurrence ID, `effect_key`, `job_id`, account/integration reference and media/caption hashes before an effect-bearing child exits.
 - [x] Write a failing test that a missing or malformed identity produces a held `effect_unknown` result and never becomes retryable.
 - [x] Implement the smallest repository-owned identity record using the existing runtime scratch and private state paths; keep credentials and provider tokens outside the release. Nonzero effect-bearing runs persist only a validated sidecar and add an `lm-effect://` evidence reference.
-- [x] Run the focused Python tests and validate the event schema: 109 relevant tests pass.
+- [x] Run the focused Python tests and validate the event schema: 109 focused tests pass (110 when the isolated CEO light-pass check is included).
 
 ### Task 3: Add provider-owned official readback proof
 
@@ -68,7 +68,7 @@
 
 - [x] Write tests proving the script skips `claimed` rows and inconclusive/mismatched receipts.
 - [x] Implement owner-scoped, read-only proof gating with a redacted output. The script never issues SQL updates or calls `resolve_unknown_occurrence`.
-- [x] Run the script in read-only mode for a historical occurrence; it returned `identity_missing_or_invalid` and left the ledger unchanged.
+- [x] Run the script in read-only mode for a historical occurrence; it returned `identity_missing_or_invalid` and left the ledger unchanged. PR #5431 merged as `b325a34d5b8e3ca9eaecc396311026d58d0ce399`.
 - [ ] Implement a provider-owned executor that performs official Postiz API/account readback in the same call and invokes `resolve_unknown_occurrence` only after that fresh proof. This remains blocked for historical rows whose exact identity is missing.
 
 ### Task 5: Resume and verify one natural wake
@@ -96,6 +96,6 @@
 
 ### Task 7: Close out
 
-- [ ] Run focused tests, `git diff --check`, source-boundary verification and the relevant `lm-loop` targeted status checks.
-- [ ] Update the spec evidence with verified/inconclusive counts and the exact remaining fences.
+- [x] Run focused tests, `git diff --check`, source-boundary verification and the relevant `lm-loop` targeted status checks for the read-only reconciler; six reconciler tests pass and no ledger row changed.
+- [x] Update the spec evidence with verified/inconclusive counts and the exact remaining fences; the 17 historical mobile/Honne rows remain inconclusive or claimed-held.
 - [ ] Commit and push the dedicated branch, merge after checks pass, and remove the exact worktree without force.
