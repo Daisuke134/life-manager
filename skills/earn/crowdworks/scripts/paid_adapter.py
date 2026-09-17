@@ -281,6 +281,14 @@ class CrowdWorksPaidAdapter:
             value = raw.get(key)
             if value is not None:
                 result[key] = _text(value)
+        form_urls = raw.get("form_urls")
+        if form_urls is not None:
+            if (not isinstance(form_urls, list)
+                    or not all(isinstance(value, str) and _google_form_url(value) for value in form_urls)):
+                raise RuntimeError("crowdworks_paid_task_unavailable")
+            normalized_urls = sorted(set(form_urls))
+            result["form_urls"] = normalized_urls
+            result["form_url"] = result.get("form_url") if len(normalized_urls) == 1 else None
         return result
 
     def _list_contracts(self) -> list[dict[str, str]]:
@@ -374,10 +382,11 @@ class CrowdWorksPaidAdapter:
             application_date = self._receipt_application_date(title, proposal_id)
         links = self.page.locator('a[href]').evaluate_all("nodes => nodes.map(a => a.href).filter(Boolean)")
         form_urls = sorted({link for link in links if isinstance(link, str) and _google_form_url(link)})
-        if match is None or len(form_urls) > 1:
+        if match is None:
             raise RuntimeError("crowdworks_paid_task_unavailable")
         return {"work_id": work_id, "title": title, "client": client, "provider_state": state,
-                "milestone_id": match.group(1), "form_url": form_urls[0] if form_urls else None,
+                "milestone_id": match.group(1), "form_urls": form_urls,
+                "form_url": form_urls[0] if len(form_urls) == 1 else None,
                 "proposal_id": proposal_id, "application_date": application_date}
 
     def _proposal_application_date(self, proposal_id: str) -> str | None:
@@ -440,7 +449,8 @@ class CrowdWorksPaidAdapter:
 
     def _observation(self, item: Mapping[str, Any]) -> dict[str, str]:
         stable = {key: item.get(key) for key in ("work_id", "title", "client", "provider_state",
-                                                  "milestone_id", "form_url", "proposal_id", "application_date")}
+                                                  "milestone_id", "form_url", "form_urls", "proposal_id",
+                                                  "application_date")}
         return {"provider": "crowdworks", "account_id": self.account_id,
                 "work_id": _text(item.get("work_id")), "latest_event_id": _digest(stable),
                 "provider_state": _text(item.get("provider_state")), "observed_at": _now()}
@@ -514,7 +524,7 @@ class CrowdWorksPaidAdapter:
             item = self._cached_item(work_id) or self._targeted_detail(work_id)
             return {"contract": dict(item), "delivery": {
                 "formal_delivery_authorized": item["provider_state"] == "funded",
-                "form_required": bool(item.get("form_url")),
+                "form_required": bool(item.get("form_urls") or item.get("form_url")),
             }}
         finally:
             self.close()
