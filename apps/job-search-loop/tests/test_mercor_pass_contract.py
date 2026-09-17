@@ -232,6 +232,32 @@ class MercorPassContractTests(unittest.TestCase):
             row = json.loads((state / "profile-sync.jsonl").read_text(encoding="utf-8"))
             self.assertEqual(row["status"], "unknown")
 
+    def test_profile_sync_promotes_unknown_when_exact_readback_matches(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "profile-proposal.json").write_text(json.dumps({
+                "profile_version": "profile-v1",
+                "field_hashes": {"claims": "hash"},
+                "resume_sha256": "resume-hash",
+            }), encoding="utf-8")
+            evidence_root = state / "evidence"
+            evidence_root.mkdir()
+            (evidence_root / "profile-readback.json").write_text("{}\n", encoding="utf-8")
+            record_profile_sync(state, {
+                "profile_sync": {
+                    "status": "unknown",
+                    "authenticated": True,
+                    "resume_visible": True,
+                    "parser_reviewed": True,
+                    "profile_version": "profile-v1",
+                    "field_hashes": {"claims": "hash"},
+                    "resume_sha256": "resume-hash",
+                    "evidence_ref": "profile-readback.json",
+                }
+            }, run_id="run-profile", evidence_root=evidence_root)
+            row = json.loads((state / "profile-sync.jsonl").read_text(encoding="utf-8"))
+            self.assertEqual(row["status"], "unchanged")
+
     @patch("job_search_loop.mercor_pass.subprocess.run")
     def test_host_capabilities_keep_unknown_sysctl_values_explicit(self, run):
         run.return_value.returncode = 1
@@ -319,6 +345,7 @@ class MercorPassContractTests(unittest.TestCase):
             "Never stop after the first Explore page",
             "Start every wake at Explore page 1 when pagination is visible",
             "Collect the distinct listing cards from the current page before opening detail",
+            "Do not spend detail slots in DOM order",
             "inspect pages 1 through 4 in order",
             "Submit every ready distinct listing",
             "immediately return a",
