@@ -81,7 +81,7 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   12:28:15Z, claimed `18d619fc6f2cbdd8-32593`, and reached outer pass at
   12:30:16Z; that occurrence is also released/known. Both status readbacks
   show installed/event SHA `f1f5bcb91d`.
-- [ ] **A15-08 — prove a browser-class handoff.** Join the same four events for
+- [x] **A15-08 — prove a browser-class handoff.** Join the same four events for
   two browser owners without starting a provider submission or touching a
   sibling profile. A no-work terminal is valid lifecycle evidence only.
   Current registry and admission SQLite have only one browser-class owner,
@@ -259,7 +259,23 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   Probe natural run `18d639069c002cb8-54450` claimed browser at
   21:30:02Z, reached outer pass at 21:30:30Z, and its occurrence is
   `released/effect_unknown=0`. No Connector natural claim on `fc31d1227b63`
-  has yet been observed, so A15-08 remains open.
+  had yet been observed at that readback. The next natural Connector run
+  `18d63a6d2b0a4738-90273` claimed browser on that same SHA at 21:55:42Z,
+  reached outer `fail/entrypoint_exit_1` at 21:56:07Z, and released its
+  occurrence with `effect_unknown=0`. This is a Connector-internal failure
+  for its separate owner, not an unreturned browser claim. The following
+  natural probe run `18d63a77cd9b67c0-91102` started at 21:56:28Z, reached
+  outer pass at 21:56:43Z, and released its occurrence with
+  `effect_unknown=0`; the browser queue and reservation ended at zero.
+  Probe queue age fell from under 15 seconds to zero. Both loaded plists,
+  events and admission occurrences retain SHA `fc31d1227b63`. The
+  Connector wake `wake-80c07bbd05aaaa6ea4320a9a` recorded only
+  `observe/calendar_busy` in action history; its wake report was
+  `circuit_open/wake_boundary_failed`, and no matching candidate-attempt or
+  delivery receipt exists. Its Telegram status report is not a provider
+  submission. Probe used its isolated temporary profile and reported no
+  effect. A fresh read-only review accepted this lifecycle chain while
+  keeping Connector business repair with its separate owner.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
@@ -332,8 +348,9 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   0; free bytes rose 638,849,024 to 1,236,148,224. A second natural run
   `18d61e7fd253a1d8-92885` reached outer pass at 13:30:01Z on loaded SHA
   `deb086429a1a` while global `current` had advanced to complete main release
-  `f4d701999f1`. **A15 Foundation verdict: NOT DONE pending a same-SHA
-  browser handoff.** A distinct-owner lifecycle was observed in A15-08's
+  `f4d701999f1`. At that snapshot, A15 was not Done because the same-SHA
+  browser handoff was still missing. A distinct-owner lifecycle was observed
+  in A15-08's
   Connector `18d624c67945c920-61315` → probe
   `18d624f5e990c7f0-67714` natural terminal chain and released SQLite
   occurrences. Its waiting age fell from about 1.7 minutes to zero; the
@@ -367,6 +384,16 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   loaded/event SHA `d0401d93`. These observations do not claim provider effects
   or every loop's business outcome: Capafy and other exact effect/readback
   fences remain with their owners.
+  Current final-audit blocker: the global `current` symlink advanced to
+  main-derived `9b917377820c` at 22:00:57Z. All 7,374 files tracked by
+  that commit were present in the release, but its `RELEASE.json` omitted
+  `release_paths`, `runtime_python` and `runtime_python_cache_tag`. The
+  A15-03/A15-14 complete-release readback requires explicit
+  `release_paths=ALL`, so content presence alone does not close this gate.
+  The canonical main `bin/cut-loop-release.sh` writes these fields and
+  guards a full main-derived `current`; recut `origin/main` through that
+  existing path after the release-cut owner lock is free, then read back the
+  new manifest and loaded SHA without touching Connector's separate repair.
 
 A15-02 integration observation: an earlier PR #5362 head at `eb72e7cb1b` had
 one failing `OSS self-contained boundary` check. The exact inventory digest
