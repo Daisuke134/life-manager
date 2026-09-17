@@ -381,6 +381,33 @@ def test_started_child_timeout_and_signal_mark_effect_unknown_before_release(tmp
             claim, requeue=False, reserve=True, effect_unknown=True)
 
 
+def test_none_effect_child_failure_requeues_without_effect_unknown(tmp_path):
+    """A control/report loop has no external effect to fence after a failed child."""
+    claim = tmp_path / "claim-none-effect"
+    claim.write_text("owned")
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        return 1
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 60},
+            "provider_route": "deterministic", "resource_class": "agent",
+            "admission_class": "borrow", "effect_class": "none",
+        }, "marketing-owner-events", {}, tmp_path / "receipt") == 1
+    release.assert_called_once_with(claim, requeue=False, reserve=True)
+
+
 def test_proven_pre_effect_failure_releases_owner_for_next_wake(tmp_path):
     claim = tmp_path / "claim"
     claim.write_text("owned")
@@ -587,10 +614,16 @@ def test_all_coconala_lanes_enter_revenue_admission(tmp_path):
                 tmp_path / f"{loop_id}.json",
             ) == 75
 
-    assert enqueue.call_args_list == [
-        call("agent", loop_id, admission_class="revenue",
-             priority=registry[loop_id]["priority"]) for loop_id in loop_ids
-    ]
+    expected_enqueue = []
+    for loop_id in loop_ids:
+        kwargs = {
+            "admission_class": "revenue",
+            "priority": registry[loop_id]["priority"],
+        }
+        if registry[loop_id].get("effect_class") == "none":
+            kwargs["allow_no_effect_recovery"] = True
+        expected_enqueue.append(call("agent", loop_id, **kwargs))
+    assert enqueue.call_args_list == expected_enqueue
     assert claim.call_args_list == [
         call("agent", loop_id, admission_class="revenue") for loop_id in loop_ids
     ]

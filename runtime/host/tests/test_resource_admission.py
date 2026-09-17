@@ -1163,6 +1163,28 @@ def test_connector_old_unknown_is_observable_without_blocking_new_wake(tmp_path,
     admission.release_and_reserve(new, reserve=False)
 
 
+def test_no_effect_owner_releases_stale_unknown_before_new_wake(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "marketing-owner-events"
+    admission.enqueue_durable("agent", owner, admission_class="borrow",
+                              occurrence_id=f"{owner}:old", now=100)
+    old, reason = admission.claim_durable("agent", owner, admission_class="borrow", now=101)
+    assert old is not None and reason == "acquired"
+    admission.release_and_reserve(old, effect_unknown=True, reserve=False, now=102)
+
+    ticket, reason = admission.enqueue_durable(
+        "agent", owner, admission_class="borrow",
+        occurrence_id=f"{owner}:new", allow_no_effect_recovery=True, now=103)
+
+    assert ticket is not None
+    assert reason in {"ready", "fifo_wait", "capacity_busy"}
+    rows = {row["occurrence_id"]: row for row in durable_rows(tmp_path, "occurrences")}
+    assert (rows[f"{owner}:old"]["state"], rows[f"{owner}:old"]["effect_unknown"]) == (
+        "released", 0,
+    )
+
+
 def test_expired_running_heartbeat_keeps_live_child_claim(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")

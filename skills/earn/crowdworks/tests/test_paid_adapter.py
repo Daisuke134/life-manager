@@ -855,6 +855,55 @@ def test_milestone_completion_targets_only_the_visible_duplicate_form():
     assert not any(row[:2] == ("fill", "hidden") for row in selected)
 
 
+def test_milestone_completion_opens_the_contract_dialog_anchor():
+    module = load()
+    events = []
+    page = None
+
+    class Control:
+        def __init__(self, visible=True): self.visible = visible
+        def is_visible(self): return self.visible
+        def count(self): return 1
+        def click(self): events.append("dialog"); page.dialog_open = True
+        def fill(self, value): events.append(("fill", value))
+        def is_disabled(self): return False
+        def wait_for(self, **kwargs): events.append(("wait", kwargs))
+
+    class Form:
+        def locator(self, selector):
+            return Control(page.dialog_open)
+
+    class Forms:
+        def count(self): return 1
+        def nth(self, index): return Form()
+
+    class Page:
+        dialog_open = False
+        def locator(self, selector):
+            if selector.startswith('a[href="#message-dialog-completion-'):
+                return Control(True)
+            if selector.startswith('form[action="/milestones/13798056/complete"]') and "textarea" in selector:
+                return Control(page.dialog_open)
+            if selector.startswith('form[action="/milestones/13798056/complete"]'):
+                return Forms()
+            return Control(False)
+        def get_by_text(self, text, exact=False):
+            class EmptyTabs:
+                def count(self): return 0
+            return EmptyTabs()
+        def wait_for_load_state(self, *args, **kwargs): pass
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    page = Page()
+    adapter.page = page
+    adapter._goto_contract = lambda work_id: None
+
+    adapter._complete_once(funded(), {"milestone_id": "13798056"})
+
+    assert "dialog" in events
+    assert any(item[0] == "fill" for item in events if isinstance(item, tuple))
+
+
 def test_milestone_completion_reveals_mobile_only_todo_surface_before_effect():
     module = load()
     events = []
