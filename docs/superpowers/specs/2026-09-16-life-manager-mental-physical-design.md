@@ -412,11 +412,35 @@ Examples of the intended Japanese register:
 
 These examples are editorial candidates, not pre-approved production strings. The final localized catalog records source inspiration, locale-native text, reviewer, version, and banned/allowed contexts. Blind scoring of exact translated words is insufficient; naturalness is a user-facing acceptance criterion in Japanese and English before either is sent broadly. A reviewer reads each line aloud and rejects awkward pronouns, translated metaphors, exaggerated certainty, and register inconsistent with the person's preference; the user can correct a line in ordinary chat and that correction supersedes the variant for that user.
 
-### 9.6 Personalization and self-improvement
+### 9.6 Personalization and self-improvement without a human loop
 
-Personalization has three levels: (1) explicit durable preferences and user statements, (2) verified events and goals from owning loops, and (3) observed reception from explicit corrections or ordinary conversation. It does not infer preference from silence or claim to know a feeling from an email. Selection and timing can improve gradually, but a new personalization rule is retained only when it improves a measured outcome without raising intrusive-message or false-claim rates. A muted/ignored or stale signal is not evidence of emotional benefit.
+Normal operation never asks for a rating, button tap, survey answer, or “did this help?” reply. The person can speak naturally if they want; that unsolicited correction is an input, not a required step.
 
-The daily candidate cap remains three, but a verified event-driven intervention replaces a routine message. The system records why it sent or stayed silent, source receipt IDs, chosen text version, Telegram message ID, and subsequent explicit user correction. One owner updates the profile; a mail owner, Job Hunter, and MENTAL do not independently invent different stories about the same result.
+The agent improves three different things, in this order:
+
+1. **Truth:** did every personal claim have the correct source receipt and freshness window?
+2. **Receptivity:** did the system avoid Calendar busy time, quiet hours, duplicate reports, notification pile-up, and repeated text?
+3. **Fit:** did the selected source theme, tone, locale variant, and timing match explicit profile evidence?
+
+The system does not claim emotional benefit from a delivered message, lack of reply, read state, or a later unrelated action. Those observations can influence a conservative receptivity policy only after repeated evidence; they never become `helped=true`.
+
+Every decision records an internal evaluation row:
+
+```text
+decision_id
+source_receipt_refs
+profile_version
+candidate_quote_ids
+selected_quote_id or silence_reason
+calendar_busy_version
+delivery_window
+telegram_message_id or null
+policy_version
+```
+
+An offline evaluator can propose a policy change from these rows. The harness accepts it only when replayed cases show lower false-claim, interruption, duplicate, and repetition rates without reducing verified material-outcome reporting. The new policy starts in a bounded canary and can be rolled back by policy version. No user interaction is needed for this loop.
+
+One owner updates the profile. The mail owner, Job Hunter, Calendar, and MENTAL do not independently invent different stories about the same result.
 
 ### 9.7 Crisis boundary
 

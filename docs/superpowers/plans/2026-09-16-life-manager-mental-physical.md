@@ -16,11 +16,13 @@
 - Do not add a daemon, scheduler, database, queue, feedback UI, inline keyboard, or LLM framework.
 - V1 enables only `affirmation`, `manifestation`, and `mindfulness_inquiry`.
 - Messages are plain Telegram text with zero buttons, zero callback data, and zero reply instruction.
+- Normal operation never asks the user to rate, approve, react, or report whether a message helped.
 - Default three opportunities per local day, maximum three delivered messages, and minimum three hours between them.
 - Calendar context is used only to suppress delivery during an event.
 - No preparation, achievement, emotion, activity, hydration, posture, or physical-state claim without an exact authoritative source.
 - A template variable is legal only with a source, timestamp, freshness limit, transformation, and matching claim.
 - Railway production truth is the deployment `commitHash`, live service logs, Telegram message ID, durable send row, and replay-zero.
+- Self-improvement optimizes truth, receptivity, duplication, repetition, and source fit; it does not infer emotional benefit from silence or delivery.
 
 ## File map
 
@@ -686,6 +688,20 @@ Do not route YC/general Gmail directly into MENTAL until an owning mail workflow
 - [ ] Compare a changed policy with its prior version on verified cases: useful explicit reactions, intrusive corrections, false personal claims, duplicate sends, and missed material outcome reports. Keep the new policy only if it improves the intended signal without worsening the safety counters.
 - [ ] Test replay of the same correction and the same Gmail outcome. Both must have one durable update/effect at most.
 - [ ] Do not claim emotional benefit from silence, read receipts, or a delivered Telegram ID.
+
+### Task 13B: Add autonomous operational self-improvement
+
+**Files:**
+- `apps/life-manager/lib/mental-policy-eval.js`
+- `apps/life-manager/lib/mental-policy-eval.test.js`
+- `apps/life-manager/lib/mental-send-log.js`
+- `docs/evidence/life-manager-mental-canary.md`
+
+- [ ] Record a compact decision row containing source receipt refs, profile version, candidate quote IDs, selected quote or silence reason, Calendar busy version, window, Telegram message ID, and policy version. Do not store mail bodies or infer emotional outcome.
+- [ ] Define the offline scorecard: false personal claims, busy-time sends, duplicate result reports, repeated text within 14 days, unsupported locale text, and missed verified material reports. Do not include `mood improved` or `message helped` because those are unobserved.
+- [ ] Add replay fixtures for a rejection, offer, interview, ambiguous mail, Calendar meeting, three-message cap, and no-context ordinary day. The evaluator may propose a policy version only when replay lowers safety/fit violations without reducing verified material reports.
+- [ ] Start a changed policy in a bounded Dais canary, record old/new policy IDs, and provide a rollback to the previous policy version. No rating buttons or user survey are allowed.
+- [ ] Treat an unsolicited user correction as a direct profile signal only when it cites a prior message or timing; never send a prompt requesting that correction.
 
 ### Task 14: Crisis-response safety boundary
 
