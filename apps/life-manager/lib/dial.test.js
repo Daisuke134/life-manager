@@ -2,7 +2,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { amdDialOptions, placeCall } = require("./dial.js");
+const { amdDialOptions, placeCall, startRecording } = require("./dial.js");
 const { encodeTestCallClientState, decodeCallClientState } = require("./telnyx-webhook.js");
 
 const WAKE_URL = "wss://life-call-production.up.railway.app/ws?summary=x&wakeUid=lm_abc&wakeEventKey=k1";
@@ -125,6 +125,25 @@ test("placeCall sends the reserved connected-second ceiling to Telnyx", async ()
     assert.equal(result.ok, true);
     assert.equal(JSON.parse(requests[1].options.body).time_limit_secs, 37);
   }));
+});
+
+test("recording keeps caller and AI on separate channels for audible-call verification", async () => {
+  const originalFetch = global.fetch;
+  const originalKey = process.env.TELNYX_API_KEY;
+  let body;
+  process.env.TELNYX_API_KEY = "test-api-key";
+  global.fetch = async (_url, options) => {
+    body = JSON.parse(options.body);
+    return jsonResponse({ data: {} });
+  };
+  try {
+    assert.equal((await startRecording("v3:test")).ok, true);
+    assert.deepEqual(body, { format: "mp3", channels: "dual" });
+  } finally {
+    global.fetch = originalFetch;
+    if (originalKey === undefined) delete process.env.TELNYX_API_KEY;
+    else process.env.TELNYX_API_KEY = originalKey;
+  }
 });
 
 test("placeCall rejects a reserved limit below Telnyx's 30-second minimum before any request", async () => {

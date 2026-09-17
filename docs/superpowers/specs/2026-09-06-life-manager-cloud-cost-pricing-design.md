@@ -254,6 +254,12 @@ webhookへ先に200を返すが、永続的な課金台帳の実装例ではな�
 各wakeのsession IDに一意に一致する終了済み・未接続・通話0秒の履歴を29/29件確認した。
 既存の所有token付き精算RPCで29件を`0`秒の`succeeded`へ確定し、使用扱いは3,572秒から92秒、
 残枠は3,508秒となった。旧予約は削除せず、精算済み行として保持する。
+予定wakeの本番E2Eは、発信・終了webhook・秒数精算までは通ったが会話はFAIL。
+最初はDais本人の応答をAMDが`machine`と誤判定して3秒で切断した。
+AMD OFFの再試行は14秒接続したものの、本人は自分だけが話しAIの声は聞こえなかった。
+`gotAudio=true`とWebSocket送信フレーム数はTelnyxでの再生証明ではない。
+次の通話前にTelnyxのerror/mark応答、送信音声の長さ・音量、Geminiの入力/出力/割り込みを
+内容を記録せずに計測し、AI音声がどこで止まるかを確定する。
 
 **To-be:** 予定時刻のwakeが正確な残枠を使い、30秒以上なら上限付きで1回だけ発信する。
 終了後は署名済み[`call.hangup`](https://developers.telnyx.com/docs/voice/programmable-voice/voice-api-webhooks)
@@ -264,7 +270,8 @@ webhookへ先に200を返すが、永続的な課金台帳の実装例ではな�
 1. **DONE:** 残留`accepted`29件をwake sessionとTelnyx CDRで照合し、29件を接続0秒で精算する。
 2. 終了webhookや通話時間取得が失敗しても`accepted`を無期限に抱えないCDR再照合を既存wake ownerへ組み込み、
    二重発信・過少計上を防ぐテストと本番自然起動のreadbackを通す。
-3. 本番の通常wakeで、30秒未満の無発信と30秒以上の発信・Telnyx通話結果・ledger精算を読み戻す。
+3. 本番の通常wakeで、30秒未満の無発信と30秒以上の発信・Telnyx通話結果・ledger精算を読み戻し、
+   本人がAIの声を聞き会話できたことまで確認する。送信フレーム数だけで会話成功にしない。
 
 無料枠到達時の正本copy:
 
