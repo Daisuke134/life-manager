@@ -20,7 +20,6 @@ from unittest.mock import patch
 import runtime.loop.lm_loop as lm_loop
 from runtime.loop.lm_loop import apply_live
 from runtime.loop.lm_loop_apply import apply_registry, build_apply_plan, install_one
-from runtime.loop.launchctl_pending_guard import check_service
 
 
 SHA = "a" * 40
@@ -994,45 +993,6 @@ class LmLoopApplyTest(unittest.TestCase):
 
         install_one(rendered, target, launchctl, attempts=1, sleeper=sleeps.append)
         self.assertEqual(sleeps, [1.0])
-
-    def test_pending_bootout_guard_restores_old_plist_and_waiter(self):
-        (self.root / "config").mkdir()
-        registry_path = self.root / "config/loop-registry.json"
-        registry_path.write_text(json.dumps(registry()))
-        admission_root = self.root / "admission"
-        admission_root.mkdir()
-        with sqlite3.connect(admission_root / "admission-v2.sqlite3") as connection:
-            connection.execute("CREATE TABLE queue (owner_id TEXT)")
-            connection.execute("CREATE TABLE occurrences (owner_id TEXT, state TEXT, effect_unknown INTEGER)")
-            connection.execute("INSERT INTO queue VALUES ('example')")
-            connection.execute("INSERT INTO occurrences VALUES ('example', 'queued', 0)")
-        old_args = ["/old/bin/lm-loop-run", "example", "/old"]
-        old_bytes = plistlib.dumps({
-            "Label": "ai.anicca.example", "ProgramArguments": old_args,
-        })
-        target = self.root / "installed.plist"
-        target.write_bytes(old_bytes)
-        rendered = build_apply_plan(registry(), self.root, SHA)[0]
-        calls = []
-
-        def launchctl(args):
-            calls.append(args[0])
-            if args[0] == "print":
-                return 0, "arguments = {\n" + "\n".join(old_args) + "\n}\nstate = not running"
-            if args[0] == "bootout":
-                assert check_service(registry_path, args[1]) == 75
-                return 75, "pending admission owner"
-            return 5, "service already loaded"
-
-        with self.assertRaises(RuntimeError):
-            install_one(rendered, target, launchctl, attempts=1, sleeper=lambda _: None)
-        self.assertEqual(target.read_bytes(), old_bytes)
-        self.assertIn("bootout", calls)
-        with sqlite3.connect(admission_root / "admission-v2.sqlite3") as connection:
-            self.assertEqual(connection.execute("SELECT owner_id FROM queue").fetchall(),
-                             [("example",)])
-            self.assertEqual(connection.execute("SELECT state FROM occurrences").fetchall(),
-                             [("queued",)])
 
     def test_reconcile_rebinds_unloaded_plist_without_loading_it(self):
         target = self.root / "installed.plist"

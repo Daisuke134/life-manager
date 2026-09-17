@@ -192,18 +192,8 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   `fail/entrypoint_exit_124` at 19:51:14Z and its occurrence became
   `released/effect_unknown=1`; that exact effect fence is untouched. Probe's
   occurrence stayed `queued/effect_unknown=0` with browser queue sequence
-  32683 rather than being cancelled at that readback. At 19:53:28Z the probe
-  was nevertheless installed on `47b01035`; the old queued occurrence became
-  cancelled, and run `18d633c2e82f1ac0-63254` passed on the new SHA at
-  19:53:58Z. The reconciler stdout listed the probe in `skipped_pending`
-  while an exact-current apply failed, so that run did not prove it was the
-  rebind actor. A separate older dispatch or apply caller can still bypass the
-  newer Python reconcile guard but calls the current release's
-  `launchctl-safe` for bootout. A branch-local targeted bootout guard now
-  refuses a managed owner with registered known queued or claimed admission,
-  and fails closed on unreadable admission state. Its focused RED-to-green
-  test passed; CI/main integration and a later natural same-SHA handoff remain
-  required to close this lifecycle gate.
+  32683 rather than being cancelled. A later natural probe claim and terminal
+  are still needed to close this lifecycle gate.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a

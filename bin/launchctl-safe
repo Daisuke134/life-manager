@@ -3,7 +3,6 @@ set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 PREFLIGHT="$ROOT/skills/_shared/lib/launchd_preflight.py"
-PENDING_GUARD="$ROOT/runtime/loop/launchctl_pending_guard.py"
 RECEIPT=${LIFE_MANAGER_LAUNCHD_PREFLIGHT_RECEIPT:-"$HOME/.local/state/life-manager/launchd-control-plane-preflight.json"}
 
 if [ "${1:-}" = "preflight" ]; then
@@ -41,9 +40,6 @@ case "$1" in
       echo "launchctl mutation blocked: invalid Aqua/user bootstrap; receipt=$RECEIPT" >&2
       exit "$rc"
     }
-    if [ "$1" = bootout ] && [ "$#" -eq 2 ]; then
-      /usr/bin/python3 "$PENDING_GUARD" "$ROOT/config/loop-registry.json" "$2"
-    fi
     exec /bin/launchctl "$@"
     ;;
 esac
