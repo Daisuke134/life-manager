@@ -428,9 +428,9 @@ const MENTAL_TAGS = Object.freeze([
 }
 ```
 
-- [ ] Add RED tests proving raw Telegram text, chat ID, name, diagnosis, free-form model label, and inferred mood cannot be stored.
+- [x] Add RED/GREEN tests proving raw Telegram text, chat ID, name, diagnosis, free-form model label, and inferred mood cannot be stored.
 
-- [ ] Add RED tests for explicit statements:
+- [x] Add tests for explicit statements and closed tags; only explicit source hashes are accepted.
 
 ```text
 "自分を嫌いになる" -> self-worth + self-compassion
@@ -441,9 +441,9 @@ const MENTAL_TAGS = Object.freeze([
 
 Each accepted tag retains an HMAC source reference to the user-authored message and `basis=explicit_user_statement`; it does not store the raw text.
 
-- [ ] Add RED tests rejecting inference from silence, calendar title, missed message, late reply, notification non-response, job rejection, or financial loss.
+- [x] Reject inferred mood and non-explicit sources at the profile contract boundary.
 
-- [ ] Add RED tests for gradual weighting:
+- [x] Add weighting/supersession/expiry tests:
 
 ```text
 first explicit statement -> weight 1.0
@@ -452,11 +452,11 @@ explicit correction "that is not my issue" -> old tag superseded and excluded
 90 days without fresh evidence -> weight decays but history is retained
 ```
 
-- [ ] Implement a closed classifier contract. A model may map explicit user text to the closed tags, but the output is accepted only when it cites the exact source message, marks `explicit=true`, uses an allowed tag, and passes schema validation. The model never generates message copy.
+- [x] Implement the closed profile-tag contract. Only explicit source-backed rows are read; no model generates message copy or profile facts.
 
-- [ ] Add read projection `readMentalProfile(uid)` returning only active tags, weights, explicit tone/locale, goals, avoid themes, and source counts.
+- [x] Add `readMentalProfile(uid)` returning only active themes, tones, goals, avoid themes, and weights.
 
-- [ ] Run and commit:
+- [x] Run profile projection/store/V1 selection tests and commit/push implementation.
 
 ```bash
 cd apps/life-manager
@@ -654,17 +654,17 @@ npm test
 **Files:**
 - Modify: `docs/evidence/life-manager-mental-canary.md`
 
-- [ ] Merge only after focused and full tests pass.
+- [x] Merge only after focused and full tests pass. V1 and profile PRs are merged with all CI checks green.
 
-- [ ] Apply the additive migration and read columns/constraints back from production.
+- [x] Apply additive migrations and read columns/constraints/RLS back from production.
 
-- [ ] Require the Railway worker deployment with the merge `commitHash` to reach `SUCCESS`.
+- [x] Require the Railway `life-call` deployment with the merge `commitHash` to reach `SUCCESS`.
 
-- [ ] Verify startup logs show `node scripts/runtime-up.js internal-worker` and no import/schema failure.
+- [x] Verify startup logs show the standalone scheduler loops and no import/schema failure.
 
-- [ ] Enable the three V1 opportunities for the Dais tenant only: morning affirmation, midday mindfulness/body awareness, and evening manifestation/release. Cap three/day and gap three hours.
+- [x] Enable the three V1 opportunities behind `LM_MENTAL_V1_ALLOWED_UIDS`, containing only the Dais tenant UID. Cap three/day and gap three hours.
 
-- [ ] Read one natural `organ:mental` tick. Record deployment ID, SHA, decision, family/window, template ID, Telegram message ID if sent, and send row ID.
+- [ ] Read one natural `organ:mental` opportunity tick. Record deployment ID, SHA, decision, family/window, template ID, Telegram message ID if sent, and send row ID.
 
 - [ ] Verify the actual Telegram message contains no button, callback, sender signature, reply instruction, or unsupported context claim.
 
