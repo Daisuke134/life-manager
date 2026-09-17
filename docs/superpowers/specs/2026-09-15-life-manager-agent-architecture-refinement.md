@@ -36,18 +36,24 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   and 30 subtests. Post-rebase verification on `58a1cdb5e7`: 91 tests and
   30 subtests passed; `git diff --check` passed. The source-boundary check
   confirmed the dedicated Life Manager worktree and canonical origin.
-- [ ] **A15-02 — integrate that exact shared repair.** The branch is already
-  pushed; require CI checks to pass, then merge the focused PR to main.
+- [x] **A15-02 — integrate that exact shared repair.** PR #5362 at
+  `0c94b0f7d4` passed all CI checks and merged as `aa0f37fc8c46`.
   No Writer provider code, account, browser profile, or private state is changed.
-- [ ] **A15-03 — read back one main-derived immutable release.** Reuse a
+- [x] **A15-03 — read back one main-derived immutable release.** Reuse a
   complete current release if it already contains the merged SHA; otherwise
   cut once with `bin/cut-loop-release.sh origin/main`. Verify
   `RELEASE.json.sha` is an `origin/main` ancestor and `release_paths=ALL`.
-  Do not race another cut lock.
-- [ ] **A15-04 — sync only the loaded-idle release-reconciler.** Use existing
+  Do not race another cut lock. Release
+  `20260917T204207-aa0f37fc` has SHA `aa0f37fc8c46`,
+  `provenance=ancestor-of-origin-main`, and `release_paths=ALL`; Git confirms
+  that SHA is an `origin/main` ancestor.
+- [x] **A15-04 — sync only the loaded-idle release-reconciler.** Use existing
   `bin/lm-loop reconcile deterministic --loaded-idle-only --max-owners 1
   --loop-id life-manager-release-reconciler`; read loaded argv and SHA. Wait for
-  an active PID's terminal instead of stopping it.
+  an active PID's terminal instead of stopping it. `launchctl-safe preflight`
+  passed for Aqua/UID 501. Targeted reconcile returned one applied label and
+  no failure (`install_event_id=dbff5baf1ce53b7caa53bee2`); loaded argv
+  names `20260917T204207-aa0f37fc`. The preceding old-SHA terminal was fail.
 - [ ] **A15-05 — read the next natural reconciler terminal.** Require the same
   loaded SHA and outer `pass`; an old run's pass is not evidence. If it fails,
   record its exact first failing label and keep A15 open.
@@ -85,12 +91,12 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   queue-age before/after and receipt pointers here, then hand provider effect
   and readback blockers to their owners without claiming all loops work.
 
-A15-02 integration observation: PR #5362 at `eb72e7cb1b` has seven passing CI
-checks and one failing `OSS self-contained boundary` check. The local verifier
-reproduces `manifest_inventory_mismatch` at `skills/_shared` and
-`forbidden_source_root` at `skills/earn/gig/TODO.md`; neither path is in this
-PR's diff. Keep A15-02 open until the owner-controlled source/baseline issue is
-resolved and the exact PR head passes CI. During the broader local unittest
+A15-02 integration observation: an earlier PR #5362 head at `eb72e7cb1b` had
+one failing `OSS self-contained boundary` check. The exact inventory digest
+for 184 tracked `skills/_shared` files and the existing fixed fingerprint for
+the unchanged `skills/earn/gig/TODO.md` were refreshed without editing those
+owner files. The verifier and all CI checks passed at `0c94b0f7d4` before
+merge. During the broader local unittest
 run, disk free space fell to about 176 MiB, causing temporary-file `ENOSPC`
 errors; the focused A15-01 test and CI loop contracts passed. `lm-loop status`
 also could not create a temporary file at that point. Free space later rose
