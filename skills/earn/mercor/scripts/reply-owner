@@ -14,6 +14,14 @@ SNAPSHOT="$STATE_ROOT/official-snapshot.json"
 LEASE_JSON="$STATE_ROOT/browser-lease.json"
 SESSION_READBACK_JSON="$STATE_ROOT/session-readback.json"
 TOKEN="" GENERATION=""
+RESULT_HINT="${LIFE_MANAGER_RESULT_HINT_PATH:-}"
+
+pre_effect_failure() {
+  if [[ -n "$RESULT_HINT" ]]; then
+    print -r -- '{"status":"pre_effect_failure","effect":0}' >"$RESULT_HINT"
+    chmod 600 "$RESULT_HINT"
+  fi
+}
 
 mkdir -p "$STATE_ROOT"; chmod 700 "$STATE_ROOT"
 export CLOAK_CDP_BASE_URL="http://127.0.0.1:9222"
@@ -30,30 +38,54 @@ park() {
 }
 trap park EXIT
 
-"$LEASE_PYTHON" "$LEASE_SCRIPT" acquire "$TASK" \
-  'https://work.mercor.com/home?tab=applications' >"$LEASE_JSON"
+if ! "$LEASE_PYTHON" "$LEASE_SCRIPT" acquire "$TASK" \
+  'https://work.mercor.com/home?tab=applications' >"$LEASE_JSON"; then
+  pre_effect_failure
+  exit 75
+fi
 chmod 600 "$LEASE_JSON"
 WS=$(jq -r .ws "$LEASE_JSON")
 TOKEN=$(jq -r .token "$LEASE_JSON")
 GENERATION=$(jq -r .generation "$LEASE_JSON")
 
-PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
-  -m job_search_loop.mercor_page_ready --ws "$WS" --output "$STATE_ROOT/page-ready.json"
-PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
-  -m job_search_loop.mercor_auth_readback --ws "$WS" --output "$SESSION_READBACK_JSON"
+if ! PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
+  -m job_search_loop.mercor_page_ready --ws "$WS" --output "$STATE_ROOT/page-ready.json"; then
+  pre_effect_failure
+  exit 75
+fi
+if ! PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
+  -m job_search_loop.mercor_auth_readback --ws "$WS" --output "$SESSION_READBACK_JSON"; then
+  pre_effect_failure
+  exit 75
+fi
 
 ACCOUNT=$("$LEASE_PYTHON" -c \
   'import json,sys; p=json.load(open(sys.argv[1])); print(p.get("candidate",{}).get("application_email") or p.get("application_email") or p.get("email") or "")' \
   "$HOME/.config/anicca/job-search/profile.json")
-[[ -n "$ACCOUNT" ]] || { print -u2 "mercor reply owner: account unavailable"; exit 69; }
-PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
+if [[ -z "$ACCOUNT" ]]; then
+  print -u2 "mercor reply owner: account unavailable"
+  pre_effect_failure
+  exit 69
+fi
+if ! PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
   -m job_search_loop.mercor_reply_snapshot --ws "$WS" --gmail-account "$ACCOUNT" \
-  --gog /opt/homebrew/bin/gog --output "$SNAPSHOT"
+  --gog /opt/homebrew/bin/gog --output "$SNAPSHOT"; then
+  pre_effect_failure
+  exit 75
+fi
 
-"$LEASE_PYTHON" "$LEASE_SCRIPT" commit-cookies "$TASK" --domain mercor.com \
+pre_effect_failure
+if ! "$LEASE_PYTHON" "$LEASE_SCRIPT" commit-cookies "$TASK" --domain mercor.com \
   --origin https://work.mercor.com --local-storage-key mercor-auth-store \
   --session-storage-key mercor-session-id --session-storage-key mercor-user-ip \
-  --token "$TOKEN" --generation "$GENERATION" >"$STATE_ROOT/session-writeback.json"
+  --indexeddb firebaseLocalStorageDb/firebaseLocalStorage \
+  --token "$TOKEN" --generation "$GENERATION" >"$STATE_ROOT/session-writeback.json"; then
+  pre_effect_failure
+  exit 75
+fi
+if [[ -n "$RESULT_HINT" ]]; then
+  rm -f "$RESULT_HINT"
+fi
 
 "$PYTHON" "$ROOT/skills/_shared/marketplace-core/scripts/reply_kernel.py" \
   --provider-adapter "$ROOT/skills/earn/mercor/scripts/reply_adapter.py" \

@@ -14,7 +14,7 @@ from urllib.parse import urlsplit
 
 import websockets
 
-from .mercor_auth_readback import classify_auth_snapshot
+from .mercor_auth_readback import auth_snapshot_expression, classify_auth_snapshot
 from .mercor_page_ready import _call
 
 
@@ -133,12 +133,17 @@ async def authenticate(ws_url: str, action_url: str) -> dict[str, str]:
         await _call(ws, 1, "Page.navigate", {"url": action_url})
         for index in range(120):
             observed = await _call(ws, 10 + index, "Runtime.evaluate", {
-                "expression": "JSON.stringify({url:location.href,text:(document.body?.innerText||'').slice(0,20000)})",
+                "expression": auth_snapshot_expression(),
+                "awaitPromise": True,
                 "returnByValue": True,
             })
             value = json.loads(observed.get("result", {}).get("value") or "{}")
             status = classify_auth_snapshot(
-                url=value.get("url"), visible_text=value.get("text")
+                url=value.get("url"),
+                visible_text=value.get("text"),
+                login_form_visible=value.get("login_form_visible"),
+                authenticated_navigation_visible=value.get("authenticated_navigation_visible"),
+                authenticated_api_status=value.get("authenticated_api_status"),
             )
             if status == "authenticated":
                 return {"status": status, "url": value["url"]}

@@ -54,6 +54,31 @@ def _identity(reason: str, evidence_ref: str) -> str:
     return f"{normalized}\n{evidence_ref.strip()}"
 
 
+def _exact_identity(account_id: str, listing_id: str, step_id: str) -> str:
+    """Bind a resumable gate to one account, listing, and provider step."""
+    values = tuple(value.strip() for value in (account_id, listing_id, step_id))
+    if not all(values):
+        raise HumanGateError("account_id, listing_id, and step_id are required")
+    digest = hashlib.sha256("\0".join(values).encode("utf-8")).hexdigest()
+    return f"mercor-exact:{digest}"
+
+
+def next_action(
+    *, gate_status: str, official_step: str, same_account: bool,
+    same_application: bool,
+) -> str:
+    """Choose the safe continuation for an observed provider step."""
+    if gate_status != "pending":
+        return "continue"
+    if (
+        official_step.strip().casefold() == "completed"
+        and same_account is True
+        and same_application is True
+    ):
+        return "resume_application"
+    return "recheck_later"
+
+
 class HumanGateStore:
     def __init__(self, path: Path):
         self.path = Path(path).expanduser().resolve()
@@ -73,10 +98,23 @@ class HumanGateStore:
             rows.append(value)
         return rows
 
-    def record(self, *, run_id: str, reason: str, evidence_ref: str) -> dict[str, Any]:
+    def record(
+        self, *, run_id: str, reason: str, evidence_ref: str,
+        account_id: str | None = None, listing_id: str | None = None,
+        step_id: str | None = None,
+    ) -> dict[str, Any]:
         if not all(isinstance(value, str) and value.strip() for value in (run_id, reason, evidence_ref)):
             raise HumanGateError("run_id, reason, and evidence_ref are required")
-        identity = _identity(reason.strip(), evidence_ref.strip())
+        exact_values = (account_id, listing_id, step_id)
+        if any(value is not None for value in exact_values) and not all(
+            isinstance(value, str) and value.strip() for value in exact_values
+        ):
+            raise HumanGateError("account_id, listing_id, and step_id are required together")
+        exact = all(isinstance(value, str) and value.strip() for value in exact_values)
+        identity = (
+            _exact_identity(account_id, listing_id, step_id)
+            if exact else _identity(reason.strip(), evidence_ref.strip())
+        )
         gate_id = hashlib.sha256(identity.encode()).hexdigest()[:24]
         rows = self._rows()
         latest = self._latest_by_identity(rows).get(identity)
@@ -92,6 +130,12 @@ class HumanGateStore:
             "status": "pending",
             "observed_at": datetime.now(timezone.utc).isoformat(),
         }
+        if exact:
+            row.update({
+                "account_id": account_id.strip(),
+                "listing_id": listing_id.strip(),
+                "step_id": step_id.strip(),
+            })
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(row, ensure_ascii=False) + "\n")
             handle.flush()
@@ -101,6 +145,9 @@ class HumanGateStore:
 
     @staticmethod
     def _row_identity(row: dict[str, Any]) -> str:
+        exact_values = tuple(row.get(key) for key in ("account_id", "listing_id", "step_id"))
+        if all(isinstance(value, str) and value.strip() for value in exact_values):
+            return _exact_identity(*exact_values)
         derived = _identity(str(row.get("reason", "")), str(row.get("evidence_ref", "")))
         if derived == "bilingual_competency":
             return derived
@@ -116,13 +163,24 @@ class HumanGateStore:
             latest[cls._row_identity(row)] = row
         return latest
 
-    def resolve(self, *, identity_key: str, run_id: str, evidence_ref: str) -> dict[str, Any] | None:
-        if not all(
-            isinstance(value, str) and value.strip()
-            for value in (identity_key, run_id, evidence_ref)
-        ):
+    def resolve(
+        self, *, identity_key: str = "", run_id: str, evidence_ref: str,
+        account_id: str | None = None, listing_id: str | None = None,
+        step_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        if not all(isinstance(value, str) and value.strip() for value in (run_id, evidence_ref)):
             raise HumanGateError("identity_key, run_id, and evidence_ref are required")
-        identity_key = identity_key.strip()
+        exact_values = (account_id, listing_id, step_id)
+        if any(value is not None for value in exact_values) and not all(
+            isinstance(value, str) and value.strip() for value in exact_values
+        ):
+            raise HumanGateError("account_id, listing_id, and step_id are required together")
+        if all(isinstance(value, str) and value.strip() for value in exact_values):
+            identity_key = _exact_identity(account_id, listing_id, step_id)
+        elif not isinstance(identity_key, str) or not identity_key.strip():
+            raise HumanGateError("identity_key or exact gate key is required")
+        else:
+            identity_key = identity_key.strip()
         latest = self._latest_by_identity(self._rows()).get(identity_key)
         if latest is None or latest.get("status") != "pending":
             return None

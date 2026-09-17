@@ -448,6 +448,112 @@ def test_commit_cookies_also_commits_only_declared_web_storage(monkeypatch, tmp_
     }]
 
 
+def test_commit_cookies_commits_declared_indexeddb_records(monkeypatch, tmp_path):
+    module = load_module()
+    leases_file = tmp_path / "leases.json"
+    overlay_file = tmp_path / "mercor-overlay.json"
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases_file))
+    monkeypatch.setenv("CLOAK_SESSION_VAULT_WRITEBACK_FILE", str(overlay_file))
+    leases_file.write_text(json.dumps({
+        "mercor-task": {
+            "context_id": "mercor-context", "target_id": "mercor-target",
+            "ws": "ws://127.0.0.1:9222/devtools/page/mercor-target",
+            "ts": 0, "token": "a" * 32, "generation": 1,
+        }
+    }), encoding="utf-8")
+
+    async def context_cookies(pairs, timeout=None):
+        return [{"cookies": [
+            {"name": "mercor", "domain": ".mercor.com", "path": "/", "value": "cookie"}
+        ]}]
+
+    async def page_storage(ws_url, pairs, timeout=None):
+        assert "indexedDB.open" in pairs[0][1]["expression"]
+        return [{"result": {"value": json.dumps({
+            "local": {"mercor-auth-store": "private-auth-state"},
+            "session": {"mercor-session-id": "private-session"},
+            "indexedDB": [{
+                "database": "firebaseLocalStorageDb",
+                "version": 1,
+                "objectStore": "firebaseLocalStorage",
+                "keyPath": "fbase_key",
+                "autoIncrement": False,
+                "records": [{"fbase_key": "firebase-auth-key", "value": {"token": "secret"}}],
+            }],
+        })}}]
+
+    monkeypatch.setattr(module, "_calls", context_cookies)
+    monkeypatch.setattr(module, "_page_calls", page_storage)
+    result = module.commit_cookies(
+        "mercor-task", ["mercor.com"], token="a" * 32, generation=1,
+        origin="https://work.mercor.com", local_storage_keys=["mercor-auth-store"],
+        session_storage_keys=["mercor-session-id"],
+        indexeddb=[("firebaseLocalStorageDb", "firebaseLocalStorage")],
+    )
+
+    assert result["ok"] is True
+    assert result["indexeddb_records_committed"] == 1
+    saved = json.loads(overlay_file.read_text(encoding="utf-8"))
+    indexed = saved["origins"][0]["indexedDB"][0]
+    assert indexed["database"] == "firebaseLocalStorageDb"
+    assert indexed["objectStore"] == "firebaseLocalStorage"
+    assert indexed["records"][0]["fbase_key"] == "firebase-auth-key"
+
+
+def test_seed_web_storage_injects_indexeddb_before_exact_origin_navigation(monkeypatch):
+    module = load_module()
+    calls = []
+
+    async def page_calls(ws_url, pairs, timeout=None):
+        calls.append((ws_url, pairs, timeout))
+        methods = [method for method, _params in pairs]
+        if methods == ["Page.addScriptToEvaluateOnNewDocument", "Page.navigate"]:
+            return [{"identifier": "bootstrap"}, {"frameId": "frame"}]
+        if methods == ["Runtime.evaluate"]:
+            expression = pairs[0][1]["expression"]
+            if "location.origin" in expression:
+                return [{"result": {"value": json.dumps({
+                    "origin": "https://work.mercor.com", "ready": "complete",
+                })}}]
+            return [{"result": {"value": True}}]
+        if methods == ["Page.navigate"]:
+            return [{"frameId": "frame"}]
+        raise AssertionError(methods)
+
+    monkeypatch.setattr(module, "_page_calls", page_calls)
+    count = module._seed_web_storage(
+        "ws://leased-page",
+        "https://work.mercor.com/explore",
+        [{
+            "origin": "https://work.mercor.com",
+            "indexedDB": [{
+                "database": "firebaseLocalStorageDb",
+                "version": 1,
+                "objectStore": "firebaseLocalStorage",
+                "keyPath": "fbase_key",
+                "autoIncrement": False,
+                "records": [{"fbase_key": "firebase-auth-key", "value": {"token": "private"}}],
+            }],
+        }],
+    )
+
+    assert count == 1
+    pairs = calls[0][1]
+    assert [method for method, _params in pairs] == [
+        "Page.addScriptToEvaluateOnNewDocument", "Page.navigate",
+    ]
+    source = pairs[0][1]["source"]
+    assert "localStorage.setItem" in source
+    assert len(calls) == 4
+    restore_pairs = calls[2][1]
+    assert restore_pairs[0][1]["awaitPromise"] is True
+    assert "indexedDB.open" in restore_pairs[0][1]["expression"]
+    assert "firebaseLocalStorageDb" in restore_pairs[0][1]["expression"]
+    assert "firebaseLocalStorage" in restore_pairs[0][1]["expression"]
+    assert calls[3][1][0][0] == "Page.navigate"
+    assert calls[3][1][0][1]["url"] == "https://work.mercor.com/explore"
+
+
 def test_seed_web_storage_injects_before_exact_origin_navigation(monkeypatch):
     module = load_module()
     calls = []

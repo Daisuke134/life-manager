@@ -12,6 +12,7 @@ from unittest.mock import call, patch
 
 from runtime.host import resource_admission as admission
 from runtime.loop.lm_loop_run import (
+    PRE_EFFECT_HINT_ENTRYPOINTS,
     _admission_class, _dispatch_reserved, _host_admission_deferred, _queue_priority,
     _resource_class,
     _run_admitted, _run_entrypoint, _runtime_limit, _terminal_outcome,
@@ -435,6 +436,11 @@ def test_proven_pre_effect_failure_releases_owner_for_next_wake(tmp_path):
             "entrypoint": "skills/earn/crowdworks/scripts/paid-owner",
         }, "paid", {}, tmp_path / "receipt") == 1
     release.assert_called_once_with(claim, requeue=False, reserve=True)
+
+
+def test_mercor_application_and_reply_pre_effect_hints_are_allowlisted():
+    assert "skills/earn/mercor/scripts/application-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
+    assert "skills/earn/mercor/scripts/reply-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
 
 
 def test_generic_child_hint_cannot_clear_unknown_effect(tmp_path):

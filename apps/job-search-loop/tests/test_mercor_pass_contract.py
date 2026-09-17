@@ -1,4 +1,5 @@
 import json
+import hashlib
 import os
 from pathlib import Path
 import subprocess
@@ -13,10 +14,12 @@ from job_search_loop.mercor_pass import (
     deny_mercor_media_permissions,
     main,
     record_inspections,
+    record_profile_sync,
     record_verified_submissions,
     validate_bounded_scan,
     validate_evidence_paths,
     validate_priority_scan,
+    validate_submission_fit,
 )
 
 
@@ -104,6 +107,130 @@ class MercorPassContractTests(unittest.TestCase):
                 "account_email": "operator@example.invalid",
             })
 
+    def test_context_binds_private_profile_and_resume_versions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            profile = self._profile(state / "profile.json")
+            resume = state / "resume.pdf"
+            resume.write_bytes(b"resume")
+            context = build_context(
+                state_root=state,
+                profile_path=profile,
+                resume_path=resume,
+                cdp_url="http://127.0.0.1:9222",
+            )
+            self.assertEqual(context["profile_material"]["profile_sha256"],
+                             hashlib.sha256(profile.read_bytes()).hexdigest())
+            self.assertEqual(context["profile_material"]["resume_sha256"],
+                             hashlib.sha256(resume.read_bytes()).hexdigest())
+            self.assertEqual(context["profile_material"]["verified_fact_ids"], ["education"])
+
+    def test_context_exposes_only_private_profile_proposal_path_when_present(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            profile = self._profile(state / "profile.json")
+            proposal = state / "profile-proposal.json"
+            proposal.write_text('{"profile_version":"v1"}\n', encoding="utf-8")
+            context = build_context(
+                state_root=state,
+                profile_path=profile,
+                resume_path=state / "resume.pdf",
+                cdp_url="http://127.0.0.1:9222",
+            )
+            self.assertEqual(context["profile_proposal_path"], str(proposal.resolve()))
+
+    def test_profile_sync_readback_is_recorded_without_private_field_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "profile-proposal.json").write_text(json.dumps({
+                "profile_version": "profile-v1",
+                "field_hashes": {"summary": "hash"},
+                "resume_sha256": "resume-hash",
+            }), encoding="utf-8")
+            evidence_root = state / "evidence"
+            evidence_root.mkdir()
+            (evidence_root / "profile-readback.json").write_text("{}\n", encoding="utf-8")
+            record_profile_sync(state, {
+                "profile_sync": {
+                    "status": "synced",
+                    "authenticated": True,
+                    "resume_visible": True,
+                    "parser_reviewed": True,
+                    "profile_version": "profile-v1",
+                    "field_hashes": {"summary": "hash"},
+                    "resume_sha256": "resume-hash",
+                    "evidence_ref": "profile-readback.json",
+                }
+            }, run_id="run-profile", evidence_root=evidence_root)
+            row = json.loads((state / "profile-sync.jsonl").read_text(encoding="utf-8"))
+            self.assertEqual(row["status"], "synced")
+            self.assertEqual(row["profile_version"], "profile-v1")
+            self.assertTrue(row["authenticated"])
+            self.assertEqual(row["field_hashes"], {"summary": "hash"})
+            self.assertNotIn("summary", row)
+            self.assertEqual((state / "profile-sync.jsonl").stat().st_mode & 0o777, 0o600)
+
+    def test_profile_sync_cannot_be_marked_synced_without_authentication(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            record_profile_sync(state, {
+                "profile_sync": {
+                    "status": "synced",
+                    "authenticated": False,
+                    "resume_visible": True,
+                    "parser_reviewed": True,
+                    "profile_version": "profile-v1",
+                    "field_hashes": {"summary": "hash"},
+                    "resume_sha256": "resume-hash",
+                    "evidence_ref": "profile-readback.json",
+                }
+            }, run_id="run-profile")
+            row = json.loads((state / "profile-sync.jsonl").read_text(encoding="utf-8"))
+            self.assertEqual(row["status"], "unknown")
+
+    def test_profile_sync_cannot_bind_a_different_resume(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            record_profile_sync(state, {
+                "profile_sync": {
+                    "status": "synced",
+                    "authenticated": True,
+                    "resume_visible": True,
+                    "parser_reviewed": True,
+                    "profile_version": "profile-v1",
+                    "field_hashes": {"summary": "hash"},
+                    "resume_sha256": "stale-resume",
+                    "evidence_ref": "profile-readback.json",
+                }
+            }, run_id="run-profile", expected_resume_sha256="current-resume")
+            row = json.loads((state / "profile-sync.jsonl").read_text(encoding="utf-8"))
+            self.assertEqual(row["status"], "unknown")
+
+    def test_profile_sync_requires_current_pass_evidence_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "profile-proposal.json").write_text(json.dumps({
+                "profile_version": "profile-v1",
+                "field_hashes": {"summary": "hash"},
+                "resume_sha256": "resume-hash",
+            }), encoding="utf-8")
+            evidence_root = state / "evidence"
+            evidence_root.mkdir()
+            record_profile_sync(state, {
+                "profile_sync": {
+                    "status": "synced",
+                    "authenticated": True,
+                    "resume_visible": True,
+                    "parser_reviewed": True,
+                    "profile_version": "profile-v1",
+                    "field_hashes": {"summary": "hash"},
+                    "resume_sha256": "resume-hash",
+                    "evidence_ref": "missing.json",
+                }
+            }, run_id="run-profile", evidence_root=evidence_root)
+            row = json.loads((state / "profile-sync.jsonl").read_text(encoding="utf-8"))
+            self.assertEqual(row["status"], "unknown")
+
     @patch("job_search_loop.mercor_pass.subprocess.run")
     def test_host_capabilities_keep_unknown_sysctl_values_explicit(self, run):
         run.return_value.returncode = 1
@@ -166,7 +293,9 @@ class MercorPassContractTests(unittest.TestCase):
         self.assertEqual(TASK_CLASSES["mercor_pass"], "browser-lane-agent")
 
     def test_prompt_contains_model_led_submit_guard_and_human_stop(self):
-        prompt = (ROOT / "prompts" / "mercor-pass.md").read_text(encoding="utf-8")
+        prompt = " ".join(
+            (ROOT / "prompts" / "mercor-pass.md").read_text(encoding="utf-8").split()
+        )
         for required in (
             "model-led",
             "`N of N` and `100%`",
@@ -182,15 +311,22 @@ class MercorPassContractTests(unittest.TestCase):
             "never inspect or reuse an older `model-pass-*` directory",
             "visible pagination controls",
             "button titled `Page N` or `Next`",
-            "up to four additional pages",
-            "with a bounded maximum of twelve candidate",
+            "remaining pages up to page 4",
+            "bounded maximum of four total Explore pages",
+            "twelve candidate detail pages per wake",
             "detail pages per wake",
             "Never stop after the first Explore page",
+            "Start every wake at Explore page 1 when pagination is visible",
+            "Collect the distinct listing cards from each visible page before opening detail",
+            "inspect pages 1 through 4 in order",
             "Submit every ready distinct listing",
             "immediately return a",
             "do not spend the current wake's terminal budget after an accepted provider effect",
             "current-pass submitted set",
             "python3 -m job_search_loop.mercor_submit_guard",
+            "--provider-fit-status",
+            "--ranking-band",
+            "--application-state",
             '"claimed": true',
             '"claimed": false',
             "capability_catalog_path",
@@ -198,11 +334,14 @@ class MercorPassContractTests(unittest.TestCase):
             "host_capabilities",
             "job_search_loop.mercor_human_gate_notify",
             "Never open or enter a person-bound step",
-            "skip it without",
-            "Never click an existing incomplete application, `Continue application`",
-            "Go directly to Explore",
+            "Inspect an existing incomplete application only through its application card",
+            "Continue application when the next step is reversible",
+            "Do not click the person-bound control or enter its flow",
+            "a `Continue application` navigation is allowed solely to reach earlier reversible steps",
+            "go directly to Explore while preserving the listing's resumable state",
             "Prefer a visible `1-click apply` candidate",
-            "Do not resume an already-incomplete application",
+            "resume the same application",
+            "Never invent a credential, experience, language level, or legal answer",
             "camera, microphone, or screen-sharing permission",
             "Do not click an interview or assessment step",
             "Do not call browser media-device or permission APIs",
@@ -211,6 +350,8 @@ class MercorPassContractTests(unittest.TestCase):
             "One broken card must not block the whole pass",
             "invoke `.click()` once on that",
             "ranking signals rather",
+            "Missing years, degrees, or experience evidence is medium",
+            "unless Mercor explicitly marks the condition as required or blocked",
             "shared_apply_context.policy.ranking.band_definitions",
             "overlap alone never makes a senior/specialist role high",
             "low_fit_person_bound_skipped",
@@ -219,9 +360,16 @@ class MercorPassContractTests(unittest.TestCase):
             "owned by the deterministic email-auth adapter",
             "Never submit or retry login from this model pass",
             "do not use Job Hunter policy",
+            "profile_material",
+            "2–4 representative",
+            "profile_sync",
+            "field hashes",
         ):
             self.assertIn(required, prompt)
         self.assertNotIn("Choose at most one new listing", prompt)
+        self.assertNotIn("Never click an existing incomplete application", prompt)
+        self.assertNotIn("Do not click `Continue application` when a person-bound step remains", prompt)
+        self.assertNotIn("Do not resume an already-incomplete application", prompt)
 
     def test_legacy_job_hunter_reference_only_points_to_mercor_canon(self):
         reference = (
@@ -234,6 +382,69 @@ class MercorPassContractTests(unittest.TestCase):
             (ROOT / "schemas" / "mercor-pass-result.v1.schema.json").read_text(encoding="utf-8")
         )
         self.assertEqual(schema["properties"]["submitted"]["maxItems"], 12)
+
+    def test_result_contract_requires_provider_fit_evidence(self):
+        schema = json.loads(
+            (ROOT / "schemas" / "mercor-pass-result.v1.schema.json").read_text(encoding="utf-8")
+        )
+        inspected = schema["properties"]["inspected_listings"]["items"]
+        self.assertIn("provider_fit_status", inspected["required"])
+        self.assertIn("requirement_evidence", inspected["required"])
+        self.assertIn("strategy_version", inspected["required"])
+        self.assertEqual(
+            inspected["properties"]["provider_fit_status"]["enum"],
+            ["allowed", "warning", "blocked", "not_shown", "unknown"],
+        )
+
+    def test_missing_requirement_evidence_accepts_null_fact_id(self):
+        schema = json.loads(
+            (ROOT / "schemas" / "mercor-pass-result.v1.schema.json").read_text(encoding="utf-8")
+        )
+        result = {
+            "status": "observed_no_action",
+            "inspected_listings": [{
+                "listing_id": "list-missing-proof",
+                "url": "https://work.mercor.com/explore?listingId=list-missing-proof",
+                "title": "Finance Evaluator",
+                "application_state": "ready",
+                "submit_visible": True,
+                "decision": "rank_medium",
+                "ranking_band": "medium",
+                "ranking_evidence": ["Related finance-services work; years evidence missing"],
+                "provider_fit_status": "warning",
+                "requirement_evidence": [{
+                    "requirement": "3+ years hands-on finance",
+                    "fact_id": None,
+                    "disposition": "missing_preferred",
+                }],
+                "strategy_version": "mercor-fit-evidence-v1",
+            }],
+            "submitted": [], "needs_human": [], "blocked": [],
+            "evidence": {"page_url": "https://work.mercor.com/explore", "screenshot_path": "", "dom_path": ""},
+        }
+        AgentRunner.validate(result, schema)
+
+    def test_blocked_fit_cannot_be_submitted(self):
+        with self.assertRaisesRegex(ValueError, "blocked_fit_submitted"):
+            validate_submission_fit({
+                "submitted": [{"listing_id": "list-blocked"}],
+                "inspected_listings": [{
+                    "listing_id": "list-blocked",
+                    "provider_fit_status": "blocked",
+                    "ranking_band": "medium",
+                }],
+            })
+
+    def test_low_fit_cannot_be_submitted(self):
+        with self.assertRaisesRegex(ValueError, "low_fit_submitted"):
+            validate_submission_fit({
+                "submitted": [{"listing_id": "list-low"}],
+                "inspected_listings": [{
+                    "listing_id": "list-low",
+                    "provider_fit_status": "unknown",
+                    "ranking_band": "low",
+                }],
+            })
 
     def test_nonblocked_pass_cannot_quit_after_two_of_twelve_visible_candidates(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -307,6 +518,15 @@ class MercorPassContractTests(unittest.TestCase):
                 "application_state": "3/3",
                 "submit_visible": True,
                 "decision": "submitted",
+                "ranking_band": "high",
+                "ranking_evidence": ["verified resume overlap"],
+                "provider_fit_status": "allowed",
+                "requirement_evidence": [{
+                    "requirement": "Relevant AI experience",
+                    "fact_id": "verified-ai",
+                    "disposition": "verified",
+                }],
+                "strategy_version": "mercor-fit-evidence-v1",
             }],
             "submitted": [{
                 "listing_id": "list-test",

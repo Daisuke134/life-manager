@@ -17,16 +17,38 @@ Pass order:
    marketplace Apply lanes. Prioritize Japan-eligible Japanese-language, bilingual,
    software, AI, automation, system-development and catalog-matching work. This is
    priority, not an allow-list: continue through other truthful-fit work too.
+   Before ranking, compare the current Mercor Profile and résumé parser readback with the
+   bounded context's `profile_material`. When `profile_proposal_path` is supplied, use that
+   private proposal as the candidate text; otherwise draft a concise
+   provider profile update from verified fact IDs only: a role summary, 2–4 representative
+   outcomes/projects, core and occasional skills, languages, and availability. Do not change
+   contact or legal fields during routine refinement. Save only through the authenticated owned
+   Profile page, then reload it and the résumé parser. Return `profile_sync` as `synced` or
+   `unchanged` only when the exact profile version, field hashes, and résumé SHA match the
+   readback; a save click without reload is `unknown` and leaves the prior version active.
+   Start every wake at Explore page 1 when pagination is visible. Collect the distinct listing
+   cards from each visible page before opening detail, and inspect pages 1 through 4 in order
+   (or until the provider shows no further page). Do not treat the page left open by a previous
+   listing as the full candidate set; return to Explore and collect the current page controls
+   first. Rank the collected cards together so a suitable page 3 candidate is not displaced by
+   a newer but contradictory specialist page.
    Inspect every Japanese/Japan card found in the bounded pages before spending the
    twelve-detail budget on lower-priority work. A nonblocked pass is invalid if that
    priority queue was observed but omitted. `submitted_pending_review` entries are
    observe-only and must never be resubmitted.
-2. Observe existing applications from the application-list cards only. If a card is
-   incomplete (`N of N` below completion or below `100%`), record it and skip it without
-   opening the card. Never click an existing incomplete application, `Continue application`,
-   an interview, or an assessment. Go directly to Explore and seek work the loop can submit
-   without a person-bound step. Record every inspected listing in `inspected_listings` with
-   its live URL, application state, and decision.
+2. Observe existing applications from the application-list cards only. Inspect an existing
+   incomplete application only through its application card, then open its detail once when
+   the card is a truthful-fit candidate. Continue application when the next step is reversible,
+   and finish consecutive reversible steps: resume/profile upload, ordinary written questions, availability, location,
+   work authorization, or other factual controls answered from verified profile facts. Save
+   and read back progress after each such step, then resume the same application on a later
+   wake when another reversible step remains. Do not click the person-bound control or enter
+   its flow; a `Continue application` navigation is allowed solely to reach earlier reversible
+   steps. Never open or enter an interview, assessment, recording, camera, microphone, or
+   screen-sharing step. Once reversible work is complete, record the exact step, notify the human gate,
+   and go directly to Explore while preserving the listing's resumable state. Record
+   every inspected listing in `inspected_listings` with its live URL, application state, and
+   decision.
 3. Maintain a queue of distinct new listings. Before opening detail pages, compare visible
    cards with `recently_inspected_listing_ids` and use model judgment to inspect the strongest
    truthful-fit unseen candidates first. Revisit a recent candidate only after unseen candidates
@@ -35,16 +57,27 @@ Pass order:
    priority window before spending the detail budget: verified resume overlap first, then
    Japan/Japanese eligibility, software/AI/automation overlap, compensation, and absence of
    contradictory requirements. Assign every inspected listing `ranking_band` (`high`, `medium`,
-   or `low`) and `ranking_evidence` citing the posting text and matching verified facts. Inspect
+   or `low`) and `ranking_evidence` citing the posting text and matching verified facts. Also
+   return the exact `strategy_version` from the bounded context so later funnel outcomes can
+   be attributed to this ranking policy. Do not invent or alter that version.
+   return `provider_fit_status` as the live Mercor Application Fit result (`allowed`, `warning`,
+   `blocked`, `not_shown`, or `unknown`) and `requirement_evidence`, one object per material
+   requirement with the posting requirement, matching verified `fact_id`, and a disposition such
+   as `verified`, `missing_preferred`, `contradiction`, or `unknown`. Use `fact_id:null` when no
+   verified fact exists; never invent an evidence ID. If the live fit control is not
+   visible, use `not_shown` or `unknown`; never infer `allowed` from a card. Inspect
    high before medium before low. Missing or preferred evidence stays medium and later in the
    queue; it is not a rejection. A material contradiction with a required language, location,
    domain specialization, or seniority makes the candidate low and `no_reasonable_shot`.
    Treat preferred qualifications, years, degrees and experience as ranking signals rather
-   than automatic rejection gates. Apply maximally among reasonable-shot roles and let the provider
-   or hiring party decide. Never fabricate a required form answer: answer truthfully
-   from `shared_apply_context.verified_facts`; if the form accepts that truthful answer,
-   continue and submit when missing evidence is only preferred or non-material. If a required
-   control cannot be answered truthfully, record the exact
+   than automatic rejection gates. Missing years, degrees, or experience evidence is medium
+   unless Mercor explicitly marks the condition as required or blocked or the listing has a
+   required location, language, legal, domain, or seniority contradiction. Do not infer a
+   contradiction from absent résumé proof alone. Apply maximally among reasonable-shot roles and let the provider
+   or hiring party decide. Never invent a credential, experience, language level, or legal
+   answer. Answer ordinary controls from `shared_apply_context.verified_facts` and the supplied
+   profile; if a form accepts that truthful answer, continue and submit when missing evidence is
+   only preferred or non-material. If a required control cannot be answered truthfully, record the exact
    control and continue to the next distinct listing. Submit every ready distinct listing
    encountered within the bounded candidate scan. A listing is ready for submission only when the
    live application page shows every required step complete (`N of N` and `100%`),
@@ -54,8 +87,8 @@ Pass order:
    current-pass submitted set.
    If the current Explore page is exhausted without a grounded candidate, use the
    visible pagination controls (for example a button titled `Page N` or `Next`) to
-   inspect up to four additional pages, with a bounded maximum of twelve candidate
-   detail pages per wake. Never stop after the first Explore page solely because its
+   inspect the remaining pages up to page 4, with a bounded maximum of four total
+   Explore pages and twelve candidate detail pages per wake. Never stop after the first Explore page solely because its
    candidates fail a fact gate; record the exact page/listing evidence and continue.
    Open each candidate through its live Explore card's visible `Apply` or
    `1-click apply` control and wait for the listing/application content to render.
@@ -78,9 +111,9 @@ Pass order:
    authorization only from explicit profile facts. Save readback after each step.
    Treat `host_capabilities` as verified local-machine evidence. In particular, do
    not ask the operator to confirm Apple Silicon or the macOS version when those
-   fields already prove the requirement. Do not resume an already-incomplete application
-   or click `Continue application`. A human gate is valid only at the first
-   remaining person-bound control after fresh official progress readback.
+   fields already prove the requirement. A human gate is valid only at the first remaining
+   person-bound control after fresh official progress readback; all earlier reversible work
+   must be completed before the gate is sent.
    A fresh application being `0 of N` is normal and is not a reason to skip it.
    The operator has already completed a Mercor interview; trust only the current
    role's visible `Completed` or `reused` state to decide whether that interview
@@ -100,9 +133,9 @@ Pass order:
    sharing controls. Do not call browser media-device or permission APIs. Never request
    camera, microphone, or screen-sharing permission from macOS.
    Then immediately run
-   `python3 -m job_search_loop.mercor_human_gate_notify` with the exact listing ID,
-   title, live URL, exact remaining action and fresh evidence reference. Require its
-   delivered or delivery-uncertain receipt, add one concise gate to `needs_human`, and
+   `python3 -m job_search_loop.mercor_human_gate_notify` with the exact `--account-id`,
+   `--listing-id`, provider `--step-id`, title, live URL, exact remaining action and
+   fresh evidence reference. Require its delivered or delivery-uncertain receipt, add one concise gate to `needs_human`, and
    skip that candidate for the rest of this wake without waiting for the operator, then
    continue scanning other candidates. A step already shown as `Completed` or `reused`
    is not a human requirement and may be used automatically. The human gate is resumable;
@@ -114,7 +147,9 @@ Pass order:
    listing title and selected candidate profile. Immediately before the modal's own
    `Submit application` button, run `python3 -m job_search_loop.mercor_submit_guard` with
    `--fence-ledger`, `--listing-id`, `--title`, `--url`, `--pre-submit-evidence`,
-   and `--run-id` from the bounded context. Click only when its JSON says
+   `--run-id`, the exact inspected `--provider-fit-status`, `--ranking-band`, and
+   `--application-state`. The guard rejects blocked Fit, low ranking, or closed state
+   before it writes the submission fence. Click only when its JSON says
    `"claimed": true`; when it says `"claimed": false`, treat the listing as an
    existing attempt and do not click. Click the modal's final submit exactly once, then reopen the application result and require the visible
    success/read-back. Add it to `submitted` and the current-pass submitted set, then
