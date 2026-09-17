@@ -160,4 +160,5 @@ def test_browser_capacity_probe_has_owned_registry_row():
     assert row["effect_class"] == "none"
     assert row["provider_route"] == "deterministic"
     assert row["entrypoint"] == "runtime/browser/capacity_probe.py"
+    assert row["cadence"] == {"start_interval_seconds": 300}
     assert row["state_root"] != loops["life-manager-connector-native"]["state_root"]

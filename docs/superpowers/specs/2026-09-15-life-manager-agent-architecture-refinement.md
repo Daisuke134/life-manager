@@ -172,11 +172,50 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   behind global `current` and called `apply_live` at 18:41:44Z, moving probe
   to `a0a4e522` and cancelling its queued occurrence before dispatch. Probe
   run `18d62fd876d2e548-83976` then passed on the new SHA. This is still
-  not the same-SHA handoff. The branch-local dispatch fix validates an older
-  main-derived complete loaded release and kickstarts it without rebinding;
-  unverified old paths defer without deleting the queue. Its focused RED-to-
-  green test and the full runner bounds suite (60 tests) passed locally.
-  Main integration and natural readback remain required for A15-08.
+  not the same-SHA handoff. The dispatch fix validates an older main-derived
+  complete loaded release and kickstarts it without rebinding; unverified old
+  paths defer without deleting the queue. Focused RED-to-green and runner
+  bounds (60 tests) passed; fresh read-only review found no blocker. PR #5472
+  passed nine CI checks and merged as `b2feb56c1408`. Its main-derived
+  complete release `20260918T040215-b2feb56c` has `release_paths=ALL`, the
+  dispatch fix, owner lock and Connector dependencies. Targeted loaded-idle
+  reconciles installed the exact SHA on Connector (event
+  `ecdd8a1ec104fb486502ec9c`) and probe (event
+  `054f8dc63aa17754b3a6a92e`); both loaded argv match and the browser
+  pending set was empty. The next natural same-SHA handoff remains to be
+  measured for A15-08.
+  At the next natural wake Connector run `18d632ed20ec2a28-35885` claimed
+  browser on `b2feb56c` at 19:38:15Z; probe run
+  `18d632f06cf05360-38606` queued known on the same SHA at 19:38:30Z.
+  Global `current` advanced to complete `47b01035`, but the queued probe's
+  installed/loaded argv remained `b2feb56c`. Connector timed out with outer
+  `fail/entrypoint_exit_124` at 19:51:14Z and its occurrence became
+  `released/effect_unknown=1`; that exact effect fence is untouched. Probe's
+  occurrence stayed `queued/effect_unknown=0` with browser queue sequence
+  32683 rather than being cancelled. A later natural probe claim and terminal
+  are still needed to close this lifecycle gate. At 19:53:28Z probe was
+  nevertheless installed on `47b01035`, its old queued occurrence was
+  cancelled, and run `18d633c2e82f1ac0-63254` passed on that SHA at
+  19:53:58Z. The reconciler stdout listed probe in `skipped_pending`, so
+  that run did not prove it was the rebind actor. `lateness-heartbeat` on
+  older release `a0a4e522` reached a terminal at 19:53:01Z and is one
+  plausible older-dispatch caller, not confirmed attribution. A targeted
+  loaded-idle reconcile at 20:09Z safely returned
+  `skipped_pending=[lateness-heartbeat]` with no apply; its own pending work
+  must drain naturally. A proposed cross-version bootout wrapper was rejected
+  in fresh read-only review because old explicit apply and unloaded-service
+  paths could bypass it, and was reverted before main integration. A15-08
+  remains open pending a real same-SHA distinct-owner handoff.
+  The Connector and probe both had a 30-minute StartInterval, repeatedly
+  causing the probe to queue behind the long Connector run. The operational
+  probe cadence is changed to 300 seconds in the branch while preserving its
+  `effect_class=none`, isolated profile, 45-second timeout and queued/reserved
+  wake coalescing. This uses the existing launchd job and admission scheduler;
+  it should obtain natural `cdp_ready` terminals during Connector idle windows
+  and allow a later natural Connector claim on the same loaded SHA. Registry
+  contract, generated job fixture and OSS verification passed locally. The
+  change is not A15-08 evidence until CI, main-derived apply and natural
+  lifecycle readback pass.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
@@ -277,7 +316,11 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   installed the shared owner-lock release `0f504c58` on the reconciler via
   event `fc0ffb85066316ff7e044733`; reconciler, Connector and probe loaded
   argv all read back that SHA, with no run yet since this latest install.
-  Its next natural terminal remains to be recorded. These observations do not claim provider effects
+  A later targeted loaded-idle sync moved only the reconciler to complete
+  main-derived `d0401d93` (install event `04012e51656abac980f9439f`),
+  while Connector and probe remained together on `b2feb56c`. Its natural
+  run `18d631aa23fbc618-78737` reached outer pass at 19:30:36Z with
+  loaded/event SHA `d0401d93`. These observations do not claim provider effects
   or every loop's business outcome: Capafy and other exact effect/readback
   fences remain with their owners.
 
