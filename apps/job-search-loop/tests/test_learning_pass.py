@@ -59,6 +59,13 @@ class LearningPassTests(unittest.TestCase):
         )
         self.assertEqual(result["decision"], "insufficient_evidence")
 
+    def test_explicit_negative_outcomes_are_resolved_for_revert_decision(self):
+        before = [{"stage": "rejected"} for _ in range(5)]
+        after = [{"stage": "offer"} for _ in range(5)]
+        result = decide_change(before=before, after=after)
+        self.assertEqual(result["decision"], "keep")
+        self.assertEqual(result["before_resolved"], 5)
+
     def test_learning_candidate_changes_one_strategy_variable(self):
         candidate = build_learning_candidate(
             source_url="https://talent.docs.mercor.com/how-to/apply",

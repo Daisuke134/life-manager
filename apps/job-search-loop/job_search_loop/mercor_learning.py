@@ -24,6 +24,13 @@ _POSITIVE_STAGES = frozenset({
     "payout_received",
     "received",
 })
+_RESOLVED_STAGES = _POSITIVE_STAGES | frozenset({
+    "rejected",
+    "not_selected",
+    "declined",
+    "closed",
+    "failed",
+})
 
 
 def _text(value: Any, name: str) -> str:
@@ -106,8 +113,9 @@ def _resolved_rows(rows: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]
         if isinstance(row, Mapping)
         and (
             row.get("resolved") is True
-            or str(row.get("stage") or "") in _POSITIVE_STAGES
-            or str(row.get("status") or "") in _POSITIVE_STAGES
+            or str(row.get("stage") or "") in _RESOLVED_STAGES
+            or str(row.get("status") or "") in _RESOLVED_STAGES
+            or bool(row.get("disposition"))
         )
     ]
 
