@@ -1,6 +1,6 @@
 # Writer Agent — Revenue, UX, Runtime, and Roadmap SSOT
 
-Last updated: 2026-08-20 JST
+Last updated: current measured production state
 
 This file is the only current source of truth for the Writer Agent's objective,
 user experience, revenue model, execution order, and remaining work. Historical
@@ -50,16 +50,68 @@ The machine cannot guarantee demand or revenue. It must guarantee continuous
 measurable attempts, honest receipts, bounded improvement, and automatic
 recovery.
 
-### 0.1.1 Active planning slice: daily shipping, control beats, and Telegram UX
+### 0.1.0 Current measured production checkpoint
 
-The current diagnosis and execution order for the broken Writer runtime is
+This checkpoint supersedes older "current" paragraphs and queue claims below
+when they conflict. It is based on the live Writer state, immutable release
+manifest, launchd readback, publisher-native receipts, and fresh public reads.
+
+#### Done
+
+| Area | Evidence | Result |
+|---|---|---|
+| Active-four publication | Run `20260917-192416`, topic `paid-demand:023969393c3000c37245880d7d49de0cce6d155d7e72d9a1a94090f51a3b2aa2` | `note/ja`, `substack/ja`, `substack/en`, and `x-article/ja` are all `live`; each has a ledger row with `published=true`, `reality_gate=PASS`, `verified=true`, immutable artifact hash, public ID, timestamp, and media proofs |
+| Publisher readback | Anonymous HTTP 200 and title/body reads for all four URLs; Note API reports `status=published`, `price=500`, `is_limited=false`, `is_trial=false`; authenticated Substack draft reads report `is_published=true`, `audience=only_paid`, `should_send_free_preview=true`; X public Article page contains the selected title | External effects are real; staging, a draft URL, or a plan is not being counted as publication |
+| URLs | Note `https://note.com/anicca123/n/n28934793a7a0`; Substack JA `https://aniccabuddha.substack.com/p/claude-codeapify`; Substack EN `https://aniccaai2026.substack.com/p/claude-code-and-apify-turn-one-useful`; X `https://x.com/diceai0/article/2100683225194807492` | All four active destinations have canonical public URLs |
+| Completion and replay | `article-run-complete.py` exit `0`; `publication_resume.py plan` returns `{"resumable":false,"reason":"all-complete"}`; state SHA `14b7217cd681f046c761dd41575d1bd65d8c28235d2bb89830398dca17a0236c` and ledger SHA `658c3fa2bfe443a0e91935076c0ce3da3d79fd7307cda397fed9b8252ced01cc` stay unchanged on replay | Same-run completion and replay-zero are proven |
+| Observability | `article-completion-notify.py` sent message ID `86959`; `run-blocker.json` is resolved; topic card is in `topics/done/` | The run has a durable completion report and an honest historical blocker resolution |
+| Runtime hardening | PR `#5496`, merge `7cc80e3`; current release manifest SHA `fc31d1227b6356f917ddc750bbb6bfeef0fe2a7b`, provenance `ancestor-of-origin-main`; Writer creator/recovery labels load that SHA | Note eyecatch SVG drift, X title-comment drift, Substack EN host fallback, and the model's `--help` gate misclassification are fixed and tested |
+
+#### Not done yet
+
+| Area | Current truth | Closing evidence still required |
+|---|---|---|
+| Unattended daily recurrence | The latest natural launchd wake reached `article-daily` disk preflight and stopped before creating a new run. No article was generated or published in that wake. | One post-remediation natural wake that reaches generation, stages exactly four, publishes all four, records completion, and passes replay-zero without foreground publisher commands |
+| Received money | Writer money DB currently has `money_events=0`, `subscription_contracts=0`, and `payouts=0`. Note is a ¥500 one-time product; Substack posts are paid-only, but neither state is a purchase or subscription receipt. | A non-test purchase/subscription/accepted editorial fee joined to the exact article artifact, followed by fee, refund, payout, and net-revenue reconciliation |
+| $10K monthly / $10K MRR | No external revenue or active recurring-contract receipt exists, so both targets remain unproven. | Separate three-consecutive-month gross/net and active-renewal/churn receipts; one-time Note sales never enter MRR |
+| Learning and quality | This run used `force_publish_advisory`: editorial was advisory for JA/EN and EN reader testing had one unanswered question. `.selfimprove-todo.json` still reports two historical missing rubric receipts for `daily-2026-08-21`. | Improve the next article's evidence/reader answers, close the historical evidence gap without fabricating receipts, then run a matched canary with a later consuming run |
+| OSS / independent users | No fresh external user has reproduced install-to-public-publication-to-real-revenue. | Fresh-machine install, owner isolation, provider setup, public output, and external received-money receipt |
+
+#### Blocking bottleneck
+
+The bottleneck is host storage admission, before Writer generation—not a Note,
+Substack, X, model quota, or five-slot scheduling failure. The earlier
+`resource_fifo_wait`/capacity responses are a separate admission state; the
+verified foreground run proved that a direct Writer pass can proceed when the
+host gate is clear. The Writer floor is `1,155,780,608` bytes;
+the latest host probe showed about `188 MiB` available. The canonical disk
+governor reclaimed `0` bytes and preserved 44 release generations because
+LaunchAgents or running processes still reference them. The daily wrapper
+therefore exits before run allocation, provider invocation, topic selection,
+and publication.
+
+```mermaid
+flowchart LR
+  A[launchd article-daily wake] --> B[disk preflight]
+  B -->|free < 1,155,780,608 bytes| C[exit before run/provider]
+  C --> D[no daily article receipt]
+  D --> E[no new conversion or revenue evidence]
+  B -->|free >= floor| F[generate -> gate -> publish 4 -> readback]
+```
+
+Writer must not delete or stop another loop's protected release/process to
+clear this gate. Storage recovery belongs to the host/release-retention owner;
+once it clears the floor, Writer can run the unattended recurrence proof above.
+
+### 0.1.1 Historical planning slice: daily shipping, control beats, and Telegram UX
+
+The historical diagnosis and execution order for the broken Writer runtime was
 `docs/writer-agent/plans/2026-08-20-writer-ship-every-8-hours-telegram-ux.md`.
-It is the next implementation slice: restore one canonical runtime, restore
-demand supply and same-run resume, then prove the daily revenue set and
-receipt-backed Telegram reporting before enabling any 8-hour publishing
-canary. Global platform expansion is conditional on the spec's role matrix,
-language/payout gates, and receipt-backed $10K ledger; it does not replace the
-invariant revenue, safety, or platform-policy rules in this SSOT.
+Its implementation claims are historical. The current execution cursor is
+§0.1.0 and §9.0.0. Global platform expansion remains conditional on the
+spec's role matrix, language/payout gates, and receipt-backed $10K ledger; it
+does not replace the invariant revenue, safety, or platform-policy rules in
+this SSOT.
 
 ### 0.1.2 Owner-facing language and publication identity
 
@@ -70,15 +122,14 @@ It does not put a harness name, `Codex:::`/`Claude:::` prefix, raw event ID,
 internal run ID, status enum, or stack trace in the main message. Internal
 receipt IDs remain in the ledger and an optional details link.
 
-The current active publisher maps both `substack/ja` and `substack/en` to one
-`SUBSTACK_PUBLICATION` fallback (`aniccabuddha.substack.com`). This is a known
-language-mixing defect. Existing mixed posts remain historical and are not
-deleted or moved; new English posts stop on that publication. The target is
-`substack/ja -> SUBSTACK_PUBLICATION_JA` and
-`substack/en -> SUBSTACK_PUBLICATION_EN`, with separate publication identity,
-reader cohort, subscription, payout scope, and revenue ledger. The detailed
-account, article-type, monthly-cap, and $10K target matrix is in the active
-planning spec linked above.
+The managed publisher now resolves `substack/ja` through
+`SUBSTACK_PUBLICATION_JA` and `substack/en` through
+`SUBSTACK_PUBLICATION_EN`; the fallback defect was fixed and tested in PR
+`#5496`. Existing older mixed-account posts remain historical and are not
+deleted or moved. New runs require separate publication identity, reader
+cohort, subscription, payout scope, and revenue ledger. The detailed account,
+article-type, monthly-cap, and $10K target matrix remains in the planning
+history linked above.
 
 ### 0.2 Open-source positioning and public-claim gate
 
@@ -362,7 +413,7 @@ and recovery receipt, never as "published" or a silent pending state. Only a
 verified public readback counts as published, and only an external receipt
 counts as earned.
 
-**Current divergence, owned by Task 1:** live run `20260806-084924` reached
+**Historical divergence, superseded by §0.1.0:** live run `20260806-084924` reached
 publication initialization and attempted all seven configured pairs, but
 returned every failed pair as `unavailable` and ended without a public URL.
 Observed failures were note media S3 `403`, stale-quality-receipt rejection for
@@ -461,8 +512,10 @@ is a non-blocking distribution outcome and cannot delay revenue shipment.
 
 One daily Writer run freezes one Japanese article and one independently
 localized English article. Translation does not create a second topic or daily
-run. The daily shipment is successful when the installed loop returns verified
-public readback for all three revenue-capable intents below. A single forced
+run. The current active-four shipment is successful only when the installed
+loop returns verified public readback for all four active intents below. Note
+and Substack are revenue-capable; X Article JA is an active acquisition surface
+whose public receipt is still part of the daily contract. A single forced
 production run is sufficient to verify this machinery now; continued daily SLO
 monitoring detects later regressions but is not a three-day development gate.
 
@@ -471,29 +524,23 @@ monitoring detects later regressions but is not a three-day development gate.
 | note paid article | JA | One-time direct writing revenue | Authenticated price/paywall readback, public URL, later purchase/fee/payout receipt |
 | Substack article | JA | Recurring direct writing revenue | Authenticated paid-audience/paywall readback, public URL, later contract/charge/churn receipt |
 | Substack article | EN | Recurring direct writing revenue | Authenticated paid-audience/paywall readback, public URL, later contract/charge/churn receipt |
+| X Article | JA | Long-form acquisition | Authenticated same-draft publication, public Article URL, rendered body/media readback |
 
-The same run may derive the following free-discovery intents. They are useful
-acquisition surfaces, but they are not revenue-capable and cannot hold the
-daily revenue shipment open. Each has its own retry owner and SLO receipt.
+The following destinations are dormant under the current active-four contract.
+They receive durable skip receipts and are never staged, published, or counted
+as a failure for the active shipment. If a future contract reactivates one, it
+must have its own evidence and reactivation gate.
 
-| Non-blocking distribution destination | Language | Role | Receipt |
+| Dormant destination | Language | Role | Receipt |
 |---|---|---|---|
-| Dev.to article | EN | Free discovery | Public title/body/media readback |
-| Zenn article | JA | Free discovery | Public title/body/media readback |
-| X Article | JA | Long-form acquisition | Public Article URL and rendered-body readback |
+| Dev.to article | EN | Free discovery | Durable `dormant-destination` skip |
+| Zenn article | JA | Free discovery | Durable `dormant-destination` skip |
+| X Article | EN | English long-form acquisition | Durable `dormant-destination` skip |
+| X Post | JA | Short-form acquisition | Durable `dormant-destination` skip |
 
-The following adapters, code, historical receipts, and state are retained but
-must not create a daily publication intent while marked `DORMANT_EXPERIMENT`:
-
-| Dormant destination | State | Reactivation gate |
-|---|---|---|
-| X Article EN | `DORMANT_EXPERIMENT` | Substack EN has a real attributed paid conversion, a distinct English audience/account can be measured, and 30 days of nonduplicate English topic supply exists |
-| X Post JA | `DORMANT_EXPERIMENT` | X Article JA has a 30-day standalone baseline, incremental teaser-to-paid conversion can be measured, and the added cadence does not bury the Article |
-
-X Article JA publishes at most once per JST day. English distribution remains
-Substack EN and Dev.to EN until the English X gate passes. Dormant means skipped
-without an SLO breach; it does not mean deleted. More posts or accounts are not
-scale when they reduce reach, reader trust, or causal attribution.
+X Article JA publishes at most once per JST day. Dormant means skipped without
+an SLO breach; it does not mean deleted. More posts or accounts are not scale
+when they reduce reach, reader trust, or causal attribution.
 
 This follows X's own guidance to revise for the reader, use a specific hook,
 promote and pin an Article during its first 24–72 hours, and avoid platform
@@ -516,7 +563,7 @@ every site. `article_type`, `language`, `account_key`, `platform_role`,
 |---|---|---|---|
 | `pillar_research` | Full evidence-led deep dive: reader problem, primary sources, mechanism, measured result, limits, and conclusion. JA and EN are separately written and quality-checked. | `substack_ja` → JA publication; `substack_en` → separate EN publication | Paid subscription/archive; direct recurring writing revenue |
 | `conversion_article` | Practical paid version with a useful free preview and a distinct paid section. It adds reader-useful procedure, evidence, or decision criteria; it is not a paywalled copy of the Substack body. | `note_ja` → existing verified `anicca123` creator account | One-time reader purchase; price and paywall are read back from note |
-| `discovery_derivative` | Shorter, free, platform-native derivative: technical steps and canonical links for Dev.to/Zenn; a concise hook and link for X. It omits private paid material and does not claim unverified results. | `devto_en`, `zenn_ja`, `x_ja`; `x_en` stays dormant until its reactivation gate passes | Discovery and owned-surface acquisition, not base revenue |
+| `discovery_derivative` | Shorter, free, platform-native derivative with canonical links. It omits private paid material and does not claim unverified results. | `x_ja` is active; `devto_en`, `zenn_ja`, and `x_en` are dormant until their reactivation gates pass | Discovery and owned-surface acquisition, not base revenue |
 | `product_chapter` | Chapterized evergreen material compiled only after several articles prove demand; each chapter has its own evidence and the book has a single spine. | `kdp_publisher` (language-specific book IDs) and `zenn_ja` Books when eligible | One-time book royalty/sale; never a daily posting quota |
 | `high_ticket_brief` | Buyer-specific brief: problem, scope, evidence, deliverable, exclusions, price, and acceptance terms. It is not mass-posted as a public article. | `linkedin_en` lead surface and verified publisher/editorial opportunity adapters | Contract or editorial fee, counted only from acceptance/payment receipt |
 | `member_letter` | Short recurring update, experiment result, or implementation note that gives an ongoing subscriber a reason to stay. | `substack_ja` / `substack_en` publication-specific sections | Recurring retention and churn learning |
@@ -1099,7 +1146,7 @@ effort, input/cached/output/reasoning tokens, latency, phase, artifact, retry,
 and attributable cost. Cost per published article and Sol-escalation rate are
 visible in Money Control and participate in KEEP/REVERT.
 
-**Current divergence, owned by Task 3:** the live model runner now defaults to
+**Historical divergence, superseded by §0.1.0:** the live model runner then defaulted to
 `gpt-5.6-terra` with `medium`, and the live editorial gate spends at most one
 Terra-high evaluation after a changed draft follows a medium FAIL. It does not
 yet implement receipted Sol routing or per-call token/cost accounting. Claude
@@ -1681,9 +1728,28 @@ daily execution; foreground development does not manually write or publish in
 its place. A task closes only with its named external receipt. Historical detail
 remains in the stable task rows below, but it cannot change this order.
 
+The current cursor is the measured checkpoint in §0.1.0. The older rows below
+retain stable audit identities and historical receipts; they are not evidence
+that the current run is still unpublished.
+
 Only one foreground implementation item is active at a time. Always-running
 production workers may publish, retry, measure, report, and monitor publisher
 responses concurrently. External waiting never blocks the foreground queue.
+
+#### 9.0.0 Current cursor — verified state and next actions
+
+| Priority | Item | State | Exact next receipt |
+|---:|---|---|---|
+| P0 | Restore host disk headroom above `1,155,780,608` bytes | **BLOCKED**: latest probe about 188 MiB; disk governor reclaimed 0 bytes and preserved 44 referenced releases | host cleanup receipt showing free space at or above the Writer floor, with no protected release/session deletion |
+| P0 | Run one unattended Writer daily wake | **NOT DONE**: the latest wake stopped at disk preflight, before run allocation/provider/publication | launchd-owned `article-daily` run with a new run ID, four active reality-PASS rows, completion `rc=0`, Telegram message ID, and replay-zero |
+| P1 | Prove writing revenue | **NOT DONE**: money DB has zero external money events, subscriptions, and payouts | non-test payment or accepted editorial fee joined to the exact artifact, plus fee/refund/payout/net receipts |
+| P1 | Reach $10K monthly and $10K active MRR | **NOT DONE**: no external revenue or active recurring contract | each target's separate three-consecutive-month gross/net/renewal/churn evidence |
+| P2 | Improve quality and learning | **PARTIAL**: continuous policy published with editorial/reader advisory; two historical rubric receipts remain missing | next matched canary, decision (`KEEP`/`REVERT`/`INCONCLUSIVE`), and later consuming run |
+| P2 | Local OSS and independent-user proof | **NOT DONE** | fresh-machine install through public article and real external revenue receipt |
+
+The first action is storage recovery. Do not bypass the floor, lower the
+threshold, delete another loop's release, or treat a successful foreground
+manual publication as proof of unattended cadence.
 
 #### Atomic remaining queue
 
@@ -1711,6 +1777,12 @@ responses concurrently. External waiting never blocks the foreground queue.
 | 18 | Only after Dais's unit reaches the revenue gates, package OSS, prove cloud parity, and obtain one external user's real writing revenue | productization loop | Tasks 21–23 receipts |
 | 19 | Add only positive-net subject/language/publisher units through sandbox, canary, staged promotion, and rollback | scale controller | Tasks 24–25 receipts |
 | 20 | Advance $100K, $1M, and $10M gates only from external receipts and bounded-spend positive-net units | scale controller | Tasks 26–28 receipts |
+
+Status reconciliation: the historical row 1 `IN PROGRESS` label is superseded
+for the forced publication proof by §0.1.0/§9.0.0. That run is complete; only
+the new unattended recurrence proof and all revenue gates remain open. The
+historical rows must not be read as saying that run `20260917-192416` is still
+unpublished.
 
 Orders 1–8 close availability and self-healing without waiting for a natural
 schedule. Orders 9–14 close the money-directed self-improvement loop. Orders
