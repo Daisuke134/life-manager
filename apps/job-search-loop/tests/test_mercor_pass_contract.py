@@ -407,6 +407,8 @@ class MercorPassContractTests(unittest.TestCase):
             "--gate-store",
             "--outbox",
             "Do not pass `state_root` as `--gate-store`",
+            "verified `submitted` result may end the wake immediately",
+            "exempt from the twelve-item scan requirement",
             "profile_sync",
             "field hashes",
         ):
@@ -539,6 +541,25 @@ class MercorPassContractTests(unittest.TestCase):
             "inspected_listings": [],
             "evidence": {"dom_path": "/not/read"},
         })
+
+    def test_verified_submission_may_return_before_full_bounded_scan(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "page.json").write_text(
+                " ".join(
+                    f'<a href="/explore?listingId=list_{index}"></a>'
+                    for index in range(12)
+                ),
+                encoding="utf-8",
+            )
+            result = {
+                "status": "submitted",
+                "inspected_listings": [{"listing_id": "list_0"}],
+                "submitted": [{"listing_id": "list_0"}],
+                "evidence": {"dom_path": str(root / "page.json")},
+            }
+            validate_bounded_scan(result)
+            validate_priority_scan(result, root)
 
     def test_nonblocked_pass_must_inspect_observed_japanese_and_pending_candidates(self):
         with tempfile.TemporaryDirectory() as directory:

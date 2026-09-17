@@ -210,6 +210,8 @@ Pass order:
 6. When the bounded scan ends, return `submitted` if at least one submission has a
    verified readback; otherwise return `observed_no_action` with the
    exact inspected evidence. A transient browser/model failure is `blocked`, not success.
+   A verified `submitted` result may end the wake immediately after its official
+   readback and delivered receipt; it is exempt from the twelve-item scan requirement.
    Unless a transient blocker or ambiguous post-click effect stops the pass, inspect
    twelve distinct candidate detail pages when at least twelve distinct cards are
    visible in the evidence. Return `needs_human` when at least one person-bound gate

@@ -453,7 +453,7 @@ def validate_evidence_paths(result: dict[str, Any], evidence_root: Path) -> None
 
 def validate_bounded_scan(result: dict[str, Any]) -> None:
     """Do not accept a model's early exit while its evidence exposes a full queue."""
-    if result.get("status") == "blocked":
+    if result.get("status") in {"blocked", "submitted"}:
         return
     evidence = result.get("evidence")
     dom_path = evidence.get("dom_path") if isinstance(evidence, dict) else None
@@ -478,7 +478,7 @@ def validate_bounded_scan(result: dict[str, Any]) -> None:
 
 def validate_priority_scan(result: dict[str, Any], evidence_root: Path) -> None:
     """Require observed Japanese and resumable candidates before a successful pass."""
-    if result.get("status") == "blocked":
+    if result.get("status") in {"blocked", "submitted"}:
         return
     inspected = {
         item.get("listing_id")

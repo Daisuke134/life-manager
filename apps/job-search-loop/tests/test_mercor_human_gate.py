@@ -2,10 +2,18 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from job_search_loop.mercor_human_gate import HumanGateStore, next_action
+from job_search_loop.mercor_human_gate import HumanGateError, HumanGateStore, next_action
 
 
 class MercorHumanGateTests(unittest.TestCase):
+    def test_non_file_store_path_is_rejected_without_chmod_side_effect(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "application"
+            path.mkdir(mode=0o700)
+            with self.assertRaisesRegex(HumanGateError, "regular file"):
+                HumanGateStore(path)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o700)
+
     def test_exact_account_listing_step_key_is_stable_and_separates_steps(self):
         with tempfile.TemporaryDirectory() as directory:
             store = HumanGateStore(Path(directory) / "human-gates.jsonl")
