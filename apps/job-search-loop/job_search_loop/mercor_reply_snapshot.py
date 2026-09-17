@@ -26,6 +26,82 @@ ENDPOINTS = {
 }
 
 
+def _direct_capture_expression(names: list[str]) -> str:
+    """Build a bounded same-page fallback when CDP lost a response body."""
+    urls = {name: ENDPOINTS[name] for name in names if name in ENDPOINTS}
+    return """(async()=>{
+      const urls=%s;
+      const out={};
+      let token='';
+      try {
+        const request=indexedDB.open('firebaseLocalStorageDb');
+        const db=await new Promise((resolve,reject)=>{
+          request.onerror=()=>reject(request.error||new Error('firebase_idb_open_failed'));
+          request.onsuccess=()=>resolve(request.result);
+        });
+        if(db.objectStoreNames.contains('firebaseLocalStorage')){
+          const values=await new Promise((resolve,reject)=>{
+            const get=db.transaction('firebaseLocalStorage','readonly')
+              .objectStore('firebaseLocalStorage').getAll();
+            get.onerror=()=>reject(get.error||new Error('firebase_idb_read_failed'));
+            get.onsuccess=()=>resolve(get.result||[]);
+          });
+          const tokenFrom=value=>value?.stsTokenManager?.accessToken||
+            value?.value?.stsTokenManager?.accessToken||value?.accessToken||
+            value?.value?.accessToken||'';
+          token=(Array.isArray(values)?values:[]).map(tokenFrom).find(Boolean)||'';
+        }
+        db.close();
+      } catch(error) { return JSON.stringify(out); }
+      const emptyNotifications=/You don[’']t have any notifications|No notifications|You[’']re all caught up|No new notifications/i
+        .test(document.body?.innerText||'');
+      if(urls.notifications && token && emptyNotifications){
+        out.notifications={items:[],nextCursor:null,hasMore:false};
+        delete urls.notifications;
+      }
+      if(!token) return JSON.stringify(out);
+      const fetched=await Promise.all(Object.entries(urls).map(async([name,url])=>{
+        const controller=new AbortController();
+        const timer=setTimeout(()=>controller.abort(),8000);
+        try {
+          const response=await fetch(url,{headers:{Authorization:'Bearer '+token},
+            credentials:'omit',signal:controller.signal});
+          if(!response.ok) return [name,null];
+          return [name,await response.json()];
+        } catch(error) { return [name,null]; }
+        finally { clearTimeout(timer); }
+      }));
+      for(const [name,value] of fetched) if(value!==null) out[name]=value;
+      return JSON.stringify(out);
+    })()""" % json.dumps(urls, ensure_ascii=False, sort_keys=True)
+
+
+async def _capture_direct(call, names: list[str]) -> dict[str, object]:
+    if not names:
+        return {}
+    evaluated = await call("Runtime.evaluate", {
+        "expression": _direct_capture_expression(names),
+        "awaitPromise": True,
+        "returnByValue": True,
+    })
+    if evaluated.get("exceptionDetails"):
+        return {}
+    raw = evaluated.get("result", {}).get("value")
+    if not isinstance(raw, str):
+        return {}
+    try:
+        payload = json.loads(raw)
+    except (TypeError, ValueError):
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    return {
+        name: _normalize_response(name, value)
+        for name, value in payload.items()
+        if name in ENDPOINTS and value is not None
+    }
+
+
 def _normalize_response(name: str, value: object) -> object:
     if name != "notifications" or not isinstance(value, dict):
         return value
@@ -142,7 +218,17 @@ async def _capture(ws_url: str) -> dict[str, object]:
                         response_names[network_id] = name
             elif method == "Network.loadingFinished" and network_id in response_names:
                 name = response_names.pop(network_id)
-                body = await call("Network.getResponseBody", {"requestId": network_id})
+                try:
+                    body = await call("Network.getResponseBody", {"requestId": network_id})
+                except RuntimeError as error:
+                    # Chromium can retire a response body between
+                    # loadingFinished and this call. Defer that endpoint to
+                    # the bounded same-page fetch below rather than failing
+                    # the whole snapshot.
+                    if "Network.getResponseBody" not in str(error):
+                        raise
+                    result.update(await _capture_direct(call, [name]))
+                    continue
                 try:
                     result[name] = _normalize_response(
                         name, json.loads(str(body.get("body") or ""))
@@ -151,6 +237,12 @@ async def _capture(ws_url: str) -> dict[str, object]:
                     raise RuntimeError(f"mercor_reply_{name}_invalid") from None
             if len(result) == len(ENDPOINTS):
                 break
+        missing = sorted(set(ENDPOINTS) - set(result))
+        if missing:
+            try:
+                result.update(await _capture_direct(call, missing))
+            except RuntimeError:
+                pass
         missing = sorted(set(ENDPOINTS) - set(result))
         if missing:
             raise RuntimeError("mercor_reply_sources_missing:" + ",".join(missing))

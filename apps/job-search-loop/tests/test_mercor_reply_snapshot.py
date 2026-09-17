@@ -53,6 +53,43 @@ class FakeWebSocket:
         return json.dumps(self.messages.pop(0))
 
 
+class DirectFallbackWebSocket(FakeWebSocket):
+    def __init__(self):
+        super().__init__()
+        self.direct_payload = {
+            "applications": {"applications": [{"id": "application-1"}]},
+            "assessments": [{"id": "assessment-1"}],
+            "contracts": [],
+            "interviews": {"data": []},
+            "notifications": {
+                "items": [], "nextCursor": None, "hasMore": False,
+            },
+        }
+
+    async def send(self, raw):
+        command = json.loads(raw)
+        identifier = command["id"]
+        method = command["method"]
+        if method == "Network.getResponseBody":
+            self.messages.append({
+                "id": identifier,
+                "error": {"message": "No resource with given identifier found"},
+            })
+            return
+        if method == "Runtime.evaluate":
+            expression = command.get("params", {}).get("expression", "")
+            if "firebaseLocalStorageDb" in expression:
+                self.messages.append({"id": identifier, "result": {
+                    "result": {"value": json.dumps(self.direct_payload)},
+                }})
+            else:
+                self.messages.append({"id": identifier, "result": {
+                    "result": {"value": True},
+                }})
+            return
+        await super().send(raw)
+
+
 class Connection:
     def __init__(self, websocket):
         self.websocket = websocket
@@ -73,6 +110,23 @@ def test_capture_reads_each_body_at_loading_finished_without_losing_queued_event
     result = snapshot.asyncio.run(snapshot._capture("ws://127.0.0.1/devtools/page/1"))
 
     assert result == {name: {"source": name} for name in snapshot.ENDPOINTS}
+
+
+def test_capture_uses_direct_fetch_when_network_body_is_gone(monkeypatch):
+    websocket = DirectFallbackWebSocket()
+    monkeypatch.setattr(
+        snapshot.websockets, "connect", lambda *_args, **_kwargs: Connection(websocket)
+    )
+
+    result = snapshot.asyncio.run(snapshot._capture("ws://127.0.0.1/devtools/page/1"))
+
+    assert result["applications"] == {"applications": [{"id": "application-1"}]}
+    assert result["assessments"] == [{"id": "assessment-1"}]
+    assert result["contracts"] == []
+    assert result["interviews"] == {"data": []}
+    assert result["notifications"] == {
+        "notifications": [], "nextCursor": None, "hasMore": False,
+    }
 
 
 def test_current_notifications_api_payload_is_normalized_for_reply_adapter():
