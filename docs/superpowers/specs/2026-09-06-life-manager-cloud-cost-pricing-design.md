@@ -413,3 +413,38 @@ The free allowance is 30 completed managed events/month, not 30 internal effects
 Travel block and one Telegram乗換案内 while consuming one allowance unit. Optional phone is excluded from
 the standing free allowance except for one onboarding test call; this caps expected free-user direct API
 cost around or below approximately USD 1.50 before shared fixed costs. Usage resets monthly at the tenant billing timezone.
+
+## 10.1 Revenue loop execution status
+
+Life Manager has three cooperating business paths:
+
+1. **Marketing path:** `skills/life-manager/life-manager-daily.sh` generates one bounded creative,
+   distributes it through the configured adapter, and records the next improvement. This proves a
+   marketing pass, not a paid subscriber.
+2. **Self-Build / Product Improvement loop (#11 in `README.md`):**
+   `skills/life-manager/self-build-daily.sh` selects one eligible loop-authored fix PR, sends it
+   through the protected merge guard, appends a durable day receipt, and reports the result. This
+   improves Life Manager; it does not create revenue unless activation or retention improves.
+3. **Money/CFO path:** `skills/self/life-manager-loop/loop.sh` reads Stripe active subscriptions,
+   verifies `/health`, and chooses the next weakest funnel step. The current measurement run at
+   `2026-09-17T14:42:38Z` returned `lm_mrr_usd=NA` and
+   `HEAL-NEEDED — STRIPE-KEY-MISSING`; it wrote a self-heal request instead of claiming `$0`.
+
+**Remaining revenue TODO, in order:**
+
+1. Restore the Stripe live-key runtime path from the private credential source and read back active
+   subscriptions, status, period end, refunds, and failed payments. Until this succeeds, MRR is
+   `unknown`, not zero.
+2. Choose one canonical price. The current product spec says `$29/month`, while older landing and
+   payment-link tests still describe `$20/month`. Update the Stripe price/link, landing copy, Telegram
+   `/subscribe` copy, and tests together after the price is selected. Do not advertise one price while
+   charging another.
+3. Measure the marketing funnel: landing visit → Telegram start → Calendar connection → phone opt-in
+   → first successful wake → paid subscription → renewal/referral.
+4. Make the self-build loop select fixes using those production metrics, then prove each change with
+   a receipt-backed release and a movement in activation, retention, cost, or MRR.
+5. Scale the selected plan to the required active paid count. At `$29/month`, 345 active subscribers
+   produce `$10,005` gross MRR.
+
+These are the remaining business gates. Voice outcome migration, no-answer settlement, and the
+production health/readback gate are already complete.
