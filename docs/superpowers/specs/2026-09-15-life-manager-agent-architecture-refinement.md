@@ -1079,6 +1079,15 @@ R2の初回実測（2026-09-16）は、267行の実機statusから生成したpr
 browser/readback未確認などの既知診断が残っているため、R3へ進まず、既存のreconcile/各owner修復で
 これらを解消してからR2を再実行する。
 
+**R2 current recheck (2026-09-18, read-only):** main-derived release
+`d29621be5159bad22d876ff2a88404ddb1cf268f`で`lm-loop status all --json`を実測し、267行から
+private manifest `manifest-local-current-20260918T000000Z.json`を生成した。Local gateは
+`BLOCK / blocked_product_loop`で、14/14 Product Loopが`runtime_release_drift`だった。
+外部provider effectは実行していない。release-reconcilerの直近terminalは
+`entrypoint_exit_1`; private logには`No space left on device`、release-cut lock競合、
+launchctl GUI readback拒否が残る。したがってR2-02/R2-03（同一SHAへのowner同期と自然terminal）を
+先に閉じ、R2-04を再実行する。R3 Cloud配置やprovider successへは進めない。
+
 R2を実際のatomicに分けると、(a) `R2-01` gateを一度判定する、(b) `R2-02`既知のruntime原因を
 一ownerずつ修復する、(c) `R2-03`修復後のinstalled/event/natural terminalを確認する、(d) `R2-04`
 同じprivate manifestでgateを再実行する、の順になる。R2-02は外部effectではなく、既存reconcile・
