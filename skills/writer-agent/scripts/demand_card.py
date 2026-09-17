@@ -109,9 +109,16 @@ def select_demand_observations(
     grouped: dict[str, list[Mapping[str, Any]]] = {
         family: [] for family in DEMAND_SOURCE_FAMILIES
     }
+    observation_ids: set[str] = set()
     for index, observation in enumerate(observations):
         if not isinstance(observation, Mapping):
             raise DemandCardError(f"observation[{index}] must be an object")
+        observation_id = normalize_observation_id(
+            observation.get("observation_id"), "observation_id"
+        )
+        if observation_id in observation_ids:
+            raise DemandCardError("demand card observation IDs must be unique")
+        observation_ids.add(observation_id)
         family = observation.get("source_family")
         if family not in grouped:
             raise DemandCardError(f"observation[{index}] has unsupported source family")
@@ -166,9 +173,12 @@ def select_demand_observations(
                 if body_hash:
                     used_body_hashes.add(body_hash)
         selected.extend(family_selected)
-        selected_ids = {str(row.get("observation_id")) for row in family_selected}
+        selected_ids = {
+            normalize_observation_id(row.get("observation_id"), "observation_id")
+            for row in family_selected
+        }
         for row in ordered:
-            if str(row.get("observation_id")) not in selected_ids:
+            if normalize_observation_id(row.get("observation_id"), "observation_id") not in selected_ids:
                 dropped.append(
                     {
                         **_observation_receipt(row),
@@ -349,8 +359,11 @@ def _validate_bindings(
                 value = normalize_observation_id(
                     value, f"binding_observation_ids.{field}"
                 )
-                if value not in clean_values:
-                    clean_values.append(value)
+                if value in clean_values:
+                    raise DemandCardError(
+                        f"binding_observation_ids.{field} must list unique IDs"
+                    )
+                clean_values.append(value)
             if observation_ids is not None and not set(clean_values) <= observation_ids:
                 raise DemandCardError(
                     f"binding_observation_ids.{field} references an unsupported "
