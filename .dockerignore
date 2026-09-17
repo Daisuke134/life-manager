@@ -3,6 +3,11 @@
 apps/*
 !apps/life-manager/
 !apps/life-manager/**
+# Railpack inventories this lockfile even though the mobile app is not a
+# Life Call runtime dependency; keep the manifest available to the root build.
+!apps/mobile/
+!apps/mobile/honne-ai/
+!apps/mobile/honne-ai/bun.lock
 !runtime/
 !runtime/loop/
 !runtime/loop/**
