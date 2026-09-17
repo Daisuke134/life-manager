@@ -8,15 +8,28 @@ class MercorAuthReadbackTests(unittest.TestCase):
         self.assertEqual(classify_auth_snapshot(
             url="https://work.mercor.com/explore",
             visible_text="Explore Applications Earnings Profile",
+            login_form_visible=False,
         ), "authenticated")
         self.assertEqual(classify_auth_snapshot(
             url="https://work.mercor.com/explore",
             visible_text="Explore Profile Sign in",
+            login_form_visible=False,
+        ), "authenticated")
+        self.assertEqual(classify_auth_snapshot(
+            url="https://work.mercor.com/login",
+            visible_text="Continue to Mercor Google",
+            login_form_visible=True,
         ), "logged_out")
         self.assertEqual(classify_auth_snapshot(
             url="https://work.mercor.com/login",
             visible_text="Continue to Mercor Google",
-        ), "logged_out")
+            login_form_visible=False,
+        ), "indeterminate")
+        self.assertEqual(classify_auth_snapshot(
+            url="https://work.mercor.com/explore",
+            visible_text="Loading Explore",
+            login_form_visible=False,
+        ), "indeterminate")
         self.assertEqual(classify_auth_snapshot(
             url="https://work.mercor.com/jobs/apply/candidate-one?returnPath=%2Fexplore",
             visible_text=(
@@ -24,10 +37,12 @@ class MercorAuthReadbackTests(unittest.TestCase):
                 "3 of 3 steps done\nWork Authorization\n"
                 "Your application has been submitted!\nView application"
             ),
+            login_form_visible=False,
         ), "authenticated")
         self.assertEqual(classify_auth_snapshot(
             url="https://work.mercor.com/jobs/apply/candidate-one?returnPath=%2Fexplore",
             visible_text="Sign in to continue your application",
+            login_form_visible=True,
         ), "logged_out")
         self.assertEqual(classify_auth_snapshot(
             url="https://example.com/",

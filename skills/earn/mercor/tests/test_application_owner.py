@@ -40,6 +40,17 @@ def test_owner_uses_shared_browser_lease_and_revenue_name():
     assert "9334" not in source
 
 
+def test_owner_only_requests_email_auth_after_confirmed_logout():
+    source = (ROOT / "skills/earn/mercor/scripts/application-owner").read_text()
+    assert 'AUTH_STATUS=' in source
+    assert '[[ "$AUTH_STATUS" == "indeterminate" ]]' in source
+    assert '[[ "$AUTH_STATUS" == "logged_out" ]]' in source
+    assert 'authenticated_readback_required' in source
+    assert source.index('[[ "$AUTH_STATUS" == "logged_out" ]]') < source.index(
+        "job_search_loop.mercor_email_auth"
+    )
+
+
 def test_mercor_pass_binds_exact_leased_page():
     source = (ROOT / "apps/job-search-loop/scripts/run-mercor.sh").read_text()
     prompt = (ROOT / "apps/job-search-loop/prompts/mercor-pass.md").read_text()

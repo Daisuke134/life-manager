@@ -54,13 +54,44 @@ PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
 
 set +e
 RUN_STARTED_AT=$(/bin/date +%s)
-if ! PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
-  -m job_search_loop.mercor_auth_readback \
-  --ws "$MERCOR_CDP_PAGE_WS" --output "$AUTH_READBACK_JSON"; then
+AUTH_STATUS=""
+read_auth_status() {
+  AUTH_STATUS=""
+  AUTH_STATUS=$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("status", ""))' \
+    "$AUTH_READBACK_JSON" 2>/dev/null) || AUTH_STATUS=""
+}
+run_auth_readback() {
+  PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
+    -m job_search_loop.mercor_auth_readback \
+    --ws "$MERCOR_CDP_PAGE_WS" --output "$AUTH_READBACK_JSON"
+  local auth_rc=$?
+  if (( auth_rc == 0 || auth_rc == 2 )); then
+    read_auth_status
+  else
+    AUTH_STATUS=""
+  fi
+  return "$auth_rc"
+}
+run_auth_readback || true
+if [[ "$AUTH_STATUS" == "indeterminate" ]]; then
+  sleep 1
+  run_auth_readback || true
+fi
+if [[ "$AUTH_STATUS" == "logged_out" ]]; then
   PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
     -m job_search_loop.mercor_email_auth \
     --ws "$MERCOR_CDP_PAGE_WS" --after-epoch "$RUN_STARTED_AT" \
     --profile "$HOME/.config/anicca/job-search/profile.json" --output "$EMAIL_AUTH_JSON"
+  email_auth_rc=$?
+  if (( email_auth_rc != 0 )); then
+    print -u2 "mercor application owner: confirmed logout recovery failed"
+    exit 75
+  fi
+  run_auth_readback || true
+fi
+if [[ "$AUTH_STATUS" != "authenticated" ]]; then
+  print -u2 "mercor application owner: authenticated readback unavailable; no login email requested"
+  exit 75
 fi
 MERCOR_APPLICATION_STATE_ROOT="$STATE_ROOT" JOB_SEARCH_STATE_ROOT="${STATE_ROOT:h:h}" \
   MERCOR_RUN_EARNINGS_SYNC=0 \
