@@ -3,5 +3,6 @@
 set -euo pipefail
 
 SKILL_DIR="${ARTICLE_SKILL_DIR:-${ARTICLE_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)}}"
+STATE_DIR="${ARTICLE_STATE_DIR:-${WRITER_STATE_DIR:-$SKILL_DIR/state}}"
 exec python3 "$SKILL_DIR/scripts/self_improve_control.py" verify \
-  --skill-dir "$SKILL_DIR"
+  --skill-dir "$SKILL_DIR" --state-dir "$STATE_DIR"

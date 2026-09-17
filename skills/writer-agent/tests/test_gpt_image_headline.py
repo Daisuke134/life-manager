@@ -153,6 +153,6 @@ def test_local_cliproxy_is_an_openai_compatible_image_fallback(
 
     assert result["status"] == "committed"
     assert calls[0][0].full_url == "http://127.0.0.1:8317/v1/images/generations"
-    assert json.loads(calls[0][0].data)["model"] == "gpt-image-2"
+    assert json.loads(calls[0][0].data)["model"] == "gpt-image-2-2026-04-21"
     assert calls[0][0].headers["X-request-id"].startswith("lm-")
     assert result["request_id_source"] == "client-generated"
