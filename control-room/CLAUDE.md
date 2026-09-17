@@ -20,10 +20,10 @@
 
 | Rule | Applied here as |
 |---|---|
-| #0 Superpowers workflow | any change to this directory reads the current applicable skills, verifies, reviews, integrates, and removes the exact worktree |
-| #0.12 verify-before-completion | every "done" claim needs fresh evidence (run command, paste output, check exit code) |
-| #18 NO parallel implementation | one profile edit at a time; never edit two profiles' files in parallel |
-| #-2 NO secrets in OSS | never paste raw `CDP_*`, `OPENROUTER_API_KEY`, `BWS_*`, wallet privkey, or any value from `~/.openclaw/.env` into any file under this directory |
+| Superpowers workflow | any change to this directory reads the current applicable skills, verifies, reviews, integrates, and removes the exact worktree |
+| Verification before completion | every "done" claim needs fresh evidence (run command, paste output, check exit code) |
+| Shared resource safety | serialize edits to the same profile, account, state, or branch |
+| Secrets | never paste raw `CDP_*`, `OPENROUTER_API_KEY`, `BWS_*`, wallet privkey, or any value from `~/.openclaw/.env` into any file under this directory |
 
 ## What you may NEVER do here
 
@@ -32,15 +32,15 @@
 3. Edit `CONSTITUTION.md` (it is hash-pinned; changes break propagation to children).
 4. Copy `~/.openclaw/identity/` contents into any file here (PII isolation).
 5. Add a profile without registering it in `shared/architecture.md` § profiles table.
-6. Run `git commit` from a sub-agent context unless the operator explicitly approved (HARD RULE #0).
-7. Skip the verify gate (HARD RULE #0.12) when claiming a profile is "live."
+6. Run `git commit` from a sub-agent context unless the operator explicitly approved.
+7. Skip the verification gate when claiming a profile is "live."
 
 ## What you SHOULD do
 
 1. Read the spec section that the file derives from before editing.
 2. Use placeholders sparingly — every file should be useful to a fresh LLM agent.
-3. Keep tables (per HARD RULE 0.5: "出力は常にテーブル形式").
-4. When in doubt about scope, ask the operator (per HARD RULE 0.10: "スペック100%明確になるまで実装禁止").
+3. Keep tables where they make the operator workflow clearer.
+4. When scope is unclear, resolve it against the applicable repository spec before editing.
 5. Cite the spec line numbers when claiming "this is what the system does."
 
 ## When operator says "spawn a new instance"

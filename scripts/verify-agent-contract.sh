@@ -30,18 +30,20 @@ if grep -Eiq '(^|[/~])anicca-project|Felix' "$AGENTS" "$CLAUDE"; then
 fi
 
 CONTROL_ROOM="$ROOT/control-room/CLAUDE.md"
-if test -f "$CONTROL_ROOM"; then
-  grep -Fq '../AGENTS.md' "$CONTROL_ROOM" \
-    || fail "nested control-room contract must inherit ../AGENTS.md"
-  if grep -Eiq 'anicca-project|Felix' "$CONTROL_ROOM"; then
-    fail "nested control-room contract has stale reference"
-  fi
+test -f "$CONTROL_ROOM" \
+  || fail "nested control-room CLAUDE.md missing"
+grep -Fq '../AGENTS.md' "$CONTROL_ROOM" \
+  || fail "nested control-room contract must inherit ../AGENTS.md"
+if grep -Eiq 'anicca-project|Felix' "$CONTROL_ROOM"; then
+  fail "nested control-room contract has stale reference"
 fi
 
 HYPERFRAMES_DIR="$ROOT/skills/video/hyperframes/capafy-o13-review"
-if test -f "$HYPERFRAMES_DIR/CLAUDE.md"; then
-  grep -Fxq '@AGENTS.md' "$HYPERFRAMES_DIR/CLAUDE.md" \
-    || fail "nested HyperFrames CLAUDE.md must import @AGENTS.md"
-fi
+test -f "$HYPERFRAMES_DIR/AGENTS.md" \
+  || fail "nested HyperFrames AGENTS.md missing"
+test -f "$HYPERFRAMES_DIR/CLAUDE.md" \
+  || fail "nested HyperFrames CLAUDE.md missing"
+test "$(cat "$HYPERFRAMES_DIR/CLAUDE.md")" = '@AGENTS.md' \
+  || fail "nested HyperFrames CLAUDE.md must be exactly @AGENTS.md"
 
 printf 'AGENT_CONTRACT_PASS root=%s\n' "$ROOT"
