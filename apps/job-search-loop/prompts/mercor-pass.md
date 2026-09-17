@@ -18,7 +18,8 @@ Pass order:
    software, AI, automation, system-development and catalog-matching work. This is
    priority, not an allow-list: continue through other truthful-fit work too.
    Before ranking, compare the current Mercor Profile and résumé parser readback with the
-   bounded context's `profile_material`. If a material field is missing, draft a concise
+   bounded context's `profile_material`. When `profile_proposal_path` is supplied, use that
+   private proposal as the candidate text; otherwise draft a concise
    provider profile update from verified fact IDs only: a role summary, 2–4 representative
    outcomes/projects, core and occasional skills, languages, and availability. Do not change
    contact or legal fields during routine refinement. Save only through the authenticated owned

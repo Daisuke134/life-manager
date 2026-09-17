@@ -212,6 +212,9 @@ def build_context(
         "cdp_url": cdp_url,
         "cdp_page_ws": cdp_page_ws,
     }
+    proposal_path = state_root / "profile-proposal.json"
+    if proposal_path.is_file():
+        context["profile_proposal_path"] = str(proposal_path.resolve())
     if evidence_dir is not None:
         context["evidence_dir"] = str(evidence_dir.expanduser().resolve())
     return context

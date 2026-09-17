@@ -125,6 +125,20 @@ class MercorPassContractTests(unittest.TestCase):
                              hashlib.sha256(resume.read_bytes()).hexdigest())
             self.assertEqual(context["profile_material"]["verified_fact_ids"], ["education"])
 
+    def test_context_exposes_only_private_profile_proposal_path_when_present(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            profile = self._profile(state / "profile.json")
+            proposal = state / "profile-proposal.json"
+            proposal.write_text('{"profile_version":"v1"}\n', encoding="utf-8")
+            context = build_context(
+                state_root=state,
+                profile_path=profile,
+                resume_path=state / "resume.pdf",
+                cdp_url="http://127.0.0.1:9222",
+            )
+            self.assertEqual(context["profile_proposal_path"], str(proposal.resolve()))
+
     def test_profile_sync_readback_is_recorded_without_private_field_values(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
