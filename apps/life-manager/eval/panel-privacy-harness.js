@@ -109,6 +109,7 @@ function panelFetch(source, hostileValue) {
     if (url.pathname.endsWith("/lm_panel_preferences")) return jsonResponse([preferences]);
     if (url.pathname.endsWith("/lm_users")) return jsonResponse([user]);
     if (url.pathname.endsWith("/lm_wake_log")) return jsonResponse([]);
+    if (url.pathname.endsWith("/lm_voice_allowance_ledger")) return jsonResponse([]);
     if (url.pathname.endsWith("/lm_api_cost")) return jsonResponse([]);
     if (url.pathname.endsWith("/lm_agent_earnings")) {
       return jsonResponse([{

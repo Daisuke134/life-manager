@@ -46,8 +46,13 @@ function makeFixture() {
         observed_at: "2026-07-21T11:00:00.000Z", expires_at: "2026-07-21T13:00:00.000Z",
       },
       wakes: [
-        { uid: "u1", event_key: "evt-u1|10", called_at: "2026-07-21T08:50:00.000Z", answered_at: "2026-07-21T08:50:10.000Z" },
-        { uid: "u1", event_key: "evt-u1|5", called_at: "2026-07-21T08:55:00.000Z", answered_at: null },
+        { uid: "u1", event_key: "evt-u1|10", called_at: "2026-07-21T08:50:00.000Z", answered_at: "2026-07-21T08:50:10.000Z", call_outcome: "conversation", telnyx_hangup_cause: "normal_clearing", telnyx_call_duration_seconds: 10 },
+        { uid: "u1", event_key: "evt-u1|5", called_at: "2026-07-21T08:55:00.000Z", answered_at: null, call_outcome: "no_answer", telnyx_hangup_cause: "timeout", telnyx_call_duration_seconds: 0 },
+        { uid: "u1", event_key: "evt-u1|5b", called_at: "2026-07-21T08:56:00.000Z", answered_at: null, call_outcome: "dial_failed", telnyx_hangup_cause: "rejected", telnyx_call_duration_seconds: 0 },
+      ],
+      voice: [
+        { status: "succeeded", connected_seconds: 10 },
+        { status: "succeeded", connected_seconds: 12 },
       ],
       costs: [
         { uid: "u1", ts: "2026-07-21T08:50:00.000Z", kind: "telnyx_call", quantity: 60, unit: "seconds", est_usd: 0.12 },
@@ -124,6 +129,7 @@ function makeFixture() {
     if (url.pathname.endsWith("/lm_panel_preferences")) return jsonResponse(uid === "u1" ? [{ call_time_zone: "UTC" }] : []);
     if (url.pathname.endsWith("/lm_user_locations")) return jsonResponse(fixture ? [fixture.location] : []);
     if (url.pathname.endsWith("/lm_wake_log")) return jsonResponse(fixture ? fixture.wakes : []);
+    if (url.pathname.endsWith("/lm_voice_allowance_ledger")) return jsonResponse(fixture ? (fixture.voice || []) : []);
     if (url.pathname.endsWith("/lm_api_cost")) return jsonResponse(fixture ? fixture.costs : []);
     if (url.pathname.endsWith("/lm_agent_earnings")) {
       const wallet = String(url.searchParams.get("wallet_address") || "").replace(/^eq\./, "");
@@ -699,10 +705,12 @@ test("LM-33b timeline returns today's interpreted calendar and call telemetry", 
     assert.equal(response.headers.get("cache-control"), "no-store");
     assert.deepEqual(body, {
       date: "2026-07-21", timezone: "UTC",
+      voice_usage: { available: true, used_seconds: 22, limit_seconds: 3600, remaining_seconds: 3578, reset_at: "2026-08-01" },
       items: [
         { sentence: "14:00開始の予定です。詳細はカレンダーで確認してください。", status: "カレンダーで確認" },
-        { sentence: "08:50の電話は応答済みです。", status: "応答済み" },
-        { sentence: "08:55の電話は未応答です。", status: "未応答" },
+        { sentence: "08:50の電話は会話できました。", status: "会話できた" },
+        { sentence: "08:55の電話は予定前に発信しました（応答なし）。", status: "応答なし" },
+        { sentence: "08:56の電話は発信できませんでした。", status: "発信失敗" },
       ],
     });
   });
@@ -1259,6 +1267,7 @@ test("Task 3 ready dashboard previews the first future calendar event and degrad
     if (url.pathname.endsWith("/lm_panel_preferences")) return jsonResponse([{ call_time_zone: "UTC" }]);
     if (url.pathname.endsWith("/lm_users")) return jsonResponse([]);
     if (url.pathname.endsWith("/lm_wake_log")) return jsonResponse([]);
+    if (url.pathname.endsWith("/lm_voice_allowance_ledger")) return jsonResponse([]);
     throw new Error(`unexpected timeline URL ${url}`);
   };
   h.opts.calendar = {

@@ -167,17 +167,40 @@ async function timeline(uid, opts) {
     uid: `eq.${uid}`,
     called_at: `gte.${new Date(bounds.startMs).toISOString()}`,
     and: `(called_at.lt.${new Date(bounds.endMs).toISOString()})`,
-    select: "event_key,called_at,answered_at",
+    select: "event_key,called_at,answered_at,call_outcome,telnyx_hangup_cause,telnyx_call_duration_seconds",
     order: "called_at.asc",
   }, opts);
+  const periodStart = `${bounds.key.slice(0, 7)}-01`;
+  const voiceLedger = await readRows("lm_voice_allowance_ledger", {
+    uid: `eq.${uid}`, period_start: `eq.${periodStart}`, select: "status,connected_seconds",
+  }, opts, true);
+  const voiceRows = voiceLedger.rows;
+  const usedSeconds = voiceRows.reduce((sum, row) => {
+    return row && row.status === "succeeded" ? sum + Math.max(0, Math.ceil(Number(row.connected_seconds) || 0)) : sum;
+  }, 0);
+  const resetAt = new Date(Date.UTC(
+    Number(periodStart.slice(0, 4)), Number(periodStart.slice(5, 7)), 1,
+  )).toISOString().slice(0, 10);
   return {
     date: bounds.key,
     timezone: timeZone,
+    voice_usage: voiceLedger.missing
+      ? { available: false, used_seconds: null, limit_seconds: 3600, remaining_seconds: null, reset_at: resetAt }
+      : {
+        available: true,
+        used_seconds: usedSeconds,
+        limit_seconds: 3600,
+        remaining_seconds: Math.max(0, 3600 - usedSeconds),
+        reset_at: resetAt,
+      },
     events,
     calls: calls.map((row) => ({
       event_key: row.event_key,
       called_at: row.called_at,
       answered_at: row.answered_at || null,
+      call_outcome: row.call_outcome || null,
+      hangup_cause: row.telnyx_hangup_cause || null,
+      duration_seconds: row.telnyx_call_duration_seconds == null ? null : Number(row.telnyx_call_duration_seconds),
     })),
   };
 }

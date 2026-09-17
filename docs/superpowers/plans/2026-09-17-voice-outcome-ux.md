@@ -106,6 +106,7 @@ Run: `git add apps/life-manager/server.js apps/life-manager/lib/late-notice.js a
 - Modify: `apps/life-manager/lib/panel-api.js:136-181`
 - Modify: `apps/life-manager/lib/panel-presentation.js:64-111`
 - Modify: `apps/life-manager/lib/panel-ui.js:797-980`
+- Modify: `apps/life-manager/eval/panel-privacy-harness.js:103-136`
 - Modify: `apps/life-manager/lib/panel-api.test.js:694-715`
 - Modify: `apps/life-manager/lib/panel-ui.test.js:627-640`
 - Modify: `apps/life-manager/lib/panel-privacy-browser.test.js:113-180`
@@ -174,4 +175,3 @@ For an eligible calendar event, verify the T-10/T-5 rows show the new outcome, t
 - [ ] **Step 6: Update the spec status, commit, and push the final evidence**
 
 Change only the status/evidence lines needed to reflect observed production results, then run `git diff --check`, `git commit`, and `git push`.
-
