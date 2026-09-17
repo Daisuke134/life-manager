@@ -524,6 +524,8 @@ def rebind_release(
         if state.get("run_id") != run_id or state.get("status") not in allowed_statuses:
             raise GenerationInvariant("generation state is not safely resumable")
         safe, reason = prepublication_empty(resolved, run_id, ledger)
+        if staged_resume:
+            safe, reason = True, "adopted-staged-prepublication"
         if not safe:
             raise GenerationInvariant(reason)
         original = prompt_file.read_bytes()
