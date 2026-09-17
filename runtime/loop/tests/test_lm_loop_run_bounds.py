@@ -283,7 +283,8 @@ def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
                     "capafy-loop-healthcheck"):
         receipt = tmp_path / f"receipt-{loop_id}"
         with (patch("runtime.loop.lm_loop_run.memory_free_percent") as memory,
-              patch("runtime.loop.lm_loop_run.durable_protocol_version") as protocol,
+              patch("runtime.loop.lm_loop_run.durable_protocol_version",
+                    return_value=1) as protocol,
               patch("runtime.loop.lm_loop_run.try_acquire_resource") as acquire,
               patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0) as run):
             assert _run_admitted(
@@ -291,7 +292,10 @@ def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
             ) == 0
 
         memory.assert_not_called()
-        protocol.assert_not_called()
+        if loop_id == "capafy-loop-healthcheck":
+            protocol.assert_not_called()
+        else:
+            protocol.assert_called_once_with()
         acquire.assert_not_called()
         run.assert_called_once_with(["/bin/true"], env={}, timeout_seconds=900)
         assert json.loads(receipt.read_text()) == {
@@ -299,6 +303,22 @@ def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
             "reason": "control_plane_exempt",
             "status": "pass",
         }
+
+
+def test_successful_safety_wake_dispatches_waiting_owner_without_taking_a_slot(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 300},
+             "provider_route": "deterministic"}
+    with (patch("runtime.loop.lm_loop_run.durable_protocol_version", return_value=2),
+          patch("runtime.loop.lm_loop_run.try_acquire_resource") as acquire,
+          patch("runtime.loop.lm_loop_run.reserve_available_resource",
+                return_value=["waiting-owner"]) as reserve,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved") as dispatch,
+          patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0)):
+        assert _run_admitted(["/bin/true"], entry, "life-manager-disk-cleanup",
+                             {}, tmp_path / "receipt") == 0
+    acquire.assert_not_called()
+    reserve.assert_called_once_with()
+    dispatch.assert_called_once_with(["waiting-owner"])
 
 
 def test_v1_protocol_uses_legacy_nonretaining_admission(tmp_path):
