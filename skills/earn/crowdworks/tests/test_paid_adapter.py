@@ -133,6 +133,110 @@ def test_funded_contract_without_google_form_waits_without_blocking_inventory():
     assert action["reason"] == "buyer_task_detail_required"
 
 
+def test_multi_form_contract_uses_model_selected_url():
+    module = load()
+    urls = ["https://forms.gle/video", "https://forms.gle/ads", "https://forms.gle/common"]
+    contract = {**funded(), "form_url": None, "form_urls": urls}
+
+    action = module.decide(
+        {"context": {"contract": contract}},
+        form_selector=lambda item: item["form_urls"][1],
+    )
+
+    assert action["action"] == "submit"
+    assert action["payload"]["form_url"] == urls[1]
+    assert action["payload"]["milestone_id"] == contract["milestone_id"]
+
+
+def test_multi_form_contract_waits_when_model_cannot_choose():
+    module = load()
+    contract = {**funded(), "form_url": None,
+                "form_urls": ["https://forms.gle/video", "https://forms.gle/ads"]}
+
+    action = module.decide({"context": {"contract": contract}})
+
+    assert action == {
+        "action": "wait",
+        "reason": "form_selection_required",
+        "remaining_work": ["model must select one official form from the buyer context"],
+    }
+
+
+def test_all_selected_forms_advance_to_separate_formal_delivery():
+    module = load()
+    url = "https://forms.gle/ads"
+    contract = {**funded(), "form_url": None, "form_urls": [url],
+                "completed_form_urls": [url]}
+
+    action = module.decide({"context": {"contract": contract}},
+                           form_selector=lambda _item: module.FORM_SELECTION_COMPLETE)
+
+    assert action == {
+        "action": "formal_delivery",
+        "payload": {
+            "milestone_id": contract["milestone_id"],
+            "message": "Googleフォームへの回答を完了しました。ご確認のほどよろしくお願いいたします。",
+        },
+    }
+
+
+def test_form_selector_uses_candidate_context_and_exact_allowed_url(tmp_path, monkeypatch):
+    module = load()
+    urls = ["https://forms.gle/video", "https://forms.gle/ads"]
+    seen = []
+    monkeypatch.setattr(module.grounding_module, "build_reply_grounding",
+                        lambda **_kwargs: {"candidate": {"display_name": "Kaito"}})
+    monkeypatch.setattr(module.composer, "compose", lambda context, **_kwargs: seen.append(context) or urls[1])
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", state_path=tmp_path,
+        candidate_profile=tmp_path / "candidate.json",
+        provider_profile={"display_name": "Kaito"},
+    )
+
+    chosen = adapter._select_form_url({
+        **funded(),
+        "form_url": None,
+        "form_urls": urls,
+        "form_candidates": [
+            {"url": urls[0], "title": "動画作品提出", "body": "動画作品URLを提出"},
+            {"url": urls[1], "title": "Web広告実績", "body": "広告運用実績と指標を提出"},
+        ],
+    })
+
+    assert chosen == urls[1]
+    assert seen[0]["action_contract"]["allowed_choices"] == [*urls, module.FORM_SELECTION_COMPLETE]
+    assert "Web広告実績" in seen[0]["conversation"][0]["body"]
+
+
+def test_submit_effect_does_not_formal_deliver_in_same_mutation():
+    module = load()
+    events = []
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter._targeted_detail = lambda _work_id: funded()
+    adapter._submit_form_once = lambda item: events.append(("form", item["work_id"]))
+    adapter._complete_once = lambda *_args: (_ for _ in ()).throw(AssertionError("delivery combined"))
+
+    adapter.mutate({"action": "submit", "work_id": "63570481",
+                    "payload": {"form_url": funded()["form_url"],
+                                "form_sha256": hashlib.sha256(funded()["form_url"].encode()).hexdigest(),
+                                "milestone_id": funded()["milestone_id"]}})
+
+    assert events == [("form", "63570481")]
+
+
+def test_formal_delivery_is_a_separate_mutation():
+    module = load()
+    events = []
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter._targeted_detail = lambda _work_id: funded()
+    adapter._complete_once = lambda item, payload: events.append((item["work_id"], payload["milestone_id"]))
+
+    adapter.mutate({"action": "formal_delivery", "work_id": "63570481",
+                    "payload": {"milestone_id": funded()["milestone_id"], "message": "done"}})
+
+    assert events == [("63570481", "13798056")]
+
+
 def test_no_form_contract_does_not_require_application_date():
     module = load()
     contract = {key: value for key, value in funded().items()
