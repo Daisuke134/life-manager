@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["source", "observed_at", "evidence", "fact_or_inference", "transfer_hypothesis", "variable", "baseline_reference", "candidate_reference", "decision"],
+  "additionalProperties": false,
+  "properties": {
+    "source": {"type": "object", "required": ["url", "title", "kind"], "additionalProperties": false},
+    "observed_at": {"type": "string", "format": "date-time"},
+    "evidence": {"type": "object", "required": ["excerpt", "sha256"], "additionalProperties": false},
+    "fact_or_inference": {"enum": ["fact", "inference"]},
+    "transfer_hypothesis": {"type": "string", "minLength": 1},
+    "variable": {"type": "string", "minLength": 1},
+    "baseline_reference": {"type": "object"},
+    "candidate_reference": {"type": "object"},
+    "decision": {"enum": ["KEEP", "REVERT", "INCONCLUSIVE"]}
+  }
+}

@@ -24,6 +24,64 @@ from writer_learning_experiment import ExperimentStore  # noqa: E402
 
 
 SAFE_FIELD = re.compile(r"[A-Za-z][A-Za-z0-9._-]{0,79}")
+HEX_SHA256 = re.compile(r"[0-9a-f]{64}")
+WINNER_DECISIONS = {"KEEP", "REVERT", "INCONCLUSIVE"}
+
+
+def validate_winner_observation(value: Any) -> dict[str, Any]:
+    """Validate one immutable, attributable winner observation."""
+    required = {
+        "source", "observed_at", "evidence", "fact_or_inference",
+        "transfer_hypothesis", "variable", "baseline_reference",
+        "candidate_reference", "decision",
+    }
+    if not isinstance(value, dict):
+        raise ValueError("winner observation fields are incomplete")
+    missing = required - set(value)
+    if missing:
+        raise ValueError(f"missing winner observation field: {sorted(missing)[0]}")
+    if set(value) != required:
+        raise ValueError("winner observation has unexpected fields")
+    source = value["source"]
+    if not isinstance(source, dict) or not isinstance(source.get("url"), str):
+        raise ValueError("source url is required")
+    if source.get("kind") in {"self_asserted", "self", "internal_claim"}:
+        raise ValueError("self-asserted evidence is not attributable")
+    if not source["url"].startswith(("https://", "http://")):
+        raise ValueError("source url must be attributable")
+    for field in ("title", "kind"):
+        if not isinstance(source.get(field), str) or not source[field].strip():
+            raise ValueError(f"source {field} is required")
+    try:
+        observed = datetime.fromisoformat(str(value["observed_at"]).replace("Z", "+00:00"))
+    except (TypeError, ValueError) as error:
+        raise ValueError("observed_at must be ISO-8601") from error
+    if observed.tzinfo is None or observed.utcoffset() is None:
+        raise ValueError("observed_at must include timezone")
+    evidence = value["evidence"]
+    if not isinstance(evidence, dict) or not isinstance(evidence.get("excerpt"), str):
+        raise ValueError("evidence excerpt is required")
+    excerpt = evidence["excerpt"].strip()
+    digest = evidence.get("sha256")
+    if not excerpt or not isinstance(digest, str) or not HEX_SHA256.fullmatch(digest):
+        raise ValueError("evidence excerpt sha256 is invalid")
+    if _sha_bytes(excerpt.encode("utf-8")) != digest:
+        raise ValueError("evidence excerpt sha256 mismatch")
+    if value["fact_or_inference"] not in {"fact", "inference"}:
+        raise ValueError("fact_or_inference must be fact or inference")
+    if not isinstance(value["transfer_hypothesis"], str) or not value["transfer_hypothesis"].strip():
+        raise ValueError("transfer_hypothesis is required")
+    if not isinstance(value["variable"], str) or SAFE_FIELD.fullmatch(value["variable"]) is None:
+        raise ValueError("variable must name exactly one field")
+    for name in ("baseline_reference", "candidate_reference"):
+        ref = value[name]
+        if not isinstance(ref, dict) or not isinstance(ref.get("article_id"), str) or not isinstance(ref.get("sha256"), str):
+            raise ValueError(f"{name} is incomplete")
+        if HEX_SHA256.fullmatch(ref["sha256"]) is None:
+            raise ValueError(f"{name} sha256 is invalid")
+    if value["decision"] not in WINNER_DECISIONS:
+        raise ValueError("decision must be KEEP, REVERT, or INCONCLUSIVE")
+    return {**value, "observed_at": observed.isoformat()}
 
 
 def _canonical(value: Any) -> bytes:
