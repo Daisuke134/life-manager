@@ -129,6 +129,79 @@ def test_transient_admission_lock_contention_is_retried_before_deferring(tmp_pat
     assert sleep.call_count == 2
 
 
+def test_sqlite_lock_before_claim_records_deferred_admission(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 300},
+        "provider_route": "deterministic",
+        "resource_class": "browser",
+        "effect_class": "none",
+    }
+    receipt = tmp_path / "host-admission.json"
+    started_ns = time.time_ns()
+    with (patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                side_effect=sqlite3.OperationalError("database is locked")),
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(["/bin/true"], entry, "browser-probe", {}, receipt,
+                             occurrence_id="browser-probe:wake-1") == 75
+
+    assert json.loads(receipt.read_text()) == {
+        "status": "deferred", "effect": 0,
+        "reason": "resource_admission_unavailable",
+    }
+    assert _terminal_outcome(
+        75, host_deferred=_host_admission_deferred(receipt, started_ns),
+    ) == (False, True, "host_admission_deferred:resource_admission_unavailable")
+    run.assert_not_called()
+
+
+def test_sqlite_lock_during_claim_records_deferred_admission(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 300},
+        "provider_route": "deterministic",
+        "resource_class": "browser",
+        "effect_class": "none",
+    }
+    receipt = tmp_path / "host-admission.json"
+    with (patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                side_effect=sqlite3.OperationalError("database is locked")),
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(["/bin/true"], entry, "browser-probe", {}, receipt,
+                             occurrence_id="browser-probe:wake-2") == 75
+
+    assert json.loads(receipt.read_text()) == {
+        "status": "deferred", "effect": 0,
+        "reason": "resource_admission_unavailable",
+    }
+    run.assert_not_called()
+
+
+def test_sqlite_lock_during_best_effort_reservation_keeps_terminal_path(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 300},
+        "provider_route": "deterministic",
+        "resource_class": "browser",
+        "effect_class": "none",
+    }
+    receipt = tmp_path / "host-admission.json"
+    with (patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(None, "capacity_busy")),
+          patch("runtime.loop.lm_loop_run.reserve_available_resource",
+                side_effect=sqlite3.OperationalError("database is locked")),
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(["/bin/true"], entry, "browser-probe", {}, receipt,
+                             occurrence_id="browser-probe:wake-3") == 75
+
+    assert json.loads(receipt.read_text()) == {
+        "status": "deferred", "effect": 0,
+        "reason": "resource_capacity_busy",
+    }
+    run.assert_not_called()
+
+
 def test_wake_occurrence_identity_is_forwarded_to_durable_admission(tmp_path):
     entry = {
         "cadence": {"start_interval_seconds": 60},
@@ -1121,15 +1194,17 @@ def test_dispatch_reserved_tolerates_missing_owner_cancel_failure(tmp_path):
         "schema_version": 2, "loops": {},
     }))
 
-    with (patch("runtime.loop.lm_loop_run.cancel_durable_resource",
-                side_effect=OSError("admission unavailable")) as cancel,
-          patch("runtime.loop.lm_loop_run.subprocess.run") as run):
-        assert _dispatch_reserved(
-            ["retired"], current=current, agents_dir=agents,
-        ) == []
+    for error in (OSError("admission unavailable"),
+                  sqlite3.OperationalError("database is locked")):
+        with (patch("runtime.loop.lm_loop_run.cancel_durable_resource",
+                    side_effect=error) as cancel,
+              patch("runtime.loop.lm_loop_run.subprocess.run") as run):
+            assert _dispatch_reserved(
+                ["retired"], current=current, agents_dir=agents,
+            ) == []
 
-    cancel.assert_called_once_with("retired")
-    run.assert_not_called()
+        cancel.assert_called_once_with("retired")
+        run.assert_not_called()
 
 
 def test_dispatch_reserved_rejects_stale_loaded_release_prefix(tmp_path):

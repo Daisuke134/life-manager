@@ -384,7 +384,7 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   loaded/event SHA `d0401d93`. These observations do not claim provider effects
   or every loop's business outcome: Capafy and other exact effect/readback
   fences remain with their owners.
-  Current final-audit blocker: the global `current` symlink advanced to
+  Interim final-audit blocker: the global `current` symlink advanced to
   main-derived `9b917377820c` at 22:00:57Z. All 7,374 files tracked by
   that commit were present in the release, but its `RELEASE.json` omitted
   `release_paths`, `runtime_python` and `runtime_python_cache_tag`. The
@@ -394,6 +394,37 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   guards a full main-derived `current`; recut `origin/main` through that
   existing path after the release-cut owner lock is free, then read back the
   new manifest and loaded SHA without touching Connector's separate repair.
+  That repair cut completed through the existing lock at 22:09:17Z:
+  `current` is `20260918T070830-311c9194`, SHA `311c919497bad2afbb0dd12f60765ea1bfae322a`, an `origin/main`
+  ancestor with `release_paths=ALL` and runtime Python metadata. All 7,374
+  tracked files are present. The browser handoff owners remain installed on
+  their same proven SHA `fc31d122`; the release reconciler remains on
+  `d0401d93`. Its post-cut natural run `18d63b2ceaee1470-15244` reached
+  outer pass at 22:11:19Z. `lm-loop doctor` on complete `current` returned
+  `ok=true`, 166 entries, missing/unmanaged/retired 0. The disk-cleanup
+  natural run `18d63b048e6e15b0-3413` reached outer pass at 22:09:52Z;
+  matching receipt at 22:09:51Z reports errors 0 and protected deletions 0.
+  Disk availability was 16,000,084 KiB and memory free 46%. Runtime-eligible
+  queues were agent 23 (oldest 28.9 minutes), browser 0, deterministic 13
+  (oldest 4.5 minutes); effect-unknown occurrences remain fenced separately
+  for agent 37 and deterministic 35 owners, browser 0. Connector's internal
+  `entrypoint_exit_1` remains with its separate owner and is not a claim of
+  Connector business success.
+  A later probe wake `18d63b1049945420-4126` exposed one more Foundation
+  terminal gap: it wrote `execute/running` at 22:07:23Z on `fc31d122`, but
+  `enqueue_durable_resource` raised `sqlite3.OperationalError: database is
+  locked` at the admission database commit before any claim or child. The
+  runner did not catch `sqlite3.Error`, so no outer terminal or occurrence
+  was recorded. This is pre-effect and does not authorize an
+  `effect_unknown` clear. A bounded fix in `runtime/loop/lm_loop_run.py`
+  converts SQLite admission failures to an effect-0 deferred receipt and
+  normal blocked terminal. Best-effort reservation dispatch also preserves
+  that terminal if its database probe is locked. Focused regressions failed
+  on the exact enqueue, claim, reservation and dispatch exceptions before
+  the fix; all 63 runner-bound tests passed after it. A15-14
+  remains open until this fix is on main, a complete main-derived release
+  is loaded, and a follow-up natural probe terminal plus final host readback
+  pass. No extra scheduler or provider submission is needed.
 
 A15-02 integration observation: an earlier PR #5362 head at `eb72e7cb1b` had
 one failing `OSS self-contained boundary` check. The exact inventory digest
