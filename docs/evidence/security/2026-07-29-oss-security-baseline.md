@@ -95,3 +95,17 @@ Neither shape can authenticate anything, so nothing is rotated. The
 fingerprints are pinned to commit, path, rule and line, so the baseline still
 fails on a real secret at a new location — verified by the gate continuing to
 run the full history scan rather than being narrowed.
+
+## Addendum 2026-09-17 — Mobile question identifiers
+
+The full-history scan reported 15 `generic-api-key` findings from Mobile
+import commit `603d6810256510ac3d8e9f6c309cc70126e3d863`, all in
+`DeepDiveQuestionsData.swift`. Every reported line is a
+`DeepDiveQuestion.questionKey` string, not an authentication field. The 15
+distinct namespaced identifiers are each present in both English and Japanese
+`Localizable.strings`. No matched value is copied into this evidence.
+
+Only the 15 exact commit/path/rule/line fingerprints are added to
+`.gitleaksignore`. The current-tree scan, full-history scan and detection of
+any new value at another location remain enabled. No credential rotation is
+indicated for these localization keys.

@@ -1039,3 +1039,20 @@ f3af5177d37815397631de6ce45a886f1d4e3a66:apps/life-manager/lib/outbound-guardian
 f3af5177d37815397631de6ce45a886f1d4e3a66:skills/connector/test/wake-report-outbox.test.js:generic-api-key:32
 3cbe6ca09b824769964f1a98aea36f7a6dc98bb8:runtime/earn/lib/__tests__/resolve-identity.test.mjs:generic-api-key:152
 3cbe6ca09b824769964f1a98aea36f7a6dc98bb8:runtime/earn/lib/__tests__/resolve-identity.test.mjs:generic-api-key:163
+# DeepDiveQuestion.questionKey localization IDs in Mobile import commit 603d6810.
+# Each exact identifier exists in both en and ja Localizable.strings; no credential.
+603d6810256510ac3d8e9f6c309cc70126e3d863:apps/mobile/anicca-ios/aniccaios/Models/DeepDiveQuestionsData.swift:generic-api-key:28
+603d6810256510ac3d8e9f6c309cc70126e3d863:apps/mobile/anicca-ios/aniccaios/Models/DeepDiveQuestionsData.swift:generic-api-key:38
+603d6810256510ac3d8e9f6c309cc70126e3d863:apps/mobile/anicca-ios/aniccaios/Models/DeepDiveQuestionsData.swift:generic-api-key:71
+603d6810256510ac3d8e9f6c309cc70126e3d863:apps/mobile/anicca-ios/aniccaios/Models/DeepDiveQuestionsData.swift:generic-api-key:80
+603d6810256510ac3d8e9f6c309cc70126e3d863:apps/mobile/anicca-ios/aniccaios/Models/DeepDiveQuestionsData.swift:generic-api-key:92
+603d6810256510ac3d8e9f6c309cc70126e3d863:apps/mobile/anicca-ios/aniccaios/Models/DeepDiveQuestionsData.swift:generic-api-key:101
+603d6810256510ac3d8e9f6c309cc70126e3d863:apps/mobile/anicca-ios/aniccaios/Models/DeepDiveQuestionsData.swift:generic-api-key:134
+603d6810256510ac3d8e9f6c309cc70126e3d863:apps/mobile/anicca-ios/aniccaios/Models/DeepDiveQuestionsData.swift:generic-api-key:143
+603d6810256510ac3d8e9f6c309cc70126e3d863:apps/mobile/anicca-ios/aniccaios/Models/DeepDiveQuestionsData.swift:generic-api-key:185
+603d6810256510ac3d8e9f6c309cc70126e3d863:apps/mobile/anicca-ios/aniccaios/Models/DeepDiveQuestionsData.swift:generic-api-key:194
+603d6810256510ac3d8e9f6c309cc70126e3d863:apps/mobile/anicca-ios/aniccaios/Models/DeepDiveQuestionsData.swift:generic-api-key:203
+603d6810256510ac3d8e9f6c309cc70126e3d863:apps/mobile/anicca-ios/aniccaios/Models/DeepDiveQuestionsData.swift:generic-api-key:215
+603d6810256510ac3d8e9f6c309cc70126e3d863:apps/mobile/anicca-ios/aniccaios/Models/DeepDiveQuestionsData.swift:generic-api-key:224
+603d6810256510ac3d8e9f6c309cc70126e3d863:apps/mobile/anicca-ios/aniccaios/Models/DeepDiveQuestionsData.swift:generic-api-key:236
+603d6810256510ac3d8e9f6c309cc70126e3d863:apps/mobile/anicca-ios/aniccaios/Models/DeepDiveQuestionsData.swift:generic-api-key:245
