@@ -174,7 +174,7 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   `x402-inflow-watch` run `18d6188f810e41c0-43797` recovered to a later
   natural pass `18d618b1235b1a90-48212`. This is a finite queue check,
   not a claim that every effect-fenced provider loop works.
-- [ ] **A15-14 — record the A15 verdict.** Mark Foundation Done only when
+- [x] **A15-14 — record the A15 verdict.** Mark Foundation Done only when
   A15-03 through A15-13 pass. Record main/release/loaded SHA, exact run IDs,
   queue-age before/after and receipt pointers here, then hand provider effect
   and readback blockers to their owners without claiming all loops work. Also
@@ -193,10 +193,33 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   0; free bytes rose 638,849,024 to 1,236,148,224. A second natural run
   `18d61e7fd253a1d8-92885` reached outer pass at 13:30:01Z on loaded SHA
   `deb086429a1a` while global `current` had advanced to complete main release
-  `f4d701999f1`. **Verdict remains NOT
-  DONE:** A15-08 has no second eligible browser-class owner/claim. Provider
-  effect readbacks, including three remaining Capafy owner fences, remain with
-  their separate owners.
+  `f4d701999f1`. **A15 Foundation verdict: DONE for the shared acceptance
+  checklist.** The missing browser-class handoff is now proved by A15-08's
+  Connector `18d624c67945c920-61315` → probe
+  `18d624f5e990c7f0-67714` natural terminal chain and released SQLite
+  occurrences. Its waiting age fell from about 1.7 minutes to zero; the
+  before/after receipt pointers are the two owners' `events.jsonl`, the
+  admission `occurrences` rows and the probe's `launchd.out.log` `cdp_ready`.
+  PR #5396 merged at `9c97f0e140`; probe loaded and event SHA is the complete
+  main-derived release `3444d81cb71f` (`release_paths=ALL`, install event
+  `97372c441702b136c37ba286`). The final readback found global `current`
+  complete main release `9c2776b3cf60` (`release_paths=ALL`, no missing
+  tracked paths), `origin/main` `9d38c4a3bde0`, and `lm-loop doctor`
+  `ok=true` with 166 registry entries and no missing, unmanaged or retired
+  labels. The runtime eligibility query counted agent 21 (oldest 69.8 min),
+  browser 0, deterministic 18 (oldest 57.9 min), below the configured 2-hour
+  support age; unknown effects remained separate and fenced. Memory free was
+  32%, and disk available was 4,234,912 KiB. After transient fail-closed
+  `probe-error` runs, disk-cleanup natural run `18d6260521ecf460-12303`
+  reached outer pass at 15:43:19Z on loaded `d29621be5159`, with host,
+  release and scratch errors 0, protected deletions 0 and free bytes rising
+  from 4,240,662,528 to 4,436,287,488 in its stdout receipt. The older
+  loaded reconciler `deb086429a1a` had the required post-fence natural passes
+  `18d61e16f28b15d0-75320` and `18d61e7fd253a1d8-92885`; later concurrent
+  release cuts caused safe `entrypoint_exit_1` retries, and a newer natural
+  run was active at this readback. This verdict does not claim provider effects
+  or every loop's business outcome: Capafy and other exact effect/readback
+  fences remain with their owners.
 
 A15-02 integration observation: an earlier PR #5362 head at `eb72e7cb1b` had
 one failing `OSS self-contained boundary` check. The exact inventory digest
