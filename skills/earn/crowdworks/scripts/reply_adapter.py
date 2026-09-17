@@ -231,7 +231,24 @@ class CrowdWorksReplyAdapter:
     def _google_form_url(url: str) -> bool:
         return google_form.is_google_form_url(url)
 
+    def _post_contract_owned_by_paid(self, thread_id: str) -> bool:
+        row = self.rows.get(thread_id)
+        if row is not None:
+            status = row.get("proposal_status")
+            if status is not None and status != "proposed":
+                return True
+        conversation = self.conversations.get(thread_id) or []
+        for message in conversation:
+            for link in message.get("links", []) if isinstance(message, Mapping) else []:
+                if isinstance(link, str):
+                    route = self._provider_route(link)
+                    if route is not None and route[0] == "contracts":
+                        return True
+        return False
+
     def _external_form_action(self, thread_id: str) -> dict[str, Any] | None:
+        if self._post_contract_owned_by_paid(thread_id):
+            return None
         conversation = self.conversations.get(thread_id) or self._detail(thread_id)
         if not conversation:
             return None
@@ -427,6 +444,8 @@ class CrowdWorksReplyAdapter:
             self.page.wait_for_load_state("domcontentloaded", timeout=20_000)
             return
         if intent.get("action") == "external_action":
+            if self._post_contract_owned_by_paid(intent["thread_id"]):
+                raise RuntimeError("crowdworks_post_contract_owned_by_paid")
             payload = intent.get("payload")
             if not isinstance(payload, Mapping) or payload.get("kind") != "submit_google_form":
                 raise RuntimeError("crowdworks_external_action_unsupported")

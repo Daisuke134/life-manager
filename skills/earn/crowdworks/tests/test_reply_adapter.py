@@ -361,6 +361,47 @@ def test_external_form_action_rejects_untrusted_or_ambiguous_links():
     assert adapter._external_form_action("thread-1") is None
 
 
+def test_post_contract_thread_never_offers_google_form_action():
+    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter.rows = {"thread-1": {
+        "thread_id": "thread-1", "id": "message-1", "proposal_status": "accepted",
+    }}
+    adapter.conversations = {"thread-1": [{
+        "event_id": "event-1", "role": "buyer", "sender": "buyer",
+        "sent_at": "2026-09-10T00:00:00Z", "body": "契約後にフォームへ回答してください",
+        "links": ["https://crowdworks.jp/contracts/63657015",
+                  "https://forms.gle/AbCdEf123"],
+    }]}
+
+    assert adapter._external_form_action("thread-1") is None
+
+
+def test_post_contract_external_intent_is_rejected_before_form_submit():
+    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter.rows = {"thread-1": {
+        "thread_id": "thread-1", "id": "message-1", "proposal_status": "accepted",
+    }}
+    adapter.conversations = {"thread-1": [{
+        "event_id": "event-1", "role": "buyer", "sender": "buyer",
+        "sent_at": "2026-09-10T00:00:00Z", "body": "フォームへ回答してください",
+        "links": ["https://forms.gle/AbCdEf123"],
+    }]}
+    adapter._submit_google_form = lambda _payload: (_ for _ in ()).throw(
+        AssertionError("Reply must not submit a post-contract form")
+    )
+    intent = {"action": "external_action", "thread_id": "thread-1", "payload": {
+        "kind": "submit_google_form", "url": "https://forms.gle/AbCdEf123",
+        "url_sha256": "a" * 64, "completion_body": "回答を完了しました。",
+    }}
+
+    try:
+        adapter.mutate(intent)
+    except RuntimeError as error:
+        assert str(error) == "crowdworks_post_contract_owned_by_paid"
+    else:
+        raise AssertionError("post-contract external intent was not rejected")
+
+
 def test_google_form_answers_bind_current_metadata_to_private_profiles(tmp_path):
     candidate = tmp_path / "candidate.json"
     provider = tmp_path / "provider.json"
