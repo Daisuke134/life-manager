@@ -20,6 +20,20 @@ Daisの現在の完了条件は**月間売上のreadback**であり、active MRR
 
 **モデル経路の境界:** Capafyのkey health probeと更新候補は`deepseek/deepseek-v4.1-flash`・`max_tokens=8192`を使う。既存browser-laneの判断runnerは現在Codex Terra高推論／Claude fallbackの契約であり、OpenRouter DeepSeekへ切り替える作業は別のprovider adapterと品質検証が必要なため、24/7復旧の完了条件に混ぜない。
 
+## Current ship status
+
+Capafyのcreator earningsと、Life Manager本体のStripe月額収益は別の収益線として扱う。片方の注文・payout・subscriptionをもう片方のMRRへ加算しない。
+
+| 項目 | 完了したこと | 残っていること |
+|---|---|---|
+| Life Manager Stripe月額 | `$29/month` PriceとPayment Link、`https://aniccaai.com/lm`の本番反映が完了。旧`$20`リンクと無料trial表記は停止。 | active subscription `0`、MRR `$0`。最初の有料active subscription、renewal、settlementをStripe公式readbackで確認する。売上ベースで`ceil(10000/29)=345`人が必要で、net目標は実測fee・hosted cost控除後に再計算する。 |
+| Life Manager funnel | Supabase readbackはusers `315`、started `6`、unstarted `309`、calendar `3`、phone `3`、paid `1`、active plan `0`、call opt-in `2`。 | cohort denominator修正（`skills/self/life-manager-loop/loop.sh`、`apps/life-manager/lib/self-build-daily.js`、branch `fix/lm-funnel-cohort-20260918`）をmain由来releaseへ統合し、paid→activeのreadbackを閉じる。 |
+| TikTok | B04は`https://www.tiktok.com/@anicca.comedy/video/7686600583180045585`をprofile-caption一致で確認。B03はfalse positiveとして扱う。PR [#5490](https://github.com/Daisuke134/life-manager/pull/5490)のrequired checksはpass。 | `skills/video/lm-distribution/postiz_video.py` と `distribute.py` のreadback guardをproduction releaseへ統合する。取得できないpost metricsは`unknown`のまま保持する。 |
+| Capafy運転 | hourly control plane、CAP_FULL no-write、seller money readback、Telegram dedupe、offline buildは実測済み。 | R0の自然wake、C19のreview transition→same-Agent retry、C21の7日連続healthy terminalを順に閉じる。 |
+| Reddit/Camofox | 今回のship対象外。 | completion gateにも実装TODOにも含めない。 |
+
+この表は「コードが存在する」ことと「有料継続収益が実測される」ことを分ける。完了条件は、対象収益線の公式settled recurring revenueが`$10,000`に達し、対応するruntime・receipt・重複防止がreadbackできることとする。
+
 ## Read this first — 現在地と次の1手
 
 このsectionが実行順序の唯一のSSOTである。記憶や会話履歴から次の作業を選ばない。常に最上段の未完了1件だけをactiveにし、完了証拠を同じ行へ書いてから次へ進む。下のC0–C23表は履歴とacceptanceの索引であり、実行順序ではない。
