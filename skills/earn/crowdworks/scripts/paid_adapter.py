@@ -659,7 +659,10 @@ class CrowdWorksPaidAdapter:
             dialog = self.page.locator(
                 f'a[href="#message-dialog-completion-{_text(payload.get("milestone_id"))}"]:visible')
             if dialog.count() == 1:
-                dialog.click()
+                try:
+                    dialog.click(no_wait_after=True)
+                except TypeError:
+                    dialog.click()
                 self.page.locator(
                     f'{selector} textarea[name="message[body]"]:visible').wait_for(
                     state="visible", timeout=15_000)
