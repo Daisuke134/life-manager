@@ -42,6 +42,20 @@ class DirectCDPTypeTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(page.evaluate.await_count, 4)
 
+    async def test_wait_recovers_previous_https_url_after_target_returns_to_about_blank(self):
+        page = DirectCDPPage("ws://example", "target")
+        page.url = "https://danaher.wd1.myworkdayjobs.com/DanaherJobs/job/role"
+        page.evaluate = AsyncMock(return_value="about:blank")
+        page.goto = AsyncMock()
+
+        with patch(
+            "job_search_loop.browser_agent.direct_cdp.asyncio.sleep",
+            new=AsyncMock(),
+        ):
+            await page.wait_for_timeout(6000)
+
+        page.goto.assert_awaited_once_with(page.url)
+
     async def test_click_observes_after_mouse_release_response_timeout_without_retry(self):
         page = DirectCDPPage("ws://example", "target")
         page.resolve_target = AsyncMock(return_value={"x": 10.0, "y": 20.0})

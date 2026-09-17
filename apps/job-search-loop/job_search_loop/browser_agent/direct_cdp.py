@@ -150,7 +150,17 @@ class DirectCDPPage:
 
     async def wait_for_timeout(self, milliseconds: int) -> None:
         await asyncio.sleep(milliseconds / 1000)
-        self.url = str(await self.evaluate("() => location.href") or self.url)
+        previous_url = self.url
+        current_url = str(await self.evaluate("() => location.href") or previous_url)
+        previous = urlparse(previous_url)
+        if (
+            current_url in {"", "about:blank"}
+            and previous.scheme == "https"
+            and bool(previous.hostname)
+        ):
+            await self.goto(previous_url)
+            return
+        self.url = current_url
 
     def is_closed(self) -> bool:
         return self._closed
