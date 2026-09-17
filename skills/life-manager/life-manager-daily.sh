@@ -21,6 +21,14 @@ RUN_AGENT="${RUN_AGENT_BIN:-$LIFE_MANAGER_REPO/skills/earn/marketing-engine/run_
 VIDEO_GENERATOR="${LM_VIDEO_GENERATOR:-$HERE/../video/daily-lm-video/generate.py}"
 VIDEO_DISTRIBUTOR="${LM_VIDEO_DISTRIBUTOR:-$HERE/../video/lm-distribution/distribute.py}"
 MARKETING_SELF_IMPROVER="${LM_MARKETING_SELF_IMPROVER:-$HERE/../video/lm-self-improve/daily.py}"
+# TikTok is the canonical daily marketing scope. Instagram remains a separate account lane and
+# may be held by a provider challenge; do not block the revenue wake on that unrelated account.
+LM_DAILY_PLATFORM="${LM_DAILY_PLATFORM:-tiktok}"
+case "$LM_DAILY_PLATFORM" in
+  tiktok) ;;
+  both) ;;
+  *) printf 'life-manager-daily: invalid LM_DAILY_PLATFORM=%s\n' "$LM_DAILY_PLATFORM" >&2; exit 64 ;;
+esac
 # One data root shared with the argless generate.py defaults (LM_DATA_DIR,
 # falling back to ~/.local/state/life-manager); ledgers live at
 # <data root>/state/lm-video — the single lm-video path convention.
@@ -111,6 +119,7 @@ else
   set +e
   DISTRIBUTION_RESULT="$("$VIDEO_DISTRIBUTOR" \
     --creative-id "$LM_DAILY_CREATIVE_ID" \
+    --platform "$LM_DAILY_PLATFORM" \
     --video "$LM_DAILY_VIDEO" 2>>"$LOG")"
   DISTRIBUTION_RC=$?
   set -e
@@ -119,7 +128,7 @@ else
     exit "$DISTRIBUTION_RC"
   fi
   set +e
-  DISTRIBUTION_FIELDS="$(DISTRIBUTION_RESULT="$DISTRIBUTION_RESULT" EXPECTED_CREATIVE="$LM_DAILY_CREATIVE_ID" "$PYTHON" -c '
+  DISTRIBUTION_FIELDS="$(DISTRIBUTION_RESULT="$DISTRIBUTION_RESULT" EXPECTED_CREATIVE="$LM_DAILY_CREATIVE_ID" EXPECTED_PLATFORM="$LM_DAILY_PLATFORM" "$PYTHON" -c '
 import json, os
 lines = [line for line in os.environ["DISTRIBUTION_RESULT"].splitlines() if line.strip()]
 if len(lines) != 1:
@@ -127,11 +136,18 @@ if len(lines) != 1:
 row = json.loads(lines[0])
 if row.get("creative_id") != os.environ["EXPECTED_CREATIVE"]:
     raise SystemExit(2)
-ig = row.get("instagram_url")
-tt = row.get("tiktok_url")
-if not isinstance(ig, str) or not ig.startswith("https://") or not isinstance(tt, str) or not tt.startswith("https://"):
-    raise SystemExit(2)
-print(ig + "\t" + tt)
+platform = os.environ["EXPECTED_PLATFORM"]
+if platform == "tiktok":
+    tt = row.get("public_url") or row.get("tiktok_url")
+    if not isinstance(tt, str) or not tt.startswith("https://"):
+        raise SystemExit(2)
+    print("\t" + tt)
+else:
+    ig = row.get("instagram_url")
+    tt = row.get("tiktok_url")
+    if not isinstance(ig, str) or not ig.startswith("https://") or not isinstance(tt, str) or not tt.startswith("https://"):
+        raise SystemExit(2)
+    print(ig + "\t" + tt)
 ' 2>>"$LOG")"
   DISTRIBUTION_PARSE_RC=$?
   set -e
@@ -139,9 +155,15 @@ print(ig + "\t" + tt)
     printf 'daily distribution returned invalid result rc=%s; agent not invoked\n' "$DISTRIBUTION_PARSE_RC" >>"$LOG"
     exit 70
   fi
-  IFS=$'\t' read -r LM_DAILY_INSTAGRAM_URL LM_DAILY_TIKTOK_URL <<<"$DISTRIBUTION_FIELDS"
+  if [ "$LM_DAILY_PLATFORM" = "tiktok" ]; then
+    LM_DAILY_INSTAGRAM_URL=""
+    LM_DAILY_TIKTOK_URL="$DISTRIBUTION_FIELDS"
+  else
+    IFS=$'\t' read -r LM_DAILY_INSTAGRAM_URL LM_DAILY_TIKTOK_URL <<<"$DISTRIBUTION_FIELDS"
+  fi
   export LM_DAILY_INSTAGRAM_URL LM_DAILY_TIKTOK_URL
-  printf 'daily distribution readback complete creative=%s\n' "$LM_DAILY_CREATIVE_ID" >>"$LOG"
+  printf 'daily distribution readback complete platform=%s creative=%s\n' \
+    "$LM_DAILY_PLATFORM" "$LM_DAILY_CREATIVE_ID" >>"$LOG"
 
   set +e
   SELF_IMPROVE_RESULT="$("$MARKETING_SELF_IMPROVER" 2>>"$LOG")"
@@ -194,12 +216,12 @@ that creates a self-deadlock. Do not sleep or start background work. Finish this
 DAILY VIDEO CONTRACT: the exact MP4 is $LM_DAILY_VIDEO and the exact creative id is
 $LM_DAILY_CREATIVE_ID (duration $LM_DAILY_VIDEO_DURATION seconds).
 DETERMINISTIC DISTRIBUTION COMPLETE: the exact same video and caption contract is already published
-through the existing Life Manager Instagram file/script route at $LM_DAILY_INSTAGRAM_URL and the
-existing TikTok Postiz integration at $LM_DAILY_TIKTOK_URL. The distribution ledger binds both URLs
-to the same creative id plus video/caption SHA-256. Treat those two URLs as immutable input and do
-not repost either platform. Continue only the existing Reddit gate, CEO/cost ledger and one-screen
-Telegram report. On any later failure, report it honestly; never turn an internal failure into
-success.
+through the canonical $LM_DAILY_PLATFORM route. TikTok public URL: $LM_DAILY_TIKTOK_URL.
+Instagram is a separate account lane and is intentionally not part of this TikTok-only wake. The
+distribution ledger binds the URL to the same creative id plus video/caption SHA-256. Treat the URL
+as immutable input and do not repost it. Continue only the existing Reddit gate, CEO/cost ledger and
+one-screen Telegram report. On any later failure, report it honestly; never turn an internal failure
+into success.
 SELF-IMPROVEMENT LEDGER RECORDED: real public metrics day $LM_SELF_IMPROVE_DAY_INDEX has status
 $LM_SELF_IMPROVE_STATUS. The next creative is $LM_SELF_IMPROVE_NEXT_CREATIVE because:
 $LM_SELF_IMPROVE_REASON. This append-only measurement is already complete. Do not invent, alter,
