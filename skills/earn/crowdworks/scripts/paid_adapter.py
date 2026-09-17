@@ -68,14 +68,18 @@ class CrowdWorksPaidBrowserUnavailable(RuntimeError):
 
 def _connect_existing_cdp() -> tuple[Any, Any]:
     """Connect only; never create, repair, or close the CrowdWorks browser process."""
-    for attempt in range(2):
+    for attempt in range(4):
         runtime = sync_playwright().start()
         try:
-            return runtime, runtime.chromium.connect_over_cdp(account.CDP_URL, timeout=10_000)
+            browser = runtime.chromium.connect_over_cdp(account.CDP_URL, timeout=10_000)
+            contexts = getattr(browser, "contexts", None)
+            if contexts is not None and len(contexts) != 1:
+                raise RuntimeError("crowdworks_paid_browser_context_unavailable")
+            return runtime, browser
         except Exception:
             runtime.stop()
-            if attempt == 0:
-                time.sleep(0.25)
+            if attempt < 3:
+                time.sleep(0.5)
     raise CrowdWorksPaidBrowserUnavailable("crowdworks_paid_browser_unavailable") from None
 
 

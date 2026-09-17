@@ -24,6 +24,39 @@ def load():
     return module
 
 
+def test_cdp_connection_retries_until_one_browser_context_is_available():
+    module = load()
+    attempts = []
+    stopped = []
+
+    class Browser:
+        contexts = [object()]
+
+    class Chromium:
+        def connect_over_cdp(self, _url, timeout):
+            attempts.append(timeout)
+            if len(attempts) < 3:
+                raise RuntimeError("transient cdp failure")
+            return Browser()
+
+    class Runtime:
+        chromium = Chromium()
+        def stop(self): stopped.append(True)
+
+    class Launcher:
+        def start(self): return Runtime()
+
+    module.sync_playwright = lambda: Launcher()
+    module.time.sleep = lambda _seconds: None
+
+    runtime, browser = module._connect_existing_cdp()
+
+    assert len(attempts) == 3
+    assert browser.contexts == [browser.contexts[0]]
+    assert stopped == [True, True]
+    runtime.stop()
+
+
 def funded():
     return {"work_id": "63570481", "title": "Webデザイン業務", "client": "buyer",
             "provider_state": "funded", "milestone_id": "13798056",
@@ -491,7 +524,8 @@ def test_connect_existing_cdp_retries_once_with_bounded_timeout(monkeypatch):
         def stop(self):
             calls.append(("stop",))
 
-    runtimes = iter((Runtime(TimeoutError()), Runtime("browser")))
+    runtimes = iter((Runtime(TimeoutError()), Runtime(TimeoutError()),
+                     Runtime(TimeoutError()), Runtime("browser")))
     monkeypatch.setattr(module, "sync_playwright", lambda: type(
         "Starter", (), {"start": lambda self: next(runtimes)})())
     monkeypatch.setattr(module.time, "sleep", lambda seconds: calls.append(("sleep", seconds)))
@@ -501,7 +535,9 @@ def test_connect_existing_cdp_retries_once_with_bounded_timeout(monkeypatch):
     assert browser == "browser"
     assert runtime.chromium.result == "browser"
     assert calls == [
-        ("connect", module.account.CDP_URL, 10_000), ("stop",), ("sleep", 0.25),
+        ("connect", module.account.CDP_URL, 10_000), ("stop",), ("sleep", 0.5),
+        ("connect", module.account.CDP_URL, 10_000), ("stop",), ("sleep", 0.5),
+        ("connect", module.account.CDP_URL, 10_000), ("stop",), ("sleep", 0.5),
         ("connect", module.account.CDP_URL, 10_000),
     ]
 
@@ -526,7 +562,7 @@ def test_connect_existing_cdp_stops_both_failed_runtimes(monkeypatch):
 
     with pytest.raises(RuntimeError, match="^crowdworks_paid_browser_unavailable$"):
         module._connect_existing_cdp()
-    assert stopped == [True, True]
+    assert stopped == [True, True, True, True]
 
 
 def test_active_contract_timeout_has_bounded_stage_specific_name():
