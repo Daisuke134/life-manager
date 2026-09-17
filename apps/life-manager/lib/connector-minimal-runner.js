@@ -9,6 +9,7 @@ const SAFE_REASON = /^[a-z0-9][a-z0-9_:-]{1,99}$/;
 // stack, URL, or env value.
 const ERROR_CLASS = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
 const FALLBACK_COMPLETION_RESERVE_MS = 160_000;
+const CONNPASS_CANDIDATES_PER_WAKE = 4;
 
 function invalid() {
   throw new Error("Connector minimal runner invalid");
@@ -342,7 +343,13 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         consecutiveFailures = 0;
         continue;
       }
-      for (const selected of candidates) {
+      const connpassBatchStart = provider === "connpass" && candidates.length > 0
+        ? (Math.floor(startedAt / 1_800_000) % Math.ceil(candidates.length / CONNPASS_CANDIDATES_PER_WAKE))
+          * CONNPASS_CANDIDATES_PER_WAKE : 0;
+      const candidateBatch = provider === "connpass"
+        ? candidates.slice(connpassBatchStart, connpassBatchStart + CONNPASS_CANDIDATES_PER_WAKE)
+        : candidates;
+      for (const selected of candidateBatch) {
         if (selected.auto_apply_eligible === false) continue;
         const hasTalk = typeof deps.runTalkApplication === "function"
           && selected.talk_opportunity && selected.talk_opportunity.should_create_talk_application === true

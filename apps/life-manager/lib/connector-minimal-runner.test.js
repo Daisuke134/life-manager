@@ -762,6 +762,33 @@ test("Connpass candidate-specific form blockers do not exhaust the wake before a
   assert.equal(state.calls.some(([name, eventRef]) => name === "direct" && eventRef.endsWith("/next")), true);
 });
 
+test("a long Connpass blocker queue leaves time for Luma and rotates next wake", async () => {
+  const state = fixture({
+    async discoverCandidates(provider) {
+      state.calls.push(["discover", provider]);
+      return provider === "connpass"
+        ? Array.from({ length: 8 }, (_, index) => candidate("connpass", String(index + 1)))
+        : [];
+    },
+    async runDirectAction({ candidate: selected }) {
+      state.calls.push(["direct", selected.event_ref]);
+      return { status: "failed", safe_reason: "connpass_tier_unavailable" };
+    },
+  });
+  const input = { ownerToken: "owner-token-connpass-rotation", providers: ["connpass", "luma"] };
+  await runMinimalConnectorWake(input, state.dependencies);
+  const first = state.calls.filter(([name]) => name === "direct").map(([, ref]) => ref);
+  assert.equal(first.length, 4);
+  assert.ok(state.calls.some(([name, provider]) => name === "discover" && provider === "luma"));
+
+  state.calls.length = 0;
+  state.advance(1_800_000);
+  await runMinimalConnectorWake(input, state.dependencies);
+  const second = state.calls.filter(([name]) => name === "direct").map(([, ref]) => ref);
+  assert.equal(second.length, 4);
+  assert.equal(first.some((ref) => second.includes(ref)), false);
+});
+
 test("a successful submit action row stays exactly the same shape as before (no provider/safe_reason/error_class)", async () => {
   const state = fixture();
 
