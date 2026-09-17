@@ -1007,9 +1007,9 @@ work item and leave a sibling trace unchanged.
 ### 3. CrowdWorks vertical proof
 
 **Plan:** `docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md` and
-`docs/superpowers/plans/2026-09-17-crowdworks-contract-fulfillment.md`. Current cursor is **CW-F1 (provider reconciliation)**.
+`docs/superpowers/plans/2026-09-17-crowdworks-contract-fulfillment.md`. Current cursor is **CW-F1 (browser recovery + context readback)**.
 
-**Live verified state (2026-09-17):** official readback shows five active contracts, all `funded`. Contract
+**Live verified state (2026-09-18):** official readback shows five active contracts, all `funded`. Contract
 `63583795` now has formal delivery read back and is awaiting buyer inspection; the other four have no formal
 delivery read back. Historical confirmed form receipts exist for `63583795` and `63570481`; `63583795` also
 has a buyer-visible seller message and inspection-pending readback. Its local Paid row predates that provider
@@ -1018,15 +1018,22 @@ have `effect=0`; the shared pre-effect-failure repair is merged as PR `#5365` an
 release `c16f437b`. A Paid readback that exceeded the useful bounded wake was stopped and reconciled by
 official no-write proof. No contract has buyer acceptance, settlement, payout, or verified MRR yet.
 
+PR `#5393` adds a 180-second runtime bound for CrowdWorks Paid. It is merged as `a77c5629`, loaded in
+immutable release `20260918T000511-a77c5629`, and the targeted Paid apply read back the exact SHA. The
+installed kickstart reached the owner and ended with `effect=0`, `crowdworks_paid_browser_unavailable`;
+no form, message, or formal-delivery effect was accepted. The CDP listener is present, but authenticated
+context/page creation remains unstable, so official provider readback is still open.
+
 **Merged code slices (live proof still open):** bounded context/readback PR `#5369`, delivery dialog/field
 fixes PRs `#5372`, `#5373`, `#5375`, `#5381`, and contract answer action PR `#5385`. These changes do not
 count as a completed contract until the installed owner performs the requested work, reads back the correct
 buyer-visible result, and closes the official provider stages.
 
-- [ ] **CW-F1 — bounded context:** Read and persist the full current buyer conversation, expanded hidden
-  messages, linked documents/forms, scope, corrections, milestone and newest buyer event per contract.
-  A slow contract must terminate as a replayable `waiting_external`/failure item and must not hold the
-  Paid owner indefinitely.
+- [ ] **CW-F1 — browser recovery + bounded context:** Restore the authenticated CrowdWorks context, then
+  read and persist the full current buyer conversation, expanded hidden messages, linked documents/forms,
+  scope, corrections, milestone and newest buyer event per contract. The owner now has a 180-second bound;
+  a slow contract must terminate as a replayable `waiting_external`/failure item and must not hold the Paid
+  owner indefinitely.
 - [ ] **CW-F2 — correct work selection:** Expose all exact form URLs with visible titles, required fields
   and choices to the model. Never select the first URL, submit every candidate, or infer work from a URL.
   For `63659463`, the current body lists common, Web-ad and video candidates; the model must confirm the
@@ -1048,9 +1055,9 @@ buyer-visible result, and closes the official provider stages.
 - [ ] **CW-F5 — formal delivery and acceptance:** For each contract, read back `納品 → 検収/acceptance →
   settlement → payout`, preserve revisions as new buyer-event versions, and prove replay-zero. A wrong or
   incomplete result keeps the row open and triggers focused repair plus a new natural wake.
-- [ ] **CW-F6 — installed-owner proof:** Cut a main-derived release, apply only the CrowdWorks Paid label,
-  kickstart without waiting for a global slot, and verify the natural terminal receipt plus exact official
-  provider readback for every ready row. Keep other loop owners/releases unchanged.
+- [ ] **CW-F6 — installed-owner proof:** Release `a77c5629` and the targeted Paid apply are complete. After
+  browser recovery, kickstart without waiting for a global slot and verify the terminal receipt plus exact
+  official provider readback for every ready row. Keep other loop owners/releases unchanged.
 - [ ] **CW-F7 — revenue:** Close all five existing contracts before pursuing repeat/retainer work. Separate
   cash received from verified recurring MRR; USD 10,000 MRR remains open until collected/settled evidence.
 - [ ] Share the contract-ID handoff, quality gate and receipt rules through the existing shared marketplace

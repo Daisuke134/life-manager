@@ -16,7 +16,7 @@ Read-only production status at the planning snapshot: all four labels were `load
 
 CrowdWorks' official fixed-price guide defines application, negotiation, contract, escrow, work, **「納品する」**, inspection, and payment as distinct steps. A normal message in the same contract page does not invoke formal delivery. The official guide also says to begin work after escrow. Sources: [worker guide](https://crowdworks.jp/pages/guides/employee/fixed_price), [terms](https://crowdworks.jp/pages/agreement). Lancers' [project guide](https://www.lancers.jp/help/guide/lancer/project/3) likewise distinguishes proposal from work after escrow; its actual page/owner mapping needs separate inspection.
 
-## Live production cursor — 2026-09-17
+## Live production cursor — 2026-09-18
 
 This section is the current execution SSOT. It supersedes the older planning snapshot above where the
 observed state differs. The read-only CrowdWorks owner re-read all five active contract pages on
@@ -39,16 +39,22 @@ observed state differs. The read-only CrowdWorks owner re-read all five active c
 - The shared Paid kernel pre-effect-failure fix is merged in PR `#5365` and is loaded in immutable release
   `c16f437b`. A timed Paid readback was stopped after it exceeded the useful bounded wake; the contract
   item remains open and must be reconciled from official state before retry.
+- PR `#5393` adds `runtime_timeout_seconds=180` to the CrowdWorks Paid owner. It is merged as `a77c5629`,
+  cut into immutable release `20260918T000511-a77c5629`, and the CrowdWorks Paid plist readback points to
+  that exact release. Its targeted kickstart reached the installed owner and ended with `effect=0` and
+  `crowdworks_paid_browser_unavailable`; no form, message, or formal-delivery effect was accepted.
+- The CrowdWorks CDP listener is present, but the authenticated provider context is currently unstable
+  during context/page creation. This is a browser-readback blocker, not evidence of a provider submission.
 - The Paid owner is the only post-contract effect owner. Reply may hand off an exact contract ID but must
   not send an ordinary post-contract reply or external form for a Paid-owned contract.
 
 ### Remaining TODO, in execution order
 
-1. **Reconcile the already-observed delivery, then bound the remaining reads.** Promote the official
-   `63583795` delivery/inspection readback into the durable Paid receipt without replaying it. Keep
-   per-contract timeouts and cached inventory facts separate from external mutation. A slow contract must
-   become a terminal, replayable `waiting_external`/failure item;
-   it must not hold the Paid owner indefinitely or block other contracts.
+1. **Restore bounded browser readback and reconcile the already-observed delivery.** Keep the new 180-second
+   owner bound. Restore the authenticated CrowdWorks context, read the five contract pages, and promote the
+   official `63583795` delivery/inspection readback into the durable Paid receipt without replaying it. A
+   slow contract must become a terminal, replayable `waiting_external`/failure item; it must not hold the
+   Paid owner indefinitely or block other contracts.
 2. **Persist full buyer context.** Store the newest buyer event, expanded message history, linked document/form
    metadata, scope, corrections and the model's request-to-result mapping in private contract state.
 3. **Choose the requested work with model judgment.** For multiple forms, expose every exact URL plus visible
@@ -64,8 +70,9 @@ observed state differs. The read-only CrowdWorks owner re-read all five active c
 6. **Close each contract.** Read back `納品 → 検収/acceptance → settlement → payout`; for `63583795`,
    continue from inspection pending. Preserve revisions as new buyer-event versions, and prove replay-zero
    per contract.
-7. **Run the installed owner.** Cut a main-derived release, apply only the CrowdWorks Paid label, kickstart
-   without waiting for a global slot, and inspect a natural terminal receipt plus official provider readback.
+7. **Finish installed-owner proof.** The main-derived release and targeted Paid apply are complete. Re-run
+   only after browser readback is available, then inspect the terminal receipt plus exact official provider
+   readback; no browser-unavailable receipt counts as a provider effect.
 8. **Only after all five close, pursue recurring work.** Record cash received separately from verified recurring
    MRR; USD 10,000 MRR remains open until collected/settled monthly-equivalent payment evidence exists.
 
