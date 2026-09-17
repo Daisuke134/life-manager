@@ -290,6 +290,7 @@ def record_profile_sync(
     *,
     run_id: str,
     expected_resume_sha256: str = "",
+    evidence_root: Path | None = None,
 ) -> None:
     """Persist a provider profile readback without copying private field values."""
     sync = result.get("profile_sync")
@@ -312,7 +313,24 @@ def record_profile_sync(
         and resume_sha256 != expected_resume_sha256
     ):
         status = "unknown"
+    evidence_ref = str(sync.get("evidence_ref") or "")
     if status in {"synced", "unchanged"}:
+        if evidence_root is not None:
+            evidence_path = Path(evidence_ref).expanduser()
+            if not evidence_path.is_absolute():
+                evidence_path = evidence_root / evidence_path
+            try:
+                evidence_path = evidence_path.resolve()
+                evidence_path.relative_to(evidence_root.expanduser().resolve())
+                evidence_ok = evidence_path.is_file()
+            except (OSError, ValueError):
+                evidence_ok = False
+            if not evidence_ok:
+                status = "unknown"
+            elif status in {"synced", "unchanged"}:
+                evidence_ref = str(evidence_path)
+        if status not in {"synced", "unchanged"}:
+            evidence_ref = str(sync.get("evidence_ref") or "")
         proposal_path = state_root / "profile-proposal.json"
         try:
             proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
@@ -338,7 +356,7 @@ def record_profile_sync(
         "profile_version": str(sync.get("profile_version") or ""),
         "field_hashes": sync.get("field_hashes") if isinstance(sync.get("field_hashes"), dict) else {},
         "resume_sha256": resume_sha256,
-        "evidence_ref": str(sync.get("evidence_ref") or ""),
+        "evidence_ref": evidence_ref,
         "run_id": run_id,
         "observed_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -551,6 +569,7 @@ def main(argv: list[str] | None = None) -> int:
         expected_resume_sha256=str(
             (context.get("profile_material") or {}).get("resume_sha256") or ""
         ),
+        evidence_root=Path(str(context.get("evidence_dir") or args.evidence_dir)),
     )
     output = args.evidence_dir / "mercor-pass-summary.json"
     output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

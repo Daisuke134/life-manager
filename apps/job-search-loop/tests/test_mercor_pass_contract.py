@@ -147,6 +147,9 @@ class MercorPassContractTests(unittest.TestCase):
                 "field_hashes": {"summary": "hash"},
                 "resume_sha256": "resume-hash",
             }), encoding="utf-8")
+            evidence_root = state / "evidence"
+            evidence_root.mkdir()
+            (evidence_root / "profile-readback.json").write_text("{}\n", encoding="utf-8")
             record_profile_sync(state, {
                 "profile_sync": {
                     "status": "synced",
@@ -158,7 +161,7 @@ class MercorPassContractTests(unittest.TestCase):
                     "resume_sha256": "resume-hash",
                     "evidence_ref": "profile-readback.json",
                 }
-            }, run_id="run-profile")
+            }, run_id="run-profile", evidence_root=evidence_root)
             row = json.loads((state / "profile-sync.jsonl").read_text(encoding="utf-8"))
             self.assertEqual(row["status"], "synced")
             self.assertEqual(row["profile_version"], "profile-v1")
@@ -200,6 +203,31 @@ class MercorPassContractTests(unittest.TestCase):
                     "evidence_ref": "profile-readback.json",
                 }
             }, run_id="run-profile", expected_resume_sha256="current-resume")
+            row = json.loads((state / "profile-sync.jsonl").read_text(encoding="utf-8"))
+            self.assertEqual(row["status"], "unknown")
+
+    def test_profile_sync_requires_current_pass_evidence_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            (state / "profile-proposal.json").write_text(json.dumps({
+                "profile_version": "profile-v1",
+                "field_hashes": {"summary": "hash"},
+                "resume_sha256": "resume-hash",
+            }), encoding="utf-8")
+            evidence_root = state / "evidence"
+            evidence_root.mkdir()
+            record_profile_sync(state, {
+                "profile_sync": {
+                    "status": "synced",
+                    "authenticated": True,
+                    "resume_visible": True,
+                    "parser_reviewed": True,
+                    "profile_version": "profile-v1",
+                    "field_hashes": {"summary": "hash"},
+                    "resume_sha256": "resume-hash",
+                    "evidence_ref": "missing.json",
+                }
+            }, run_id="run-profile", evidence_root=evidence_root)
             row = json.loads((state / "profile-sync.jsonl").read_text(encoding="utf-8"))
             self.assertEqual(row["status"], "unknown")
 
