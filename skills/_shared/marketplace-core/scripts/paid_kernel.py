@@ -142,7 +142,11 @@ def _mark_run_effect_started(path: Path | None, occurrence_id: str | None) -> No
 
 def _observation(row: Mapping[str, Any]) -> dict[str, Any]:
     required = ("provider", "account_id", "work_id", "latest_event_id", "provider_state", "observed_at")
-    return {field: _text(row.get(field), field) for field in required}
+    observed = {field: _text(row.get(field), field) for field in required}
+    buyer_event_id = row.get("buyer_event_id")
+    if isinstance(buyer_event_id, str) and buyer_event_id.strip():
+        observed["buyer_event_id"] = buyer_event_id.strip()
+    return observed
 
 
 def _intent(row: Mapping[str, Any], decision: Mapping[str, Any]) -> dict[str, Any]:
@@ -207,17 +211,26 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
     previous_observation = state.get("observation")
     same_event = (isinstance(previous_observation, Mapping)
                   and previous_observation.get("latest_event_id") == row["latest_event_id"])
-    if isinstance(previous_intent, Mapping) and same_event:
+    previous_payload = previous_intent.get("payload") if isinstance(previous_intent, Mapping) else None
+    previous_buyer_event = (previous_payload.get("buyer_event_id")
+                            if isinstance(previous_payload, Mapping) else None)
+    buyer_event_same = (isinstance(previous_buyer_event, str)
+                        and previous_buyer_event == row.get("buyer_event_id"))
+    if isinstance(previous_intent, Mapping) and (same_event or buyer_event_same
+                                                 or state.get("status") == "reconcile_unknown"):
         official = adapter.readback(dict(previous_intent))
         if official.get("verified") is True:
             receipt = _verified_receipt(previous_intent, official)
-            _write_state(path, {"version": 1, "observation": row, "intent": previous_intent,
-                                "receipt": receipt, "status": "verified"}, occurrence_id)
-            return {"work_id": row["work_id"], "status": "verified", "reason": "replay_zero",
-                    "effect": 0, "readback": 1, "failed": 0}
-        if official.get("authoritative_absent") is not True:
+            if buyer_event_same:
+                _write_state(path, {"version": 1, "observation": row, "intent": previous_intent,
+                                    "receipt": receipt, "status": "verified"}, occurrence_id)
+                return {"work_id": row["work_id"], "status": "verified", "reason": "replay_zero",
+                        "effect": 0, "readback": 1, "failed": 0}
+            state = {"version": 1, "observation": row, "intent": previous_intent,
+                     "receipt": receipt, "status": "verified"}
+        elif official.get("authoritative_absent") is not True:
             return _pending(row, "reconcile_unknown")
-        if state.get("status") == "reconcile_unknown":
+        if official.get("verified") is not True and state.get("status") == "reconcile_unknown":
             return _pending(row, "reconcile_unknown")
 
     context = adapter.context(row["work_id"])
@@ -311,7 +324,8 @@ def _run_one(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[st
 
 def run_wake(*, adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[str, Any]],
              state_root: Path, max_workers: int = 4,
-             pre_effect_hint: Path | None = None) -> dict[str, Any]:
+             pre_effect_hint: Path | None = None,
+             run_marker: Path | None = None) -> dict[str, Any]:
     rows = adapter.observe_active()
     if not isinstance(rows, list):
         raise ValueError("paid_inventory_invalid")
@@ -321,7 +335,7 @@ def run_wake(*, adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping
         raise ValueError("paid_inventory_duplicate")
     workers = max(1, min(max_workers, len(normalized) or 1))
     occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip() or None
-    run_marker = _prepare_run_marker(Path(state_root), occurrence_id)
+    run_marker = run_marker or _prepare_run_marker(Path(state_root), occurrence_id)
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = [pool.submit(_run_one, adapter, decide, Path(state_root), row, occurrence_id,
                                 pre_effect_hint, run_marker)
@@ -394,11 +408,16 @@ def main(argv: list[str] | None = None) -> int:
         provider_argv = provider_argv[1:]
     pre_effect_hint = _prepare_pre_effect_hint(args.max_workers)
     adapter, decide = _load_provider(args.provider_adapter, provider_argv)
+    state_root = args.state_root.expanduser().resolve()
+    occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip() or None
+    run_marker = None
     try:
+        run_marker = _prepare_run_marker(state_root, occurrence_id)
         result = run_wake(adapter=adapter, decide=decide,
-                          state_root=args.state_root.expanduser().resolve(),
+                          state_root=state_root,
                           max_workers=args.max_workers,
-                          pre_effect_hint=pre_effect_hint)
+                          pre_effect_hint=pre_effect_hint,
+                          run_marker=run_marker)
     except Exception as error:
         wait_reason = getattr(error, "paid_wait_reason", None)
         remaining = getattr(error, "paid_remaining_work", None)
@@ -422,6 +441,14 @@ def main(argv: list[str] | None = None) -> int:
             if (isinstance(error_detail, str)
                     and re.fullmatch(r"[a-z][a-z0-9_]{1,127}", error_detail)):
                 result["error_detail"] = error_detail
+        if run_marker is not None:
+            try:
+                marker = json.loads(run_marker.read_text(encoding="utf-8"))
+            except (OSError, ValueError, json.JSONDecodeError):
+                marker = {"status": "effect_started"}
+            if not isinstance(marker, Mapping) or marker.get("status") != "effect_started":
+                _write(run_marker, {"version": 1, "occurrence_id": occurrence_id,
+                                    "status": "completed", "effect": result["effect"]})
     _write(args.output.expanduser().resolve(), result)
     hint_path = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
     failed_items = [item for item in result.get("items", [])

@@ -457,7 +457,8 @@ def test_submit_effect_does_not_formal_deliver_in_same_mutation():
     adapter.mutate({"action": "submit", "work_id": "63570481",
                     "payload": {"form_url": funded()["form_url"],
                                 "form_sha256": hashlib.sha256(funded()["form_url"].encode()).hexdigest(),
-                                "milestone_id": funded()["milestone_id"]}})
+                                "milestone_id": funded()["milestone_id"],
+                                "buyer_event_id": funded()["buyer_event_id"]}})
 
     assert events == [("form", "63570481")]
 
@@ -476,6 +477,7 @@ def test_form_correction_revision_can_resubmit_completed_form_with_new_event():
                     "payload": {"form_url": url,
                                 "form_sha256": hashlib.sha256(url.encode()).hexdigest(),
                                 "milestone_id": current["milestone_id"],
+                                "buyer_event_id": "buyer-correction-2",
                                 "revision_event_id": "buyer-correction-2"}})
 
     assert events == ["buyer-correction-2"]

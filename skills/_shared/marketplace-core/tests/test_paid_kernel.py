@@ -76,6 +76,30 @@ def test_verified_effect_replays_with_zero_mutations(tmp_path: Path) -> None:
     assert len(adapter.effects) == 1
 
 
+def test_verified_effect_replays_zero_when_only_provider_digest_changes(
+        tmp_path: Path) -> None:
+    row = observation("work-1")
+    row["buyer_event_id"] = "buyer-1"
+    adapter = Adapter([row])
+
+    def submit_with_buyer_event(source: dict) -> dict:
+        return {"action": "submit", "payload": {
+            "message": "done " + source["work_id"],
+            "buyer_event_id": source["buyer_event_id"],
+        }}
+
+    assert paid.run_wake(adapter=adapter, decide=submit_with_buyer_event,
+                         state_root=tmp_path)["effect"] == 1
+    adapter.current["work-1"]["latest_event_id"] = "seller-message-digest"
+
+    result = paid.run_wake(adapter=adapter, decide=submit_with_buyer_event,
+                           state_root=tmp_path)
+
+    assert result["effect"] == 0
+    assert result["readback"] == 1
+    assert len(adapter.effects) == 1
+
+
 def test_uncertain_message_effect_never_replays_after_mutation_exception(tmp_path: Path) -> None:
     class FailingAdapter(Adapter):
         def mutate(self, intent: dict) -> None:
@@ -388,6 +412,33 @@ def build(argv): return Adapter(), decide
 
     assert json.loads(hint.read_text(encoding="utf-8")) == {
         "status": "pre_effect_failure", "effect": 0,
+    }
+
+
+def test_cli_inventory_failure_persists_completed_zero_effect_run_marker(tmp_path: Path, monkeypatch) -> None:
+    provider = tmp_path / "provider.py"
+    provider.write_text("""
+class Adapter:
+    def observe_active(self): raise RuntimeError("inventory unavailable")
+    def observe_one(self, work_id): raise AssertionError
+    def context(self, work_id): raise AssertionError
+    def mutate(self, intent): raise AssertionError
+    def readback(self, intent): raise AssertionError
+def decide(row): raise AssertionError
+def build(argv): return Adapter(), decide
+""", encoding="utf-8")
+    output = tmp_path / "result.json"
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-paid:inventory-failure")
+
+    assert paid.main([
+        "--provider-adapter", str(provider), "--state-root", str(tmp_path / "state"),
+        "--output", str(output),
+    ]) == 1
+
+    marker = paid._run_marker_path(tmp_path / "state", "fixture-paid:inventory-failure")
+    assert json.loads(marker.read_text(encoding="utf-8")) == {
+        "version": 1, "occurrence_id": "fixture-paid:inventory-failure",
+        "status": "completed", "effect": 0,
     }
 
 

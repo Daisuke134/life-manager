@@ -1180,6 +1180,8 @@ class CrowdWorksPaidAdapter:
             is_revision = isinstance(revision_event_id, str) and bool(revision_event_id.strip())
             if (current.get("provider_state") != "funded" or payload.get("milestone_id") != current.get("milestone_id")
                     or not isinstance(url, str) or url not in available
+                    or (not isinstance(payload.get("buyer_event_id"), str)
+                        or payload.get("buyer_event_id") != current.get("buyer_event_id"))
                     or (url in set(current.get("completed_form_urls") or [])
                         and not is_revision)
                     or (is_revision and revision_event_id != current.get("buyer_event_id"))
