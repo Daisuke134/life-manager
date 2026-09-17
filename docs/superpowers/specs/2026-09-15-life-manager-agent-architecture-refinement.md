@@ -118,15 +118,17 @@ tables remain evidence of the superseded plan, not the active cursor.
 | 12 | Promote the identical approved business kernel/source SHA to tenant-isolated Cloud; test Steel owner lease/release and phone-only status/human handoff/readback; run Cloud gate. | Tenant cross-read 0, credential/state mix 0, official effects and replay-zero, Local/Eval/Cloud all PASS. |
 | 13 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
 
-### Atomic remaining execution list — current cursor A12
+### Atomic remaining execution list — current cursor A12e2
 
 Order correction: the prior order was CN01 → CN02 → A12. Dais clarified that the two
 historical `effect_unknown` records are **observability**, not a completion or admission gate.
-New order: A12a → A12b → A12c1–A12c3 → A12d1–A12d2 → A12 → A13–A15 → CN03 onward. A12c was
+New order: A12a → A12b → A12c1–A12c3 → A12d1–A12d3 → A12e1–A12e2 → A12 → A13–A15 → CN03 onward. A12c was
 split after the loaded `889c7670` canary showed `resource_capacity_busy` with zero
 active owners and a stale-release reservation backlog. A12d was added after
 the first actual provider-reaching canary showed two questionnaire-blocked
-Connpass candidates and no calendar-free Luma candidate. The old rows remain
+Connpass candidates and no calendar-free Luma candidate. A12e was added after
+the broader candidate canary still lacked verified effects and exposed the
+existing exact-label answer matcher as the next reusable bottleneck. The old rows remain
 unaltered and visible; the Connector-only owner-wide stop is removed while every *new*
 candidate still requires an official pre-submit `absent` readback and post-effect proof.
 No in-flight effect is interrupted or resent. The two historical occurrence IDs are
@@ -157,6 +159,8 @@ inventory rather than invented here; one selected ID is handled per item.
 - [x] A12d1 — Diagnose the first bounded `0f0f987f` Connector canary to terminal and fix only its next real provider bottleneck. After one non-Paid stale reservation was deferred for 60 seconds without deleting its queue row, Connector run `18d5fbadecd869c0-80055` acquired a browser slot and ended outer `pass`; inner wake `wake-df564afb9c473a51c22a0e32` ended `completed_no_effect`. Connpass reached two candidate join forms and both required organizer questionnaires; Luma observed four free/open events but zero calendar-free events. Official registration and Calendar creation were zero. Existing read-only browser inspection showed Findy consent/account fields and fresh-engineers new-graduate/Discord fields, not facts to invent. Candidate branch `4d051e360f` raises only the existing Connpass per-wake batch from 4 to 12 so later simple events can be attempted; a red six-blocker-then-simple test and all 79 runner tests PASS. No new CLI or scheduler.
 - [x] A12d2 — Merge PR #5314 after CI. All nine CI jobs PASS; main merge `1549021741`. Existing Connector runner remains unchanged apart from the 4→12 per-wake candidate limit; Luma time reserve and deadline remain.
 - [x] A12d3 — Cut a main-derived immutable release from `1549021741` and exact-load Connector only while idle. Full release `20260917T115912-15490217` was made current, imports the shared runtime and Connector code, and independent launchctl readback shows exact Connector argv/SHA after loaded-idle-only reconcile. No other label was restarted. An official registration and Calendar event are still required for effect success.
+- [x] A12e1 — Let the existing model map newly worded Connpass free-text questions to trusted private profile fact keys without exposing values or inventing consent. The bounded `15490217` canary `18d5fca169bebbd0-3483` reached provider actions but ended `completed_no_effect`; among its attempts were tier-unavailable and questionnaire-required candidates. Candidate `aa0732978a` reuses the existing agent runner, passes only question text and fact keys, resolves the chosen value locally, and preserves abstention for unsupported facts or checkboxes. 308 focused tests PASS; one real read-only model call selected the correct affiliation key. No official effect yet.
+- [ ] A12e2 — Merge PR #5315 after CI, cut a main-derived release and exact-load Connector while idle; then seek official registration plus Calendar ID through the existing wake.
 - [ ] A12 — Observe that browser owner's natural release→next-claim→outer terminal without a manual kickstart.
 - [ ] A13 — Apply the same release to one loaded-idle deterministic owner and read back exact loaded argv/SHA.
 - [ ] A14 — Observe that deterministic owner's natural release→next-claim→outer terminal without a manual kickstart.
