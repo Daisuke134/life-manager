@@ -26,8 +26,11 @@ is not revenue.
   `life-manager-main` checkout contains unrelated dirty work. This design uses
   a linked worktree from the latest `origin/main`.
 - Life Manager main's binding execution cursor is `docs/ARTICLE-LAUNCH-TODO.md`.
-  W0 and W1 are recorded complete; W2 is active and is currently guarded by
-  the measured article-run capacity floor and provider/demand receipts.
+  W0 and W1 are recorded complete in the historical cursor, but the current
+  registry has 15 Writer labels while `config/writer/runtime-manifest.json`
+  still lists 14 and omits `ai.anicca.article-repair-candidate`. Current
+  source/manifest parity must therefore be repaired or explicitly reconciled
+  before the W2 canary is treated as production-ready.
 - The current run ID must be read from the private Writer state at execution
   time. The latest cursor records `20260829-165022` as the canary candidate,
   but the plan never assumes that ID is still current. Existing artifacts,
@@ -112,7 +115,7 @@ natural Writer owner.
 
 | Stream | Responsibility | Main files/modules | Depends on | Output |
 |---|---|---|---|---|
-| W1. Source and owner control | bind source SHA → immutable release → loaded Writer labels; protect state and sibling loops | `config/writer/runtime-manifest.json`, Writer plists, `bin/lm-loop`, `bin/cut-loop-release.sh`, `writer_owner_fence.py` | current main and A8 code | source/release/argv/state parity receipt; Connector unchanged |
+| W1. Source and owner control | bind source SHA → immutable release → reconcile registry/manifest drift → loaded Writer labels; protect state and sibling loops | `config/writer/runtime-manifest.json`, `config/loop-registry.json`, Writer plists, `bin/lm-loop`, `bin/cut-loop-release.sh`, `writer_owner_fence.py` | current main and W2 code | source/release/argv/state parity receipt; Connector unchanged |
 | W2. Same-run recovery | adopt the safe unpublished run, repair current-hash quality evidence, resume without attempt inflation | `quality_repair_control.py`, `quality_self_heal.py`, `article-resume-pending.sh`, `article_daily_start_control.py` and their tests | W1 | valid A8 receipts, publication-state initialization, same run ID |
 | W3. Note execution | publish the paid JA Note intent with identity, paywall, media, timeout, and native readback guards | `publication_resume.py`, `note-publish/`, Note tests | W2 | Note native live receipt |
 | W4. Substack execution | publish JA and EN through separate publication identities and native readback | `publication_resume.py`, `publish-substack-managed-contract.sh`, Substack tests | W2 | two distinct Substack native live receipts |

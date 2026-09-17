@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Daisuke134/life-manager on origin/main is the only source authority; use a linked worktree from current origin/main before editing.
-- docs/ARTICLE-LAUNCH-TODO.md is the execution cursor. W0/W1 are complete; W2 is the first unfinished item. Do not reorder it or revive historical queues.
+- docs/ARTICLE-LAUNCH-TODO.md is the execution cursor. W0/W1 are historical completions; current preflight must reconcile the registry's 15 Writer labels with the runtime manifest's 14-label snapshot (which omits ai.anicca.article-repair-candidate) before W2 is production-ready. Do not reorder the cursor or revive historical queues.
 - The one Writer implementation lives under skills/writer-agent. Do not create a second executor, scheduler, state tree, money ledger, or provider-specific fixed workflow.
 - The binding active-four contract is Note JA, Substack JA, Substack EN, and X Article JA. Dev.to EN and Zenn JA are an independent discovery extension after active-four replay-zero.
 - Start at one source article per JST day with independent JA/EN localization. Existing eight-hour beats handle recovery, money, learning, health, and reporting; cadence expansion requires recorded stability evidence.
@@ -49,8 +49,8 @@ Every code task uses a separate linked worktree from the latest origin/main and 
 - Evidence outside Git: ~/.local/state/life-manager/evidence/writer-plan-20260917/preflight.json
 
 **Interfaces**
-- Consumes current origin/main, the 14 Writer registry rows, loaded owner definitions, and private Writer state.
-- Produces a SHA-bound preflight receipt naming the actual W2 run/cursor, leases, loaded release paths, state root, and sibling-loop invariants.
+- Consumes current origin/main, the 15 Writer registry rows, the 14-label runtime-manifest snapshot, loaded owner definitions, and private Writer state.
+- Produces a SHA-bound preflight receipt naming the actual W2 run/cursor, the registry/manifest mismatch, leases, loaded release paths, state root, and sibling-loop invariants.
 
 - [ ] Step 1: Verify repository and branch boundary.
 
@@ -70,15 +70,20 @@ Expected: canonical Life Manager origin, clean task worktree, and current origin
 python3 - <<'PY'
 import json
 from pathlib import Path
-rows = json.loads(Path("config/loop-registry.json").read_text())
+payload = json.loads(Path("config/loop-registry.json").read_text())
+rows = payload.get("loops", payload) if isinstance(payload, dict) else payload
 writer = [
-    v for v in rows.values()
-    if v.get("domain") == "earn"
+    v for v in rows
+    if isinstance(v, dict)
+    and v.get("domain") == "earn"
     and str(v.get("label", "")).startswith(("ai.anicca.article-", "ai.anicca.writer-"))
 ]
-assert len(writer) == 14, len(writer)
+assert len(writer) == 15, len(writer)
 assert {v["state_root"] for v in writer} == {"~/.local/state/life-manager/writer"}
-print("writer_labels=14 state_root=shared-writer-root")
+manifest = json.loads(Path("config/writer/runtime-manifest.json").read_text())
+missing = sorted(set(v["label"] for v in writer) - set(manifest.get("launchd_labels", [])))
+assert missing == ["ai.anicca.article-repair-candidate"], missing
+print("writer_registry_labels=15 manifest_labels=14 missing=article-repair-candidate")
 PY
 ~~~
 
@@ -105,7 +110,31 @@ PY
 
 Expected: no historical run is assumed current; the private state is authoritative.
 
-- [ ] Step 4: Read owner and lease evidence. If a Writer owner is active, do not kickstart it; pass its exact run ID into Task 2.
+- [ ] Step 4: Add the registry/manifest parity regression before any runtime mutation.
+
+~~~
+python3 - <<'PY'
+import json
+from pathlib import Path
+registry = json.loads(Path("config/loop-registry.json").read_text())["loops"]
+registry_labels = sorted(v["label"] for v in registry.values()
+                        if v.get("domain") == "earn"
+                        and str(v.get("label", "")).startswith(("ai.anicca.article-", "ai.anicca.writer-")))
+manifest = json.loads(Path("config/writer/runtime-manifest.json").read_text())
+manifest_labels = sorted(manifest["launchd_labels"])
+assert len(registry_labels) == 15
+assert len(manifest_labels) == 14
+assert registry_labels[-1] == "ai.anicca.article-repair-candidate"
+assert set(registry_labels) - set(manifest_labels) == {"ai.anicca.article-repair-candidate"}
+print("registry_manifest_drift=one-repair-candidate-label")
+PY
+~~~
+
+Expected: the test records the exact one-label drift; it does not silently treat the historical 14-label manifest as complete.
+
+- [ ] Step 5: Reconcile the manifest through the existing registry/release path. Add `ai.anicca.article-repair-candidate` and its source path to the manifest, update the manifest's label/path counters and validation text, and add a focused test that fails on any future registry/manifest set difference. Do not hand-create a plist; let `bin/lm-loop` render/apply the registry row after the code is integrated. Read back all 15 Writer labels and unchanged sibling/Connector labels before W2.
+
+- [ ] Step 6: Read owner and lease evidence. If a Writer owner is active, do not kickstart it; pass its exact run ID into Task 2.
 
 ### Task 2: Close W2 capacity, demand, and headline generation
 
@@ -416,7 +445,7 @@ bin/lm-loop doctor all
 git diff --check
 ~~~
 
-- [ ] **Step 2: Verify source/release lineage.** Read source SHA, immutable release SHA/tree hash, all 14 Writer loaded ProgramArguments, state root, rollback target, owner leases, latest terminal event, and unchanged Connector argv. Unknown launchd readback keeps acceptance open.
+- [ ] **Step 2: Verify source/release lineage.** Read source SHA, immutable release SHA/tree hash, all 15 Writer loaded ProgramArguments, state root, rollback target, owner leases, latest terminal event, and unchanged Connector argv. Unknown launchd readback keeps acceptance open.
 
 - [ ] **Step 3: Verify external contract.** Check active-four native URLs/readbacks, Dev.to/Zenn extension results, report message IDs, effect IDs, duplicate count, money receipts, and per-owner attribution. List PASS, FAIL, PENDING, UNKNOWN, and NOT CHECKED separately.
 
