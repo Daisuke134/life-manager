@@ -143,9 +143,10 @@ def _mark_run_effect_started(path: Path | None, occurrence_id: str | None) -> No
 def _observation(row: Mapping[str, Any]) -> dict[str, Any]:
     required = ("provider", "account_id", "work_id", "latest_event_id", "provider_state", "observed_at")
     observed = {field: _text(row.get(field), field) for field in required}
-    buyer_event_id = row.get("buyer_event_id")
-    if isinstance(buyer_event_id, str) and buyer_event_id.strip():
-        observed["buyer_event_id"] = buyer_event_id.strip()
+    for field in ("buyer_event_id", "buyer_event_at"):
+        value = row.get(field)
+        if isinstance(value, str) and value.strip():
+            observed[field] = value.strip()
     return observed
 
 
@@ -181,6 +182,37 @@ def _verified_receipt(intent: Mapping[str, Any], readback: Mapping[str, Any]) ->
     }
 
 
+def _stage_signature(intent: Mapping[str, Any]) -> tuple[str, str] | None:
+    """Identify a mutation stage without including a changing provider digest."""
+    action = intent.get("action")
+    payload = intent.get("payload")
+    if not isinstance(action, str) or not action.strip() or not isinstance(payload, Mapping):
+        return None
+    return action.strip(), _digest(payload)
+
+
+def _receipt_history(state: Mapping[str, Any], receipt: Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Carry verified receipts across staged intents while retaining the latest shortcut."""
+    values: list[dict[str, Any]] = []
+    prior = state.get("receipt_history")
+    if isinstance(prior, list):
+        values.extend(dict(value) for value in prior if isinstance(value, Mapping))
+    latest = state.get("receipt")
+    if isinstance(latest, Mapping):
+        values.append(dict(latest))
+    if isinstance(receipt, Mapping):
+        values.append(dict(receipt))
+    unique: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for value in values:
+        key = str(value.get("effect_key") or _digest(value))
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(value)
+    return unique
+
+
 def _pending(row: Mapping[str, Any], reason: str) -> dict[str, Any]:
     return {"work_id": row["work_id"], "status": "pending", "reason": reason,
             "effect": 0, "readback": 0, "failed": 0}
@@ -209,6 +241,10 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
     row = refreshed
     previous_intent = state.get("intent")
     previous_observation = state.get("observation")
+    if (not isinstance(previous_intent, Mapping)
+            and isinstance(state.get("previous_verified_intent"), Mapping)):
+        previous_intent = state["previous_verified_intent"]
+        previous_observation = state.get("previous_verified_observation")
     same_event = (isinstance(previous_observation, Mapping)
                   and previous_observation.get("latest_event_id") == row["latest_event_id"])
     previous_payload = previous_intent.get("payload") if isinstance(previous_intent, Mapping) else None
@@ -216,18 +252,19 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
                             if isinstance(previous_payload, Mapping) else None)
     buyer_event_same = (isinstance(previous_buyer_event, str)
                         and previous_buyer_event == row.get("buyer_event_id"))
-    if isinstance(previous_intent, Mapping) and (same_event or buyer_event_same
+    replay_eligible = same_event or buyer_event_same
+    previous_receipt: dict[str, Any] | None = None
+    previous_effect_verified = False
+    if isinstance(previous_intent, Mapping) and (replay_eligible
                                                  or state.get("status") == "reconcile_unknown"):
         official = adapter.readback(dict(previous_intent))
         if official.get("verified") is True:
             receipt = _verified_receipt(previous_intent, official)
-            if buyer_event_same:
-                _write_state(path, {"version": 1, "observation": row, "intent": previous_intent,
-                                    "receipt": receipt, "status": "verified"}, occurrence_id)
-                return {"work_id": row["work_id"], "status": "verified", "reason": "replay_zero",
-                        "effect": 0, "readback": 1, "failed": 0}
+            previous_receipt = receipt
+            previous_effect_verified = True
             state = {"version": 1, "observation": row, "intent": previous_intent,
-                     "receipt": receipt, "status": "verified"}
+                     "receipt": receipt, "receipt_history": _receipt_history(state, receipt),
+                     "status": "verified"}
         elif official.get("authoritative_absent") is not True:
             return _pending(row, "reconcile_unknown")
         if official.get("verified") is not True and state.get("status") == "reconcile_unknown":
@@ -236,7 +273,15 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
     context = adapter.context(row["work_id"])
     if not isinstance(context, Mapping):
         raise ValueError("paid_context_invalid")
-    decision = decide({**row, "context": dict(context)})
+    decision_context = dict(context)
+    if (isinstance(previous_intent, Mapping) and replay_eligible
+            and previous_effect_verified):
+        decision_context.update({
+            "previous_intent": dict(previous_intent),
+            "previous_receipt": dict(previous_receipt or {}),
+            "previous_effect_verified": True,
+        })
+    decision = decide({**row, "context": decision_context})
     if not isinstance(decision, Mapping):
         raise ValueError("paid_decision_invalid")
     action = _text(decision.get("action"), "action")
@@ -244,7 +289,12 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
         classification = str(decision.get("classification") or "noop").strip()
         if classification not in NO_EFFECT_CLASSIFICATIONS:
             raise ValueError("paid_noop_classification_invalid")
-        _write_state(path, {"version": 1, "observation": row, "status": classification}, occurrence_id)
+        saved = {"version": 1, "observation": row, "status": classification}
+        history = _receipt_history(state)
+        if history:
+            saved["receipt_history"] = history
+            saved["receipt"] = history[-1]
+        _write_state(path, saved, occurrence_id)
         return {"work_id": row["work_id"], "status": classification,
                 "reason": "no_effect_required",
                 "effect": 0, "readback": 1, "failed": 0}
@@ -253,24 +303,60 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
         remaining = decision.get("remaining_work")
         if not isinstance(remaining, list) or not remaining or not all(isinstance(v, str) and v.strip() for v in remaining):
             raise ValueError("remaining_work_invalid")
-        _write_state(path, {"version": 1, "observation": row, "status": "waiting_external",
-                            "blocker": reason, "remaining_work": remaining}, occurrence_id)
+        saved = {"version": 1, "observation": row, "status": "waiting_external",
+                 "blocker": reason, "remaining_work": remaining}
+        if isinstance(previous_intent, Mapping) and previous_effect_verified:
+            saved["intent"] = dict(previous_intent)
+            history = _receipt_history(state)
+            if history:
+                saved["receipt_history"] = history
+                saved["receipt"] = history[-1]
+        _write_state(path, saved, occurrence_id)
         return _pending(row, reason)
 
     intent = _intent(row, decision)
-    _write_state(path, {"version": 1, "observation": row, "intent": intent,
-                        "status": "intent_persisted"}, occurrence_id)
+    if (isinstance(previous_intent, Mapping) and replay_eligible
+            and previous_effect_verified
+            and _stage_signature(intent) == _stage_signature(previous_intent)):
+        saved = {"version": 1, "observation": row, "intent": dict(previous_intent),
+                 "receipt": dict(previous_receipt or {}), "status": "verified"}
+        history = _receipt_history(state, previous_receipt)
+        if history:
+            saved["receipt_history"] = history
+        _write_state(path, saved, occurrence_id)
+        return {"work_id": row["work_id"], "status": "verified", "reason": "replay_zero",
+                "effect": 0, "readback": 1, "failed": 0}
+    saved = {"version": 1, "observation": row, "intent": intent,
+             "status": "intent_persisted"}
+    history = _receipt_history(state)
+    if history:
+        saved["receipt_history"] = history
+        saved["previous_receipt"] = history[-1]
+    _write_state(path, saved, occurrence_id)
     current = _observation(_observe_one(adapter, row["work_id"], refresh=True))
     if any(current[field] != row[field] for field in ("provider", "account_id", "work_id")):
         raise ValueError("paid_work_identity_changed")
     if current["latest_event_id"] != row["latest_event_id"]:
-        _write_state(path, {"version": 1, "observation": current, "status": "context_stale"}, occurrence_id)
+        saved = {"version": 1, "observation": current, "status": "context_stale"}
+        history = _receipt_history(state)
+        if history:
+            saved["receipt_history"] = history
+            saved["receipt"] = history[-1]
+        if isinstance(previous_intent, Mapping) and previous_effect_verified:
+            saved["previous_verified_intent"] = dict(previous_intent)
+            if isinstance(previous_observation, Mapping):
+                saved["previous_verified_observation"] = dict(previous_observation)
+        _write_state(path, saved, occurrence_id)
         return _pending(row, "newer_provider_event")
     existing = adapter.readback(intent)
     if existing.get("verified") is True:
         receipt = _verified_receipt(intent, existing)
-        _write_state(path, {"version": 1, "observation": current, "intent": intent,
-                            "receipt": receipt, "status": "verified"}, occurrence_id)
+        saved = {"version": 1, "observation": current, "intent": intent,
+                 "receipt": receipt, "status": "verified"}
+        history = _receipt_history(state, receipt)
+        if history:
+            saved["receipt_history"] = history
+        _write_state(path, saved, occurrence_id)
         return {"work_id": row["work_id"], "status": "verified", "reason": "reconciled",
                 "effect": 0, "readback": 1, "failed": 0}
     if mutation_started is not None:
@@ -280,13 +366,21 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
     adapter.mutate(intent)
     official = adapter.readback(intent)
     if official.get("verified") is not True:
-        _write_state(path, {"version": 1, "observation": current, "intent": intent,
-                            "status": "reconcile_unknown"}, occurrence_id)
+        saved = {"version": 1, "observation": current, "intent": intent,
+                 "status": "reconcile_unknown"}
+        history = _receipt_history(state)
+        if history:
+            saved["receipt_history"] = history
+        _write_state(path, saved, occurrence_id)
         return {"work_id": row["work_id"], "status": "pending", "reason": "reconcile_unknown",
                 "effect": 1, "readback": 0, "failed": 0}
     receipt = _verified_receipt(intent, official)
-    _write_state(path, {"version": 1, "observation": current, "intent": intent,
-                        "receipt": receipt, "status": "verified"}, occurrence_id)
+    saved = {"version": 1, "observation": current, "intent": intent,
+             "receipt": receipt, "status": "verified"}
+    history = _receipt_history(state, receipt)
+    if history:
+        saved["receipt_history"] = history
+    _write_state(path, saved, occurrence_id)
     return {"work_id": row["work_id"], "status": "verified", "reason": "submitted",
             "effect": 1, "readback": 1, "failed": 0}
 
@@ -308,11 +402,11 @@ def _run_one(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[st
                     current_state = _load(_state_path(state_root, row))
                     intent = current_state.get("intent")
                     if isinstance(intent, Mapping):
-                        _write_state(
-                            _state_path(state_root, row),
-                            {"version": 1, "observation": current_state.get("observation", row),
-                             "intent": intent, "status": "reconcile_unknown"}, occurrence_id,
-                        )
+                        saved = dict(current_state)
+                        saved.update({"version": 1,
+                                      "observation": current_state.get("observation", row),
+                                      "intent": dict(intent), "status": "reconcile_unknown"})
+                        _write_state(_state_path(state_root, row), saved, occurrence_id)
                 except (OSError, ValueError):
                     pass
             error_detail = str(error).strip() or type(error).__name__

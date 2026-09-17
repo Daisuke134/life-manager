@@ -25,6 +25,7 @@ ACTIVE_CONTRACTS_URL = "https://crowdworks.jp/e/contracts?status=active"
 ACCOUNT_ID = "7145638"
 DEFAULT_APPLICATION_RECEIPTS = Path.home() / ".local/state/anicca/crowdworks/application-receipts.jsonl"
 FORM_SELECTION_COMPLETE = "__no_additional_form_required__"
+PERMISSION_REQUEST_BODY = "リンク先の閲覧権限を付与いただくか、本文を貼り付けてください。"
 
 
 def _load(name: str, path: Path):
@@ -539,14 +540,23 @@ class CrowdWorksPaidAdapter:
         return thread_id, [message for message in messages if isinstance(message, Mapping)]
 
     def _latest_seller_message(self, work_id: str | None = None) -> Mapping[str, Any] | None:
-        try:
-            _, messages = self._message_api(work_id)
-            seller = [message for message in messages
-                      if message.get("own_message") is True and isinstance(message.get("id"), int)
-                      and not isinstance(message.get("id"), bool)]
-            return max(seller, key=lambda message: int(message["id"])) if seller else None
-        except Exception:
-            return None
+        _, messages = self._message_api(work_id)
+        seller = [message for message in messages
+                  if message.get("own_message") is True and isinstance(message.get("id"), int)
+                  and not isinstance(message.get("id"), bool)]
+        return max(seller, key=lambda message: int(message["id"])) if seller else None
+
+    def _seller_message_contains(self, work_id: str, buyer_event_id: str, body: str) -> bool:
+        if not buyer_event_id.isdigit():
+            return False
+        _, messages = self._message_api(work_id)
+        return any(
+            message.get("own_message") is True
+            and isinstance(message.get("id"), int)
+            and int(message["id"]) > int(buyer_event_id)
+            and body in str(message.get("body") or "")
+            for message in messages
+        )
 
     @staticmethod
     def _document_url(value: str) -> bool:
@@ -557,24 +567,57 @@ class CrowdWorksPaidAdapter:
         if not urls or self.owned_context is None:
             return {"artifact_required": bool(urls), "artifact_access": "unknown" if urls else None,
                     "artifact_verified": False}
+        permission_seen = False
+        unknown_seen = False
+        readable: list[str] = []
         for url in urls:
             page = self.owned_context.new_page()
             try:
                 page.goto(url, wait_until="commit", timeout=20_000)
                 body = str(page.locator("body").inner_text() or "")
                 if "編集権限をリクエスト" in body:
-                    return {"artifact_required": True, "artifact_access": "permission_required",
-                            "artifact_verified": False}
-                if body.strip():
-                    return {"artifact_required": True, "artifact_access": "readable",
-                            "artifact_content": body[:12_000], "artifact_verified": False}
+                    permission_seen = True
+                    continue
+                # A Google Docs shell, login page, or error page can have body
+                # text without exposing the document.  Require a visible Docs
+                # editor/page surface before treating the artifact as readable.
+                for selector in (".kix-appview-editor", ".kix-page",
+                                 '[role="textbox"][aria-label*="Document content"]'):
+                    try:
+                        surface = page.locator(selector)
+                        if surface.count() < 1:
+                            continue
+                        visible = [surface.nth(index) for index in range(surface.count())
+                                   if surface.nth(index).is_visible()]
+                        if not visible:
+                            continue
+                        content = "\n".join(str(item.inner_text() or "") for item in visible).strip()
+                        if content:
+                            readable.append(f"[{url}]\n{content}")
+                            break
+                    except Exception:
+                        continue
+                else:
+                    unknown_seen = True
             except Exception:
+                unknown_seen = True
                 continue
             finally:
                 try:
                     page.close()
                 except Exception:
                     pass
+        if permission_seen:
+            return {"artifact_required": True, "artifact_access": "permission_required",
+                    "artifact_verified": False}
+        if unknown_seen:
+            return {"artifact_required": True, "artifact_access": "unknown", "artifact_verified": False}
+        if readable:
+            combined = "\n\n".join(readable)
+            if len(combined) > 12_000:
+                return {"artifact_required": True, "artifact_access": "unknown", "artifact_verified": False}
+            return {"artifact_required": True, "artifact_access": "readable",
+                    "artifact_content": combined, "artifact_verified": False}
         return {"artifact_required": True, "artifact_access": "unknown", "artifact_verified": False}
 
     def _expand_folded_messages(self) -> None:
@@ -585,20 +628,27 @@ class CrowdWorksPaidAdapter:
             return
         try:
             folded = finder(re.compile(r"他の\d+件のメッセージを表示"), exact=False)
-            count = folded.count()
+            initial_count = folded.count()
         except Exception as error:
             raise RuntimeError("crowdworks_paid_message_context_incomplete") from error
-        failures = 0
-        for index in range(count):
+        attempts = 0
+        while True:
             try:
-                item = folded.nth(index)
-                if item.is_visible():
-                    item.click()
-                    self.page.wait_for_timeout(300)
-            except Exception:
-                failures += 1
-        if failures:
-            raise RuntimeError("crowdworks_paid_message_context_incomplete")
+                remaining = folded.count()
+                visible = [folded.nth(index) for index in range(remaining)
+                           if folded.nth(index).is_visible()]
+            except Exception as error:
+                raise RuntimeError("crowdworks_paid_message_context_incomplete") from error
+            if not visible:
+                return
+            attempts += 1
+            if attempts > max(initial_count * 2, 8):
+                raise RuntimeError("crowdworks_paid_message_context_incomplete")
+            try:
+                visible[0].click()
+                self.page.wait_for_timeout(300)
+            except Exception as error:
+                raise RuntimeError("crowdworks_paid_message_context_incomplete") from error
 
     def _proposal_application_date(self, proposal_id: str) -> str | None:
         if self.owned_context is None:
@@ -662,11 +712,18 @@ class CrowdWorksPaidAdapter:
         stable = {key: item.get(key) for key in ("work_id", "title", "client", "provider_state",
                                                   "milestone_id", "form_url", "form_urls", "proposal_id",
                                                   "application_date", "buyer_context", "message_thread_id",
-                                                  "buyer_event_id", "buyer_event_at")}
+                                                  "buyer_event_id", "buyer_event_at", "form_candidates",
+                                                  "ignored_form_urls", "document_urls", "artifact_required",
+                                                  "artifact_access", "artifact_content", "artifact_verified")}
         stable["completed_form_urls"] = sorted(item.get("completed_form_urls") or [])
-        return {"provider": "crowdworks", "account_id": self.account_id,
-                "work_id": _text(item.get("work_id")), "latest_event_id": _digest(stable),
-                "provider_state": _text(item.get("provider_state")), "observed_at": _now()}
+        observed = {"provider": "crowdworks", "account_id": self.account_id,
+                    "work_id": _text(item.get("work_id")), "latest_event_id": _digest(stable),
+                    "provider_state": _text(item.get("provider_state")), "observed_at": _now()}
+        for field in ("message_thread_id", "buyer_event_id", "buyer_event_at"):
+            value = item.get(field)
+            if isinstance(value, str) and value.strip():
+                observed[field] = value.strip()
+        return observed
 
     def _cache_replace(self, items: list[Mapping[str, Any]]) -> None:
         snapshot = { _text(item.get("work_id")): self._with_form_progress(item) for item in items }
@@ -789,7 +846,9 @@ class CrowdWorksPaidAdapter:
                 page.set_default_timeout(15_000)
                 page.goto(url, wait_until="commit", timeout=20_000)
                 body = _text(page.locator("body").inner_text(), "crowdworks_paid_form_unavailable")
-                candidates.append({"url": url, "title": page.title(), "body": body[:6_000]})
+                if len(body) > 12_000:
+                    return []
+                candidates.append({"url": url, "title": page.title(), "body": body})
             except Exception:
                 return []
             finally:
@@ -832,6 +891,8 @@ class CrowdWorksPaidAdapter:
     def _select_form_url(self, item: Mapping[str, Any]) -> str | None:
         raw_urls = item.get("form_urls")
         candidates = item.get("form_candidates")
+        if (not isinstance(raw_urls, list) and isinstance(item.get("form_url"), str)):
+            raw_urls = [item["form_url"]]
         if not isinstance(raw_urls, list):
             return None
         completed = set(item.get("completed_form_urls") or [])
@@ -921,13 +982,42 @@ class CrowdWorksPaidAdapter:
             return None
         return body.strip() if isinstance(body, str) and body.strip() else None
 
+    def _quality_check(self, item: Mapping[str, Any], body: str) -> str | None:
+        """Ask a fresh model judgment whether the proposed answer fulfills the request."""
+        buyer_context = item.get("buyer_context")
+        if (not isinstance(buyer_context, str) or not buyer_context.strip()
+                or self.candidate_profile is None or self.provider_profile is None
+                or self.state_path is None):
+            return None
+        source = "買い手の会話全文:\n" + buyer_context
+        artifact = item.get("artifact_content")
+        if isinstance(artifact, str) and artifact.strip():
+            source += "\n\nリンク先で読めた本文:\n" + artifact
+        source += "\n\n送信予定の回答:\n" + body
+        try:
+            return self._compose_text(
+                question=(
+                    "この回答は買い手の依頼を実際に満たしているか判定してください。"
+                    "依頼の具体的な要求への回答、リンク先の内容に基づく作業、"
+                    "未実施の作業を完了と偽らないことを確認し、"
+                    "quality_ok、quality_needs_rework、buyer_input_required のいずれか1語だけを返してください。"
+                ),
+                source=source,
+                item=item,
+                choices=["quality_ok", "quality_needs_rework", "buyer_input_required"],
+            )
+        except Exception:
+            return None
+
     def context(self, work_id: str) -> dict[str, Any]:
         try:
             item = self._cached_item(work_id) or self._targeted_detail(work_id)
             urls = item.get("form_urls")
+            if (not isinstance(urls, list) and isinstance(item.get("form_url"), str)):
+                urls = [item["form_url"]]
+                item = {**item, "form_urls": urls}
             if (isinstance(urls, list) and urls
-                    and (len(urls) > 1 or item.get("completed_form_urls")) and
-                    not isinstance(item.get("form_candidates"), list)):
+                    and not isinstance(item.get("form_candidates"), list)):
                 try:
                     if self.owned_context is None:
                         self._open()
@@ -1136,9 +1226,23 @@ class CrowdWorksPaidAdapter:
                 current = self._targeted_detail(work_id)
                 if current.get("provider_state") != "funded":
                     raise RuntimeError("crowdworks_paid_context_changed")
-                if (isinstance(payload.get("buyer_event_id"), str)
-                        and payload.get("buyer_event_id") != current.get("buyer_event_id")):
+                if (not isinstance(payload.get("buyer_event_id"), str)
+                        or payload.get("buyer_event_id") != current.get("buyer_event_id")):
                     raise RuntimeError("crowdworks_paid_context_changed")
+                if current.get("artifact_access") != "permission_required":
+                    quality_sha256 = payload.get("quality_sha256")
+                    if (payload.get("correct_work_verified") is not True
+                            or payload.get("quality_verdict") != "quality_ok"
+                            or not isinstance(quality_sha256, str)
+                            or not re.fullmatch(r"[0-9a-f]{64}", quality_sha256)
+                            or quality_sha256 != _digest({
+                                "buyer_context": current.get("buyer_context"),
+                                "artifact_content": current.get("artifact_content"),
+                                "body": body,
+                            })):
+                        raise RuntimeError("crowdworks_paid_answer_quality_unverified")
+                elif body != PERMISSION_REQUEST_BODY:
+                    raise RuntimeError("crowdworks_paid_answer_quality_unverified")
                 self._goto_contract(work_id)
                 areas = self.page.locator('textarea[name="message[body]"]')
                 visible = [areas.nth(index) for index in range(areas.count())
@@ -1158,9 +1262,34 @@ class CrowdWorksPaidAdapter:
                 current = self._targeted_detail(work_id)
                 if current.get("provider_state") != "funded":
                     raise RuntimeError("crowdworks_paid_context_changed")
+                if (not isinstance(payload.get("buyer_event_id"), str)
+                        or payload.get("buyer_event_id") != current.get("buyer_event_id")):
+                    raise RuntimeError("crowdworks_paid_context_changed")
                 form_urls = set(current.get("form_urls") or [])
                 completed = set(payload.get("completed_form_urls") or [])
                 ignored = set(payload.get("ignored_form_urls") or [])
+                if payload.get("no_form") is True:
+                    answer_body = payload.get("answer_body")
+                    answer_effect_key = payload.get("answer_effect_key")
+                    quality_sha256 = payload.get("quality_sha256")
+                    if (form_urls or not isinstance(answer_body, str) or not answer_body.strip()
+                            or not isinstance(answer_effect_key, str) or not answer_effect_key.strip()
+                            or not isinstance(payload.get("buyer_event_id"), str)
+                            or not payload.get("buyer_event_id").isdigit()
+                            or payload.get("correct_work_verified") is not True
+                            or not isinstance(quality_sha256, str)
+                            or not re.fullmatch(r"[0-9a-f]{64}", quality_sha256)
+                            or quality_sha256 != _digest({
+                                "buyer_context": current.get("buyer_context"),
+                                "artifact_content": current.get("artifact_content"),
+                                "body": answer_body.strip(),
+                            })):
+                        raise RuntimeError("crowdworks_paid_form_progress_changed")
+                    self._goto_contract(work_id)
+                    if not self._seller_message_contains(work_id, payload["buyer_event_id"], answer_body.strip()):
+                        raise RuntimeError("crowdworks_paid_answer_readback_unavailable")
+                    self._complete_once(current, payload)
+                    return
                 if (not form_urls or not completed
                         or not completed.issubset(set(current.get("completed_form_urls") or []))
                         or completed | ignored != form_urls):
@@ -1205,11 +1334,11 @@ class CrowdWorksPaidAdapter:
                 if body in visible_body:
                     buyer_event_id = payload.get("buyer_event_id")
                     if isinstance(buyer_event_id, str) and buyer_event_id.isdigit():
-                        seller = self._latest_seller_message(work_id)
-                        if (not isinstance(seller, Mapping)
-                                or not isinstance(seller.get("id"), int)
-                                or int(seller["id"]) <= int(buyer_event_id)
-                                or body not in str(seller.get("body") or "")):
+                        try:
+                            present = self._seller_message_contains(work_id, buyer_event_id, body)
+                        except Exception:
+                            raise
+                        if not present:
                             return {"authoritative_absent": True}
                     return {"verified": True,
                             "provider_receipt_id": f"contract:{work_id}:answer:{_text(intent.get('effect_key'))}",
@@ -1217,15 +1346,48 @@ class CrowdWorksPaidAdapter:
                 return {"authoritative_absent": True}
             if intent.get("action") == "formal_delivery" and isinstance(intent.get("payload"), Mapping):
                 payload = intent["payload"]; work_id = _text(intent.get("work_id")); self._goto_contract(work_id)
+                if (not isinstance(payload.get("buyer_event_id"), str)
+                        or not payload.get("buyer_event_id").strip()):
+                    return {"authoritative_absent": True}
                 milestone_id = _text(payload.get("milestone_id"))
+                delivery_message = payload.get("message")
+                if not isinstance(delivery_message, str) or not delivery_message.strip():
+                    return {"authoritative_absent": True}
                 actions = self.page.locator('form[action^="/milestones/"][action$="/complete"]').evaluate_all(
                     "forms => forms.map(form => form.getAttribute('action'))")
+                progress_steps = self.page.locator("ul.progress li").evaluate_all(
+                    "nodes => nodes.map(node => ({label:(node.innerText || '').trim(), className: node.className || ''}))")
                 body = _text(self.page.locator("body").inner_text(), "crowdworks_paid_contract_unavailable")
+                completion_action = f"/milestones/{milestone_id}/complete"
+                try:
+                    dialogs = self.page.locator(f"#message-dialog-completion-{milestone_id}")
+                    target_dialog_visible = any(
+                        dialogs.nth(index).is_visible() for index in range(dialogs.count())
+                    )
+                except Exception:
+                    return {"authoritative_absent": True}
                 inspection_pending = ("クライアント（発注者）が検収を行っています" in body
-                                      and "検収完了まで" in body)
-                delivered = (f"/milestones/{milestone_id}/complete" not in actions
-                             or inspection_pending)
-                if delivered and any(token in body for token in ("検収", "納品済み", "納品完了")):
+                                      and "検収完了までしばらくお待ちください" in body)
+                if any(action != completion_action for action in actions):
+                    return {"authoritative_absent": True}
+                delivered = completion_action not in actions and not target_dialog_visible
+                delivery_step_done = any(
+                    isinstance(step, Mapping)
+                    and step.get("label") == "納品"
+                    and "done" in str(step.get("className") or "").split()
+                    for step in progress_steps
+                )
+                # The exact milestone action must be gone and the page must
+                # expose a delivery/inspection status, not an unrelated word
+                # such as 「検収」 elsewhere in the contract.
+                delivery_status = delivered and delivery_step_done and (
+                    inspection_pending
+                    or (("納品済み" in body or "納品完了" in body) and "検収" in body)
+                ) and delivery_message.strip() in body
+                if delivery_status and not self._seller_message_contains(
+                        work_id, payload["buyer_event_id"], delivery_message.strip()):
+                    return {"authoritative_absent": True}
+                if delivery_status:
                     return {"verified": True,
                             "provider_receipt_id": f"contract:{work_id}:milestone:{milestone_id}",
                             "observed_at": _now()}
@@ -1240,8 +1402,9 @@ class CrowdWorksPaidAdapter:
             if isinstance(revision_event_id, str) and revision_event_id.strip():
                 binding["revision_event_id"] = revision_event_id.strip()
             buyer_event_id = payload.get("buyer_event_id")
-            if isinstance(buyer_event_id, str) and buyer_event_id.strip():
-                binding["buyer_event_id"] = buyer_event_id.strip()
+            if not isinstance(buyer_event_id, str) or not buyer_event_id.strip():
+                return {"authoritative_absent": True}
+            binding["buyer_event_id"] = buyer_event_id.strip()
             receipt = google_form.bound_receipt(self.state_path, binding)
             form_done = isinstance(receipt, Mapping) and receipt.get("url_sha256") == form_sha256 and bool(receipt.get("confirmation_sha256"))
             if form_done:
@@ -1278,7 +1441,8 @@ def read_only_inventory() -> dict[str, Any]:
 
 
 def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]], str | None] | None = None,
-           answer_selector: Callable[[Mapping[str, Any]], str | None] | None = None) -> dict[str, Any]:
+           answer_selector: Callable[[Mapping[str, Any]], str | None] | None = None,
+           quality_selector: Callable[[Mapping[str, Any], str], str | None] | None = None) -> dict[str, Any]:
     context = row.get("context"); contract = context.get("contract") if isinstance(context, Mapping) else None
     if not isinstance(contract, Mapping):
         raise RuntimeError("crowdworks_paid_context_unavailable")
@@ -1294,13 +1458,99 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
     completed = set(contract.get("completed_form_urls") or [])
     has_form = ((isinstance(form_urls, list) and bool(form_urls))
                 or isinstance(form_url, str))
+    previous_intent = context.get("previous_intent") if isinstance(context, Mapping) else None
+    previous_verified = (isinstance(context, Mapping)
+                         and context.get("previous_effect_verified") is True)
     if (has_form
             and (not isinstance(contract.get("buyer_event_id"), str)
                  or not contract.get("buyer_event_id").strip())):
         return {"action": "wait", "reason": "buyer_event_required",
                 "remaining_work": ["read and persist the latest buyer message before submitting a form"]}
-    if form_url in completed and not contract.get("form_revision"):
-        form_url = None
+    if (previous_verified and isinstance(previous_intent, Mapping)
+            and previous_intent.get("action") == "formal_delivery"):
+        return {"action": "wait", "reason": "awaiting_buyer_inspection",
+                "remaining_work": ["read the official CrowdWorks inspection and acceptance state"]}
+    if (previous_verified and isinstance(previous_intent, Mapping)
+            and previous_intent.get("action") == "answer" and not has_form):
+        buyer_event_id = contract.get("buyer_event_id")
+        previous_payload = previous_intent.get("payload")
+        if (not isinstance(buyer_event_id, str) or not buyer_event_id.strip()
+                or not isinstance(previous_payload, Mapping)
+                or previous_payload.get("buyer_event_id") != buyer_event_id):
+            return {"action": "wait", "reason": "buyer_event_required",
+                    "remaining_work": ["read and persist the latest buyer message before formal delivery"]}
+        if contract.get("artifact_access") == "permission_required":
+            return {"action": "wait", "reason": "buyer_task_detail_required",
+                    "remaining_work": ["obtain and verify the buyer artifact before formal delivery"]}
+        quality_sha256 = previous_payload.get("quality_sha256")
+        if (previous_payload.get("correct_work_verified") is not True
+                or not isinstance(quality_sha256, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", quality_sha256)
+                or quality_sha256 != _digest({
+                    "buyer_context": contract.get("buyer_context"),
+                    "artifact_content": contract.get("artifact_content"),
+                    "body": str(previous_payload.get("body") or "").strip(),
+                })):
+            return {"action": "wait", "reason": "work_quality_required",
+                    "remaining_work": ["obtain an independent quality check for the requested work before formal delivery"]}
+        artifact_ready = (
+            contract.get("artifact_required") is not True
+            or contract.get("artifact_verified") is True
+            or (contract.get("artifact_access") == "readable"
+                and isinstance(contract.get("artifact_content"), str)
+                and bool(contract.get("artifact_content").strip()))
+        )
+        if not artifact_ready:
+            return {"action": "wait", "reason": "buyer_task_detail_required",
+                    "remaining_work": ["obtain and verify the buyer artifact before formal delivery"]}
+        milestone = contract.get("milestone_id")
+        answer_body = previous_payload.get("body")
+        answer_effect_key = previous_intent.get("effect_key")
+        if (not isinstance(milestone, str) or not milestone.strip()
+                or not isinstance(answer_body, str) or not answer_body.strip()
+                or not isinstance(answer_effect_key, str) or not answer_effect_key.strip()):
+            return {"action": "wait", "reason": "buyer_task_detail_required",
+                    "remaining_work": ["retain the verified answer and milestone identity before formal delivery"]}
+        return {"action": "formal_delivery", "payload": {
+            "milestone_id": milestone.strip(),
+            "message": "依頼内容への対応を完了しました。ご確認のほどよろしくお願いいたします。",
+            "no_form": True,
+            "answer_body": answer_body.strip(),
+            "answer_effect_key": answer_effect_key.strip(),
+            "buyer_event_id": buyer_event_id.strip(),
+            "correct_work_verified": True,
+            "quality_sha256": quality_sha256,
+        }}
+    if has_form:
+        if form_url in completed and not contract.get("form_revision"):
+            form_url = None
+        selection_contract = contract
+        if (not isinstance(selection_contract.get("form_urls"), list)
+                and isinstance(selection_contract.get("form_url"), str)):
+            selection_contract = {**selection_contract,
+                                  "form_urls": [selection_contract["form_url"]]}
+        selected = form_selector(selection_contract) if callable(form_selector) else None
+        if selected == FORM_SELECTION_COMPLETE:
+            candidate_urls = selection_contract.get("form_urls")
+            if not isinstance(milestone_id, str) or not isinstance(candidate_urls, list):
+                return {"action": "wait", "reason": "buyer_task_detail_required",
+                        "remaining_work": ["read the official funded contract task before any delivery effect"]}
+            ignored = set(contract.get("ignored_form_urls") or [])
+            remaining = set(candidate_urls) - completed
+            if not completed or remaining - ignored:
+                return {"action": "wait", "reason": "form_selection_required",
+                        "remaining_work": ["complete one official form and select or explicitly exclude every remaining form"]}
+            return {"action": "formal_delivery", "payload": {
+                "milestone_id": milestone_id,
+                "message": "Googleフォームへの回答を完了しました。ご確認のほどよろしくお願いいたします。",
+                "completed_form_urls": sorted(completed),
+                "ignored_form_urls": sorted(ignored),
+                "buyer_event_id": contract["buyer_event_id"].strip(),
+            }}
+        form_url = selected
+        if not isinstance(form_url, str) or not _google_form_url(form_url):
+            return {"action": "wait", "reason": "form_selection_required",
+                    "remaining_work": ["model must select one official form from the buyer context"]}
     if not form_url and not (isinstance(form_urls, list) and form_urls):
         if contract.get("provider_state") != "funded":
             return {"action": "wait", "reason": "buyer_task_detail_required",
@@ -1324,38 +1574,35 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
             return {"action": "wait", "reason": "buyer_task_detail_required",
                     "remaining_work": ["open and verify the linked buyer artifact before answering"]}
         answer = (
-            "リンク先の閲覧権限を付与いただくか、本文を貼り付けてください。"
+            PERMISSION_REQUEST_BODY
             if contract.get("artifact_access") == "permission_required"
             else (answer_selector(contract)
                   if callable(answer_selector) and isinstance(buyer_context, str)
                   and buyer_context.strip() else None)
         )
         if isinstance(answer, str) and answer.strip():
-            return {"action": "answer", "payload": {"body": answer.strip(),
-                                                       "buyer_event_id": buyer_event_id.strip()}}
+            body = answer.strip()
+            payload = {"body": body, "buyer_event_id": buyer_event_id.strip()}
+            if contract.get("artifact_access") != "permission_required" and not callable(quality_selector):
+                return {"action": "wait", "reason": "work_quality_required",
+                        "remaining_work": ["obtain an independent quality check for the requested work before sending"]}
+            if contract.get("artifact_access") != "permission_required" and callable(quality_selector):
+                quality = quality_selector(contract, body)
+                if quality != "quality_ok":
+                    return {"action": "wait", "reason": "work_quality_required",
+                            "remaining_work": ["review the buyer request and repair the proposed work before sending"]}
+                payload.update({
+                    "correct_work_verified": True,
+                    "quality_verdict": quality,
+                    "quality_sha256": _digest({
+                        "buyer_context": contract.get("buyer_context"),
+                        "artifact_content": contract.get("artifact_content"),
+                        "body": body,
+                    }),
+                })
+            return {"action": "answer", "payload": payload}
         return {"action": "wait", "reason": "buyer_task_detail_required",
                 "remaining_work": ["read the complete buyer instruction and compose the required response"]}
-    if isinstance(form_urls, list) and form_urls and not form_url:
-        selected = form_selector(contract) if callable(form_selector) else None
-        if selected == FORM_SELECTION_COMPLETE:
-            if not isinstance(milestone_id, str):
-                return {"action": "wait", "reason": "buyer_task_detail_required",
-                        "remaining_work": ["read the official funded contract task before any delivery effect"]}
-            ignored = set(contract.get("ignored_form_urls") or [])
-            remaining = set(form_urls or []) - completed
-            if not completed or remaining - ignored:
-                return {"action": "wait", "reason": "form_selection_required",
-                        "remaining_work": ["complete one official form and select or explicitly exclude every remaining form"]}
-            return {"action": "formal_delivery", "payload": {
-                "milestone_id": milestone_id,
-                "message": "Googleフォームへの回答を完了しました。ご確認のほどよろしくお願いいたします。",
-                "completed_form_urls": sorted(completed),
-                "ignored_form_urls": sorted(ignored),
-            }}
-        form_url = selected
-        if not isinstance(form_url, str) or not _google_form_url(form_url):
-            return {"action": "wait", "reason": "form_selection_required",
-                    "remaining_work": ["model must select one official form from the buyer context"]}
     if contract.get("provider_state") != "funded" or not isinstance(form_url, str) or not _google_form_url(form_url) or not isinstance(milestone_id, str):
         return {"action": "wait", "reason": "buyer_task_detail_required", "remaining_work": ["read the official funded contract task before any delivery effect"]}
     if not isinstance(contract.get("application_date"), str):
@@ -1365,8 +1612,10 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
                "form_sha256": hashlib.sha256(form_url.encode()).hexdigest(),
                "milestone_id": milestone_id}
     buyer_event_id = contract.get("buyer_event_id")
-    if isinstance(buyer_event_id, str) and buyer_event_id.strip():
-        payload["buyer_event_id"] = buyer_event_id.strip()
+    if not isinstance(buyer_event_id, str) or not buyer_event_id.strip():
+        return {"action": "wait", "reason": "buyer_event_required",
+                "remaining_work": ["persist the buyer event before submitting the selected form"]}
+    payload["buyer_event_id"] = buyer_event_id.strip()
     if contract.get("form_revision"):
         revision_event_id = contract.get("buyer_event_id")
         if not isinstance(revision_event_id, str) or not revision_event_id.strip():
@@ -1386,7 +1635,8 @@ def build(argv: list[str]):
     adapter = CrowdWorksPaidAdapter(account_id=args.account_id, state_path=args.state_path.expanduser().resolve(), candidate_profile=args.candidate_profile.expanduser().resolve(), provider_profile=provider,
                                     application_receipts_path=args.application_receipts_path)
     return adapter, lambda row: decide(row, form_selector=adapter._select_form_url,
-                                        answer_selector=adapter._compose_answer)
+                                        answer_selector=adapter._compose_answer,
+                                        quality_selector=adapter._quality_check)
 
 
 __all__ = ["CrowdWorksPaidAdapter", "CrowdWorksPaidWait", "build", "decide", "read_only_inventory"]
