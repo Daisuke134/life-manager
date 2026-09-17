@@ -124,6 +124,8 @@ flowchart LR
 
 **最新の引き継ぎ:** 提出契約PR `#5323`と有料Agent更新キューPR `#5325`はmainへ統合済み（後者のmerge SHA `19d338b7`）。後者はCI全件PASS、`2026-09-17`の公式5/5 inventoryで`CAP_FULL`・新版作成0・Agent版ID不変を実測した。一方、確認時の稼働`current` releaseは`a617184d`、Capafy供給labelのloaded SHAは`ccc0b47c`であり、PR `#5325`後の自然提出passではない。直近供給terminalは`resource_effect_unknown`、hourly moneyは`resource_capacity_busy`。共有host admissionの修復は別ownerのA15作業として扱い、このCapafy作業ではPID・host-admission DBを操作しない。次はA15の実測合格後にmain由来releaseの対象label読戻し→自然wake→同Agent版提出・buyer Test Runを順に証明する。マーケティング/ReelはDaisの指示で完了gateから除外済み。
 
+**2026-09-17 slot非依存kickstartの最新readback:** Aqua/Directory Services/`gui/501` preflight PASS後、loaded release `393f17458a4e6a62e01ae46215ab32ba5f02ea83`の`ai.anicca.capafy-loop-daily`を1回だけkickstartした。公式inventoryは`40 online / 5 under_review / free 0 / CAP_FULL`で、Capafy側のplatform writeは0。healthcheckはcontrol-planeで`pass`したが、dailyのouter terminalは共通host admissionの`resource_effect_unknown`で`blocked / exit 75`となり、同じrunの自然`pass`とは数えない。この結果は「slotを待たずに検証できる」ことと「shared admissionが未解消ならproduction wakeは完了しない」ことを分離する。共有PID・host-admission DBは変更しない。最新money CLIはUTC `2026-09-01`–`2026-09-17`でgross sales `$66.90`、creator earnings `$48.16`、OpenRouter暦月請求 `$24.18`、Agent別推定model cost `$22.90`、`active_mrr=null`（seller active契約source欠損）をreadbackした。
+
 **対象限定の反映:** Aqua/Directory Services/`gui/501` preflight PASSの後、loaded-idleの`ai.anicca.capafy-loop-daily`だけをmain由来のfull release `20260917T163930-19d338b7`へapplyした。install event `f6936fe941a1b72812766663`、launchctl loaded argvとinstalled SHAは`19d338b7`で一致。event SHAは旧`203bbe88`のままで、直近blocker `resource_effect_unknown` は未解決。自然wakeのpass、Agent新版提出、buyer Test Runをこのapplyから推論しない。公式inventoryは引き続き`40 online / 5 under_review / free 0`。
 
 | 順 | owner / exact files | 最小変更 | 完了条件 |
