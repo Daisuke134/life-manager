@@ -845,6 +845,73 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(target.read_bytes(), old)
         self.assertGreaterEqual(sum(call[0] == "bootstrap" for call in calls), 2)
 
+    def test_failed_snapshot_swap_restores_loaded_argv_as_xml(self):
+        target = self.root / "installed.plist"
+        old_release = self._release("old-release").resolve()
+        new_release = self._release("new-release").resolve()
+        writer_registry = registry()
+        writer_registry["loops"]["writer-report"] = writer_registry["loops"].pop("example")
+        writer_registry["loops"]["writer-report"]["label"] = "ai.anicca.writer-report"
+        for release in (old_release, new_release):
+            (release / "config/loop-registry.json").write_text(json.dumps(writer_registry))
+        (old_release / "RELEASE.json").write_text(json.dumps({
+            "sha": "b" * 40, "release_paths": "ALL",
+        }))
+        old_args = [str(old_release / "bin/lm-loop-run"), "writer-report", str(old_release)]
+        old_env = {
+            "LIFE_MANAGER_LOOP_ID": "writer-report",
+            "LIFE_MANAGER_STATE_ROOT": os.path.expanduser(
+                writer_registry["loops"]["writer-report"]["state_root"]),
+            "LIFE_MANAGER_RELEASE_SHA": "b" * 40,
+            "CUSTOM_OWNER_KEY": "kept",
+        }
+        target.write_text(json.dumps(old_env))
+        rendered = build_apply_plan(writer_registry, new_release, SHA)[0]
+        calls = []
+
+        def launchctl(args):
+            calls.append(args)
+            if args[0] == "print":
+                return 0, "arguments = {\n" + "\n".join(old_args) + "\n}\n"
+            if args[0] == "bootstrap":
+                installed = plistlib.loads(target.read_bytes())
+                return ((0, "") if installed["ProgramArguments"] == old_args
+                        else (5, "new bootstrap failed"))
+            return 0, ""
+
+        with self.assertRaisesRegex(RuntimeError, "restored previous job"):
+            install_one(rendered, target, launchctl, attempts=1, sleeper=lambda _: None)
+        restored = plistlib.loads(target.read_bytes())
+        self.assertEqual(restored["ProgramArguments"], old_args)
+        self.assertEqual(restored["EnvironmentVariables"]["CUSTOM_OWNER_KEY"], "kept")
+        self.assertEqual(restored["EnvironmentVariables"]["LIFE_MANAGER_RELEASE_SHA"], "b" * 40)
+        self.assertEqual(restored["EnvironmentVariables"]["LIFE_MANAGER_REPO"], str(old_release))
+        self.assertEqual(restored["EnvironmentVariables"]["ARTICLE_ROOT"],
+                         str(old_release / "skills/writer-agent"))
+        self.assertGreaterEqual(sum(call[0] == "bootstrap" for call in calls), 2)
+
+    def test_snapshot_swap_does_not_bootout_without_old_release(self):
+        target = self.root / "installed.plist"
+        old = json.dumps({
+            "LIFE_MANAGER_LOOP_ID": "example",
+            "LIFE_MANAGER_STATE_ROOT": os.path.expanduser(
+                registry()["loops"]["example"]["state_root"]),
+            "LIFE_MANAGER_RELEASE_SHA": "b" * 40,
+        }).encode()
+        target.write_bytes(old)
+        rendered = build_apply_plan(registry(), self.root, SHA)[0]
+        calls = []
+
+        def launchctl(args):
+            calls.append(args)
+            return 0, ("arguments = {\n/absent/bin/lm-loop-run\nexample\n/absent\n}\n"
+                       if args[0] == "print" else "")
+
+        with self.assertRaises((OSError, RuntimeError)):
+            install_one(rendered, target, launchctl, sleeper=lambda _: None)
+        self.assertEqual(target.read_bytes(), old)
+        self.assertEqual([call[0] for call in calls], ["print"])
+
     def test_swap_preserves_existing_operational_attributes_but_drops_undeclared_working_directory(self):
         target = self.root / "installed.plist"
         target.write_bytes(plistlib.dumps({

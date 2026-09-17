@@ -64,8 +64,10 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   Writer report or clear its effect fence. The first targeted reconcile on
   `c16f437b` returned `eligible=0`: malformed JSON gave
   `installed_release_sha=null`, so candidate filtering bypassed the merged
-  recovery function. The new shared candidate fix is under test on this branch;
-  the installed file remains JSON and `effect_unknown` remains fenced.
+  recovery function. The follow-up candidate fix and pre-swap rollback from
+  the old immutable release passed 95 tests and 30 subtests locally, including
+  a failed Writer swap with a minimal JSON snapshot. CI/main/live proof remain
+  open; the installed file remains JSON and `effect_unknown` remains fenced.
 - [ ] **A15-07 — prove an agent-class handoff.** From the private admission
   SQLite and `bin/lm-loop status`, join one natural agent owner claim, outer
   terminal, release and a *different* eligible agent owner's next claim.
