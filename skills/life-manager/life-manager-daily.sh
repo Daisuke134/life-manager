@@ -166,7 +166,7 @@ else:
     "$LM_DAILY_PLATFORM" "$LM_DAILY_CREATIVE_ID" >>"$LOG"
 
   set +e
-  SELF_IMPROVE_RESULT="$("$MARKETING_SELF_IMPROVER" 2>>"$LOG")"
+  SELF_IMPROVE_RESULT="$("$MARKETING_SELF_IMPROVER" --platform "$LM_DAILY_PLATFORM" 2>>"$LOG")"
   SELF_IMPROVE_RC=$?
   set -e
   if [ "$SELF_IMPROVE_RC" -ne 0 ]; then
@@ -186,7 +186,11 @@ status = row.get("status")
 day_index = row.get("day_index")
 next_creative = row.get("next_creative_id")
 reason = row.get("next_change_reason")
-if status not in {"started", "done"} or not isinstance(day_index, int) or day_index < 1:
+if status not in {"started", "done", "unavailable"} or not isinstance(day_index, int):
+    raise SystemExit(2)
+if status == "unavailable" and day_index != 0:
+    raise SystemExit(2)
+if status != "unavailable" and day_index < 1:
     raise SystemExit(2)
 if not isinstance(next_creative, str) or not next_creative or not isinstance(reason, str) or not reason:
     raise SystemExit(2)
@@ -205,6 +209,18 @@ print("\t".join((status, str(day_index), next_creative, reason)))
   printf 'daily self-improvement readback complete day=%s status=%s\n' \
     "$LM_SELF_IMPROVE_DAY_INDEX" "$LM_SELF_IMPROVE_STATUS" >>"$LOG"
 
+  if [ "$LM_SELF_IMPROVE_STATUS" = "unavailable" ]; then
+    SELF_IMPROVE_PROMPT="SELF-IMPROVEMENT READBACK UNAVAILABLE: no public TikTok metrics were readable.
+Do not claim growth, views, signups, or a completed measurement. Preserve the published TikTok
+receipt and report the limitation honestly. The next candidate is only a planned rotation hint:
+$LM_SELF_IMPROVE_NEXT_CREATIVE because $LM_SELF_IMPROVE_REASON."
+  else
+    SELF_IMPROVE_PROMPT="SELF-IMPROVEMENT MEASUREMENT RECORDED: public metrics day
+$LM_SELF_IMPROVE_DAY_INDEX has status $LM_SELF_IMPROVE_STATUS. The next creative is
+$LM_SELF_IMPROVE_NEXT_CREATIVE because: $LM_SELF_IMPROVE_REASON. This append-only measurement is
+complete. Do not invent, alter, backfill, or duplicate metrics."
+  fi
+
   PROMPT="Run ONE bounded daily Life Manager marketing pass with no human in the loop.
 This is the existing ai.anicca.life-manager-daily route. Preserve its Reddit karma gate, CEO
 report, cost recording, Telegram report and logged-out verification. Do not create a new account
@@ -222,10 +238,7 @@ distribution ledger binds the URL to the same creative id plus video/caption SHA
 as immutable input and do not repost it. Continue only the existing Reddit gate, CEO/cost ledger and
 one-screen Telegram report. On any later failure, report it honestly; never turn an internal failure
 into success.
-SELF-IMPROVEMENT LEDGER RECORDED: real public metrics day $LM_SELF_IMPROVE_DAY_INDEX has status
-$LM_SELF_IMPROVE_STATUS. The next creative is $LM_SELF_IMPROVE_NEXT_CREATIVE because:
-$LM_SELF_IMPROVE_REASON. This append-only measurement is already complete. Do not invent, alter,
-backfill, or duplicate metrics."
+$SELF_IMPROVE_PROMPT"
 fi
 
 EVIDENCE_DIR="${LM_DAILY_EVIDENCE_DIR:-$LM_DATA_ROOT/state/agent-runner-evidence/life-manager-daily/$(date +%s)-$$}"
