@@ -930,9 +930,9 @@ class CrowdWorksPaidAdapter:
                 form_urls = set(current.get("form_urls") or [])
                 completed = set(payload.get("completed_form_urls") or [])
                 ignored = set(payload.get("ignored_form_urls") or [])
-                if form_urls and (not completed
-                                  or not completed.issubset(set(current.get("completed_form_urls") or []))
-                                  or completed | ignored != form_urls):
+                if (not form_urls or not completed
+                        or not completed.issubset(set(current.get("completed_form_urls") or []))
+                        or completed | ignored != form_urls):
                     raise RuntimeError("crowdworks_paid_form_progress_changed")
                 self._complete_once(current, payload)
                 return

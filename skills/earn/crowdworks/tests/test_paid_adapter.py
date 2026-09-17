@@ -243,13 +243,31 @@ def test_formal_delivery_is_a_separate_mutation():
     module = load()
     events = []
     adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
-    adapter._targeted_detail = lambda _work_id: funded()
+    adapter._targeted_detail = lambda _work_id: {
+        **funded(), "form_url": None, "form_urls": ["https://forms.gle/ads"],
+        "completed_form_urls": ["https://forms.gle/ads"],
+    }
     adapter._complete_once = lambda item, payload: events.append((item["work_id"], payload["milestone_id"]))
 
     adapter.mutate({"action": "formal_delivery", "work_id": "63570481",
-                    "payload": {"milestone_id": funded()["milestone_id"], "message": "done"}})
+                    "payload": {"milestone_id": funded()["milestone_id"], "message": "done",
+                                "completed_form_urls": ["https://forms.gle/ads"],
+                                "ignored_form_urls": []}})
 
     assert events == [("63570481", "13798056")]
+
+
+def test_formal_delivery_rejects_missing_form_progress():
+    module = load()
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter._targeted_detail = lambda _work_id: funded()
+    adapter._complete_once = lambda *_args: (_ for _ in ()).throw(AssertionError("delivery must be fenced"))
+
+    with pytest.raises(RuntimeError, match="crowdworks_paid_form_progress_changed"):
+        adapter.mutate({"action": "formal_delivery", "work_id": "63570481",
+                        "payload": {"milestone_id": "13798056", "message": "done",
+                                    "completed_form_urls": ["https://forms.gle/ads"],
+                                    "ignored_form_urls": []}})
 
 
 def test_no_form_contract_does_not_require_application_date():
