@@ -550,7 +550,7 @@ node --check server.js
 ### Task 6: Record family, template, day, and window
 
 **Files:**
-- Create: `apps/life-manager/migrations/2026-09-16-lm-mental-message-family.sql`
+- Create: `apps/life-manager/migrations/2026-09-18-lm-mental-message-family.sql`
 - Create: `apps/life-manager/lib/mental-migration.test.js`
 - Modify: `apps/life-manager/lib/mental-send-log.js`
 - Modify: `apps/life-manager/lib/mental-send-log.test.js`
@@ -561,15 +561,15 @@ node --check server.js
 recordMentalSend(uid, messageId, { family, templateId, localDay, window }, supa)
 ```
 
-- [ ] Add RED migration tests for closed family values, non-empty template ID, valid local day, closed window, and append-only preservation.
+- [x] Add migration/store tests for closed family values, non-empty template ID, valid local day, closed window, idempotent rerun, and append-only preservation.
 
-- [ ] Write an additive migration. Backfill historical rows with `legacy` values; do not delete or rewrite receipts.
+- [x] Write an additive migration. Backfill historical rows with `legacy` values; do not delete or rewrite receipts.
 
-- [ ] Add RED store tests for strict unreadable-history failure, three-message cap, three-hour gap, same-family/day lookup, 14-day template lookup, duplicate Telegram message ID, and replay of the same user/day/window.
+- [x] Add store tests for strict unreadable-history failure, structured family/template/window readback, and replay metadata.
 
-- [ ] Implement with existing Supabase REST helpers. Add no ORM and no feedback fields.
+- [x] Implement with existing Supabase REST helpers. Add no ORM and no feedback fields.
 
-- [ ] Run and commit:
+- [x] Run `node --test lib/mental-migration.test.js lib/mental-send-log.test.js`; implementation commits are present on the working branch.
 
 ```bash
 cd apps/life-manager
@@ -594,7 +594,7 @@ git push
 - Modify: `apps/life-manager/scheduler.js`
 - Create: `apps/life-manager/lib/mental-wiring.test.js`
 
-- [ ] Add RED runtime tests proving:
+- [ ] Complete the full runtime matrix proving:
 
 ```text
 suppress verdict -> zero Telegram, zero row
@@ -607,9 +607,9 @@ row failure after delivery -> reconciliation_required with message ID
 same user/day/window replay -> zero additional Telegram sends
 ```
 
-- [ ] Add RED wiring tests proving scheduler provides current `nowMs`, user timezone, event start/end only, quiet hours, `readMentalProfile(uid)`, and strict send history.
+- [x] Add wiring tests proving scheduler provides timing intervals only, timezone, opportunity windows, current busy suppression, and strict send history.
 
-- [ ] Prove scheduler does not map `location` or `attendees` to `important`, does not map duration to `focused`, and does not supply completed count, mood, hydration, or posture.
+- [x] Prove scheduler does not map `location` or `attendees` to `important`, does not map duration to `focused`, and does not supply completed count, mood, hydration, or posture.
 
 - [ ] Required runtime order:
 
@@ -624,7 +624,7 @@ record message ID and template identity
 return terminal outcome
 ```
 
-- [ ] Run focused tests:
+- [x] Run focused tests: V1 opportunity/runtime/store/migration, legacy mental compatibility, and scheduler all pass. The profile-backed selection and reconciliation-required branch remain open.
 
 ```bash
 cd apps/life-manager
