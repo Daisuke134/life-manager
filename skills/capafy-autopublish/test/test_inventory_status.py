@@ -89,6 +89,48 @@ def test_rejections_consume_the_live_unlisted_cap() -> None:
     assert decision == {"verdict": "CAP_FULL", "occupied": 5}
 
 
+def test_paid_same_agent_update_precedes_fresh_only_with_a_free_slot() -> None:
+    module = load_module()
+    request = {"agent_id": "9563867391", "from_version_id": "2070737929294868480",
+               "target_model_id": "deepseek/deepseek-v4.1-flash"}
+    update = {"agent_id": "9563867391", "feature": "catalog:marketing-strategist",
+              "title": "Marketing Strategist — The One Move to Make", "update_request": request}
+    fresh = {"feature": "catalog:fresh", "title": "Fresh Skill"}
+    free = module.normalize_agents([agent("1", "under_review")])
+    full = module.normalize_agents([agent(str(i), "under_review") for i in range(5)])
+
+    selected = module.allocate_action(free, [], [fresh], updates=[update])
+
+    assert selected["action"] == "update_existing"
+    assert selected["action_key"] == "update:9563867391:2070737929294868480"
+    assert module.allocate_action(full, [], [fresh], updates=[update])["verdict"] == "CAP_FULL"
+
+
+def test_repo_update_request_targets_existing_online_version(monkeypatch, tmp_path, capsys) -> None:
+    module = load_module()
+    monkeypatch.setattr(module, "FEATURES", str(tmp_path / "no-legacy"))
+    monkeypatch.setattr(module, "CATALOG", str(Path(__file__).parents[2] / "capafy/catalog"))
+    items = module.ready_inventory()
+    request = next(item for item in items if item["feature"] == "catalog:marketing-strategist")
+    assert request["update_request"]["agent_id"] == "9563867391"
+    assert request["icon"].endswith("icon.webp")
+    rows = [agent("9563867391", "online", name=request["title"],
+                  latestAgentVersionId="2070737929294868480"),
+            agent("other", "under_review")]
+    monkeypatch.setattr(module, "server_agents", lambda: rows)
+
+    module.main()
+    decision = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert decision["action"] == "update_existing"
+    assert decision["item"]["agent_id"] == "9563867391"
+
+    monkeypatch.setattr(module, "server_agents", lambda: [agent("other", "under_review")])
+    module.main()
+    missing = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert missing == {"verdict": "SERVER_UNREADABLE",
+                       "reason": "same-Agent update target is missing or changed"}
+
+
 def test_unknown_status_fails_closed_without_free_slot_claim() -> None:
     module = load_module()
 

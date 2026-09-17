@@ -45,7 +45,8 @@ def _load_agents() -> tuple[list[dict[str, str]] | None, int]:
         status = str(raw.get("agent_status") or "").strip().lower()
         if not agent_id or not name or not status:
             return None, _fail(f"agents[{index}] has invalid identity or status")
-        agents.append({"agent_id": agent_id, "name": name, "agent_status": status})
+        agents.append({"agent_id": agent_id, "name": name, "agent_status": status,
+                       "latest_agent_version_id": str(raw.get("latest_agent_version_id") or "").strip()})
 
     duplicates = sorted(agent_id for agent_id, count in Counter(a["agent_id"] for a in agents).items() if count > 1)
     if duplicates:
@@ -58,22 +59,33 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--title", required=True)
     parser.add_argument("--reuse-agent-id", default="")
     parser.add_argument("--require-free-slot", action="store_true")
+    parser.add_argument("--expected-agent-id", default="")
+    parser.add_argument("--expected-version-id", default="")
     args = parser.parse_args(argv)
 
     agents, code = _load_agents()
     if agents is None:
         return code
-    if args.require_free_slot:
-        if any(agent["agent_status"] not in CAPACITY_STATUSES for agent in agents):
-            return _fail("inventory has unsupported status; review capacity unknown")
-        if sum(agent["agent_status"] in UNLISTED_STATUSES for agent in agents) >= CAPAFY_REVIEW_CAP:
-            return _fail("CAP_FULL: no review slot for a new version")
     title = str(args.title or "").strip()
     if not title:
         return _fail("title must not be empty")
     title_matches = [agent for agent in agents if agent["name"] == title]
     if len(title_matches) > 1:
         return _fail("exact title matches more than one Agent")
+    expected_id = str(args.expected_agent_id or "").strip()
+    expected_version = str(args.expected_version_id or "").strip()
+    if bool(expected_id) != bool(expected_version):
+        return _fail("same-Agent update requires both Agent and source version ID")
+    if expected_id:
+        if (len(title_matches) != 1 or title_matches[0]["agent_id"] != expected_id
+                or title_matches[0]["agent_status"] != "online"
+                or title_matches[0]["latest_agent_version_id"] != expected_version):
+            return _fail("same-Agent source version changed; no new version is created")
+    if args.require_free_slot:
+        if any(agent["agent_status"] not in CAPACITY_STATUSES for agent in agents):
+            return _fail("inventory has unsupported status; review capacity unknown")
+        if sum(agent["agent_status"] in UNLISTED_STATUSES for agent in agents) >= CAPAFY_REVIEW_CAP:
+            return _fail("CAP_FULL: no slot for a new Agent/version")
 
     reuse_id = str(args.reuse_agent_id or "").strip()
     if reuse_id:
