@@ -424,7 +424,18 @@ def _advisory_publication_resume(
     state: dict[str, Any],
 ) -> bool:
     """Allow only an unpublished, identity-safe advisory handoff to rebind."""
-    if state.get("status") != "terminal-incomplete":
+    repair_state_path = run_dir / "gates/quality-repair-state.json"
+    if repair_state_path.is_symlink() or not repair_state_path.is_file():
+        return False
+    try:
+        repair_state = json.loads(repair_state_path.read_text(encoding="utf-8"))
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return False
+    if (
+        state.get("status") != "quality-repair-ready"
+        or not isinstance(repair_state, dict)
+        or repair_state.get("status") != "terminal-incomplete"
+    ):
         return False
     if (run_dir / "gates/publication-state.json").exists() or ledger_has_public_effect(
         ledger, run_id

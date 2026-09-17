@@ -340,9 +340,18 @@ class PrepublicationAdoptionTest(unittest.TestCase):
                 json.dumps(quality) + "\n", encoding="utf-8"
             )
             state = json.loads((gates / "generation-state.json").read_text())
-            state["status"] = "terminal-incomplete"
+            state["status"] = "quality-repair-ready"
             (gates / "generation-state.json").write_text(
                 json.dumps(state) + "\n", encoding="utf-8"
+            )
+            (gates / "quality-repair-state.json").write_text(
+                json.dumps({
+                    "version": 1,
+                    "status": "terminal-incomplete",
+                    "run_id": run_id,
+                    "attempts": 2,
+                }) + "\n",
+                encoding="utf-8",
             )
 
             with patch.dict(os.environ, {"LOOPS_ROOT": str(root / "loops")}):
