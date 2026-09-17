@@ -376,7 +376,10 @@ class ExperimentStore:
             "canary_deltas": deltas,
         }
         interpreted = interpreter(evidence)
-        if not isinstance(interpreted, dict) or set(interpreted) != {"decision", "reason", "evidence_refs"}:
+        if not isinstance(interpreted, dict) or set(interpreted) not in (
+            {"decision", "reason", "evidence_refs"},
+            {"decision", "reason", "evidence_refs", "winner_observation"},
+        ):
             raise ValueError("agent decision is malformed")
         if interpreted.get("decision") not in DECISIONS or not isinstance(interpreted.get("reason"), str) or not interpreted["reason"].strip():
             raise ValueError("agent decision is invalid")
@@ -392,6 +395,8 @@ class ExperimentStore:
             "evidence_refs": list(dict.fromkeys(refs)),
             "canary_deltas": deltas,
         }
+        if "winner_observation" in interpreted:
+            result["winner_observation"] = interpreted["winner_observation"]
         _write_immutable(decision_path, result)
         return result
 
