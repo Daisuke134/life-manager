@@ -298,6 +298,7 @@ voice ledgerの`succeeded/10秒`、managed actionの`succeeded`を同一通話�
 仕様migrationはcommitへ含まれている。本番Supabaseはread-only確認で`call_outcome`列が未登録、
 `record_lm_wake_telnyx_outcome` RPCも未登録だったため、migration適用とRailway deployは保留している。
 本番へ進む条件は、このmigrationをSupabaseへ適用し、列・RPC・indexをHTTP readbackしてからimmutable releaseをdeployすること。
+Supabase CLIの通常loginは完了したが、対象projectへのlinkは`necessary privileges`で拒否された。
 
 **Ordered correction TODO項目3の本番是正:**
 

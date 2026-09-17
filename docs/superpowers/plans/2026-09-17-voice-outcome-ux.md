@@ -181,4 +181,4 @@ Change only the status/evidence lines needed to reflect observed production resu
 - [x] Tasks 1–3: implementation, focused tests, commits, and pushes completed.
 - [x] Task 4 steps 1–2: 209/209 focused tests passed and the working tree is clean.
 - [x] Task 4 read-only production probe: current Supabase schema lacks the new columns and Outcome RPC.
-- [ ] Task 4 steps 3–6: blocked until a Supabase SQL-capable authenticated session is available; Railway deploy is intentionally held while the RPC is absent.
+- [ ] Task 4 steps 3–6: blocked until a Supabase SQL-capable authenticated session with access to project `cycgdwndgfgdbnndithc` is available; CLI login succeeds but `supabase link` returns `necessary privileges`, so Railway deploy is intentionally held while the RPC is absent.
