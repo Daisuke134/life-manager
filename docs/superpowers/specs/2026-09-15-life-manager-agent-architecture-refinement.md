@@ -1420,6 +1420,13 @@ and both gates must pass. Contract tests pass; a real candidate baseline,
 held-out run, live evidence, promotion and rollback remain open, so S-04 is
 not marked complete.
 
+**2026-09-18 foundation slice (all-job contract):** `bin/lm-loop-contract`
+now validates all 165 registry jobs, not only the 96 jobs currently mapped to
+the 14 Product Loop catalog rows. Unmapped jobs must still have repository-
+relative entrypoints and complete owner/provider/effect/cadence/state fields.
+The contract gate remains structural only; the Local gate and official provider
+receipts are still required for runtime success.
+
 S-02では、recovery projectionに`escalate_repair`が一件だけある場合のみ、
 `~/.local/state/life-manager/recovery/repair-queue.jsonl`（mode 0600）へ
 `job_id`、`owner_id`、`route`、`slot`、原因、retry回数、event keyだけを記録する。
