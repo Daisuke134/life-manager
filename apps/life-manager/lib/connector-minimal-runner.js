@@ -516,6 +516,7 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
 
         if (provider === "connpass" && directFailureReason === "connpass_questionnaire_required"
           && directQuestionLabels.length > 0 && operation?.status === "failed"
+          && !ambiguousAgentEffect
           && typeof deps.reportConnpassQuestionnaire === "function") {
           try {
             await action(

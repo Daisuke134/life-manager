@@ -250,19 +250,21 @@ function createConnpassActionTelegram(options = {}) {
       let normalized;
       try { normalized = normalizeQuestionnaire(input); }
       catch { throw stageError("CONNPASS_QUESTIONNAIRE_CANDIDATE_FAILED"); }
-      const snapshot = digest(normalized);
+      const snapshot = digest({
+        event_ref: normalized.candidate.event_ref,
+        questions: normalized.questions,
+      });
       try { ensurePrivateDirectory(stateDir); }
       catch { throw stageError("CONNPASS_QUESTIONNAIRE_LEDGER_FAILED"); }
       let rows;
       try { rows = readLedger(questionnaireFile, QUESTIONNAIRE_KEYS, "questionnaire"); }
       catch { throw stageError("CONNPASS_QUESTIONNAIRE_LEDGER_FAILED"); }
-      const identity = `${wakeId}\u0000${snapshot}`;
-      const existing = rows.find((row) => ledgerIdentity(row) === identity);
+      const existing = rows.find((row) => row.candidate_snapshot_sha256 === snapshot);
       if (existing) {
         return Object.freeze({ telegram_provider_id: existing.telegram_provider_id, completion_disposition: "reused" });
       }
       let claimed;
-      try { claimed = acquireClaimMarker(stateDir, wakeId, snapshot); }
+      try { claimed = acquireClaimMarker(stateDir, "questionnaire", snapshot); }
       catch { throw stageError("CONNPASS_QUESTIONNAIRE_REPORT_UNCERTAIN"); }
       if (!claimed) throw stageError("CONNPASS_QUESTIONNAIRE_REPORT_UNCERTAIN");
       const lines = [
@@ -278,7 +280,7 @@ function createConnpassActionTelegram(options = {}) {
       try {
         response = await send(escapeHtml(lines.join("\n")), {
           telegramTarget,
-          idempotencyKey: `connpass-questionnaire:${wakeId}:${snapshot}`,
+          idempotencyKey: `connpass-questionnaire:${snapshot}`,
         });
       } catch {
         try { quarantine(uncertainFile, wakeId, snapshot, "transport", now); } catch { /* preserve stable stage */ }

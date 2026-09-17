@@ -75,7 +75,12 @@ test("questionnaire report sends public questions once and reuses its durable re
     assert.match(sent[0].message, /注意事項への同意/);
     assert.match(sent[0].message, /回答を保存後/);
     assert.match(sent[0].options.idempotencyKey, /connpass-questionnaire/);
-    const reused = await reporter.reportQuestionnaire(input);
+    const nextWakeReporter = createConnpassActionTelegram({
+      stateDir, wakeId: "wake-connpass-questionnaire-2", telegramTarget: "private-target",
+      now: () => new Date("2026-09-17T08:30:00.000Z"),
+      send: async (message, options) => { sent.push({ message, options }); return { messageId: "8812" }; },
+    });
+    const reused = await nextWakeReporter.reportQuestionnaire(input);
     assert.equal(reused.completion_disposition, "reused");
     assert.equal(sent.length, 1);
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }

@@ -757,6 +757,24 @@ test("a blocked Connpass fallback reports public questionnaire labels once", asy
   assert.deepEqual(reports[0].questions, ["注意事項への同意", "Xアカウント（なければ「なし」）"]);
 });
 
+test("an effect-unknown Connpass fallback never reports zero-submit questionnaire completion", async () => {
+  const reports = [];
+  const state = fixture({
+    async discoverCandidates() { return [candidate("connpass", "404531")]; },
+    async runDirectAction() {
+      return {
+        status: "failed",
+        safe_reason: "connpass_questionnaire_required",
+        question_labels: ["注意事項への同意"],
+      };
+    },
+    async runAgentFallback() { return { status: "failed", safe_reason: "effect_unknown" }; },
+    async reportConnpassQuestionnaire(input) { reports.push(input); return { telegram_provider_id: "8811" }; },
+  });
+  await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-question-unknown", providers: ["connpass"] }, state.dependencies);
+  assert.equal(reports.length, 0);
+});
+
 test("Connpass candidate-specific form blockers do not exhaust the wake before a simple candidate", async () => {
   let state = fixture({
     async discoverCandidates() {
