@@ -36,6 +36,20 @@ reconcile_release() {
     reconcile deterministic --loaded-idle-only --max-owners 4; then
     status=1
   fi
+  local recovery_queue="${LIFE_MANAGER_RECOVERY_INTENTS_PATH:-$HOME/.local/state/life-manager/recovery/intents.jsonl}"
+  local recovery_journal="${LIFE_MANAGER_RECOVERY_SUPERVISOR_JOURNAL_PATH:-$HOME/.local/state/life-manager/recovery/supervisor.jsonl}"
+  if [ -f "$recovery_queue" ]; then
+    if [ ! -x "$release_root/bin/lm-recovery-supervise" ]; then
+      printf 'agent-runner reconcile: recovery supervisor unavailable in release\n' >&2
+      status=1
+    elif ! LIFE_MANAGER_RELEASE_ROOT="$release_root" \
+      LIFE_MANAGER_RECOVERY_INTENTS_PATH="$recovery_queue" \
+      LIFE_MANAGER_RECOVERY_SUPERVISOR_JOURNAL_PATH="$recovery_journal" \
+      "$release_root/bin/lm-recovery-supervise" \
+      --queue "$recovery_queue" --journal "$recovery_journal" --release-root "$release_root"; then
+      status=1
+    fi
+  fi
   local admission_root="${LIFE_MANAGER_RESOURCE_ADMISSION_ROOT:-$HOME/.local/state/life-manager/host-admission/resources}"
   if [ ! -f "$admission_root/protocol.json" ] && \
     ! LIFE_MANAGER_RELEASE_ROOT="$release_root" "$release_root/bin/lm-loop" admission-v2-enable; then

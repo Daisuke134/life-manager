@@ -17,6 +17,7 @@
  */
 
 import { promises as fs } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
@@ -89,6 +90,10 @@ const LEDGER_PATH = path.join(ANICCA_HOME, 'state', 'ledger.jsonl');
 // anicca-harness-tooluse-health R6: a NEW side-channel path, never read by context.mjs/prompt.mjs
 // (INV-NO-PROMPT-REGRESSION) — reuses the EXISTING appendLedgerLine primitive, never a new writer.
 const HARNESS_FAILURES_PATH = path.join(ANICCA_HOME, 'state', 'harness-failures.jsonl');
+// Shared private queue consumed by the existing release-reconciler supervisor.
+// It is outside Git and contains only redacted, owner-scoped recovery intents.
+const RECOVERY_INTENTS_PATH = process.env.LIFE_MANAGER_RECOVERY_INTENTS_PATH
+  || path.join(os.homedir(), '.local', 'state', 'life-manager', 'recovery', 'intents.jsonl');
 const GENESIS_PATH = path.join(ANICCA_HOME, 'identity', 'genesis.md');
 // franklin-ledger-push (P2) iter1 redesign: throttle/cursor state for ledger-publish.mjs —
 // deliberately in ANICCA_HOME (data). The DEDICATED publish clone (never the shared checkout
@@ -1157,6 +1162,18 @@ async function appendHarnessFailure({ ts, wakeId, slot, kind, layer, exitCode, r
     await appendLedgerLine(HARNESS_FAILURES_PATH, formatRecord(fields));
   } catch (err) {
     process.stderr.write(`[loop] harness-failures append failed: ${err.message}\n`);
+  }
+  if (recoveryIntent) {
+    try {
+      await fs.mkdir(path.dirname(RECOVERY_INTENTS_PATH), { recursive: true, mode: 0o700 });
+      await appendLedgerLine(RECOVERY_INTENTS_PATH, formatRecord({
+        record_type: 'recovery_intent',
+        ...recoveryIntent,
+      }));
+      await fs.chmod(RECOVERY_INTENTS_PATH, 0o600);
+    } catch (err) {
+      process.stderr.write(`[loop] recovery intent append failed: ${err.message}\n`);
+    }
   }
 }
 

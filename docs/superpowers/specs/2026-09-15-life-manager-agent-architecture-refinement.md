@@ -1360,6 +1360,13 @@ brain-transport integration tests pass; the record still does not execute a
 retry, and supervisor consumption, natural wake, terminal repair receipt and
 duplicate-effect-zero remain open.
 
+The existing release-reconciler now consumes the shared private intent queue
+through `bin/lm-recovery-supervise`, one owner per wake, with a Git-external
+claim/terminal journal. `queued` reconciliation is bounded to three attempts;
+`held`, `blocked`, and `escalated` states are terminal. The code-level
+connection is covered by supervisor tests; real natural-wake repair receipt and
+provider replay-zero remain acceptance work.
+
 **2026-09-17 foundation slice (S-04 candidate boundary):** existing
 `apps/life-manager/eval/agent-contract/gate.js` now exposes
 `decideCandidatePromotion` and `validateCandidateBoundary`, plus the
