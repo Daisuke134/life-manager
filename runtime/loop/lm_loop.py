@@ -665,7 +665,9 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                                     "release_sha": release_sha, "changed": False,
                                     "skipped": "pending-admission"})
                     continue
-                if skip_busy:
+                # Old runners take this label lock before admission; the running
+                # readback closes their first-upgrade gap before the new owner lock.
+                if skip_busy or preserve_pending_admission:
                     skipped = _skip_if_not_loaded_idle(
                         item, release_sha, launchctl_safe)
                     if skipped is not None:
@@ -1004,23 +1006,28 @@ def main(argv: list[str] | None = None) -> int:
         applied, failed = [], []
         for row in eligible:
             try:
-                applied.extend(apply_live(
+                results = apply_live(
                     release_root, Path("~/Library/LaunchAgents").expanduser(),
                     release_root / "bin/launchctl-safe",
                     target=row["loop_id"],
                     preserve_unloaded=row["launchd_state"] == "unloaded",
                     skip_busy=(loaded_idle_only and
                                row["loop_id"] not in explicitly_reloadable),
-                    preserve_pending_admission=True,
+                    preserve_pending_admission=(row["launchd_state"] == "loaded-idle"),
                     require_current=True,
                     reload_running=row["launchd_state"] == "loaded-running",
-                    protocol_reader=durable_protocol_version))
+                    protocol_reader=durable_protocol_version)
+                for result in results:
+                    if result.get("skipped") == "pending-admission":
+                        skipped_pending.append(row["loop_id"])
+                    else:
+                        applied.append(result)
             except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
                 failed.append({"loop_id": row["loop_id"], "error": str(exc)})
         print(json.dumps({
             "ok": not failed, "route": route, "release_sha": current_sha,
             "skipped_non_ancestor": skipped_non_ancestor,
-            "skipped_pending": skipped_pending,
+            "skipped_pending": sorted(set(skipped_pending)),
             "eligible": len(eligible), "applied": applied, "failed": failed,
             "skipped_running": [row["loop_id"] for row in rows if (
                 row["classification"] == "managed"

@@ -1601,6 +1601,81 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertTrue(result[0]["changed"])
         self.assertEqual(observed, [(1, 0)])
 
+    def test_reconcile_reports_late_pending_skip_without_claiming_apply(self):
+        release = self._release("release-late-pending").resolve()
+        row = {
+            "classification": "managed", "provider_route": "shared-agent-runner",
+            "launchd_state": "loaded-idle", "installed_release_sha": "b" * 40,
+            "event_release_sha": "b" * 40, "loop_id": "example",
+        }
+        value = registry()
+        value["loops"]["example"]["provider_route"] = "shared-agent-runner"
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "snapshot", return_value=[row]),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
+            patch.object(lm_loop, "apply_live", return_value=[{
+                "ok": True, "loop_id": "example", "skipped": "pending-admission",
+            }]),
+            patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+            }),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(lm_loop.main([
+                "reconcile", "shared-agent-runner", "--loaded-idle-only", "--max-owners", "1",
+            ]), 0)
+        receipt = json.loads(output.getvalue())
+        self.assertEqual(receipt["applied"], [])
+        self.assertEqual(receipt["skipped_pending"], ["example"])
+
+    def test_default_reconcile_rechecks_owner_queued_after_snapshot(self):
+        release = self._release("release-default-late-pending").resolve()
+        current = self.root / "current-default-late-pending"
+        current.symlink_to(release)
+        value = registry()
+        value["loops"]["example"]["provider_route"] = "shared-agent-runner"
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        values = self._apply_kwargs(current, self.root / "default-late.lock")
+        row = {
+            "classification": "managed", "provider_route": "shared-agent-runner",
+            "launchd_state": "loaded-idle", "installed_release_sha": "b" * 40,
+            "event_release_sha": "b" * 40, "loop_id": "example",
+        }
+        real_apply = lm_loop.apply_live
+        database = self.root / "admission/admission-v2.sqlite3"
+
+        def queue_after_snapshot(_release, _agents, _safe, *_args, **kwargs):
+            database.parent.mkdir(exist_ok=True)
+            with sqlite3.connect(database) as connection:
+                connection.execute("CREATE TABLE queue (owner_id TEXT)")
+                connection.execute("CREATE TABLE occurrences (owner_id TEXT, state TEXT, effect_unknown INTEGER)")
+                connection.execute("INSERT INTO queue VALUES ('example')")
+                connection.execute("INSERT INTO occurrences VALUES ('example', 'queued', 0)")
+            kwargs["_protocol_guarded"] = True
+            return real_apply(release, values["agents_dir"], values["launchctl_safe"],
+                              current=current, lock_path=values["lock_path"],
+                              event_writer=lambda *_: None, **kwargs)
+
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "snapshot", return_value=[row]),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
+            patch.object(lm_loop, "apply_live", side_effect=queue_after_snapshot),
+            patch.object(lm_loop, "install_one", side_effect=AssertionError("queued owner reloaded")),
+            patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+            }),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(lm_loop.main(["reconcile", "shared-agent-runner"]), 0)
+        receipt = json.loads(output.getvalue())
+        self.assertEqual(receipt["applied"], [])
+        self.assertEqual(receipt["skipped_pending"], ["example"])
+
     def test_reconcile_loop_ids_limit_same_route_to_explicit_ids(self):
         release = self._release("release-a").resolve()
         value = registry()

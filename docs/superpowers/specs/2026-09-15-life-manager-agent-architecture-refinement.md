@@ -151,10 +151,15 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   with its provider owner. Probe run `18d62aff3d7cbd38-46964` passed on
   `94e4898c` at 17:13:21Z. This is not a same-SHA handoff. A branch-local
   shared reconcile guard now excludes owners with a registered known queued
-  or claimed occurrence and allows stale unregistered queued rows to pass;
-  RED-to-green focused verification and 108 related tests/30 subtests passed.
-  The guard is not production evidence until CI, main integration and a
-  main-derived natural handoff are measured.
+  or claimed occurrence and allows stale unregistered queued rows to pass.
+  A per-owner deploy lock serializes new enqueue/claim with plist replacement
+  without holding the global admission lock through launchctl. The existing
+  label apply lock plus a running readback protects the first transition from
+  an older runner. Late skips are reported as `skipped_pending`, not applied.
+  RED-to-green focused verification, admission 105 tests and loop 111 tests/30
+  subtests passed; fresh read-only review found no blocking defect. The guard
+  is not production evidence until CI, main integration and a main-derived
+  natural handoff are measured.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
