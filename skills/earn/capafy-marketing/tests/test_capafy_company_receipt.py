@@ -78,6 +78,28 @@ def test_receipt_joins_skill_slots_post_money_under_one_run_id() -> None:
     assert receipt["telegram"] == {"status": "pending", "message_id": None}
 
 
+def test_missing_marketing_terminal_uses_native_ig_ledger_without_claiming_session_proof(
+    tmp_path: Path,
+) -> None:
+    module = load_module()
+    ledger = tmp_path / "capafy-marketing-ig-ledger.jsonl"
+    ledger.write_text(json.dumps({
+        "platform": "ig", "agent_id": "7785270416", "listing_name": "Data Analyst",
+        "reel_url": "https://www.instagram.com/reel/abc/", "artifact_sha256": "a" * 64,
+    }) + "\n")
+
+    marketing = module._marketing_from_ledger(ledger)
+    receipt = module.build_receipt({**sources(), "marketing": marketing}, "2026-09-17T00:00:00Z")
+
+    assert receipt["distribution"][0] == {
+        "platform": "instagram", "skill_agent_id": "7785270416",
+        "skill_name": "Data Analyst", "native_url": "https://www.instagram.com/reel/abc/",
+        "creative_sha256": "sha256:" + "a" * 64, "owner_session_verified": None,
+        "status": "native_ledger_observed",
+    }
+    assert module._marketing_from_ledger(tmp_path / "missing.jsonl")["status"] == "unknown_no_native_ig_ledger"
+
+
 def test_semantic_replay_has_same_run_id_but_new_state_changes_it() -> None:
     module = load_module()
     first = module.build_receipt(sources(), "2026-08-22T11:00:00Z")

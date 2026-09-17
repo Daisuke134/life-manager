@@ -94,7 +94,11 @@ flowchart LR
 
 #### R0 execution cursor and patch contract
 
-**順序理由:** 旧順序は`R0-C1 model → R0-C2 runtime → R0-C3 money`。現行money ownerは旧seller APIと欠損ファイルで失敗し、Agent別使用量APIからHook Labの赤字候補まで既に観測できる。モデル移行の優先順位を利益で決めるため、新順序は`R0-C3a read-only money CLI → R0-C1 model → R0-C2 runtime → R0-C3b company receipt → R1 → M0 → M1 → M2 → M3`。現在cursorは`R0-C3a`。提出cadenceと1 pass最大1 effectは維持し、platform review 5枠をローカルで撤廃せず、進行中の外部effectを再送しない。
+**順序理由:** 当初は`R0-C1 model → R0-C2 runtime → R0-C3 money`だった。money ownerの旧seller APIと欠損ファイル、Agent別使用量APIで観測した赤字候補を踏まえて、収益の可視化とhourly receipt回復を先行する。現在cursorと最新順序は下の実行順更新を参照する。提出cadenceと1 pass最大1 effectは維持し、platform review 5枠をローカルで撤廃せず、進行中の外部effectを再送しない。
+
+**R0-C3a実測:** read-only CLIは直近30日（2026-08-19〜09-17、UTC）でgross `$71.89`、creator earnings `$51.76`、unit `85`（trial `66`、non-trial `19`）、使用 `161` request（zero-token `70`、ID重複0）、現行単価の推定model cost `$22.90`を返した。OpenRouter host keyの`$24.17`は9月暦月の実請求で、期間の違う推定値から差し引いて利益とは呼ばない。active MRRはseller契約状態sourceが無く`null`。CLIと単体テストのPASSは本番hourly receiptの自然wake・購入者Test Runを証明しない。
+
+**実行順の更新:** 旧順序は`R0-C3a → R0-C1 → R0-C2 → R0-C3b`。現行のhourly company receiptは存在しないmarketing terminalを必須読込して停止する一方、既存native IG ledgerには直近Reelの記録がある。毎時money観測を先に回復するため、新順序を`R0-C3a → R0-C3b → R0-C1 → R0-C2`とし、現在cursorは`R0-C3b`。C3aのbranch上でterminal欠損を`unknown`またはnative ledger observationとして扱う小修正を追加した。Git main統合・immutable release・自然wakeは未完。
 
 | 順 | owner / exact files | 最小変更 | 完了条件 |
 |---|---|---|---|
@@ -599,7 +603,7 @@ Current production truth:
 
 このsectionは冒頭R0–O2 queueの短縮readbackである。実装diffは`Patch-level implementation cursor`を正本とし、常に最上段の未完了atomだけをactiveにする。
 
-1. **R0 NOW:** 実行cursorは上の`R0-C3a → R0-C1 → R0-C2 → R0-C3b`。まずlive moneyをread-only CLIとhourly receiptで揃えてから、DeepSeekへ移すべきAgentを収益・費用で選ぶ。提出は現行hourly/1 effectのまま維持する。
+1. **R0 NOW:** 実行cursorは上の`R0-C3a → R0-C3b → R0-C1 → R0-C2`。まずlive moneyをread-only CLIとhourly receiptで揃えてから、DeepSeekへ移すべきAgentを収益・費用で選ぶ。提出は現行hourly/1 effectのまま維持する。
 2. **R1:** R1.1→R1.2。trial、固定sandbox、human approval、verbatim copyを契約から削除し、paid recurring・renewal・positive contributionをlint/backlogで強制する。
 3. **M0:** M0.1。fresh official evidenceからhighest contribution EVのrecurring customer jobを1件だけ選ぶ。
 4. **M1:** M1.1。same-Agent retry優先でCP1→CP2→CP3を1件だけ閉じ、subscription/trial0/remote statusをreadbackする。
@@ -617,7 +621,7 @@ Current production truth:
 | 1 | completed | R0.2.1 — `skills/capafy-autopublish/scripts/publish_finish.sh`、`skills/capafy-autopublish/test/test_agent_work_state_isolation.sh` | normal prepareを`valid=true AND same Agent AND status=security_review_required AND security_ready=true AND next_action=continue_upload`のexact envelopeでのみ通す。その他はprovider effect 0でFAIL | focused RED→GREEN、prepare 1、valid continue_upload 1、invalid continue_upload/CP2/CP3 0、fresh review ship、PR `#3449`、main merge `1b85036d2` |
 | 2 | effect completed; replay proof pending in #3 | R0.2.2 — 同じ`publish_finish.sh`、`drive_checkpoint2.py`、`drive_checkpoint3.py`の既存経路 | same-Agent `7686597754`で`continue_upload → CP2 hosted key → CP3 submit`を順に1回ずつ実行する。timeout/unknownはretryしない | natural owner official status `1`、skills/config/package true、same Agent/version、審査送信済み、duplicate Agent/version 0。新releaseの自然replay write 0で最終close |
 | 3 | completed | R0.2.3 — immutable release、`ai.anicca.capafy-loop-daily`、official Capafy readback | current release `439dc71d`の自然daily/health terminal、same-Agent official status/package/config、duplicate/replay、canonical source diffを検証 | daily execution `20260831T124856Z-67294` rc `0`、health exit `0`、Agent status/audit `4/4`、skills/config/package true、duplicate/replay 0、source diff 0。buyer-side live chatは販売開始gateではない |
-| 4 | **ACTIVE: R0-C3a→C1→C2→C3b** | 現行seller/usage API、same-Agent DeepSeek版、Capafy 8 labels | 上のcurrent R0 contractを順に実施する。提出のhourly/1 effectを変えず、money観測とbuyer healthを先に閉じる。 | read-only CLIとdashboard一致、Capafy新版Test Run、8/8 main release、4/4自然pass、fresh money/effect、duplicate/platform write 0 |
+| 4 | **ACTIVE: R0-C3a→C3b→C1→C2** | 現行seller/usage API、same-Agent DeepSeek版、Capafy 8 labels | 上のcurrent R0 contractを順に実施する。提出のhourly/1 effectを変えず、money観測とbuyer healthを先に閉じる。 | read-only CLIとdashboard一致、Capafy新版Test Run、8/8 main release、4/4自然pass、fresh money/effect、duplicate/platform write 0 |
 | 5 | pending | R1.1 — `skills/capafy-autopublish/references/pricing.md`、`BEST_PRACTICES.md` | trial必須・固定sandbox・human final approval・verbatim winner copyを削除し、公式feeとpositive contributionだけを契約にする | banned contract grep 0、official fee fieldがreceiptへ保存される |
 | 6 | pending | R1.2 — `lint_listing.py`、`candidate_backlog.py`、focused tests | 全plan subscription、No Free Trial、正price/cap、renewal reason、unit economics、verified demonstrationを必須化。one-shot/trial/赤字を`blocked_economics`へ送る | paid recurring PASS、trial/one-shot/negative-margin FAIL、blocked candidate ready count 0 |
 | 7 | pending | M0.1 — `sales_selector.py`、new `economic_selector.py`、tests | fresh official evidenceからretained contribution EV最大のrecurring customer jobを1件だけ返す。stale/one-time-only/negative-marginはwinnerなし | ready candidate 1件にhypothesis、renewal reason、price/cap/max cost、metric、stop condition、evidenceが全て存在 |
