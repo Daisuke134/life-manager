@@ -105,6 +105,102 @@ perform one 87-commit big-bang merge; merge candidate-only skills separately
 if they are useful. Later historical R2–R6 tables remain evidence of the
 superseded plan, not the active cursor.
 
+### Merge-owner TODO for this Codex (exact scope)
+
+The following is the TODO for the **merge owner only**. It is separate from
+A15, Coconala, CrowdWorks, Lancers, Mercor, Freelancer, Upwork, Mobile, and
+the other provider/product-loop TODOs. Those remain with their implementation
+owners. The existing implementation worktree is the source; no new merge
+worktree is created for this TODO:
+
+```text
+source worktree: /private/tmp/lm-fundamental-runtime-20260916
+source branch:   fix/lm-fundamental-runtime-20260916
+source HEAD:     3a70e98867
+```
+
+The source/main comparison and provider-boundary audit are already recorded
+above; they are preconditions, not TODO items. The actual merge TODO is:
+
+- [ ] **MERGE-01 — merge the Engineering Skills and source map**
+  - Merge only: `skills/context-engineering/**`, `skills/eval-engineering/**`,
+    `skills/goal-engineering/**`, `skills/graph-engineering/**`,
+    `skills/harness-engineering/**`, `skills/loop-engineering/**`,
+    `skills/observability-engineering/**`,
+    `docs/agent-engineering/REFERENCE-REPOS.md`, and
+    `docs/agent-engineering/SOURCE-MAP.md`.
+  - Do not merge provider Skill directories or runtime code in this item.
+  - Acceptance: seven Skill directories and both source-map files exist on
+    main; each Skill validator passes.
+
+- [ ] **MERGE-02 — merge the product manifest, Graph, Eval, notification and gate code**
+  - Merge only: `apps/life-manager/config/product-loop-catalog.json`,
+    `apps/life-manager/eval/agent-contract/**`,
+    `apps/life-manager/lib/agent-graph.js`,
+    `apps/life-manager/lib/agent-graph.test.js`,
+    `apps/life-manager/lib/notification-policy.js`,
+    `apps/life-manager/lib/notification-policy.test.js`,
+    `apps/life-manager/lib/product-onboarding.js`,
+    `apps/life-manager/lib/product-onboarding.test.js`,
+    `apps/life-manager/scripts/product-loop-completion.js`,
+    `apps/life-manager/scripts/local-completion-gate.js`,
+    `apps/life-manager/scripts/local-completion-gate.test.js`,
+    `apps/life-manager/scripts/cloud-promotion-gate.js`,
+    `apps/life-manager/scripts/cloud-promotion-gate.test.js`,
+    `apps/life-manager/scripts/lib/load-env-file.sh`, and
+    `apps/life-manager/scripts/load-env-file.test.js`.
+  - Acceptance: Graph, Eval, manifest, Local gate and Cloud gate focused
+    tests pass on the merged main commit; no provider browser/state changes.
+
+- [ ] **MERGE-03 — merge the non-provider runtime additions**
+  - Review and merge only the needed candidate paths:
+    `runtime/agent-runner/config.json`,
+    `runtime/agent-runner/tests/test_terra_default.py`,
+    `runtime/loop/brain.mjs`,
+    `runtime/loop/codex-brain.schema.json`,
+    `runtime/loop/harness-health.mjs`,
+    `runtime/loop/harness-health-snapshot.mjs`,
+    `runtime/loop/index.mjs`,
+    `runtime/loop/lm_loop.py`,
+    `runtime/loop/lm_loop_apply.py`,
+    `runtime/loop/lm_loop_lifecycle.py`,
+    `runtime/loop/macos_loop_registry.py`,
+    `runtime/loop/runtime_event.py`,
+    `bin/cut-loop-release.sh`, and
+    `bin/reconcile-agent-runner-release.sh`.
+  - Shared-owner paths (`runtime/host/resource_admission.py`,
+    `runtime/loop/lm_loop_run.py`, `config/loop-registry.json`,
+    `skills/browser/scripts/cdp_context_lease.py`) are not taken wholesale;
+    keep the latest main/owner version and apply only a reviewed unique hunk.
+  - Acceptance: focused runtime tests and release import smoke pass.
+
+- [ ] **MERGE-04 — enforce the exclusion list**
+  - Do not merge `AGENTS.md`, `apps/crowdworks-revenue/**`,
+    `apps/lancers-revenue/**`, `skills/connector/**`,
+    `skills/earn/lancers/**`, `skills/earn/taskmarket/**`,
+    `apps/life-manager/scripts/mobile-app`,
+    `apps/life-manager/scripts/instagram-metrics-production-boot.sh`, or
+    `apps/life-manager/scripts/tiktok-metrics-production-boot.sh` in this
+    merge-owner patch. These remain provider/domain-owner work.
+
+- [ ] **MERGE-05 — validate the merged commit**
+  - Run Skill validators, Graph/Eval/manifest/gate tests, focused runtime
+    tests, `git diff --check`, and changed-path scope checks.
+  - Acceptance: all required commands pass, no secret/private-state path is
+    added, and only MERGE-01 through MERGE-03 paths are present.
+
+- [ ] **MERGE-06 — create the main-derived release and read it back**
+  - Merge without force or `-X theirs/ours`; cut an immutable release from
+    the resulting main SHA; read `RELEASE.json`, loaded argv and loaded SHA
+    for one loaded-idle owner. This does not claim provider success.
+
+- [ ] **MERGE-07 — handover and cleanup**
+  - Record merge SHA, release SHA, focused test output, excluded provider
+    paths and remaining provider TODO. Only after those readbacks are
+    verified, delete `/private/tmp/lm-fundamental-runtime-20260916` and its
+    source branch.
+```
+
 ### Active remaining TODO — one program, through the final outcome
 
 | # | Atomic result, in dependency order | Acceptance; do not advance on source-only PASS |
