@@ -299,6 +299,8 @@ voice ledgerの`succeeded/10秒`、managed actionの`succeeded`を同一通話�
 `record_lm_wake_telnyx_outcome` RPCも未登録だったため、migration適用とRailway deployは保留している。
 本番へ進む条件は、このmigrationをSupabaseへ適用し、列・RPC・indexをHTTP readbackしてからimmutable releaseをdeployすること。
 Supabase CLIの通常loginは完了したが、対象projectへのlinkは`necessary privileges`で拒否された。
+そのため旧schemaでも、応答なしは既存`amd_result`へfallback記録し、Panelは既存`lm_wake_log`と`lm_wake_miss`をfallback読取する。
+新migrationが適用済みの場合は新Outcome RPC・新列を優先する。
 
 **Ordered correction TODO項目3の本番是正:**
 

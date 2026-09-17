@@ -163,13 +163,54 @@ async function timeline(uid, opts) {
       previousEvent: index > 0 ? sorted[index - 1] : null,
     }),
   }));
-  const { rows: calls } = await readRows("lm_wake_log", {
+  let calls;
+  try {
+    const result = await readRows("lm_wake_log", {
+      uid: `eq.${uid}`,
+      called_at: `gte.${new Date(bounds.startMs).toISOString()}`,
+      and: `(called_at.lt.${new Date(bounds.endMs).toISOString()})`,
+      select: "event_key,called_at,answered_at,call_outcome,telnyx_hangup_cause,telnyx_call_duration_seconds",
+      order: "called_at.asc",
+    }, opts);
+    calls = result.rows;
+  } catch {
+    const result = await readRows("lm_wake_log", {
+      uid: `eq.${uid}`,
+      called_at: `gte.${new Date(bounds.startMs).toISOString()}`,
+      and: `(called_at.lt.${new Date(bounds.endMs).toISOString()})`,
+      select: "event_key,called_at,answered_at,amd_result",
+      order: "called_at.asc",
+    }, opts);
+    calls = result.rows.map((row) => ({
+      ...row,
+      call_outcome: row.amd_result === "human" || row.amd_result === "not_sure"
+        || (typeof row.answered_at === "string" && row.answered_at)
+        ? "conversation"
+        : row.amd_result === "machine" ? "no_answer" : null,
+      telnyx_hangup_cause: null,
+      telnyx_call_duration_seconds: null,
+    }));
+  }
+  const { rows: misses } = await readRows("lm_wake_miss", {
     uid: `eq.${uid}`,
-    called_at: `gte.${new Date(bounds.startMs).toISOString()}`,
-    and: `(called_at.lt.${new Date(bounds.endMs).toISOString()})`,
-    select: "event_key,called_at,answered_at,call_outcome,telnyx_hangup_cause,telnyx_call_duration_seconds",
-    order: "called_at.asc",
-  }, opts);
+    occurred_at: `gte.${new Date(bounds.startMs).toISOString()}`,
+    and: `(occurred_at.lt.${new Date(bounds.endMs).toISOString()})`,
+    select: "event_key,occurred_at,reason",
+    order: "occurred_at.asc",
+  }, opts, true);
+  const knownCallKeys = new Set(calls.map((row) => String(row.event_key || "")));
+  for (const miss of misses) {
+    if (miss.reason !== "dial_failed" || knownCallKeys.has(String(miss.event_key || ""))) continue;
+    calls.push({
+      event_key: miss.event_key,
+      called_at: miss.occurred_at,
+      answered_at: null,
+      call_outcome: "dial_failed",
+      telnyx_hangup_cause: null,
+      telnyx_call_duration_seconds: null,
+    });
+  }
+  calls.sort((left, right) => Date.parse(left.called_at || "") - Date.parse(right.called_at || ""));
   const periodStart = `${bounds.key.slice(0, 7)}-01`;
   const voiceLedger = await readRows("lm_voice_allowance_ledger", {
     uid: `eq.${uid}`, period_start: `eq.${periodStart}`, select: "status,connected_seconds",

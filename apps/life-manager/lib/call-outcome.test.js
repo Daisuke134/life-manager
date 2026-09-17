@@ -62,6 +62,27 @@ test("outcome RPC posts the exact tenant-scoped evidence", async () => {
   });
 });
 
+test("outcome RPC falls back to the existing AMD column when the new RPC is not deployed", async () => {
+  const calls = [];
+  const result = await recordTelnyxWakeOutcome({
+    uid: "tenant-a", eventKey: "event-a|10", claimToken: "claim-a", callControlId: "v2:call-a",
+    callOutcome: CALL_OUTCOMES.NO_ANSWER, hangupCause: "timeout", connectedSeconds: 0,
+  }, {
+    supaUrl: "https://supa.example", supaKey: "service-role",
+    fetchImpl: async (url, init) => {
+      calls.push({ url: String(url), init });
+      if (String(url).includes("/rpc/record_lm_wake_telnyx_outcome")) {
+        return { ok: false, status: 404, json: async () => ({}) };
+      }
+      return { ok: true, status: 200, json: async () => [{ event_key: "event-a|10" }] };
+    },
+  });
+  assert.deepEqual(result, { ok: true, matched: 1, legacy: true });
+  assert.equal(calls.length, 2);
+  assert.match(calls[1].url, /\/rest\/v1\/lm_wake_log\?/);
+  assert.deepEqual(JSON.parse(calls[1].init.body), { amd_result: "machine" });
+});
+
 test("outcome RPC rejects invalid outcome without fetching", async () => {
   let fetches = 0;
   const result = await recordTelnyxWakeOutcome({

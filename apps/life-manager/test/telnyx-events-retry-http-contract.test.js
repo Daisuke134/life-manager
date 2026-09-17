@@ -294,6 +294,33 @@ test("timeout hangup records no-answer and completes the managed reminder exactl
   assert.equal(bodies.filter((item) => item.pathname.endsWith("complete_lm_voice_allowance")).length, 1);
 });
 
+test("timeout hangup remains usable before the outcome migration is deployed", async () => {
+  const writes = [];
+  const supabase = (url, init) => {
+    const pathname = new URL(url).pathname;
+    writes.push({ pathname, body: init.body ? JSON.parse(init.body) : null });
+    if (pathname.endsWith("record_lm_wake_telnyx_receipt")) return response(200, 1);
+    if (pathname.endsWith("record_lm_wake_telnyx_outcome")) return response(404, {});
+    if (pathname === "/rest/v1/lm_wake_log") return response(200, [{ event_key: CLAIM_EVENT_KEY }]);
+    if (pathname.endsWith("complete_lm_managed_action")) return response(200, {
+      allowed: true, used: 1, limit: 500, periodStart: MANAGED_PERIOD, resetAt: "2026-10-01",
+    });
+    if (pathname.endsWith("complete_lm_voice_allowance")) return response(200, {
+      allowed: true, usedSeconds: 0, limitSeconds: 3600, allowedSeconds: 0,
+      periodStart: MANAGED_PERIOD, resetAt: "2026-10-01",
+    });
+    throw new Error(`unexpected ${pathname}`);
+  };
+  const res = await postSignedAmdEvent({
+    eventType: "call.hangup", clientState: managedVoiceClaimClientState,
+    eventId: "legacy-timeout", callControlId: "legacy-timeout-control", hangupCause: "timeout", supabase,
+    telnyx: () => response(200, { data: { call_duration: 0 } }),
+  });
+  assert.equal(res.status, 200);
+  assert.deepEqual(writes.find((write) => write.pathname === "/rest/v1/lm_wake_log").body, { amd_result: "machine" });
+  assert.equal(writes.some((write) => write.pathname.endsWith("complete_lm_managed_action")), true);
+});
+
 test("hangup duration or voice settlement failure returns 5xx for provider replay", async () => {
   for (const scenario of ["duration", "settle"]) {
     const supabase = (url) => new URL(url).pathname.endsWith("record_lm_wake_telnyx_receipt")

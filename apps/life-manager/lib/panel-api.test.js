@@ -129,6 +129,7 @@ function makeFixture() {
     if (url.pathname.endsWith("/lm_panel_preferences")) return jsonResponse(uid === "u1" ? [{ call_time_zone: "UTC" }] : []);
     if (url.pathname.endsWith("/lm_user_locations")) return jsonResponse(fixture ? [fixture.location] : []);
     if (url.pathname.endsWith("/lm_wake_log")) return jsonResponse(fixture ? fixture.wakes : []);
+    if (url.pathname.endsWith("/lm_wake_miss")) return jsonResponse([]);
     if (url.pathname.endsWith("/lm_voice_allowance_ledger")) return jsonResponse(fixture ? (fixture.voice || []) : []);
     if (url.pathname.endsWith("/lm_api_cost")) return jsonResponse(fixture ? fixture.costs : []);
     if (url.pathname.endsWith("/lm_agent_earnings")) {
@@ -717,6 +718,30 @@ test("LM-33b timeline returns today's interpreted calendar and call telemetry", 
   assert.deepEqual(fixture.calendarUids, ["u1"]);
 });
 
+test("LM-33b timeline falls back to the legacy wake columns before outcome migration", async () => {
+  const fixture = makeFixture();
+  const originalFetch = fixture.fetchImpl;
+  fixture.fetchImpl = async (input, init = {}) => {
+    const url = new URL(input);
+    if (url.pathname.endsWith("/lm_wake_log") && String(url.searchParams.get("select") || "").includes("call_outcome")) {
+      return jsonResponse({ code: "42703", message: "column does not exist" }, 400);
+    }
+    if (url.pathname.endsWith("/lm_wake_log")) {
+      return jsonResponse([{
+        uid: "u1", event_key: "legacy|10", called_at: "2026-07-21T08:50:00.000Z",
+        answered_at: null, amd_result: "machine",
+      }]);
+    }
+    if (url.pathname.endsWith("/lm_wake_miss")) return jsonResponse([]);
+    return originalFetch(input, init);
+  };
+  await withApiServer(fixture, async (base) => {
+    const { response, body } = await getJson(base, "timeline");
+    assert.equal(response.status, 200);
+    assert.equal(body.items.some((item) => item.status === "応答なし"), true);
+  });
+});
+
 test("PANEL-8g scores use source outcomes and expose all four closed organs", async () => {
   await withApiServer(makeFixture(), async (base) => {
     const { response, body } = await getJson(base, "scores");
@@ -1267,6 +1292,7 @@ test("Task 3 ready dashboard previews the first future calendar event and degrad
     if (url.pathname.endsWith("/lm_panel_preferences")) return jsonResponse([{ call_time_zone: "UTC" }]);
     if (url.pathname.endsWith("/lm_users")) return jsonResponse([]);
     if (url.pathname.endsWith("/lm_wake_log")) return jsonResponse([]);
+    if (url.pathname.endsWith("/lm_wake_miss")) return jsonResponse([]);
     if (url.pathname.endsWith("/lm_voice_allowance_ledger")) return jsonResponse([]);
     throw new Error(`unexpected timeline URL ${url}`);
   };

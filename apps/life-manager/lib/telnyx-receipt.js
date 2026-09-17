@@ -129,6 +129,35 @@ async function recordTelnyxWakeOutcome(input = {}, deps = {}) {
   if (!supaUrl || !supaKey) return failure("missing_config");
   const fetchImpl = deps.fetchImpl || globalThis.fetch;
   if (typeof fetchImpl !== "function") return failure("network_error");
+  const legacyOutcome = callOutcome === "no_answer" ? "machine"
+    : callOutcome === "conversation" ? "human" : null;
+  const recordLegacyOutcome = async () => {
+    if (!legacyOutcome) return { ok: true, matched: 0, legacy: true };
+    const legacyUrl = `${supaUrl}/rest/v1/lm_wake_log?uid=eq.${encodeURIComponent(uid)}`
+      + `&event_key=eq.${encodeURIComponent(eventKey)}`
+      + `&claim_token=eq.${encodeURIComponent(claimToken)}`
+      + `&telnyx_call_control_id=eq.${encodeURIComponent(callControlId)}`
+      + "&amd_result=is.null&select=event_key";
+    let legacyResponse;
+    try {
+      legacyResponse = await fetchImpl(legacyUrl, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+          apikey: supaKey,
+          Authorization: `Bearer ${supaKey}`,
+        },
+        body: JSON.stringify({ amd_result: legacyOutcome }),
+      });
+    } catch {
+      return failure("network_error");
+    }
+    if (!legacyResponse || !legacyResponse.ok) return failure("http_error");
+    const rows = await legacyResponse.json().catch(() => null);
+    if (!Array.isArray(rows)) return failure("unreadable_response");
+    return { ok: true, matched: rows.length, legacy: true };
+  };
   let response;
   try {
     response = await fetchImpl(`${supaUrl}/rest/v1/rpc/record_lm_wake_telnyx_outcome`, {
@@ -151,6 +180,7 @@ async function recordTelnyxWakeOutcome(input = {}, deps = {}) {
   } catch {
     return failure("network_error");
   }
+  if (response && response.status === 404) return recordLegacyOutcome();
   if (!response || response.status < 200 || response.status >= 300 || response.ok === false) {
     return failure("http_error");
   }
