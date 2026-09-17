@@ -1185,6 +1185,23 @@ def test_no_effect_owner_releases_stale_unknown_before_new_wake(tmp_path, monkey
     )
 
 
+def test_clear_no_effect_unknown_releases_control_plane_fence(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "capafy-loop-healthcheck"
+    admission.enqueue_durable("deterministic", owner, admission_class="revenue",
+                              occurrence_id=f"{owner}:old", now=100)
+    claim, reason = admission.claim_durable(
+        "deterministic", owner, admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+
+    assert admission.clear_no_effect_unknown(owner) == 1
+    row = next(row for row in durable_rows(tmp_path, "occurrences")
+               if row["occurrence_id"] == f"{owner}:old")
+    assert (row["state"], row["effect_unknown"]) == ("released", 0)
+
+
 def test_expired_running_heartbeat_keeps_live_child_claim(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")

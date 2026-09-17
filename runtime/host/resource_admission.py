@@ -1329,6 +1329,32 @@ def resolve_unknown_occurrence(owner_id: str, occurrence_id: str, *,
         os.close(descriptor)
 
 
+def clear_no_effect_unknown(owner_id: str) -> int:
+    """Release stale fences for an owner whose registry contract has no effect."""
+    if not owner_id:
+        raise RuntimeError("invalid owner identity")
+    root, _, _, database = _durable_paths()
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        if not _acquire_bounded(descriptor, timeout_seconds=0.5):
+            return 0
+        with _database(database) as connection:
+            changed = connection.execute(
+                """UPDATE occurrences SET state='released',effect_unknown=0
+                     WHERE owner_id=? AND state IN ('claimed','released')
+                       AND effect_unknown=1""",
+                (owner_id,),
+            ).rowcount
+            if changed:
+                connection.execute(
+                    "UPDATE priorities SET effect_unknown=0 WHERE owner_id=?",
+                    (owner_id,),
+                )
+            return changed
+    finally:
+        os.close(descriptor)
+
+
 def try_acquire(resource_class: str, owner_id: str, *,
                 admission_class: str = "borrow",
                 retain_ticket: bool = True,
