@@ -947,6 +947,35 @@ def test_started_child_timeout_fences_occurrence_and_preserves_next_owner(tmp_pa
     assert blocked is None and reason == "effect_unknown"
 
 
+def test_unknown_occurrence_requires_matching_official_readback(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable("browser", "connector", admission_class="revenue",
+                              occurrence_id="connector:first", now=100)
+    claim, reason = admission.claim_durable(
+        "browser", "connector", admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+
+    for proof in ({}, {"owner_id": "other", "occurrence_id": "connector:first",
+                       "verified": True, "provider_receipt_id": "official-1"},
+                  {"owner_id": "connector", "occurrence_id": "connector:other",
+                   "verified": True, "provider_receipt_id": "official-1"},
+                  {"owner_id": "connector", "occurrence_id": "connector:first",
+                   "verified": True}):
+        assert admission.resolve_unknown_occurrence(
+            "connector", "connector:first", official_readback=lambda: proof) is False
+    assert next(row for row in durable_rows(tmp_path, "occurrences")
+                if row["occurrence_id"] == "connector:first")["effect_unknown"] == 1
+    assert admission.resolve_unknown_occurrence(
+        "connector", "connector:first", official_readback=lambda: {
+            "owner_id": "connector", "occurrence_id": "connector:first",
+            "verified": True, "provider_receipt_id": "official-1"}) is True
+    row = next(row for row in durable_rows(tmp_path, "occurrences")
+               if row["occurrence_id"] == "connector:first")
+    assert (row["state"], row["effect_unknown"]) == ("released", 0)
+
+
 def test_expired_running_heartbeat_keeps_live_child_claim(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")

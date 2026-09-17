@@ -16,7 +16,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Mapping
 
 
 ADMISSION_CLASSES = {"borrow", "revenue"}
@@ -1245,6 +1245,40 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                 connection, owners, tickets, instant=instant,
                 lease_seconds=lease_seconds, starts=starts,
                 snapshot_started_ns=snapshot_started_ns)
+    finally:
+        os.close(descriptor)
+
+
+def resolve_unknown_occurrence(owner_id: str, occurrence_id: str, *,
+                               official_readback: Callable[[], Mapping[str, object]]) -> bool:
+    """Close one fenced effect only after its provider adapter confirms the exact effect.
+
+    The callback must perform official provider readback, not inspect a local draft.
+    Absence and inconclusive readback remain fenced; neither authorizes a retry.
+    """
+    if not owner_id or not _normalize_occurrence_id(occurrence_id):
+        raise RuntimeError("invalid occurrence identity")
+    proof = official_readback()
+    if (not isinstance(proof, Mapping)
+            or proof.get("owner_id") != owner_id
+            or proof.get("occurrence_id") != occurrence_id
+            or proof.get("verified") is not True
+            or not isinstance(proof.get("provider_receipt_id"), str)
+            or not proof["provider_receipt_id"].strip()):
+        return False
+    root, _, _, database = _durable_paths()
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        if not _acquire_bounded(descriptor, timeout_seconds=0.5):
+            return False
+        with _database(database) as connection:
+            changed = connection.execute(
+                """UPDATE occurrences SET state='released',effect_unknown=0
+                     WHERE owner_id=? AND occurrence_id=?
+                       AND state='claimed' AND effect_unknown=1""",
+                (owner_id, occurrence_id),
+            )
+            return changed.rowcount == 1
     finally:
         os.close(descriptor)
 
