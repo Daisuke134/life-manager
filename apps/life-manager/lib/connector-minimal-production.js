@@ -34,6 +34,7 @@ const { readLumaFormProfile } = require("./luma-form-profile.js");
 const { runConnectorAgenticRegistration } = require("./connector-agentic-registration.js");
 const {
   createBoundedActionProposer,
+  createBoundedConnpassQuestionAnswerer,
   createBoundedPrivateFactSelector,
   createPrivateValueResolver,
   createProductionBrowserHarness,
@@ -746,6 +747,10 @@ function createMinimalProductionDependencies(options = {}) {
     readPeatixProfile: () => options.peatixAttendeeProfile,
     readFormProfile: () => readLumaFormProfile({ path: lumaFormProfilePath }),
     selectFactKey: options.selectFactKey || createBoundedPrivateFactSelector({
+      repoRoot, evidenceDir: lunaEvidenceDir,
+    }),
+    assumeUnknownConnpassAnswers: options.assumeUnknownConnpassAnswers !== false,
+    answerConnpassQuestion: options.answerConnpassQuestion || createBoundedConnpassQuestionAnswerer({
       repoRoot, evidenceDir: lunaEvidenceDir,
     }),
   });

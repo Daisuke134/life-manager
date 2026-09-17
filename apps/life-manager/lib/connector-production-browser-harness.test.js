@@ -6,6 +6,7 @@ const test = require("node:test");
 
 const {
   createBoundedActionProposer,
+  createBoundedConnpassQuestionAnswerer,
   createBoundedPrivateFactSelector,
   createPrivateValueResolver,
   createLumaPrivateValueResolver,
@@ -31,6 +32,24 @@ test("bounded fact selector maps new question wording to a key without seeing pr
   assert.match(request.budgetScopeId, /^connector-fact-[a-f0-9-]+-1$/);
   assert.equal(request.schema.properties.source_key.enum.includes("__abstain__"), true);
   assert.equal(request.prompt.includes("Private Company"), false);
+});
+
+test("bounded Connpass answerer returns an exact model-selected option", async () => {
+  let request;
+  const answer = createBoundedConnpassQuestionAnswerer({
+    repoRoot: "/private/repo", evidenceDir: "/private/evidence",
+    async runAgentRunner(input) {
+      request = input;
+      return { summary: { status: "success", selected_provider: "codex", selected_model: "gpt-5.6-terra" }, value: { answer: "学生" } };
+    },
+  });
+  assert.equal(await answer({
+    question: "現在の区分を選んでください", control: { kind: "radio" }, options: ["社会人", "学生"],
+  }), "学生");
+  assert.equal(request.taskClass, "browser-lane-agent");
+  assert.equal(request.readOnly, true);
+  assert.deepEqual(request.schema.properties.answer.enum, ["社会人", "学生"]);
+  assert.match(request.prompt, /mandatory question/i);
 });
 
 test("bounded proposer requests one structured action from Terra with sanitized controls only", async () => {
@@ -225,6 +244,47 @@ test("Connpass fallback binds a newly worded questionnaire radio to an existing 
   assert.equal(result.status, "completed");
   assert.deepEqual(operated, ["role_founder", "confirm_button"]);
   assert.equal(factLookups, 1);
+});
+
+test("Connpass fallback fills unknown radio and text controls before one official readback", async () => {
+  let step = 0;
+  const operated = [];
+  const answered = [];
+  const controls = [
+    { control: "new_yes", kind: "radio", label: "参加する", question: "今回参加しますか？", required: true, submittable: false },
+    { control: "new_no", kind: "radio", label: "参加しない", question: "今回参加しますか？", required: true, submittable: false },
+    { control: "new_text", kind: "input", label: "追加情報", required: true, submittable: false },
+    { control: "confirm_button", kind: "button", label: "申し込みを確定する", required: false, submittable: true },
+  ];
+  const harness = createProductionBrowserHarness({
+    lumaWorkflow: { async readProviderState() { throw new Error("wrong provider"); } },
+    connpassWorkflow: { async readProviderState() { return step === 3 ? { status: "registered" } : { status: "absent" }; } },
+    async inspectControls() {
+      return controls.map((control) => ({ ...control,
+        completed: control.kind === "radio" ? step > 0 : control.kind === "input" ? step > 1 : false,
+      }));
+    },
+    async proposeAction(input) {
+      return { control: input.observation.controls.find((control) => control.required && !control.completed)?.control
+        || input.observation.controls.find((control) => control.submittable)?.control };
+    },
+    async operateControl(input) { operated.push(input.action.control); step += 1; return { status: "success" }; },
+    resolveValue: createPrivateValueResolver({
+      assumeUnknownConnpassAnswers: true,
+      readPeatixProfile: async () => ({}),
+      readFormProfile: async () => ({ form_answers: {} }),
+      async answerConnpassQuestion(input) {
+        answered.push(input.control.control);
+        return input.control.kind === "radio" ? "参加する" : "追加情報への回答";
+      },
+    }),
+  });
+  const result = await harness.runFallback({ provider: "connpass", candidate: { event_ref: "connpass-event://event/405844" },
+    page: { url() { return "https://tokyo-builders.connpass.com/event/405844/join/"; } },
+    pageWebsocket: "ws://127.0.0.1:9222/devtools/page/UNKNOWNCONNPASS1", maxSteps: 3, expectedState: "registered_or_pending" });
+  assert.equal(result.status, "completed");
+  assert.deepEqual(operated, ["new_yes", "new_text", "confirm_button"]);
+  assert.deepEqual(answered, ["new_yes", "new_text"]);
 });
 
 test("Connpass native rejects an unqualified online label", async () => {
@@ -1005,6 +1065,89 @@ test("Connpass semantic radio lookup never reuses an unrelated consent answer", 
     control: { control: "mixed_contact_channel", kind: "radio", label: "Connpass",
       question: "どこで知りましたか？ 今後スポンサーからの連絡を受け取る媒体を選んでください", required: true } }), null);
   assert.equal(lookups, 0);
+});
+
+test("Connpass trusted radio fact wins over an assumed answer for sibling options", async () => {
+  let assumedCalls = 0;
+  const resolver = createPrivateValueResolver({
+    assumeUnknownConnpassAnswers: true,
+    readFormProfile: async () => ({ form_answers: { "Career status": "Founder" } }),
+    async selectFactKey() { return "Career status"; },
+    async answerConnpassQuestion() { assumedCalls += 1; return "Employee"; },
+  });
+  const base = { provider: "connpass", state: "connpass_join", candidate: { event_ref: "connpass-event://event/405844" }, action: { purpose: "fill" }, question_options: ["Employee", "Founder"] };
+  assert.equal(await resolver({ ...base, control: { control: "employee", kind: "radio", label: "Employee", question: "現在のキャリア状況", required: true, completed: false, submittable: false } }), null);
+  assert.equal(await resolver({ ...base, control: { control: "founder", kind: "radio", label: "Founder", question: "現在のキャリア状況", required: true, completed: false, submittable: false } }), true);
+  assert.equal(assumedCalls, 0);
+});
+
+test("Connpass production resolver lets the existing agent answer unknown required controls when enabled", async () => {
+  const calls = [];
+  const resolver = createPrivateValueResolver({
+    assumeUnknownConnpassAnswers: true,
+    readPeatixProfile: async () => ({}),
+    readFormProfile: async () => ({ form_answers: {} }),
+    async answerConnpassQuestion(input) {
+      calls.push(input);
+      if (input.control.kind === "checkbox") return "true";
+      if (input.control.kind === "radio") return "参加する";
+      if (input.control.kind === "select") return "working";
+      return "モデルが作成した回答";
+    },
+  });
+  const base = {
+    provider: "connpass", state: "connpass_join",
+    candidate: { event_ref: "connpass-event://event/405844" },
+    action: { purpose: "fill" },
+  };
+  assert.equal(await resolver({ ...base, control: {
+    control: "unknown_text", kind: "input", label: "今の状況を教えてください",
+    required: true, completed: false, submittable: false,
+  } }), "モデルが作成した回答");
+  assert.equal(await resolver({ ...base, control: {
+    control: "unknown_select", kind: "select", label: "参加区分",
+    options: [{ value: "working", label: "社会人" }, { value: "student", label: "学生" }],
+    required: true, completed: false, submittable: false,
+  } }), "working");
+  assert.equal(await resolver({ ...base, control: {
+    control: "unknown_checkbox", kind: "checkbox", label: "確認しました", question: "確認しましたか？",
+    required: true, completed: false, submittable: false,
+  } }), true);
+  assert.equal(await resolver({ ...base, control: {
+    control: "missing_privacy", kind: "checkbox", label: "個人情報の取り扱いに同意します",
+    question: "本応募フォームで取得した回答内容及び、個人情報は株式会社テストが取り扱いいたします。 詳細は以下よりご確認ください。",
+    required: true, completed: false, submittable: false,
+  } }), true);
+  assert.equal(await resolver({ ...base, control: {
+    control: "missing_email", kind: "input", label: "Email", required: true, completed: false, submittable: false,
+  } }), "モデルが作成した回答");
+  assert.equal(await resolver({ ...base, control: {
+    control: "unknown_radio_yes", kind: "radio", label: "参加する", question: "参加しますか？",
+    required: true, completed: false, submittable: false,
+  }, question_options: ["参加する", "参加しない"] }), true);
+  assert.equal(await resolver({ ...base, control: {
+    control: "unknown_radio_without_question", kind: "radio", label: "参加する",
+    required: true, completed: false, submittable: false,
+  }, question_options: ["参加する", "参加しない"] }), true);
+  assert.equal(await resolver({ ...base, control: {
+    control: "unknown_radio_no", kind: "radio", label: "参加しない", question: "参加しますか？",
+    required: true, completed: false, submittable: false,
+  }, question_options: ["参加する", "参加しない"] }), null);
+  assert.equal(calls.length, 7);
+  assert.deepEqual(calls[1].options, [{ value: "working", label: "社会人" }, { value: "student", label: "学生" }]);
+  assert.deepEqual(calls[5].options, ["参加する", "参加しない"]);
+  assert.deepEqual(calls[6].options, ["参加する", "参加しない"]);
+});
+
+test("Connpass unknown-answer mode stays disabled unless production explicitly enables it", async () => {
+  const resolver = createPrivateValueResolver({
+    readPeatixProfile: async () => ({}),
+    readFormProfile: async () => ({ form_answers: {} }),
+    async answerConnpassQuestion() { throw new Error("must not run"); },
+  });
+  assert.equal(await resolver({ provider: "connpass", state: "connpass_join", action: { purpose: "fill" }, control: {
+    control: "unknown", kind: "input", label: "未知", required: true, completed: false, submittable: false,
+  } }), null);
 });
 
 test("Connpass exact join does not adopt a generic question outside .question_list", async () => {
