@@ -429,6 +429,9 @@ Life Manager has three cooperating business paths:
    verifies `/health`, and chooses the next weakest funnel step. The current measurement run at
    `2026-09-17T14:42:38Z` returned `lm_mrr_usd=NA` and
    `HEAL-NEEDED — STRIPE-KEY-MISSING`; it wrote a self-heal request instead of claiming `$0`.
+   A production Supabase billing readback on 2026-09-18 found one `paid=true` row but
+   `plan_status`, `current_period_end`, and `stripe_subscription_id` were all null. The entitlement
+   flag is therefore not an active-subscription or MRR receipt.
 
 **Remaining revenue TODO, in order:**
 
