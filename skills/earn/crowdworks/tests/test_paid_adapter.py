@@ -903,7 +903,6 @@ def test_milestone_completion_opens_the_contract_dialog_anchor():
     assert "dialog" in events
     assert any(item[0] == "fill" for item in events if isinstance(item, tuple))
 
-
 def test_delivery_primes_visible_duplicate_message_textareas():
     module = load()
     events = []
@@ -928,7 +927,6 @@ def test_delivery_primes_visible_duplicate_message_textareas():
     adapter._fill_delivery_message("納品メッセージ")
 
     assert events == ["納品メッセージ", "納品メッセージ"]
-
 
 def test_milestone_completion_reveals_mobile_only_todo_surface_before_effect():
     module = load()
