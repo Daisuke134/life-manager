@@ -318,14 +318,17 @@ def _profile(page: Any, product: Mapping[str, Any], avatar: Path, apply: bool) -
     descriptions = page.locator("p.p-profile-introduction__text")
     if len(subtitles) != 1 or descriptions.count() != 1: raise OfferError("profile_readback_invalid")
     text_aligned = subtitles == {" ".join(expected["subtitle"].split())} and " ".join(descriptions.inner_text().split()) == " ".join(expected["description"].split())
-    page.goto(ORIGIN + "/mypage", wait_until="networkidle", timeout=30_000)
+    avatar_image = page.locator("img.p-profile-media__avatar-image")
+    if avatar_image.count() != 1 or not avatar_image.get_attribute("src"): raise OfferError("profile_readback_invalid")
+    response = page.goto(ORIGIN + "/mypage", wait_until="networkidle", timeout=30_000)
+    if response is None or response.status != 200 or page.url != ORIGIN + "/mypage" or page.locator("#login_form").count() != 0: raise OfferError("profile_readback_invalid")
     completion = page.locator(".js-regularRankCheckPercent")
-    if completion.count() != 1: raise OfferError("profile_readback_invalid")
-    score = completion.get_attribute("data-score") or ""
-    if re.fullmatch(r"[0-9]+", score) is None: raise OfferError("profile_readback_invalid")
-    photo_missing = page.get_by_role("link", name="プロフィール写真を登録", exact=True).count() == 1
+    if completion.count() > 1: raise OfferError("profile_readback_invalid")
+    score = completion.get_attribute("data-score") if completion.count() == 1 else None
+    if completion.count() == 1 and (score is None or re.fullmatch(r"[0-9]+", score) is None): raise OfferError("profile_readback_invalid")
+    photo_missing = page.get_by_role("link", name="プロフィール写真を登録", exact=True).count() > 0
     aligned = text_aligned and not photo_missing
-    if aligned or not apply: return {"profile_aligned": aligned, "profile_photo_aligned": not photo_missing, "profile_completion_percent": int(score), "profile_effect_count": 0}
+    if aligned or not apply: return {"profile_aligned": aligned, "profile_photo_aligned": not photo_missing, "profile_completion_percent": int(score) if score is not None else None, "profile_effect_count": 0}
     page.goto(ORIGIN + "/mypage/profile", wait_until="domcontentloaded", timeout=20_000)
     if urlsplit(str(page.url)).path != "/mypage/profile": raise OfferError("profile_form_changed")
     _field(page, "#UserProfileSubTitle").fill(expected["subtitle"]); _field(page, "#UserProfileDescription").fill(expected["description"])
