@@ -727,6 +727,35 @@ def test_contract_detail_dom_timeout_has_safe_contract_stage_code():
     assert error.value.paid_error_code == "crowdworks_paid_contract_timeout"
 
 
+def test_inspection_pending_contract_is_read_as_delivered_without_resubmission():
+    module = load()
+    title, client = "急募のCS業務", "ミラフル採用"
+
+    class Body:
+        def inner_text(self):
+            return (f"{title} {client} 業務を開始しています。"
+                    "クライアント（発注者）が検収を行っています。"
+                    "検収完了までしばらくお待ちください。")
+
+    class Page:
+        def locator(self, selector):
+            assert selector == "body"
+            return Body()
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda work_id: None
+
+    detail = adapter._detail_once({"work_id": "63583795", "title": title, "client": client})
+
+    assert detail["provider_state"] == "delivered"
+    assert detail["milestone_id"] is None
+    assert detail["form_url"] is None
+    assert module.decide({"context": {"contract": detail}}) == {
+        "action": "noop", "classification": "completed",
+    }
+
+
 def test_contract_detail_dom_timeout_retries_once_on_fresh_page():
     module = load()
     calls = []
