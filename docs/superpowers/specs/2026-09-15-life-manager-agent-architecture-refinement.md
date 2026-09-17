@@ -118,14 +118,14 @@ tables remain evidence of the superseded plan, not the active cursor.
 | 12 | Promote the identical approved business kernel/source SHA to tenant-isolated Cloud; test Steel owner lease/release and phone-only status/human handoff/readback; run Cloud gate. | Tenant cross-read 0, credential/state mix 0, official effects and replay-zero, Local/Eval/Cloud all PASS. |
 | 13 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
 
-### Atomic remaining execution list — current cursor A01
+### Atomic remaining execution list — current cursor A02
 
-This list contains **only unfinished work**. Each checkbox is one reviewable
+This list tracks the current atomic work. Each checkbox is one reviewable
 transition with its own evidence. The table above is a program map, not a
 second execution cursor. Provider/client IDs are read from fresh official
 inventory rather than invented here; one selected ID is handled per item.
 
-- [ ] A01 — Add proof-bound disposition of one exact `effect_unknown` occurrence in `runtime/host/resource_admission.py`; refuse missing/mismatched official readback.
+- [x] A01 — Add proof-bound disposition of one exact `effect_unknown` occurrence in `runtime/host/resource_admission.py`; refuse missing/mismatched official readback. Source branch `fd33a5abd0`: exact owner+occurrence+verified provider receipt required; absence/inconclusive remains fenced. Focused admission tests 87 PASS. This is a code gate only, not a production official effect; CN01/CN02 retain live reconciliation.
 - [ ] A02 — Prove one old-loaded runner cannot claim or erase another release's new occurrence during a mixed-release fixture; fix only the failing admission boundary.
 - [ ] A03 — Prove one freed finite slot automatically reserves the next eligible `agent` owner under saturation.
 - [ ] A04 — Prove one freed finite slot automatically reserves the next eligible `browser` owner under saturation.
