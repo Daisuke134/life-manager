@@ -102,7 +102,7 @@ before(async () => {
     const method = String(init.method || "GET").toUpperCase();
     upstreamCalls.push({ url: String(input), method, body: init.body || "" });
     if (url.hostname === "fixture.supabase.co") {
-      if ((url.pathname === "/rest/v1/lm_wake_log" && method === "PATCH") ||
+      if ((url.pathname === "/rest/v1/lm_wake_log" && (method === "PATCH" || method === "GET")) ||
         (url.pathname === "/rest/v1/lm_wake_miss" && method === "POST") ||
         (url.pathname === "/rest/v1/rpc/record_lm_wake_telnyx_receipt" && method === "POST") ||
         (url.pathname === "/rest/v1/rpc/record_lm_wake_telnyx_outcome" && method === "POST") ||
@@ -240,6 +240,7 @@ test("signed hangup retrieves official duration but waits for human AMD before c
   const bodies = [];
   const supabase = (url, init) => {
     const pathname = new URL(url).pathname;
+    if (pathname === "/rest/v1/lm_wake_log") return response(200, [{ event_key: CLAIM_EVENT_KEY, amd_result: null }]);
     const body = JSON.parse(init.body);
     bodies.push({ pathname, body });
     if (pathname.endsWith("record_lm_wake_telnyx_receipt")) return response(200, 1);
@@ -263,6 +264,7 @@ test("unknown positive-duration hangup does not consume voice seconds before hum
   const bodies = [];
   const supabase = (url, init) => {
     const pathname = new URL(url).pathname;
+    if (pathname === "/rest/v1/lm_wake_log") return response(200, [{ event_key: CLAIM_EVENT_KEY, amd_result: null }]);
     const body = JSON.parse(init.body);
     bodies.push({ pathname, body });
     if (pathname.endsWith("record_lm_wake_telnyx_receipt")) return response(200, 1);
@@ -291,10 +293,8 @@ test("unknown positive-duration hangup does not consume voice seconds before hum
     telnyx: () => response(200, { data: { call_duration: 37 } }),
   });
   assert.equal(human.status, 200);
-  assert.deepEqual(bodies.find((item) => item.pathname.endsWith("complete_lm_voice_allowance")).body, {
-    p_uid: CLAIM_UID, p_call_key: CLAIM_EVENT_KEY, p_period_start: MANAGED_PERIOD,
-    p_reservation_token: MANAGED_TOKEN, p_connected_seconds: 37,
-  });
+  assert.equal(bodies.some((item) => item.pathname.endsWith("complete_lm_voice_allowance")), false,
+    "voice reconciliation settles the final CDR after AMD rather than charging partial live seconds");
 });
 
 test("timeout hangup records no-answer and completes the managed reminder exactly once", async () => {

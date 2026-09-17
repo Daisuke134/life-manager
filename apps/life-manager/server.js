@@ -96,6 +96,21 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "sk_test_place
 const SUPA_URL = process.env.SUPABASE_URL, SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const COMPOSIO_KEY = process.env.COMPOSIO_API_KEY;
 let moneyPrinterSource, moneyPrinterRuntimePool, moneyPrinterRuntimeStore, investmentStateStore, cloudCitizenStore, agentEconomyControlStore;
+
+async function readWakeCallFacts(wake) {
+  if (!SUPA_URL || !SUPA_KEY || !wake || !wake.wakeUid || !wake.wakeEventKey) return null;
+  const base = String(SUPA_URL).replace(/\/$/, "");
+  const headers = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` };
+  const params = `uid=eq.${encodeURIComponent(wake.wakeUid)}&event_key=eq.${encodeURIComponent(wake.wakeEventKey)}&limit=1`;
+  const read = async (select) => {
+    const response = await fetch(`${base}/rest/v1/lm_wake_log?${params}&select=${encodeURIComponent(select)}`, { headers });
+    if (!response.ok) return null;
+    const rows = await response.json().catch(() => null);
+    return Array.isArray(rows) && rows[0] ? rows[0] : null;
+  };
+  return (await read("call_outcome,amd_result,answered_at"))
+    || (await read("amd_result,answered_at"));
+}
 function getMoneyPrinterRuntimeStore() {
   if (!moneyPrinterRuntimeStore) {
     const connectionString = String(process.env.LM_RUNTIME_DATABASE_URL || process.env.LM_FEEDBACK_DATABASE_URL || "").trim();
@@ -721,6 +736,20 @@ const server = http.createServer(async (req, res) => {
         let outcome = null;
         if (needsDuration) {
           outcome = classifyCallOutcome({ connectedSeconds, hangupCause });
+          if (connectedSeconds > 0) {
+            const facts = await readWakeCallFacts(wake);
+            if (!facts) {
+              console.error("[telnyx-events] wake facts reconciliation failed");
+              res.writeHead(503, { "content-type": "text/plain" });
+              res.end("wake facts unavailable; send it again");
+              return;
+            }
+            outcome = classifyCallOutcome({
+              amdResult: facts.call_outcome === "conversation" ? "human" : facts.amd_result,
+              connectedSeconds,
+              hangupCause,
+            });
+          }
           const recorded = await recordTelnyxWakeOutcome({
             uid: wake.wakeUid,
             eventKey: wake.wakeEventKey,
@@ -827,52 +856,10 @@ const server = http.createServer(async (req, res) => {
         res.end("outcome failed; send it again");
         return;
       }
-      let amdVoiceOutcome = null;
-      if (wake.voicePeriodStart && wake.voiceReservationToken
-        && ["human", "not_sure", "machine"].includes(detection.result)) {
-        const amdConnectedSeconds = await retrieveCallDuration(payload.call_control_id);
-        if (amdConnectedSeconds == null) {
-          console.error("[telnyx-events] AMD voice duration reconciliation failed");
-          res.writeHead(503, { "content-type": "text/plain" });
-          res.end("voice duration unavailable; send it again");
-          return;
-        }
-        amdVoiceOutcome = classifyCallOutcome({
-          amdResult: detection.result,
-          connectedSeconds: amdConnectedSeconds,
-        });
-        if (!detection.outcome && amdVoiceOutcome) {
-          const recorded = await recordTelnyxWakeOutcome({
-            uid: wake.wakeUid,
-            eventKey: wake.wakeEventKey,
-            claimToken: wake.wakeClaimToken,
-            callControlId: payload.call_control_id,
-            callOutcome: amdVoiceOutcome,
-            connectedSeconds: amdConnectedSeconds,
-          }, { supaUrl: SUPA_URL, supaKey: SUPA_KEY });
-          if (!recorded || recorded.ok !== true) {
-            console.error("[telnyx-events] AMD call outcome reconciliation failed");
-            res.writeHead(503, { "content-type": "text/plain" });
-            res.end("call outcome unavailable; send it again");
-            return;
-          }
-          report("call_outcome", recorded);
-        }
-        const voice = await completeVoiceAllowance(wake.wakeUid, wake.wakeEventKey, SUPA_URL, SUPA_KEY, {
-          reservation: {
-            periodStart: wake.voicePeriodStart,
-            reservationToken: wake.voiceReservationToken,
-            allowedSeconds: wake.voiceAllowedSeconds,
-          },
-          connectedSeconds: amdVoiceOutcome === "conversation" ? amdConnectedSeconds : 0,
-        });
-        if (!voice || voice.allowed !== true) {
-          console.error("[telnyx-events] AMD voice allowance reconciliation failed");
-          res.writeHead(503, { "content-type": "text/plain" });
-          res.end("voice allowance failed; send it again");
-          return;
-        }
-      }
+      const amdVoiceOutcome = detection.result === "human" || detection.result === "not_sure"
+        ? "conversation"
+        : detection.result === "machine" && wake.voicePeriodStart && wake.voiceReservationToken
+          ? "no_answer" : null;
       if (wake.managedActionKey && wake.managedPeriodStart && wake.managedReservationToken
         && detection.amd.ok === true && detection.amd.matched === 1) {
         const reservation = {

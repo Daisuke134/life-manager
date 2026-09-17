@@ -14,6 +14,7 @@
 
 - A `conversation` consumes only the official connected seconds, once.
 - A positive-duration hangup without AMD proof leaves the voice reservation pending; later `human`/`not_sure` AMD settles the official seconds, while `machine` settles zero seconds.
+- The stale CDR reconciler applies the same outcome proof and never charges an unknown positive-duration call as conversation.
 - A `no_answer` records a provider-accepted attempt with zero conversation seconds and does not consume the 3,600-second voice allowance.
 - A `dial_failed` never appears as a delivered call; it remains retry/reconciliation evidence.
 - A repeated Telnyx webhook must not duplicate a wake result, managed action, or voice seconds.

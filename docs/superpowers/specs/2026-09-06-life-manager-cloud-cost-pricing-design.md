@@ -291,6 +291,7 @@ voice ledgerの`succeeded/10秒`、managed actionの`succeeded`を同一通話�
 - 応答なしの終了通知を受けた通話は、`no_answer`として予定・通話相関IDに紐づき、会話秒数は0になる。
 - 応答ありの通話は、公式通話時間だけが月3,600秒枠へ一度だけ加算される。
 - ハングアップ時点でAMDが未確定な正の通話時間は月3,600秒枠へ加算せず、後着の`human`/`not_sure`で実秒数を精算する。`machine`は応答なしとして0秒にする。
+- stale voice reconciliationも`call_outcome`/AMD証拠を確認し、結果不明のCDRを会話秒数として精算しない。
 - 発信失敗またはprovider不明の通話は、`conversation`や`no_answer`として表示されず、再照合可能な状態で残る。
 - 同じ終了Webhookを再送しても、履歴・利用秒数・managed actionが二重計上されない。
 - パネルには「応答なし」「会話できた」「発信失敗」と月間会話残り時間が別々に表示される。
