@@ -1023,7 +1023,9 @@ CrowdWorks engineering cursor, not the parallel schedule or owners of other plat
   contract as `task_unavailable`; local Paid tests pass 39/39. CW-1 remains open until the installed owner
   gets a natural wake past host admission and persists the same contract inventory/readback. Read-only form
   metadata shows `63659463` has separate candidate forms for a work URL and Web広告/SNS実績; the loop must
-  read buyer context plus form fields and choose only an unambiguous requested task.
+  read buyer context plus form fields and choose only an unambiguous requested task. The installed release
+  remains unchanged: `lm-loop doctor` currently reports `ok=false` because of the unrelated unmanaged label
+  `ai.anicca.provision-browser.colors-hachioji.owner-18211957`; no sibling loop was mutated to bypass it.
 - [ ] **CW-2 — one post-contract owner:** Keep Apply independent. Let Reply negotiate and accept on the
   proposal route, then hand the exact contract ID to Paid. Reply must not send a post-contract message or
   submit the same external form; reconcile any old uncertain intent before the handoff. Reply now suppresses
