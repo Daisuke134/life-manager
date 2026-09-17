@@ -448,13 +448,25 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                          else "memory_headroom_low"})
             return 75
         try:
-            claim, admission_reason = (
-                claim_durable_resource(
-                    resource_class, loop_id, admission_class=admission_class)
-                if durable else try_acquire_resource(
-                    resource_class, loop_id, admission_class=admission_class,
-                    retain_ticket=False, required_protocol=1)
-            )
+            claim = None
+            admission_reason = None
+            claim_kwargs = {"admission_class": admission_class}
+            if durable and entry.get("coalesce_queued_wakes") is True and occurrence_id is not None:
+                claim_kwargs["coalesced_occurrence_id"] = occurrence_id
+            for attempt in range(ADMISSION_CONTROL_RETRY_ATTEMPTS):
+                if interrupted:
+                    break
+                claim, admission_reason = (
+                    claim_durable_resource(
+                        resource_class, loop_id, **claim_kwargs)
+                    if durable else try_acquire_resource(
+                        resource_class, loop_id, admission_class=admission_class,
+                        retain_ticket=False, required_protocol=1)
+                )
+                if claim is not None or admission_reason != "control_busy":
+                    break
+                if attempt + 1 < ADMISSION_CONTROL_RETRY_ATTEMPTS:
+                    time.sleep(ADMISSION_CONTROL_RETRY_DELAY_SECONDS * (attempt + 1))
         except (OSError, RuntimeError):
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
