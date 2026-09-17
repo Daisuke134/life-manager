@@ -337,7 +337,19 @@ def _preserve_operational_attributes(new_bytes: bytes, old_bytes: bytes | None,
                                      retired_operational_keys: tuple[str, ...] = ()) -> bytes:
     if old_bytes is None:
         return new_bytes
-    old, new = plistlib.loads(old_bytes), plistlib.loads(new_bytes)
+    new = plistlib.loads(new_bytes)
+    try:
+        old = plistlib.loads(old_bytes)
+    except plistlib.InvalidFileException:
+        env = json.loads(old_bytes)
+        expected = new["EnvironmentVariables"]
+        if (not isinstance(env, dict)
+                or not all(isinstance(key, str) and isinstance(value, str)
+                           for key, value in env.items())
+                or env.get("LIFE_MANAGER_LOOP_ID") != expected["LIFE_MANAGER_LOOP_ID"]
+                or env.get("LIFE_MANAGER_STATE_ROOT") != expected["LIFE_MANAGER_STATE_ROOT"]):
+            raise RuntimeError("invalid installed environment snapshot identity")
+        old = {"EnvironmentVariables": env}
     for key in ("WorkingDirectory", "ProcessType", "RunAtLoad", "ThrottleInterval", "Umask", "Nice"):
         if key in old and key not in retired_operational_keys and not (
             key == "WorkingDirectory"
