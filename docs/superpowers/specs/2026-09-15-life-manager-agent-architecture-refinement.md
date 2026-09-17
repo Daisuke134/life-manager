@@ -147,7 +147,7 @@ does not transfer ownership of their browser/account state.
   reuse the existing claim/terminal/receipt path to bind them. Do not add a
   second scheduler, parallel ledger or generic mapping framework merely to
   make the test green. Do not promote the priority patch as full replay safety.
-- [ ] Exact next patch contract, before production mutation: inspect A's
+- [x] Exact first patch contract, before production mutation: inspect A's
   `occurrences` row, same-ID outer terminal and Connector intent/readback.
   If A is **proved pre-effect**, write the RED regression in
   `runtime/host/tests/test_resource_admission.py` and
@@ -160,7 +160,21 @@ does not transfer ownership of their browser/account state.
   terminal/fence. If A has any uncertain effect, **do not rebind or resend**:
   reconcile its official provider/Calendar state first, then close that
   occurrence by its existing fence. No generic mapping table is authorized
-  by this slice. This test/decision is the actual first code task in step 2.
+  by this slice. This test/decision was the first code task in step 2;
+  the source-only outcome is recorded immediately below.
+- [x] **Source-only A→B coalesced claim slice:** the actual oldest Connector
+  queued A had `effect_unknown=0`, an exact outer
+  `host_admission_deferred:resource_capacity_busy` terminal and no effect
+  intent files. Candidate `ce84e464f1` adds an opt-in argument to the existing
+  `claim_durable` path: under the existing SQLite lock, cancel that pre-effect
+  scan signal A, claim the executing wake B with A's preserved queue age, and
+  leave non-coalesced owners unchanged. The runner passes B only when the
+  registry explicitly enables `coalesce_queued_wakes`; child effect ID and
+  outer terminal remain B, matching Connector's existing effect fence.
+  Host+runner 140/140 and Connector operations 30/30 PASS; fresh read-only
+  review SHIP. **Not merged, loaded or a provider/Calendar success.** The
+  `coalesce_queued_wakes` marker and this claim binding MUST enter one
+  main-derived immutable release together; marker-only rollout is forbidden.
 - [ ] `borrow` is **not deleted**: current `resource_admission.py` SQLite
   schema/capacity calculations and `lm_loop_run.py` default still use
   `admission_class=borrow` for maintenance. It is an old reserved-capacity
