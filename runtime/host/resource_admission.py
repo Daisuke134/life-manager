@@ -846,8 +846,10 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
 
 def claim_durable(resource_class: str, owner_id: str, *,
                   admission_class: str = "borrow",
+                  coalesced_occurrence_id: str | None = None,
                   now: float | None = None) -> tuple[Path | None, str]:
     """Convert this owner's queued/reserved v2 position into a live claim."""
+    coalesced_name = _normalize_occurrence_id(coalesced_occurrence_id)
     root, owners, tickets, database = _durable_paths()
     starts, snapshot_started_ns = _identity_snapshot(owners, tickets)
     started = process_start(os.getpid())
@@ -913,6 +915,21 @@ def claim_durable(resource_class: str, owner_id: str, *,
                 return None, "capacity_busy"
             if not reserved and (head is None or head["owner_id"] != owner_id):
                 return None, "fifo_wait"
+            if coalesced_name is not None and (occurrence is None or occurrence[0] != coalesced_name):
+                if connection.execute(
+                        "SELECT 1 FROM occurrences WHERE occurrence_id=?",
+                        (coalesced_name,)).fetchone():
+                    return None, "occurrence_inflight"
+                if occurrence is not None:
+                    connection.execute(
+                        "UPDATE occurrences SET state='cancelled' WHERE occurrence_id=?",
+                        (occurrence[0],))
+                first_queued_at = occurrence[2] if occurrence else row[4] or instant
+                priority_name = row[3] or _default_priority(admission_class)
+                _record_occurrence(
+                    connection, coalesced_name, owner_id, resource_class,
+                    admission_class, priority_name, first_queued_at, int(row[0]))
+                occurrence = (coalesced_name, priority_name, first_queued_at)
             claim = owners / f"{_digest(owner_id)}-{os.getpid()}.json"
             if occurrence is not None:
                 connection.execute(

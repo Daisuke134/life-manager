@@ -380,7 +380,7 @@ def test_admitted_child_receives_exact_host_occurrence_identity(tmp_path):
           patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                 return_value=(tmp_path / "ticket", "ready")),
           patch("runtime.loop.lm_loop_run.claim_durable_resource",
-                return_value=(claim, "acquired")),
+                return_value=(claim, "acquired")) as claim_admission,
           patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
           patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
           patch("runtime.loop.lm_loop_run._dispatch_reserved"),
@@ -388,9 +388,12 @@ def test_admitted_child_receives_exact_host_occurrence_identity(tmp_path):
         assert _run_admitted(["/bin/true"], {
             "cadence": {"start_interval_seconds": 60},
             "provider_route": "deterministic", "resource_class": "browser",
-            "admission_class": "revenue",
+            "admission_class": "revenue", "coalesce_queued_wakes": True,
         }, "connector", {}, tmp_path / "receipt",
             occurrence_id="life-manager-connector-native:run-123") == 0
+    claim_admission.assert_called_once_with(
+        "browser", "connector", admission_class="revenue",
+        coalesced_occurrence_id="life-manager-connector-native:run-123")
     assert observed["LIFE_MANAGER_OCCURRENCE_ID"] == "life-manager-connector-native:run-123"
 
 

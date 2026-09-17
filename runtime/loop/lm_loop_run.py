@@ -516,12 +516,15 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         try:
             claim = None
             admission_reason = None
+            claim_kwargs = {"admission_class": admission_class}
+            if durable and entry.get("coalesce_queued_wakes") is True and occurrence_id is not None:
+                claim_kwargs["coalesced_occurrence_id"] = occurrence_id
             for attempt in range(ADMISSION_CONTROL_RETRY_ATTEMPTS):
                 if interrupted:
                     break
                 claim, admission_reason = (
                     claim_durable_resource(
-                        resource_class, loop_id, admission_class=admission_class)
+                        resource_class, loop_id, **claim_kwargs)
                     if durable else try_acquire_resource(
                         resource_class, loop_id, admission_class=admission_class,
                         retain_ticket=False, required_protocol=1)
