@@ -453,6 +453,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 enqueue_kwargs["occurrence_id"] = occurrence_id
             if entry.get("coalesce_queued_wakes") is True:
                 enqueue_kwargs["coalesce_reserved"] = True
+            if entry.get("effect_class") == "none":
+                enqueue_kwargs["allow_no_effect_recovery"] = True
             ticket, admission_reason = (
                 enqueue_durable_resource(
                     resource_class, loop_id, **enqueue_kwargs)

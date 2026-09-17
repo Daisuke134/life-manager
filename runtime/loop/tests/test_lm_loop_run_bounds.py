@@ -608,10 +608,16 @@ def test_all_coconala_lanes_enter_revenue_admission(tmp_path):
                 tmp_path / f"{loop_id}.json",
             ) == 75
 
-    assert enqueue.call_args_list == [
-        call("agent", loop_id, admission_class="revenue",
-             priority=registry[loop_id]["priority"]) for loop_id in loop_ids
-    ]
+    expected_enqueue = []
+    for loop_id in loop_ids:
+        kwargs = {
+            "admission_class": "revenue",
+            "priority": registry[loop_id]["priority"],
+        }
+        if registry[loop_id].get("effect_class") == "none":
+            kwargs["allow_no_effect_recovery"] = True
+        expected_enqueue.append(call("agent", loop_id, **kwargs))
+    assert enqueue.call_args_list == expected_enqueue
     assert claim.call_args_list == [
         call("agent", loop_id, admission_class="revenue") for loop_id in loop_ids
     ]
