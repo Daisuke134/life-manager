@@ -95,6 +95,40 @@ def test_explicit_registry_priority_is_forwarded_to_durable_admission(tmp_path):
     run.assert_not_called()
 
 
+def test_transient_admission_lock_contention_is_retried_before_deferring(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 60},
+        "provider_route": "deterministic",
+        "admission_class": "revenue",
+        "priority": "critical_paid",
+    }
+    claim = tmp_path / "claim"
+    claim.write_text("owned")
+    enqueue_results = [
+        (None, "control_busy"),
+        (None, "control_busy"),
+        (tmp_path / "ticket", "ready"),
+    ]
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                side_effect=enqueue_results) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0),
+          patch("runtime.loop.lm_loop_run.time.sleep") as sleep):
+        assert _run_admitted(
+            ["/bin/true"], entry, "crowdworks-revenue-paid", {},
+            tmp_path / "receipt",
+        ) == 0
+
+    assert enqueue.call_count == 3
+    assert sleep.call_count == 2
+
+
 def test_wake_occurrence_identity_is_forwarded_to_durable_admission(tmp_path):
     entry = {
         "cadence": {"start_interval_seconds": 60},

@@ -46,8 +46,8 @@ from runtime.host.resource_admission import (
 EXEC_GATE = Path(__file__).resolve().parents[1] / "host/exec_gate.py"
 SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 SAFE_RESULT_HINT = re.compile(r"[a-z][a-z0-9_:-]{1,99}\Z")
-ADMISSION_CONTROL_RETRY_ATTEMPTS = 3
-ADMISSION_CONTROL_RETRY_DELAY_SECONDS = 0.05
+ADMISSION_CONTROL_RETRY_ATTEMPTS = 8
+ADMISSION_CONTROL_RETRY_DELAY_SECONDS = 0.25
 HEARTBEAT_INTERVAL_SECONDS = 30.0
 PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
     "skills/earn/crowdworks/scripts/paid-owner",
@@ -648,11 +648,17 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 enqueue_kwargs["coalesce_reserved"] = True
             if entry.get("effect_class") == "none":
                 enqueue_kwargs["allow_no_effect_recovery"] = True
-            ticket, admission_reason = (
-                enqueue_durable_resource(
-                    resource_class, loop_id, **enqueue_kwargs)
-                if durable else (None, "legacy")
-            )
+            ticket, admission_reason = (None, "legacy")
+            for attempt in range(ADMISSION_CONTROL_RETRY_ATTEMPTS):
+                ticket, admission_reason = (
+                    enqueue_durable_resource(
+                        resource_class, loop_id, **enqueue_kwargs)
+                    if durable else (None, "legacy")
+                )
+                if ticket is not None or admission_reason != "control_busy":
+                    break
+                if attempt + 1 < ADMISSION_CONTROL_RETRY_ATTEMPTS:
+                    time.sleep(ADMISSION_CONTROL_RETRY_DELAY_SECONDS * (attempt + 1))
         except (OSError, RuntimeError):
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
