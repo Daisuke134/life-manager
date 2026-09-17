@@ -335,10 +335,23 @@ class CrowdWorksPaidAdapter:
             raise RuntimeError("crowdworks_paid_contract_state_invalid")
         result: dict[str, Any] = {"work_id": work_id, "title": title, "client": client,
                                   "provider_state": status}
-        for key in ("milestone_id", "form_url", "application_date"):
+        for key in ("milestone_id", "form_url", "application_date", "message_thread_id",
+                    "buyer_event_id", "buyer_event_at", "artifact_access", "artifact_content"):
             value = raw.get(key)
             if value is not None:
                 result[key] = _text(value)
+        document_urls = raw.get("document_urls")
+        if document_urls is not None:
+            if (not isinstance(document_urls, list)
+                    or not all(isinstance(value, str) for value in document_urls)):
+                raise RuntimeError("crowdworks_paid_task_unavailable")
+            result["document_urls"] = sorted(set(document_urls))
+        for key in ("artifact_required", "artifact_verified"):
+            value = raw.get(key)
+            if value is not None:
+                if not isinstance(value, bool):
+                    raise RuntimeError("crowdworks_paid_task_unavailable")
+                result[key] = value
         form_urls = raw.get("form_urls")
         if form_urls is not None:
             if (not isinstance(form_urls, list)
@@ -554,7 +567,7 @@ class CrowdWorksPaidAdapter:
                             "artifact_verified": False}
                 if body.strip():
                     return {"artifact_required": True, "artifact_access": "readable",
-                            "artifact_verified": False}
+                            "artifact_content": body[:12_000], "artifact_verified": False}
             except Exception:
                 continue
             finally:
@@ -567,11 +580,15 @@ class CrowdWorksPaidAdapter:
     def _expand_folded_messages(self) -> None:
         if self.page is None:
             return
-        try:
-            folded = self.page.get_by_text(re.compile(r"他の\d+件のメッセージを表示"), exact=False)
-            count = folded.count()
-        except Exception:
+        finder = getattr(self.page, "get_by_text", None)
+        if not callable(finder):
             return
+        try:
+            folded = finder(re.compile(r"他の\d+件のメッセージを表示"), exact=False)
+            count = folded.count()
+        except Exception as error:
+            raise RuntimeError("crowdworks_paid_message_context_incomplete") from error
+        failures = 0
         for index in range(count):
             try:
                 item = folded.nth(index)
@@ -579,7 +596,9 @@ class CrowdWorksPaidAdapter:
                     item.click()
                     self.page.wait_for_timeout(300)
             except Exception:
-                continue
+                failures += 1
+        if failures:
+            raise RuntimeError("crowdworks_paid_message_context_incomplete")
 
     def _proposal_application_date(self, proposal_id: str) -> str | None:
         if self.owned_context is None:
@@ -879,6 +898,8 @@ class CrowdWorksPaidAdapter:
                     "\n\n【リンクのアクセス結果】編集権限をリクエストする画面で閲覧できません。"
                     "権限付与または本文の貼付を依頼し、作業完了は主張しないでください。"
                 )
+            elif item.get("artifact_access") == "readable" and isinstance(item.get("artifact_content"), str):
+                conversation += "\n\n【リンク先本文】\n" + item["artifact_content"]
             body = composer.compose({
                 "board": {"title": item.get("title", "")},
                 "grounding": grounding,
@@ -889,6 +910,8 @@ class CrowdWorksPaidAdapter:
                         "契約済みの買い手の依頼に対して、次に必要な回答を作成してください。"
                         "契約本文に編集権限の要求、アクセス不可、または本文不足がある場合は、"
                         "作業完了を主張せず、閲覧権限の付与または本文の貼付を依頼する回答だけを作成してください。"
+                        "リンク先本文が読める場合は、その内容に基づく依頼されたフィードバックだけを作成し、"
+                        "未実施の作業や未確認の成果を完了したと書かないでください。"
                     ),
                     "allowed_choices": [],
                 },
@@ -1267,6 +1290,13 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
     form_url, milestone_id = contract.get("form_url"), contract.get("milestone_id")
     form_urls = contract.get("form_urls")
     completed = set(contract.get("completed_form_urls") or [])
+    has_form = ((isinstance(form_urls, list) and bool(form_urls))
+                or isinstance(form_url, str))
+    if (has_form
+            and (not isinstance(contract.get("buyer_event_id"), str)
+                 or not contract.get("buyer_event_id").strip())):
+        return {"action": "wait", "reason": "buyer_event_required",
+                "remaining_work": ["read and persist the latest buyer message before submitting a form"]}
     if form_url in completed and not contract.get("form_revision"):
         form_url = None
     if not form_url and not (isinstance(form_urls, list) and form_urls):
@@ -1281,14 +1311,23 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
         if not isinstance(buyer_event_id, str) or not buyer_event_id.strip():
             return {"action": "wait", "reason": "buyer_event_required",
                     "remaining_work": ["read and persist the latest buyer message before answering"]}
-        if (contract.get("artifact_required") is True
-                and contract.get("artifact_access") != "permission_required"
-                and contract.get("artifact_verified") is not True):
+        artifact_ready = (
+            contract.get("artifact_verified") is True
+            or contract.get("artifact_access") == "permission_required"
+            or (contract.get("artifact_access") == "readable"
+                and isinstance(contract.get("artifact_content"), str)
+                and bool(contract.get("artifact_content").strip()))
+        )
+        if contract.get("artifact_required") is True and not artifact_ready:
             return {"action": "wait", "reason": "buyer_task_detail_required",
                     "remaining_work": ["open and verify the linked buyer artifact before answering"]}
-        answer = (answer_selector(contract)
+        answer = (
+            "リンク先の閲覧権限を付与いただくか、本文を貼り付けてください。"
+            if contract.get("artifact_access") == "permission_required"
+            else (answer_selector(contract)
                   if callable(answer_selector) and isinstance(buyer_context, str)
                   and buyer_context.strip() else None)
+        )
         if isinstance(answer, str) and answer.strip():
             return {"action": "answer", "payload": {"body": answer.strip(),
                                                        "buyer_event_id": buyer_event_id.strip()}}

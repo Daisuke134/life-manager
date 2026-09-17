@@ -76,6 +76,24 @@ def test_verified_effect_replays_with_zero_mutations(tmp_path: Path) -> None:
     assert len(adapter.effects) == 1
 
 
+def test_uncertain_message_effect_never_replays_after_mutation_exception(tmp_path: Path) -> None:
+    class FailingAdapter(Adapter):
+        def mutate(self, intent: dict) -> None:
+            self.effects.append(dict(intent))
+            raise RuntimeError("message visibility delayed")
+
+        def readback(self, intent: dict) -> dict:
+            return {"authoritative_absent": True}
+
+    adapter = FailingAdapter([observation("work-1")])
+    first = paid.run_wake(adapter=adapter, decide=submit, state_root=tmp_path)
+    second = paid.run_wake(adapter=adapter, decide=submit, state_root=tmp_path)
+
+    assert first["failed"] == 1
+    assert second["items"][0]["reason"] == "reconcile_unknown"
+    assert len(adapter.effects) == 1
+
+
 def test_single_worker_pre_effect_hint_clears_before_first_mutation(
         monkeypatch, tmp_path: Path) -> None:
     hint = tmp_path / "entrypoint-result.json"

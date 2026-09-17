@@ -65,6 +65,12 @@ def reconcile(*, state_root: Path, owner: str, occurrence: str,
     binding = {"provider": "crowdworks", "account_id": account_id,
                "contract_id": contract_id, "milestone_id": milestone_id,
                "form_revision_sha256": form_sha256}
+    buyer_event_id = payload.get("buyer_event_id")
+    if isinstance(buyer_event_id, str) and buyer_event_id.strip():
+        binding["buyer_event_id"] = buyer_event_id.strip()
+    revision_event_id = payload.get("revision_event_id")
+    if isinstance(revision_event_id, str) and revision_event_id.strip():
+        binding["revision_event_id"] = revision_event_id.strip()
 
     def proof() -> dict[str, Any]:
         if (not _run_proves_no_dispatch(run_marker, occurrence)

@@ -217,6 +217,8 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
                     "effect": 0, "readback": 1, "failed": 0}
         if official.get("authoritative_absent") is not True:
             return _pending(row, "reconcile_unknown")
+        if state.get("status") == "reconcile_unknown":
+            return _pending(row, "reconcile_unknown")
 
     context = adapter.context(row["work_id"])
     if not isinstance(context, Mapping):
@@ -288,6 +290,18 @@ def _run_one(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[st
             return _run_one_locked(adapter, decide, state_root, row, mutation_started,
                                    occurrence_id, pre_effect_hint, run_marker)
         except Exception as error:
+            if mutation_started[0]:
+                try:
+                    current_state = _load(_state_path(state_root, row))
+                    intent = current_state.get("intent")
+                    if isinstance(intent, Mapping):
+                        _write_state(
+                            _state_path(state_root, row),
+                            {"version": 1, "observation": current_state.get("observation", row),
+                             "intent": intent, "status": "reconcile_unknown"}, occurrence_id,
+                        )
+                except (OSError, ValueError):
+                    pass
             error_detail = str(error).strip() or type(error).__name__
             return {"work_id": row["work_id"], "status": "failed",
                     "reason": type(error).__name__, "error_detail": error_detail,
