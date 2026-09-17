@@ -140,6 +140,111 @@ test("one wake reuses one owned page and ordinary failures do not cross provider
   );
 });
 
+test("provider discovery success keeps its provider in action history", async () => {
+  const state = fixture({
+    async discoverCandidates() { return []; },
+  });
+
+  await runMinimalConnectorWake({ ownerToken: "owner-token-provider-success", providers: ["connpass"] }, state.dependencies);
+
+  const discovery = state.calls.find(([name, action]) => name === "history"
+    && action.method === "provider_discovery");
+  assert.equal(discovery[1].provider, "connpass");
+});
+
+test("browser open success keeps the transport component in action history", async () => {
+  const state = fixture({ async discoverCandidates() { return []; } });
+
+  await runMinimalConnectorWake({ ownerToken: "owner-token-browser-open-success", providers: ["connpass"] }, state.dependencies);
+
+  const opened = state.calls.find(([name, action]) => name === "history" && action.method === "browser_open");
+  assert.equal(opened[1].provider, "browser");
+});
+
+test("browser open failure keeps a bounded transport reason in action history", async () => {
+  const state = fixture();
+  state.dependencies.browserRail.open = async () => {
+    const error = new Error("private CDP detail");
+    error.name = "TimeoutError";
+    throw error;
+  };
+
+  const result = await runMinimalConnectorWake({ ownerToken: "owner-token-browser-open-failure", providers: ["connpass"] }, state.dependencies);
+
+  assert.equal(result.safe_reason, "wake_boundary_failed");
+  const failed = state.calls.find(([name, action]) => name === "history" && action.method === "browser_open");
+  assert.deepEqual(failed[1], {
+    purpose: "observe",
+    method: "browser_open",
+    timestamp: "2026-08-07T02:00:00.000Z",
+    result: "failed",
+    duration_ms: 0,
+    provider: "browser",
+    safe_reason: "browser_open_failed",
+    error_class: "Error",
+  });
+});
+
+test("runner records the candidates it actually dispatches", async () => {
+  const audits = [];
+  const state = fixture({
+    async discoverCandidates() { return [candidate("connpass", "dispatch")]; },
+    async recordCandidateDispatchAudit(input) { audits.push(input); },
+  });
+
+  await runMinimalConnectorWake({ ownerToken: "owner-token-candidate-dispatch", providers: ["connpass"] }, state.dependencies);
+
+  assert.deepEqual(audits, [{
+    provider: "connpass",
+    candidate_count: 1,
+    selected_count: 1,
+    selected_candidate_refs: ["connpass-event://event/dispatch"],
+  }]);
+});
+
+test("runner dispatch audit stops at the candidate that ends the wake", async () => {
+  const audits = [];
+  let readbacks = 0;
+  const state = fixture({
+    async discoverCandidates() { return [candidate("luma", "first"), candidate("luma", "second")]; },
+    async runDirectAction() { return { status: "completed" }; },
+    async readProviderState() {
+      return readbacks++ === 0 ? { status: "absent" } : { status: "registered" };
+    },
+    async completeEvidence() {
+      return { status: "applied_bundle", bundle_id: "bundle-first", completion_disposition: "created" };
+    },
+    async recordCandidateDispatchAudit(input) { audits.push(input); },
+  });
+
+  const result = await runMinimalConnectorWake({ ownerToken: "owner-token-dispatch-stop", providers: ["luma"] }, state.dependencies);
+
+  assert.equal(result.status, "applied_bundle");
+  assert.deepEqual(audits, [{
+    provider: "luma",
+    candidate_count: 2,
+    selected_count: 1,
+    selected_candidate_refs: ["luma-event://event/first"],
+  }]);
+});
+
+test("runner dispatch audit records an empty batch as no dispatch", async () => {
+  const audits = [];
+  const state = fixture({
+    async discoverCandidates() { return []; },
+    async recordCandidateDispatchAudit(input) { audits.push(input); },
+  });
+
+  await runMinimalConnectorWake({ ownerToken: "owner-token-dispatch-empty", providers: ["connpass"] }, state.dependencies);
+
+  assert.deepEqual(audits, [{
+    provider: "connpass",
+    candidate_count: 0,
+    selected_count: 0,
+    selected_candidate_refs: [],
+  }]);
+});
+
 test("connpass candidates produce one action-boundary receipt and skip every provider action", async () => {
   let state = fixture({
     async discoverCandidates(provider) {
@@ -1766,17 +1871,18 @@ test("every recorded action contains only the safe audit fields", async () => {
   const history = state.calls.filter(([name]) => name === "history").map(([, row]) => row);
   assert.ok(history.length > 0);
   const baseKeys = ["duration_ms", "method", "purpose", "result", "timestamp"];
+  const successProviderKeys = ["duration_ms", "method", "provider", "purpose", "result", "timestamp"];
   const failureKeys = ["duration_ms", "method", "provider", "purpose", "result", "safe_reason", "timestamp"];
   const failureKeysWithClass = ["duration_ms", "error_class", "method", "provider", "purpose", "result", "safe_reason", "timestamp"];
   const failureKeysWithCandidate = ["candidate_ref", ...failureKeys];
   const failureKeysWithClassAndCandidate = ["candidate_ref", ...failureKeysWithClass];
   for (const row of history) {
-    const hasFailureContext = Object.hasOwn(row, "provider") || Object.hasOwn(row, "safe_reason") || Object.hasOwn(row, "error_class");
+    const hasFailureContext = Object.hasOwn(row, "safe_reason") || Object.hasOwn(row, "error_class") || Object.hasOwn(row, "candidate_ref");
     assert.deepEqual(Object.keys(row).sort(), hasFailureContext
       ? (Object.hasOwn(row, "error_class") && Object.hasOwn(row, "candidate_ref") ? failureKeysWithClassAndCandidate
         : Object.hasOwn(row, "error_class") ? failureKeysWithClass
         : Object.hasOwn(row, "candidate_ref") ? failureKeysWithCandidate : failureKeys)
-      : baseKeys);
+      : Object.hasOwn(row, "provider") ? successProviderKeys : baseKeys);
     assert.match(row.purpose, /^(navigate|observe|fill|submit|readback)$/);
     assert.match(row.method, /^[a-z][a-z0-9_]{1,63}$/);
     assert.match(row.result, /^(success|failed)$/);
@@ -1791,6 +1897,9 @@ test("every recorded action contains only the safe audit fields", async () => {
         assert.equal(row.provider, "connpass");
         assert.match(row.candidate_ref, /^connpass-event:\/\/event\/[1-9][0-9]*$/);
       }
+    } else if (Object.hasOwn(row, "provider")) {
+      assert.equal(row.result, "success");
+      assert.match(row.provider, /^[a-z][a-z0-9_-]{1,31}$/);
     }
     assert.equal(new Date(Date.parse(row.timestamp)).toISOString(), row.timestamp);
     assert.equal(Number.isInteger(row.duration_ms) && row.duration_ms >= 0, true);

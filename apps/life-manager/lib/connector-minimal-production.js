@@ -321,6 +321,7 @@ function createProductionProviderRouter(options = {}) {
   const rankCandidates = options.rankCandidates;
   const classifyTalkOpportunity = options.classifyTalkOpportunity;
   const buildTalkPack = options.buildTalkPack;
+  const onCandidateRankingAudit = options.onCandidateRankingAudit;
   const eventPreferences = rankCandidates == null ? null : requiredText(options.eventPreferences);
   const connpassAutomatedSubmitAllowed = options.connpassAutomatedSubmitAllowed === true;
   const now = options.now || (() => new Date());
@@ -416,13 +417,29 @@ function createProductionProviderRouter(options = {}) {
         }));
         const queuedRefs = new Set(queued.map((candidate) => candidate.event_ref));
         const candidates = Object.freeze([...queued, ...discoveredCandidates.filter((candidate) => !queuedRefs.has(candidate.event_ref))]);
+        const emitCandidateRankingAudit = async (rankedCount, eligibleCandidates) => {
+          if (typeof onCandidateRankingAudit !== "function" || rankCandidates == null) return;
+          await onCandidateRankingAudit(Object.freeze({
+            provider,
+            candidate_count: candidates.length,
+            ranked_count: rankedCount,
+            auto_apply_eligible_count: eligibleCandidates.length,
+            eligible_candidate_refs: Object.freeze(eligibleCandidates.map((candidate) => candidate.event_ref)),
+          }));
+        };
         if (rankCandidates == null) return candidates;
-        if (candidates.length === 0) return candidates;
+        if (candidates.length === 0) {
+          await emitCandidateRankingAudit(0, []);
+          return candidates;
+        }
         const reconcile = candidates.filter((candidate) => (
           candidate.rsvp_status === "registered" || candidate.registration_status === "registered"
         ));
         const pending = candidates.filter((candidate) => !reconcile.includes(candidate));
-        if (pending.length === 0) return candidates;
+        if (pending.length === 0) {
+          await emitCandidateRankingAudit(0, []);
+          return candidates;
+        }
         const rotation = Math.floor(exactNow(now()).getTime() / PROVIDER_RANK_ROTATION_MS);
         const rankingCandidates = boundedPendingCandidates(pending, rotation);
         const ranking = await rankCandidates({ candidates: rankingCandidates, preferences: eventPreferences });
@@ -435,6 +452,7 @@ function createProductionProviderRouter(options = {}) {
           preference_reason: ranked.preference_reason,
           auto_apply_eligible: ranked.auto_apply_eligible,
         })).sort((a, b) => candidateCoverageWeek(a, observed) - candidateCoverageWeek(b, observed));
+        await emitCandidateRankingAudit(rankingCandidates.length, eligible);
         if (classifyTalkOpportunity == null) return Object.freeze([...reconcile, ...eligible]);
         const enriched = new Array(eligible.length);
         let next = 0;
@@ -785,6 +803,7 @@ function createMinimalProductionDependencies(options = {}) {
     connpassAutomatedSubmitAllowed: options.connpassAutomatedSubmitAllowed === true,
     eventPreferences,
     rankCandidates,
+    onCandidateRankingAudit: operations.recordCandidateRankingAudit,
     classifyTalkOpportunity,
     buildTalkPack,
     now,
@@ -815,6 +834,7 @@ function createMinimalProductionDependencies(options = {}) {
       ? connpassActionTelegram.reportQuestionnaire : undefined,
     reportWake: operations.reportWake,
     recordAction: operations.recordAction,
+    recordCandidateDispatchAudit: operations.recordCandidateDispatchAudit,
   });
 }
 

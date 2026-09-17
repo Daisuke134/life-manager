@@ -146,6 +146,38 @@ test("recordAction persists provider and stage safe_reason for a failed discover
   }
 });
 
+test("recordAction persists a bounded provider on successful discovery", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-success-action-context-"));
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir,
+      wakeId: "wake-success-action-context",
+      telegramTarget: "private-target",
+      now: () => new Date("2026-08-16T14:03:56.454Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7002 } }; },
+    });
+    await operations.recordAction({
+      purpose: "observe",
+      method: "provider_discovery",
+      timestamp: "2026-08-16T14:03:56.454Z",
+      result: "success",
+      duration_ms: 100,
+      provider: "connpass",
+    });
+    const row = JSON.parse(fs.readFileSync(path.join(stateDir, "action-history.jsonl"), "utf8").trim());
+    assert.deepEqual(row, {
+      schema_version: 1,
+      wake_id: "wake-success-action-context",
+      purpose: "observe",
+      method: "provider_discovery",
+      timestamp: "2026-08-16T14:03:56.454Z",
+      result: "success",
+      duration_ms: 100,
+      provider: "connpass",
+    });
+  } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
+});
+
 test("recordAction keeps only a bounded Connpass candidate identity on a failed fallback", async () => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-candidate-action-"));
   try {
@@ -549,6 +581,85 @@ test("operations persist only bounded ranking timing aggregates", async () => {
       { ...input, retry_count: 32 },
       { ...input, max_request_ms: input.total_request_ms + 1 },
     ]) await assert.rejects(() => operations.recordRankingAudit(malformed));
+  } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
+});
+
+test("operations persist bounded candidate ranking counts and refs", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-selection-audit-"));
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir, wakeId: "wake-selection-audit", telegramTarget: "private-target",
+      now: () => new Date("2026-08-27T05:00:00.000Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    });
+    await operations.recordCandidateRankingAudit({
+      provider: "connpass",
+      candidate_count: 12,
+      ranked_count: 12,
+      auto_apply_eligible_count: 2,
+      eligible_candidate_refs: [
+        "connpass-event://event/401001",
+        "connpass-event://event/401002",
+      ],
+    });
+    const file = path.join(stateDir, "candidate-ranking-audits.jsonl");
+    const row = JSON.parse(fs.readFileSync(file, "utf8").trim());
+    assert.deepEqual(row, {
+      schema_version: 1,
+      wake_id: "wake-selection-audit",
+      provider: "connpass",
+      candidate_count: 12,
+      ranked_count: 12,
+      auto_apply_eligible_count: 2,
+      eligible_candidate_refs: [
+        "connpass-event://event/401001",
+        "connpass-event://event/401002",
+      ],
+      recorded_at: "2026-08-27T05:00:00.000Z",
+    });
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+    await assert.rejects(() => operations.recordCandidateRankingAudit({
+      provider: "meetup", candidate_count: 1, ranked_count: 1,
+      auto_apply_eligible_count: 1, eligible_candidate_refs: ["https://example.test/private"],
+    }));
+  } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
+});
+
+test("operations persist bounded candidate dispatch counts and refs", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-dispatch-audit-"));
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir, wakeId: "wake-dispatch-audit", telegramTarget: "private-target",
+      now: () => new Date("2026-08-27T05:00:00.000Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    });
+    await operations.recordCandidateDispatchAudit({
+      provider: "connpass",
+      candidate_count: 4,
+      selected_count: 2,
+      selected_candidate_refs: [
+        "connpass-event://event/401001",
+        "connpass-event://event/401002",
+      ],
+    });
+    const file = path.join(stateDir, "candidate-dispatch-audits.jsonl");
+    const row = JSON.parse(fs.readFileSync(file, "utf8").trim());
+    assert.deepEqual(row, {
+      schema_version: 1,
+      wake_id: "wake-dispatch-audit",
+      provider: "connpass",
+      candidate_count: 4,
+      selected_count: 2,
+      selected_candidate_refs: [
+        "connpass-event://event/401001",
+        "connpass-event://event/401002",
+      ],
+      recorded_at: "2026-08-27T05:00:00.000Z",
+    });
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+    await assert.rejects(() => operations.recordCandidateDispatchAudit({
+      provider: "connpass", candidate_count: 1, selected_count: 2, selected_candidate_refs: [],
+    }));
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });
 

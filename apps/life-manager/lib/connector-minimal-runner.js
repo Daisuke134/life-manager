@@ -40,6 +40,7 @@ function dependencies(input) {
     || (input.completeTalkEvidence != null && typeof input.completeTalkEvidence !== "function")) invalid();
   if (input.reportConnpassActionBoundary != null && typeof input.reportConnpassActionBoundary !== "function") invalid();
   if (input.reportConnpassQuestionnaire != null && typeof input.reportConnpassQuestionnaire !== "function") invalid();
+  if (input.recordCandidateDispatchAudit != null && typeof input.recordCandidateDispatchAudit !== "function") invalid();
   if (
     !input.browserRail || typeof input.browserRail !== "object"
     || typeof input.browserRail.open !== "function"
@@ -217,7 +218,7 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
   const elapsed = () => Date.parse(exactInstant(deps.now())) - startedAt;
   const deadlineReached = () => elapsed() >= settings.maxWakeMs;
 
-  async function action(purpose, method, task, onFailure, onResolvedFailure) {
+  async function action(purpose, method, task, onFailure, onResolvedFailure, successContext) {
     if (!PURPOSE.test(purpose) || !METHOD.test(method)) invalid();
     const timestamp = exactInstant(deps.now());
     const actionStartedAt = Date.parse(timestamp);
@@ -235,6 +236,7 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         timestamp,
         result: hasFailureContext ? "failed" : "success",
         duration_ms: Math.max(0, Date.parse(exactInstant(deps.now())) - actionStartedAt),
+        ...(hasFailureContext ? {} : (successContext || {})),
         ...(hasFailureContext ? resolvedFailure : {}),
       }));
       return value;
@@ -284,7 +286,21 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
     const gaps = await action("observe", "calendar_busy", () => deps.readCalendarGaps());
     if (!Array.isArray(gaps)) invalid();
     if (deadlineReached()) return finish("circuit_open", "wake_deadline");
-    owned = verifiedOwned(await deps.browserRail.open(Object.freeze({ ownerToken: settings.ownerToken })));
+    owned = await action(
+      "observe",
+      "browser_open",
+      async () => verifiedOwned(await deps.browserRail.open(Object.freeze({ ownerToken: settings.ownerToken }))),
+      (error) => {
+        const errorClass = safeErrorClass(error);
+        return Object.freeze({
+          provider: "browser",
+          safe_reason: "browser_open_failed",
+          ...(errorClass ? { error_class: errorClass } : {}),
+        });
+      },
+      null,
+      { provider: "browser" },
+    );
     if (deadlineReached()) return finish("circuit_open", "wake_deadline");
 
     for (let providerIndex = 0; providerIndex < settings.providers.length; providerIndex += 1) {
@@ -311,6 +327,8 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
               ...(errorClass ? { error_class: errorClass } : {}),
             });
           },
+          null,
+          { provider },
         );
         try { candidates = verifiedCandidates(discovered, provider); }
         catch {
@@ -357,12 +375,22 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         ? [...reconciliationCandidates,
           ...pendingCandidates.slice(connpassBatchStart, connpassBatchStart + CONNPASS_CANDIDATES_PER_WAKE)]
         : candidates;
-      for (const selected of candidateBatch) {
-        if (selected.auto_apply_eligible === false) continue;
+      const dispatchCandidates = candidateBatch.filter((selected) => selected.auto_apply_eligible !== false);
+      let dispatchAuditCount = 0;
+      for (const selected of dispatchCandidates) {
         const hasTalk = typeof deps.runTalkApplication === "function"
           && selected.talk_opportunity && selected.talk_opportunity.should_create_talk_application === true
           && selected.talk_pack && typeof selected.talk_pack === "object";
         if (deadlineReached()) return finish("circuit_open", "wake_deadline");
+        if (typeof deps.recordCandidateDispatchAudit === "function") {
+          await deps.recordCandidateDispatchAudit({
+            provider,
+            candidate_count: candidateBatch.length,
+            selected_count: 1,
+            selected_candidate_refs: [selected.event_ref],
+          });
+        }
+        dispatchAuditCount += 1;
         let navigationTaskThrew = false;
         let navigationTaskError;
         try {
@@ -626,6 +654,14 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         if (consecutiveFailures >= settings.maxConsecutiveFailures) {
           return finish("circuit_open", lastSafeReason);
         }
+      }
+      if (dispatchAuditCount === 0 && typeof deps.recordCandidateDispatchAudit === "function") {
+        await deps.recordCandidateDispatchAudit({
+          provider,
+          candidate_count: candidateBatch.length,
+          selected_count: 0,
+          selected_candidate_refs: [],
+        });
       }
       consecutiveFailures = 0;
     }

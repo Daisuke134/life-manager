@@ -9,6 +9,8 @@ const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9:._-]{2,159}$/;
 const SAFE_REASON = /^[a-z0-9][a-z0-9_:-]{1,99}$/;
 const SAFE_METHOD = /^[a-z][a-z0-9_]{1,63}$/;
 const SAFE_PROVIDER = /^[a-z][a-z0-9_-]{1,31}$/;
+const PRIMARY_PROVIDERS = new Set(["luma", "connpass"]);
+const SAFE_CANDIDATE_REF = /^[A-Za-z][A-Za-z0-9._:/?&=%#@+~-]{2,239}$/;
 // Bounded, non-sensitive: a JS class/constructor name only (see
 // connector-minimal-runner.js's safeErrorClass), never a message, stack,
 // URL, or env value.
@@ -16,6 +18,7 @@ const ERROR_CLASS = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
 const PURPOSE = /^(?:navigate|observe|fill|submit|readback)$/;
 const RESULT = /^(?:success|failed)$/;
 const ACTION_KEYS = "duration_ms,method,purpose,result,timestamp";
+const ACTION_SUCCESS_PROVIDER_KEYS = "duration_ms,method,provider,purpose,result,timestamp";
 const ACTION_FAILURE_CONTEXT_KEYS = "duration_ms,method,provider,purpose,result,safe_reason,timestamp";
 const ACTION_FAILURE_CONTEXT_WITH_CLASS_KEYS = "duration_ms,error_class,method,provider,purpose,result,safe_reason,timestamp";
 const ACTION_CANDIDATE_FAILURE_KEYS = "candidate_ref,duration_ms,method,provider,purpose,result,safe_reason,timestamp";
@@ -92,9 +95,10 @@ function safeAction(input) {
   const keys = Object.keys(input).sort().join(",");
   const hasErrorClass = keys === ACTION_FAILURE_CONTEXT_WITH_CLASS_KEYS;
   const hasCandidateRef = keys === ACTION_CANDIDATE_FAILURE_KEYS;
+  const hasSuccessProvider = keys === ACTION_SUCCESS_PROVIDER_KEYS;
   const hasFailureContext = keys === ACTION_FAILURE_CONTEXT_KEYS || hasErrorClass || hasCandidateRef;
   if (
-    (keys !== ACTION_KEYS && !hasFailureContext)
+    (keys !== ACTION_KEYS && !hasFailureContext && !hasSuccessProvider)
     || !PURPOSE.test(String(input.purpose || ""))
     || !SAFE_METHOD.test(String(input.method || ""))
     || !RESULT.test(String(input.result || ""))
@@ -103,6 +107,9 @@ function safeAction(input) {
       input.result !== "failed"
       || !SAFE_PROVIDER.test(String(input.provider || ""))
       || !SAFE_REASON.test(String(input.safe_reason || ""))
+    ))
+    || (hasSuccessProvider && (
+      input.result !== "success" || !SAFE_PROVIDER.test(String(input.provider || ""))
     ))
     || (hasErrorClass && !ERROR_CLASS.test(String(input.error_class || "")))
     || (hasCandidateRef && (input.purpose !== "submit" || input.provider !== "connpass"
@@ -114,6 +121,7 @@ function safeAction(input) {
     timestamp: exactInstant(input.timestamp),
     result: input.result,
     duration_ms: input.duration_ms,
+    ...(hasSuccessProvider ? { provider: input.provider } : {}),
     ...(hasFailureContext ? { provider: input.provider, safe_reason: input.safe_reason } : {}),
     ...(hasErrorClass ? { error_class: input.error_class } : {}),
     ...(hasCandidateRef ? { candidate_ref: input.candidate_ref } : {}),
@@ -241,6 +249,37 @@ function safeRankingAudit(input, wakeId, recordedAt) {
   return Object.freeze({ ...input, wake_id: wakeId, recorded_at: recordedAt });
 }
 
+function safeCandidateRankingAudit(input, wakeId, recordedAt) {
+  const keys = [
+    "auto_apply_eligible_count", "candidate_count", "eligible_candidate_refs", "provider", "ranked_count",
+  ];
+  if (
+    !input || typeof input !== "object" || Array.isArray(input)
+    || Object.keys(input).sort().join(",") !== keys.join(",")
+    || !PRIMARY_PROVIDERS.has(String(input.provider || ""))
+    || !Number.isInteger(input.candidate_count) || input.candidate_count < 0
+    || input.candidate_count > DISCOVERY_AUDIT_COUNT_CEILING
+    || !Number.isInteger(input.ranked_count) || input.ranked_count < 0
+    || input.ranked_count > input.candidate_count
+    || !Number.isInteger(input.auto_apply_eligible_count) || input.auto_apply_eligible_count < 0
+    || input.auto_apply_eligible_count > input.ranked_count
+    || !Array.isArray(input.eligible_candidate_refs)
+    || input.eligible_candidate_refs.length !== input.auto_apply_eligible_count
+    || input.eligible_candidate_refs.length > 12
+    || input.eligible_candidate_refs.some((value) => !SAFE_CANDIDATE_REF.test(String(value || "")))
+  ) invalid();
+  return Object.freeze({
+    schema_version: 1,
+    wake_id: wakeId,
+    provider: input.provider,
+    candidate_count: input.candidate_count,
+    ranked_count: input.ranked_count,
+    auto_apply_eligible_count: input.auto_apply_eligible_count,
+    eligible_candidate_refs: Object.freeze([...input.eligible_candidate_refs]),
+    recorded_at: recordedAt,
+  });
+}
+
 function safeDoorkeeperDiscoveryAudit(input, wakeId, recordedAt) {
   const keys = [
     "calendar_free_count", "discovered_count", "eligible_count", "selected_count", "within_window_count",
@@ -318,6 +357,8 @@ function createMinimalProductionOperations(options = {}) {
   const discoveryAuditFile = path.join(stateDir, "luma-discovery-audits.jsonl");
   const connpassDiscoveryAuditFile = path.join(stateDir, "connpass-discovery-audits.jsonl");
   const rankingAuditFile = path.join(stateDir, "ranking-audits.jsonl");
+  const candidateRankingAuditFile = path.join(stateDir, "candidate-ranking-audits.jsonl");
+  const candidateDispatchAuditFile = path.join(stateDir, "candidate-dispatch-audits.jsonl");
   const peatixDiscoveryAuditFile = path.join(stateDir, "peatix-discovery-audits.jsonl");
   const meetupDiscoveryAuditFile = path.join(stateDir, "meetup-discovery-audits.jsonl");
   const doorkeeperDiscoveryAuditFile = path.join(stateDir, "doorkeeper-discovery-audits.jsonl");
@@ -340,6 +381,33 @@ function createMinimalProductionOperations(options = {}) {
 
   async function recordRankingAudit(input) {
     append(rankingAuditFile, safeRankingAudit(input, wakeId, exactInstant(now())));
+  }
+
+  async function recordCandidateRankingAudit(input) {
+    append(candidateRankingAuditFile, safeCandidateRankingAudit(input, wakeId, exactInstant(now())));
+  }
+
+  async function recordCandidateDispatchAudit(input) {
+    if (!input || typeof input !== "object" || Array.isArray(input)
+      || Object.keys(input).sort().join(",") !== "candidate_count,provider,selected_candidate_refs,selected_count"
+      || !SAFE_PROVIDER.test(String(input.provider || ""))
+      || !Number.isInteger(input.candidate_count) || input.candidate_count < 0
+      || input.candidate_count > DISCOVERY_AUDIT_COUNT_CEILING
+      || !Number.isInteger(input.selected_count) || input.selected_count < 0
+      || input.selected_count > input.candidate_count
+      || !Array.isArray(input.selected_candidate_refs)
+      || input.selected_candidate_refs.length > input.selected_count
+      || input.selected_candidate_refs.length > 12
+      || input.selected_candidate_refs.some((value) => !SAFE_CANDIDATE_REF.test(String(value || "")))) invalid();
+    append(candidateDispatchAuditFile, Object.freeze({
+      schema_version: 1,
+      wake_id: wakeId,
+      provider: input.provider,
+      candidate_count: input.candidate_count,
+      selected_count: input.selected_count,
+      selected_candidate_refs: Object.freeze([...input.selected_candidate_refs]),
+      recorded_at: exactInstant(now()),
+    }));
   }
 
   async function recordPeatixDiscoveryAudit(input) {
@@ -439,7 +507,7 @@ function createMinimalProductionOperations(options = {}) {
   }
 
   return Object.freeze({
-    recordAction, recordDiscoveryAudit, recordConnpassDiscoveryAudit, recordRankingAudit, recordPeatixDiscoveryAudit,
+    recordAction, recordDiscoveryAudit, recordConnpassDiscoveryAudit, recordRankingAudit, recordCandidateRankingAudit, recordCandidateDispatchAudit, recordPeatixDiscoveryAudit,
     recordMeetupDiscoveryAudit, recordDoorkeeperDiscoveryAudit, recordEventbriteDiscoveryAudit, reportWake,
     recordTechPlayDiscoveryAudit, recordKokuchProDiscoveryAudit,
   });
