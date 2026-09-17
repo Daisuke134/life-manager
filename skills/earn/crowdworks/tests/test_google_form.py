@@ -68,3 +68,16 @@ def test_non_google_redirect_fails_closed_with_sanitized_host(tmp_path):
                            url="https://forms.gle/short",
                            url_sha256=__import__("hashlib").sha256(b"https://forms.gle/short").hexdigest(),
                            answer_fields=lambda page: [])
+
+
+def test_pre_effect_receipt_absence_is_true_only_before_prepared_index(tmp_path):
+    module = load()
+    binding = {
+        "provider": "crowdworks", "account_id": "7145638",
+        "contract_id": "63659463", "milestone_id": "13820867",
+        "form_revision_sha256": "a" * 64,
+    }
+    assert module.pre_effect_receipt_absent(tmp_path, binding) is True
+    index = module._bound_index_path(tmp_path, binding)
+    module.write_json(index, {"version": 1, "status": "prepared", "receipt_key": "x"})
+    assert module.pre_effect_receipt_absent(tmp_path, binding) is False

@@ -76,6 +76,34 @@ def test_verified_effect_replays_with_zero_mutations(tmp_path: Path) -> None:
     assert len(adapter.effects) == 1
 
 
+def test_single_worker_pre_effect_hint_clears_before_first_mutation(
+        monkeypatch, tmp_path: Path) -> None:
+    hint = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+    created = paid._prepare_pre_effect_hint(1)
+    assert created == hint
+    assert json.loads(hint.read_text()) == {"status": "pre_effect_failure", "effect": 0}
+    paid._clear_pre_effect_hint(created)
+    assert not hint.exists()
+
+
+def test_run_marker_persists_pre_effect_status(tmp_path: Path) -> None:
+    marker = paid._prepare_run_marker(tmp_path, "fixture-paid:run-marker")
+    assert marker is not None
+    assert json.loads(marker.read_text()) == {
+        "version": 1, "occurrence_id": "fixture-paid:run-marker",
+        "status": "pre_effect",
+    }
+
+
+def test_state_records_the_runtime_occurrence_id(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-paid:run-1")
+    adapter = Adapter([observation("work-1")])
+    assert paid.run_wake(adapter=adapter, decide=submit, state_root=tmp_path)["effect"] == 1
+    state = json.loads(next(tmp_path.glob("items/*/state.json")).read_text())
+    assert state["occurrence_id"] == "fixture-paid:run-1"
+
+
 def test_new_buyer_event_invalidates_verified_receipt_before_decision(tmp_path: Path) -> None:
     adapter = Adapter([observation("work-1")])
     assert paid.run_wake(adapter=adapter, decide=submit, state_root=tmp_path)["effect"] == 1

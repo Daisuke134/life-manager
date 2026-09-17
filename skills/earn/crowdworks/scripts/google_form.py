@@ -69,6 +69,16 @@ def bound_receipt(state_root: Path, binding: Mapping[str, Any]) -> Mapping[str, 
     return receipt
 
 
+def pre_effect_receipt_absent(state_root: Path, binding: Mapping[str, Any]) -> bool:
+    """Prove a bound Google Form POST never reached its durable dispatch fence.
+
+    ``submit_once`` writes this immutable binding index before the HTTP POST. A
+    missing index therefore proves the POST was not started; any index, including
+    a prepared-but-unconfirmed one, remains uncertain.
+    """
+    return not _bound_index_path(state_root, binding).exists()
+
+
 def submit_once(*, context: Any, state_root: Path, url: str, url_sha256: str,
                 answer_fields: Callable[[Any], list[tuple[str, str]]],
                 binding: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
