@@ -75,6 +75,10 @@ read_auth_status() {
   AUTH_STATUS=$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("status", ""))' \
     "$AUTH_READBACK_JSON" 2>/dev/null) || AUTH_STATUS=""
 }
+read_profile_readback_status() {
+  /usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("firebase_profile_readback_verified", ""))' \
+    "$AUTH_READBACK_JSON" 2>/dev/null || true
+}
 run_auth_readback() {
   PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
     -m job_search_loop.mercor_auth_readback \
@@ -95,6 +99,11 @@ commit_auth_writeback() {
     --token "$LEASE_TOKEN" --generation "$LEASE_GENERATION" >"$WRITEBACK_JSON"
 }
 run_auth_readback || true
+if [[ "$AUTH_STATUS" == "indeterminate" && "$(read_profile_readback_status)" == "False" ]]; then
+  print -u2 "mercor application owner: profile authentication readback failed; retry on next wake"
+  pre_effect_failure
+  exit 75
+fi
 if [[ "$AUTH_STATUS" == "indeterminate" ]]; then
   sleep 1
   run_auth_readback || true
