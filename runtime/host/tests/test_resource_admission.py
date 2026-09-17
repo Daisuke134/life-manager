@@ -1109,6 +1109,28 @@ def test_dead_v2_claim_db_is_committed_before_owner_file_is_removed(
     assert state == ("claimed", 1)
 
 
+def test_old_release_removed_claim_file_parks_uncertain_occurrence(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable(
+        "agent", "connector", admission_class="revenue",
+        occurrence_id="connector:old", now=100)
+    claim, reason = admission.claim_durable(
+        "agent", "connector", admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    row = json.loads(claim.read_text())
+    admission.atomic_json(claim, {**row, "phase": "running"})
+    claim.unlink()  # An older loaded sweeper did not understand v2 occurrence state.
+
+    ticket, reason = admission.enqueue_durable(
+        "agent", "connector", admission_class="revenue",
+        occurrence_id="connector:new", now=200)
+    assert ticket is None and reason == "effect_unknown"
+    old = next(row for row in durable_rows(tmp_path, "occurrences")
+               if row["occurrence_id"] == "connector:old")
+    assert (old["state"], old["effect_unknown"]) == ("claimed", 1)
+
+
 def test_released_occurrence_does_not_revive_from_lingering_claim_file(
         tmp_path, monkeypatch):
     """DB completion must survive a crash before its owner file is unlinked."""

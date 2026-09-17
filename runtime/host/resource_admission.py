@@ -648,10 +648,13 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                       now: float, starts: dict[int, str | None],
                       snapshot_started_ns: int) -> tuple[bool, list[dict[str, object]]]:
     live = []
+    live_occurrences = set()
     for path in owners.glob("*.json"):
         row = _row(path) or {}
         if _live(path, starts, snapshot_started_ns):
             live.append(row)
+            if isinstance(row.get("occurrence_id"), str):
+                live_occurrences.add(row["occurrence_id"])
         else:
             if (row.get("version") == 2 and row.get("phase", "claimed") in {"claimed", "running"}
                     and isinstance(row.get("sequence"), int)
@@ -714,6 +717,12 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                 # no recovery handle. The control lock remains held.
                 connection.commit()
             path.unlink(missing_ok=True)
+    for (occurrence_id,) in connection.execute(
+            "SELECT occurrence_id FROM occurrences WHERE state='claimed' AND effect_unknown=0"):
+        if occurrence_id not in live_occurrences:
+            connection.execute(
+                "UPDATE occurrences SET effect_unknown=1 WHERE occurrence_id=?",
+                (occurrence_id,))
     connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (now,))
     reserved = [dict(zip(("owner_id", "resource_class", "sequence", "lease_until",
                           "admission_class", "admission_policy"), row))
@@ -767,6 +776,13 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                 connection, owners, resource_class, admission_class,
                 instant,
                 starts, snapshot_started_ns)
+            if (connection.execute(
+                    "SELECT 1 FROM occurrences WHERE owner_id=? AND effect_unknown=1 LIMIT 1",
+                    (owner_id,)).fetchone()
+                    or connection.execute(
+                        "SELECT 1 FROM priorities WHERE owner_id=? AND effect_unknown=1",
+                        (owner_id,)).fetchone()):
+                return None, "effect_unknown"
             if occurrence_name is not None:
                 existing_occurrence = connection.execute(
                     """SELECT owner_id,resource_class,admission_class,base_priority,
