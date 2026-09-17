@@ -56,7 +56,7 @@ Readback sources: Capafy Seller Console [Sales](https://capafy.ai/developer/sale
 
 **提出cadenceの確認:** 現行`capafy-loop-daily`は3600秒ごとに起動し、allocatorは1 passにつき最大1 action。5枠が全て`under_review`ならplatform write 0で正しい。Daisはこの直列方式を維持する方針なので、追加の5分drainerや第6 Agent、別schedulerを作らない。空きが出た次の適格hourly wakeでretry/readyを1件処理し、同じAgent/version/statusのofficial readback後に次回へ進む。
 
-**Money CLIの境界:** 新しいCLI基盤ではなく既存`capafy-loop-cli.sh --money [--json]`を追加する。出力は期間付きのgross sales、creator earnings、total/free-trial/non-trial unit sales、30日subscription cash earnings、payout、Agent別request/tokens/推定model cost、実際のOpenRouter key usage、`active_mrr=null`と`missing_seller_active_subscription_source`を分離する。Seller Consoleのoverview/salesTrends/analytics/salesVolumeとbuyer自身のsubscription list・seller aggregate CSVではactive契約状態を返さない。seller active契約を得るprovider API/webhookが無い限り、観測された30日課金をMRRとして表示しない。Capafyへ必要なsourceとして`subscription_id, agent_id, status, cycle, net_cycle_amount, next_billing_at, cancellation_at`を要求する準備をし、提供前に数値を捏造しない。
+**Money CLIの境界:** 新しいCLI基盤ではなく既存`capafy-loop-cli.sh --money [--json]`を使う。Daisが優先する月間売上に合わせ、UTC暦月の月初から現在までのgross sales、creator earnings、total/free-trial/non-trial unit sales、subscription cash earnings、payout、Agent別request/tokens/推定model cost、実際のOpenRouter key usage、`active_mrr=null`と`missing_seller_active_subscription_source`を分離する。Seller Consoleのoverview/salesTrends/analytics/salesVolumeとbuyer自身のsubscription list・seller aggregate CSVではactive契約状態を返さない。seller active契約を得るprovider API/webhookが無い限り、観測された月内課金をMRRとして表示しない。Capafyへ必要なsourceとして`subscription_id, agent_id, status, cycle, net_cycle_amount, next_billing_at, cancellation_at`を要求する準備をし、提供前に数値を捏造しない。
 
 #### As-Is: 載っていても供給・集客・監視が停滞する
 
@@ -97,6 +97,8 @@ flowchart LR
 **順序理由:** 当初は`R0-C1 model → R0-C2 runtime → R0-C3 money`だった。money ownerの旧seller APIと欠損ファイル、Agent別使用量APIで観測した赤字候補を踏まえて、収益の可視化とhourly receipt回復を先行する。現在cursorと最新順序は下の実行順更新を参照する。提出cadenceと1 pass最大1 effectは維持し、platform review 5枠をローカルで撤廃せず、進行中の外部effectを再送しない。
 
 **R0-C3a実測:** read-only CLIは直近30日（2026-08-19〜09-17、UTC）でgross `$71.89`、creator earnings `$51.76`、unit `85`（trial `66`、non-trial `19`）、使用 `161` request（zero-token `70`、ID重複0）、現行単価の推定model cost `$22.90`を返した。OpenRouter host keyの`$24.17`は9月暦月の実請求で、期間の違う推定値から差し引いて利益とは呼ばない。active MRRはseller契約状態sourceが無く`null`。CLIと単体テストのPASSは本番hourly receiptの自然wake・購入者Test Runを証明しない。
+
+**月間売上の表示:** Daisの明示優先を受け、CLI期間をUTC月初〜現在へ変更する。現行Seller Console APIの2026-09-01〜09-17実測はgross `$71.89`、creator earnings `$51.76`、unit `75`（trial `57`、non-trial `18`）。上の直近30日スナップショットは変更前の履歴であり、現在のCLI表示値ではない。OpenRouter key暦月実請求はhost全用途を含み、Capafy購入者のmodel費用と同一視しない。
 
 **実行順の更新:** 旧順序は`R0-C3a → R0-C1 → R0-C2 → R0-C3b`。現行のhourly company receiptは存在しないmarketing terminalを必須読込して停止する一方、既存native IG ledgerには直近Reelの記録がある。毎時money観測を先に回復するため、新順序を`R0-C3a → R0-C3b → R0-C1 → R0-C2`とし、現在cursorは`R0-C3b`。C3aのbranch上でterminal欠損を`unknown`またはnative ledger observationとして扱う小修正を追加した。Git main統合・immutable release・自然wakeは未完。
 

@@ -209,6 +209,8 @@ def test_money_mode_is_read_only_and_keeps_subscription_mrr_unknown(
     assert rc == 0
     assert not output.exists()
     assert shown["gross_sales_usd"] == "9.99"
+    assert shown["window_start"] == "2026-09-01"
+    assert shown["window_kind"] == "calendar_month_to_date_utc"
     assert shown["creator_earnings_usd"] == "8.00"
     assert shown["free_trial_units"] == 1
     assert shown["observed_subscription_earnings_usd"] == "8.00"
@@ -238,6 +240,23 @@ def test_live_seller_reads_use_current_clickhouse_endpoints(monkeypatch: pytest.
         "/app/unit-sales/clickhouse/trend",
     }
     assert all(body.get("sinceLaunch") is True for _, body in calls)
+
+
+def test_monthly_money_reads_use_calendar_month_start(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_module()
+    observed = module.dt.datetime(2026, 9, 17, tzinfo=module.dt.timezone.utc)
+    calls = []
+    monkeypatch.setattr(module, "_token", lambda _root: "seller-token")
+    monkeypatch.setattr(module, "_web_token", lambda: "web-token")
+    monkeypatch.setattr(module, "_get", lambda path, _token: {"code": 0, "data": {}})
+    monkeypatch.setattr(module, "_post", lambda path, _token, body: calls.append(body) or {"code": 0, "data": {}})
+    monkeypatch.setattr(module, "_usage_requests", lambda *_args: {"rows": []})
+    monkeypatch.setattr(module, "_openrouter_data", lambda *_args: {})
+
+    module._live_payloads(Path("/tmp"), observed, seller_start_date=observed.date().replace(day=1))
+
+    assert all(body.get("startDate") == "2026-09-01" for body in calls)
+    assert all(body.get("endDate") == "2026-09-17" for body in calls)
 
 
 def test_usage_requests_follow_cursor_without_duplicate_count(monkeypatch: pytest.MonkeyPatch) -> None:
