@@ -51,6 +51,9 @@ def proof_for(value: dict) -> dict:
             "account_id": value["account_id"],
             "integration_ref": value["integration_ref"],
             "content": {
+                "caption_sha256": value["caption_sha256"],
+            },
+            "local_content": {
                 key: value[key]
                 for key in ("video_sha256", "caption_sha256", "media_sha256", "pack_sha256", "media_order_sha256")
                 if key in value
@@ -63,6 +66,20 @@ def test_exact_provider_proof_is_ready_without_mutating_the_ledger():
     value = identity()
     result = MODULE.evaluate_proof(value, proof_for(value))
     assert result == {"status": "ready", "owner_id": value["loop_id"], "occurrence_id": value["occurrence_id"]}
+
+
+def test_provider_and_local_content_evidence_are_checked_separately():
+    value = identity()
+    proof = proof_for(value)
+    proof["provider_readback"]["content"] = {
+        "caption_sha256": value["caption_sha256"],
+    }
+    proof["provider_readback"]["local_content"] = {
+        "video_sha256": value["video_sha256"],
+        "caption_sha256": value["caption_sha256"],
+    }
+
+    assert MODULE.evaluate_proof(value, proof)["status"] == "ready"
 
 
 def test_read_identity_accepts_one_private_sidecar(tmp_path):
@@ -158,5 +175,5 @@ def test_carousel_proof_requires_the_exact_ordered_media_hashes():
     })
     proof = proof_for(value)
     assert MODULE.evaluate_proof(value, proof)["status"] == "ready"
-    proof["provider_readback"]["content"].pop("media_sha256")
+    proof["provider_readback"]["local_content"].pop("media_sha256")
     assert MODULE.evaluate_proof(value, proof)["status"] == "inconclusive"

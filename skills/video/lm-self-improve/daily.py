@@ -84,6 +84,25 @@ def select_latest_pair(rows: list[dict]) -> list[dict]:
     raise SelfImproveError("no exact Instagram/TikTok distribution pair")
 
 
+def select_latest_contract(rows: list[dict], platforms: tuple[str, ...]) -> list[dict]:
+    """Select the newest exact distribution contract for the requested scope."""
+    if platforms == ("instagram", "tiktok"):
+        return select_latest_pair(rows)
+    if platforms != ("tiktok",):
+        raise SelfImproveError("unsupported distribution scope")
+    for row in reversed(rows):
+        if (
+            row.get("platform") == "tiktok"
+            and row.get("status") == "published"
+            and isinstance(row.get("creative_id"), str)
+            and isinstance(row.get("video_sha256"), str)
+            and isinstance(row.get("caption_sha256"), str)
+            and _valid_url("tiktok", row.get("public_url"))
+        ):
+            return [row]
+    raise SelfImproveError("no exact TikTok distribution contract")
+
+
 def _metric(platform: str, url: str, value: Mapping) -> dict:
     views = value.get("views")
     if isinstance(views, bool) or not isinstance(views, int) or views < 0:
@@ -121,6 +140,31 @@ def _next_creative(bank: list[dict], creative_id: str) -> dict:
     return bank[(indexes[0] + 1) % len(bank)]
 
 
+def unavailable_metric_result(
+    *, date: str, distribution_rows: list[dict], bank_path: Path,
+    platforms: tuple[str, ...], reason: str,
+) -> dict:
+    """Return an explicit pending measurement without claiming growth."""
+    Date.fromisoformat(date)
+    contract = select_latest_contract(distribution_rows, platforms)
+    bank = _bank(bank_path)
+    next_row = _next_creative(bank, contract[0]["creative_id"])
+    return {
+        "date": date,
+        "status": "unavailable",
+        "day_index": 0,
+        "streak_dates": [],
+        "metric_complete": False,
+        "creative_id": contract[0]["creative_id"],
+        "video_sha256": contract[0]["video_sha256"],
+        "caption_sha256": contract[0]["caption_sha256"],
+        "platforms": [],
+        "unavailable_metrics": ["views", "likes", "comments", "clicks", "completion_rate", "signups", "watch_time"],
+        "next_creative_id": next_row["id"],
+        "next_change_reason": f"{reason}; no growth claim; keep the published contract and retry readback later",
+    }
+
+
 def _consecutive_dates(rows: list[dict], current: str) -> list[str]:
     current_date = Date.fromisoformat(current)
     prior = {row.get("date") for row in rows if row.get("metric_complete") is True}
@@ -139,6 +183,7 @@ def record_day(
     metrics: Mapping[str, Mapping],
     bank_path: Path,
     ledger_path: Path,
+    platforms: tuple[str, ...] = ("instagram", "tiktok"),
 ) -> dict:
     Date.fromisoformat(date)
     existing = _read_jsonl(ledger_path)
@@ -146,7 +191,7 @@ def record_day(
     if same_day:
         return same_day[-1]
 
-    pair = select_latest_pair(distribution_rows)
+    pair = select_latest_contract(distribution_rows, platforms)
     contract = pair[0]
     if any(
         row.get(field) != contract.get(field)
@@ -157,7 +202,7 @@ def record_day(
     by_platform = {row["platform"]: row for row in pair}
     platform_metrics = [
         _metric(platform, by_platform[platform]["public_url"], metrics.get(platform, {}))
-        for platform in ("instagram", "tiktok")
+        for platform in platforms
     ]
 
     bank = _bank(bank_path)
@@ -259,24 +304,35 @@ def main() -> int:
         default=here.parent / "daily-lm-video" / "creative-bank.jsonl",
     )
     parser.add_argument("--instagram-handle", default="anicca.affirms2")
+    parser.add_argument("--platform", choices=("tiktok", "both"), default="tiktok")
     args = parser.parse_args()
 
     distribution_rows = _read_jsonl(args.distribution_ledger)
-    pair = select_latest_pair(distribution_rows)
+    platforms = ("tiktok",) if args.platform == "tiktok" else ("instagram", "tiktok")
+    pair = select_latest_contract(distribution_rows, platforms)
     urls = {row["platform"]: row["public_url"] for row in pair}
-    metrics = {
-        "instagram": collect_instagram(
+    try:
+        metrics = {"tiktok": collect_tiktok(urls["tiktok"])}
+    except SelfImproveError as exc:
+        if args.platform != "tiktok" or "TikTok public metric readback failed" not in str(exc):
+            raise
+        print(json.dumps(unavailable_metric_result(
+            date=args.date, distribution_rows=distribution_rows,
+            bank_path=args.bank, platforms=platforms, reason=str(exc),
+        ), ensure_ascii=False, separators=(",", ":")))
+        return 0
+    if args.platform == "both":
+        metrics["instagram"] = collect_instagram(
             urls["instagram"],
             Path(f"~/.cloak/instagrapi-{args.instagram_handle}.json").expanduser(),
-        ),
-        "tiktok": collect_tiktok(urls["tiktok"]),
-    }
+        )
     row = record_day(
         date=args.date,
         distribution_rows=pair,
         metrics=metrics,
         bank_path=args.bank,
         ledger_path=args.self_improve_ledger,
+        platforms=platforms,
     )
     print(json.dumps(row, ensure_ascii=False, separators=(",", ":")))
     return 0

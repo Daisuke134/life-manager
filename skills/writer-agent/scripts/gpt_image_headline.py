@@ -17,15 +17,21 @@ from pathlib import Path
 from typing import Any, Callable
 
 MODEL = "gpt-image-2-2026-04-21"
-# The local OpenAI-compatible proxy accepts the same dated model identity as
-# the public API.  The short alias can ignore the requested 1536x1024 size and
-# return a square image, which is rejected by the immutable media contract.
-CLIPROXY_MODEL = MODEL
+# The local proxy exposes gpt-image-1.5 and returns the requested 1536x1024
+# image for it.  gpt-image-2 returns a square image, while the dated public
+# model name is rejected with HTTP 400.  Keep the contract's request_model
+# identity in the receipt and bind the actual provider model separately.
+CLIPROXY_MODEL = "gpt-image-1.5"
 ENDPOINT = "https://api.openai.com/v1/images/generations"
 SIZE = "1536x1024"
 QUALITY = "high"
 EXPECTED_DIMENSIONS = (1536, 1024)
 KNOWN_PRE_EFFECT_REFUSALS = {"OPENAI_API_KEY-unavailable"}
+KNOWN_RESPONSE_REFUSALS = {
+    "image-response-is-not-png",
+    "image-dimensions-invalid",
+    "image-dimensions-do-not-match-request",
+}
 
 
 class HeadlineImageRefused(RuntimeError):
@@ -179,6 +185,10 @@ def generate(*, prompt_path: Path, alt_path: Path, candidate: Path, intent_path:
             and bool(os.environ.get("CLIPROXY_API_KEY", "").strip())
             and bool(os.environ.get("ARTICLE_CODEX_PROVIDER_BASE_URL", "").strip())
             and not candidate.exists()
+        ) or (
+            intent.get("status") == "failed_known"
+            and intent.get("reason") in KNOWN_RESPONSE_REFUSALS
+            and not candidate.exists()
         )
         if not known_http_refusal and intent.get("fingerprint") != fingerprint:
             raise HeadlineImageRefused("headline-api-intent-conflict")
@@ -233,7 +243,26 @@ def generate(*, prompt_path: Path, alt_path: Path, candidate: Path, intent_path:
         _atomic_json(intent_path, {**intent, "status": "response_missing_request_id",
                                    "response_sha256": _sha(raw)})
         raise HeadlineImageRefused("headline-api-response-missing-request-id")
-    width, height = _png_dimensions(image)
+    try:
+        width, height = _png_dimensions(image)
+    except HeadlineImageRefused as error:
+        # The complete response was received and inspected, but it cannot be
+        # committed because the bytes violate the requested media contract.
+        # Persist that known, non-publication refusal so one bounded retry can
+        # use a corrected provider/model configuration without replaying an
+        # unknown request.
+        _atomic_json(
+            intent_path,
+            {
+                **intent,
+                "status": "failed_known",
+                "reason": str(error),
+                "request_sha256": request_sha256,
+                "response_sha256": _sha(raw),
+                "x_request_id": request_id,
+            },
+        )
+        raise
     _atomic_bytes(candidate, image)
     receipt = {"schema": "writer.gpt-image-headline-receipt", "version": 1,
                "status": "committed", "candidate": str(candidate.resolve()),

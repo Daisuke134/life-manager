@@ -1920,6 +1920,7 @@
       "state_root": "~/.local/state/life-manager"
     },
     "life-manager-daily": {
+      "admission_class": "revenue",
       "cadence": {
         "calendar_interval": {
           "Hour": 10,
@@ -1935,6 +1936,7 @@
       "entrypoint": "skills/life-manager/life-manager-daily.sh",
       "label": "ai.anicca.life-manager-daily",
       "log_root": "~/.local/state/life-manager/life-manager-daily/logs",
+      "priority": "revenue",
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager/life-manager-daily"
     },

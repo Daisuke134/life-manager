@@ -56,6 +56,14 @@ test("LM-30: parseUpdate preserves message fields and parses callback_query/live
     kind: "message", chatId: "7", userId: "8", text: "/start x", isStart: true,
     firstName: "Dais", lastName: "Tanaka", languageCode: "",
   });
+  assert.deepEqual(parseUpdate({ message: {
+    message_id: 8, date: 1_721_612_800, chat: { id: 7 }, from: { id: 8 }, text: "こういう時は短く",
+    reply_to_message: { message_id: 7, text: "今の自分で、十分だよ。" },
+  } }), {
+    kind: "message", chatId: "7", userId: "8", messageId: "8", replyToMessageId: "7",
+    observedAtMs: 1_721_612_800_000, text: "こういう時は短く", isStart: false,
+    firstName: "", lastName: "", languageCode: "",
+  });
   assert.deepEqual(parseUpdate({ callback_query: { id: "cb", from: { id: 8 }, data: "ask:yes:e1:r1", message: { chat: { id: 7 } } } }), {
     kind: "callback", chatId: "7", userId: "8", data: "ask:yes:e1:r1", callbackQueryId: "cb",
   });

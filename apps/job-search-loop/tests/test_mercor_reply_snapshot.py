@@ -53,6 +53,43 @@ class FakeWebSocket:
         return json.dumps(self.messages.pop(0))
 
 
+class DirectFallbackWebSocket(FakeWebSocket):
+    def __init__(self):
+        super().__init__()
+        self.direct_payload = {
+            "applications": {"applications": [{"id": "application-1"}]},
+            "assessments": [{"id": "assessment-1"}],
+            "contracts": [],
+            "interviews": {"data": []},
+            "notifications": {
+                "items": [], "nextCursor": None, "hasMore": False,
+            },
+        }
+
+    async def send(self, raw):
+        command = json.loads(raw)
+        identifier = command["id"]
+        method = command["method"]
+        if method == "Network.getResponseBody":
+            self.messages.append({
+                "id": identifier,
+                "error": {"message": "No resource with given identifier found"},
+            })
+            return
+        if method == "Runtime.evaluate":
+            expression = command.get("params", {}).get("expression", "")
+            if "firebaseLocalStorageDb" in expression:
+                self.messages.append({"id": identifier, "result": {
+                    "result": {"value": json.dumps(self.direct_payload)},
+                }})
+            else:
+                self.messages.append({"id": identifier, "result": {
+                    "result": {"value": True},
+                }})
+            return
+        await super().send(raw)
+
+
 class Connection:
     def __init__(self, websocket):
         self.websocket = websocket
@@ -75,6 +112,23 @@ def test_capture_reads_each_body_at_loading_finished_without_losing_queued_event
     assert result == {name: {"source": name} for name in snapshot.ENDPOINTS}
 
 
+def test_capture_uses_direct_fetch_when_network_body_is_gone(monkeypatch):
+    websocket = DirectFallbackWebSocket()
+    monkeypatch.setattr(
+        snapshot.websockets, "connect", lambda *_args, **_kwargs: Connection(websocket)
+    )
+
+    result = snapshot.asyncio.run(snapshot._capture("ws://127.0.0.1/devtools/page/1"))
+
+    assert result["applications"] == {"applications": [{"id": "application-1"}]}
+    assert result["assessments"] == [{"id": "assessment-1"}]
+    assert result["contracts"] == []
+    assert result["interviews"] == {"data": []}
+    assert result["notifications"] == {
+        "notifications": [], "nextCursor": None, "hasMore": False,
+    }
+
+
 def test_current_notifications_api_payload_is_normalized_for_reply_adapter():
     assert snapshot.ENDPOINTS["notifications"] == (
         "https://coil.mercor.com/v1/notifications?limit=25&filter=all"
@@ -91,6 +145,14 @@ def test_current_notifications_api_payload_is_normalized_for_reply_adapter():
     assert normalized["notifications"][0]["content"] == "APPLICATION/ADVANCED"
     assert normalized["nextCursor"] is None
     assert normalized["hasMore"] is False
+
+
+def test_direct_capture_uses_exact_visible_empty_notification_markers():
+    expression = snapshot._direct_capture_expression(["notifications"])
+
+    assert "You don’t have any notifications" in expression
+    assert "emptyTexts" in expression
+    assert "visible(element)" in expression
 
 
 def test_gmail_inventory_groups_full_history_by_thread_and_excludes_auth(monkeypatch):

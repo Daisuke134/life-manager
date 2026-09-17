@@ -126,6 +126,7 @@ def evaluate_proof(identity: dict[str, Any], proof: dict[str, Any]) -> dict[str,
     occurrence_id = str(identity.get("occurrence_id", ""))
     readback = proof.get("provider_readback") if isinstance(proof, dict) else None
     content = readback.get("content") if isinstance(readback, dict) else None
+    local_content = readback.get("local_content") if isinstance(readback, dict) else None
     required_content = {
         key: identity.get(key)
         for key in ("video_sha256", "caption_sha256", "media_sha256", "pack_sha256", "media_order_sha256")
@@ -140,6 +141,9 @@ def evaluate_proof(identity: dict[str, Any], proof: dict[str, Any]) -> dict[str,
             or not PROVIDER_RECEIPT.fullmatch(str(proof.get("provider_receipt_id", "")))
             or proof.get("identity") != identity):
         return _inconclusive(owner_id, occurrence_id, "provider_proof_identity_mismatch")
+    provider_keys = set(content) if isinstance(content, dict) else set()
+    local_keys = set(local_content) if isinstance(local_content, dict) else set()
+    required_keys = set(required_content)
     if (not isinstance(readback, dict)
             or readback.get("provider") != "postiz"
             or readback.get("state") != "PUBLISHED"
@@ -147,7 +151,14 @@ def evaluate_proof(identity: dict[str, Any], proof: dict[str, Any]) -> dict[str,
             or readback.get("account_id") != identity.get("account_id")
             or readback.get("integration_ref") != identity.get("integration_ref")
             or not isinstance(content, dict)
-            or any(content.get(key) != value for key, value in required_content.items())):
+            or not isinstance(local_content, dict)
+            or provider_keys - required_keys
+            or local_keys - required_keys
+            or content.get("caption_sha256") != identity.get("caption_sha256")
+            or any(content.get(key) != value for key, value in required_content.items()
+                   if key in content)
+            or any(local_content.get(key) != value for key, value in required_content.items()
+                   if key != "caption_sha256")):
         return _inconclusive(owner_id, occurrence_id, "provider_readback_not_exact")
     return {"status": "ready", "owner_id": owner_id, "occurrence_id": occurrence_id}
 

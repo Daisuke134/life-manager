@@ -51,11 +51,17 @@ unknown occurrence
 
 ## Inventory evidence
 
-The first read-only inventory is recorded at `docs/superpowers/evidence/mobile-postiz-admission/mobile-fence-inventory.json`. It contains 17 mobile/Honne unknown occurrences, with 0 exact identities recovered, 14 released rows and 3 claimed rows held. The current runtime event format does not carry the occurrence's `effect_key`/`job_id` or the provider account identity, so every row remains inconclusive until the identity bridge and official readback are implemented.
+The first read-only inventory is recorded at `docs/superpowers/evidence/mobile-postiz-admission/mobile-fence-inventory.json`. It contains 17 mobile/Honne unknown occurrences, with 0 exact identities recovered, 14 released rows and 3 claimed rows held. The identity bridge and provider executor now cover future runs; the historical rows remain inconclusive because their exact occurrence identity is absent.
 
 ## Implementation evidence
 
-The identity bridge is now in `runtime/loop/lm_loop_run.py`, `runtime/loop/runtime_event.py`, `apps/life-manager/lib/marketing-effect-identity.js`, and the existing video/native-carousel adapters. It records the exact occurrence, runtime run, job/effect key, destination integration, account and content hashes before a provider call, then preserves only validated nonzero-effect sidecars outside scratch. PR #5423 merged at `c947b72dbc7f`; 109 focused Python tests and 37 mobile publication tests pass. The read-only proof gate is in `apps/life-manager/scripts/mobile-postiz-effect-reconcile.py`; PR #5431 merged at `b325a34d5b8e3ca9eaecc396311026d58d0ce399`, with six reconciler tests passing. It only reports `ready` after an exact proof and never calls `resolve_unknown_occurrence`; a provider-owned executor and fresh official Postiz readback are still required. This changes future evidence quality only; it does not clear the 17 historical fences.
+The identity bridge is now in `runtime/loop/lm_loop_run.py`, `runtime/loop/runtime_event.py`, `apps/life-manager/lib/marketing-effect-identity.js`, and the existing video/native-carousel adapters. It records the exact occurrence, runtime run, job/effect key, destination integration, account and content hashes before a provider call, then preserves only validated nonzero-effect sidecars outside scratch. PR #5423 merged at `c947b72dbc7f`; 109 focused Python tests and 37 mobile publication tests pass. The read-only proof gate is in `apps/life-manager/scripts/mobile-postiz-effect-reconcile.py`; PR #5431 merged at `b325a34d5b8e3ca9eaecc396311026d58d0ce399`, with seven reconciler tests passing. The provider-owned executor is `apps/life-manager/scripts/mobile-postiz-provider-reconcile.py`; PR #5453 merged at `23afec79cd640f343e5ac152a4950f90faac4b4d`, with nine executor tests, 106 admission tests and 24 Postiz adapter tests passing. It performs official Postiz post/integration GET readback, separates provider content from local media evidence, and can resolve only an authoritative released row after a fresh proof. It was not run against the live provider; the 17 historical fences remain unchanged.
+
+## Current wake and release gate
+
+- A fresh read-only SQLite query still finds exactly 17 mobile/Honne `effect_unknown=1` occurrences: 14 `released` and 3 `claimed`. No effect identity sidecar exists for those historical runs, so none is eligible for `--resolve` or a natural wake.
+- Targeted `lm-loop status life-manager-honne-ja` reports `loaded-idle`, immutable release `61036e1e…`, terminal `blocked`, exit 75 and `host_admission_deferred:resource_effect_unknown`. This confirms the fence is holding before provider execution; no Postiz request was made.
+- The observed `~/loops/current/RELEASE.json` is main-derived and contains both canonical mobile trees. Inspected launchd plists each point to one immutable release directory. Production remains unchanged until an exact historical proof exists.
 
 ## Non-goals
 
