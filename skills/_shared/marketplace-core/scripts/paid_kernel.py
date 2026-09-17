@@ -320,6 +320,12 @@ def main(argv: list[str] | None = None) -> int:
                     and re.fullmatch(r"[a-z][a-z0-9_]{1,127}", error_detail)):
                 result["error_detail"] = error_detail
     _write(args.output.expanduser().resolve(), result)
+    hint_path = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
+    if (hint_path and result.get("status") == "failed"
+            and result.get("failed_step") == "provider_inventory"
+            and result.get("effect") == 0):
+        _write(Path(hint_path).expanduser().resolve(),
+               {"status": "pre_effect_failure", "effect": 0})
     return int(result["failed"] > 0)
 
 
