@@ -4,8 +4,8 @@ Status: `IN_PROGRESS` — production code and schema are live; the seven-day nat
 
 ## Current production readback
 
-- Merged main deployment: `9e3020674b854a0df65afced44faf344a168d2c3` (PR #5469 merge).
-- Railway `life-call` deployment: `SUCCESS`, instance `RUNNING`; `/health` returned `200` with build `9e3020674b854a0df65afced44faf344a168d2c3`.
+- Merged main deployment: `abbf2927b45aafd385b156b5877e22ecbe5c0a70` (PR #5474 merge).
+- Railway `life-call` deployment: `SUCCESS`, instance `RUNNING`; `/health` returned `200` with build `abbf2927b45aafd385b156b5877e22ecbe5c0a70`.
 - Production Supabase tables: `lm_verified_outcomes`, `lm_mental_outcome_send_log`, and `lm_mental_profile_tags` exist with additive columns, checks, unique keys, and RLS enabled.
 - `LM_MENTAL_OUTCOME_INGEST_SECRET` is present in production Railway variables.
 - `LM_MENTAL_V1_ALLOWED_UIDS` is present and contains only the Dais tenant UID; the value is never written here.
@@ -27,7 +27,7 @@ The production scheduler also observed the synthetic projection and logged a Tel
 
 ## Remaining canary gates
 
-- Latest automated readback at `2026-09-18T03:52:32+09:00`: `v1_count=0`, `legacy_count=34`, `pass=false` over the trailing 14-day window. This is an honest pre-window state, not a canary pass.
+- Latest automated readback at `2026-09-18T04:06:34+09:00`: `v1_count=0`, `legacy_count=34`, `pass=false` over the trailing 14-day window. This is an honest pre-window state, not a canary pass.
 - The merged offline policy scorecard is available for replay, but no policy is promoted from it until natural provider receipts exist; this readback contains no synthetic rows.
 - Explicit reply correction intake is live in the same deployment: only a reply to a durable V1 Telegram receipt can create a bounded tone tag; ambiguous/timing corrections remain no-op and no raw text is stored.
 - [ ] Capture one natural Dais morning affirmation in `morning_orientation`.
