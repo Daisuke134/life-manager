@@ -364,7 +364,7 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
             if not any(result.get("ok") and result.get("loaded_arguments") == expected
                        for result in applied):
                 defer(loop_id)
-            continue
+                continue
         service = f"gui/{os.getuid()}/{label}"
         try:
             observed = subprocess.run(
