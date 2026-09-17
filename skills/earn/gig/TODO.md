@@ -1022,12 +1022,20 @@ CrowdWorks engineering cursor, not the parallel schedule or owners of other plat
   proposal route, then hand the exact contract ID to Paid. Reply must not send a post-contract message or
   submit the same external form; reconcile any old uncertain intent before the handoff.
 - [ ] **CW-3 — do the work:** For each funded contract, read the full buyer instruction (including the
-  Google Docs link on `63657015`), produce the requested deliverable or real external action, and verify
-  quality against that buyer's acceptance criteria. `63659463` needs its full request read before choosing
-  an email/message action. A generic acknowledgement or empty composer is not completion.
+  Google Docs link on `63657015`), agreed scope, later corrections and any buyer complaint. Map each
+  request to the real action, deliverable and proof; produce the requested result and verify it against
+  that buyer's acceptance criteria. `63659463` needs its full request read before choosing an
+  email/message action. A generic acknowledgement or empty composer is not completion.
 - [ ] **CW-4 — formal delivery:** Fence and verify external submissions separately from the exact
-  CrowdWorks `納品する`/milestone delivery action. Read back inspection, revisions, acceptance, settlement
-  and payout per contract; replay must create no duplicate message, form post or delivery.
+  CrowdWorks `納品する`/milestone delivery action. Reopen the buyer-visible message, link, file or form
+  result and check the **content and access**, not only the send receipt. Read back inspection,
+  revisions, acceptance, settlement and payout per contract; replay must create no duplicate effect.
+- [ ] **CW-4a — live correctness and repair:** Observe the installed Paid loop on a natural wake for
+  each ready contract. If it replies or submits the wrong thing, keep the contract open, read the
+  buyer's correction, trace the bad decision, fix the loop, run a focused regression, deploy the
+  corrected owner release and inspect the next natural buyer-visible result. Repeat until the work
+  matches the request and its state is honestly classified, or record an exact external blocker.
+  A successful send, green test or empty buyer response never closes this item.
 - [ ] **CW-5 — revenue:** Close the existing active contracts first, then pursue repeat/retainer work.
   Measure received cash and verified active monthly recurring revenue separately; USD 10,000 MRR remains
   open until actual recurring payment records support it. Keep Report read-only on business state and
