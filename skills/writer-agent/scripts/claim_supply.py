@@ -812,7 +812,7 @@ def refill_queue(
                 )
                 observation_ids = selected_card["observation_ids"]
                 by_id = {
-                    str(row["observation_id"]): row
+                    normalize_observation_id(row["observation_id"], "observation_id"): row
                     for row in selected_observations or []
                 }
                 bindings = {
