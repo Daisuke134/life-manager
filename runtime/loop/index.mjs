@@ -59,6 +59,7 @@ import {
   buildAlwaysActLedgerFields,
 } from './always-act-router.mjs';
 import { publishLedgerCycle } from './ledger-publish.mjs';
+import { buildRecoveryIntentRecord } from './recovery-intent-record.mjs';
 
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -1130,6 +1131,18 @@ function buildSkillEnv(slot, wakeId, config, scrub, scrubPII, args) {
  */
 async function appendHarnessFailure({ ts, wakeId, slot, kind, layer, exitCode, rawDetail }) {
   const detail = capFailureDetail(rawDetail);
+  const recoveryIntent = buildRecoveryIntentRecord({
+    loopId: process.env.LIFE_MANAGER_LOOP_ID,
+    ownerId: process.env.LIFE_MANAGER_OWNER_ID || process.env.LIFE_MANAGER_LOOP_ID,
+    wakeId,
+    runId: process.env.LIFE_MANAGER_RUN_ID || wakeId,
+    releaseSha: process.env.LIFE_MANAGER_RELEASE_SHA,
+    failureLayer: layer,
+    effectClass: process.env.LIFE_MANAGER_EFFECT_CLASS || 'none',
+    effectStatus: process.env.LIFE_MANAGER_EFFECT_STATUS || 'unknown',
+    consecutiveFailureStreak: Number(process.env.LIFE_MANAGER_RECOVERY_FAILURE_STREAK || 1),
+    threshold: Number(process.env.LIFE_MANAGER_RECOVERY_FAILURE_THRESHOLD || 3),
+  });
   const fields = {
     ts,
     wake_id: wakeId,
@@ -1138,6 +1151,7 @@ async function appendHarnessFailure({ ts, wakeId, slot, kind, layer, exitCode, r
     layer,
     exit_code: exitCode != null ? exitCode : null,
     detail,
+    ...(recoveryIntent ? { recovery_intent: recoveryIntent } : {}),
   };
   try {
     await appendLedgerLine(HARNESS_FAILURES_PATH, formatRecord(fields));
