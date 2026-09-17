@@ -1018,11 +1018,11 @@ have `effect=0`; the shared pre-effect-failure repair is merged as PR `#5365` an
 release `c16f437b`. A Paid readback that exceeded the useful bounded wake was stopped and reconciled by
 official no-write proof. No contract has buyer acceptance, settlement, payout, or verified MRR yet.
 
-PRs `#5393`, `#5401`, `#5411`, `#5412`, and `#5413` bound the Paid wake, preserve pre-effect hints,
-retry CDP, recover the locked persistent context, and start navigation at `commit`. Current main is loaded
-from immutable release `20260918T010429-6943af4c`; targeted Paid apply read back the exact SHA. The latest
-kickstart reached active inventory but ended at contract detail timeout with `effect=0`; no form, message,
-or formal-delivery effect was accepted and the occurrence was reconciled to `queued/effect_unknown=0`.
+PRs `#5393`, `#5401`, `#5411`, `#5412`, `#5413`, and `#5419` bound the Paid wake, preserve pre-effect hints,
+retry CDP, recover the locked persistent context, start navigation at `commit`, and fail closed on empty
+inventory. Current main is loaded from immutable release `20260918T012630-c6e5c654`; targeted Paid apply
+read back the exact SHA. The latest wake refused a false zero, ended with `effect=0`, and left no sticky
+`effect_unknown` after reconciliation. No form, message, or formal-delivery effect was accepted.
 Authenticated contract detail readback remains open.
 
 **Merged code slices (live proof still open):** bounded context/readback PR `#5369`, delivery dialog/field
