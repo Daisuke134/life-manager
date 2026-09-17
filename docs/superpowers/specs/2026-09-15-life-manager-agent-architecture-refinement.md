@@ -17,8 +17,8 @@ Observed shared-foundation problems and disposition:
 | A sparse main-derived release could become global `current` | While a natural reconciler used complete release `f1f5bcb9`, other owner cuts replaced `current` with sparse release `6c7d2062`; exact apply then failed closed with `release is no longer current`. | Fixed in main PR #5383: sparse `LOOPS_ACTIVATE_CURRENT=1` fails before export. All CI and 22 cut tests passed; main-derived complete release `deb08642` contains the guard, and its loaded natural reconciler run reached outer pass. Later `current` advanced only to another complete main release. |
 | One owner with many old wakes could repeatedly win its own next turn | RED fixture selected owner A twice before owner B; production queue had repeated old occurrences. | Fixed in main PR #5354; new-main natural terminals advanced `x402-ledger` → `x402-experiment-franklin1` → `founder-loop-cadence` → `x402-inflow-watch` without deleting pending occurrences. |
 | A same-owner environment JSON replaced an installed plist | `writer-report` installed file was JSON, so its installed SHA was unreadable although launchd held a main-derived argv. The writer of that file is not yet identified. | Shared recovery and candidate/rollback repair merged in PRs #5362/#5367. A targeted loaded-idle reconcile restored XML and loaded SHA `f1f5bcb9` with `effect_unknown` still fenced. |
-| Reconciler sometimes exits `entrypoint_exit_1` while idle owners wait | Loaded `a4070714` has both fail and pass outer terminals; one run stayed active for several minutes. Malformed installed input is a concrete candidate, not a proven sole cause. | Open until the repaired main-derived release has a natural outer terminal and an exact first-failure readback. |
-| Disk pressure has caused `ENOSPC` during release/receipt writes | Historical runtime logs contain `ENOSPC`; current free space is about 2 GiB and cleanup has also reached natural `pass`. | Open as a bounded headroom/cleanup acceptance check; do not erase profiles, credentials, receipts, active runs, or other owners' worktrees. |
+| Reconciler sometimes exits `entrypoint_exit_1` while idle owners wait | Earlier runs failed on malformed plist, concurrent Git fetch, or `current` advancing during an exact apply. | Main-derived loaded `deb08642` reached natural outer pass at 13:22:55Z; a later complete `current` may still cause a safe failed apply, with the next scheduled wake available. No sibling restart was used. |
+| Disk pressure has caused `ENOSPC` during release/receipt writes | Historical runtime logs contain `ENOSPC`; a local broad unittest reached 176 MiB free without host admission. | A15-12 bounded headroom/cleanup check passed; latest natural cleaner pass at 13:27:51Z. No admitted child entering reproducible `ENOSPC` was established. Protected state remains untouched. |
 
 `resource_control_busy` is an observed transient admission deferral: a later
 Writer Response natural wake reached outer `pass`. It is not evidence of a
@@ -85,7 +85,8 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   two browser owners without starting a provider submission or touching a
   sibling profile. A no-work terminal is valid lifecycle evidence only.
   Current registry and admission SQLite have only one browser-class owner,
-  `life-manager-connector-native`; its historical unknown rows stay fenced.
+  `life-manager-connector-native`. At 13:29Z its browser-class rows were 43
+  released/known and 18 cancelled; no unknown browser row remained.
   Reclassifying `session-vault` or `browser-state-backup` would involve sibling
   authenticated profiles and does not satisfy this gate. No second-owner
   browser claim is proved.
@@ -158,7 +159,10 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   browser 0, deterministic 13 (oldest 14.8 min); unknown owners were agent 45,
   browser 0, deterministic 31. Disk-cleanup's latest natural pass at 13:21:04Z
   on `deb086429a1a` had host/release/scratch errors 0 and protected deletions
-  0; free bytes rose 638,849,024 to 1,236,148,224. **Verdict remains NOT
+  0; free bytes rose 638,849,024 to 1,236,148,224. A second natural run
+  `18d61e7fd253a1d8-92885` reached outer pass at 13:30:01Z on loaded SHA
+  `deb086429a1a` while global `current` had advanced to complete main release
+  `f4d701999f1`. **Verdict remains NOT
   DONE:** A15-08 has no second eligible browser-class owner/claim. Provider
   effect readbacks, including three remaining Capafy owner fences, remain with
   their separate owners.
@@ -174,8 +178,9 @@ errors; the focused A15-01 test and CI loop contracts passed. `lm-loop status`
 also could not create a temporary file at that point. Free space later rose
 to 1.4 GiB, but cleanup's latest status is outer `fail`/
 `entrypoint_exit_1` at release `393f17458a4e`; a prior pass is recorded at
-2026-09-17T11:31:01Z. The cause of the later free-space rise is unverified.
-This remains an open A15-12 runtime failure.
+2026-09-17T11:31:01Z. The cause of the later free-space rise was unverified
+at that snapshot; the later A15-12 natural cleanup receipt supersedes this
+historical failure observation.
 
 ## Current foundation correction — fleet first, provider effects second
 
