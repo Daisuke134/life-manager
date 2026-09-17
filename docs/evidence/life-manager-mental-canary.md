@@ -4,14 +4,20 @@ Status: `IN_PROGRESS` — production code and schema are live; the seven-day nat
 
 ## Current production readback
 
-- Merged main deployment: `294534883b82a98080b02000dd36d392394dfa6f` (PR #5452 merge).
-- Railway `life-call` deployment: `SUCCESS`, instance `RUNNING`; `/health` returned `200` with build `294534883b82a98080b02000dd36d392394dfa6f`.
+- Merged main deployment: `92e9fc01664b65e8a22d37d3969b8379c67cb1fe` (PR #5482 merge).
+- Railway `life-call` deployment: `SUCCESS`, instance `RUNNING`; `/health` returned `200` with build `92e9fc01664b65e8a22d37d3969b8379c67cb1fe`.
 - Production Supabase tables: `lm_verified_outcomes`, `lm_mental_outcome_send_log`, and `lm_mental_profile_tags` exist with additive columns, checks, unique keys, and RLS enabled.
 - `LM_MENTAL_OUTCOME_INGEST_SECRET` is present in production Railway variables.
 - `LM_MENTAL_V1_ALLOWED_UIDS` is present and contains only the Dais tenant UID; the value is never written here.
 - Production preflight for that allowlisted tenant returned one matching `lm_users` row and one preferences row; Telegram chat, Calendar, Gmail, paid entitlement, timezone, notifications, and daily automation were all present/enabled. Raw identifiers are intentionally omitted.
 - `lm_mental_profile_tags` is present with RLS, closed kind/basis/explicit/source-hash checks, expiry/supersession columns, and zero rows until an explicit source-backed profile statement is available.
 - Production scheduler logs show `organ:mental-outcome` and `organ:mental` startup/ticks.
+
+## Telnyx authorized test-call receipt
+
+- The post-fix authorized `/test-call` returned HTTP `200` with provider control ID `v3:tobFLiJMYkq_lUpUidoo8WXcofHUuutSy-vcIt__FxA9sHa-BqrQJA`.
+- Telnyx `GET /v2/calls/{call_control_id}` returned HTTP `200` and `call_duration=18`; the related signed webhook logged AMD `machine` and the test branch performed no automatic hangup.
+- No `90029` or `time_limit_secs` rejection appeared in the provider response/log readback. Duplicate-call replay-zero was not run because the first provider effect was already accepted.
 
 ## Signed outcome bridge proof
 
@@ -27,8 +33,10 @@ The production scheduler also observed the synthetic projection and logged a Tel
 
 ## Remaining canary gates
 
-- Latest automated readback at `2026-09-18T03:15:04+09:00`: `v1_count=0`, `legacy_count=34`, `pass=false` over the trailing 14-day window. This is an honest pre-window state, not a canary pass.
+- Latest automated readback at `2026-09-18T04:33:26+09:00`: `v1_count=0`, `legacy_count=34`, `pass=false` over the trailing 14-day window. This is an honest pre-window state, not a canary pass.
 - The merged offline policy scorecard is available for replay, but no policy is promoted from it until natural provider receipts exist; this readback contains no synthetic rows.
+- Explicit reply correction intake is live in the same deployment: only a reply to a durable V1 Telegram receipt can create a bounded tone tag; ambiguous/timing corrections remain no-op and no raw text is stored.
+- Window-bound scheduler logs now record send family/template/message ID or enum suppression reasons; outside-window heartbeats remain silent.
 - [ ] Capture one natural Dais morning affirmation in `morning_orientation`.
 - [ ] Capture one natural Dais midday mindfulness/body-awareness line in `midday_awareness`.
 - [ ] Capture one natural Dais evening manifestation/release line in `evening_direction`.

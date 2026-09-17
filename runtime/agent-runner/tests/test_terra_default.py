@@ -15,6 +15,13 @@ class TerraDefaultTest(unittest.TestCase):
         self.assertEqual(set(configured_task_classes(config)), set(config["task_classes"]))
         self.assertIn("paid-owner-agent", configured_task_classes(config))
 
+    def test_marketing_agent_uses_luna_for_life_manager_daily_contract(self):
+        config_path = Path(__file__).resolve().parents[1] / "config.json"
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        candidate = config["task_classes"]["marketing-agent"]["candidates"][0]
+        self.assertEqual(candidate["model"], "gpt-5.6-luna")
+        self.assertEqual(candidate["effort"], "medium")
+
     def test_codex_provider_uses_managed_current_cli_before_path(self):
         config_path = Path(__file__).resolve().parents[1] / "config.json"
         config = json.loads(config_path.read_text(encoding="utf-8"))
@@ -43,6 +50,9 @@ class TerraDefaultTest(unittest.TestCase):
                     expected = [{"provider": "codex", "model": "gpt-5.6-luna",
                                  "effort": "medium", "timeout_seconds": 120,
                                  "profile_alias": "acct1"}]
+                if name == "marketing-agent":
+                    expected = [{"provider": "codex", "model": "gpt-5.6-luna",
+                                 "effort": "medium", "profile_alias": "acct1"}]
                 if name == "storefront-proposal-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-terra",
                                  "effort": "medium", "timeout_seconds": 90,

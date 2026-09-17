@@ -271,13 +271,13 @@
       ]
     },
     "marketing-agent": {
-      "route": "terra-medium-decision",
+      "route": "luna-medium-bounded",
       "token_reservation": 49152,
       "timeout_seconds": 1800,
       "candidates": [
         {
           "provider": "codex",
-          "model": "gpt-5.6-terra",
+          "model": "gpt-5.6-luna",
           "effort": "medium",
           "profile_alias": "acct1"
         },

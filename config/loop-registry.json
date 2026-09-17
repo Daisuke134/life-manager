@@ -74,7 +74,7 @@
     "crowdworks-revenue-paid": {
       "adapter": "exec",
       "cadence": {"start_interval_seconds": 300},
-      "runtime_timeout_seconds": 180,
+      "runtime_timeout_seconds": 900,
       "cleanup": {"max_age_days": 14, "max_runs": 100},
       "command": [],
       "domain": "earn",

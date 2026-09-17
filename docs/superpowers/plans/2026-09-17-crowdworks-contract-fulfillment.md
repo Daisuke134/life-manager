@@ -12,12 +12,20 @@
 
 ## Live cursor (2026-09-18)
 
-The five active official contracts are currently all `funded`; formal CrowdWorks delivery is read back for
+The five active official contracts are currently four `funded` and one (`63583795`) `delivered`; formal CrowdWorks delivery is read back for
 `63583795` only, and that row is awaiting buyer inspection. Historical form receipts exist for `63583795`
 and `63570481`; the former also has a buyer-visible seller message and inspection-pending readback. The
 local Paid row for `63583795` must be reconciled before any retry, and the form/delivery must not be replayed.
-The installed efedb39c owner still has a local `reconcile_unknown` row after the earlier provider-detail timeout;
-the successful read-only probe is evidence for the next reconciliation, not a new external effect.
+The previous 180-second Paid owner bound also terminated a wake during generation of a required 13-field
+form (`63659463`), leaving `intent_persisted` without a confirmed receipt. The Paid label is now targeted
+loaded from immutable `20260918T041155-d0401d93` (`d0401d93f3`) with a 900-second finite bound. Its first
+kickstart stopped before the child at the stale occurrence
+`crowdworks-revenue-paid:18d62a4c364cf0e0-11226` (`effect_unknown=1`); the next step is contract-specific
+reconcile, not a retry or guessed external effect.
+The installed d0401d93 owner still has a local `intent_persisted` row for `63659463` after the earlier
+pre-effect timeout; the official inventory readback remains 5/5 (four funded, `63583795` delivered), and
+the stale Admission occurrence must be resolved before a new child can start. The successful read-only probe
+is evidence for the next reconciliation, not a new external effect.
 The next implementation cursor is browser recovery and bounded contract context for the other four
 contracts, followed by separate external receipt and `納品する` readback. Do not treat the old
 three-contract example below as the current scope; the current scope is all five IDs: `63659463`, `63657015`,
@@ -31,14 +39,15 @@ selection; `63657015` exposes a hearing sheet plus a common test and a designer-
 provides a Google Docs assignment and no current form. The model must read the full conversation and linked
 content before choosing the action; code must not choose the first form or infer work from a URL.
 
-**Current code/runtime evidence:** PRs `#5393`, `#5401`, `#5411`, `#5412`, `#5413`, `#5419`, `#5437`, and `#5443`
+**Current code/runtime evidence:** PRs `#5393`, `#5401`, `#5411`, `#5412`, `#5413`, `#5419`, `#5437`, `#5443`, and `#5476`
 bound the Paid wake, preserve pre-effect hints, retry/recover CDP, start navigation at `commit`, fail
 closed on empty inventory, classify the official inspection-pending contract state as delivered/no-op, and
-isolate one contract-detail timeout as a retryable waiting item. CrowdWorks Paid is loaded from immutable
-release `20260918T023325-efedb39c`, with loaded argv and SHA read back. The adapter tests and
-CrowdWorks/kernel tests are green (142 tests). A locked read-only provider probe read five active contracts
-and classified `63583795` as `delivered`; the latest owner wake stopped before a provider terminal receipt
-with `effect=0`. The next live gate is a successful Paid inventory/detail wake, not slot availability.
+isolate one contract-detail timeout as a retryable waiting item, and extend only the CrowdWorks Paid owner
+to a finite 900-second bound. CrowdWorks Paid is loaded from immutable release `20260918T041155-d0401d93`,
+with loaded argv and SHA read back. Focused adapter/kernel tests are green (198 tests plus 126 subtests).
+A locked read-only provider probe read five active contracts (four funded, `63583795` delivered); the latest
+owner wake stopped at the stale Admission occurrence before a provider terminal receipt with `effect=0`.
+The next live gate is exact occurrence reconcile followed by a successful Paid inventory/detail wake.
 
 ## Global constraints
 

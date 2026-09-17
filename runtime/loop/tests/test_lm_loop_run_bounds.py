@@ -46,7 +46,7 @@ def test_crowdworks_paid_owner_declares_a_bounded_runtime():
         (Path(__file__).resolve().parents[3] / "config/loop-registry.json").read_text()
     )
 
-    assert registry["loops"]["crowdworks-revenue-paid"]["runtime_timeout_seconds"] == 180
+    assert registry["loops"]["crowdworks-revenue-paid"]["runtime_timeout_seconds"] == 900
 
 
 def test_scheduled_wake_can_declare_a_longer_finite_safety_limit():

@@ -169,7 +169,7 @@ node --test \
 
 - [ ] Commit, push, merge, and wait for the Railway deployment whose `commitHash` equals merged `main`.
 
-- [ ] Place one authorized real test call. Record non-empty `call_control_id`, terminal provider state, absence of `90029`, and replay-zero.
+- [ ] Place one authorized real test call. Partial evidence is recorded in `docs/evidence/life-manager-mental-canary.md`: provider control ID, HTTP 200, 18-second provider duration, AMD `machine`, and no `90029`; duplicate-call replay-zero remains unrun.
 
 ---
 
@@ -658,7 +658,7 @@ npm test
 
 - [x] Apply additive migrations and read columns/constraints/RLS back from production.
 
-- [x] Require the Railway `life-call` deployment with merged main `commitHash=294534883b82a98080b02000dd36d392394dfa6f` to reach `SUCCESS`.
+- [x] Require the Railway `life-call` deployment with merged main `commitHash=92e9fc01664b65e8a22d37d3969b8379c67cb1fe` to reach `SUCCESS`.
 
 - [x] Verify startup logs show the standalone scheduler loops and no import/schema failure.
 
@@ -787,9 +787,9 @@ Do not route YC/general Gmail directly into MENTAL until an owning mail workflow
 - [ ] Define the offline scorecard: false personal claims, busy-time sends, duplicate result reports, repeated text within 14 days, unsupported locale text, and missed verified material reports. Do not include `mood improved` or `message helped` because those are unobserved.
 - [ ] Add replay fixtures for a rejection, offer, interview, ambiguous mail, Calendar meeting, three-message cap, and no-context ordinary day. The evaluator may propose a policy version only when replay lowers safety/fit violations without reducing verified material reports.
 - [ ] Start a changed policy in a bounded Dais canary, record old/new policy IDs, and provide a rollback to the previous policy version. No rating buttons or user survey are allowed.
-- [ ] Treat an unsolicited user correction as a direct profile signal only when it cites a prior message or timing; never send a prompt requesting that correction.
+- [x] Treat an unsolicited user correction as a direct profile signal only when it cites a prior MENTAL message; persist only a bounded tone tag with an idempotent hashed source reference. Timing complaints remain no-op until a window-preference field exists; never send a prompt requesting correction.
 
-Current state: the offline evaluator and unit tests are merged (`mental-policy-eval.js`); they validate closed decision rows and operational counters for busy-time sends, unsupported locale, repeated templates, and cap overflow. Decision-row persistence, replay fixtures for every listed scenario, correction ingestion, and bounded policy promotion remain open until the natural canary produces real provider receipts.
+Current state: the offline evaluator and unit tests are merged (`mental-policy-eval.js`); they validate closed decision rows, local-day cap/14-day dedupe, operational counters, and replay fixtures for rejection, offer, interview, ambiguity, meeting suppression, cap, and ordinary day. Decision-row persistence and bounded policy promotion remain open until the natural canary produces real provider receipts.
 
 ### Task 14: Crisis-response safety boundary
 
