@@ -71,31 +71,70 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   installed XML (`plutil -lint: OK`, install event
   `4cb761c203938bf18fdf0660`) with installed and loaded argv at complete
   main release `20260917T211820-f1f5bcb9`; `effect_unknown` remains fenced.
-- [ ] **A15-07 — prove an agent-class handoff.** From the private admission
+- [x] **A15-07 — prove an agent-class handoff.** From the private admission
   SQLite and `bin/lm-loop status`, join one natural agent owner claim, outer
   terminal, release and a *different* eligible agent owner's next claim.
+  `writer-sales-measure` run `18d61b575ac2e690-73318` reached outer pass at
+  12:26:28Z and its claimed occurrence `18d61a34e26facf0-40245` is
+  `released/effect_unknown=0`. Different owner `pm-decision-loop` started at
+  12:28:15Z, claimed `18d619fc6f2cbdd8-32593`, and reached outer pass at
+  12:30:16Z; that occurrence is also released/known. Both status readbacks
+  show installed/event SHA `f1f5bcb91d`.
 - [ ] **A15-08 — prove a browser-class handoff.** Join the same four events for
   two browser owners without starting a provider submission or touching a
   sibling profile. A no-work terminal is valid lifecycle evidence only.
-- [ ] **A15-09 — prove a deterministic-class handoff.** Join the same four
+  Current registry and admission SQLite have only one browser-class owner,
+  `life-manager-connector-native`; its historical unknown rows stay fenced.
+  Reclassifying `session-vault` or `browser-state-backup` would involve sibling
+  authenticated profiles and does not satisfy this gate. No second-owner
+  browser claim is proved.
+- [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
-  substitute for a newer SHA.
-- [ ] **A15-10 — read an active owner's heartbeat.** Its PID/start identity
+  substitute for a newer SHA. `cadence-deadline-check` run
+  `18d61b8ce8458b50-79278` reached outer pass at 12:29:58Z and released
+  occurrence `18d61afbbb440f00-63650` with unknown=0. Different owner
+  `x402-inflow-watch-franklin1` started at 12:30:14Z, claimed occurrence
+  `18d616ec6eb86108-89072`, and reached pass at 12:30:22Z; it too is
+  released/known. Both loaded/event SHAs are `f1f5bcb91d`.
+- [x] **A15-10 — read an active owner's heartbeat.** Its PID/start identity
   and `heartbeat_at` must agree with a live claim within the configured
   300-second timeout; do not reclaim a progressing owner from age alone.
-- [ ] **A15-11 — read RAM headroom.** Check measured free percentage against
+  At 12:35:12Z, live claim `x402-inflow-watch-claude-p` PID 90983 had matching
+  process-start identity and heartbeat age 1.8 seconds against timeout 300;
+  `job-search-daily` PID 88394 also matched at age 12.1 seconds.
+- [x] **A15-11 — read RAM headroom.** Check measured free percentage against
   `LIFE_MANAGER_MIN_MEMORY_FREE_PERCENT` from the exact loaded job; no assumed
-  eight-slot safety or extra slot is a PASS.
-- [ ] **A15-12 — read disk/cleanup headroom.** Check free bytes, the latest
+  eight-slot safety or extra slot is a PASS. `pm-live-trade` loaded argv names
+  release `f1f5bcb9`, with no threshold override; that release's
+  `memory_admission.py` defaults to 15%. `memory_pressure -Q` measured 31% free.
+- [x] **A15-12 — read disk/cleanup headroom.** Check free bytes, the latest
   `life-manager-disk-cleanup` natural terminal, errors and protected deletions.
   If admission can still start a child into reproducible `ENOSPC`, fix the
   shared preflight in `runtime/host/disk_admission.py` and its focused test;
-  never delete protected state to make this green.
+  never delete protected state to make this green. Latest natural cleanup run
+  `18d61b66c2f65eb8-75721` on main-derived `86fa863d` reached outer pass at
+  12:29:46Z; its matching stdout receipt has release-GC, host and scratch
+  errors 0, protected deletions 0, free bytes 1,955,004,416 before and
+  2,206,543,872 after. Later `df -Pk` measured 3,235,340 KiB free. The
+  earlier local unittest `ENOSPC` bypassed host admission and is not proof of
+  an admitted child failure; the loaded release defaults to a 512 MiB disk
+  producer floor, and focused `test_disk_admission.py` passed 8 tests.
 - [ ] **A15-13 — read queue safety.** Measure only eligible waiting owners for
   starvation; count `effect_unknown=1` separately and verify it remains
   fenced. `resource_control_busy` must recover on a later natural wake rather
-  than becoming a permanent owner lock.
+  than becoming a permanent owner lock. Read-only SQLite using the runtime's
+  eligibility query at 12:35:52Z counted agent 8, browser 0, deterministic 9
+  eligible waiting owners; oldest waits were 2.8 and 4.5 minutes for agent and
+  deterministic. Unknown occurrences were separately agent 53 owners, browser
+  1 owner/5 rows, deterministic 34 owners. At 12:36:32Z eligible counts were
+  agent 8, browser 0, deterministic 10; the oldest deterministic candidate
+  changed owner, but bounded no-starvation is not yet proved. Capafy hourly,
+  IG account, IG marketing, healthcheck and outcome owners retain exact
+  effect-unknown fences. Historical `resource_control_busy` at
+  `x402-inflow-watch` run `18d6188f810e41c0-43797` recovered to a later
+  natural pass `18d618b1235b1a90-48212`; require current queue progress
+  before closing this gate.
 - [ ] **A15-14 — record the A15 verdict.** Mark Foundation Done only when
   A15-03 through A15-13 pass. Record main/release/loaded SHA, exact run IDs,
   queue-age before/after and receipt pointers here, then hand provider effect
