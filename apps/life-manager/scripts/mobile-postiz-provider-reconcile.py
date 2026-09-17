@@ -46,6 +46,7 @@ _valid_identity = _READ_ONLY._valid_identity
 _admission_state = _READ_ONLY._admission_state
 
 try:
+    from runtime.host import resource_admission as _resource_admission
     from runtime.host.resource_admission import resolve_unknown_occurrence
 except ImportError as exc:  # pragma: no cover - only reached from a malformed release
     raise RuntimeError("resource admission unavailable") from exc
@@ -58,6 +59,10 @@ def _inconclusive(owner_id: str, occurrence_id: str, reason: str) -> dict[str, s
         "occurrence_id": occurrence_id,
         "reason": reason,
     }
+
+
+def _authoritative_admission_db() -> Path:
+    return Path(_resource_admission._durable_paths()[3]).expanduser().resolve()
 
 
 def _request_json(url: str, api_key: str) -> Any:
@@ -110,9 +115,13 @@ def _receipt_from_row(row: dict[str, Any]) -> tuple[dict[str, Any], str | None, 
 
 def _receipt_matches(identity: dict[str, Any], row: dict[str, Any]) -> tuple[bool, str | None]:
     receipt, outer_effect, outer_job = _receipt_from_row(row)
-    if outer_effect is not None and outer_effect != identity.get("effect_key"):
-        return False, None
-    if outer_job is not None and outer_job != identity.get("job_id"):
+    if "receipt" in row:
+        if (outer_effect != identity.get("effect_key")
+                or outer_job != identity.get("job_id")
+                or receipt.get("account_id") != identity.get("account_id")
+                or receipt.get("integration_ref") != identity.get("integration_ref")):
+            return False, None
+    elif receipt.get("slot") != identity.get("slot"):
         return False, None
     common = {
         "product_id": identity.get("product_id"),
@@ -259,10 +268,13 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str)
     provider_video_sha = row.get("lifeManagerVideoSha256") or row.get("video_sha256")
     if provider_video_sha is not None and provider_video_sha != identity.get("video_sha256"):
         raise ValueError("Postiz video hash mismatch")
-    content = {"caption_sha256": identity["caption_sha256"]}
+    provider_content = {"caption_sha256": identity["caption_sha256"]}
+    local_content: dict[str, Any] = {}
     for key in ("video_sha256", "media_sha256", "pack_sha256", "media_order_sha256"):
         if key in identity:
-            content[key] = identity[key]
+            local_content[key] = identity[key]
+    if provider_video_sha is not None:
+        provider_content["video_sha256"] = provider_video_sha
     return {
         "provider": "postiz",
         "state": "PUBLISHED",
@@ -270,7 +282,8 @@ def _provider_readback(identity: dict[str, Any], provider_id: str, api_key: str)
         "public_url": state.get("post_url"),
         "account_id": account_id,
         "integration_ref": identity["integration_ref"],
-        "content": content,
+        "content": provider_content,
+        "local_content": local_content,
     }
 
 
@@ -286,7 +299,7 @@ def build_official_proof(identity: dict[str, Any], ledger: Path, api_key: str) -
     readback = _provider_readback(identity, provider_id, api_key)
     if readback.get("account_id") != identity.get("account_id"):
         raise ValueError("provider_readback_not_exact")
-    return {
+    proof = {
         "owner_id": owner_id,
         "occurrence_id": occurrence_id,
         "verified": True,
@@ -295,17 +308,28 @@ def build_official_proof(identity: dict[str, Any], ledger: Path, api_key: str) -
         "identity": identity,
         "provider_readback": readback,
     }
+    if _READ_ONLY.evaluate_proof(identity, proof)["status"] != "ready":
+        raise ValueError("provider proof contract mismatch")
+    return proof
 
 
 def reconcile_provider_effect(
     identity: dict[str, Any], ledger: Path, owner_id: str, occurrence_id: str,
     *, state: str | None, effect_unknown: int | None, api_key: str,
-    apply: bool = False,
+    apply: bool = False, admission_db: Path | None = None,
 ) -> dict[str, Any]:
     if owner_id != identity.get("loop_id") or occurrence_id != identity.get("occurrence_id"):
         return _inconclusive(owner_id, occurrence_id, "identity_occurrence_mismatch")
     if state != "released" or effect_unknown != 1:
         return _inconclusive(owner_id, occurrence_id, "claimed_or_already_resolved")
+    if admission_db is not None:
+        try:
+            if _authoritative_admission_db() != admission_db.expanduser().resolve():
+                return _inconclusive(owner_id, occurrence_id, "admission_db_mismatch")
+        except (OSError, RuntimeError, ValueError):
+            return _inconclusive(owner_id, occurrence_id, "admission_db_unavailable")
+    elif apply:
+        return _inconclusive(owner_id, occurrence_id, "admission_db_required")
     if not api_key.strip():
         return _inconclusive(owner_id, occurrence_id, "provider_token_unavailable")
     if not apply:
@@ -331,7 +355,7 @@ def reconcile_provider_effect(
     try:
         changed = resolve_unknown_occurrence(
             owner_id=owner_id, occurrence_id=occurrence_id,
-            official_readback=official_readback,
+            official_readback=official_readback, expected_state="released",
         )
     except (OSError, RuntimeError, ValueError, sqlite3.Error, ImportError):
         return _inconclusive(owner_id, occurrence_id, "resolve_rejected")
@@ -361,6 +385,7 @@ def main(argv: list[str] | None = None) -> int:
             identity, args.ledger, args.owner_id, args.occurrence_id,
             state=state, effect_unknown=effect_unknown,
             api_key=os.environ.get("POSTIZ_API_KEY", ""), apply=args.resolve,
+            admission_db=args.admission_db,
         )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0 if result["status"] in {"ready", "resolved"} else 1

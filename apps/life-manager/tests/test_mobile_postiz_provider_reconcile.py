@@ -112,7 +112,27 @@ def test_build_proof_requires_official_post_and_integration_identity(tmp_path: P
     assert proof["provider_receipt_id"] == "post-1"
     assert proof["provider_readback"]["account_id"] == "@honnevideo"
     assert proof["provider_readback"]["integration_ref"] == value["integration_ref"]
-    assert proof["provider_readback"]["content"]["video_sha256"] == "a" * 64
+    assert proof["provider_readback"]["local_content"]["video_sha256"] == "a" * 64
+
+
+def test_provider_hashes_absent_from_get_are_local_evidence_not_provider_content(
+        tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    sidecar = tmp_path / "identity.jsonl"
+    ledger = tmp_path / "distribution.jsonl"
+    write_identity(sidecar, identity())
+    write_video_ledger(ledger)
+    responses = provider_rows()
+    monkeypatch.setattr(
+        module, "_request_json",
+        lambda url, _api_key: responses["integrations" if url.endswith("/integrations") else "post"],
+    )
+    value = module.read_identity(sidecar, "life-manager-honne-ja", "life-manager-honne-ja:run-1")
+
+    proof = module.build_official_proof(value, ledger, "token")
+
+    assert "video_sha256" not in proof["provider_readback"]["content"]
+    assert proof["provider_readback"]["local_content"]["video_sha256"] == "a" * 64
 
 
 def test_apply_returns_the_fresh_exact_proof_only_after_resolver_accepts(tmp_path: Path, monkeypatch) -> None:
@@ -129,21 +149,64 @@ def test_apply_returns_the_fresh_exact_proof_only_after_resolver_accepts(tmp_pat
     resolved = []
 
     def resolver(**kwargs):
+        assert kwargs["expected_state"] == "released"
         proof = kwargs["official_readback"]()
         resolved.append(proof)
         return True
 
     monkeypatch.setattr(module, "resolve_unknown_occurrence", resolver)
+    monkeypatch.setattr(module, "_authoritative_admission_db", lambda: tmp_path / "admission.sqlite3")
     value = module.read_identity(sidecar, "life-manager-honne-ja", "life-manager-honne-ja:run-1")
     result = module.reconcile_provider_effect(
         value, ledger, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
         state="released", effect_unknown=1, api_key="token", apply=True,
+        admission_db=tmp_path / "admission.sqlite3",
     )
 
     assert result["status"] == "resolved"
     assert len(resolved) == 1
     assert resolved[0]["provider_receipt_id"] == "post-1"
     assert resolved[0]["provider_readback"]["account_id"] == "@honnevideo"
+
+
+def test_apply_without_an_authoritative_admission_db_is_held(
+        tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    sidecar = tmp_path / "identity.jsonl"
+    ledger = tmp_path / "distribution.jsonl"
+    write_identity(sidecar, identity())
+    write_video_ledger(ledger)
+    monkeypatch.setattr(module, "resolve_unknown_occurrence", lambda **_: (_ for _ in ()).throw(AssertionError("must not resolve")))
+    value = module.read_identity(sidecar, "life-manager-honne-ja", "life-manager-honne-ja:run-1")
+
+    result = module.reconcile_provider_effect(
+        value, ledger, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+        state="released", effect_unknown=1, api_key="token", apply=True,
+    )
+
+    assert result["status"] == "inconclusive"
+    assert result["reason"] == "admission_db_required"
+
+
+def test_non_authoritative_admission_db_is_rejected_before_provider_readback(
+        tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    sidecar = tmp_path / "identity.jsonl"
+    ledger = tmp_path / "distribution.jsonl"
+    write_identity(sidecar, identity())
+    write_video_ledger(ledger)
+    monkeypatch.setattr(module, "_authoritative_admission_db", lambda: tmp_path / "actual.sqlite3")
+    monkeypatch.setattr(module, "_request_json", lambda *_: (_ for _ in ()).throw(AssertionError("must not read provider")))
+    value = module.read_identity(sidecar, "life-manager-honne-ja", "life-manager-honne-ja:run-1")
+
+    result = module.reconcile_provider_effect(
+        value, ledger, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+        state="released", effect_unknown=1, api_key="token", apply=True,
+        admission_db=tmp_path / "other.sqlite3",
+    )
+
+    assert result["status"] == "inconclusive"
+    assert result["reason"] == "admission_db_mismatch"
 
 
 def test_same_platform_different_account_is_inconclusive_and_never_resolves(tmp_path: Path, monkeypatch) -> None:
@@ -161,10 +224,12 @@ def test_same_platform_different_account_is_inconclusive_and_never_resolves(tmp_
 
     monkeypatch.setattr(module, "_request_json", request_json)
     monkeypatch.setattr(module, "resolve_unknown_occurrence", lambda **_: (_ for _ in ()).throw(AssertionError("must not resolve")))
+    monkeypatch.setattr(module, "_authoritative_admission_db", lambda: tmp_path / "admission.sqlite3")
     value = module.read_identity(sidecar, "life-manager-honne-ja", "life-manager-honne-ja:run-1")
     result = module.reconcile_provider_effect(
         value, ledger, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
         state="released", effect_unknown=1, api_key="token", apply=True,
+        admission_db=tmp_path / "admission.sqlite3",
     )
 
     assert result["status"] == "inconclusive"
@@ -208,6 +273,28 @@ def test_receipt_from_a_different_slot_is_not_an_exact_effect_join(tmp_path: Pat
         module, "_request_json",
         lambda url, _api_key: responses["integrations" if url.endswith("/integrations") else "post"],
     )
+    value = module.read_identity(sidecar, "life-manager-honne-ja", "life-manager-honne-ja:run-1")
+
+    result = module.reconcile_provider_effect(
+        value, ledger, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+        state="released", effect_unknown=1, api_key="token", apply=False,
+    )
+
+    assert result["status"] == "inconclusive"
+    assert result["reason"] == "provider_readback_not_exact"
+
+
+def test_receipt_without_slot_or_wrapped_identity_is_not_an_exact_effect_join(
+        tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    sidecar = tmp_path / "identity.jsonl"
+    ledger = tmp_path / "distribution.jsonl"
+    write_identity(sidecar, identity())
+    write_video_ledger(ledger)
+    row = json.loads(ledger.read_text(encoding="utf-8"))
+    row.pop("slot")
+    ledger.write_text(json.dumps({"effect_key": identity()["effect_key"], "receipt": row}) + "\n", encoding="utf-8")
+    monkeypatch.setattr(module, "_request_json", lambda *_: (_ for _ in ()).throw(AssertionError("must not read provider")))
     value = module.read_identity(sidecar, "life-manager-honne-ja", "life-manager-honne-ja:run-1")
 
     result = module.reconcile_provider_effect(
