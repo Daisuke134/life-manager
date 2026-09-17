@@ -658,7 +658,7 @@ npm test
 
 - [x] Apply additive migrations and read columns/constraints/RLS back from production.
 
-- [x] Require the Railway `life-call` deployment with merged main `commitHash=c3ead411e68ec62b196fb666c48e721bdc0572d9` to reach `SUCCESS`.
+- [x] Require the Railway `life-call` deployment with merged main `commitHash=b325a34d5b8e3ca9eaecc396311026d58d0ce399` to reach `SUCCESS`.
 
 - [x] Verify startup logs show the standalone scheduler loops and no import/schema failure.
 
