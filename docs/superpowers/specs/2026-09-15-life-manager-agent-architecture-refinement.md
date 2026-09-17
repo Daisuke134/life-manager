@@ -120,7 +120,7 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   earlier local unittest `ENOSPC` bypassed host admission and is not proof of
   an admitted child failure; the loaded release defaults to a 512 MiB disk
   producer floor, and focused `test_disk_admission.py` passed 8 tests.
-- [ ] **A15-13 — read queue safety.** Measure only eligible waiting owners for
+- [x] **A15-13 — read queue safety.** Measure only eligible waiting owners for
   starvation; count `effect_unknown=1` separately and verify it remains
   fenced. `resource_control_busy` must recover on a later natural wake rather
   than becoming a permanent owner lock. Read-only SQLite using the runtime's
@@ -129,12 +129,18 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   deterministic. Unknown occurrences were separately agent 53 owners, browser
   1 owner/5 rows, deterministic 34 owners. At 12:36:32Z eligible counts were
   agent 8, browser 0, deterministic 10; the oldest deterministic candidate
-  changed owner, but bounded no-starvation is not yet proved. Capafy hourly,
-  IG account, IG marketing, healthcheck and outcome owners retain exact
-  effect-unknown fences. Historical `resource_control_busy` at
+  changed owner. At 12:39:50Z the same eligibility query counted agent 9
+  (oldest 6.8 minutes), browser 0, deterministic 10 (oldest 5.8 minutes).
+  No eligible owner had reached the configured 2-hour support age, and the
+  separate A15-07/09 receipts prove different owners did advance. Unknown
+  occurrences remained separate (agent 52 owners, browser 1/5 rows,
+  deterministic 34 owners); `_durable_capacity` counts live claims and
+  reservations, not those old rows. Capafy hourly, IG account, IG marketing,
+  healthcheck and outcome owners retain exact effect-unknown fences.
+  Historical `resource_control_busy` at
   `x402-inflow-watch` run `18d6188f810e41c0-43797` recovered to a later
-  natural pass `18d618b1235b1a90-48212`; require current queue progress
-  before closing this gate.
+  natural pass `18d618b1235b1a90-48212`. This is a finite queue check,
+  not a claim that every effect-fenced provider loop works.
 - [ ] **A15-14 — record the A15 verdict.** Mark Foundation Done only when
   A15-03 through A15-13 pass. Record main/release/loaded SHA, exact run IDs,
   queue-age before/after and receipt pointers here, then hand provider effect
