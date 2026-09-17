@@ -96,6 +96,8 @@ flowchart LR
 
 **順序理由:** 旧順序は`R0-C1 model → R0-C2 runtime → R0-C3 money`。現行money ownerは旧seller APIと欠損ファイルで失敗し、Agent別使用量APIからHook Labの赤字候補まで既に観測できる。モデル移行の優先順位を利益で決めるため、新順序は`R0-C3a read-only money CLI → R0-C1 model → R0-C2 runtime → R0-C3b company receipt → R1 → M0 → M1 → M2 → M3`。現在cursorは`R0-C3a`。提出cadenceと1 pass最大1 effectは維持し、platform review 5枠をローカルで撤廃せず、進行中の外部effectを再送しない。
 
+**R0-C3a実測:** read-only CLIは直近30日（2026-08-19〜09-17、UTC）でgross `$71.89`、creator earnings `$51.76`、unit `85`（trial `66`、non-trial `19`）、使用 `161` request（zero-token `70`、ID重複0）、現行単価の推定model cost `$22.90`を返した。OpenRouter host keyの`$24.17`は9月暦月の実請求で、期間の違う推定値から差し引いて利益とは呼ばない。active MRRはseller契約状態sourceが無く`null`。CLIと単体テストのPASSは本番hourly receiptの自然wake・購入者Test Runを証明しない。
+
 | 順 | owner / exact files | 最小変更 | 完了条件 |
 |---|---|---|---|
 | R0-C1 | `skills/capafy-autopublish/scripts/publish_prepare.sh`、`drive_checkpoint2.py`、`build_config.py`、`key_health_gate.sh`、new `skills/capafy/catalog/marketing-strategist/{SKILL.md,LISTING.md,test/case1.md,icon.svg}`、既存focused tests | 元SKILLとListingをcredential無しでrepo正本へ移す。OpenClaw provider contractのmodel IDと`maxTokens`をlisting別に生成し、DeepSeek `openai-responses`とCP2を一致させる。公開中Sonnetのkey probeは消さず、同じAgent IDのversion update準備をする。公開版切替は既存版継続、review承認、Capafy Test Run成功、品質と1実行costのreadbackの順。 | direct3ケースだけでは未完。same-Agent ID、旧版の提供継続、審査状態、Capafy Test Run回答全文、provider error 0、入力/出力/cost、secret leak 0。Test Run previewの`already_running`は新規成功と扱わない。 |
