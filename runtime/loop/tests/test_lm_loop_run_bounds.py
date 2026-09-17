@@ -5,13 +5,15 @@ import plistlib
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from unittest.mock import call, patch
 
 from runtime.host import resource_admission as admission
 from runtime.loop.lm_loop_run import (
-    _admission_class, _dispatch_reserved, _host_admission_deferred, _resource_class,
+    _admission_class, _dispatch_reserved, _host_admission_deferred, _queue_priority,
+    _resource_class,
     _run_admitted, _run_entrypoint, _runtime_limit, _terminal_outcome,
 )
 
@@ -59,6 +61,141 @@ def test_revenue_admission_requires_an_explicit_registry_contract():
     assert _admission_class({
         "domain": "earn", "admission_class": "revenue",
     }) == "revenue"
+
+
+def test_explicit_registry_priority_is_forwarded_to_durable_admission(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 60},
+        "provider_route": "deterministic",
+        "admission_class": "revenue",
+        "priority": "critical_paid",
+    }
+    receipt = tmp_path / "receipt"
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "capacity_busy")) as enqueue,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(["/bin/true"], entry, "paid", {}, receipt) == 75
+
+    assert _queue_priority(entry) == "critical_paid"
+    enqueue.assert_called_once_with(
+        "deterministic", "paid", admission_class="revenue",
+        priority="critical_paid",
+    )
+    run.assert_not_called()
+
+
+def test_wake_occurrence_identity_is_forwarded_to_durable_admission(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 60},
+        "provider_route": "deterministic",
+        "admission_class": "revenue",
+        "priority": "revenue",
+    }
+    receipt = tmp_path / "receipt"
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "capacity_busy")) as enqueue,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(
+            ["/bin/true"], entry, "connector", {}, receipt,
+            occurrence_id="connector:1800000000-1",
+        ) == 75
+
+    enqueue.assert_called_once_with(
+        "deterministic", "connector", admission_class="revenue",
+        priority="revenue", occurrence_id="connector:1800000000-1",
+    )
+    run.assert_not_called()
+
+
+def test_old_reservation_only_marker_does_not_advertise_queued_coalescing(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 1800},
+        "provider_route": "deterministic", "resource_class": "browser",
+        "admission_class": "revenue", "coalesce_reserved_wakes": True,
+    }
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "capacity_busy")) as enqueue,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(
+            ["/bin/true"], entry, "life-manager-connector-native", {},
+            tmp_path / "receipt", occurrence_id="connector:new",
+        ) == 75
+    enqueue.assert_called_once_with(
+        "browser", "life-manager-connector-native", admission_class="revenue",
+        occurrence_id="connector:new",
+    )
+    run.assert_not_called()
+
+
+def test_connector_registry_opt_in_coalesces_queued_scan(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 1800},
+        "provider_route": "deterministic",
+        "resource_class": "browser",
+        "admission_class": "revenue",
+        "coalesce_reserved_wakes": True,
+        "coalesce_queued_wakes": True,
+    }
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "capacity_busy")) as enqueue,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(
+            ["/bin/true"], entry, "life-manager-connector-native", {},
+            tmp_path / "receipt", occurrence_id="connector:new",
+        ) == 75
+    enqueue.assert_called_once_with(
+        "browser", "life-manager-connector-native", admission_class="revenue",
+        occurrence_id="connector:new", coalesce_reserved=True,
+    )
+    run.assert_not_called()
+
+
+def test_running_child_receives_periodic_claim_heartbeat(tmp_path, monkeypatch):
+    entry = {
+        "cadence": {"start_interval_seconds": 60},
+        "provider_route": "deterministic",
+        "admission_class": "revenue",
+        "priority": "revenue",
+    }
+    receipt = tmp_path / "receipt"
+    claim = tmp_path / "claim"
+    claim.write_text(json.dumps({"occurrence_id": "heartbeat-owner:run-1"}))
+    heartbeat_seen = threading.Event()
+    calls = []
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        assert heartbeat_seen.wait(timeout=1)
+        return 0
+
+    def heartbeat(_claim):
+        calls.append("heartbeat")
+        heartbeat_seen.set()
+        return True
+
+    monkeypatch.setattr("runtime.loop.lm_loop_run.HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.heartbeat_durable_resource",
+                side_effect=heartbeat),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                side_effect=lambda *_args, **_kwargs: calls.append("release") or []),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(
+            ["/bin/true"], entry, "heartbeat-owner", {}, receipt,
+            occurrence_id="heartbeat-owner:run-1",
+        ) == 0
+
+    assert calls[0] == "heartbeat"
+    assert calls[-1] == "release"
 
 
 def test_memory_admission_exit_is_deferred_not_failed():
@@ -194,6 +331,156 @@ def test_v1_protocol_uses_legacy_nonretaining_admission(tmp_path):
     release.assert_called_once_with(claim)
 
 
+def test_started_child_timeout_and_signal_mark_effect_unknown_before_release(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 60},
+             "provider_route": "deterministic", "resource_class": "browser",
+             "admission_class": "revenue"}
+    for exit_code in (124, 143):
+        claim = tmp_path / f"claim-{exit_code}"
+        claim.write_text("owned")
+
+        def run_child(*_args, **kwargs):
+            kwargs["on_started"](4242)
+            return exit_code
+
+        with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+              patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                    return_value=(tmp_path / "ticket", "ready")),
+              patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                    return_value=(claim, "acquired")),
+              patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+              patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                    return_value=[]) as release,
+              patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+              patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+            assert _run_admitted(["/bin/true"], entry, "connector", {},
+                                 tmp_path / f"receipt-{exit_code}") == exit_code
+        release.assert_called_once_with(
+            claim, requeue=False, reserve=True, effect_unknown=True)
+
+
+def test_proven_pre_effect_failure_releases_owner_for_next_wake(tmp_path):
+    claim = tmp_path / "claim"
+    claim.write_text("owned")
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        hint = Path(kwargs["env"]["LIFE_MANAGER_RESULT_HINT_PATH"])
+        hint.write_text('{"status":"pre_effect_failure","effect":0}\n')
+        hint.chmod(0o600)
+        return 1
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 60},
+            "provider_route": "deterministic", "resource_class": "agent",
+            "admission_class": "revenue",
+            "entrypoint": "skills/earn/crowdworks/scripts/paid-owner",
+        }, "paid", {}, tmp_path / "receipt") == 1
+    release.assert_called_once_with(claim, requeue=False, reserve=True)
+
+
+def test_generic_child_hint_cannot_clear_unknown_effect(tmp_path):
+    claim = tmp_path / "claim"
+    claim.write_text("owned")
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        assert "LIFE_MANAGER_RESULT_HINT_PATH" not in kwargs["env"]
+        hint = tmp_path / "entrypoint-result.json"
+        hint.write_text('{"status":"pre_effect_failure","effect":0}\n')
+        hint.chmod(0o600)
+        return 1
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 60},
+            "provider_route": "deterministic", "resource_class": "browser",
+            "admission_class": "revenue", "entrypoint": "skills/connector/run.sh",
+        }, "connector", {}, tmp_path / "receipt") == 1
+    release.assert_called_once_with(
+        claim, requeue=False, reserve=True, effect_unknown=True)
+
+
+def test_admitted_child_receives_exact_host_occurrence_identity(tmp_path):
+    claim = tmp_path / "claim"
+    claim.write_text(json.dumps({"occurrence_id": "connector:run-123"}))
+    observed = {}
+
+    def run_child(*_args, **kwargs):
+        observed.update(kwargs["env"])
+        kwargs["on_started"](4242)
+        return 0
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")) as claim_admission,
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 60},
+            "provider_route": "deterministic", "resource_class": "browser",
+            "admission_class": "revenue", "coalesce_queued_wakes": True,
+        }, "connector", {}, tmp_path / "receipt",
+            occurrence_id="connector:run-123") == 0
+    claim_admission.assert_called_once_with(
+        "browser", "connector", admission_class="revenue",
+        coalesced_occurrence_id="connector:run-123")
+    assert observed["LIFE_MANAGER_OCCURRENCE_ID"] == "connector:run-123"
+
+
+def test_noncoalesced_child_uses_claimed_older_occurrence(tmp_path):
+    claim = tmp_path / "claim"
+    claim.write_text(json.dumps({"occurrence_id": "example:older"}))
+    observed = {}
+    claimed = []
+
+    def run_child(*_args, **kwargs):
+        observed.update(kwargs["env"])
+        kwargs["on_started"](4242)
+        return 0
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 60},
+            "provider_route": "deterministic", "resource_class": "agent",
+            "admission_class": "revenue",
+        }, "example", {}, tmp_path / "receipt", occurrence_id="example:new",
+            on_claimed=claimed.append) == 0
+    assert observed["LIFE_MANAGER_OCCURRENCE_ID"] == "example:older"
+    assert claimed == ["example:older"]
+
+
 def test_v1_protocol_coexists_with_live_legacy_owner_without_sqlite(tmp_path, monkeypatch):
     root = tmp_path / "admission"
     monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(root))
@@ -274,7 +561,8 @@ def test_all_coconala_lanes_enter_revenue_admission(tmp_path):
             ) == 75
 
     assert enqueue.call_args_list == [
-        call("agent", loop_id, admission_class="revenue") for loop_id in loop_ids
+        call("agent", loop_id, admission_class="revenue",
+             priority=registry[loop_id]["priority"]) for loop_id in loop_ids
     ]
     assert claim.call_args_list == [
         call("agent", loop_id, admission_class="revenue") for loop_id in loop_ids
