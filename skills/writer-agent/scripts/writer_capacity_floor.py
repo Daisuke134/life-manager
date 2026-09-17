@@ -26,7 +26,10 @@ def resolve_disk_floor_bytes(state_dir: Path) -> int:
         ))
     except ValueError as error:
         raise CapacityFloorError("disk_headroom_configuration_invalid") from error
-    if configured_kib < CANONICAL_DISK_HEADROOM_KIB or configured_bytes < CANONICAL_DISK_HEADROOM_BYTES:
+    if (
+        configured_kib < CANONICAL_DISK_HEADROOM_KIB
+        or configured_bytes < configured_kib * 1024
+    ):
         raise CapacityFloorError("disk_headroom_configuration_invalid")
 
     receipt_path = Path(os.environ.get(
@@ -37,13 +40,25 @@ def resolve_disk_floor_bytes(state_dir: Path) -> int:
         return configured_bytes
     try:
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-        observed = int(receipt["observed_consumption_kib"])
-        reserve = int(receipt["atomic_reserve_kib"])
-        required = int(receipt["required_free_kib"])
-    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
+        if not isinstance(receipt, dict):
+            raise TypeError("capacity receipt must be an object")
+        observed = receipt["observed_consumption_kib"]
+        reserve = receipt["atomic_reserve_kib"]
+        required = receipt["required_free_kib"]
+        if any(type(value) is not int for value in (observed, reserve, required)):
+            raise TypeError("capacity receipt counters must be integers")
+    except (
+        OSError,
+        UnicodeDecodeError,
+        ValueError,
+        KeyError,
+        TypeError,
+        json.JSONDecodeError,
+    ) as error:
         raise CapacityFloorError("capacity_receipt_invalid") from error
     if (
         receipt.get("schema") != "writer.capacity-receipt"
+        or type(receipt.get("version")) is not int
         or receipt.get("version") != 1
         or observed < 0
         or reserve < CANONICAL_DISK_HEADROOM_KIB

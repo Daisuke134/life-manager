@@ -366,11 +366,17 @@ def build_demand_card(
     """
     if not isinstance(observations, list) or not observations:
         raise DemandCardError("demand card observations must be a non-empty list")
-    observation_ids = {
-        str(observation.get("observation_id"))
-        for observation in observations
-        if isinstance(observation, Mapping)
-    }
+    observation_ids: set[str] = set()
+    for index, observation in enumerate(observations):
+        if not isinstance(observation, Mapping):
+            continue
+        try:
+            observation_id = _text(observation.get("observation_id"), "observation_id")
+        except ValueError:
+            continue
+        if observation_id in observation_ids:
+            raise DemandCardError("demand card observation IDs must be unique")
+        observation_ids.add(observation_id)
     normalized_bindings = _validate_bindings(
         bindings,
         observation_ids=observation_ids,
