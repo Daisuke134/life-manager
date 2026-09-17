@@ -8,6 +8,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -52,6 +53,62 @@ def _ledger(root: Path, *proposal_ids: str) -> Path:
 
 
 class WorkSyncTests(unittest.TestCase):
+    def test_proposal_pipeline_reads_every_official_page(self):
+        sync = _load()
+        first = "/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC"
+        later = {
+            2: "/mypage/proposals/limit:100/sort:Proposal.id/direction:desc/page:2",
+            3: "/mypage/proposals/page:3/limit:100/sort:Proposal.id/direction:desc",
+        }
+        pages = {}
+        for number, (start, end, status) in enumerate(
+            ((1, 100, "残り 1日"), (101, 200, "選定中"), (201, 298, "終了")), start=1
+        ):
+            path = first if number == 1 else later[number]
+            pages[path] = {
+                "total": f"298件中{start}-{end}件表示",
+                "rows": [{"href": f"/work/detail/{project}", "status": status}
+                         for project in range(start, end + 1)],
+                "pagers": [later[number + 1]] if number < 3 else [],
+            }
+
+        class Page:
+            url = ""
+            visited = []
+
+            def goto(self, url, **_kwargs):
+                self.url = url
+                self.visited.append(url.removeprefix("https://www.lancers.jp"))
+                return SimpleNamespace(status=200)
+
+            def evaluate(self, _script):
+                return pages[self.url.removeprefix("https://www.lancers.jp")]
+
+        page = Page()
+        result = sync._proposal_pipeline(page, 179)
+        self.assertEqual(result["current_count"], 298)
+        self.assertEqual((result["open_count"], result["selecting_count"],
+                          result["ended_count"], result["receipt_count"]),
+                         (100, 100, 98, 179))
+        self.assertEqual(page.visited, [first, later[2], later[3]])
+
+    def test_proposal_pipeline_rejects_missing_status(self):
+        sync = _load()
+
+        class Page:
+            url = "https://www.lancers.jp/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC"
+
+            def goto(self, _url, **_kwargs):
+                return SimpleNamespace(status=200)
+
+            def evaluate(self, _script):
+                return {"total": "1件中1-1件表示",
+                        "rows": [{"href": "/work/detail/1", "status": ""}],
+                        "pagers": []}
+
+        with self.assertRaisesRegex(sync.SourceFailure, "proposal_pipeline_unavailable"):
+            sync._proposal_pipeline(Page(), 0)
+
     def test_complete_snake_case_snapshot_is_sanitized_and_correlated(self):
         sync = _load(); fetch, calls = _fetcher()
         result = sync._snapshot(fetch, {"proposal-7"})
