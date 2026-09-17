@@ -56,8 +56,9 @@ Local gate and Eval, build meta/self-heal on those proven contracts, then promot
 the approved source to Cloud and pass its gate.
 Reason: a candidate checkout or mock cannot be the production code authority;
 deferring main until after Cloud leaves live owners on the old admission path.
-Current cursor is step 1's remaining integration map plus step 2's
-occurrence-ID safety atomic; Connector is the first provider-effect canary.
+Current cursor is step 2's occurrence-ID safety atomic. Step 1 is closed only
+for the shared-runtime files needed for that slice; it is not a fleet-wide
+inventory or a serial dependency for independent provider developers.
 Current difficulty is concrete, not missing planning: the foundation branch
 has diverged from advancing main; the priority-upgrade patch is only on a
 candidate branch; old loaded runs and SQLite rows still use the earlier
@@ -73,7 +74,7 @@ tables remain evidence of the superseded plan, not the active cursor.
 
 | # | Atomic result, in dependency order | Acceptance; do not advance on source-only PASS |
 |---:|---|---|
-| 1 | **Inventory and ownership:** fetch latest main; compare foundation `3a70e98867`, admission source `c7ce1e9fc6`, provider branches and loaded SHAs by file and owner; keep browser/account owners untouched. Freeze the patch dependency map before any merge. | One owner/file map; no dirty or active-owner edit, and each candidate patch has a main-ancestry strategy. Read-only inspection has begun, but this gate is not closed. |
+| 1 | **Scoped overlap check — done for step 2:** compare latest main, foundation `3a70e98867`, admission source `c7ce1e9fc6` and the exact provider-owned paths below. Skip a fleet-wide audit before the first patch. | Shared runtime/registry/Connector/provider ownership is mapped below; no other owner's worktree, profile or state was edited. Recheck only changed overlaps before each integration. |
 | 2 | **Shared-runtime source gate:** `runtime/host/resource_admission.py` + `runtime/loop/lm_loop_run.py`: (a) bind the claimed oldest occurrence ID to the actual child effect, (b) finish durable queue/release→next claim and mixed-release recovery, (c) keep Paid priority plus bounded aging and owner heartbeat, (d) pressure-test RAM/disk/resource classes and uncertain-effect fence. Priority upgrade `c7ce1e9fc6` is pushed/tested, not live. | RED→GREEN focused regressions; five active owners → release → eligible waiter starts without another timer; no effect replay, lost queue row or hard-cap violation. Do not call `capacity_busy` elimination a RAM guarantee. |
 | 3 | **Integrate and deploy shared slices:** land only reviewed step-2 changes plus needed manifest/CLI/observability in main, cut main-derived immutable releases and apply one loaded-idle owner at a time. After all old loaded readers and queue rows are reconciled, migrate `borrow` maintenance rows to explicit `support` priority/resource limits and retire the legacy name with old/new schema tests. | Exact source/release/loaded argv and queue migration readback, no sibling restart. `borrow` is not yet deleted; remove it only after the mixed-release compatibility gate. |
 | 4 | Connector first: resolve the current pre-effect capacity stop, let a natural outer run terminate, and reconcile exact provider registration → Google Calendar ID → next-wake replay-zero; then tune its cadence/phase only against event freshness. | Official registration/Calendar readback where eligible, or truthful no-work; loaded PID/inner pass is insufficient. |
@@ -86,6 +87,24 @@ tables remain evidence of the superseded plan, not the active cursor.
 | 11 | Activate bounded self-heal and self-improve through existing supervisor/reconcile/eval paths: missed-cadence alert → exact-owner recovery → isolated candidate → held-out/safety/cost/live gate → promotion or rollback. | A real injected failure resumes only its owner with terminal repair receipt and leaves siblings unchanged; identity, permissions and gate criteria are immutable to self-improvement. |
 | 12 | Promote the identical approved business kernel/source SHA to tenant-isolated Cloud; test Steel owner lease/release and phone-only status/human handoff/readback; run Cloud gate. | Tenant cross-read 0, credential/state mix 0, official effects and replay-zero, Local/Eval/Cloud all PASS. |
 | 13 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
+
+**Step-1 file/owner decision (read-only map, not a second TODO):**
+
+| Files needed next | Source and owner | Integration decision |
+|---|---|---|
+| `runtime/host/resource_admission.py`, `runtime/host/tests/test_resource_admission.py` | Foundation candidate plus the reviewed `c7ce1e9fc6` priority slice in the Codex-owned admission branch | Extract reviewed shared behavior against fresh main; do **not** merge the entire candidate branch. |
+| `runtime/loop/lm_loop_run.py`, `runtime/loop/tests/test_lm_loop_run_bounds.py`, `runtime/loop/runtime_event.py` | Foundation candidate; current outer terminal/occurrence boundary spans these files | First prove A-queued/B-executing claim, child effect ID and outer terminal/fence in one regression. No isolated runner-only fix. |
+| `config/loop-registry.json`, `runtime/loop/macos_loop_registry.py` and registry tests | Shared runtime file; CrowdWorks and other provider branches also edit registry rows | Integrate only exact loop rows with latest main and owner check at release time. No whole-file overwrite. |
+| `skills/connector/native-pass.js`, `apps/life-manager/lib/connector-minimal-operations.js` and their existing tests | Connector-owned surface; source candidate differs from loaded old Connector | Read-only contract check for the A→B fence, then target only Connector after a main-derived release. No browser/provider action during step 2. |
+| `skills/earn/lancers/**`, `skills/earn/crowdworks/**`, `skills/earn/gig/**`, provider browser/profile/state | Separate provider owners and branches; some candidate branches contain old provider edits | Exclude from the foundation patch and leave independent development parallel. Their exact repair comes at steps 5–6. |
+
+Step 1 is necessary as this five-row overlap check because the candidate has
+many unrelated files and latest main has moved. It is **not** a license for
+another full-repository mapping exercise. The first implementation target is
+step 2's existing claim/terminal contract, with the files above and a failing
+cross-boundary test. The priority slice `c7ce1e9fc6` stays candidate-only
+until this identity gate and main-ancestry review pass; it is neither discarded
+as bad nor merged on test-green alone.
 
 Independent provider *development* may run in separate owned worktrees while
 steps 1–4 proceed. Only the exact shared browser/account/effect or integration
@@ -128,6 +147,20 @@ does not transfer ownership of their browser/account state.
   reuse the existing claim/terminal/receipt path to bind them. Do not add a
   second scheduler, parallel ledger or generic mapping framework merely to
   make the test green. Do not promote the priority patch as full replay safety.
+- [ ] Exact next patch contract, before production mutation: inspect A's
+  `occurrences` row, same-ID outer terminal and Connector intent/readback.
+  If A is **proved pre-effect**, write the RED regression in
+  `runtime/host/tests/test_resource_admission.py` and
+  `runtime/loop/tests/test_lm_loop_run_bounds.py`: a later Connector wake B
+  must take the preserved queue age but its own B ID must match claim, child
+  intent and B outer terminal. Then change only the opted-in coalescing path
+  in `resource_admission.py::claim_durable` and its call in
+  `lm_loop_run.py::_run_admitted`; keep non-coalescing provider work unchanged.
+  `connector-minimal-operations.test.js` must still accept the exact B
+  terminal/fence. If A has any uncertain effect, **do not rebind or resend**:
+  reconcile its official provider/Calendar state first, then close that
+  occurrence by its existing fence. No generic mapping table is authorized
+  by this slice. This test/decision is the actual first code task in step 2.
 - [ ] `borrow` is **not deleted**: current `resource_admission.py` SQLite
   schema/capacity calculations and `lm_loop_run.py` default still use
   `admission_class=borrow` for maintenance. It is an old reserved-capacity
