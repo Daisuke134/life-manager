@@ -165,8 +165,18 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   `aea75f006da5c7a52fd7f07f`) and probe (event
   `cca153e43fe3ca3df96b9a64`); both launchd loaded argv read back that
   SHA, and browser queued/claimed rows were zero immediately after apply.
-  This is deployment evidence, not A15-08 completion: the next natural
-  same-SHA terminal and distinct-owner claim/release remain to be measured.
+  On the next natural wake Connector run `18d62f87228d8020-76376` claimed
+  browser at 18:35:59Z and probe run `18d62f8bd70017d0-76882` queued known
+  at 18:36:19Z, both on `0f504c58`. Connector reached outer pass and released
+  known at 18:41:48Z. Yet `_dispatch_reserved` saw the probe's installed SHA
+  behind global `current` and called `apply_live` at 18:41:44Z, moving probe
+  to `a0a4e522` and cancelling its queued occurrence before dispatch. Probe
+  run `18d62fd876d2e548-83976` then passed on the new SHA. This is still
+  not the same-SHA handoff. The branch-local dispatch fix validates an older
+  main-derived complete loaded release and kickstarts it without rebinding;
+  unverified old paths defer without deleting the queue. Its focused RED-to-
+  green test and the full runner bounds suite (60 tests) passed locally.
+  Main integration and natural readback remain required for A15-08.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a

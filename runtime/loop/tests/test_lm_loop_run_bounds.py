@@ -1168,7 +1168,7 @@ def test_dispatch_reserved_rejects_stale_loaded_release_prefix(tmp_path):
     assert run.call_count == 1
 
 
-def test_dispatch_drift_syncs_and_starts_one_idle_owner(tmp_path):
+def test_dispatch_drift_defers_unverified_loaded_release(tmp_path):
     current = tmp_path / "release"
     agents = tmp_path / "agents"
     (current / "config").mkdir(parents=True)
@@ -1187,34 +1187,61 @@ def test_dispatch_drift_syncs_and_starts_one_idle_owner(tmp_path):
     (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
         "ProgramArguments": ["/old/bin/lm-loop-run", "example", "/old"],
     }))
-    expected = [str(current.resolve() / "bin/lm-loop-run"),
-                "example", str(current.resolve())]
-    loaded_idle = subprocess.CompletedProcess(
-        [], 0, "arguments = {\n" + "\n".join(expected) + "\n}\nstate = not running",
+    with (patch("runtime.loop.lm_loop_run.apply_live", create=True,
+                side_effect=AssertionError("queued owner rebound")),
+          patch("runtime.loop.lm_loop_run.defer_durable_resource", return_value=False) as defer,
+          patch("runtime.loop.lm_loop_run.subprocess.run") as run):
+        assert _dispatch_reserved(["example"], current=current, agents_dir=agents) == []
+    defer.assert_called_once_with("example", cooldown_seconds=60)
+    run.assert_not_called()
+
+
+def test_dispatch_kicks_queued_owner_on_valid_loaded_main_release(tmp_path):
+    releases = tmp_path / "releases"
+    current = releases / "new"
+    old = releases / "old"
+    agents = tmp_path / "agents"
+    for release in (current, old):
+        (release / "config").mkdir(parents=True)
+        (release / "bin").mkdir()
+        (release / "bin/lm-loop-run").write_text("#!/bin/sh\n")
+        (release / "config/runtime-capabilities.json").write_text(
+            json.dumps({"resource_admission": 2}))
+    agents.mkdir()
+    row = {
+        "label": "ai.anicca.example", "domain": "system", "entrypoint": "bin/lm-loop-run",
+        "cadence": {"start_interval_seconds": 300}, "effect_class": "none",
+        "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic", "resource_class": "browser",
+    }
+    for release in (current, old):
+        (release / "config/loop-registry.json").write_text(json.dumps({
+            "schema_version": 2, "loops": {"example": row},
+        }))
+        (release / "RELEASE.json").write_text(json.dumps({
+            "sha": "a" * 40, "provenance": "ancestor-of-origin-main",
+            "release_paths": "ALL",
+        }))
+    old_args = [str(old / "bin/lm-loop-run"), "example", str(old)]
+    (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
+        "ProgramArguments": old_args,
+    }))
+    idle = subprocess.CompletedProcess(
+        [], 0, "arguments = {\n" + "\n".join(old_args) + "\n}\nstate = not running",
     )
-    kicked = subprocess.CompletedProcess([], 0, "")
-    loaded_running = subprocess.CompletedProcess(
-        [], 0, "arguments = {\n" + "\n".join(expected) + "\n}\nstate = running",
+    running = subprocess.CompletedProcess(
+        [], 0, "arguments = {\n" + "\n".join(old_args) + "\n}\nstate = running",
     )
     with (patch("runtime.loop.lm_loop_run.apply_live", create=True,
-                return_value=[{"ok": True, "loaded_arguments": expected}]) as apply,
-          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
+                side_effect=AssertionError("queued owner rebound")),
           patch("runtime.loop.lm_loop_run.subprocess.run",
-                side_effect=[loaded_idle, kicked, loaded_running]) as run):
+                side_effect=[idle, subprocess.CompletedProcess([], 0, ""), running]) as run):
         assert _dispatch_reserved(["example"], current=current, agents_dir=agents) == ["example"]
-    apply.assert_called_once()
-    assert apply.call_args.kwargs["target"] == "example"
-    assert apply.call_args.kwargs["skip_busy"] is True
-    defer.assert_not_called()
     assert [item.args[0][1] for item in run.call_args_list] == [
         "print", "kickstart", "print",
     ]
-    with (patch("runtime.loop.lm_loop_run.apply_live",
-                return_value=[{"ok": True, "loaded_arguments": expected}]),
-          patch("runtime.loop.lm_loop_run.subprocess.run",
-                return_value=loaded_running) as run):
-        assert _dispatch_reserved(["example"], current=current, agents_dir=agents) == []
-    assert [item.args[0][1] for item in run.call_args_list] == ["print"]
 
 
 def test_dispatch_release_drift_preserves_real_sqlite_waiter(tmp_path, monkeypatch):
