@@ -1796,6 +1796,29 @@ def test_three_revenue_slots_remain_with_two_support_owners(tmp_path, monkeypatc
         admission.release_and_reserve(claim, reserve=False)
 
 
+def test_deterministic_revenue_keeps_one_slot_beside_two_support_owners(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="8")
+    admission.activate_durable_v2()
+    support_claims = []
+    for owner in ("support-deterministic-a", "support-deterministic-b"):
+        admission.enqueue_durable("deterministic", owner, admission_class="borrow")
+        claim, reason = admission.claim_durable(
+            "deterministic", owner, admission_class="borrow")
+        assert claim is not None and reason == "acquired"
+        support_claims.append(claim)
+
+    admission.enqueue_durable("deterministic", "capafy-loop-daily",
+                              admission_class="revenue")
+    claim, reason = admission.claim_durable(
+        "deterministic", "capafy-loop-daily", admission_class="revenue")
+
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, reserve=False)
+    for support_claim in support_claims:
+        admission.release_and_reserve(support_claim, reserve=False)
+
+
 def test_legacy_revenue_uses_host_capacity_beyond_borrow_agent_limit(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="3")
