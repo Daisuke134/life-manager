@@ -43,9 +43,10 @@ Pass order:
    work authorization, or other factual controls answered from verified profile facts. Save
    and read back progress after each such step, then resume the same application on a later
    wake when another reversible step remains. Do not click `Continue application` when a
-   person-bound step remains; never open an interview, assessment, recording, camera,
-   microphone, or screen-sharing step. In that case record the exact step, notify the human
-   gate, and go directly to Explore while preserving the listing's resumable state. Record
+   person-bound step remains; never open or enter an interview, assessment, recording, camera,
+   microphone, or screen-sharing step. You may use `Continue application` to finish reversible
+   steps before that person-bound control, then record the exact step, notify the human gate,
+   and go directly to Explore while preserving the listing's resumable state. Record
    every inspected listing in `inspected_listings` with its live URL, application state, and
    decision.
 3. Maintain a queue of distinct new listings. Before opening detail pages, compare visible

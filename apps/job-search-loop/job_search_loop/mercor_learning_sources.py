@@ -31,10 +31,17 @@ _STRATEGY_VERSION = "mercor-fit-evidence-v1"
 def classify_x_source_kind(text: str) -> str:
     """Call an X post firsthand only when it states a personal outcome."""
     value = str(text or "").casefold()
-    achieved_outcome = re.search(
-        r"\b(?:i|we)\b[^.!?]{0,80}\b(?:got hired|was hired|received|earned|got an offer|got a contract)\b",
-        value,
-    ) or re.search(r"\b(?:my|our)\s+(?:payout|contract|offer)\b", value)
+    achieved_outcome = (
+        re.search(
+            r"\b(?:i|we)\b[^.!?]{0,80}\b(?:got hired|was hired|got an offer|got a contract)\b",
+            value,
+        )
+        or re.search(
+            r"\b(?:i|we)\b[^.!?]{0,80}\b(?:received|earned)\b[^.!?]{0,40}\b(?:payout|payment|earnings|income|usd|dollars)\b",
+            value,
+        )
+        or re.search(r"\b(?:my|our)\s+(?:first|latest|actual)?\s*(?:payout|payment|earnings|contract)\b", value)
+    )
     return "first_person" if achieved_outcome else "marketing"
 
 

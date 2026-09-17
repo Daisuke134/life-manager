@@ -74,6 +74,7 @@ if ! PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
   exit 75
 fi
 
+pre_effect_failure
 if ! "$LEASE_PYTHON" "$LEASE_SCRIPT" commit-cookies "$TASK" --domain mercor.com \
   --origin https://work.mercor.com --local-storage-key mercor-auth-store \
   --session-storage-key mercor-session-id --session-storage-key mercor-user-ip \
@@ -81,6 +82,9 @@ if ! "$LEASE_PYTHON" "$LEASE_SCRIPT" commit-cookies "$TASK" --domain mercor.com 
   --token "$TOKEN" --generation "$GENERATION" >"$STATE_ROOT/session-writeback.json"; then
   pre_effect_failure
   exit 75
+fi
+if [[ -n "$RESULT_HINT" ]]; then
+  rm -f "$RESULT_HINT"
 fi
 
 "$PYTHON" "$ROOT/skills/_shared/marketplace-core/scripts/reply_kernel.py" \

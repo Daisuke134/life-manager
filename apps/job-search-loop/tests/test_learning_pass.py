@@ -84,6 +84,7 @@ class LearningPassTests(unittest.TestCase):
         self.assertIn("mercor_learning_sources collect", script)
         self.assertIn("mercor-learning-sources.json", script)
         self.assertIn('--mercor-sources "$MERCOR_SOURCES"', script)
+        self.assertIn('chmod 600 "$MERCOR_SOURCES" "$MERCOR_SOURCES_SUMMARY"', script)
         self.assertIn("--query", script)
 
     def test_x_source_requires_first_person_outcome_language(self):
@@ -93,6 +94,14 @@ class LearningPassTests(unittest.TestCase):
         )
         self.assertEqual(
             classify_x_source_kind("We offer paid Mercor roles to applicants."),
+            "marketing",
+        )
+        self.assertEqual(
+            classify_x_source_kind("I received your application and will review it."),
+            "marketing",
+        )
+        self.assertEqual(
+            classify_x_source_kind("My offer to candidates starts next week."),
             "marketing",
         )
         self.assertEqual(

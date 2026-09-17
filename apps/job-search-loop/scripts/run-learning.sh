@@ -35,7 +35,7 @@ else
     printf '%s\n' "Mercor source collection failed; strategy learning continues" >&2
   fi
 fi
-chmod 600 "$MERCOR_SOURCES_SUMMARY"
+chmod 600 "$MERCOR_SOURCES" "$MERCOR_SOURCES_SUMMARY"
 
 "$JOB_SEARCH_PYTHON" -m job_search_loop.learning run \
   --ledger "$JOB_SEARCH_STATE_ROOT/ledger.sqlite3" \
