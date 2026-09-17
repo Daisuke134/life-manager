@@ -34,12 +34,14 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   Files: `runtime/loop/lm_loop_apply.py` and
   `runtime/loop/tests/test_lm_loop_apply.py`. The pre-rebase run passed 91 tests
   and 30 subtests; the post-rebase run was interrupted, so it is not PASS yet.
-- [ ] **A15-02 — integrate that exact shared repair.** Push the verified branch,
-  require its existing CI checks to pass, then merge the focused PR to main.
+- [ ] **A15-02 — integrate that exact shared repair.** The branch is already
+  pushed; require CI checks to pass, then merge the focused PR to main.
   No Writer provider code, account, browser profile, or private state is changed.
-- [ ] **A15-03 — cut and read back one main-derived immutable release.** Use
-  `bin/cut-loop-release.sh origin/main`; verify `RELEASE.json.sha` is an
-  `origin/main` ancestor and `release_paths=ALL`. Do not race another cut lock.
+- [ ] **A15-03 — read back one main-derived immutable release.** Reuse a
+  complete current release if it already contains the merged SHA; otherwise
+  cut once with `bin/cut-loop-release.sh origin/main`. Verify
+  `RELEASE.json.sha` is an `origin/main` ancestor and `release_paths=ALL`.
+  Do not race another cut lock.
 - [ ] **A15-04 — sync only the loaded-idle release-reconciler.** Use existing
   `bin/lm-loop reconcile deterministic --loaded-idle-only --max-owners 1
   --loop-id life-manager-release-reconciler`; read loaded argv and SHA. Wait for
