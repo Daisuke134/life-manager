@@ -9,12 +9,30 @@
       "type": "string",
       "enum": ["submitted", "observed_no_action", "needs_human", "blocked"]
     },
+    "profile_sync": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "authenticated", "resume_visible", "parser_reviewed", "profile_version", "field_hashes", "resume_sha256", "evidence_ref"],
+      "properties": {
+        "status": {"type": "string", "enum": ["synced", "unchanged", "unknown", "blocked"]},
+        "authenticated": {"type": "boolean"},
+        "resume_visible": {"type": "boolean"},
+        "parser_reviewed": {"type": "boolean"},
+        "profile_version": {"type": "string", "minLength": 1},
+        "field_hashes": {
+          "type": "object",
+          "additionalProperties": {"type": "string", "minLength": 1}
+        },
+        "resume_sha256": {"type": "string", "minLength": 1},
+        "evidence_ref": {"type": "string", "minLength": 1}
+      }
+    },
     "inspected_listings": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["listing_id", "url", "title", "application_state", "submit_visible", "decision", "ranking_band", "ranking_evidence"],
+        "required": ["listing_id", "url", "title", "application_state", "submit_visible", "decision", "ranking_band", "ranking_evidence", "provider_fit_status", "requirement_evidence", "strategy_version"],
         "properties": {
           "listing_id": {"type": "string"},
           "url": {"type": "string"},
@@ -27,7 +45,30 @@
             "type": "array",
             "minItems": 1,
             "items": {"type": "string", "minLength": 1}
-          }
+          },
+          "provider_fit_status": {
+            "type": "string",
+            "enum": ["allowed", "warning", "blocked", "not_shown", "unknown"]
+          },
+          "requirement_evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["requirement", "fact_id", "disposition"],
+              "properties": {
+                "requirement": {"type": "string", "minLength": 1},
+                "fact_id": {
+                  "anyOf": [
+                    {"type": "string", "minLength": 1},
+                    {"type": "null"}
+                  ]
+                },
+                "disposition": {"type": "string", "minLength": 1}
+              }
+            }
+          },
+          "strategy_version": {"type": "string", "minLength": 1}
         }
       }
     },

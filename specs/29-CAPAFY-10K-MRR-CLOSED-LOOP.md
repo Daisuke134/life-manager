@@ -10,6 +10,16 @@ Life Manager public repositoryだけをsourceとして、Capafy skillの発見�
 
 Daisの現在の完了条件は**月間売上のreadback**であり、active MRRの取得を完了gateにしない。主指標はSeller Consoleの`creator_earnings_usd`、補助指標は`gross_sales_usd`、費用はAgent別推定model costとOpenRouter実請求を別々に表示する。`active_mrr_usd`はseller側のactive/canceled subscription identity sourceがCapafyから提供されるまで`null`のまま保持し、月間売上から推定しない。既存のMRR記述は履歴・定義として残るが、現在の実行順・完了判定には使わない。
 
+## Current execution cursor — 2026-09-17
+
+**自側で完了:** A15由来の共有admission修復、`effect_class=none` ownerの古い`effect_unknown`回収、Capafy dailyのhourly自然wake、5分healthcheck、DeepSeek V4.1 Flash key probe、月間売上CLI readbackを実測済み。最新Capafy releaseではdailyが`CAP_FULL`・`rc=0`・`platform_write=0`を返し、daily/healthcheckは同一release SHAへ対象反映済み。Reel/Instagram/HyperFramesは完了条件外のままにする。
+
+**自側で継続:** dailyを3600秒、healthcheckを300秒で自然運転し、7日間のterminal pass・receipt鮮度・duplicate/replay 0を観測する。月間gross sales、creator earnings、LLM推定費用、OpenRouter実請求をUTC月初から毎時readbackする。`active_mrr=null`は欠損診断として保持し、完了gateに戻さない。
+
+**プラットフォーム枠待ち:** 公式inventoryが`5/5 under_review`の間は、同じAgent `9563867391`のDeepSeek版提出・審査承認・buyer Test Runを送信しない。枠が空いた最初の適格wakeで1件だけ更新する。現行公開Marketing AgentはSonnet 4.6のまま運転できる。
+
+**モデル経路の境界:** Capafyのkey health probeと更新候補は`deepseek/deepseek-v4.1-flash`・`max_tokens=8192`を使う。既存browser-laneの判断runnerは現在Codex Terra高推論／Claude fallbackの契約であり、OpenRouter DeepSeekへ切り替える作業は別のprovider adapterと品質検証が必要なため、24/7復旧の完了条件に混ぜない。
+
 ## Read this first — 現在地と次の1手
 
 このsectionが実行順序の唯一のSSOTである。記憶や会話履歴から次の作業を選ばない。常に最上段の未完了1件だけをactiveにし、完了証拠を同じ行へ書いてから次へ進む。下のC0–C23表は履歴とacceptanceの索引であり、実行順序ではない。

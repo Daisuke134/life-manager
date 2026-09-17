@@ -2,10 +2,61 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from job_search_loop.mercor_human_gate import HumanGateStore
+from job_search_loop.mercor_human_gate import HumanGateStore, next_action
 
 
 class MercorHumanGateTests(unittest.TestCase):
+    def test_exact_account_listing_step_key_is_stable_and_separates_steps(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = HumanGateStore(Path(directory) / "human-gates.jsonl")
+            first = store.record(
+                run_id="run-1", reason="complete the assessment",
+                evidence_ref="run:run-1", account_id="daisuke",
+                listing_id="list-a", step_id="assessment-a",
+            )
+            same_step = store.record(
+                run_id="run-2", reason="assessment still required",
+                evidence_ref="run:run-2", account_id="daisuke",
+                listing_id="list-a", step_id="assessment-a",
+            )
+            other_step = store.record(
+                run_id="run-2", reason="complete the interview",
+                evidence_ref="run:run-2", account_id="daisuke",
+                listing_id="list-a", step_id="interview-a",
+            )
+            other_account = store.record(
+                run_id="run-2", reason="complete the assessment",
+                evidence_ref="run:run-2", account_id="other",
+                listing_id="list-a", step_id="assessment-a",
+            )
+            self.assertEqual(first["gate_id"], same_step["gate_id"])
+            self.assertNotEqual(first["gate_id"], other_step["gate_id"])
+            self.assertNotEqual(first["gate_id"], other_account["gate_id"])
+            self.assertEqual(len(store.pending()), 3)
+
+    def test_completed_step_resumes_only_same_account_and_application(self):
+        self.assertEqual(
+            next_action(
+                gate_status="pending", official_step="completed",
+                same_account=True, same_application=True,
+            ),
+            "resume_application",
+        )
+        self.assertEqual(
+            next_action(
+                gate_status="pending", official_step="completed",
+                same_account=False, same_application=True,
+            ),
+            "recheck_later",
+        )
+        self.assertEqual(
+            next_action(
+                gate_status="pending", official_step="unknown",
+                same_account=True, same_application=True,
+            ),
+            "recheck_later",
+        )
+
     def test_gate_is_idempotent_and_pending_is_replayable(self):
         with tempfile.TemporaryDirectory() as directory:
             store = HumanGateStore(Path(directory) / "human-gates.jsonl")
