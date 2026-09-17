@@ -35,4 +35,3 @@ def test_writer_runtime_manifest_matches_registry_labels_and_counts() -> None:
     assert len(manifest["worker_plist_cutover"]["labels"]) == len(
         set(manifest["worker_plist_cutover"]["labels"])
     )
-
