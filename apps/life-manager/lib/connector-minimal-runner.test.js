@@ -202,6 +202,32 @@ test("runner records the candidates it actually dispatches", async () => {
   }]);
 });
 
+test("runner dispatch audit stops at the candidate that ends the wake", async () => {
+  const audits = [];
+  let readbacks = 0;
+  const state = fixture({
+    async discoverCandidates() { return [candidate("luma", "first"), candidate("luma", "second")]; },
+    async runDirectAction() { return { status: "completed" }; },
+    async readProviderState() {
+      return readbacks++ === 0 ? { status: "absent" } : { status: "registered" };
+    },
+    async completeEvidence() {
+      return { status: "applied_bundle", bundle_id: "bundle-first", completion_disposition: "created" };
+    },
+    async recordCandidateDispatchAudit(input) { audits.push(input); },
+  });
+
+  const result = await runMinimalConnectorWake({ ownerToken: "owner-token-dispatch-stop", providers: ["luma"] }, state.dependencies);
+
+  assert.equal(result.status, "applied_bundle");
+  assert.deepEqual(audits, [{
+    provider: "luma",
+    candidate_count: 2,
+    selected_count: 1,
+    selected_candidate_refs: ["luma-event://event/first"],
+  }]);
+});
+
 test("connpass candidates produce one action-boundary receipt and skip every provider action", async () => {
   let state = fixture({
     async discoverCandidates(provider) {

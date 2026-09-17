@@ -775,6 +775,12 @@ runner separately records the candidates it actually dispatches in
 contracts are green. This remains source evidence until a loaded release
 produces a real primary wake with both rows.
 
+**Dispatch audit correction (branch):** each dispatch row is emitted only after
+the candidate passes the wake deadline check and immediately before its existing
+navigation/action path. If an earlier candidate closes the wake with an
+`applied_bundle`, later candidates do not appear as dispatched. An empty batch
+emits `selected_count=0`.
+
 **Provider/browser action trace source change (branch):** successful
 `provider_discovery` rows carry the bounded provider name, and the existing
 browser target-open boundary records `provider=browser` on success or its safe

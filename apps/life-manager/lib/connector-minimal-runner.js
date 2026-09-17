@@ -376,19 +376,21 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
           ...pendingCandidates.slice(connpassBatchStart, connpassBatchStart + CONNPASS_CANDIDATES_PER_WAKE)]
         : candidates;
       const dispatchCandidates = candidateBatch.filter((selected) => selected.auto_apply_eligible !== false);
-      if (typeof deps.recordCandidateDispatchAudit === "function") {
-        await deps.recordCandidateDispatchAudit({
-          provider,
-          candidate_count: candidateBatch.length,
-          selected_count: dispatchCandidates.length,
-          selected_candidate_refs: dispatchCandidates.slice(0, 12).map((candidate) => candidate.event_ref),
-        });
-      }
+      let dispatchAuditCount = 0;
       for (const selected of dispatchCandidates) {
         const hasTalk = typeof deps.runTalkApplication === "function"
           && selected.talk_opportunity && selected.talk_opportunity.should_create_talk_application === true
           && selected.talk_pack && typeof selected.talk_pack === "object";
         if (deadlineReached()) return finish("circuit_open", "wake_deadline");
+        if (typeof deps.recordCandidateDispatchAudit === "function") {
+          await deps.recordCandidateDispatchAudit({
+            provider,
+            candidate_count: candidateBatch.length,
+            selected_count: 1,
+            selected_candidate_refs: [selected.event_ref],
+          });
+        }
+        dispatchAuditCount += 1;
         let navigationTaskThrew = false;
         let navigationTaskError;
         try {
@@ -652,6 +654,14 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         if (consecutiveFailures >= settings.maxConsecutiveFailures) {
           return finish("circuit_open", lastSafeReason);
         }
+      }
+      if (dispatchAuditCount === 0 && typeof deps.recordCandidateDispatchAudit === "function") {
+        await deps.recordCandidateDispatchAudit({
+          provider,
+          candidate_count: candidateBatch.length,
+          selected_count: 0,
+          selected_candidate_refs: [],
+        });
       }
       consecutiveFailures = 0;
     }
