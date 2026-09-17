@@ -229,6 +229,13 @@ class PrepublicationAdoptionTest(unittest.TestCase):
             self.assertEqual(
                 receipt["receipt_sha256"], generation._adoption_receipt_hash(receipt)
             )
+            rebound_state = json.loads(
+                (gates / "generation-state.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                rebound_state["transitions"][-1]["receipt_sha256"],
+                receipt["receipt_sha256"],
+            )
 
     def test_rebind_accepts_exact_adoption_with_quality_artifacts(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -701,13 +701,17 @@ def rebind_release(
                 "previous_prompt_sha256": previous_sha,
             }
         )
-        _atomic_write(state_path, state)
         if adopted_resume:
             adoption_path = resolved / "gates/prepublication-adoption.json"
             adoption = json.loads(adoption_path.read_text(encoding="utf-8"))
             adoption["prompt_sha256"] = state["prompt_sha256"]
             adoption["receipt_sha256"] = _adoption_receipt_hash(adoption)
             _atomic_write(adoption_path, adoption)
+            transitions = state.get("transitions")
+            if isinstance(transitions, list) and transitions and isinstance(transitions[-1], dict):
+                if transitions[-1].get("action") == "adopt-prepublication":
+                    transitions[-1]["receipt_sha256"] = adoption["receipt_sha256"]
+        _atomic_write(state_path, state)
         return {"action": "rebound", "prompt_sha256": state["prompt_sha256"]}
 
 
