@@ -28,6 +28,13 @@ test("LM-24: both Telnyx streaming bodies target the caller leg", () => {
   assert.equal(telnyxStreamingStartBody({ streamUrl: "wss://x" }).stream_codec, "PCMU");
 });
 
+test("Telnyx dial body never emits a provider-invalid time limit", () => {
+  const base = { connectionId: "c", to: "+1", from: "+2", streamUrl: "wss://x" };
+  assert.equal(telnyxDialBody({ ...base, timeLimitSeconds: 29 }).time_limit_secs, undefined);
+  assert.equal(telnyxDialBody({ ...base, timeLimitSeconds: 30 }).time_limit_secs, 30);
+  assert.equal(telnyxDialBody({ ...base, timeLimitSeconds: 120 }).time_limit_secs, 120);
+});
+
 test("LM-30: webhook subscribes to edited live-location updates; callbacks are answered", async () => {
   const original = global.fetch;
   const calls = [];

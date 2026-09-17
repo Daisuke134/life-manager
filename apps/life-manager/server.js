@@ -90,6 +90,7 @@ const { recordUsageEvent } = require("./lib/usage-event.js");
 const { createCloudCitizenStore } = require("./lib/cloud-citizen-store.js");
 const { provisionAndStartAgentEconomy } = require("./lib/agent-economy-cloud-provisioning.js");
 const { planProductOnboarding } = require("./lib/product-onboarding.js");
+const { ingestMentalOutcome } = require("./lib/mental-outcome-http.js");
 const { enqueueJob } = require("./lib/runtime-job-store.js");
 const { createAgentEconomyControlStore, economyReply } = require("./lib/agent-economy-control.js");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder"); // apiKey unused by constructEvent
@@ -487,6 +488,29 @@ function ctxFromReq(req) {
 
 const server = http.createServer(async (req, res) => {
   const path = (req.url || "").split("?")[0];
+  if (path === "/api/internal/mental/outcomes") {
+    if (req.method !== "POST") {
+      res.writeHead(405, { "allow": "POST", "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+      res.end(JSON.stringify({ ok: false, error: "method_not_allowed" }));
+      return;
+    }
+    const secret = String(process.env.LM_MENTAL_OUTCOME_INGEST_SECRET || "");
+    if (!secret) {
+      res.writeHead(503, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+      res.end(JSON.stringify({ ok: false, error: "outcome_ingest_disabled" }));
+      return;
+    }
+    const rawBody = await readRawBody(req);
+    const result = await ingestMentalOutcome({
+      rawBody: rawBody.toString("utf8"),
+      timestamp: req.headers["x-lm-outcome-timestamp"],
+      signature: req.headers["x-lm-outcome-signature"],
+      secret,
+    });
+    res.writeHead(result.status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+    res.end(JSON.stringify(result.body));
+    return;
+  }
   if (path === "/alpaca") {
     if (req.method !== "GET") {
       res.writeHead(405, { "allow": "GET", "cache-control": "no-store" });

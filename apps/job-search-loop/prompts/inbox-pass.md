@@ -43,6 +43,14 @@ silence before that window remains unresolved. The Ledger owns idempotency,
 immutable evidence binding and projection rebuild; model prose never counts as an
 outcome.
 
+When an authoritative interview or offer/rejection outcome is proven by one of the appended Gmail
+messages, include exactly one matching object in `outcomes` with the application_id, funnel_stage,
+disposition, exact source message_id, the RFC3339 occurred_at from the message, and the configured
+observation_policy_version (null for a positive outcome if no policy version is required). Do not put
+the email subject, body, sender, raw text, or your reasoning in `outcomes`. If the application or
+result is ambiguous, omit the object and leave the message unprocessed so the deterministic owner can
+retry it later.
+
 For a Workday candidate-account verification email, never navigate a raw URL from
 the message. Use the already-appended wrapped candidate subject, sender, and body,
 then call

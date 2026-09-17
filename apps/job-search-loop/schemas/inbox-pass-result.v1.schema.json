@@ -88,6 +88,22 @@
         }
       }
     },
-    "reports": {"type": "array", "items": {"type": "string"}}
+    "reports": {"type": "array", "items": {"type": "string"}},
+    "outcomes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["application_id", "funnel_stage", "disposition", "message_id", "occurred_at", "observation_policy_version"],
+        "properties": {
+          "application_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+          "funnel_stage": {"enum": ["interview", "offer"]},
+          "disposition": {"enum": ["positive", "negative"]},
+          "message_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
+          "occurred_at": {"type": "string", "format": "date-time"},
+          "observation_policy_version": {"type": ["string", "null"]}
+        }
+      }
+    }
   }
 }
