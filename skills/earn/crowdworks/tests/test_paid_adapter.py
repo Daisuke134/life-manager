@@ -148,6 +148,18 @@ def test_detail_retains_multiple_buyer_form_links_for_later_task_selection():
     assert detail["form_url"] is None
 
 
+def test_inventory_row_clears_singular_form_when_multiple_urls_are_present():
+    module = load()
+    row = {**funded(), "form_urls": [
+        "https://forms.gle/one", "https://forms.gle/two",
+    ]}
+
+    normalized = module.CrowdWorksPaidAdapter._row_from_list(row)
+
+    assert normalized["form_urls"] == ["https://forms.gle/one", "https://forms.gle/two"]
+    assert normalized["form_url"] is None
+
+
 def test_exact_verified_apply_receipt_is_jst_application_date_fallback(tmp_path):
     module = load()
     receipt = {"record_type": "application_receipt", "platform": "crowdworks", "status": "verified",

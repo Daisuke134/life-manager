@@ -258,7 +258,12 @@ class CrowdWorksReplyAdapter:
         if thread_id not in self.rows:
             raise RuntimeError("crowdworks_contract_ownership_unknown")
         self._detail(thread_id)
-        return self._post_contract_owned_by_paid(thread_id)
+        if self._post_contract_owned_by_paid(thread_id):
+            return True
+        if self.rows[thread_id].get("proposal_status") == "proposed":
+            if self.page is None or self._contract_action(thread_id) is None:
+                raise RuntimeError("crowdworks_contract_ownership_unknown")
+        return False
 
     def _external_form_action(self, thread_id: str) -> dict[str, Any] | None:
         if self._post_contract_owned_by_paid(thread_id):

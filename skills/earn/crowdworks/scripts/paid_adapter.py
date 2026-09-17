@@ -286,7 +286,9 @@ class CrowdWorksPaidAdapter:
             if (not isinstance(form_urls, list)
                     or not all(isinstance(value, str) and _google_form_url(value) for value in form_urls)):
                 raise RuntimeError("crowdworks_paid_task_unavailable")
-            result["form_urls"] = sorted(set(form_urls))
+            normalized_urls = sorted(set(form_urls))
+            result["form_urls"] = normalized_urls
+            result["form_url"] = result.get("form_url") if len(normalized_urls) == 1 else None
         return result
 
     def _list_contracts(self) -> list[dict[str, str]]:

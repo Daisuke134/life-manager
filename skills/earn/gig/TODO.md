@@ -1020,8 +1020,10 @@ CrowdWorks engineering cursor, not the parallel schedule or owners of other plat
   active contract without treating an unreadable list as empty. A read-only owner-locked probe on
   2026-09-17 observed five official funded contracts, including both target IDs; their detail pages expose
   milestone IDs and multiple Google Form links. The adapter now retains all links and does not discard the
-  contract as `task_unavailable`; local Paid tests pass 38/38. CW-1 remains open until the installed owner
-  gets a natural wake past host admission and persists the same contract inventory/readback.
+  contract as `task_unavailable`; local Paid tests pass 39/39. CW-1 remains open until the installed owner
+  gets a natural wake past host admission and persists the same contract inventory/readback. Read-only form
+  metadata shows `63659463` has separate candidate forms for a work URL and Web広告/SNS実績; the loop must
+  read buyer context plus form fields and choose only an unambiguous requested task.
 - [ ] **CW-2 — one post-contract owner:** Keep Apply independent. Let Reply negotiate and accept on the
   proposal route, then hand the exact contract ID to Paid. Reply must not send a post-contract message or
   submit the same external form; reconcile any old uncertain intent before the handoff. Reply now suppresses
@@ -1030,7 +1032,8 @@ CrowdWorks engineering cursor, not the parallel schedule or owners of other plat
   `crowdworks_post_contract_owned_by_paid`. Context and mutation refresh the official thread detail before
   any effect, treat a `/contracts/<id>` redirect as Paid-owned, and fail closed with
   `crowdworks_contract_ownership_unknown` when the current thread inventory is absent. A stale `proposed`
-  row cannot cross the boundary. Focused Reply tests pass 31/31 and the full CrowdWorks suite passes 106/106.
+  row cannot cross the boundary, and an unproven proposal page cannot send. Focused Reply tests pass 32/32
+  and the full CrowdWorks suite passes 108/108.
   CW-2 remains open until the installed owner performs a natural handoff and its contract-specific Paid
   state is read back.
 - [ ] **CW-3 — do the work:** For each funded contract, read the full buyer instruction (including the

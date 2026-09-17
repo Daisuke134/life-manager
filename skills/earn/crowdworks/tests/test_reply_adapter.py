@@ -486,6 +486,28 @@ def test_external_intent_without_current_thread_inventory_fails_closed():
         raise AssertionError("external intent ran without current thread inventory")
 
 
+def test_proposed_row_without_current_contract_or_acceptance_control_fails_closed():
+    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter.rows = {"thread-1": {
+        "thread_id": "thread-1", "id": "message-1", "proposal_status": "proposed",
+    }}
+    adapter._detail = lambda _thread: [{
+        "event_id": "buyer-1", "role": "buyer", "sender": "buyer",
+        "sent_at": "2026-09-10T00:00:00Z", "body": "回答してください", "links": [],
+    }]
+    adapter._contract_action = lambda _thread: None
+    intent = {"action": "reply", "thread_id": "thread-1", "payload": {
+        "body": "確認しました。",
+    }}
+
+    try:
+        adapter.mutate(intent)
+    except RuntimeError as error:
+        assert str(error) == "crowdworks_contract_ownership_unknown"
+    else:
+        raise AssertionError("unproven proposed ownership allowed a reply effect")
+
+
 def test_google_form_answers_bind_current_metadata_to_private_profiles(tmp_path):
     candidate = tmp_path / "candidate.json"
     provider = tmp_path / "provider.json"
@@ -583,6 +605,8 @@ def test_prepared_google_form_requests_confirmation_once_and_accepts_buyer_recei
         "event_id": "buyer-1", "role": "buyer", "body": "フォームへ回答してください",
         "links": ["https://forms.gle/AbCdEf123"],
     }]
+    adapter._contract_action = lambda _thread: {"action": "accept_contract", "payload": {}}
+    adapter.page = type("ProposalPage", (), {"url": "https://crowdworks.jp/proposals/1"})()
     adapter._open = lambda: None
     adapter._send_reply_once = lambda thread, body: sent.append((thread, body))
 
