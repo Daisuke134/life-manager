@@ -16,7 +16,7 @@ Read-only production status at the planning snapshot: all four labels were `load
 
 CrowdWorks' official fixed-price guide defines application, negotiation, contract, escrow, work, **「納品する」**, inspection, and payment as distinct steps. A normal message in the same contract page does not invoke formal delivery. The official guide also says to begin work after escrow. Sources: [worker guide](https://crowdworks.jp/pages/guides/employee/fixed_price), [terms](https://crowdworks.jp/pages/agreement). Lancers' [project guide](https://www.lancers.jp/help/guide/lancer/project/3) likewise distinguishes proposal from work after escrow; its actual page/owner mapping needs separate inspection.
 
-## Live production cursor — 2026-09-18
+## Live production cursor — 2026-09-18 (current)
 
 This section is the current execution SSOT. It supersedes the planning snapshot above wherever the
 observed provider, state or release differs. Evidence below is read-only state/provider evidence; it is
@@ -29,18 +29,24 @@ not a claim that money has been earned.
   formal `納品する` effect. There is no CrowdWorks Storefront owner. This is one post-contract lane per
   contract ID; the other 14 loop owners remain independent.
 - **Runtime safeguards:** the bounded wake, timeout isolation, inspection-pending no-op, and run-wide
-  pre-effect fence are merged through PRs `#5430`, `#5437`, `#5443`, `#5476` and `#5492`. The targeted
-  Paid label is loaded from immutable release `20260918T052034-8c19c9df` at
-  `8c19c9dfdc9c63398fbc10fd44c6771598a55f49` with a finite 900-second owner bound.
-- **Official inventory:** the latest locked provider readback contains 5 contracts: four `funded` and
-  `63583795` in `delivered`/inspection pending. A message, filled composer, form URL, or local row is
-  not treated as formal delivery, acceptance, settlement or payout.
+  pre-effect fence are merged through PRs `#5430`, `#5437`, `#5443`, `#5476`, `#5492`, `#5512` and
+  `#5515`. The Paid label is loaded from main-derived immutable release
+  `5be1a1a8bade238ecd393e02dcf2703b2e8b1b34` at
+  `/Users/anicca/loops/crowdworks/releases/20260918T085318-5be1a1a8` with a finite 900-second owner
+  bound. The release includes the active-inventory row wait and the quality/stage safeguards; Astra's
+  final read-only verdict was `ship`.
+- **Official inventory:** a fresh read-only provider pass after the row-wait fix returned exactly five
+  contract IDs (`63659463`, `63657015`, `63583795`, `63570481`, `63568785`), all currently `funded`.
+  The previous `63583795` delivery receipt remains historical evidence and is not replayed. A message,
+  filled composer, form URL, or local row is not treated as formal delivery, acceptance, settlement or
+  payout.
 - **`63659463` OnJob:** two Google Form effects have confirmed receipts (Web Ads form `f45…` and common
   form `c7617bf45a655a8824b35e54171a8aa080987a2c61ccdd1c6b9f620f95d0e233`); the latest Paid row is
   `verified` with `effect=1/readback=1`. Formal delivery, buyer acceptance, settlement and payout are
   still open, and the submitted content still needs a request-to-result quality audit.
-- **`63583795` Mirafull:** the historical form receipt and formal CrowdWorks delivery are read back;
-  the official row is awaiting buyer inspection. No form or delivery replay is allowed.
+- **`63583795` Mirafull:** a historical form receipt and formal CrowdWorks delivery exist, but the fresh
+  active inventory currently reports `funded`; current milestone state must be re-read before any action.
+  No historical form or delivery replay is allowed.
 - **`63570481` Effect:** the complete folded message history was expanded in a read-only detail probe.
   The exact form `https://forms.gle/vZeQpKMg2ma72Eeu6` is visible, and the buyer says the staff-address
   answer was received but the customer-address answer is missing. This identifies the correction; it is
@@ -48,10 +54,10 @@ not a claim that money has been earned.
 - **`63568785` undym67231:** the funded contract and buyer Google Doc link are read back. The document
   currently shows `編集権限をリクエスト`; no artifact can be claimed until the buyer grants access or
   supplies the content.
-- **Host headroom:** the bounded existing cleanup owner completed a pass at `2026-09-17T21:30:32Z` with
+- **Host headroom:** the bounded existing cleanup owner completed a pass with
   `free_after=8,080,977,920` bytes (about 7.5 GiB). It reclaimed no allow-listed artifact and preserved
-  five candidates (`errors=1`), so capacity is currently above the immediate ENOSPC floor but the cleanup
-  pass itself is not a clean success.
+  five candidates (`errors=1`); later release work read back about 10.7 GB free. Capacity is above the
+  immediate ENOSPC floor but the cleanup pass itself is not a clean success.
 - **Admission progress:** occurrence `16007` was reconciled to the exact `63659463` common-form receipt;
   occurrences `26778` and `36919` were reconciled from durable `completed/effect=0` run markers. Their
   rows are now `released/effect_unknown=0`.
@@ -60,31 +66,34 @@ not a claim that money has been earned.
 
 - **Admission blocker:** the Paid owner remains stopped by the exact stale occurrence
   `crowdworks-revenue-paid:18d62cf32eb0c678-48194` (`claimed`, `effect_unknown=1`). It came from a
-  provider-inventory failure with no durable run marker, so it cannot be cleared as no-effect. The latest
-  launchd readback is `state=not running`, `last exit code=75`.
+  provider-inventory failure in the legacy release with no durable run marker, so it cannot be cleared as
+  no-effect. The new release was applied and kickstarted, but its natural wake also ended before the child
+  with `host_admission_deferred:resource_effect_unknown`; launchd readback is `state=not running`,
+  `last exit code=75`.
 - **`63657015` Orecon:** the latest wake timed out with `CrowdWorksPaidContractTimeout`; its durable
   form intent for `https://forms.gle/GxTdS4kZr8fbvej68` remains `intent_persisted` with no confirmed
   receipt. Do not retry from the intent alone; first reconcile the official form/provider state.
 - **`63570481` correction:** the missing customer-address answer must be produced from the full buyer
-  task and submitted as a new correction revision bound to the buyer event. The correction implementation
-  is still local/unloaded until its focused tests, review, merge and immutable release pass.
+  task and submitted as a new correction revision bound to the buyer event. The implementation is merged
+  and present in release `5be1a1a8`, but no natural child run has reached it while admission is fenced.
 - **`63568785` artifact:** send one precise permission/content request through the Paid owner, then read
   the document, do the requested work, verify buyer-visible access/content and only then deliver.
 - **All five closures:** no contract has buyer acceptance, settlement, payout or verified USD 10,000 MRR.
   `correct_work_verified` is not true for every row; formal delivery and exact readback remain open for
-  four rows. The host hit `ENOSPC` while creating a worktree during this update; headroom has since
-  recovered above the immediate floor, but the cleanup receipt still records one error and zero reclaimed
-  bytes.
+  all currently funded rows. The host hit `ENOSPC` while creating a worktree during this update; headroom
+  has since recovered above the immediate floor, but the cleanup receipt still records one error and zero
+  reclaimed bytes.
 
 ### Remaining TODO, in execution order
 
-1. **Reconcile the exact admission occurrence.** Headroom recovery is read back, but the cleanup error
-   remains open. Use the existing provider/no-effect reconciliation path for occurrence
+1. **Reconcile the exact admission occurrence.** Headroom recovery and the new release apply are read back,
+   but the cleanup error remains open. Use the existing provider/no-effect reconciliation path for occurrence
    `18d62cf32eb0c678-48194` only when an exact run receipt or run-wide marker exists. Clear it only with
    exact evidence; never guess and never reinterpret a browser timeout as a provider effect.
-2. **Wake the installed Paid owner without waiting for a global slot.** After reconciliation, kickstart the
-   targeted owner and read back its terminal receipt, per-contract state and official active inventory. A
-   blocked or slow contract must stay independently represented so other contracts can advance.
+2. **Wake the installed Paid owner without waiting for a global slot.** The new release has already been
+   applied and kickstarted once; after exact reconciliation, kickstart again and read its terminal receipt,
+   per-contract state and official active inventory. A blocked or slow contract must stay independently
+   represented so other contracts can advance.
 3. **Finish `63657015` safely.** Inspect the exact provider/form readback for the persisted intent. If no
    effect occurred, read the full hearing/common-test instructions, produce the requested artifact, submit
    only the applicable work and verify it. Do not fabricate the requested AI share link.
