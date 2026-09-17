@@ -333,8 +333,16 @@ def run_wake(*, adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping
         "items": items,
     }
     if run_marker is not None:
+        marker_status = "effect_started"
+        try:
+            previous_marker = json.loads(run_marker.read_text(encoding="utf-8"))
+            if isinstance(previous_marker, Mapping) and previous_marker.get("status") != "effect_started":
+                marker_status = "completed"
+        except (OSError, ValueError, json.JSONDecodeError):
+            # A missing or malformed marker cannot prove that mutation was not armed.
+            pass
         _write(run_marker, {"version": 1, "occurrence_id": occurrence_id,
-                            "status": "completed", "effect": result["effect"]})
+                            "status": marker_status, "effect": result["effect"]})
     return result
 
 

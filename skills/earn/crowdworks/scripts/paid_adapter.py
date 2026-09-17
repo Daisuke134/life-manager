@@ -419,6 +419,7 @@ class CrowdWorksPaidAdapter:
         self._goto_contract(work_id)
         self._expand_folded_messages()
         body = _text(self.page.locator("body").inner_text(), "crowdworks_paid_contract_unavailable")
+        buyer_event = self._latest_buyer_event(work_id) or {}
         title, client = (_text(basic.get(key)) for key in ("title", "client"))
         if title not in body or client not in body:
             raise RuntimeError("crowdworks_paid_contract_context_invalid")
@@ -455,6 +456,8 @@ class CrowdWorksPaidAdapter:
         proposal_id = proposal_ids[0] if len(proposal_ids) == 1 else None
         links = self.page.locator('a[href]').evaluate_all("nodes => nodes.map(a => a.href).filter(Boolean)")
         form_urls = sorted({link for link in links if isinstance(link, str) and _google_form_url(link)})
+        document_urls = sorted({link for link in links if isinstance(link, str) and self._document_url(link)})
+        artifact = self._document_access(document_urls)
         application_date = basic.get("application_date") if basic.get("proposal_id") == proposal_id else None
         if application_date is None and proposal_id is not None and form_urls:
             application_date = self._proposal_application_date(proposal_id)
@@ -466,7 +469,100 @@ class CrowdWorksPaidAdapter:
                 "milestone_id": match.group(1), "form_urls": form_urls,
                 "form_url": form_urls[0] if len(form_urls) == 1 else None,
                 "proposal_id": proposal_id, "application_date": application_date,
-                "buyer_context": body}
+                "buyer_context": body, **buyer_event,
+                "document_urls": document_urls, **artifact}
+
+    @staticmethod
+    def _message_datetime(value: str) -> str | None:
+        match = re.fullmatch(r"\s*(\d{4})年(\d{1,2})月(\d{1,2})日\s+(\d{1,2}):(\d{2})\s*", value)
+        if match is None:
+            return None
+        try:
+            stamp = datetime(*(int(part) for part in match.groups()), tzinfo=ZoneInfo("Asia/Tokyo"))
+        except ValueError:
+            return None
+        return stamp.isoformat()
+
+    def _latest_buyer_event(self, work_id: str | None = None) -> dict[str, str] | None:
+        if self.page is None:
+            return None
+        try:
+            thread_id, messages = self._message_api(work_id)
+            buyer = [message for message in messages or []
+                     if isinstance(message, Mapping) and message.get("own_message") is False
+                     and isinstance(message.get("id"), int) and not isinstance(message.get("id"), bool)]
+            if not buyer:
+                return None
+            latest = max(buyer, key=lambda message: int(message["id"]))
+            sent_at = self._message_datetime(str(latest.get("senddate") or ""))
+            if sent_at is None:
+                return None
+            return {"message_thread_id": str(thread_id), "buyer_event_id": str(latest["id"]),
+                    "buyer_event_at": sent_at}
+        except Exception:
+            return None
+
+    def _message_api(self, work_id: str | None = None) -> tuple[int, list[Mapping[str, Any]]]:
+        if self.page is None:
+            raise RuntimeError("crowdworks_paid_message_thread_unavailable")
+        root = self.page.locator("#pack-message-thread")
+        raw = root.get_attribute("data")
+        config = json.loads(raw) if isinstance(raw, str) and raw.strip() else {}
+        thread_id = config.get("id")
+        messageable_id = config.get("messageableId")
+        if (not isinstance(thread_id, int) or isinstance(thread_id, bool)
+                or (work_id is not None and str(messageable_id) != str(work_id))):
+            raise RuntimeError("crowdworks_paid_message_thread_invalid")
+        response = self.page.evaluate(
+            """async (id) => { const response = await fetch(`/message/threads/${id}/messages.json`, {credentials: 'same-origin'}); return {status: response.status, body: await response.text()}; }""",
+            thread_id,
+        )
+        if not isinstance(response, Mapping) or response.get("status") != 200:
+            raise RuntimeError("crowdworks_paid_message_thread_unavailable")
+        payload = json.loads(str(response.get("body") or ""))
+        messages = payload.get("messages") if isinstance(payload, Mapping) else None
+        if not isinstance(messages, list):
+            raise RuntimeError("crowdworks_paid_message_thread_invalid")
+        return thread_id, [message for message in messages if isinstance(message, Mapping)]
+
+    def _latest_seller_message(self, work_id: str | None = None) -> Mapping[str, Any] | None:
+        try:
+            _, messages = self._message_api(work_id)
+            seller = [message for message in messages
+                      if message.get("own_message") is True and isinstance(message.get("id"), int)
+                      and not isinstance(message.get("id"), bool)]
+            return max(seller, key=lambda message: int(message["id"])) if seller else None
+        except Exception:
+            return None
+
+    @staticmethod
+    def _document_url(value: str) -> bool:
+        parsed = urlsplit(value)
+        return (parsed.scheme, parsed.netloc) == ("https", "docs.google.com") and "/document/" in parsed.path
+
+    def _document_access(self, urls: list[str]) -> dict[str, Any]:
+        if not urls or self.owned_context is None:
+            return {"artifact_required": bool(urls), "artifact_access": "unknown" if urls else None,
+                    "artifact_verified": False}
+        for url in urls:
+            page = self.owned_context.new_page()
+            try:
+                page.goto(url, wait_until="commit", timeout=20_000)
+                body = str(page.locator("body").inner_text() or "")
+                if "編集権限をリクエスト" in body:
+                    return {"artifact_required": True, "artifact_access": "permission_required",
+                            "artifact_verified": False}
+                if body.strip():
+                    return {"artifact_required": True, "artifact_access": "readable",
+                            "artifact_verified": False}
+            except Exception:
+                continue
+            finally:
+                try:
+                    page.close()
+                except Exception:
+                    pass
+        return {"artifact_required": True, "artifact_access": "unknown", "artifact_verified": False}
 
     def _expand_folded_messages(self) -> None:
         if self.page is None:
@@ -546,7 +642,8 @@ class CrowdWorksPaidAdapter:
     def _observation(self, item: Mapping[str, Any]) -> dict[str, str]:
         stable = {key: item.get(key) for key in ("work_id", "title", "client", "provider_state",
                                                   "milestone_id", "form_url", "form_urls", "proposal_id",
-                                                  "application_date", "buyer_context")}
+                                                  "application_date", "buyer_context", "message_thread_id",
+                                                  "buyer_event_id", "buyer_event_at")}
         stable["completed_form_urls"] = sorted(item.get("completed_form_urls") or [])
         return {"provider": "crowdworks", "account_id": self.account_id,
                 "work_id": _text(item.get("work_id")), "latest_event_id": _digest(stable),
@@ -683,19 +780,52 @@ class CrowdWorksPaidAdapter:
                     pass
         return candidates
 
+    def _correction_ready(self, item: Mapping[str, Any], url: str) -> bool:
+        if self.state_path is None:
+            return False
+        event_id = item.get("buyer_event_id")
+        event_at = item.get("buyer_event_at")
+        if (not isinstance(event_id, str) or not event_id.isdigit()
+                or not isinstance(event_at, str)):
+            return False
+        try:
+            event_stamp = datetime.fromisoformat(event_at)
+            digest = hashlib.sha256(url.encode()).hexdigest()
+            receipts = google_form.confirmed_bound_receipts(
+                self.state_path, self._form_binding(item, digest))
+        except (RuntimeError, ValueError, TypeError):
+            return False
+        if not receipts:
+            return False
+        latest = max(receipts, key=lambda receipt: str(receipt.get("observed_at") or ""))
+        binding = latest.get("binding")
+        previous_event = binding.get("revision_event_id") if isinstance(binding, Mapping) else None
+        if not isinstance(previous_event, str):
+            previous_event = binding.get("buyer_event_id") if isinstance(binding, Mapping) else None
+        if isinstance(previous_event, str) and previous_event.isdigit():
+            return int(event_id) > int(previous_event)
+        try:
+            observed_at = datetime.fromisoformat(str(latest.get("observed_at") or "").replace("Z", "+00:00"))
+        except ValueError:
+            return False
+        return event_stamp > observed_at
+
     def _select_form_url(self, item: Mapping[str, Any]) -> str | None:
         raw_urls = item.get("form_urls")
         candidates = item.get("form_candidates")
         if not isinstance(raw_urls, list):
             return None
         completed = set(item.get("completed_form_urls") or [])
-        urls = list(raw_urls)
+        urls = [url for url in raw_urls if isinstance(url, str)
+                and (url not in completed or self._correction_ready(item, url))]
+        if not urls:
+            return FORM_SELECTION_COMPLETE
         if not isinstance(candidates, list):
             return None
         candidates = [candidate for candidate in candidates
-                      if isinstance(candidate, Mapping) and candidate.get("url") in urls]
-        if (not urls or not all(isinstance(url, str) and _google_form_url(url) for url in urls) or
-                len(candidates) != len(urls)):
+                      if isinstance(candidate, Mapping) and candidate.get("url") in raw_urls]
+        if (not all(isinstance(url, str) and _google_form_url(url) for url in raw_urls)
+                or len(candidates) != len(raw_urls)):
             return None
         if self.candidate_profile is None or self.provider_profile is None or self.state_path is None:
             return None
@@ -743,10 +873,16 @@ class CrowdWorksPaidAdapter:
                 candidate_profile_path=self.candidate_profile,
                 provider_profile=self.provider_profile,
             )
+            conversation = buyer_context
+            if item.get("artifact_access") == "permission_required":
+                conversation += (
+                    "\n\n【リンクのアクセス結果】編集権限をリクエストする画面で閲覧できません。"
+                    "権限付与または本文の貼付を依頼し、作業完了は主張しないでください。"
+                )
             body = composer.compose({
                 "board": {"title": item.get("title", "")},
                 "grounding": grounding,
-                "conversation": [{"role": "buyer", "body": buyer_context}],
+                "conversation": [{"role": "buyer", "body": conversation}],
                 "action_contract": {
                     "kind": "contract_answer",
                     "question": (
@@ -866,13 +1002,18 @@ class CrowdWorksPaidAdapter:
         return google_form.submit_once(
             context=self.owned_context, state_root=self.state_path, url=form_url, url_sha256=form_sha256,
             answer_fields=lambda page: self._form_fields(page, item),
-            binding=self._form_binding(item, form_sha256),
+            binding=self._form_binding(item, form_sha256, include_buyer_event=True),
         )
 
-    def _form_binding(self, item: Mapping[str, Any], form_sha256: str) -> dict[str, str]:
+    def _form_binding(self, item: Mapping[str, Any], form_sha256: str,
+                      *, include_buyer_event: bool = False) -> dict[str, str]:
         binding = {"provider": "crowdworks", "account_id": self.account_id,
                    "contract_id": _text(item.get("work_id")), "milestone_id": _text(item.get("milestone_id")),
                    "form_revision_sha256": form_sha256}
+        if include_buyer_event:
+            buyer_event = item.get("buyer_event_id")
+            if isinstance(buyer_event, str) and buyer_event.strip():
+                binding["buyer_event_id"] = buyer_event.strip()
         revision_event = item.get("form_revision_event_id")
         if isinstance(revision_event, str) and revision_event.strip():
             binding["revision_event_id"] = revision_event.strip()
@@ -972,6 +1113,9 @@ class CrowdWorksPaidAdapter:
                 current = self._targeted_detail(work_id)
                 if current.get("provider_state") != "funded":
                     raise RuntimeError("crowdworks_paid_context_changed")
+                if (isinstance(payload.get("buyer_event_id"), str)
+                        and payload.get("buyer_event_id") != current.get("buyer_event_id")):
+                    raise RuntimeError("crowdworks_paid_context_changed")
                 self._goto_contract(work_id)
                 areas = self.page.locator('textarea[name="message[body]"]')
                 visible = [areas.nth(index) for index in range(areas.count())
@@ -1009,11 +1153,13 @@ class CrowdWorksPaidAdapter:
             available = set(current.get("form_urls") or [])
             if isinstance(current.get("form_url"), str):
                 available.add(current["form_url"])
+            revision_event_id = payload.get("revision_event_id")
+            is_revision = isinstance(revision_event_id, str) and bool(revision_event_id.strip())
             if (current.get("provider_state") != "funded" or payload.get("milestone_id") != current.get("milestone_id")
                     or not isinstance(url, str) or url not in available
                     or (url in set(current.get("completed_form_urls") or [])
-                        and not (isinstance(payload.get("revision_event_id"), str)
-                                 and payload.get("revision_event_id").strip()))
+                        and not is_revision)
+                    or (is_revision and revision_event_id != current.get("buyer_event_id"))
                     or payload.get("form_sha256") != hashlib.sha256(url.encode()).hexdigest()):
                 raise RuntimeError("crowdworks_paid_context_changed")
             self._submit_form_once({**current, "form_url": url,
@@ -1032,6 +1178,14 @@ class CrowdWorksPaidAdapter:
                 visible_body = _text(self.page.locator("body").inner_text(),
                                      "crowdworks_paid_contract_unavailable")
                 if body in visible_body:
+                    buyer_event_id = payload.get("buyer_event_id")
+                    if isinstance(buyer_event_id, str) and buyer_event_id.isdigit():
+                        seller = self._latest_seller_message(work_id)
+                        if (not isinstance(seller, Mapping)
+                                or not isinstance(seller.get("id"), int)
+                                or int(seller["id"]) <= int(buyer_event_id)
+                                or body not in str(seller.get("body") or "")):
+                            return {"authoritative_absent": True}
                     return {"verified": True,
                             "provider_receipt_id": f"contract:{work_id}:answer:{_text(intent.get('effect_key'))}",
                             "observed_at": _now()}
@@ -1060,6 +1214,9 @@ class CrowdWorksPaidAdapter:
             revision_event_id = payload.get("revision_event_id")
             if isinstance(revision_event_id, str) and revision_event_id.strip():
                 binding["revision_event_id"] = revision_event_id.strip()
+            buyer_event_id = payload.get("buyer_event_id")
+            if isinstance(buyer_event_id, str) and buyer_event_id.strip():
+                binding["buyer_event_id"] = buyer_event_id.strip()
             receipt = google_form.bound_receipt(self.state_path, binding)
             form_done = isinstance(receipt, Mapping) and receipt.get("url_sha256") == form_sha256 and bool(receipt.get("confirmation_sha256"))
             if form_done:
@@ -1117,11 +1274,24 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
             return {"action": "wait", "reason": "buyer_task_detail_required",
                     "remaining_work": ["read the official funded contract task before any delivery effect"]}
         buyer_context = contract.get("buyer_context")
+        if not isinstance(buyer_context, str) or not buyer_context.strip():
+            return {"action": "wait", "reason": "buyer_task_detail_required",
+                    "remaining_work": ["read the complete buyer instruction before answering"]}
+        buyer_event_id = contract.get("buyer_event_id")
+        if not isinstance(buyer_event_id, str) or not buyer_event_id.strip():
+            return {"action": "wait", "reason": "buyer_event_required",
+                    "remaining_work": ["read and persist the latest buyer message before answering"]}
+        if (contract.get("artifact_required") is True
+                and contract.get("artifact_access") != "permission_required"
+                and contract.get("artifact_verified") is not True):
+            return {"action": "wait", "reason": "buyer_task_detail_required",
+                    "remaining_work": ["open and verify the linked buyer artifact before answering"]}
         answer = (answer_selector(contract)
                   if callable(answer_selector) and isinstance(buyer_context, str)
                   and buyer_context.strip() else None)
         if isinstance(answer, str) and answer.strip():
-            return {"action": "answer", "payload": {"body": answer.strip()}}
+            return {"action": "answer", "payload": {"body": answer.strip(),
+                                                       "buyer_event_id": buyer_event_id.strip()}}
         return {"action": "wait", "reason": "buyer_task_detail_required",
                 "remaining_work": ["read the complete buyer instruction and compose the required response"]}
     if isinstance(form_urls, list) and form_urls and not form_url:
@@ -1153,8 +1323,11 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
     payload = {"form_url": form_url,
                "form_sha256": hashlib.sha256(form_url.encode()).hexdigest(),
                "milestone_id": milestone_id}
+    buyer_event_id = contract.get("buyer_event_id")
+    if isinstance(buyer_event_id, str) and buyer_event_id.strip():
+        payload["buyer_event_id"] = buyer_event_id.strip()
     if contract.get("form_revision"):
-        revision_event_id = row.get("latest_event_id")
+        revision_event_id = contract.get("buyer_event_id")
         if not isinstance(revision_event_id, str) or not revision_event_id.strip():
             return {"action": "wait", "reason": "buyer_event_required",
                     "remaining_work": ["persist the buyer correction event before resubmitting the form"]}

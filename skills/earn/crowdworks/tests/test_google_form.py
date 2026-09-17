@@ -99,3 +99,26 @@ def test_confirmed_revision_receipt_counts_for_the_original_form(tmp_path):
     module.write_json(tmp_path / "external-actions" / f"index-{module._identity(revision)}.json",
                       {"version": 1, "status": "confirmed", "receipt_key": receipt_key})
     assert module.has_confirmed_bound_receipt(tmp_path, binding) is True
+
+
+def test_confirmed_bound_receipts_returns_revision_metadata(tmp_path):
+    module = load()
+    binding = {
+        "provider": "crowdworks", "account_id": "7145638",
+        "contract_id": "63570481", "milestone_id": "13798056",
+        "form_revision_sha256": "a" * 64,
+    }
+    revision = {**binding, "revision_event_id": "427573234"}
+    receipt_key = module._identity({**revision, "submission_payload_sha256": "payload"})
+    receipt = tmp_path / "external-actions" / f"{receipt_key}.json"
+    receipt.parent.mkdir(parents=True)
+    module.write_json(receipt, {"binding": revision, "status": "confirmed",
+                                "confirmation_sha256": "confirmed",
+                                "observed_at": "2026-09-16T03:00:00Z"})
+    module.write_json(tmp_path / "external-actions" / f"index-{module._identity(revision)}.json",
+                      {"version": 1, "status": "confirmed", "receipt_key": receipt_key})
+
+    receipts = module.confirmed_bound_receipts(tmp_path, binding)
+
+    assert len(receipts) == 1
+    assert receipts[0]["binding"]["revision_event_id"] == "427573234"

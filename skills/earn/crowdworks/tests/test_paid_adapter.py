@@ -123,6 +123,38 @@ def test_detail_expands_folded_buyer_messages_before_readback():
     assert events == ["click", ("wait", 300)]
 
 
+def test_latest_buyer_event_reads_message_api_identity_without_storing_body():
+    module = load()
+
+    class Root:
+        def get_attribute(self, name):
+            assert name == "data"
+            return json.dumps({"id": 304340335, "messageableId": 63570481})
+
+    class Page:
+        def locator(self, selector):
+            assert selector == "#pack-message-thread"
+            return Root()
+
+        def evaluate(self, _script, thread_id):
+            assert thread_id == 304340335
+            return {"status": 200, "body": json.dumps({"messages": [
+                {"id": 426426361, "own_message": False,
+                 "senddate": "2026年09月10日 11:22", "body": "buyer"},
+                {"id": 427573234, "own_message": False,
+                 "senddate": "2026年09月16日 11:43", "body": "correction"},
+            ]})}
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+
+    assert adapter._latest_buyer_event() == {
+        "message_thread_id": "304340335",
+        "buyer_event_id": "427573234",
+        "buyer_event_at": "2026-09-16T11:43:00+09:00",
+    }
+
+
 def test_funded_contract_decides_one_form_then_one_milestone_submission():
     module = load()
     action = module.decide({"context": {"contract": funded()}})
@@ -143,6 +175,7 @@ def test_funded_contract_without_labeled_official_application_date_waits_truthfu
 def test_funded_contract_without_google_form_waits_without_blocking_inventory():
     module = load()
     contract = {**funded(), "work_id": "63568785", "form_url": None}
+    contract["buyer_event_id"] = "427573234"
     adapter = module.CrowdWorksPaidAdapter(
         account_id="7145638", inventory_reader=lambda: {
             "ok": True, "source_complete": True, "contract_candidates": [contract, funded()],
@@ -261,7 +294,9 @@ def test_completed_form_can_be_selected_as_a_buyer_correction_revision(tmp_path,
     item = {**funded(), "form_url": None, "form_urls": [url],
             "completed_form_urls": [url],
             "form_candidates": [{"url": url, "title": "顧客宛メール", "body": "顧客宛回答"}],
-            "buyer_context": "買い手が顧客宛回答の欠落を指摘した"}
+            "buyer_context": "買い手が顧客宛回答の欠落を指摘した",
+            "buyer_event_id": "427573234", "buyer_event_at": "2026-09-16T11:43:00+09:00"}
+    adapter._correction_ready = lambda *_args: True
     assert adapter._select_form_url(item) == url
     assert item["form_revision"] is True
 
@@ -270,13 +305,14 @@ def test_decide_emits_new_event_binding_for_form_correction():
     module = load()
     url = "https://forms.gle/correction"
     contract = {**funded(), "form_url": None, "form_urls": [url],
-                "completed_form_urls": [url], "form_revision": True}
+                "completed_form_urls": [url], "form_revision": True,
+                "buyer_event_id": "427573234"}
     action = module.decide(
-        {"latest_event_id": "buyer-event-2", "context": {"contract": contract}},
+        {"latest_event_id": "contract-digest", "context": {"contract": contract}},
         form_selector=lambda _item: url,
     )
     assert action["action"] == "submit"
-    assert action["payload"]["revision_event_id"] == "buyer-event-2"
+    assert action["payload"]["revision_event_id"] == "427573234"
 
 
 def test_form_binding_preserves_revision_event_as_a_new_receipt_namespace(tmp_path):
@@ -305,6 +341,26 @@ def test_form_correction_readback_uses_revision_event_binding(tmp_path, monkeypa
 
     assert result["verified"] is True
     assert bindings[0]["revision_event_id"] == "buyer-event-2"
+
+
+def test_completed_form_without_new_buyer_event_cannot_be_selected(tmp_path, monkeypatch):
+    module = load()
+    url = "https://forms.gle/correction"
+    monkeypatch.setattr(module.grounding_module, "build_reply_grounding",
+                        lambda **_kwargs: {"candidate": {}})
+    monkeypatch.setattr(module.composer, "compose", lambda *_args, **_kwargs: url)
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", state_path=tmp_path,
+        candidate_profile=tmp_path / "candidate.json",
+        provider_profile={"display_name": "Kaito"},
+    )
+    item = {**funded(), "form_url": None, "form_urls": [url],
+            "completed_form_urls": [url],
+            "form_candidates": [{"url": url, "title": "顧客宛メール", "body": "顧客宛回答"}],
+            "buyer_context": "買い手の依頼"}
+
+    assert adapter._select_form_url(item) == module.FORM_SELECTION_COMPLETE
+    assert "form_revision" not in item
 
 
 def test_context_reopens_browser_before_fetching_cached_form_candidates():
@@ -388,7 +444,7 @@ def test_form_correction_revision_can_resubmit_completed_form_with_new_event():
     url = funded()["form_url"]
     events = []
     current = {**funded(), "form_url": None, "form_urls": [url],
-               "completed_form_urls": [url]}
+               "completed_form_urls": [url], "buyer_event_id": "buyer-correction-2"}
     adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
     adapter._targeted_detail = lambda _work_id: current
     adapter._submit_form_once = lambda item: events.append(item["form_revision_event_id"])
@@ -400,6 +456,24 @@ def test_form_correction_revision_can_resubmit_completed_form_with_new_event():
                                 "revision_event_id": "buyer-correction-2"}})
 
     assert events == ["buyer-correction-2"]
+
+
+def test_form_correction_mutation_rejects_stale_buyer_event():
+    module = load()
+    url = funded()["form_url"]
+    current = {**funded(), "form_url": None, "form_urls": [url],
+               "completed_form_urls": [url], "buyer_event_id": "new-event"}
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter._targeted_detail = lambda _work_id: current
+    adapter._submit_form_once = lambda _item: (_ for _ in ()).throw(
+        AssertionError("stale correction must not submit"))
+
+    with pytest.raises(RuntimeError, match="crowdworks_paid_context_changed"):
+        adapter.mutate({"action": "submit", "work_id": current["work_id"],
+                        "payload": {"form_url": url,
+                                    "form_sha256": hashlib.sha256(url.encode()).hexdigest(),
+                                    "milestone_id": current["milestone_id"],
+                                    "revision_event_id": "old-event"}})
 
 
 def test_formal_delivery_is_a_separate_mutation():
@@ -437,6 +511,7 @@ def test_no_form_contract_does_not_require_application_date():
     module = load()
     contract = {key: value for key, value in funded().items()
                 if key not in {"form_url", "application_date"}}
+    contract["buyer_event_id"] = "427573234"
     action = module.decide({"context": {"contract": contract}})
 
     assert action["action"] == "wait"
@@ -508,6 +583,104 @@ def test_answer_readback_requires_seller_visible_body():
 
     assert result["verified"] is True
     assert result["provider_receipt_id"] == "contract:63570481:answer:answer-key"
+
+
+def test_answer_readback_requires_a_new_seller_message_after_buyer_event():
+    module = load()
+    expected = "顧客向け回答を再提出します。"
+
+    class Body:
+        def inner_text(self): return "old buyer\n" + expected
+
+    class Root:
+        def get_attribute(self, name):
+            assert name == "data"
+            return json.dumps({"id": 304340335, "messageableId": 63570481})
+
+    class Page:
+        def locator(self, selector):
+            if selector == "body": return Body()
+            if selector == "#pack-message-thread": return Root()
+            raise AssertionError(selector)
+
+        def evaluate(self, _script, thread_id):
+            assert thread_id == 304340335
+            return {"status": 200, "body": json.dumps({"messages": [
+                {"id": 427573234, "own_message": False,
+                 "senddate": "2026年09月16日 11:43", "body": "buyer"},
+                {"id": 427573200, "own_message": True,
+                 "senddate": "2026年09月16日 11:44", "body": expected},
+            ]})}
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda _work_id: None
+    result = adapter.readback({"action": "answer", "work_id": "63570481",
+                               "effect_key": "answer-key",
+                               "payload": {"body": expected, "buyer_event_id": "427573234"}})
+
+    assert result["authoritative_absent"] is True
+
+
+def test_answer_readback_accepts_new_seller_message_bound_to_buyer_event():
+    module = load()
+    expected = "権限付与後に確認します。"
+
+    class Body:
+        def inner_text(self): return expected
+
+    class Root:
+        def get_attribute(self, name):
+            assert name == "data"
+            return json.dumps({"id": 304340335, "messageableId": 63568785})
+
+    class Page:
+        def locator(self, selector):
+            if selector == "body": return Body()
+            if selector == "#pack-message-thread": return Root()
+            raise AssertionError(selector)
+
+        def evaluate(self, _script, thread_id):
+            assert thread_id == 304340335
+            return {"status": 200, "body": json.dumps({"messages": [
+                {"id": 427573234, "own_message": False,
+                 "senddate": "2026年09月16日 11:43", "body": "buyer"},
+                {"id": 427573240, "own_message": True,
+                 "senddate": "2026年09月16日 11:44", "body": expected},
+            ]})}
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda _work_id: None
+    result = adapter.readback({"action": "answer", "work_id": "63568785",
+                               "effect_key": "answer-key",
+                               "payload": {"body": expected, "buyer_event_id": "427573234"}})
+
+    assert result["verified"] is True
+
+
+def test_document_access_reports_permission_required_without_verifying_artifact():
+    module = load()
+
+    class Body:
+        def inner_text(self): return "編集権限をリクエスト"
+
+    class Page:
+        def goto(self, *_args, **_kwargs): return None
+        def locator(self, selector):
+            assert selector == "body"
+            return Body()
+        def close(self): return None
+
+    class Context:
+        def new_page(self): return Page()
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.owned_context = Context()
+    assert adapter._document_access(["https://docs.google.com/document/d/abc/edit"]) == {
+        "artifact_required": True, "artifact_access": "permission_required",
+        "artifact_verified": False,
+    }
 
 
 def test_cached_inventory_detail_is_reused_until_explicit_refresh():
@@ -1217,16 +1390,57 @@ def test_no_form_funded_contract_uses_full_buyer_context_for_answer(tmp_path, mo
                         lambda context, **_kwargs: captured.append(context) or
                         "編集権限を付与いただければ、内容を確認して対応します。")
     contract = {**funded(), "form_url": None, "form_urls": [],
-                "buyer_context": "Google Docs assignment link and buyer request"}
+                "buyer_context": "Google Docs assignment link and buyer request",
+                "buyer_event_id": "427573234"}
     adapter = module.CrowdWorksPaidAdapter(
         account_id="7145638", state_path=tmp_path,
         candidate_profile=tmp_path / "candidate.json", provider_profile={"display_name": "Kaito"})
     action = module.decide({"context": {"contract": contract}},
                            answer_selector=adapter._compose_answer)
     assert action == {"action": "answer", "payload": {
-        "body": "編集権限を付与いただければ、内容を確認して対応します。"}}
+        "body": "編集権限を付与いただければ、内容を確認して対応します。",
+        "buyer_event_id": "427573234"}}
     assert captured and captured[0]["conversation"][0]["role"] == "buyer"
     assert "Google Docs assignment link" in captured[0]["conversation"][0]["body"]
+
+
+def test_no_form_answer_waits_until_external_artifact_is_verified(tmp_path, monkeypatch):
+    module = load()
+    contract = {**funded(), "form_url": None, "form_urls": [],
+                "buyer_context": "Google Docs assignment", "buyer_event_id": "buyer-1",
+                "artifact_required": True, "artifact_verified": False}
+
+    action = module.decide({"context": {"contract": contract}},
+                           answer_selector=lambda _item: "完了しました。")
+
+    assert action["action"] == "wait"
+    assert action["reason"] == "buyer_task_detail_required"
+
+
+def test_no_form_permission_request_can_be_answered_without_claiming_completion():
+    module = load()
+    contract = {**funded(), "form_url": None, "form_urls": [],
+                "buyer_context": "Google Docs assignment", "buyer_event_id": "buyer-1",
+                "artifact_required": True, "artifact_access": "permission_required",
+                "artifact_verified": False}
+
+    action = module.decide({"context": {"contract": contract}},
+                           answer_selector=lambda _item: "権限を付与してください。")
+
+    assert action == {"action": "answer", "payload": {
+        "body": "権限を付与してください。", "buyer_event_id": "buyer-1"}}
+
+
+def test_no_form_answer_requires_buyer_event_identity():
+    module = load()
+    contract = {**funded(), "form_url": None, "form_urls": [],
+                "buyer_context": "依頼内容", "artifact_required": False}
+
+    action = module.decide({"context": {"contract": contract}},
+                           answer_selector=lambda _item: "回答")
+
+    assert action["action"] == "wait"
+    assert action["reason"] == "buyer_event_required"
 
 
 def test_no_form_without_buyer_context_stays_waiting():

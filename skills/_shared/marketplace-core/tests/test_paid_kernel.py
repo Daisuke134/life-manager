@@ -96,6 +96,30 @@ def test_run_marker_persists_pre_effect_status(tmp_path: Path) -> None:
     }
 
 
+def test_run_marker_preserves_effect_started_after_zero_effect_failure(
+        monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-paid:run-marker-failed")
+
+    class MutatingFailureAdapter(Adapter):
+        def mutate(self, intent: dict) -> None:
+            raise RuntimeError("mutation failed after fence")
+
+    result = paid.run_wake(
+        adapter=MutatingFailureAdapter([observation("work-1")]),
+        decide=submit,
+        state_root=tmp_path,
+    )
+
+    assert result["effect"] == 0
+    marker = paid._run_marker_path(tmp_path, "fixture-paid:run-marker-failed")
+    assert json.loads(marker.read_text()) == {
+        "version": 1,
+        "occurrence_id": "fixture-paid:run-marker-failed",
+        "status": "effect_started",
+        "effect": 0,
+    }
+
+
 def test_state_records_the_runtime_occurrence_id(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-paid:run-1")
     adapter = Adapter([observation("work-1")])
