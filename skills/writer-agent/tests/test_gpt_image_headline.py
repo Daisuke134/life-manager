@@ -17,6 +17,7 @@ PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
 )
 PNG = PNG[:16] + struct.pack(">II", 1536, 1024) + PNG[24:]
+SQUARE_PNG = PNG[:16] + struct.pack(">II", 1024, 1024) + PNG[24:]
 
 
 class Response:
@@ -30,6 +31,13 @@ class Response:
 
 class ResponseNoRequestID(Response):
     headers = {}
+
+
+class ResponseWrongDimensions(Response):
+    def read(self):
+        return json.dumps(
+            {"data": [{"b64_json": base64.b64encode(SQUARE_PNG).decode()}]}
+        ).encode()
 
 
 def test_generate_records_complete_receipt_and_replay_calls_api_zero_times(
@@ -156,3 +164,42 @@ def test_local_cliproxy_is_an_openai_compatible_image_fallback(
     assert json.loads(calls[0][0].data)["model"] == "gpt-image-2-2026-04-21"
     assert calls[0][0].headers["X-request-id"].startswith("lm-")
     assert result["request_id_source"] == "client-generated"
+
+
+def test_known_dimension_refusal_is_recorded_and_allows_one_safe_retry(
+    tmp_path: Path, monkeypatch
+) -> None:
+    prompt, alt = tmp_path / "prompt.txt", tmp_path / "alt.txt"
+    candidate, intent, receipt = (
+        tmp_path / "candidate.png",
+        tmp_path / "intent.json",
+        tmp_path / "receipt.json",
+    )
+    prompt.write_text("specific prompt")
+    alt.write_text("specific alt")
+    monkeypatch.setenv("CLIPROXY_API_KEY", "proxy-secret")
+    monkeypatch.setenv("ARTICLE_CODEX_PROVIDER_BASE_URL", "http://127.0.0.1:8317/v1")
+
+    with pytest.raises(image.HeadlineImageRefused, match="dimensions"):
+        image.generate(
+            prompt_path=prompt,
+            alt_path=alt,
+            candidate=candidate,
+            intent_path=intent,
+            receipt_path=receipt,
+            opener=lambda *_a, **_k: ResponseWrongDimensions(),
+        )
+
+    failed = json.loads(intent.read_text(encoding="utf-8"))
+    assert failed["status"] == "failed_known"
+    assert failed["reason"] == "image-dimensions-do-not-match-request"
+
+    result = image.generate(
+        prompt_path=prompt,
+        alt_path=alt,
+        candidate=candidate,
+        intent_path=intent,
+        receipt_path=receipt,
+        opener=lambda *_a, **_k: Response(),
+    )
+    assert result["status"] == "committed"
