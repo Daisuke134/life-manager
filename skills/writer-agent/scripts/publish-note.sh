@@ -262,7 +262,7 @@ async def load_session():
 session = asyncio.run(load_session())
 actual = asyncio.run(get_current_user(session.cookies))
 if (
-  str(actual.get("id", "")) != os.environ["NOTE_USER_ID"]
+  (actual.get("id") and str(actual.get("id")) != os.environ["NOTE_USER_ID"])
   or str(actual.get("urlname", "")).lower() != os.environ["NOTE_URLNAME"].lower()
 ):
   raise SystemExit("authenticated Note account does not match NOTE_USER_ID / NOTE_URLNAME")

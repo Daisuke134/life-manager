@@ -156,6 +156,33 @@ class WriterRuntimeEnvTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout, "/managed/python|/managed/python")
 
+    def test_default_python_prefers_managed_writer_venv(self):
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp)
+            managed = home / ".local/share/life-manager/venv/bin/python"
+            managed.parent.mkdir(parents=True)
+            managed.write_text("#!/bin/sh\n")
+            managed.chmod(0o755)
+            result = subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    f'source "{SCRIPT}" && printf "%s|%s" "$LIFE_MANAGER_PYTHON" "$WRITER_BROWSER_PYTHON"',
+                ],
+                text=True,
+                capture_output=True,
+                env={
+                    **os.environ,
+                    "HOME": str(home),
+                    "LIFE_MANAGER_REPO": str(ROOT),
+                    "LIFE_MANAGER_ENV_FILE": str(home / "missing.env"),
+                    "LIFE_MANAGER_PYTHON": "",
+                    "WRITER_BROWSER_PYTHON": "",
+                },
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, f"{managed}|{managed}")
+
     def test_zenn_checkout_is_writer_managed_and_config_is_user_supplied(self):
         with tempfile.TemporaryDirectory() as temp:
             state = Path(temp) / "writer"
