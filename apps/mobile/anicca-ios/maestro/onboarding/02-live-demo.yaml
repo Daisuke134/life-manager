@@ -1,0 +1,72 @@
+# Live Demo NudgeCard Interaction Test
+# Tests: trigger button → NudgeCard animation → PRIMARY tap → advance
+# Depends on: 01-onboarding.yaml reaching LIVE DEMO step
+# Note: inspect_view_hierarchy で NudgeCard 内 ID 確認済み
+
+appId: ai.anicca.app.ios
+name: Live Demo NudgeCard interaction
+tags:
+  - onboarding
+  - liveDemo
+
+---
+# Clean start - navigate to LIVE DEMO step
+- clearState
+- clearKeychain
+- launchApp
+
+# Navigate through welcome → struggles to reach LIVE DEMO
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-welcome-cta"
+    timeout: 30000
+
+- tapOn:
+    id: "onboarding-welcome-cta"
+
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-struggle-staying_up_late"
+    timeout: 15000
+
+- tapOn:
+    id: "onboarding-struggle-staying_up_late"
+
+- tapOn:
+    id: "onboarding-struggles-next"
+
+# LIVE DEMO screen reached
+- extendedWaitUntil:
+    visible:
+      id: "live_demo_trigger_button"
+    timeout: 15000
+
+# Verify title is visible
+- assertVisible:
+    id: "live_demo_title"
+
+# Tap trigger button to show NudgeCard
+- tapOn:
+    id: "live_demo_trigger_button"
+
+# Wait for card slide-in animation (0.3s delay + 0.5s spring)
+- extendedWaitUntil:
+    visible:
+      id: "nudge-card-view"
+    timeout: 5000
+
+# Verify NudgeCard content is visible
+- assertVisible:
+    id: "nudge-hook-text"
+
+# Tap PRIMARY action
+- tapOn:
+    id: "nudge-primary-action"
+
+# Verify card dismissed and advanced to notifications
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-notifications-allow"
+    timeout: 10000
+
+- takeScreenshot: "live-demo-to-notifications"

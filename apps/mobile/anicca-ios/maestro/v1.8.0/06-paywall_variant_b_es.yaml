@@ -1,0 +1,53 @@
+# Test 6: Paywall Variant B — Spanish
+# Verifies: ES localization on Variant B
+
+appId: ai.anicca.app.ios
+name: Paywall Variant B ES
+tags:
+  - paywall
+  - v1.8.0
+  - variant-b
+  - es
+
+---
+- clearState
+- clearKeychain
+- launchApp:
+    arguments:
+      UITESTING: "true"
+      AppleLanguages: "(es)"
+      AppleLocale: "es_ES"
+    env:
+      PAYWALL_VARIANT: "test"
+
+- runFlow: ../_onboarding_to_paywall.yaml
+
+- extendedWaitUntil:
+    visible:
+      id: "paywall-plan-cta"
+    timeout: 15000
+
+- takeScreenshot: "v180-06-variant-b-es"
+
+# Verify ES Variant B title
+- assertVisible:
+    text: "Transforma tus hábitos diarios"
+
+# Verify ES review
+- assertVisible:
+    text: ".*Anicca me ayudó.*"
+
+# Dismiss
+- tapOn:
+    id: "paywall-dismiss"
+
+- tapOn:
+    text: "今はしない|Not Now|Ahora no"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "mypath-root"
+    timeout: 10000
+
+- takeScreenshot: "v180-06-variant-b-es-home"

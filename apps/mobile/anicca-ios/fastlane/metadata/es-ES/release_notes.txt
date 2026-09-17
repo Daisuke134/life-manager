@@ -1,0 +1,2 @@
+- Ahora puedes cerrar el paywall y probar Anicca gratis
+- Mejoras de estabilidad

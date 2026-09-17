@@ -1,0 +1,120 @@
+# Shared: Onboarding → Paywall arrival
+# 2026-07-04 rebuilt from OnboardingFlowView.swift (v7 10-step onboarding).
+# 旧 flow は v6 (goals/live-demo 等) 前提で stale だった。
+# Used by paywall tests as a sub-flow. Ends after tapping paywall-primer-cta.
+
+appId: ai.anicca.app.ios
+
+---
+# StoreKit sandbox の Apple Account サインインダイアログ (clearKeychain 起因) を optional dismiss
+- tapOn:
+    text: "キャンセル|Cancel|Not Now"
+    optional: true
+
+# Step 1: Welcome
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-welcome-cta"
+    timeout: 60000
+
+- tapOn:
+    text: "キャンセル|Cancel"
+    optional: true
+
+- tapOn:
+    id: "onboarding-welcome-cta"
+
+# Step 2: Goal (1-tap → 0.2s 後自動遷移)
+- extendedWaitUntil:
+    visible:
+      text: "よく眠れるようになる|Sleep better"
+    timeout: 15000
+
+- tapOn:
+    text: "よく眠れるようになる|Sleep better"
+
+# Step 3: Pain points (Struggles) — 1つ選択 + next
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-struggle-negative_thoughts"
+    timeout: 15000
+
+- tapOn:
+    id: "onboarding-struggle-negative_thoughts"
+
+- tapOn:
+    id: "onboarding-struggles-next"
+
+# Step 4: Struggle frequency (1-tap 自動遷移)
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-depth-daily"
+    timeout: 15000
+
+- tapOn:
+    id: "onboarding-depth-daily"
+
+# Step 5: Nudge times — 1つ選択 + Continue
+- extendedWaitUntil:
+    visible:
+      text: '朝 \(9時\)|Morning \(9 AM\)'
+    timeout: 15000
+
+- tapOn:
+    text: '朝 \(9時\)|Morning \(9 AM\)'
+
+- tapOn:
+    text: "続ける|Continue"
+
+# Step 6: Processing (~4.7s 自動遷移) → Step 7: Plan reveal
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-insight-cta"
+    timeout: 30000
+
+- tapOn:
+    id: "onboarding-insight-cta"
+
+# Step 8: Comparison — Continue
+- extendedWaitUntil:
+    visible:
+      text: "続ける|Continue"
+    timeout: 15000
+
+- tapOn:
+    text: "続ける|Continue"
+
+# Step 9: Rating pre-prompt — SKStoreReview システムダイアログは optional 却下
+- extendedWaitUntil:
+    visible:
+      text: "アニッチャを評価|Rate Anicca"
+    timeout: 15000
+
+- tapOn:
+    text: "アニッチャを評価|Rate Anicca"
+
+- tapOn:
+    text: "今はしない|Not Now"
+    optional: true
+
+# Step 10: Notifications
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-notifications-allow"
+    timeout: 15000
+
+- tapOn:
+    id: "onboarding-notifications-allow"
+
+- tapOn:
+    text: "許可|Allow"
+    optional: true
+
+# Paywall primer → plan selection へ
+- extendedWaitUntil:
+    visible:
+      id: "paywall-primer-cta"
+    timeout: 30000
+
+- tapOn:
+    id: "paywall-primer-cta"

@@ -1,0 +1,1334 @@
+"app_name" = "Anicca";
+"att_title" = "Aidez-nous à nous améliorer";
+"att_description" = "Nous aimerions savoir comment vous avez découvert Anicca pour améliorer notre service. Cela nous aide à atteindre plus de personnes qui ont besoin de soutien.";
+"att_continue" = "Continuer";
+
+"common_continue" = "Continuer";
+"common_skip" = "Passer";
+"common_next" = "Suivant";
+"common_done" = "Terminé";
+"common_saving" = "Enregistrement…";
+"common_requesting" = "Demande en cours…";
+"common_enabled" = "Activé";
+"common_enable" = "Activer";
+"common_change" = "Modifier";
+"common_set_time" = "Régler l'heure";
+"common_not_selected" = "Non sélectionné";
+"common_cancel" = "Annuler";
+"common_back" = "Retour";
+"common_save" = "Enregistrer";
+"common_time" = "Heure";
+"common_maybe_later" = "Peut-être plus tard";
+"common_open_settings" = "Ouvrir les réglages";
+"common_preview_alarm" = "Tester l'alarme";
+"common_save_wake_time" = "Enregistrer l'heure de réveil";
+"common_signing_in" = "Connexion…";
+"settings_language_label" = "Langue";
+
+"onboarding_welcome_title" = "Bienvenue sur\nAnicca";
+"onboarding_welcome_subtitle_line1" = "Anicca vient vers vous";
+"onboarding_welcome_subtitle_line2" = "dans les moments les plus difficiles.";
+"onboarding_welcome_cta" = "Commencer";
+"onboarding_welcome_social_proof" = "Des milliers trouvent la paix";
+"onboarding_welcome_restore_description" = "Vous avez déjà un compte ?";
+
+"onboarding_account_title" = "Sauvegardez votre progression";
+"onboarding_account_description" = "Connectez-vous pour synchroniser vos données entre appareils.";
+"onboarding_account_skip" = "Passer pour l'instant";
+
+"onboarding_microphone_title" = "Accès au microphone";
+"onboarding_microphone_card_title" = "Accès au microphone";
+"onboarding_microphone_description" = "Anicca vous écoute via le microphone pour que vous puissiez parler librement. Votre voix est traitée en toute sécurité sur votre appareil et nos serveurs.";
+"onboarding_microphone_allow" = "Autoriser le microphone";
+"onboarding_permission_status_allowed" = "Autorisé";
+"onboarding_permission_status_not_allowed" = "Non autorisé";
+"onboarding_microphone_optional_hint" = "Besoin de l'expérience vocale plus tard ? Allez dans Réglages → Anicca et réactivez le microphone quand vous êtes prêt.";
+
+"onboarding_notifications_title" = "Notifications";
+"onboarding_notifications_card_title" = "Accès aux notifications";
+"onboarding_notifications_description" = "Anicca utilise les notifications pour vous rappeler doucement aux bons moments — pour vous réveiller, poser votre téléphone ou faire une pause.";
+"onboarding_notifications_allow" = "Autoriser les notifications";
+"onboarding_notifications_optional_hint" = "Passez pour l'instant si vous préférez. Vous pouvez activer les notifications à tout moment depuis Réglages → Anicca.";
+
+"onboarding_alarmkit_title" = "Alarmes";
+"onboarding_alarmkit_description" = "Pour des rappels de réveil fiables, Anicca a besoin de l'autorisation de programmer des alarmes.";
+"onboarding_alarmkit_allow" = "Autoriser les alarmes";
+
+"onboarding_habit_title" = "Set Your Habits";
+"onboarding_habit_description" = "Choose which habits you want to build and set their times.";
+/* Not used anymore; keep for backward compat if referenced */
+"onboarding_habit_time_title_format" = "Set Time";
+
+"onboarding_profile_title" = "Choisissez le nom qui vous convient le mieux";
+"onboarding_profile_description" = "Nous utiliserons votre nom quand Anicca vous parlera.";
+"onboarding_profile_continue" = "Continuer";
+"onboarding_profile_placeholder" = "Jean";
+
+"onboarding_source_title" = "Comment avez-vous entendu parler de nous ?";
+"source_instagram" = "Instagram";
+"source_tiktok" = "TikTok";
+"source_youtube" = "YouTube";
+"source_twitter" = "Twitter / X";
+"source_facebook" = "Facebook";
+"source_friends" = "Amis";
+"source_app_store" = "Recherche App Store";
+"source_other" = "Autre";
+
+"onboarding_gender_title" = "Quel est votre genre ?";
+"gender_male" = "Homme";
+"gender_female" = "Femme";
+"gender_other" = "Autre";
+"gender_prefer_not_to_say" = "Je préfère ne pas répondre";
+
+"onboarding_age_title" = "Quel âge avez-vous ?";
+
+"onboarding_habit_wake_location_title" = "Where do you usually wake up?";
+"onboarding_habit_wake_location_description" = "This helps Anicca personalize your wake-up experience.";
+"onboarding_habit_sleep_location_title" = "Where do you usually sleep?";
+"onboarding_habit_sleep_location_description" = "This helps Anicca personalize your bedtime experience.";
+"onboarding_habit_location_placeholder" = "Third-floor bedroom";
+
+"onboarding_habit_training_title" = "Which training do you want to focus on every day?";
+"onboarding_habit_training_description" = "Choose one training focus that you want to build as a habit.";
+"training_focus_option_pushup" = "Push-up";
+"training_focus_option_core" = "Core";
+"training_focus_option_cardio" = "Cardio";
+"training_focus_option_stretch" = "Stretch";
+"training_measure_reps" = "Measured by reps";
+"training_measure_time" = "Measured by time";
+"followup_repeats_title" = "Reminder repeats";
+"followup_repeats_help" = "1–10 times.";
+"followup_times_unit" = "times";
+"settings_alarmkit_section_title" = "Alarm Display";
+"settings_alarmkit_toggle" = "Use full-screen alarm";
+"settings_alarmkit_description" = "When ON, a full-screen alarm will show even when iPhone is locked (iOS 26+)";
+
+"onboarding_completion_title" = "You're All Set!";
+"onboarding_completion_ready" = "Your habits are ready to go!";
+"onboarding_completion_next_format" = "Next up: %@";
+"onboarding_completion_continue" = "Continue";
+
+"wake_setup_title" = "Set Your Wake Time";
+"wake_setup_description" = "Anicca will ring exactly at this minute every day.";
+
+"habit_title_wake" = "Wake Up";
+"habit_title_training" = "Training";
+"habit_title_bedtime" = "Sleep";
+"habit_title_custom_fallback" = "Custom Habit";
+"habit_detail_wake" = "Get woken up at your preferred time";
+"habit_detail_training" = "Reminders to start your workout";
+"habit_detail_bedtime" = "Gentle reminders to wind down and sleep";
+"habit_detail_custom" = "We'll remind you once you set a name and time.";
+"habit_custom_card_description" = "Give it a name and set the reminder time.";
+"habit_custom_name_placeholder" = "Add your habit";
+"habit_custom_name_section" = "Habit Name";
+"habit_edit_title" = "Edit Habit";
+"habit_custom_name_required" = "Please enter a habit name.";
+
+"next_schedule_message" = "I'll nudge you for %2$@ at %1$@";
+"next_schedule_habit_wake" = "wake-up";
+"next_schedule_habit_training" = "training";
+"next_schedule_habit_bedtime" = "sleep";
+
+"session_button_talk" = "Consult Anicca";
+"session_button_end" = "End Session";
+"session_button_connecting" = "Connecting…";
+"session_wake_silent_notice" = "To guarantee the wake alarm plays, flip the side silent switch back up before going to bed so that silent mode is off.";
+"wake_silent_modal_title" = "Wake alarms & Silent mode";
+"wake_silent_modal_message" = "Anicca can gently wake you at the right time, based on your routines.\n\nTo make sure you actually hear the alarm, please turn Silent mode off before going to sleep and keep your volume high enough to wake you.";
+"wake_silent_modal_ok" = "OK, got it";
+
+"settings_title" = "Settings";
+"settings_subscription_title" = "Subscription";
+"settings_subscription_free" = "Free plan";
+"settings_subscription_pro" = "Pro plan";
+"settings_subscription_grace" = "Grace period";
+"settings_subscription_monthly" = "Monthly";
+"settings_subscription_yearly" = "Yearly";
+"settings_subscription_manage" = "Manage plan";
+"settings_subscription_manage_title" = "Subscription";
+"settings_subscription_until" = "Active until %@";
+"settings_subscription_current_plan" = "Current Plan";
+"settings_subscription_current" = "Current";
+"settings_subscription_select" = "Select";
+"settings_subscription_usage" = "Usage";
+"settings_subscription_no_plans" = "No subscription plans available";
+"settings_subscription_restore" = "Restore Purchases";
+"settings_subscription_manage_app_store" = "Manage on App Store";
+"settings_subscription_cancel" = "Cancel Subscription";
+"settings_subscription_account_missing" = "Account configuration is missing. Please sign in to App Store.";
+"subscription_plan_monthly" = "Monthly Plan";
+"subscription_plan_annual" = "Annual Plan";
+"settings_personalization_title" = "Personalization";
+"settings_name_label" = "Your name";
+"settings_name_placeholder" = "Enter your name";
+"settings_alarm_title" = "Alarm";
+"settings_sticky_mode_title" = "Sticky Mode";
+"settings_sticky_mode_description" = "When ON, Anicca keeps talking until you reply 5 times";
+"settings_problems_title" = "Current struggles";
+"settings_sleep_location_label" = "Sleep Location";
+"settings_sleep_location_placeholder" = "Third-floor bedroom";
+"settings_training_focus_label" = "Training Focus";
+"settings_training_focus_none" = "None";
+"settings_sign_out" = "Sign Out";
+"settings_time_not_set" = "Not Set";
+"settings_custom_card_description" = "Change the reminder time for your custom habit.";
+"settings_custom_time_required" = "Please set the reminder time.";
+
+"notification_custom_body_format" = "It's time for %@.";
+"notification_custom_followup_title_format" = "%@ (reminder)";
+"notification_custom_followup_body_format" = "Let's get %@ started.";
+
+"common_sign_out" = "Se déconnecter";
+
+"notification_action_start_conversation" = "Start Conversation Now";
+"notification_action_dismiss" = "Dismiss";
+
+/* ========== Pre-reminder Notifications (10 variants, rotating) ========== */
+
+/* Wake - Pre-reminder (5 min before) */
+"notification_wake_prereminder_1" = "%@5 min until wake-up time.";
+"notification_wake_prereminder_2" = "%@Wake alarm coming in 5 min.";
+"notification_wake_prereminder_3" = "%@5 min to wake. Get ready.";
+"notification_wake_prereminder_4" = "%@Wake time is near.";
+"notification_wake_prereminder_5" = "%@5 min to wake up.";
+"notification_wake_prereminder_6" = "%@5 min before wake.";
+"notification_wake_prereminder_7" = "%@Almost wake time.";
+"notification_wake_prereminder_8" = "%@5 min left until wake.";
+"notification_wake_prereminder_9" = "%@Morning in 5 min.";
+"notification_wake_prereminder_10" = "%@5 min to wake alarm.";
+
+/* Training - Pre-reminder (15 min before) */
+"notification_training_prereminder_1" = "%@Training in 15 min.";
+"notification_training_prereminder_2" = "%@15 min to training. Prepare.";
+"notification_training_prereminder_3" = "%@Training time soon.";
+"notification_training_prereminder_4" = "%@15 min before training.";
+"notification_training_prereminder_5" = "%@Exercise in 15 min.";
+"notification_training_prereminder_6" = "%@15 min until training.";
+"notification_training_prereminder_7" = "%@Workout time is near.";
+"notification_training_prereminder_8" = "%@15 min left to training.";
+"notification_training_prereminder_9" = "%@Training starts in 15 min.";
+"notification_training_prereminder_10" = "%@Time to prepare for training.";
+
+/* Bedtime - Pre-reminder (15 min before) */
+"notification_bedtime_prereminder_1" = "%@Bedtime in 15 min.";
+"notification_bedtime_prereminder_2" = "%@15 min to bed. Time to rest.";
+"notification_bedtime_prereminder_3" = "%@Bedtime soon.";
+"notification_bedtime_prereminder_4" = "%@15 min before bedtime.";
+"notification_bedtime_prereminder_5" = "%@Sleep time in 15 min.";
+"notification_bedtime_prereminder_6" = "%@15 min to bedtime.";
+"notification_bedtime_prereminder_7" = "%@Sleep time is near.";
+"notification_bedtime_prereminder_8" = "%@15 min left to bedtime.";
+"notification_bedtime_prereminder_9" = "%@Rest time in 15 min.";
+"notification_bedtime_prereminder_10" = "%@Time to prepare for bed.";
+
+/* Custom - Pre-reminder */
+"notification_custom_prereminder_1" = "%1$@%2$@ in 15 min.";
+"notification_custom_prereminder_2" = "%1$@15 min to %2$@. Prepare.";
+"notification_custom_prereminder_3" = "%1$@%2$@ time soon.";
+"notification_custom_prereminder_4" = "%1$@15 min before %2$@.";
+"notification_custom_prereminder_5" = "%1$@Time for %2$@ in 15 min.";
+"notification_custom_prereminder_6" = "%1$@%2$@ time is near.";
+"notification_custom_prereminder_7" = "%1$@15 min left to %2$@.";
+"notification_custom_prereminder_8" = "%1$@Almost time for %2$@.";
+"notification_custom_prereminder_9" = "%1$@%2$@ in 15 min.";
+"notification_custom_prereminder_10" = "%1$@Time to prepare for %2$@.";
+
+/* ========== Main Notifications (10 variants, rotating) ========== */
+
+/* Wake - Main */
+"notification_wake_main_1" = "%@Good morning. A new day begins.";
+"notification_wake_main_2" = "%@Time to wake up. Just open your eyes first.";
+"notification_wake_main_3" = "%@It's morning. Let's start together.";
+"notification_wake_main_4" = "%@Today is waiting for you. Let's wake up.";
+"notification_wake_main_5" = "%@Morning light is here. Open your eyes.";
+"notification_wake_main_6" = "%@You're ready. Time to get up.";
+"notification_wake_main_7" = "%@A fresh morning. What kind of day will it be?";
+"notification_wake_main_8" = "%@Time to wake. Start with a deep breath.";
+"notification_wake_main_9" = "%@I'm here with you today. Let's wake up.";
+"notification_wake_main_10" = "%@Morning is here. Try stretching first.";
+
+/* Training - Main */
+"notification_training_main_1" = "%@Training time. Let's move your body.";
+"notification_training_main_2" = "%@Time to work out. Ready?";
+"notification_training_main_3" = "%@Your body wants to move. Let's start.";
+"notification_training_main_4" = "%@Today's training. Start with 1 minute.";
+"notification_training_main_5" = "%@Time to exercise. Where do you start?";
+"notification_training_main_6" = "%@Let's train together.";
+"notification_training_main_7" = "%@Time to move. You'll feel great.";
+"notification_training_main_8" = "%@Time to start your training.";
+"notification_training_main_9" = "%@Let's strengthen your body today. Ready?";
+"notification_training_main_10" = "%@Exercise time. Start with a warm-up.";
+
+/* Bedtime - Main */
+"notification_bedtime_main_1" = "%@Time for bed. You did well today.";
+"notification_bedtime_main_2" = "%@Time to get into bed.";
+"notification_bedtime_main_3" = "%@You've done enough today. Time to rest.";
+"notification_bedtime_main_4" = "%@Let's prepare for sleep.";
+"notification_bedtime_main_5" = "%@Time to close the day. Get ready for sleep.";
+"notification_bedtime_main_6" = "%@Your body needs rest. Head to bed.";
+"notification_bedtime_main_7" = "%@Let's rest well tonight.";
+"notification_bedtime_main_8" = "%@Sleep tonight for a better tomorrow.";
+"notification_bedtime_main_9" = "%@Close your screens. Rest your eyes.";
+"notification_bedtime_main_10" = "%@End of the day. Sleep peacefully.";
+
+/* Custom - Main (%1$@ = user name prefix, %2$@ = habit name) */
+"notification_custom_main_1" = "%1$@Time for %2$@. Let's begin.";
+"notification_custom_main_2" = "%1$@Time for %2$@. Ready?";
+"notification_custom_main_3" = "%1$@Time to start %2$@.";
+"notification_custom_main_4" = "%1$@Now's the time for %2$@. Go.";
+"notification_custom_main_5" = "%1$@%2$@. Try just 1 minute first.";
+"notification_custom_main_6" = "%1$@Let's do %2$@. Together.";
+"notification_custom_main_7" = "%1$@%2$@ time has come.";
+"notification_custom_main_8" = "%1$@Today's %2$@. Where do you start?";
+"notification_custom_main_9" = "%1$@Starting %2$@ will shift your mood.";
+"notification_custom_main_10" = "%1$@Time for %2$@. Start small.";
+
+/* ========== Follow-up Notifications (10 variants, rotating) ========== */
+
+"notification_wake_followup_title" = "Wake Up (reminder)";
+"notification_training_followup_title" = "Training (reminder)";
+"notification_bedtime_followup_title" = "Bedtime (reminder)";
+
+/* Wake - Follow-up */
+"notification_wake_followup_1" = "%@Still in bed? Try opening your eyes.";
+"notification_wake_followup_2" = "%@Wake up. I'm waiting.";
+"notification_wake_followup_3" = "%@It's morning. Try stretching first.";
+"notification_wake_followup_4" = "%@Time to wake. Take a deep breath.";
+"notification_wake_followup_5" = "%@Almost there. You can do it.";
+"notification_wake_followup_6" = "%@The day is starting. Get out of bed.";
+"notification_wake_followup_7" = "%@Let's start the morning together.";
+"notification_wake_followup_8" = "%@Your body is ready to wake up.";
+"notification_wake_followup_9" = "%@Morning light awaits. Wake up.";
+"notification_wake_followup_10" = "%@Wake now for a great day ahead.";
+
+/* Training - Follow-up */
+"notification_training_followup_1" = "%@Training not done? Just 1 minute.";
+"notification_training_followup_2" = "%@Let's exercise. I'm waiting.";
+"notification_training_followup_3" = "%@Time to move your body. Let's go.";
+"notification_training_followup_4" = "%@Still time. Start moving.";
+"notification_training_followup_5" = "%@Training. Even 1 set is OK.";
+"notification_training_followup_6" = "%@Exercise feels good. Let's start.";
+"notification_training_followup_7" = "%@Let's train together.";
+"notification_training_followup_8" = "%@Your body awaits exercise. Move.";
+"notification_training_followup_9" = "%@Today's training. You can still do it.";
+"notification_training_followup_10" = "%@Starting small is fine. Just move.";
+
+/* Bedtime - Follow-up */
+"notification_bedtime_followup_1" = "%@Time to start winding down.";
+"notification_bedtime_followup_2" = "%@Dim the lights and take a deep breath.";
+"notification_bedtime_followup_3" = "%@Close your screens. Rest your eyes.";
+"notification_bedtime_followup_4" = "%@That's enough for today. Get into bed.";
+"notification_bedtime_followup_5" = "%@When sleepiness comes, just rest.";
+"notification_bedtime_followup_6" = "%@Let's start your bedtime routine.";
+"notification_bedtime_followup_7" = "%@You did well today. Close your eyes.";
+"notification_bedtime_followup_8" = "%@Have you brushed your teeth?";
+"notification_bedtime_followup_9" = "%@Lie down and let your body relax.";
+"notification_bedtime_followup_10" = "%@Sleep tonight for tomorrow.";
+
+/* Custom - Follow-up (%1$@ = user name prefix, %2$@ = habit name) */
+"notification_custom_followup_1" = "%1$@Let's start %2$@. You can do it now.";
+"notification_custom_followup_2" = "%1$@Don't miss the time for %2$@.";
+"notification_custom_followup_3" = "%1$@%2$@, just try 1 minute first.";
+"notification_custom_followup_4" = "%1$@%2$@, you can start now.";
+"notification_custom_followup_5" = "%1$@%2$@, let's do it together.";
+"notification_custom_followup_6" = "%1$@Doing %2$@ will change how you feel.";
+"notification_custom_followup_7" = "%1$@You're ready for %2$@.";
+"notification_custom_followup_8" = "%1$@%2$@, let's move forward.";
+"notification_custom_followup_9" = "%1$@Let's make progress on %2$@, even a little.";
+"notification_custom_followup_10" = "%1$@%2$@, I'm waiting.";
+
+/* Legacy keys (backward compatibility) */
+"notification_wake_body" = "Anicca is here to wake you up.";
+"notification_training_body" = "It's time for training. Let's start together.";
+"notification_bedtime_body" = "Let's start preparing for bed. We'll create deep sleep.";
+"notification_wake_followup_body" = "It's time to wake up. Let's start with deep breathing.";
+"notification_training_followup_body" = "You're ready to move your body. Let's be mindful of your form.";
+"notification_bedtime_followup_body" = "Let's release the fatigue of the day. Relax and drift into sleep.";
+
+"common_user_fallback" = "User";
+"common_sleep_location_fallback" = "Bed";
+"common_list_separator" = ", ";
+"language_preference_ja" = "Japanese";
+"language_preference_en" = "English";
+"language_preference_de" = "German";
+"language_preference_fr" = "French";
+"language_preference_es" = "Spanish";
+"language_preference_ptBR" = "Portuguese (Brazil)";
+"settings_usage_this_month_format" = "This month: %d / %d";
+"settings_subscription_canceled_until" = "Canceled — ends on %@";
+"quota_exceeded_title_free" = "Monthly limit reached";
+"quota_exceeded_title_pro" = "Monthly limit reached";
+"quota_exceeded_title_grace" = "Monthly limit reached";
+"quota_exceeded_message_free" = "You've used all 30 minutes this month. Upgrade to Pro to get 300 minutes.";
+"quota_exceeded_message_pro" = "You've used all 300 minutes this month. Your limit will reset next month.";
+"quota_exceeded_message_grace" = "Please check your payment renewal.";
+"quota_exceeded_close" = "Close";
+"quota_exceeded_upgrade" = "Upgrade";
+"quota_exceeded_manage" = "Manage Plan";
+"session_time_cap_title" = "Free session limit reached (5 min)";
+"session_time_cap_message" = "Your free session ended after 5 minutes. Upgrade to continue longer conversations.";
+"settings_habits" = "Habits";
+"settings_ideal_traits" = "Ideal self";
+"onboarding_ideals_title" = "Who do you want to become?";
+"onboarding_ideals_subtitle" = "Choose as many as you like. These describe the kind of person you want to become.";
+
+"onboarding_struggles_title" = "Avec quoi luttez-vous en ce moment ?";
+"onboarding_struggles_subtitle" = "Sélectionnez tout ce qui s'applique.";
+
+"onboarding_value_title" = "Ce qu'Anicca peut faire";
+"onboarding_value_card1_title" = "Un message au bon moment";
+"onboarding_value_card1_body" = "Anicca vous envoie un message exactement quand vous en avez besoin — avant la spirale, pas après.";
+"onboarding_value_card2_title" = "Apprend ce qui marche pour vous";
+"onboarding_value_card2_body" = "Chaque réaction enseigne à Anicca. Avec le temps, il sait quels mots vous touchent.";
+"onboarding_value_card3_title" = "Au-delà du suivi d'habitudes";
+"onboarding_value_card3_body" = "Anicca ne compte pas les séries. Il s'attaque aux raisons profondes de vos luttes.";
+
+"ideal_trait_kind" = "Kind";
+"ideal_trait_honest" = "Honest";
+"ideal_trait_mindful" = "Mindful";
+"ideal_trait_confident" = "Confident";
+"ideal_trait_early_riser" = "Early Riser";
+"ideal_trait_runner" = "Runner";
+"ideal_trait_healthy" = "Healthy";
+"ideal_trait_calm" = "Calm";
+"ideal_trait_disciplined" = "Disciplined";
+"ideal_trait_open" = "Open";
+"ideal_trait_courageous" = "Courageous";
+"ideal_trait_altruistic" = "Altruistic";
+"ideal_trait_optimistic" = "Optimistic";
+"ideal_trait_resilient" = "Resilient";
+"ideal_trait_creative" = "Creative";
+"ideal_trait_organized" = "Organized";
+"ideal_trait_focused" = "Focused";
+"ideal_trait_grateful" = "Grateful";
+"ideal_trait_brave" = "Brave";
+"ideal_trait_patient" = "Patient";
+/* Proactive Agent: 13 problem types */
+"problem_staying_up_late" = "Veiller tard";
+"problem_cant_wake_up" = "Difficile de se réveiller";
+"problem_self_loathing" = "Dégoût de soi";
+"problem_rumination" = "Rumination";
+"problem_procrastination" = "Procrastination";
+"problem_anxiety" = "Anxiété";
+"problem_lying" = "Mensonge";
+"problem_bad_mouthing" = "Médisance";
+"problem_porn_addiction" = "Contenu sexuel compulsif";
+"problem_alcohol_dependency" = "Dépendance à l'alcool";
+"problem_anger" = "Colère";
+"problem_obsessive" = "Pensées obsessionnelles";
+"problem_loneliness" = "Solitude";
+/* Legacy problems (backward compatibility) */
+"problem_jealousy" = "Jalousie";
+"problem_night_scrolling" = "Scroll nocturne";
+"problem_poor_sleep" = "Mauvais sommeil";
+"problem_stress" = "Stress";
+"problem_focus" = "Concentration";
+"problem_motivation" = "Motivation";
+"problem_self_doubt" = "Doute de soi";
+"problem_time_management" = "Time Management";
+"problem_burnout" = "Épuisement";
+"problem_relationships" = "Relations";
+"problem_energy" = "Énergie";
+"problem_work_life_balance" = "Work-Life Balance";
+
+"common_loading" = "Chargement…";
+"common_retry" = "Réessayer";
+"timeline_label_sleep" = "Sleep";
+"timeline_label_focus" = "Focus";
+"timeline_label_scroll" = "Scroll";
+"timeline_label_activity" = "Activity";
+
+/* v3 Profile */
+"profile_title" = "Profile";
+"profile_row_name" = "Name";
+"profile_row_plan" = "Plan";
+"profile_row_language" = "Language";
+"profile_section_traits" = "Your Traits";
+"profile_traits_summary_placeholder" = "You're highly agreeable and open to new experiences, balancing structure with flexibility.";
+"profile_traits_view_full" = "View full trait profile";
+"profile_section_ideal_self" = "Ideal Self";
+"profile_section_current_struggles" = "Current Struggles";
+"profile_section_nudge_strength" = "Nudge strength";
+"profile_nudge_quiet" = "Discret";
+"profile_nudge_normal" = "Normal";
+"profile_nudge_active" = "Actif";
+"profile_section_sticky_mode" = "Sticky Mode";
+"profile_sticky_description" = "When ON, Anicca keeps talking until you respond 5 times.";
+"profile_section_data_integration" = "Data Integration";
+"profile_data_integration_hint" = "Optional. Link your data so Anicca can nudge you more precisely. All core features work even if everything is OFF.";
+"profile_toggle_sleep" = "Sleep";
+"profile_toggle_steps" = "Steps";
+"profile_toggle_movement" = "Movement";
+
+/* AlarmKit full-screen alarm actions */
+"alarmkit_action_wake_open" = "Wake up";
+"alarmkit_action_wake_stop" = "Go back to sleep";
+"alarmkit_action_training_open" = "Train now";
+"alarmkit_action_training_stop" = "Do it later";
+"alarmkit_action_bedtime_open" = "Go to sleep now";
+"alarmkit_action_bedtime_stop" = "Stay up";
+"alarmkit_action_custom_open" = "Do it now";
+"alarmkit_action_custom_stop" = "Do it later";
+
+/* v3 Traits Detail */
+"traits_title" = "Big Five Traits";
+"trait_agreeableness" = "Agreeableness";
+"trait_openness" = "Openness";
+"trait_conscientiousness" = "Conscientiousness";
+"trait_emotional_stability" = "Emotional Stability";
+"trait_extraversion" = "Extraversion";
+"trait_description_placeholder" = "Highly cooperative; you value harmony and tend to be considerate of others.";
+"problem_no_motivation" = "No motivation";
+"problem_self_criticism" = "Self-criticism";
+"settings_personalization" = "Personalization";
+"settings_data_optional_title" = "Data Integration (Optional)";
+"settings_data_optional_description" = "Sleep, Steps, Screen Time, and Motion are optional. Even if you keep them OFF, you can always use Talk.";
+"habit_add_custom" = "Add Habit";
+"habit_add_routine" = "Add Routine";
+"habit_routine_placeholder" = "Routine";
+"habit_wake_location" = "Wake Location";
+"habit_wake_location_placeholder" = "e.g., Third-floor bedroom";
+"habit_wake_routines" = "Wake Routines";
+"habit_sleep_location" = "Sleep Location";
+"habit_sleep_location_placeholder" = "e.g., Third-floor bedroom";
+"habit_sleep_routines" = "Sleep Routines";
+"habit_training_goal" = "Training Goal";
+"habit_training_goal_placeholder" = "e.g., 15 reps";
+"habit_training_types" = "Training Type";
+"habit_delete_confirm" = "Are you sure you want to delete this habit?";
+"common_delete" = "Supprimer";
+"common_add" = "Ajouter";
+"common_wake_location_fallback" = "Bed";
+"settings_contact_support" = "Contact support";
+"tab_talk" = "Talk";
+"tab_profile" = "Profile";
+"talk_nav_title" = "How are you feeling now?";
+"talk_feeling_self_loathing_title" = "Self-Loathing";
+"talk_feeling_self_loathing_subtitle" = "When you’re being hard on yourself.";
+"talk_feeling_anxiety_title" = "Anxiety & Worry";
+"talk_feeling_anxiety_subtitle" = "When your mind won’t stop spinning.";
+"talk_feeling_irritation_title" = "Irritation";
+"talk_feeling_irritation_subtitle" = "When tension is rising in you.";
+"talk_feeling_something_else_title" = "Something else";
+"talk_feeling_something_else_subtitle" = "Start a free conversation.";
+
+"session_topic_self_loathing" = "Talking about self-loathing";
+"session_topic_anxiety" = "Talking about anxiety";
+"session_topic_irritation" = "Talking about irritation";
+"session_topic_free_conversation" = "Talking about something else";
+
+"session_status_connecting" = "Connecting…";
+"session_status_listening" = "Anicca is listening…";
+"session_status_speaking" = "Anicca is speaking…";
+"session_status_disconnected" = "Session ended";
+
+"auth_required_title" = "Please Sign In";
+"auth_required_message" = "Sign in to start using Anicca and set up your habits.";
+
+"feedback_thanks" = "Thanks!";
+
+"ema_question" = "Did you feel a bit better?";
+"ema_yes" = "Yes";
+"ema_no" = "No";
+"ema_skip" = "Skip";
+"tab_habits" = "Habits";
+"tab_mypath" = "Anicca";
+
+// Pre-Reminder (v3.1)
+"pre_reminder_bedtime_body" = "Time to start winding down. Put away screens and relax.";
+"pre_reminder_training_body" = "15 minutes until training. Get ready and warm up.";
+"pre_reminder_custom_body_format" = "%d minutes until \"%@\". Time to prepare.";
+
+"session_mic_permission_title" = "Microphone Access Required";
+"session_mic_permission_message" = "Anicca uses the microphone for real-time conversation. Please enable it in Settings.";
+"settings_subscription_syncing" = "Syncing…";
+"settings_subscription_usage_syncing" = "Syncing…";
+"settings_subscription_free_description" = "Up to 30 minutes per month. Monthly plan: 300 minutes/month. Annual plan: 3600 minutes/year.";
+"settings_subscription_monthly_detail" = "Includes 300 minutes of voice conversations per month";
+"settings_subscription_annual_detail" = "Includes 3600 minutes of voice conversations per year";
+"settings_subscription_subscribe" = "Subscribe";
+"paywall_loading" = "Chargement…";
+"paywall_unavailable_title" = "Plans indisponibles";
+"paywall_unavailable_message" = "Impossible de charger les plans d'abonnement. Veuillez réessayer plus tard.";
+"paywall_retry_button" = "Réessayer";
+"common_close" = "Fermer";
+"paywall_purchase_failed_title" = "Achat échoué";
+"paywall_retry" = "Réessayer";
+"legal_privacy_policy" = "Privacy Policy";
+"legal_terms_of_use" = "Terms of Use (EULA)";
+"settings_delete_account" = "Delete Account";
+"settings_delete_account_confirm" = "Delete";
+"settings_delete_account_message" = "This action cannot be undone. All your data, including purchase history and usage data, will be permanently deleted.";
+"common_error" = "Erreur";
+"common_ok" = "OK";
+
+/* v3: AlarmKit Permission */
+"onboarding_alarmkit_granted" = "Alarmes activées";
+"onboarding_alarmkit_denied_hint" = "Vous pouvez activer les alarmes dans les Réglages";
+"onboarding_alarmkit_settings_needed" = "Réglages d'alarme nécessaires";
+"onboarding_alarmkit_settings_message" = "Pour des réveils fiables, veuillez activer les autorisations d'alarme pour Anicca dans l'app Réglages.";
+
+/* v3: Profile Name Edit */
+"profile_edit_name_title" = "Edit Name";
+"profile_edit_name" = "Name";
+"profile_name_placeholder" = "Enter your name";
+
+/* v3: Additional Struggle */
+"problem_irritation" = "Irritabilité";
+
+/* v3: Account Management */
+"profile_account_management" = "Account Management";
+"profile_sign_in_description" = "Sign in to restore your habit settings on new devices or after reinstalling";
+
+/* Streak Milestone */
+"milestone_subtitle_format" = "You've been doing %@ for %lld days";
+"milestone_continue" = "Continue";
+"milestone_7_title" = "1 Week Streak!";
+"milestone_14_title" = "2 Weeks Streak!";
+"milestone_21_title" = "3 Weeks Streak!";
+"milestone_30_title" = "1 Month Streak!";
+"milestone_60_title" = "2 Months Streak!";
+"milestone_90_title" = "3 Months Streak!";
+"milestone_100_title" = "100 Days Streak!";
+"milestone_365_title" = "1 Year Streak!";
+"milestone_generic_title" = "Amazing Streak!";
+"milestone_days_unit" = "days";
+
+/* ========== Phase 3: Proactive Agent ========== */
+
+/* My Path Tab */
+"mypath_header_description" = "Anicca understands your struggles and supports you at the right moments.";
+"mypath_section_current_struggles" = "Current Struggles";
+"mypath_empty_title" = "Add a struggle to work on";
+"mypath_empty_action" = "Add Struggle";
+"mypath_add_problem" = "Add Struggle";
+
+/* Add Problem Sheet */
+"mypath_add_problem_title" = "Add Struggle";
+"mypath_add_problem_custom" = "Other (custom)";
+"mypath_add_problem_action" = "Add";
+"mypath_add_problem_already_added" = "Already added";
+"add_problem_title" = "Add Problems to Face";
+"add_problem_subtitle" = "Select the problems you want to add";
+"add_problem_add_button" = "Add";
+"add_problem_all_selected" = "All problems are already selected";
+"deep_dive_delete_problem" = "Delete this problem";
+"deep_dive_delete_alert_title" = "Delete this problem?";
+"deep_dive_delete_alert_message" = "This problem will be removed from My Path";
+"deep_dive_tell_anicca_title" = "Tell Anicca";
+"deep_dive_tell_anicca_subtitle" = "Write anything you want Anicca to know about this problem";
+
+/* ProblemType Button Texts */
+"problem_staying_up_late_positive_button" = "Protect Tomorrow";
+"problem_staying_up_late_negative_button" = "Hurt Myself";
+"problem_staying_up_late_notification_title" = "Put the Phone Down";
+"problem_cant_wake_up_positive_button" = "Start Today ☀️";
+"problem_cant_wake_up_negative_button" = "Stay in bed";
+"problem_cant_wake_up_notification_title" = "Get Up Now";
+"problem_self_loathing_positive_button" = "Forgive Myself";
+"problem_self_loathing_notification_title" = "Forgive Yourself";
+"problem_rumination_positive_button" = "Return to Now 🧘";
+"problem_rumination_negative_button" = "Keep Thinking";
+"problem_rumination_notification_title" = "Return to Now";
+"problem_procrastination_positive_button" = "Do 5 min ⚡";
+"problem_procrastination_negative_button" = "Later";
+"problem_procrastination_notification_title" = "Do It Now";
+"problem_anxiety_positive_button" = "Deep Breath 🌬️";
+"problem_anxiety_notification_title" = "You're Safe";
+"problem_lying_positive_button" = "Be Honest 🤝";
+"problem_lying_negative_button" = "Lie";
+"problem_lying_notification_title" = "Be Honest";
+"problem_bad_mouthing_positive_button" = "Kind Words 💬";
+"problem_bad_mouthing_negative_button" = "Bad-mouth";
+"problem_bad_mouthing_notification_title" = "Kind Words";
+"problem_porn_addiction_positive_button" = "Overcome 💪";
+"problem_porn_addiction_negative_button" = "Give In";
+"problem_porn_addiction_notification_title" = "Maîtrise Ton Désir";
+"problem_alcohol_dependency_positive_button" = "Stay Sober";
+"problem_alcohol_dependency_negative_button" = "Drink";
+"problem_alcohol_dependency_notification_title" = "Don't Drink Tonight";
+"problem_anger_positive_button" = "Let Go 🕊️";
+"problem_anger_negative_button" = "Stay Angry";
+"problem_anger_notification_title" = "Let Go of Anger";
+"problem_obsessive_positive_button" = "Let Go 🌿";
+"problem_obsessive_negative_button" = "Keep Thinking";
+"problem_obsessive_notification_title" = "Stop Overthinking";
+"problem_loneliness_positive_button" = "Reach Out 📱";
+"problem_loneliness_notification_title" = "Reach Out";
+
+/* NudgeContent - staying_up_late */
+"nudge_staying_up_late_notification_1" = "Respire, ne scrolle pas.";
+"nudge_staying_up_late_notification_2" = "Combien d'années perdues à cause de « encore 5 minutes » ?";
+"nudge_staying_up_late_notification_3" = "Le toi de demain va regretter.";
+"nudge_staying_up_late_detail_1" = "Éloigne ton téléphone à 30 cm de ton visage. Baisse la luminosité au minimum. Prends 5 grandes respirations. Ton cerveau passera en mode « préparation au sommeil ».";
+"nudge_staying_up_late_detail_2" = "Un cerveau en manque de sommeil a le même jugement qu'avec 0.1% d'alcool dans le sang. 17 heures éveillé = légalement ivre. Protège les décisions de demain en dormant ce soir.";
+"nudge_staying_up_late_detail_3" = "Tu te souviendras de ce contenu demain midi ? Pourtant, le manque de sommeil va baisser ta concentration, ton jugement et ton immunité. Qu'est-ce qui compte le plus ?";
+
+/* NudgeContent - staying_up_late (Midnight - Strong Messages) */
+"nudge_staying_up_late_notification_4" = "Minuit est passé. Ton corps a besoin de repos.";
+"nudge_staying_up_late_notification_5" = "Il est 1h du matin. Chaque minute éveillée te coûte demain.";
+"nudge_staying_up_late_detail_4" = "Le manque de sommeil s'accumule comme une dette. L'heure perdue ce soir volera ta concentration la semaine prochaine. Éloigne ton téléphone du lit. Ferme les yeux.";
+"nudge_staying_up_late_detail_5" = "Rester éveillé après 1h du matin cause des dommages mesurables à ton cerveau et ton cœur. Ce que tu fais est 100 fois moins important que dormir. Va te coucher.";
+
+/* NudgeContent - staying_up_late (Phase 5 expansion) */
+"nudge_staying_up_late_notification_6" = "Pose ton téléphone. Maintenant.";
+"nudge_staying_up_late_notification_7" = "Ton futur toi te regarde. Que voit-il ?";
+"nudge_staying_up_late_notification_8" = "Le sommeil n'est pas un luxe. C'est un médicament.";
+"nudge_staying_up_late_notification_9" = "L'écran peut attendre. Tes rêves, non.";
+"nudge_staying_up_late_notification_10" = "Chaque heure de sommeil = de meilleures décisions demain.";
+"nudge_staying_up_late_detail_6" = "Ta volonté est au plus bas en ce moment. Ne lutte pas contre l'envie de scroller — retire le téléphone. Mets-le dans une autre pièce.";
+"nudge_staying_up_late_detail_7" = "Imagine te réveiller reposé contre te réveiller épuisé. Quelle version de demain tu veux ? Tu décides maintenant.";
+"nudge_staying_up_late_detail_8" = "Le sommeil répare ton cerveau, consolide ta mémoire et réinitialise tes émotions. Le sauter, c'est comme sauter l'entretien d'une voiture que tu conduis chaque jour.";
+"nudge_staying_up_late_detail_9" = "La lumière bleue dit à ton cerveau qu'il est midi. Ton corps est perdu. Aide-le en posant l'écran.";
+"nudge_staying_up_late_detail_10" = "Une heure de sommeil ce soir = 3 heures de productivité demain. Le calcul est simple. Va dormir.";
+
+/* NudgeContent - cant_wake_up */
+"nudge_cant_wake_up_notification_1" = "Ta journée ne commence pas tant que tu ne te lèves pas.";
+"nudge_cant_wake_up_notification_2" = "Le toi qui dit « encore 5 minutes » n'a aucune crédibilité.";
+"nudge_cant_wake_up_notification_3" = "Reste médiocre";
+"nudge_cant_wake_up_notification_4" = "Les pieds au sol. 5, 4, 3, 2, 1.";
+"nudge_cant_wake_up_notification_5" = "La couette te ment.";
+"nudge_cant_wake_up_notification_6" = "Ton réveil est une promesse. Tiens-la.";
+"nudge_cant_wake_up_notification_7" = "Gagner le matin construit la confiance.";
+"nudge_cant_wake_up_notification_8" = "Lève-toi maintenant, ou regrette à midi.";
+"nudge_cant_wake_up_detail_1" = "Compte 5, 4, 3, 2, 1 et pose tes pieds au sol. Bouge avant de réfléchir. Lève-toi avant que ton cerveau trouve des excuses. Rien ne change sous la couette.";
+"nudge_cant_wake_up_detail_2" = "Combien de fois tu as fait confiance au toi « encore 5 minutes » ? Combien de fois tu as été trahi ? Te lever maintenant, c'est tenir une promesse envers toi-même. Tu aimeras le toi d'aujourd'hui.";
+"nudge_cant_wake_up_detail_3" = "Encore une journée qui commence mal ? Ou tu changes maintenant ? Ton action dans les 5 prochaines secondes décide. Lève-toi.";
+"nudge_cant_wake_up_detail_4" = "Ton corps est réveillé. Ton esprit cherche des excuses. Ignore-le. Les pieds au sol. Maintenant.";
+"nudge_cant_wake_up_detail_5" = "La couette semble rassurante, mais c'est un piège. Le confort maintenant = le regret plus tard. Arrache la couette comme un pansement.";
+"nudge_cant_wake_up_detail_6" = "Chaque matin où tu appuies sur snooze, tu trahis une promesse envers toi-même. Les petites trahisons s'accumulent. Commence ta journée avec intégrité.";
+"nudge_cant_wake_up_detail_7" = "Ceux qui gagnent le matin gagnent la journée. Ceux qui gagnent la journée gagnent la semaine. Tout commence en se levant à l'heure prévue.";
+"nudge_cant_wake_up_detail_8" = "Le toi de midi sera reconnaissant. Le toi du soir sera fier. Mais seulement si le toi du matin se lève maintenant.";
+
+/* NudgeContent - self_loathing */
+"nudge_self_loathing_notification_1" = "Tu es en vie aujourd'hui. C'est suffisant.";
+"nudge_self_loathing_notification_2" = "Tu as le droit d'arrêter de te blâmer.";
+"nudge_self_loathing_notification_3" = "Tu es bien meilleur que ce que tu crois.";
+"nudge_self_loathing_notification_4" = "L'autocritique ne te rendra pas meilleur. La compassion, oui.";
+"nudge_self_loathing_notification_5" = "Tu dirais ça à un ami ? Alors ne te le dis pas.";
+"nudge_self_loathing_notification_6" = "Tu essaies. C'est ce qui compte.";
+"nudge_self_loathing_notification_7" = "Ta valeur ne se mesure pas à ta productivité.";
+"nudge_self_loathing_notification_8" = "Sois doux avec toi-même. Juste aujourd'hui.";
+"nudge_self_loathing_detail_1" = "Te détester prouve que tu veux t'améliorer. Mais l'autocritique ne mène pas à la croissance — elle est contre-productive. Tu t'es réveillé aujourd'hui. C'est suffisant.";
+"nudge_self_loathing_detail_2" = "Si ton meilleur ami était dans ta situation, tu lui dirais quoi ? Tu ne dirais pas « tu ne vaux rien ». Accorde-toi la même bienveillance.";
+"nudge_self_loathing_detail_3" = "Ce que tu te reproches est vraiment « irréparable » ? La plupart des choses sont plus petites qu'elles n'en ont l'air. Respire et regarde objectivement.";
+"nudge_self_loathing_detail_4" = "Les études montrent que l'autocompassion favorise plus la croissance que l'autocritique. Être dur avec toi ne marche pas. Essaie la bienveillance.";
+"nudge_self_loathing_detail_5" = "Tu ne laisserais personne parler à ton ami comme ça. Pourquoi tu te permets de te parler ainsi ? Protège-toi comme tu protégerais un ami.";
+"nudge_self_loathing_detail_6" = "Le progrès n'est pas linéaire. Les mauvais jours n'effacent pas les bons. Tu essaies, et c'est déjà plus que la plupart des gens.";
+"nudge_self_loathing_detail_7" = "Tu n'es pas ta productivité. Tu n'es pas tes réussites. Tu mérites l'amour et le repos simplement en existant.";
+"nudge_self_loathing_detail_8" = "Juste aujourd'hui, parle-toi comme tu parlerais à quelqu'un que tu aimes. Juste aujourd'hui. Demain tu pourras redevenir dur avec toi si tu veux.";
+
+/* NudgeContent - rumination */
+"nudge_rumination_notification_1" = "Que ressens-tu en ce moment ?";
+"nudge_rumination_notification_2" = "Es-tu présent ici et maintenant ?";
+"nudge_rumination_notification_3" = "Et si tu méditais 5 minutes ?";
+"nudge_rumination_notification_4" = "La boucle est un piège. Sors-en.";
+"nudge_rumination_notification_5" = "Sens tes pieds. Sens le sol. Tu es ici.";
+"nudge_rumination_notification_6" = "Y penser ne changera rien.";
+"nudge_rumination_notification_7" = "Nomme 5 choses que tu vois. Maintenant.";
+"nudge_rumination_notification_8" = "Tes pensées ne sont pas des faits.";
+"nudge_rumination_detail_1" = "Dès que tu remarques la boucle, tu es à mi-chemin. Maintenant : concentre-toi sur la plante de tes pieds. La dureté du sol, sa température. 30 secondes seulement.";
+"nudge_rumination_detail_2" = "Nomme 5 choses que tu vois, 4 que tu entends, 3 que tu touches, 2 que tu sens, 1 que tu goûtes. Ça te ramène au « maintenant ».";
+"nudge_rumination_detail_3" = "Le moyen le plus efficace de stopper la rumination est la méditation. Pendant 2 minutes, concentre-toi sur ta respiration. Inspire 4 sec, retiens 4 sec, expire 4 sec.";
+"nudge_rumination_detail_4" = "Tu as déjà été dans cette boucle. Ça n'a jamais rien résolu. La seule sortie est de faire quelque chose de physique. Lève-toi. Bouge.";
+"nudge_rumination_detail_5" = "Tes pieds sont au sol. Tes poumons respirent. Tu es ici, en ce moment, en sécurité. Le passé est terminé. Le futur n'est pas encore là.";
+"nudge_rumination_detail_6" = "La rumination, c'est ton cerveau qui essaie de résoudre un problème insoluble. Ça ne se résout pas en y pensant. Accepte-le et lâche prise.";
+"nudge_rumination_detail_7" = "Regarde autour de toi. Nomme ce que tu vois. « Chaise. Fenêtre. Lumière. Livre. » Ce simple geste te sort de ta tête et te ramène à la réalité.";
+"nudge_rumination_detail_8" = "Les pensées sont comme des nuages. Elles passent. Tu n'as pas besoin de les attraper, les analyser ou les suivre. Regarde-les passer.";
+
+/* NudgeContent - procrastination */
+"nudge_procrastination_notification_1" = "Juste 5 minutes. C'est tout ce qu'il faut.";
+"nudge_procrastination_notification_2" = "Encore une promesse à toi-même brisée ?";
+"nudge_procrastination_notification_3" = "Chaque raison de ne pas le faire est une excuse.";
+"nudge_procrastination_notification_4" = "Commence mal. Améliore après.";
+"nudge_procrastination_notification_5" = "Le plus dur, ce sont les 2 premières minutes.";
+"nudge_procrastination_notification_6" = "Que dirais-tu à un ami qui reporte sans cesse ?";
+"nudge_procrastination_notification_7" = "Fait vaut mieux que parfait.";
+"nudge_procrastination_notification_8" = "Le toi du futur compte sur le toi du présent.";
+"nudge_procrastination_detail_1" = "Si ça prend moins de 2 minutes, fais-le maintenant. Si c'est plus long, fais juste les 2 premières minutes. Une fois lancé, ton cerveau voudra continuer. C'est scientifique.";
+"nudge_procrastination_detail_2" = "Imagine-toi dans une semaine. « Si seulement je l'avais fait... » Des regrets ? Fais-le maintenant et ce regret disparaît.";
+"nudge_procrastination_detail_3" = "« Je ne peux pas » et « je ne veux pas » sont différents. Lequel c'est là ? Si tu ne veux pas, pourquoi ? Trouve la vraie raison.";
+"nudge_procrastination_detail_4" = "Le perfectionnisme est de la procrastination déguisée. Un début bancal est infiniment mieux que pas de début. Écris une mauvaise phrase. Fais un pas imparfait.";
+"nudge_procrastination_detail_5" = "Ton cerveau déteste commencer. Mais après 2 minutes, l'élan prend le relais. Survie juste aux 2 premières minutes.";
+"nudge_procrastination_detail_6" = "Si ton ami repoussait sans cesse quelque chose d'important, tu lui dirais de commencer. Sois cet ami pour toi-même maintenant.";
+"nudge_procrastination_detail_7" = "Termine vaut mieux que parfait. Un projet fini avec des défauts bat un « chef-d'œuvre » inachevé à chaque fois.";
+"nudge_procrastination_detail_8" = "Le toi du futur te regarde. Il est soit reconnaissant que tu aies commencé, soit frustré que tu ne l'aies pas fait. Rends-le reconnaissant.";
+
+/* NudgeContent - anxiety */
+"nudge_anxiety_notification_1" = "En ce moment, tu es en sécurité.";
+"nudge_anxiety_notification_2" = "Que ressens-tu en ce moment ?";
+"nudge_anxiety_notification_3" = "Respire. Inspire 4, retiens 4, expire 4.";
+"nudge_anxiety_notification_4" = "L'anxiété ment. Là, tu vas bien.";
+"nudge_anxiety_notification_5" = "Sens tes pieds. Tu es ancré.";
+"nudge_anxiety_notification_6" = "Ce sentiment va passer. C'est toujours le cas.";
+"nudge_anxiety_notification_7" = "Nomme-le pour l'apprivoiser. Quelle est la peur ?";
+"nudge_anxiety_notification_8" = "Tu as survécu à 100% de tes pires journées.";
+"nudge_anxiety_detail_1" = "L'anxiété, c'est la peur de ce qui n'est pas encore arrivé. Là, qu'est-ce qui se passe vraiment devant toi ? Rien de dangereux.";
+"nudge_anxiety_detail_2" = "Pas « je suis anxieux » mais « je ressens de l'anxiété ». L'anxiété est comme la météo. Elle vient et elle passe.";
+"nudge_anxiety_detail_3" = "Inspire 4 sec → retiens 4 sec → expire 4 sec → retiens 4 sec. Répète 3 fois. Quand ton corps se calme, ton esprit suit. Fais-le maintenant.";
+"nudge_anxiety_detail_4" = "Ton cerveau essaie de te protéger d'une menace qui n'est pas là. Remercie-le, puis dis-lui : « Je suis en sécurité maintenant. »";
+"nudge_anxiety_detail_5" = "Appuie fermement tes pieds sur le sol. Sens le sol qui te soutient. Tu es soutenu. Tu es ici. Tu es en sécurité.";
+"nudge_anxiety_detail_6" = "Ce sentiment a un début, un milieu et une fin. Tu es quelque part au milieu. La fin arrive. Attends-la.";
+"nudge_anxiety_detail_7" = "De quoi as-tu peur exactement ? Dis-le à voix haute. « J'ai peur que... » Nommer la peur lui enlève une partie de son pouvoir.";
+"nudge_anxiety_detail_8" = "Ton taux de survie aux mauvais jours est de 100%. Quoi que ce soit, tu t'en sortiras aussi.";
+
+/* NudgeContent - lying */
+"nudge_lying_notification_1" = "Aujourd'hui est un jour pour vivre honnêtement.";
+"nudge_lying_notification_2" = "Une vérité construit plus de confiance que dix mensonges.";
+"nudge_lying_notification_3" = "La vérité est plus légère à porter.";
+"nudge_lying_notification_4" = "Les mensonges s'accumulent. La vérité simplifie.";
+"nudge_lying_notification_5" = "Que se passerait-il si tu disais simplement la vérité ?";
+"nudge_lying_notification_6" = "L'honnêteté est épuisante. Mais les mensonges le sont encore plus.";
+"nudge_lying_notification_7" = "Ta parole est ton engagement. Protège-la.";
+"nudge_lying_notification_8" = "Les petits mensonges deviennent grands. Arrête maintenant.";
+"nudge_lying_detail_1" = "Les petits mensonges mènent aux grands. Un mensonge en nécessite un autre pour le protéger. Être honnête aujourd'hui simplifie demain.";
+"nudge_lying_detail_2" = "La confiance se construit goutte à goutte et se perd par seaux entiers. Chaque mensonge l'érode. Chaque vérité ajoute une goutte.";
+"nudge_lying_detail_3" = "Porter un mensonge, c'est lourd. Il faut s'en souvenir, l'entretenir, s'en inquiéter. La vérité ne demande aucun entretien.";
+"nudge_lying_detail_4" = "Un mensonge en nécessite un autre pour le couvrir. Puis un autre. La toile grandit. Simplifie ta vie : dis la vérité.";
+"nudge_lying_detail_5" = "La plupart du temps, la vérité est moins effrayante qu'on ne le pense. Les gens respectent l'honnêteté plus que la perfection. Essaie.";
+"nudge_lying_detail_6" = "Mentir consomme de l'énergie mentale. Se souvenir des mensonges, les maintenir, craindre d'être découvert. L'honnêteté est en fait plus facile.";
+"nudge_lying_detail_7" = "Quand tu dis quelque chose, sois sincère. Quand tu promets, tiens ta promesse. Ta parole doit être inviolable. Commence aujourd'hui.";
+"nudge_lying_detail_8" = "Chaque petit mensonge rend le suivant plus facile. Brise le schéma maintenant avant qu'il ne devienne qui tu es.";
+
+/* NudgeContent - bad_mouthing */
+"nudge_bad_mouthing_notification_1" = "Pas de mots blessants aujourd'hui.";
+"nudge_bad_mouthing_notification_2" = "Comment tu te sentirais si on te disait ça ?";
+"nudge_bad_mouthing_notification_3" = "Médire te blesse plus qu'eux.";
+"nudge_bad_mouthing_notification_4" = "Parle des autres comme s'ils écoutaient.";
+"nudge_bad_mouthing_notification_5" = "La gentillesse est une force. La médisance, une faiblesse.";
+"nudge_bad_mouthing_notification_6" = "Ce que tu dis des autres en dit plus sur toi.";
+"nudge_bad_mouthing_notification_7" = "5 minutes de ragots, 5 heures de regret.";
+"nudge_bad_mouthing_notification_8" = "Tu voudrais que tes enfants entendent ça ?";
+"nudge_bad_mouthing_detail_1" = "Les mots ne se reprennent pas. Avant de parler de quelqu'un, demande-toi : est-ce vrai ? Est-ce bienveillant ? Est-ce nécessaire ?";
+"nudge_bad_mouthing_detail_2" = "Imagine qu'on dise ces mots sur toi, dans une pièce où tu viens d'entrer. C'est ce que ça fait. Ne le fais pas.";
+"nudge_bad_mouthing_detail_3" = "Dire du mal fait du bien un instant. Mais 5 minutes après, le dégoût de soi arrive. Et ceux qui écoutent pensent « il dira la même chose de moi ».";
+"nudge_bad_mouthing_detail_4" = "S'ils étaient juste derrière toi, tu le dirais ? Si non, ne le dis pas du tout. Parle comme si tout le monde pouvait entendre.";
+"nudge_bad_mouthing_detail_5" = "Les personnes fortes n'ont pas besoin de rabaisser les autres. La médisance est un signe d'insécurité. Élève-toi au-dessus.";
+"nudge_bad_mouthing_detail_6" = "Quand tu parles négativement des autres, les gens se demandent ce que tu dis d'eux. Ça abîme ta réputation plus que la leur.";
+"nudge_bad_mouthing_detail_7" = "Ce sentiment temporaire de supériorité ne vaut pas la culpabilité qui suit. Et elle suit toujours.";
+"nudge_bad_mouthing_detail_8" = "Si tes enfants t'entendaient là, tu serais fier ? Laisse ça guider tes mots.";
+
+/* NudgeContent - porn_addiction */
+"nudge_porn_addiction_notification_1" = "Résiste à la tentation. Le toi de demain changera.";
+"nudge_porn_addiction_notification_2" = "Tu en as vraiment envie ? Ou tu fuis ?";
+"nudge_porn_addiction_notification_3" = "L'envie est une vague. Elle passera dans 10 minutes.";
+"nudge_porn_addiction_notification_4" = "De quoi tu fuis vraiment ?";
+"nudge_porn_addiction_notification_5" = "Ton cerveau te ment. Tu n'en as pas besoin.";
+"nudge_porn_addiction_notification_6" = "10 pompes. Maintenant. Redirige l'énergie.";
+"nudge_porn_addiction_notification_7" = "De l'eau froide sur le visage. Brise le schéma.";
+"nudge_porn_addiction_notification_8" = "Ce moment de faiblesse ne te définit pas.";
+"nudge_porn_addiction_detail_1" = "L'envie est comme une vague — elle monte et redescend. Fais autre chose pendant 10 minutes. Marche, fais des pompes, asperge-toi le visage d'eau froide.";
+"nudge_porn_addiction_detail_2" = "Quand tu veux fuir dans du contenu sexuel, de quoi tu fuis vraiment ? Le stress ? La solitude ? L'ennui ? Trouve la cause profonde.";
+"nudge_porn_addiction_detail_3" = "Les envies atteignent leur pic en 10 minutes puis diminuent. Tu dois juste tenir 10 minutes. Mets un minuteur. Fais n'importe quoi d'autre.";
+"nudge_porn_addiction_detail_4" = "Le contenu sexuel peut devenir une fuite anesthésiante. Quelle douleur essaies-tu d'engourdir ? Traite la douleur, et le besoin d'anesthésie diminue.";
+"nudge_porn_addiction_detail_5" = "Ton cerveau libère de la dopamine par anticipation. C'est un piège chimique. Tu n'en as pas vraiment besoin. L'envie est un mensonge.";
+"nudge_porn_addiction_detail_6" = "L'action physique brise la boucle mentale. Maintenant : 10 pompes, 10 squats ou 10 jumping jacks. Bouge ton corps.";
+"nudge_porn_addiction_detail_7" = "L'eau froide provoque un choc et réinitialise ton cerveau. Va à la salle de bain, asperge ton visage d'eau froide. Ça marche.";
+"nudge_porn_addiction_detail_8" = "Tu n'es pas tes envies. Ce moment de faiblesse est temporaire. La personne que tu veux être est toujours là. Choisis cette personne maintenant.";
+
+/* NudgeContent - alcohol_dependency */
+"nudge_alcohol_dependency_notification_1" = "Un jour à la fois. Tu peux le faire.";
+"nudge_alcohol_dependency_notification_2" = "La bouteille n'est pas ton amie.";
+"nudge_alcohol_dependency_notification_3" = "De quoi as-tu vraiment soif ?";
+"nudge_alcohol_dependency_notification_4" = "La gueule de bois de demain ne vaut pas le verre de ce soir.";
+"nudge_alcohol_dependency_notification_5" = "Tu es plus fort que l'envie.";
+"nudge_alcohol_dependency_notification_6" = "Appelle quelqu'un. N'importe qui.";
+"nudge_alcohol_dependency_notification_7" = "Le verre ne résoudra pas le problème. Il en ajoutera un autre.";
+"nudge_alcohol_dependency_notification_8" = "Chaque heure sobre est une victoire.";
+"nudge_alcohol_dependency_detail_1" = "Ne pense pas à l'éternité. Juste aujourd'hui. Juste cette heure. Juste cet instant. Un jour à la fois, c'est comme ça que chaque guérison commence.";
+"nudge_alcohol_dependency_detail_2" = "L'alcool fait semblant d'être un ami, mais il prend plus qu'il ne donne. Il emprunte le bonheur de demain. Ne paie pas ce prix.";
+"nudge_alcohol_dependency_detail_3" = "L'envie n'est pas vraiment pour l'alcool. C'est un besoin d'évasion, de confort ou d'engourdissement. De quoi as-tu vraiment besoin maintenant ?";
+"nudge_alcohol_dependency_detail_4" = "Imagine demain matin. Mal de tête, regret, honte. Le verre de ce soir vaut-il ça ? Tu sais que non.";
+"nudge_alcohol_dependency_detail_5" = "Cette envie est une vague. Elle montera et redescendra. Tu as survécu à 100% de tes envies jusqu'ici. Celle-ci n'est pas différente.";
+"nudge_alcohol_dependency_detail_6" = "La connexion est le contraire de l'addiction. Appelle quelqu'un. Envoie un message. Ne reste pas seul avec l'envie.";
+"nudge_alcohol_dependency_detail_7" = "L'alcool ne résout pas les problèmes — il les met en pause en en créant de nouveaux. Le problème sera toujours là demain, avec une gueule de bois en plus.";
+"nudge_alcohol_dependency_detail_8" = "Chaque heure sobre est une victoire. Chaque jour est une victoire encore plus grande. Tu gagnes en ce moment. Continue.";
+
+/* NudgeContent - anger */
+"nudge_anger_notification_1" = "Pause. 3 secondes avant de parler.";
+"nudge_anger_notification_2" = "La colère te blesse plus qu'eux.";
+"nudge_anger_notification_3" = "Ça vaut ta paix intérieure ?";
+"nudge_anger_notification_4" = "Respire. Le moment va passer.";
+"nudge_anger_notification_5" = "Réagir sous la colère ? Tu vas le regretter.";
+"nudge_anger_notification_6" = "Que ferait la version calme de toi ?";
+"nudge_anger_notification_7" = "La colère est une émotion secondaire. Qu'y a-t-il en dessous ?";
+"nudge_anger_notification_8" = "Éloigne-toi. Reviens quand tu es prêt.";
+"nudge_anger_detail_1" = "Avant de réagir, compte jusqu'à 3. 1... 2... 3. En 3 secondes, ton cerveau rationnel peut rattraper ton cerveau émotionnel.";
+"nudge_anger_detail_2" = "S'accrocher à la colère, c'est comme boire du poison en espérant que l'autre en meure. Lâche prise pour toi-même.";
+"nudge_anger_detail_3" = "Est-ce que ça comptera dans 5 ans ? 5 mois ? 5 jours ? Si non, ça ne vaut pas la peine de perdre ta paix. Lâche prise.";
+"nudge_anger_detail_4" = "Inspire 4 secondes. Retiens 4. Expire 4. Ton système nerveux va se calmer. Ensuite, décide comment réagir.";
+"nudge_anger_detail_5" = "Les mots dits sous la colère ne peuvent jamais être repris. Les dégâts relationnels durent plus longtemps que la colère. Attends.";
+"nudge_anger_detail_6" = "Il y a deux versions de toi : le toi en colère et le toi calme. Le toi en colère regrettera ses paroles. Laisse le toi calme répondre.";
+"nudge_anger_detail_7" = "La colère est souvent un masque pour la blessure, la peur ou la frustration. Que se passe-t-il vraiment ? Traite ça, pas la colère.";
+"nudge_anger_detail_8" = "Tu n'as pas besoin de répondre maintenant. Éloigne-toi. Va marcher. Reviens quand tu pourras penser clairement.";
+
+/* NudgeContent - obsessive */
+"nudge_obsessive_notification_1" = "Cette pensée n'est pas toi. Laisse-la passer.";
+"nudge_obsessive_notification_2" = "Tu n'as pas à agir sur chaque pensée.";
+"nudge_obsessive_notification_3" = "C'est ok de laisser ça inachevé.";
+"nudge_obsessive_notification_4" = "La perfection est l'ennemie de la paix.";
+"nudge_obsessive_notification_5" = "Une vérification suffit. Fais-toi confiance.";
+"nudge_obsessive_notification_6" = "Le rituel ne te sauvera pas. Le briser, oui.";
+"nudge_obsessive_notification_7" = "Remarque l'envie. Ne la suis pas.";
+"nudge_obsessive_notification_8" = "Cet inconfort est temporaire. Reste avec.";
+"nudge_obsessive_detail_1" = "Les pensées sont juste des événements mentaux. Elles viennent et partent. Tu n'as pas à t'y accrocher. Laisse celle-ci passer comme un nuage.";
+"nudge_obsessive_detail_2" = "Tu as des milliers de pensées par jour. Toutes ne méritent pas une action. Celle-ci non plus. Lâche-la.";
+"nudge_obsessive_detail_3" = "L'anxiété de laisser quelque chose inachevé passera. Donne-lui 10 minutes. Si tu sens encore l'envie, reconsidère. Mais attends d'abord.";
+"nudge_obsessive_detail_4" = "Chercher la perfection crée de l'anxiété. « Assez bien » crée la paix. C'est assez bien. Passe à autre chose.";
+"nudge_obsessive_detail_5" = "Tu as vérifié. C'est fait. Vérifier encore ne rendra pas ça plus fait. Fais confiance à la première vérification. Passe à autre chose.";
+"nudge_obsessive_detail_6" = "La compulsion promet du soulagement mais livre plus d'anxiété. Brise le cycle en ne faisant pas le rituel. L'inconfort passera.";
+"nudge_obsessive_detail_7" = "Tu sens l'envie. Bien — tu l'as remarquée. Maintenant n'agis pas dessus. Observe simplement. L'envie atteindra un pic et disparaîtra d'elle-même.";
+"nudge_obsessive_detail_8" = "Ce sentiment inconfortable est temporaire. Il passera que tu fasses le rituel ou non. Choisis de ne pas le faire. Reste avec l'inconfort.";
+
+/* NudgeContent - loneliness */
+"nudge_loneliness_notification_1" = "Tu n'es pas seul à te sentir seul.";
+"nudge_loneliness_notification_2" = "Contacte une personne aujourd'hui.";
+"nudge_loneliness_notification_3" = "La solitude peut être paisible. Se sentir seul n'a pas à être permanent.";
+"nudge_loneliness_notification_4" = "Envoie un message. Même juste « salut ».";
+"nudge_loneliness_notification_5" = "La connexion commence par un petit pas.";
+"nudge_loneliness_notification_6" = "Être seul et se sentir seul, c'est différent.";
+"nudge_loneliness_notification_7" = "Ta présence compte pour quelqu'un.";
+"nudge_loneliness_notification_8" = "Sors dehors. Souris à un inconnu.";
+"nudge_loneliness_detail_1" = "Des millions de personnes se sentent seules en ce moment. Tu n'es pas seul à te sentir seul. Ce sentiment est humain, et il passera.";
+"nudge_loneliness_detail_2" = "La connexion ne nécessite pas une conversation profonde. Contacte juste une personne aujourd'hui. Un simple « je pense à toi » peut changer vos deux journées.";
+"nudge_loneliness_detail_3" = "La solitude choisie, c'est être seul et content. Se sentir seul, c'est être seul et désirer une connexion. Tu peux transformer la solitude subie en solitude paisible.";
+"nudge_loneliness_detail_4" = "Envoie un message à quelqu'un à qui tu n'as pas parlé depuis longtemps. Juste « salut, je pense à toi ». La plupart des gens sont contents d'avoir de tes nouvelles.";
+"nudge_loneliness_detail_5" = "Tu n'as pas besoin de trouver ton âme sœur aujourd'hui. Juste une petite connexion. Un sourire, un message, un appel. Commence petit.";
+"nudge_loneliness_detail_6" = "Tu peux être seul sans te sentir seul. Et tu peux te sentir seul dans une foule. La clé, c'est la qualité de la connexion, pas la quantité.";
+"nudge_loneliness_detail_7" = "Quelqu'un quelque part est heureux que tu existes. Peut-être qu'on ne te l'a pas dit récemment, mais tu comptes pour quelqu'un. Toujours.";
+"nudge_loneliness_detail_8" = "Une petite interaction peut changer toute ton humeur. Sors dehors. Souris à un inconnu. Dis bonjour à un voisin. La connexion est partout.";
+
+/* Common Deep Dive Questions */
+"deepdive_common_duration_question" = "How long have you had this problem?";
+"deepdive_common_duration_recent" = "Recently";
+"deepdive_common_duration_months" = "A few months";
+"deepdive_common_duration_year" = "Over a year";
+"deepdive_common_duration_always" = "Always";
+
+/* Deep Dive Questions - staying_up_late */
+"deepdive_staying_up_late_q1" = "What do you usually do when staying up late?";
+"deepdive_staying_up_late_q1_opt1" = "Social media";
+"deepdive_staying_up_late_q1_opt2" = "YouTube";
+"deepdive_staying_up_late_q1_opt3" = "Games";
+"deepdive_staying_up_late_q1_opt4" = "Work";
+"deepdive_staying_up_late_q1_opt5" = "Other";
+"deepdive_staying_up_late_q2" = "Why do you stay up late?";
+"deepdive_staying_up_late_q2_opt1" = "Couldn't finish what I needed to do today";
+"deepdive_staying_up_late_q2_opt2" = "Stress relief";
+"deepdive_staying_up_late_q2_opt3" = "It's become a habit";
+"deepdive_staying_up_late_q2_opt4" = "Don't want to sleep";
+
+/* Deep Dive Questions - cant_wake_up */
+"deepdive_cant_wake_up_q1" = "How do you feel when you can't wake up?";
+"deepdive_cant_wake_up_q1_opt1" = "Self-loathing";
+"deepdive_cant_wake_up_q1_opt2" = "Panic";
+"deepdive_cant_wake_up_q1_opt3" = "Giving up";
+"deepdive_cant_wake_up_q1_opt4" = "Nothing";
+"deepdive_cant_wake_up_q2" = "Why can't you wake up?";
+"deepdive_cant_wake_up_q2_opt1" = "Lack of sleep";
+"deepdive_cant_wake_up_q2_opt2" = "No motivation";
+"deepdive_cant_wake_up_q2_opt3" = "No reason to wake up";
+"deepdive_cant_wake_up_q2_opt4" = "Health issues";
+
+/* Deep Dive Questions - self_loathing */
+"deepdive_self_loathing_q1" = "When do you feel self-loathing?";
+"deepdive_self_loathing_q1_opt1" = "After failing";
+"deepdive_self_loathing_q1_opt2" = "When comparing myself";
+"deepdive_self_loathing_q1_opt3" = "When I did nothing";
+"deepdive_self_loathing_q1_opt4" = "Always";
+"deepdive_self_loathing_q2" = "What do you blame yourself for?";
+"deepdive_self_loathing_q2_opt1" = "My abilities";
+"deepdive_self_loathing_q2_opt2" = "My appearance";
+"deepdive_self_loathing_q2_opt3" = "My personality";
+"deepdive_self_loathing_q2_opt4" = "Past actions";
+
+/* Deep Dive Questions - rumination */
+"deepdive_rumination_q1" = "What do you keep thinking about?";
+"deepdive_rumination_q1_opt1" = "Past failures";
+"deepdive_rumination_q1_opt2" = "Relationships";
+"deepdive_rumination_q1_opt3" = "Future worries";
+"deepdive_rumination_q1_opt4" = "My flaws";
+"deepdive_rumination_q2" = "When do you tend to ruminate?";
+"deepdive_rumination_q2_opt1" = "Before sleep";
+"deepdive_rumination_q2_opt2" = "When waking up";
+"deepdive_rumination_q2_opt3" = "When alone";
+"deepdive_rumination_q2_opt4" = "Always";
+
+/* Deep Dive Questions - procrastination */
+"deepdive_procrastination_q1" = "What do you tend to procrastinate on?";
+"deepdive_procrastination_q1_opt1" = "Work tasks";
+"deepdive_procrastination_q1_opt2" = "Housework";
+"deepdive_procrastination_q1_opt3" = "Appointments & paperwork";
+"deepdive_procrastination_q1_opt4" = "Contacting people";
+"deepdive_procrastination_q2" = "Why do you procrastinate?";
+"deepdive_procrastination_q2_opt1" = "Too troublesome";
+"deepdive_procrastination_q2_opt2" = "Want to do it perfectly";
+"deepdive_procrastination_q2_opt3" = "Fear of failure";
+"deepdive_procrastination_q2_opt4" = "Don't know how";
+
+/* Deep Dive Questions - anxiety */
+"deepdive_anxiety_q1" = "What makes you anxious?";
+"deepdive_anxiety_q1_opt1" = "The future";
+"deepdive_anxiety_q1_opt2" = "Relationships";
+"deepdive_anxiety_q1_opt3" = "Work";
+"deepdive_anxiety_q1_opt4" = "Health";
+"deepdive_anxiety_q2" = "When do you feel anxious?";
+"deepdive_anxiety_q2_opt1" = "Morning";
+"deepdive_anxiety_q2_opt2" = "Night";
+"deepdive_anxiety_q2_opt3" = "Before meeting people";
+"deepdive_anxiety_q2_opt4" = "Always";
+
+/* Deep Dive Questions - lying */
+"deepdive_lying_q1" = "What kind of lies do you tell?";
+"deepdive_lying_q1_opt1" = "Small lies";
+"deepdive_lying_q1_opt2" = "Excuses";
+"deepdive_lying_q1_opt3" = "To look better";
+"deepdive_lying_q1_opt4" = "To not hurt others";
+"deepdive_lying_q2" = "Who do you lie to?";
+"deepdive_lying_q2_opt1" = "Family";
+"deepdive_lying_q2_opt2" = "Friends";
+"deepdive_lying_q2_opt3" = "Coworkers";
+"deepdive_lying_q2_opt4" = "Myself";
+"deepdive_lying_q3" = "Why do you lie?";
+"deepdive_lying_q3_opt1" = "Don't want to be scolded";
+"deepdive_lying_q3_opt2" = "Don't want to be disliked";
+"deepdive_lying_q3_opt3" = "Habit";
+"deepdive_lying_q3_opt4" = "Avoiding trouble";
+
+/* Deep Dive Questions - bad_mouthing */
+"deepdive_bad_mouthing_q1" = "What kind of bad things do you say?";
+"deepdive_bad_mouthing_q1_opt1" = "Gossip";
+"deepdive_bad_mouthing_q1_opt2" = "Sarcasm";
+"deepdive_bad_mouthing_q1_opt3" = "Making fun";
+"deepdive_bad_mouthing_q1_opt4" = "Criticism";
+"deepdive_bad_mouthing_q2" = "Who do you say bad things about?";
+"deepdive_bad_mouthing_q2_opt1" = "Family";
+"deepdive_bad_mouthing_q2_opt2" = "Friends";
+"deepdive_bad_mouthing_q2_opt3" = "Coworkers";
+"deepdive_bad_mouthing_q2_opt4" = "On social media";
+"deepdive_bad_mouthing_q3" = "Why do you badmouth?";
+"deepdive_bad_mouthing_q3_opt1" = "Stress relief";
+"deepdive_bad_mouthing_q3_opt2" = "Annoyed at them";
+"deepdive_bad_mouthing_q3_opt3" = "Habit";
+"deepdive_bad_mouthing_q3_opt4" = "Want recognition";
+
+/* Deep Dive Questions - porn_addiction */
+"deepdive_porn_addiction_q1" = "When do you view sexual content?";
+"deepdive_porn_addiction_q1_opt1" = "Late at night";
+"deepdive_porn_addiction_q1_opt2" = "After coming home";
+"deepdive_porn_addiction_q1_opt3" = "When stressed";
+"deepdive_porn_addiction_q1_opt4" = "When bored";
+"deepdive_porn_addiction_q2" = "Why do you view sexual content?";
+"deepdive_porn_addiction_q2_opt1" = "Stress relief";
+"deepdive_porn_addiction_q2_opt2" = "Habit";
+"deepdive_porn_addiction_q2_opt3" = "Escape";
+"deepdive_porn_addiction_q2_opt4" = "Loneliness";
+
+/* Deep Dive Questions - alcohol_dependency */
+"deepdive_alcohol_dependency_q1" = "When do you want to drink?";
+"deepdive_alcohol_dependency_q1_opt1" = "After work";
+"deepdive_alcohol_dependency_q1_opt2" = "When stressed";
+"deepdive_alcohol_dependency_q1_opt3" = "When with others";
+"deepdive_alcohol_dependency_q1_opt4" = "Every day";
+"deepdive_alcohol_dependency_q2" = "Why do you drink?";
+"deepdive_alcohol_dependency_q2_opt1" = "To relax";
+"deepdive_alcohol_dependency_q2_opt2" = "Habit";
+"deepdive_alcohol_dependency_q2_opt3" = "Social pressure";
+"deepdive_alcohol_dependency_q2_opt4" = "To sleep";
+
+/* Deep Dive Questions - anger */
+"deepdive_anger_q1" = "When do you feel angry?";
+"deepdive_anger_q1_opt1" = "When things don't go my way";
+"deepdive_anger_q1_opt2" = "When treated unfairly";
+"deepdive_anger_q1_opt3" = "When ignored";
+"deepdive_anger_q1_opt4" = "When tired";
+"deepdive_anger_q2" = "How do you express anger?";
+"deepdive_anger_q2_opt1" = "Explode";
+"deepdive_anger_q2_opt2" = "Go silent";
+"deepdive_anger_q2_opt3" = "Take it out on things";
+"deepdive_anger_q2_opt4" = "Verbal attacks";
+
+/* Deep Dive Questions - obsessive */
+"deepdive_obsessive_q1" = "What do you obsess over?";
+"deepdive_obsessive_q1_opt1" = "Small mistakes";
+"deepdive_obsessive_q1_opt2" = "Did I do it perfectly?";
+"deepdive_obsessive_q1_opt3" = "What people think of me";
+"deepdive_obsessive_q1_opt4" = "Same worries";
+"deepdive_obsessive_q2" = "When do you obsess?";
+"deepdive_obsessive_q2_opt1" = "Always";
+"deepdive_obsessive_q2_opt2" = "At night";
+"deepdive_obsessive_q2_opt3" = "At work";
+"deepdive_obsessive_q2_opt4" = "After doing something";
+
+/* Deep Dive Questions - loneliness */
+"deepdive_loneliness_q1" = "When do you feel lonely?";
+"deepdive_loneliness_q1_opt1" = "When alone";
+"deepdive_loneliness_q1_opt2" = "Even with people";
+"deepdive_loneliness_q1_opt3" = "At night";
+"deepdive_loneliness_q1_opt4" = "On social media";
+"deepdive_loneliness_q2" = "Why do you feel lonely?";
+"deepdive_loneliness_q2_opt1" = "Few friends";
+"deepdive_loneliness_q2_opt2" = "Not understood";
+"deepdive_loneliness_q2_opt3" = "Live far away";
+"deepdive_loneliness_q2_opt4" = "Don't know";
+
+/* ========== AlarmKit: cantWakeUp Wake Alarm ========== */
+"profile_section_wake_alarm" = "Wake Alarm";
+"profile_wake_alarm_toggle" = "Full-screen Alarm";
+"profile_wake_alarm_description" = "When ON, a full-screen alarm will wake you at 6:00 and 6:05 every morning (iOS 26+)";
+"alarmkit_permission_needed_title" = "Alarm Permission Needed";
+"alarmkit_permission_needed_message" = "Please enable alarm permission for Anicca in the Settings app.";
+"problem_cant_wake_up_alarm_title" = "Wake Up";
+
+/* ========== Single Screen UI ========== */
+"single_screen_subscribe" = "Subscribe";
+"single_screen_cancel_subscription" = "Manage Subscription";
+"single_screen_sign_out" = "Sign Out";
+"single_screen_delete_account" = "Delete Account";
+
+/* ========== Live Demo ========== */
+"live_demo_title" = "Découvrez votre première notification";
+"live_demo_subtitle" = "Voyez comment Anicca vous rappelle doucement au bon moment.";
+"live_demo_button" = "Recevoir une notification";
+
+/* ========== Missing Nudge Keys (English fallback) ========== */
+
+/* NudgeContent - staying_up_late (expanded 11-21) */
+"nudge_staying_up_late_notification_11" = "Demain tu vas le regretter.";
+"nudge_staying_up_late_notification_12" = "La lumière bleue trompe ton cerveau.";
+"nudge_staying_up_late_notification_13" = "La dette de sommeil produit des intérêts.";
+"nudge_staying_up_late_notification_14" = "« Encore 5 minutes » devient 2 heures.";
+"nudge_staying_up_late_notification_15" = "Dormir n'est pas un effort. Lâche prise.";
+"nudge_staying_up_late_notification_16" = "Ne sacrifie pas demain pour ce soir.";
+"nudge_staying_up_late_notification_17" = "Les yeux lourds sont le SOS de ton corps.";
+"nudge_staying_up_late_notification_18" = "Le lit n'est pas un champ de bataille.";
+"nudge_staying_up_late_notification_19" = "C'est toi qui décides quand la journée finit.";
+"nudge_staying_up_late_notification_20" = "Ton corps veut se reposer.";
+"nudge_staying_up_late_notification_21" = "Ferme ton téléphone. Maintenant.";
+"nudge_staying_up_late_detail_11" = "Une heure de plus ce soir ruine 8 heures demain. Au lit, maintenant.";
+"nudge_staying_up_late_detail_12" = "La lumière bleue dit à ton cerveau que c'est le jour. Retourne ton téléphone et ferme les yeux.";
+"nudge_staying_up_late_detail_13" = "La dette de sommeil ne se rembourse pas. Mets ton téléphone en charge et va au lit.";
+"nudge_staying_up_late_detail_14" = "Combien de fois tu as dit « encore 5 minutes » ? Ferme maintenant. Mets le téléphone dans une autre pièce.";
+"nudge_staying_up_late_detail_15" = "Rester éveillé de force ne sert à rien. Fais confiance à ton corps. Prends 3 grandes respirations.";
+"nudge_staying_up_late_detail_16" = "Demain en manque de sommeil : 30% de moins en qualité de décisions. Retourne ton téléphone et ferme les yeux.";
+"nudge_staying_up_late_detail_17" = "La somnolence est un avertissement de ton corps. Ne l'ignore pas. Ferme les yeux.";
+"nudge_staying_up_late_detail_18" = "N'amène pas ton téléphone. Le lit est fait pour dormir. Mets le chargeur dans une autre pièce.";
+"nudge_staying_up_late_detail_19" = "Ne traîne pas. Dis à voix haute « La journée s'arrête ici ! » et va dormir.";
+"nudge_staying_up_late_detail_20" = "L'esprit dit « reste éveillé ». Le corps dit « c'est fini ». Pose le téléphone. 3 respirations. Ferme les yeux.";
+"nudge_staying_up_late_detail_21" = "Fini de lire ? Écran éteint. Au lit, maintenant.";
+
+/* NudgeContent - cant_wake_up (expanded 9-14) */
+"nudge_cant_wake_up_notification_9" = "Appuyer sur snooze, c'est une trahison.";
+"nudge_cant_wake_up_notification_10" = "Mets le réveil de l'autre côté de la pièce.";
+"nudge_cant_wake_up_notification_11" = "Pose juste les pieds au sol. Ça suffit.";
+"nudge_cant_wake_up_notification_12" = "La couette est un piège.";
+"nudge_cant_wake_up_notification_13" = "1 minute le matin = 10 minutes le soir.";
+"nudge_cant_wake_up_notification_14" = "La lumière du soleil réveille ton cerveau.";
+"nudge_cant_wake_up_detail_9" = "« Encore 5 minutes » devient 30. Lève-toi maintenant.";
+"nudge_cant_wake_up_detail_10" = "Marcher jusqu'au réveil réveille ton cerveau. Commence demain. Pas à côté de l'oreiller.";
+"nudge_cant_wake_up_detail_11" = "Pas besoin de te lever tout de suite. Juste les pieds au sol. La température du corps commence à monter.";
+"nudge_cant_wake_up_detail_12" = "Chaud et douillet. C'est pour ça que c'est dangereux. Compte 3 et saute hors du lit !";
+"nudge_cant_wake_up_detail_13" = "Traîner le matin, c'est courir le soir. Bouge maintenant pour toi.";
+"nudge_cant_wake_up_detail_14" = "Ouvre les rideaux. 2500+ lux réinitialise ton rythme circadien.";
+
+/* NudgeContent - self_loathing (expanded 9-14) */
+"nudge_self_loathing_notification_9" = "Se blâmer ne change rien.";
+"nudge_self_loathing_notification_10" = "Pas d'excuses. Agis.";
+"nudge_self_loathing_notification_11" = "Tu n'as pas besoin d'être parfait.";
+"nudge_self_loathing_notification_12" = "L'échec prouve que tu as essayé.";
+"nudge_self_loathing_notification_13" = "Ne te compare pas aux autres. Compare-toi à hier.";
+"nudge_self_loathing_notification_14" = "Tu fais plus d'efforts que tu ne le crois.";
+"nudge_self_loathing_detail_9" = "Utilise l'énergie de la culpabilité pour le prochain pas. Fais 1 petite chose maintenant.";
+"nudge_self_loathing_detail_10" = "Pas le temps de broyer du noir. Fais 1 chose. Range ton bureau. Maintenant.";
+"nudge_self_loathing_detail_11" = "Ne vise pas 100. Note 1 chose que tu as faite aujourd'hui. Ça suffit.";
+"nudge_self_loathing_detail_12" = "Échouer veut dire que tu as essayé. Pose ta main sur ton cœur. Dis « bravo ».";
+"nudge_self_loathing_detail_13" = "Comparer leurs meilleurs moments à tes coulisses n'a aucun sens. Ferme l'appli.";
+"nudge_self_loathing_detail_14" = "Même les choses routinières demandent de l'effort. Regarde-toi dans le miroir. Dis « bien joué ».";
+
+/* NudgeContent - rumination (expanded 9-14) */
+"nudge_rumination_notification_9" = "Le passé ne change pas. Change le présent.";
+"nudge_rumination_notification_10" = "Arrête de tourner en boucle dans ta tête.";
+"nudge_rumination_notification_11" = "Que vois-tu ? Qu'entends-tu ?";
+"nudge_rumination_notification_12" = "Stoppe la boucle dans ta tête.";
+"nudge_rumination_notification_13" = "Réfléchir ne donnera pas de réponses.";
+"nudge_rumination_notification_14" = "Trop penser, c'est le cerveau qui tourne à vide.";
+"nudge_rumination_detail_9" = "Le temps passé à regretter = du temps pour agir. Choisis 1 tâche. Fais-la.";
+"nudge_rumination_detail_10" = "Ne réfléchis pas. Bouge. Lève-toi et respire l'air extérieur maintenant.";
+"nudge_rumination_detail_11" = "Concentre-toi sur tes sens. Nomme 5 choses que tu vois à voix haute. C'est « ici et maintenant ».";
+"nudge_rumination_detail_12" = "Écris-le. Le sortir de ta tête aide. Écris pendant 3 minutes d'affilée.";
+"nudge_rumination_detail_13" = "Y penser 100 fois ne change rien. Lève-toi. Fais 10 pas.";
+"nudge_rumination_detail_14" = "Change de vitesse. Lève-toi. Fais de grands moulinets avec les bras 10 fois.";
+
+/* NudgeContent - procrastination (expanded 9-14) */
+"nudge_procrastination_notification_9" = "Tâche de 2 minutes : fais-la maintenant.";
+"nudge_procrastination_notification_10" = "N'attends pas le moment parfait. Commence.";
+"nudge_procrastination_notification_11" = "La motivation ne viendra pas en attendant.";
+"nudge_procrastination_notification_12" = "La procrastination est une dette envers le toi du futur.";
+"nudge_procrastination_notification_13" = "Fais juste la première minute.";
+"nudge_procrastination_notification_14" = "« Plus tard » est un autre mot pour « jamais ».";
+"nudge_procrastination_detail_9" = "Règle des 2 minutes. Pas la peine de reporter. Mets un minuteur. Go.";
+"nudge_procrastination_detail_10" = "La préparation parfaite n'existe pas. Ajuste en cours de route. Écris juste 1 ligne.";
+"nudge_procrastination_detail_11" = "La motivation suit l'action. Décompte : 5, 4, 3, 2, 1, GO.";
+"nudge_procrastination_detail_12" = "Tu paieras avec des intérêts. Paie maintenant. Choisis 1 tâche. Commence.";
+"nudge_procrastination_detail_13" = "Juste 1 minute. OK d'arrêter après. Mais tu ne le feras pas. Fais-moi confiance et essaie.";
+"nudge_procrastination_detail_14" = "Plus tard ? Vraiment ? Fais-le maintenant. Pose le téléphone. Commence tout de suite.";
+
+/* NudgeContent - anxiety (expanded 9-14) */
+"nudge_anxiety_notification_9" = "Concentre-toi sur ce que tu contrôles.";
+"nudge_anxiety_notification_10" = "Ne cède pas à l'anxiété. Bouge.";
+"nudge_anxiety_notification_11" = "Cet instant est sûr.";
+"nudge_anxiety_notification_12" = "Pense au pire. Tu survivras.";
+"nudge_anxiety_notification_13" = "90% des inquiétudes ne se réalisent jamais.";
+"nudge_anxiety_notification_14" = "L'anxiété est un film dans ta tête.";
+"nudge_anxiety_detail_9" = "S'inquiéter de ce qu'on ne contrôle pas est inutile. Écris 1 chose que tu peux contrôler.";
+"nudge_anxiety_detail_10" = "Ne reste pas assis à t'inquiéter. Lève-toi et fais 10 pas maintenant. Le mouvement change l'humeur.";
+"nudge_anxiety_detail_11" = "L'anxiété concerne le futur. En ce moment, ça va. Sens tes pieds sur le sol.";
+"nudge_anxiety_detail_12" = "Même si le pire arrive, tu t'en sortiras. Écris 3 raisons pour lesquelles ça ira même dans le pire des cas.";
+"nudge_anxiety_detail_13" = "Statistiquement, la plupart des inquiétudes ne se concrétisent pas. Concentre-toi uniquement sur ce qui se passe maintenant.";
+"nudge_anxiety_detail_14" = "Annule la projection. Ferme les yeux. Dis « Coupez ! » Imagine une scène différente.";
+
+/* NudgeContent - lying (expanded 9-14) */
+"nudge_lying_notification_9" = "Les mensonges coûtent plus qu'ils ne rapportent.";
+"nudge_lying_notification_10" = "Arrête de mentir. Maintenant.";
+"nudge_lying_notification_11" = "Le courage de dire la vérité.";
+"nudge_lying_notification_12" = "Ne te déteste pas pour avoir menti.";
+"nudge_lying_notification_13" = "L'honnêteté, c'est simple. Le mensonge fatigue.";
+"nudge_lying_notification_14" = "Tu as été honnête aujourd'hui ?";
+"nudge_lying_detail_9" = "La confiance perdue est difficile à retrouver. Choisis l'honnêteté dès aujourd'hui.";
+"nudge_lying_detail_10" = "Rappelle-toi un mensonge d'aujourd'hui. La prochaine fois, dis la vérité.";
+"nudge_lying_detail_11" = "Ça fait peur, mais tu te sentiras plus léger après. Respire. Partage une vérité.";
+"nudge_lying_detail_12" = "Reconnais le mensonge. Sois honnête la prochaine fois. Le futur compte plus que le passé.";
+"nudge_lying_detail_13" = "Maintenir un mensonge demande une énergie énorme. L'honnêteté est plus simple. Dis une chose honnête aujourd'hui.";
+"nudge_lying_detail_14" = "Fais le bilan en fin de journée. Sois plus honnête demain. Accorde-toi un point.";
+
+/* NudgeContent - bad_mouthing (expanded 9-14) */
+"nudge_bad_mouthing_notification_9" = "Les mauvaises paroles te reviennent.";
+"nudge_bad_mouthing_notification_10" = "Que dis-tu quand cette personne n'est pas là ?";
+"nudge_bad_mouthing_notification_11" = "Au lieu de critiquer, trouve le bon.";
+"nudge_bad_mouthing_notification_12" = "Les mots ne se reprennent pas.";
+"nudge_bad_mouthing_notification_13" = "Pourquoi veux-tu critiquer cette personne ?";
+"nudge_bad_mouthing_notification_14" = "Le silence est d'or.";
+"nudge_bad_mouthing_detail_9" = "Tes paroles salissent aussi ton propre cœur. Fais un compliment à quelqu'un aujourd'hui.";
+"nudge_bad_mouthing_detail_10" = "Si tu ne peux pas le dire en face, ne le dis pas. Réfléchis 3 secondes avant de parler.";
+"nudge_bad_mouthing_detail_11" = "Tout le monde a des qualités. Trouve un point positif chez cette personne.";
+"nudge_bad_mouthing_detail_12" = "Une fois dit, c'est dit. Réfléchis 3 secondes. C'est vraiment nécessaire ?";
+"nudge_bad_mouthing_detail_13" = "Ça reflète peut-être quelque chose en toi ? Écris-le. Réfléchis.";
+"nudge_bad_mouthing_detail_14" = "Ce qui n'a pas besoin d'être dit, ne le dis pas. C'est aussi de la gentillesse. Ferme la bouche. Souris.";
+
+/* NudgeContent - porn_addiction (expanded 9-14) */
+"nudge_porn_addiction_notification_9" = "Pose ton téléphone dans une autre pièce.";
+"nudge_porn_addiction_notification_10" = "Tu pourras te regarder en face demain ?";
+"nudge_porn_addiction_notification_11" = "La solitude est l'ennemi. Parle à quelqu'un.";
+"nudge_porn_addiction_notification_12" = "Tu peux gagner aujourd'hui. Tu as gagné hier.";
+"nudge_porn_addiction_notification_13" = "Attends 30 secondes. Ça change tout.";
+"nudge_porn_addiction_notification_14" = "Compte tes victoires.";
+"nudge_porn_addiction_detail_9" = "La distance physique est une barrière. Tu reprendras tes esprits en allant le chercher. Fais-le maintenant.";
+"nudge_porn_addiction_detail_10" = "Tu regretteras ce choix demain ? Choisis pour ton futur toi, maintenant.";
+"nudge_porn_addiction_detail_11" = "La solitude renforce les pulsions. Envoie un message à quelqu'un maintenant. « Ça va ? » suffit.";
+"nudge_porn_addiction_detail_12" = "Les petites victoires quotidiennes s'accumulent. Gagne aujourd'hui, demain sera plus facile.";
+"nudge_porn_addiction_detail_13" = "Les pulsions faiblissent après 30 secondes. Lance un minuteur. Compte jusqu'à 30.";
+"nudge_porn_addiction_detail_14" = "Combien de jours as-tu gagnés ? Écris le nombre. Fais-le grandir.";
+
+/* NudgeContent - alcohol_dependency (expanded 9-14) */
+"nudge_alcohol_dependency_notification_9" = "Refuse le premier verre. Le deuxième est facile.";
+"nudge_alcohol_dependency_notification_10" = "Rappelle-toi pourquoi tu ne bois pas.";
+"nudge_alcohol_dependency_notification_11" = "Bois de l'eau. D'abord de l'eau.";
+"nudge_alcohol_dependency_notification_12" = "« Juste aujourd'hui » est un mensonge.";
+"nudge_alcohol_dependency_notification_13" = "Rappelle-toi le lendemain matin.";
+"nudge_alcohol_dependency_notification_14" = "Tu es plus fort que l'alcool.";
+"nudge_alcohol_dependency_detail_9" = "Le premier verre est le plus dur. Bois un verre d'eau d'abord. Puis décide.";
+"nudge_alcohol_dependency_detail_10" = "Pourquoi veux-tu réduire ? Dis la raison à voix haute.";
+"nudge_alcohol_dependency_detail_11" = "De l'eau au lieu de l'alcool. Ton corps adore. Un verre. Maintenant.";
+"nudge_alcohol_dependency_detail_12" = "« Juste aujourd'hui » tu le diras aussi demain. Arrête aujourd'hui. Va chercher de l'eau.";
+"nudge_alcohol_dependency_detail_13" = "Regrets, maux de tête, fatigue. Tu choisis ça ce soir ? Choisis un lendemain clair.";
+"nudge_alcohol_dependency_detail_14" = "Ne te laisse pas contrôler par l'alcool. Reprends le contrôle. Pose le verre.";
+
+/* NudgeContent - anger (expanded 9-14) */
+"nudge_anger_notification_9" = "Crier n'améliorera rien.";
+"nudge_anger_notification_10" = "Ferme la bouche. Maintenant.";
+"nudge_anger_notification_11" = "Mets-toi à sa place.";
+"nudge_anger_notification_12" = "La colère est un poison. Elle te ronge.";
+"nudge_anger_notification_13" = "Attends 6 secondes. Le pic de colère dure 6 secondes.";
+"nudge_anger_notification_14" = "Ça vaut la peine de se mettre en colère ?";
+"nudge_anger_detail_9" = "Communiquer calmement est plus efficace. 3 grandes respirations avant de parler.";
+"nudge_anger_detail_10" = "Ne parle pas sous la colère. Tais-toi 10 secondes. Puis parle calmement.";
+"nudge_anger_detail_11" = "Pourquoi a-t-il fait ça ? Il y a peut-être une raison. Passe 1 minute à sa place.";
+"nudge_anger_detail_12" = "Tu veux le blesser, mais c'est toi qui souffres. 5 grandes respirations. Lâche prise.";
+"nudge_anger_detail_13" = "Le cerveau se calme après 6 secondes. Compte de 1 à 6. Maintenant.";
+"nudge_anger_detail_14" = "Ça vaut ton énergie ? Hausse les épaules et ris.";
+
+/* NudgeContent - obsessive (expanded 9-14) */
+"nudge_obsessive_notification_9" = "La perfection n'existe pas.";
+"nudge_obsessive_notification_10" = "Livre à 80 %. Corrige les 20 % plus tard.";
+"nudge_obsessive_notification_11" = "Ne t'obsède pas des détails. Vois l'ensemble.";
+"nudge_obsessive_notification_12" = "Dis « c'est bien comme ça ».";
+"nudge_obsessive_notification_13" = "Les autres ne remarquent pas autant.";
+"nudge_obsessive_notification_14" = "Fixe-toi une limite de temps.";
+"nudge_obsessive_detail_9" = "Poursuivre la perfection ne finit jamais. Dis à voix haute « c'est suffisant ».";
+"nudge_obsessive_detail_10" = "Attendre la perfection = ne jamais livrer. Lance un minuteur de 30 min. Arrête là.";
+"nudge_obsessive_detail_11" = "Tu ne vois plus la forêt à cause des arbres. Recule. Lève-toi de ta chaise.";
+"nudge_obsessive_detail_12" = "Accorde-toi la permission. C'est bien. Dis-le 3 fois à voix haute.";
+"nudge_obsessive_detail_13" = "Ce détail qui t'inquiète ? Les autres ne le remarquent pas. Ris et passe à autre chose.";
+"nudge_obsessive_detail_14" = "Ne pars pas du principe que tu as tout le temps. Minuteur 30 min. Arrêt forcé à la fin.";
+
+/* NudgeContent - loneliness (expanded 9-14) */
+"nudge_loneliness_notification_9" = "Contacte quelqu'un. Maintenant.";
+"nudge_loneliness_notification_10" = "Sors de ta chambre.";
+"nudge_loneliness_notification_11" = "Commence par de petites connexions.";
+"nudge_loneliness_notification_12" = "Tu n'es pas seul. C'est juste une impression.";
+"nudge_loneliness_notification_13" = "Sors. Là où il y a des gens.";
+"nudge_loneliness_notification_14" = "Écoute quelqu'un.";
+"nudge_loneliness_detail_9" = "Un message suffit. « Ça va ? » c'est assez. Envoie-le maintenant.";
+"nudge_loneliness_detail_10" = "Quand tu te sens seul, bouge. Mets tes chaussures. Sors. Maintenant.";
+"nudge_loneliness_detail_11" = "Pas besoin de liens profonds tout de suite. Commence par dire « merci » à un commerçant.";
+"nudge_loneliness_detail_12" = "La solitude est un sentiment, pas un fait. Envoie « ça va ? » à une personne aujourd'hui.";
+"nudge_loneliness_detail_13" = "Un café suffit. Une supérette suffit. Ressens la présence humaine. Sors maintenant.";
+"nudge_loneliness_detail_14" = "Au lieu de parler, écoute. C'est ça, le lien. Demande à quelqu'un « comment ça va ? » aujourd'hui.";
+
+// MARK: - Paywall Variant B (1.8.5+ Free Trial)
+"paywall_b_cta_no_trial" = "Commencez votre voyage maintenant";
+"paywall_b_cta_trial" = "Commencer gratuitement";
+"paywall_b_trust_no_trial" = "Annulable à tout moment · Satisfaction garantie";
+"paywall_b_trust_trial" = "3 jours gratuits, puis %@ · Annulez à tout moment";
+"paywall_b_trial_badge" = "3 JOURS GRATUITS";
+"paywall_b_retry" = "Recharger les offres";
+"paywall_b_load_failed" = "Impossible de charger les offres. Vérifiez votre connexion et réessayez.";
+"paywall_b_lifetime_badge" = "UNIQUE";
+"paywall_b_per_lifetime" = " · paiement unique";
+"paywall_b_plan_lifetime" = "À vie";
+"paywall_b_feature_cancel" = "Annulable à tout moment, sans condition";
+"paywall_b_feature_personalized" = "S'adapte à vos difficultés personnelles";
+"paywall_b_feature_nudges" = "Des rappels au bon moment";
+"paywall_b_subtitle" = "Des cartes quotidiennes pour vous accompagner dans les moments difficiles";
+"paywall_b_title" = "Des mots doux quand vous en avez le plus besoin";
+"paywall_plan_cta_trial" = "Commencer gratuitement";
+"paywall_plan_cta_no_trial" = "Commencer le voyage";
+"paywall_plan_trust_trial" = "3 jours gratuits, puis %@. Annulez à tout moment.";
+"paywall_plan_trial_badge" = "3 JOURS GRATUITS";
+
+// MARK: - iAm Feed (2026-05-13 redesign) — EN fallback for v1
+"settings_title" = "Settings";
+"settings_theme" = "Theme";
+"settings_notifications" = "Notifications";
+"settings_liked_quotes" = "Liked";
+"settings_subscription" = "Subscription";
+"settings_subscription_placeholder" = "Subscription management is in the App Store.";
+"settings_sign_out" = "Sign out";
+"common_done" = "Done";
+"liked_empty_title" = "No liked affirmations yet";
+"liked_empty_subtitle" = "Tap the heart on any affirmation to save it here.";
+"notifications_daily_count" = "Daily count";
+"notifications_schedule_label" = "08:00 / 12:30 / 17:30 / 21:30";
+"notifications_footer" = "Four affirmations a day. Tap a notification to open that exact affirmation.";
+"theme_silk_dusk" = "Silk Dusk";
+"theme_sand_wave" = "Sand Wave";
+"theme_ocean_sunset" = "Ocean Sunset";
+"theme_midnight_dusk" = "Midnight Dusk";
+"theme_linen_cream" = "Linen Cream";
+"theme_sage_mist" = "Sage Mist";
+"theme_sky_dawn" = "Sky Dawn";
+"theme_rose_petal" = "Rose Petal";
+
+"billing_issue_title" = "Problème de paiement";
+"billing_issue_action" = "Touchez pour mettre à jour le paiement";

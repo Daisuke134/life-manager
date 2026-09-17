@@ -1,0 +1,47 @@
+# Soft Paywall Display & Free Dismiss Test
+# Tests: full onboarding -> paywall appears -> Close (×) tap -> main feed arrival (課金なし)
+# 右上 × (paywall-close-button) タップで無課金メイン画面(feed-scroll)へ遷移することを検証。
+
+appId: ai.anicca.app.ios
+name: Soft Paywall dismiss to Free
+tags:
+  - onboarding
+  - paywall
+
+---
+# Clean start
+- clearState
+- clearKeychain
+- launchApp
+
+# オンボーディング → ペイウォール(primer 通過して plan selection まで)
+- runFlow: ../v1.8.0/_onboarding_to_paywall.yaml
+
+# Paywall plan selection が表示される
+- extendedWaitUntil:
+    visible:
+      id: "paywall-plan-cta"
+    timeout: 15000
+
+# 右上 × (常時表示のクローズボタン)
+- extendedWaitUntil:
+    visible:
+      id: "paywall-close-button"
+    timeout: 5000
+
+- tapOn:
+    id: "paywall-close-button"
+
+# App Store レビューダイアログ(システム) は optional
+# Japanese: "今はしない" / English: "Not Now"
+- tapOn:
+    text: "今はしない|Not Now"
+    optional: true
+
+# 無課金でメイン画面(feed)に到達することを検証
+- extendedWaitUntil:
+    visible:
+      id: "feed-scroll"
+    timeout: 10000
+
+- takeScreenshot: "soft-paywall-free-dismiss"

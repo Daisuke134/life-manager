@@ -1,0 +1,33 @@
+{
+  "configurations" : [
+    {
+      "id" : "A1A1A1A1-0000-0000-0000-000000000001",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "storeKitConfigurationFileReference" : {
+      "identifier" : "Anicca.storekit"
+    }
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:aniccaios.xcodeproj",
+        "identifier" : "5A38FE013FDF38087656B01B",
+        "name" : "aniccaiosUITests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:aniccaios.xcodeproj",
+        "identifier" : "EDAF1F028727C0CEB1747B46",
+        "name" : "aniccaiosTests"
+      }
+    }
+  ],
+  "version" : 1
+}

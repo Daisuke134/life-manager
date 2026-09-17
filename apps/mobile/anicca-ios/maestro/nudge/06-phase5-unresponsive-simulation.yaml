@@ -1,0 +1,28 @@
+appId: ai.anicca.app.ios
+name: "Phase 5: Unresponsive Simulation"
+tags:
+  - phase5
+  - nudge
+---
+# Phase 5: 無反応ユーザーシミュレーション テスト
+- launchApp:
+    clearState: false
+
+# Profile タブに移動
+- tapOn: "Profile"
+
+# デバッグセクションまでスクロール
+- scrollUntilVisible:
+    element: "全バリアント無反応テスト"
+    direction: DOWN
+
+# シミュレーションボタンをタップ
+- tapOn: "10回 x 8バリアント"
+
+# 統計表示を確認
+- scrollUntilVisible:
+    element: "🎲 Phase 5: Thompson Sampling"
+    direction: DOWN
+- assertVisible: "V0"
+- assertVisible: "α:"
+
