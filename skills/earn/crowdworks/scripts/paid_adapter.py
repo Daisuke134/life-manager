@@ -642,6 +642,11 @@ class CrowdWorksPaidAdapter:
                 continue
             if visible:
                 area.fill(value)
+                for event in ("input", "change"):
+                    try:
+                        area.dispatch_event(event)
+                    except AttributeError:
+                        pass
                 filled = True
         if not filled and form is not None:
             form.locator('textarea[name="message[body]"]').fill(value)
