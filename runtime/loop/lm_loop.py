@@ -18,6 +18,7 @@ from pathlib import Path
 from runtime.loop.macos_launchd_inventory import extract_release, parse_disabled, parse_loaded
 from runtime.loop.macos_loop_registry import validate_registry
 from runtime.loop.lm_loop_apply import (
+    _plist,
     _loaded_arguments,
     _preserve_operational_attributes,
     apply_registry,
@@ -273,6 +274,20 @@ def _loaded_sha_is_ancestor(installed_sha: str, current_sha: str) -> bool:
     except (OSError, subprocess.TimeoutExpired):
         return False
     return result.returncode == 0
+
+
+def _recoverable_env_snapshot_sha(plist_path: Path, loop_id: str, entry: dict,
+                                  release_root: Path, current_sha: str) -> str | None:
+    """Read the old SHA only after the shared apply path accepts this owner's JSON."""
+    try:
+        old_bytes = plist_path.read_bytes()
+        env = json.loads(old_bytes)
+        rendered = _plist(loop_id, entry, release_root, current_sha)
+        _preserve_operational_attributes(rendered, old_bytes)
+    except (OSError, ValueError, RuntimeError, KeyError, plistlib.InvalidFileException):
+        return None
+    sha = env.get("LIFE_MANAGER_RELEASE_SHA")
+    return sha if isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{40}", sha) else None
 
 
 def _bounded_reconcile_candidates(registry: dict, route: str,
@@ -884,6 +899,24 @@ def main(argv: list[str] | None = None) -> int:
             loop_id for loop_id in effective_requested_ids
             if registry["loops"][loop_id].get("cadence", {}).get("keep_alive") is True
         }
+        agents_dir = Path(os.environ.get(
+            "LIFE_MANAGER_LAUNCH_AGENTS_DIR", "~/Library/LaunchAgents")).expanduser()
+        snapshot_shas = {}
+        for row in rows:
+            if (row.get("provider_route") == route
+                    and row.get("installed_release_sha") is None
+                    and row.get("launchd_state") == "loaded-idle"):
+                loop_id = row["loop_id"]
+                entry = registry["loops"][loop_id]
+                sha = _recoverable_env_snapshot_sha(
+                    agents_dir / f"{entry['label']}.plist", loop_id, entry,
+                    release_root, current_sha)
+                if sha:
+                    snapshot_shas[loop_id] = sha
+
+        def effective_installed_sha(row: dict) -> str | None:
+            return row.get("installed_release_sha") or snapshot_shas.get(row["loop_id"])
+
         eligible_states = ({"loaded-idle", "loaded-running"} if include_running else
                            {"loaded-idle", "loaded-running"} if explicitly_reloadable else
                            {"loaded-idle"} if loaded_idle_only else
@@ -893,7 +926,7 @@ def main(argv: list[str] | None = None) -> int:
             for row in rows:
                 if row.get("provider_route") != route:
                     continue
-                installed_sha = row.get("installed_release_sha")
+                installed_sha = effective_installed_sha(row)
                 if installed_sha and installed_sha != current_sha:
                     if installed_sha not in ancestry_cache:
                         ancestry_cache[installed_sha] = _loaded_sha_is_ancestor(
@@ -909,13 +942,13 @@ def main(argv: list[str] | None = None) -> int:
             and (row["launchd_state"] != "loaded-running"
                  or include_running
                  or row["loop_id"] in explicitly_reloadable)
-            and row["installed_release_sha"]
-            and row["installed_release_sha"] != current_sha
+            and effective_installed_sha(row)
+            and effective_installed_sha(row) != current_sha
             and (not automatic_release_reconciler
-                 or ancestry_cache.get(row["installed_release_sha"], False))
+                 or ancestry_cache.get(effective_installed_sha(row), False))
             and (not automatic_release_reconciler
                  or row["loop_id"] in explicitly_reloadable
-                 or row.get("event_release_sha") == row["installed_release_sha"])
+                 or row.get("event_release_sha") == effective_installed_sha(row))
         )]
         if max_owners is not None:
             extra = [row for row in eligible if auto_disk_cleanup

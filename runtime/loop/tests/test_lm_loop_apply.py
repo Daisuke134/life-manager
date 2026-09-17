@@ -1487,6 +1487,80 @@ class LmLoopApplyTest(unittest.TestCase):
             ["hf-gig-apply-direct", "hf-gig-reply-detector"],
         )
 
+    def test_reconcile_repairs_matching_loaded_idle_environment_snapshot(self):
+        release = self._release("release-env-recovery").resolve()
+        value = registry()
+        value["loops"]["example"]["provider_route"] = "shared-agent-runner"
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        agents = self.root / "snapshot-agents"
+        agents.mkdir()
+        (agents / "ai.anicca.example.plist").write_text(json.dumps({
+            "LIFE_MANAGER_LOOP_ID": "example",
+            "LIFE_MANAGER_STATE_ROOT": os.path.expanduser(
+                value["loops"]["example"]["state_root"]),
+            "LIFE_MANAGER_RELEASE_SHA": "b" * 40,
+        }))
+        rows = [{
+            "classification": "managed", "provider_route": "shared-agent-runner",
+            "launchd_state": "loaded-idle", "installed_release_sha": None,
+            "event_release_sha": "b" * 40, "loop_id": "example",
+        }]
+        applied = []
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "snapshot", return_value=rows),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
+            patch.object(lm_loop, "apply_live",
+                         side_effect=lambda *args, **kwargs: applied.append(kwargs["target"]) or [{"ok": True}]),
+            patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
+                "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+            }),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(lm_loop.main([
+                "reconcile", "shared-agent-runner", "--loaded-idle-only",
+                "--max-owners", "1",
+            ]), 0)
+        self.assertEqual(applied, ["example"])
+        self.assertEqual(json.loads(output.getvalue())["eligible"], 1)
+
+    def test_reconcile_rejects_other_owner_environment_snapshot(self):
+        release = self._release("release-other-env").resolve()
+        value = registry()
+        value["loops"]["example"]["provider_route"] = "shared-agent-runner"
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        agents = self.root / "other-snapshot-agents"
+        agents.mkdir()
+        (agents / "ai.anicca.example.plist").write_text(json.dumps({
+            "LIFE_MANAGER_LOOP_ID": "another-owner",
+            "LIFE_MANAGER_STATE_ROOT": os.path.expanduser(
+                value["loops"]["example"]["state_root"]),
+            "LIFE_MANAGER_RELEASE_SHA": "b" * 40,
+        }))
+        rows = [{
+            "classification": "managed", "provider_route": "shared-agent-runner",
+            "launchd_state": "loaded-idle", "installed_release_sha": None,
+            "event_release_sha": "b" * 40, "loop_id": "example",
+        }]
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "snapshot", return_value=rows),
+            patch.object(lm_loop, "apply_live", side_effect=AssertionError("other owner applied")),
+            patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
+                "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+            }),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(lm_loop.main([
+                "reconcile", "shared-agent-runner", "--loaded-idle-only",
+                "--max-owners", "1",
+            ]), 0)
+        self.assertEqual(json.loads(output.getvalue())["eligible"], 0)
+
     def test_old_release_reconciler_command_also_moves_idle_disk_cleanup(self):
         release = self._release("release-a").resolve()
         value = registry()

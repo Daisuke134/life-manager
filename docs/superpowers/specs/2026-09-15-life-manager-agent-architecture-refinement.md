@@ -15,7 +15,7 @@ Observed shared-foundation problems and disposition:
 |---|---|---|
 | A branch-only SHA could become global `current` | Release selection admitted a pushed but unmerged SHA. | Fixed in main PR #5351; production `current` must remain an `origin/main` ancestor. |
 | One owner with many old wakes could repeatedly win its own next turn | RED fixture selected owner A twice before owner B; production queue had repeated old occurrences. | Fixed in main PR #5354; new-main natural terminals advanced `x402-ledger` → `x402-experiment-franklin1` → `founder-loop-cadence` → `x402-inflow-watch` without deleting pending occurrences. |
-| A same-owner environment JSON replaced an installed plist | `writer-report` installed file is JSON, so its installed SHA is unreadable although launchd still holds a main-derived argv. The writer of that file is not yet identified. | Shared `lm_loop_apply.py` recovery is pushed on `fix/lm-a15-plist-recovery-plan-20260917`, not merged or live-proved. It accepts only matching loop ID/state root and preserves existing environment keys. |
+| A same-owner environment JSON replaced an installed plist | `writer-report` installed file is JSON, so its installed SHA is unreadable although launchd still holds a main-derived argv. The writer of that file is not yet identified. | Shared `lm_loop_apply.py` recovery merged in PR #5362, but the CLI candidate filter still skips the malformed file; the follow-up fix is not yet merged or live-proved. The repair accepts only matching loop ID/state root and preserves existing environment keys. |
 | Reconciler sometimes exits `entrypoint_exit_1` while idle owners wait | Loaded `a4070714` has both fail and pass outer terminals; one run stayed active for several minutes. Malformed installed input is a concrete candidate, not a proven sole cause. | Open until the repaired main-derived release has a natural outer terminal and an exact first-failure readback. |
 | Disk pressure has caused `ENOSPC` during release/receipt writes | Historical runtime logs contain `ENOSPC`; current free space is about 2 GiB and cleanup has also reached natural `pass`. | Open as a bounded headroom/cleanup acceptance check; do not erase profiles, credentials, receipts, active runs, or other owners' worktrees. |
 
@@ -54,13 +54,18 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   passed for Aqua/UID 501. Targeted reconcile returned one applied label and
   no failure (`install_event_id=dbff5baf1ce53b7caa53bee2`); loaded argv
   names `20260917T204207-aa0f37fc`. The preceding old-SHA terminal was fail.
-- [ ] **A15-05 — read the next natural reconciler terminal.** Require the same
-  loaded SHA and outer `pass`; an old run's pass is not evidence. If it fails,
-  record its exact first failing label and keep A15 open.
+- [x] **A15-05 — read the next natural reconciler terminal.** Run
+  `18d61918b61058e8-67760` on loaded SHA `aa0f37fc8c46` reached outer
+  `pass` at 2026-09-17T11:54:06Z with `blocker=null`; status readback showed
+  the same installed/event SHA and `loaded-idle`.
 - [ ] **A15-06 — read the repaired installed plist.** `writer-report.plist`
   must parse as XML and its installed/loaded argv must name a main-derived
   immutable release. This is a shared config repair, not permission to send a
-  Writer report or clear its effect fence.
+  Writer report or clear its effect fence. The first targeted reconcile on
+  `c16f437b` returned `eligible=0`: malformed JSON gave
+  `installed_release_sha=null`, so candidate filtering bypassed the merged
+  recovery function. The new shared candidate fix is under test on this branch;
+  the installed file remains JSON and `effect_unknown` remains fenced.
 - [ ] **A15-07 — prove an agent-class handoff.** From the private admission
   SQLite and `bin/lm-loop status`, join one natural agent owner claim, outer
   terminal, release and a *different* eligible agent owner's next claim.
