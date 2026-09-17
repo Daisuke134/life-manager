@@ -587,6 +587,12 @@ test("operations persist only bounded ranking timing aggregates", async () => {
 test("operations persist bounded candidate ranking counts and refs", async () => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-selection-audit-"));
   try {
+    const summaries = Array.from({ length: 12 }, (_, index) => ({
+      event_ref: `connpass-event://event/4010${String(index + 1).padStart(2, "0")}`,
+      priority_class: index < 2 ? "ai" : "other",
+      preference_fit: index < 2 ? "strong" : "weak",
+      auto_apply_eligible: index < 2,
+    }));
     const operations = createMinimalProductionOperations({
       stateDir, wakeId: "wake-selection-audit", telegramTarget: "private-target",
       now: () => new Date("2026-08-27T05:00:00.000Z"),
@@ -596,11 +602,13 @@ test("operations persist bounded candidate ranking counts and refs", async () =>
       provider: "connpass",
       candidate_count: 12,
       ranked_count: 12,
+      priority_fit_eligible_count: 2,
       auto_apply_eligible_count: 2,
       eligible_candidate_refs: [
-        "connpass-event://event/401001",
-        "connpass-event://event/401002",
+        summaries[0].event_ref,
+        summaries[1].event_ref,
       ],
+      ranked_candidate_summaries: summaries,
     });
     const file = path.join(stateDir, "candidate-ranking-audits.jsonl");
     const row = JSON.parse(fs.readFileSync(file, "utf8").trim());
@@ -610,17 +618,20 @@ test("operations persist bounded candidate ranking counts and refs", async () =>
       provider: "connpass",
       candidate_count: 12,
       ranked_count: 12,
+      priority_fit_eligible_count: 2,
       auto_apply_eligible_count: 2,
       eligible_candidate_refs: [
-        "connpass-event://event/401001",
-        "connpass-event://event/401002",
+        summaries[0].event_ref,
+        summaries[1].event_ref,
       ],
+      ranked_candidate_summaries: summaries,
       recorded_at: "2026-08-27T05:00:00.000Z",
     });
     assert.equal(fs.statSync(file).mode & 0o777, 0o600);
     await assert.rejects(() => operations.recordCandidateRankingAudit({
       provider: "meetup", candidate_count: 1, ranked_count: 1,
-      auto_apply_eligible_count: 1, eligible_candidate_refs: ["https://example.test/private"],
+      priority_fit_eligible_count: 1, auto_apply_eligible_count: 1,
+      eligible_candidate_refs: ["https://example.test/private"], ranked_candidate_summaries: [],
     }));
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });

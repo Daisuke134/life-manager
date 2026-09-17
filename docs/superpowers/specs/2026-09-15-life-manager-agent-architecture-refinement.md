@@ -768,7 +768,8 @@ a natural wake.
 
 **Selection audit source change (branch):** `createProductionProviderRouter`
 now emits bounded `candidate_count`, `ranked_count`,
-`auto_apply_eligible_count` and public `eligible_candidate_refs` for Luma/Connpass,
+`priority_fit_eligible_count`, `auto_apply_eligible_count`, public
+`eligible_candidate_refs`, and bounded ranked candidate summaries for Luma/Connpass,
 including truthful zero rows for empty or reconciliation-only discovery. The
 runner separately records the candidates it actually dispatches in
 `candidate-dispatch-audits.jsonl`. Focused production, runner and operations

@@ -420,8 +420,13 @@ test("production provider router records ranked and auto-apply candidate counts"
     provider: "connpass",
     candidate_count: 2,
     ranked_count: 2,
+    priority_fit_eligible_count: 1,
     auto_apply_eligible_count: 1,
     eligible_candidate_refs: [candidate.event_ref],
+    ranked_candidate_summaries: [
+      { event_ref: candidate.event_ref, priority_class: "ai", preference_fit: "strong", auto_apply_eligible: true },
+      { event_ref: rejected.event_ref, priority_class: "other", preference_fit: "weak", auto_apply_eligible: false },
+    ],
   }]);
 });
 
@@ -449,8 +454,10 @@ test("production provider router records a zero ranking audit when discovery is 
     provider: "connpass",
     candidate_count: 0,
     ranked_count: 0,
+    priority_fit_eligible_count: 0,
     auto_apply_eligible_count: 0,
     eligible_candidate_refs: [],
+    ranked_candidate_summaries: [],
   }]);
 });
 
@@ -481,8 +488,10 @@ test("production provider router records a zero ranking audit for reconciliation
     provider: "connpass",
     candidate_count: 1,
     ranked_count: 0,
+    priority_fit_eligible_count: 0,
     auto_apply_eligible_count: 0,
     eligible_candidate_refs: [],
+    ranked_candidate_summaries: [],
   }]);
 });
 

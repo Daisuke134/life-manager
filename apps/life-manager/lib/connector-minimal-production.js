@@ -417,14 +417,25 @@ function createProductionProviderRouter(options = {}) {
         }));
         const queuedRefs = new Set(queued.map((candidate) => candidate.event_ref));
         const candidates = Object.freeze([...queued, ...discoveredCandidates.filter((candidate) => !queuedRefs.has(candidate.event_ref))]);
-        const emitCandidateRankingAudit = async (rankedCount, eligibleCandidates) => {
+        const emitCandidateRankingAudit = async (rankedCount, eligibleCandidates, rankedEvents = []) => {
           if (typeof onCandidateRankingAudit !== "function" || rankCandidates == null) return;
+          const boundedRankedEvents = rankedEvents.slice(0, PROVIDER_RANK_MAX_CANDIDATES);
           await onCandidateRankingAudit(Object.freeze({
             provider,
             candidate_count: candidates.length,
             ranked_count: rankedCount,
+            priority_fit_eligible_count: rankedEvents.filter((candidate) => (
+              candidate.priority_class !== "other"
+              && ["strong", "moderate"].includes(candidate.preference_fit)
+            )).length,
             auto_apply_eligible_count: eligibleCandidates.length,
             eligible_candidate_refs: Object.freeze(eligibleCandidates.map((candidate) => candidate.event_ref)),
+            ranked_candidate_summaries: Object.freeze(boundedRankedEvents.map((candidate) => Object.freeze({
+              event_ref: candidate.event_ref,
+              priority_class: candidate.priority_class,
+              preference_fit: candidate.preference_fit,
+              auto_apply_eligible: candidate.auto_apply_eligible,
+            }))),
           }));
         };
         if (rankCandidates == null) return candidates;
@@ -452,7 +463,7 @@ function createProductionProviderRouter(options = {}) {
           preference_reason: ranked.preference_reason,
           auto_apply_eligible: ranked.auto_apply_eligible,
         })).sort((a, b) => candidateCoverageWeek(a, observed) - candidateCoverageWeek(b, observed));
-        await emitCandidateRankingAudit(rankingCandidates.length, eligible);
+        await emitCandidateRankingAudit(rankingCandidates.length, eligible, ranking.ranked_events);
         if (classifyTalkOpportunity == null) return Object.freeze([...reconcile, ...eligible]);
         const enriched = new Array(eligible.length);
         let next = 0;
