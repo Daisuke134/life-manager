@@ -303,6 +303,10 @@ voice ledgerの`succeeded/10秒`、managed actionの`succeeded`を同一通話�
 Supabase CLIの通常loginは完了したが、対象projectへのlinkは`necessary privileges`で拒否された。
 そのため旧schemaでも、応答なしは既存`amd_result`へfallback記録し、Panelは既存`lm_wake_log`と`lm_wake_miss`をfallback読取する。
 新migrationが適用済みの場合は新Outcome RPC・新列を優先する。
+Railway productionはmain merge SHA `b28b88a3c6`でSUCCESS、`/health`のbuildも同SHA。
+自然な18:30予定のT-5発信はTelnyx公式CDR `call_duration=24`、AMD=`machine`、
+旧schema fallback=`no_answer`、voice ledger=`succeeded/0秒`、managed action=`succeeded`をreadbackした。
+この自然E2EではT-10は予定時刻経過後だったため未観測で、migration適用はproject権限回復後の残作業である。
 
 **Ordered correction TODO項目3の本番是正:**
 
