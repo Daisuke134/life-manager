@@ -360,14 +360,14 @@ class CrowdWorksPaidAdapter:
         if state == "awaiting_escrow":
             return {"work_id": work_id, "title": title, "client": client, "provider_state": state,
                     "milestone_id": None, "form_url": None, "proposal_id": None,
-                    "application_date": None}
+                    "application_date": None, "buyer_context": body}
         if state == "delivered":
             forms = self.page.locator('form[action^="/milestones/"][action$="/complete"]')
             if forms.count() or not any(token in body for token in ("検収", "納品済み", "納品完了")):
                 raise RuntimeError("crowdworks_paid_contract_state_changed")
             return {"work_id": work_id, "title": title, "client": client, "provider_state": state,
                     "milestone_id": None, "form_url": None, "proposal_id": None,
-                    "application_date": None}
+                    "application_date": None, "buyer_context": body}
         forms = self.page.locator('form[action^="/milestones/"][action$="/complete"]')
         actions = {str(forms.nth(i).get_attribute("action") or "") for i in range(forms.count())}
         match = re.fullmatch(r"/milestones/(\d+)/complete", actions.pop()) if len(actions) == 1 else None
@@ -375,19 +375,20 @@ class CrowdWorksPaidAdapter:
             "nodes => nodes.map(a => a.getAttribute('href')).filter(Boolean)") if isinstance(href, str)
                                for found in [re.match(r"^/proposals/(\d+)(?:/|$)", href)] if found})
         proposal_id = proposal_ids[0] if len(proposal_ids) == 1 else None
-        application_date = basic.get("application_date") if basic.get("proposal_id") == proposal_id else None
-        if application_date is None and proposal_id is not None:
-            application_date = self._proposal_application_date(proposal_id)
-        if application_date is None and proposal_id is not None:
-            application_date = self._receipt_application_date(title, proposal_id)
         links = self.page.locator('a[href]').evaluate_all("nodes => nodes.map(a => a.href).filter(Boolean)")
         form_urls = sorted({link for link in links if isinstance(link, str) and _google_form_url(link)})
+        application_date = basic.get("application_date") if basic.get("proposal_id") == proposal_id else None
+        if application_date is None and proposal_id is not None and form_urls:
+            application_date = self._proposal_application_date(proposal_id)
+        if application_date is None and proposal_id is not None and form_urls:
+            application_date = self._receipt_application_date(title, proposal_id)
         if match is None:
             raise RuntimeError("crowdworks_paid_task_unavailable")
         return {"work_id": work_id, "title": title, "client": client, "provider_state": state,
                 "milestone_id": match.group(1), "form_urls": form_urls,
                 "form_url": form_urls[0] if len(form_urls) == 1 else None,
-                "proposal_id": proposal_id, "application_date": application_date}
+                "proposal_id": proposal_id, "application_date": application_date,
+                "buyer_context": body}
 
     def _proposal_application_date(self, proposal_id: str) -> str | None:
         if self.owned_context is None:
@@ -450,7 +451,7 @@ class CrowdWorksPaidAdapter:
     def _observation(self, item: Mapping[str, Any]) -> dict[str, str]:
         stable = {key: item.get(key) for key in ("work_id", "title", "client", "provider_state",
                                                   "milestone_id", "form_url", "form_urls", "proposal_id",
-                                                  "application_date")}
+                                                  "application_date", "buyer_context")}
         return {"provider": "crowdworks", "account_id": self.account_id,
                 "work_id": _text(item.get("work_id")), "latest_event_id": _digest(stable),
                 "provider_state": _text(item.get("provider_state")), "observed_at": _now()}
@@ -514,6 +515,16 @@ class CrowdWorksPaidAdapter:
             self.close()
 
     def observe_one(self, work_id: str) -> dict[str, Any]:
+        try:
+            if self.inventory_reader is None:
+                cached = self._cached_item(work_id)
+                if cached is not None:
+                    return self._observation(cached)
+            return self._observation(self._targeted_detail(work_id))
+        finally:
+            self.close()
+
+    def refresh_one(self, work_id: str) -> dict[str, Any]:
         try:
             return self._observation(self._targeted_detail(work_id))
         finally:
@@ -740,12 +751,12 @@ def decide(row: Mapping[str, Any]) -> dict[str, Any]:
         return {"action": "wait", "reason": "awaiting_client_escrow", "remaining_work": ["wait for official CrowdWorks escrow completion before beginning work"]}
     if contract.get("provider_state") == "delivered":
         return {"action": "noop", "classification": "completed"}
-    if not isinstance(contract.get("application_date"), str):
-        return {"action": "wait", "reason": "official_application_date_required",
-                "remaining_work": ["locate a labeled official CrowdWorks proposal application date before form submission"]}
     form_url, milestone_id = contract.get("form_url"), contract.get("milestone_id")
     if contract.get("provider_state") != "funded" or not isinstance(form_url, str) or not _google_form_url(form_url) or not isinstance(milestone_id, str):
         return {"action": "wait", "reason": "buyer_task_detail_required", "remaining_work": ["read the official funded contract task before any delivery effect"]}
+    if not isinstance(contract.get("application_date"), str):
+        return {"action": "wait", "reason": "official_application_date_required",
+                "remaining_work": ["locate a labeled official CrowdWorks proposal application date before form submission"]}
     return {"action": "submit", "payload": {"form_url": form_url, "form_sha256": hashlib.sha256(form_url.encode()).hexdigest(), "milestone_id": milestone_id}}
 
 
