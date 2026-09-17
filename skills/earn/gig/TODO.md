@@ -1038,7 +1038,8 @@ work item and leave a sibling trace unchanged.
 - `63568785` has no artifact until permission/content is supplied.
 - `63659463` quality audit, formal delivery, acceptance, settlement and payout are open.
 - `63583795` remains inspection pending; acceptance/settlement/payout are open. No row has verified MRR.
-- Host hit `ENOSPC` during the latest worktree creation; restore headroom before build/release mutation.
+- Host hit `ENOSPC` during the latest worktree creation; headroom is now recovered, but cleanup still has
+  one error and zero reclaimed bytes.
 
 **Remaining TODO, in order:**
 
