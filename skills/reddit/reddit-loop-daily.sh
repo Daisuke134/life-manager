@@ -34,9 +34,35 @@ set -a
 set +a
 echo "=== reddit-loop-daily run $(date '+%F %T %Z') ===" >>"$LOG"
 
+# Camofox auth is isolated by (userId, sessionKey). Reuse the account's stored
+# session instead of silently falling back to the anonymous `anicca/default`
+# profile, which makes Reddit look unavailable and prevents verified posting.
+if [ -z "${CF_USER:-}" ] || [ -z "${CF_SESSION:-}" ]; then
+  ACCOUNT_SESSION_FILE="${RD_ACCOUNTS:-$HOME/.cloak/reddit-accounts.json}"
+  SESSION_FIELDS="$(${PYTHON:-python3} - "$ACCOUNT_SESSION_FILE" <<'PY' 2>/dev/null
+import json, sys
+try:
+    value = json.load(open(sys.argv[1], encoding="utf-8"))
+    accounts = value if isinstance(value, list) else value.get("accounts", [])
+    session = next(
+        (row.get("camofox_session") for row in accounts
+         if isinstance(row, dict) and isinstance(row.get("camofox_session"), dict)),
+        {},
+    )
+    print("\t".join((str(session.get("userId") or ""), str(session.get("sessionKey") or ""))))
+except (OSError, TypeError, ValueError, json.JSONDecodeError):
+    print("\t")
+PY
+  )"
+  IFS=$'\t' read -r STORED_CF_USER STORED_CF_SESSION <<<"$SESSION_FIELDS"
+  [ -n "${CF_USER:-}" ] || CF_USER="$STORED_CF_USER"
+  [ -n "${CF_SESSION:-}" ] || CF_SESSION="$STORED_CF_SESSION"
+  export CF_USER CF_SESSION
+fi
+
 # launchd does not provide PROMPT. Preserve an injected prompt when present, but
 # keep the deterministic trigger runnable under `set -u` when it is absent.
-PROMPT="${PROMPT:-} Perform one full Reddit loop pass now. Run $REPO_ROOT/skills/reddit/loop.sh to measure canonical state, heal Camofox through $REPO_ROOT/skills/camofox-browser when needed, then make exactly one honest disclosed contribution when the account is active and the ledger is stale. Verify the real Reddit URL in a fresh browser navigation and append only verified evidence to $STATE/posts.jsonl. Code is read from the Life Manager repository; runtime ledgers belong only in $STATE and must never be committed. This is a bounded pass: if browser navigation or posting has not produced a verified success within 120 seconds, stop the ACT attempt, record the precise blocker, touch $STATE/.reddit-loop-last-pass, and return a failure result so the supervisor can retry later; never hang until the outer runner timeout. Report a meaningful result through $REPO_ROOT/skills/report/loop-report.sh."
+PROMPT="${PROMPT:-} Perform one full Reddit loop pass now. Run $REPO_ROOT/skills/reddit/loop.sh to measure canonical state, heal Camofox through $REPO_ROOT/skills/camofox-browser when needed, then make exactly one honest disclosed contribution when the account is active and the ledger is stale. Verify the real Reddit URL in a fresh browser navigation and append only verified evidence to $STATE/posts.jsonl. Code is read from the Life Manager repository; runtime ledgers belong only in $STATE and must never be committed. If a snapshot after a successful action is empty or times out, keep the same tab, use cf_screenshot or the last successful refs, and do not retry snapshot repeatedly; preserve the bounded ACT attempt and verify the result before logging it. This is a bounded pass: if browser navigation or posting has not produced a verified success within 120 seconds, stop the ACT attempt, record the precise blocker, touch $STATE/.reddit-loop-last-pass, and return a failure result so the supervisor can retry later; never hang until the outer runner timeout. Report a meaningful result through $REPO_ROOT/skills/report/loop-report.sh."
 
 EVIDENCE_DIR="$STATE/agent-runner-evidence/reddit-daily/$(date +%s)-$$"
 printf '%s\n' "$PROMPT" | "$RUN_AGENT" --task-class tool-agent \
