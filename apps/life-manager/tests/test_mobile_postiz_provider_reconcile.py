@@ -3,7 +3,10 @@ from __future__ import annotations
 import importlib.util
 import hashlib
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 
 
 SCRIPT = Path(__file__).parents[1] / "scripts/mobile-postiz-provider-reconcile.py"
@@ -90,6 +93,52 @@ def provider_rows(*, account: str = "@honnevideo", integration: str = "integrati
     }
 
 
+def carousel_identity() -> dict:
+    value = identity()
+    media = [f"{chr(97 + i)}" * 64 for i in range(6)]
+    media_order = hashlib.sha256(
+        json.dumps(media, ensure_ascii=False, separators=(",", ":")).encode(),
+    ).hexdigest()
+    caption_hash = value["caption_sha256"]
+    value.update({
+        "product_id": "anicca-ios",
+        "platform": "instagram",
+        "effect_key": "marketing:carousel:anicca-ios:creative:" + "d" * 64 + ":" + media_order + ":" + caption_hash,
+        "integration_ref": "integration://postiz/instagram/integration-1",
+        "account_id": "@honnevideo",
+        "video_sha256": None,
+        "media_sha256": media,
+        "pack_sha256": "d" * 64,
+        "media_order_sha256": media_order,
+    })
+    return value
+
+
+def write_carousel_ledger(path: Path, value: dict) -> None:
+    path.write_text(json.dumps({
+        "effect_key": value["effect_key"],
+        "job_id": value["job_id"],
+        "receipt": {
+            "status": "published",
+            "product_id": value["product_id"],
+            "format_id": value["format_id"],
+            "form": value["form"],
+            "locale": value["locale"],
+            "creative_id": value["creative_id"],
+            "platform": value["platform"],
+            "account_id": value["account_id"],
+            "integration_ref": value["integration_ref"],
+            "caption_sha256": value["caption_sha256"],
+            "pack_sha256": value["pack_sha256"],
+            "media_sha256": value["media_sha256"],
+            "media_order_sha256": value["media_order_sha256"],
+            "provider_post_id": "post-1",
+            "provider_reconciled": True,
+        },
+    }) + "\n", encoding="utf-8")
+    path.chmod(0o600)
+
+
 def test_build_proof_requires_official_post_and_integration_identity(tmp_path: Path, monkeypatch) -> None:
     module = load_module()
     sidecar = tmp_path / "identity.jsonl"
@@ -133,6 +182,17 @@ def test_provider_hashes_absent_from_get_are_local_evidence_not_provider_content
 
     assert "video_sha256" not in proof["provider_readback"]["content"]
     assert proof["provider_readback"]["local_content"]["video_sha256"] == "a" * 64
+
+
+def test_standalone_cli_help_bootstraps_repository_imports_without_pythonpath() -> None:
+    environment = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
+    result = subprocess.run(
+        [sys.executable, "-B", str(SCRIPT), "--help"],
+        cwd=SCRIPT.parents[3], env=environment,
+        capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 0
+    assert "--resolve" in result.stdout
 
 
 def test_apply_returns_the_fresh_exact_proof_only_after_resolver_accepts(tmp_path: Path, monkeypatch) -> None:
@@ -299,6 +359,26 @@ def test_receipt_without_slot_or_wrapped_identity_is_not_an_exact_effect_join(
 
     result = module.reconcile_provider_effect(
         value, ledger, "life-manager-honne-ja", "life-manager-honne-ja:run-1",
+        state="released", effect_unknown=1, api_key="token", apply=False,
+    )
+
+    assert result["status"] == "inconclusive"
+    assert result["reason"] == "provider_readback_not_exact"
+
+
+def test_unscoped_carousel_receipt_cannot_join_another_slot_occurrence(
+        tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    value = carousel_identity()
+    sidecar = tmp_path / "identity.jsonl"
+    ledger = tmp_path / "distribution.jsonl"
+    write_identity(sidecar, value)
+    write_carousel_ledger(ledger, value)
+    monkeypatch.setattr(module, "_request_json", lambda *_: (_ for _ in ()).throw(AssertionError("must not read provider")))
+    loaded = module.read_identity(sidecar, value["loop_id"], value["occurrence_id"])
+
+    result = module.reconcile_provider_effect(
+        loaded, ledger, value["loop_id"], value["occurrence_id"],
         state="released", effect_unknown=1, api_key="token", apply=False,
     )
 

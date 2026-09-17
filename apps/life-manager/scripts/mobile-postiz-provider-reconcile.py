@@ -28,6 +28,9 @@ PROVIDER_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$")
 HASH = re.compile(r"^[0-9a-f]{64}$")
 ACCOUNT = re.compile(r"^@[A-Za-z0-9._-]{1,127}$")
 
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 
 def _load_read_only_module():
     spec = importlib.util.spec_from_file_location(
@@ -113,6 +116,11 @@ def _receipt_from_row(row: dict[str, Any]) -> tuple[dict[str, Any], str | None, 
     return receipt, outer_effect, outer_job
 
 
+def _slot_scoped(identity: dict[str, Any]) -> bool:
+    suffix = hashlib.sha256(str(identity.get("slot", "")).encode("utf-8")).hexdigest()
+    return str(identity.get("effect_key", "")).endswith(f":{suffix}")
+
+
 def _receipt_matches(identity: dict[str, Any], row: dict[str, Any]) -> tuple[bool, str | None]:
     receipt, outer_effect, outer_job = _receipt_from_row(row)
     if "receipt" in row:
@@ -120,6 +128,11 @@ def _receipt_matches(identity: dict[str, Any], row: dict[str, Any]) -> tuple[boo
                 or outer_job != identity.get("job_id")
                 or receipt.get("account_id") != identity.get("account_id")
                 or receipt.get("integration_ref") != identity.get("integration_ref")):
+            return False, None
+        if receipt.get("slot") is not None:
+            if receipt.get("slot") != identity.get("slot"):
+                return False, None
+        elif not _slot_scoped(identity):
             return False, None
     elif receipt.get("slot") != identity.get("slot"):
         return False, None
