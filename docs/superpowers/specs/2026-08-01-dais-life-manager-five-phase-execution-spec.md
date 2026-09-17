@@ -10212,3 +10212,9 @@ Connector候補巡回とreconciliation優先の差分はPR #5306、main merge `1
 共有admissionと独立したConnector固有の欠陥も確定した。Connpass公式の[Findy event 404531](https://findy.connpass.com/event/404531/)は「現地参加枠 無料 6/40人」、[freee event 403447](https://freee.connpass.com/event/403447/)は「現地参加 無料 188/250人」を公開している。`connpass-browser-provider.js`の一般参加枠判定はこれらの明示的な対面無料枠を拒否し、`CONNPASS_TIER_UNAVAILABLE`にしていた。両表記を使ったfocused testは修正前RED、判定語彙の最小追加後34/34 GREEN。支払枠、限定枠、オンライン枠、必須質問、申込後の不確定効果に対する既存のfail-closed条件は維持する。修正はまだ本番release未反映であり、公式申込・Calendarイベントの成立は未確認。
 
 **次の順序:** (1) このConnpass固有差分をmainへ統合する。(2) 共有基盤ownerの修正がmain由来releaseに入ったことを確認する。(3) 対象Connectorだけを新releaseへapplyして一回実行し、provider公式登録ID→CalendarイベントIDの独立readback→次回重複0を確認する。`resource_admission_unavailable`で再びprovider前に止まったらConnectorの効果不成立と明記して共有基盤ownerへexact run IDを渡し、盲目的に連続kickstartしない。
+
+### O1B-25進捗539（Connpass修正main統合・live効果待ち）
+
+「現地参加枠 無料」「現地参加 無料」を明示的な一般対面無料枠として認める最小修正はPR #5308、main merge `4ef5ca8aff913d24acf90a95508a2ac376fd4e34`となった。`connpass-browser-provider.test.js`は修正前RED、修正後34/34 PASS。Findy event 404531とfreee event 403447の公式公開ページで、空席のある該当ラベルをread-onlyで確認した。ただしこれらのイベントを申込済みとは報告しない。変更はまだConnectorのloaded releaseに入っておらず、公式登録ID・CalendarイベントID・次回重複0のlive合格証拠はない。
+
+最終確認時、共有基盤ownerの`fix/connector-admission-main-20260917`はclean/pushedだがPRなし・main未反映。Connector loaded releaseは`20260917T104612-1a0424db`のままで、直近kickstartは`resource_admission_unavailable`によりprovider前で止まった。次は共有基盤ownerの統合後、main由来のcomplete releaseをConnector一件だけへapplyし、稼働中owner・browser競合が無いことを確認してから一回起動する。公式申込→Calendar readback→次回重複0まで未達であり、Connectorは**NOT DONE**。
