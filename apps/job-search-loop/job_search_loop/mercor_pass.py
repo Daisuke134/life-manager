@@ -417,6 +417,29 @@ def validate_priority_scan(result: dict[str, Any], evidence_root: Path) -> None:
         raise ValueError(f"priority_scan_incomplete:{','.join(missing)}")
 
 
+def validate_submission_fit(result: dict[str, Any]) -> None:
+    """Reject provider-blocked or explicitly low-fit listings before recording a submit."""
+    submitted = result.get("submitted")
+    if not isinstance(submitted, list) or not submitted:
+        return
+    inspected = {
+        item.get("listing_id"): item
+        for item in result.get("inspected_listings", [])
+        if isinstance(item, dict) and isinstance(item.get("listing_id"), str)
+    }
+    for item in submitted:
+        if not isinstance(item, dict):
+            continue
+        listing_id = item.get("listing_id")
+        row = inspected.get(listing_id)
+        if not isinstance(row, dict):
+            raise ValueError(f"submitted_listing_not_inspected:{listing_id}")
+        if row.get("provider_fit_status") == "blocked":
+            raise ValueError(f"blocked_fit_submitted:{listing_id}")
+        if row.get("ranking_band") == "low":
+            raise ValueError(f"low_fit_submitted:{listing_id}")
+
+
 def _blocked_for_evidence_violation(
     result: dict[str, Any], evidence_dir: Path, error: ValueError
 ) -> dict[str, Any]:
@@ -490,6 +513,7 @@ def main(argv: list[str] | None = None) -> int:
         validate_evidence_paths(result, args.evidence_dir.parent)
         validate_bounded_scan(result)
         validate_priority_scan(result, args.evidence_dir.parent)
+        validate_submission_fit(result)
     except ValueError as error:
         result = _blocked_for_evidence_violation(result, args.evidence_dir, error)
     record_verified_submissions(args.state_root, result, run_id=args.run_id)

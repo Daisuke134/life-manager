@@ -19,6 +19,7 @@ from job_search_loop.mercor_pass import (
     validate_bounded_scan,
     validate_evidence_paths,
     validate_priority_scan,
+    validate_submission_fit,
 )
 
 
@@ -323,6 +324,28 @@ class MercorPassContractTests(unittest.TestCase):
             inspected["properties"]["provider_fit_status"]["enum"],
             ["allowed", "warning", "blocked", "not_shown", "unknown"],
         )
+
+    def test_blocked_fit_cannot_be_submitted(self):
+        with self.assertRaisesRegex(ValueError, "blocked_fit_submitted"):
+            validate_submission_fit({
+                "submitted": [{"listing_id": "list-blocked"}],
+                "inspected_listings": [{
+                    "listing_id": "list-blocked",
+                    "provider_fit_status": "blocked",
+                    "ranking_band": "medium",
+                }],
+            })
+
+    def test_low_fit_cannot_be_submitted(self):
+        with self.assertRaisesRegex(ValueError, "low_fit_submitted"):
+            validate_submission_fit({
+                "submitted": [{"listing_id": "list-low"}],
+                "inspected_listings": [{
+                    "listing_id": "list-low",
+                    "provider_fit_status": "unknown",
+                    "ranking_band": "low",
+                }],
+            })
 
     def test_nonblocked_pass_cannot_quit_after_two_of_twelve_visible_candidates(self):
         with tempfile.TemporaryDirectory() as directory:
