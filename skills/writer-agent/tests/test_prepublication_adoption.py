@@ -283,6 +283,77 @@ class PrepublicationAdoptionTest(unittest.TestCase):
                 receipt["receipt_sha256"], generation._adoption_receipt_hash(receipt)
             )
 
+    def test_rebind_accepts_unpublished_continuous_advisory_after_repair_terminal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_id = "20260917-120002"
+            run = root / "runs" / run_id
+            gates = run / "gates"
+            gates.mkdir(parents=True)
+            current_link = root / "loops" / "current" / "skills" / "writer-agent"
+            current_link.mkdir(parents=True)
+            target_root = root / "loops" / "releases" / "next" / "skills" / "writer-agent"
+            target_root.mkdir(parents=True)
+            prompt = run / "article-daily-prompt.txt"
+            prompt.write_text(f"writer_root={current_link}\n", encoding="utf-8")
+            ledger = root / "articles.jsonl"
+            ledger.write_text("", encoding="utf-8")
+            state = generation.initialize(run, run_id, prompt, ledger)
+            state["status"] = "provider-failed-ambiguous"
+            state["attempts"] = [{
+                "attempt": 1,
+                "status": "provider-failed-ambiguous",
+                "return_code": 1,
+                "boundary": "generated-or-staged-artifacts:article-ja.md",
+            }]
+            (gates / "generation-state.json").write_text(
+                json.dumps(state) + "\n", encoding="utf-8"
+            )
+            (run / "article-ja.md").write_text("日本語 draft\n", encoding="utf-8")
+            (run / "article-en.md").write_text("English draft\n", encoding="utf-8")
+            generation.adopt_prepublication(run, run_id, prompt, ledger)
+            hashes = {
+                lang: generation.file_sha256(run / f"article-{lang}.md")
+                for lang in ("ja", "en")
+            }
+            quality = {
+                "version": 2,
+                "run_id": run_id,
+                "attempt": 1,
+                "action": "force_publish_advisory",
+                "publication_policy": "continuous",
+                "quality_advisory": True,
+                "force_publish_after_iterations": 1,
+                "quality": {
+                    lang: {
+                        "article_sha256": digest,
+                        "identity": "PASS",
+                    }
+                    for lang, digest in hashes.items()
+                },
+            }
+            quality["receipt_sha256"] = generation._adoption_receipt_hash(quality)
+            (gates / "quality-self-heal.json").write_text(
+                json.dumps(quality) + "\n", encoding="utf-8"
+            )
+            (gates / "quality-self-heal-attempt-1.json").write_text(
+                json.dumps(quality) + "\n", encoding="utf-8"
+            )
+            state = json.loads((gates / "generation-state.json").read_text())
+            state["status"] = "terminal-incomplete"
+            (gates / "generation-state.json").write_text(
+                json.dumps(state) + "\n", encoding="utf-8"
+            )
+
+            with patch.dict(os.environ, {"LOOPS_ROOT": str(root / "loops")}):
+                result = generation.rebind_release(
+                    run, run_id, prompt, ledger, target_root
+                )
+
+            self.assertEqual(result["action"], "rebound")
+            self.assertIn(str(target_root), prompt.read_text(encoding="utf-8"))
+            self.assertFalse((gates / "publication-state.json").exists())
+
     def test_refuses_unsafe_evidence_before_mutation(self):
         cases = {
             "prompt hash drift": lambda run, prompt, ledger: prompt.write_text(

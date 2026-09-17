@@ -417,6 +417,57 @@ def _adopted_current_prepublication(
     )
 
 
+def _advisory_publication_resume(
+    run_dir: Path,
+    run_id: str,
+    ledger: Path,
+    state: dict[str, Any],
+) -> bool:
+    """Allow only an unpublished, identity-safe advisory handoff to rebind."""
+    if state.get("status") != "terminal-incomplete":
+        return False
+    if (run_dir / "gates/publication-state.json").exists() or ledger_has_public_effect(
+        ledger, run_id
+    ):
+        return False
+    gates = run_dir / "gates"
+    try:
+        quality = json.loads((gates / "quality-self-heal.json").read_text(encoding="utf-8"))
+        attempt = json.loads(
+            (gates / "quality-self-heal-attempt-1.json").read_text(encoding="utf-8")
+        )
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return False
+    if not isinstance(quality, dict) or quality != attempt:
+        return False
+    if not (
+        quality.get("version") == 2
+        and quality.get("run_id") == run_id
+        and quality.get("attempt") == 1
+        and quality.get("action") == "force_publish_advisory"
+        and quality.get("publication_policy") == "continuous"
+        and quality.get("quality_advisory") is True
+        and quality.get("force_publish_after_iterations") == 1
+        and quality.get("receipt_sha256") == _adoption_receipt_hash(quality)
+    ):
+        return False
+    records = quality.get("quality")
+    if not isinstance(records, dict):
+        return False
+    for lang in ("ja", "en"):
+        draft = run_dir / f"article-{lang}.md"
+        record = records.get(lang)
+        if (
+            draft.is_symlink()
+            or not draft.is_file()
+            or not isinstance(record, dict)
+            or record.get("article_sha256") != file_sha256(draft)
+            or record.get("identity") != "PASS"
+        ):
+            return False
+    return True
+
+
 def adopt_prepublication(
     run_dir: Path, run_id: str, prompt_file: Path, ledger: Path
 ) -> dict[str, Any]:
@@ -648,17 +699,21 @@ def rebind_release(
         adopted_resume = staged_resume or _adopted_current_prepublication(
             resolved, run_id, prompt_file, ledger, state
         )
+        advisory_resume = _advisory_publication_resume(
+            resolved, run_id, ledger, state
+        )
         allowed_statuses = {
             "provider-failed-safe",
             "provider-failed-ambiguous",
             "interrupted-safe",
         }
-        if adopted_resume:
+        if adopted_resume or advisory_resume:
             allowed_statuses.add("quality-repair-ready")
+            allowed_statuses.add("terminal-incomplete")
         if state.get("run_id") != run_id or state.get("status") not in allowed_statuses:
             raise GenerationInvariant("generation state is not safely resumable")
         safe, reason = prepublication_empty(resolved, run_id, ledger)
-        if adopted_resume:
+        if adopted_resume or advisory_resume:
             safe, reason = True, "adopted-staged-prepublication"
         if not safe:
             raise GenerationInvariant(reason)
