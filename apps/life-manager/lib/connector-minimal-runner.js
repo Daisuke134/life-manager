@@ -40,6 +40,7 @@ function dependencies(input) {
     || (input.completeTalkEvidence != null && typeof input.completeTalkEvidence !== "function")) invalid();
   if (input.reportConnpassActionBoundary != null && typeof input.reportConnpassActionBoundary !== "function") invalid();
   if (input.reportConnpassQuestionnaire != null && typeof input.reportConnpassQuestionnaire !== "function") invalid();
+  if (input.recordCandidateDispatchAudit != null && typeof input.recordCandidateDispatchAudit !== "function") invalid();
   if (
     !input.browserRail || typeof input.browserRail !== "object"
     || typeof input.browserRail.open !== "function"
@@ -374,8 +375,16 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         ? [...reconciliationCandidates,
           ...pendingCandidates.slice(connpassBatchStart, connpassBatchStart + CONNPASS_CANDIDATES_PER_WAKE)]
         : candidates;
-      for (const selected of candidateBatch) {
-        if (selected.auto_apply_eligible === false) continue;
+      const dispatchCandidates = candidateBatch.filter((selected) => selected.auto_apply_eligible !== false);
+      if (typeof deps.recordCandidateDispatchAudit === "function") {
+        await deps.recordCandidateDispatchAudit({
+          provider,
+          candidate_count: candidateBatch.length,
+          selected_count: dispatchCandidates.length,
+          selected_candidate_refs: dispatchCandidates.slice(0, 12).map((candidate) => candidate.event_ref),
+        });
+      }
+      for (const selected of dispatchCandidates) {
         const hasTalk = typeof deps.runTalkApplication === "function"
           && selected.talk_opportunity && selected.talk_opportunity.should_create_talk_application === true
           && selected.talk_pack && typeof selected.talk_pack === "object";

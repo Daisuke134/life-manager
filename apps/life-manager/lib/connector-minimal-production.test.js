@@ -228,7 +228,7 @@ test("official production factory exposes the complete minimal wake dependency c
     assert.equal(dependencies.browserRail, browserRail);
     assert.deepEqual(Object.keys(dependencies).sort(), [
       "browserRail", "completeEvidence", "completeTalkEvidence", "discoverCandidates", "now", "readCalendarGaps",
-      "readProviderState", "recordAction", "reportConnpassActionBoundary", "reportConnpassQuestionnaire", "reportWake", "runAgentFallback", "runCachedAction",
+      "readProviderState", "recordAction", "recordCandidateDispatchAudit", "reportConnpassActionBoundary", "reportConnpassQuestionnaire", "reportWake", "runAgentFallback", "runCachedAction",
       "runDirectAction", "runTalkApplication", "saveRepairedActions",
     ]);
     assert.deepEqual(await dependencies.readCalendarGaps(), await calendarReader.readCalendarGaps());
@@ -407,7 +407,7 @@ test("production provider router records ranked and auto-apply candidate counts"
         preference_reason: "fixture",
       })) }, input);
     },
-    onCandidateSelectionAudit(input) { audits.push(input); },
+    onCandidateRankingAudit(input) { audits.push(input); },
     actionCache: { async replay() {}, async saveVerifiedRepair() {} },
     browserHarness: { async runFallback() {} },
     async performAction() {},
@@ -421,8 +421,68 @@ test("production provider router records ranked and auto-apply candidate counts"
     candidate_count: 2,
     ranked_count: 2,
     auto_apply_eligible_count: 1,
-    selected_count: 1,
-    selected_candidate_refs: [candidate.event_ref],
+    eligible_candidate_refs: [candidate.event_ref],
+  }]);
+});
+
+test("production provider router records a zero ranking audit when discovery is empty", async () => {
+  const audits = [];
+  const emptyWorkflow = {
+    async discoverCandidates() { return []; },
+    async runDirectAction() {},
+    async readProviderState() { return { status: "absent" }; },
+  };
+  const router = createProductionProviderRouter({
+    now: () => new Date("2026-09-08T19:00:00.000Z"),
+    lumaWorkflow: emptyWorkflow,
+    connpassWorkflow: emptyWorkflow,
+    eventPreferences: "Tokyo AI events",
+    async rankCandidates() { assert.fail("empty discovery must not invoke ranking"); },
+    onCandidateRankingAudit(input) { audits.push(input); },
+    actionCache: { async replay() {}, async saveVerifiedRepair() {} },
+    browserHarness: { async runFallback() {} },
+    async performAction() {},
+  });
+
+  assert.deepEqual(await router.discoverCandidates("connpass", [], {}), []);
+  assert.deepEqual(audits, [{
+    provider: "connpass",
+    candidate_count: 0,
+    ranked_count: 0,
+    auto_apply_eligible_count: 0,
+    eligible_candidate_refs: [],
+  }]);
+});
+
+test("production provider router records a zero ranking audit for reconciliation-only candidates", async () => {
+  const audits = [];
+  const reconciliation = rankingCandidate("already-registered", "2026-09-10T09:00:00.000Z", {
+    registration_status: "registered",
+  });
+  const emptyWorkflow = {
+    async discoverCandidates() { return [reconciliation]; },
+    async runDirectAction() {},
+    async readProviderState() { return { status: "registered" }; },
+  };
+  const router = createProductionProviderRouter({
+    now: () => new Date("2026-09-08T19:00:00.000Z"),
+    lumaWorkflow: emptyWorkflow,
+    connpassWorkflow: emptyWorkflow,
+    eventPreferences: "Tokyo AI events",
+    async rankCandidates() { assert.fail("reconciliation-only discovery must not invoke ranking"); },
+    onCandidateRankingAudit(input) { audits.push(input); },
+    actionCache: { async replay() {}, async saveVerifiedRepair() {} },
+    browserHarness: { async runFallback() {} },
+    async performAction() {},
+  });
+
+  assert.deepEqual((await router.discoverCandidates("connpass", [], {})).map((row) => row.event_ref), [reconciliation.event_ref]);
+  assert.deepEqual(audits, [{
+    provider: "connpass",
+    candidate_count: 1,
+    ranked_count: 0,
+    auto_apply_eligible_count: 0,
+    eligible_candidate_refs: [],
   }]);
 });
 

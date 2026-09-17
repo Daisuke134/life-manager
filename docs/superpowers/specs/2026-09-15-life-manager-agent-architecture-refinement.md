@@ -753,11 +753,11 @@ question is whether one bounded wake can reach an eligible provider candidate
 and preserve that candidate for the next wake.
 
 **Priority correction:** the active Connector goal covers **Luma and Connpass
-only**. The current `native-pass.js::providersForSlot` array places those two
-providers first, then invokes fallback providers in the same wake. KokuchPro is
-deferred as a last-resort fallback; it is neither repaired nor deleted in this
-cursor. A fallback failure must not be allowed to decide that the primary
-providers worked or did not work.
+only**. The branch `native-pass.js::providersForSlot` now passes only those two
+providers. KokuchPro and the other fallbacks are not repaired; their active route
+is disabled, and their Connector-only source files are deleted only after a
+reachability check proves no other owner depends on them. A fallback failure must
+not be allowed to decide that the primary providers worked or did not work.
 
 **Primary route source change (branch):** `skills/connector/native-pass.js` now
 passes exactly `['luma', 'connpass']` or `['connpass', 'luma']` to the existing
@@ -768,11 +768,12 @@ a natural wake.
 
 **Selection audit source change (branch):** `createProductionProviderRouter`
 now emits bounded `candidate_count`, `ranked_count`,
-`auto_apply_eligible_count`, `selected_count` and public
-`selected_candidate_refs` for Luma/Connpass. The existing operations layer writes
-these rows to `candidate-selection-audits.jsonl`; focused production and
-operations contracts are green. This remains source evidence until a loaded
-release produces a real primary wake with the row.
+`auto_apply_eligible_count` and public `eligible_candidate_refs` for Luma/Connpass,
+including truthful zero rows for empty or reconciliation-only discovery. The
+runner separately records the candidates it actually dispatches in
+`candidate-dispatch-audits.jsonl`. Focused production, runner and operations
+contracts are green. This remains source evidence until a loaded release
+produces a real primary wake with both rows.
 
 **Provider/browser action trace source change (branch):** successful
 `provider_discovery` rows carry the bounded provider name, and the existing
@@ -858,10 +859,9 @@ an independent browser/account/evidence owner and a separate acceptance chain.
 - [ ] Observe two subsequent natural wakes on the same loaded SHA with Submit 0 and Calendar duplicate 0 for that event.
 - [ ] Keep the 30-minute interval; change cadence only after measured same-minute browser contention, never to hide discovery latency.
 
-**KokuchPro disposition:** deferred. It is not part of the current Connector
-primary goal. Revisit it only after Connpass and Luma are proven and only if
-the fallback demonstrably blocks primary progress; until then do not add a
-cursor, provider patch, release, or canary for KokuchPro.
+**KokuchPro disposition:** no repair and no active route. Delete its
+Connector-only source after the reachability check in the fallback cleanup step;
+do not add a cursor, provider patch, release, or canary for KokuchPro.
 
 The host currently has approximately 244 MiB free at 100% filesystem capacity.
 That shared storage/headroom condition can block a release or canary and is

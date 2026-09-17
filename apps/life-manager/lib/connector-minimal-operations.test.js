@@ -584,7 +584,7 @@ test("operations persist only bounded ranking timing aggregates", async () => {
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });
 
-test("operations persist bounded candidate selection counts and refs", async () => {
+test("operations persist bounded candidate ranking counts and refs", async () => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-selection-audit-"));
   try {
     const operations = createMinimalProductionOperations({
@@ -592,18 +592,17 @@ test("operations persist bounded candidate selection counts and refs", async () 
       now: () => new Date("2026-08-27T05:00:00.000Z"),
       async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
     });
-    await operations.recordCandidateSelectionAudit({
+    await operations.recordCandidateRankingAudit({
       provider: "connpass",
       candidate_count: 12,
       ranked_count: 12,
       auto_apply_eligible_count: 2,
-      selected_count: 2,
-      selected_candidate_refs: [
+      eligible_candidate_refs: [
         "connpass-event://event/401001",
         "connpass-event://event/401002",
       ],
     });
-    const file = path.join(stateDir, "candidate-selection-audits.jsonl");
+    const file = path.join(stateDir, "candidate-ranking-audits.jsonl");
     const row = JSON.parse(fs.readFileSync(file, "utf8").trim());
     assert.deepEqual(row, {
       schema_version: 1,
@@ -612,6 +611,44 @@ test("operations persist bounded candidate selection counts and refs", async () 
       candidate_count: 12,
       ranked_count: 12,
       auto_apply_eligible_count: 2,
+      eligible_candidate_refs: [
+        "connpass-event://event/401001",
+        "connpass-event://event/401002",
+      ],
+      recorded_at: "2026-08-27T05:00:00.000Z",
+    });
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+    await assert.rejects(() => operations.recordCandidateRankingAudit({
+      provider: "meetup", candidate_count: 1, ranked_count: 1,
+      auto_apply_eligible_count: 1, eligible_candidate_refs: ["https://example.test/private"],
+    }));
+  } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
+});
+
+test("operations persist bounded candidate dispatch counts and refs", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-dispatch-audit-"));
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir, wakeId: "wake-dispatch-audit", telegramTarget: "private-target",
+      now: () => new Date("2026-08-27T05:00:00.000Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7001 } }; },
+    });
+    await operations.recordCandidateDispatchAudit({
+      provider: "connpass",
+      candidate_count: 4,
+      selected_count: 2,
+      selected_candidate_refs: [
+        "connpass-event://event/401001",
+        "connpass-event://event/401002",
+      ],
+    });
+    const file = path.join(stateDir, "candidate-dispatch-audits.jsonl");
+    const row = JSON.parse(fs.readFileSync(file, "utf8").trim());
+    assert.deepEqual(row, {
+      schema_version: 1,
+      wake_id: "wake-dispatch-audit",
+      provider: "connpass",
+      candidate_count: 4,
       selected_count: 2,
       selected_candidate_refs: [
         "connpass-event://event/401001",
@@ -620,9 +657,8 @@ test("operations persist bounded candidate selection counts and refs", async () 
       recorded_at: "2026-08-27T05:00:00.000Z",
     });
     assert.equal(fs.statSync(file).mode & 0o777, 0o600);
-    await assert.rejects(() => operations.recordCandidateSelectionAudit({
-      provider: "meetup", candidate_count: 1, ranked_count: 1,
-      auto_apply_eligible_count: 1, selected_candidate_refs: ["https://example.test/private"],
+    await assert.rejects(() => operations.recordCandidateDispatchAudit({
+      provider: "connpass", candidate_count: 1, selected_count: 2, selected_candidate_refs: [],
     }));
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });

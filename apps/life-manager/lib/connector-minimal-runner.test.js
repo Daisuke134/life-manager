@@ -185,6 +185,23 @@ test("browser open failure keeps a bounded transport reason in action history", 
   });
 });
 
+test("runner records the candidates it actually dispatches", async () => {
+  const audits = [];
+  const state = fixture({
+    async discoverCandidates() { return [candidate("connpass", "dispatch")]; },
+    async recordCandidateDispatchAudit(input) { audits.push(input); },
+  });
+
+  await runMinimalConnectorWake({ ownerToken: "owner-token-candidate-dispatch", providers: ["connpass"] }, state.dependencies);
+
+  assert.deepEqual(audits, [{
+    provider: "connpass",
+    candidate_count: 1,
+    selected_count: 1,
+    selected_candidate_refs: ["connpass-event://event/dispatch"],
+  }]);
+});
+
 test("connpass candidates produce one action-boundary receipt and skip every provider action", async () => {
   let state = fixture({
     async discoverCandidates(provider) {
