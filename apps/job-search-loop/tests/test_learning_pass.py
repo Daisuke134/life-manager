@@ -92,6 +92,10 @@ class LearningPassTests(unittest.TestCase):
             "marketing",
         )
         self.assertEqual(
+            classify_x_source_kind("We offer paid Mercor roles to applicants."),
+            "marketing",
+        )
+        self.assertEqual(
             classify_x_source_kind("I applied, got hired, and received my first payout."),
             "first_person",
         )

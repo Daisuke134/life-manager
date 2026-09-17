@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 from datetime import datetime, timezone
@@ -30,11 +31,11 @@ _STRATEGY_VERSION = "mercor-fit-evidence-v1"
 def classify_x_source_kind(text: str) -> str:
     """Call an X post firsthand only when it states a personal outcome."""
     value = str(text or "").casefold()
-    self_reference = any(marker in value for marker in ("i ", "i'", "my ", "we "))
-    outcome = any(marker in value for marker in (
-        "got hired", "offer", "contract", "paid", "payout", "earned",
-    ))
-    return "first_person" if self_reference and outcome else "marketing"
+    achieved_outcome = re.search(
+        r"\b(?:i|we)\b[^.!?]{0,80}\b(?:got hired|was hired|received|earned|got an offer|got a contract)\b",
+        value,
+    ) or re.search(r"\b(?:my|our)\s+(?:payout|contract|offer)\b", value)
+    return "first_person" if achieved_outcome else "marketing"
 
 
 def _text(value: Any, name: str, *, allow_empty: bool = False) -> str:
