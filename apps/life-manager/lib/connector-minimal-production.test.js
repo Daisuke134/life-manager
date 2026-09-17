@@ -285,6 +285,8 @@ test("official production factory exposes the manual Connpass boundary only whil
   try {
     assert.equal(typeof createMinimalProductionDependencies(common).reportConnpassActionBoundary, "function");
     assert.equal(createMinimalProductionDependencies({ ...common, connpassAutomatedSubmitAllowed: true }).reportConnpassActionBoundary, undefined);
+    assert.equal(createMinimalProductionDependencies(common).reportConnpassQuestionnaire, undefined);
+    assert.equal(typeof createMinimalProductionDependencies({ ...common, connpassAutomatedSubmitAllowed: true }).reportConnpassQuestionnaire, "function");
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });
 
