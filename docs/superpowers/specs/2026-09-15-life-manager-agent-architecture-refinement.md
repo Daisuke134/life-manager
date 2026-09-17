@@ -157,9 +157,16 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   label apply lock plus a running readback protects the first transition from
   an older runner. Late skips are reported as `skipped_pending`, not applied.
   RED-to-green focused verification, admission 105 tests and loop 111 tests/30
-  subtests passed; fresh read-only review found no blocking defect. The guard
-  is not production evidence until CI, main integration and a main-derived
-  natural handoff are measured.
+  subtests passed; fresh read-only review found no blocking defect. PR #5410
+  passed nine CI checks and merged into main as `3d9788fce3`. Complete
+  main-derived release `20260918T030254-0f504c58` has `release_paths=ALL`,
+  both Connector dependencies and the owner lock code. Targeted loaded-idle
+  reconciles installed its exact SHA on Connector (event
+  `aea75f006da5c7a52fd7f07f`) and probe (event
+  `cca153e43fe3ca3df96b9a64`); both launchd loaded argv read back that
+  SHA, and browser queued/claimed rows were zero immediately after apply.
+  This is deployment evidence, not A15-08 completion: the next natural
+  same-SHA terminal and distinct-owner claim/release remain to be measured.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
