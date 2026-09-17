@@ -85,6 +85,8 @@ class LearningPassTests(unittest.TestCase):
         self.assertIn("mercor-learning-sources.json", script)
         self.assertIn('--mercor-sources "$MERCOR_SOURCES"', script)
         self.assertIn('chmod 600 "$MERCOR_SOURCES" "$MERCOR_SOURCES_SUMMARY"', script)
+        self.assertIn('source_unavailable', script)
+        self.assertIn('source collection failed; strategy learning continues', script)
         self.assertIn("--query", script)
 
     def test_x_source_requires_first_person_outcome_language(self):

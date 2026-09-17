@@ -335,8 +335,9 @@ class MercorPassContractTests(unittest.TestCase):
             "job_search_loop.mercor_human_gate_notify",
             "Never open or enter a person-bound step",
             "Inspect an existing incomplete application only through its application card",
-            "Continue application only when every remaining step is reversible",
-            "Do not click `Continue application` when a person-bound step remains",
+            "Continue application when the next step is reversible",
+            "Do not click the person-bound control or enter its flow",
+            "a `Continue application` navigation is allowed solely to reach earlier reversible steps",
             "go directly to Explore while preserving the listing's resumable state",
             "Prefer a visible `1-click apply` candidate",
             "resume the same application",
@@ -365,6 +366,7 @@ class MercorPassContractTests(unittest.TestCase):
             self.assertIn(required, prompt)
         self.assertNotIn("Choose at most one new listing", prompt)
         self.assertNotIn("Never click an existing incomplete application", prompt)
+        self.assertNotIn("Do not click `Continue application` when a person-bound step remains", prompt)
         self.assertNotIn("Do not resume an already-incomplete application", prompt)
 
     def test_legacy_job_hunter_reference_only_points_to_mercor_canon(self):

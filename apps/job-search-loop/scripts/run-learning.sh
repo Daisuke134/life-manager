@@ -33,7 +33,10 @@ else
   set -e
   if [[ "$SOURCE_RC" -ne 0 ]]; then
     printf '%s\n' "Mercor source collection failed; strategy learning continues" >&2
+    printf '%s\n' '{"version":1,"source_count":1,"sources":[{"source_url":"https://talent.docs.mercor.com/how-to/apply","source_kind":"official_guidance","evidence_grade":"unavailable","source_unavailable":true,"published_at":null,"observed_at":"unknown","author":"","claimed_outcome":""}],"income_receipts_promoted":0}' >"$MERCOR_SOURCES"
   fi
+  [[ -f "$MERCOR_SOURCES" ]] || printf '%s\n' '{"version":1,"source_count":1,"sources":[{"source_url":"https://talent.docs.mercor.com/how-to/apply","source_kind":"official_guidance","evidence_grade":"unavailable","source_unavailable":true,"published_at":null,"observed_at":"unknown","author":"","claimed_outcome":""}],"income_receipts_promoted":0}' >"$MERCOR_SOURCES"
+  [[ -f "$MERCOR_SOURCES_SUMMARY" ]] || printf '%s\n' '{"status":"source_unavailable"}' >"$MERCOR_SOURCES_SUMMARY"
 fi
 chmod 600 "$MERCOR_SOURCES" "$MERCOR_SOURCES_SUMMARY"
 

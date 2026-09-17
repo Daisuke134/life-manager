@@ -38,14 +38,14 @@ Pass order:
    observe-only and must never be resubmitted.
 2. Observe existing applications from the application-list cards only. Inspect an existing
    incomplete application only through its application card, then open its detail once when
-   the card is a truthful-fit candidate. Continue application only when every remaining step
-   is reversible: resume/profile upload, ordinary written questions, availability, location,
+   the card is a truthful-fit candidate. Continue application when the next step is reversible,
+   and finish consecutive reversible steps: resume/profile upload, ordinary written questions, availability, location,
    work authorization, or other factual controls answered from verified profile facts. Save
    and read back progress after each such step, then resume the same application on a later
-   wake when another reversible step remains. Do not click `Continue application` when a
-   person-bound step remains; never open or enter an interview, assessment, recording, camera,
-   microphone, or screen-sharing step. You may use `Continue application` to finish reversible
-   steps before that person-bound control, then record the exact step, notify the human gate,
+   wake when another reversible step remains. Do not click the person-bound control or enter
+   its flow; a `Continue application` navigation is allowed solely to reach earlier reversible
+   steps. Never open or enter an interview, assessment, recording, camera, microphone, or
+   screen-sharing step. Once reversible work is complete, record the exact step, notify the human gate,
    and go directly to Explore while preserving the listing's resumable state. Record
    every inspected listing in `inspected_listings` with its live URL, application state, and
    decision.
