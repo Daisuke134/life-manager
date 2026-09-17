@@ -3,7 +3,17 @@
 # A normal checkout and its temporary .worktrees are valid; sibling clones are not.
 set -euo pipefail
 
-CANONICAL_ROOT="/Users/anicca/Projects/life-manager-main"
+CANONICAL_ROOT="$(cd "$(dirname "$0")/.." 2>/dev/null && pwd -P)" || {
+  printf 'source-boundary FAIL: script directory is unavailable\n' >&2
+  exit 2
+}
+while [ "$CANONICAL_ROOT" != "/" ] && [ ! -d "$CANONICAL_ROOT/.git" ]; do
+  CANONICAL_ROOT="$(dirname "$CANONICAL_ROOT")"
+done
+if [ ! -d "$CANONICAL_ROOT/.git" ]; then
+  printf 'source-boundary FAIL: canonical Git root is unavailable\n' >&2
+  exit 2
+fi
 EXPECTED_COMMON="$CANONICAL_ROOT/.git"
 EXPECTED_REMOTE="https://github.com/Daisuke134/life-manager.git"
 
