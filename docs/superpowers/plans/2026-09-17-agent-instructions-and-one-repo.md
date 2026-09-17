@@ -22,11 +22,11 @@
 
 ### A. Establish instruction truth
 
-- [ ] A1. From a clean worktree of current `origin/main`, capture the existing root/global `AGENTS.md`, `CLAUDE.md`, overrides, Codex fallback names and plugin versions; record which files fresh Codex and Claude sessions actually load.
-- [ ] A2. Replace the deleted-Felix root `AGENTS.md` with a concise Life Manager coding contract: exact repository check, `using-superpowers` first, current applicable skills, observable completion evidence, and post-merge worktree removal. Preserve only still-valid project safety rules.
-- [ ] A3. Make root `CLAUDE.md` import `@AGENTS.md` and retain only Claude-specific guidance. Confirm Claude reports that imported file in its loaded context.
-- [ ] A4. Edit the generated global-rule source under `~/.config/ai/` to remove the opposing Superpowers-default language, run its existing sync command, and verify both generated harness files agree. Do not edit only one generated copy.
-- [ ] A5. Start fresh Codex and Claude sessions in `life-manager-main`; ask each to report Git root, origin and loaded instruction sources. Fail this task if either reads an obsolete project rule or does not identify the canonical repository.
+- [x] A1. From a clean worktree of current `origin/main`, capture the existing root/global `AGENTS.md`, `CLAUDE.md`, overrides, Codex fallback names and plugin versions; record which files fresh Codex and Claude sessions actually load. Evidence is recorded in the spec's A-series section.
+- [x] A2. Replace the deleted-Felix root `AGENTS.md` with a concise Life Manager coding contract: exact repository check, `using-superpowers` first, current applicable skills, observable completion evidence, and post-merge worktree removal. Preserve only still-valid project safety rules.
+- [x] A3. Make root `CLAUDE.md` import `@AGENTS.md` and retain only Claude-specific guidance. Confirm Claude reports that imported file in its loaded context.
+- [x] A4. Edit the generated global-rule source under `~/.config/ai/` to remove the opposing Superpowers-default language, run its existing sync command, and verify both generated harness files agree. Do not edit only one generated copy.
+- [x] A5. Start fresh Codex and Claude sessions in `life-manager-main`; ask each to report Git root, origin and loaded instruction sources. Both identified the canonical repository and Life Manager project instructions; missing Superpowers injection remains explicitly open under B1/B2.
 
 ### B. Prove the Superpowers entrypoint
 

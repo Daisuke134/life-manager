@@ -56,3 +56,10 @@ One repository does not mean one physical directory. Temporary worktrees and run
 `instruction truth -> bootstrap/readback -> one real adherence trial -> asset/dependency inventory -> required source migration -> archive -> exact-path worktree cleanup`.
 
 This order fixes the process that will execute the larger consolidation before touching old source folders. It is internal to the existing product TODO and does not interrupt active production effects.
+
+## A-series verification evidence
+
+- Before the project edit, a fresh Codex session in this worktree reported the canonical root, branch and origin but no `using-superpowers` injection. A fresh Claude session launched in the same worktree loaded global `~/.claude/CLAUDE.md` and the project `CLAUDE.md`, but its referenced `AGENTS.md` was not loaded because the file was not imported.
+- After the project edit, fresh Codex and Claude sessions reported the same Life Manager worktree, `docs/agent-instructions-consolidation-20260917`, and `https://github.com/Daisuke134/life-manager.git`. Both identified the project instructions as Life Manager rather than Felix. Claude loaded `CLAUDE.md` and its `@AGENTS.md` import; Codex loaded `AGENTS.md`.
+- `~/.config/ai/bootstrap.sh --check` passed after syncing the generated Codex, Claude, Gemini and second-account files. The shared source now requires `using-superpowers` for software development and does not require a copied fixed stage list.
+- The same post-edit sessions still reported that the `using-superpowers` skill body was not injected at startup. This is an explicit B1/B2 failure to repair, not an A-series pass condition.
