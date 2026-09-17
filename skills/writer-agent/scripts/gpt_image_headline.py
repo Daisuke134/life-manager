@@ -17,10 +17,11 @@ from pathlib import Path
 from typing import Any, Callable
 
 MODEL = "gpt-image-2-2026-04-21"
-# The local OpenAI-compatible proxy accepts the same dated model identity as
-# the public API.  The short alias can ignore the requested 1536x1024 size and
-# return a square image, which is rejected by the immutable media contract.
-CLIPROXY_MODEL = MODEL
+# The local proxy exposes gpt-image-1.5 and returns the requested 1536x1024
+# image for it.  gpt-image-2 returns a square image, while the dated public
+# model name is rejected with HTTP 400.  Keep the contract's request_model
+# identity in the receipt and bind the actual provider model separately.
+CLIPROXY_MODEL = "gpt-image-1.5"
 ENDPOINT = "https://api.openai.com/v1/images/generations"
 SIZE = "1536x1024"
 QUALITY = "high"
