@@ -11,7 +11,7 @@
 # It does three REAL checks against OpenRouter (no dry-run):
 #   1. GET /key -> per-key limit_remaining must be null (unlimited) or > 0
 #   2. GET /credits -> remaining = total_credits - total_usage (must be >= threshold)
-#   3. POST /chat/completions with Capafy's max_tokens=128000 -> must return 200 + content
+#   3. POST /chat/completions with the packaged model/output cap -> must return 200 + content
 # NEVER prints the key. Exits 0 = healthy (publish may proceed), 1 = block (fail-closed).
 #
 # Usage: key_health_gate.sh [min_remaining_usd]   (default 20.00)
@@ -52,6 +52,21 @@ PY
 }
 # Warn while still passing but getting low, so user tops up BEFORE an outage.
 ALERT_CUSHION="${CAPAFY_FUNDING_ALERT_USD:-25.00}"
+HOSTED_MODEL_ID="${CAPAFY_HOSTED_MODEL_ID:-anthropic/claude-sonnet-4.6}"
+HOSTED_MAX_TOKENS="${CAPAFY_HOSTED_MAX_TOKENS:-128000}"
+PROBE_BODY="$(python3 - "$HOSTED_MODEL_ID" "$HOSTED_MAX_TOKENS" <<'PY'
+import json, sys
+model, raw_limit = sys.argv[1:]
+try:
+    limit = int(raw_limit)
+except ValueError:
+    raise SystemExit(1)
+if not model or limit < 1 or limit > 128000:
+    raise SystemExit(1)
+print(json.dumps({"model": model, "messages": [{"role": "user", "content": "say ok"}],
+                  "max_tokens": limit}))
+PY
+)" || { echo "KEY_HEALTH=FAIL reason=invalid_hosted_model_contract"; exit 1; }
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-$HOME/.local/state/life-manager}"
 STATE_DIR="$LIFE_MANAGER_STATE_HOME/state"
 mkdir -p "$STATE_DIR" 2>/dev/null || true
@@ -210,7 +225,7 @@ fi
 
 PROBE="$(curl -s --max-time 30 https://openrouter.ai/api/v1/chat/completions \
   -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
-  -d '{"model":"anthropic/claude-sonnet-4.6","messages":[{"role":"user","content":"say ok"}],"max_tokens":128000}' \
+  -d "$PROBE_BODY" \
   | python3 -c "
 import sys,json
 try:

@@ -5,9 +5,17 @@ description: Use when building, fixing, releasing or operating a Life Manager lo
 
 # Loop Engineering
 
-One architecture router, so no lane invents what another lane already owns.
-This file routes; release and launchd work still requires the focused
-`loop-development` subskill.
+Loop engineering is the control system that keeps an agent useful across time. One architecture
+router prevents a lane from inventing what another lane already owns. This file routes; release and
+launchd work still requires the focused `loop-development` subskill.
+
+## Master catalog route
+
+Read this skill first. Then consult the pinned **[Awesome Harness Engineering](https://github.com/ai-boost/awesome-harness-engineering)**
+snapshot (`692a1a681c464de22a5e9b947bd081808600b0b3`) for Agent Loop, Planning & Task Decomposition,
+Task Runners & Orchestration, Human-in-the-Loop, and Evals & Verification. Use the chapter as a
+decision map, then read `references/source-notes.md` and the pinned implementation path it names.
+Do not introduce a second runner because the catalog lists another framework.
 
 ```text
 loop config -> reusable recipe -> shared runtime -> provider adapter -> official provider
@@ -60,6 +68,50 @@ For a new or migrated loop, name the shared core and smallest host adapters
 before editing. Mixed business and host code is a boundary to extract, not a
 reason to duplicate the loop.
 
+## Recipe
+
+1. Define one durable goal/owner scope with a measurable result, budget, deadline, and typed terminal
+   states.
+2. Observe authoritative state; record observation ID, time, owner, and source hash.
+3. Build a bounded capsule from goals, facts, commitments, artifacts, effect keys, and questions;
+   the last message is never the whole state.
+4. Let the model choose the capability/arguments; runtime policy enforces boundaries without keyword
+   judgment.
+5. Execute one leased transition and persist the attempt before an external effect.
+6. Verify official readback, append receipt/facts, and reconcile unknown effects instead of retrying.
+7. Schedule the next wake from durable state, then feed verified outcomes to evals/observability.
+
+## Contract
+
+| Boundary | Required fields |
+|---|---|
+| Wake | `wake_id`, owner, goal revision, observed-at, bounded deadline |
+| Decision | model-selected capability, arguments, context hash, policy result |
+| Effect | deterministic `effect_key`, attempt, lease, target identity |
+| Verification | provider source, readback status, receipt ID/hash, replay result |
+| Resume | durable cursor, next eligible time, failure class, retry count |
+| Completion | official receipt or typed wait/blocker; never PID/exit 0 alone |
+
+The four lanes are independent owners: Apply submits applications, Negotiate replies to buyer
+threads, Storefront mutates listings, and Paid fulfils orders. They may run concurrently, but their
+effect namespaces and mutable contexts never overlap.
+
+## Failure modes
+
+| Symptom | Correct move |
+|---|---|
+| Worker exits while goal is active | Persist failure and schedule bounded retry/continuation |
+| Provider result is uncertain | Reconcile official state; never blind-retry the same effect key |
+| Repeated identical failures | Stop repeating, classify the boundary, and create a repair/eval case |
+| One lane blocks another | Keep owners and queues independent; repair only the shared boundary |
+| “Self-healing” means only a restart | Require durable progress plus official effect separation |
+
+## Source map
+
+Read `references/source-notes.md` for pinned upstream code. For lifecycle or production changes,
+also read `skills/loop-development/SKILL.md`; it owns worktree, immutable release, launchd, and
+natural-wake gates. The Coconala-to-meta-loop TODO remains a separate owner’s input.
+
 ## Lane ownership
 
 Apply alone submits applications. Negotiate alone replies to buyer threads.
@@ -71,6 +123,5 @@ other owner.
 
 ## Completion
 
-Completion is official provider readback, never process liveness, never a clean
-exit code. A lane that ran and reported success without a receipt has not
-completed.
+Completion is official provider readback, never process liveness, never a clean exit code. A lane
+that ran and reported success without a receipt has not completed.

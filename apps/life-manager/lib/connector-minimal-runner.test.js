@@ -725,6 +725,18 @@ test("a Connpass questionnaire blocker invokes browser fallback and completes ve
   assert.equal(state.calls.some(([name, eventRef]) => name === "direct" && eventRef.endsWith("/next")), false);
 });
 
+test("a blocked Connpass fallback records the exact candidate for official form inspection", async () => {
+  const state = fixture({
+    async discoverCandidates() { return [candidate("connpass", "405297")]; },
+    async runDirectAction() { return { status: "failed", safe_reason: "connpass_questionnaire_required" }; },
+    async runAgentFallback() { return { status: "failed", safe_reason: "unsafe_agent_action" }; },
+  });
+  await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-question-audit", providers: ["connpass"] }, state.dependencies);
+  const row = state.calls.find(([name, action]) => name === "history" && action.method === "browser_harness");
+  assert.equal(row[1].candidate_ref, "connpass-event://event/405297");
+  assert.equal(row[1].safe_reason, "unsafe_agent_action");
+});
+
 test("Connpass candidate-specific form blockers do not exhaust the wake before a simple candidate", async () => {
   let state = fixture({
     async discoverCandidates() {
@@ -1703,7 +1715,10 @@ test("an uncaught boundary error before the deadline reports one sanitized termi
 });
 
 test("every recorded action contains only the safe audit fields", async () => {
-  const state = fixture();
+  const state = fixture({ async discoverCandidates(provider) {
+    return provider === "luma" ? [candidate("luma", "one"), candidate("luma", "two")]
+      : [candidate("connpass", "3")];
+  } });
 
   await runMinimalConnectorWake({
     ownerToken: "owner-token-connector-minimal-5",
@@ -1715,10 +1730,12 @@ test("every recorded action contains only the safe audit fields", async () => {
   const baseKeys = ["duration_ms", "method", "purpose", "result", "timestamp"];
   const failureKeys = ["duration_ms", "method", "provider", "purpose", "result", "safe_reason", "timestamp"];
   const failureKeysWithClass = ["duration_ms", "error_class", "method", "provider", "purpose", "result", "safe_reason", "timestamp"];
+  const failureKeysWithCandidate = ["candidate_ref", ...failureKeys];
   for (const row of history) {
     const hasFailureContext = Object.hasOwn(row, "provider") || Object.hasOwn(row, "safe_reason") || Object.hasOwn(row, "error_class");
     assert.deepEqual(Object.keys(row).sort(), hasFailureContext
-      ? (Object.hasOwn(row, "error_class") ? failureKeysWithClass : failureKeys)
+      ? (Object.hasOwn(row, "error_class") ? failureKeysWithClass
+        : Object.hasOwn(row, "candidate_ref") ? failureKeysWithCandidate : failureKeys)
       : baseKeys);
     assert.match(row.purpose, /^(navigate|observe|fill|submit|readback)$/);
     assert.match(row.method, /^[a-z][a-z0-9_]{1,63}$/);
@@ -1728,6 +1745,11 @@ test("every recorded action contains only the safe audit fields", async () => {
       assert.match(row.provider, /^[a-z][a-z0-9_-]{1,31}$/);
       assert.match(row.safe_reason, /^[a-z0-9][a-z0-9_:-]{1,99}$/);
       if (Object.hasOwn(row, "error_class")) assert.match(row.error_class, /^[A-Za-z][A-Za-z0-9]{0,63}$/);
+      if (Object.hasOwn(row, "candidate_ref")) {
+        assert.equal(row.method, "browser_harness");
+        assert.equal(row.provider, "connpass");
+        assert.match(row.candidate_ref, /^connpass-event:\/\/event\/[1-9][0-9]*$/);
+      }
     }
     assert.equal(new Date(Date.parse(row.timestamp)).toISOString(), row.timestamp);
     assert.equal(Number.isInteger(row.duration_ms) && row.duration_ms >= 0, true);

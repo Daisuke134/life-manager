@@ -70,7 +70,7 @@ A green price tab alone is NOT done — you must still 提出を確認 and confi
    you want the 「カードを保存しました」 card-done page.
 9. Verify server-side: `packager.py publish-remote-status --agent-id <ID>` →
    `latest_version.is_confirmed_skills == true`. Only then is CP1 done; hand off to
-   `publish_finish.sh`.
+   `publish_finish.sh` with the exact `AGENT_VERSION_ID` emitted by prepare.
 
 ## Guardrails
 - One capafy tab: `cp1_agent.py` reuses an existing capafy tab or opens a NEW one.

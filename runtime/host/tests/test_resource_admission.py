@@ -1546,14 +1546,14 @@ def test_revenue_workers_share_host_capacity_beyond_borrow_agent_limit(
         admission.release_and_reserve(claim, reserve=False)
 
 
-def test_default_host_capacity_allows_five_revenue_workers(tmp_path, monkeypatch):
+def test_default_host_capacity_allows_eight_revenue_workers(tmp_path, monkeypatch):
     monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(tmp_path))
     monkeypatch.delenv("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", raising=False)
     monkeypatch.delenv("LIFE_MANAGER_HOST_MAX_REVENUE_RUNS", raising=False)
     monkeypatch.delenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", raising=False)
     claims = []
 
-    for index in range(5):
+    for index in range(8):
         claim, reason = admission.try_acquire(
             "agent", f"revenue-{index}", retain_ticket=False,
             admission_class="revenue",
@@ -1562,7 +1562,7 @@ def test_default_host_capacity_allows_five_revenue_workers(tmp_path, monkeypatch
         claims.append(claim)
 
     blocked, reason = admission.try_acquire(
-        "agent", "revenue-six", retain_ticket=False,
+        "agent", "revenue-nine", retain_ticket=False,
         admission_class="revenue",
     )
     assert blocked is None and reason == "capacity_busy"

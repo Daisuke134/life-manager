@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path
+from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path, apply_live
 from runtime.loop.lm_loop_apply import _loaded_arguments
 from runtime.loop.loop_cleanup import remove_owned_tree
 from runtime.loop.macos_loop_registry import validate_registry
@@ -108,6 +108,10 @@ def reset_loop_scratch(state_root: Path, loop_id: str, run_id: str) -> tuple[Pat
             raise RuntimeError("scratch inode changed during creation")
         run_verified = True
         try:
+            marker_fd = os.open(
+                ".terminal-unrecorded", os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                | getattr(os, "O_NOFOLLOW", 0), 0o600, dir_fd=run_fd)
+            os.close(marker_fd)
             owner_fd = os.open(
                 ".owner.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL
                 | getattr(os, "O_NOFOLLOW", 0), 0o600, dir_fd=run_fd)
@@ -115,10 +119,6 @@ def reset_loop_scratch(state_root: Path, loop_id: str, run_id: str) -> tuple[Pat
                 json.dump({"pid": os.getpid(), "process_start": identity}, handle,
                           sort_keys=True, separators=(",", ":"))
                 handle.write("\n"); handle.flush(); os.fsync(handle.fileno())
-            marker_fd = os.open(
-                ".terminal-unrecorded", os.O_WRONLY | os.O_CREAT | os.O_EXCL
-                | getattr(os, "O_NOFOLLOW", 0), 0o600, dir_fd=run_fd)
-            os.close(marker_fd)
             os.fsync(run_fd)
         except Exception:
             raise
@@ -354,8 +354,17 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
             continue
         expected = [str(root / "bin/lm-loop-run"), loop_id, str(root)]
         if arguments != expected:
-            defer(loop_id)
-            continue
+            try:
+                applied = apply_live(
+                    root, installed, safe, target=loop_id, skip_busy=True,
+                    protocol_reader=durable_protocol_version)
+            except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):
+                defer(loop_id)
+                continue
+            if not any(result.get("ok") and result.get("loaded_arguments") == expected
+                       for result in applied):
+                defer(loop_id)
+                continue
         service = f"gui/{os.getuid()}/{label}"
         try:
             observed = subprocess.run(

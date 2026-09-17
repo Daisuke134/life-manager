@@ -68,7 +68,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             "LIFE_MANAGER_RUNTIME_PYTHON": str(
                 runtime_python or Path(sys.executable).resolve()
             ),
-            # Keep three slots for revenue while two support owners share the five-run host.
+            # Keep three slots for revenue while support owners share the finite host.
             "LIFE_MANAGER_HOST_MIN_REVENUE_RUNS": "3",
         },
         "StandardOutPath": str(Path(log_root) / "launchd.out.log"),

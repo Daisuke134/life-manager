@@ -10218,3 +10218,15 @@ Connector候補巡回とreconciliation優先の差分はPR #5306、main merge `1
 「現地参加枠 無料」「現地参加 無料」を明示的な一般対面無料枠として認める最小修正はPR #5308、main merge `4ef5ca8aff913d24acf90a95508a2ac376fd4e34`となった。`connpass-browser-provider.test.js`は修正前RED、修正後34/34 PASS。Findy event 404531とfreee event 403447の公式公開ページで、空席のある該当ラベルをread-onlyで確認した。ただしこれらのイベントを申込済みとは報告しない。変更はまだConnectorのloaded releaseに入っておらず、公式登録ID・CalendarイベントID・次回重複0のlive合格証拠はない。
 
 最終確認時、共有基盤ownerの`fix/connector-admission-main-20260917`はclean/pushedだがPRなし・main未反映。Connector loaded releaseは`20260917T104612-1a0424db`のままで、直近kickstartは`resource_admission_unavailable`によりprovider前で止まった。次は共有基盤ownerの統合後、main由来のcomplete releaseをConnector一件だけへapplyし、稼働中owner・browser競合が無いことを確認してから一回起動する。公式申込→Calendar readback→次回重複0まで未達であり、Connectorは**NOT DONE**。
+
+### O1B-25進捗540（Connpass一件の公式成果と継続課題）
+
+稼働Connectorはmain由来release `20260917T132328-20c6067c`を読み込んでいる。Connpass event `405705`のapplied bundleは公式`registered` receipt、Google Calendar ID `0c706h76f6ceoh99cdaug31cd4`、Telegram message/photo IDs `85626/85627`を結ぶ。2026-09-17 05:50 UTCの独立Google Calendar API readbackでも同IDは`confirmed`、canonical URLとprivate idempotency propertyが一致し、そのpropertyを使った検索結果はexact 1件だった。この一件のprovider→Calendar効果は成立した。基盤specは直後の自動wakeで同eventの再送0を記録している。以後の全wakeについてevent別再送0を本調査だけで断定しない。
+
+ただし直近6 wakeは全て新規効果0。Lumaは各wakeで無料・受付中1〜5件を見つけたがCalendar-free 0。ConnpassはCalendar-free 19〜21件を保持し、毎wake 3〜4候補の`connpass_tier_unavailable`または`connpass_questionnaire_required`が続き、後者のbrowser fallbackは`unsafe_agent_action`だった。申込可能な候補が本当に無いのか、選択式質問の既存回答をsemanticに使えないのか、候補単位の公式照合が必要である。これは一件成功を24/7の継続成果へ拡張してよい証拠ではない。
+
+既存のbounded private fact selectorは自由記述欄で新しい質問表現を保存済み本人情報のキーに結び付けるが、選択式の質問には接続されていなかった。Connpassの選択式質問でも同じselectorを一質問につき一回だけ使い、保存済み回答と正確に一致する選択肢だけを許す最小差分を作成した。focused testは修正前RED、修正後`connector-production-browser-harness.test.js` 180/180 PASS。新しい本人事実、同意、登壇・営業等の約束は捏造せず、情報が無ければ申込前に停止する。main統合とlive申込・Calendar readbackは未完。
+
+fresh read-only reviewで、別質問に保存された「はい」や紹介元「Connpass」を未知の同意・スポンサー連絡の質問へ流用できる経路を検出した。双方をREDで再現し、意味照合の対象を質問全体で一致する紹介元または職種・キャリアの事実質問に限定し、同じ事実群の保存済みキーだけを提示するよう修正した。複合質問、同意、汎用yes/noはsemantic fallbackで承認しない。正当な言い換えからradio選択→確定までの統合テストを保持し、focused 181/181 PASS。再レビューは指摘経路の解消を確認した。依然としてmain・loaded release・live provider effectへは未反映である。
+
+基盤specのcurrent cursorはA15で、別ownerの`/private/tmp/lm-agent-engineering-skills-20260915`とhost-admission DB、稼働中PIDを触らない。このConnector差分は専用worktreeで進め、A15合格後に同ownerとbrowser資源を調整したmain由来releaseで実申込→Calendar exact 1→次回重複0を再検証する。Connector全体は**NOT DONE**。
