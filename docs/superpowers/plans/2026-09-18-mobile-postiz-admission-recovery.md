@@ -29,10 +29,10 @@
 - Read: private `~/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3` and `events.jsonl`
 - Create: a secret-free evidence file under `docs/superpowers/evidence/mobile-postiz-admission/`
 
-- [ ] Enumerate the 17 affected mobile/Honne owners and their `released`/`claimed` unknown occurrences from SQLite.
-- [ ] Join each released occurrence to its exact run report and publication effect identity. Mark missing identity as `inconclusive`; do not infer from timestamp alone.
-- [ ] Record the active destination account and integration reference from the canonical destination contract. Confirm OBOU is held out.
-- [ ] Run the targeted status command for each owner and save the blocker, installed release SHA and loaded state.
+- [x] Enumerate the 17 affected mobile/Honne owners and their `released`/`claimed` unknown occurrences from SQLite: 14 released, 3 claimed.
+- [x] Join each released occurrence to its exact run report and publication effect identity. The current event rows do not carry the required identity, so all 17 are explicitly `inconclusive`; no timestamp inference was used.
+- [x] Record the active destination account and integration reference from the canonical destination contract. Confirm OBOU is held out.
+- [x] Run the targeted status command for each owner and save the blocker, installed release SHA and loaded state in `docs/superpowers/evidence/mobile-postiz-admission/mobile-fence-inventory.json`.
 
 ### Task 2: Preserve exact identity at the runtime boundary
 

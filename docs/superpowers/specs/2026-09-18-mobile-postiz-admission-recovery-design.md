@@ -8,7 +8,7 @@ Restore the mobile publishing cadence without losing the one-to-one mapping betw
 
 - `config/loop-registry.json` contains 18 mobile/Honne loop IDs. Seventeen labels are loaded; `life-manager-anicca-obou-instagram` is intentionally held out as the ebook account and has no installed plist.
 - The latest targeted status for the loaded mobile labels reports `host_admission_deferred:resource_effect_unknown` for the publish owners. The loop enters `execute`, then records `effect_status=unknown` and exits without retrying the provider.
-- The private admission ledger has one `effect_unknown=1` occurrence for each of the affected mobile/Honne owners, including examples `life-manager-anicca-main-tiktok:18d611856c9b1058-90754` and `life-manager-honne-ja:18d60ef303ea4b58-65481`. The ledger also has unrelated unknown occurrences; this is a shared host fence, not a Postiz account-map change.
+- The private admission ledger has one `effect_unknown=1` occurrence for each of the affected mobile/Honne owners: 17 total, 14 released and 3 still claimed. Examples are `life-manager-anicca-main-tiktok:18d611856c9b1058-90754` and `life-manager-honne-ja:18d60ef303ea4b58-65481`. The ledger also has unrelated unknown occurrences; this is a shared host fence, not a Postiz account-map change.
 - The current release is immutable and main-derived (`a77c5629…`). Loaded mobile labels use immutable main-derived releases (`37384185…` for Anicca and most routes, `203bbe88…` for Honne EN, `61036e1e…` for Honne JA). The migrated canonical mobile trees exist in the `37384185…` release.
 - Existing video and native-carousel distribution receipts contain account, integration, media/caption hashes, provider ID and `provider_reconciled=true`. Those receipts are useful evidence, but a receipt is not linked to an unknown occurrence unless its effect identity is exact.
 - The release reconciler is healthy for its own deterministic lifecycle work, but its `lm-loop reconcile` path swaps immutable release argv; it does not perform provider readback or clear a publish effect fence.
@@ -48,6 +48,10 @@ unknown occurrence
 - Verified rows have the exact provider receipt ID and official account/integration/content readback; the admission ledger shows `effect_unknown=0` only for those rows.
 - One natural wake per verified owner produces a terminal event. If the effect already exists, provider execution delta is zero; if it does not, the single new execution has an official receipt. Duplicate executions are zero.
 - Targeted `lm-loop status` shows no `resource_effect_unknown` for the reconciled owner and still reports the immutable release argv. The destination and mobile mapping contract tests remain green.
+
+## Inventory evidence
+
+The first read-only inventory is recorded at `docs/superpowers/evidence/mobile-postiz-admission/mobile-fence-inventory.json`. It contains 17 mobile/Honne unknown occurrences, with 0 exact identities recovered, 14 released rows and 3 claimed rows held. The current runtime event format does not carry the occurrence's `effect_key`/`job_id` or the provider account identity, so every row remains inconclusive until the identity bridge and official readback are implemented.
 
 ## Non-goals
 

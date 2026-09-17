@@ -1,0 +1,690 @@
+{
+  "schema_version": 1,
+  "kind": "mobile_postiz_admission_fence_inventory",
+  "captured_at": "2026-09-17T15:37:19.761494+00:00",
+  "source": {
+    "registry": "config/loop-registry.json",
+    "admission_database": "~/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3",
+    "runtime_events": "~/.local/state/life-manager/events.jsonl"
+  },
+  "counts": {
+    "unknown_mobile_honne_occurrences": 17,
+    "released": 14,
+    "claimed": 3,
+    "exact_identity_recovered": 0,
+    "inconclusive": 17,
+    "claimed_held": 3
+  },
+  "obou": {
+    "loop_id": "life-manager-anicca-obou-instagram",
+    "account": "obou.anicca",
+    "product": "ebook-ja",
+    "status": "intentionally_held_out_of_mobile_daily_targets",
+    "installed_plist": false
+  },
+  "records": [
+    {
+      "owner_id": "life-manager-anicca-affirmation-youtube",
+      "occurrence_id": "life-manager-anicca-affirmation-youtube:18d6103ab5ab97a0-44701",
+      "state": "released",
+      "effect_unknown": true,
+      "sequence": 26897,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-anicca-affirmation-youtube",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 8,
+              "Minute": 15
+            },
+            {
+              "Hour": 14,
+              "Minute": 15
+            },
+            {
+              "Hour": 20,
+              "Minute": 15
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "37384185bcc36b7033154a6d321a84288b41b8aa",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T223115-37384185/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T223115-37384185"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    },
+    {
+      "owner_id": "life-manager-anicca-ai-youtube",
+      "occurrence_id": "life-manager-anicca-ai-youtube:18d615b2f01abd08-11018",
+      "state": "released",
+      "effect_unknown": true,
+      "sequence": 28230,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-anicca-ai-youtube",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 7,
+              "Minute": 45
+            },
+            {
+              "Hour": 13,
+              "Minute": 15
+            },
+            {
+              "Hour": 19,
+              "Minute": 45
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "37384185bcc36b7033154a6d321a84288b41b8aa",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T223115-37384185/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T223115-37384185"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    },
+    {
+      "owner_id": "life-manager-anicca-buddha-tiktok",
+      "occurrence_id": "life-manager-anicca-buddha-tiktok:18d60f60f8e16930-97063",
+      "state": "released",
+      "effect_unknown": true,
+      "sequence": 26426,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-anicca-buddha-tiktok",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 7,
+              "Minute": 0
+            },
+            {
+              "Hour": 13,
+              "Minute": 0
+            },
+            {
+              "Hour": 20,
+              "Minute": 0
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "37384185bcc36b7033154a6d321a84288b41b8aa",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T223115-37384185/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T223115-37384185"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    },
+    {
+      "owner_id": "life-manager-anicca-en-affirmation-instagram",
+      "occurrence_id": "life-manager-anicca-en-affirmation-instagram:18d60ed2e81c6d68-59864",
+      "state": "released",
+      "effect_unknown": true,
+      "sequence": 26327,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-anicca-en-affirmation-instagram",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 10,
+              "Minute": 0
+            },
+            {
+              "Hour": 15,
+              "Minute": 0
+            },
+            {
+              "Hour": 20,
+              "Minute": 0
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "37384185bcc36b7033154a6d321a84288b41b8aa",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T223115-37384185/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T223115-37384185"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    },
+    {
+      "owner_id": "life-manager-anicca-en-affirmation-tiktok",
+      "occurrence_id": "life-manager-anicca-en-affirmation-tiktok:18d612b63f4d1920-34082",
+      "state": "claimed",
+      "effect_unknown": true,
+      "sequence": 27558,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-anicca-en-affirmation-tiktok",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 9,
+              "Minute": 15
+            },
+            {
+              "Hour": 14,
+              "Minute": 15
+            },
+            {
+              "Hour": 20,
+              "Minute": 15
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "37384185bcc36b7033154a6d321a84288b41b8aa",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T223115-37384185/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T223115-37384185"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    },
+    {
+      "owner_id": "life-manager-anicca-en-card-instagram",
+      "occurrence_id": "life-manager-anicca-en-card-instagram:18d6032f773447a0-13010",
+      "state": "released",
+      "effect_unknown": true,
+      "sequence": 24110,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-anicca-en-card-instagram",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 8,
+              "Minute": 45
+            },
+            {
+              "Hour": 12,
+              "Minute": 45
+            },
+            {
+              "Hour": 21,
+              "Minute": 30
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "37384185bcc36b7033154a6d321a84288b41b8aa",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T223115-37384185/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T223115-37384185"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    },
+    {
+      "owner_id": "life-manager-anicca-en-slideshow-tiktok",
+      "occurrence_id": "life-manager-anicca-en-slideshow-tiktok:18d6124b3a0da5f8-27268",
+      "state": "claimed",
+      "effect_unknown": true,
+      "sequence": 27518,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-anicca-en-slideshow-tiktok",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 9,
+              "Minute": 0
+            },
+            {
+              "Hour": 15,
+              "Minute": 0
+            },
+            {
+              "Hour": 21,
+              "Minute": 0
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "37384185bcc36b7033154a6d321a84288b41b8aa",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T223115-37384185/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T223115-37384185"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    },
+    {
+      "owner_id": "life-manager-anicca-en-widget-instagram",
+      "occurrence_id": "life-manager-anicca-en-widget-instagram:18d5edbabbfc5b50-50102",
+      "state": "released",
+      "effect_unknown": true,
+      "sequence": 19354,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-anicca-en-widget-instagram",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 7,
+              "Minute": 30
+            },
+            {
+              "Hour": 9,
+              "Minute": 30
+            },
+            {
+              "Hour": 19,
+              "Minute": 0
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "37384185bcc36b7033154a6d321a84288b41b8aa",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T223115-37384185/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T223115-37384185"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    },
+    {
+      "owner_id": "life-manager-anicca-he",
+      "occurrence_id": "life-manager-anicca-he:18d60f31e861f5b8-82148",
+      "state": "released",
+      "effect_unknown": true,
+      "sequence": 26442,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-anicca-he",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 7,
+              "Minute": 15
+            },
+            {
+              "Hour": 13,
+              "Minute": 45
+            },
+            {
+              "Hour": 18,
+              "Minute": 15
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "37384185bcc36b7033154a6d321a84288b41b8aa",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T223115-37384185/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T223115-37384185"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    },
+    {
+      "owner_id": "life-manager-anicca-ja-widget-instagram",
+      "occurrence_id": "life-manager-anicca-ja-widget-instagram:18d60fba2b99eee8-10784",
+      "state": "released",
+      "effect_unknown": true,
+      "sequence": 26689,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-anicca-ja-widget-instagram",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 8,
+              "Minute": 5
+            },
+            {
+              "Hour": 13,
+              "Minute": 5
+            },
+            {
+              "Hour": 18,
+              "Minute": 20
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "37384185bcc36b7033154a6d321a84288b41b8aa",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T223115-37384185/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T223115-37384185"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    },
+    {
+      "owner_id": "life-manager-anicca-jp1-tiktok",
+      "occurrence_id": "life-manager-anicca-jp1-tiktok:18d60271ab0f9520-1276",
+      "state": "released",
+      "effect_unknown": true,
+      "sequence": 23951,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-anicca-jp1-tiktok",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 6,
+              "Minute": 30
+            },
+            {
+              "Hour": 12,
+              "Minute": 0
+            },
+            {
+              "Hour": 18,
+              "Minute": 0
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "37384185bcc36b7033154a6d321a84288b41b8aa",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T223115-37384185/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T223115-37384185"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    },
+    {
+      "owner_id": "life-manager-anicca-jp4",
+      "occurrence_id": "life-manager-anicca-jp4:18d610f22990eaa0-78948",
+      "state": "released",
+      "effect_unknown": true,
+      "sequence": 27106,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-anicca-jp4",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 9,
+              "Minute": 15
+            },
+            {
+              "Hour": 15,
+              "Minute": 15
+            },
+            {
+              "Hour": 20,
+              "Minute": 45
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "37384185bcc36b7033154a6d321a84288b41b8aa",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T223115-37384185/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T223115-37384185"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    },
+    {
+      "owner_id": "life-manager-anicca-larry-ja-instagram",
+      "occurrence_id": "life-manager-anicca-larry-ja-instagram:18d6133714d1a720-55134",
+      "state": "released",
+      "effect_unknown": true,
+      "sequence": 27676,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-anicca-larry-ja-instagram",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 10,
+              "Minute": 30
+            },
+            {
+              "Hour": 16,
+              "Minute": 30
+            },
+            {
+              "Hour": 22,
+              "Minute": 30
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "37384185bcc36b7033154a6d321a84288b41b8aa",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T223115-37384185/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T223115-37384185"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    },
+    {
+      "owner_id": "life-manager-anicca-main-instagram",
+      "occurrence_id": "life-manager-anicca-main-instagram:18d5efe7fd010310-76230",
+      "state": "claimed",
+      "effect_unknown": true,
+      "sequence": 19906,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-anicca-main-instagram",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 8,
+              "Minute": 10
+            },
+            {
+              "Hour": 13,
+              "Minute": 10
+            },
+            {
+              "Hour": 19,
+              "Minute": 10
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "37384185bcc36b7033154a6d321a84288b41b8aa",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T223115-37384185/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T223115-37384185"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    },
+    {
+      "owner_id": "life-manager-anicca-main-tiktok",
+      "occurrence_id": "life-manager-anicca-main-tiktok:18d611856c9b1058-90754",
+      "state": "released",
+      "effect_unknown": true,
+      "sequence": 27233,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-anicca-main-tiktok",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 8,
+              "Minute": 0
+            },
+            {
+              "Hour": 16,
+              "Minute": 0
+            },
+            {
+              "Hour": 22,
+              "Minute": 37
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "37384185bcc36b7033154a6d321a84288b41b8aa",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T223115-37384185/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T223115-37384185"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    },
+    {
+      "owner_id": "life-manager-honne-en",
+      "occurrence_id": "life-manager-honne-en:18d603541b2dafd0-14754",
+      "state": "released",
+      "effect_unknown": true,
+      "sequence": 24147,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-honne-en",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 7,
+              "Minute": 0
+            },
+            {
+              "Hour": 11,
+              "Minute": 0
+            },
+            {
+              "Hour": 20,
+              "Minute": 30
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "203bbe8854ccf0a28fd70d1a468195c87983cc03",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T145119-203bbe88/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T145119-203bbe88"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    },
+    {
+      "owner_id": "life-manager-honne-ja",
+      "occurrence_id": "life-manager-honne-ja:18d60ef303ea4b58-65481",
+      "state": "released",
+      "effect_unknown": true,
+      "sequence": 26373,
+      "resource_class": "agent",
+      "registry": {
+        "label": "ai.anicca.life-manager-honne-ja",
+        "provider_route": "deterministic",
+        "effect_class": "publish",
+        "cadence": {
+          "calendar_interval": [
+            {
+              "Hour": 8,
+              "Minute": 30
+            },
+            {
+              "Hour": 12,
+              "Minute": 30
+            },
+            {
+              "Hour": 21,
+              "Minute": 30
+            }
+          ]
+        }
+      },
+      "loaded_plist": {
+        "installed": true,
+        "release_sha": "61036e1eb839590762497fbd06cb4007b03d4402",
+        "program_arguments_release_only": [
+          "/Users/anicca/loops/releases/20260917T174347-61036e1e/bin/lm-loop-run",
+          "/Users/anicca/loops/releases/20260917T174347-61036e1e"
+        ]
+      },
+      "runtime_report": null,
+      "reconciliation_status": "inconclusive_exact_identity_missing"
+    }
+  ]
+}
