@@ -200,7 +200,13 @@ async function timeline(uid, opts) {
   }, opts, true);
   const knownCallKeys = new Set(calls.map((row) => String(row.event_key || "")));
   for (const miss of misses) {
-    if (miss.reason !== "dial_failed" || knownCallKeys.has(String(miss.event_key || ""))) continue;
+    const missKey = String(miss.event_key || "");
+    const existing = calls.find((row) => String(row.event_key || "") === missKey);
+    if (existing && ["no_answer", "dial_failed"].includes(miss.reason) && !existing.call_outcome) {
+      existing.call_outcome = miss.reason;
+      continue;
+    }
+    if (miss.reason !== "dial_failed" || knownCallKeys.has(missKey)) continue;
     calls.push({
       event_key: miss.event_key,
       called_at: miss.occurred_at,

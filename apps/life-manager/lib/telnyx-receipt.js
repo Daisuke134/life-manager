@@ -129,26 +129,28 @@ async function recordTelnyxWakeOutcome(input = {}, deps = {}) {
   if (!supaUrl || !supaKey) return failure("missing_config");
   const fetchImpl = deps.fetchImpl || globalThis.fetch;
   if (typeof fetchImpl !== "function") return failure("network_error");
-  const legacyOutcome = callOutcome === "no_answer" ? "machine"
-    : callOutcome === "conversation" ? "human" : null;
+  const legacyReason = callOutcome === "no_answer" ? "no_answer"
+    : callOutcome === "dial_failed" ? "dial_failed" : null;
   const recordLegacyOutcome = async () => {
-    if (!legacyOutcome) return { ok: true, matched: 0, legacy: true };
-    const legacyUrl = `${supaUrl}/rest/v1/lm_wake_log?uid=eq.${encodeURIComponent(uid)}`
-      + `&event_key=eq.${encodeURIComponent(eventKey)}`
-      + `&claim_token=eq.${encodeURIComponent(claimToken)}`
-      + `&telnyx_call_control_id=eq.${encodeURIComponent(callControlId)}`
-      + "&amd_result=is.null&select=event_key";
+    if (!legacyReason) return { ok: true, matched: 0, legacy: true };
+    const legacyUrl = `${supaUrl}/rest/v1/lm_wake_miss`;
     let legacyResponse;
     try {
       legacyResponse = await fetchImpl(legacyUrl, {
-        method: "PATCH",
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Prefer: "return=representation",
+          Prefer: "return=representation,resolution=merge-duplicates",
           apikey: supaKey,
           Authorization: `Bearer ${supaKey}`,
         },
-        body: JSON.stringify({ amd_result: legacyOutcome }),
+        body: JSON.stringify({
+          uid,
+          event_key: eventKey,
+          reason: legacyReason,
+          occurred_at: new Date().toISOString(),
+          detail: hangupCause || null,
+        }),
       });
     } catch {
       return failure("network_error");

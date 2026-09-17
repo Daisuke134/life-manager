@@ -718,8 +718,9 @@ const server = http.createServer(async (req, res) => {
             return;
           }
         }
+        let outcome = null;
         if (needsDuration) {
-          const outcome = classifyCallOutcome({ connectedSeconds, hangupCause });
+          outcome = classifyCallOutcome({ connectedSeconds, hangupCause });
           const recorded = await recordTelnyxWakeOutcome({
             uid: wake.wakeUid,
             eventKey: wake.wakeEventKey,
@@ -751,7 +752,7 @@ const server = http.createServer(async (req, res) => {
             }
           }
         }
-        if (wake.voicePeriodStart && wake.voiceReservationToken) {
+        if (wake.voicePeriodStart && wake.voiceReservationToken && outcome) {
           const voice = await completeVoiceAllowance(wake.wakeUid, wake.wakeEventKey, SUPA_URL, SUPA_KEY, {
             reservation: {
               periodStart: wake.voicePeriodStart,
@@ -826,13 +827,61 @@ const server = http.createServer(async (req, res) => {
         res.end("outcome failed; send it again");
         return;
       }
+      let amdVoiceOutcome = null;
+      if (wake.voicePeriodStart && wake.voiceReservationToken
+        && ["human", "not_sure", "machine"].includes(detection.result)) {
+        const amdConnectedSeconds = await retrieveCallDuration(payload.call_control_id);
+        if (amdConnectedSeconds == null) {
+          console.error("[telnyx-events] AMD voice duration reconciliation failed");
+          res.writeHead(503, { "content-type": "text/plain" });
+          res.end("voice duration unavailable; send it again");
+          return;
+        }
+        amdVoiceOutcome = classifyCallOutcome({
+          amdResult: detection.result,
+          connectedSeconds: amdConnectedSeconds,
+        });
+        if (!detection.outcome && amdVoiceOutcome) {
+          const recorded = await recordTelnyxWakeOutcome({
+            uid: wake.wakeUid,
+            eventKey: wake.wakeEventKey,
+            claimToken: wake.wakeClaimToken,
+            callControlId: payload.call_control_id,
+            callOutcome: amdVoiceOutcome,
+            connectedSeconds: amdConnectedSeconds,
+          }, { supaUrl: SUPA_URL, supaKey: SUPA_KEY });
+          if (!recorded || recorded.ok !== true) {
+            console.error("[telnyx-events] AMD call outcome reconciliation failed");
+            res.writeHead(503, { "content-type": "text/plain" });
+            res.end("call outcome unavailable; send it again");
+            return;
+          }
+          report("call_outcome", recorded);
+        }
+        const voice = await completeVoiceAllowance(wake.wakeUid, wake.wakeEventKey, SUPA_URL, SUPA_KEY, {
+          reservation: {
+            periodStart: wake.voicePeriodStart,
+            reservationToken: wake.voiceReservationToken,
+            allowedSeconds: wake.voiceAllowedSeconds,
+          },
+          connectedSeconds: amdVoiceOutcome === "conversation" ? amdConnectedSeconds : 0,
+        });
+        if (!voice || voice.allowed !== true) {
+          console.error("[telnyx-events] AMD voice allowance reconciliation failed");
+          res.writeHead(503, { "content-type": "text/plain" });
+          res.end("voice allowance failed; send it again");
+          return;
+        }
+      }
       if (wake.managedActionKey && wake.managedPeriodStart && wake.managedReservationToken
         && detection.amd.ok === true && detection.amd.matched === 1) {
         const reservation = {
           periodStart: wake.managedPeriodStart,
           reservationToken: wake.managedReservationToken,
         };
-        const allowanceReceipt = (detection.result === "human" || detection.result === "not_sure")
+        const managedOutcome = (detection.result === "human" || detection.result === "not_sure")
+          ? "conversation" : amdVoiceOutcome;
+        const allowanceReceipt = managedOutcome === "conversation" || managedOutcome === "no_answer"
           ? await completeManagedAction(wake.wakeUid, wake.managedActionKey, SUPA_URL, SUPA_KEY, { reservation })
           : null;
         if (!["human", "not_sure", "machine"].includes(detection.result)) {

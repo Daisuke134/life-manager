@@ -20,11 +20,11 @@ function connectedSeconds(value) {
 
 function classifyCallOutcome({ amdResult, connectedSeconds: duration, hangupCause } = {}) {
   if (amdResult === "human" || amdResult === "not_sure") return CALL_OUTCOMES.CONVERSATION;
+  if (amdResult === "machine") return CALL_OUTCOMES.NO_ANSWER;
   const seconds = connectedSeconds(duration);
   const cause = normalizedCause(hangupCause);
   if (seconds === 0 && NO_ANSWER_CAUSES.has(cause)) return CALL_OUTCOMES.NO_ANSWER;
   if (seconds === 0 && DIAL_FAILED_CAUSES.has(cause)) return CALL_OUTCOMES.DIAL_FAILED;
-  if (amdResult === "machine" && seconds === 0) return CALL_OUTCOMES.NO_ANSWER;
   return null;
 }
 

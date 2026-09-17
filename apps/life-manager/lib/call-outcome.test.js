@@ -30,6 +30,10 @@ test("positive duration without a human or terminal cause stays unknown", () => 
   assert.equal(classifyCallOutcome({ connectedSeconds: 12, hangupCause: "normal_clearing" }), null);
 });
 
+test("machine AMD is no-answer even when voicemail connected for positive seconds", () => {
+  assert.equal(classifyCallOutcome({ amdResult: "machine", connectedSeconds: 120, hangupCause: "timeout" }), CALL_OUTCOMES.NO_ANSWER);
+});
+
 test("outcome RPC posts the exact tenant-scoped evidence", async () => {
   const calls = [];
   const result = await recordTelnyxWakeOutcome({
@@ -79,8 +83,11 @@ test("outcome RPC falls back to the existing AMD column when the new RPC is not 
   });
   assert.deepEqual(result, { ok: true, matched: 1, legacy: true });
   assert.equal(calls.length, 2);
-  assert.match(calls[1].url, /\/rest\/v1\/lm_wake_log\?/);
-  assert.deepEqual(JSON.parse(calls[1].init.body), { amd_result: "machine" });
+  assert.equal(calls[1].url, "https://supa.example/rest/v1/lm_wake_miss");
+  assert.equal(calls[1].init.method, "POST");
+  assert.deepEqual(JSON.parse(calls[1].init.body).uid, "tenant-a");
+  assert.deepEqual(JSON.parse(calls[1].init.body).event_key, "event-a|10");
+  assert.deepEqual(JSON.parse(calls[1].init.body).reason, "no_answer");
 });
 
 test("outcome RPC rejects invalid outcome without fetching", async () => {

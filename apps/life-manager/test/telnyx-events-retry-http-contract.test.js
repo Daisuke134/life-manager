@@ -103,6 +103,7 @@ before(async () => {
     upstreamCalls.push({ url: String(input), method, body: init.body || "" });
     if (url.hostname === "fixture.supabase.co") {
       if ((url.pathname === "/rest/v1/lm_wake_log" && method === "PATCH") ||
+        (url.pathname === "/rest/v1/lm_wake_miss" && method === "POST") ||
         (url.pathname === "/rest/v1/rpc/record_lm_wake_telnyx_receipt" && method === "POST") ||
         (url.pathname === "/rest/v1/rpc/record_lm_wake_telnyx_outcome" && method === "POST") ||
         (url.pathname === "/rest/v1/rpc/complete_lm_managed_action" && method === "POST") ||
@@ -234,7 +235,7 @@ test("a signed call.hangup writes one exact wake receipt without an outbound cal
   assert.equal(upstreamCalls.filter((call) => pathOf(call) === "/v2/calls").length, 0);
 });
 
-test("signed hangup retrieves official duration and settles the exact voice owner", async () => {
+test("signed hangup retrieves official duration but waits for human AMD before charging voice", async () => {
   upstreamCalls.length = 0;
   const bodies = [];
   const supabase = (url, init) => {
@@ -255,6 +256,41 @@ test("signed hangup retrieves official duration and settles the exact voice owne
     telnyx: () => response(200, { data: { call_duration: 37 } }),
   });
   assert.equal(res.status, 200);
+  assert.equal(bodies.some((item) => item.pathname.endsWith("complete_lm_voice_allowance")), false);
+});
+
+test("unknown positive-duration hangup does not consume voice seconds before human AMD", async () => {
+  const bodies = [];
+  const supabase = (url, init) => {
+    const pathname = new URL(url).pathname;
+    const body = JSON.parse(init.body);
+    bodies.push({ pathname, body });
+    if (pathname.endsWith("record_lm_wake_telnyx_receipt")) return response(200, 1);
+    if (pathname.endsWith("record_lm_wake_telnyx_outcome")) return response(200, 1);
+    if (pathname.endsWith("complete_lm_voice_allowance")) return response(200, {
+      allowed: true, usedSeconds: 0, limitSeconds: 3600, allowedSeconds: 0,
+      periodStart: MANAGED_PERIOD, resetAt: "2026-10-01",
+    });
+    if (pathname.endsWith("complete_lm_managed_action")) return response(200, {
+      allowed: true, used: 1, limit: 500, periodStart: MANAGED_PERIOD, resetAt: "2026-10-01",
+    });
+    if (pathname === "/rest/v1/lm_wake_log") return response(200, [{ event_key: CLAIM_EVENT_KEY }]);
+    throw new Error(`unexpected ${pathname}`);
+  };
+  const res = await postSignedAmdEvent({
+    eventType: "call.hangup", clientState: managedVoiceClaimClientState,
+    eventId: "unknown-duration", callControlId: "unknown-duration-control", supabase,
+    telnyx: () => response(200, { data: { call_duration: 37 } }),
+  });
+  assert.equal(res.status, 200);
+  assert.equal(bodies.some((item) => item.pathname.endsWith("complete_lm_voice_allowance")), false,
+    "unknown hangup must leave the accepted reservation for AMD");
+  const human = await postSignedAmdEvent({
+    clientState: managedVoiceClaimClientState, result: "human",
+    eventId: "human-after-unknown", callControlId: "unknown-duration-control", supabase,
+    telnyx: () => response(200, { data: { call_duration: 37 } }),
+  });
+  assert.equal(human.status, 200);
   assert.deepEqual(bodies.find((item) => item.pathname.endsWith("complete_lm_voice_allowance")).body, {
     p_uid: CLAIM_UID, p_call_key: CLAIM_EVENT_KEY, p_period_start: MANAGED_PERIOD,
     p_reservation_token: MANAGED_TOKEN, p_connected_seconds: 37,
@@ -301,6 +337,7 @@ test("timeout hangup remains usable before the outcome migration is deployed", a
     writes.push({ pathname, body: init.body ? JSON.parse(init.body) : null });
     if (pathname.endsWith("record_lm_wake_telnyx_receipt")) return response(200, 1);
     if (pathname.endsWith("record_lm_wake_telnyx_outcome")) return response(404, {});
+    if (pathname === "/rest/v1/lm_wake_miss") return response(201, [{ event_key: CLAIM_EVENT_KEY }]);
     if (pathname === "/rest/v1/lm_wake_log") return response(200, [{ event_key: CLAIM_EVENT_KEY }]);
     if (pathname.endsWith("complete_lm_managed_action")) return response(200, {
       allowed: true, used: 1, limit: 500, periodStart: MANAGED_PERIOD, resetAt: "2026-10-01",
@@ -317,7 +354,7 @@ test("timeout hangup remains usable before the outcome migration is deployed", a
     telnyx: () => response(200, { data: { call_duration: 0 } }),
   });
   assert.equal(res.status, 200);
-  assert.deepEqual(writes.find((write) => write.pathname === "/rest/v1/lm_wake_log").body, { amd_result: "machine" });
+  assert.equal(writes.find((write) => write.pathname === "/rest/v1/lm_wake_miss").body.reason, "no_answer");
   assert.equal(writes.some((write) => write.pathname.endsWith("complete_lm_managed_action")), true);
 });
 
