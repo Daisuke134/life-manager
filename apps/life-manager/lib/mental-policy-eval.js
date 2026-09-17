@@ -8,7 +8,7 @@ function fail(message) { throw new Error(`mental decision row ${message}`); }
 
 function validateDecisionRow(row) {
   if (!row || typeof row !== "object" || Array.isArray(row)) fail("must be an object");
-  const allowed = ["uid", "policyVersion", "profileVersion", "sourceOutcomeId", "candidateQuoteIds", "selectedQuoteId", "silenceReason", "calendarBusy", "window", "telegramMessageId", "locale", "family", "observedAt"];
+  const allowed = ["uid", "policyVersion", "profileVersion", "sourceOutcomeId", "candidateQuoteIds", "selectedQuoteId", "silenceReason", "calendarBusy", "window", "telegramMessageId", "locale", "family", "localDay", "observedAt"];
   if (Object.keys(row).some((key) => !allowed.includes(key))) fail("contains unknown fields");
   if (!row.uid || !row.policyVersion || !row.profileVersion || !Array.isArray(row.candidateQuoteIds)) fail("identity invalid");
   if (row.selectedQuoteId !== null && (!row.selectedQuoteId || !row.candidateQuoteIds.includes(row.selectedQuoteId))) fail("selected quote invalid");
@@ -19,6 +19,7 @@ function validateDecisionRow(row) {
   // increase the violation counters below. Keep structural validation (window shape and a
   // non-empty locale) separate from policy validation.
   if (!WINDOWS.has(row.window) || typeof row.locale !== "string" || !row.locale) fail("window or locale invalid");
+  if (row.localDay !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(row.localDay))) fail("localDay invalid");
   if (row.selectedQuoteId !== null && !FAMILIES.has(row.family)) fail("family invalid");
   if (row.telegramMessageId !== null && !String(row.telegramMessageId)) fail("telegram message ID invalid");
   if (!Number.isFinite(Date.parse(row.observedAt))) fail("observedAt invalid");
@@ -31,16 +32,29 @@ function scorePolicyRows(rows) {
   const byDay = new Map();
   const templates = new Map();
   for (const row of delivered) {
-    const day = new Date(row.observedAt).toISOString().slice(0, 10);
+    const day = row.localDay || new Date(row.observedAt).toISOString().slice(0, 10);
     byDay.set(day, (byDay.get(day) || 0) + 1);
     const key = row.selectedQuoteId;
-    templates.set(key, (templates.get(key) || 0) + 1);
+    const timesForTemplate = templates.get(key) || [];
+    const observedAt = Date.parse(row.observedAt);
+    timesForTemplate.push(observedAt);
+    templates.set(key, timesForTemplate);
   }
   return {
     delivered: delivered.length,
     busy_send: valid.filter((row) => row.calendarBusy && row.telegramMessageId !== null).length,
     unsupported_locale: valid.filter((row) => !LOCALES.has(row.locale)).length,
-    duplicate_template: [...templates.values()].reduce((sum, count) => sum + Math.max(0, count - 1), 0),
+    duplicate_template: [...templates.values()].reduce((sum, times) => {
+      const ordered = times.filter(Number.isFinite).sort((a, b) => a - b);
+      let duplicates = 0;
+      const recent = [];
+      for (const time of ordered) {
+        while (recent.length && time - recent[0] > 14 * 24 * 60 * 60 * 1000) recent.shift();
+        if (recent.length) duplicates += 1;
+        recent.push(time);
+      }
+      return sum + duplicates;
+    }, 0),
     cap_overflow: [...byDay.values()].reduce((sum, count) => sum + Math.max(0, count - 3), 0),
     silence: valid.length - delivered.length,
   };
