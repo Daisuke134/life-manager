@@ -1,6 +1,6 @@
 # Life Manager Mental Messages V1 Design
 
-**Status:** Revised after context-grounding review
+**Status:** V1 implementation live; natural canary remains open
 **Owner:** Life Manager cloud runtime
 **Primary locale:** Japanese
 **Scope:** Gmail/Calendar-aware mental UX and its staged implementation; email action ownership stays with existing loops
@@ -604,3 +604,77 @@ Anicca assets and Anicca iOS are not part of this runtime or rollout. Anicca iOS
 **Prioritized next:** reuse Job Hunter's exact Gmail outcome receipts for contextual messages; do not build a second inbox reader. Keep YC/general mail, broad reply automation, and sensor-based physical claims behind separate owners and evidence contracts.
 
 **Reason:** reuse proven words; personalize the selection, not the truth of the sentence.
+
+## 19. Current implementation status, remaining TODO, and blocker
+
+This section is the operational status of the design. The production evidence ledger is
+`docs/evidence/life-manager-mental-canary.md`; its provider readbacks, not a local test or a
+synthetic row, decide whether a rollout milestone is closed.
+
+### 19.1 Implemented and currently not blocking
+
+- The shared Telnyx boundary clamps `time_limit_secs` to an integer with a minimum of 30. One
+  authorized production test call returned a provider receipt without `90029`; duplicate-call
+  replay-zero remains a separate proof item.
+- The production scheduler uses the V1 path `scheduler.js -> mentalV1UserOnce`, with only
+  `affirmation`, `mindfulness_inquiry`, and `manifestation` (evening fallback `affirmation`).
+- The three local-time opportunity windows, three-message cap, three-hour spacing, calendar-busy
+  suppression, strict send-history gate, allowlist, and deterministic catalog selection are live.
+- Japanese and English catalogs are imported from the three pinned external OSS sources in §7.
+  No internal Anicca catalog is on this path, and delivery is verbatim catalog text with no
+  buttons or reply instruction.
+- Explicit profile/correction intake, the signed verified-outcome bridge, the bounded safety
+  adapter, and the offline policy scorecard are implemented and covered by focused tests.
+- Production deployment, schema/RLS readback, tenant preflight, and worker health are already
+  recorded as passing in the evidence ledger. These are not the current release blocker.
+
+### 19.2 Observed production state
+
+- The live `life-call` deployment is `92e9fc01664b65e8a22d37d3969b8379c67cb1fe` and `/health`
+  returns `200`.
+- The Dais-only preflight has the required Telegram, Calendar, Gmail, timezone, notification,
+  automation, entitlement, and schema prerequisites.
+- The latest automated canary readback in the evidence ledger is `v1_count=0`, `legacy_count=34`,
+  and `pass=false`. No natural V1 Telegram receipt is therefore available yet. Synthetic bridge
+  rows/messages were deleted and do not count toward this result.
+
+### 19.3 Remaining TODO, in outcome order
+
+| Priority | TODO | Completion evidence |
+|---|---|---|
+| P0 | Observe a natural Dais morning, midday, and evening opportunity. | Provider-native Telegram message ID, exact text, family/window, and durable `lm_mental_send_log` row for each family. |
+| P0 | Keep the Dais-only canary running for seven consecutive local days. | Daily decision/send ledger with no synthetic rows and at least one real delivery from every V1 family. |
+| P0 | Close safety and UX counters across that canary. | `<=3` per local day, `>=3h` spacing, zero Calendar-busy sends, zero configured quiet-hour sends, zero unsupported claims, zero repeated templates within 14 days, and replay-zero. |
+| P0 | Read back the actual Telegram messages. | Plain text only: no keyboard/callback data, sender prefix, reply instruction, or unnatural/unreviewed locale text. |
+| P1 | Persist a closed decision row for every send or silence and add bounded policy promotion/rollback. | Production rows contain policy/profile versions, candidate/selected quote or silence reason, source refs, busy state, window, locale, and Telegram ID; old/new replay score promotes only when safety does not regress. |
+| P1 | Make quiet hours a real explicit per-user source, or remove the production acceptance claim. | A versioned preference field is read by the scheduler and its suppression is observed; the current `quietHours` dependency alone is not production proof. |
+| P1 | Verify the existing crisis handoff owner and route. | A tested, location-appropriate handoff is read back; until then MENTAL makes no suicide-prevention or emergency-support claim. |
+| P2 | Run Telnyx duplicate/replay-zero if the stronger provider proof is required. | A second authorized test is deduplicated or otherwise reconciled without an unapproved duplicate effect. This does not block the mental canary. |
+| P2 | After the canary, unlock verified Job Hunter outcome context, then any separate general-mail owner. | Freshness, owner receipt, native copy, production readback, and replay-zero for each context class; no second Gmail poller. |
+| P3 | Review Anicca iOS affirmation copy independently. | Separate mobile-app acceptance; no Life Manager runtime dependency or shared ledger. |
+
+### 19.4 What is blocking now
+
+**Primary blocker:** the natural seven-day provider observation has not started producing V1 rows.
+The evaluator reports `v1_count=0`, so there is no real Telegram text or send receipt from which to
+prove family coverage, spacing, cap behavior, native fluency, or replay-zero. This is a wall-clock
+and provider-readback dependency, not a code, test, schema, deployment, health, or credential
+failure. Clock manipulation, synthetic rows, or a local unit-test pass cannot close it.
+
+**Release consequence:** keep `LM_MENTAL_V1_ALLOWED_UIDS` restricted to Dais and do not expand to
+general users until the P0 rows above are closed. Silence is the correct behavior while the canary
+has no eligible natural receipt; it is not evidence of a successful canary.
+
+**Secondary blockers for the full acceptance claim:** per-user quiet hours are injectable but not
+yet backed by a production preference field; in-window scheduler suppressions are logged as enums
+(outside-window heartbeats are intentionally omitted) but are not yet durable scorecard decision
+rows; and the crisis handoff owner has not been verified. These items do not prevent collecting the
+first ordinary V1 message, but they prevent claiming the full self-improving, safety-complete
+rollout.
+
+### 19.5 Next action
+
+Continue the Dais-only natural canary through the three local windows, record provider-native
+receipts in the evidence ledger, and close the P0 checklist before changing copy, widening the
+allowlist, promoting a policy, or enabling Gmail/Calendar outcome context. Once P0 is closed, do
+P1 decision persistence and quiet-hours/crisis ownership before general rollout.
