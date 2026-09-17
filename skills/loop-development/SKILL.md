@@ -118,6 +118,11 @@ result that does not name exactly the intended owner. A failed reconcile stays
 `held` and never reaches this command. This CLI is a supervisor boundary, not
 provider/browser execution and not proof of an external business effect.
 
+The existing release-reconciler consumes the shared private intent queue through
+`./bin/lm-recovery-supervise`, one owner per wake. It journals claims and
+terminal states outside Git; queued failures are retried at most three times,
+then escalated. No second scheduler or provider-specific retry loop is added.
+
 ## Source, state, and ownership
 
 - Executable code, adapters, schemas, prompts, and dependency lockfiles live in

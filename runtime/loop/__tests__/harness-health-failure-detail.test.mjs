@@ -137,6 +137,7 @@ test('R6: wake_error wake -> exactly one harness-failures.jsonl line, no slot ke
   const home = makeTmpHome();
   const failuresPath = path.join(home, 'state', 'harness-failures.jsonl');
   const ledgerPath = path.join(home, 'state', 'ledger.jsonl');
+  const recoveryIntentsPath = path.join(home, 'state', 'recovery-intents.jsonl');
 
   const { server, url } = await startMockServer(() => ({ status: 500, body: JSON.stringify({ error: 'boom' }) }));
 
@@ -144,6 +145,7 @@ test('R6: wake_error wake -> exactly one harness-failures.jsonl line, no slot ke
     ANICCA_HOME: home,
     LIFE_MANAGER_LOOP_ID: 'test-loop',
     LIFE_MANAGER_RELEASE_SHA: 'a'.repeat(40),
+    LIFE_MANAGER_RECOVERY_INTENTS_PATH: recoveryIntentsPath,
     OPENAI_BASE_URL: url,
     ANICCA_BALANCE_OVERRIDE: '0',
     SLEEP_BASE_S: '0',
@@ -155,6 +157,7 @@ test('R6: wake_error wake -> exactly one harness-failures.jsonl line, no slot ke
   try {
     await waitFor(() => readJsonl(ledgerPath).some((l) => l.kind === 'wake_error') || null);
     await waitFor(() => readJsonl(failuresPath).length > 0 || null);
+    await waitFor(() => readJsonl(recoveryIntentsPath).length > 0 || null);
     proc.kill('SIGTERM');
     await new Promise((r) => setTimeout(r, 300));
 
@@ -169,6 +172,11 @@ test('R6: wake_error wake -> exactly one harness-failures.jsonl line, no slot ke
     assert.equal(line.recovery_intent.loop_id, 'test-loop');
     assert.equal(line.recovery_intent.action, 'reconcile_owner');
     assert.equal(line.recovery_intent.mutates_external_effect, false);
+    const queued = readJsonl(recoveryIntentsPath);
+    assert.equal(queued.length, 1);
+    assert.equal(queued[0].record_type, 'recovery_intent');
+    assert.equal(queued[0].intent_id, line.recovery_intent.intent_id);
+    assert.equal(fs.statSync(recoveryIntentsPath).mode & 0o777, 0o600);
   } finally {
     server.close();
     proc.kill('SIGTERM');

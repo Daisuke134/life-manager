@@ -230,6 +230,8 @@ class MacosLoopRegistryTest(unittest.TestCase):
             script,
         )
         self.assertIn("admission-v2-enable", script)
+        self.assertIn("lm-recovery-supervise", script)
+        self.assertIn("LIFE_MANAGER_RECOVERY_INTENTS_PATH", script)
         self.assertNotIn("--include-running", script)
         self.assertNotIn("--loop-id", script)
 

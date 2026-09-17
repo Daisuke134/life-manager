@@ -49,12 +49,12 @@
 ### D. Close worktrees without losing work
 
 - [x] D1. Re-audit registered worktrees immediately before cleanup; separate open-PR, dirty, locked, active-runtime and integrated candidates. The post-migration audit recorded 167 registrations: 20 active leases, 77 expired leases, 41 unmanaged, 29 unmanaged-locked, 126 locked entries and 15 missing paths. Open PRs were read back separately before each removal.
-- [ ] D2. For each integrated candidate, verify exact merged commit, no unique uncommitted content, no process/open-file owner, and no active lease; then remove that exact worktree without force and confirm Git no longer registers it.
+- [x] D2. For each integrated candidate, verify exact merged commit, no unique uncommitted content, no process/open-file owner, and no active lease; then remove that exact worktree without force and confirm Git no longer registers it.
   - [x] D2a. Removed 13 canonical `.worktrees` candidates after per-path clean-status, main-ancestor, no-open-PR, no-lsof and expired-lease preflight. Every removal used unlock plus force-free `git worktree remove`; each path and registration disappeared.
-  - [ ] D2b. Recheck the remaining `/private/tmp` candidates one by one before removal. Forty-eight currently match clean/full-status + main-ancestor + no-open-PR shape, while 15 missing locked registrations lack content proof; retain both groups until the exact owner/open-file and unique-content checks are complete. `writer-integrated-20260917` changed branch/HEAD during preflight and was retained.
+  - [x] D2b. Rechecked `/private/tmp` candidates one by one. Every candidate that passed full status, main-ancestor, no-open-PR, common-dir, lsof and non-active-lease checks was removed without force. The final audit recorded `safe_remaining=0`; 15 missing locked registrations remain because their content cannot be proven clean, and non-safe/active/dirty/open-PR worktrees remain retained.
 - [ ] D3. Report retained worktrees with owner and reason. Confirm the normal development checkout and current production releases still point to the intended source/release after cleanup.
   - [x] D3a. Retained active/dirty/open-PR/locked worktrees are classified with their lease owner or explicit no-owner reason in the audit output; no active or dirty worktree was removed.
-  - [ ] D3b. The normal checkout is still dirty on `capafy/account-plan-deck-offline-20260912`, and `~/loops/current` points to immutable release `20260917T190642-6628d8eb` whose `RELEASE.json` says `pushed-not-yet-on-main`; do not cut over production or discard the checkout without an owner-controlled release handoff and readback.
+  - [ ] D3b. The normal checkout is still dirty on `capafy/account-plan-deck-offline-20260912`. `~/loops/current` now points to immutable release `d29621be5159` with `provenance=ancestor-of-origin-main`; latest `origin/main` is `fb4b0c4431`. Confirm loaded argv and decide whether a newer main-derived release is required before changing the checkout or production.
 
 ## Verification and finish
 
