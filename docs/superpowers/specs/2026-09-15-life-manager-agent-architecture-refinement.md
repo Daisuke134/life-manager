@@ -247,6 +247,19 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   close A15-08. If an old runner still rebinds a queued owner, capture its
   exact PID/release/dispatch event before changing `runtime/loop/lm_loop_run.py`
   again.
+  Follow-up readback: disk availability recovered to 7,892,796 KiB and the
+  natural disk-cleanup run reached outer pass at 21:23:08Z; its matching
+  receipt at 21:22:54Z reports errors 0, protected deletions 0 and
+  145,262,807 bytes reclaimed. Browser pending occurrences and reservations
+  were empty. Existing reconciliation installed the complete main-derived
+  `fc31d1227b63` release on probe at 21:25:11Z (event
+  `a2814c6ad734d8d98e51c897`) and Connector at 21:25:42Z (event
+  `ce8f8de463ad0dca32d7c111`). Both installed plists and loaded-idle
+  status name this SHA; the probe plist now has `StartInterval=300`.
+  Probe natural run `18d639069c002cb8-54450` claimed browser at
+  21:30:02Z, reached outer pass at 21:30:30Z, and its occurrence is
+  `released/effect_unknown=0`. No Connector natural claim on `fc31d1227b63`
+  has yet been observed, so A15-08 remains open.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
