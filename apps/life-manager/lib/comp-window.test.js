@@ -1,6 +1,6 @@
 // lib/comp-window.test.js — RED for the demo comp window.
 //
-// WHY: onboarding hard-stops at a $20 paywall (telegram-onboard computeStage → "pay") and the
+// WHY: onboarding hard-stops at a $29 paywall (telegram-onboard computeStage → "pay") and the
 // scheduler cohort filter drops every unpaid row (user-selector: paid=is.true), so a stranger who
 // scans the demo QR gets zero calls/travel/asks. LM_COMP_UNTIL is a TIME-BOXED, READ-TIME override:
 // it never writes lm_users.paid (lib/billing.js stays the single writer) and it dies on its own at

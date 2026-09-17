@@ -1,5 +1,5 @@
 // lib/money-path.test.js — C5/C6 RED. The money-path monitor: extract the Stripe link from the /lm JS
-// chunk (inlined by force-static), assert it == the registry known-good LM $20/mo link, and gate
+// chunk (inlined by force-static), assert it == the registry known-good LM $29/mo link, and gate
 // rollback with debounce (>=2 consecutive FAIL), a flap guard (never roll back into a target that also
 // fails), and Telegram dedup (one message per incident). Pure logic; network fetch lives in the caller.
 "use strict";
@@ -13,7 +13,7 @@ const {
   RollbackController,
 } = require("./money-path.js"); // missing → RED
 
-const GOOD = "https://buy.stripe.com/9B600j6C204S7LadIG2880V"; // LM $20/mo (registry known-good)
+const GOOD = "https://buy.stripe.com/cNifZhgcC3h44yYeMK2880X"; // LM $29/mo (registry known-good)
 const BAD = "https://buy.stripe.com/00w9ATf8yaJwghG6ge2880v"; // ¥700k AI供養 (the real 2026-07-03 bug)
 
 test("extractStripeLink: pulls buy.stripe.com/<slug> out of a chunk string", () => {

@@ -450,24 +450,29 @@ Stripe account itself. The operator CLI path was recovered through the existing 
 - The browser flow used the existing Google login and Stripe two-factor authentication. Credentials are
   not stored in the repository or this spec.
 
-The product money loop remains incomplete: `skills/self/life-manager-loop/loop.sh` reads
-`STRIPE_SECRET_KEY` from its private runtime state and does not consume the Stripe CLI profile. The next
-implementation must either inject a valid live key through the private SSOT/runtime path or add a secure
-CLI-backed read path, then rerun the loop and read back `lm_mrr_usd`, plan status, period end, refunds, and
-failed payments. Until that app-level receipt exists, the CLI result is an operator/provider readback, not
-an application loop receipt.
+The product money loop was incomplete at the 2026-09-17 measurement because its private runtime key path
+was missing. The implementation below adds a secure CLI-backed read path for the authenticated local
+operator and records the provider readbacks in the loop state; no credential value is copied into Git.
+
+**2026-09-18 implementation readback:** `loop.sh` now accepts Stripe restricted live keys and falls back
+to the authenticated Stripe CLI when no private runtime key is present. The bounded run returned
+`stripe_source=cli`, `lm_mrr_usd=0.0`, `active_subscription_count=0`, no subscription period end,
+`refund_count=3`, and `failed_payment_count=91`, with `heal=none`. Fixture coverage is 11/11 PASS.
+The private runtime does not retain the invalid CLI config value; the OAuth-backed CLI is the read path.
+
+**2026-09-18 price/link alignment readback:** The live product had an existing `$20/month` price and
+Payment Link. A new live `$29/month` price was created under the same `Anicca Life Manager` product with
+lookup key `life_manager_monthly_29`; a new Payment Link was created at
+`https://buy.stripe.com/cNifZhgcC3h44yYeMK2880X`, verified active with `unit_amount=2900`, USD monthly,
+and Managed Payments disabled. The old `$20` Payment Link was disabled after the new link was verified.
+Railway production `LM_STRIPE_PAYMENT_LINK` now reads back as the new URL and `/health` remains 200.
 
 **Remaining revenue TODO, in order:**
 
-1. Wire the confirmed Stripe live account into the money-loop runtime (or add a secure CLI-backed read
-   path), then rerun the loop and read back active subscriptions, plan status, period end, refunds, and
-   failed payments. The 2026-09-18 provider readback showed zero active subscriptions and zero
-   provider-side subscription MRR; application-level MRR remains unverified until the loop receipt is
-   recorded.
-2. Choose one canonical price. The current product spec says `$29/month`, while older landing and
-   payment-link tests still describe `$20/month`. Update the Stripe price/link, landing copy, Telegram
-   `/subscribe` copy, and tests together after the price is selected. Do not advertise one price while
-   charging another.
+1. **DONE:** Wire the confirmed Stripe live account into the money-loop runtime and record active
+   subscriptions, period end, refunds, failed payments, and `lm_mrr_usd` in the loop state.
+2. **DONE:** Make `$29/month` canonical across the live Price, Payment Link, Railway runtime, landing
+   comments, Telegram copy, and money-path tests. The old `$20` link is disabled.
 3. Measure the marketing funnel: landing visit → Telegram start → Calendar connection → phone opt-in
    → first successful wake → paid subscription → renewal/referral.
 4. Make the self-build loop select fixes using those production metrics, then prove each change with

@@ -42,7 +42,7 @@ test("order is strict: canonical phone then call consent then done", () => {
 });
 
 // ── Demo comp window (LM_COMP_UNTIL) ──────────────────────────────────────────
-// A stranger who scans the demo QR must not hit a $20 wall mid-onboarding. The comp is a READ-TIME
+// A stranger who scans the demo QR must not hit a $29 wall mid-onboarding. The comp is a READ-TIME
 // override with an expiry; lm_users.paid is never written, so Stripe stays the single writer.
 function withCompUntil(value, fn) {
   const previous = process.env.LM_COMP_UNTIL;
