@@ -54,7 +54,7 @@
   - [ ] D2b. Recheck the remaining `/private/tmp` candidates one by one before removal. Forty-eight currently match clean/full-status + main-ancestor + no-open-PR shape, while 15 missing locked registrations lack content proof; retain both groups until the exact owner/open-file and unique-content checks are complete. `writer-integrated-20260917` changed branch/HEAD during preflight and was retained.
 - [ ] D3. Report retained worktrees with owner and reason. Confirm the normal development checkout and current production releases still point to the intended source/release after cleanup.
   - [x] D3a. Retained active/dirty/open-PR/locked worktrees are classified with their lease owner or explicit no-owner reason in the audit output; no active or dirty worktree was removed.
-  - [ ] D3b. The normal checkout is still dirty on `capafy/account-plan-deck-offline-20260912`, and `~/loops/current` points to immutable release `20260917T190033-102f86c5` whose `RELEASE.json` says `pushed-not-yet-on-main`; do not cut over production or discard the checkout without an owner-controlled release handoff and readback.
+  - [ ] D3b. The normal checkout is still dirty on `capafy/account-plan-deck-offline-20260912`, and `~/loops/current` points to immutable release `20260917T190642-6628d8eb` whose `RELEASE.json` says `pushed-not-yet-on-main`; do not cut over production or discard the checkout without an owner-controlled release handoff and readback.
 
 ## Verification and finish
 
