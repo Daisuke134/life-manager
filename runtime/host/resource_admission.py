@@ -1319,13 +1319,15 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
 
 
 def resolve_unknown_occurrence(owner_id: str, occurrence_id: str, *,
-                               official_readback: Callable[[], Mapping[str, object]]) -> bool:
+                               official_readback: Callable[[], Mapping[str, object]],
+                               expected_state: str | None = None) -> bool:
     """Close one fenced effect only after its provider adapter confirms the exact effect.
 
     The callback must perform official provider readback, not inspect a local draft.
     Absence and inconclusive readback remain fenced; neither authorizes a retry.
     """
-    if not owner_id or not _normalize_occurrence_id(occurrence_id):
+    if (not owner_id or not _normalize_occurrence_id(occurrence_id)
+            or expected_state not in {None, "claimed", "released"}):
         raise RuntimeError("invalid occurrence identity")
     proof = official_readback()
     if (not isinstance(proof, Mapping)
@@ -1341,11 +1343,15 @@ def resolve_unknown_occurrence(owner_id: str, occurrence_id: str, *,
         if not _acquire_bounded(descriptor, timeout_seconds=0.5):
             return False
         with _database(database) as connection:
+            state_clause = "state IN ('claimed','released')" if expected_state is None else "state=?"
+            params = (owner_id, occurrence_id) if expected_state is None else (
+                owner_id, occurrence_id, expected_state,
+            )
             changed = connection.execute(
-                """UPDATE occurrences SET state='released',effect_unknown=0
+                f"""UPDATE occurrences SET state='released',effect_unknown=0
                      WHERE owner_id=? AND occurrence_id=?
-                       AND state IN ('claimed','released') AND effect_unknown=1""",
-                (owner_id, occurrence_id),
+                       AND {state_clause} AND effect_unknown=1""",
+                params,
             )
             if changed.rowcount == 1:
                 remaining = connection.execute(

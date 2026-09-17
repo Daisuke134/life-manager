@@ -1148,6 +1148,32 @@ def test_unknown_occurrence_requires_matching_official_readback(tmp_path, monkey
     assert (row["state"], row["effect_unknown"]) == ("released", 0)
 
 
+def test_resolve_unknown_occurrence_can_require_released_state_atomically(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "mobile-owner"
+    occurrence = f"{owner}:claimed"
+    admission.enqueue_durable("deterministic", owner, admission_class="revenue",
+                              occurrence_id=occurrence, now=100)
+    claim, reason = admission.claim_durable(
+        "deterministic", owner, admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+
+    assert admission.resolve_unknown_occurrence(
+        owner, occurrence,
+        expected_state="released",
+        official_readback=lambda: {
+            "owner_id": owner, "occurrence_id": occurrence,
+            "verified": True, "provider_receipt_id": "post-1",
+        },
+    ) is False
+    row = next(item for item in durable_rows(tmp_path, "occurrences")
+               if item["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("claimed", 1)
+
+
 def test_released_unknown_occurrence_can_be_closed_by_exact_official_readback(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
