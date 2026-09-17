@@ -21,7 +21,7 @@
 
 ## Cursor and dependency order
 
-`0 auth continuity → 1 baseline → 1A Reply/Paid continuity → 2 profile → 3 fit → 4 funnel → 5 human resume → 6 learning → 7 one-off voice → 8 release and business proof`. Authentication is the current cursor and must pass before live profile or application work. Reply/Paid repair may be investigated read-only alongside Task 0 but effects remain serialized. Each task's own focused tests and review must pass before the next. Tasks 2–6 can be developed separately only with disjoint file ownership; application state and the Mercor account remain serialized.
+`0 auth continuity → 1 baseline → 1A Reply/Paid continuity → 2 profile → 3 fit → 4 funnel → 5 human resume → 6 learning → 7 one-off voice → 8 release and business proof`. Authentication and profile readback are complete for the source branch; the current cursor is the host `resource_effect_unknown` reconciliation and the first production release that carries the safe application-resume behavior. Reply/Paid repair may be investigated read-only alongside Task 0 but effects remain serialized. Each task's own focused tests and review must pass before the next. Tasks 2–6 can be developed separately only with disjoint file ownership; application state and the Mercor account remain serialized.
 
 ### Task 0: Stop unnecessary Mercor login mail and prove session reuse
 
@@ -98,6 +98,7 @@
 - [ ] Run `rtk pytest -q apps/job-search-loop/tests/test_mercor_pass_contract.py`; capture the expected failing assertions.
 - [x] Update the prompt and schema to require requirement-to-fact evidence, strategy version, profile material hashes and provider fit result. Prioritize official `Job fit` and new listings, but inspect complete details before ranking. A warning can proceed with a specific truthful explanation; `blocked` cannot. Preserve bounded scan, pre-effect fence, readback and other marketplace policy consumers.
 - [ ] Rerun focused tests and a read-only current-listing pass. Compare the ranked top candidates with their full official requirements; correct any false high ranking before allowing submission.
+- [x] Read-only Explore pagination confirmed page 3 contains a current `Non-Investment Finance Expert (CL Funnel)` card with `Ready to submit`, `2 of 2`, and no person-bound step. Its 3+ years hands-on finance requirement remains a model-fit judgment; it is recorded privately as a candidate to inspect, not as an application or fit claim.
 - [x] Commit and push.
 
 ### Task 4: Attribute the full Mercor selection funnel
@@ -130,6 +131,7 @@
 - [ ] Run the focused human-gate tests and verify the new cases fail.
 - [ ] Implement provider readback and gate transition using the existing owner and Telegram outbox. Include exact link/action and a safe return path in the notification. Do not click into interviews or graded forms or request media permission in the automation context.
 - [ ] Rerun tests. For a real person-completed step, verify one official completion readback and one subsequent owner continuation; do not manufacture an assessment completion for a test.
+- [x] Added exact-key tests and implementation for `(account_id, listing_id, step_id)` plus a pure `resume_application`/`recheck_later` transition. Provider completion readback and a real subsequent continuation remain pending until the operator completes the step.
 - [x] Commit and push.
 
 ### Task 6: Add source-backed, bounded improvement to the existing learning path
@@ -146,6 +148,7 @@
 - [x] Run `rtk pytest -q apps/job-search-loop/tests/test_learning_pass.py`; the new cases now pass after the contract implementation.
 - [ ] Adapt the existing learning wake to search official Mercor updates, X, first-person web accounts and GitHub for the earliest measured funnel loss. The new `mercor_learning.py` contract now requires source labels, official evidence refs/hashes for outcome cohorts, verified-receipt income, and one-variable proposals; the wake still must record `published_at`, `observed_at`, author, claimed outcome, evidence grade, and `source_unavailable` when a search surface fails. Use official Mercor guidance as the initial hypothesis source. Propose profile proof, qualification, or application presentation one at a time. Never automatically assert a new private fact from external content. Do not add a second scheduler or scrape credentials.
 - [ ] Rerun focused tests. Generate one dry read-only learning proposal from the private baseline and verify its source links, affected strategy version, and explicit `insufficient_evidence` when outcome data is inadequate.
+- [x] Existing learning wake now writes a bounded private Mercor source receipt. The 2026-09-17 dry run recorded one official guide, three public code listings, an unavailable X surface, and `income_receipts_promoted=0`; no external claim became a profile fact or income.
 - [ ] Commit and push.
 
 ### Task 7: Finish the Japanese Voice Actor application as a one-off
@@ -155,6 +158,7 @@
 **Interfaces:** Exact listing ID `list_AAABnMGxTAHltg__YT9Cvpll`. A private artifact manifest maps each uploaded recording to the official upload slot and readback. It is not an assessment result.
 
 - [ ] In the authenticated owned Mercor context, inspect the current listing and step instructions. Verify the seven files are playable, count/duration constraints and whether the provider accepts M4A; prepare only necessary conversions from originals if the UI requires them.
+- [x] Official Voice Actor readback is `4 of 5 / 80%`: Resume, Domain Expert Interview, Availability and Work Authorization are complete; Voice Actor Japanese Assessment is `Not done`. All seven supplied AAC/M4A files are playable and have a private SHA/duration manifest. M4A acceptance and slot mapping remain pending because the assessment is person-bound.
 - [ ] Fill factual biography from verified material: Tokyo, weekly Sunday Japanese comedy, comedy-school voice lessons, technology/AI podcast, iPhone and microphone. Mark unverified role-specific claims absent. Upload seven recordings, reopen the application and read back each file/slot.
 - [ ] If English Bilingual Interview or Voice Actor Japanese Assessment remains required, create/reuse candidate-local Telegram gate and continue other jobs. After the operator completes those steps, official readback and the existing submit fence govern the one-time final submission.
 - [ ] Acceptance: one official submitted confirmation for this listing or an exact pending human step; never report seven uploads alone as a submitted application.
