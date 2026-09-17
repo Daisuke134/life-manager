@@ -41,6 +41,8 @@
 | `apps/life-manager/lib/mental-catalog.test.js` | Deterministic personalized selection tests |
 | `apps/life-manager/lib/mental-profile.js` | Closed source-backed personalization tags and gradual weighting |
 | `apps/life-manager/lib/mental-profile.test.js` | Explicit-statement, correction, decay, and privacy tests |
+| `apps/life-manager/lib/mental-outcome.js` | Verified outcome -> optional mental quote policy |
+| `apps/life-manager/lib/mental-outcome.test.js` | Outcome verification, timing, cap, and duplicate tests |
 | `apps/life-manager/lib/mental-copy.js` | Verbatim catalog output and reviewed inquiry validation |
 | `apps/life-manager/lib/mental-copy.test.js` | Exact-source copy and forbidden-claim tests |
 | `apps/life-manager/lib/mental-runtime.js` | Select, send, and record one plain message |
@@ -454,6 +456,43 @@ node --test lib/mental-profile.test.js lib/mental-catalog.test.js
 git add migrations/2026-09-16-lm-mental-profile-tags.sql \
   lib/mental-profile.js lib/mental-profile.test.js
 git commit -m "feat(life-manager): ground gradual mental personalization"
+git push
+```
+
+### Task 5B: Connect a verified outcome to plain Telegram delivery
+
+**Files:**
+- Create: `apps/life-manager/lib/mental-outcome-runtime.js`
+- Create: `apps/life-manager/lib/mental-outcome-runtime.test.js`
+- Modify: `apps/life-manager/scheduler.js`
+- Modify: `apps/life-manager/lib/mental-send-log.js`
+
+**Input:**
+
+```js
+{
+  sourceOutcomeId,
+  kind: "interview|offer|rejection",
+  company,
+  role,
+  verifiedAt,
+  evidenceRef
+}
+```
+
+- [ ] Add RED tests proving a verified outcome produces two independent decisions: the owning loop may report its fact, while MENTAL may send at most one quote or suppress. MENTAL must never receive raw Gmail body text.
+- [ ] Add RED tests for rejection, offer, and interview; unknown/stale/duplicate outcomes; current Calendar busy; cap/gap; no matching catalog quote; Telegram delivery failure; and replay.
+- [ ] Implement `handleVerifiedOutcome(outcome, context, deps)` as a bounded adapter around `decideMentalOutcome`. It sends only `quote.text` through existing Telegram transport and records `sourceOutcomeId`, `quote.id`, `evidenceRef`, and Telegram message ID.
+- [ ] Do not append buttons, a reply request, an email action, or a sender signature.
+- [ ] Wire the scheduler to consume a verified-outcome provider seam. The default provider returns no outcomes; the Job Hunter bridge is the only production producer allowed in this task.
+- [ ] Run focused outcome/runtime tests and commit:
+
+```bash
+cd apps/life-manager
+node --test lib/mental-catalog.test.js lib/mental-outcome.test.js lib/mental-outcome-runtime.test.js
+git add lib/mental-outcome.js lib/mental-outcome.test.js lib/mental-outcome-runtime.js \
+  lib/mental-outcome-runtime.test.js lib/mental-send-log.js scheduler.js
+git commit -m "feat(life-manager): deliver receipt-grounded mental outcomes"
 git push
 ```
 
