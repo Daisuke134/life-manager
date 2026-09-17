@@ -1343,6 +1343,15 @@ calendar wake前のためeventと自然terminalは未確認である。
 | S-03 | repair完了後の同一owner再開を一件検証 | `runtime/loop/lm_loop.py`、`bin/reconcile-agent-runner-release.sh`、既存owner state/event | **candidate接続済み** (`72d9619339`)。同じjob/effect namespaceで再開し、duplicate effect 0、自然wakeとofficial readbackを実測するまで未完 |
 | S-04 | candidate→held-out/safety/cost eval→promotion/rollbackを一件閉じる | `apps/life-manager/eval/agent-contract/`、`apps/life-manager/lib/product-onboarding.js` | baseline比較、held-out、safety、cost、rollback pointerが揃い、production stateを直接変更しない |
 
+**2026-09-17 foundation slice (S-01 execution boundary):** `recovery-intent` →
+`recovery-apply-plan`の計画を、既存の`lm-loop reconcile`へ渡す
+`bin/lm-recovery-execute`を追加した。実行前にimmutable `RELEASE.json`のSHA、canonical
+`loop_id`、`provider_route`、`loaded-idle-only`、`max-owners=1`、単一commandを検査し、
+別ownerの適用・SHA不一致・結果のtarget不一致を拒否する。`hold_effect_unknown`と
+escalationは実行しない。Node 14件（intent/plan/executor）がPASSした。これはS-01の
+実行境界のコード完了であり、harness failureからintentを自動生成する配線、自然wake、
+terminal repair receipt、duplicate effect 0の実機証明は未完了なので、S-01全体は未完のままにする。
+
 S-02では、recovery projectionに`escalate_repair`が一件だけある場合のみ、
 `~/.local/state/life-manager/recovery/repair-queue.jsonl`（mode 0600）へ
 `job_id`、`owner_id`、`route`、`slot`、原因、retry回数、event keyだけを記録する。
