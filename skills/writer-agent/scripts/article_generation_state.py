@@ -570,14 +570,28 @@ def rebind_release(
         original = prompt_file.read_bytes()
         if state.get("prompt_sha256") != hashlib.sha256(original).hexdigest():
             raise GenerationInvariant("prompt hash does not match generation state")
-        pattern = re.compile(
-            re.escape(str(releases_dir)).encode()
-            + rb"/[^/\s`\"']+/skills/writer-agent"
-        )
-        roots = set(pattern.findall(original))
+        patterns = [
+            re.compile(
+                re.escape(str(releases_dir)).encode()
+                + rb"/[^/\s`\"']+/skills/writer-agent"
+            ),
+            re.compile(
+                re.escape(
+                    str(Path(os.environ.get("LOOPS_ROOT", "~/loops")).expanduser() / "current")
+                ).encode()
+                + rb"/skills/writer-agent"
+            ),
+        ]
+        roots = {
+            match
+            for pattern in patterns
+            for match in pattern.findall(original)
+        }
         if not roots:
             raise GenerationInvariant("prompt contains no writer release root")
-        updated = pattern.sub(str(current_root).encode(), original)
+        updated = original
+        for pattern in patterns:
+            updated = pattern.sub(str(current_root).encode(), updated)
         if updated == original:
             return {"action": "unchanged", "prompt_sha256": state["prompt_sha256"]}
         _atomic_write_bytes(prompt_file, updated)

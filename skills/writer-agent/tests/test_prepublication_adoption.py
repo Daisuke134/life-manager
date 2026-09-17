@@ -154,6 +154,49 @@ class PrepublicationAdoptionTest(unittest.TestCase):
             self.assertEqual(decision["run_id"], run_id)
             self.assertEqual(decision["reason"], "same-jst-day-prepublication-provider-failure")
 
+    def test_rebind_accepts_current_symlink_root_for_staged_adoption(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_id = "20260917-120000"
+            run = root / "runs" / run_id
+            gates = run / "gates"
+            gates.mkdir(parents=True)
+            current_link = root / "loops" / "current" / "skills" / "writer-agent"
+            current_link.mkdir(parents=True)
+            target_root = root / "loops" / "releases" / "next" / "skills" / "writer-agent"
+            target_root.mkdir(parents=True)
+            prompt = run / "article-daily-prompt.txt"
+            prompt.write_text(f"writer_root={current_link}\n", encoding="utf-8")
+            ledger = root / "articles.jsonl"
+            ledger.write_text("", encoding="utf-8")
+            state = generation.initialize(run, run_id, prompt, ledger)
+            state["status"] = "provider-failed-ambiguous"
+            state["attempts"] = [{
+                "attempt": 1,
+                "status": "provider-failed-ambiguous",
+                "return_code": 1,
+                "boundary": "generated-or-staged-artifacts:article-ja.md",
+            }]
+            (gates / "generation-state.json").write_text(
+                json.dumps(state) + "\n", encoding="utf-8"
+            )
+            (run / "article-ja.md").write_text("日本語 draft\n", encoding="utf-8")
+            (run / "article-en.md").write_text("English draft\n", encoding="utf-8")
+            generation.adopt_prepublication(run, run_id, prompt, ledger)
+
+            with patch.dict(os.environ, {"LOOPS_ROOT": str(root / "loops")}):
+                result = generation.rebind_release(
+                    run, run_id, prompt, ledger, target_root
+                )
+
+            self.assertEqual(result["action"], "rebound")
+            self.assertIn(str(target_root), prompt.read_text(encoding="utf-8"))
+            receipt = json.loads((gates / "prepublication-adoption.json").read_text())
+            self.assertEqual(receipt["prompt_sha256"], generation.file_sha256(prompt))
+            self.assertEqual(
+                receipt["receipt_sha256"], generation._adoption_receipt_hash(receipt)
+            )
+
     def test_refuses_unsafe_evidence_before_mutation(self):
         cases = {
             "prompt hash drift": lambda run, prompt, ledger: prompt.write_text(
