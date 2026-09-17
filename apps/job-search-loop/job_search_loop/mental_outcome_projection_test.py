@@ -6,6 +6,7 @@ import pytest
 
 from job_search_loop.mental_outcome_projection import build_mental_outcome_projection
 from job_search_loop.mental_outcome_projection import publish_mental_outcome
+from job_search_loop.mental_outcome_projection import project_model_outcomes
 
 
 BASE = {
@@ -87,3 +88,40 @@ def test_publish_mental_outcome_sends_signed_normalized_payload_only():
     assert request.get_header("X-lm-outcome-timestamp")
     assert b'"source_outcome_id":"job-search:outcome-1"' in request.data
     assert b"body" not in request.data
+
+
+def test_project_model_outcome_hashes_private_candidate_and_records_funnel_receipt():
+    class Cursor:
+        def fetchone(self):
+            return {"company": "Example社", "title": "Software Engineer"}
+
+    class Connection:
+        def execute(self, sql, params):
+            assert params == ("app-1",)
+            return Cursor()
+
+    class Ledger:
+        connection = Connection()
+
+        def record_funnel_outcome(self, **kwargs):
+            assert kwargs["application_id"] == "app-1"
+            assert kwargs["evidence_source"] == "gmail"
+            return "outcome-recorded"
+
+    result = {
+        "outcomes": [{
+            "application_id": "app-1", "funnel_stage": "interview", "disposition": "positive",
+            "message_id": "gmail-message-1", "occurred_at": "2026-09-17T01:00:00+00:00",
+            "observation_policy_version": None,
+        }]
+    }
+    candidates = {"messages": [{
+        "message_id": "gmail-message-1", "thread_id": "thread-1", "subject": "Interview",
+        "sender": "recruiter@example.test", "received_at": "2026-09-17T01:00:00+00:00",
+        "body": "private body stays local",
+    }]}
+    projected = project_model_outcomes(result, candidates, Ledger(), observed_at="2026-09-17T01:02:00+00:00")
+    assert projected[0]["kind"] == "interview"
+    assert projected[0]["source_outcome_id"] == "job-search:outcome-recorded"
+    assert len(projected[0]["evidence_sha256"]) == 64
+    assert "private body" not in str(projected[0])

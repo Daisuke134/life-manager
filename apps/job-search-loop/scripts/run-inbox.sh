@@ -168,6 +168,20 @@ case "$RESULT_PATH" in
     exit 2
     ;;
 esac
+MENTAL_OUTCOME_OUTPUT="$EVIDENCE/mental-outcomes.json"
+MENTAL_OUTCOME_ARGS=(
+  --ledger "$JOB_SEARCH_STATE_ROOT/ledger.sqlite3"
+  --candidates "$CANDIDATES"
+  --result "$RESULT_PATH"
+  --output "$MENTAL_OUTCOME_OUTPUT"
+)
+if [[ -n "${LIFE_MANAGER_MENTAL_OUTCOME_ENDPOINT:-}" ]]; then
+  MENTAL_OUTCOME_ARGS+=(
+    --endpoint "$LIFE_MANAGER_MENTAL_OUTCOME_ENDPOINT"
+    --secret "${LIFE_MANAGER_MENTAL_OUTCOME_SECRET:-}"
+  )
+fi
+"$JOB_SEARCH_PYTHON" -m job_search_loop.mental_outcome_projection "${MENTAL_OUTCOME_ARGS[@]}"
 "$JOB_SEARCH_PYTHON" -m job_search_loop.inbox mark \
   --state "$SEEN_STATE" \
   --input "$CANDIDATES" \
