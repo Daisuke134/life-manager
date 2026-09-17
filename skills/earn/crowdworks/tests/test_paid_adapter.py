@@ -413,6 +413,37 @@ def test_default_open_clones_auth_into_owned_context_and_closes_it():
     ]
 
 
+def test_open_falls_back_to_source_context_when_clone_creation_fails():
+    module = load()
+    calls = []
+
+    class Page:
+        def set_default_timeout(self, timeout): calls.append(("timeout", timeout))
+        def close(self): calls.append(("page_close",))
+
+    class SourceContext:
+        def storage_state(self): return {"cookies": [], "origins": []}
+        def new_page(self): calls.append(("source_page",)); return Page()
+
+    source = SourceContext()
+
+    class Browser:
+        contexts = [source]
+        def new_context(self, **_kwargs): raise RuntimeError("clone unavailable")
+
+    class Runtime:
+        def stop(self): calls.append(("runtime_stop",))
+
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()))
+    adapter._open()
+
+    assert adapter.owned_context is source
+    assert adapter.owns_context is False
+    assert ("source_page",) in calls
+    adapter.close()
+
+
 def test_active_inventory_falls_back_to_locked_persistent_context_after_clone_timeout():
     module = load()
     calls = []
