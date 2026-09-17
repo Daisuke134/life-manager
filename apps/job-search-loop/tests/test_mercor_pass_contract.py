@@ -401,6 +401,12 @@ class MercorPassContractTests(unittest.TestCase):
             "use the visible Filter/Search controls",
             "Japan, Japanese, Developer, automation, AI agent, Coding",
             "Do not open existing incomplete application cards before the target search queue",
+            "human_gate_store",
+            "application_report_outbox",
+            "application_report_telegram_env",
+            "--gate-store",
+            "--outbox",
+            "Do not pass `state_root` as `--gate-store`",
             "profile_sync",
             "field hashes",
         ):
@@ -746,6 +752,35 @@ class MercorPassContractTests(unittest.TestCase):
                 context["evidence_dir"],
                 str((root / "evidence" / "current-pass").resolve()),
             )
+
+    def test_context_exposes_file_paths_for_human_gate_notification(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = root / "mercor" / "application"
+            state.mkdir(parents=True)
+            job_search_state = root / "job-search"
+            profile = self._profile(root / "profile.json")
+            with patch.dict(
+                os.environ,
+                {"JOB_SEARCH_STATE_ROOT": str(job_search_state)},
+                clear=False,
+            ):
+                context = build_context(
+                    state_root=state,
+                    profile_path=profile,
+                    resume_path=root / "resume.pdf",
+                    cdp_url="http://127.0.0.1:9222",
+                )
+            self.assertEqual(
+                context["human_gate_store"],
+                str((state / "human-gates.jsonl").resolve()),
+            )
+            self.assertEqual(
+                context["application_report_outbox"],
+                str((job_search_state / "telegram-outbox.sqlite3").resolve()),
+            )
+            self.assertNotEqual(context["human_gate_store"], str(state.resolve()))
+            self.assertNotEqual(context["application_report_outbox"], str(state.resolve()))
 
     def test_context_deduplicates_persistent_pre_effect_claim_after_crash(self):
         with tempfile.TemporaryDirectory() as directory:
