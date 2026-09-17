@@ -154,8 +154,24 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
     rerun passed 63/63 Node tests. No provider browser/state changes were
     included.
 
-- [ ] **MERGE-03 — merge the non-provider runtime additions**
-  - Review and merge only the needed candidate paths:
+- [x] **MERGE-03 — merge the reviewed non-provider runtime addition**
+  - Candidate review completed against latest main. A15 admission, lifecycle,
+    harness-health and release-reconciliation paths were already supplied by
+    newer main-owned commits and were not overwritten by the stale candidate.
+    The only needed unique addition was the Codex-first Agent Economy brain
+    route from candidate commit `72390b7c3d`, integrated as `cb9b49cf77` and
+    merged by PR #5348 at main merge commit `17c78e4a1a`.
+  - The route is scoped to `agent-economy-loop`; it uses the existing
+    read-only agent-runner, bounded timeout, private evidence directory and
+    schema validation. Provider/browser/credential/private-state paths were
+    excluded.
+  - The remaining candidate runtime/provider diffs were intentionally not
+    merged because they were stale, duplicated newer main work, or belonged to
+    another owner.
+  - Focused acceptance: brain 5/5 Node tests, apply/agent-runner 96 tests +
+    72 subtests, Graph/Eval/manifest/gate 63/63, runtime read-only/lifecycle/
+    event 87 tests + 42 subtests, OSS/security CI 9/9.
+  - Candidate paths reviewed (not all merged) were:
     `runtime/agent-runner/config.json`,
     `runtime/agent-runner/tests/test_terra_default.py`,
     `runtime/loop/brain.mjs`,
@@ -174,7 +190,8 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
     `runtime/loop/lm_loop_run.py`, `config/loop-registry.json`,
     `skills/browser/scripts/cdp_context_lease.py`) are not taken wholesale;
     keep the latest main/owner version and apply only a reviewed unique hunk.
-  - Acceptance: focused runtime tests and release import smoke pass.
+  - Acceptance: **PASS** for the reviewed Codex route; stale candidate paths
+    remain excluded as documented above.
 
 - [x] **MERGE-04 — enforce the exclusion list**
   - **PASS for PR #5335:** do not merge `AGENTS.md`, `apps/crowdworks-revenue/**`,
@@ -188,15 +205,19 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 - [x] **MERGE-05 — validate the merged commit**
   - Run Skill validators, Graph/Eval/manifest/gate tests, focused runtime
     tests, `git diff --check`, and changed-path scope checks.
-  - Acceptance: **PASS for MERGE-01/02.** Merged-main Skill validators 7/7,
-    Graph/Eval/manifest/gate tests 63/63, CI security and syntax checks all
-    pass, and `git diff --check` passes. MERGE-03 runtime validation remains
-    open and is not implied by this checkbox.
+  - Acceptance: **PASS.** Merged-main Skill validators 7/7,
+    Graph/Eval/manifest/gate tests 63/63, focused runtime tests pass,
+    OSS/security CI is 9/9, and `git diff --check` passes.
 
-- [ ] **MERGE-06 — create the main-derived release and read it back**
+- [x] **MERGE-06 — create the main-derived release and read it back**
   - Merge without force or `-X theirs/ours`; cut an immutable release from
     the resulting main SHA; read `RELEASE.json`, loaded argv and loaded SHA
-    for one loaded-idle owner. This does not claim provider success.
+    for one loaded-idle owner. **PASS:** main/release SHA
+    `17c78e4a1a85cb46bf7d58b26d511b0230feb5e4`, release
+    `/Users/anicca/loops/releases/20260917T192550-17c78e4a`, targeted
+    `boot-panic-evidence` install receipt `0010576aa91f9a0b31eb84a0`, and
+    launchd argv/readback point to that immutable release. This does not claim
+    provider success.
 
 - [ ] **MERGE-07 — handover and cleanup**
   - Record merge SHA, release SHA, focused test output, excluded provider
@@ -263,6 +284,8 @@ This plan implements step 4 above in the existing `life-manager-connector-native
 **Live canary after merge:** PR #5339 merged as main `5748aaf859173eb2532847c65c0982a30d024f5d`; complete release `/Users/anicca/loops/releases/20260917T180413-5748aaf8` was cut and Connector-only applied (install event `865c357ee6a702d25f47fc24`, loaded argv matched). Natural run `18d6108262033890-67081` / wake `wake-6d27f99893d9b02ea270cd0e` reached Connpass. It recorded two successful `connpass_questionnaire_report` actions and durable Telegram receipts `86531` (event 405844) and `86532` (event 404531), with no provider Submit, evidence completion, Calendar creation or bundle. The run later ended `circuit_open / wake_deadline`; its occurrence is `effect_unknown=1`, so it must not be retried until the shared admission owner reconciles it. Independent official Connpass readback immediately after the terminal showed both event 404531 and 405844 `state=absent`. This proves the questionnaire notification path worked and the two candidate effects did not occur; it does not satisfy the new-registration gate. Preserve the fence and hand the occurrence plus official absent receipts to A15/foundation owner before the next canary.
 
 **Ownership and stop rules:** Keep the other A15 session's worktree, PID, host-admission DB, browser profile, CDP port, credential and state untouched. Use only the Connector label, its own state and the existing browser rail. Never reload a running owner or replace a loaded SHA before its current run has a terminal. An uncertain provider effect is a hard stop until official registration readback. A new personal fact or consent is not inferred; ask Dais once, save the explicit answer only in the private profile, then resume. The current draft PR does **not** implement that ask-and-resume path. Do not call Connector Done if it remains needed.
+
+**Subsequent wake after the fence:** A later natural wake loaded release `/Users/anicca/loops/releases/20260917T183447-93cb7459`; run `35143` / wake `wake-80240da29ae6a0a4568b40a0` reached Connpass and reused the two existing questionnaire receipts without sending duplicates. It ended `completed_no_effect / fallback_deferred_for_wake_budget` with exit 0, and its own occurrence `18d612b8d7cd8a48-35143` is `released/effect_unknown=0`. No new official registration, Calendar event or bundle exists. The older occurrence `18d6108262033890-67081` remains separately fenced at `effect_unknown=1`; do not treat the clean later release as clearing that fence or as Connector completion.
 
 ##### CN-C01: Prove the question fix is safe and complete (historical checklist; merged)
 
