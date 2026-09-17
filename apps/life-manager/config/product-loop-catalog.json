@@ -7,6 +7,7 @@
   "loops": [
     {
       "id": "gig-coconala",
+      "job_ids": ["hf-gig-apply-direct", "hf-gig-apply-evidence-gc", "hf-gig-browser", "hf-gig-daily-report", "hf-gig-paid-direct", "hf-gig-reply-detector", "hf-gig-storefront-direct"],
       "name": "Gig — Coconala",
       "description": "Find, apply, negotiate, deliver, reconcile, and report Coconala work.",
       "requirements": ["coconala_account", "work_profile", "telegram"],
@@ -17,6 +18,7 @@
     },
     {
       "id": "gig-lancers",
+      "job_ids": ["lancers-revenue-application", "lancers-revenue-browser", "lancers-revenue-negotiate", "lancers-revenue-paid", "lancers-revenue-storefront", "lancers-revenue-telegram-report", "lancers-revenue-work-sync"],
       "name": "Gig — Lancers",
       "description": "Run the shared earning lifecycle for Lancers and reconcile applications, paid work, delivery, and reporting.",
       "requirements": ["lancers_account", "work_profile", "public_guided_installer"],
@@ -27,6 +29,7 @@
     },
     {
       "id": "gig-crowdworks",
+      "job_ids": ["crowdworks-revenue-application", "crowdworks-revenue-paid", "crowdworks-revenue-reply", "crowdworks-revenue-report"],
       "name": "Gig — CrowdWorks",
       "description": "Apply to suitable CrowdWorks projects and report evidence-backed outcomes.",
       "requirements": ["crowdworks_account", "work_profile", "public_guided_installer"],
@@ -37,6 +40,7 @@
     },
     {
       "id": "writer",
+      "job_ids": ["writer-claim-loop", "writer-craft-train", "writer-money-sync", "writer-opportunity-discovery", "writer-opportunity-response", "writer-report", "writer-sales-measure"],
       "name": "Writer",
       "description": "Find paid writing work, respond, and record publisher and payment receipts.",
       "requirements": ["publisher_account", "provider_credentials", "public_guided_installer"],
@@ -47,6 +51,7 @@
     },
     {
       "id": "affiliate",
+      "job_ids": ["affiliate-browser", "affiliate-composition", "affiliate-impact-browser", "affiliate-loop", "affiliate-source-refresh", "affiliate-x-browser"],
       "name": "Affiliate",
       "description": "Find and publish attributable affiliate opportunities through an owned browser path.",
       "requirements": ["affiliate_account", "provider_credentials", "public_guided_installer"],
@@ -57,6 +62,7 @@
     },
     {
       "id": "investment",
+      "job_ids": ["alpaca-investment-live"],
       "name": "Investment",
       "description": "Run risk-gated Alpaca paper, shadow, or live passes and reconcile every order.",
       "requirements": ["alpaca_credentials", "investment_mode"],
@@ -67,6 +73,7 @@
     },
     {
       "id": "agent-economy",
+      "job_ids": ["agent-economy-loop", "citizen-refill", "life-manager-x402-ledger", "sol-funding", "the402-provider", "the402-worker", "x402-acquisition-controller", "x402-claude-p", "x402-experiment-franklin1", "x402-franklin1", "x402-franklin2", "x402-inflow-watch", "x402-inflow-watch-claude-p", "x402-inflow-watch-franklin1", "x402-inflow-watch-franklin2", "x402-research-serve", "x402-sale-observer", "x402-seller-8404", "x402-settlement-recorder"],
       "name": "Agent Economy",
       "description": "Create an isolated citizen wallet and track agent revenue and receipt-gated compute cost without owner funds.",
       "requirements": [],
@@ -77,6 +84,7 @@
     },
     {
       "id": "job-hunter",
+      "job_ids": ["job-search-daily", "job-search-health", "job-search-inbox", "job-search-learning", "mercor-revenue-application", "mercor-revenue-paid", "mercor-revenue-reply"],
       "name": "Job Hunter",
       "description": "Discover and submit qualified job applications, then reconcile confirmations and replies.",
       "requirements": ["resume", "job_preferences", "gmail", "telegram", "provider_logins"],
@@ -87,6 +95,7 @@
     },
     {
       "id": "fundraiser",
+      "job_ids": ["fundraiser"],
       "name": "Fundraiser",
       "description": "Find eligible accelerators, fellowships, grants, and investor intakes and apply with verified product context.",
       "requirements": ["applicant_profile", "telegram", "provider_login_when_required"],
@@ -97,6 +106,7 @@
     },
     {
       "id": "connector",
+      "job_ids": ["life-manager-connector-native"],
       "name": "Connector",
       "description": "Find eligible events, register, verify the outcome, and report Calendar and Telegram receipts.",
       "requirements": ["calendar", "telegram", "provider_login_when_required"],
@@ -107,6 +117,7 @@
     },
     {
       "id": "self-build",
+      "job_ids": ["life-manager-dev", "life-manager-selfbuild", "self-improve-evolve"],
       "name": "Self-Build / Product Improvement",
       "description": "Turn verified user feedback and product evidence into reviewed Life Manager improvements.",
       "requirements": ["repository_access", "development_agent", "review_credentials", "public_guided_installer"],
@@ -117,6 +128,7 @@
     },
     {
       "id": "mobile-apps",
+      "job_ids": ["life-manager-anicca-affirmation-youtube", "life-manager-anicca-ai-youtube", "life-manager-anicca-buddha-tiktok", "life-manager-anicca-en-affirmation-instagram", "life-manager-anicca-en-affirmation-tiktok", "life-manager-anicca-en-card-instagram", "life-manager-anicca-en-slideshow-tiktok", "life-manager-anicca-en-widget-instagram", "life-manager-anicca-he", "life-manager-anicca-ja-widget-instagram", "life-manager-anicca-jp1-tiktok", "life-manager-anicca-jp4", "life-manager-anicca-larry-ja-instagram", "life-manager-anicca-main-instagram", "life-manager-anicca-main-tiktok", "life-manager-anicca-obou-instagram", "life-manager-daily", "life-manager-daily-driver", "life-manager-honne-en", "life-manager-honne-ja", "life-manager-instagram-metrics", "life-manager-tiktok-metrics"],
       "name": "Mobile App Loops",
       "description": "Create, build, release, improve, market, measure, and reconcile mobile app products through one shared lifecycle.",
       "requirements": ["mobile_opportunity"],
@@ -127,6 +139,7 @@
     },
     {
       "id": "capafy",
+      "job_ids": ["capafy-goal-monitor", "capafy-goal-monitor-daily-close", "capafy-goal-monitor-hourly", "capafy-ig-account-manager", "capafy-ig-marketing-daily", "capafy-loop-daily", "capafy-loop-healthcheck", "capafy-outcome-monitor"],
       "name": "Capafy",
       "description": "Operate Capafy's product, sales, outcome, and audience-growth workflows.",
       "requirements": ["capafy_account", "publication_profile", "public_guided_installer"],
@@ -137,6 +150,7 @@
     },
     {
       "id": "cfo",
+      "job_ids": ["life-manager-cfo-hourly", "life-manager-financial-report", "life-manager-payout"],
       "name": "CFO",
       "description": "Reconcile verified revenue, balances, cash flow, payouts, and financial reports across earning loops.",
       "requirements": [],
