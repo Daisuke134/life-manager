@@ -1274,6 +1274,8 @@ GA-10は実provider・実receipt・自然owner wake・replay-zeroが必須で、
 
 ### Connector independent track contract — current foundation cursorには使わない
 
+Connectorの最新実測と引継ぎTODOは末尾の「O1B-25進捗537」を正本とする。この節の古いloaded release、hourly/30分schedule、active cursorの記述は各時点の履歴であり、進捗537の現行状態を上書きしない。
+
 このsectionはConnectorを明示的に再開した時だけ、同track内のcontract、実装順、完了条件を選ぶ。
 Life Manager foundationの先頭TODOはAtomic program ledger Seq 1 `ELZ-F01`であり、Connectorの未完了項目はそのcursorを上書きしない。後段の14日窓、daily/8-hour schedule、
 AI・cryptoをsoft preferenceとして全分野を残す記述、旧rolling coverage、fallback provider拡張、C-CORE-01〜07は
@@ -10181,3 +10183,24 @@ Daisの明示承認後、16分以上CPU time `0:00.43`・destination mtime不変
 復旧後のConnector runs 19、wake `wake-23c39a6b1b8d73ef8bb5cdaa`はexit 0、failure count 0、Telegram every-wake ID `72908`で終了した。Luma auditは`20/6/6/2/1`、Connpassは`287/287/287/250/21`まで到達したが、Luma direct actionが`direct_action_unverified`、続くHarnessが`unsafe_agent_action`となり、terminalは`completed_no_effect / fallback_deferred_for_wake_budget`、新bundle 0だった。action historyとsource traceから、初回provider click後の`{status: unknown, effect_started: true}`およびpost-click例外の`unknownEffect: true`がLuma workflow境界で失われ、runnerが二回目のbrowser actionへ進み得る根本原因を確定した。
 
 Luma workflowはこの二つのeffect-unknown入力だけを`effect_unknown`として保持し、runnerの既存contractにより同wakeを即時停止、次wakeのofficial pre-submit readbackへ委ねる最小修正とした。provider eligibility、agent judgment、control allowlist、Calendar gateは変更しない。RED 2件はそれぞれ旧`direct_action_unverified`と`luma_browser_action_failed`を再現し、修正後はLuma workflow・minimal runner・production関連143/143がPASSした。CG-44は新規Luma official readback→Calendar→Telegram evidence→bundleが未完なので引き続きactive、次はmain merge・immutable release反映後の一回目wakeでduplicate Submit 0のeffect-unknown停止、続くwakeでregistered/pending reconciliationまたは安全なabsent継続を実測する。
+
+### O1B-25進捗537（Connector引継ぎ正本・未完）
+
+**成果条件:** 東京の対面・無料・受付中で、Calendar非衝突かつ`strong/moderate`のイベントをLumaまたはConnpassで発見し、公式画面で実申込と登録IDを確認する。次にGoogle CalendarのイベントIDを作成・公式APIで読み戻し、同一イベントのTelegram positive IDsとdurable bundleを保存する。次回wakeで同一イベントの再SubmitとCalendar重複が0件であることを確認する。対象がなければ理由付きno-workとし、申込成功とは報告しない。
+
+**現行実測:** 2026-09-17 01:16 UTC開始の自然wake `wake-f2a71823025aab796633fc91`は、loaded release `20260916T233946-cf655388`（SHA `cf65538879532a461a164fc2705b95853235ba14`）上でbrowser resource slotを取得した。01:25 UTCに`completed_no_effect / fallback_deferred_for_wake_budget`、外側のrunもexit 0で終了した。Connpassの4候補は`connpass_tier_unavailable`が3件、`connpass_questionnaire_required`が1件で、後者のbrowser fallbackは`unsafe_agent_action`。Luma auditは`observed 13 / normalized 6 / window 6 / free-open 4 / calendar-free 0`。このwakeの`evidence_completion`は0件、新規applied bundleは0件。公式登録IDと新規CalendarイベントIDの組は得られていない。終了後の独立したGoogle Calendar API照合は未実施なので、Calendar上の全状態を推定で断定しない。`pass`やexit 0は申込成功ではない。
+
+**未反映のConnector固有差分:** 専用worktree `/Users/anicca/Projects/life-manager-connector-coconala-20260917`、branch `codex/connector-coconala-20260917`、push済みhead `bb74e7bcb48546dd549131e7caa7bab6f122d19a`。`c5bea4f7fe`はConnpass新規候補を一wake最大4件にし30分slotで次の組へ進める。`6e8d6921ea`は既登録・evidence未完成の照合候補を新規候補より先に保つ。変更は`connector-minimal-runner.js`とそのtestだけで、focused file 77/77と`git diff --check`がPASS。稼働releaseには入っておらず、実登録成功の証拠ではない。実候補のrank/質と既登録reconciliationを損なわないか、統合時に再評価する。
+
+**共有基盤との境界:** 別ownerの`fix/connector-admission-main-20260917`は最終確認時に作業branchのままで、`origin/main`と稼働releaseへ未反映。`runtime/host/`、`runtime/loop/`、共有admission、release制御、`config/loop-registry.json`はこのConnector worktreeから変更しない。他ownerのbrowser profile、CDP port、credential、stateを変更しない。稼働中のwakeを観測タイムアウトだけで停止・二重起動しない。
+
+**残りTODO（Connectorを先に閉じる）:**
+
+1. 共有基盤のmain反映と対象Connectorのloaded release、browser owner、直近の自然wakeを再確認する。旧releaseの再kickstartだけでは上記provider失敗を直せない。
+2. Connpassの実候補について公式申込画面の無料・一般参加枠と必須質問を読み、`tier_unavailable`と`questionnaire_required`の正確な原因を特定する。本人情報で確実に答えられる質問だけを扱い、意思表明や不明な質問は送信しない。Lumaの4件はCalendarの衝突をイベント単位で照合する。不確定送信は公式照合前に再送しない。
+3. 実証されたprovider固有の故障だけ、`skills/connector/`または`apps/life-manager/lib/connector-*`を最小の失敗先行テストで修正する。push済み候補分割差分は実効果に照らして採否を決める。
+4. 共有基盤がmain由来releaseに入り、対象ownerとbrowser資源を調整した後、Connectorだけを反映・実行する。公式登録ID→Google CalendarイベントIDの独立readback→Telegram IDs→bundle→次回重複0を同一イベントで確かめる。対象0なら正しいno-workを記録する。
+5. 発火時刻の分散は共有registry/release ownerと調整する。直近Connector wakeはbrowser slotを取得しており、時刻ずらしは今回の参加枠・必須質問の失敗を解決しない。衝突の実測後に必要なschedule変更だけ行う。
+6. Connector完了後にCoconala Apply、Reply、Paid、Storefrontを別々に公式readbackで診断する。前回確認時のReply pending 15件とPaid terminal照合残候補6件を再取得し、過去の不確定送信を照合前に再送しない。
+
+**状態:** Connectorは**NOT DONE**。Coconalaの今回の引継ぎ範囲も**NOT DONE**。旧CG-44以降の完了表示を、このwakeのexit 0やpush済みテストだけで更新しない。
