@@ -532,7 +532,7 @@ def _default_safety_verifier(prompt: str, evidence_dir: Path) -> Mapping[str, ob
     return _invoke_agent(prompt, evidence_dir, SAFETY_TASK_CLASS, schema_path, "lancers-submission-safety")
 
 def _safety_outcome(row: Mapping[str, object], decision: Mapping[str, object], evidence_dir: Path,
-                    verifier: Optional[Callable[..., object]]) -> str:
+                    verifier: Optional[Callable[..., object]]) -> tuple[str, Optional[str]]:
     try:
         value = (verifier or _default_safety_verifier)(_safety_prompt(row, decision), evidence_dir)
         if not isinstance(value, Mapping) or set(value) != {"safe_to_submit", "reason", "blocker_evidence"}:
@@ -541,14 +541,14 @@ def _safety_outcome(row: Mapping[str, object], decision: Mapping[str, object], e
         if not isinstance(safe, bool) or reason not in SAFETY_REASONS:
             raise ValueError
         if safe is True and reason == "approved" and blocker is None:
-            return "approved"
+            return "approved", None
         if safe is False and reason not in {"approved", "uncertain"} and isinstance(blocker, str) and blocker.strip() and len(blocker) <= 240:
             source = str(decision.get("proposal_text") or "") if reason == "unsupported_claim" else str(row.get("description") or "")
             if blocker in source:
-                return "rejected"
+                return "rejected", reason
     except Exception:
         pass
-    return "failed"
+    return "failed", None
 
 
 def _discovery_turn_count(*, exhaustive: bool, source: object, query: object) -> int:
@@ -921,11 +921,12 @@ def _plan_and_submit(rows: Sequence[Mapping[str, object]], today: date, evidence
     for row, decision in eligible:
         project_id, proposal = str(row["external_id"]), str(decision["proposal_text"])
         amount, due = int(decision["price_jpy"]), str(decision["deliver_date"])
-        safety = _safety_outcome(row, decision, evidence / f"safety-{project_id}", safety_verifier)
+        safety, safety_reason = _safety_outcome(row, decision, evidence / f"safety-{project_id}", safety_verifier)
         if safety == "rejected":
             safety_rejected.append(project_id)
             reports_by_id[project_id]["outcome"] = "skipped"
             reports_by_id[project_id]["error"] = "safety_rejected"
+            reports_by_id[project_id]["safety_reason"] = safety_reason
             continue
         if safety != "approved":
             reports_by_id[project_id]["outcome"] = "failed"

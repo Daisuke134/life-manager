@@ -703,6 +703,7 @@ class ApplicationLoopHolTests(unittest.TestCase):
         self.assertEqual(submitted, ["6000002"])
         by_id = {report["project_id"]: report for report in result["decision_reports"]}
         self.assertEqual(by_id["6000001"]["error"], "safety_rejected")
+        self.assertEqual(by_id["6000001"]["safety_reason"], "unsupported_claim")
         self.assertEqual(by_id["6000002"]["outcome"], "application_verified")
 
     def test_malformed_safety_result_fails_closed_before_submit(self):
