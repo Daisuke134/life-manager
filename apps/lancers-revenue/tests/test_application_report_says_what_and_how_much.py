@@ -85,6 +85,17 @@ def test_a_refusal_still_reads_the_same_and_carries_no_price():
     assert "提案額" not in text and "Proposal ID" not in text
 
 
+def test_safety_refusal_names_the_reason_without_claiming_an_uncertain_submit():
+    text = _report().render_application_decision({
+        "project_id": "6000001", "title": "案件6000001",
+        "business_class": "submit_required", "reason_codes": [],
+        "outcome": "skipped", "error": "safety_rejected",
+        "safety_reason": "unsupported_claim",
+    })
+    assert "安全審査" in text and "unsupported_claim" in text
+    assert "未確定" not in text and "Proposal ID" not in text
+
+
 # --- the title has to survive the claim, not just the report, 2026-09-07 --------------------
 
 def _tick():

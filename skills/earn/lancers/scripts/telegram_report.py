@@ -639,6 +639,11 @@ def render_application_decision(decision: Mapping[str, object]) -> str:
     elif outcome_value == "provider_terminal_blocked":
         outcome = "⏭️ 公式に応募できないためスキップしました"
         explanation = "公式応募フォームが受付可能な状態ではなかったため、外部送信していません。"
+    elif decision.get("error") == "safety_rejected":
+        outcome = "🚫 安全審査で応募を見送りました"
+        reason = decision.get("safety_reason")
+        code = reason if isinstance(reason, str) and re.fullmatch(r"[a-z_]{1,40}", reason) else "不明"
+        explanation = f"理由コード: {code}。外部送信していません。"
     elif outcome_value == "failed":
         outcome = "⚠️ 応募を公式確認できませんでした"
         explanation = f"{decision.get('error') or 'submission_unverified'} のため、完了とは数えていません。"
