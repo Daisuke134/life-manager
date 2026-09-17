@@ -658,7 +658,7 @@ npm test
 
 - [x] Apply additive migrations and read columns/constraints/RLS back from production.
 
-- [x] Require the Railway `life-call` deployment with merged main `commitHash=9e3020674b854a0df65afced44faf344a168d2c3` to reach `SUCCESS`.
+- [x] Require the Railway `life-call` deployment with merged main `commitHash=abbf2927b45aafd385b156b5877e22ecbe5c0a70` to reach `SUCCESS`.
 
 - [x] Verify startup logs show the standalone scheduler loops and no import/schema failure.
 
@@ -789,7 +789,7 @@ Do not route YC/general Gmail directly into MENTAL until an owning mail workflow
 - [ ] Start a changed policy in a bounded Dais canary, record old/new policy IDs, and provide a rollback to the previous policy version. No rating buttons or user survey are allowed.
 - [x] Treat an unsolicited user correction as a direct profile signal only when it cites a prior MENTAL message; persist only a bounded tone tag with an idempotent hashed source reference. Timing complaints remain no-op until a window-preference field exists; never send a prompt requesting correction.
 
-Current state: the offline evaluator and unit tests are merged (`mental-policy-eval.js`); they validate closed decision rows and operational counters for busy-time sends, unsupported locale, repeated templates, and cap overflow. Decision-row persistence, replay fixtures for every listed scenario, correction ingestion, and bounded policy promotion remain open until the natural canary produces real provider receipts.
+Current state: the offline evaluator and unit tests are merged (`mental-policy-eval.js`); they validate closed decision rows, local-day cap/14-day dedupe, operational counters, and replay fixtures for rejection, offer, interview, ambiguity, meeting suppression, cap, and ordinary day. Decision-row persistence and bounded policy promotion remain open until the natural canary produces real provider receipts.
 
 ### Task 14: Crisis-response safety boundary
 
