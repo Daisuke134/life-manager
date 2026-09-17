@@ -586,6 +586,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                     release_options = {"requeue": not claim_started_child,
                                        "reserve": claim_started_child}
                     if (claim_started_child and return_code != 0
+                            and entry.get("effect_class") != "none"
                             and not (hint_allowed and _proven_pre_effect_failure(
                                 receipt.parent / "entrypoint-result.json"))):
                         release_options["effect_unknown"] = True
