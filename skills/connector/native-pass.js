@@ -15,25 +15,11 @@ const { runMinimalConnectorWake } = require(
 const { loadConnectorEnv } = require("./lib/load-connector-env.js");
 const { readConnectorProfile } = require("../../apps/life-manager/lib/connector-profile.js");
 
-const DEFAULT_PROVIDERS = Object.freeze([
-  "luma",
-  "connpass",
-  "peatix",
-  "meetup",
-  "doorkeeper",
-  "eventbrite",
-  "techplay",
-  "kokuchpro",
-]);
-
 function providersForSlot(nowMs) {
   const slot = Math.floor(nowMs / 1_800_000);
-  const fallback = DEFAULT_PROVIDERS.slice(2).filter((provider) => provider !== "techplay");
-  const offset = Math.floor(slot / 2) % fallback.length;
-  const rotated = [...fallback.slice(offset), ...fallback.slice(0, offset)];
   return Object.freeze(slot % 2 === 0
-    ? ["luma", "connpass", "techplay", ...rotated]
-    : ["connpass", "luma", ...rotated, "techplay"]);
+    ? ["luma", "connpass"]
+    : ["connpass", "luma"]);
 }
 
 function unavailable() {

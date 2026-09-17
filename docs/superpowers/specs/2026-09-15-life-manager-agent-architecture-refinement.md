@@ -718,6 +718,18 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 
 **Current operational status:** **OPEN.** The latest loaded release `fc31d122...` run `18d63a6d2b0a4738-90273` / wake `wake-80c07bbd05aaaa6ea4320a9a` read Calendar successfully (`5014ms`) and then failed at the browser boundary with `wake_boundary_failed`; no Luma or Connpass discovery began. The preceding wake `wake-27c8cf1b61e2cf778bac5617` reached Connpass discovery (`free_open=234`, `calendar_free=10`) but recorded no Connpass action/readback before a later TechPlay discovery failure; Luma recorded `free_open=2`, `calendar_free=0`. The active repair cursor is browser transport first, then Connpass selection/action, then Luma when Calendar-free. KokuchPro remains deferred as a last-resort fallback.
 
+**Current live readback (2026-09-18):** Connector now loads main-derived release
+`3aeed4c459b9b941e98464fe7daf2431c1d5255f` and is idle with no run on that SHA.
+The latest persisted wake `wake-a462dbbd46a53d4208e40c79` crossed the browser
+boundary and reached both primary audits: Luma `free_open=2,
+calendar_free=0`; Connpass `free_open=234, calendar_free=10`. It then continued
+into Peatix, KokuchPro, Doorkeeper, Eventbrite, TechPlay and Meetup before ending
+`completed_no_effect/provider_discovery_failed`; no provider Submit, official
+readback, Calendar event or new bundle was produced. This confirms that the
+remaining source defect is the active fallback route consuming the same wake, not
+browser admission. The branch change below is source/test only and is not yet
+loaded in production.
+
 **A15 dependency decision:** A15 remains the separate fleet fairness/recovery gate. It does **not** block Connector-specific diagnosis or source repair: the `203bbe8854` natural Connector run `18d6089253cdbf18-32608` acquired a browser slot, reached Connpass, and ended `completed_no_effect / provider_discovery_failed` at 2026-09-17 06:47 UTC. Its three Connpass direct attempts failed with `connpass_questionnaire_required`, each followed by `unsafe_agent_action`; Luma found 3 free/open events but Calendar-free 0. Do not alter A15's PID, admission DB, spec branch state outside this Connector section, or another browser/profile. A main-derived Connector release can be applied to the one loaded-idle Connector label after that run's terminal, without a fleet restart.
 
 1. **CN-C01 — Flexible questionnaire:** **DONE.** The existing Connector agent runner now chooses answers for unknown required Connpass input, textarea, select, radio and checkbox controls; the parent validates exact DOM controls/options and still requires official provider readback. Known profile values win when they match offered options; otherwise the agent supplies the answer and the same single-submit fence applies. Focused Browser Harness tests: 186/186.
@@ -746,6 +758,13 @@ providers first, then invokes fallback providers in the same wake. KokuchPro is
 deferred as a last-resort fallback; it is neither repaired nor deleted in this
 cursor. A fallback failure must not be allowed to decide that the primary
 providers worked or did not work.
+
+**Primary route source change (branch):** `skills/connector/native-pass.js` now
+passes exactly `['luma', 'connpass']` or `['connpass', 'luma']` to the existing
+runner for every 30-minute slot. The focused `skills/connector/test/native-entrypoint.test.js`
+contract is green. The change is not a production acceptance until it is pushed,
+cut into a complete release, loaded on the idle Connector label and followed by
+a natural wake.
 
 **As-is readback:**
 
@@ -813,7 +832,7 @@ an independent browser/account/evidence owner and a separate acceptance chain.
 **Connector operational TODO after this diagnosis:**
 
 - [ ] Add a Connector-only priority test around `skills/connector/native-pass.js::providersForSlot`: Luma and Connpass must be the primary acceptance pair; fallback providers, including KokuchPro, must not run before that pair reaches a truthful terminal. Do not delete KokuchPro code in this step.
-- [ ] After the priority test passes, remove fallback providers from the active Connector provider list so the production cursor runs only Luma and Connpass. Keep unused provider files dormant until the primary gates pass; delete them only after a reachability check proves no owner depends on them.
+- [ ] After the priority test passes, remove fallback providers from the active Connector provider list so the production cursor runs only Luma and Connpass. Then run a repository reachability check and delete Connector-only fallback workflow/provider files (Peatix, Meetup, Doorkeeper, Eventbrite, TechPlay and KokuchPro) once no other owner depends on them; no fallback may remain in the Connector route.
 - [ ] Repair the existing browser transport/lease boundary first: `wake-80c07bbd05aaaa6ea4320a9a` must reach the primary browser target after Calendar read, with no stale target/lock ambiguity.
 - [ ] Add one Connector-only Connpass selection/action diagnostic test and record ranked versus `auto_apply_eligible` counts for a real primary wake. Do not modify KokuchPro.
 - [ ] If Connpass has `calendar_free>0` and `auto_apply_eligible=0`, repair only the existing ranking/eligibility boundary with a failing test; if it has an eligible candidate, trace the first provider action/readback boundary instead.
