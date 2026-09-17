@@ -159,12 +159,13 @@ function safeSubmitReason(error, fallback) {
   return CONNPASS_SUBMIT_CODES.test(code) ? code.toLowerCase() : fallback;
 }
 
-function submitFailureContext(provider, error, fallback) {
+function submitFailureContext(provider, error, fallback, candidateRef = null) {
   const errorClass = safeErrorClass(error);
   return Object.freeze({
     provider,
     safe_reason: safeSubmitReason(error, fallback),
     ...(errorClass ? { error_class: errorClass } : {}),
+    ...(provider === "connpass" && candidateRef ? { candidate_ref: candidateRef } : {}),
   });
 }
 
@@ -434,8 +435,8 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
           operation = await action(
             "submit", "provider_cache",
             () => deps.runCachedAction({ provider, candidate: selected, page: owned.page }),
-            (error) => submitFailureContext(provider, error, "cached_action_failed"),
-            (value) => resolvedSubmitFailureContext(provider, value, "cached_action_unverified"),
+            (error) => submitFailureContext(provider, error, "cached_action_failed", selected.event_ref),
+            (value) => resolvedSubmitFailureContext(provider, value, "cached_action_unverified", selected.event_ref),
           );
         } catch (error) {
           operation = Object.freeze({
@@ -458,8 +459,8 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
           operation = await action(
             "submit", "provider_direct",
             () => deps.runDirectAction({ provider, candidate: selected, page: owned.page }),
-            (error) => submitFailureContext(provider, error, "direct_action_failed"),
-            (value) => resolvedSubmitFailureContext(provider, value, "direct_action_unverified"),
+            (error) => submitFailureContext(provider, error, "direct_action_failed", selected.event_ref),
+            (value) => resolvedSubmitFailureContext(provider, value, "direct_action_unverified", selected.event_ref),
           );
         } catch (error) {
           operation = Object.freeze({
