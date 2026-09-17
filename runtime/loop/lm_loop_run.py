@@ -28,6 +28,7 @@ from runtime.host.resource_admission import (
     OCCURRENCE_ID_PATTERN,
     cancel_durable as cancel_durable_resource,
     claim_durable as claim_durable_resource,
+    clear_no_effect_unknown as clear_no_effect_unknown_resource,
     defer_durable as defer_durable_resource,
     durable_protocol_version,
     enqueue_durable as enqueue_durable_resource,
@@ -404,6 +405,11 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     limit = _runtime_limit(entry)
     if loop_id in {"life-manager-release-reconciler", "life-manager-disk-cleanup",
                    "capafy-loop-healthcheck"}:
+        if entry.get("effect_class") == "none":
+            try:
+                clear_no_effect_unknown_resource(loop_id)
+            except (OSError, RuntimeError, sqlite3.Error) as error:
+                print(f"lm-loop-run: no-effect recovery deferred: {error}", file=sys.stderr)
         _atomic_json(receipt, {"status": "pass", "effect": 0,
                               "reason": "control_plane_exempt"})
         result = _run_entrypoint(command, env=env, timeout_seconds=limit)

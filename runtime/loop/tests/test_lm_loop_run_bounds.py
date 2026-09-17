@@ -314,6 +314,20 @@ def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
         }
 
 
+def test_control_plane_no_effect_owner_clears_stale_fence(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 300},
+             "provider_route": "deterministic", "effect_class": "none",
+             "runtime_timeout_seconds": 900}
+    with (patch("runtime.loop.lm_loop_run.clear_no_effect_unknown_resource",
+                return_value=1) as clear,
+          patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0)):
+        assert _run_admitted(
+            ["/bin/true"], entry, "capafy-loop-healthcheck", {},
+            tmp_path / "receipt",
+        ) == 0
+    clear.assert_called_once_with("capafy-loop-healthcheck")
+
+
 def test_successful_safety_wake_dispatches_waiting_owner_without_taking_a_slot(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 300},
              "provider_route": "deterministic"}
