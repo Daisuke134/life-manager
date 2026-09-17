@@ -397,8 +397,8 @@ test("a failed provider_direct submit records the provider and its mapped connpa
     .filter(([name]) => name === "history")
     .map(([, row]) => row)
     .find((row) => row.purpose === "submit" && row.method === "provider_direct" && row.result === "failed" && row.provider === "connpass");
-  assert.deepEqual(directFailure && [directFailure.safe_reason, directFailure.error_class], [
-    "connpass_tier_unavailable", "Error",
+  assert.deepEqual(directFailure && [directFailure.safe_reason, directFailure.error_class, directFailure.candidate_ref], [
+    "connpass_tier_unavailable", "Error", "connpass-event://event/three",
   ]);
   assert.equal(JSON.stringify(directFailure).includes("participation tier unavailable"), false);
 });
@@ -624,8 +624,8 @@ test("a failed provider_cache submit records the provider and a different mapped
     .filter(([name]) => name === "history")
     .map(([, row]) => row)
     .find((row) => row.purpose === "submit" && row.method === "provider_cache" && row.result === "failed" && row.provider === "connpass");
-  assert.deepEqual(cacheFailure && [cacheFailure.safe_reason, cacheFailure.error_class], [
-    "connpass_questionnaire_required", "Error",
+  assert.deepEqual(cacheFailure && [cacheFailure.safe_reason, cacheFailure.error_class, cacheFailure.candidate_ref], [
+    "connpass_questionnaire_required", "Error", "connpass-event://event/three",
   ]);
 });
 
@@ -1769,10 +1769,12 @@ test("every recorded action contains only the safe audit fields", async () => {
   const failureKeys = ["duration_ms", "method", "provider", "purpose", "result", "safe_reason", "timestamp"];
   const failureKeysWithClass = ["duration_ms", "error_class", "method", "provider", "purpose", "result", "safe_reason", "timestamp"];
   const failureKeysWithCandidate = ["candidate_ref", ...failureKeys];
+  const failureKeysWithClassAndCandidate = ["candidate_ref", ...failureKeysWithClass];
   for (const row of history) {
     const hasFailureContext = Object.hasOwn(row, "provider") || Object.hasOwn(row, "safe_reason") || Object.hasOwn(row, "error_class");
     assert.deepEqual(Object.keys(row).sort(), hasFailureContext
-      ? (Object.hasOwn(row, "error_class") ? failureKeysWithClass
+      ? (Object.hasOwn(row, "error_class") && Object.hasOwn(row, "candidate_ref") ? failureKeysWithClassAndCandidate
+        : Object.hasOwn(row, "error_class") ? failureKeysWithClass
         : Object.hasOwn(row, "candidate_ref") ? failureKeysWithCandidate : failureKeys)
       : baseKeys);
     assert.match(row.purpose, /^(navigate|observe|fill|submit|readback)$/);
@@ -1784,7 +1786,8 @@ test("every recorded action contains only the safe audit fields", async () => {
       assert.match(row.safe_reason, /^[a-z0-9][a-z0-9_:-]{1,99}$/);
       if (Object.hasOwn(row, "error_class")) assert.match(row.error_class, /^[A-Za-z][A-Za-z0-9]{0,63}$/);
       if (Object.hasOwn(row, "candidate_ref")) {
-        assert.equal(row.method, "browser_harness");
+        assert.equal(row.purpose, "submit");
+        assert.match(row.method, /^(provider_cache|provider_direct|browser_harness)$/);
         assert.equal(row.provider, "connpass");
         assert.match(row.candidate_ref, /^connpass-event:\/\/event\/[1-9][0-9]*$/);
       }
