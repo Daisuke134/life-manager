@@ -55,6 +55,7 @@ test("same registration is idempotent and a conflicting duplicate fails closed",
       git_remote: "https://github.com/Daisuke134/honne-ai.git",
       revision: "b57928bb13ef1f9a1e774e4bca2467e3059c9eac",
       access: "private",
+      canonical_source_rel: "apps/mobile/honne-ai",
     },
   };
   const first = registerMobileProduct(registryFile, item);
