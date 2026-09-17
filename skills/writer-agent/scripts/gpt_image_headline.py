@@ -100,7 +100,14 @@ def verify(candidate: Path, receipt_path: Path) -> dict[str, Any]:
                 "byte_length": len(data), "width": width, "height": height}
     if any(receipt.get(key) != value for key, value in required.items()):
         raise HeadlineImageRefused("headline-api-receipt-mismatch")
-    for key in ("x_request_id", "prompt_sha256", "response_sha256", "alt", "rights_provenance"):
+    for key in (
+        "x_request_id",
+        "request_sha256",
+        "prompt_sha256",
+        "response_sha256",
+        "alt",
+        "rights_provenance",
+    ):
         if not isinstance(receipt.get(key), str) or not str(receipt[key]).strip():
             raise HeadlineImageRefused(f"headline-api-receipt-missing:{key}")
     return receipt
@@ -132,6 +139,7 @@ def generate(*, prompt_path: Path, alt_path: Path, candidate: Path, intent_path:
     body = json.dumps({"model": MODEL, "prompt": prompt.decode("utf-8"),
                        "quality": QUALITY, "size": SIZE, "output_format": "png"},
                       ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    request_sha256 = _sha(body)
     request = urllib.request.Request(
         ENDPOINT, data=body,
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
@@ -166,6 +174,7 @@ def generate(*, prompt_path: Path, alt_path: Path, candidate: Path, intent_path:
     receipt = {"schema": "writer.gpt-image-headline-receipt", "version": 1,
                "status": "committed", "candidate": str(candidate.resolve()),
                "request_model": MODEL, "x_request_id": request_id,
+               "request_sha256": request_sha256,
                "prompt_sha256": _sha(prompt), "response_sha256": _sha(raw),
                "file_sha256": _sha(image), "byte_length": len(image),
                "width": width, "height": height, "size": SIZE, "quality": QUALITY,
