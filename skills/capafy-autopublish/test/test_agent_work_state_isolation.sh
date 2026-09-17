@@ -257,6 +257,10 @@ import sys
 Path(sys.argv[1]).write_text(
     """#!/bin/sh
 printf '%s\\n' "$*" >> "$FAKE_CALLS"
+if [ "$1" = "packager.py" ] && [ -n "${OPENCLAW_CONFIG_PATH:-}${OPENCLAW_STATE_DIR:-}" ]; then
+  : > "$FAKE_OPENCLAW_LEAK"
+  exit 97
+fi
 if [ "$1" = "packager.py" ] && [ "$2" = "publish-remote-status" ]; then
   if [ "$FAKE_MODE" = "submitted-mismatch" ]; then
     printf '%s\\n' '{"ok":true,"latest_version":{"agent_id":"agent-1","agent_version_id":"version-1","platform_status":1,"audit_status":1,"is_confirmed_skills":true,"is_confirmed_config_keys":true,"agent_package_id":"pkg-1","package_uploaded":true}}'
@@ -274,12 +278,15 @@ PY
 chmod +x "$FAKE_BIN/python3"
 make_binding_fixture "$STATE_HOME/status-state"
 set +e
-FAKE_CALLS="$FAKE_CALLS" REAL_PYTHON="$REAL_PYTHON" PATH="$FAKE_BIN:$PATH" \
+FAKE_CALLS="$FAKE_CALLS" FAKE_OPENCLAW_LEAK="$STATE_HOME/openclaw-override-leaked" REAL_PYTHON="$REAL_PYTHON" PATH="$FAKE_BIN:$PATH" \
+  OPENCLAW_CONFIG_PATH=/tmp/operator-openclaw.json OPENCLAW_STATE_DIR=/tmp/operator-openclaw \
   LIFE_MANAGER_STATE_HOME="$STATE_HOME/status-state" CAPAFY_PUBLISHER_STATE_HOME="$STATE_HOME/status-state/runtime/capafy-publisher" \
   bash "$ROOT/scripts/publish_finish.sh" agent-1 unused-skill "" version-1 >/dev/null 2>&1
 status_gate_rc=$?
 set -e
 [ "$status_gate_rc" -ne 0 ] || { echo "FAIL: review_rejected status gate allowed finish" >&2; exit 1; }
+[ ! -f "$STATE_HOME/openclaw-override-leaked" ] \
+  || { echo "FAIL: inherited OpenClaw override reached publisher" >&2; exit 1; }
 if rg -q 'drive_checkpoint|publish-submit|publish-refresh-url|key_health_gate' "$FAKE_CALLS"; then
   echo "FAIL: status gate reached provider/browser effect" >&2
   exit 1

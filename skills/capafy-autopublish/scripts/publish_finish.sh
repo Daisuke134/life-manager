@@ -40,6 +40,7 @@ for ENV_FILE in "$LIFE_MANAGER_STATE_HOME/.env"; do
     set -a; . "$ENV_FILE" 2>/dev/null; set +a
   fi
 done
+unset OPENCLAW_CONFIG_PATH OPENCLAW_STATE_DIR
 
 export HOME="$CAPAFY_PUBLISH_HOME_BASE"
 export CAPAFY_PUBLISHER_STATE_HOME

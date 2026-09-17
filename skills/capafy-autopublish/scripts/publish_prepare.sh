@@ -50,6 +50,9 @@ for ENV_FILE in "$LIFE_MANAGER_STATE_HOME/.env"; do
     set -a; . "$ENV_FILE" 2>/dev/null; set +a
   fi
 done
+# Vendored OpenClaw resolution prioritizes these overrides above HOME. An
+# inherited operator path would package another profile's model or secrets.
+unset OPENCLAW_CONFIG_PATH OPENCLAW_STATE_DIR
 
 step(){ echo ""; echo "━━━ $* ━━━"; }
 die(){ echo "❌ $*"; exit 1; }

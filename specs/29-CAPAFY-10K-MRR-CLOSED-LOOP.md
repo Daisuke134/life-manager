@@ -106,7 +106,7 @@ flowchart LR
 **前回の実行順更新（履歴）:** 旧順序は`R0-C3a → R0-C1 → R0-C2 → R0-C3b`。hourly company receiptが存在しないmarketing terminalを必須読込して停止し、既存native IG ledgerには直近Reelの記録があったため、C3bをC1より前に移した。C3bコードはmainへ統合・targeted apply済み。自然wakeは上の資源blockerで未完。
 **R0-C1準備の境界:** 公開中Marketing Strategist `9563867391`はv1.0.0 / Claude Sonnet 4.6のまま。repo正本の次版候補をDeepSeek V4.1 Flash・`maxTokens=8192`・無料trialなしで用意し、listing→OpenClaw package→CP2 Hosted Config→key probeのモデルIDを同一契約から渡す。OpenRouter公式Responses APIで同modelの応答・usage/costを再確認した。これは**Capafy新版の提出、審査承認、購入者Test Runの成功を意味しない**。platform審査枠は5/5で、空きがない間に別Agentのdraftを作らない。同じAgent IDの版更新を安全に実施できるreview transitionと専用browser所有権を確認してから実行する。
 
-**R0-C1追加の提出安全ゲート:** 同じpublisher accountのprepare/finishをOS lockで直列化し、Agent IDごと（新規は一意のbootstrap）のHOME/workspace・package入力を分離する。Publisher manifestのAgent ID、version ID、runtime_dir、選択Skill sourceとlistings/OpenClaw model/capを提出前に照合し、CP1の公式detail `model`も同じ版で確認する。直接`publish_prepare`を5/5の実inventoryで実行すると`CAP_FULL`で新版作成前に停止し、公式Agent版IDは変わらなかった。次版候補のfocused pytest 58件、同一Agent作業状態fixture、listing lintはPASS。これはレビュー枠が空いた後のCapafy版提出・buyer Test Runを代用しない。
+**R0-C1追加の提出安全ゲート:** 同じpublisher accountのprepare/finishをOS lockで直列化し、Agent IDごと（新規は一意のbootstrap）のHOME/workspace・package入力を分離する。継承されたOpenClaw config/state overrideを消し、Publisher manifestのAgent ID、version ID、runtime_dir、選択Skill sourceとlistings/OpenClaw model/capを提出前に照合し、CP1の公式detail `model`も同じ版で確認する。直接`publish_prepare`を5/5の実inventoryで実行すると`CAP_FULL`で新版作成前に停止し、公式Agent版IDは変わらなかった。次版候補のfocused pytest 58件、同一Agent作業状態fixture、listing lintはPASS。これはレビュー枠が空いた後のCapafy版提出・buyer Test Runを代用しない。
 
 | 順 | owner / exact files | 最小変更 | 完了条件 |
 |---|---|---|---|
