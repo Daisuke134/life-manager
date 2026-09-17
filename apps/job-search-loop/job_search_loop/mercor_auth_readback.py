@@ -24,6 +24,7 @@ def classify_auth_snapshot(
     firebase_token_expired: object = None,
     firebase_token_refreshed: object = None,
     firebase_token_refresh_failed: object = None,
+    firebase_token_refresh_invalid: object = None,
 ) -> str:
     if not isinstance(url, str) or not isinstance(visible_text, str):
         return "indeterminate"
@@ -39,6 +40,10 @@ def classify_auth_snapshot(
         return "logged_out"
     if login_form_visible is True:
         return "logged_out"
+    if firebase_token_refresh_failed is True:
+        return "indeterminate"
+    if firebase_token_refresh_invalid is True:
+        return "logged_out"
     if authenticated_api_status == 200:
         # Some provider API edges accept an expired bearer and still return a
         # successful shell response. The Mercor SPA is authoritative here: an
@@ -46,13 +51,9 @@ def classify_auth_snapshot(
         # an application detail reliably.
         if firebase_token_expired is True and firebase_token_refreshed is not True:
             return "logged_out"
-        if firebase_token_refresh_failed is True:
-            return "indeterminate"
         return "authenticated"
-    if firebase_token_expired is True:
+    if firebase_token_expired is True and firebase_token_refreshed is not True:
         return "logged_out"
-    if firebase_token_refresh_failed is True:
-        return "indeterminate"
     # Navigation and content can render before Firebase hydration. Without an
     # authenticated API readback this wake must remain retryable, not logged out.
     if parsed.path.startswith("/jobs/apply/") and "application" in text and any(
@@ -93,6 +94,7 @@ def auth_snapshot_expression() -> str:
       let firebase_token_expired=false;
       let firebase_token_refreshed=false;
       let firebase_token_refresh_failed=false;
+      let firebase_token_refresh_invalid=false;
       try {
         const request=indexedDB.open('firebaseLocalStorageDb');
         const db=await new Promise((resolve,reject)=>{
@@ -128,8 +130,14 @@ def auth_snapshot_expression() -> str:
                      credentials:'omit',signal:controller.signal}
                   );
                 } finally { clearTimeout(timer); }
-                if(!response.ok) throw new Error('firebase_refresh_http_'+response.status);
-                const payload=await response.json();
+                let payload={};
+                try { payload=await response.json(); } catch(error) { payload={}; }
+                if(!response.ok){
+                  const message=String(payload?.error?.message||'').toUpperCase();
+                  if(['TOKEN_EXPIRED','INVALID_REFRESH_TOKEN','USER_DISABLED','USER_NOT_FOUND','INVALID_GRANT']
+                    .some(marker=>message.includes(marker))) firebase_token_refresh_invalid=true;
+                  throw new Error('firebase_refresh_http_'+response.status);
+                }
                 const accessToken=payload?.id_token||payload?.access_token||'';
                 const expiresIn=Number(payload?.expires_in)||0;
                 if(!accessToken || expiresIn<=0) throw new Error('firebase_refresh_response_invalid');
@@ -152,7 +160,7 @@ def auth_snapshot_expression() -> str:
                 firebase_token_refreshed=true;
                 firebase_token_expired=false;
               } catch(error) {
-                firebase_token_refresh_failed=true;
+                if(!firebase_token_refresh_invalid) firebase_token_refresh_failed=true;
               }
             }
             if(firebase_token_refreshed) break;
@@ -186,7 +194,8 @@ def auth_snapshot_expression() -> str:
         authenticated_api_status,
         firebase_token_expired,
         firebase_token_refreshed,
-        firebase_token_refresh_failed
+        firebase_token_refresh_failed,
+        firebase_token_refresh_invalid
       });
     })()"""
 
@@ -200,12 +209,48 @@ async def observe(ws_url: str) -> dict[str, object]:
     async with websockets.connect(
         ws_url, open_timeout=10, ping_interval=None, max_size=8 * 1024 * 1024
     ) as ws:
-        result = await _call(ws, 1, "Runtime.evaluate", {
-            "expression": auth_snapshot_expression(),
-            "awaitPromise": True,
-            "returnByValue": True,
-        })
-    value = json.loads(result.get("result", {}).get("value") or "{}")
+        async def evaluate(request_id: int) -> dict[str, object]:
+            result = await _call(ws, request_id, "Runtime.evaluate", {
+                "expression": auth_snapshot_expression(),
+                "awaitPromise": True,
+                "returnByValue": True,
+            })
+            return json.loads(result.get("result", {}).get("value") or "{}")
+
+        value = await evaluate(1)
+        # Writing IndexedDB restores the durable Firebase record but does not
+        # update the SPA's in-memory currentUser. Reload only when this exact
+        # readback refreshed the record, then re-read the same page so the model
+        # never starts from a stale Firebase auth observer.
+        if value.get("firebase_token_refreshed") is True and value.get("login_form_visible") is not True:
+            try:
+                await _call(ws, 2, "Page.reload", {"ignoreCache": True})
+                ready = False
+                for index in range(80):
+                    state = await _call(ws, 10 + index, "Runtime.evaluate", {
+                        "expression": "JSON.stringify({url:location.href,ready:document.readyState,hasBody:!!document.body})",
+                        "returnByValue": True,
+                    })
+                    raw_state = state.get("result", {}).get("value")
+                    state_value = json.loads(raw_state or "{}")
+                    state_url = state_value.get("url")
+                    if (
+                        isinstance(state_url, str)
+                        and urlsplit(state_url).scheme == "https"
+                        and urlsplit(state_url).hostname == "work.mercor.com"
+                        and state_value.get("ready") == "complete"
+                        and state_value.get("hasBody") is True
+                    ):
+                        ready = True
+                        break
+                    await asyncio.sleep(0.25)
+                if not ready:
+                    raise RuntimeError("mercor_auth_rehydrate_not_ready")
+                rehydrated = await evaluate(200)
+                rehydrated["firebase_token_refreshed"] = True
+                value = rehydrated
+            except Exception:
+                value["firebase_token_refresh_failed"] = True
     url = value.get("url", "")
     return {
         "status": classify_auth_snapshot(
@@ -217,6 +262,7 @@ async def observe(ws_url: str) -> dict[str, object]:
             firebase_token_expired=value.get("firebase_token_expired"),
             firebase_token_refreshed=value.get("firebase_token_refreshed"),
             firebase_token_refresh_failed=value.get("firebase_token_refresh_failed"),
+            firebase_token_refresh_invalid=value.get("firebase_token_refresh_invalid"),
         ),
         "url": url,
         "login_form_visible": value.get("login_form_visible") is True,
@@ -226,6 +272,7 @@ async def observe(ws_url: str) -> dict[str, object]:
         "firebase_token_expired": value.get("firebase_token_expired") is True,
         "firebase_token_refreshed": value.get("firebase_token_refreshed") is True,
         "firebase_token_refresh_failed": value.get("firebase_token_refresh_failed") is True,
+        "firebase_token_refresh_invalid": value.get("firebase_token_refresh_invalid") is True,
     }
 
 

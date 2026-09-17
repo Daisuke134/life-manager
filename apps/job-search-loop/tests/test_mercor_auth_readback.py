@@ -1,8 +1,10 @@
+import inspect
 import unittest
 
 from job_search_loop.mercor_auth_readback import (
     auth_snapshot_expression,
     classify_auth_snapshot,
+    observe,
 )
 
 
@@ -87,6 +89,21 @@ class MercorAuthReadbackTests(unittest.TestCase):
             visible_text="Explore Applications Earnings Profile",
             login_form_visible=False,
             authenticated_api_status=200,
+            firebase_token_expired=True,
+            firebase_token_refresh_failed=True,
+        ), "indeterminate")
+        self.assertEqual(classify_auth_snapshot(
+            url="https://work.mercor.com/explore",
+            visible_text="Explore Applications Earnings Profile",
+            login_form_visible=False,
+            authenticated_api_status=200,
+            firebase_token_refresh_invalid=True,
+        ), "logged_out")
+        self.assertEqual(classify_auth_snapshot(
+            url="https://work.mercor.com/explore",
+            visible_text="Explore Applications Earnings Profile",
+            login_form_visible=False,
+            authenticated_api_status=200,
             firebase_token_expired=False,
             firebase_token_refreshed=True,
         ), "authenticated")
@@ -97,6 +114,7 @@ class MercorAuthReadbackTests(unittest.TestCase):
         self.assertIn("firebase_token_refreshed", expression)
         self.assertIn("expirationTime", expression)
         self.assertIn("readwrite", expression)
+        self.assertIn("Page.reload", inspect.getsource(observe))
 
 
 if __name__ == "__main__":
