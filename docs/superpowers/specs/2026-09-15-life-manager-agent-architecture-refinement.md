@@ -118,6 +118,93 @@ tables remain evidence of the superseded plan, not the active cursor.
 | 12 | Promote the identical approved business kernel/source SHA to tenant-isolated Cloud; test Steel owner lease/release and phone-only status/human handoff/readback; run Cloud gate. | Tenant cross-read 0, credential/state mix 0, official effects and replay-zero, Local/Eval/Cloud all PASS. |
 | 13 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
 
+### Atomic remaining execution list — current cursor A01
+
+This list contains **only unfinished work**. Each checkbox is one reviewable
+transition with its own evidence. The table above is a program map, not a
+second execution cursor. Provider/client IDs are read from fresh official
+inventory rather than invented here; one selected ID is handled per item.
+
+- [ ] A01 — Add proof-bound disposition of one exact `effect_unknown` occurrence in `runtime/host/resource_admission.py`; refuse missing/mismatched official readback.
+- [ ] A02 — Prove one old-loaded runner cannot claim or erase another release's new occurrence during a mixed-release fixture; fix only the failing admission boundary.
+- [ ] A03 — Prove one freed finite slot automatically reserves the next eligible `agent` owner under saturation.
+- [ ] A04 — Prove one freed finite slot automatically reserves the next eligible `browser` owner under saturation.
+- [ ] A05 — Prove one freed finite slot automatically reserves the next eligible `deterministic` owner under saturation.
+- [ ] A06 — Prove a long-waiting revenue owner gets a turn despite successive new Paid arrivals, without exceeding measured RAM headroom.
+- [ ] A07 — Integrate only the reviewed shared-runtime fix into latest main; exclude provider-owned files and unrelated candidate changes.
+- [ ] A08 — Cut one immutable full release from that exact main SHA and import-smoke its runtime/host dependencies.
+- [ ] A09 — Apply the release to one loaded-idle agent owner and read back exact loaded argv/SHA.
+- [ ] A10 — Observe that agent owner's natural release→next-claim→outer terminal without a manual kickstart.
+- [ ] A11 — Apply the same release to one loaded-idle browser owner and read back exact loaded argv/SHA.
+- [ ] A12 — Observe that browser owner's natural release→next-claim→outer terminal without a manual kickstart.
+- [ ] A13 — Apply the same release to one loaded-idle deterministic owner and read back exact loaded argv/SHA.
+- [ ] A14 — Observe that deterministic owner's natural release→next-claim→outer terminal without a manual kickstart.
+- [ ] A15 — Run one bounded pressure/recovery check and confirm queue age, owner heartbeat and no fleet starvation; only then mark foundation Done.
+- [ ] CN01 — Reconcile one exact old Connector unknown occurrence against official provider and Calendar records; do not resend before disposition.
+- [ ] CN02 — Reconcile the next exact old Connector unknown occurrence against official provider and Calendar records.
+- [ ] CN03 — Observe one eligible Connector natural wake through an official registration ID, or record exact no-eligible reason.
+- [ ] CN04 — Read back the matching Google Calendar event ID for that registration; a registration-free wake does not satisfy this item.
+- [ ] CN05 — Observe the next Connector wake and prove the same event was not registered or calendared twice.
+- [ ] CO01 — Verify the single owned Coconala browser profile/session is authenticated without changing another lane's tabs.
+- [ ] CO02 — Submit one new eligible Coconala Apply item with screening answer and official applied-record readback.
+- [ ] CO03 — Prove that same Apply item replays zero on the next natural wake.
+- [ ] CO04 — Advance one currently actionable pending Reply talkroom to official message readback or typed buyer-wait receipt.
+- [ ] CO05 — Advance one funded Paid client with a new buyer event to exact talkroom effect/readback or typed wait.
+- [ ] CO06 — Prove one supported Storefront listing mutation or official truthful no-work against current inventory.
+- [ ] CO07 — Attribute one accepted payout/bank receipt to its originating application and contract.
+- [ ] CO08 — Advance the frozen historical uncertain-Apply cursor by one officially reconciled ID without resending it; continue as preemptible work until empty.
+- [ ] CW01 — Identify the exact current CrowdWorks Paid inventory failure at CDP, auth, timeout or official-list parsing boundary.
+- [ ] CW02 — Fix only that Paid inventory boundary and read back the current official funded-contract list.
+- [ ] CW03 — Submit the first existing funded contract's actual artifact and read back its provider receipt.
+- [ ] CW04 — Submit the second existing funded contract's actual artifact and read back its provider receipt.
+- [ ] CW05 — Submit the third existing funded contract's actual artifact and read back its provider receipt.
+- [ ] CW06 — Reconcile one pending/failed CrowdWorks Reply thread before any resend.
+- [ ] CW07 — Prove one eligible CrowdWorks Apply effect or truthful no-eligible result with next-wake replay-zero.
+- [ ] LA01 — Restore one owner-scoped authenticated Lancers Playwright/CDP attachment without restarting sibling browsers.
+- [ ] LA02 — Submit one eligible Lancers proposal and read back its exact official ID.
+- [ ] LA03 — Resolve one actionable Lancers negotiation thread by official readback or typed wait.
+- [ ] LA04 — Read current funded-contract inventory with typed account/lock/browser errors instead of a generic failure.
+- [ ] LA05 — Deliver one funded Lancers work item and read back submission/payment state.
+- [ ] LA06 — Verify one officially supported Lancers Storefront listing change or truthful no-work.
+- [ ] ME01 — Restore the existing Mercor owner session and verify authenticated provider readback.
+- [ ] ME02 — Prove one Mercor application receipt or truthful no-eligible result.
+- [ ] ME03 — Resolve one Mercor Reply/interview event with an exact human-gate or provider receipt.
+- [ ] ME04 — Reconcile one Mercor funded work/payment state against official records.
+- [ ] FR01 — Verify Freelancer.com account and current automation/policy eligibility.
+- [ ] FR02 — Prove one eligible Freelancer.com Apply or truthful no-eligible result.
+- [ ] FR03 — Prove one Freelancer.com Reply-to-funded-work receipt and payout lineage.
+- [ ] UP01 — Verify Upwork account and current automation/policy eligibility.
+- [ ] UP02 — Prove one eligible Upwork proposal or truthful no-eligible result.
+- [ ] UP03 — Prove one Upwork Reply-to-funded-work receipt and payout lineage.
+- [ ] PL01 — Verify Writer's current natural terminal and official publication/revenue receipt or typed blocker.
+- [ ] PL02 — Verify Affiliate's current natural terminal and official link/publication/conversion receipt or typed blocker.
+- [ ] PL03 — Verify Investment's current mode, risk boundary and broker/paper receipt or typed blocker.
+- [ ] PL04 — Verify Agent Economy's current owner, cost and official economic effect or typed setup state.
+- [ ] PL05 — Verify Job Hunter's current application confirmation or typed human wait.
+- [ ] PL06 — Verify Fundraiser's current intake receipt or explicit ineligible state.
+- [ ] PL07 — Verify Self-Build's reviewed release and rollback receipt or typed blocker.
+- [ ] PL08 — Verify Mobile Apps' build/store/marketing receipts and repair its remaining unloaded/failing job.
+- [ ] PL09 — Verify Capafy's official product/publication/revenue receipt or typed blocker.
+- [ ] PL10 — Verify CFO's actual financial snapshot and payout reconciliation; unknown is never zero.
+- [ ] G01 — Run the 14-row Local completion gate against current same-SHA natural terminals and official evidence.
+- [ ] G02 — Run one held-out Eval comparison against a frozen baseline, recording safety, latency and cost.
+- [ ] G03 — Prove the rollback pointer rejects a candidate that regresses held-out, safety, cost or required live evidence.
+- [ ] MT01 — Qualify one new platform from current policy, automation feasibility and expected net value.
+- [ ] MT02 — Canary one thin adapter on the shared runtime and promote only after official effect/readback/replay-zero.
+- [ ] SH01 — Inject one missed-cadence or auth/browser failure and prove the alert names the exact owner.
+- [ ] SH02 — Recover only that owner from durable state, with sibling effects unchanged and a terminal repair receipt.
+- [ ] SH03 — Evaluate one self-improvement candidate against baseline/held-out/safety/cost/live evidence and promote or roll back.
+- [ ] CL01 — Place the identical approved business-kernel SHA in a tenant-isolated Cloud host adapter.
+- [ ] CL02 — Prove tenant A cannot read tenant B's credential, browser session, state or receipt.
+- [ ] CL03 — Prove Steel session lease/release leaves no second owner or stale lease.
+- [ ] CL04 — Prove one phone-only Telegram status/human-gate/resume/readback flow.
+- [ ] CL05 — Run the Cloud gate on the same SHA and official replay-zero evidence.
+- [ ] R01 — Start hosted subscription billing and verify one official paid subscription receipt.
+- [ ] R02 — Reach and verify USD 10K MRR from attributable accepted contracts, subscriptions, payouts and bank records.
+- [ ] R03 — Publish accurate traction, retention, margin and automation metrics.
+- [ ] R04 — Submit the YC Winter 2027 application and retain its confirmation.
+- [ ] R05 — Remove only proved-obsolete duplicate specs/artifacts after exact owner/reference checks, leaving one repository SSOT.
+
 **Step-1 file/owner decision (read-only map, not a second TODO):**
 
 | Files needed next | Source and owner | Integration decision |
