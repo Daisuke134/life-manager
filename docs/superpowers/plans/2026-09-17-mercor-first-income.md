@@ -48,6 +48,8 @@
 
 **Interfaces:** Produce `baseline.json` privately with `observed_at`, loaded label→SHA, unique listing/application counts, official application statuses, assessment statuses, trial/contract/earnings states, and `unknown` fields.
 
+- [x] Wrote private `/Users/anicca/.local/state/anicca/job-search/mercor/baseline-20260917.json`: 87 unique application listing IDs from 89 rows, current loaded application status, Reply/Paid blockers, profile/résumé hashes, and `unknown` for stages not covered by the stale 2026-09-13 official snapshot. Profile-page and fresh Reply/Paid readback remain pending while the shared Mercor browser lease is occupied.
+
 - [ ] Read `config/loop-registry.json`, loaded `ProgramArguments`, latest terminal events, current Mercor profile/resume/application/assessment/earnings UI, and `applications.jsonl`, `inspections.jsonl`, `submission-fences.jsonl`. Confirm the current official account identity before any tab movement. Do not use `len(inspections.jsonl)` as a listing count.
 - [ ] Build a one-time read-only baseline keyed by stable Mercor listing/application IDs; use `unknown` for absent provider metrics such as profile views. Record the evidence path and official page timestamp for each nonempty stage.
 - [ ] Review the baseline against the private `~/.config/anicca/job-search/profile.json` without writing values into Git. Mark each profile claim `verified`, `unsupported`, or `missing from Mercor` and each active application `submitted`, `incomplete`, `closed`, or `unknown` from its official UI.
