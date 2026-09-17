@@ -40,6 +40,29 @@ def test_cleanup_closes_only_stale_auth_targets(monkeypatch):
     ]
 
 
+def test_browser_attach_diagnostic_redacts_endpoint():
+    module = _module()
+    detail = module._safe_browser_failure(RuntimeError(
+        "BrowserType.connect_over_cdp: ws://127.0.0.1:9227/devtools/browser/secret-token failed\nprivate call log"
+    ))
+    assert detail == "RuntimeError:websocket"
+    assert "secret-token" not in detail and "private call log" not in detail
+    assert module._safe_browser_failure(RuntimeError(
+        "Authorization: Bearer another-secret Cookie: session=private"
+    )) == "RuntimeError:other"
+
+
+def test_browser_attach_diagnostic_cannot_block_cleanup(monkeypatch):
+    module = _module()
+
+    class BrokenStderr:
+        def write(self, _text):
+            raise OSError("log unavailable")
+
+    monkeypatch.setattr(module.sys, "stderr", BrokenStderr())
+    module._log_browser_failure("attempt1", RuntimeError("secret"))
+
+
 def test_open_owned_page_closes_failed_browser_before_retry(monkeypatch):
     module = _module()
     closed = []

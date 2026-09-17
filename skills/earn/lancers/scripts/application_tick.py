@@ -426,6 +426,29 @@ def _cleanup_stale_targets(cdp_url: str) -> bool:
     return bool(stale) and all(_cdp_request(f"{cdp_url}/json/close/{quote(target_id, safe='')}") for target_id in stale)
 
 
+def _safe_browser_failure(error: Exception) -> str:
+    try:
+        name = type(error).__name__
+        if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,40}", name) is None:
+            name = "Exception"
+        message = str(error).lower()
+        code = ("timeout" if "timeout" in message or "timed out" in message else
+                "protocol" if "protocol error" in message or "dialog" in message else
+                "websocket" if "websocket" in message or "ws://" in message or "wss://" in message else
+                "connection_refused" if "connection refused" in message or "econnrefused" in message else
+                "other")
+        return f"{name}:{code}"
+    except Exception:
+        return "Exception:unavailable"
+
+
+def _log_browser_failure(attempt: str, error: Exception) -> None:
+    try:
+        print(f"application_tick:browser_attach_{attempt}:{_safe_browser_failure(error)}", file=sys.stderr)
+    except Exception:
+        pass
+
+
 def _default_browser_factory(cdp_url: str = CDP_URL) -> Any:
     if cdp_url != CDP_URL:
         raise RuntimeError("browser_endpoint_invalid")
@@ -438,6 +461,7 @@ def _default_browser_factory(cdp_url: str = CDP_URL) -> Any:
         return browser
     except Exception as exc:
         _stop_playwright_runtime(runtime)
+        _log_browser_failure("attempt1", exc)
         try: from playwright.sync_api import TimeoutError as PlaywrightTimeoutError; is_timeout = isinstance(exc, PlaywrightTimeoutError)
         except Exception: is_timeout = False
         if runtime is None or not is_timeout: raise RuntimeError("browser_connect_failed") from None
@@ -448,8 +472,9 @@ def _default_browser_factory(cdp_url: str = CDP_URL) -> Any:
         retry_runtime = sync_playwright().start(); browser = retry_runtime.chromium.connect_over_cdp(cdp_url, timeout=BROWSER_ATTACH_TIMEOUT_MS)
         setattr(browser, "_anicca_playwright_runtime", retry_runtime)
         return browser
-    except Exception:
+    except Exception as exc:
         _stop_playwright_runtime(retry_runtime)
+        _log_browser_failure("attempt2", exc)
         raise RuntimeError("browser_connect_failed") from None
 
 
