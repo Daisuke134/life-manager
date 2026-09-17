@@ -121,6 +121,39 @@ class PrepublicationAdoptionTest(unittest.TestCase):
             with self.assertRaises(generation.GenerationInvariant):
                 generation.adopt_prepublication(run, run_id, prompt, ledger)
 
+    def test_refreshes_prior_adoption_after_a_later_failed_attempt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run, run_id, prompt, ledger = self.fixture(Path(tmp))
+            state_path = run / "gates/generation-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["attempts"] = state["attempts"][:2]
+            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+
+            generation.adopt_prepublication(run, run_id, prompt, ledger)
+            prior = json.loads(
+                (run / "gates/prepublication-adoption.json").read_text(encoding="utf-8")
+            )
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["status"] = "provider-failed-ambiguous"
+            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+            (run / "article-ja.md").write_text("日本語 retry draft\n", encoding="utf-8")
+            (run / "gates/quality-self-heal.json").write_text(
+                "{\"status\":\"PENDING\"}\n", encoding="utf-8"
+            )
+
+            result = generation.adopt_prepublication(run, run_id, prompt, ledger)
+
+            self.assertEqual(result["action"], "adopted-after-retry")
+            history = run / "gates/prepublication-adoption-history" / f"{prior['receipt_sha256']}.json"
+            self.assertTrue(history.is_file())
+            current = json.loads(
+                (run / "gates/prepublication-adoption.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(current["supersedes_receipt_sha256"], prior["receipt_sha256"])
+            self.assertEqual(
+                current["receipt_sha256"], generation._adoption_receipt_hash(current)
+            )
+
     def test_staged_adoption_without_quality_receipt_can_resume_same_prompt(self):
         with tempfile.TemporaryDirectory() as tmp:
             run, run_id, prompt, ledger = self.fixture(Path(tmp))

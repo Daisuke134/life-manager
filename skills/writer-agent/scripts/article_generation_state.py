@@ -481,7 +481,7 @@ def adopt_prepublication(
             if receipt_path.is_symlink() or not receipt_path.is_file():
                 raise GenerationInvariant("adoption receipt is not regular")
             receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-            if not _adoption_receipt_matches(
+            if _adoption_receipt_matches(
                 receipt,
                 run_id,
                 state["prompt_sha256"],
@@ -489,8 +489,56 @@ def adopt_prepublication(
                 artifacts,
                 state_before_sha256,
             ):
-                raise GenerationInvariant("orphan adoption receipt does not match current evidence")
-            action = "recovered"
+                action = "recovered"
+            else:
+                # A prior adoption can be followed by another failed,
+                # publication-free generation attempt. Preserve that
+                # receipt in history, then bind the newer manifest instead
+                # of silently overwriting evidence or deadlocking repair.
+                prior_sha = receipt.get("receipt_sha256")
+                prior_valid = bool(
+                    receipt.get("schema") == "writer.prepublication-adoption"
+                    and receipt.get("version") == 1
+                    and receipt.get("run_id") == run_id
+                    and receipt.get("from_status") == "provider-failed-ambiguous"
+                    and receipt.get("to_status") == "quality-repair-ready"
+                    and receipt.get("publication_state_absent") is True
+                    and receipt.get("public_ledger_rows") == 0
+                    and isinstance(prior_sha, str)
+                    and prior_sha == _adoption_receipt_hash(receipt)
+                )
+                if not prior_valid:
+                    raise GenerationInvariant(
+                        "orphan adoption receipt does not match current evidence"
+                    )
+                history_dir = resolved / "gates/prepublication-adoption-history"
+                if history_dir.is_symlink():
+                    raise GenerationInvariant("adoption history is symlinked")
+                history_dir.mkdir(exist_ok=True)
+                history_path = history_dir / f"{prior_sha}.json"
+                if history_path.exists() or history_path.is_symlink():
+                    raise GenerationInvariant("adoption history collision")
+                receipt_path.replace(history_path)
+                drafts, artifacts = _adoption_manifests(resolved)
+                receipt = {
+                    "schema": "writer.prepublication-adoption",
+                    "version": 1,
+                    "run_id": run_id,
+                    "adopted_at": utc_now(),
+                    "from_status": "provider-failed-ambiguous",
+                    "to_status": "quality-repair-ready",
+                    "generation_state_before_sha256": state_before_sha256,
+                    "prompt_sha256": state["prompt_sha256"],
+                    "draft_manifest": drafts,
+                    "artifact_manifest": artifacts,
+                    "artifact_manifest_sha256": manifest_sha256(artifacts),
+                    "publication_state_absent": True,
+                    "public_ledger_rows": 0,
+                    "supersedes_receipt_sha256": prior_sha,
+                }
+                receipt["receipt_sha256"] = _adoption_receipt_hash(receipt)
+                _atomic_write(receipt_path, receipt)
+                action = "adopted-after-retry"
         else:
             receipt = {
                 "schema": "writer.prepublication-adoption",
