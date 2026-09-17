@@ -456,7 +456,7 @@ def _usage_summary(payload: dict, models: dict[str, str], prices: dict) -> dict:
 
 
 def _live_payloads(repo_root: Path, observed: dt.datetime,
-                   *, seller_window_days: int | None = None) -> dict[str, dict]:
+                   *, seller_start_date: dt.date | None = None) -> dict[str, dict]:
     token = _token(repo_root)
     web_token = _web_token()
     if not token:
@@ -478,8 +478,8 @@ def _live_payloads(repo_root: Path, observed: dt.datetime,
         )})
         return payloads
     seller_range = (
-        {"sinceLaunch": True} if seller_window_days is None
-        else {"startDate": (observed.date() - dt.timedelta(days=seller_window_days - 1)).isoformat(),
+        {"sinceLaunch": True} if seller_start_date is None
+        else {"startDate": seller_start_date.isoformat(),
               "endDate": end}
     )
     period = {**seller_range, "granularity": "daily"}
@@ -494,7 +494,7 @@ def _live_payloads(repo_root: Path, observed: dt.datetime,
         "unit_sales": _post("/app/unit-sales/clickhouse/trend", web_token, period),
         "statements": _get("/app/developer/settlement-statement/list?page=1&size=20", web_token),
     })
-    if seller_window_days is not None:
+    if seller_start_date is not None:
         usage = _usage_requests(web_token, seller_range["startDate"], end)
         payloads["usage_requests"] = usage
         agent_ids = {str(row.get("agentId")) for row in usage.get("rows", []) if row.get("agentId")}
@@ -536,8 +536,9 @@ def _money_snapshot(receipt: dict, observed: dt.datetime) -> dict:
     return {
         "kind": "capafy_money_readback",
         "observed_at": receipt["observed_at"],
-        "window_start": (observed.date() - dt.timedelta(days=29)).isoformat(),
+        "window_start": observed.date().replace(day=1).isoformat(),
         "window_end": observed.date().isoformat(),
+        "window_kind": "calendar_month_to_date_utc",
         "gross_sales_usd": money["gross_usd"],
         "creator_earnings_usd": money["creator_earnings_usd"],
         "unit_sales_total": money["unit_sales_total"],
@@ -591,7 +592,7 @@ def main(argv: list[str] | None = None) -> int:
                 payloads[name] = json.loads(path.read_text())
     else:
         payloads = _live_payloads(repo_root, observed,
-                                  seller_window_days=30 if args.money else None)
+                                  seller_start_date=observed.date().replace(day=1) if args.money else None)
     receipt = build_receipt(payloads, observed_at)
     if args.money:
         snapshot = _money_snapshot(receipt, observed)
