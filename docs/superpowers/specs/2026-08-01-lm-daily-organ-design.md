@@ -9,6 +9,37 @@
 UI/UX・§10.2 Today・§12 Order 表）。あの Order 表は **runtime 移行の順序**であって daily 機能の順序ではない。
 **daily の順序はこのファイルが正本**。
 
+## Scope lock and current As-Is / To-Be
+
+このファイルは **Life Manager DAILY** の正本である。対象は `apps/life-manager/` のTelegram、Google
+Calendar、Supabase、任意のTelnyx電話channel、Stripe entitlementだけである。別productのmarketplace、
+別browser backend、writer、記事、SNS、その他の収益loopはこのspecの対象外であり、ここから作業を起こさない。
+
+StripeとTelnyxの役割を混同しない。Stripeは月額契約の状態を記録する決済rail、Telnyxはユーザーが
+明示的に有効化した時だけ使う電話railである。売上が発生するまで待つことは技術TODOではない。
+技術TODOは、決済イベントや通話イベントを受けて正しい状態へ反映し、公式readbackできるようにすること。
+
+| 項目 | As-Is（確認できた事実） | To-Be（このspecの完了形） |
+|---|---|---|
+| 製品 | Telegramで生活予定を管理するLife Manager。日常運用の本番はRailway `life-call`。 | Calendar接続後、Telegramだけで予定・出発・移動・遅刻対応が完結する。 |
+| Stripe | `apps/life-manager/lib/billing.js` がWebhookを正本としている。runtime stateはactive subscription `0`、MRR `$0`。 | Checkout → Stripe webhook → `lm_users` entitlement → `/status` の一貫したreadback。active/renewal/cancelは収益が増えるまで待たず、イベント発生時に検証する。 |
+| Telnyx | `origin/main` の `call-logic.js` は `time_limit_secs` を30〜14400秒だけ送る。29秒は送信しないため、今回の`90029`入力はコード上拒否される。 | 有効な秒数で架電し、AMD結果、留守電時の即時hangup、AI音声の再生を同一call identityでreadbackする。 |
+| DAILY release | Railway `/health` は200。出発nudgeの動的計画branchは`origin/main`の祖先ではない。 | nudge計画をmain由来immutable releaseへ統合し、Railway deploy後の実予定1件でTelegram通知・任意電話・停止操作を確認する。 |
+| 別product / 別browser | DAILYの正本・実行経路には記載も依存もない。 | DAILYの完了条件・TODO・E2Eに入れない。リポジトリ全体からの削除は別cleanup仕様で扱う。 |
+
+### Remaining TODO for this spec
+
+1. `origin/feature/lm-departure-nudge` のre-review、mainへの統合、Railway deploy、production receipt。
+2. 固定`NUDGE_LEVELS`をevent別・永続化`nudge_plan`へ置換する（`apps/life-manager/scheduler.js` と関連lib）。
+3. 位置あり／位置なし、電話あり／電話なしの4ケースを実userでE2Eし、失敗時もTelegramに説明を残す。
+4. 乗換・乗降時刻・到着ETAを実イベントで確認し、存在しない番線・出口は表示しない。
+5. Mac停止状態で7 cycleを回し、cloud-onlyのreceiptを取得する。
+6. cloud側の死活監視を意図的に落として、5分以内のTelegram警告を確認する。
+7. `/start`の必須項目を名前・言語・自宅・Calendarへ戻し、電話は任意として登録完走receiptを取得する。
+
+Stripeのactive subscription `0`やMRR `$0`は、上記技術TODOの未完了を意味しない。これは現在の収益結果であり、
+顧客獲得施策はこのDAILY specではなく、明示された別の収益specで管理する。
+
 ---
 
 ## 0. これを初めて読む agent へ（handover 前提。ここだけで作業に入れること）
