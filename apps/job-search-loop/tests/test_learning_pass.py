@@ -9,6 +9,7 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from job_search_loop.ledger import Ledger
 from job_search_loop.mercor_learning import (
@@ -16,6 +17,7 @@ from job_search_loop.mercor_learning import (
     decide_change,
     evaluate_source_claim,
 )
+from job_search_loop.mercor_learning_sources import build_source_observation, collect_sources
 
 
 BASELINE = {
@@ -32,6 +34,79 @@ REPLAY_CASES = [
 
 
 class LearningPassTests(unittest.TestCase):
+    def test_collect_sources_keeps_transport_metadata_out_of_candidate_builder(self):
+        import job_search_loop.mercor_learning_sources as sources
+
+        def fake_run(command, *, timeout=30):
+            if command[0].endswith("crwl"):
+                return 0, "official guide", ""
+            if command[0].endswith("gh"):
+                return 0, json.dumps([{
+                    "fullName": "example/mercor-jobs",
+                    "url": "https://github.com/example/mercor-jobs",
+                    "description": "listing index",
+                }]), ""
+            return 2, "", "no x tab"
+
+        with patch.object(sources, "_run", side_effect=fake_run), patch.object(
+            sources.Path, "is_file", return_value=False
+        ):
+            result = collect_sources(
+                query="Mercor Japanese AI evaluator application",
+                observed_at="2026-09-17T11:30:00Z",
+            )
+        self.assertEqual(result["source_count"], 3)
+        self.assertEqual(result["income_receipts_promoted"], 0)
+
+    def test_learning_wake_collects_bounded_mercor_sources_before_strategy_run(self):
+        script = (Path(__file__).resolve().parents[1] / "scripts" / "run-learning.sh").read_text()
+        self.assertIn("mercor_learning_sources collect", script)
+        self.assertIn("mercor-learning-sources.json", script)
+        self.assertIn("--query", script)
+
+    def test_source_observation_keeps_provenance_and_unavailable_surfaces_explicit(self):
+        source = build_source_observation(
+            source_url="https://talent.docs.mercor.com/how-to/apply",
+            source_kind="official_guidance",
+            observation="Mercor documents Job fit and Newest filters.",
+            hypothesis="Reviewing page one through four keeps plausible roles in the queue.",
+            target_stage="application",
+            one_variable="listing_order",
+            strategy_version="mercor-fit-evidence-v1",
+            baseline_cohort={"resolved": 0},
+            proposed_change={"listing_order": "page_one_to_four"},
+            published_at=None,
+            observed_at="2026-09-17T11:30:00Z",
+            author="Mercor",
+            claimed_outcome="No hiring or payout claim; guidance only.",
+            evidence_grade="official",
+            source_unavailable=False,
+        )
+        self.assertEqual(source["source_kind"], "official_guidance")
+        self.assertIsNone(source["published_at"])
+        self.assertEqual(source["author"], "Mercor")
+        self.assertFalse(source["source_unavailable"])
+
+        unavailable = build_source_observation(
+            source_url="https://html.duckduckgo.com/html/?q=mercor",
+            source_kind="first_person",
+            observation="Search surface returned a bot challenge.",
+            hypothesis="Search unavailable; retain the official guidance hypothesis.",
+            target_stage="application",
+            one_variable="listing_order",
+            strategy_version="mercor-fit-evidence-v1",
+            baseline_cohort={"resolved": 0},
+            proposed_change={"listing_order": "page_one_to_four"},
+            published_at=None,
+            observed_at="2026-09-17T11:30:00Z",
+            author="",
+            claimed_outcome="",
+            evidence_grade="unavailable",
+            source_unavailable=True,
+        )
+        self.assertTrue(unavailable["source_unavailable"])
+        self.assertEqual(unavailable["evidence_grade"], "unavailable")
+
     def test_external_claim_never_becomes_income_without_official_receipt(self):
         result = evaluate_source_claim({
             "source_kind": "marketing",
@@ -495,6 +570,7 @@ class LearningPassTests(unittest.TestCase):
                 ),
                 "TELEGRAM_BOT_TOKEN": "test-token",
                 "JOB_SEARCH_TELEGRAM_CHAT_ID": "test-chat",
+                "MERCOR_LEARNING_SOURCES_SKIP": "1",
             }
 
             first = subprocess.run(
