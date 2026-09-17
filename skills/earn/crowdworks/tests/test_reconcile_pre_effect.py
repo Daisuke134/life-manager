@@ -64,3 +64,71 @@ def test_run_marker_must_prove_the_same_occurrence_was_pre_effect(tmp_path):
     }), encoding="utf-8")
     assert module._run_proves_no_dispatch(marker, "crowdworks-revenue-paid:run-1") is True
     assert module._run_proves_no_dispatch(marker, "crowdworks-revenue-paid:other") is False
+
+
+def test_completed_zero_effect_run_marker_proves_no_dispatch(tmp_path):
+    module = load()
+    marker = tmp_path / "run.json"
+    marker.write_text(json.dumps({
+        "version": 1, "occurrence_id": "crowdworks-revenue-paid:run-1",
+        "status": "completed", "effect": 0,
+    }), encoding="utf-8")
+
+    assert module._run_proves_no_dispatch(marker, "crowdworks-revenue-paid:run-1") is True
+
+
+def test_completed_effectful_run_marker_is_not_no_dispatch_proof(tmp_path):
+    module = load()
+    marker = tmp_path / "run.json"
+    marker.write_text(json.dumps({
+        "version": 1, "occurrence_id": "crowdworks-revenue-paid:run-1",
+        "status": "completed", "effect": 1,
+    }), encoding="utf-8")
+
+    assert module._run_proves_no_dispatch(marker, "crowdworks-revenue-paid:run-1") is False
+
+
+def test_effect_started_run_marker_is_not_no_dispatch_proof(tmp_path):
+    module = load()
+    marker = tmp_path / "run.json"
+    marker.write_text(json.dumps({
+        "version": 1, "occurrence_id": "crowdworks-revenue-paid:run-1",
+        "status": "effect_started", "effect": 0,
+    }), encoding="utf-8")
+
+    assert module._run_proves_no_dispatch(marker, "crowdworks-revenue-paid:run-1") is False
+
+
+def test_reconcile_checks_buyer_event_binding_for_persisted_intent(tmp_path, monkeypatch):
+    module = load()
+    state = tmp_path / "items" / "item" / "state.json"
+    state.parent.mkdir(parents=True)
+    state.write_text(json.dumps({
+        "version": 1, "status": "intent_persisted",
+        "occurrence_id": "crowdworks-revenue-paid:run-1",
+        "observation": {"work_id": "63659463"},
+        "intent": {"action": "submit", "account_id": "7145638",
+                    "payload": {"form_sha256": "a" * 64,
+                                "milestone_id": "13820867",
+                                "buyer_event_id": "427573234"}},
+    }), encoding="utf-8")
+    marker = tmp_path / "run.json"
+    marker.write_text(json.dumps({
+        "version": 1, "occurrence_id": "crowdworks-revenue-paid:run-1",
+        "status": "pre_effect",
+    }), encoding="utf-8")
+    seen = []
+    monkeypatch.setattr(module, "pre_effect_receipt_absent",
+                        lambda _root, binding: seen.append(binding) or True)
+    monkeypatch.setattr(
+        module, "resolve_pre_effect_occurrence",
+        lambda _owner, _occurrence, *, pre_effect_readback, **_kwargs:
+        bool(pre_effect_readback())
+    )
+
+    module.reconcile(state_root=tmp_path, owner="crowdworks-revenue-paid",
+                     occurrence="crowdworks-revenue-paid:run-1",
+                     contract_id="63659463", form_sha256="a" * 64,
+                     run_marker=marker)
+
+    assert seen[0]["buyer_event_id"] == "427573234"

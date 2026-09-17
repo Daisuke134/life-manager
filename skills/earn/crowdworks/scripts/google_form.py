@@ -69,6 +69,49 @@ def bound_receipt(state_root: Path, binding: Mapping[str, Any]) -> Mapping[str, 
     return receipt
 
 
+def has_confirmed_bound_receipt(state_root: Path, binding: Mapping[str, Any]) -> bool:
+    """Find a confirmed receipt for this contract/form, including a revision binding."""
+    return bool(confirmed_bound_receipts(state_root, binding))
+
+
+def confirmed_bound_receipts(state_root: Path, binding: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    """Return confirmed receipts whose binding contains the requested identity."""
+    matched: list[Mapping[str, Any]] = []
+    seen: set[str] = set()
+    direct = bound_receipt(state_root, binding)
+    if isinstance(direct, Mapping) and direct.get("confirmation_sha256"):
+        matched.append(direct)
+    for index_path in sorted((state_root / "external-actions").glob("index-*.json")):
+        try:
+            index = json.loads(index_path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            continue
+        except (OSError, ValueError):
+            raise RuntimeError("google_form_receipt_invalid") from None
+        key = index.get("receipt_key") if isinstance(index, Mapping) else None
+        if not isinstance(key, str) or not key:
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            receipt = json.loads(receipt_path(state_root, key).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            if index.get("status") == "prepared":
+                raise RuntimeError("google_form_submission_uncertain") from None
+            continue
+        except (OSError, ValueError):
+            raise RuntimeError("google_form_receipt_invalid") from None
+        candidate = receipt.get("binding") if isinstance(receipt, Mapping) else None
+        if (isinstance(candidate, Mapping)
+                and all(candidate.get(name) == value for name, value in binding.items())):
+            if receipt.get("status") == "prepared":
+                raise RuntimeError("google_form_submission_uncertain")
+            if receipt.get("confirmation_sha256"):
+                matched.append(receipt)
+    return matched
+
+
 def pre_effect_receipt_absent(state_root: Path, binding: Mapping[str, Any]) -> bool:
     """Prove a bound Google Form POST never reached its durable dispatch fence.
 
