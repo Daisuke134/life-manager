@@ -358,7 +358,7 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
                 applied = apply_live(
                     root, installed, safe, target=loop_id, skip_busy=True,
                     protocol_reader=durable_protocol_version)
-            except (OSError, ValueError, RuntimeError, json.JSONDecodeError):
+            except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):
                 defer(loop_id)
                 continue
             if not any(result.get("ok") and result.get("loaded_arguments") == expected
