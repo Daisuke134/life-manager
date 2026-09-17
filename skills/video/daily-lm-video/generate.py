@@ -161,6 +161,24 @@ def validate_render(output, ffprobe_bin):
     return duration
 
 
+def has_filter(ffmpeg_bin, filter_name):
+    """Return whether this FFmpeg build exposes a named video filter."""
+    try:
+        result = subprocess.run(
+            [ffmpeg_bin, "-hide_banner", "-filters"],
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+    except OSError:
+        return False
+    return result.returncode == 0 and any(
+        len(parts) >= 2 and parts[1] == filter_name
+        for parts in (line.split() for line in result.stdout.splitlines())
+        if parts
+    )
+
+
 def append_state(path, record):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -193,13 +211,18 @@ def render(args, row, output):
         temporary_path = Path(temporary)
         write_whisper_only_ass(args.whisper_ass, temporary_path / "whisper.ass", offset_seconds=5)
         write_creative_ass(temporary_path / "creative.ass", row, args.duration)
+        if has_filter(args.ffmpeg_bin, "ass"):
+            caption_chain = "[withproof]ass=filename=whisper.ass,ass=filename=creative.ass[v]"
+        else:
+            print("daily-lm-video: ffmpeg has no ass filter; rendering without caption overlays", file=sys.stderr)
+            caption_chain = "[withproof]null[v]"
         filters = f"""
 [0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,fps=30,trim=duration={args.duration},setpts=PTS-STARTPTS,eq=brightness=-0.12:contrast=1.08:saturation=0.72[footage];
 [3:v]format=rgba,colorchannelmixer=aa=0.96[finalbg];
 [footage][finalbg]overlay=enable='gte(t,26)'[scene];
 [2:v]scale=960:-1:flags=lanczos[proof];
 [scene][proof]overlay=x=(W-w)/2:y=735:enable='between(t,26,{args.duration})'[withproof];
-[withproof]ass=whisper.ass,ass=creative.ass[v];
+{caption_chain};
 [1:a]adelay=5000|5000,loudnorm=I=-16:TP=-1.5:LRA=11,apad=whole_dur={args.duration},atrim=duration={args.duration}[a]
 """.strip()
         command = [

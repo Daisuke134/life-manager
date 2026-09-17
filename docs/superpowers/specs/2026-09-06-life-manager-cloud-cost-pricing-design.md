@@ -467,16 +467,26 @@ lookup key `life_manager_monthly_29`; a new Payment Link was created at
 and Managed Payments disabled. The old `$20` Payment Link was disabled after the new link was verified.
 Railway production `LM_STRIPE_PAYMENT_LINK` now reads back as the new URL and `/health` remains 200.
 
+**2026-09-18 funnel/self-build readback:** The same money-loop wake now reads Supabase production
+funnel counts without persisting personal fields: `funnel_users=315`, stage counts
+`calendar=4,done=1,null=310`, Calendar connections `3`, saved phones `3`, call opt-ins `2`,
+`paid=1`, and `active_plan=0`. The self-build picker now reads this private state, identifies the
+largest measured funnel drop (`calendar` here), and prioritizes a loop-authored PR carrying the matching
+`[lm-metric-focus:<stage>]` marker while preserving the existing eligibility and merge guard.
+The picker/runtime suites pass 79/79; this proves metric-aware selection, not a growth result.
+
 **Remaining revenue TODO, in order:**
 
 1. **DONE:** Wire the confirmed Stripe live account into the money-loop runtime and record active
    subscriptions, period end, refunds, failed payments, and `lm_mrr_usd` in the loop state.
 2. **DONE:** Make `$29/month` canonical across the live Price, Payment Link, Railway runtime, landing
    comments, Telegram copy, and money-path tests. The old `$20` link is disabled.
-3. Measure the marketing funnel: landing visit → Telegram start → Calendar connection → phone opt-in
-   → first successful wake → paid subscription → renewal/referral.
-4. Make the self-build loop select fixes using those production metrics, then prove each change with
-   a receipt-backed release and a movement in activation, retention, cost, or MRR.
+3. **DONE (measurement path):** Read back the product funnel from Supabase and persist only aggregate
+   counts in the bounded money-loop state. Landing visits, renewal, and referral remain unavailable until
+   their provider adapters produce a real receipt.
+4. **IN PROGRESS (outcome proof):** The self-build loop now selects metric-matched PRs, but each merged
+   change still needs a receipt-backed release and a measured movement in activation, retention, cost, or
+   MRR.
 5. Scale the selected plan to the required active paid count. At `$29/month`, 345 active subscribers
    produce `$10,005` gross MRR.
 

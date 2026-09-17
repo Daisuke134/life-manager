@@ -134,6 +134,33 @@ function tokyoDay(date) {
 }
 
 
+function readMetricFocus(options = {}) {
+  const home = options.home || process.env.HOME || os.homedir();
+  const file = options.statePath
+    || process.env.LM_MONEY_STATE
+    || path.join(home, ".local/state/life-manager/state/STATE.md");
+  let raw;
+  try { raw = fs.readFileSync(file, "utf8"); } catch { return null; }
+  const values = {};
+  for (const line of raw.split("\n")) {
+    const match = line.match(/^([a-z_]+):\s*(-?\d+(?:\.\d+)?)\s*$/);
+    if (match) values[match[1]] = Number(match[2]);
+  }
+  const stages = [
+    ["calendar", values.funnel_users, values.funnel_calendar_connected],
+    ["phone", values.funnel_calendar_connected, values.funnel_phone_saved],
+    ["call", values.funnel_phone_saved, values.funnel_call_opt_in],
+    ["paid", values.funnel_call_opt_in, values.funnel_paid],
+  ];
+  const drops = stages
+    .filter(([, from, to]) => Number.isFinite(from) && Number.isFinite(to))
+    .map(([focus, from, to]) => ({ focus, drop: Math.max(0, from - to) }));
+  if (!drops.length) return null;
+  drops.sort((left, right) => right.drop - left.drop || left.focus.localeCompare(right.focus));
+  return { focus: drops[0].focus, values, statePath: file };
+}
+
+
 // Read-only. The guard's acquireGuardLock is what actually steals a stale lock; this only tells the
 // day row WHY the takeover happened, and stops the pass from starting a second guard while a live
 // one is mid-merge.
@@ -172,11 +199,19 @@ function inspectGuardLock(lockPath, options = {}) {
 
 // Oldest first. `createdAt` is the authority; the PR number is only the tie-break, because numbers
 // are shared with issues and a reopened PR can carry a low number with a recent creation date.
-function orderCandidates(list) {
+function orderCandidates(list, options = {}) {
+  const metricFocus = String(options.metricFocus?.focus || options.metricFocus || "").trim();
+  const marker = metricFocus ? `[lm-metric-focus:${metricFocus}]` : "";
   return [...(Array.isArray(list) ? list : [])]
     .filter((entry) => Number.isInteger(Number(entry?.number)) && Number(entry.number) > 0)
-    .map((entry) => ({ number: Number(entry.number), createdAt: String(entry.createdAt || "") }))
+    .map((entry) => ({
+      ...entry,
+      number: Number(entry.number),
+      createdAt: String(entry.createdAt || ""),
+      metricMatch: Boolean(marker && String(entry.body || "").includes(marker)),
+    }))
     .sort((left, right) => {
+      if (left.metricMatch !== right.metricMatch) return left.metricMatch ? -1 : 1;
       const a = Date.parse(left.createdAt);
       const b = Date.parse(right.createdAt);
       if (Number.isFinite(a) && Number.isFinite(b) && a !== b) return a - b;
@@ -207,7 +242,7 @@ async function pickEligiblePr({ deps, options = {} }) {
       listError: String(error?.message || error),
     };
   }
-  const candidates = orderCandidates(listed);
+  const candidates = orderCandidates(listed, { metricFocus: options.metricFocus });
   const skipped = [];
 
   for (const candidate of candidates) {
@@ -363,6 +398,7 @@ async function runSelfBuildDay({ deps, options = {} }) {
     candidates_considered: 0,
     skipped: [],
     error: null,
+    metric_focus: options.metricFocus?.focus || options.metricFocus || null,
   };
 
   const close = () => {
@@ -513,6 +549,7 @@ module.exports = {
   appendSelfBuildDay,
   inspectGuardLock,
   orderCandidates,
+  readMetricFocus,
   pickEligiblePr,
   readSelfBuildDays,
   runSelfBuildDay,

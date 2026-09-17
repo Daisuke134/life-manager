@@ -51,6 +51,17 @@ else
   LM_REFUNDS="$(fetch lm_refunds 'https://api.stripe.com/v1/refunds?limit=100' -u "${STRIPE_SECRET_KEY:-x}:")"
   LM_PAYMENT_INTENTS="$(fetch lm_payment_intents 'https://api.stripe.com/v1/payment_intents?limit=100' -u "${STRIPE_SECRET_KEY:-x}:")"
 fi
+if [ "${LM_TEST:-}" = "1" ]; then
+  LM_FUNNEL_USERS="$(fetch lm_funnel_users 'fixture')"; [ "$LM_FUNNEL_USERS" = "{}" ] && LM_FUNNEL_USERS='[]'
+  LM_FUNNEL_PREFS="$(fetch lm_funnel_prefs 'fixture')"; [ "$LM_FUNNEL_PREFS" = "{}" ] && LM_FUNNEL_PREFS='[]'
+  FUNNEL_SOURCE="fixture"
+elif [ -n "${SUPABASE_URL:-}" ] && [ -n "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
+  LM_FUNNEL_USERS="$(curl -s --max-time 20 -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_URL/rest/v1/lm_users?select=tg_onboard_stage,calendar_connected_account_id,phone,paid,plan_status" 2>/dev/null)"
+  LM_FUNNEL_PREFS="$(curl -s --max-time 20 -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" "$SUPABASE_URL/rest/v1/lm_panel_preferences?select=call_enabled" 2>/dev/null)"
+  FUNNEL_SOURCE="supabase"
+else
+  LM_FUNNEL_USERS='{}'; LM_FUNNEL_PREFS='{}'; FUNNEL_SOURCE="none"; add_heal "FUNNEL-READ-FAILED"
+fi
 LM_MRR="$(printf '%s' "$LM_SUBS" | python3 -c "
 import json,sys
 try:
@@ -100,6 +111,36 @@ try:
     failed=[p for p in rows if p.get('status')=='canceled' or p.get('last_payment_error')]
     print(len(failed) if d.get('object')=='list' else 'NA')
 except Exception: print('NA')" 2>/dev/null||echo NA)"
+FUNNEL_USER_METRICS="$(printf '%s' "$LM_FUNNEL_USERS" | python3 -c '
+import json, sys
+try:
+    users=json.load(sys.stdin)
+    if not isinstance(users,list): raise ValueError
+    stages={}
+    for row in users:
+        stage=str(row.get("tg_onboard_stage") or "null")
+        stages[stage]=stages.get(stage,0)+1
+    connected=sum(bool(row.get("calendar_connected_account_id")) for row in users)
+    phone=sum(bool(row.get("phone")) for row in users)
+    paid=sum(row.get("paid") is True for row in users)
+    active=sum(row.get("plan_status") == "active" for row in users)
+    stages_text=",".join(f"{key}={stages[key]}" for key in sorted(stages))
+    print("ok",len(users),connected,phone,paid,active,stages_text,sep="\t")
+except Exception:
+    print("error", "NA", "NA", "NA", "NA", "NA", sep="\t")
+')"
+IFS=$'\t' read -r FUNNEL_PARSE_STATUS FUNNEL_USERS FUNNEL_CALENDAR FUNNEL_PHONE FUNNEL_PAID FUNNEL_ACTIVE_PLAN FUNNEL_STAGES <<<"$FUNNEL_USER_METRICS"
+FUNNEL_PREF_METRICS="$(printf '%s' "$LM_FUNNEL_PREFS" | python3 -c '
+import json,sys
+try:
+    prefs=json.load(sys.stdin)
+    if not isinstance(prefs,list): raise ValueError
+    print("ok",sum(row.get("call_enabled") is True for row in prefs),sep="\t")
+except Exception:
+    print("error\tNA")
+')"
+IFS=$'\t' read -r FUNNEL_PREF_STATUS FUNNEL_CALL_OPT_IN <<<"$FUNNEL_PREF_METRICS"
+[ "$FUNNEL_PARSE_STATUS" = "ok" ] && [ "$FUNNEL_PREF_STATUS" = "ok" ] || add_heal "FUNNEL-READ-FAILED"
 
 PREV="$(grep -E '^lm_mrr_usd:' "$STATE_MD" 2>/dev/null | awk '{print $2}' | tail -1)"; PREV="${PREV:-n/a}"
 if [ -n "$HEAL" ]; then STATUS="HEAL-NEEDED — ${HEAL}(MRR \$$LM_MRR)"
@@ -125,6 +166,14 @@ TMP="$STATE_MD.tmp.$$"
   echo "subscription_period_end_max: $LM_PERIOD_END_MAX"
   echo "refund_count: $LM_REFUNDS_COUNT"
   echo "failed_payment_count: $LM_FAILED_PAYMENTS"
+  echo "funnel_source: ${FUNNEL_SOURCE:-none}"
+  echo "funnel_users: $FUNNEL_USERS"
+  echo "funnel_calendar_connected: $FUNNEL_CALENDAR"
+  echo "funnel_phone_saved: $FUNNEL_PHONE"
+  echo "funnel_paid: $FUNNEL_PAID"
+  echo "funnel_active_plan: $FUNNEL_ACTIVE_PLAN"
+  echo "funnel_call_opt_in: $FUNNEL_CALL_OPT_IN"
+  echo "funnel_stages: $FUNNEL_STAGES"
   echo "prev_lm_mrr_usd: $PREV"
   echo "status: $STATUS"
   echo "selfheal_request: ${HEAL:+written→$REQ}${HEAL:-none}"
