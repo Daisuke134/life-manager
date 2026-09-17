@@ -98,4 +98,4 @@
 
 - [x] Run focused tests, `git diff --check`, source-boundary verification and the relevant `lm-loop` targeted status checks for the read-only reconciler; six reconciler tests pass and no ledger row changed.
 - [x] Update the spec evidence with verified/inconclusive counts and the exact remaining fences; the 17 historical mobile/Honne rows remain inconclusive or claimed-held.
-- [ ] Commit and push the dedicated branch, merge after checks pass, and remove the exact worktree without force.
+- [x] Commit and push the dedicated branch, merge after checks pass, and remove the exact worktree without force. PR #5438 merged as `e3e44eb76d8e12d6476c9c3d74662ab4bb7f0a41`; the worktree path and Git registration were then removed without force.
