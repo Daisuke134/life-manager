@@ -671,6 +671,14 @@ test("an unavailable Connpass registration page does not invoke browser fallback
   assert.equal(state.calls.some(([name, row]) => name === "history" && row.safe_reason === "unsafe_agent_action"), false);
 });
 
+test("unavailable pre-submit provider readback never dispatches an action", async () => {
+  const state = fixture({
+    async readProviderState() { return { status: "unavailable" }; },
+  });
+  await runMinimalConnectorWake({ ownerToken: "owner-token-unavailable-readback", providers: ["connpass"] }, state.dependencies);
+  assert.equal(state.calls.some(([name]) => ["cache", "direct", "agent"].includes(name)), false);
+});
+
 test("known no-effect registration blockers continue to the next candidate without opening the circuit", async () => {
   let state = fixture({
     async discoverCandidates(provider) {

@@ -35,6 +35,7 @@ PRIORITY_AGE_SECONDS = {
 }
 OCCURRENCE_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 DEFAULT_HEARTBEAT_TIMEOUT_SECONDS = 300
+CONNECTOR_OBSERVATION_OWNER = "life-manager-connector-native"
 
 
 class _ProcBsdInfo(ctypes.Structure):
@@ -556,12 +557,13 @@ def _durable_queue_rows(connection: sqlite3.Connection, resource_class: str,
                  LEFT JOIN priorities p ON p.owner_id=q.owner_id
                 WHERE q.resource_class=? AND r.owner_id IS NULL
                   AND COALESCE(p.next_eligible_at,0)<=?
-                   AND COALESCE(p.effect_unknown,0)=0
-                   AND NOT EXISTS (
+                   AND (q.owner_id=? OR COALESCE(p.effect_unknown,0)=0)
+                   AND (q.owner_id=? OR NOT EXISTS (
                        SELECT 1 FROM occurrences o
                         WHERE o.owner_id=q.owner_id AND o.effect_unknown=1
-                   )""",
-            (resource_class, now),
+                   ))""",
+            (resource_class, now, CONNECTOR_OBSERVATION_OWNER,
+             CONNECTOR_OBSERVATION_OWNER),
         )
     ]
     rows.sort(key=lambda row: _queue_order(row, now))
@@ -783,7 +785,7 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                 connection, owners, resource_class, admission_class,
                 instant,
                 starts, snapshot_started_ns)
-            if (connection.execute(
+            if owner_id != CONNECTOR_OBSERVATION_OWNER and (connection.execute(
                     "SELECT 1 FROM occurrences WHERE owner_id=? AND effect_unknown=1 LIMIT 1",
                     (owner_id,)).fetchone()
                     or connection.execute(
@@ -933,7 +935,7 @@ def claim_durable(resource_class: str, owner_id: str, *,
                     LIMIT 1""",
                 (owner_id,),
             ).fetchone()
-            if (connection.execute(
+            if owner_id != CONNECTOR_OBSERVATION_OWNER and (connection.execute(
                     "SELECT 1 FROM occurrences WHERE owner_id=? AND effect_unknown=1 LIMIT 1",
                     (owner_id,),
                 ).fetchone() or connection.execute(
@@ -1341,7 +1343,7 @@ def try_acquire(resource_class: str, owner_id: str, *,
         reserved_rows = []
         if observed_protocol == 2:
             with _database(root / "admission-v2.sqlite3") as connection:
-                if (connection.execute(
+                if owner_id != CONNECTOR_OBSERVATION_OWNER and (connection.execute(
                     "SELECT 1 FROM occurrences WHERE owner_id=? AND effect_unknown=1 LIMIT 1",
                     (owner_id,),
                 ).fetchone() or connection.execute(

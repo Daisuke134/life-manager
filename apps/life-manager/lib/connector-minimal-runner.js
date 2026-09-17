@@ -421,6 +421,7 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         }));
         if (deadlineReached() && !registered(providerState)) return finish("circuit_open", "wake_deadline");
         if (selected.reconciliation_only === true && !registered(providerState)) continue;
+        if (!registered(providerState) && providerState?.status !== "absent") continue;
         let usedFallback = false;
         let ambiguousAgentEffect = false;
         let directFailureReason = null;
