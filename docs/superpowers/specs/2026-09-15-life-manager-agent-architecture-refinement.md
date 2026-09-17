@@ -97,8 +97,14 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   remained. A second isolated CloakBrowser attempt using the same
   `--no-sandbox` family as the existing owner also timed out at 20 seconds
   with network/GPU child exits; its process group and temporary profile were
-  cleaned. A scheduled browser owner built on this path would not be a
-  reliable operational healthcheck, so none was registered.
+  cleaned. A later isolated non-headless `--no-startup-window` probe with its
+  own temporary profile and loopback CDP port 0 returned `cdp_ready` in a
+  local smoke. The candidate `life-manager-browser-capacity-probe` uses the
+  existing registry scheduler and has no provider/account effect. Its focused
+  tests passed 79 tests and 126 subtests with the registry/inventory checks;
+  the loop contract and OSS boundary also passed. This is local evidence only:
+  main integration, immutable-release apply, natural terminal and a distinct
+  `life-manager-connector-native` handoff are still required for A15-08.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
