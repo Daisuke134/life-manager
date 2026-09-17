@@ -81,13 +81,11 @@ def test_proof_must_match_every_effect_identity_field():
     }
     assert MODULE.evaluate_proof(value, wrong_provider)["status"] == "inconclusive"
 
-    missing_hashes = {key: value[key] for key in value if key not in {
-        "effect_key", "video_sha256", "caption_sha256",
-    }}
-    missing_hashes["effect_key"] = "marketing:anything"
-    missing_hashes["video_sha256"] = None
-    missing_hashes["caption_sha256"] = None
-    assert MODULE.evaluate_proof(value, {**proof_for(value), "identity": missing_hashes})["status"] == "inconclusive"
+    missing_hashes = {**value, "effect_key": "marketing:anything", "video_sha256": None}
+    missing_hashes.pop("caption_sha256")
+    assert MODULE.evaluate_proof(
+        missing_hashes, {**proof_for(value), "identity": missing_hashes},
+    )["status"] == "inconclusive"
 
 
 def test_missing_or_unverified_provider_receipt_stays_held():

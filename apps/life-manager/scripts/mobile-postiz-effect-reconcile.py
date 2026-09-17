@@ -47,7 +47,8 @@ def _valid_identity(value: Any, owner_id: str, occurrence_id: str) -> bool:
             or not ID.fullmatch(str(value.get("creative_id", "")))
             or not isinstance(value.get("slot"), str) or not value["slot"].strip()
             or not re.fullmatch(r"integration://postiz/[a-z]+/[A-Za-z0-9._:-]{1,200}", str(value.get("integration_ref", "")), re.IGNORECASE)
-            or not re.fullmatch(r"@[A-Za-z0-9._-]{1,127}", str(value.get("account_id", "")))):
+            or not re.fullmatch(r"@[A-Za-z0-9._-]{1,127}", str(value.get("account_id", "")))
+            or not re.fullmatch(r"[0-9a-f]{64}", str(value.get("caption_sha256", "")))):
         return False
     for key in ("video_sha256", "caption_sha256", "pack_sha256", "media_order_sha256"):
         if value.get(key) is not None and not re.fullmatch(r"[0-9a-f]{64}", str(value[key])):
@@ -75,7 +76,7 @@ def _valid_identity(value: Any, owner_id: str, occurrence_id: str) -> bool:
                 or value["platform"] != video_key.group(2)
                 or value["creative_id"] != video_key.group(3)
                 or value.get("video_sha256") != video_key.group(4)
-                or value["caption_sha256"] != video_key.group(5)
+                or value.get("caption_sha256") != video_key.group(5)
                 or (video_key.group(6) is not None
                     and video_key.group(6) != hashlib.sha256(value["slot"].encode()).hexdigest())):
             return False
@@ -87,7 +88,7 @@ def _valid_identity(value: Any, owner_id: str, occurrence_id: str) -> bool:
                 or value.get("pack_sha256") != carousel_key.group(3)
                 or value.get("media_order_sha256") != carousel_key.group(4)
                 or hashlib.sha256(json.dumps(media, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest() != carousel_key.group(4)
-                or value["caption_sha256"] != carousel_key.group(5)
+                or value.get("caption_sha256") != carousel_key.group(5)
                 or (carousel_key.group(6) is not None
                     and carousel_key.group(6) != hashlib.sha256(value["slot"].encode()).hexdigest())):
             return False
