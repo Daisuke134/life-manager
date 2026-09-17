@@ -1028,9 +1028,11 @@ CrowdWorks engineering cursor, not the parallel schedule or owners of other plat
   external-form actions for accepted/non-proposed rows or conversations containing an exact contract URL,
   and rejects a persisted post-contract external intent or ordinary reply with
   `crowdworks_post_contract_owned_by_paid`. Context and mutation refresh the official thread detail before
-  any effect, so a stale `proposed` row cannot cross the boundary. Focused Reply tests pass 29/29. CW-2
-  remains open until the installed owner performs a natural handoff and its contract-specific Paid state
-  is read back.
+  any effect, treat a `/contracts/<id>` redirect as Paid-owned, and fail closed with
+  `crowdworks_contract_ownership_unknown` when the current thread inventory is absent. A stale `proposed`
+  row cannot cross the boundary. Focused Reply tests pass 31/31 and the full CrowdWorks suite passes 106/106.
+  CW-2 remains open until the installed owner performs a natural handoff and its contract-specific Paid
+  state is read back.
 - [ ] **CW-3 — do the work:** For each funded contract, read the full buyer instruction (including the
   Google Docs link on `63657015`), agreed scope, later corrections and any buyer complaint. Map each
   request to the real action, deliverable and proof; produce the requested result and verify it against

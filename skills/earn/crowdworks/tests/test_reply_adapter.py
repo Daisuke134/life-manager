@@ -452,6 +452,40 @@ def test_stale_proposed_external_intent_is_rejected_after_fresh_contract_readbac
         raise AssertionError("stale proposed form intent crossed the Paid ownership boundary")
 
 
+def test_contract_redirect_url_is_paid_owned_even_without_contract_link_in_message():
+    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter.rows = {"thread-1": {
+        "thread_id": "thread-1", "id": "message-1", "proposal_status": "proposed",
+    }}
+    adapter.conversations = {"thread-1": [{
+        "event_id": "event-1", "role": "buyer", "sender": "buyer",
+        "sent_at": "2026-09-10T00:00:00Z", "body": "フォームへ回答してください",
+        "links": ["https://forms.gle/AbCdEf123"],
+    }]}
+
+    class Page:
+        url = "https://crowdworks.jp/contracts/63657015"
+
+    adapter.page = Page()
+
+    assert adapter._post_contract_owned_by_paid("thread-1") is True
+
+
+def test_external_intent_without_current_thread_inventory_fails_closed():
+    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    intent = {"action": "external_action", "thread_id": "thread-1", "payload": {
+        "kind": "submit_google_form", "url": "https://forms.gle/AbCdEf123",
+        "url_sha256": "a" * 64, "completion_body": "回答を完了しました。",
+    }}
+
+    try:
+        adapter.mutate(intent)
+    except RuntimeError as error:
+        assert str(error) == "crowdworks_contract_ownership_unknown"
+    else:
+        raise AssertionError("external intent ran without current thread inventory")
+
+
 def test_google_form_answers_bind_current_metadata_to_private_profiles(tmp_path):
     candidate = tmp_path / "candidate.json"
     provider = tmp_path / "provider.json"
@@ -541,6 +575,14 @@ def test_prepared_google_form_requests_confirmation_once_and_accepts_buyer_recei
         "completion_body": "Googleフォームへの回答を完了しました。",
     }}
     sent = []
+    adapter.rows = {
+        "thread-1": {"thread_id": "thread-1", "id": "message-1", "proposal_status": "proposed"},
+        "thread-2": {"thread_id": "thread-2", "id": "message-2", "proposal_status": "proposed"},
+    }
+    adapter._detail = lambda thread: [{
+        "event_id": "buyer-1", "role": "buyer", "body": "フォームへ回答してください",
+        "links": ["https://forms.gle/AbCdEf123"],
+    }]
     adapter._open = lambda: None
     adapter._send_reply_once = lambda thread, body: sent.append((thread, body))
 
