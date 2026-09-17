@@ -38,10 +38,23 @@ def _terminate_process_group(process: subprocess.Popen) -> None:
         try:
             process.wait(timeout=5)
         except subprocess.TimeoutExpired:
+            pass
+        group_alive = True
+        try:
+            os.killpg(process.pid, 0)
+        except ProcessLookupError:
+            group_alive = False
+        except PermissionError:
+            pass
+        if group_alive:
             try:
                 os.killpg(process.pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
             process.wait(timeout=5)
     else:
         process.kill()

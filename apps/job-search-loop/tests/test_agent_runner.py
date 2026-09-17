@@ -219,7 +219,14 @@ class AgentRunnerTests(unittest.TestCase):
                         task="mercor_pass", prompt="Grounded task",
                         schema_path=schema, workdir=root, run_id="timeout",
                     )
-            killpg.assert_called_once_with(4242, signal.SIGTERM)
+            self.assertEqual(
+                killpg.call_args_list,
+                [
+                    unittest.mock.call(4242, signal.SIGTERM),
+                    unittest.mock.call(4242, 0),
+                    unittest.mock.call(4242, signal.SIGKILL),
+                ],
+            )
             self.assertTrue(popen.call_args.kwargs["start_new_session"])
 
     def test_timeout_reaps_a_real_runner_descendant(self):
@@ -230,7 +237,8 @@ class AgentRunnerTests(unittest.TestCase):
             runner_script.write_text(
                 "import os, subprocess, sys, time\n"
                 "from pathlib import Path\n"
-                "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+                "child = subprocess.Popen([sys.executable, '-c', "
+                "'import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(30)'])\n"
                 "Path(os.environ['CHILD_PID_FILE']).write_text(str(child.pid))\n"
                 "time.sleep(30)\n",
                 encoding="utf-8",
