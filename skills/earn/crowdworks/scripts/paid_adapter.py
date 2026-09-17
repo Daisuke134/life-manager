@@ -167,6 +167,22 @@ class CrowdWorksPaidAdapter:
     def owned_context(self, value) -> None:
         self._local.owned_context = value
 
+    @property
+    def source_context(self):
+        return getattr(self._local, "source_context", None)
+
+    @source_context.setter
+    def source_context(self, value) -> None:
+        self._local.source_context = value
+
+    @property
+    def owns_context(self) -> bool:
+        return bool(getattr(self._local, "owns_context", False))
+
+    @owns_context.setter
+    def owns_context(self, value: bool) -> None:
+        self._local.owns_context = bool(value)
+
     def _open(self) -> None:
         if self.page is not None:
             return
@@ -177,19 +193,41 @@ class CrowdWorksPaidAdapter:
             self.runtime = self.browser = None
             raise RuntimeError("crowdworks_paid_browser_unavailable")
         try:
+            self.source_context = contexts[0]
             self.owned_context = self.context_factory(self.browser, contexts[0])
+            self.owns_context = self.owned_context is not contexts[0]
             if self._requires_isolation and self.owned_context is contexts[0]:
                 raise RuntimeError("crowdworks_paid_browser_state_invalid")
             self.page = self.owned_context.new_page()
             self.page.set_default_timeout(15_000)
         except Exception:
-            if self.owned_context is not None and self.owned_context is not contexts[0]:
+            if self.owned_context is not None and self.owns_context:
                 try: self.owned_context.close()
                 except Exception: pass
             self.owned_context = None
             self.runtime.stop()
             self.runtime = self.browser = None
             raise
+
+    def _fallback_to_source_context(self) -> bool:
+        source = self.source_context
+        if source is None or self.owned_context is source:
+            return False
+        try:
+            if self.page is not None:
+                self.page.close()
+        except Exception:
+            pass
+        if self.owns_context and self.owned_context is not None:
+            try:
+                self.owned_context.close()
+            except Exception:
+                pass
+        self.owned_context = source
+        self.owns_context = False
+        self.page = source.new_page()
+        self.page.set_default_timeout(15_000)
+        return True
 
     @staticmethod
     def _isolated_context(browser: Any, source_context: Any) -> Any:
@@ -256,17 +294,20 @@ class CrowdWorksPaidAdapter:
             mobile_context.close()
             raise
         old_page = self.page
+        old_owns_context = self.owns_context
         self.page = mobile_page
         self.owned_context = mobile_context
+        self.owns_context = True
         if old_page is not None:
             try:
                 old_page.close()
             except Exception:
                 pass
-        try:
-            source_context.close()
-        except Exception:
-            pass
+        if old_owns_context:
+            try:
+                source_context.close()
+            except Exception:
+                pass
         self._goto_contract(work_id)
 
     @staticmethod
@@ -295,6 +336,11 @@ class CrowdWorksPaidAdapter:
         try:
             return self._list_contracts_once()
         except PlaywrightTimeoutError:
+            if self._fallback_to_source_context():
+                try:
+                    return self._list_contracts_once()
+                except PlaywrightTimeoutError:
+                    pass
             raise CrowdWorksPaidActiveContractsTimeout() from None
 
     def _list_contracts_once(self) -> list[dict[str, str]]:
@@ -791,7 +837,7 @@ class CrowdWorksPaidAdapter:
             try: self.page.close()
             except Exception: pass
         self.page = self.browser = None
-        if self.owned_context is not None:
+        if self.owns_context and self.owned_context is not None:
             try: self.owned_context.close()
             except Exception: pass
         self.owned_context = None

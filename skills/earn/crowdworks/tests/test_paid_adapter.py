@@ -380,6 +380,47 @@ def test_default_open_clones_auth_into_owned_context_and_closes_it():
     ]
 
 
+def test_active_inventory_falls_back_to_locked_persistent_context_after_clone_timeout():
+    module = load()
+    calls = []
+
+    class Page:
+        def set_default_timeout(self, timeout): calls.append(("timeout", timeout))
+        def close(self): calls.append(("page_close",))
+
+    class SourceContext:
+        def storage_state(self): return {"cookies": [], "origins": []}
+        def new_page(self): calls.append(("source_page",)); return Page()
+
+    class OwnedContext:
+        def new_page(self): calls.append(("owned_page",)); return Page()
+        def close(self): calls.append(("context_close",))
+
+    class Browser:
+        contexts = [SourceContext()]
+        def new_context(self, **_kwargs): return OwnedContext()
+
+    class Runtime:
+        def stop(self): calls.append(("runtime_stop",))
+
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()))
+    adapter._open()
+    attempts = [0]
+
+    def list_once():
+        attempts[0] += 1
+        if attempts[0] == 1:
+            raise module.PlaywrightTimeoutError("clone timeout")
+        return [{"work_id": "63583795"}]
+
+    adapter._list_contracts_once = list_once
+    assert adapter._list_contracts() == [{"work_id": "63583795"}]
+    assert attempts == [2]
+    assert ("source_page",) in calls
+    adapter.close()
+
+
 def test_three_workers_never_open_a_page_in_the_persistent_context():
     module = load()
     lock, created, seen = threading.Lock(), [], []

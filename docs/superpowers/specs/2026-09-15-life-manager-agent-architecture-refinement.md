@@ -81,7 +81,7 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   12:28:15Z, claimed `18d619fc6f2cbdd8-32593`, and reached outer pass at
   12:30:16Z; that occurrence is also released/known. Both status readbacks
   show installed/event SHA `f1f5bcb91d`.
-- [x] **A15-08 — prove a browser-class handoff.** Join the same four events for
+- [ ] **A15-08 — prove a browser-class handoff.** Join the same four events for
   two browser owners without starting a provider submission or touching a
   sibling profile. A no-work terminal is valid lifecycle evidence only.
   Current registry and admission SQLite have only one browser-class owner,
@@ -102,9 +102,7 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   local smoke. The candidate `life-manager-browser-capacity-probe` uses the
   existing registry scheduler and has no provider/account effect. Its focused
   tests passed 79 tests and 126 subtests with the registry/inventory checks;
-  the loop contract and OSS boundary also passed. This is local evidence only:
-  main integration, immutable-release apply, natural terminal and a distinct
-  `life-manager-connector-native` handoff were then measured. PR #5396 passed
+  the loop contract and OSS boundary also passed. PR #5396 passed
   all nine CI checks and merged as `9c97f0e140`. Complete main release
   `20260918T001611-3444d81c` has `release_paths=ALL`; targeted apply event
   `97372c441702b136c37ba286` loaded only the probe with that SHA. Connector
@@ -120,7 +118,19 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   reported `cdp_ready` from its isolated profile; no provider submission or
   sibling profile was touched. A later targeted manual probe run
   `18d6250438013538-69594` also passed, but is not used for the natural
-  handoff gate.
+  handoff gate. The two passing owners above ran on different main-derived
+  SHAs, so this is preliminary lifecycle evidence rather than the same-SHA
+  acceptance receipt.
+  On 2026-09-18, a complete main-derived release `e4f50c914b...` was cut
+  after the prior current release was found truncated by `ENOSPC`; its
+  `release_paths=ALL`, Python metadata, `playwright-core` and `jsqr` were
+  verified. `life-manager-browser-capacity-probe` and
+  `life-manager-connector-native` were both loaded-idle and targeted-synced to
+  that release without provider submission. The probe's first queued occurrence
+  was deferred by browser capacity, then a later occurrence ran and passed after
+  the connector occurrence released (`sequence 30568 → 30609`). A natural
+  connector terminal on the same exact release is still required, so this item
+  remains open.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
@@ -174,7 +184,7 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   `x402-inflow-watch` run `18d6188f810e41c0-43797` recovered to a later
   natural pass `18d618b1235b1a90-48212`. This is a finite queue check,
   not a claim that every effect-fenced provider loop works.
-- [x] **A15-14 — record the A15 verdict.** Mark Foundation Done only when
+- [ ] **A15-14 — record the A15 verdict.** Mark Foundation Done only when
   A15-03 through A15-13 pass. Record main/release/loaded SHA, exact run IDs,
   queue-age before/after and receipt pointers here, then hand provider effect
   and readback blockers to their owners without claiming all loops work. Also
@@ -193,8 +203,8 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   0; free bytes rose 638,849,024 to 1,236,148,224. A second natural run
   `18d61e7fd253a1d8-92885` reached outer pass at 13:30:01Z on loaded SHA
   `deb086429a1a` while global `current` had advanced to complete main release
-  `f4d701999f1`. **A15 Foundation verdict: DONE for the shared acceptance
-  checklist.** The missing browser-class handoff is now proved by A15-08's
+  `f4d701999f1`. **A15 Foundation verdict: NOT DONE pending a same-SHA
+  browser handoff.** A distinct-owner lifecycle was observed in A15-08's
   Connector `18d624c67945c920-61315` → probe
   `18d624f5e990c7f0-67714` natural terminal chain and released SQLite
   occurrences. Its waiting age fell from about 1.7 minutes to zero; the
@@ -217,7 +227,7 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   loaded reconciler `deb086429a1a` had the required post-fence natural passes
   `18d61e16f28b15d0-75320` and `18d61e7fd253a1d8-92885`; later concurrent
   release cuts caused safe `entrypoint_exit_1` retries, and a newer natural
-  run was active at this readback. This verdict does not claim provider effects
+  run was active at this readback. These observations do not claim provider effects
   or every loop's business outcome: Capafy and other exact effect/readback
   fences remain with their owners.
 
@@ -1458,6 +1468,13 @@ The normal held-out/safety/cost/latency/live-evidence/rollback gate still runs,
 and both gates must pass. Contract tests pass; a real candidate baseline,
 held-out run, live evidence, promotion and rollback remain open, so S-04 is
 not marked complete.
+
+**2026-09-18 foundation slice (all-job contract):** `bin/lm-loop-contract`
+now validates all 165 registry jobs, not only the 96 jobs currently mapped to
+the 14 Product Loop catalog rows. Unmapped jobs must still have repository-
+relative entrypoints and complete owner/provider/effect/cadence/state fields.
+The contract gate remains structural only; the Local gate and official provider
+receipts are still required for runtime success.
 
 S-02では、recovery projectionに`escalate_repair`が一件だけある場合のみ、
 `~/.local/state/life-manager/recovery/repair-queue.jsonl`（mode 0600）へ

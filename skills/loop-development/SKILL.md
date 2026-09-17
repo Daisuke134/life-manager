@@ -64,7 +64,9 @@ before its PR is opened:
 The gate joins `apps/life-manager/config/product-loop-catalog.json` to
 `config/loop-registry.json` and rejects a loop whose canonical jobs are missing,
 whose entrypoint leaves the repository, or whose owner/provider/effect/cadence
-fields are incomplete. This is a structural gate; it does not claim an external
+fields are incomplete. It also validates every registry job, including jobs not
+yet grouped into a Product Loop, so an unmapped job cannot bypass the shared
+contract. This is a structural gate; it does not claim an external
 provider effect. External success still requires `lm-loop` runtime evidence,
 official readback, receipt, and replay-zero through the Local/Cloud completion
 gates.

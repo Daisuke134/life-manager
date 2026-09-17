@@ -111,6 +111,31 @@ function validateLoopContract({ catalog, registry }) {
     }
   }
 
+  // Product-loop mapping is the business grouping, but every registry job is
+  // still executable runtime. Validate unmapped jobs against the same
+  // repository-relative ownership contract so a future job cannot bypass the
+  // shared foundation merely by being absent from the 14-product catalog.
+  for (const [jobId, job] of Object.entries(registry.loops)) {
+    if (mappedJobs.has(jobId)) continue;
+    const jobPath = jobId;
+    if (!job || typeof job !== "object" || Array.isArray(job)) {
+      addError(errors, "runtime_job_invalid", jobPath, "job must be an object");
+      continue;
+    }
+    for (const field of REQUIRED_JOB_FIELDS) {
+      if (job[field] === undefined || job[field] === null || job[field] === "") {
+        addError(errors, "runtime_job_field_missing", `${jobPath}.${field}`, "required by the shared loop contract");
+      }
+    }
+    if (typeof job.entrypoint === "string"
+      && (path.isAbsolute(job.entrypoint) || job.entrypoint.split("/").includes(".."))) {
+      addError(errors, "entrypoint_not_repository_relative", `${jobPath}.entrypoint`, job.entrypoint);
+    }
+    if (typeof job.label === "string" && !job.label.startsWith("ai.anicca.")) {
+      addError(errors, "label_not_managed", `${jobPath}.label`, job.label);
+    }
+  }
+
   const sharedJobs = [...mappedJobs.entries()].filter(([, count]) => count > 1).map(([id]) => id);
   return {
     ok: errors.length === 0,

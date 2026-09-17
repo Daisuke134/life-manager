@@ -10,13 +10,13 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md`
 
-## Live cursor (2026-09-17)
+## Live cursor (2026-09-18)
 
 The five active official contracts are currently all `funded`; formal CrowdWorks delivery is read back for
 `63583795` only, and that row is awaiting buyer inspection. Historical form receipts exist for `63583795`
 and `63570481`; the former also has a buyer-visible seller message and inspection-pending readback. The
 local Paid row for `63583795` must be reconciled before any retry, and the form/delivery must not be replayed.
-The next implementation cursor is bounded contract context and correct-work execution for the other four
+The next implementation cursor is browser recovery and bounded contract context for the other four
 contracts, followed by separate external receipt and `納品する` readback. Do not treat the old
 three-contract example below as the current scope; the current scope is all five IDs: `63659463`, `63657015`,
 `63583795`, `63570481`, and `63568785`.
@@ -29,10 +29,12 @@ selection; `63657015` exposes a hearing sheet plus a common test and a designer-
 provides a Google Docs assignment and no current form. The model must read the full conversation and linked
 content before choosing the action; code must not choose the first form or infer work from a URL.
 
-**Current code/runtime evidence:** shared Paid pre-effect failure handling is merged in PR `#5365` and loaded
-from immutable release `c16f437b`. A Paid readback that exceeded the useful bounded wake was stopped and
-reconciled with official no-write proof; no new external effect was accepted. The next live gate is a
-per-contract bounded context readback, not slot availability.
+**Current code/runtime evidence:** PR `#5393` adds a 180-second runtime bound and PR `#5401` preserves
+the provider-inventory pre-effect hint across the owner shell. Current main is `e4f50c91`, cut into
+immutable release `20260918T002409-e4f50c91`, and the targeted Paid plist readback points to that exact SHA.
+The installed kickstart ended at the bound with `entrypoint_exit_124`, `effect=0`, and the claimed
+occurrence returned to `queued/effect_unknown=0`; no new external effect was accepted. The next live gate
+is authenticated browser readback and bounded context, not slot availability.
 
 ## Global constraints
 
