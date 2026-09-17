@@ -4,6 +4,7 @@ const { resolveUserTzOffsetH, localDay } = require("./user-tz.js");
 const { evaluateMentalOpportunity } = require("./mental-opportunity.js");
 const { selectMentalQuote } = require("./mental-catalog.js");
 const { validateMentalMessage } = require("./mental-copy.js");
+const { evaluateMentalSafety } = require("./mental-safety.js");
 
 function calendarBusy(events, nowMs) {
   return (Array.isArray(events) ? events : []).some((event) => Number(event.startMs) <= nowMs
@@ -18,6 +19,8 @@ function familyCandidates(window) {
 
 async function mentalV1UserOnce(user, nowMs, deps = {}) {
   if (!user || !user.uid || !user.telegram_chat_id) return { decision: "suppress", reason: "unreachable" };
+  const safety = evaluateMentalSafety({ verdict: deps.safetyVerdict });
+  if (safety.decision !== "continue") return { decision: "suppress", reason: safety.reason };
   if (Array.isArray(deps.allowedUids) && deps.allowedUids.length > 0
       && !deps.allowedUids.includes(String(user.uid))) {
     return { decision: "suppress", reason: "mental-v1-not-allowlisted" };

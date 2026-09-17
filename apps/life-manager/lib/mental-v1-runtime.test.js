@@ -75,3 +75,10 @@ test("V1 reads explicit profile tags before selecting catalog text", async () =>
   const result = await mentalV1UserOnce(USER, NOW, d.base);
   assert.equal(result.templateId, "antara:courage-quiet:ja");
 });
+
+test("V1 stops routine delivery when the trusted safety owner declares imminent self-harm", async () => {
+  const d = deps({ safetyVerdict: "imminent_self_harm" });
+  const result = await mentalV1UserOnce(USER, NOW, d.base);
+  assert.deepEqual(result, { decision: "suppress", reason: "explicit-imminent-self-harm" });
+  assert.equal(d.sent.length, 0);
+});
