@@ -294,6 +294,11 @@ voice ledgerの`succeeded/10秒`、managed actionの`succeeded`を同一通話�
 - 同じ終了Webhookを再送しても、履歴・利用秒数・managed actionが二重計上されない。
 - パネルには「応答なし」「会話できた」「発信失敗」と月間会話残り時間が別々に表示される。
 
+**2026-09-17実測status:** 実装ブランチではvoice outcome・Webhook精算・Panel表示のfocused suiteが209/209 PASSし、
+仕様migrationはcommitへ含まれている。本番Supabaseはread-only確認で`call_outcome`列が未登録、
+`record_lm_wake_telnyx_outcome` RPCも未登録だったため、migration適用とRailway deployは保留している。
+本番へ進む条件は、このmigrationをSupabaseへ適用し、列・RPC・indexをHTTP readbackしてからimmutable releaseをdeployすること。
+
 **Ordered correction TODO項目3の本番是正:**
 
 1. **DONE:** 残留`accepted`29件をwake sessionとTelnyx CDRで照合し、29件を接続0秒で精算する。
