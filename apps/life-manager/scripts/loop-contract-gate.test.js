@@ -57,3 +57,19 @@ test("loop contract rejects worktree or absolute entrypoints", () => {
   assert.equal(result.ok, false);
   assert.ok(result.errors.some((error) => error.code === "entrypoint_not_repository_relative"));
 });
+
+test("loop contract validates an unmapped registry job too", () => {
+  const value = registry();
+  value.loops.unmapped = { ...value.loops["example-job"], effect_class: "" };
+  const result = validateLoopContract({ catalog: { schema_version: 1, loops: [catalogLoop()] }, registry: value });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.path === "unmapped.effect_class"));
+});
+
+test("loop contract rejects an unmapped absolute entrypoint", () => {
+  const value = registry();
+  value.loops.unmapped = { ...value.loops["example-job"], entrypoint: "/tmp/run.sh" };
+  const result = validateLoopContract({ catalog: { schema_version: 1, loops: [catalogLoop()] }, registry: value });
+  assert.equal(result.ok, false);
+  assert.ok(result.errors.some((error) => error.path === "unmapped.entrypoint"));
+});
