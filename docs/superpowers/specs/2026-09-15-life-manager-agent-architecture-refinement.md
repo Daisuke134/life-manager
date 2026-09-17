@@ -122,7 +122,7 @@ source HEAD:     3a70e98867
 The source/main comparison and provider-boundary audit are already recorded
 above; they are preconditions, not TODO items. The actual merge TODO is:
 
-- [ ] **MERGE-01 — merge the Engineering Skills and source map**
+- [x] **MERGE-01 — merge the Engineering Skills and source map**
   - Merge only: `skills/context-engineering/**`, `skills/eval-engineering/**`,
     `skills/goal-engineering/**`, `skills/graph-engineering/**`,
     `skills/harness-engineering/**`, `skills/loop-engineering/**`,
@@ -130,10 +130,11 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
     `docs/agent-engineering/REFERENCE-REPOS.md`, and
     `docs/agent-engineering/SOURCE-MAP.md`.
   - Do not merge provider Skill directories or runtime code in this item.
-  - Acceptance: seven Skill directories and both source-map files exist on
-    main; each Skill validator passes.
+  - Acceptance: **PASS**. PR #5335 merged at main merge commit
+    `d43ed59404` (current main has advanced to `4835540a7f`). Seven Skill
+    validators passed and both source-map files are present on main.
 
-- [ ] **MERGE-02 — merge the product manifest, Graph, Eval, notification and gate code**
+- [x] **MERGE-02 — merge the product manifest, Graph, Eval, notification and gate code**
   - Merge only: `apps/life-manager/config/product-loop-catalog.json`,
     `apps/life-manager/eval/agent-contract/**`,
     `apps/life-manager/lib/agent-graph.js`,
@@ -149,8 +150,9 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
     `apps/life-manager/scripts/cloud-promotion-gate.test.js`,
     `apps/life-manager/scripts/lib/load-env-file.sh`, and
     `apps/life-manager/scripts/load-env-file.test.js`.
-  - Acceptance: Graph, Eval, manifest, Local gate and Cloud gate focused
-    tests pass on the merged main commit; no provider browser/state changes.
+  - Acceptance: **PASS**. PR #5335 merged the listed 35-file slice; merged-main
+    rerun passed 63/63 Node tests. No provider browser/state changes were
+    included.
 
 - [ ] **MERGE-03 — merge the non-provider runtime additions**
   - Review and merge only the needed candidate paths:
@@ -174,8 +176,8 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
     keep the latest main/owner version and apply only a reviewed unique hunk.
   - Acceptance: focused runtime tests and release import smoke pass.
 
-- [ ] **MERGE-04 — enforce the exclusion list**
-  - Do not merge `AGENTS.md`, `apps/crowdworks-revenue/**`,
+- [x] **MERGE-04 — enforce the exclusion list**
+  - **PASS for PR #5335:** do not merge `AGENTS.md`, `apps/crowdworks-revenue/**`,
     `apps/lancers-revenue/**`, `skills/connector/**`,
     `skills/earn/lancers/**`, `skills/earn/taskmarket/**`,
     `apps/life-manager/scripts/mobile-app`,
@@ -183,11 +185,13 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
     `apps/life-manager/scripts/tiktok-metrics-production-boot.sh` in this
     merge-owner patch. These remain provider/domain-owner work.
 
-- [ ] **MERGE-05 — validate the merged commit**
+- [x] **MERGE-05 — validate the merged commit**
   - Run Skill validators, Graph/Eval/manifest/gate tests, focused runtime
     tests, `git diff --check`, and changed-path scope checks.
-  - Acceptance: all required commands pass, no secret/private-state path is
-    added, and only MERGE-01 through MERGE-03 paths are present.
+  - Acceptance: **PASS for MERGE-01/02.** Merged-main Skill validators 7/7,
+    Graph/Eval/manifest/gate tests 63/63, CI security and syntax checks all
+    pass, and `git diff --check` passes. MERGE-03 runtime validation remains
+    open and is not implied by this checkbox.
 
 - [ ] **MERGE-06 — create the main-derived release and read it back**
   - Merge without force or `-X theirs/ours`; cut an immutable release from
