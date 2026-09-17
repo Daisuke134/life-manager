@@ -45,12 +45,36 @@
       "license": "MIT",
       "scope": "Reusable cloud-browser auth implementation and tests are absorbed by commit, while stale branch-specific specification and evidence state is excluded.",
       "absorbed_files": [
-        {"source": "apps/life-manager/lib/browser-auth-session-store.js", "target": "apps/life-manager/lib/browser-auth-session-store.js", "sha256": "ccbe7d017fa981eae089f3a8866d6bbf5b094f684e961b213c74845c230fdedf"},
-        {"source": "apps/life-manager/lib/browser-auth-session-store.test.js", "target": "apps/life-manager/lib/browser-auth-session-store.test.js", "sha256": "135ab2dcb487650bd09ff161b3cefe76ec943dc95dbfff9e009d1b4cfc12cbf4"},
-        {"source": "apps/life-manager/lib/browser-job-store.js", "target": "apps/life-manager/lib/browser-job-store.js", "sha256": "ec502c503e912f59f29afc083b9d8a59c8d2c9c97a11b727757bf91dbf5a8e7d"},
-        {"source": "apps/life-manager/lib/browser-job-store.test.js", "target": "apps/life-manager/lib/browser-job-store.test.js", "sha256": "ba2b9d138d3ee8486d8975eab42862595383a67046300137d2b9d05a8d90e098"},
-        {"source": "apps/life-manager/lib/stagehand-steel-driver.js", "target": "apps/life-manager/lib/stagehand-steel-driver.js", "sha256": "e05fb409666c58959a648999eabc77124b81152a395cd97bb3c352ba943fe3ea"},
-        {"source": "apps/life-manager/lib/stagehand-steel-driver.test.js", "target": "apps/life-manager/lib/stagehand-steel-driver.test.js", "sha256": "6a26ccefebf6d397dec11d87bc8f53a2a510f4d463616ab68aad8cc3191a2abb"}
+        {
+          "source": "apps/life-manager/lib/browser-auth-session-store.js",
+          "target": "apps/life-manager/lib/browser-auth-session-store.js",
+          "sha256": "ccbe7d017fa981eae089f3a8866d6bbf5b094f684e961b213c74845c230fdedf"
+        },
+        {
+          "source": "apps/life-manager/lib/browser-auth-session-store.test.js",
+          "target": "apps/life-manager/lib/browser-auth-session-store.test.js",
+          "sha256": "135ab2dcb487650bd09ff161b3cefe76ec943dc95dbfff9e009d1b4cfc12cbf4"
+        },
+        {
+          "source": "apps/life-manager/lib/browser-job-store.js",
+          "target": "apps/life-manager/lib/browser-job-store.js",
+          "sha256": "ec502c503e912f59f29afc083b9d8a59c8d2c9c97a11b727757bf91dbf5a8e7d"
+        },
+        {
+          "source": "apps/life-manager/lib/browser-job-store.test.js",
+          "target": "apps/life-manager/lib/browser-job-store.test.js",
+          "sha256": "ba2b9d138d3ee8486d8975eab42862595383a67046300137d2b9d05a8d90e098"
+        },
+        {
+          "source": "apps/life-manager/lib/stagehand-steel-driver.js",
+          "target": "apps/life-manager/lib/stagehand-steel-driver.js",
+          "sha256": "e05fb409666c58959a648999eabc77124b81152a395cd97bb3c352ba943fe3ea"
+        },
+        {
+          "source": "apps/life-manager/lib/stagehand-steel-driver.test.js",
+          "target": "apps/life-manager/lib/stagehand-steel-driver.test.js",
+          "sha256": "6a26ccefebf6d397dec11d87bc8f53a2a510f4d463616ab68aad8cc3191a2abb"
+        }
       ]
     },
     {
@@ -72,12 +96,36 @@
         "skills/agent-runner/agent_runner.py": "ea32d3446d0efb9eccb3046e87cf9e99c7190edcf0b659e270a37aae689824ae"
       },
       "absorbed_files": [
-        {"source": "skills/agent-runner/agent_runner.py", "target": "runtime/agent-runner/agent_runner.py", "sha256": "ba87c656fe4ee78c82296a48a49e865b86e054e9ffe77fb02574079588b88333"},
-        {"source": "skills/agent-runner/config.json", "target": "runtime/agent-runner/config.json", "sha256": "4acca89ababd64580af24968d3fe2492e036b893a1115818dac8f6ab897099df"},
-        {"source": "skills/agent-runner/context_packet.py", "target": "runtime/agent-runner/context_packet.py", "sha256": "2e3592a93d5e59c25a6a3f0e8c2576af92e36c7a2fc0cdd6d8600bed1ea756d2"},
-        {"source": "skills/agent-runner/usage_report.py", "target": "runtime/agent-runner/usage_report.py", "sha256": "789c90de99efca6c15ba3714f2888dda777a7701214dd567c7ea38302eb81709"},
-        {"source": "skills/agent-runner/tests/test_prompt_fail_closed.py", "target": "runtime/agent-runner/tests/test_prompt_fail_closed.py", "sha256": "175961a8f6dee55de540cbb5691b0da4746f09bebc8226d56acaf788e2811209"},
-        {"source": "skills/agent-runner/tests/test_usage_report.py", "target": "runtime/agent-runner/tests/test_usage_report.py", "sha256": "47ae83b8f33cec8c8d6dc14a8daefa3e1ae480b466baf548dcfec179977b8d9c"}
+        {
+          "source": "skills/agent-runner/agent_runner.py",
+          "target": "runtime/agent-runner/agent_runner.py",
+          "sha256": "ba87c656fe4ee78c82296a48a49e865b86e054e9ffe77fb02574079588b88333"
+        },
+        {
+          "source": "skills/agent-runner/config.json",
+          "target": "runtime/agent-runner/config.json",
+          "sha256": "4acca89ababd64580af24968d3fe2492e036b893a1115818dac8f6ab897099df"
+        },
+        {
+          "source": "skills/agent-runner/context_packet.py",
+          "target": "runtime/agent-runner/context_packet.py",
+          "sha256": "2e3592a93d5e59c25a6a3f0e8c2576af92e36c7a2fc0cdd6d8600bed1ea756d2"
+        },
+        {
+          "source": "skills/agent-runner/usage_report.py",
+          "target": "runtime/agent-runner/usage_report.py",
+          "sha256": "789c90de99efca6c15ba3714f2888dda777a7701214dd567c7ea38302eb81709"
+        },
+        {
+          "source": "skills/agent-runner/tests/test_prompt_fail_closed.py",
+          "target": "runtime/agent-runner/tests/test_prompt_fail_closed.py",
+          "sha256": "175961a8f6dee55de540cbb5691b0da4746f09bebc8226d56acaf788e2811209"
+        },
+        {
+          "source": "skills/agent-runner/tests/test_usage_report.py",
+          "target": "runtime/agent-runner/tests/test_usage_report.py",
+          "sha256": "47ae83b8f33cec8c8d6dc14a8daefa3e1ae480b466baf548dcfec179977b8d9c"
+        }
       ]
     },
     {
@@ -88,10 +136,30 @@
       "license": "first-party MIT; vendored Capafy source classified separately",
       "scope": "Portable booking, Capafy automation, browser fallback, and shared policy source are absorbed. Personal configuration, credentials, account identifiers, memory, generated listing artwork, and live state remain outside the OSS product.",
       "absorbed_roots": [
-        {"source": "skills/anicca-booking", "target": "skills/anicca-booking", "files": 5, "inventory_sha256": "ce5c1b46422d1a564896a20069d9bacfed8595f67dc67b270f73d0ff1ceb220d"},
-        {"source": "skills/capafy-autopublish", "target": "skills/capafy-autopublish", "files": 223, "inventory_sha256": "9374108b87c9776261a2a9dcbc6b23b99240105ebf43c85b426a07b8b3e127f4"},
-        {"source": "skills/_shared", "target": "skills/_shared", "files": 184, "inventory_sha256": "71eb137ffabf6199214f04ee0778c87b46f735422c341c5494305c452ed9e1b3"},
-        {"source": "skills/anicca-life-manager", "target": "skills/anicca-life-manager", "files": 19, "inventory_sha256": "64acceffbbac7ade0e59ccd3a620a21724ead4476b60ae9cbdc0071826af983c"}
+        {
+          "source": "skills/anicca-booking",
+          "target": "skills/anicca-booking",
+          "files": 5,
+          "inventory_sha256": "ce5c1b46422d1a564896a20069d9bacfed8595f67dc67b270f73d0ff1ceb220d"
+        },
+        {
+          "source": "skills/capafy-autopublish",
+          "target": "skills/capafy-autopublish",
+          "files": 223,
+          "inventory_sha256": "9374108b87c9776261a2a9dcbc6b23b99240105ebf43c85b426a07b8b3e127f4"
+        },
+        {
+          "source": "skills/_shared",
+          "target": "skills/_shared",
+          "files": 184,
+          "inventory_sha256": "8dea39bdd9af9c6f8e5c57af085c2edc747e59d7e4c45bc4e8752afe42de96e7"
+        },
+        {
+          "source": "skills/anicca-life-manager",
+          "target": "skills/anicca-life-manager",
+          "files": 19,
+          "inventory_sha256": "64acceffbbac7ade0e59ccd3a620a21724ead4476b60ae9cbdc0071826af983c"
+        }
       ]
     },
     {
