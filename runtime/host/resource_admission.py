@@ -772,11 +772,13 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                     priority: str | None = None,
                     occurrence_id: str | None = None,
                     coalesce_reserved: bool = False,
+                    allow_no_effect_recovery: bool = False,
                     now: float | None = None) -> tuple[Path | None, str]:
     """Persist a process-independent, priority-aware queue position."""
     if (resource_class not in set(RESOURCE_CLASSES) or not owner_id
             or admission_class not in ADMISSION_CLASSES
-            or type(coalesce_reserved) is not bool):
+            or type(coalesce_reserved) is not bool
+            or type(allow_no_effect_recovery) is not bool):
         raise RuntimeError("invalid resource identity")
     priority_name = _normalize_priority(priority, admission_class)
     occurrence_name = _normalize_occurrence_id(occurrence_id)
@@ -793,6 +795,22 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                 connection, owners, resource_class, admission_class,
                 instant,
                 starts, snapshot_started_ns)
+            owner_files = [
+                _row(path) or {} for path in owners.glob("*.json")
+            ]
+            owner_busy = any(item.get("owner_id") == owner_id for item in owner_files)
+            if allow_no_effect_recovery and not owner_busy:
+                changed = connection.execute(
+                    """UPDATE occurrences SET state='released',effect_unknown=0
+                         WHERE owner_id=? AND state IN ('claimed','released')
+                           AND effect_unknown=1""",
+                    (owner_id,),
+                ).rowcount
+                if changed:
+                    connection.execute(
+                        "UPDATE priorities SET effect_unknown=0 WHERE owner_id=?",
+                        (owner_id,),
+                    )
             if owner_id != CONNECTOR_OBSERVATION_OWNER and (connection.execute(
                     "SELECT 1 FROM occurrences WHERE owner_id=? AND effect_unknown=1 LIMIT 1",
                     (owner_id,)).fetchone()
@@ -834,8 +852,7 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                     _promote_queued_priority(connection, owner_id, priority_name, instant)
                     return database, ("reservation_coalesced" if queued_scan[0] is not None
                                       and queued_scan[0] > instant else "queued_coalesced")
-            if any(item.get("owner_id") == owner_id for item in (
-                    _row(path) or {} for path in owners.glob("*.json"))):
+            if owner_busy:
                 if occurrence_name is not None:
                     connection.execute(
                         "INSERT OR IGNORE INTO queue(owner_id,resource_class) VALUES(?,?)",
@@ -1308,6 +1325,32 @@ def resolve_unknown_occurrence(owner_id: str, occurrence_id: str, *,
                         (owner_id,),
                     )
             return changed.rowcount == 1
+    finally:
+        os.close(descriptor)
+
+
+def clear_no_effect_unknown(owner_id: str) -> int:
+    """Release stale fences for an owner whose registry contract has no effect."""
+    if not owner_id:
+        raise RuntimeError("invalid owner identity")
+    root, _, _, database = _durable_paths()
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        if not _acquire_bounded(descriptor, timeout_seconds=0.5):
+            return 0
+        with _database(database) as connection:
+            changed = connection.execute(
+                """UPDATE occurrences SET state='released',effect_unknown=0
+                     WHERE owner_id=? AND state IN ('claimed','released')
+                       AND effect_unknown=1""",
+                (owner_id,),
+            ).rowcount
+            if changed:
+                connection.execute(
+                    "UPDATE priorities SET effect_unknown=0 WHERE owner_id=?",
+                    (owner_id,),
+                )
+            return changed
     finally:
         os.close(descriptor)
 

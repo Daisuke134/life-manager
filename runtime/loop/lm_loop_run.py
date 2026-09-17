@@ -28,6 +28,7 @@ from runtime.host.resource_admission import (
     OCCURRENCE_ID_PATTERN,
     cancel_durable as cancel_durable_resource,
     claim_durable as claim_durable_resource,
+    clear_no_effect_unknown as clear_no_effect_unknown_resource,
     defer_durable as defer_durable_resource,
     durable_protocol_version,
     enqueue_durable as enqueue_durable_resource,
@@ -50,7 +51,9 @@ HEARTBEAT_INTERVAL_SECONDS = 30.0
 PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
     "skills/earn/crowdworks/scripts/paid-owner",
     "skills/earn/lancers/scripts/paid-owner",
+    "skills/earn/mercor/scripts/application-owner",
     "skills/earn/mercor/scripts/paid-owner",
+    "skills/earn/mercor/scripts/reply-owner",
     "skills/writer-agent/scripts/article-resume-pending.sh",
 })
 
@@ -403,6 +406,11 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     limit = _runtime_limit(entry)
     if loop_id in {"life-manager-release-reconciler", "life-manager-disk-cleanup",
                    "capafy-loop-healthcheck"}:
+        if entry.get("effect_class") == "none":
+            try:
+                clear_no_effect_unknown_resource(loop_id)
+            except (OSError, RuntimeError, sqlite3.Error) as error:
+                print(f"lm-loop-run: no-effect recovery deferred: {error}", file=sys.stderr)
         _atomic_json(receipt, {"status": "pass", "effect": 0,
                               "reason": "control_plane_exempt"})
         result = _run_entrypoint(command, env=env, timeout_seconds=limit)
@@ -454,6 +462,8 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 enqueue_kwargs["occurrence_id"] = occurrence_id
             if entry.get("coalesce_queued_wakes") is True:
                 enqueue_kwargs["coalesce_reserved"] = True
+            if entry.get("effect_class") == "none":
+                enqueue_kwargs["allow_no_effect_recovery"] = True
             ticket, admission_reason = (
                 enqueue_durable_resource(
                     resource_class, loop_id, **enqueue_kwargs)
@@ -587,6 +597,7 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                     release_options = {"requeue": not claim_started_child,
                                        "reserve": claim_started_child}
                     if (claim_started_child and return_code != 0
+                            and entry.get("effect_class") != "none"
                             and not (hint_allowed and _proven_pre_effect_failure(
                                 receipt.parent / "entrypoint-result.json"))):
                         release_options["effect_unknown"] = True

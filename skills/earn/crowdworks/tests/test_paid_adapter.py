@@ -24,6 +24,39 @@ def load():
     return module
 
 
+def test_cdp_connection_retries_until_one_browser_context_is_available():
+    module = load()
+    attempts = []
+    stopped = []
+
+    class Browser:
+        contexts = [object()]
+
+    class Chromium:
+        def connect_over_cdp(self, _url, timeout):
+            attempts.append(timeout)
+            if len(attempts) < 3:
+                raise RuntimeError("transient cdp failure")
+            return Browser()
+
+    class Runtime:
+        chromium = Chromium()
+        def stop(self): stopped.append(True)
+
+    class Launcher:
+        def start(self): return Runtime()
+
+    module.sync_playwright = lambda: Launcher()
+    module.time.sleep = lambda _seconds: None
+
+    runtime, browser = module._connect_existing_cdp()
+
+    assert len(attempts) == 3
+    assert browser.contexts == [browser.contexts[0]]
+    assert stopped == [True, True]
+    runtime.stop()
+
+
 def funded():
     return {"work_id": "63570481", "title": "Webデザイン業務", "client": "buyer",
             "provider_state": "funded", "milestone_id": "13798056",
@@ -98,6 +131,158 @@ def test_funded_contract_without_google_form_waits_without_blocking_inventory():
     assert [row["work_id"] for row in rows] == ["63568785", "63570481"]
     assert action["action"] == "wait"
     assert action["reason"] == "buyer_task_detail_required"
+
+
+def test_no_form_contract_does_not_require_application_date():
+    module = load()
+    contract = {key: value for key, value in funded().items()
+                if key not in {"form_url", "application_date"}}
+    action = module.decide({"context": {"contract": contract}})
+
+    assert action["action"] == "wait"
+    assert action["reason"] == "buyer_task_detail_required"
+
+
+def test_answer_mutation_posts_one_contract_message():
+    module = load()
+    events = []
+
+    class Area:
+        def is_visible(self): return True
+        def fill(self, value): events.append(("fill", value))
+
+    class Areas:
+        def count(self): return 1
+        def nth(self, index): return Area()
+
+    class Button:
+        def count(self): return 1
+        def is_visible(self): return True
+        def is_enabled(self): return True
+        def click(self): events.append(("click", "message"))
+
+    class Page:
+        def locator(self, selector):
+            assert selector == 'textarea[name="message[body]"]'
+            return Areas()
+
+        def get_by_role(self, role, name, exact):
+            assert (role, name, exact) == ("button", "メッセージを投稿する", True)
+            return Button()
+
+        def wait_for_timeout(self, timeout): events.append(("wait", timeout))
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda work_id: events.append(("contract", work_id))
+    adapter._targeted_detail = lambda work_id: funded()
+
+    adapter.mutate({"action": "answer", "work_id": "63570481",
+                    "payload": {"body": "顧客向け回答を再提出します。"}})
+
+    assert events == [
+        ("contract", "63570481"),
+        ("fill", "顧客向け回答を再提出します。"),
+        ("click", "message"),
+        ("wait", 2000),
+    ]
+
+
+def test_answer_readback_requires_seller_visible_body():
+    module = load()
+
+    class Body:
+        def inner_text(self): return "buyer text\n顧客向け回答を再提出します。"
+
+    class Page:
+        def locator(self, selector):
+            assert selector == "body"
+            return Body()
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda work_id: None
+    result = adapter.readback({"action": "answer", "work_id": "63570481",
+                               "effect_key": "answer-key",
+                               "payload": {"body": "顧客向け回答を再提出します。"}})
+
+    assert result["verified"] is True
+    assert result["provider_receipt_id"] == "contract:63570481:answer:answer-key"
+
+
+def test_cached_inventory_detail_is_reused_until_explicit_refresh():
+    module = load()
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    calls = []
+    row = funded()
+    adapter._list_contracts = lambda: [row]
+    adapter._detail = lambda value: calls.append(value["work_id"]) or dict(value)
+
+    adapter._inventory()
+    adapter.observe_one(row["work_id"])
+    adapter.refresh_one(row["work_id"])
+
+    assert calls == [row["work_id"], row["work_id"]]
+
+
+def test_detail_retains_multiple_buyer_form_links_for_later_task_selection():
+    module = load()
+    title, client = "buyer task", "buyer"
+    links = [
+        "https://docs.google.com/forms/d/e/one/viewform",
+        "https://docs.google.com/forms/d/e/two/viewform",
+    ]
+
+    class Form:
+        def get_attribute(self, name):
+            assert name == "action"
+            return "/milestones/13798056/complete"
+
+    class Forms:
+        def count(self):
+            return 2
+
+        def nth(self, index):
+            return Form()
+
+    class Locator:
+        def __init__(self, selector):
+            self.selector = selector
+
+        def inner_text(self):
+            return f"{title} {client} 業務を開始しています 検収"
+
+        def evaluate_all(self, expression):
+            assert "href" in expression
+            return links
+
+    class Page:
+        def locator(self, selector):
+            if selector.startswith('form[action^="/milestones/"]'):
+                return Forms()
+            return Locator(selector)
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda work_id: None
+    adapter._proposal_application_date = lambda proposal_id: None
+
+    detail = adapter._detail_once({"work_id": "63570481", "title": title, "client": client})
+
+    assert detail["form_urls"] == links
+    assert detail["form_url"] is None
+
+
+def test_inventory_row_clears_singular_form_when_multiple_urls_are_present():
+    module = load()
+    row = {**funded(), "form_urls": [
+        "https://forms.gle/one", "https://forms.gle/two",
+    ]}
+
+    normalized = module.CrowdWorksPaidAdapter._row_from_list(row)
+
+    assert normalized["form_urls"] == ["https://forms.gle/one", "https://forms.gle/two"]
+    assert normalized["form_url"] is None
 
 
 def test_exact_verified_apply_receipt_is_jst_application_date_fallback(tmp_path):
@@ -228,6 +413,78 @@ def test_default_open_clones_auth_into_owned_context_and_closes_it():
     ]
 
 
+def test_open_falls_back_to_source_context_when_clone_creation_fails():
+    module = load()
+    calls = []
+
+    class Page:
+        def set_default_timeout(self, timeout): calls.append(("timeout", timeout))
+        def close(self): calls.append(("page_close",))
+
+    class SourceContext:
+        def storage_state(self): return {"cookies": [], "origins": []}
+        def new_page(self): calls.append(("source_page",)); return Page()
+
+    source = SourceContext()
+
+    class Browser:
+        contexts = [source]
+        def new_context(self, **_kwargs): raise RuntimeError("clone unavailable")
+
+    class Runtime:
+        def stop(self): calls.append(("runtime_stop",))
+
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()))
+    adapter._open()
+
+    assert adapter.owned_context is source
+    assert adapter.owns_context is False
+    assert ("source_page",) in calls
+    adapter.close()
+
+
+def test_active_inventory_falls_back_to_locked_persistent_context_after_clone_timeout():
+    module = load()
+    calls = []
+
+    class Page:
+        def set_default_timeout(self, timeout): calls.append(("timeout", timeout))
+        def close(self): calls.append(("page_close",))
+
+    class SourceContext:
+        def storage_state(self): return {"cookies": [], "origins": []}
+        def new_page(self): calls.append(("source_page",)); return Page()
+
+    class OwnedContext:
+        def new_page(self): calls.append(("owned_page",)); return Page()
+        def close(self): calls.append(("context_close",))
+
+    class Browser:
+        contexts = [SourceContext()]
+        def new_context(self, **_kwargs): return OwnedContext()
+
+    class Runtime:
+        def stop(self): calls.append(("runtime_stop",))
+
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()))
+    adapter._open()
+    attempts = [0]
+
+    def list_once():
+        attempts[0] += 1
+        if attempts[0] == 1:
+            raise module.PlaywrightTimeoutError("clone timeout")
+        return [{"work_id": "63583795"}]
+
+    adapter._list_contracts_once = list_once
+    assert adapter._list_contracts() == [{"work_id": "63583795"}]
+    assert attempts == [2]
+    assert ("source_page",) in calls
+    adapter.close()
+
+
 def test_three_workers_never_open_a_page_in_the_persistent_context():
     module = load()
     lock, created, seen = threading.Lock(), [], []
@@ -298,7 +555,8 @@ def test_connect_existing_cdp_retries_once_with_bounded_timeout(monkeypatch):
         def stop(self):
             calls.append(("stop",))
 
-    runtimes = iter((Runtime(TimeoutError()), Runtime("browser")))
+    runtimes = iter((Runtime(TimeoutError()), Runtime(TimeoutError()),
+                     Runtime(TimeoutError()), Runtime("browser")))
     monkeypatch.setattr(module, "sync_playwright", lambda: type(
         "Starter", (), {"start": lambda self: next(runtimes)})())
     monkeypatch.setattr(module.time, "sleep", lambda seconds: calls.append(("sleep", seconds)))
@@ -308,7 +566,9 @@ def test_connect_existing_cdp_retries_once_with_bounded_timeout(monkeypatch):
     assert browser == "browser"
     assert runtime.chromium.result == "browser"
     assert calls == [
-        ("connect", module.account.CDP_URL, 10_000), ("stop",), ("sleep", 0.25),
+        ("connect", module.account.CDP_URL, 10_000), ("stop",), ("sleep", 0.5),
+        ("connect", module.account.CDP_URL, 10_000), ("stop",), ("sleep", 0.5),
+        ("connect", module.account.CDP_URL, 10_000), ("stop",), ("sleep", 0.5),
         ("connect", module.account.CDP_URL, 10_000),
     ]
 
@@ -333,7 +593,7 @@ def test_connect_existing_cdp_stops_both_failed_runtimes(monkeypatch):
 
     with pytest.raises(RuntimeError, match="^crowdworks_paid_browser_unavailable$"):
         module._connect_existing_cdp()
-    assert stopped == [True, True]
+    assert stopped == [True, True, True, True]
 
 
 def test_active_contract_timeout_has_bounded_stage_specific_name():
@@ -365,6 +625,19 @@ def test_active_contract_timeout_has_bounded_stage_specific_name():
     assert str(error.value) == ""
     assert error.value.paid_error_code == "crowdworks_paid_active_contracts_timeout"
     adapter.close()
+
+
+def test_provider_navigation_starts_after_commit_and_uses_locator_timeout():
+    module = load()
+    observed = []
+
+    class Page:
+        def goto(self, url, *, wait_until, timeout):
+            observed.append((url, wait_until, timeout))
+
+    module.CrowdWorksPaidAdapter._goto(Page(), module.ACTIVE_CONTRACTS_URL, "active_contracts")
+
+    assert observed == [(module.ACTIVE_CONTRACTS_URL, "commit", 20_000)]
 
 
 def test_active_contract_dom_timeout_has_same_safe_stage_code():
@@ -403,6 +676,35 @@ def test_active_contract_dom_timeout_has_same_safe_stage_code():
     with pytest.raises(module.CrowdWorksPaidActiveContractsTimeout) as error:
         adapter._list_contracts()
     assert error.value.paid_error_code == "crowdworks_paid_active_contracts_timeout"
+    adapter.close()
+
+
+def test_empty_active_contract_inventory_fails_closed_instead_of_reporting_zero():
+    module = load()
+
+    class Locator:
+        def evaluate_all(self, *_): return []
+
+    class Page:
+        url = module.ACTIVE_CONTRACTS_URL
+        def set_default_timeout(self, _timeout): pass
+        def goto(self, *_args, **_kwargs): pass
+        def locator(self, _selector): return Locator()
+
+    class Context:
+        def new_page(self): return Page()
+
+    class Browser:
+        contexts = [Context()]
+
+    class Runtime:
+        def stop(self): pass
+
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", connection_factory=lambda: (Runtime(), Browser()),
+        context_factory=lambda _browser, source: source)
+    with pytest.raises(RuntimeError, match="crowdworks_paid_contract_source_unavailable"):
+        adapter._list_contracts_once()
     adapter.close()
 
 
@@ -621,9 +923,9 @@ def test_real_kernel_paths_close_every_thread_owned_runtime(tmp_path):
     for index, adapter in enumerate((waiting, completed, failing, submitted)):
         kernel.run_wake(adapter=adapter, decide=module.decide, state_root=tmp_path / str(index), max_workers=1)
     assert events.count("page") == events.count("runtime")
-    # All four kernel paths perform multiple independent public calls; no
-    # browser/page/runtime can survive ThreadPoolExecutor worker teardown.
-    assert events.count("runtime") >= 15
+    # Every public adapter call owns and tears down its runtime; cached
+    # observations intentionally avoid reopening the browser for wait/no-op rows.
+    assert events.count("runtime") >= 11
 
 
 def test_kernel_does_not_repeat_full_inventory_for_each_worker_call(tmp_path):
@@ -637,10 +939,10 @@ def test_kernel_does_not_repeat_full_inventory_for_each_worker_call(tmp_path):
 
     assert result["failed"] == 0
     assert list_calls == ["full"]
-    # Initial observation details both contracts once; each worker then refreshes
-    # exactly its own contract.  context consumes the fresh pure-data cache.
+    # Initial inventory details both contracts once. Wait/no-op rows consume the
+    # cached facts and do not reopen a browser; mutation rows use refresh_one.
     assert details[:2] == ["63568785", "63570481"]
-    assert sorted(details[2:]) == ["63568785", "63570481"]
+    assert details[2:] == []
 
 
 def test_mutation_targeted_refresh_rejects_changed_contract_before_submit(tmp_path):
@@ -769,6 +1071,79 @@ def test_milestone_completion_targets_only_the_visible_duplicate_form():
     assert ("click", "visible") in selected
     assert not any(row[:2] == ("fill", "hidden") for row in selected)
 
+
+def test_milestone_completion_opens_the_contract_dialog_anchor():
+    module = load()
+    events = []
+    page = None
+
+    class Control:
+        def __init__(self, visible=True): self.visible = visible
+        def is_visible(self): return self.visible
+        def count(self): return 1
+        def click(self, **kwargs): events.append(("dialog", kwargs)); page.dialog_open = True
+        def fill(self, value): events.append(("fill", value))
+        def is_disabled(self): return False
+        def wait_for(self, **kwargs): events.append(("wait", kwargs))
+
+    class Form:
+        def locator(self, selector):
+            return Control(page.dialog_open)
+
+    class Forms:
+        def count(self): return 1
+        def nth(self, index): return Form()
+
+    class Page:
+        dialog_open = False
+        def locator(self, selector):
+            if selector.startswith('a[href="#message-dialog-completion-'):
+                return Control(True)
+            if selector.startswith('form[action="/milestones/13798056/complete"]') and "textarea" in selector:
+                return Control(page.dialog_open)
+            if selector.startswith('form[action="/milestones/13798056/complete"]'):
+                return Forms()
+            return Control(False)
+        def get_by_text(self, text, exact=False):
+            class EmptyTabs:
+                def count(self): return 0
+            return EmptyTabs()
+        def wait_for_load_state(self, *args, **kwargs): pass
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    page = Page()
+    adapter.page = page
+    adapter._goto_contract = lambda work_id: None
+
+    adapter._complete_once(funded(), {"milestone_id": "13798056"})
+
+    assert any(item[0] == "dialog" for item in events if isinstance(item, tuple))
+    assert any(item[0] == "fill" for item in events if isinstance(item, tuple))
+
+def test_delivery_primes_visible_duplicate_message_textareas():
+    module = load()
+    events = []
+
+    class Area:
+        def __init__(self, visible): self.visible = visible
+        def is_visible(self): return self.visible
+        def fill(self, value): events.append(value)
+
+    class Areas:
+        def count(self): return 3
+        def nth(self, index): return [Area(True), Area(False), Area(True)][index]
+
+    class Page:
+        def locator(self, selector):
+            assert selector == 'textarea[name="message[body]"]'
+            return Areas()
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+
+    adapter._fill_delivery_message("納品メッセージ")
+
+    assert events == ["納品メッセージ", "納品メッセージ"]
 
 def test_milestone_completion_reveals_mobile_only_todo_surface_before_effect():
     module = load()

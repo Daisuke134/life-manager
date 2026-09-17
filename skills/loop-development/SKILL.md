@@ -52,6 +52,79 @@ locked worktree -> focused test -> merged main -> immutable release -> lm-loop a
 3. Name the exact loop IDs and files owned by one registry TODO. Do not modify a
    sibling loop unless the root cause is its shared runtime boundary.
 
+## Mandatory Loop Contract gate
+
+Every new or changed Product Loop must pass the repository-owned contract gate
+before its PR is opened:
+
+```bash
+./bin/lm-loop-contract
+```
+
+The gate joins `apps/life-manager/config/product-loop-catalog.json` to
+`config/loop-registry.json` and rejects a loop whose canonical jobs are missing,
+whose entrypoint leaves the repository, or whose owner/provider/effect/cadence
+fields are incomplete. It also validates every registry job, including jobs not
+yet grouped into a Product Loop, so an unmapped job cannot bypass the shared
+contract. This is a structural gate; it does not claim an external
+provider effect. External success still requires `lm-loop` runtime evidence,
+official readback, receipt, and replay-zero through the Local/Cloud completion
+gates.
+
+The same command is required for loops created by Codex, Life Manager's
+self-build loop, self-heal repair work, and self-improvement candidates. A Skill
+document is guidance; this contract gate is the machine-enforced shared boundary.
+
+## Self-heal decision boundary
+
+Self-heal code must first produce a typed, owner-scoped recovery intent:
+
+```bash
+./bin/lm-recovery-intent --input <failure-summary.json>
+```
+
+The intent is a decision record, not a restart command. It may request
+owner reconciliation, hold an uncertain effect for official readback, or
+escalate a repeated/unclassified failure. It must never mutate a provider,
+browser, credential, scheduler, or sibling owner directly. A later supervisor
+may execute only the action allowed by the intent and its existing lease.
+
+Runtime failures with a canonical `LIFE_MANAGER_LOOP_ID` and immutable
+`LIFE_MANAGER_RELEASE_SHA` also carry the typed intent in the existing private
+`harness-failures.jsonl` record. Missing identity or release provenance
+produces no guessed target. This record is an input to recovery, not an
+automatic provider retry; the executor below remains the only mutation boundary.
+
+Before execution, compile the intent into a bounded owner plan:
+
+```bash
+./bin/lm-recovery-apply-plan --intent <intent.json>
+```
+
+The plan may contain only one `loaded-idle-only` reconcile command for the
+canonical `loop_id`, with `max-owners=1`. `hold_effect_unknown` and escalation
+intents produce no command. The planner is pure; a supervisor remains
+responsible for checking the immutable release SHA and executing through the
+existing `lm-loop reconcile` path. The repository-owned execution boundary is:
+
+```bash
+./bin/lm-recovery-execute --intent <intent.json> \
+  --release-root <immutable-release> \
+  [--registry <immutable-release>/config/loop-registry.json]
+```
+
+It refuses a release SHA mismatch, a command other than the one owner-scoped
+reconcile form, a missing release entrypoint, a sibling target, or a reconcile
+result that does not name exactly the intended owner. A failed reconcile stays
+`queued` for the next bounded wake; an uncertain external effect remains
+`held` and never reaches this command. This CLI is a supervisor boundary, not
+provider/browser execution and not proof of an external business effect.
+
+The existing release-reconciler consumes the shared private intent queue through
+`./bin/lm-recovery-supervise`, one owner per wake. It journals claims and
+terminal states outside Git; queued failures are retried at most three times,
+then escalated. No second scheduler or provider-specific retry loop is added.
+
 ## Source, state, and ownership
 
 - Executable code, adapters, schemas, prompts, and dependency lockfiles live in

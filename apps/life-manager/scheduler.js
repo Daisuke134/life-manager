@@ -20,6 +20,8 @@ const { preceptsUserOnce } = require("./lib/precepts-runtime.js");
 const { preceptsMirrorOnce } = require("./lib/precepts-mirror.js");
 const { relationsUserOnce } = require("./lib/relations-runtime.js");
 const { readMentalSendState, recordMentalSend } = require("./lib/mental-send-log.js");
+const { runVerifiedOutcomes } = require("./lib/mental-outcome-runtime.js");
+const { readOutcomeSendState, readVerifiedOutcomes, recordOutcomeSend } = require("./lib/mental-outcome-store.js");
 
 // 12c: TROUGH_AFTER_MS (30 min) plus margin — how far back the tick looks for ended events.
 const MENTAL_LOOKBACK_MS = 35 * 60000;
@@ -402,6 +404,24 @@ function mentalDeps(u, events, deps = {}) {
   };
 }
 
+function mentalOutcomeDeps(u, nowMs, deps = {}) {
+  const supa = SUPA();
+  return {
+    fetchVerifiedOutcomes: deps.fetchVerifiedOutcomes
+      || ((uid, context) => readVerifiedOutcomes(uid, context && context.nowMs, supa)),
+    readOutcomeSendState: deps.readOutcomeSendState
+      || ((uid, now, opts) => readOutcomeSendState(uid, now, supa, undefined, opts)),
+    recordOutcomeSend: deps.recordOutcomeSend
+      || ((row) => recordOutcomeSend(row, supa)),
+    sendMessage: deps.sendMessage || sendMessage,
+    telegramToken: deps.telegramToken !== undefined ? deps.telegramToken : process.env.LM_TELEGRAM_BOT_TOKEN,
+    profile: deps.mentalProfile || {},
+    calendarBusy: Boolean(deps.calendarBusy),
+    nowMs,
+    localDay: deps.localDay,
+  };
+}
+
 // readMentalSendState / recordMentalSend moved to lib/mental-send-log.js (imported above) — H4 ⑤
 // makes lm_mental_send_log a SHARED budget, and a budget only one module can reach is not a budget.
 // MENTAL's semantics are unchanged: it still calls them non-strict, so an unreadable log still reads
@@ -742,6 +762,8 @@ async function organsUserOnce(u, nowMs, deps = {}) {
     }
   }
   const futureEvents = (events || []).filter((e) => Number(e.startMs) >= now);
+  const calendarBusy = (events || []).some((event) => Number(event.startMs) <= now
+    && Number(event.endMs || event.startMs) > now);
 
   // Every runOrgan label is namespaced `organ:<name>` so the stopwatch receipt can never be confused
   // with the organ's OWN outcome line. Both are `[…] uid=…`, the receipt prints on EVERY tick (an
@@ -757,6 +779,18 @@ async function organsUserOnce(u, nowMs, deps = {}) {
     // The Telegram leg is otherwise unauditable: name the message that was actually delivered.
     if (late && late.telegramMessageId !== undefined) {
       log(`[late] uid=${String(u.uid).slice(0, 12)} decision=${late.decision} sent=${!!late.sent} tg_message_id=${late.telegramMessageId}`);
+    }
+  }
+
+  // Verified mail outcomes are an optional owner projection. With no provider seam, this is a strict no-op;
+  // MENTAL never reads Gmail itself and never turns an ambiguous message into a personal claim.
+  const outcomeResults = await runOrgan({
+    label: "organ:mental-outcome", uid: u.uid, log,
+    run: () => runVerifiedOutcomes(u, now, mentalOutcomeDeps(u, now, { ...deps, calendarBusy })),
+  });
+  for (const outcome of Array.isArray(outcomeResults) ? outcomeResults : []) {
+    if (outcome && outcome.delivered) {
+      log(`[mental-outcome] uid=${String(u.uid).slice(0, 12)} source=${outcome.sourceOutcomeId} tg_message_id=${outcome.telegramMessageId}`);
     }
   }
 

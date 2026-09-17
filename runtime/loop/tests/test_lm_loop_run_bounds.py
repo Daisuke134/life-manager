@@ -12,6 +12,7 @@ from unittest.mock import call, patch
 
 from runtime.host import resource_admission as admission
 from runtime.loop.lm_loop_run import (
+    PRE_EFFECT_HINT_ENTRYPOINTS,
     _admission_class, _dispatch_reserved, _host_admission_deferred, _queue_priority,
     _resource_class,
     _run_admitted, _run_entrypoint, _runtime_limit, _terminal_outcome,
@@ -37,6 +38,14 @@ def test_scheduled_wakes_have_a_finite_one_hour_safety_limit():
     assert _runtime_limit({"cadence": {"start_interval_seconds": 300}}) == 3600
     assert _runtime_limit({"cadence": {"calendar_interval": {"Minute": 5}}}) == 3600
     assert _runtime_limit({"cadence": {"run_at_load": True}}) == 3600
+
+
+def test_crowdworks_paid_owner_declares_a_bounded_runtime():
+    registry = json.loads(
+        (Path(__file__).resolve().parents[3] / "config/loop-registry.json").read_text()
+    )
+
+    assert registry["loops"]["crowdworks-revenue-paid"]["runtime_timeout_seconds"] == 180
 
 
 def test_scheduled_wake_can_declare_a_longer_finite_safety_limit():
@@ -305,6 +314,20 @@ def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
         }
 
 
+def test_control_plane_no_effect_owner_clears_stale_fence(tmp_path):
+    entry = {"cadence": {"start_interval_seconds": 300},
+             "provider_route": "deterministic", "effect_class": "none",
+             "runtime_timeout_seconds": 900}
+    with (patch("runtime.loop.lm_loop_run.clear_no_effect_unknown_resource",
+                return_value=1) as clear,
+          patch("runtime.loop.lm_loop_run._run_entrypoint", return_value=0)):
+        assert _run_admitted(
+            ["/bin/true"], entry, "capafy-loop-healthcheck", {},
+            tmp_path / "receipt",
+        ) == 0
+    clear.assert_called_once_with("capafy-loop-healthcheck")
+
+
 def test_successful_safety_wake_dispatches_waiting_owner_without_taking_a_slot(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 300},
              "provider_route": "deterministic"}
@@ -380,6 +403,33 @@ def test_started_child_timeout_and_signal_mark_effect_unknown_before_release(tmp
             claim, requeue=False, reserve=True, effect_unknown=True)
 
 
+def test_none_effect_child_failure_requeues_without_effect_unknown(tmp_path):
+    """A control/report loop has no external effect to fence after a failed child."""
+    claim = tmp_path / "claim-none-effect"
+    claim.write_text("owned")
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        return 1
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 60},
+            "provider_route": "deterministic", "resource_class": "agent",
+            "admission_class": "borrow", "effect_class": "none",
+        }, "marketing-owner-events", {}, tmp_path / "receipt") == 1
+    release.assert_called_once_with(claim, requeue=False, reserve=True)
+
+
 def test_proven_pre_effect_failure_releases_owner_for_next_wake(tmp_path):
     claim = tmp_path / "claim"
     claim.write_text("owned")
@@ -438,6 +488,11 @@ def test_writer_article_resume_pre_effect_failure_releases_without_unknown_fence
             "entrypoint": "skills/writer-agent/scripts/article-resume-pending.sh",
         }, "article-resume", {}, tmp_path / "receipt") == 1
     release.assert_called_once_with(claim, requeue=False, reserve=True)
+
+
+def test_mercor_application_and_reply_pre_effect_hints_are_allowlisted():
+    assert "skills/earn/mercor/scripts/application-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
+    assert "skills/earn/mercor/scripts/reply-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
 
 
 def test_generic_child_hint_cannot_clear_unknown_effect(tmp_path):
@@ -611,10 +666,16 @@ def test_all_coconala_lanes_enter_revenue_admission(tmp_path):
                 tmp_path / f"{loop_id}.json",
             ) == 75
 
-    assert enqueue.call_args_list == [
-        call("agent", loop_id, admission_class="revenue",
-             priority=registry[loop_id]["priority"]) for loop_id in loop_ids
-    ]
+    expected_enqueue = []
+    for loop_id in loop_ids:
+        kwargs = {
+            "admission_class": "revenue",
+            "priority": registry[loop_id]["priority"],
+        }
+        if registry[loop_id].get("effect_class") == "none":
+            kwargs["allow_no_effect_recovery"] = True
+        expected_enqueue.append(call("agent", loop_id, **kwargs))
+    assert enqueue.call_args_list == expected_enqueue
     assert claim.call_args_list == [
         call("agent", loop_id, admission_class="revenue") for loop_id in loop_ids
     ]

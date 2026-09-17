@@ -12,6 +12,7 @@
     "eval:connector-preference": "node eval/run-event-preference-ranking-eval.js",
     "eval:connector-serendipity": "node eval/run-event-goal-serendipity-eval.js",
     "eval:score": "node eval/run-score-semantics-eval.js",
+    "test:agent-contract": "node --test eval/agent-contract/gate.test.js eval/agent-contract/records.test.js",
     "test:panel-score": "node --test lib/panel-score-semantics.test.js lib/panel-api-score-semantics.test.js lib/panel-score-migration.test.js scripts/independent-panel-score-readback.test.js",
     "test:panel-score:postgres": "test/postgres/panel-score-postgres.integration.sh",
     "test:runtime-job": "node --test lib/runtime-job-store.test.js lib/connector-coverage-job.test.js lib/effect-reconciler.test.js",

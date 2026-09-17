@@ -337,7 +337,19 @@ def _preserve_operational_attributes(new_bytes: bytes, old_bytes: bytes | None,
                                      retired_operational_keys: tuple[str, ...] = ()) -> bytes:
     if old_bytes is None:
         return new_bytes
-    old, new = plistlib.loads(old_bytes), plistlib.loads(new_bytes)
+    new = plistlib.loads(new_bytes)
+    try:
+        old = plistlib.loads(old_bytes)
+    except plistlib.InvalidFileException:
+        env = json.loads(old_bytes)
+        expected = new["EnvironmentVariables"]
+        if (not isinstance(env, dict)
+                or not all(isinstance(key, str) and isinstance(value, str)
+                           for key, value in env.items())
+                or env.get("LIFE_MANAGER_LOOP_ID") != expected["LIFE_MANAGER_LOOP_ID"]
+                or env.get("LIFE_MANAGER_STATE_ROOT") != expected["LIFE_MANAGER_STATE_ROOT"]):
+            raise RuntimeError("invalid installed environment snapshot identity")
+        old = {"EnvironmentVariables": env}
     for key in ("WorkingDirectory", "ProcessType", "RunAtLoad", "ThrottleInterval", "Umask", "Nice"):
         if key in old and key not in retired_operational_keys and not (
             key == "WorkingDirectory"
@@ -391,6 +403,31 @@ def _loaded_arguments(text: str) -> list[str]:
     return arguments
 
 
+def _snapshot_rollback_plist(item: dict, old_bytes: bytes,
+                             loaded_detail: str) -> tuple[list[str], bytes]:
+    old_args = _loaded_arguments(loaded_detail)
+    if len(old_args) != 3 or old_args[1] != item["loop_id"]:
+        raise RuntimeError(f"{item['label']}: loaded argv unavailable for snapshot rollback")
+    old_release = Path(old_args[2]).resolve(strict=True)
+    new_release = Path(item["expected_arguments"][2]).resolve(strict=True)
+    if (old_release.parent != new_release.parent
+            or old_args[0] != str(old_release / "bin/lm-loop-run")):
+        raise RuntimeError(f"{item['label']}: loaded release invalid for snapshot rollback")
+    old_env = json.loads(old_bytes)
+    manifest = json.loads((old_release / "RELEASE.json").read_text())
+    if (manifest.get("release_paths") != "ALL"
+            or manifest.get("sha") != old_env.get("LIFE_MANAGER_RELEASE_SHA")):
+        raise RuntimeError(f"{item['label']}: loaded release mismatch for snapshot rollback")
+    registry = json.loads((old_release / "config/loop-registry.json").read_text())
+    entry = registry["loops"][item["loop_id"]]
+    if entry["label"] != item["label"]:
+        raise RuntimeError(f"{item['label']}: loaded owner mismatch for snapshot rollback")
+    runtime_python = manifest.get("runtime_python")
+    old_plist = _plist(item["loop_id"], entry, old_release, manifest["sha"],
+                       Path(runtime_python) if runtime_python else None)
+    return old_args, _preserve_operational_attributes(old_plist, old_bytes)
+
+
 def install_one(item: dict, target: Path,
                 launchctl: Callable[[list[str]], tuple[int, str]], *, attempts: int = 3,
                 sleeper: Callable[[float], None] = time.sleep,
@@ -404,12 +441,21 @@ def install_one(item: dict, target: Path,
     if plistlib.loads(item["plist_bytes"]).get("Umask") == 0o077:
         _secure_log_paths(item["plist_bytes"])
     old_bytes = target.read_bytes() if target.is_file() else None
-    initial_rc, _ = launchctl(["print", service])
+    initial_rc, initial_detail = launchctl(["print", service])
     was_loaded = initial_rc == 0
-    _atomic_write(target, _preserve_operational_attributes(
+    new_bytes = _preserve_operational_attributes(
         item["plist_bytes"], old_bytes,
         retired_environment_keys=retired_environment_keys,
-        retired_operational_keys=retired_operational_keys))
+        retired_operational_keys=retired_operational_keys)
+    rollback_bytes = old_bytes
+    old_args = []
+    if was_loaded and old_bytes is not None:
+        try:
+            old_args = list(map(str, plistlib.loads(old_bytes).get("ProgramArguments") or []))
+        except plistlib.InvalidFileException:
+            old_args, rollback_bytes = _snapshot_rollback_plist(
+                item, old_bytes, initial_detail)
+    _atomic_write(target, new_bytes)
     if preserve_unloaded and not was_loaded:
         return {
             "ok": True,
@@ -437,10 +483,9 @@ def install_one(item: dict, target: Path,
         if target.exists():
             target.unlink()
     else:
-        _atomic_write(target, old_bytes)
+        _atomic_write(target, rollback_bytes)
     restored = not was_loaded
     if was_loaded and old_bytes is not None:
-        old_args = list(map(str, plistlib.loads(old_bytes).get("ProgramArguments") or []))
         restore_rc, _ = launchctl(["bootstrap", domain, str(target)])
         print_rc, printed = launchctl(["print", service])
         restored = restore_rc == 0 and print_rc == 0 and _loaded_arguments(printed) == old_args

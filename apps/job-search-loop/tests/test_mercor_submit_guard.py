@@ -102,6 +102,8 @@ class MercorSubmitGuardTests(unittest.TestCase):
                 url="https://work.mercor.com/jobs/list-new/software-evaluator",
                 pre_submit_evidence=evidence,
                 run_id="run-1",
+                provider_fit_status="allowed",
+                ranking_band="high",
             )
             replay = claim_submission_once(
                 fence_ledger=fences,
@@ -110,12 +112,41 @@ class MercorSubmitGuardTests(unittest.TestCase):
                 url="https://work.mercor.com/jobs/list-new/software-evaluator",
                 pre_submit_evidence=evidence,
                 run_id="run-2",
+                provider_fit_status="allowed",
+                ranking_band="high",
             )
 
             self.assertTrue(first)
             self.assertFalse(replay)
             self.assertEqual(fenced_listing_ids(fences), {"list-new"})
             self.assertEqual(len(fences.read_text(encoding="utf-8").splitlines()), 1)
+
+    def test_fit_and_low_band_are_rejected_before_fence(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evidence = root / "pre.json"
+            evidence.write_text('{"observed":true}\n', encoding="utf-8")
+            fences = root / "submission-fences.jsonl"
+            common = dict(
+                fence_ledger=fences,
+                listing_id="list-new",
+                title="Software Evaluator",
+                url="https://work.mercor.com/jobs/list-new/software-evaluator",
+                pre_submit_evidence=evidence,
+                run_id="run-1",
+            )
+            with self.assertRaisesRegex(MercorSubmitGuardError, "blocked"):
+                claim_submission_once(**common, provider_fit_status="blocked", ranking_band="high")
+            with self.assertRaisesRegex(MercorSubmitGuardError, "low fit"):
+                claim_submission_once(**common, provider_fit_status="unknown", ranking_band="low")
+            with self.assertRaisesRegex(MercorSubmitGuardError, "closed"):
+                claim_submission_once(
+                    **common,
+                    provider_fit_status="allowed",
+                    ranking_band="medium",
+                    application_state="closed",
+                )
+            self.assertFalse(fences.exists())
 
     def test_fresh_submit_visible_readback_releases_false_claim_append_only(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -127,6 +158,7 @@ class MercorSubmitGuardTests(unittest.TestCase):
                 fence_ledger=fences, listing_id="list-new", title="Video Evaluator",
                 url="https://work.mercor.com/explore?listingId=list-new",
                 pre_submit_evidence=evidence, run_id="run-1",
+                provider_fit_status="allowed", ranking_band="medium",
             ))
             release_claim_without_effect(
                 fence_ledger=fences, listing_id="list-new",

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Incident update fact guard</title>
+  <desc id="desc">A status card with a verification shield.</desc>
+  <rect width="256" height="256" rx="48" fill="#102A43"/>
+  <rect x="42" y="46" width="126" height="164" rx="18" fill="#EAF4F4"/>
+  <rect x="62" y="74" width="86" height="14" rx="7" fill="#0B7285"/>
+  <rect x="62" y="108" width="66" height="10" rx="5" fill="#829AB1"/>
+  <rect x="62" y="132" width="82" height="10" rx="5" fill="#829AB1"/>
+  <rect x="62" y="156" width="50" height="10" rx="5" fill="#829AB1"/>
+  <path d="M177 107l39 15v30c0 29-19 48-39 57-20-9-39-28-39-57v-30l39-15z" fill="#F6AD55"/>
+  <path d="M159 153l12 12 25-30" fill="none" stroke="#102A43" stroke-linecap="round" stroke-linejoin="round" stroke-width="11"/>
+</svg>

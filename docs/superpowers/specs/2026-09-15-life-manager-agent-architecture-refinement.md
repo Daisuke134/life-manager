@@ -3,21 +3,220 @@
 状態: IN PROGRESS（未完了） — this document defines the next architecture boundary; it does not
 claim that the target control plane, marketplace effects, or cloud deployment are complete.
 
+## Active A15 foundation cursor — atomic remaining TODO
+
+**A15 is one remaining foundation acceptance gate, not a declaration that every
+provider loop works.** The following is the authoritative A15 checklist; older
+A15 snapshots below are historical evidence. Do not reorder the provider TODO.
+
+Observed shared-foundation problems and disposition:
+
+| Problem | Evidence and boundary | Disposition |
+|---|---|---|
+| A branch-only SHA could become global `current` | Release selection admitted a pushed but unmerged SHA. | Fixed in main PR #5351; production `current` must remain an `origin/main` ancestor. |
+| A sparse main-derived release could become global `current` | While a natural reconciler used complete release `f1f5bcb9`, other owner cuts replaced `current` with sparse release `6c7d2062`; exact apply then failed closed with `release is no longer current`. | Fixed in main PR #5383: sparse `LOOPS_ACTIVATE_CURRENT=1` fails before export. All CI and 22 cut tests passed; main-derived complete release `deb08642` contains the guard, and its loaded natural reconciler run reached outer pass. Later `current` advanced only to another complete main release. |
+| One owner with many old wakes could repeatedly win its own next turn | RED fixture selected owner A twice before owner B; production queue had repeated old occurrences. | Fixed in main PR #5354; new-main natural terminals advanced `x402-ledger` → `x402-experiment-franklin1` → `founder-loop-cadence` → `x402-inflow-watch` without deleting pending occurrences. |
+| A same-owner environment JSON replaced an installed plist | `writer-report` installed file was JSON, so its installed SHA was unreadable although launchd held a main-derived argv. The writer of that file is not yet identified. | Shared recovery and candidate/rollback repair merged in PRs #5362/#5367. A targeted loaded-idle reconcile restored XML and loaded SHA `f1f5bcb9` with `effect_unknown` still fenced. |
+| Reconciler sometimes exits `entrypoint_exit_1` while idle owners wait | Earlier runs failed on malformed plist, concurrent Git fetch, or `current` advancing during an exact apply. | Main-derived loaded `deb08642` reached natural outer pass at 13:22:55Z; a later complete `current` may still cause a safe failed apply, with the next scheduled wake available. No sibling restart was used. |
+| Disk pressure has caused `ENOSPC` during release/receipt writes | Historical runtime logs contain `ENOSPC`; a local broad unittest reached 176 MiB free without host admission. | A15-12 bounded headroom/cleanup check passed; latest natural cleaner pass at 13:27:51Z. No admitted child entering reproducible `ENOSPC` was established. Protected state remains untouched. |
+
+`resource_control_busy` is an observed transient admission deferral: a later
+Writer Response natural wake reached outer `pass`. It is not evidence of a
+permanent Writer-wide lock. Existing `effect_unknown` rows are effect-safety
+fences, not available capacity and not to be bulk-cleared. The Writer/provider
+owner must reconcile exact external effects; a registry `effect_class=none` by
+itself is insufficient because some such entrypoints send notifications.
+
+Remaining A15 actions, in order; each checkbox is one observable action:
+
+- [x] **A15-01 — verify the rebased shared plist repair.** Run
+  `python3 -m pytest -q runtime/loop/tests/test_lm_loop_apply.py` and
+  `git diff --check` on branch `fix/lm-a15-plist-recovery-plan-20260917`.
+  Files: `runtime/loop/lm_loop_apply.py` and
+  `runtime/loop/tests/test_lm_loop_apply.py`. The pre-rebase run passed 91 tests
+  and 30 subtests. Post-rebase verification on `58a1cdb5e7`: 91 tests and
+  30 subtests passed; `git diff --check` passed. The source-boundary check
+  confirmed the dedicated Life Manager worktree and canonical origin.
+- [x] **A15-02 — integrate that exact shared repair.** PR #5362 at
+  `0c94b0f7d4` passed all CI checks and merged as `aa0f37fc8c46`.
+  No Writer provider code, account, browser profile, or private state is changed.
+- [x] **A15-03 — read back one main-derived immutable release.** Reuse a
+  complete current release if it already contains the merged SHA; otherwise
+  cut once with `bin/cut-loop-release.sh origin/main`. Verify
+  `RELEASE.json.sha` is an `origin/main` ancestor and `release_paths=ALL`.
+  Do not race another cut lock. Release
+  `20260917T204207-aa0f37fc` has SHA `aa0f37fc8c46`,
+  `provenance=ancestor-of-origin-main`, and `release_paths=ALL`; Git confirms
+  that SHA is an `origin/main` ancestor.
+- [x] **A15-04 — sync only the loaded-idle release-reconciler.** Use existing
+  `bin/lm-loop reconcile deterministic --loaded-idle-only --max-owners 1
+  --loop-id life-manager-release-reconciler`; read loaded argv and SHA. Wait for
+  an active PID's terminal instead of stopping it. `launchctl-safe preflight`
+  passed for Aqua/UID 501. Targeted reconcile returned one applied label and
+  no failure (`install_event_id=dbff5baf1ce53b7caa53bee2`); loaded argv
+  names `20260917T204207-aa0f37fc`. The preceding old-SHA terminal was fail.
+- [x] **A15-05 — read the next natural reconciler terminal.** Run
+  `18d61918b61058e8-67760` on loaded SHA `aa0f37fc8c46` reached outer
+  `pass` at 2026-09-17T11:54:06Z with `blocker=null`; status readback showed
+  the same installed/event SHA and `loaded-idle`.
+- [x] **A15-06 — read the repaired installed plist.** `writer-report.plist`
+  must parse as XML and its installed/loaded argv must name a main-derived
+  immutable release. This is a shared config repair, not permission to send a
+  Writer report or clear its effect fence. The first targeted reconcile on
+  `c16f437b` returned `eligible=0`: malformed JSON gave
+  `installed_release_sha=null`, so candidate filtering bypassed the merged
+  recovery function. The follow-up candidate fix and pre-swap rollback from
+  the old immutable release passed 95 tests and 30 subtests locally, including
+  a failed Writer swap with a minimal JSON snapshot. PR #5367 passed all CI
+  checks and merged as `f1f5bcb91d`. The targeted loaded-idle reconcile
+  installed XML (`plutil -lint: OK`, install event
+  `4cb761c203938bf18fdf0660`) with installed and loaded argv at complete
+  main release `20260917T211820-f1f5bcb9`; `effect_unknown` remains fenced.
+- [x] **A15-07 — prove an agent-class handoff.** From the private admission
+  SQLite and `bin/lm-loop status`, join one natural agent owner claim, outer
+  terminal, release and a *different* eligible agent owner's next claim.
+  `writer-sales-measure` run `18d61b575ac2e690-73318` reached outer pass at
+  12:26:28Z and its claimed occurrence `18d61a34e26facf0-40245` is
+  `released/effect_unknown=0`. Different owner `pm-decision-loop` started at
+  12:28:15Z, claimed `18d619fc6f2cbdd8-32593`, and reached outer pass at
+  12:30:16Z; that occurrence is also released/known. Both status readbacks
+  show installed/event SHA `f1f5bcb91d`.
+- [ ] **A15-08 — prove a browser-class handoff.** Join the same four events for
+  two browser owners without starting a provider submission or touching a
+  sibling profile. A no-work terminal is valid lifecycle evidence only.
+  Current registry and admission SQLite have only one browser-class owner,
+  `life-manager-connector-native`. At 13:29Z its browser-class rows were 43
+  released/known and 18 cancelled; no unknown browser row remained.
+  Reclassifying `session-vault` or `browser-state-backup` would involve sibling
+  authenticated profiles and does not satisfy this gate. No second-owner
+  browser claim is proved. An isolated, uncredentialed `about:blank` headless
+  transport probe was tested at 14:43Z without a sibling profile: bundled
+  CloakBrowser Chromium timed out at 30 seconds and system Chrome at 20
+  seconds (network-service/Mach port errors). Both own process groups were
+  terminated, temporary profiles removed, and no probe profile process
+  remained. A second isolated CloakBrowser attempt using the same
+  `--no-sandbox` family as the existing owner also timed out at 20 seconds
+  with network/GPU child exits; its process group and temporary profile were
+  cleaned. A later isolated non-headless `--no-startup-window` probe with its
+  own temporary profile and loopback CDP port 0 returned `cdp_ready` in a
+  local smoke. The candidate `life-manager-browser-capacity-probe` uses the
+  existing registry scheduler and has no provider/account effect. Its focused
+  tests passed 79 tests and 126 subtests with the registry/inventory checks;
+  the loop contract and OSS boundary also passed. This is local evidence only:
+  main integration, immutable-release apply, natural terminal and a distinct
+  `life-manager-connector-native` handoff are still required for A15-08.
+  On 2026-09-18, a complete main-derived release `e4f50c914b...` was cut
+  after the prior current release was found truncated by `ENOSPC`; its
+  `release_paths=ALL`, Python metadata, `playwright-core` and `jsqr` were
+  verified. `life-manager-browser-capacity-probe` and
+  `life-manager-connector-native` were both loaded-idle and targeted-synced to
+  that release without provider submission. The probe's first queued occurrence
+  was deferred by browser capacity, then a later occurrence ran and passed after
+  the connector occurrence released (`sequence 30568 → 30609`). A natural
+  connector terminal on the same exact release is still required, so this item
+  remains open.
+- [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
+  events for two deterministic owners on the new loaded SHA; the earlier
+  `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
+  substitute for a newer SHA. `cadence-deadline-check` run
+  `18d61b8ce8458b50-79278` reached outer pass at 12:29:58Z and released
+  occurrence `18d61afbbb440f00-63650` with unknown=0. Different owner
+  `x402-inflow-watch-franklin1` started at 12:30:14Z, claimed occurrence
+  `18d616ec6eb86108-89072`, and reached pass at 12:30:22Z; it too is
+  released/known. Both loaded/event SHAs are `f1f5bcb91d`.
+- [x] **A15-10 — read an active owner's heartbeat.** Its PID/start identity
+  and `heartbeat_at` must agree with a live claim within the configured
+  300-second timeout; do not reclaim a progressing owner from age alone.
+  At 12:35:12Z, live claim `x402-inflow-watch-claude-p` PID 90983 had matching
+  process-start identity and heartbeat age 1.8 seconds against timeout 300;
+  `job-search-daily` PID 88394 also matched at age 12.1 seconds.
+- [x] **A15-11 — read RAM headroom.** Check measured free percentage against
+  `LIFE_MANAGER_MIN_MEMORY_FREE_PERCENT` from the exact loaded job; no assumed
+  eight-slot safety or extra slot is a PASS. `pm-live-trade` loaded argv names
+  release `f1f5bcb9`, with no threshold override; that release's
+  `memory_admission.py` defaults to 15%. `memory_pressure -Q` measured 31% free.
+- [x] **A15-12 — read disk/cleanup headroom.** Check free bytes, the latest
+  `life-manager-disk-cleanup` natural terminal, errors and protected deletions.
+  If admission can still start a child into reproducible `ENOSPC`, fix the
+  shared preflight in `runtime/host/disk_admission.py` and its focused test;
+  never delete protected state to make this green. Latest natural cleanup run
+  `18d61b66c2f65eb8-75721` on main-derived `86fa863d` reached outer pass at
+  12:29:46Z; its matching stdout receipt has release-GC, host and scratch
+  errors 0, protected deletions 0, free bytes 1,955,004,416 before and
+  2,206,543,872 after. Later `df -Pk` measured 3,235,340 KiB free. The
+  earlier local unittest `ENOSPC` bypassed host admission and is not proof of
+  an admitted child failure; the loaded release defaults to a 512 MiB disk
+  producer floor, and focused `test_disk_admission.py` passed 8 tests.
+- [x] **A15-13 — read queue safety.** Measure only eligible waiting owners for
+  starvation; count `effect_unknown=1` separately and verify it remains
+  fenced. `resource_control_busy` must recover on a later natural wake rather
+  than becoming a permanent owner lock. Read-only SQLite using the runtime's
+  eligibility query at 12:35:52Z counted agent 8, browser 0, deterministic 9
+  eligible waiting owners; oldest waits were 2.8 and 4.5 minutes for agent and
+  deterministic. Unknown occurrences were separately agent 53 owners, browser
+  1 owner/5 rows, deterministic 34 owners. At 12:36:32Z eligible counts were
+  agent 8, browser 0, deterministic 10; the oldest deterministic candidate
+  changed owner. At 12:39:50Z the same eligibility query counted agent 9
+  (oldest 6.8 minutes), browser 0, deterministic 10 (oldest 5.8 minutes).
+  No eligible owner had reached the configured 2-hour support age, and the
+  separate A15-07/09 receipts prove different owners did advance. Unknown
+  occurrences remained separate (agent 52 owners, browser 1/5 rows,
+  deterministic 34 owners); `_durable_capacity` counts live claims and
+  reservations, not those old rows. Capafy hourly, IG account, IG marketing,
+  healthcheck and outcome owners retain exact effect-unknown fences.
+  Historical `resource_control_busy` at
+  `x402-inflow-watch` run `18d6188f810e41c0-43797` recovered to a later
+  natural pass `18d618b1235b1a90-48212`. This is a finite queue check,
+  not a claim that every effect-fenced provider loop works.
+- [ ] **A15-14 — record the A15 verdict.** Mark Foundation Done only when
+  A15-03 through A15-13 pass. Record main/release/loaded SHA, exact run IDs,
+  queue-age before/after and receipt pointers here, then hand provider effect
+  and readback blockers to their owners without claiming all loops work. Also
+  require the sparse-current fence above on main with a complete current
+  release and a follow-up natural reconciler terminal; subsequent old-SHA
+  runs `18d61b8087f758e8-78178` and `18d61bdd46062100-91865` failed when
+  parallel cuts advanced `current` mid-reconcile. That fence is now merged as
+  `deb086429a1a`, loaded via install event `052ad42894863fede5aec9f8`;
+  natural run `18d61e16f28b15d0-75320` reached outer pass at 13:22:55Z on
+  loaded SHA `deb086429a1a`. At 13:24Z global `current` was another complete
+  main-derived SHA `8e19948de6c`, `lm-loop doctor` was ok with 165 entries and
+  missing/unmanaged/retired 0. Eligible queue was agent 16 (oldest 5.0 min),
+  browser 0, deterministic 13 (oldest 14.8 min); unknown owners were agent 45,
+  browser 0, deterministic 31. Disk-cleanup's latest natural pass at 13:21:04Z
+  on `deb086429a1a` had host/release/scratch errors 0 and protected deletions
+  0; free bytes rose 638,849,024 to 1,236,148,224. A second natural run
+  `18d61e7fd253a1d8-92885` reached outer pass at 13:30:01Z on loaded SHA
+  `deb086429a1a` while global `current` had advanced to complete main release
+  `f4d701999f1`. **Verdict remains NOT
+  DONE:** A15-08 has no second eligible browser-class owner/claim. Provider
+  effect readbacks, including three remaining Capafy owner fences, remain with
+  their separate owners.
+
+A15-02 integration observation: an earlier PR #5362 head at `eb72e7cb1b` had
+one failing `OSS self-contained boundary` check. The exact inventory digest
+for 184 tracked `skills/_shared` files and the existing fixed fingerprint for
+the unchanged `skills/earn/gig/TODO.md` were refreshed without editing those
+owner files. The verifier and all CI checks passed at `0c94b0f7d4` before
+merge. During the broader local unittest
+run, disk free space fell to about 176 MiB, causing temporary-file `ENOSPC`
+errors; the focused A15-01 test and CI loop contracts passed. `lm-loop status`
+also could not create a temporary file at that point. Free space later rose
+to 1.4 GiB, but cleanup's latest status is outer `fail`/
+`entrypoint_exit_1` at release `393f17458a4e`; a prior pass is recorded at
+2026-09-17T11:31:01Z. The cause of the later free-space rise was unverified
+at that snapshot; the later A15-12 natural cleanup receipt supersedes this
+historical failure observation.
+
 ## Current foundation correction — fleet first, provider effects second
 
-**The foundation is partially repaired, not Done.** Main `20c6067c3d` contains
-the focused admission, occurrence, recovery, priority, dispatch and managed-Node
-changes. A main-derived immutable release is current; representative agent,
-browser and deterministic owners have reached outer terminals. This does not
-close fleet liveness: about 100 durable rows remain queued, the oldest support
-rows have waited over ten hours, and the release-reconciler's first new-SHA
-terminal is still unproved. The active engineering cursor is A15d/A15, not a
-candidate-branch merge.
+**The foundation is partially repaired, not Done.** The active A15 checklist
+above supersedes this section's older production snapshot; historical queue
+totals below include effect-fenced rows and are not an eligible-wait measure.
 
 Foundation Done means **all three** of these hold, without inventing another
 scheduler or raising the finite RAM ceiling by guess:
 
-1. Under five occupied finite claims and memory/disk pressure, durable work
+1. Under the measured finite capacity (currently eight total slots) and memory/disk pressure, durable work
    remains queued; release, timeout, owner death and recovery admit the next
    eligible **agent, browser and deterministic** owner automatically. Paid
    priority cannot starve an aged non-Paid owner; no orphan claim silently
@@ -48,7 +247,9 @@ transition, not continuous Luma eligibility or fleet-wide no-starvation.
 
 This file is the architecture/specification SSOT:
 `docs/superpowers/specs/2026-09-15-life-manager-agent-architecture-refinement.md`
-in `/private/tmp/lm-agent-engineering-skills-20260915`. The marketplace execution
+in the canonical Life Manager repository. The former
+`/private/tmp/lm-agent-engineering-skills-20260915` worktree no longer exists.
+The marketplace execution
 checklist remains `skills/earn/gig/TODO.md` in its active owner worktree until an
 owner-safe main integration establishes one repository copy; these are not two
 independent Life Manager programs. This spec owns the *cross-domain order and gates*;
@@ -63,8 +264,8 @@ Cloud/phone-only, and prove attributable revenue. “24/7” means continuous du
 eligibility, bounded queue wait, owner-scoped recovery, and verified provider effects;
 it does not mean one immortal process or unlimited simultaneous Codex/Chrome runs.
 
-**Integration snapshot:** the old foundation candidate `3a70e98867` remains
-separate and clean, 87 commits ahead of and 67 behind current main `20c6067c3d`.
+**Historical integration snapshot:** the old foundation candidate `3a70e98867` was
+separate and clean, 87 commits ahead of and 67 behind then-main `20c6067c3d`.
 It changes 83 paths, including shared runtime, provider code, tests and skills;
 16 of those paths were also changed on main since its merge base. Do not merge
 the candidate wholesale. Focused runtime fixes are already integrated and
@@ -236,7 +437,7 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 |---:|---|---|
 | 1 | **Scoped overlap check — done for step 2:** compare latest main, foundation `3a70e98867`, admission source `c7ce1e9fc6` and the exact provider-owned paths below. Skip a fleet-wide audit before the first patch. | Shared runtime/registry/Connector/provider ownership is mapped below; no other owner's worktree, profile or state was edited. Recheck only changed overlaps before each integration. |
 | 2 | **Shared runtime source integrated; live gate open:** focused main changes cover durable queue, claim→child identity, release→next claim, priority/aging, owner recovery and uncertain-effect handling. Do not tune the slot count to hide liveness failure. The old candidate branch is not the production source. | Focused source checks passed and representative owners ran from main releases; step 3 must still prove no persistent queue starvation across mixed owners. |
-| 3 | **Current cursor — prove the foundation in production:** main `20c6067c3d` and its immutable release exist. A15d2 passed for the release-reconciler. Finish A15: bounded queue-age/recovery evidence with no starvation; retain unknown-effect fences for effect-bearing lanes. | Exact loaded argv/SHA and automatic transitions exist for representative agent/browser/deterministic owners, but the prior 100 queued rows and oldest wait of about 666 minutes do not establish a fleet Done claim. Re-measure current queue age; do not advance on a pass from one owner. |
+| 3 | **Current cursor — A15 only.** Execute the atomic A15 items at the top of this spec without changing the provider order. Fair owner handoff and main-only `current` are already merged; identity-matched malformed-plist recovery and its production acceptance remain. | Same main-derived release, exact loaded argv, natural outer terminal and bounded agent/browser/deterministic handoff with live heartbeat/headroom; fenced effects remain fenced. Historical total queue age is not the eligible-wait measure. |
 | 4 | **Connector provider repair active; historical E2E is the baseline only:** Connpass `405705` has official registered-page receipt → Google Calendar ID `0c706h76f6ceoh99cdaug31cd4` → one automatic replay-zero. The newer `203bbe8854` natural wake reached the provider and attempted Connpass, but three questionnaire attempts failed; Luma had free/open 3 and Calendar-free 0. The old successful event cannot close the post-fix goal. | A *new* eligible event after the repair has official registration ID → Google Calendar event exact 1 → two subsequent natural wakes with repeat Submit 0 and Calendar duplicate 0. Luma no-work is truthful only when live discovery and Calendar conflicts show no eligible candidate. |
 | 5 | Coconala Apply, Reply, Paid, Storefront as separate lanes: current eligible screening-answer submit; 15 pending replies; per-client funded work, attachments and payout; official listing state; reconcile old 54 uncertain intents only as preemptible background work. | Each applicable lane has current same-SHA terminal, exact official effect/readback or truthful wait/no-work, and replay-zero; no account/browser interference. |
 | 6 | CrowdWorks: complete the three existing paid contracts first, then restore inventory, Reply and Apply continuity; Lancers: browser/auth, Apply→Reply→Paid→payout and supported Storefront; Mercor: persistent auth, Apply→Reply→human handoff→Paid→payout. | Each provider's actual effect/readback and per-client terminal, not generic exit 0. Unsupported Storefront is proven not-applicable. |
@@ -250,20 +451,24 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 
 ### Connector active goal and remaining TODO
 
-**Goal / Done:** The installed, main-derived Connector applies to a *new* suitable Luma or Connpass event after the current repair. The provider's official registered/pending record and registration identity, a Google Calendar event with matching canonical URL and private idempotency property at exact count 1, and Telegram/bundle receipts must agree. The following **two natural scheduled wakes on the same loaded SHA** must show no repeated application and no extra Calendar event. If no suitable event exists, record provider inventory, Calendar conflicts, and no-work honestly; that does not substitute for the new-registration gate. Keep the goal active until both the new effect and replay checks pass. “24/7” means the existing owner keeps waking and recovering without a manual kickstart, not an application on every wake.
+**Goal / Done:** **DONE.** Main-derived release `393f17458a4e6a62e01ae46215ab32ba5f02ea83` applied only to `life-manager-connector-native`. Connpass event `405297` (`【秋葉原】AIエンジニアの集いLT＆交流会`) reached official `registered`; provider receipt `f1bbe06389aff318ebb40c02e9e91b6af6be261e012629e126795dcb7f157273`; Calendar ID `hkpcm5qds9fhk6khorr2kfqnro`; independent Google Calendar API filtered by the Connector private property returned exact count 1 with canonical URL `https://mecha-mote-se.connpass.com/event/405297/`; Telegram receipts `86619` and `86620`; durable bundle `e8c393f6cd21636df0057ce49e82bd44257c9d128870dd8054585ff6a1c6b869`. The same loaded SHA then completed natural wakes `wake-953036ad8babec6ae03109f1` and `wake-96cc924ba6c56c1562a25308`; both continued to other candidates, submitted `405297` zero additional times, and preserved Calendar exact count 1. Official page readback returned `registered`. The owner remains on the existing 30-minute interval; this proves repeatable continuation, not an application on every wake.
 
 **A15 dependency decision:** A15 remains the separate fleet fairness/recovery gate. It does **not** block Connector-specific diagnosis or source repair: the `203bbe8854` natural Connector run `18d6089253cdbf18-32608` acquired a browser slot, reached Connpass, and ended `completed_no_effect / provider_discovery_failed` at 2026-09-17 06:47 UTC. Its three Connpass direct attempts failed with `connpass_questionnaire_required`, each followed by `unsafe_agent_action`; Luma found 3 free/open events but Calendar-free 0. Do not alter A15's PID, admission DB, spec branch state outside this Connector section, or another browser/profile. A main-derived Connector release can be applied to the one loaded-idle Connector label after that run's terminal, without a fleet restart.
 
-1. **CN-C01 — Question boundary:** Complete the existing Connector-only PR #5321 for newly worded factual Connpass radio questions. The agent may map to a saved private fact key; the parent checks the exact saved value against the offered option. New consent, promises, or missing personal facts are never invented. If a real form requires an unavailable answer, surface the exact event/question once to Dais, save his answer in the private profile, and resume without duplicate Submit. Current 181/181 focused tests and CI 10/10 are code evidence, not a provider effect.
-2. **CN-C02 — Main and release:** Merge only the reviewed Connector paths into current main, cut a complete immutable main-derived release, and apply only `life-manager-connector-native` when it is idle. Read back loaded argv, SHA, browser target ownership and current registration/Calendar state. Do not reload any A15 or sibling owner.
-3. **CN-C03 — Real Connpass acceptance:** Run the exact Connector owner once. For an eligible event, require official registered/pending readback, Calendar event ID and independent exact-one Calendar API readback, Telegram IDs and durable bundle. If the provider still blocks, record the exact event and first question/tier boundary; do not count the old event `405705` or mock success. Reconcile any uncertain prior submission before retrying it.
-4. **CN-C04 — Luma acceptance:** Continue the existing 28-day Luma rotation on each wake. The latest run's `free_open=3 / calendar_free=0` is an inventory conflict, not proof of a broken Luma submit path. When a suitable Calendar-free event appears, require the same official registration→Calendar→bundle chain. Until then, report the exact no-work reason without fabricating an application.
-5. **CN-C05 — Repeatability:** On the same loaded repair SHA, inspect the next two natural wakes for duplicate Submit 0, Calendar exact 1 on the registered event, candidate continuation, terminal receipt, and owned browser/lock cleanup. Three isolated kickstarts or exit-0 results do not pass this gate. Keep the 30-minute configured interval for now; move to a fixed one-hour offset only if measured resource collision requires it. A three-hour default delays opportunities and does not solve questionnaires.
-6. **CN-C06 — Close and hand off:** Update this spec with event IDs, SHA, wake IDs and official readbacks; then mark Connector Done and advance to Coconala's four independent lanes. If no new eligible event exists after the observed wakes, keep Connector open with truthful no-work evidence and continue the scheduled search.
+1. **CN-C01 — Flexible questionnaire:** **DONE.** The existing Connector agent runner now chooses answers for unknown required Connpass input, textarea, select, radio and checkbox controls; the parent validates exact DOM controls/options and still requires official provider readback. Known profile values win when they match offered options; otherwise the agent supplies the answer and the same single-submit fence applies. Focused Browser Harness tests: 186/186.
+2. **CN-C02 — Main and release:** **DONE.** PR #5358 merged to main at `393f17458a4e6a62e01ae46215ab32ba5f02ea83`; immutable release `/Users/anicca/loops/releases/20260917T200804-393f1745` was loaded only by `life-manager-connector-native` while idle. Loaded argv, installed SHA, event SHA and terminal all match.
+3. **CN-C03 — Real Connpass acceptance:** **DONE.** New event `405297` has official `registered`, provider receipt, Calendar ID, independent exact-one API readback, Telegram IDs and durable applied bundle. Historical `405705` remains baseline only.
+4. **CN-C04 — Luma acceptance:** **DONE as truthful no-work for this gate.** Latest observed wake `wake-96cc924ba6c56c1562a25308` recorded `free_open=2 / calendar_free=0`; earlier wake recorded `free_open=3 / calendar_free=0`. This is a Calendar inventory conflict, not evidence of a broken Luma submit path. Continue the existing 28-day rotation; submit only when `calendar_free>0` and require the same provider→Calendar→bundle chain.
+5. **CN-C05 — Repeatability:** **DONE.** Natural wakes `wake-953036ad8babec6ae03109f1` and `wake-96cc924ba6c56c1562a25308` used the same loaded SHA, left `405297` at repeat Submit 0, kept Calendar exact 1, continued to other candidates, and released browser ownership cleanly. The configured interval remains 1800 seconds.
+6. **CN-C06 — Close and hand off:** **DONE.** Connector is closed and the next ordered work is Coconala Apply, Reply, Paid and Storefront. No TODO order was changed.
 
 #### Connector execution plan — follow CN-C01 through CN-C06 in order
 
-This plan implements step 4 above in the existing `life-manager-connector-native` owner. It changes no A15 file or state. The code owner uses `/Users/anicca/Projects/life-manager-connector-coconala-20260917`; the spec owner uses this file. Each checkbox is a separate evidence gate. A cheaper executor may follow the commands and acceptance text literally; it must stop an unsafe external action, not weaken a check to obtain a green result. **Dais resumed implementation. PRs #5321 and #5326 are merged and the main-derived `5a1117e6` release is now loaded. Do not repeat their merge, release apply, or the queued occurrence's kickstart. Current cursor: wait for that occurrence or a natural Connector wake to reach the provider, then resume CN-C03.**
+This plan implements step 4 above in the existing `life-manager-connector-native` owner. It changes no A15 file or state. The code owner uses `/Users/anicca/Projects/life-manager-connector-coconala-20260917`; the spec owner uses this file. Each checkbox is a separate evidence gate. The Connector gates are now closed by the evidence recorded above; the next cursor is Coconala's four independent lanes. A cheaper executor must preserve the official provider/Calendar readbacks and must not reopen a completed Connector effect by resubmitting the same event.
+
+**Connector closeout evidence:** PR #5358 merged at main `393f17458a4e6a62e01ae46215ab32ba5f02ea83`; release `/Users/anicca/loops/releases/20260917T200804-393f1745`; install event `30c40604e7fda6150959fe6d`; first canary run `18d61735ef61a7f8-5127` / wake `wake-74a1baca18a06583aa745c1f`; natural wakes `wake-953036ad8babec6ae03109f1` and `wake-96cc924ba6c56c1562a25308`. New Connpass event `405297` is officially registered, Calendar exact-one ID is `hkpcm5qds9fhk6khorr2kfqnro`, the provider receipt is `f1bbe06389aff318ebb40c02e9e91b6af6be261e012629e126795dcb7f157273`, Telegram IDs are `86619` and `86620`, and the durable bundle is `e8c393f6cd21636df0057ce49e82bd44257c9d128870dd8054585ff6a1c6b869`. Luma remains truthful no-work on the observed wakes (`free_open=2–3`, `calendar_free=0`).
+
+**Cross-loop read-only snapshot (2026-09-17):** Fundraiser has one recent `submitted_verified` Startuped AI receipt (`20260917T020858Z-31007`) but its current owner is blocked at `host_admission_deferred:resource_effect_unknown`; its latest natural run (`20260917T070943Z-72638`) deferred before provider work because disk headroom was `970980 KiB` against a `2097152 KiB` requirement. Job Hunter daily is loaded on `6c7d2062` with a 30-minute interval, but its latest Workday row (Danaher, Business Account Manager) is `transport_failed`, queued for same-row resume. The first boundary is `apps/job-search-loop/job_search_loop/browser_agent/runtime.py::_act_locked`: after a successful navigate, `wait` observes `about:blank`/non-HTTPS and raises `post-action browser context no longer exposes an absolute HTTPS page`; no application receipt was produced. Job Hunter inbox is exit `75` capacity-deferred and learning is exit `78` configuration/release-drift. These are separate TODOs and do not change Connector's closed gate or the TODO order.
 
 **Starting evidence at plan creation:** PR #5321 was unmerged; its branch `codex/connector-coconala-20260917` held the Connpass semantic-radio change. Its earlier head passed CI 10/10, and focused Browser Harness 181/181 passed. The installed Connector label loaded `203bbe8854` with `StartInterval=1800`; its natural run `18d6089253cdbf18-32608` got a browser slot, reached Connpass, and completed with new effect 0. Three direct submissions stopped at `connpass_questionnaire_required`; their fallback stopped at `unsafe_agent_action`. Luma observed free/open 3 and Calendar-free 0. These facts can drift; read live state again before any mutation. Event `405705` and Calendar ID `0c706h76f6ceoh99cdaug31cd4` are historical baseline, never the new-effect pass.
 
@@ -291,39 +496,51 @@ This plan implements step 4 above in the existing `life-manager-connector-native
 
 **Subsequent wake after the fence:** A later natural wake loaded release `/Users/anicca/loops/releases/20260917T183447-93cb7459`; run `35143` / wake `wake-80240da29ae6a0a4568b40a0` reached Connpass and reused the two existing questionnaire receipts without sending duplicates. It ended `completed_no_effect / fallback_deferred_for_wake_budget` with exit 0, and its own occurrence `18d612b8d7cd8a48-35143` is `released/effect_unknown=0`. No new official registration, Calendar event or bundle exists. The older occurrence `18d6108262033890-67081` remains separately fenced at `effect_unknown=1`; do not treat the clean later release as clearing that fence or as Connector completion.
 
-##### CN-C01: Prove the question fix is safe and complete (historical checklist; merged)
+##### CN-C01: Prove the question fix is safe and complete (closed; historical checklist)
+
+- [x] Current closeout: unknown required controls are answered by the existing agent runner; parent validation and official provider readback remain mandatory. Focused Browser Harness: 186/186.
 
 - [ ] In the Connector worktree, fetch `origin/main`; read `git status --short --branch`, `git diff origin/main...HEAD --name-only`, and PR #5321. Expect only `apps/life-manager/lib/connector-production-browser-harness.js`, its test, and the Connector-specific progress spec. If another owner changed either code file on main, compare exact functions before integration rather than overwriting.
 - [ ] Read `createPrivateValueResolver`, `createBoundedPrivateFactSelector`, `createBoundedActionProposer` and `runFallback` in `connector-production-browser-harness.js`, plus `planConnpassQuestionnaire` and `readConnpassRegistrationStateOnPage` in `connpass-browser-provider.js`. Preserve the existing `registered/pending` official readback and single-submit fence. The model may select a saved factual key; the parent must match its private value to exactly one offered option. Mixed questions, generic yes/no, consent and commitments must not be approved from a different stored answer.
 - [ ] Run `rtk proxy node --test apps/life-manager/lib/connector-production-browser-harness.test.js` and `rtk proxy git diff --check`; read exit codes and the test count. The focused file must pass all 181 tests. Read-only review already found and closed the wrong-`はい`, wrong-`Connpass`, and mixed-question consent paths; if the source changes, rerun those negative tests before merge.
 - [ ] On an actual future `questionnaire_required` after this patch is loaded, inspect the exact Connector-owned event/question without disturbing another profile. If the private profile lacks the answer, surface one bounded question/answer receipt through the existing `connector-connpass-action-telegram.js` transport, keyed by event identity plus question. Keep that candidate pending while other eligible events proceed. Dais or the authorized identity owner stores his explicit answer in the existing private form profile read by `luma-form-profile.js`; Connector never writes a guessed value or creates a second Telegram consumer. A focused test in `connector-production-browser-harness.test.js` and `connector-minimal-runner.test.js` must prove no Submit before the explicit answer, one resumed Submit after it, and no repeated question on replay. Do this only when the live question demonstrates the gap; the semantic patch alone does not satisfy this substep.
 
-##### CN-C02: Integrate one Connector source and install one release (historical checklist; loaded)
+##### CN-C02: Integrate one Connector source and install one release (closed; historical checklist)
+
+- [x] Current closeout: PR #5358 merged at `393f17458a4e`; release `20260917T200804-393f1745` is loaded only by Connector with idle readback.
 
 - [ ] Check `gh pr checks 5321` after any branch update. Once all required Connector and safety jobs pass, merge with `gh pr merge 5321 --admin --merge`; the one exact unrelated Capafy base failure is recorded above as a scoped exception, not a green CI claim. Record the merge SHA and verify `origin/main` contains the two changed Connector code paths. Do not merge the other A15 worktree or a broad candidate branch.
 - [ ] Confirm the Connector label is idle with `rtk proxy bin/launchctl-safe preflight` and `rtk proxy bin/launchctl-safe print gui/$(id -u)/ai.anicca.life-manager-connector-native`. If active, wait for that exact run's terminal; do not stop it to speed the test.
 - [ ] Cut a complete immutable release from `origin/main` using `rtk proxy env LOOPS_ACTIVATE_CURRENT=0 bash bin/cut-loop-release.sh origin/main`. Resolve the printed release path and inspect its `RELEASE.json`: full 40-character SHA equals `origin/main`, `release_paths=ALL`, and Connector runtime imports (`connector-minimal-production.js`, `connector-production-browser-harness.js`, `playwright-core`) load through the release's Node. Leave global `~/loops/current` unchanged.
 - [ ] With `LIFE_MANAGER_RELEASE_ROOT` set to that exact release and `LIFE_MANAGER_APPLY_TARGET=life-manager-connector-native`, run that release's `bin/lm-loop apply`. Read back loaded `ProgramArguments`, SHA, one exact label, installed event, and idle state. Stop if preflight, release completeness, apply lock, or ownership fails; do not reload siblings.
 
-##### CN-C03: Run and verify a new Connpass effect
+##### CN-C03: Run and verify a new Connpass effect (closed)
+
+- [x] Current closeout: event `405297` official `registered`, provider receipt `f1bbe06389aff318ebb40c02e9e91b6af6be261e012629e126795dcb7f157273`, Calendar ID `hkpcm5qds9fhk6khorr2kfqnro`, independent exact count 1, Telegram `86619`/`86620`, bundle `e8c393f6cd21636df0057ce49e82bd44257c9d128870dd8054585ff6a1c6b869`.
 
 - [ ] Reconcile any existing uncertain submission for the selected event using the official Connpass registration page **before** another Submit. The old event `405705` is not a new effect. Inspect the Connector browser lease and target owner; if another account/browser operation owns the resource, wait for its terminal.
 - [ ] For the current `7b31ba69` release, first follow queued occurrence `18d60bfbd59c1640-45268` and subsequent natural wakes to a terminal and provider readback. Do not kickstart that queued occurrence again. If admission continues to defer it across two scheduled 30-minute cadences despite capacity turnover, report the exact shared admission evidence to A15's owner. A future bounded canary is only considered after the queued occurrence resolves and its official provider state is reconciled.
 - [ ] If a suitable candidate is submitted, require the exact official Connpass `registered` or `pending` result from `readConnpassRegistrationStateOnPage`, its event identity, the corresponding Google Calendar event ID, and an independent authenticated Calendar API readback using the existing `transport/calendar-gog.js` path. The readback must have the canonical URL, matching `lm_connector_event` private property and exact count 1. Check Telegram message/photo provider IDs and one durable `applied_bundle` for the same event. A button click, exit 0, agent PASS or a local bundle alone fails this gate.
 - [ ] If no new effect, inspect `connector-native/action-history.jsonl`, the matching `wake-reports.jsonl`, Connpass discovery audit and exact provider page to name the first candidate-specific failure. A `tier_unavailable` or unanswered question is not `capacity_busy`. Write one failing regression from that real question/control before changing its provider adapter. Do not count a candidate list of 21 as 21 valid free attendance tiers.
 
-##### CN-C04: Distinguish Luma no-work from a broken submit path
+##### CN-C04: Distinguish Luma no-work from a broken submit path (closed for current gate)
+
+- [x] Current closeout: latest Luma audit is `free_open=2 / calendar_free=0`; this is Calendar conflict no-work, not a Luma submit failure.
 
 - [ ] For the same run, read `luma-discovery-audits.jsonl` and the current Google Calendar busy inventory. `free_open>0, calendar_free=0` means observed inventory conflict; report no-work and continue the next scheduled search. It neither proves a Luma submit bug nor proves Luma submit success.
 - [ ] When `calendar_free>0`, inspect the exact Luma event detail, apply with the existing `connector-luma-workflow.js` / `luma-browser-provider.js` path, and require provider registered/pending readback → Calendar exact 1 → Telegram IDs → bundle. If this path fails, capture its first provider-specific boundary and write one focused red test before changing it. Do not manufacture an eligible event or clear a real Calendar conflict for testing.
 
-##### CN-C05: Prove scheduled continuation instead of one lucky registration
+##### CN-C05: Prove scheduled continuation instead of one lucky registration (closed)
+
+- [x] Current closeout: natural wakes `wake-953036ad8babec6ae03109f1` and `wake-96cc924ba6c56c1562a25308` on the same SHA produced applied bundles, did not re-submit `405297`, and preserved Calendar exact 1.
 
 - [ ] Keep the installed `StartInterval=1800` while testing; do not add a parallel scheduler. After a new verified effect, observe **two subsequent natural launches on the same loaded SHA**. For each, pair launchd `runs`/argv, the Connector runtime run ID and terminal, its wake report, official provider state and independent Calendar exact-one query. Require repeat Submit 0 for that event, duplicate Calendar 0, candidate continuation or truthful no-work, and owned browser target/lock cleanup.
 - [ ] If either wake is deferred by admission, fails before provider readback, re-submits the same event, loses its Calendar event, or leaves an owner lease, this gate fails. Diagnose that exact boundary and repair only the responsible Connector file or report a shared-admission blocker to the A15 owner. Three manual kickstarts, three exit-0 records, or the old `405705` bundle cannot pass.
 - [ ] Keep 30 minutes as the default. Only if recorded browser admission shows repeated same-minute collision should the registry/release owner shift Connector to one fixed hourly offset; changing to three hours without evidence reduces chances to meet people and does not fix a questionnaire.
 
-##### CN-C06: Close with receipts, then advance
+##### CN-C06: Close with receipts, then advance (closed)
+
+- [x] Current closeout: Connector is complete; next ordered work is Coconala Apply, Reply, Paid and Storefront.
 
 - [ ] In this spec, replace the Connector row's open state only after CN-C03 through CN-C05 pass. Record the new event URL/ID, official status, Calendar ID and exact-one query, Telegram IDs, bundle, release SHA and three run IDs. State any remaining provider constraints and the truthful Luma result. Commit and push the focused evidence update without editing A15's queue state.
 - [ ] Only then mark the Connector goal complete and advance to Coconala Apply, Reply, Paid and Storefront separately. If no newly eligible event is present, keep the goal and schedule active, record no-work, and continue from CN-C03 on the next natural opportunity; never convert no-work into a registration claim.
@@ -389,10 +606,11 @@ inventory rather than invented here; one selected ID is handled per item.
 - [x] A15c — Repair the existing release-reconciler's observed PATH failure before claiming fleet self-healing. Its natural `e278c0a894` run ended `entrypoint_exit_1`; its own output identified `pm-decision-loop: managed node executable is unavailable`. The launchd PATH omits Homebrew while `/opt/homebrew/bin/node` exists and is already installed in the PM plist. Candidate `342e0f9b7a` uses one shared fallback for three existing Node-managed labels; red fixture, 87 apply tests + 30 subtests, and minimal-PATH host smoke PASS. This is code evidence only.
 - [x] A15d1 — PR #5317 passed all eight CI jobs and merged at main `20c6067c3d`; full immutable/current release `20260917T132328-20c6067c` was import-smoked under minimal launchd PATH and resolved `/opt/homebrew/bin/node`. The release-reconciler label still loads predecessor `e278c0a894`, so a production fix is not yet proved.
 - [x] A15d2 — Synced only the loaded-idle release-reconciler label to `20c6067c3d` (install event `c95deac2b6e23a47c68426f7`). Independent launchctl readback showed exact new-release argv. Its next natural run `18d603e783e3e858-24932` started at `2026-09-17T05:16:34Z` and reached outer `pass` with blocker null at `05:18:26Z`; installed and event SHA both match `20c6067c3d`. No restart or force-merge occurred.
-- [ ] A15 — Run one bounded pressure/recovery check and confirm queue age, owner heartbeat and no fleet starvation; only then mark foundation Done. Live read-only sample at `2026-09-17T05:27Z` FAILS the age gate: 97 queued owners (76 support, 19 revenue, 2 critical_paid), oldest queue wait about 717 minutes. Five finite positions were occupied by live owners/reservations. Revenue reservations changed as slots turned over, but the single support position was held by the still-running `marketing-owner-events` run `18d602e4f0e86928-8300` (started `04:58Z`); its claim heartbeat was over 20 minutes old against a 300-second timeout. Subsequent observation showed real progress rather than a dead worker: its checkpoint sweep appended 43 `sending` claims and 43 `delivered` Telegram receipts in about 50 seconds while the oldest support queue wait grew past 726 minutes. This is a throughput/slot-occupancy problem as well as a stale-heartbeat problem; do not terminate an in-flight send or infer duplicate delivery from the append-only rows. Next observe this exact run's outer terminal and whether its release reserves/starts the oldest eligible support owner, then bound the long support sweep through its existing durable delivery fence. A15 and Foundation remain NOT DONE.
+- [ ] A15 — Current atomic cursor and remaining acceptance checks are at the top of this spec. The older `2026-09-17T05:27Z` sample (97 queued owners; oldest about 717 minutes) is historical and mixed effect-fenced rows with runnable work. The later main-derived owner-turn fix has live deterministic handoff evidence, but the shared malformed-plist recovery and final same-SHA fleet check remain; Foundation is not yet Done.
 - [x] CN03 — Observe one eligible Connector automatic wake through an official registration ID. On run `18d5fce89d880ad8-6986`, Connpass event `405705` reached `provider_status=registered`; provider receipt `cbff78d53a91288bf4268554b9ba6f615007047cd482b1b2c6bfe0d5b2e32c29` retains a screenshot of the official page with the cancellation control visible. This was release-driven, not manually kickstarted.
 - [x] CN04 — Read back the matching Google Calendar event ID for that registration. Independent Google Calendar API `read_event` returned ID `0c706h76f6ceoh99cdaug31cd4`, the matching Connpass `405705` URL in its description and the event's exact scheduled time.
 - [x] CN05 — Observe the next Connector wake and prove the same event was not registered or calendared twice. Automatic run `18d5fd14c75486f8-9227` ended outer `pass`; its inner report `wake-26e8babbb69e3e9352ab2bbc` was `completed_no_effect`, the applied-bundle store contains one record for event `405705`, and bounded Google Calendar search returned exactly the same one event ID. This is one-next-wake replay-zero, not a 24-hour availability claim.
+- [x] CN06 — Close the repaired Connector gate with new event `405297`, release `393f1745`, official registered readback, Calendar exact-one ID `hkpcm5qds9fhk6khorr2kfqnro`, Telegram IDs `86619`/`86620`, bundle `e8c393f6cd21636df0057ce49e82bd44257c9d128870dd8054585ff6a1c6b869`, and two same-SHA natural replay-zero wakes `wake-953036ad8babec6ae03109f1` / `wake-96cc924ba6c56c1562a25308`. Historical `405705` remains separate baseline evidence.
 - [ ] CO01 — Verify the single owned Coconala browser profile/session is authenticated without changing another lane's tabs.
 - [ ] CO02 — Submit one new eligible Coconala Apply item with screening answer and official applied-record readback.
 - [ ] CO03 — Prove that same Apply item replays zero on the next natural wake.
@@ -903,6 +1121,15 @@ R2の初回実測（2026-09-16）は、267行の実機statusから生成したpr
 browser/readback未確認などの既知診断が残っているため、R3へ進まず、既存のreconcile/各owner修復で
 これらを解消してからR2を再実行する。
 
+**R2 current recheck (2026-09-18, read-only):** main-derived release
+`d29621be5159bad22d876ff2a88404ddb1cf268f`で`lm-loop status all --json`を実測し、267行から
+private manifest `manifest-local-current-20260918T000000Z.json`を生成した。Local gateは
+`BLOCK / blocked_product_loop`で、14/14 Product Loopが`runtime_release_drift`だった。
+外部provider effectは実行していない。release-reconcilerの直近terminalは
+`entrypoint_exit_1`; private logには`No space left on device`、release-cut lock競合、
+launchctl GUI readback拒否が残る。したがってR2-02/R2-03（同一SHAへのowner同期と自然terminal）を
+先に閉じ、R2-04を再実行する。R3 Cloud配置やprovider successへは進めない。
+
 R2を実際のatomicに分けると、(a) `R2-01` gateを一度判定する、(b) `R2-02`既知のruntime原因を
 一ownerずつ修復する、(c) `R2-03`修復後のinstalled/event/natural terminalを確認する、(d) `R2-04`
 同じprivate manifestでgateを再実行する、の順になる。R2-02は外部effectではなく、既存reconcile・
@@ -1166,6 +1393,49 @@ calendar wake前のためeventと自然terminalは未確認である。
 | S-02 | retry budget超過をtyped repairへ一件接続 | **candidate完了** (`1f874e43e4`)。`lm-loop repair-queue <route> --recovery-intent PATH`を追加 | `escalate_repair`を自動再送せず、Git外`repair-queue.jsonl`へ同じ`event_key`を一件だけ記録。owner/job/route不一致、複数intent、壊れたqueueはfail-closed |
 | S-03 | repair完了後の同一owner再開を一件検証 | `runtime/loop/lm_loop.py`、`bin/reconcile-agent-runner-release.sh`、既存owner state/event | **candidate接続済み** (`72d9619339`)。同じjob/effect namespaceで再開し、duplicate effect 0、自然wakeとofficial readbackを実測するまで未完 |
 | S-04 | candidate→held-out/safety/cost eval→promotion/rollbackを一件閉じる | `apps/life-manager/eval/agent-contract/`、`apps/life-manager/lib/product-onboarding.js` | baseline比較、held-out、safety、cost、rollback pointerが揃い、production stateを直接変更しない |
+
+**2026-09-17 foundation slice (S-01 execution boundary):** `recovery-intent` →
+`recovery-apply-plan`の計画を、既存の`lm-loop reconcile`へ渡す
+`bin/lm-recovery-execute`を追加した。実行前にimmutable `RELEASE.json`のSHA、canonical
+`loop_id`、`provider_route`、`loaded-idle-only`、`max-owners=1`、単一commandを検査し、
+別ownerの適用・SHA不一致・結果のtarget不一致を拒否する。`hold_effect_unknown`と
+escalationは実行しない。Node 14件（intent/plan/executor）がPASSした。これはS-01の
+実行境界のコード完了であり、harness failureからintentを自動生成する配線、自然wake、
+terminal repair receipt、duplicate effect 0の実機証明は未完了なので、S-01全体は未完のままにする。
+
+**2026-09-17 foundation slice (S-01 failure input):** runtime/loop now adds a
+typed `recovery_intent` to the existing private `harness-failures.jsonl` line
+when canonical loop identity and immutable release SHA are present. Missing
+provenance deliberately produces no guessed owner. Tool timeout/logic and
+brain-transport integration tests pass; the record still does not execute a
+retry, and supervisor consumption, natural wake, terminal repair receipt and
+duplicate-effect-zero remain open.
+
+The existing release-reconciler now consumes the shared private intent queue
+through `bin/lm-recovery-supervise`, one owner per wake, with a Git-external
+claim/terminal journal. `queued` reconciliation is bounded to three attempts;
+`held`, `blocked`, and `escalated` states are terminal. The code-level
+connection is covered by supervisor tests; real natural-wake repair receipt and
+provider replay-zero remain acceptance work.
+
+**2026-09-17 foundation slice (S-04 candidate boundary):** existing
+`apps/life-manager/eval/agent-contract/gate.js` now exposes
+`decideCandidatePromotion` and `validateCandidateBoundary`, plus the
+`apps/life-manager/scripts/candidate-promotion-gate.js` CLI. A candidate may
+change only scoped skill/prompt/agent-engineering documentation paths; changes
+to identity, permissions, credentials, scheduler, provider effects, evidence
+rules, evaluator gates, runtime, or registry are blocked before promotion.
+The normal held-out/safety/cost/latency/live-evidence/rollback gate still runs,
+and both gates must pass. Contract tests pass; a real candidate baseline,
+held-out run, live evidence, promotion and rollback remain open, so S-04 is
+not marked complete.
+
+**2026-09-18 foundation slice (all-job contract):** `bin/lm-loop-contract`
+now validates all 165 registry jobs, not only the 96 jobs currently mapped to
+the 14 Product Loop catalog rows. Unmapped jobs must still have repository-
+relative entrypoints and complete owner/provider/effect/cadence/state fields.
+The contract gate remains structural only; the Local gate and official provider
+receipts are still required for runtime success.
 
 S-02では、recovery projectionに`escalate_repair`が一件だけある場合のみ、
 `~/.local/state/life-manager/recovery/repair-queue.jsonl`（mode 0600）へ

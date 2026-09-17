@@ -410,7 +410,7 @@ def test_open_codex_sparkle_installation_generation_is_preserved(tmp_path: Path)
 
 
 def test_discovery_includes_exact_regenerable_model_and_runtime_caches(tmp_path: Path) -> None:
-    for relative in (".cache/codex-runtimes", ".cache/whisper"):
+    for relative in (".cache/codex-runtimes", ".cache/whisper", "Library/Caches/org.swift.swiftpm"):
         (tmp_path / relative).mkdir(parents=True)
     governor = HostDiskGovernor(home=tmp_path, state_dir=tmp_path / "state")
 
@@ -418,6 +418,7 @@ def test_discovery_includes_exact_regenerable_model_and_runtime_caches(tmp_path:
 
     assert owners["codex-runtime-cache"] == tmp_path / ".cache/codex-runtimes"
     assert owners["whisper-model-cache"] == tmp_path / ".cache/whisper"
+    assert owners["swiftpm-cache"] == tmp_path / "Library/Caches/org.swift.swiftpm"
 
 
 def test_open_whisper_cache_is_preserved(tmp_path: Path) -> None:

@@ -144,6 +144,27 @@ def test_two_overlapping_wakes_mutate_same_effect_once(tmp_path: Path) -> None:
     assert sorted(result["effect"] for result in results) == [0, 1]
 
 
+def test_refresh_one_is_used_only_before_mutation(tmp_path: Path) -> None:
+    class RefreshingAdapter(Adapter):
+        def __init__(self):
+            super().__init__([observation("work-1")])
+            self.observation_calls = []
+
+        def observe_one(self, work_id: str) -> dict:
+            self.observation_calls.append(("observe", work_id))
+            return super().observe_one(work_id)
+
+        def refresh_one(self, work_id: str) -> dict:
+            self.observation_calls.append(("refresh", work_id))
+            return super().observe_one(work_id)
+
+    adapter = RefreshingAdapter()
+    result = paid.run_wake(adapter=adapter, decide=submit, state_root=tmp_path)
+
+    assert result["effect"] == 1
+    assert adapter.observation_calls == [("observe", "work-1"), ("refresh", "work-1")]
+
+
 def test_one_failed_decision_does_not_stop_ready_sibling(tmp_path: Path) -> None:
     adapter = Adapter([observation("bad"), observation("ready")])
 
@@ -160,7 +181,53 @@ def test_one_failed_decision_does_not_stop_ready_sibling(tmp_path: Path) -> None
     assert result["items"][0] == {
         "work_id": "bad", "status": "failed", "reason": "RuntimeError",
         "error_detail": "private detail must not enter aggregate",
-        "effect": 0, "readback": 0, "failed": 1,
+        "effect": 0, "readback": 0, "failed": 1, "pre_effect": True,
+    }
+
+
+def test_pre_effect_item_failure_is_marked_without_mutation(tmp_path: Path) -> None:
+    class ContextFailureAdapter(Adapter):
+        def context(self, work_id: str) -> dict:
+            raise RuntimeError("provider task surface unavailable")
+
+    adapter = ContextFailureAdapter([observation("blocked")])
+    result = paid.run_wake(adapter=adapter, decide=submit, state_root=tmp_path)
+
+    assert result["effect"] == 0
+    assert result["failed"] == 1
+    assert result["items"][0]["pre_effect"] is True
+    assert adapter.effects == []
+
+
+def test_cli_marks_all_pre_effect_item_failures_for_runtime_hint(tmp_path: Path, monkeypatch) -> None:
+    provider = tmp_path / "provider.py"
+    provider.write_text(f'''
+class Adapter:
+    def observe_active(self):
+        return [{observation("blocked")!r}]
+    def observe_one(self, work_id):
+        return {observation("blocked")!r}
+    def context(self, work_id):
+        raise RuntimeError("provider task surface unavailable")
+    def mutate(self, intent):
+        raise AssertionError("mutation must not start")
+    def readback(self, intent):
+        return {{"verified": False}}
+def decide(row):
+    return {{"action": "submit", "payload": {{"message": "done"}}}}
+def build(argv): return Adapter(), decide
+''', encoding="utf-8")
+    output = tmp_path / "result.json"
+    hint = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+
+    assert paid.main([
+        "--provider-adapter", str(provider), "--state-root", str(tmp_path / "state"),
+        "--output", str(output),
+    ]) == 1
+
+    assert json.loads(hint.read_text(encoding="utf-8")) == {
+        "status": "pre_effect_failure", "effect": 0,
     }
 
 
@@ -225,6 +292,32 @@ def build(argv): return Adapter(), decide
         "status": "failed", "observed": 0, "actionable": 0, "effect": 0, "readback": 0,
         "failed": 1, "pending": 0, "failed_step": "provider_inventory",
         "error_type": "RuntimeError", "items": [],
+    }
+
+
+def test_cli_marks_provider_inventory_failure_as_pre_effect_failure(tmp_path: Path, monkeypatch) -> None:
+    provider = tmp_path / "provider.py"
+    provider.write_text("""
+class Adapter:
+    def observe_active(self): raise RuntimeError("inventory unavailable")
+    def observe_one(self, work_id): raise AssertionError
+    def context(self, work_id): raise AssertionError
+    def mutate(self, intent): raise AssertionError
+    def readback(self, intent): raise AssertionError
+def decide(row): raise AssertionError
+def build(argv): return Adapter(), decide
+""", encoding="utf-8")
+    output = tmp_path / "result.json"
+    hint = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+
+    assert paid.main([
+        "--provider-adapter", str(provider), "--state-root", str(tmp_path / "state"),
+        "--output", str(output),
+    ]) == 1
+
+    assert json.loads(hint.read_text(encoding="utf-8")) == {
+        "status": "pre_effect_failure", "effect": 0,
     }
 
 

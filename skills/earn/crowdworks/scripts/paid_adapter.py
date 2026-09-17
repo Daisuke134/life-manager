@@ -68,14 +68,18 @@ class CrowdWorksPaidBrowserUnavailable(RuntimeError):
 
 def _connect_existing_cdp() -> tuple[Any, Any]:
     """Connect only; never create, repair, or close the CrowdWorks browser process."""
-    for attempt in range(2):
+    for attempt in range(4):
         runtime = sync_playwright().start()
         try:
-            return runtime, runtime.chromium.connect_over_cdp(account.CDP_URL, timeout=10_000)
+            browser = runtime.chromium.connect_over_cdp(account.CDP_URL, timeout=10_000)
+            contexts = getattr(browser, "contexts", None)
+            if contexts is not None and len(contexts) != 1:
+                raise RuntimeError("crowdworks_paid_browser_context_unavailable")
+            return runtime, browser
         except Exception:
             runtime.stop()
-            if attempt == 0:
-                time.sleep(0.25)
+            if attempt < 3:
+                time.sleep(0.5)
     raise CrowdWorksPaidBrowserUnavailable("crowdworks_paid_browser_unavailable") from None
 
 
@@ -167,6 +171,22 @@ class CrowdWorksPaidAdapter:
     def owned_context(self, value) -> None:
         self._local.owned_context = value
 
+    @property
+    def source_context(self):
+        return getattr(self._local, "source_context", None)
+
+    @source_context.setter
+    def source_context(self, value) -> None:
+        self._local.source_context = value
+
+    @property
+    def owns_context(self) -> bool:
+        return bool(getattr(self._local, "owns_context", False))
+
+    @owns_context.setter
+    def owns_context(self, value: bool) -> None:
+        self._local.owns_context = bool(value)
+
     def _open(self) -> None:
         if self.page is not None:
             return
@@ -177,19 +197,53 @@ class CrowdWorksPaidAdapter:
             self.runtime = self.browser = None
             raise RuntimeError("crowdworks_paid_browser_unavailable")
         try:
+            self.source_context = contexts[0]
             self.owned_context = self.context_factory(self.browser, contexts[0])
+            self.owns_context = self.owned_context is not contexts[0]
             if self._requires_isolation and self.owned_context is contexts[0]:
                 raise RuntimeError("crowdworks_paid_browser_state_invalid")
             self.page = self.owned_context.new_page()
             self.page.set_default_timeout(15_000)
-        except Exception:
-            if self.owned_context is not None and self.owned_context is not contexts[0]:
+        except Exception as error:
+            if (self.source_context is not None
+                    and str(error) != "crowdworks_paid_browser_state_invalid"):
+                try:
+                    if self.owns_context and self.owned_context is not None:
+                        self.owned_context.close()
+                    self.owned_context = self.source_context
+                    self.owns_context = False
+                    self.page = self.source_context.new_page()
+                    self.page.set_default_timeout(15_000)
+                    return
+                except Exception:
+                    pass
+            if self.owned_context is not None and self.owns_context:
                 try: self.owned_context.close()
                 except Exception: pass
             self.owned_context = None
             self.runtime.stop()
             self.runtime = self.browser = None
             raise
+
+    def _fallback_to_source_context(self) -> bool:
+        source = self.source_context
+        if source is None or self.owned_context is source:
+            return False
+        try:
+            if self.page is not None:
+                self.page.close()
+        except Exception:
+            pass
+        if self.owns_context and self.owned_context is not None:
+            try:
+                self.owned_context.close()
+            except Exception:
+                pass
+        self.owned_context = source
+        self.owns_context = False
+        self.page = source.new_page()
+        self.page.set_default_timeout(15_000)
+        return True
 
     @staticmethod
     def _isolated_context(browser: Any, source_context: Any) -> Any:
@@ -201,7 +255,7 @@ class CrowdWorksPaidAdapter:
     @staticmethod
     def _goto(page: Any, url: str, stage: str) -> None:
         try:
-            page.goto(url, wait_until="domcontentloaded", timeout=20_000)
+            page.goto(url, wait_until="commit", timeout=20_000)
         except PlaywrightTimeoutError:
             raise _TIMEOUTS[stage]() from None
 
@@ -256,17 +310,20 @@ class CrowdWorksPaidAdapter:
             mobile_context.close()
             raise
         old_page = self.page
+        old_owns_context = self.owns_context
         self.page = mobile_page
         self.owned_context = mobile_context
+        self.owns_context = True
         if old_page is not None:
             try:
                 old_page.close()
             except Exception:
                 pass
-        try:
-            source_context.close()
-        except Exception:
-            pass
+        if old_owns_context:
+            try:
+                source_context.close()
+            except Exception:
+                pass
         self._goto_contract(work_id)
 
     @staticmethod
@@ -281,12 +338,25 @@ class CrowdWorksPaidAdapter:
             value = raw.get(key)
             if value is not None:
                 result[key] = _text(value)
+        form_urls = raw.get("form_urls")
+        if form_urls is not None:
+            if (not isinstance(form_urls, list)
+                    or not all(isinstance(value, str) and _google_form_url(value) for value in form_urls)):
+                raise RuntimeError("crowdworks_paid_task_unavailable")
+            normalized_urls = sorted(set(form_urls))
+            result["form_urls"] = normalized_urls
+            result["form_url"] = result.get("form_url") if len(normalized_urls) == 1 else None
         return result
 
     def _list_contracts(self) -> list[dict[str, str]]:
         try:
             return self._list_contracts_once()
         except PlaywrightTimeoutError:
+            if self._fallback_to_source_context():
+                try:
+                    return self._list_contracts_once()
+                except PlaywrightTimeoutError:
+                    pass
             raise CrowdWorksPaidActiveContractsTimeout() from None
 
     def _list_contracts_once(self) -> list[dict[str, str]]:
@@ -318,6 +388,8 @@ class CrowdWorksPaidAdapter:
                 raise RuntimeError("crowdworks_paid_contract_state_invalid")
             result.append({"work_id": match.group(1), "title": _text(value.get("title")),
                            "client": parts[0], "provider_state": state})
+        if not result:
+            raise RuntimeError("crowdworks_paid_contract_source_unavailable")
         if len({row["work_id"] for row in result}) != len(result):
             raise RuntimeError("crowdworks_paid_contract_duplicate")
         return result
@@ -352,14 +424,14 @@ class CrowdWorksPaidAdapter:
         if state == "awaiting_escrow":
             return {"work_id": work_id, "title": title, "client": client, "provider_state": state,
                     "milestone_id": None, "form_url": None, "proposal_id": None,
-                    "application_date": None}
+                    "application_date": None, "buyer_context": body}
         if state == "delivered":
             forms = self.page.locator('form[action^="/milestones/"][action$="/complete"]')
             if forms.count() or not any(token in body for token in ("検収", "納品済み", "納品完了")):
                 raise RuntimeError("crowdworks_paid_contract_state_changed")
             return {"work_id": work_id, "title": title, "client": client, "provider_state": state,
                     "milestone_id": None, "form_url": None, "proposal_id": None,
-                    "application_date": None}
+                    "application_date": None, "buyer_context": body}
         forms = self.page.locator('form[action^="/milestones/"][action$="/complete"]')
         actions = {str(forms.nth(i).get_attribute("action") or "") for i in range(forms.count())}
         match = re.fullmatch(r"/milestones/(\d+)/complete", actions.pop()) if len(actions) == 1 else None
@@ -367,18 +439,20 @@ class CrowdWorksPaidAdapter:
             "nodes => nodes.map(a => a.getAttribute('href')).filter(Boolean)") if isinstance(href, str)
                                for found in [re.match(r"^/proposals/(\d+)(?:/|$)", href)] if found})
         proposal_id = proposal_ids[0] if len(proposal_ids) == 1 else None
-        application_date = basic.get("application_date") if basic.get("proposal_id") == proposal_id else None
-        if application_date is None and proposal_id is not None:
-            application_date = self._proposal_application_date(proposal_id)
-        if application_date is None and proposal_id is not None:
-            application_date = self._receipt_application_date(title, proposal_id)
         links = self.page.locator('a[href]').evaluate_all("nodes => nodes.map(a => a.href).filter(Boolean)")
         form_urls = sorted({link for link in links if isinstance(link, str) and _google_form_url(link)})
-        if match is None or len(form_urls) > 1:
+        application_date = basic.get("application_date") if basic.get("proposal_id") == proposal_id else None
+        if application_date is None and proposal_id is not None and form_urls:
+            application_date = self._proposal_application_date(proposal_id)
+        if application_date is None and proposal_id is not None and form_urls:
+            application_date = self._receipt_application_date(title, proposal_id)
+        if match is None:
             raise RuntimeError("crowdworks_paid_task_unavailable")
         return {"work_id": work_id, "title": title, "client": client, "provider_state": state,
-                "milestone_id": match.group(1), "form_url": form_urls[0] if form_urls else None,
-                "proposal_id": proposal_id, "application_date": application_date}
+                "milestone_id": match.group(1), "form_urls": form_urls,
+                "form_url": form_urls[0] if len(form_urls) == 1 else None,
+                "proposal_id": proposal_id, "application_date": application_date,
+                "buyer_context": body}
 
     def _proposal_application_date(self, proposal_id: str) -> str | None:
         if self.owned_context is None:
@@ -440,7 +514,8 @@ class CrowdWorksPaidAdapter:
 
     def _observation(self, item: Mapping[str, Any]) -> dict[str, str]:
         stable = {key: item.get(key) for key in ("work_id", "title", "client", "provider_state",
-                                                  "milestone_id", "form_url", "proposal_id", "application_date")}
+                                                  "milestone_id", "form_url", "form_urls", "proposal_id",
+                                                  "application_date", "buyer_context")}
         return {"provider": "crowdworks", "account_id": self.account_id,
                 "work_id": _text(item.get("work_id")), "latest_event_id": _digest(stable),
                 "provider_state": _text(item.get("provider_state")), "observed_at": _now()}
@@ -505,6 +580,16 @@ class CrowdWorksPaidAdapter:
 
     def observe_one(self, work_id: str) -> dict[str, Any]:
         try:
+            if self.inventory_reader is None:
+                cached = self._cached_item(work_id)
+                if cached is not None:
+                    return self._observation(cached)
+            return self._observation(self._targeted_detail(work_id))
+        finally:
+            self.close()
+
+    def refresh_one(self, work_id: str) -> dict[str, Any]:
+        try:
             return self._observation(self._targeted_detail(work_id))
         finally:
             self.close()
@@ -514,7 +599,7 @@ class CrowdWorksPaidAdapter:
             item = self._cached_item(work_id) or self._targeted_detail(work_id)
             return {"contract": dict(item), "delivery": {
                 "formal_delivery_authorized": item["provider_state"] == "funded",
-                "form_required": bool(item.get("form_url")),
+                "form_required": bool(item.get("form_urls") or item.get("form_url")),
             }}
         finally:
             self.close()
@@ -609,6 +694,27 @@ class CrowdWorksPaidAdapter:
                 "contract_id": _text(item.get("work_id")), "milestone_id": _text(item.get("milestone_id")),
                 "form_revision_sha256": form_sha256}
 
+    def _fill_delivery_message(self, value: str, form: Any | None = None) -> None:
+        """Prime CrowdWorks' duplicate message fields before enabling delivery submit."""
+        areas = self.page.locator('textarea[name="message[body]"]')
+        filled = False
+        for index in range(areas.count()):
+            try:
+                area = areas.nth(index)
+                visible = area.is_visible()
+            except (AttributeError, TypeError):
+                continue
+            if visible:
+                area.fill(value)
+                for event in ("input", "change"):
+                    try:
+                        area.dispatch_event(event)
+                    except AttributeError:
+                        pass
+                filled = True
+        if not filled and form is not None:
+            form.locator('textarea[name="message[body]"]').fill(value)
+
     def _complete_once(self, item: Mapping[str, Any], payload: Mapping[str, Any]) -> None:
         self._goto_contract(_text(item.get("work_id")))
         selector = f'form[action="/milestones/{_text(payload.get("milestone_id"))}/complete"]'
@@ -618,6 +724,18 @@ class CrowdWorksPaidAdapter:
                     if forms.nth(index).locator('textarea[name="message[body]"]').is_visible()]
 
         visible = visible_forms()
+        if not visible:
+            dialog = self.page.locator(
+                f'a[href="#message-dialog-completion-{_text(payload.get("milestone_id"))}"]:visible')
+            if dialog.count() == 1:
+                try:
+                    dialog.click(no_wait_after=True)
+                except TypeError:
+                    dialog.click()
+                self.page.locator(
+                    f'{selector} textarea[name="message[body]"]:visible').wait_for(
+                    state="visible", timeout=15_000)
+                visible = visible_forms()
         if not visible:
             def visible_todo_tabs():
                 tabs = self.page.get_by_text("やること", exact=True)
@@ -643,8 +761,8 @@ class CrowdWorksPaidAdapter:
         if len(visible) != 1:
             raise RuntimeError("crowdworks_paid_milestone_unavailable")
         form = visible[0]
-        form.locator('textarea[name="message[body]"]').fill(
-            "Googleフォームへの回答を完了しました。ご確認のほどよろしくお願いいたします。")
+        self._fill_delivery_message(
+            "Googleフォームへの回答を完了しました。ご確認のほどよろしくお願いいたします。", form)
         # The official form has duplicate milestone forms in the DOM.  Fence the
         # effect to the selected milestone's named submit control, rather than a
         # same-looking generic submit input.
@@ -659,6 +777,28 @@ class CrowdWorksPaidAdapter:
 
     def mutate(self, intent: dict[str, Any]) -> None:
         try:
+            if intent.get("action") == "answer":
+                payload = intent.get("payload")
+                if not isinstance(payload, Mapping):
+                    raise RuntimeError("crowdworks_paid_answer_invalid")
+                body = _text(payload.get("body"))
+                work_id = _text(intent.get("work_id"))
+                current = self._targeted_detail(work_id)
+                if current.get("provider_state") != "funded":
+                    raise RuntimeError("crowdworks_paid_context_changed")
+                self._goto_contract(work_id)
+                areas = self.page.locator('textarea[name="message[body]"]')
+                visible = [areas.nth(index) for index in range(areas.count())
+                           if areas.nth(index).is_visible()]
+                if len(visible) != 1:
+                    raise RuntimeError("crowdworks_paid_message_composer_unavailable")
+                visible[0].fill(body)
+                button = self.page.get_by_role("button", name="メッセージを投稿する", exact=True)
+                if button.count() != 1 or not button.is_visible() or not button.is_enabled():
+                    raise RuntimeError("crowdworks_paid_message_submit_unavailable")
+                button.click()
+                self.page.wait_for_timeout(2_000)
+                return
             if intent.get("action") != "submit" or not isinstance(intent.get("payload"), Mapping):
                 raise RuntimeError("crowdworks_paid_effect_unsupported")
             payload = intent["payload"]
@@ -675,6 +815,19 @@ class CrowdWorksPaidAdapter:
 
     def readback(self, intent: dict[str, Any]) -> dict[str, Any]:
         try:
+            if intent.get("action") == "answer":
+                payload = intent.get("payload")
+                if not isinstance(payload, Mapping):
+                    return {"authoritative_absent": True}
+                body = _text(payload.get("body")); work_id = _text(intent.get("work_id"))
+                self._goto_contract(work_id)
+                visible_body = _text(self.page.locator("body").inner_text(),
+                                     "crowdworks_paid_contract_unavailable")
+                if body in visible_body:
+                    return {"verified": True,
+                            "provider_receipt_id": f"contract:{work_id}:answer:{_text(intent.get('effect_key'))}",
+                            "observed_at": _now()}
+                return {"authoritative_absent": True}
             if intent.get("action") != "submit" or not isinstance(intent.get("payload"), Mapping):
                 return {"authoritative_absent": True}
             payload = intent["payload"]; work_id = _text(intent.get("work_id")); self._goto_contract(work_id)
@@ -702,7 +855,7 @@ class CrowdWorksPaidAdapter:
             try: self.page.close()
             except Exception: pass
         self.page = self.browser = None
-        if self.owned_context is not None:
+        if self.owns_context and self.owned_context is not None:
             try: self.owned_context.close()
             except Exception: pass
         self.owned_context = None
@@ -730,12 +883,12 @@ def decide(row: Mapping[str, Any]) -> dict[str, Any]:
         return {"action": "wait", "reason": "awaiting_client_escrow", "remaining_work": ["wait for official CrowdWorks escrow completion before beginning work"]}
     if contract.get("provider_state") == "delivered":
         return {"action": "noop", "classification": "completed"}
-    if not isinstance(contract.get("application_date"), str):
-        return {"action": "wait", "reason": "official_application_date_required",
-                "remaining_work": ["locate a labeled official CrowdWorks proposal application date before form submission"]}
     form_url, milestone_id = contract.get("form_url"), contract.get("milestone_id")
     if contract.get("provider_state") != "funded" or not isinstance(form_url, str) or not _google_form_url(form_url) or not isinstance(milestone_id, str):
         return {"action": "wait", "reason": "buyer_task_detail_required", "remaining_work": ["read the official funded contract task before any delivery effect"]}
+    if not isinstance(contract.get("application_date"), str):
+        return {"action": "wait", "reason": "official_application_date_required",
+                "remaining_work": ["locate a labeled official CrowdWorks proposal application date before form submission"]}
     return {"action": "submit", "payload": {"form_url": form_url, "form_sha256": hashlib.sha256(form_url.encode()).hexdigest(), "milestone_id": milestone_id}}
 
 

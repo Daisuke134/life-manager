@@ -296,17 +296,34 @@ voice ledgerの`succeeded/10秒`、managed actionの`succeeded`を同一通話�
 - 同じ終了Webhookを再送しても、履歴・利用秒数・managed actionが二重計上されない。
 - パネルには「応答なし」「会話できた」「発信失敗」と月間会話残り時間が別々に表示される。
 
+**ユーザー体験と月3,600秒枠:**
+
+- 月60分は「電話の回数」ではなく、AIと接続して会話した秒数の合計である。
+- 応答なし、留守番電話（`machine`）、発信失敗は会話秒数0秒。電話を試みた事実は履歴に残るため、利用者が取れなかった予定でも「予定前に発信しました（応答なし）」として価値を残す。
+- 利用者が応答した場合だけ、公式CDRの接続秒数を1回精算する。60分を使い切るまでは、T-10/T-5の電話を通常どおり行う。
+- 残りが30秒未満、または月3,600秒を使い切った後は、新しいAI電話を発信しない。Telnyxの`time_limit_secs`最小30秒を満たせず、無制限の原価を作らないためである。
+- 月枠が尽きても、Calendar、Telegram、保存済み設定、履歴はそのまま使える。電話枠は次の月次リセットで戻る。
+- 「枠を使い切った後も、AI会話なしのring-only発信を残す」案は現在の契約に含めない。採用する場合は、発信回数・Telnyx原価の別上限を先に仕様化する。
+
+**Voice outcome sliceの残りTODO:**
+
+1. **DONE:** 本番projectを`cycgdwndgfgdbnndithc`に確定し、migration、schema/RPC/index readback、Railway health readbackを完了。
+2. **DONE:** T-10/T-5自然E2Eで`no_answer`とvoice ledger 0秒を確認。
+3. **OPTIONAL PRODUCT DECISION:** 60分後のring-only発信を商品として追加するか判断する。現行実装では追加発信しない。
+
 **2026-09-17実測status:** voice outcome・Webhook精算・Panel表示のfocused suiteは最終コードで247/247 PASS。
-本番Supabaseをread-only確認した結果、`call_outcome`列と`record_lm_wake_telnyx_outcome` RPCは未登録のままである。
-Supabase CLI loginは完了したが、対象projectへのlinkは`necessary privileges`で拒否されたため、管理権限を自分で追加することはできない。
-新migrationが未適用でも、旧schema互換経路が`amd_result`を保持し、`lm_wake_miss`とvoice ledgerを正本として精算する。
-新migrationが適用済みの場合は新Outcome RPC・新列を優先する。
+Supabase DashboardのOwnerセッションで本番project `Anicca Project Anicca`（ref `cycgdwndgfgdbnndithc`）を確認した。
+停止メールの`life-manager-staging-20260808`（ref `ulhsqqkyejzvqgoyjwte`）はstagingであり、本番Railway接続先ではない。
+本番SQL Editorで`2026-09-17-lm-wake-call-outcome.sql`を実行し、Successをreadbackした。
+SQL readbackは3列、2 constraint、`lm_wake_log_uid_called_outcome_idx`、
+`record_lm_wake_telnyx_outcome(p_uid text, p_event_key text, p_claim_token text, p_telnyx_call_control_id text, p_call_outcome text, p_hangup_cause text, p_connected_seconds integer)`を確認した。
+Service-role REST readbackは列HTTP 200、Outcome RPC OpenAPI掲載、存在しないwakeへのRPC probe HTTP 200/戻り値0。
 Railway production `/health`はmain由来build `0e0758d7f7495af034f28e15bb4bdd3ab9f20b60`でSUCCESS。
 検証用の実カレンダー予定（19:20 JST）ではT-10とT-5の両方が自然発火し、各wake rowをTelnyx公式GET（HTTP 200）で照合した。
 両方とも`amd_result=machine`、`answered_at=null`、`lm_wake_miss=no_answer/time_limit`、
 voice ledger=`succeeded/0秒`となり、応答なし通話を会話時間として請求しないことを本番で確認した。
 検証用イベントはComposio delete（HTTP 200）後、`GOOGLECALENDAR_EVENTS_LIST`（HTTP 200）で対象IDが不在であることを確認した。
-残る作業はSupabase project ownerがmigrationを適用できる権限を付与した後のschema/RPC readbackだけであり、現行fallback経路は稼働済みである。
+旧schema fallbackは残し、新Outcome列/RPCが適用済みの場合は新経路を優先する。
 
 **Ordered correction TODO項目3の本番是正:**
 
@@ -396,3 +413,41 @@ The free allowance is 30 completed managed events/month, not 30 internal effects
 Travel block and one Telegram乗換案内 while consuming one allowance unit. Optional phone is excluded from
 the standing free allowance except for one onboarding test call; this caps expected free-user direct API
 cost around or below approximately USD 1.50 before shared fixed costs. Usage resets monthly at the tenant billing timezone.
+
+## 10.1 Revenue loop execution status
+
+Life Manager has three cooperating business paths:
+
+1. **Marketing path:** `skills/life-manager/life-manager-daily.sh` generates one bounded creative,
+   distributes it through the configured adapter, and records the next improvement. This proves a
+   marketing pass, not a paid subscriber.
+2. **Self-Build / Product Improvement loop (#11 in `README.md`):**
+   `skills/life-manager/self-build-daily.sh` selects one eligible loop-authored fix PR, sends it
+   through the protected merge guard, appends a durable day receipt, and reports the result. This
+   improves Life Manager; it does not create revenue unless activation or retention improves.
+3. **Money/CFO path:** `skills/self/life-manager-loop/loop.sh` reads Stripe active subscriptions,
+   verifies `/health`, and chooses the next weakest funnel step. The current measurement run at
+   `2026-09-17T14:42:38Z` returned `lm_mrr_usd=NA` and
+   `HEAL-NEEDED — STRIPE-KEY-MISSING`; it wrote a self-heal request instead of claiming `$0`.
+   A production Supabase billing readback on 2026-09-18 found one `paid=true` row but
+   `plan_status`, `current_period_end`, and `stripe_subscription_id` were all null. The entitlement
+   flag is therefore not an active-subscription or MRR receipt.
+
+**Remaining revenue TODO, in order:**
+
+1. Restore the Stripe live-key runtime path from the private credential source and read back active
+   subscriptions, status, period end, refunds, and failed payments. Until this succeeds, MRR is
+   `unknown`, not zero.
+2. Choose one canonical price. The current product spec says `$29/month`, while older landing and
+   payment-link tests still describe `$20/month`. Update the Stripe price/link, landing copy, Telegram
+   `/subscribe` copy, and tests together after the price is selected. Do not advertise one price while
+   charging another.
+3. Measure the marketing funnel: landing visit → Telegram start → Calendar connection → phone opt-in
+   → first successful wake → paid subscription → renewal/referral.
+4. Make the self-build loop select fixes using those production metrics, then prove each change with
+   a receipt-backed release and a movement in activation, retention, cost, or MRR.
+5. Scale the selected plan to the required active paid count. At `$29/month`, 345 active subscribers
+   produce `$10,005` gross MRR.
+
+These are the remaining business gates. Voice outcome migration, no-answer settlement, and the
+production health/readback gate are already complete.

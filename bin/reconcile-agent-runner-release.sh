@@ -18,6 +18,17 @@ if [ "$fetch_timeout_seconds" -lt 1 ]; then
   printf 'agent-runner reconcile refused: invalid fetch timeout\n' >&2
   exit 64
 fi
+reconcile_timeout_seconds="${LIFE_MANAGER_RECONCILE_TIMEOUT_SECONDS:-300}"
+case "$reconcile_timeout_seconds" in
+  ''|*[!0-9]*)
+    printf 'agent-runner reconcile refused: invalid reconcile timeout\n' >&2
+    exit 64
+    ;;
+esac
+if [ "$reconcile_timeout_seconds" -lt 1 ]; then
+  printf 'agent-runner reconcile refused: invalid reconcile timeout\n' >&2
+  exit 64
+fi
 runtime_python="${LIFE_MANAGER_RUNTIME_PYTHON:-$(command -v python3 || true)}"
 timeout_runner="$SCRIPT_ROOT/runtime/run-with-timeout.py"
 if [ -z "$runtime_python" ] || [ ! -f "$timeout_runner" ]; then
@@ -25,16 +36,35 @@ if [ -z "$runtime_python" ] || [ ! -f "$timeout_runner" ]; then
   exit 69
 fi
 
+run_reconcile() {
+  local release_root="$1"
+  shift
+  LIFE_MANAGER_RELEASE_ROOT="$release_root" "$runtime_python" "$timeout_runner" \
+    --grace-seconds 15 "$reconcile_timeout_seconds" "$release_root/bin/lm-loop" "$@"
+}
+
 reconcile_release() {
   local release_root="$1"
   local status=0
-  if ! LIFE_MANAGER_RELEASE_ROOT="$release_root" "$release_root/bin/lm-loop" \
-    reconcile shared-agent-runner --loaded-idle-only --max-owners 4; then
+  if ! run_reconcile "$release_root" reconcile shared-agent-runner --loaded-idle-only --max-owners 4; then
     status=1
   fi
-  if ! LIFE_MANAGER_RELEASE_ROOT="$release_root" "$release_root/bin/lm-loop" \
-    reconcile deterministic --loaded-idle-only --max-owners 4; then
+  if ! run_reconcile "$release_root" reconcile deterministic --loaded-idle-only --max-owners 4; then
     status=1
+  fi
+  local recovery_queue="${LIFE_MANAGER_RECOVERY_INTENTS_PATH:-$HOME/.local/state/life-manager/recovery/intents.jsonl}"
+  local recovery_journal="${LIFE_MANAGER_RECOVERY_SUPERVISOR_JOURNAL_PATH:-$HOME/.local/state/life-manager/recovery/supervisor.jsonl}"
+  if [ -f "$recovery_queue" ]; then
+    if [ ! -x "$release_root/bin/lm-recovery-supervise" ]; then
+      printf 'agent-runner reconcile: recovery supervisor unavailable in release\n' >&2
+      status=1
+    elif ! LIFE_MANAGER_RELEASE_ROOT="$release_root" \
+      LIFE_MANAGER_RECOVERY_INTENTS_PATH="$recovery_queue" \
+      LIFE_MANAGER_RECOVERY_SUPERVISOR_JOURNAL_PATH="$recovery_journal" \
+      "$release_root/bin/lm-recovery-supervise" \
+      --queue "$recovery_queue" --journal "$recovery_journal" --release-root "$release_root"; then
+      status=1
+    fi
   fi
   local admission_root="${LIFE_MANAGER_RESOURCE_ADMISSION_ROOT:-$HOME/.local/state/life-manager/host-admission/resources}"
   if [ ! -f "$admission_root/protocol.json" ] && \

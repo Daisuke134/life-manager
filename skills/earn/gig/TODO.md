@@ -9,16 +9,16 @@ durable runtime ledgers and receipts, not in duplicated historical checklists.
 This is the only restart cursor for the next Codex session. Re-check every value against Git and official
 runtime/provider readback before acting; conversation claims are not completion evidence.
 
-- Canonical local repository checkout: `/Users/anicca/Projects/life-manager-main`, remote
+- Canonical local repository checkout: `$LIFE_MANAGER_REPO`, remote
   `Daisuke134/life-manager`. The folder name on this Mac is **`life-manager-main`**. No separate project or
   repository named `life-manager/` was created.
-- Current task worktree: `/private/tmp/lm-runtime-admission-reservations-20260914`, branch
+- Current task worktree: `<task-worktree>`, branch
   `docs/coconala-paid-apply-proof-20260916`, lease
   `ac1f02d45387233d8866ce7dbd62c01a5b1a28987c9e2614a873535c1d766f69`. This is a linked Git worktree of
   the same `life-manager-main` repository, not another project. The main checkout is currently on the unrelated
   Capify branch `capafy/account-plan-deck-offline-20260912`, so it remains read-only for this workstream.
 - Canonical runtime source is `origin/main` at `0401cb6a34e89b32c5c1a7e637df0062b791e13c`. The newest
-  immutable release is `/Users/anicca/loops/releases/20260916T165426-0401cb6a`; Apply is exact-loaded from it.
+  immutable release is `$LIFE_MANAGER_RELEASES/20260916T165426-0401cb6a`; Apply is exact-loaded from it.
   Paid is exact-loaded from `2e0716c7`. PR `#5283` normalizes structured independent verifier evidence without
   weakening identity validation. PR `#5284` keeps older effect-started uncertain applications duplicate-fenced
   for background reconciliation instead of repeatedly deep-scanning them in the revenue foreground.
@@ -42,9 +42,9 @@ runtime/provider readback before acting; conversation claims are not completion 
   registry tests plus 100 subtests, exact stdlib CI discovery 434 tests, fresh read-only `ship`, and GitHub CI
   8/8 PASS. Earlier JSON 500-enqueue evidence was 35.93 seconds.
 - Current spec file in this worktree:
-  `/private/tmp/lm-runtime-admission-reservations-20260914/skills/earn/gig/TODO.md`. Its repository-relative
+  `<task-worktree>/skills/earn/gig/TODO.md`. Its repository-relative
   canonical path is `skills/earn/gig/TODO.md`; after merge the same file is available under
-  `/Users/anicca/Projects/life-manager-main/skills/earn/gig/TODO.md`. Do not create a second live TODO.
+  `skills/earn/gig/TODO.md`. Do not create a second live TODO.
 - Coconala is not complete. Ryu's latest three-message buyer cycle was completed with one ordinary Coconala
   seller message, formal delivery OFF and official talkroom readback. The next natural Paid wake observed all
   four active rooms with `effect=0`, `readback=4`, `failed=0`; Ryu was `deduplicated=true`. The earlier orphaned
@@ -88,7 +88,7 @@ that the provider currently has an authenticated account, a verified external ef
 |---|---|---|
 | Coconala | Apply is exact-loaded from `0401cb6a`; Reply and Storefront retain `0aba1191`; Paid is exact-loaded from `2e0716c7`. Ryu's latest ordinary message is officially read back and a natural Paid wake replayed zero across four rooms. Apply's current `0401cb6a` run observed both one-off and continuous sources; four eligible one-off applications have official exact-ID readbacks, zero failures, while old uncertain intents stayed duplicate-fenced for background reconciliation. The continuous page had zero active cards. Reply's latest retained pass observed 179 threads with 164 official readbacks and 15 pending. Static five-finite-run capacity, only two durable revenue-priority owners, and manual orphan-lease recovery leave 24/7 no-starvation/self-heal unproved. | Every active client has its own durable work item, newest-buyer coverage, provider effect/readback, replay-zero and payout attribution; every lane meets its cadence without a fixed global-slot bottleneck, and one client's failure never pauses another lane. |
 | Lancers | Application, browser, negotiation, paid, storefront, work-sync and report owners are registered. Production fixes exist in main, but durable login and the full Apply→Paid→payout proof are not closed. | One persistent account/browser owner runs the complete lifecycle with official proposal, work, payment and payout receipts. |
-| CrowdWorks | Application, Reply, Paid and Report owners are registered. Existing contracts still need fulfillment from buyer instruction/link through actual submission and readback. | Each accepted contract becomes an independent fulfillment item and reaches artifact submission, official receipt, payout and replay-zero; Storefront is explicitly `not_applicable` unless the provider exposes it. |
+| CrowdWorks | Application, Reply, Paid and Report owners are registered. Reply is proposal-only after the contract-ID handoff; Paid owns post-contract work and effects. Paid's latest retained result failed at `provider_inventory` with zero observed/effect/readback. Five contracts are funded; one (`63583795`) has formal delivery read back and is awaiting inspection, while four still need correct work, delivery and payout. | Apply owns proposals; Reply owns pre-contract negotiation/acceptance; one Paid owner owns all post-contract replies, work, quality, external submit, formal delivery and revision for each contract ID. Report remains internal. Each item reaches exact official receipt, acceptance, payout and replay-zero; Storefront is `not_applicable` unless officially observed. |
 | Mercor | Application, Reply and Paid owners are registered, but repeated-login/authentication and full contract proof remain open. | Persistent authenticated account state, application, reply/interview handoff, contract, paid work and payout are independently evidenced. |
 | Freelancer.com | Runtime work is registered in the fleet, but current provider account/policy and end-to-end revenue proof are not closed. | Official account/policy state plus Apply→Reply→Paid→payout, with Storefront only if officially supported. |
 | Upwork | Browser/application/report infrastructure and historical evidence exist, but current account/policy and paid attribution are not a closed revenue loop. | Official proposal, reply, contract, delivery/payment and payout receipts with duplicate-zero replay. |
@@ -129,20 +129,20 @@ that the provider currently has an authenticated account, a verified external ef
 
 The earlier report mixed two different snapshots: the canonical Paid result still said `12/300` while a later
 manual owner run wrote 288 `sent` rows with per-recipient official TikTok readback to
-`/Users/anicca/gig/projects/18180857/delivery/tiktok-message-effects.jsonl`. Together with the prior 12
+    `$LIFE_MANAGER_GIG_ROOT/projects/18180857/delivery/tiktok-message-effects.jsonl`. Together with the prior 12
 verified effects, the execution evidence supports 300 total sends; the official Sheet readback contains 300
 unique rows. The ordinary Coconala message and workbook were then sent and read back in
-`/Users/anicca/gig/projects/18180857/evidence/paid-direct-live/paid-direct/18180857/answer/chii-300-send/`,
+    `$LIFE_MANAGER_GIG_ROOT/projects/18180857/evidence/paid-direct-live/paid-direct/18180857/answer/chii-300-send/`,
 with `formal_delivery_control_checked=false`. The older `12/288` files remain historical input, not permission
 to reopen work. The official later seller message and existing effect fences make the next action buyer-waiting
 and replay-zero. Never resend an existing recipient or completion message.
 
 ## Shared architecture
 
-The real repository folder is `/Users/anicca/Projects/life-manager-main/`. The tree below is a
+The real repository folder is `$LIFE_MANAGER_REPO`. The tree below is a
 **repository-relative To-Be ownership map**, not a new `life-manager/` folder and not a second project. The
 current task worktree exposes the same relative paths under
-`/private/tmp/lm-runtime-admission-reservations-20260914/`.
+  `<task-worktree>`.
 
 ```text
 config/
@@ -395,7 +395,7 @@ never by deleting the guard.
 ### Live correction (re-read before every mutation)
 
 - `origin/main` is `172d3f2eaa4fedb815d0b8515f6454ab55ebe9a1`; Paid is exact-loaded from
-  `/Users/anicca/loops/releases/20260916T073615-172d3f2e`. Other Coconala labels retain their already-loaded
+  `$LIFE_MANAGER_RELEASES/20260916T073615-172d3f2e`. Other Coconala labels retain their already-loaded
   `0aba1191` release because this patch changes only Paid.
 - Admission protocol `2` is live. A four-Coconala-owner overlap is observed; Reply has a natural `pass`, and
   Paid selected Account 1. This proves one recovery slice, not 24-hour fairness or provider completion.
@@ -413,7 +413,7 @@ never by deleting the guard.
 
 - PRs `#5194` through `#5199` are merged. Current main is
   `b8cff053255f840cc02405c886bd4974005586cc`, published as full immutable release
-  `/Users/anicca/loops/releases/20260915T061515-b8cff053`. The release reconciler now covers both complete
+  `$LIFE_MANAGER_RELEASES/20260915T061515-b8cff053`. The release reconciler now covers both complete
   provider routes, changes only loaded-idle labels, skips running and unloaded labels, runs outside saturated
   data-plane admission, reconciles the local complete release before any remote fetch, bounds fetch with the
   existing portable process-group timeout, narrows Git negotiation to `origin/main`, and uses the release-pinned
@@ -430,7 +430,7 @@ never by deleting the guard.
   The `b8cff053` release reconciler still had only a running event, not a terminal summary. These observations
   supersede the earlier owners `2` / tickets `0` snapshot but may change naturally; re-read before mutation.
 - PR `#5193`, main SHA `3fbe75546d720add1bfa465731ddc94353b662b5`, is merged and published as
-  immutable release `/Users/anicca/loops/releases/20260915T025232-3fbe7554`. The safe two-stage rollout keeps
+  immutable release `$LIFE_MANAGER_RELEASES/20260915T025232-3fbe7554`. The safe two-stage rollout keeps
   protocol `1` until every finite label is exact-loaded from this capability-2 release. Initial loaded-idle
   reconciliation completed with failures 0: deterministic had 53 eligible results, 44 changes and nine
   snapshot-race running skips; shared-agent-runner changed 33 labels. A later targeted pass moved Coconala
@@ -472,7 +472,7 @@ never by deleting the guard.
   reclaimed by the central owner. Ancestor symlink, run replacement, terminal-write failure and no-clobber
   races are covered. Targeted 45 tests, the 425-test runtime suite, all CI and fresh Terra architecture review
   pass.
-- Immutable release `/Users/anicca/loops/releases/20260914T211512-0a7b8c8b` is current. The preceding
+- Immutable release `$LIFE_MANAGER_RELEASES/20260914T211512-0a7b8c8b` is current. The preceding
   `3e7b7771` loaded-idle rollout reconciled 57 deterministic and 40 shared-agent-runner labels with zero
   failures; target-only convergence to `59bd6cdd` has begun and running owners are skipped, not restarted.
 - Idle rollout succeeded cumulatively for 96 label installs with zero reconcile failures. The latest
@@ -1006,12 +1006,65 @@ work item and leave a sibling trace unchanged.
 
 ### 3. CrowdWorks vertical proof
 
-- [ ] Close the three existing active contracts first through independent per-client workers. The observed
-  contract with a supplied Google Docs work link must progress from instruction read to real artifact,
-  provider submission and official readback; an empty reply/upload form is unfinished.
-- [ ] Prove exact delivery readback, payout attribution and replay-zero for each existing contract.
-- [ ] Keep Apply and Reply healthy, finish Paid and payout, and mark Storefront `not_applicable` unless an
-  official listing surface is observed.
+**Plan:** `docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md` and
+`docs/superpowers/plans/2026-09-17-crowdworks-contract-fulfillment.md`. Current cursor is **CW-F1 (browser recovery + context readback)**.
+
+**Live verified state (2026-09-18):** official readback shows five active contracts, all `funded`. Contract
+`63583795` now has formal delivery read back and is awaiting buyer inspection; the other four have no formal
+delivery read back. Historical confirmed form receipts exist for `63583795` and `63570481`; `63583795` also
+has a buyer-visible seller message and inspection-pending readback. Its local Paid row predates that provider
+readback and must be reconciled before any retry; do not resend the form or delivery. The latest Paid attempts
+have `effect=0`; the shared pre-effect-failure repair is merged as PR `#5365` and loaded from immutable
+release `c16f437b`. A Paid readback that exceeded the useful bounded wake was stopped and reconciled by
+official no-write proof. No contract has buyer acceptance, settlement, payout, or verified MRR yet.
+
+PRs `#5393`, `#5401`, `#5411`, `#5412`, and `#5413` bound the Paid wake, preserve pre-effect hints,
+retry CDP, recover the locked persistent context, and start navigation at `commit`. Current main is loaded
+from immutable release `20260918T010429-6943af4c`; targeted Paid apply read back the exact SHA. The latest
+kickstart reached active inventory but ended at contract detail timeout with `effect=0`; no form, message,
+or formal-delivery effect was accepted and the occurrence was reconciled to `queued/effect_unknown=0`.
+Authenticated contract detail readback remains open.
+
+**Merged code slices (live proof still open):** bounded context/readback PR `#5369`, delivery dialog/field
+fixes PRs `#5372`, `#5373`, `#5375`, `#5381`, contract answer action PR `#5385`, runtime bound PR `#5393`,
+and pre-effect hint PR `#5401`. These changes do not
+count as a completed contract until the installed owner performs the requested work, reads back the correct
+buyer-visible result, and closes the official provider stages.
+
+- [ ] **CW-F1 — browser recovery + bounded context:** Restore the authenticated CrowdWorks context, then
+  read and persist the full current buyer conversation, expanded hidden messages, linked documents/forms,
+  scope, corrections, milestone and newest buyer event per contract. The owner now has a 180-second bound;
+  a slow contract must terminate as a replayable `waiting_external`/failure item and must not hold the Paid
+  owner indefinitely.
+- [ ] **CW-F2 — correct work selection:** Expose all exact form URLs with visible titles, required fields
+  and choices to the model. Never select the first URL, submit every candidate, or infer work from a URL.
+  For `63659463`, the current body lists common, Web-ad and video candidates; the model must confirm the
+  intended role. For `63657015`, it lists a hearing sheet, common email test and designer-only task; the
+  model must confirm the worker role. Ambiguity means one specific buyer question and zero effects.
+- [ ] **CW-F3 — artifact production and QA:**
+  - `63659463`: complete only the requested common/role-specific tests, then verify each buyer-visible result.
+  - `63657015`: copy/fill the hearing sheet, submit it in the allowed CrowdWorks format, complete the
+    applicable common test, and verify access/content.
+  - `63583795`: reconcile the existing form and formal-delivery receipts; no second POST or delivery; continue
+    from official inspection pending to acceptance/settlement/payout.
+  - `63570481`: read the complete buyer task, identify the missing customer-address response, submit only
+    that missing work, and verify it.
+  - `63568785`: read the Google Docs assignment, produce the requested feedback artifact, and verify it.
+  Every row needs `correct_work_verified=true`; a message, URL or filled composer is insufficient.
+- [ ] **CW-F4 — separate effects:** Fence each external form/message/file submission separately from the
+  exact CrowdWorks `納品する` milestone action. Read back the provider receipt before retrying either effect.
+  Formal delivery is never inferred from a normal message.
+- [ ] **CW-F5 — formal delivery and acceptance:** For each contract, read back `納品 → 検収/acceptance →
+  settlement → payout`, preserve revisions as new buyer-event versions, and prove replay-zero. A wrong or
+  incomplete result keeps the row open and triggers focused repair plus a new natural wake.
+- [ ] **CW-F6 — installed-owner proof:** Release `a77c5629` and the targeted Paid apply are complete. After
+  browser recovery, kickstart without waiting for a global slot and verify the terminal receipt plus exact
+  official provider readback for every ready row. Keep other loop owners/releases unchanged.
+- [ ] **CW-F7 — revenue:** Close all five existing contracts before pursuing repeat/retainer work. Separate
+  cash received from verified recurring MRR; USD 10,000 MRR remains open until collected/settled evidence.
+- [ ] Share the contract-ID handoff, quality gate and receipt rules through the existing shared marketplace
+  kernel only after a second provider confirms the same boundary. Lancers requires its own official flow
+  inspection; do not copy CrowdWorks page assumptions.
 
 ### 4. Lancers vertical proof
 
