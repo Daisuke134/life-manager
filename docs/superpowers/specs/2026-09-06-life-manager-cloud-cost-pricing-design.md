@@ -296,6 +296,21 @@ voice ledgerの`succeeded/10秒`、managed actionの`succeeded`を同一通話�
 - 同じ終了Webhookを再送しても、履歴・利用秒数・managed actionが二重計上されない。
 - パネルには「応答なし」「会話できた」「発信失敗」と月間会話残り時間が別々に表示される。
 
+**ユーザー体験と月3,600秒枠:**
+
+- 月60分は「電話の回数」ではなく、AIと接続して会話した秒数の合計である。
+- 応答なし、留守番電話（`machine`）、発信失敗は会話秒数0秒。電話を試みた事実は履歴に残るため、利用者が取れなかった予定でも「予定前に発信しました（応答なし）」として価値を残す。
+- 利用者が応答した場合だけ、公式CDRの接続秒数を1回精算する。60分を使い切るまでは、T-10/T-5の電話を通常どおり行う。
+- 残りが30秒未満、または月3,600秒を使い切った後は、新しいAI電話を発信しない。Telnyxの`time_limit_secs`最小30秒を満たせず、無制限の原価を作らないためである。
+- 月枠が尽きても、Calendar、Telegram、保存済み設定、履歴はそのまま使える。電話枠は次の月次リセットで戻る。
+- 「枠を使い切った後も、AI会話なしのring-only発信を残す」案は現在の契約に含めない。採用する場合は、発信回数・Telnyx原価の別上限を先に仕様化する。
+
+**Voice outcome sliceの残りTODO:**
+
+1. **DONE:** 本番projectを`cycgdwndgfgdbnndithc`に確定し、migration、schema/RPC/index readback、Railway health readbackを完了。
+2. **DONE:** T-10/T-5自然E2Eで`no_answer`とvoice ledger 0秒を確認。
+3. **OPTIONAL PRODUCT DECISION:** 60分後のring-only発信を商品として追加するか判断する。現行実装では追加発信しない。
+
 **2026-09-17実測status:** voice outcome・Webhook精算・Panel表示のfocused suiteは最終コードで247/247 PASS。
 Supabase DashboardのOwnerセッションで本番project `Anicca Project Anicca`（ref `cycgdwndgfgdbnndithc`）を確認した。
 停止メールの`life-manager-staging-20260808`（ref `ulhsqqkyejzvqgoyjwte`）はstagingであり、本番Railway接続先ではない。
