@@ -1318,29 +1318,21 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
         os.close(descriptor)
 
 
-def resolve_unknown_occurrence(owner_id: str, occurrence_id: str, *,
-                               official_readback: Callable[[], Mapping[str, object]],
-                               expected_state: str | None = None) -> bool:
-    """Close one fenced effect only after its provider adapter confirms the exact effect.
-
-    The callback must perform official provider readback, not inspect a local draft.
-    Absence and inconclusive readback remain fenced; neither authorizes a retry.
-    """
-    if (not owner_id or not _normalize_occurrence_id(occurrence_id)
-            or expected_state not in {None, "claimed", "released"}):
-        raise RuntimeError("invalid occurrence identity")
-    proof = official_readback()
-    if (not isinstance(proof, Mapping)
-            or proof.get("owner_id") != owner_id
-            or proof.get("occurrence_id") != occurrence_id
-            or proof.get("verified") is not True
-            or not isinstance(proof.get("provider_receipt_id"), str)
-            or not proof["provider_receipt_id"].strip()):
-        return False
-    root, _, _, database = _durable_paths()
+def _close_unknown_occurrence(owner_id: str, occurrence_id: str,
+                              expected_state: str | None = None,
+                              proof_check: Callable[[], bool] | None = None) -> bool:
+    root, owners, _, database = _durable_paths()
     descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
     try:
         if not _acquire_bounded(descriptor, timeout_seconds=0.5):
+            return False
+        if expected_state == "claimed":
+            starts, snapshot_started_ns = _identity_snapshot(owners)
+            if any((_row(path) or {}).get("owner_id") == owner_id
+                   and _live(path, starts, snapshot_started_ns)
+                   for path in owners.glob("*.json")):
+                return False
+        if proof_check is not None and not proof_check():
             return False
         with _database(database) as connection:
             state_clause = "state IN ('claimed','released')" if expected_state is None else "state=?"
@@ -1367,6 +1359,53 @@ def resolve_unknown_occurrence(owner_id: str, occurrence_id: str, *,
             return changed.rowcount == 1
     finally:
         os.close(descriptor)
+
+
+def resolve_unknown_occurrence(owner_id: str, occurrence_id: str, *,
+                               official_readback: Callable[[], Mapping[str, object]],
+                               expected_state: str | None = None) -> bool:
+    """Close one fenced effect only after its provider adapter confirms the exact effect.
+
+    The callback must perform official provider readback, not inspect a local draft.
+    Absence and inconclusive readback remain fenced; neither authorizes a retry.
+    """
+    if (not owner_id or not _normalize_occurrence_id(occurrence_id)
+            or expected_state not in {None, "claimed", "released"}):
+        raise RuntimeError("invalid occurrence identity")
+    proof = official_readback()
+    if (not isinstance(proof, Mapping)
+            or proof.get("owner_id") != owner_id
+            or proof.get("occurrence_id") != occurrence_id
+            or proof.get("verified") is not True
+            or not isinstance(proof.get("provider_receipt_id"), str)
+            or not proof["provider_receipt_id"].strip()):
+        return False
+    return _close_unknown_occurrence(owner_id, occurrence_id, expected_state)
+
+
+def resolve_pre_effect_occurrence(owner_id: str, occurrence_id: str, *,
+                                  pre_effect_readback: Callable[[], Mapping[str, object]],
+                                  expected_state: str = "claimed") -> bool:
+    """Close a fenced effect only after an explicit no-dispatch proof.
+
+    This path is narrower than provider readback: an adapter must prove that its
+    durable pre-dispatch marker was never written. A normal receipt-shaped proof
+    is rejected so this cannot silently turn an unknown effect into no effect.
+    """
+    if (not owner_id or not _normalize_occurrence_id(occurrence_id)
+            or expected_state not in {"claimed", "released"}):
+        raise RuntimeError("invalid occurrence identity")
+    def proof_check() -> bool:
+        proof = pre_effect_readback()
+        return (isinstance(proof, Mapping)
+                and proof.get("owner_id") == owner_id
+                and proof.get("occurrence_id") == occurrence_id
+                and proof.get("verified") is True
+                and proof.get("proof_type") == "pre_effect"
+                and isinstance(proof.get("evidence_ref"), str)
+                and bool(proof["evidence_ref"].strip()))
+    return _close_unknown_occurrence(owner_id, occurrence_id, expected_state,
+                                     proof_check=proof_check)
 
 
 def clear_no_effect_unknown(owner_id: str) -> int:

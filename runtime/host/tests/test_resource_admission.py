@@ -1148,6 +1148,82 @@ def test_unknown_occurrence_requires_matching_official_readback(tmp_path, monkey
     assert (row["state"], row["effect_unknown"]) == ("released", 0)
 
 
+def test_unknown_occurrence_can_close_with_explicit_pre_effect_proof(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "crowdworks-revenue-paid"
+    occurrence = f"{owner}:pre-effect"
+    admission.enqueue_durable("browser", owner, admission_class="revenue",
+                              occurrence_id=occurrence, now=100)
+    claim, reason = admission.claim_durable(
+        "browser", owner, admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+
+    assert admission.resolve_pre_effect_occurrence(
+        owner, occurrence,
+        pre_effect_readback=lambda: {
+            "owner_id": owner, "occurrence_id": occurrence,
+            "verified": True, "proof_type": "pre_effect",
+            "evidence_ref": "google-form-prepared-absent:abc",
+        },
+    ) is True
+    row = next(item for item in durable_rows(tmp_path, "occurrences")
+               if item["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("released", 0)
+
+
+def test_pre_effect_reconcile_rejects_a_live_claim(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "crowdworks-revenue-paid"
+    occurrence = f"{owner}:live"
+    admission.enqueue_durable("browser", owner, admission_class="revenue",
+                              occurrence_id=occurrence, now=100)
+    claim, reason = admission.claim_durable(
+        "browser", owner, admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        connection.execute(
+            "UPDATE occurrences SET state='claimed' WHERE occurrence_id=?", (occurrence,))
+        connection.commit()
+    admission.atomic_json(tmp_path / "owners" / "live-owner.json", {
+        "version": 2, "pid": os.getpid(),
+        "process_start": admission.process_start(os.getpid()), "owner_id": owner,
+    })
+    assert admission.resolve_pre_effect_occurrence(
+        owner, occurrence, expected_state="claimed",
+        pre_effect_readback=lambda: {
+            "owner_id": owner, "occurrence_id": occurrence,
+            "verified": True, "proof_type": "pre_effect", "evidence_ref": "x",
+        },
+    ) is False
+
+
+def test_pre_effect_reconcile_rejects_provider_receipt_shaped_proof(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "crowdworks-revenue-paid"
+    occurrence = f"{owner}:pre-effect-reject"
+    admission.enqueue_durable("browser", owner, admission_class="revenue",
+                              occurrence_id=occurrence, now=100)
+    claim, reason = admission.claim_durable(
+        "browser", owner, admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+
+    assert admission.resolve_pre_effect_occurrence(
+        owner, occurrence,
+        pre_effect_readback=lambda: {
+            "owner_id": owner, "occurrence_id": occurrence,
+            "verified": True, "provider_receipt_id": "wrong-proof",
+        },
+    ) is False
+
+
 def test_resolve_unknown_occurrence_can_require_released_state_atomically(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")

@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[4]
 OWNER = ROOT / "skills/earn/crowdworks/scripts/paid-owner"
 
 
-def test_paid_owner_persists_pre_effect_hint_for_inventory_failure(tmp_path: Path) -> None:
+def test_paid_owner_does_not_recreate_hint_from_stale_inventory_output(tmp_path: Path) -> None:
     fake_root = tmp_path / "repo"
     fake_owner = fake_root / "skills/earn/crowdworks/scripts/paid-owner"
     fake_owner.parent.mkdir(parents=True)
@@ -47,6 +47,4 @@ def test_paid_owner_persists_pre_effect_hint_for_inventory_failure(tmp_path: Pat
                             capture_output=True, check=False)
 
     assert result.returncode == 1
-    assert json.loads(hint.read_text(encoding="utf-8")) == {
-        "status": "pre_effect_failure", "effect": 0,
-    }
+    assert not hint.exists()
