@@ -1250,7 +1250,7 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                     )
                     connection.execute(
                         "UPDATE priorities SET queued_at=? WHERE owner_id=?",
-                        (remaining, value["owner_id"]),
+                        (max(remaining, instant), value["owner_id"]),
                     )
         claim.unlink(missing_ok=True)
         if not reserve:
