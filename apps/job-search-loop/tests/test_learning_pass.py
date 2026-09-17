@@ -12,12 +12,17 @@ from pathlib import Path
 from unittest.mock import patch
 
 from job_search_loop.ledger import Ledger
+from job_search_loop.learning import summarize_mercor_sources
 from job_search_loop.mercor_learning import (
     build_learning_candidate,
     decide_change,
     evaluate_source_claim,
 )
-from job_search_loop.mercor_learning_sources import build_source_observation, collect_sources
+from job_search_loop.mercor_learning_sources import (
+    build_source_observation,
+    collect_sources,
+    classify_x_source_kind,
+)
 
 
 BASELINE = {
@@ -39,7 +44,7 @@ class LearningPassTests(unittest.TestCase):
 
         def fake_run(command, *, timeout=30):
             if command[0].endswith("crwl"):
-                return 0, "Navigate to Explore; Submit Application; Resume Later", ""
+                return 0, "Navigate to Explore; Job fit; Newest; Submit Application; Resume Later", ""
             if command[0].endswith("gh"):
                 return 0, json.dumps([{
                     "fullName": "example/mercor-jobs",
@@ -78,7 +83,41 @@ class LearningPassTests(unittest.TestCase):
         script = (Path(__file__).resolve().parents[1] / "scripts" / "run-learning.sh").read_text()
         self.assertIn("mercor_learning_sources collect", script)
         self.assertIn("mercor-learning-sources.json", script)
+        self.assertIn('--mercor-sources "$MERCOR_SOURCES"', script)
         self.assertIn("--query", script)
+
+    def test_x_source_requires_first_person_outcome_language(self):
+        self.assertEqual(
+            classify_x_source_kind("New Mercor roles and rates are available."),
+            "marketing",
+        )
+        self.assertEqual(
+            classify_x_source_kind("I applied, got hired, and received my first payout."),
+            "first_person",
+        )
+
+    def test_learning_report_keeps_source_links_without_promoting_income(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "sources.json"
+            path.write_text(json.dumps({
+                "version": 1,
+                "source_count": 1,
+                "income_receipts_promoted": 0,
+                "sources": [{
+                    "source_url": "https://talent.docs.mercor.com/how-to/apply",
+                    "source_kind": "official_guidance",
+                    "evidence_grade": "official",
+                    "source_unavailable": False,
+                    "published_at": None,
+                    "observed_at": "2026-09-17T11:30:00Z",
+                    "author": "Mercor",
+                    "claimed_outcome": "Guidance only",
+                }],
+            }), encoding="utf-8")
+            result = summarize_mercor_sources(path)
+        self.assertEqual(result["source_count"], 1)
+        self.assertEqual(result["income_receipts_promoted"], 0)
+        self.assertEqual(result["sources"][0]["source_url"], "https://talent.docs.mercor.com/how-to/apply")
 
     def test_source_observation_keeps_provenance_and_unavailable_surfaces_explicit(self):
         source = build_source_observation(

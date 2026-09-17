@@ -20,9 +20,21 @@ _EVIDENCE_GRADES = frozenset({
     "official", "first_person", "marketing", "code", "unavailable",
 })
 _OFFICIAL_URL = "https://talent.docs.mercor.com/how-to/apply"
-_OFFICIAL_MARKERS = ("navigate to explore", "submit application", "resume later")
+_OFFICIAL_MARKERS = (
+    "navigate to explore", "job fit", "newest", "submit application", "resume later",
+)
 _DEFAULT_QUERY = "Mercor Japanese AI evaluator application"
 _STRATEGY_VERSION = "mercor-fit-evidence-v1"
+
+
+def classify_x_source_kind(text: str) -> str:
+    """Call an X post firsthand only when it states a personal outcome."""
+    value = str(text or "").casefold()
+    self_reference = any(marker in value for marker in ("i ", "i'", "my ", "we "))
+    outcome = any(marker in value for marker in (
+        "got hired", "offer", "contract", "paid", "payout", "earned",
+    ))
+    return "first_person" if self_reference and outcome else "marketing"
 
 
 def _text(value: Any, name: str, *, allow_empty: bool = False) -> str:
@@ -195,13 +207,14 @@ def collect_sources(*, query: str = _DEFAULT_QUERY,
                     continue
                 text = str(item.get("text") or "").strip()[:1000]
                 handle = str(item.get("handle") or "").strip()[:200]
+                source_kind = classify_x_source_kind(text)
                 sources.append(build_source_observation(**_base_kwargs(
-                    source_url=item["url"], source_kind="first_person",
+                    source_url=item["url"], source_kind=source_kind,
                     observed_at=timestamp,
                     observation=text or "X post text unavailable.",
                     hypothesis="Treat the post as a discovery lead only; compare any claimed funnel outcome with official receipts.",
                     author=handle, claimed_outcome=text,
-                    evidence_grade="first_person", source_unavailable=False,
+                    evidence_grade=source_kind, source_unavailable=False,
                 )))
         else:
             sources.append(_unavailable(

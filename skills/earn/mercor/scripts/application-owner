@@ -14,6 +14,15 @@ AUTH_READBACK_JSON="$STATE_ROOT/auth-readback.json"
 EMAIL_AUTH_JSON="$STATE_ROOT/email-auth.json"
 LEASE_TOKEN=""
 LEASE_GENERATION=""
+RESULT_HINT="${LIFE_MANAGER_RESULT_HINT_PATH:-}"
+EMAIL_AUTH_ATTEMPTED=0
+
+pre_effect_failure() {
+  if [[ -n "$RESULT_HINT" ]]; then
+    print -r -- '{"status":"pre_effect_failure","effect":0}' >"$RESULT_HINT"
+    chmod 600 "$RESULT_HINT"
+  fi
+}
 
 [[ -x "$PYTHON" ]] || { print -u2 "mercor application owner: managed Python unavailable"; exit 69; }
 [[ -x "$LEASE_PYTHON" ]] || { print -u2 "mercor application owner: lease Python unavailable"; exit 69; }
@@ -41,16 +50,22 @@ park_lease() {
 }
 trap park_lease EXIT
 
-"$LEASE_PYTHON" "$LEASE_SCRIPT" acquire "$TASK" "https://work.mercor.com/explore" >"$LEASE_JSON"
+if ! "$LEASE_PYTHON" "$LEASE_SCRIPT" acquire "$TASK" "https://work.mercor.com/explore" >"$LEASE_JSON"; then
+  pre_effect_failure
+  exit 75
+fi
 chmod 600 "$LEASE_JSON"
 MERCOR_CDP_PAGE_WS=$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["ws"])' "$LEASE_JSON")
 LEASE_TOKEN=$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["token"])' "$LEASE_JSON")
 LEASE_GENERATION=$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["generation"])' "$LEASE_JSON")
 export MERCOR_CDP_PAGE_WS MERCOR_CDP_BASE_URL="$CDP"
-PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
+if ! PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
   -m job_search_loop.mercor_page_ready \
   --ws "$MERCOR_CDP_PAGE_WS" \
-  --output "$STATE_ROOT/page-ready.json"
+  --output "$STATE_ROOT/page-ready.json"; then
+  pre_effect_failure
+  exit 75
+fi
 
 set +e
 RUN_STARTED_AT=$(/bin/date +%s)
@@ -85,6 +100,7 @@ if [[ "$AUTH_STATUS" == "logged_out" ]]; then
   run_auth_readback || true
 fi
 if [[ "$AUTH_STATUS" == "logged_out" ]]; then
+  EMAIL_AUTH_ATTEMPTED=1
   PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
     -m job_search_loop.mercor_email_auth \
     --ws "$MERCOR_CDP_PAGE_WS" --after-epoch "$RUN_STARTED_AT" \
@@ -98,6 +114,9 @@ if [[ "$AUTH_STATUS" == "logged_out" ]]; then
 fi
 if [[ "$AUTH_STATUS" != "authenticated" ]]; then
   print -u2 "mercor application owner: authenticated readback unavailable; no login email requested"
+  if (( EMAIL_AUTH_ATTEMPTED == 0 )); then
+    pre_effect_failure
+  fi
   exit 75
 fi
 MERCOR_APPLICATION_STATE_ROOT="$STATE_ROOT" JOB_SEARCH_STATE_ROOT="${STATE_ROOT:h:h}" \

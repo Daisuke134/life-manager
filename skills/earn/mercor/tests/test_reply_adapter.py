@@ -318,6 +318,8 @@ def test_owner_and_registry_use_shared_reply_kernel():
     assert "--indexeddb firebaseLocalStorageDb/firebaseLocalStorage" in owner
     assert 'TASK="mercor-revenue-application"' in owner
     assert '"$LEASE_SCRIPT" release "$TASK"' not in owner
+    assert 'LIFE_MANAGER_RESULT_HINT_PATH' in owner
+    assert 'pre_effect_failure' in owner
     row = registry["loops"]["mercor-revenue-reply"]
     assert row["entrypoint"] == "skills/earn/mercor/scripts/reply-owner"
     assert row["cadence"]["start_interval_seconds"] == 300

@@ -42,6 +42,7 @@ chmod 600 "$MERCOR_SOURCES_SUMMARY"
   --strategy "$JOB_SEARCH_APP_ROOT/config/strategy.default.json" \
   --replay "$JOB_SEARCH_APP_ROOT/config/learning-replay.v1.json" \
   --report "$REPORT" \
+  --mercor-sources "$MERCOR_SOURCES" \
   --outbox "$TELEGRAM_OUTBOX" \
   >"$SUMMARY"
 chmod 600 "$REPORT" "$SUMMARY"

@@ -9,6 +9,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
+from urllib.parse import urlsplit
 
 from .experiments import ExperimentResult, evaluate_candidate
 from .ledger import FUNNEL_STAGES, Ledger
@@ -609,6 +610,72 @@ def _read_object(path: Path) -> dict[str, Any]:
     return value
 
 
+def summarize_mercor_sources(path: Path | None) -> dict[str, Any]:
+    """Attach validated source provenance to a private learning report."""
+    if path is None or not Path(path).is_file():
+        return {
+            "status": "unavailable",
+            "reason": "source_receipt_missing",
+            "source_count": 0,
+            "income_receipts_promoted": 0,
+            "sources": [],
+        }
+    try:
+        value = _read_object(Path(path))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return {
+            "status": "unavailable",
+            "reason": "source_receipt_invalid",
+            "source_count": 0,
+            "income_receipts_promoted": 0,
+            "sources": [],
+        }
+    rows = value.get("sources")
+    if not isinstance(rows, list):
+        return {
+            "status": "unavailable",
+            "reason": "source_receipt_sources_missing",
+            "source_count": 0,
+            "income_receipts_promoted": 0,
+            "sources": [],
+        }
+    accepted: list[dict[str, Any]] = []
+    allowed_kinds = {"official_guidance", "first_person", "marketing", "code", "official_receipt"}
+    allowed_grades = {"official", "first_person", "marketing", "code", "official_receipt", "unavailable"}
+    for row in rows:
+        if not isinstance(row, Mapping):
+            continue
+        url = row.get("source_url")
+        parsed = urlsplit(url.strip()) if isinstance(url, str) else None
+        kind = row.get("source_kind")
+        grade = row.get("evidence_grade")
+        if (
+            parsed is None
+            or parsed.scheme != "https"
+            or not parsed.netloc
+            or kind not in allowed_kinds
+            or grade not in allowed_grades
+            or not isinstance(row.get("source_unavailable"), bool)
+        ):
+            continue
+        accepted.append({
+            "source_url": url.strip(),
+            "source_kind": kind,
+            "evidence_grade": grade,
+            "source_unavailable": row["source_unavailable"],
+            "published_at": row.get("published_at") if isinstance(row.get("published_at"), (str, type(None))) else None,
+            "observed_at": str(row.get("observed_at") or ""),
+            "author": str(row.get("author") or "")[:200],
+            "claimed_outcome": str(row.get("claimed_outcome") or "")[:1000],
+        })
+    return {
+        "status": "loaded",
+        "source_count": len(accepted),
+        "income_receipts_promoted": 0,
+        "sources": accepted,
+    }
+
+
 def _read_cases(path: Path) -> list[dict[str, Any]]:
     value = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(value, dict) or value.get("version") != 1:
@@ -654,6 +721,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--occurred-at")
     parser.add_argument("--report", type=Path)
     parser.add_argument("--outbox", type=Path)
+    parser.add_argument("--mercor-sources", type=Path)
     parsed = parser.parse_args(argv)
 
     ledger = Ledger(parsed.ledger)
@@ -667,6 +735,7 @@ def main(argv: list[str] | None = None) -> int:
             if parsed.report is None or parsed.outbox is None:
                 parser.error("run requires --report and --outbox")
             result = driver.run()
+            result["mercor_sources"] = summarize_mercor_sources(parsed.mercor_sources)
             _write_private_json(parsed.report, result)
             delivery = deliver_learning_report(
                 result,

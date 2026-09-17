@@ -34,6 +34,8 @@ def test_owner_uses_shared_browser_lease_and_revenue_name():
     assert '--indexeddb firebaseLocalStorageDb/firebaseLocalStorage' in source
     assert 'CLOAK_SESSION_VAULT_WRITEBACK_FILE="$STATE_ROOT/auth-overlay.json"' in source
     assert 'CLOAK_CONTEXT_COOKIE_DOMAINS="mercor.com"' in source
+    assert 'LIFE_MANAGER_RESULT_HINT_PATH' in source
+    assert 'pre_effect_failure' in source
     reply = (ROOT / "skills/earn/mercor/scripts/reply-owner").read_text()
     assert 'CLOAK_CONTEXT_COOKIE_DOMAINS="mercor.com"' in reply
     assert 'session-writeback.json' in source
