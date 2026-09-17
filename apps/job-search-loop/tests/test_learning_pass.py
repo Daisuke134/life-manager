@@ -11,6 +11,11 @@ import unittest
 from pathlib import Path
 
 from job_search_loop.ledger import Ledger
+from job_search_loop.mercor_learning import (
+    build_learning_candidate,
+    decide_change,
+    evaluate_source_claim,
+)
 
 
 BASELINE = {
@@ -27,6 +32,60 @@ REPLAY_CASES = [
 
 
 class LearningPassTests(unittest.TestCase):
+    def test_external_claim_never_becomes_income_without_official_receipt(self):
+        result = evaluate_source_claim({
+            "source_kind": "marketing",
+            "source_url": "https://example.com/post",
+            "claimed_income_usd": 10000,
+        })
+        self.assertEqual(result["verified_income_usd"], 0)
+        self.assertEqual(result["evidence_grade"], "hypothesis_only")
+
+    def test_only_verified_official_receipt_contributes_income(self):
+        result = evaluate_source_claim({
+            "source_kind": "official_receipt",
+            "claimed_income_usd": 125.50,
+            "verified": True,
+            "provider_receipt_id": "earnings-1",
+            "evidence_ref": "earnings-readback.json",
+        })
+        self.assertEqual(result["verified_income_usd"], 125.50)
+        self.assertEqual(result["evidence_grade"], "official_receipt")
+
+    def test_small_cohorts_are_insufficient_for_a_strategy_change(self):
+        result = decide_change(
+            before=[{"stage": "submitted"}],
+            after=[{"stage": "offer"}],
+        )
+        self.assertEqual(result["decision"], "insufficient_evidence")
+
+    def test_learning_candidate_changes_one_strategy_variable(self):
+        candidate = build_learning_candidate(
+            source_url="https://talent.docs.mercor.com/how-to/apply",
+            source_kind="official_guidance",
+            observation="Mercor recommends the Job fit and Newest views.",
+            hypothesis="Job-fit ordering will increase offer-stage conversion.",
+            target_stage="offer",
+            one_variable="listing_order",
+            strategy_version="mercor-fit-evidence-v1",
+            baseline_cohort={"resolved": 12, "strategy_version": "v0"},
+            proposed_change={"listing_order": "job_fit_then_newest"},
+        )
+        self.assertEqual(candidate["one_variable"], "listing_order")
+        self.assertEqual(list(candidate["proposed_change"]), ["listing_order"])
+        with self.assertRaisesRegex(ValueError, "exactly one variable"):
+            build_learning_candidate(
+                source_url="https://talent.docs.mercor.com/how-to/apply",
+                source_kind="official_guidance",
+                observation="observation",
+                hypothesis="hypothesis",
+                target_stage="offer",
+                one_variable="listing_order",
+                strategy_version="v1",
+                baseline_cohort={"resolved": 12},
+                proposed_change={"listing_order": "job_fit", "copy": "short"},
+            )
+
     def _module(self):
         try:
             from job_search_loop import learning

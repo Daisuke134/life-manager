@@ -136,13 +136,13 @@
 
 **Interfaces:** One `learning_candidate` contains `{source_url, source_kind, observation, hypothesis, target_stage, one_variable, strategy_version, baseline_cohort, proposed_change}`. Source kinds distinguish official guidance, first-person anecdote, marketing, and code. The shared evaluator returns `keep|revert|pause|insufficient_evidence` with later official cohort evidence.
 
-- [ ] Test that an X testimonial without a verifiable hire/payout cannot become an income receipt or profile fact, that a small/no-outcome cohort returns `insufficient_evidence`, and that only one strategy variable changes per candidate.
+- [x] Test that an X testimonial without a verifiable hire/payout cannot become an income receipt or profile fact, that a small/no-outcome cohort returns `insufficient_evidence`, and that only one strategy variable changes per candidate.
   ```python
   assert evaluate_claim({"source_kind":"marketing","claimed_income":10000})["verified_income"] == 0
   assert decide_change(before=[], after=[])["decision"] == "insufficient_evidence"
   ```
-- [ ] Run `rtk pytest -q apps/job-search-loop/tests/test_learning_pass.py`; record failing new cases.
-- [ ] Adapt the existing learning wake to search official Mercor updates, X, first-person web accounts and GitHub for the earliest measured funnel loss. Record `source_url`, `published_at`, `observed_at`, author, claimed outcome, evidence grade, and `source_unavailable` when a search surface fails. Use official Mercor guidance as the initial hypothesis source. Propose profile proof, qualification, or application presentation one at a time. Never automatically assert a new private fact from external content. Do not add a second scheduler or scrape credentials.
+- [x] Run `rtk pytest -q apps/job-search-loop/tests/test_learning_pass.py`; the new cases now pass after the contract implementation.
+- [ ] Adapt the existing learning wake to search official Mercor updates, X, first-person web accounts and GitHub for the earliest measured funnel loss. The new `mercor_learning.py` contract now keeps source labels, verified-receipt income, and one-variable proposals bounded; the wake still must record `published_at`, `observed_at`, author, claimed outcome, evidence grade, and `source_unavailable` when a search surface fails. Use official Mercor guidance as the initial hypothesis source. Propose profile proof, qualification, or application presentation one at a time. Never automatically assert a new private fact from external content. Do not add a second scheduler or scrape credentials.
 - [ ] Rerun focused tests. Generate one dry read-only learning proposal from the private baseline and verify its source links, affected strategy version, and explicit `insufficient_evidence` when outcome data is inadequate.
 - [ ] Commit and push.
 
