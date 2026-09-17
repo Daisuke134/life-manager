@@ -90,7 +90,7 @@ totals below include effect-fenced rows and are not an eligible-wait measure.
 Foundation Done means **all three** of these hold, without inventing another
 scheduler or raising the finite RAM ceiling by guess:
 
-1. Under five occupied finite claims and memory/disk pressure, durable work
+1. Under the measured finite capacity (currently eight total slots) and memory/disk pressure, durable work
    remains queued; release, timeout, owner death and recovery admit the next
    eligible **agent, browser and deterministic** owner automatically. Paid
    priority cannot starve an aged non-Paid owner; no orphan claim silently
