@@ -26,6 +26,7 @@ The production scheduler also observed the synthetic projection and logged a Tel
 
 ## Remaining canary gates
 
+- Latest automated readback: `v1_count=0`, `legacy_count=34`, `pass=false` over the trailing 14-day window. This is an honest pre-window state, not a canary pass.
 - [ ] Capture one natural Dais morning affirmation in `morning_orientation`.
 - [ ] Capture one natural Dais midday mindfulness/body-awareness line in `midday_awareness`.
 - [ ] Capture one natural Dais evening manifestation/release line in `evening_direction`.
