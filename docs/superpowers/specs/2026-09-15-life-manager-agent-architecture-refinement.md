@@ -131,6 +131,16 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   the connector occurrence released (`sequence 30568 → 30609`). A natural
   connector terminal on the same exact release is still required, so this item
   remains open.
+  A later `6943af4c` current release had the tracked source tree but lacked
+  `apps/life-manager/node_modules/{playwright-core,jsqr}`; a targeted
+  Connector reconcile failed closed with `Connector runtime dependencies
+  missing`. The canonical cutter produced complete main-derived release
+  `20260918T011952-faac3e09` with `release_paths=ALL` and both packages
+  present. Targeted loaded-idle reconciles installed the exact SHA on
+  Connector (`fe92f92722cf82fbc9581200`) and probe
+  (`cf4ab074ba98d4f03f1aceb5`) without starting a provider submission.
+  Both loaded argv read back `faac3e09`; a natural two-owner terminal chain
+  on that SHA is still required.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
