@@ -2,10 +2,13 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const pptxgen = require("pptxgenjs");
-const skillRoot = process.env.PPTX_SKILL_ROOT || path.join(os.homedir(), "anicca-project/.claude/skills/pptx");
+const ROOT = path.resolve(__dirname, "../..");
+const skillRoot = process.env.PPTX_SKILL_ROOT;
+if (!skillRoot) {
+  throw new Error("PPTX_SKILL_ROOT is required; provision the presentation skill explicitly");
+}
 const html2pptx = require(path.join(skillRoot, "scripts/html2pptx.js"));
 
-const ROOT = path.resolve(__dirname, "../..");
 const OUT = path.join(ROOT, "docs/presentations/how-to-make-a-financially-independent-ai-ja.pptx");
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), "ae-jp-deck-"));
 

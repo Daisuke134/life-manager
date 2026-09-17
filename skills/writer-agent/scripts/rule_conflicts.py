@@ -138,7 +138,7 @@ noted here rather than asked about):
     positive class, accepted rather than chased further: a bare relative
     reference whose intended root is a DIFFERENT project entirely (e.g.
     article-daily.sh's docs/loop-engineering/47-....md, which resolves
-    under ~/anicca-project/, not any of the four roots tried) still shows
+    under a different project checkout, not any of the four roots tried) still shows
     up dead -- none of the four roots the coordinator specified cover an
     arbitrary sibling project, and guessing at other projects' locations
     would be scope creep beyond the specified fix.

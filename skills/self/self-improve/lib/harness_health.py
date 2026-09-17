@@ -11,8 +11,7 @@ INV-NO-JUDGMENT: pure bookkeeping over the already-deterministic `kind` enum ind
 assigns -- never a new judgment. INV-LOOPDETECT-SEPARATE: `loop_detect` is excluded from
 compute_slot_health's subset by a `kind`-membership check, regardless of its own `slot` field.
 
-See specs/behavioral-spec.md and specs/verification-architecture.md
-(anicca-project/.vcsdd/features/anicca-harness-tooluse-health/) for the full requirement text.
+See the repository design record for the full requirement text.
 """
 import os
 from datetime import datetime, timezone
