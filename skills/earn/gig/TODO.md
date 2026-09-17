@@ -1014,19 +1014,20 @@ work item and leave a sibling trace unchanged.
 delivery read back. Historical confirmed form receipts exist for `63583795` and `63570481`; `63583795` also
 has a buyer-visible seller message and inspection-pending readback. Its local Paid row remains
 `reconcile_unknown` after the latest provider-detail timeout and must be reconciled before any retry; do not
-resend the form or delivery. PR `#5437` now classifies the exact inspection-pending body as delivered/no-op,
-and immutable release `20260918T022048-d7c71fd8` is loaded by the targeted Paid owner. The adapter and
-kernel-focused tests are green (122 tests). The latest installed wake still ended before any new effect
-with `crowdworks_paid_contract_timeout`; a locked read-only probe then read all five contracts and returned
-`63583795=delivered`. No contract has buyer acceptance, settlement, payout, or verified MRR yet.
+resend the form or delivery. PR `#5437` classifies the exact inspection-pending body as delivered/no-op,
+and PR `#5443` keeps a detail-timeout contract as a waiting item so other contracts are not erased. The
+targeted Paid owner is now applied to immutable release `20260918T023325-efedb39c`; adapter/kernel tests
+are green (142 tests). The last successful locked read-only probe read all five contracts and returned
+`63583795=delivered`; the latest owner wake stopped before any new effect at the Admission/provider boundary.
+No contract has buyer acceptance, settlement, payout, or verified MRR yet.
 
-PRs `#5393`, `#5401`, `#5411`, `#5412`, `#5413`, `#5419`, and `#5437` bound the Paid wake, preserve
+PRs `#5393`, `#5401`, `#5411`, `#5412`, `#5413`, `#5419`, `#5437`, and `#5443` bound the Paid wake, preserve
 pre-effect hints, retry CDP, recover the locked persistent context, start navigation at `commit`, fail
-closed on empty inventory, and classify official inspection-pending delivery as a no-op. Current main is
-loaded from immutable release `20260918T022048-d7c71fd8`; targeted Paid apply read back the exact SHA.
-The latest wake ended with `effect=0` at a bounded provider-detail timeout; a subsequent locked read-only
-probe read all five contracts and returned `63583795=delivered`. No new form, message, or formal-delivery
-effect was accepted. Authenticated contract detail readback remains transiently timeout-prone.
+closed on empty inventory, classify official inspection-pending delivery as a no-op, and isolate one contract
+detail timeout as a retryable waiting item. Current main is loaded from immutable release
+`20260918T023325-efedb39c`; targeted Paid apply read back the exact SHA. The latest owner wake ended
+before a provider terminal receipt with `effect=0`; no new form, message, or formal-delivery effect was
+accepted. Authenticated contract detail readback still needs a successful terminal Paid wake.
 
 **Merged code slices (live proof still open):** bounded context/readback PR `#5369`, delivery dialog/field
 fixes PRs `#5372`, `#5373`, `#5375`, `#5381`, contract answer action PR `#5385`, runtime bound PR `#5393`,
@@ -1060,11 +1061,10 @@ buyer-visible result, and closes the official provider stages.
 - [ ] **CW-F5 — formal delivery and acceptance:** For each contract, read back `納品 → 検収/acceptance →
   settlement → payout`, preserve revisions as new buyer-event versions, and prove replay-zero. A wrong or
   incomplete result keeps the row open and triggers focused repair plus a new natural wake.
-- [ ] **CW-F6 — installed-owner proof:** Immutable release `20260918T022048-d7c71fd8` and the targeted Paid
-  apply are complete. A kickstart reached the provider inventory boundary with `effect=0`, but the terminal
-  detail timeout means installed-owner proof remains open. Re-run without waiting for a global slot and verify
-  the terminal receipt plus exact official provider readback for every ready row. Keep other loop owners/releases
-  unchanged.
+- [ ] **CW-F6 — installed-owner proof:** Immutable release `20260918T023325-efedb39c` and the targeted Paid
+  apply are complete. Timeout isolation is tested, but the latest kickstart has no provider terminal receipt
+  yet (`effect=0`). Re-run without waiting for a global slot and verify the terminal receipt plus exact official
+  provider readback for every ready row. Keep other loop owners/releases unchanged.
 - [ ] **CW-F7 — revenue:** Close all five existing contracts before pursuing repeat/retainer work. Separate
   cash received from verified recurring MRR; USD 10,000 MRR remains open until collected/settled evidence.
 - [ ] Share the contract-ID handoff, quality gate and receipt rules through the existing shared marketplace
