@@ -73,7 +73,7 @@ class TerraDefaultTest(unittest.TestCase):
                 # Paid and explicit escalation stay Codex-only. Other executable
                 # classes retain their existing cross-provider fallback contract.
                 fallback = {"provider": "claude-direct", "model": "claude-sonnet-5"}
-                if name not in {"paid-owner-agent", "escalation-agent"} and fallback not in expected:
+                if name not in {"paid-owner-agent", "escalation-agent", "codex-brain-agent"} and fallback not in expected:
                     expected.append(fallback)
                 self.assertEqual(candidates, expected)
 

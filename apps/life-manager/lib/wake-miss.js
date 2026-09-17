@@ -19,6 +19,8 @@
 const WAKE_MISS_REASONS = {
   // The dial itself failed (Telnyx balance, bad number, transport). releaseWake then wipes the claim.
   DIAL_FAILED: "dial_failed",
+  // The provider accepted the reminder and it ended without user response; this is not a dial failure.
+  NO_ANSWER: "no_answer",
   // Departure passed LATE_CUTOFF_MIN and no level was ever claimed: nothing rang at all.
   NO_CALL_BEFORE_DEPARTURE: "no_call_before_departure",
   NO_CALL_BEFORE_EVENT: "no_call_before_event",
@@ -116,6 +118,9 @@ function wakeMissLine(miss, nowMs, opts = {}) {
   if (miss.reason === WAKE_MISS_REASONS.DIAL_FAILED) {
     return `🔔 Missed: ${when} could not be dialled${miss.detail ? ` (${miss.detail})` : ""}`;
   }
+  if (miss.reason === WAKE_MISS_REASONS.NO_ANSWER) {
+    return `🔔 Reminder: ${when} rang, but nobody answered`;
+  }
   if (miss.reason === WAKE_MISS_REASONS.NO_CALL_BEFORE_DEPARTURE) {
     return `🔔 Missed: ${when} never rang before your departure time`;
   }
@@ -160,6 +165,7 @@ async function claimWakeMissNotice(uid, eventKey, opts = {}) {
 // be a fabrication. Each reason says only what is known to be true.
 function wakeMissNotice(miss, opts = {}) {
   if (!miss) return null;
+  if (miss.reason === WAKE_MISS_REASONS.NO_ANSWER) return null;
   const ja = (opts.lang || "ja") === "ja";
   const at = clockTime(miss.due_at || miss.occurred_at, opts.timeZone);
   const when = at || (ja ? "予定の時刻" : "the scheduled time");

@@ -286,6 +286,10 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(environment["ANICCA_HOME"], str(instance))
         self.assertEqual(environment["EARN_STATE_ROOT"], str(earn_state))
         self.assertEqual(environment["EARN_LEDGER"], str(earn_state / "earn-ledger.jsonl"))
+        self.assertEqual(environment["ANICCA_BRAIN"], "codex")
+        self.assertEqual(environment["ANICCA_FREE_MODEL"], "gpt-5.6-terra")
+        self.assertEqual(environment["ANICCA_LEAN_MODEL"], "gpt-5.6-terra")
+        self.assertEqual(environment["ANICCA_FUNDED_MODEL"], "gpt-5.6-terra")
         self.assertNotIn("CEO_EFFECTIVE_CRON_DIR", environment)
 
     def test_agent_economy_plist_uses_explicit_local_install_home(self):
@@ -2520,6 +2524,44 @@ class LmLoopApplyTest(unittest.TestCase):
 
         self.assertEqual(current.resolve(), release_a)
         self.assertFalse((self.root / "current.swap").exists())
+
+    def test_reconcile_refuses_release_that_is_no_longer_current(self):
+        old = self._release("old-release")
+        current = self.root / "current"
+        current.symlink_to(self._release("new-release"))
+        with patch.object(lm_loop, "_safe_launchctl", side_effect=AssertionError(
+                "stale release reached launchctl")):
+            with self.assertRaisesRegex(RuntimeError, "release is no longer current"):
+                apply_live(
+                    old, self.root / "LaunchAgents", self.root / "launchctl-safe",
+                    target="example", current=current, require_current=True,
+                )
+
+    def test_current_swap_waits_for_inflight_apply(self):
+        old = self._release("old-release")
+        new = self._release("new-release")
+        current = self.root / "current"
+        current.symlink_to(old)
+        attempted = self.root / "swap-attempted"
+        runner = (
+            "from pathlib import Path; "
+            "from runtime.loop.lm_loop import activate_current; "
+            f"Path({str(attempted)!r}).write_text('yes'); "
+            f"activate_current(Path({str(current)!r}), Path({str(new)!r}))"
+        )
+        with lm_loop._protocol_transition_lock(current, exclusive=False):
+            process = subprocess.Popen(
+                [sys.executable, "-c", runner], cwd=str(Path(__file__).parents[3]),
+                env={**os.environ, "PYTHONPATH": "."},
+            )
+            deadline = time.monotonic() + 5
+            while not attempted.exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            self.assertTrue(attempted.exists())
+            time.sleep(0.1)
+            self.assertEqual(current.resolve(), old.resolve())
+        self.assertEqual(process.wait(timeout=5), 0)
+        self.assertEqual(current.resolve(), new.resolve())
 
     def test_admission_v2_activation_requires_exact_loaded_finite_argv(self):
         (self.root / "config").mkdir()

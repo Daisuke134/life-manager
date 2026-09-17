@@ -4,7 +4,7 @@
 
 const { isHelperBlock } = require("./wake-filter.js");
 const { shouldMarkAnswered } = require("./answered.js");
-const { recordTelnyxWakeReceipt } = require("./telnyx-receipt.js");
+const { recordTelnyxWakeReceipt, recordTelnyxWakeOutcome } = require("./telnyx-receipt.js");
 const { resolveLateRecipients } = require("./late-recipient-resolver.js");
 const {
   createLateDraft,
@@ -527,13 +527,27 @@ async function applyAmdDetection(uid, key, opts = {}) {
         fetchImpl: opts.fetchImpl,
       }))
     : await recordAmdResult(uid, key, opts);
+  const outcome = claimBound && amd.ok === true && amd.matched === 1
+    && (result === "human" || result === "not_sure")
+    ? await recordTelnyxWakeOutcome({
+      uid,
+      eventKey: key,
+      claimToken: opts.claimToken,
+      callControlId: opts.callControlId,
+      callOutcome: "conversation",
+    }, {
+      supaUrl: opts.supaUrl,
+      supaKey: opts.supaKey,
+      fetchImpl: opts.fetchImpl,
+    })
+    : null;
   if (shouldMarkAnswered({ amdEnabled: true, signal: "amd", result })) {
     const answered = claimBound && !(amd.ok && amd.matched === 1)
       ? { ok: true, matched: 0 }
       : await markAnswered(uid, key, opts);
-    return { result, amd, answered, hangup: null };
+    return { result, amd, outcome, answered, hangup: null };
   }
-  return { result, amd, answered: null, hangup: null };
+  return { result, amd, outcome, answered: null, hangup: null };
 }
 
 // Test calls have no wake row to update. A detection only returns the observed label;

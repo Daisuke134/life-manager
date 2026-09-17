@@ -397,8 +397,8 @@ test("a failed provider_direct submit records the provider and its mapped connpa
     .filter(([name]) => name === "history")
     .map(([, row]) => row)
     .find((row) => row.purpose === "submit" && row.method === "provider_direct" && row.result === "failed" && row.provider === "connpass");
-  assert.deepEqual(directFailure && [directFailure.safe_reason, directFailure.error_class], [
-    "connpass_tier_unavailable", "Error",
+  assert.deepEqual(directFailure && [directFailure.safe_reason, directFailure.error_class, directFailure.candidate_ref], [
+    "connpass_tier_unavailable", "Error", "connpass-event://event/three",
   ]);
   assert.equal(JSON.stringify(directFailure).includes("participation tier unavailable"), false);
 });
@@ -624,8 +624,8 @@ test("a failed provider_cache submit records the provider and a different mapped
     .filter(([name]) => name === "history")
     .map(([, row]) => row)
     .find((row) => row.purpose === "submit" && row.method === "provider_cache" && row.result === "failed" && row.provider === "connpass");
-  assert.deepEqual(cacheFailure && [cacheFailure.safe_reason, cacheFailure.error_class], [
-    "connpass_questionnaire_required", "Error",
+  assert.deepEqual(cacheFailure && [cacheFailure.safe_reason, cacheFailure.error_class, cacheFailure.candidate_ref], [
+    "connpass_questionnaire_required", "Error", "connpass-event://event/three",
   ]);
 });
 
@@ -735,6 +735,44 @@ test("a blocked Connpass fallback records the exact candidate for official form 
   const row = state.calls.find(([name, action]) => name === "history" && action.method === "browser_harness");
   assert.equal(row[1].candidate_ref, "connpass-event://event/405297");
   assert.equal(row[1].safe_reason, "unsafe_agent_action");
+});
+
+test("a blocked Connpass fallback reports public questionnaire labels once", async () => {
+  const reports = [];
+  const state = fixture({
+    async discoverCandidates() { return [candidate("connpass", "404531")]; },
+    async runDirectAction() {
+      return {
+        status: "failed",
+        safe_reason: "connpass_questionnaire_required",
+        question_labels: ["注意事項への同意", "Xアカウント（なければ「なし」）"],
+      };
+    },
+    async runAgentFallback() { return { status: "failed", safe_reason: "unsafe_agent_action" }; },
+    async reportConnpassQuestionnaire(input) { reports.push(input); return { telegram_provider_id: "8811" }; },
+  });
+  await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-question-report", providers: ["connpass"] }, state.dependencies);
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0].candidate.event_ref, "connpass-event://event/404531");
+  assert.deepEqual(reports[0].questions, ["注意事項への同意", "Xアカウント（なければ「なし」）"]);
+});
+
+test("an effect-unknown Connpass fallback never reports zero-submit questionnaire completion", async () => {
+  const reports = [];
+  const state = fixture({
+    async discoverCandidates() { return [candidate("connpass", "404531")]; },
+    async runDirectAction() {
+      return {
+        status: "failed",
+        safe_reason: "connpass_questionnaire_required",
+        question_labels: ["注意事項への同意"],
+      };
+    },
+    async runAgentFallback() { return { status: "failed", safe_reason: "effect_unknown" }; },
+    async reportConnpassQuestionnaire(input) { reports.push(input); return { telegram_provider_id: "8811" }; },
+  });
+  await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-question-unknown", providers: ["connpass"] }, state.dependencies);
+  assert.equal(reports.length, 0);
 });
 
 test("Connpass candidate-specific form blockers do not exhaust the wake before a simple candidate", async () => {
@@ -1731,10 +1769,12 @@ test("every recorded action contains only the safe audit fields", async () => {
   const failureKeys = ["duration_ms", "method", "provider", "purpose", "result", "safe_reason", "timestamp"];
   const failureKeysWithClass = ["duration_ms", "error_class", "method", "provider", "purpose", "result", "safe_reason", "timestamp"];
   const failureKeysWithCandidate = ["candidate_ref", ...failureKeys];
+  const failureKeysWithClassAndCandidate = ["candidate_ref", ...failureKeysWithClass];
   for (const row of history) {
     const hasFailureContext = Object.hasOwn(row, "provider") || Object.hasOwn(row, "safe_reason") || Object.hasOwn(row, "error_class");
     assert.deepEqual(Object.keys(row).sort(), hasFailureContext
-      ? (Object.hasOwn(row, "error_class") ? failureKeysWithClass
+      ? (Object.hasOwn(row, "error_class") && Object.hasOwn(row, "candidate_ref") ? failureKeysWithClassAndCandidate
+        : Object.hasOwn(row, "error_class") ? failureKeysWithClass
         : Object.hasOwn(row, "candidate_ref") ? failureKeysWithCandidate : failureKeys)
       : baseKeys);
     assert.match(row.purpose, /^(navigate|observe|fill|submit|readback)$/);
@@ -1746,7 +1786,8 @@ test("every recorded action contains only the safe audit fields", async () => {
       assert.match(row.safe_reason, /^[a-z0-9][a-z0-9_:-]{1,99}$/);
       if (Object.hasOwn(row, "error_class")) assert.match(row.error_class, /^[A-Za-z][A-Za-z0-9]{0,63}$/);
       if (Object.hasOwn(row, "candidate_ref")) {
-        assert.equal(row.method, "browser_harness");
+        assert.equal(row.purpose, "submit");
+        assert.match(row.method, /^(provider_cache|provider_direct|browser_harness)$/);
         assert.equal(row.provider, "connpass");
         assert.match(row.candidate_ref, /^connpass-event:\/\/event\/[1-9][0-9]*$/);
       }

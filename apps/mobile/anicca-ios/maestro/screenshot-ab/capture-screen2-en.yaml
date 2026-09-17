@@ -1,0 +1,36 @@
+# Screen 2: Struggle Selection (EN)
+# オンボーディングの struggle 選択画面をキャプチャ
+appId: ai.anicca.app.ios
+---
+- clearState
+- clearKeychain
+- launchApp:
+    arguments:
+      UITESTING: "true"
+
+# Welcome screen
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-welcome-cta"
+    timeout: 60000
+
+- tapOn:
+    id: "onboarding-welcome-cta"
+
+# Struggle Selection 画面
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-struggle-staying_up_late"
+    timeout: 15000
+
+# 複数選択して見栄え良くする
+- tapOn:
+    id: "onboarding-struggle-staying_up_late"
+- tapOn:
+    id: "onboarding-struggle-self_loathing"
+- tapOn:
+    id: "onboarding-struggle-procrastination"
+- tapOn:
+    id: "onboarding-struggle-anxiety"
+
+- takeScreenshot: "screen2-struggle-selection-en"

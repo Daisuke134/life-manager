@@ -400,6 +400,16 @@ function createConnpassScriptFirstWorkflow(options = {}) {
         if (String(error && error.code || "") === "CONNPASS_SESSION_EXPIRED") {
           return Object.freeze({ status: "failed", safe_reason: "connpass_session_expired" });
         }
+        if (String(error && error.code || "") === "CONNPASS_QUESTIONNAIRE_REQUIRED") {
+          const labels = Array.isArray(error.question_labels)
+            ? error.question_labels.filter((label) => typeof label === "string" && label.trim()).slice(0, 20)
+            : [];
+          return Object.freeze({
+            status: "failed",
+            safe_reason: "connpass_questionnaire_required",
+            ...(labels.length > 0 ? { question_labels: Object.freeze(labels) } : {}),
+          });
+        }
         throw error;
       }
       let currentUrl = "";

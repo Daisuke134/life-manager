@@ -133,6 +133,12 @@ exit 0
         self.assertIn("https://openrouter.ai/api/v1/credits", call_text)
         self.assertIn("https://openrouter.ai/api/v1/chat/completions", call_text)
 
+    def test_default_probe_uses_bounded_deepseek_contract(self):
+        result, call_text, _, _ = self.run_gate({"data": {"limit_remaining": None}})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("deepseek/deepseek-v4.1-flash", call_text)
+        self.assertIn('"max_tokens": 8192', call_text)
+
     def test_deepseek_probe_uses_packaged_bounded_model_contract(self):
         result, call_text, _, _ = self.run_gate(
             {"data": {"limit_remaining": 25}},

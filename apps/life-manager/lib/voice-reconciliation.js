@@ -40,10 +40,18 @@ async function reconcileStaleVoiceAllowances({ supaUrl, supaKey, telnyxKey,
     if (!row.uid || !row.call_key || !row.period_start || !row.reservation_token
       || !Number.isInteger(row.reserved_seconds) || row.reserved_seconds < 1) continue;
     try {
-      const wakes = await read(query("lm_wake_log", {
-        select: "telnyx_call_control_id,telnyx_call_session_id",
-        uid: `eq.${row.uid}`, event_key: `eq.${row.call_key}`, limit: "2",
-      }));
+      let wakes;
+      try {
+        wakes = await read(query("lm_wake_log", {
+          select: "telnyx_call_control_id,telnyx_call_session_id,call_outcome,amd_result,answered_at",
+          uid: `eq.${row.uid}`, event_key: `eq.${row.call_key}`, limit: "2",
+        }));
+      } catch {
+        wakes = await read(query("lm_wake_log", {
+          select: "telnyx_call_control_id,telnyx_call_session_id,amd_result,answered_at",
+          uid: `eq.${row.uid}`, event_key: `eq.${row.call_key}`, limit: "2",
+        }));
+      }
       if (wakes.length !== 1 || !wakes[0].telnyx_call_control_id || !wakes[0].telnyx_call_session_id) continue;
       const session = wakes[0].telnyx_call_session_id;
       const cdrUrl = new URL("https://api.telnyx.com/v2/detail_records");
@@ -58,13 +66,20 @@ async function reconcileStaleVoiceAllowances({ supaUrl, supaKey, telnyxKey,
         && seconds === 0 && cdr.billed_sec === 0;
       const answered = cdr.connected === 1 && cdr.completed === 1
         && Number.isInteger(seconds) && seconds >= 0;
+      const wake = wakes[0];
+      const outcome = wake.call_outcome
+        || (wake.amd_result === "human" || wake.amd_result === "not_sure"
+          || (typeof wake.answered_at === "string" && wake.answered_at) ? "conversation"
+          : wake.amd_result === "machine" ? "no_answer" : null);
       if (cdr.telnyx_session_id !== session || cdr.record_type !== "call-control"
         || cdr.direction !== "outbound" || !cdr.finished_at
         || seconds > row.reserved_seconds || (!unanswered && !answered)) continue;
+      if (answered && !outcome) continue;
+      const settledSeconds = unanswered || outcome !== "conversation" ? 0 : seconds;
       const receipt = await completeVoiceAllowance(row.uid, row.call_key, base, supaKey, {
         fetchImpl: timedFetch,
         reservation: { periodStart: row.period_start, reservationToken: row.reservation_token },
-        connectedSeconds: seconds,
+        connectedSeconds: settledSeconds,
       });
       if (receipt && receipt.allowed === true) settled += 1;
       else errors += 1;

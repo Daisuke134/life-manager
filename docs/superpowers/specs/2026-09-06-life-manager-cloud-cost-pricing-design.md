@@ -268,18 +268,54 @@ AMDの分類はreceiptへ残すが、`machine`だけで通話を切らない。`
 [推奨](https://developers.telnyx.com/docs/voice/programmable-voice/answering-machine-detection)どおり
 人として扱う。分類が`human`/`not_sure`ならmanaged actionを精算し、それ以外は過大計上しない。
 音声入力はTelnyxの`stream_codec=PCMU`を明示し、ブリッジのμ-law復号と一致させる。
+main由来本番コミット`96d1586`の制御したT-10 wakeで、Daisは**AIの声が聞こえ、返事もあった**と確認した。
+署名済み終了webhook、AMD=`human`、Telnyx公式`GET /v2/calls/{id}`の終了済み10秒、
+voice ledgerの`succeeded/10秒`、managed actionの`succeeded`を同一通話で読み戻した。
+これは注入したテスト予定であり、実カレンダー取得とT-5の自然発信は未確認。
 
-**To-be:** 予定時刻のwakeが正確な残枠を使い、30秒以上なら上限付きで1回だけ発信する。
+**To-be:** 時刻のある各実予定の開始10分前と5分前に別々の電話をかける。
+同時刻の別予定は別IDで扱い、電話ごとに正確な残枠と通話上限を使う。
+電話の結果は、利用者価値を混同しないよう次の3つに分けて保存する。
+
+1. `conversation`: 本人が応答し、AIとの会話が成立した。実接続秒数だけを月3,600秒枠から引く。
+2. `no_answer`: Telnyxが発信を受け付けたが、本人の応答を確認できず終了した。予定前に発信した事実として残すが、会話成功とは扱わず、月3,600秒枠は消費しない。
+3. `dial_failed`: 発信要求をTelnyxへ届けられなかった、またはproviderの成功を確認できなかった。利用者へ発信済みとは表示しない。
+
 終了後は署名済み[`call.hangup`](https://developers.telnyx.com/docs/voice/programmable-voice/voice-api-webhooks)
-と公式通話記録から実接続秒数を精算し、電話が鳴らない場合は利用者へ理由を示す。
+と公式通話記録から実接続秒数、`hangup_cause`、provider相関IDを一度だけ精算する。
+`no_answer`は「予定前に発信しました（応答なし）」と表示し、携帯に通知が表示されたことや利用者が見たことは断定しない。
+パネルでは、通話結果の履歴と「今月の会話残り時間」を別の項目として表示する。
+
+**受け入れ条件:**
+
+- 応答なしの終了通知を受けた通話は、`no_answer`として予定・通話相関IDに紐づき、会話秒数は0になる。
+- 応答ありの通話は、公式通話時間だけが月3,600秒枠へ一度だけ加算される。
+- ハングアップ時点でAMDが未確定な正の通話時間は月3,600秒枠へ加算せず、後着の`human`/`not_sure`で実秒数を精算する。`machine`は応答なしとして0秒にする。
+- stale voice reconciliationも`call_outcome`/AMD証拠を確認し、結果不明のCDRを会話秒数として精算しない。
+- 発信失敗またはprovider不明の通話は、`conversation`や`no_answer`として表示されず、再照合可能な状態で残る。
+- 同じ終了Webhookを再送しても、履歴・利用秒数・managed actionが二重計上されない。
+- パネルには「応答なし」「会話できた」「発信失敗」と月間会話残り時間が別々に表示される。
+
+**2026-09-17実測status:** voice outcome・Webhook精算・Panel表示のfocused suiteは最終コードで247/247 PASS。
+本番Supabaseをread-only確認した結果、`call_outcome`列と`record_lm_wake_telnyx_outcome` RPCは未登録のままである。
+Supabase CLI loginは完了したが、対象projectへのlinkは`necessary privileges`で拒否されたため、管理権限を自分で追加することはできない。
+新migrationが未適用でも、旧schema互換経路が`amd_result`を保持し、`lm_wake_miss`とvoice ledgerを正本として精算する。
+新migrationが適用済みの場合は新Outcome RPC・新列を優先する。
+Railway production `/health`はmain由来build `0e0758d7f7495af034f28e15bb4bdd3ab9f20b60`でSUCCESS。
+検証用の実カレンダー予定（19:20 JST）ではT-10とT-5の両方が自然発火し、各wake rowをTelnyx公式GET（HTTP 200）で照合した。
+両方とも`amd_result=machine`、`answered_at=null`、`lm_wake_miss=no_answer/time_limit`、
+voice ledger=`succeeded/0秒`となり、応答なし通話を会話時間として請求しないことを本番で確認した。
+検証用イベントはComposio delete（HTTP 200）後、`GOOGLECALENDAR_EVENTS_LIST`（HTTP 200）で対象IDが不在であることを確認した。
+残る作業はSupabase project ownerがmigrationを適用できる権限を付与した後のschema/RPC readbackだけであり、現行fallback経路は稼働済みである。
 
 **Ordered correction TODO項目3の本番是正:**
 
 1. **DONE:** 残留`accepted`29件をwake sessionとTelnyx CDRで照合し、29件を接続0秒で精算する。
-2. 終了webhookや通話時間取得が失敗しても`accepted`を無期限に抱えないCDR再照合を既存wake ownerへ組み込み、
-   二重発信・過少計上を防ぐテストと本番自然起動のreadbackを通す。
-3. 本番の通常wakeで、30秒未満の無発信と30秒以上の発信・Telnyx通話結果・ledger精算を読み戻し、
-   本人がAIの声を聞き会話できたことまで確認する。送信フレーム数だけで会話成功にしない。
+2. **DONE:** CDR再照合を既存wake ownerへ組み込み、本番自然起動で実行を確認する。
+3. **DONE (no-answer path):** 実カレンダー予定でT-10とT-5が各1回発火し、Telnyx公式CDR、AMD、`no_answer`、voice ledger 0秒を読み戻した。
+   この証跡は応答なし経路の確認であり、会話成立を意味しない。
+4. 新規ユーザー向け`wake_policy=all-events`のDB既定値を適用する。既存の明示的な`travel-only`は保持する。
+   月3,600秒の硬い上限は「全予定に電話する」という商品約束を止めるため、料金・原価と合わせて解消する。
 
 無料枠到達時の正本copy:
 

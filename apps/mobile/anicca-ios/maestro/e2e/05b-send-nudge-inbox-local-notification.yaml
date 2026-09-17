@@ -1,0 +1,65 @@
+# E2E: pending send_nudge inbox -> local notification scheduled.
+# Precondition: A pending send_nudge exists on the server for this deviceId/userId.
+
+appId: ai.anicca.app.ios
+name: E2E send_nudge inbox schedules local notification
+tags:
+  - e2e
+  - notification
+
+---
+- launchApp
+
+- extendedWaitUntil:
+    visible:
+      id: "mypath-root"
+    timeout: 30000
+
+# Open E2E debug panel
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+
+- extendedWaitUntil:
+    visible:
+      id: "debug-e2e-notification"
+    timeout: 15000
+- tapOn:
+    id: "debug-e2e-notification"
+
+- extendedWaitUntil:
+    visible:
+      id: "e2e-notif-title"
+    timeout: 10000
+
+- tapOn:
+    id: "e2e-fetch-pending-server-nudges"
+
+- extendedWaitUntil:
+    visible:
+      text: "Scheduled: YES"
+    timeout: 15000
+
+- takeScreenshot: "e2e-send-nudge-inbox-pending-notification"
+

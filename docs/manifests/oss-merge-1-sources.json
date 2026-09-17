@@ -73,7 +73,7 @@
       },
       "absorbed_files": [
         {"source": "skills/agent-runner/agent_runner.py", "target": "runtime/agent-runner/agent_runner.py", "sha256": "ba87c656fe4ee78c82296a48a49e865b86e054e9ffe77fb02574079588b88333"},
-        {"source": "skills/agent-runner/config.json", "target": "runtime/agent-runner/config.json", "sha256": "7bf6c75dc0575ab4ce2dacec0e1c2c9026d41b0af3d92d31debe35082a1673ab"},
+        {"source": "skills/agent-runner/config.json", "target": "runtime/agent-runner/config.json", "sha256": "4acca89ababd64580af24968d3fe2492e036b893a1115818dac8f6ab897099df"},
         {"source": "skills/agent-runner/context_packet.py", "target": "runtime/agent-runner/context_packet.py", "sha256": "2e3592a93d5e59c25a6a3f0e8c2576af92e36c7a2fc0cdd6d8600bed1ea756d2"},
         {"source": "skills/agent-runner/usage_report.py", "target": "runtime/agent-runner/usage_report.py", "sha256": "789c90de99efca6c15ba3714f2888dda777a7701214dd567c7ea38302eb81709"},
         {"source": "skills/agent-runner/tests/test_prompt_fail_closed.py", "target": "runtime/agent-runner/tests/test_prompt_fail_closed.py", "sha256": "175961a8f6dee55de540cbb5691b0da4746f09bebc8226d56acaf788e2811209"},
@@ -89,7 +89,7 @@
       "scope": "Portable booking, Capafy automation, browser fallback, and shared policy source are absorbed. Personal configuration, credentials, account identifiers, memory, generated listing artwork, and live state remain outside the OSS product.",
       "absorbed_roots": [
         {"source": "skills/anicca-booking", "target": "skills/anicca-booking", "files": 5, "inventory_sha256": "ce5c1b46422d1a564896a20069d9bacfed8595f67dc67b270f73d0ff1ceb220d"},
-        {"source": "skills/capafy-autopublish", "target": "skills/capafy-autopublish", "files": 223, "inventory_sha256": "21506813d252787006aa6254d330898c43f0623d155f8a6931d5e9838f9f351d"},
+        {"source": "skills/capafy-autopublish", "target": "skills/capafy-autopublish", "files": 223, "inventory_sha256": "9374108b87c9776261a2a9dcbc6b23b99240105ebf43c85b426a07b8b3e127f4"},
         {"source": "skills/_shared", "target": "skills/_shared", "files": 184, "inventory_sha256": "c9b6a8f633f9384b8678703c157f33dfa758df69fd0ce31360ecc55124f9efa1"},
         {"source": "skills/anicca-life-manager", "target": "skills/anicca-life-manager", "files": 19, "inventory_sha256": "fc981f3cfc29e5018c165829cb720e073fd8f994b2e07f51ebbb4b277c9bc9ea"}
       ]

@@ -164,6 +164,12 @@ test("wakeMissNotice tells a dial failure in the user's language with the time a
   assert.match(en, /call/i);
 });
 
+test("no-answer is a delivered reminder state, not a dial failure notice", () => {
+  const miss = { reason: WAKE_MISS_REASONS.NO_ANSWER, due_at: "2026-08-05T08:05:00+09:00" };
+  assert.match(wakeMissLine(miss, Date.parse("2026-08-05T08:06:00+09:00"), { timeZone: "Asia/Tokyo" }), /call.*rang|call.*answer/i);
+  assert.equal(wakeMissNotice(miss, { lang: "ja", timeZone: "Asia/Tokyo" }), null);
+});
+
 test("wakeMissNotice never promises the user can still make it once departure has passed", () => {
   const ja = wakeMissNotice({ reason: "no_call_before_departure", due_at: "2026-08-05T08:05:00+09:00" },
     { lang: "ja", timeZone: "Asia/Tokyo" });

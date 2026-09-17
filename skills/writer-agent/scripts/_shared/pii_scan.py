@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Fail-closed PII/identity scanner for everything this pipeline makes public.
 
-PORTED 2026-07-30 from the writer-engine worktree
-(anicca-project/.worktrees/writer-pii-gate/skills/writer-engine/gates/safety/pii_scan.py,
-sha256 490173d3de7d555afe5086ba4316d12221ebf2775cd539cb1f08bfede9d991cf) into the pipeline that
-actually publishes. Detector behaviour is byte-identical to that source. Exactly two things
+PORTED 2026-07-30 from the historical writer-engine source
+(sha256 490173d3de7d555afe5086ba4316d12221ebf2775cd539cb1f08bfede9d991cf) into the pipeline
+that actually publishes. Detector behaviour is byte-identical to that source. Exactly two things
 changed, both marked "PORT:" below:
   * the last-resort ledger path defaults to this skill's own state/ dir instead of
     ~/.local/share/writer-engine (that is a DIFFERENT engine's data dir);

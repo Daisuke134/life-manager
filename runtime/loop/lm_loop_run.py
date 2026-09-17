@@ -8,6 +8,7 @@ import os
 import plistlib
 import re
 import signal
+import sqlite3
 import stat
 import subprocess
 import sys
@@ -357,6 +358,7 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
             try:
                 applied = apply_live(
                     root, installed, safe, target=loop_id, skip_busy=True,
+                    require_current=True,
                     protocol_reader=durable_protocol_version)
             except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):
                 defer(loop_id)
@@ -398,10 +400,20 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                   receipt: Path, *, occurrence_id: str | None = None,
                   on_claimed: Callable[[str], None] = lambda _value: None) -> int:
     limit = _runtime_limit(entry)
-    if loop_id in {"life-manager-release-reconciler", "life-manager-disk-cleanup"}:
+    if loop_id in {"life-manager-release-reconciler", "life-manager-disk-cleanup",
+                   "capafy-loop-healthcheck"}:
         _atomic_json(receipt, {"status": "pass", "effect": 0,
                               "reason": "control_plane_exempt"})
-        return _run_entrypoint(command, env=env, timeout_seconds=limit)
+        result = _run_entrypoint(command, env=env, timeout_seconds=limit)
+        if result == 0 and loop_id != "capafy-loop-healthcheck":
+            try:
+                if durable_protocol_version() == 2:
+                    reserved = reserve_available_resource()
+                    if reserved:
+                        _dispatch_reserved(reserved)
+            except (OSError, RuntimeError, sqlite3.Error) as error:
+                print(f"lm-loop-run: safety dispatch deferred: {error}", file=sys.stderr)
+        return result
     if limit is None:
         _atomic_json(receipt, {"status": "pass", "effect": 0,
                               "reason": "continuous_owner_exempt"})

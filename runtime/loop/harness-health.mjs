@@ -13,8 +13,7 @@
  * cooldown (index.mjs lines 180-284); it is explicitly excluded from computeSlotHealth's subset by a
  * `kind`-membership check, regardless of whether its (shared) `slot` field matches.
  *
- * See specs/behavioral-spec.md and specs/verification-architecture.md
- * (anicca-project/.vcsdd/features/anicca-harness-tooluse-health/) for the full requirement text.
+ * See the repository design record for the full requirement text.
  */
 
 // REQ-R5's documented default: same `Number(process.env.X) || N` fallback idiom already used for

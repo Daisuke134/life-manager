@@ -30,10 +30,9 @@ set -uo pipefail
 # after a transient 402.  The provider account is configured to refill $50
 # below $20, so fail closed at the same boundary.
 MIN="${1:-20.00}"
-# Capafy currently asks OpenRouter to admit up to 128k completion tokens. At
-# Sonnet 4.6's $15/M completion price that is $1.92 before prompt cost. Require
-# room for a full admission plus prompt/context growth and concurrent buyers.
-# The former $2.25 floor passed while the live Agent returned 402 at a $15 cap.
+# The Capafy recovery contract uses DeepSeek V4.1 Flash with a bounded output.
+# Probing the old Sonnet/128k contract can itself trigger HTTP 402 before a
+# buyer request, so the default gate must exercise the cheap, bounded route.
 REQUEST_HEADROOM="${CAPAFY_REQUEST_HEADROOM_USD:-20.00}"
 SELF_HEAL_RESERVE="${CAPAFY_KEY_SELF_HEAL_RESERVE_USD:-10.00}"
 SELF_HEAL_HARD_CAP="$(python3 - "${CAPAFY_KEY_DAILY_HARD_CAP_USD:-50.00}" <<'PY'
@@ -52,8 +51,8 @@ PY
 }
 # Warn while still passing but getting low, so user tops up BEFORE an outage.
 ALERT_CUSHION="${CAPAFY_FUNDING_ALERT_USD:-25.00}"
-HOSTED_MODEL_ID="${CAPAFY_HOSTED_MODEL_ID:-anthropic/claude-sonnet-4.6}"
-HOSTED_MAX_TOKENS="${CAPAFY_HOSTED_MAX_TOKENS:-128000}"
+HOSTED_MODEL_ID="${CAPAFY_HOSTED_MODEL_ID:-deepseek/deepseek-v4.1-flash}"
+HOSTED_MAX_TOKENS="${CAPAFY_HOSTED_MAX_TOKENS:-8192}"
 PROBE_BODY="$(python3 - "$HOSTED_MODEL_ID" "$HOSTED_MAX_TOKENS" <<'PY'
 import json, sys
 model, raw_limit = sys.argv[1:]

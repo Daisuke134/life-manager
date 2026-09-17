@@ -39,7 +39,8 @@ const { inngest } = require("./inngest/client.js");
 const { functions: inngestFunctions } = require("./inngest/functions.js");
 const inngestHandler = inngestServe({ client: inngest, functions: inngestFunctions });
 const { placeCall, startRecording, retrieveCallDuration } = require("./lib/dial.js");
-const { recordTelnyxWakeReceipt } = require("./lib/telnyx-receipt.js");
+const { recordTelnyxWakeReceipt, recordTelnyxWakeOutcome } = require("./lib/telnyx-receipt.js");
+const { classifyCallOutcome } = require("./lib/call-outcome.js");
 const { completeManagedAction, releaseManagedAction, completeVoiceAllowance } = require("./lib/managed-allowance.js");
 const { amdEnabled, shouldMarkAnswered } = require("./lib/answered.js");
 const { decodeCallClientState, encodeTestCallClientState, verifyTelnyxSignature } = require("./lib/telnyx-webhook.js");
@@ -95,6 +96,21 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "sk_test_place
 const SUPA_URL = process.env.SUPABASE_URL, SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const COMPOSIO_KEY = process.env.COMPOSIO_API_KEY;
 let moneyPrinterSource, moneyPrinterRuntimePool, moneyPrinterRuntimeStore, investmentStateStore, cloudCitizenStore, agentEconomyControlStore;
+
+async function readWakeCallFacts(wake) {
+  if (!SUPA_URL || !SUPA_KEY || !wake || !wake.wakeUid || !wake.wakeEventKey) return null;
+  const base = String(SUPA_URL).replace(/\/$/, "");
+  const headers = { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}` };
+  const params = `uid=eq.${encodeURIComponent(wake.wakeUid)}&event_key=eq.${encodeURIComponent(wake.wakeEventKey)}&limit=1`;
+  const read = async (select) => {
+    const response = await fetch(`${base}/rest/v1/lm_wake_log?${params}&select=${encodeURIComponent(select)}`, { headers });
+    if (!response.ok) return null;
+    const rows = await response.json().catch(() => null);
+    return Array.isArray(rows) && rows[0] ? rows[0] : null;
+  };
+  return (await read("call_outcome,amd_result,answered_at"))
+    || (await read("amd_result,answered_at"));
+}
 function getMoneyPrinterRuntimeStore() {
   if (!moneyPrinterRuntimeStore) {
     const connectionString = String(process.env.LM_RUNTIME_DATABASE_URL || process.env.LM_FEEDBACK_DATABASE_URL || "").trim();
@@ -702,21 +718,77 @@ const server = http.createServer(async (req, res) => {
           res.end("receipt failed; send it again");
           return;
         }
-        if (wake.voicePeriodStart && wake.voiceReservationToken) {
-          const connectedSeconds = await retrieveCallDuration(payload.call_control_id);
+        const needsDuration = Boolean(
+          (wake.voicePeriodStart && wake.voiceReservationToken)
+          || (wake.managedActionKey && wake.managedPeriodStart && wake.managedReservationToken),
+        );
+        let connectedSeconds = null;
+        const hangupCause = payload.hangup_cause ?? payload.hangupCause ?? null;
+        if (needsDuration) {
+          connectedSeconds = await retrieveCallDuration(payload.call_control_id);
           if (connectedSeconds == null) {
             console.error("[telnyx-events] voice duration reconciliation failed");
             res.writeHead(503, { "content-type": "text/plain" });
             res.end("voice duration unavailable; send it again");
             return;
           }
+        }
+        let outcome = null;
+        if (needsDuration) {
+          outcome = classifyCallOutcome({ connectedSeconds, hangupCause });
+          if (connectedSeconds > 0) {
+            const facts = await readWakeCallFacts(wake);
+            if (!facts) {
+              console.error("[telnyx-events] wake facts reconciliation failed");
+              res.writeHead(503, { "content-type": "text/plain" });
+              res.end("wake facts unavailable; send it again");
+              return;
+            }
+            outcome = classifyCallOutcome({
+              amdResult: facts.call_outcome === "conversation" ? "human" : facts.amd_result,
+              connectedSeconds,
+              hangupCause,
+            });
+          }
+          const recorded = await recordTelnyxWakeOutcome({
+            uid: wake.wakeUid,
+            eventKey: wake.wakeEventKey,
+            claimToken: wake.wakeClaimToken,
+            callControlId: payload.call_control_id,
+            callOutcome: outcome,
+            hangupCause,
+            connectedSeconds,
+          }, { supaUrl: SUPA_URL, supaKey: SUPA_KEY });
+          if (!recorded || recorded.ok !== true) {
+            console.error("[telnyx-events] call outcome reconciliation failed");
+            res.writeHead(503, { "content-type": "text/plain" });
+            res.end("call outcome unavailable; send it again");
+            return;
+          }
+          if (wake.managedActionKey && wake.managedPeriodStart && wake.managedReservationToken && outcome) {
+            const reservation = {
+              periodStart: wake.managedPeriodStart,
+              reservationToken: wake.managedReservationToken,
+            };
+            const managed = outcome === "dial_failed"
+              ? await releaseManagedAction(wake.wakeUid, wake.managedActionKey, SUPA_URL, SUPA_KEY, { reservation })
+              : await completeManagedAction(wake.wakeUid, wake.managedActionKey, SUPA_URL, SUPA_KEY, { reservation });
+            if (!managed || managed.allowed !== true) {
+              console.error("[telnyx-events] managed outcome reconciliation failed");
+              res.writeHead(503, { "content-type": "text/plain" });
+              res.end("managed outcome unavailable; send it again");
+              return;
+            }
+          }
+        }
+        if (wake.voicePeriodStart && wake.voiceReservationToken && outcome) {
           const voice = await completeVoiceAllowance(wake.wakeUid, wake.wakeEventKey, SUPA_URL, SUPA_KEY, {
             reservation: {
               periodStart: wake.voicePeriodStart,
               reservationToken: wake.voiceReservationToken,
               allowedSeconds: wake.voiceAllowedSeconds,
             },
-            connectedSeconds,
+            connectedSeconds: outcome === "conversation" ? connectedSeconds : 0,
           });
           if (!voice || voice.allowed !== true) {
             console.error("[telnyx-events] voice allowance reconciliation failed");
@@ -725,8 +797,9 @@ const server = http.createServer(async (req, res) => {
             return;
           }
         }
-        // AMD may arrive after hangup. Leave the managed-action reservation pending so a later
-        // human/not_sure result can settle it; stale pending rows expire through the existing ledger.
+        // AMD may arrive after hangup. Unknown duration/AMD combinations stay pending so a later
+        // human/not_sure result or provider reconciliation can settle them; terminal no-answer and
+        // dial-failed outcomes were settled above.
         res.writeHead(200);
         res.end(receipt.matched === 1 ? "recorded" : "receipt unmatched");
         return;
@@ -771,22 +844,38 @@ const server = http.createServer(async (req, res) => {
         else console.log(`[telnyx-events] ${what} written rows=${r.matched} ${tag}`);
       };
       report("amd_result", detection.amd);
+      if (detection.outcome) report("call_outcome", detection.outcome);
       if (detection.answered) report("answered_at", detection.answered);
+      if (!detection.amd.ok) {
+        res.writeHead(503, { "content-type": "text/plain" });
+        res.end("record failed; send it again");
+        return;
+      }
+      if (detection.outcome && !detection.outcome.ok) {
+        res.writeHead(503, { "content-type": "text/plain" });
+        res.end("outcome failed; send it again");
+        return;
+      }
+      const amdVoiceOutcome = detection.result === "human" || detection.result === "not_sure"
+        ? "conversation"
+        : detection.result === "machine" && wake.voicePeriodStart && wake.voiceReservationToken
+          ? "no_answer" : null;
       if (wake.managedActionKey && wake.managedPeriodStart && wake.managedReservationToken
         && detection.amd.ok === true && detection.amd.matched === 1) {
         const reservation = {
           periodStart: wake.managedPeriodStart,
           reservationToken: wake.managedReservationToken,
         };
-        const allowanceReceipt = (detection.result === "human" || detection.result === "not_sure")
+        const managedOutcome = (detection.result === "human" || detection.result === "not_sure")
+          ? "conversation" : amdVoiceOutcome;
+        const allowanceReceipt = managedOutcome === "conversation" || managedOutcome === "no_answer"
           ? await completeManagedAction(wake.wakeUid, wake.managedActionKey, SUPA_URL, SUPA_KEY, { reservation })
-          : detection.result === "machine"
-            ? await releaseManagedAction(wake.wakeUid, wake.managedActionKey, SUPA_URL, SUPA_KEY, { reservation })
-            : null;
-        if (!allowanceReceipt && !["human", "not_sure", "machine"].includes(detection.result)) {
+          : null;
+        if (!["human", "not_sure", "machine"].includes(detection.result)) {
           res.writeHead(503); res.end("unknown AMD result; send it again"); return;
         }
-        if (!allowanceReceipt || allowanceReceipt.allowed !== true) {
+        if ((detection.result === "human" || detection.result === "not_sure")
+          && (!allowanceReceipt || allowanceReceipt.allowed !== true)) {
           console.error("[telnyx-events] allowance receipt reconciliation required");
           res.writeHead(503, { "content-type": "text/plain" });
           res.end("allowance receipt failed; send it again");
@@ -819,11 +908,6 @@ const server = http.createServer(async (req, res) => {
       //   * matched === 0 = the write LANDED and correctly changed nothing: there is no row for this
       //     uid+event_key, and no future delivery can conjure one. 200 closes it. Retrying would
       //     spend six deliveries on nothing and bury the real outages above.
-      if (!detection.amd.ok) {
-        res.writeHead(503, { "content-type": "text/plain" });
-        res.end("record failed; send it again");
-        return;
-      }
       // A failed answered_at write deliberately does NOT ask for a retry — and NOT because a later
       // write would be a no-op. It would not be: the latch is answered_at=is.null, so if the first
       // write never landed the column is still NULL and a resent write lands perfectly well. The real

@@ -39,6 +39,7 @@ function dependencies(input) {
     || (input.runTalkApplication != null && typeof input.runTalkApplication !== "function")
     || (input.completeTalkEvidence != null && typeof input.completeTalkEvidence !== "function")) invalid();
   if (input.reportConnpassActionBoundary != null && typeof input.reportConnpassActionBoundary !== "function") invalid();
+  if (input.reportConnpassQuestionnaire != null && typeof input.reportConnpassQuestionnaire !== "function") invalid();
   if (
     !input.browserRail || typeof input.browserRail !== "object"
     || typeof input.browserRail.open !== "function"
@@ -158,12 +159,13 @@ function safeSubmitReason(error, fallback) {
   return CONNPASS_SUBMIT_CODES.test(code) ? code.toLowerCase() : fallback;
 }
 
-function submitFailureContext(provider, error, fallback) {
+function submitFailureContext(provider, error, fallback, candidateRef = null) {
   const errorClass = safeErrorClass(error);
   return Object.freeze({
     provider,
     safe_reason: safeSubmitReason(error, fallback),
     ...(errorClass ? { error_class: errorClass } : {}),
+    ...(provider === "connpass" && candidateRef ? { candidate_ref: candidateRef } : {}),
   });
 }
 
@@ -426,14 +428,15 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         let usedFallback = false;
         let ambiguousAgentEffect = false;
         let directFailureReason = null;
+        let directQuestionLabels = [];
         if (!registered(providerState)) providerState = null;
         if (!providerState) {
         try {
           operation = await action(
             "submit", "provider_cache",
             () => deps.runCachedAction({ provider, candidate: selected, page: owned.page }),
-            (error) => submitFailureContext(provider, error, "cached_action_failed"),
-            (value) => resolvedSubmitFailureContext(provider, value, "cached_action_unverified"),
+            (error) => submitFailureContext(provider, error, "cached_action_failed", selected.event_ref),
+            (value) => resolvedSubmitFailureContext(provider, value, "cached_action_unverified", selected.event_ref),
           );
         } catch (error) {
           operation = Object.freeze({
@@ -456,8 +459,8 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
           operation = await action(
             "submit", "provider_direct",
             () => deps.runDirectAction({ provider, candidate: selected, page: owned.page }),
-            (error) => submitFailureContext(provider, error, "direct_action_failed"),
-            (value) => resolvedSubmitFailureContext(provider, value, "direct_action_unverified"),
+            (error) => submitFailureContext(provider, error, "direct_action_failed", selected.event_ref),
+            (value) => resolvedSubmitFailureContext(provider, value, "direct_action_unverified", selected.event_ref),
           );
         } catch (error) {
           operation = Object.freeze({
@@ -469,6 +472,9 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
 
         if (!operation || operation.status !== "completed") {
           directFailureReason = operationSafeReason(operation, "direct_action_unverified");
+          directQuestionLabels = Array.isArray(operation?.question_labels)
+            ? operation.question_labels.filter((label) => typeof label === "string" && label.trim()).slice(0, 20)
+            : [];
           if (directFailureReason === "effect_unknown") {
             consecutiveFailures += 1;
             return finish("circuit_open", "effect_unknown");
@@ -507,6 +513,22 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
             && operationSafeReason(operation, "agent_action_failed") === "effect_unknown");
           if (deadlineReached()) return finish("circuit_open", "wake_deadline");
           if (operation && operation.status === "failed" && operation.safe_reason === "auth_required") break;
+        }
+
+        if (provider === "connpass" && directFailureReason === "connpass_questionnaire_required"
+          && directQuestionLabels.length > 0 && operation?.status === "failed"
+          && !ambiguousAgentEffect
+          && typeof deps.reportConnpassQuestionnaire === "function") {
+          try {
+            await action(
+              "submit",
+              "connpass_questionnaire_report",
+              () => deps.reportConnpassQuestionnaire({ candidate: selected, questions: directQuestionLabels }),
+              () => ({ provider: "connpass", safe_reason: "connpass_questionnaire_report_failed" }),
+            );
+          } catch {
+            // A notification failure never authorizes guessing an answer or a Submit.
+          }
         }
 
         if (operation && operation.status === "completed") {

@@ -2,12 +2,11 @@
 
 Source: warproxxx/poly-maker (MIT, github.com/warproxxx/poly-maker, ★1387,
 clone verified live 2026-07-12, 111 tests passing on the real Gamma API).
-See ../SKILL.md "REWARD-MM (poly-maker port)" section for the full writeup
-and docs/loop-engineering/28-verified-earn-recipe.md in anicca-project for
-the research trail that led here.
+See ../SKILL.md "REWARD-MM (poly-maker port)" section and the repository earn
+design records for the research trail that led here.
 
-★★★ LEGAL PIVOT (anicca-project docs/loop-engineering/28-verified-earn-recipe.md,
-2026-07-12): Polymarket-from-Japan carries 刑法185条 (gambling) exposure per
+★★★ LEGAL PIVOT (repository earn design record, 2026-07-12):
+Polymarket-from-Japan carries 刑法185条 (gambling) exposure per
 legal research done the same day this module was written. This package is
 PAPER-MODE ONLY (no order placement, no wallet, no signing) precisely because
 of that finding — do not wire it into a live execution path without first

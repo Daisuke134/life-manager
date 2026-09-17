@@ -1,0 +1,57 @@
+# Test 1: Paywall Variant A — English
+# Variant A (control): PlanSelectionStepView
+# Verifies: Annual/Monthly toggle, CTA text, dismiss
+
+appId: ai.anicca.app.ios
+name: Paywall Variant A EN
+tags:
+  - paywall
+  - v1.8.0
+  - variant-a
+
+---
+- clearState
+- clearKeychain
+- launchApp:
+    arguments:
+      UITESTING: "true"
+    env:
+      PAYWALL_VARIANT: "control"
+
+- runFlow: ../_onboarding_to_paywall.yaml
+
+# Paywall Plan Selection (Variant A) should be visible
+- extendedWaitUntil:
+    visible:
+      id: "paywall-plan-cta"
+    timeout: 15000
+
+- takeScreenshot: "v180-01-variant-a-en"
+
+# Verify key elements
+- assertVisible:
+    id: "paywall-dismiss"
+- assertVisible:
+    id: "paywall-maybe-later"
+- assertVisible:
+    id: "paywall-restore"
+
+# Verify Annual plan is selectable
+- assertVisible:
+    id: "paywall-plan-annual"
+    optional: true
+
+# Dismiss paywall
+- tapOn:
+    id: "paywall-dismiss"
+
+- tapOn:
+    text: "今はしない|Not Now"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "mypath-root"
+    timeout: 10000
+
+- takeScreenshot: "v180-01-variant-a-en-home"

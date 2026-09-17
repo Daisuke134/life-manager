@@ -1,0 +1,42 @@
+# Nudge Card: single primary button (no choices)
+#
+# 全ProblemTypeで1択ボタン表示を確認
+#
+appId: ai.anicca.app.ios
+tags:
+  - phase6
+  - nudge
+---
+- launchApp:
+    clearState: false
+
+# 下にスクロールしてDebugセクションを表示
+- scrollUntilVisible:
+    element:
+      id: "debug-nudge-test-procrastination"
+    direction: DOWN
+    timeout: 5000
+
+# Debug Nudgeテストボタンをタップ (procrastinationで異なる問題タイプをテスト)
+- tapOn:
+    id: "debug-nudge-test-procrastination"
+
+# NudgeCard表示待ち
+- extendedWaitUntil:
+    visible:
+      id: "nudge-card-view"
+    timeout: 5000
+
+# 主ボタンが1つだけ表示されることを確認
+- assertVisible:
+    id: "nudge-primary-action"
+
+# 既存要素（フィードバック）が見えることも確認
+- assertVisible:
+    id: "feedback-thumbs-up"
+
+- takeScreenshot: "nudge-single-primary"
+
+# カードを閉じる
+- tapOn:
+    id: "nudge-card-close"

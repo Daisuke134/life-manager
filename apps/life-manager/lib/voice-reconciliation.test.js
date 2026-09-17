@@ -24,7 +24,12 @@ function transport(rows, records, { removeSettled = false } = {}) {
     }
     else if (url.pathname.endsWith("/lm_wake_log")) {
       const key = url.searchParams.get("event_key").slice(3);
-      data = [{ telnyx_call_control_id: `control-${key}`, telnyx_call_session_id: `session-${key}` }];
+      const wake = rows.find((item) => item.call_key === key) || {};
+      data = [{ telnyx_call_control_id: `control-${key}`, telnyx_call_session_id: `session-${key}`,
+        ...(wake.amd_result == null ? {} : { amd_result: wake.amd_result }),
+        ...(wake.call_outcome == null ? {} : { call_outcome: wake.call_outcome }),
+        ...(wake.answered_at == null ? {} : { answered_at: wake.answered_at }),
+      }];
     } else if (url.pathname.endsWith("/detail_records")) {
       const matches = records[url.searchParams.get("filter[telnyx_session_id]")] || [];
       data = { data: matches, meta: { total_results: matches.length } };
@@ -47,7 +52,7 @@ const config = { supaUrl: "https://db.example", supaKey: "secret", telnyxKey: "t
   nowMs: Date.parse("2026-09-17T01:00:00Z") };
 
 test("finished zero-second and answered CDRs settle exact connected seconds through the owner RPC", async () => {
-  const mock = transport([row("no-answer"), row("answered")], {
+  const mock = transport([row("no-answer"), { ...row("answered"), amd_result: "human" }], {
     "session-no-answer": [cdr("session-no-answer")],
     "session-answered": [cdr("session-answered", { connected: 1, completed: 1, call_sec: 37, billed_sec: 60 })],
   });
@@ -55,6 +60,24 @@ test("finished zero-second and answered CDRs settle exact connected seconds thro
   assert.deepEqual(result, { checked: 2, settled: 2, errors: 0, nextOffset: 0 });
   assert.deepEqual(mock.completions.map((body) => body.p_connected_seconds), [0, 37]);
   assert.ok(mock.completions.every((body) => body.p_reservation_token === TOKEN));
+});
+
+test("positive CDR with unknown AMD stays accepted instead of consuming conversation allowance", async () => {
+  const mock = transport([row("unknown")], {
+    "session-unknown": [cdr("session-unknown", { connected: 1, completed: 1, call_sec: 37, billed_sec: 60 })],
+  });
+  const result = await reconcileStaleVoiceAllowances({ ...config, fetchImpl: mock.fetchImpl });
+  assert.deepEqual(result, { checked: 1, settled: 0, errors: 0, nextOffset: 0 });
+  assert.equal(mock.completions.length, 0);
+});
+
+test("machine AMD settles a positive voicemail CDR as zero conversation seconds", async () => {
+  const mock = transport([{ ...row("machine"), amd_result: "machine" }], {
+    "session-machine": [cdr("session-machine", { connected: 1, completed: 1, call_sec: 37, billed_sec: 60 })],
+  });
+  const result = await reconcileStaleVoiceAllowances({ ...config, fetchImpl: mock.fetchImpl });
+  assert.deepEqual(result, { checked: 1, settled: 1, errors: 0, nextOffset: 0 });
+  assert.equal(mock.completions[0].p_connected_seconds, 0);
 });
 
 test("missing, duplicate, or mismatched CDRs leave accepted reservations untouched", async () => {

@@ -233,9 +233,15 @@ async function planConnpassQuestionnaire(page, identity) {
         : null;
       const value = key ? String(ctx[key] || "") : "";
       const eligible = Boolean(key) && ["text", "textarea"].includes(kind) && value.length > 0;
-      pending.push({ field: eligible ? fields[0] : null, value, eligible });
+      pending.push({ field: eligible ? fields[0] : null, value, eligible, question: label.slice(0, 300) });
     }
-    if (pending.some((entry) => !entry.eligible)) return { blocked: true, filled: 0 };
+    if (pending.some((entry) => !entry.eligible)) {
+      return {
+        blocked: true,
+        filled: 0,
+        question_labels: pending.filter((entry) => !entry.eligible).map((entry) => entry.question).slice(0, 20),
+      };
+    }
     let filled = 0;
     for (const entry of pending) {
       entry.field.value = entry.value;
@@ -324,7 +330,9 @@ async function submitConnpassOnPage(page, _contract, dependencies = {}) {
     // filled; every unknown choice remains fail-closed.
     const questionnairePlan = await planConnpassQuestionnaire(page, identity);
     if (!questionnairePlan || questionnairePlan.blocked !== false) {
-      throw providerError("Connpass questionnaire requires an answer", "CONNPASS_QUESTIONNAIRE_REQUIRED", false);
+      const error = providerError("Connpass questionnaire requires an answer", "CONNPASS_QUESTIONNAIRE_REQUIRED", false);
+      if (Array.isArray(questionnairePlan?.question_labels)) error.question_labels = questionnairePlan.question_labels;
+      throw error;
     }
     // Pick the first free, open, unrestricted in-person tier in document
     // order (see selectParticipationTierIndex). Fails closed with

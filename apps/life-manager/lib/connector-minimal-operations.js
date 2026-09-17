@@ -105,7 +105,7 @@ function safeAction(input) {
       || !SAFE_REASON.test(String(input.safe_reason || ""))
     ))
     || (hasErrorClass && !ERROR_CLASS.test(String(input.error_class || "")))
-    || (hasCandidateRef && (input.method !== "browser_harness" || input.provider !== "connpass"
+    || (hasCandidateRef && (input.purpose !== "submit" || input.provider !== "connpass"
       || !/^connpass-event:\/\/event\/[1-9][0-9]*$/.test(String(input.candidate_ref || ""))))
   ) invalid();
   return Object.freeze({
