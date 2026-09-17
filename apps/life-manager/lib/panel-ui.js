@@ -796,9 +796,19 @@ function renderPanelPage(options = {}) {
 
     function validateTimelineData(data) {
       if (
-        !displayExactKeys(data, ["date", "timezone", "items"])
+        !displayExactKeys(data, ["date", "timezone", "voice_usage", "items"])
         || !/^\\d{4}-\\d{2}-\\d{2}$/.test(data.date)
         || !displayValidTimeZone(data.timezone)
+        || !displayRecord(data.voice_usage)
+        || !displayExactKeys(data.voice_usage, ["available", "used_seconds", "limit_seconds", "remaining_seconds", "reset_at"])
+        || typeof data.voice_usage.available !== "boolean"
+        || data.voice_usage.limit_seconds !== 3600
+        || !/^\\d{4}-\\d{2}-\\d{2}$/.test(data.voice_usage.reset_at)
+        || (data.voice_usage.available
+          ? (!Number.isInteger(data.voice_usage.used_seconds) || data.voice_usage.used_seconds < 0
+            || !Number.isInteger(data.voice_usage.remaining_seconds) || data.voice_usage.remaining_seconds < 0
+            || data.voice_usage.used_seconds + data.voice_usage.remaining_seconds !== data.voice_usage.limit_seconds)
+          : (data.voice_usage.used_seconds !== null || data.voice_usage.remaining_seconds !== null))
         || !Array.isArray(data.items)
         || data.items.some(function (item) {
           return !displayExactKeys(item, ["sentence", "status"])
@@ -969,7 +979,10 @@ function renderPanelPage(options = {}) {
 
     function renderTimeline(data) {
       validateTimelineData(data);
-      const summary = '<p class="timeline-summary"><span>' + escapeHtml(data.date) + ' · ' + escapeHtml(data.timezone) + '</span><span>予定と電話 ' + data.items.length + '件</span></p>';
+      const usage = data.voice_usage.available
+        ? ("今月の会話残り時間: " + Math.floor(data.voice_usage.remaining_seconds / 60) + "分" + (data.voice_usage.remaining_seconds % 60) + "秒")
+        : "今月の会話残り時間: 確認できません";
+      const summary = '<p class="timeline-summary"><span>' + escapeHtml(data.date) + ' · ' + escapeHtml(data.timezone) + '</span><span>予定と電話 ' + data.items.length + '件</span></p><p class="voice-usage" role="status">' + escapeHtml(usage) + '</p>';
       if (!data.items.length) return summary + '<p class="empty">今日は表示する予定や電話がありません。</p>';
       const rows = data.items.map(function (item) {
         return '<li class="timeline-item"><div><p class="timeline-title">' + escapeHtml(item.sentence) + '</p></div><span class="call-mark">' + escapeHtml(item.status) + '</span></li>';

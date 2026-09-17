@@ -78,6 +78,38 @@ function timelineStatus(decision) {
   })[decision] || "確認が必要";
 }
 
+const CALL_OUTCOME_COPY = Object.freeze({
+  conversation: Object.freeze({ sentence: "会話できました。", status: "会話できた" }),
+  no_answer: Object.freeze({ sentence: "予定前に発信しました（応答なし）。", status: "応答なし" }),
+  dial_failed: Object.freeze({ sentence: "発信できませんでした。", status: "発信失敗" }),
+});
+
+function projectVoiceUsage(value) {
+  if (!record(value)
+    || typeof value.available !== "boolean"
+    || !Number.isInteger(value.limit_seconds) || value.limit_seconds !== 3600
+    || !/^\d{4}-\d{2}-\d{2}$/.test(String(value.reset_at || ""))) {
+    fail("timeline");
+  }
+  if (!value.available) {
+    if (value.used_seconds !== null || value.remaining_seconds !== null) fail("timeline");
+    return {
+      available: false, used_seconds: null, limit_seconds: value.limit_seconds,
+      remaining_seconds: null, reset_at: value.reset_at,
+    };
+  }
+  if (!Number.isInteger(value.used_seconds) || value.used_seconds < 0
+    || !Number.isInteger(value.remaining_seconds) || value.remaining_seconds < 0
+    || value.used_seconds > value.limit_seconds
+    || value.remaining_seconds !== value.limit_seconds - value.used_seconds) {
+    fail("timeline");
+  }
+  return {
+    available: true, used_seconds: value.used_seconds, limit_seconds: value.limit_seconds,
+    remaining_seconds: value.remaining_seconds, reset_at: value.reset_at,
+  };
+}
+
 function projectTimeline(candidate) {
   if (
     !record(candidate)
@@ -102,15 +134,18 @@ function projectTimeline(candidate) {
   for (const call of candidate.calls) {
     if (!record(call)) fail("timeline");
     const time = clockText(call.called_at, candidate.timezone);
-    const answered = typeof call.answered_at === "string" && Number.isFinite(Date.parse(call.answered_at));
+    const legacyConversation = typeof call.answered_at === "string" && Number.isFinite(Date.parse(call.answered_at));
+    const outcome = call.call_outcome || (legacyConversation ? "conversation" : null);
+    const copy = outcome ? CALL_OUTCOME_COPY[outcome] : null;
+    if (outcome && !copy) fail("timeline");
     items.push({
       sentence: time
-        ? `${time}の電話は${answered ? "応答済み" : "未応答"}です。`
+        ? `${time}の電話は${copy ? copy.sentence : "結果を確認中です。"}`
         : "電話の状態を安全に表示できませんでした。",
-      status: answered ? "応答済み" : "未応答",
+      status: copy ? copy.status : "確認中",
     });
   }
-  return { date: candidate.date, timezone: candidate.timezone, items };
+  return { date: candidate.date, timezone: candidate.timezone, voice_usage: projectVoiceUsage(candidate.voice_usage), items };
 }
 
 function financialAmount(row) {

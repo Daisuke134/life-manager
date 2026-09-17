@@ -163,21 +163,91 @@ async function timeline(uid, opts) {
       previousEvent: index > 0 ? sorted[index - 1] : null,
     }),
   }));
-  const { rows: calls } = await readRows("lm_wake_log", {
+  let calls;
+  try {
+    const result = await readRows("lm_wake_log", {
+      uid: `eq.${uid}`,
+      called_at: `gte.${new Date(bounds.startMs).toISOString()}`,
+      and: `(called_at.lt.${new Date(bounds.endMs).toISOString()})`,
+      select: "event_key,called_at,answered_at,call_outcome,telnyx_hangup_cause,telnyx_call_duration_seconds",
+      order: "called_at.asc",
+    }, opts);
+    calls = result.rows;
+  } catch {
+    const result = await readRows("lm_wake_log", {
+      uid: `eq.${uid}`,
+      called_at: `gte.${new Date(bounds.startMs).toISOString()}`,
+      and: `(called_at.lt.${new Date(bounds.endMs).toISOString()})`,
+      select: "event_key,called_at,answered_at,amd_result",
+      order: "called_at.asc",
+    }, opts);
+    calls = result.rows.map((row) => ({
+      ...row,
+      call_outcome: row.amd_result === "human" || row.amd_result === "not_sure"
+        || (typeof row.answered_at === "string" && row.answered_at)
+        ? "conversation"
+        : row.amd_result === "machine" ? "no_answer" : null,
+      telnyx_hangup_cause: null,
+      telnyx_call_duration_seconds: null,
+    }));
+  }
+  const { rows: misses } = await readRows("lm_wake_miss", {
     uid: `eq.${uid}`,
-    called_at: `gte.${new Date(bounds.startMs).toISOString()}`,
-    and: `(called_at.lt.${new Date(bounds.endMs).toISOString()})`,
-    select: "event_key,called_at,answered_at",
-    order: "called_at.asc",
-  }, opts);
+    occurred_at: `gte.${new Date(bounds.startMs).toISOString()}`,
+    and: `(occurred_at.lt.${new Date(bounds.endMs).toISOString()})`,
+    select: "event_key,occurred_at,reason",
+    order: "occurred_at.asc",
+  }, opts, true);
+  const knownCallKeys = new Set(calls.map((row) => String(row.event_key || "")));
+  for (const miss of misses) {
+    const missKey = String(miss.event_key || "");
+    const existing = calls.find((row) => String(row.event_key || "") === missKey);
+    if (existing && ["no_answer", "dial_failed"].includes(miss.reason) && !existing.call_outcome) {
+      existing.call_outcome = miss.reason;
+      continue;
+    }
+    if (miss.reason !== "dial_failed" || knownCallKeys.has(missKey)) continue;
+    calls.push({
+      event_key: miss.event_key,
+      called_at: miss.occurred_at,
+      answered_at: null,
+      call_outcome: "dial_failed",
+      telnyx_hangup_cause: null,
+      telnyx_call_duration_seconds: null,
+    });
+  }
+  calls.sort((left, right) => Date.parse(left.called_at || "") - Date.parse(right.called_at || ""));
+  const periodStart = `${bounds.key.slice(0, 7)}-01`;
+  const voiceLedger = await readRows("lm_voice_allowance_ledger", {
+    uid: `eq.${uid}`, period_start: `eq.${periodStart}`, select: "status,connected_seconds",
+  }, opts, true);
+  const voiceRows = voiceLedger.rows;
+  const usedSeconds = voiceRows.reduce((sum, row) => {
+    return row && row.status === "succeeded" ? sum + Math.max(0, Math.ceil(Number(row.connected_seconds) || 0)) : sum;
+  }, 0);
+  const resetAt = new Date(Date.UTC(
+    Number(periodStart.slice(0, 4)), Number(periodStart.slice(5, 7)), 1,
+  )).toISOString().slice(0, 10);
   return {
     date: bounds.key,
     timezone: timeZone,
+    voice_usage: voiceLedger.missing
+      ? { available: false, used_seconds: null, limit_seconds: 3600, remaining_seconds: null, reset_at: resetAt }
+      : {
+        available: true,
+        used_seconds: usedSeconds,
+        limit_seconds: 3600,
+        remaining_seconds: Math.max(0, 3600 - usedSeconds),
+        reset_at: resetAt,
+      },
     events,
     calls: calls.map((row) => ({
       event_key: row.event_key,
       called_at: row.called_at,
       answered_at: row.answered_at || null,
+      call_outcome: row.call_outcome || null,
+      hangup_cause: row.telnyx_hangup_cause || null,
+      duration_seconds: row.telnyx_call_duration_seconds == null ? null : Number(row.telnyx_call_duration_seconds),
     })),
   };
 }
