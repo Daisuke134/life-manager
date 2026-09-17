@@ -701,7 +701,7 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 | 1 | **Scoped overlap check — done for step 2:** compare latest main, foundation `3a70e98867`, admission source `c7ce1e9fc6` and the exact provider-owned paths below. Skip a fleet-wide audit before the first patch. | Shared runtime/registry/Connector/provider ownership is mapped below; no other owner's worktree, profile or state was edited. Recheck only changed overlaps before each integration. |
 | 2 | **Shared runtime source integrated; live gate open:** focused main changes cover durable queue, claim→child identity, release→next claim, priority/aging, owner recovery and uncertain-effect handling. Do not tune the slot count to hide liveness failure. The old candidate branch is not the production source. | Focused source checks passed and representative owners ran from main releases; step 3 must still prove no persistent queue starvation across mixed owners. |
 | 3 | **Current cursor — A15 only.** Execute the atomic A15 items at the top of this spec without changing the provider order. Fair owner handoff and main-only `current` are already merged; identity-matched malformed-plist recovery and its production acceptance remain. | Same main-derived release, exact loaded argv, natural outer terminal and bounded agent/browser/deterministic handoff with live heartbeat/headroom; fenced effects remain fenced. Historical total queue age is not the eligible-wait measure. |
-| 4 | **Connector provider repair active; historical E2E is the baseline only:** Connpass `405705` has official registered-page receipt → Google Calendar ID `0c706h76f6ceoh99cdaug31cd4` → one automatic replay-zero. The newer `203bbe8854` natural wake reached the provider and attempted Connpass, but three questionnaire attempts failed; Luma had free/open 3 and Calendar-free 0. The old successful event cannot close the post-fix goal. | A *new* eligible event after the repair has official registration ID → Google Calendar event exact 1 → two subsequent natural wakes with repeat Submit 0 and Calendar duplicate 0. Luma no-work is truthful only when live discovery and Calendar conflicts show no eligible candidate. |
+| 4 | **Connector operational repair:** the main-derived path has a real new Connpass effect for event `404531` (provider `registered` → runtime Calendar ID `0v6ri3de5pdqsd6btrqs8ndsgs`), while the later loaded `b2feb56c` wake spent `441412ms` in KokuchPro detail discovery and ended at `wake_deadline` before submit. | Keep each provider inside the existing wake budget with resumable discovery; then prove a fresh official registration → independent Calendar exact 1 → two later natural wakes with Submit 0 and Calendar duplicate 0. Luma no-work is truthful only when live discovery and Calendar conflicts show no eligible candidate. |
 | 5 | Coconala Apply, Reply, Paid, Storefront as separate lanes: current eligible screening-answer submit; 15 pending replies; per-client funded work, attachments and payout; official listing state; reconcile old 54 uncertain intents only as preemptible background work. | Each applicable lane has current same-SHA terminal, exact official effect/readback or truthful wait/no-work, and replay-zero; no account/browser interference. |
 | 6 | CrowdWorks: complete the three existing paid contracts first, then restore inventory, Reply and Apply continuity; Lancers: browser/auth, Apply→Reply→Paid→payout and supported Storefront; Mercor: persistent auth, Apply→Reply→human handoff→Paid→payout. | Each provider's actual effect/readback and per-client terminal, not generic exit 0. Unsupported Storefront is proven not-applicable. |
 | 7 | Freelancer.com and Upwork: verify current account/policy, then applicable Apply→Reply→Paid→payout and Storefront only if official surface exists. | Official receipts, payout attribution and replay-zero. |
@@ -714,7 +714,9 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 
 ### Connector active goal and remaining TODO
 
-**Goal / Done:** **DONE.** Main-derived release `393f17458a4e6a62e01ae46215ab32ba5f02ea83` applied only to `life-manager-connector-native`. Connpass event `405297` (`【秋葉原】AIエンジニアの集いLT＆交流会`) reached official `registered`; provider receipt `f1bbe06389aff318ebb40c02e9e91b6af6be261e012629e126795dcb7f157273`; Calendar ID `hkpcm5qds9fhk6khorr2kfqnro`; independent Google Calendar API filtered by the Connector private property returned exact count 1 with canonical URL `https://mecha-mote-se.connpass.com/event/405297/`; Telegram receipts `86619` and `86620`; durable bundle `e8c393f6cd21636df0057ce49e82bd44257c9d128870dd8054585ff6a1c6b869`. The same loaded SHA then completed natural wakes `wake-953036ad8babec6ae03109f1` and `wake-96cc924ba6c56c1562a25308`; both continued to other candidates, submitted `405297` zero additional times, and preserved Calendar exact count 1. Official page readback returned `registered`. The owner remains on the existing 30-minute interval; this proves repeatable continuation, not an application on every wake.
+**Goal / historical acceptance:** **DONE.** Main-derived release `393f17458a4e6a62e01ae46215ab32ba5f02ea83` applied only to `life-manager-connector-native`. Connpass event `405297` (`【秋葉原】AIエンジニアの集いLT＆交流会`) reached official `registered`; provider receipt `f1bbe06389aff318ebb40c02e9e91b6af6be261e012629e126795dcb7f157273`; Calendar ID `hkpcm5qds9fhk6khorr2kfqnro`; independent Google Calendar API filtered by the Connector private property returned exact count 1 with canonical URL `https://mecha-mote-se.connpass.com/event/405297/`; Telegram receipts `86619` and `86620`; durable bundle `e8c393f6cd21636df0057ce49e82bd44257c9d128870dd8054585ff6a1c6b869`. The same loaded SHA then completed natural wakes `wake-953036ad8babec6ae03109f1` and `wake-96cc924ba6c56c1562a25308`; both continued to other candidates, submitted `405297` zero additional times, and preserved Calendar exact count 1. Official page readback returned `registered`. The owner remains on the existing 30-minute interval; this proves repeatable continuation, not an application on every wake.
+
+**Current operational status:** **OPEN.** The later `b2feb56c` wake reached KokuchPro discovery but consumed the wake budget before submit. The Connector-only budget/cursor patch below is the active repair; release, natural-wake effect, independent Calendar exact-one and post-effect replay-zero remain open until freshly measured.
 
 **A15 dependency decision:** A15 remains the separate fleet fairness/recovery gate. It does **not** block Connector-specific diagnosis or source repair: the `203bbe8854` natural Connector run `18d6089253cdbf18-32608` acquired a browser slot, reached Connpass, and ended `completed_no_effect / provider_discovery_failed` at 2026-09-17 06:47 UTC. Its three Connpass direct attempts failed with `connpass_questionnaire_required`, each followed by `unsafe_agent_action`; Luma found 3 free/open events but Calendar-free 0. Do not alter A15's PID, admission DB, spec branch state outside this Connector section, or another browser/profile. A main-derived Connector release can be applied to the one loaded-idle Connector label after that run's terminal, without a fleet restart.
 
@@ -727,9 +729,75 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 
 #### Connector execution plan — follow CN-C01 through CN-C06 in order
 
-This plan implements step 4 above in the existing `life-manager-connector-native` owner. It changes no A15 file or state. The code owner uses `/Users/anicca/Projects/life-manager-connector-coconala-20260917`; the spec owner uses this file. Each checkbox is a separate evidence gate. The Connector gates are now closed by the evidence recorded above; the next cursor is Coconala's four independent lanes. A cheaper executor must preserve the official provider/Calendar readbacks and must not reopen a completed Connector effect by resubmitting the same event.
+This plan implements step 4 above in the existing `life-manager-connector-native` owner. It changes no A15 file or state. The code owner uses `/Users/anicca/Projects/life-manager-connector-coconala-20260917`; the spec owner uses this file. Each checkbox is a separate evidence gate. The historical Connector registration gates are closed by the evidence recorded above; the current operational budget/cursor gate remains open before advancing to Coconala. A cheaper executor must preserve the official provider/Calendar readbacks and must not reopen a completed Connector effect by resubmitting the same event.
 
 **Connector closeout evidence:** PR #5358 merged at main `393f17458a4e6a62e01ae46215ab32ba5f02ea83`; release `/Users/anicca/loops/releases/20260917T200804-393f1745`; install event `30c40604e7fda6150959fe6d`; first canary run `18d61735ef61a7f8-5127` / wake `wake-74a1baca18a06583aa745c1f`; natural wakes `wake-953036ad8babec6ae03109f1` and `wake-96cc924ba6c56c1562a25308`. New Connpass event `405297` is officially registered, Calendar exact-one ID is `hkpcm5qds9fhk6khorr2kfqnro`, the provider receipt is `f1bbe06389aff318ebb40c02e9e91b6af6be261e012629e126795dcb7f157273`, Telegram IDs are `86619` and `86620`, and the durable bundle is `e8c393f6cd21636df0057ce49e82bd44257c9d128870dd8054585ff6a1c6b869`. Luma remains truthful no-work on the observed wakes (`free_open=2–3`, `calendar_free=0`).
+
+#### Connector current diagnosis and target flow
+
+The historical CN-C01–CN-C06 registration gate remains valid, but it does not
+mean that every later wake produces an application. The current production
+question is whether one bounded wake can reach an eligible provider candidate
+and preserve that candidate for the next wake.
+
+**As-is readback:**
+
+| Boundary | Observed behavior | Decision |
+|---|---|---|
+| launchd and release | `ai.anicca.life-manager-connector-native` loads one immutable release, uses `StartInterval=1800`, and the latest failed run `18d63547a71894b8-29338` loads `b2feb56c14085ec7fc19aab122cd89e42c806cc4`. | Lifecycle is present; idle or exit 0 is not an effect. |
+| Calendar inventory | `calendar_busy` succeeds in `14087ms` and supplies the 28-day busy intervals. | Calendar read is not the first failure. |
+| provider discovery | The same wake records Luma `free_open=2/calendar_free=0`, Connpass `free_open=234/calendar_free=10`, and KokuchPro `discovered=67/eligible=36/calendar_free=12`. | There are eligible Connpass/KokuchPro candidates; a global no-work claim is false. |
+| slow boundary | KokuchPro detail discovery takes `441412ms` in `wake-c413bf68fe543285c41c3ac5`. | The existing sequential detail walk consumes the remaining 600-second wake budget. |
+| terminal | The wake ends `circuit_open/wake_deadline`; the outer run ends `entrypoint_exit_1`. No submit, evidence completion, Calendar creation or new bundle follows. | The first failing boundary is provider discovery budget exhaustion, before external effect. |
+| proven downstream path | Earlier run `18d62ca40c6f7e78-29272` on release `846c6911cbc85118aa412be2505a9c90cbeff141` registered Connpass event `404531`, receipt `b8da8f5f0b48d3745b4e4b1768a2f04a5aaf7ccfcace9234544d51f00cdaeffe`, and runtime Calendar ID `0v6ri3de5pdqsd6btrqs8ndsgs`. | Provider submit, official readback and evidence chain work when discovery leaves time. Independent Calendar exact-one and replay-zero for `404531` are still open. |
+
+The current code path is:
+
+```mermaid
+flowchart LR
+  A[launchd every 1800s] --> B[native-pass providersForSlot]
+  B --> C[read 28-day Calendar busy inventory]
+  C --> D[claim one Connector browser target]
+  D --> E[discover providers in rotated order]
+  E --> F{eligible candidate}
+  F -->|none or conflict| E
+  F -->|candidate| G[official pre-submit state absent]
+  G --> H[cache/direct/fallback action]
+  H --> I[official provider registered or pending]
+  I --> J[provider receipt and screenshot evidence]
+  J --> K[create Calendar event]
+  K --> L[Calendar filtered exact-one readback]
+  L --> M[applied bundle, Telegram report, cursor, terminal]
+  E -->|wake budget exhausted| N[circuit_open/wake_deadline]
+```
+
+**To-be behavior:** each provider discovery receives the runner's existing
+`remainingWakeMs()` and `completionReserveMs`. KokuchPro reads at most twelve
+details per wake, persists uninspected bindings in an atomic
+`kokuchpro-discovery-cursor.json`, and resumes the next binding on the next
+natural wake. Non-eligible bindings move to `completed`; Calendar-free
+candidates remain in `retry` until the existing provider readback/evidence
+path handles them. The router and all provider audits retain the same owner,
+browser target, Calendar transport, evidence chain and 30-minute cadence.
+
+For Connpass questionnaires, the existing agent fallback may answer controls
+using grounded private facts and model judgment, then the parent must validate
+the exact control and require official `registered/pending` readback. It never
+invents consent, identity, or a missing private fact. An unknown fact remains a
+bounded pending/report state and does not authorize a duplicate Submit.
+
+**Connector operational TODO after this diagnosis:**
+
+- [ ] Implement the Connector-only KokuchPro budget/cursor patch with focused RED→GREEN coverage. The design and failure test are documented in this section; implementation, release and live proof remain open.
+- [ ] Cut a complete release from pushed main and apply it only to the idle Connector label; read back exact argv and SHA.
+- [ ] Run a natural wake that reaches a new eligible candidate or records truthful no-work without the KokuchPro deadline.
+- [ ] For a new effect, pair official provider registration → independent Google Calendar API exact count 1 → one durable bundle.
+- [ ] Observe two subsequent natural wakes on the same loaded SHA with Submit 0 and Calendar duplicate 0 for that event.
+- [ ] Keep the 30-minute interval; change cadence only after measured same-minute browser contention, never to hide discovery latency.
+
+The host currently has approximately 244 MiB free at 100% filesystem capacity.
+That shared storage/headroom condition can block a release or canary and is
+owned by the foundation workstream; this Connector patch does not mutate it.
 
 **Cross-loop read-only snapshot (2026-09-17):** Fundraiser has one recent `submitted_verified` Startuped AI receipt (`20260917T020858Z-31007`) but its current owner is blocked at `host_admission_deferred:resource_effect_unknown`; its latest natural run (`20260917T070943Z-72638`) deferred before provider work because disk headroom was `970980 KiB` against a `2097152 KiB` requirement. Job Hunter daily is loaded on `6c7d2062` with a 30-minute interval, but its latest Workday row (Danaher, Business Account Manager) is `transport_failed`, queued for same-row resume. The first boundary is `apps/job-search-loop/job_search_loop/browser_agent/runtime.py::_act_locked`: after a successful navigate, `wait` observes `about:blank`/non-HTTPS and raises `post-action browser context no longer exposes an absolute HTTPS page`; no application receipt was produced. Job Hunter inbox is exit `75` capacity-deferred and learning is exit `78` configuration/release-drift. These are separate TODOs and do not change Connector's closed gate or the TODO order.
 
