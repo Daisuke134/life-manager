@@ -658,7 +658,7 @@ npm test
 
 - [x] Apply additive migrations and read columns/constraints/RLS back from production.
 
-- [x] Require the Railway `life-call` deployment with merged main `commitHash=b325a34d5b8e3ca9eaecc396311026d58d0ce399` to reach `SUCCESS`.
+- [x] Require the Railway `life-call` deployment with merged main `commitHash=294534883b82a98080b02000dd36d392394dfa6f` to reach `SUCCESS`.
 
 - [x] Verify startup logs show the standalone scheduler loops and no import/schema failure.
 
@@ -788,6 +788,8 @@ Do not route YC/general Gmail directly into MENTAL until an owning mail workflow
 - [ ] Add replay fixtures for a rejection, offer, interview, ambiguous mail, Calendar meeting, three-message cap, and no-context ordinary day. The evaluator may propose a policy version only when replay lowers safety/fit violations without reducing verified material reports.
 - [ ] Start a changed policy in a bounded Dais canary, record old/new policy IDs, and provide a rollback to the previous policy version. No rating buttons or user survey are allowed.
 - [ ] Treat an unsolicited user correction as a direct profile signal only when it cites a prior message or timing; never send a prompt requesting that correction.
+
+Current state: the offline evaluator and unit tests are merged (`mental-policy-eval.js`); they validate closed decision rows and operational counters for busy-time sends, unsupported locale, repeated templates, and cap overflow. Decision-row persistence, replay fixtures for every listed scenario, correction ingestion, and bounded policy promotion remain open until the natural canary produces real provider receipts.
 
 ### Task 14: Crisis-response safety boundary
 
