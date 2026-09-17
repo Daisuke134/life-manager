@@ -229,6 +229,32 @@ cache済み結果は利用可能に保つ。新しい有料provider effectだけ
 onboarding paywallは作らない。将来agent economyがtenantのcomputeを実際に賄える場合、検証済み収益を
 creditとして本人の請求へ充当できるが、未実現収益を無料化の根拠にはしない。
 
+### 電話の利用枠: provider契約と製品側の現状
+
+Life Managerが発信先・時刻・会話を決め、Telnyxが電話網へ接続する。Telnyxの
+[`time_limit_secs`](https://developers.telnyx.com/api-reference/call-commands/dial)は**1回の通話の最長時間**で、
+30〜14,400秒を受け付ける。省略時は14,400秒なので、残枠が30秒未満のときに値を省略して発信しない。
+月3,600接続秒はTelnyxの要件ではなく、この製品の有料電話向け費用上限である。
+
+**As-is（確認済み）:** 発信コードは30秒未満を送信前に拒否し、schedulerは30秒未満の予約を
+解放して発信を見送る（PR #5295、#5297）。本番の別経路`/test-call`はTelnyxで受理され、
+留守番電話への接続・終了と公式APIの3秒の通話時間を確認済み。ただしこれは予定時刻のwake経路ではない。
+対象tenantの観測時点のledgerには古い`accepted`が29件残り、予約を含む月間残枠は28秒。
+29件のwake行には発信IDがあるが、現在の`GET /v2/calls/{id}`はそれらを`90015 Invalid Call Control ID`で返す。
+従って実接続秒数は未確定であり、推測で予約を解放しない。
+
+**To-be:** 予定時刻のwakeが正確な残枠を使い、30秒以上なら上限付きで1回だけ発信する。
+終了後は署名済み[`call.hangup`](https://developers.telnyx.com/docs/voice/programmable-voice/voice-api-webhooks)
+と公式通話記録から実接続秒数を精算し、電話が鳴らない場合は利用者へ理由を示す。
+
+**Ordered correction TODO項目3の本番是正:**
+
+1. 残留`accepted`29件をwake receiptとTelnyxの履歴記録で照合する。現在のCall Control取得APIの
+   `90015`を「通話なし」と解釈せず、確認できた行だけ精算・解放する。
+2. 終了webhookや通話時間取得が失敗しても`accepted`を無期限に抱えない再照合経路を実装し、
+   二重発信・過少計上を防ぐテストを通す。
+3. 本番の通常wakeで、30秒未満の無発信と30秒以上の発信・Telnyx通話結果・ledger精算を読み戻す。
+
 無料枠到達時の正本copy:
 
 > 今月の無料利用分を使い切りました。Life Managerの設定とこれまでの情報はそのまま残っています。
