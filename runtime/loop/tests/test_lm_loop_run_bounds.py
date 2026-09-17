@@ -359,6 +359,67 @@ def test_started_child_timeout_and_signal_mark_effect_unknown_before_release(tmp
             claim, requeue=False, reserve=True, effect_unknown=True)
 
 
+def test_proven_pre_effect_failure_releases_owner_for_next_wake(tmp_path):
+    claim = tmp_path / "claim"
+    claim.write_text("owned")
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        hint = Path(kwargs["env"]["LIFE_MANAGER_RESULT_HINT_PATH"])
+        hint.write_text('{"status":"pre_effect_failure","effect":0}\n')
+        hint.chmod(0o600)
+        return 1
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 60},
+            "provider_route": "deterministic", "resource_class": "agent",
+            "admission_class": "revenue",
+            "entrypoint": "skills/earn/crowdworks/scripts/paid-owner",
+        }, "paid", {}, tmp_path / "receipt") == 1
+    release.assert_called_once_with(claim, requeue=False, reserve=True)
+
+
+def test_generic_child_hint_cannot_clear_unknown_effect(tmp_path):
+    claim = tmp_path / "claim"
+    claim.write_text("owned")
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        assert "LIFE_MANAGER_RESULT_HINT_PATH" not in kwargs["env"]
+        hint = tmp_path / "entrypoint-result.json"
+        hint.write_text('{"status":"pre_effect_failure","effect":0}\n')
+        hint.chmod(0o600)
+        return 1
+
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                return_value=[]) as release,
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(["/bin/true"], {
+            "cadence": {"start_interval_seconds": 60},
+            "provider_route": "deterministic", "resource_class": "browser",
+            "admission_class": "revenue", "entrypoint": "skills/connector/run.sh",
+        }, "connector", {}, tmp_path / "receipt") == 1
+    release.assert_called_once_with(
+        claim, requeue=False, reserve=True, effect_unknown=True)
+
+
 def test_admitted_child_receives_exact_host_occurrence_identity(tmp_path):
     claim = tmp_path / "claim"
     claim.write_text(json.dumps({"occurrence_id": "connector:run-123"}))

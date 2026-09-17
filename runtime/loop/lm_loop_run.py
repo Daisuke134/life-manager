@@ -8,6 +8,7 @@ import os
 import plistlib
 import re
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -45,6 +46,11 @@ SAFE_RESULT_HINT = re.compile(r"[a-z][a-z0-9_:-]{1,99}\Z")
 ADMISSION_CONTROL_RETRY_ATTEMPTS = 3
 ADMISSION_CONTROL_RETRY_DELAY_SECONDS = 0.05
 HEARTBEAT_INTERVAL_SECONDS = 30.0
+PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
+    "skills/earn/crowdworks/scripts/paid-owner",
+    "skills/earn/lancers/scripts/paid-owner",
+    "skills/earn/mercor/scripts/paid-owner",
+})
 
 
 def build_loop_command(registry: dict, loop_id: str, release_root: Path) -> list[str]:
@@ -195,6 +201,18 @@ def _host_admission_deferred(path: Path, started_ns: int) -> str | None:
     prefix = "host_admission_deferred:"
     return (reason if isinstance(reason, str) and SAFE_RUN_ID.fullmatch(reason)
             and len(prefix) + len(reason) <= 128 else "unknown")
+
+
+def _proven_pre_effect_failure(path: Path) -> bool:
+    try:
+        info = path.lstat()
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_mode & 0o777 != 0o600):
+            return False
+        return json.loads(path.read_text(encoding="utf-8")) == {
+            "status": "pre_effect_failure", "effect": 0}
+    except (OSError, ValueError):
+        return False
 
 
 def _terminal_outcome(return_code: int, *, host_deferred: str | None = None
@@ -522,11 +540,12 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 )
                 heartbeat_thread.start()
 
-        child_env = {
-            **{key: value for key, value in env.items()
-               if key != "LIFE_MANAGER_OCCURRENCE_ID"},
-            "LIFE_MANAGER_RESULT_HINT_PATH": str(receipt.parent / "entrypoint-result.json"),
-        }
+        hint_allowed = entry.get("entrypoint") in PRE_EFFECT_HINT_ENTRYPOINTS
+        child_env = {key: value for key, value in env.items()
+                     if key not in {"LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RESULT_HINT_PATH"}}
+        if hint_allowed:
+            child_env["LIFE_MANAGER_RESULT_HINT_PATH"] = str(
+                receipt.parent / "entrypoint-result.json")
         if claimed_occurrence_id is not None:
             child_env["LIFE_MANAGER_OCCURRENCE_ID"] = claimed_occurrence_id
         return_code = _run_entrypoint(
@@ -547,7 +566,9 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 if durable:
                     release_options = {"requeue": not claim_started_child,
                                        "reserve": claim_started_child}
-                    if claim_started_child and return_code != 0:
+                    if (claim_started_child and return_code != 0
+                            and not (hint_allowed and _proven_pre_effect_failure(
+                                receipt.parent / "entrypoint-result.json"))):
                         release_options["effect_unknown"] = True
                     dispatch_after_release = release_and_reserve_resource(claim, **release_options)
                 else:

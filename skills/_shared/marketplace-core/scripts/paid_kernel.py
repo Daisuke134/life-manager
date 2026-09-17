@@ -28,6 +28,10 @@ NO_EFFECT_CLASSIFICATIONS = frozenset({
 })
 
 
+class _PreEffectInventoryError(Exception):
+    pass
+
+
 class PaidAdapter(Protocol):
     def observe_active(self) -> list[dict[str, Any]]: ...
     def observe_one(self, work_id: str) -> dict[str, Any]: ...
@@ -227,7 +231,10 @@ def _run_one(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[st
 
 def run_wake(*, adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[str, Any]],
              state_root: Path, max_workers: int = 4) -> dict[str, Any]:
-    rows = adapter.observe_active()
+    try:
+        rows = adapter.observe_active()
+    except Exception as error:
+        raise _PreEffectInventoryError() from error
     if not isinstance(rows, list):
         raise ValueError("paid_inventory_invalid")
     normalized = [_observation(row) for row in rows]
@@ -297,6 +304,9 @@ def main(argv: list[str] | None = None) -> int:
                           state_root=args.state_root.expanduser().resolve(),
                           max_workers=args.max_workers)
     except Exception as error:
+        pre_effect = isinstance(error, _PreEffectInventoryError)
+        if pre_effect:
+            error = error.__cause__ or error
         wait_reason = getattr(error, "paid_wait_reason", None)
         remaining = getattr(error, "paid_remaining_work", None)
         if (isinstance(wait_reason, str) and wait_reason.strip()
@@ -319,6 +329,9 @@ def main(argv: list[str] | None = None) -> int:
             if (isinstance(error_detail, str)
                     and re.fullmatch(r"[a-z][a-z0-9_]{1,127}", error_detail)):
                 result["error_detail"] = error_detail
+            if pre_effect and os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH"):
+                _write(Path(os.environ["LIFE_MANAGER_RESULT_HINT_PATH"]),
+                       {"status": "pre_effect_failure", "effect": 0})
     _write(args.output.expanduser().resolve(), result)
     return int(result["failed"] > 0)
 

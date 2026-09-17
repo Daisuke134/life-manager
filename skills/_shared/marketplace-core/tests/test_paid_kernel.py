@@ -204,7 +204,8 @@ def build(argv):
     }
 
 
-def test_cli_persists_terminal_aggregate_when_provider_inventory_fails(tmp_path: Path) -> None:
+def test_cli_persists_terminal_aggregate_when_provider_inventory_fails(
+        tmp_path: Path, monkeypatch) -> None:
     provider = tmp_path / "provider.py"
     provider.write_text("""
 class Adapter:
@@ -217,6 +218,8 @@ def decide(row): raise AssertionError
 def build(argv): return Adapter(), decide
 """, encoding="utf-8")
     output = tmp_path / "result.json"
+    hint = tmp_path / "pre-effect.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
     assert paid.main([
         "--provider-adapter", str(provider), "--state-root", str(tmp_path / "state"),
         "--output", str(output),
@@ -225,6 +228,9 @@ def build(argv): return Adapter(), decide
         "status": "failed", "observed": 0, "actionable": 0, "effect": 0, "readback": 0,
         "failed": 1, "pending": 0, "failed_step": "provider_inventory",
         "error_type": "RuntimeError", "items": [],
+    }
+    assert json.loads(hint.read_text(encoding="utf-8")) == {
+        "status": "pre_effect_failure", "effect": 0,
     }
 
 
