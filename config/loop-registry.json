@@ -1861,6 +1861,26 @@
       "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager"
     },
+    "life-manager-browser-capacity-probe": {
+      "resource_class": "browser",
+      "coalesce_reserved_wakes": true,
+      "coalesce_queued_wakes": true,
+      "cadence": {
+        "start_interval_seconds": 1800
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "domain": "system",
+      "effect_class": "none",
+      "entrypoint": "runtime/browser/capacity_probe.py",
+      "label": "ai.anicca.life-manager-browser-capacity-probe",
+      "log_root": "~/.local/state/life-manager/browser-capacity-probe/logs",
+      "provider_route": "deterministic",
+      "runtime_timeout_seconds": 45,
+      "state_root": "~/.local/state/life-manager/browser-capacity-probe"
+    },
     "life-manager-cfo-hourly": {
       "cadence": {
         "start_interval_seconds": 3600
