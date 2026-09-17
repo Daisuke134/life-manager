@@ -563,7 +563,15 @@ class CrowdWorksPaidAdapter:
 
     def _inventory(self) -> list[dict[str, Any]]:
         rows = self._inventory_rows()
-        details = rows if self.inventory_reader is not None else [self._detail(row) for row in rows]
+        if self.inventory_reader is not None:
+            details = rows
+        else:
+            details = []
+            for row in rows:
+                try:
+                    details.append(self._detail(row))
+                except CrowdWorksPaidContractTimeout:
+                    details.append({**row, "detail_unavailable": True})
         self._cache_replace(details)
         return [self._observation(item) for item in details]
 
@@ -891,6 +899,9 @@ def decide(row: Mapping[str, Any]) -> dict[str, Any]:
     context = row.get("context"); contract = context.get("contract") if isinstance(context, Mapping) else None
     if not isinstance(contract, Mapping):
         raise RuntimeError("crowdworks_paid_context_unavailable")
+    if contract.get("detail_unavailable") is True:
+        return {"action": "wait", "reason": "contract_detail_timeout",
+                "remaining_work": ["retry official CrowdWorks contract detail readback"]}
     if contract.get("provider_state") == "awaiting_escrow":
         return {"action": "wait", "reason": "awaiting_client_escrow", "remaining_work": ["wait for official CrowdWorks escrow completion before beginning work"]}
     if contract.get("provider_state") == "delivered":

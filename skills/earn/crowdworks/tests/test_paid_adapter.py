@@ -820,6 +820,36 @@ def test_contract_detail_timeout_falls_back_to_narrow_surface():
     assert ("narrow", "63570481") in calls
 
 
+def test_detail_timeout_keeps_basic_contract_and_does_not_block_other_rows():
+    module = load()
+    rows = [funded(), {**funded(), "work_id": "63568785", "title": "教材フィードバック"}]
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter._list_contracts = lambda: rows
+
+    def detail(row):
+        if row["work_id"] == "63570481":
+            raise module.CrowdWorksPaidContractTimeout()
+        return {**row, "provider_state": "funded", "form_url": None, "milestone_id": None}
+
+    adapter._detail = detail
+    observed = adapter._inventory()
+
+    assert [row["work_id"] for row in observed] == ["63570481", "63568785"]
+    assert adapter._cached_item("63570481")["detail_unavailable"] is True
+    assert adapter._cached_item("63568785").get("detail_unavailable") is not True
+
+
+def test_detail_timeout_decision_waits_for_retryable_official_context():
+    module = load()
+    action = module.decide({"context": {"contract": {**funded(), "detail_unavailable": True}}})
+
+    assert action == {
+        "action": "wait",
+        "reason": "contract_detail_timeout",
+        "remaining_work": ["retry official CrowdWorks contract detail readback"],
+    }
+
+
 def test_contract_navigation_timeout_retries_once_on_fresh_page():
     module = load()
     calls = []
