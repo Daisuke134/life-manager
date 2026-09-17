@@ -25,6 +25,7 @@ def classify_auth_snapshot(
     firebase_token_refreshed: object = None,
     firebase_token_refresh_failed: object = None,
     firebase_token_refresh_invalid: object = None,
+    firebase_navigation_verified: object = None,
 ) -> str:
     if not isinstance(url, str) or not isinstance(visible_text, str):
         return "indeterminate"
@@ -44,6 +45,8 @@ def classify_auth_snapshot(
         return "indeterminate"
     if firebase_token_refresh_invalid is True:
         return "logged_out"
+    if firebase_token_refreshed is True and firebase_navigation_verified is False:
+        return "indeterminate"
     if authenticated_api_status == 200:
         # Some provider API edges accept an expired bearer and still return a
         # successful shell response. The Mercor SPA is authoritative here: an
@@ -220,37 +223,72 @@ async def observe(ws_url: str) -> dict[str, object]:
         value = await evaluate(1)
         # Writing IndexedDB restores the durable Firebase record but does not
         # update the SPA's in-memory currentUser. Reload only when this exact
-        # readback refreshed the record, then re-read the same page so the model
-        # never starts from a stale Firebase auth observer.
-        if value.get("firebase_token_refreshed") is True and value.get("login_form_visible") is not True:
-            try:
-                await _call(ws, 2, "Page.reload", {"ignoreCache": True})
-                ready = False
+        # readback refreshed the record. Then open Profile and return to the
+        # original page; that route is the provider-backed proof that the SPA's
+        # Firebase auth observer rehydrated, not just that IndexedDB and a
+        # manually supplied bearer token look valid.
+        original_url = value.get("url")
+        original_parsed = urlsplit(original_url) if isinstance(original_url, str) else None
+        if (
+            value.get("firebase_token_refreshed") is True
+            and value.get("login_form_visible") is not True
+            and original_parsed is not None
+            and original_parsed.scheme == "https"
+            and original_parsed.hostname == "work.mercor.com"
+        ):
+            async def wait_for_page(request_id_start: int) -> None:
                 for index in range(80):
-                    state = await _call(ws, 10 + index, "Runtime.evaluate", {
+                    state = await _call(ws, request_id_start + index, "Runtime.evaluate", {
                         "expression": "JSON.stringify({url:location.href,ready:document.readyState,hasBody:!!document.body})",
                         "returnByValue": True,
                     })
                     raw_state = state.get("result", {}).get("value")
                     state_value = json.loads(raw_state or "{}")
                     state_url = state_value.get("url")
+                    state_parsed = urlsplit(state_url) if isinstance(state_url, str) else None
                     if (
-                        isinstance(state_url, str)
-                        and urlsplit(state_url).scheme == "https"
-                        and urlsplit(state_url).hostname == "work.mercor.com"
+                        state_parsed is not None
+                        and state_parsed.scheme == "https"
+                        and state_parsed.hostname == "work.mercor.com"
                         and state_value.get("ready") == "complete"
                         and state_value.get("hasBody") is True
                     ):
-                        ready = True
-                        break
+                        return
                     await asyncio.sleep(0.25)
-                if not ready:
-                    raise RuntimeError("mercor_auth_rehydrate_not_ready")
-                rehydrated = await evaluate(200)
-                rehydrated["firebase_token_refreshed"] = True
-                value = rehydrated
+                raise RuntimeError("mercor_auth_rehydrate_not_ready")
+
+            try:
+                await _call(ws, 2, "Page.reload", {"ignoreCache": True})
+                await wait_for_page(10)
+                await evaluate(200)
+                await _call(ws, 300, "Page.navigate", {
+                    "url": "https://work.mercor.com/profile?tab=resume",
+                })
+                await wait_for_page(310)
+                profile = await evaluate(400)
+                profile_url = profile.get("url")
+                profile_parsed = urlsplit(profile_url) if isinstance(profile_url, str) else None
+                profile_ok = (
+                    profile_parsed is not None
+                    and profile_parsed.scheme == "https"
+                    and profile_parsed.hostname == "work.mercor.com"
+                    and profile_parsed.path.startswith("/profile")
+                    and profile.get("login_form_visible") is False
+                    and profile.get("firebase_user_present") is True
+                    and profile.get("authenticated_api_status") == 200
+                )
+                if not profile_ok:
+                    profile["firebase_navigation_verified"] = False
+                    profile["firebase_token_refresh_failed"] = True
+                    value = profile
+                else:
+                    await _call(ws, 500, "Page.navigate", {"url": original_url})
+                    await wait_for_page(510)
+                    value = await evaluate(600)
+                    value["firebase_navigation_verified"] = True
             except Exception:
                 value["firebase_token_refresh_failed"] = True
+                value["firebase_navigation_verified"] = False
     url = value.get("url", "")
     return {
         "status": classify_auth_snapshot(
@@ -263,6 +301,7 @@ async def observe(ws_url: str) -> dict[str, object]:
             firebase_token_refreshed=value.get("firebase_token_refreshed"),
             firebase_token_refresh_failed=value.get("firebase_token_refresh_failed"),
             firebase_token_refresh_invalid=value.get("firebase_token_refresh_invalid"),
+            firebase_navigation_verified=value.get("firebase_navigation_verified"),
         ),
         "url": url,
         "login_form_visible": value.get("login_form_visible") is True,
@@ -273,6 +312,7 @@ async def observe(ws_url: str) -> dict[str, object]:
         "firebase_token_refreshed": value.get("firebase_token_refreshed") is True,
         "firebase_token_refresh_failed": value.get("firebase_token_refresh_failed") is True,
         "firebase_token_refresh_invalid": value.get("firebase_token_refresh_invalid") is True,
+        "firebase_navigation_verified": value.get("firebase_navigation_verified"),
     }
 
 

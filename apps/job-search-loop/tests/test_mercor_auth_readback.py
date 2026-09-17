@@ -104,6 +104,14 @@ class MercorAuthReadbackTests(unittest.TestCase):
             visible_text="Explore Applications Earnings Profile",
             login_form_visible=False,
             authenticated_api_status=200,
+            firebase_token_refreshed=True,
+            firebase_navigation_verified=False,
+        ), "indeterminate")
+        self.assertEqual(classify_auth_snapshot(
+            url="https://work.mercor.com/explore",
+            visible_text="Explore Applications Earnings Profile",
+            login_form_visible=False,
+            authenticated_api_status=200,
             firebase_token_expired=False,
             firebase_token_refreshed=True,
         ), "authenticated")
@@ -115,6 +123,7 @@ class MercorAuthReadbackTests(unittest.TestCase):
         self.assertIn("expirationTime", expression)
         self.assertIn("readwrite", expression)
         self.assertIn("Page.reload", inspect.getsource(observe))
+        self.assertIn("https://work.mercor.com/profile?tab=resume", inspect.getsource(observe))
 
 
 if __name__ == "__main__":
