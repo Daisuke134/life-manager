@@ -141,6 +141,20 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   (`cf4ab074ba98d4f03f1aceb5`) without starting a provider submission.
   Both loaded argv read back `faac3e09`; a natural two-owner terminal chain
   on that SHA is still required.
+  A further same-SHA attempt on `846c6911` exposed a shared reconcile
+  race: Connector run `18d62a736e262c80-21286` claimed browser at
+  17:02:57Z, while probe run `18d62a74d6cd1bd0-23138` queued known at
+  17:03:03Z. At 17:12:43Z the idle probe was reloaded to `94e4898c` while
+  its queued occurrence remained unsettled; that occurrence became
+  `cancelled`. Connector reached outer pass at 17:13:01Z but its admission
+  occurrence is `released/effect_unknown=1`, so the exact effect fence stays
+  with its provider owner. Probe run `18d62aff3d7cbd38-46964` passed on
+  `94e4898c` at 17:13:21Z. This is not a same-SHA handoff. A branch-local
+  shared reconcile guard now excludes owners with a registered known queued
+  or claimed occurrence and allows stale unregistered queued rows to pass;
+  RED-to-green focused verification and 108 related tests/30 subtests passed.
+  The guard is not production evidence until CI, main integration and a
+  main-derived natural handoff are measured.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a

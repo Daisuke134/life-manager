@@ -5,6 +5,7 @@ import os
 import plistlib
 import shutil
 import shlex
+import sqlite3
 import stat
 import subprocess
 import sys
@@ -57,6 +58,11 @@ class LmLoopApplyTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
+        admission_env = patch.dict(os.environ, {
+            "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(self.root / "admission"),
+        })
+        admission_env.start()
+        self.addCleanup(admission_env.stop)
         (self.root / "bin").mkdir()
         (self.root / "bin/example.sh").write_text("#!/bin/sh\nexit 0\n")
         (self.root / "bin/example.sh").chmod(0o755)
@@ -1489,6 +1495,60 @@ class LmLoopApplyTest(unittest.TestCase):
 
         self.assertEqual(applied, ["second"])
         self.assertEqual(json.loads(output.getvalue())["eligible"], 1)
+
+    def test_reconcile_preserves_queued_owner_until_its_occurrence_releases(self):
+        release = self._release("release-pending-owner").resolve()
+        value = registry()
+        value["loops"]["example"]["provider_route"] = "shared-agent-runner"
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        row = {
+            "classification": "managed", "provider_route": "shared-agent-runner",
+            "launchd_state": "loaded-idle", "installed_release_sha": "b" * 40,
+            "event_release_sha": "b" * 40, "loop_id": "example",
+        }
+        admission_root = self.root / "admission"
+        admission_root.mkdir()
+        database = admission_root / "admission-v2.sqlite3"
+        with sqlite3.connect(database) as connection:
+            connection.execute("CREATE TABLE queue (owner_id TEXT)")
+            connection.execute("CREATE TABLE occurrences (owner_id TEXT, state TEXT, effect_unknown INTEGER)")
+            connection.execute("INSERT INTO queue VALUES ('example')")
+            connection.execute("INSERT INTO occurrences VALUES ('example', 'queued', 0)")
+        applied = []
+        environment = {
+            "LIFE_MANAGER_RELEASE_ROOT": str(release),
+            "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(admission_root),
+            "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+        }
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "snapshot", return_value=[row]),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
+            patch.object(lm_loop, "apply_live",
+                         side_effect=lambda *args, **kwargs: applied.append(kwargs["target"]) or [{"ok": True}]),
+            patch.dict(os.environ, environment),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(lm_loop.main([
+                "reconcile", "shared-agent-runner", "--loaded-idle-only", "--max-owners", "1",
+            ]), 0)
+            self.assertEqual(applied, [])
+            self.assertEqual(json.loads(output.getvalue())["skipped_pending"], ["example"])
+            with sqlite3.connect(database) as connection:
+                connection.execute("UPDATE occurrences SET state='released'")
+            output.seek(0)
+            output.truncate(0)
+            self.assertEqual(lm_loop.main([
+                "reconcile", "shared-agent-runner", "--loaded-idle-only", "--max-owners", "1",
+            ]), 0)
+            self.assertEqual(applied, ["example"])
+            with sqlite3.connect(database) as connection:
+                connection.execute("UPDATE occurrences SET state='queued'")
+                connection.execute("DELETE FROM queue")
+            self.assertEqual(lm_loop.main([
+                "reconcile", "shared-agent-runner", "--loaded-idle-only", "--max-owners", "1",
+            ]), 0)
+            self.assertEqual(applied, ["example", "example"])
 
     def test_reconcile_loop_ids_limit_same_route_to_explicit_ids(self):
         release = self._release("release-a").resolve()

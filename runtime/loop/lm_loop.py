@@ -9,6 +9,7 @@ import json
 import os
 import plistlib
 import re
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -26,10 +27,25 @@ from runtime.loop.lm_loop_apply import (
 )
 from runtime.loop.lm_loop_lifecycle import lifecycle, lifecycle_one
 from runtime.loop.runtime_event import append_runtime_event, build_install_event, validate_runtime_event
-from runtime.host.resource_admission import activate_durable_v2, durable_protocol_version
+from runtime.host.resource_admission import activate_durable_v2, durable_protocol_version, state_root as admission_root
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _pending_admission_owners() -> set[str]:
+    database = admission_root() / "admission-v2.sqlite3"
+    try:
+        database.stat()
+    except FileNotFoundError:
+        return set()
+    with sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True, timeout=1) as connection:
+        return {owner_id for (owner_id,) in connection.execute(
+            """SELECT owner_id FROM occurrences WHERE state='claimed'
+               UNION
+               SELECT o.owner_id FROM occurrences o
+                 JOIN queue q ON q.owner_id=o.owner_id
+                WHERE o.state='queued' AND o.effect_unknown=0""")}
 
 
 def _next_eligible(cadence: dict) -> str:
@@ -922,6 +938,11 @@ def main(argv: list[str] | None = None) -> int:
                            {"loaded-idle"} if loaded_idle_only else
                            {"loaded-idle", "unloaded"})
         ancestry_cache: dict[str, bool] = {}
+        try:
+            pending_owners = _pending_admission_owners()
+        except (OSError, sqlite3.Error) as exc:
+            print(json.dumps({"ok": False, "error": f"admission queue read failed: {type(exc).__name__}"}))
+            return 1
         if automatic_release_reconciler:
             for row in rows:
                 if row.get("provider_route") != route:
@@ -937,6 +958,7 @@ def main(argv: list[str] | None = None) -> int:
             row["classification"] == "managed"
             and row["loop_id"] != os.environ.get("LIFE_MANAGER_LOOP_ID")
             and row["provider_route"] == route
+            and row["loop_id"] not in pending_owners
             and (not requested_ids or row["loop_id"] in effective_requested_ids)
             and row["launchd_state"] in eligible_states
             and (row["launchd_state"] != "loaded-running"
@@ -955,6 +977,8 @@ def main(argv: list[str] | None = None) -> int:
                      and row["loop_id"] == "life-manager-disk-cleanup"]
             eligible = [row for row in eligible if row not in extra][:max_owners] + extra
         skipped_non_ancestor = sorted(set(skipped_non_ancestor))
+        skipped_pending = sorted({row["loop_id"] for row in rows if (
+            row["provider_route"] == route and row["loop_id"] in pending_owners)})
         applied, failed = [], []
         for row in eligible:
             try:
@@ -973,6 +997,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({
             "ok": not failed, "route": route, "release_sha": current_sha,
             "skipped_non_ancestor": skipped_non_ancestor,
+            "skipped_pending": skipped_pending,
             "eligible": len(eligible), "applied": applied, "failed": failed,
             "skipped_running": [row["loop_id"] for row in rows if (
                 row["classification"] == "managed"
