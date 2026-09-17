@@ -45,6 +45,7 @@ def _valid_identity(value: Any, owner_id: str, occurrence_id: str) -> bool:
             or not ID.fullmatch(str(value.get("format_id", "")))
             or not ID.fullmatch(str(value.get("form", "")))
             or not re.fullmatch(r"[a-z]{2}(?:-[A-Z]{2})?", str(value.get("locale", "")))
+            or not isinstance(value.get("platform"), str)
             or value.get("platform") not in {"instagram", "tiktok", "youtube"}
             or not ID.fullmatch(str(value.get("creative_id", "")))
             or not isinstance(value.get("slot"), str) or not value["slot"].strip()

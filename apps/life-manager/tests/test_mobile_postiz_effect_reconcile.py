@@ -103,6 +103,11 @@ def test_proof_must_match_every_effect_identity_field():
         missing_effect_key, {**proof_for(value), "identity": missing_effect_key},
     )["status"] == "inconclusive"
 
+    malformed_platform = {**value, "platform": []}
+    assert MODULE.evaluate_proof(
+        malformed_platform, {**proof_for(value), "identity": malformed_platform},
+    )["status"] == "inconclusive"
+
 
 def test_missing_or_unverified_provider_receipt_stays_held():
     value = identity()
