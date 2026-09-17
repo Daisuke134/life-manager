@@ -118,6 +118,16 @@ does not transfer ownership of their browser/account state.
   selects an older queued occurrence but the runner passes the current wake's
   occurrence ID to the effect child. That identity binding is the next safety
   atomic before any provider-effect promotion.
+- [ ] Ponytail scope check for that next atomic: a one-file runner change to
+  pass the claimed older ID was tested locally but **rejected before commit**.
+  Connector's existing `prepareEffectFence` requires an outer terminal with
+  the same run ID as the child's occurrence; the outer wrapper still writes
+  the newer wake's run ID. The diff was reverted cleanly after independent
+  read-only review. Next write one cross-boundary regression for queued A,
+  executing B, claimed A, effect intent and exact outer terminal/fence; then
+  reuse the existing claim/terminal/receipt path to bind them. Do not add a
+  second scheduler, parallel ledger or generic mapping framework merely to
+  make the test green. Do not promote the priority patch as full replay safety.
 - [ ] `borrow` is **not deleted**: current `resource_admission.py` SQLite
   schema/capacity calculations and `lm_loop_run.py` default still use
   `admission_class=borrow` for maintenance. It is an old reserved-capacity
