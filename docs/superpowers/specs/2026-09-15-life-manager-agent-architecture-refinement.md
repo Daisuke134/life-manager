@@ -118,13 +118,15 @@ tables remain evidence of the superseded plan, not the active cursor.
 | 12 | Promote the identical approved business kernel/source SHA to tenant-isolated Cloud; test Steel owner lease/release and phone-only status/human handoff/readback; run Cloud gate. | Tenant cross-read 0, credential/state mix 0, official effects and replay-zero, Local/Eval/Cloud all PASS. |
 | 13 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
 
-### Atomic remaining execution list — current cursor A15
+### Atomic remaining execution list — current cursor A15d
 
 Order correction for the current tail: the previous order was A14 → A15. The
 deterministic Metrics label reports launchd `runs=0` since its loaded-idle swap,
 so its first scheduled wake is still pending; its durable queue position is
 already about seven hours old. The failing scheduling invariant can be repaired
-without kicking that label. New order is A15a → A15b → A14 → A15; no run is
+without kicking that label. The order is A15a → A15b → A14 → A15c → A15d → A15;
+the release-reconciler's first natural run exposed the additional managed-Node
+PATH blocker after A14. No run is
 interrupted and the natural-wake gate remains required.
 
 Order correction: the prior order was CN01 → CN02 → A12. Dais clarified that the two
@@ -174,6 +176,8 @@ inventory rather than invented here; one selected ID is handled per item.
 - [x] A15a — Fix the actual support-starvation priority boundary without adding capacity. Live `life-manager-instagram-metrics` was queued about 422 minutes, `effect_unknown=0`, while five-slot reservations circulated. A red saturation fixture showed aged revenue always winning ahead of aged support. Candidate `aef0a0acbe` lets aged support use the one existing borrow slot when a revenue floor is configured; revenue keeps its other four slots. All 93 admission tests PASS. This is source evidence only.
 - [x] A15b — Merge PR #5316 after all eight CI jobs PASS. Main `e278c0a894`, full immutable/current release `20260917T125335-e278c0a8` imported exact shared runtime. `life-manager-instagram-metrics` and a short-cadence deterministic comparator `earning-health-allslots` were each loaded-idle reconciled separately; launchctl readback shows exact `e278c0a894` for both, no running job or sibling was restarted. Live progress remains A14/A15, not yet proved.
 - [x] A14 — Observe that deterministic owner's automatic release→next-claim→outer terminal without a manual kickstart. `life-manager-instagram-metrics` PID 53750 on loaded SHA `e278c0a894` claimed aged occurrence `18d5d5ed4e4aaf38-71194`, moved it to `released/effect_unknown=0`, and wrote outer terminal `pass`; `earning-health-allslots` on the same SHA also wrote `pass`. Metrics `effect_status=unknown` and 25 queued occurrences remain, so this is lifecycle proof only, not product-effect or no-starvation proof.
+- [x] A15c — Repair the existing release-reconciler's observed PATH failure before claiming fleet self-healing. Its natural `e278c0a894` run ended `entrypoint_exit_1`; its own output identified `pm-decision-loop: managed node executable is unavailable`. The launchd PATH omits Homebrew while `/opt/homebrew/bin/node` exists and is already installed in the PM plist. Candidate `342e0f9b7a` uses one shared fallback for three existing Node-managed labels; red fixture, 87 apply tests + 30 subtests, and minimal-PATH host smoke PASS. This is code evidence only.
+- [ ] A15d — Merge PR #5317 after CI, cut a main-derived release, loaded-idle sync only the release-reconciler, then require a natural terminal that no longer fails on managed Node.
 - [ ] A15 — Run one bounded pressure/recovery check and confirm queue age, owner heartbeat and no fleet starvation; only then mark foundation Done.
 - [x] CN03 — Observe one eligible Connector automatic wake through an official registration ID. On run `18d5fce89d880ad8-6986`, Connpass event `405705` reached `provider_status=registered`; provider receipt `cbff78d53a91288bf4268554b9ba6f615007047cd482b1b2c6bfe0d5b2e32c29` retains a screenshot of the official page with the cancellation control visible. This was release-driven, not manually kickstarted.
 - [x] CN04 — Read back the matching Google Calendar event ID for that registration. Independent Google Calendar API `read_event` returned ID `0c706h76f6ceoh99cdaug31cd4`, the matching Connpass `405705` URL in its description and the event's exact scheduled time.
