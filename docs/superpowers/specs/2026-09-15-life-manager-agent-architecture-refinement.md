@@ -263,7 +263,11 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   loaded reconciler `deb086429a1a` had the required post-fence natural passes
   `18d61e16f28b15d0-75320` and `18d61e7fd253a1d8-92885`; later concurrent
   release cuts caused safe `entrypoint_exit_1` retries, and a newer natural
-  run was active at this readback. These observations do not claim provider effects
+  run was active at this readback. A later targeted loaded-idle reconcile
+  installed the shared owner-lock release `0f504c58` on the reconciler via
+  event `fc0ffb85066316ff7e044733`; reconciler, Connector and probe loaded
+  argv all read back that SHA, with no run yet since this latest install.
+  Its next natural terminal remains to be recorded. These observations do not claim provider effects
   or every loop's business outcome: Capafy and other exact effect/readback
   fences remain with their owners.
 
