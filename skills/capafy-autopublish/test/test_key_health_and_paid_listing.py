@@ -30,7 +30,8 @@ KEY_GATE_CALL_SITES = (
 
 class KeyHealthGateTest(unittest.TestCase):
     def run_gate(self, key_response, enable_alert=False, credits_remaining=25,
-                 management_key="", healed_key_response=None, hard_cap="50"):
+                 management_key="", healed_key_response=None, hard_cap="50",
+                 hosted_model_id=None, hosted_max_tokens=None):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             fake_bin = root / "bin"
@@ -96,6 +97,10 @@ exit 0
                 env["CAPAFY_TELEGRAM_SENDER"] = str(fake_sender)
             else:
                 env.pop("TELEGRAM_ALERT_CHAT_ID", None)
+            if hosted_model_id:
+                env["CAPAFY_HOSTED_MODEL_ID"] = hosted_model_id
+            if hosted_max_tokens:
+                env["CAPAFY_HOSTED_MAX_TOKENS"] = str(hosted_max_tokens)
             result = subprocess.run(
                 ["bash", str(KEY_GATE)],
                 env=env,
@@ -128,6 +133,15 @@ exit 0
         self.assertIn("https://openrouter.ai/api/v1/credits", call_text)
         self.assertIn("https://openrouter.ai/api/v1/chat/completions", call_text)
 
+    def test_deepseek_probe_uses_packaged_bounded_model_contract(self):
+        result, call_text, _, _ = self.run_gate(
+            {"data": {"limit_remaining": 25}},
+            hosted_model_id="deepseek/deepseek-v4.1-flash", hosted_max_tokens=8192,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("deepseek/deepseek-v4.1-flash", call_text)
+        self.assertIn('"max_tokens": 8192', call_text)
+
     def test_positive_key_limit_below_one_capafy_request_blocks_before_probe(self):
         result, call_text, _, _ = self.run_gate(
             {"data": {"limit_remaining": 1.50}}, credits_remaining=20
@@ -143,7 +157,7 @@ exit 0
                       "usage_daily": 8.50, "limit_reset": "daily"}},
             credits_remaining=20,
             management_key="management-key-must-not-print",
-            healed_key_response={"data": {"limit": 15, "limit_remaining": 6.50,
+            healed_key_response={"data": {"limit": 35, "limit_remaining": 26.50,
                                           "usage_daily": 8.50,
                                           "limit_reset": "daily"}},
         )
@@ -160,7 +174,7 @@ exit 0
                       "usage_daily": 10, "limit_reset": "daily"}},
             credits_remaining=20,
             management_key="management-key-must-not-print",
-            healed_key_response={"data": {"limit": 20, "limit_remaining": 10,
+            healed_key_response={"data": {"limit": 30, "limit_remaining": 20,
                                           "usage_daily": 10,
                                           "limit_reset": "daily"}},
         )
@@ -185,14 +199,14 @@ exit 0
 
     def test_balance_below_default_safety_floor_blocks(self):
         result, _, _, _ = self.run_gate(
-            {"data": {"limit_remaining": 10}}, credits_remaining=19.99
+            {"data": {"limit_remaining": 25}}, credits_remaining=19.99
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("balance_too_low", result.stdout + result.stderr)
 
     def test_balance_at_default_safety_floor_runs_live_probe(self):
         result, call_text, _, _ = self.run_gate(
-            {"data": {"limit_remaining": 10}}, credits_remaining=20
+            {"data": {"limit_remaining": 25}}, credits_remaining=20
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("https://openrouter.ai/api/v1/chat/completions", call_text)
@@ -206,7 +220,7 @@ exit 0
 
     def test_warning_and_block_alerts_have_distinct_truthful_messages(self):
         warning, _, warning_text, warning_markers = self.run_gate(
-            {"data": {"limit_remaining": 10}},
+            {"data": {"limit_remaining": 25}},
             credits_remaining=24.99,
             enable_alert=True,
         )
@@ -215,7 +229,7 @@ exit 0
         self.assertEqual(warning_markers, 1)
 
         blocked, _, blocked_text, blocked_markers = self.run_gate(
-            {"data": {"limit_remaining": 10}},
+            {"data": {"limit_remaining": 25}},
             credits_remaining=19.99,
             enable_alert=True,
         )
@@ -287,8 +301,23 @@ Structured script output from your brief.
         self.assertEqual(lint.returncode, 0, lint.stdout + lint.stderr)
         self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
         config = json.loads(build.stdout)
+        self.assertEqual(config["model_id"], "anthropic/claude-sonnet-4.6")
+        self.assertEqual(config["max_tokens"], 128000)
         self.assertEqual(config["plans"], [{"cycle": "week", "price": "9.99", "cap": "20", "trial": None}])
         self.assertNotIn("edit_url", config)
+
+    def test_deepseek_listing_builds_exact_hosted_model_contract(self):
+        listing = AUTO.parent / "capafy/catalog/marketing-strategist/LISTING.md"
+        icon = AUTO.parent / "capafy/catalog/marketing-strategist/icon.webp"
+        result = subprocess.run(
+            [sys.executable, str(BUILD_CONFIG), str(listing), str(icon)],
+            text=True, capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        config = json.loads(result.stdout)
+        self.assertEqual(config["model_id"], "deepseek/deepseek-v4.1-flash")
+        self.assertEqual(config["max_tokens"], 8192)
+        self.assertEqual([plan["trial"] for plan in config["plans"]], [None, None])
         serialized = json.dumps(config, ensure_ascii=False)
         self.assertNotIn("draftKey", serialized)
         self.assertNotIn("token=", serialized)

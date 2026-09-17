@@ -71,6 +71,16 @@ poll(){ local field="$1" want="$2" tries="${3:-15}" slp="${4:-5}" i v
 INITIAL_PLATFORM_STATUS="$(rstat platform_status)"
 case "$INITIAL_PLATFORM_STATUS" in
   0)
+    CFG_ONE="$CAPAFY_PUBLISHER_STATE_HOME/cfg_one.json"
+    [ -f "$CFG_ONE" ] || die "missing prepared model contract"
+    read -r CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS < <(
+      python3 - "$CFG_ONE" <<'PY'
+import json, sys
+config = json.load(open(sys.argv[1], encoding="utf-8"))
+print(config["model_id"], config["max_tokens"])
+PY
+    )
+    export CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS
     # 2026-07-18 A1: fail-closed key-health gate. A submit into an under-funded
     # OpenRouter account triggered billing-error review rejections.
     "$AUTO/scripts/key_health_gate.sh" || die "KEY-HEALTH gate FAIL — restore OpenRouter funding (>= \$20 remaining) before submitting; see state/lessons.md"
