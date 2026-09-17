@@ -30,8 +30,8 @@
 
 ### B. Prove the Superpowers entrypoint
 
-- [ ] B1. Inspect the installed Superpowers bootstrap and current harness hook schemas. Add the smallest supported Codex session-start/compact injection, and verify its output includes the installed `using-superpowers` content once.
-- [ ] B2. Verify Claude's installed Superpowers startup hook actually injects the current bootstrap on startup and compaction; repair only the missing hook/configuration if readback fails.
+- [ ] B1. Inspect the installed Superpowers bootstrap and current harness hook schemas. The current upstream Codex manifest intentionally declares `hooks: {}` and its release notes say Codex uses native skill discovery, so no duplicate Codex SessionStart hook is added. This remains open until the normal Codex CLI can resolve the reserved official marketplace and expose the Superpowers skills; the current CLI reports no `openai-curated` snapshot and `codex plugin add superpowers@openai-curated` fails with `plugin was not found`.
+- [x] B2. Verify Claude's installed Superpowers startup hook actually injects the current bootstrap on startup and compaction; repair only the missing hook/configuration if readback fails. The stale 5.0.7 cache was reinstalled as 6.3.0, `settings.json`'s invalid `permissions.disableAutoMode=true` was corrected to `"disable"`, `claude doctor` passed, and a normal interactive session confirmed the SessionStart injection and `superpowers:brainstorming` availability.
 - [ ] B3. Add deterministic source-boundary checks at the supported edit/push boundary: Git root and origin must match Life Manager. Give a clear failure message and verify both allowed and denied cases.
 - [ ] B4. Run one small, real Life Manager development change through the applicable Superpowers skills. Capture skill-read, relevant design/plan, focused verification, merge and worktree cleanup receipts. Fix any observed gap in the entrypoint; do not count a verbal claim as a pass.
 
