@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` or `superpowers:executing-plans`. Follow the tasks in order and preserve checkbox state.
 
-**Goal:** Repair Telnyx call-limit rejection and ship Japanese affirmation, manifestation, and mindfulness-inquiry messages that never invent personal context.
+**Goal:** Repair Telnyx call-limit rejection, ship natural Japanese-first mental messages, then connect verified Gmail/Calendar outcomes so Life Manager can report what matters and offer the right words at a receptive moment.
 
-**Architecture:** The Telnyx repair ships independently through the actual observed `/calls` producer. Mental V1 reuses `scheduler.js -> mentalUserOnce -> evaluateMentalTrigger -> buildMentalMessage -> Telegram -> lm_mental_send_log`; context is used first to avoid interruption, while copy uses only context-free templates or explicit stable user preferences.
+**Architecture:** The Telnyx repair ships independently through the actual observed `/calls` producer. Mental V1 reuses `scheduler.js -> mentalUserOnce -> evaluateMentalTrigger -> buildMentalMessage -> Telegram -> lm_mental_send_log`. The next slice consumes verified Job Hunter Gmail outcomes and Calendar busy state, rather than creating a second mail poller. Its factual outcome report is distinct from an optional, native-language mental intervention.
 
 **Tech Stack:** Node.js CommonJS, `node:test`, Supabase/Postgres REST, Telegram Bot API, Telnyx Call Control, Railway.
 
@@ -622,17 +622,78 @@ duplicate external sends = 0
 
 ---
 
-## Future work: context unlocks, one at a time
+## Next slice: Gmail/Calendar-grounded mental UX
 
-These are not V1 tasks. Add a separate spec and plan for each:
+This slice follows the plain-message canary. It is not a new Gmail poller or a blanket auto-reply loop. The existing Job Hunter inbox owner is the first producer; MENTAL consumes its verified outcome. Keep the two effects separate: the owner reports the result, and MENTAL may send one supportive line later or stay silent.
 
-1. Explicit important-event classification.
-2. Event-bound preparation completion receipt.
-3. Current-day completed-action receipts.
-4. Authorized activity/focus duration.
-5. Explicit failure/rejection aftercare.
+### Task 10: Expose a bounded Job Hunter outcome to MENTAL
 
-Each unlock must define source, freshness, transformation, exact legal claim, tests, production readback, and replay-zero. Sensor-backed body-state messages require a separately authorized wearable/device connector.
+**Files to inspect and modify only where the current contract requires:**
+- `apps/job-search-loop/job_search_loop/inbox.py`
+- `apps/job-search-loop/job_search_loop/ledger.py`
+- `apps/job-search-loop/job_search_loop/application_reporting.py`
+- `apps/life-manager/lib/mental-runtime.js`
+- Focused tests alongside the changed modules.
+
+**Output contract:** `{uid, outcome_kind, application_ref, gmail_message_id, received_at, verified_at, evidence_ref, confidence_state}`. `outcome_kind` is one of `interview`, `offer`, `rejection`, `unknown`; `unknown` cannot trigger contextual mental copy. The producer must not copy raw mail body into the mental ledger.
+
+- [ ] Read the current 15-minute Job Hunter inbox projection and existing outcome/Telegram receipts before defining the bridge. Reuse the immutable Gmail message ID, exact application identity, and owning ledger.
+- [ ] Test that a verified rejection/offer/interview emits one projection; spoofed, stale, ambiguous, duplicate, and unmatched mail emits no contextual projection.
+- [ ] Test that the normal Job Hunter result report is unchanged, and MENTAL cannot send a second result report or reply to the email.
+- [ ] Add the smallest projection/adapter needed; no parallel Gmail scan in MENTAL.
+- [ ] Run focused tests and one natural inbox wake. Read back the owner receipt and MENTAL's decision, including silence; require replay-zero.
+
+### Task 11: Decide whether/when a contextual line helps
+
+**Files:**
+- `apps/life-manager/lib/mental-trigger.js`
+- `apps/life-manager/lib/mental-runtime.js`
+- `apps/life-manager/scheduler.js`
+- Their focused tests.
+
+- [ ] Feed the verified outcome projection, current Calendar busy intervals, local quiet hours, recent operational notices, and user's source-backed tone/theme profile into one decision.
+- [ ] Test the cases: verified rejection during a meeting -> factual owner report then hold mental line; verified rejection in free time -> one gentle line or silence; verified offer -> no rejection copy; unknown outcome -> no contextual line; two results in one day -> no notification pile-up.
+- [ ] Keep the 0–3 daily mental/body cap. An event-driven line replaces a routine slot and never creates a fourth mental message.
+- [ ] Record `source outcome ID -> decision -> text version -> Telegram message ID` or a silence reason. A 30/60-minute evaluation is not a 30/60-minute send.
+
+### Task 12: Approve native Japanese and English copy independently
+
+**Files:**
+- `apps/life-manager/content/mental/catalog/ja.json`
+- `apps/life-manager/content/mental/catalog/en.json`
+- `apps/life-manager/content/mental/metadata.json`
+- `apps/life-manager/lib/mental-copy.test.js`
+
+- [ ] Start from licensed OSS themes, not literal translations. Create locale-native editorial candidates for: general self-worth, rest, mindfulness inquiry, manifestation as action, verified rejection, verified offer, confirmed upcoming event.
+- [ ] For every variant store locale, source inspiration, exact allowed context, reviewer/version, and forbidden assumptions. English copy is independently written/reviewed, not translated from Japanese final text.
+- [ ] Test that Japanese lines read naturally aloud, avoid translated-slogan cadence and unsupported feelings, and that the English lines read natively. A mismatched locale or unreviewed variant is not eligible.
+- [ ] Use the seven scenario pairs in spec §9.5 as acceptance examples, not automatic production copy. A native reviewer/user readback is needed before broad rollout.
+
+### Task 13: Keep general mail autonomy separate
+
+Do not route YC/general Gmail directly into MENTAL until an owning mail workflow verifies program identity, decision, deadlines, and exact message ID. That workflow also owns any reply and sent-mail readback. Its separate plan defines which mail classes are ignored, answered, escalated, or reported. The outcome projection from Task 10 is the interface to reuse; do not add a second mental-mail framework.
+
+### Task 13A: Improve timing and wording from real corrections
+
+**Files to inspect before choosing a patch:**
+- `apps/life-manager/lib/mental-send-log.js`
+- `apps/life-manager/lib/mental-profile.js`
+- `apps/life-manager/lib/mental-catalog.js`
+- Existing Telegram message intake and tests.
+
+- [ ] Store each decision as `send` or `silence` with reason, source outcome ID, Calendar busy version, chosen text version, and eventual Telegram ID. Do not store a full Gmail body or infer emotion from message-open state.
+- [ ] Treat an explicit user correction such as `この言い方は嫌`, `この時間は邪魔`, or `こういう時は短く` as source-backed feedback for that user; update tone/avoid tags or a delivery window only after the correction is tied to an exact prior message.
+- [ ] Compare a changed policy with its prior version on verified cases: useful explicit reactions, intrusive corrections, false personal claims, duplicate sends, and missed material outcome reports. Keep the new policy only if it improves the intended signal without worsening the safety counters.
+- [ ] Test replay of the same correction and the same Gmail outcome. Both must have one durable update/effect at most.
+- [ ] Do not claim emotional benefit from silence, read receipts, or a delivered Telegram ID.
+
+### Task 14: Crisis-response safety boundary
+
+Before claiming any self-harm support, verify the existing safety route and its actual owner. Explicit imminent self-harm language stops ordinary affirmation selection and offers location-appropriate human/crisis support. Do not infer crisis from rejection, silence, or Calendar gaps; do not claim suicide prevention, emergency dispatch, continuous monitoring, or treatment without independently proven capability. Test crisis text versus ordinary disappointment and read back the actual handoff route.
+
+### Task 15: Optional Anicca iOS copy improvement
+
+Anicca iOS is a separate product under the mobile-app loop, not a Life Manager channel. After Life Manager Japanese/English copy has native-language acceptance, the mobile-app owner may independently review its own affirmation bank. No Life Manager runtime dependency or shared send ledger is added to the app.
 
 ## Final verification checklist
 

@@ -3,11 +3,11 @@
 **Status:** Revised after context-grounding review
 **Owner:** Life Manager cloud runtime
 **Primary locale:** Japanese
-**Scope:** Affirmation, manifestation, and mindfulness inquiry messages only
+**Scope:** Gmail/Calendar-aware mental UX and its staged implementation; email action ownership stays with existing loops
 
 ## 1. Outcome
 
-Life Manager sends brief Japanese messages that support confidence, intention, self-compassion, and present-moment awareness without asking the user to manage another interface.
+Life Manager becomes the user's trusted front door to important life events. It reads connected Gmail and Calendar through existing owner paths, reports verified outcomes, handles eligible routine follow-up within delegated boundaries, and offers a brief mental intervention only when the content and moment fit. The user need not poll Gmail to discover a job result, interview invitation, or important deadline.
 
 V1 is deliberately narrow:
 
@@ -15,7 +15,7 @@ V1 is deliberately narrow:
 2. manifestation messages that turn an intention into a controllable action;
 3. mindfulness prompts and reflective questions (`問いかけ`).
 
-Messages contain no buttons, no repeated sender prefix, no mandatory reply, and no claim about the user's current activity, emotion, achievement, location, preparation, or physical state unless Life Manager has an authoritative source for that exact claim.
+Mental messages contain no buttons, no repeated sender prefix, and no mandatory reply. They may name a verified event, but may not claim what the user feels or has prepared without evidence. Operational mail-result reports remain distinct from the optional mental message; routine replies are sent by the owning workflow rather than by MENTAL.
 
 The independent Telnyx `/calls` error `90029` remains the first repair milestone, but it is not part of mental-message semantics.
 
@@ -122,7 +122,7 @@ scheduler.js
 
 ## 6. Delivery timing
 
-Without live mental/body context, V1 is not described as perfect just-in-time personalization. It is **right-window delivery**: Life Manager finds a low-interruption opportunity and sends a low-assumption message.
+The three windows below are a fallback for days without a verified event. They are not three required sends. The scheduler can evaluate every 30–60 minutes and on a new verified Gmail/Calendar outcome; most evaluations end in silence. Event-driven interventions supersede a routine window message rather than add to the user's notification load.
 
 Default opportunity windows in the user's local time:
 
@@ -143,8 +143,11 @@ Rules:
 - Do not describe the selected minute as emotionally optimal.
 - A user-authored goal may influence message selection, not factual claims.
 - If no eligible non-repeated message fits the person, skip that window rather than send filler.
+- A verified positive/negative/ambiguous outcome is reported by its owning loop promptly, independent of the mental-message cap. MENTAL separately decides whether a supportive message is warranted, considering the user's local time and current/next Calendar event.
+- New mail during a meeting is held until the meeting ends unless an independently defined urgent operational deadline requires earlier notice. An inferred emotion never creates urgency.
+- A morning/evening generic message is omitted if an event-driven message has already served the same purpose that day.
 
-The default UX is therefore usually three messages, but the actual result can be zero to three. Operational receipts from Jobs, CFO, Investment, Calendar, or Care are separate and are not counted as mental/body messages.
+The default UX is zero to three mental/body messages. It is not “three messages every day.” Operational receipts from Jobs, CFO, Investment, Calendar, or Care are separate, but their timing is considered so a supportive message does not pile onto a result notification.
 
 ## 7. Catalog sources: external reuse only
 
@@ -235,7 +238,7 @@ Each approved quote receives Life Manager-owned metadata without changing the so
 
 ### 8.1 User personalization inputs
 
-Only explicit, durable user facts affect selection. Every profile tag retains source references instead of becoming an unexplained model judgment:
+Stable profile selection uses only explicit, durable user facts. A verified event outcome may temporarily affect the intervention choice, but is not written back as a permanent personality trait. Every profile tag retains source references instead of becoming an unexplained model judgment:
 
 ```json
 {
@@ -343,7 +346,83 @@ These are invitations, not claims that the person is dehydrated, tense, sitting,
 
 Physical operational receipts are separate from the three daily mental/body messages. A confirmed appointment or urgent care reminder is sent when required, even if the message budget is otherwise full.
 
-## 9. Copy contract
+## 9. Gmail- and Calendar-aware mental experience
+
+### 9.1 What the person experiences
+
+Life Manager, not a mailbox app, is the place the person learns what matters. A new message is processed by the existing mail owner; unimportant mail is silently archived/classified according to that owner's policy, actionable mail is handled when the action is in scope, and material outcomes are reported once. A mental message is a separate, optional intervention, never a mandatory caption attached to every email.
+
+| Moment | What arrives in Telegram | What stays silent |
+|---|---|---|
+| Ordinary day with no material event | One well-selected affirmation or inquiry in a free window, or nothing | Every inbox poll and routine mail |
+| Interview invitation verified | `面接の案内が届きました。日時の候補を確認し、予定が重ならない枠で調整しています。` Then a confirmed time/Calendar receipt if completed | “You got the job,” or unsupported claims about confidence |
+| Confirmed rejection | `○○の選考は今回は見送りでした。次の応募は継続しています。` Later, if the person is free and the profile favors gentle language: `今回の結果で、あなたの価値まで決まるわけじゃない。今日はここまでにしていい。` | Instant cheerleading, forced manifestation, or “you must be devastated” |
+| Confirmed offer or acceptance | `○○から内定の連絡です。条件と返答期限を確認しました。` An optional natural line later: `うれしい知らせだね。ここまで来たことを、今日はちゃんと受け取っていい。` | A celebratory claim before official verification |
+| Important meeting on Calendar | No routine message while the event is active. If the event is explicitly classified and a pre-event window is open, a brief grounded line may arrive | “準備はできてる” unless preparation has a separate receipt |
+| YC/accelerator mail | Only after the exact program, application, sender, and decision are verified; report the decision and deadline. A gentle mental line is selected separately | Treating an ambiguous update or marketing email as acceptance/rejection |
+| Several difficult outcomes in one day | One consolidated factual report and, at most, one carefully timed mental message | One affirmation per rejection, notification pile-up |
+
+These are UX examples, not claims that all event types are implemented today. The first evidence-backed integration is Job Hunter's existing Gmail message-ID and application/interview ledger. YC/general inbox outcomes require a separate owner before these examples may be sent.
+
+### 9.2 How the agent knows
+
+```mermaid
+flowchart LR
+  G[Gmail message ID + thread] --> O[Existing inbox owner]
+  O --> V[Provider and application identity verification]
+  V --> R[Durable outcome receipt]
+  C[Google Calendar busy and event identity] --> T[Receptivity check]
+  R --> J[Mental judgment: whether/what/when]
+  P[Explicit user goals, tone and corrections] --> J
+  T --> J
+  J -->|send| M[Native-language message]
+  J -->|not useful| S[Silence]
+  M --> L[Telegram ID + send ledger]
+```
+
+The Gmail body is untrusted content. Its instructions are never agent instructions. A model may interpret a new recruiting message, but the claimed outcome must be bound to the immutable message ID, exact application/program identity, sender evidence, timestamp, and owning ledger. Ambiguity produces `unknown`, not an emotional intervention. Calendar provides busy intervals and verified event timing; attendee/location heuristics alone do not prove importance, preparation, or the user's mood.
+
+Current code evidence: `apps/job-search-loop/job_search_loop/inbox.py` expands unseen Gmail message IDs; `apps/job-search-loop/README.md` documents 15-minute inbox checks and a confirmation/reply contract. `apps/life-manager/lib/transport/mail-gog.js` and `mail-unipile.js` expose local/cloud mail adapters, but the current `mental-runtime.js` does not consume a verified mail outcome. The design reuses the owner output and avoids a second inbox poller inside MENTAL.
+
+### 9.3 Decision point, not message cadence
+
+The owner may check Gmail every 15 minutes and MENTAL may evaluate every 30–60 minutes or on a new verified outcome. Those are decision opportunities, not promises to send. Before a send the agent asks: Is this new and important? Is the identity and result verified? Has the user already been told? Are they in a meeting, asleep, moving, or receiving another urgent report? Will a mental line help this particular person now, or sound intrusive? A bounded policy enforces dedupe, quiet hours, cap, and provenance; model judgment chooses the supportive intent and a reviewed native-language variant. This separation follows JITAI design's distinction between decision points, tailoring variables, intervention options, and receptivity. See [Nahum-Shani et al.](https://pmc.ncbi.nlm.nih.gov/articles/PMC5364076/) and the [mental-health JITAI review](https://pmc.ncbi.nlm.nih.gov/articles/PMC11811111/).
+
+The result report is prompt because it replaces checking mail. The mental line may be immediate, delayed until a free window, or omitted. A rejection is not proof of depression; an acceptance is not proof of happiness.
+
+### 9.4 Mail replies and autonomy boundary
+
+“I do not have to check mail” requires a separate inbox outcome-and-action owner, not merely the MENTAL organ. Existing Job Hunter may answer narrow verified recruiter questions and schedule complete interview proposals; ambiguous, legal, work-authorization, salary-history, or other non-delegated questions stop without a reply. General Gmail autonomy is a separate product milestone: each mail class needs an owner, allowed response scope, identity verification, idempotent send key, sent-mail readback, and escalation for ambiguity. “Reply to every mail” is not a goal; no-reply, spam, promotional, or unsafe threads should not be answered. MENTAL reads the verified result receipt, never sends mail itself.
+
+### 9.5 Native-language writing contract
+
+OSS catalogs supply themes and candidate source lines; a literal Japanese translation is not production copy. The previous examples `私は今のままで十分です。` and `身体は直す対象ではなく、私が暮らす場所です。` are understandable but may feel like translated slogans. A Japanese editor/reviewer writes and approves a natural `ja-JP` rendering for each selected theme, and an English editor independently approves `en` copy. Where a native Japanese source with clear reuse rights exists, it may be preferred to translation. Neither locale is generated by translating the other's final text at send time.
+
+Examples of the intended Japanese register:
+
+| Context | Natural candidate copy | Evidence requirement |
+|---|---|---|
+| General self-worth | `今日うまくいかないことがあっても、自分まで否定しなくていい。` | None; does not assert a failure occurred |
+| General permission to rest | `休むのに、理由や資格はいらないよ。` | None |
+| Mindfulness inquiry | `いま、呼吸はどんな感じ？` | None; rhetorical, no reply required |
+| Manifestation grounded in action | `なりたい自分のために、今日は何をひとつ選ぶ？` | None; does not guarantee an outcome |
+| Verified rejection, gentle profile | `今回は通らなかった。それと、あなた自身の価値は別の話だよ。` | Verified rejection receipt |
+| Verified offer | `いい知らせが届いたね。今日は、うれしさをそのまま受け取っていい。` | Verified offer receipt; no inferred emotion |
+| Confirmed upcoming presentation | `もうすぐ発表だね。まずは最初の一文からでいい。` | Explicit event type and start time; no preparation claim |
+
+These examples are editorial candidates, not pre-approved production strings. The final localized catalog records source inspiration, locale-native text, reviewer, version, and banned/allowed contexts. Blind scoring of exact translated words is insufficient; naturalness is a user-facing acceptance criterion in Japanese and English before either is sent broadly. A reviewer reads each line aloud and rejects awkward pronouns, translated metaphors, exaggerated certainty, and register inconsistent with the person's preference; the user can correct a line in ordinary chat and that correction supersedes the variant for that user.
+
+### 9.6 Personalization and self-improvement
+
+Personalization has three levels: (1) explicit durable preferences and user statements, (2) verified events and goals from owning loops, and (3) observed reception from explicit corrections or ordinary conversation. It does not infer preference from silence or claim to know a feeling from an email. Selection and timing can improve gradually, but a new personalization rule is retained only when it improves a measured outcome without raising intrusive-message or false-claim rates. A muted/ignored or stale signal is not evidence of emotional benefit.
+
+The daily candidate cap remains three, but a verified event-driven intervention replaces a routine message. The system records why it sent or stayed silent, source receipt IDs, chosen text version, Telegram message ID, and subsequent explicit user correction. One owner updates the profile; a mail owner, Job Hunter, and MENTAL do not independently invent different stories about the same result.
+
+### 9.7 Crisis boundary
+
+This is a supportive companion, not a suicide-prevention or depression-treatment system. A generic affirmation must never be presented as a reliable rescue. If the user explicitly expresses imminent self-harm intent in conversation, ordinary catalog delivery stops and the existing safety path should offer immediate human/crisis support appropriate to the user's location; it must not promise monitoring, emergency dispatch, or clinical protection unless those services are actually operating and verified. An email rejection, Calendar gap, or lack of response is not a crisis signal. [NIMH suicide-prevention guidance](https://www.nimh.nih.gov/health/topics/suicide-prevention) emphasizes prompt human support and emergency services for life-threatening situations.
+
+## 10. Copy contract
 
 All V1 copy must satisfy:
 
@@ -365,7 +444,7 @@ The validator rejects reply-seeking phrases:
 返信して / 教えて / 答えて / 押して / 選んで / let me know / reply / tell me
 ```
 
-## 10. Selection and repetition
+## 11. Selection and repetition
 
 V1 uses the imported, classified catalog, not free-form LLM generation.
 
@@ -383,7 +462,7 @@ uid + local_day + window + eligible_quote_ids + explicit_profile_tags
 
 No feedback buttons exist. V1 does not claim to learn message preference from silence. Any later adaptation must name a real signal such as explicit conversation, reaction, or settings change.
 
-## 11. Data and privacy
+## 12. Data and privacy
 
 Reuse `lm_mental_send_log`. Extend it only if current columns cannot store:
 
@@ -399,7 +478,7 @@ Do not add raw calendar titles, inferred mood, message-reply tracking, location 
 
 The durable profile may contain only explicit, user-authored values/goals and presentation preferences. A system inference is never written back as a user fact.
 
-## 12. Future context unlocks
+## 13. Evidence-backed context unlocks
 
 Future contextual messages are separate milestones. Each is disabled until its evidence contract passes production readback.
 
@@ -409,11 +488,11 @@ Future contextual messages are separate milestones. Each is disabled until its e
 | Preparation confidence | Current preparation receipt tied to event | `必要なものは揃っている。あとは話すだけ。` |
 | Small-win reflection | Current-day completed-action receipts | `今日は3件終えている。その事実は残っている。` |
 | Physical reset | Authorized current activity measurement | `90分座っている。少し歩く時間です。` |
-| Self-compassion after setback | Explicit failure/rejection receipt | `今回の結果と、あなた自身の価値は別です。` |
+| Self-compassion after setback | Exact verified Gmail/provider outcome from its owning loop | `今回は通らなかった。それと、あなた自身の価値は別の話だよ。` |
 
-The receipt authorizes only the matching claim. For example, a calendar event never authorizes `準備済み`, and a task completion never authorizes an inferred mood.
+The first prioritized unlock is the existing Job Hunter verified outcome projection described in §9.2. A YC/general-mail outcome follows only when its separate owner establishes the same verification contract. The receipt authorizes only the matching claim: a Calendar event never authorizes `準備済み`, and a job rejection never authorizes an inferred mood.
 
-## 13. Failure behavior
+## 14. Failure behavior
 
 | Failure | Behavior |
 |---|---|
@@ -426,8 +505,10 @@ The receipt authorizes only the matching claim. For example, a calendar event ne
 | Template uses unavailable variable | Reject before Telegram |
 | Telegram failure | Do not record a delivered send |
 | Receipt write fails after delivery | Record reconciliation evidence by Telegram message ID; never resend blindly |
+| Mail is ambiguous, stale, spoofed, or not tied to an application/program | Report uncertainty through the mail owner if material; no contextual mental message |
+| User is in a meeting when an outcome arrives | Hold the mental line for a later receptive window or omit it; do not infer urgency from emotion |
 
-## 14. Rollout
+## 15. Rollout
 
 ### Milestone A — Telnyx repair
 
@@ -445,13 +526,13 @@ Enable the three V1 opportunities for Dais: morning affirmation, midday mindfuln
 
 Expand after canary acceptance. Context unlocks remain off independently.
 
-### Milestone E — Context unlocks
+### Milestone E — Job Hunter context, then separate mail expansion
 
-Add one evidence-backed context class at a time. Each needs source, freshness, test, cloud readback, and replay-zero before its copy is legal.
+Connect the verified Job Hunter Gmail outcome to MENTAL first. Keep the owner result report and mental line separate. Add one evidence-backed context class at a time; each needs source, freshness, test, cloud readback, and replay-zero before its copy is legal. General Gmail and autonomous replies require their own mail-owner plan.
 
 Anicca assets and Anicca iOS are not part of this runtime or rollout. Anicca iOS remains a separate product created and operated by Life Manager's mobile-app loop.
 
-## 15. Acceptance criteria
+## 16. Acceptance criteria
 
 - Only `affirmation`, `manifestation`, and `mindfulness_inquiry` are enabled in V1.
 - Every production message resolves to a source ID, pinned manifest, quote ID, and approved localized text.
@@ -466,9 +547,14 @@ Anicca assets and Anicca iOS are not part of this runtime or rollout. Anicca iOS
 - Every delivered message has a positive Telegram message ID and one durable send receipt.
 - Replaying the same user/day/window produces zero duplicate messages.
 - Seven-day Dais canary contains at least one delivered message from each family.
+- A verified Job Hunter rejection/offer/interview can produce a factual owner report and at most one appropriate mental line; `unknown` produces no contextual line.
+- Calendar busy time defers or suppresses optional mental copy; 30/60-minute evaluation never implies 30/60-minute sending.
+- Japanese and English variants are independently reviewed for native fluency, not literal translation.
+- The user can learn a verified material mail outcome without opening Gmail; no email response is sent by MENTAL.
+- Explicit imminent self-harm language takes the safety path, not an affirmation; no suicide-prevention claim is made.
 - Telnyx acceptance remains independently satisfied.
 
-## 16. Non-goals
+## 17. Non-goals
 
 - Inferring mood from silence, calendar gaps, response time, or message opens.
 - Claiming a person prepared, focused, completed work, exercised, ate, drank, slept, or felt something without evidence.
@@ -478,11 +564,13 @@ Anicca assets and Anicca iOS are not part of this runtime or rollout. Anicca iOS
 - Clinical diagnosis, therapy, emergency automation, or treatment claims.
 - Magical manifestation or guaranteed outcomes.
 - Runtime LLM rewriting, paraphrasing, translation, or interpolation of catalog prose.
+- Answering all mail, treating all unread mail as important, or making MENTAL an inbox owner.
+- Claiming to detect depression or suicidality from mail outcomes, non-response, or Calendar patterns.
 
-## 17. Decision record
+## 18. Decision record
 
 **Chosen:** select verbatim, licensed catalog text using stable preferences and low-interruption opportunity windows.
 
-**Deferred:** event-specific confidence, completed-task reflection, failure aftercare, and sensor-based physical prompts until their exact evidence sources exist and are verified in production.
+**Prioritized next:** reuse Job Hunter's exact Gmail outcome receipts for contextual messages; do not build a second inbox reader. Keep YC/general mail, broad reply automation, and sensor-based physical claims behind separate owners and evidence contracts.
 
 **Reason:** reuse proven words; personalize the selection, not the truth of the sentence.
