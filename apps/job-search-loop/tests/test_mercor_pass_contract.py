@@ -293,7 +293,9 @@ class MercorPassContractTests(unittest.TestCase):
         self.assertEqual(TASK_CLASSES["mercor_pass"], "browser-lane-agent")
 
     def test_prompt_contains_model_led_submit_guard_and_human_stop(self):
-        prompt = (ROOT / "prompts" / "mercor-pass.md").read_text(encoding="utf-8")
+        prompt = " ".join(
+            (ROOT / "prompts" / "mercor-pass.md").read_text(encoding="utf-8").split()
+        )
         for required in (
             "model-led",
             "`N of N` and `100%`",
@@ -328,11 +330,13 @@ class MercorPassContractTests(unittest.TestCase):
             "host_capabilities",
             "job_search_loop.mercor_human_gate_notify",
             "Never open or enter a person-bound step",
-            "skip it without",
-            "Never click an existing incomplete application, `Continue application`",
-            "Go directly to Explore",
+            "Inspect an existing incomplete application only through its application card",
+            "Continue application only when every remaining step is reversible",
+            "Do not click `Continue application` when a person-bound step remains",
+            "go directly to Explore while preserving the listing's resumable state",
             "Prefer a visible `1-click apply` candidate",
-            "Do not resume an already-incomplete application",
+            "resume the same application",
+            "Never invent a credential, experience, language level, or legal answer",
             "camera, microphone, or screen-sharing permission",
             "Do not click an interview or assessment step",
             "Do not call browser media-device or permission APIs",
@@ -356,6 +360,8 @@ class MercorPassContractTests(unittest.TestCase):
         ):
             self.assertIn(required, prompt)
         self.assertNotIn("Choose at most one new listing", prompt)
+        self.assertNotIn("Never click an existing incomplete application", prompt)
+        self.assertNotIn("Do not resume an already-incomplete application", prompt)
 
     def test_legacy_job_hunter_reference_only_points_to_mercor_canon(self):
         reference = (

@@ -30,12 +30,18 @@ Pass order:
    twelve-detail budget on lower-priority work. A nonblocked pass is invalid if that
    priority queue was observed but omitted. `submitted_pending_review` entries are
    observe-only and must never be resubmitted.
-2. Observe existing applications from the application-list cards only. If a card is
-   incomplete (`N of N` below completion or below `100%`), record it and skip it without
-   opening the card. Never click an existing incomplete application, `Continue application`,
-   an interview, or an assessment. Go directly to Explore and seek work the loop can submit
-   without a person-bound step. Record every inspected listing in `inspected_listings` with
-   its live URL, application state, and decision.
+2. Observe existing applications from the application-list cards only. Inspect an existing
+   incomplete application only through its application card, then open its detail once when
+   the card is a truthful-fit candidate. Continue application only when every remaining step
+   is reversible: resume/profile upload, ordinary written questions, availability, location,
+   work authorization, or other factual controls answered from verified profile facts. Save
+   and read back progress after each such step, then resume the same application on a later
+   wake when another reversible step remains. Do not click `Continue application` when a
+   person-bound step remains; never open an interview, assessment, recording, camera,
+   microphone, or screen-sharing step. In that case record the exact step, notify the human
+   gate, and go directly to Explore while preserving the listing's resumable state. Record
+   every inspected listing in `inspected_listings` with its live URL, application state, and
+   decision.
 3. Maintain a queue of distinct new listings. Before opening detail pages, compare visible
    cards with `recently_inspected_listing_ids` and use model judgment to inspect the strongest
    truthful-fit unseen candidates first. Revisit a recent candidate only after unseen candidates
@@ -57,10 +63,10 @@ Pass order:
    domain specialization, or seniority makes the candidate low and `no_reasonable_shot`.
    Treat preferred qualifications, years, degrees and experience as ranking signals rather
    than automatic rejection gates. Apply maximally among reasonable-shot roles and let the provider
-   or hiring party decide. Never fabricate a required form answer: answer truthfully
-   from `shared_apply_context.verified_facts`; if the form accepts that truthful answer,
-   continue and submit when missing evidence is only preferred or non-material. If a required
-   control cannot be answered truthfully, record the exact
+   or hiring party decide. Never invent a credential, experience, language level, or legal
+   answer. Answer ordinary controls from `shared_apply_context.verified_facts` and the supplied
+   profile; if a form accepts that truthful answer, continue and submit when missing evidence is
+   only preferred or non-material. If a required control cannot be answered truthfully, record the exact
    control and continue to the next distinct listing. Submit every ready distinct listing
    encountered within the bounded candidate scan. A listing is ready for submission only when the
    live application page shows every required step complete (`N of N` and `100%`),
@@ -94,9 +100,9 @@ Pass order:
    authorization only from explicit profile facts. Save readback after each step.
    Treat `host_capabilities` as verified local-machine evidence. In particular, do
    not ask the operator to confirm Apple Silicon or the macOS version when those
-   fields already prove the requirement. Do not resume an already-incomplete application
-   or click `Continue application`. A human gate is valid only at the first
-   remaining person-bound control after fresh official progress readback.
+   fields already prove the requirement. A human gate is valid only at the first remaining
+   person-bound control after fresh official progress readback; all earlier reversible work
+   must be completed before the gate is sent.
    A fresh application being `0 of N` is normal and is not a reason to skip it.
    The operator has already completed a Mercor interview; trust only the current
    role's visible `Completed` or `reused` state to decide whether that interview
@@ -116,9 +122,9 @@ Pass order:
    sharing controls. Do not call browser media-device or permission APIs. Never request
    camera, microphone, or screen-sharing permission from macOS.
    Then immediately run
-   `python3 -m job_search_loop.mercor_human_gate_notify` with the exact listing ID,
-   title, live URL, exact remaining action and fresh evidence reference. Require its
-   delivered or delivery-uncertain receipt, add one concise gate to `needs_human`, and
+   `python3 -m job_search_loop.mercor_human_gate_notify` with the exact `--account-id`,
+   `--listing-id`, provider `--step-id`, title, live URL, exact remaining action and
+   fresh evidence reference. Require its delivered or delivery-uncertain receipt, add one concise gate to `needs_human`, and
    skip that candidate for the rest of this wake without waiting for the operator, then
    continue scanning other candidates. A step already shown as `Completed` or `reused`
    is not a human requirement and may be used automatically. The human gate is resumable;

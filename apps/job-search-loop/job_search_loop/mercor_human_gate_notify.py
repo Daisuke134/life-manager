@@ -51,9 +51,15 @@ def record_and_notify(
     *, gate_store: Path, outbox: Path, telegram_env: Path, run_id: str,
     listing_id: str, title: str, reason: str, evidence_ref: str,
     url: str = "", deadline: str = "公式期限表示なし",
+    account_id: str | None = None, step_id: str | None = None,
 ) -> dict[str, Any]:
+    exact_key = bool(step_id and step_id.strip())
     gate = HumanGateStore(gate_store).record(
-        run_id=run_id, reason=f"{listing_id}: {reason}", evidence_ref=evidence_ref
+        run_id=run_id, reason=f"{listing_id}: {reason}", evidence_ref=evidence_ref,
+        account_id=(account_id or os.environ.get("MERCOR_OPERATOR_ID", "default"))
+        if exact_key else None,
+        listing_id=listing_id if exact_key else None,
+        step_id=step_id if exact_key else None,
     )
     chat_id = _chat_id(telegram_env)
     if not chat_id:
@@ -89,6 +95,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--reason", required=True)
     parser.add_argument("--url", default="")
     parser.add_argument("--deadline", default="公式期限表示なし")
+    parser.add_argument("--account-id", default="")
+    parser.add_argument("--step-id", default="")
     parser.add_argument("--evidence-ref", required=True)
     args = parser.parse_args(argv)
     result = record_and_notify(
@@ -96,6 +104,7 @@ def main(argv: list[str] | None = None) -> int:
         run_id=args.run_id, listing_id=args.listing_id, title=args.title,
         reason=args.reason, evidence_ref=args.evidence_ref,
         url=args.url, deadline=args.deadline,
+        account_id=args.account_id or None, step_id=args.step_id or None,
     )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0

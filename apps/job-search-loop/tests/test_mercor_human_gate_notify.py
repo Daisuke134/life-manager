@@ -1,3 +1,4 @@
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -28,6 +29,8 @@ class MercorHumanGateNotifyTests(unittest.TestCase):
                     reason="Finance Interview must be completed",
                     evidence_ref="https://work.mercor.com/explore?listingId=list-jp",
                     url="https://work.mercor.com/explore?listingId=list-jp",
+                    account_id="daisuke",
+                    step_id="finance-interview",
                 )
                 first = record_and_notify(run_id="run-1", **arguments)
                 second = record_and_notify(run_id="run-2", **arguments)
@@ -38,6 +41,10 @@ class MercorHumanGateNotifyTests(unittest.TestCase):
             self.assertIn("アカウント: Mercorの既存Daisukeアカウント", calls[0]["message"])
             self.assertIn("期限: 公式期限表示なし", calls[0]["message"])
             self.assertNotIn("applicationは保存済み", calls[0]["message"])
+            rows = [json.loads(line) for line in (root / "gates.jsonl").read_text().splitlines()]
+            self.assertEqual(rows[0]["account_id"], "daisuke")
+            self.assertEqual(rows[0]["listing_id"], "list-jp")
+            self.assertEqual(rows[0]["step_id"], "finance-interview")
 
 
 if __name__ == "__main__":
