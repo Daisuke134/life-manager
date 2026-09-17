@@ -664,16 +664,17 @@ class CrowdWorksPaidAdapter:
         return candidates
 
     def _select_form_url(self, item: Mapping[str, Any]) -> str | None:
-        urls = item.get("form_urls")
+        raw_urls = item.get("form_urls")
         candidates = item.get("form_candidates")
+        if not isinstance(raw_urls, list):
+            return None
         completed = set(item.get("completed_form_urls") or [])
-        urls = [url for url in urls if url not in completed]
+        urls = [url for url in raw_urls if url not in completed]
         if not urls:
             return FORM_SELECTION_COMPLETE
         candidates = [candidate for candidate in candidates
                       if isinstance(candidate, Mapping) and candidate.get("url") in urls]
-        if (not isinstance(urls, list) or not urls or
-                not all(isinstance(url, str) and _google_form_url(url) for url in urls) or
+        if (not urls or not all(isinstance(url, str) and _google_form_url(url) for url in urls) or
                 not isinstance(candidates, list) or len(candidates) != len(urls)):
             return None
         if self.candidate_profile is None or self.provider_profile is None or self.state_path is None:
@@ -1026,6 +1027,9 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
     if isinstance(form_urls, list) and form_urls and not form_url:
         selected = form_selector(contract) if callable(form_selector) else None
         if selected == FORM_SELECTION_COMPLETE:
+            if not isinstance(milestone_id, str):
+                return {"action": "wait", "reason": "buyer_task_detail_required",
+                        "remaining_work": ["read the official funded contract task before any delivery effect"]}
             return {"action": "formal_delivery", "payload": {
                 "milestone_id": milestone_id,
                 "message": "Googleフォームへの回答を完了しました。ご確認のほどよろしくお願いいたします。",
