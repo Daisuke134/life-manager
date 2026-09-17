@@ -3,7 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const crypto = require("node:crypto");
-const { shouldMarkAnswered } = require("./answered.js");
+const { amdEnabled, shouldMarkAnswered } = require("./answered.js");
 const { amdDialOptions } = require("./dial.js");
 const { decodeWakeClientState, verifyTelnyxSignature } = require("./telnyx-webhook.js");
 
@@ -21,6 +21,12 @@ test("AMD enabled never treats media start as answered", () => {
 
 test("AMD disabled falls back to the legacy media-start approximation", () => {
   assert.equal(shouldMarkAnswered({ amdEnabled: false, signal: "media-start" }), true);
+});
+
+test("AMD is opt-in so an uncertain machine verdict cannot cut a paying caller by default", () => {
+  assert.equal(amdEnabled({}), false);
+  assert.equal(amdEnabled({ LM_AMD: "off" }), false);
+  assert.equal(amdEnabled({ LM_AMD: "on" }), true);
 });
 
 test("not_sure is not a human-confirmed answer", () => {

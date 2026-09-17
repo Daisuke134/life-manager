@@ -254,6 +254,14 @@ webhookへ先に200を返すが、永続的な課金台帳の実装例ではな�
 各wakeのsession IDに一意に一致する終了済み・未接続・通話0秒の履歴を29/29件確認した。
 既存の所有token付き精算RPCで29件を`0`秒の`succeeded`へ確定し、使用扱いは3,572秒から92秒、
 残枠は3,508秒となった。旧予約は削除せず、精算済み行として保持する。
+予定wakeの本番E2Eでは、Telnyx発信・終了webhook・3秒のvoice精算が通ったが、
+Dais本人が応答して会話を聞いていたにもかかわらず、AMDが`machine`と判定して通話を切った。
+旧daily-organ仕様の「AMDの`machine`/`not_sure`を即切断」は有料電話の現行方針として採用しない。
+[TelnyxのAMD資料](https://developers.telnyx.com/docs/voice/programmable-voice/answering-machine-detection)も
+`not_sure`を人として扱うよう推奨する。製品の既定はAMD OFFとし、人への誤切断を防ぐ。
+終了webhookはAMD OFFでも送信し、voice ledgerの精算に使う。
+AMD OFFで再実行した予定wakeは14秒接続し、終了webhook・voice精算を確認した。
+人が会話できたかは本人の通話体験で確認し、秒数だけで成功判定しない。
 
 **To-be:** 予定時刻のwakeが正確な残枠を使い、30秒以上なら上限付きで1回だけ発信する。
 終了後は署名済み[`call.hangup`](https://developers.telnyx.com/docs/voice/programmable-voice/voice-api-webhooks)

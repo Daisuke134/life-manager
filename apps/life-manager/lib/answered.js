@@ -1,7 +1,7 @@
 "use strict";
 
 function amdEnabled(env = process.env) {
-  return String((env || {}).LM_AMD || "").trim().toLowerCase() !== "off";
+  return String((env || {}).LM_AMD || "").trim().toLowerCase() === "on";
 }
 
 function shouldMarkAnswered({ amdEnabled: enabled, signal, result } = {}) {
