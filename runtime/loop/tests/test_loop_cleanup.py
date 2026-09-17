@@ -131,7 +131,8 @@ class LoopCleanupTest(unittest.TestCase):
             (root / "config").mkdir()
             (root / "config/loop-registry.json").write_text(json.dumps(value))
             (root / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
-            claim = object()
+            claim = root / "claim.json"
+            claim.write_text(json.dumps({"occurrence_id": "job:test-cleanup"}))
             with (
                 mock.patch.dict(os.environ, {"HOME": str(home)}),
                 mock.patch("runtime.loop.loop_cleanup.cleanup_run_root",
@@ -166,7 +167,8 @@ class LoopCleanupTest(unittest.TestCase):
             (root / "config").mkdir()
             (root / "config/loop-registry.json").write_text(json.dumps(value))
             (root / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
-            claim = object()
+            claim = root / "claim.json"
+            claim.write_text(json.dumps({"occurrence_id": "job:test-terminal"}))
             with (
                 mock.patch.dict(os.environ, {"HOME": str(home)}),
                 mock.patch("runtime.loop.lm_loop_run.process_start", return_value="start"),
