@@ -235,13 +235,25 @@ Life Managerが発信先・時刻・会話を決め、Telnyxが電話網へ接�
 [`time_limit_secs`](https://developers.telnyx.com/api-reference/call-commands/dial)は**1回の通話の最長時間**で、
 30〜14,400秒を受け付ける。省略時は14,400秒なので、残枠が30秒未満のときに値を省略して発信しない。
 月3,600接続秒はTelnyxの要件ではなく、この製品の有料電話向け費用上限である。
+公開例では、[Noota](https://telnyx.com/customer-stories/noota)はTelnyxを電話基盤に使い、
+[自社の料金表](https://www.noota.io/pricing)に月ごとの含有分数を置く。
+[Dialpad](https://telnyx.com/customer-stories/dialpad)もTelnyxを通話基盤に使い、
+[AI Agentの料金](https://www.dialpad.com/pricing/)を価値が届いた会話単位で説明する。
+これらは月3,600秒を支持する証拠ではなく、通信原価と利用者向け商品ルールを分ける実例である。
+[Telnyx公式Node SDK](https://github.com/team-telnyx/telnyx-node/blob/master/src/resources/calls/calls.ts)の実コードは
+`call_session_id`を通知の相関ID、`time_limit_secs`を通話上限として扱う。
+[公式サンプル](https://github.com/team-telnyx/demo-node-telnyx/blob/master/voicemail-detection/callControl.js)は
+webhookへ先に200を返すが、永続的な課金台帳の実装例ではないため、製品側は別にCDR再照合を持つ。
 
 **As-is（確認済み）:** 発信コードは30秒未満を送信前に拒否し、schedulerは30秒未満の予約を
 解放して発信を見送る（PR #5295、#5297）。本番の別経路`/test-call`はTelnyxで受理され、
 留守番電話への接続・終了と公式APIの3秒の通話時間を確認済み。ただしこれは予定時刻のwake経路ではない。
-対象tenantの観測時点のledgerには古い`accepted`が29件残り、予約を含む月間残枠は28秒。
-29件のwake行には発信IDがあるが、現在の`GET /v2/calls/{id}`はそれらを`90015 Invalid Call Control ID`で返す。
-従って実接続秒数は未確定であり、推測で予約を解放しない。
+対象tenantには古い`accepted`が29件あり、予約を含む月間残枠は28秒だった。
+29件の`GET /v2/calls/{id}`は`90015`を返したが、Telnyxの
+[`detail_records`](https://developers.telnyx.com/api-reference/detail-records/search-detail-records)で
+各wakeのsession IDに一意に一致する終了済み・未接続・通話0秒の履歴を29/29件確認した。
+既存の所有token付き精算RPCで29件を`0`秒の`succeeded`へ確定し、使用扱いは3,572秒から92秒、
+残枠は3,508秒となった。旧予約は削除せず、精算済み行として保持する。
 
 **To-be:** 予定時刻のwakeが正確な残枠を使い、30秒以上なら上限付きで1回だけ発信する。
 終了後は署名済み[`call.hangup`](https://developers.telnyx.com/docs/voice/programmable-voice/voice-api-webhooks)
@@ -249,10 +261,9 @@ Life Managerが発信先・時刻・会話を決め、Telnyxが電話網へ接�
 
 **Ordered correction TODO項目3の本番是正:**
 
-1. 残留`accepted`29件をwake receiptとTelnyxの履歴記録で照合する。現在のCall Control取得APIの
-   `90015`を「通話なし」と解釈せず、確認できた行だけ精算・解放する。
-2. 終了webhookや通話時間取得が失敗しても`accepted`を無期限に抱えない再照合経路を実装し、
-   二重発信・過少計上を防ぐテストを通す。
+1. **DONE:** 残留`accepted`29件をwake sessionとTelnyx CDRで照合し、29件を接続0秒で精算する。
+2. 終了webhookや通話時間取得が失敗しても`accepted`を無期限に抱えないCDR再照合を既存wake ownerへ組み込み、
+   二重発信・過少計上を防ぐテストと本番自然起動のreadbackを通す。
 3. 本番の通常wakeで、30秒未満の無発信と30秒以上の発信・Telnyx通話結果・ledger精算を読み戻す。
 
 無料枠到達時の正本copy:

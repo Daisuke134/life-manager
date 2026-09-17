@@ -48,6 +48,7 @@ const {
   reserveVoiceAllowance, acceptVoiceAllowance, releaseVoiceAllowance,
 } = require("./lib/managed-allowance.js");
 const { deliverAllowanceNotice } = require("./lib/allowance-notice.js");
+const { reconcileStaleVoiceAllowances } = require("./lib/voice-reconciliation.js");
 const {
   DISCOVERY_WEEK_MS, listDiscoveryUsers, runDiscoveryForUser,
 } = require("./lib/feature-discovery.js");
@@ -1034,12 +1035,33 @@ async function reminderTick(deps = {}) {
 function startWakeLoop() {
   console.log(`[wake] started — dedicated tick every ${TICK_MS / 1000}s, ${WAKE_USER_TIMEOUT_MS / 1000}s per user, wakes at T-${WAKE_LEVELS.map((l) => l.min).join("/")}min`);
   let timer;
+  let nextVoiceReconcileAt = 0;
+  let voiceReconcileOffset = 0;
+  let voiceReconcileRunning = false;
+  let voiceReconcileLogged = false;
+  let closed = false;
   const run = async () => {
     try { await wakeTick(); } catch (e) { console.error("[wake] tick err", e.message); }
-    timer = setTimeout(run, TICK_MS);
+    if (!closed) timer = setTimeout(run, TICK_MS);
+    if (!closed && !voiceReconcileRunning && Date.now() >= nextVoiceReconcileAt) {
+      nextVoiceReconcileAt = Date.now() + 5 * 60 * 1000;
+      voiceReconcileRunning = true;
+      const { url: supaUrl, key: supaKey } = SUPA();
+      reconcileStaleVoiceAllowances({ supaUrl, supaKey,
+        telnyxKey: process.env.TELNYX_API_KEY,
+        offset: voiceReconcileOffset,
+      }).then(({ checked, settled, errors, nextOffset }) => {
+        voiceReconcileOffset = nextOffset;
+        if (!voiceReconcileLogged || checked || settled || errors) {
+          console.log(`[wake] voice reconciliation checked=${checked} settled=${settled} errors=${errors}`);
+          voiceReconcileLogged = true;
+        }
+      }).catch((e) => console.error(`[wake] voice reconciliation failed: ${e.message}`))
+        .finally(() => { voiceReconcileRunning = false; });
+    }
   };
   run();
-  return { close: () => clearTimeout(timer) };
+  return { close: () => { closed = true; clearTimeout(timer); } };
 }
 
 // Fixed 60s, deliberately independent from schedulerPollInterval(): Composio budget degradation must
