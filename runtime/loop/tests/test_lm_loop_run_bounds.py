@@ -40,6 +40,14 @@ def test_scheduled_wakes_have_a_finite_one_hour_safety_limit():
     assert _runtime_limit({"cadence": {"run_at_load": True}}) == 3600
 
 
+def test_crowdworks_paid_owner_declares_a_bounded_runtime():
+    registry = json.loads(
+        (Path(__file__).resolve().parents[3] / "config/loop-registry.json").read_text()
+    )
+
+    assert registry["loops"]["crowdworks-revenue-paid"]["runtime_timeout_seconds"] == 180
+
+
 def test_scheduled_wake_can_declare_a_longer_finite_safety_limit():
     assert _runtime_limit({
         "cadence": {"start_interval_seconds": 600},
