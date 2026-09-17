@@ -25,7 +25,23 @@ mkdir -p "$(dirname "$LOG")"
 KEY_GATE="$RELEASE_ROOT/skills/capafy-autopublish/scripts/key_health_gate.sh"
 if ! KEY_HEALTH="$(bash "$KEY_GATE" 2>&1)"; then
   echo "$(date '+%F %T') provider admission unhealthy; no owner restart; $KEY_HEALTH" >>"$LOG"
-  exit 0
+  python3 - "$LIFE_MANAGER_STATE_HOME/state/capafy-healthcheck-blocked.json" <<'PY'
+import datetime, json, os, sys, tempfile
+path = sys.argv[1]
+fd, temporary = tempfile.mkstemp(prefix=".capafy-healthcheck-blocked.", dir=os.path.dirname(path))
+try:
+    os.fchmod(fd, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        json.dump({"status": "blocked", "reason": "provider_admission_unhealthy",
+                   "owner_restart": False,
+                   "observed_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}, stream)
+        stream.write("\n")
+    os.replace(temporary, path)
+finally:
+    if os.path.exists(temporary):
+        os.unlink(temporary)
+PY
+  exit 1
 fi
 case "$KEY_HEALTH" in
   *KEY_SELF_HEAL=OK*) echo "$(date '+%F %T') provider admission self-healed; $KEY_HEALTH" >>"$LOG" ;;
