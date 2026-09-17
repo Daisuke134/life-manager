@@ -44,6 +44,10 @@ Pass order:
    save a fresh local Profile/Résumé readback JSON under the current `evidence_dir` and use
    that file as `evidence_ref`; a provider URL alone is not evidence. Use `unknown` only when
    that exact readback was not obtained.
+   After the live Profile readback, use the visible Filter/Search controls to run the target
+   queries once per wake. The target query set is: Japan, Japanese, Developer, automation, AI agent, Coding.
+   Collect and deduplicate each query's visible cards before opening any detail; if the
+   control is unavailable, record that observation and continue with the default Explore queue.
    Start every wake at Explore page 1 when pagination is visible. Collect the distinct listing
    cards from the current page before opening detail, rank the visible queue, and inspect pages 1
    through 4 in order (or until the provider shows no further page). Do not treat the page left
@@ -56,7 +60,9 @@ Pass order:
    twelve-detail budget on lower-priority work. A nonblocked pass is invalid if that
    priority queue was observed but omitted. `submitted_pending_review` entries are
    observe-only and must never be resubmitted.
-2. Observe existing applications from the application-list cards only. Inspect an existing
+2. Observe existing applications from the application-list cards only. Do not open existing
+   incomplete application cards before the target search queue; record their visible state and
+   continue to the target queries first. Inspect an existing
    incomplete application only through its application card, then open its detail once when
    the card is a truthful-fit candidate. Continue application when the next step is reversible,
    and finish consecutive reversible steps: resume/profile upload, ordinary written questions, availability, location,

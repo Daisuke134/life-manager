@@ -398,6 +398,9 @@ class MercorPassContractTests(unittest.TestCase):
             "save a fresh local Profile/Résumé readback JSON",
             "a provider URL alone is not evidence",
             "highest-priority card by visible title",
+            "use the visible Filter/Search controls",
+            "Japan, Japanese, Developer, automation, AI agent, Coding",
+            "Do not open existing incomplete application cards before the target search queue",
             "profile_sync",
             "field hashes",
         ):
