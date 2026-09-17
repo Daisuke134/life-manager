@@ -202,6 +202,19 @@ does not transfer ownership of their browser/account state.
   losing queued work or `occurrences.effect_unknown=1`; conflicting owner
   rows fail closed without dropping the legacy table. RED→GREEN, admission
   85/85 PASS, fresh read-only review SHIP. **Not main/loaded.**
+- [x] **Source-only mixed-release orphan fence:** main-derived branch
+  `fix/connector-admission-main-20260917` commit `b8fbbd833b` detects a
+  `claimed` occurrence whose owner file was removed by an old-release sweep,
+  marks its effect unknown under the existing admission lock and refuses new
+  claims for that owner. RED→GREEN, admission 86/86 PASS, fresh read-only
+  review SHIP. **Not main/loaded and not self-heal by itself.** Current live
+  Connector DB has two orphan `claimed/effect_unknown=0` occurrences whose
+  outer terminal is `pass` on candidate `3a70e98867`; no absence of external
+  effect is proved. Do not clear, cancel or resend those rows by SQL guess.
+  Connector owner must perform exact official provider/Calendar readback,
+  then use a proof-bound owner-specific reconciliation before production
+  coalescing. A third claimed row still has an owner file and needs live
+  process-identity readback before any disposition.
 - [ ] `borrow` is **not deleted**: current `resource_admission.py` SQLite
   schema/capacity calculations and `lm_loop_run.py` default still use
   `admission_class=borrow` for maintenance. It is an old reserved-capacity
