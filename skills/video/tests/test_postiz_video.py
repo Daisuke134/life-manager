@@ -475,7 +475,7 @@ class PostizVideoTests(unittest.TestCase):
             )
         )
 
-    def test_profile_only_post_never_falls_back_to_browser(self):
+    def test_profile_only_post_falls_back_to_browser_for_public_readback(self):
         calls = []
 
         def browser(profile_url, caption, *, posted_after, caption_prefix):
@@ -489,8 +489,13 @@ class PostizVideoTests(unittest.TestCase):
             runner=lambda *_args, **_kwargs: subprocess.CompletedProcess([], 1, "", ""),
             browser_resolver=browser,
         )
-        self.assertIsNone(result)
-        self.assertEqual(calls, [])
+        self.assertEqual(result, "https://www.tiktok.com/@honne_reveal/video/7676388327427149077")
+        self.assertEqual(calls, [(
+            "https://www.tiktok.com/@honne_reveal",
+            "someone tell me\nthis is illegal",
+            1_777_000_000,
+            "someone tell me this is",
+        )])
 
     def test_profile_caption_join_rejects_an_old_duplicate(self):
         rows = [
