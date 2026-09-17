@@ -45,9 +45,12 @@ class LearningPassTests(unittest.TestCase):
         result = evaluate_source_claim({
             "source_kind": "official_receipt",
             "claimed_income_usd": 125.50,
+            "provider": "mercor",
+            "receipt_status": "received",
             "verified": True,
             "provider_receipt_id": "earnings-1",
             "evidence_ref": "earnings-readback.json",
+            "evidence_sha256": "a" * 64,
         })
         self.assertEqual(result["verified_income_usd"], 125.50)
         self.assertEqual(result["evidence_grade"], "official_receipt")
@@ -60,8 +63,8 @@ class LearningPassTests(unittest.TestCase):
         self.assertEqual(result["decision"], "insufficient_evidence")
 
     def test_explicit_negative_outcomes_are_resolved_for_revert_decision(self):
-        before = [{"stage": "rejected"} for _ in range(5)]
-        after = [{"stage": "offer"} for _ in range(5)]
+        before = [{"stage": "rejected", "evidence_grade": "official", "evidence_ref": f"before-{i}"} for i in range(5)]
+        after = [{"stage": "offer", "evidence_grade": "official", "evidence_ref": f"after-{i}"} for i in range(5)]
         result = decide_change(before=before, after=after)
         self.assertEqual(result["decision"], "keep")
         self.assertEqual(result["before_resolved"], 5)

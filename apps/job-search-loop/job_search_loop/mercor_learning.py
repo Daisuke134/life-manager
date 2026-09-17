@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 from urllib.parse import urlsplit
@@ -31,6 +32,8 @@ _RESOLVED_STAGES = _POSITIVE_STAGES | frozenset({
     "closed",
     "failed",
 })
+_OFFICIAL_GRADES = frozenset({"official", "official_receipt"})
+_SHA256 = re.compile(r"^[a-f0-9]{64}$")
 
 
 def _text(value: Any, name: str) -> str:
@@ -95,11 +98,16 @@ def evaluate_source_claim(claim: Mapping[str, Any]) -> dict[str, Any]:
         claimed = 0
     official = (
         source_kind == "official_receipt"
+        and claim.get("provider") == "mercor"
+        and str(claim.get("receipt_status") or "").casefold()
+        in {"paid", "settled", "received", "payout_received"}
         and claim.get("verified") is True
         and isinstance(claim.get("provider_receipt_id"), str)
         and bool(claim["provider_receipt_id"].strip())
         and isinstance(claim.get("evidence_ref"), str)
         and bool(claim["evidence_ref"].strip())
+        and isinstance(claim.get("evidence_sha256"), str)
+        and _SHA256.fullmatch(claim["evidence_sha256"].strip()) is not None
     )
     return {
         "verified_income_usd": float(claimed) if official else 0,
@@ -111,6 +119,11 @@ def _resolved_rows(rows: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]
     return [
         row for row in rows
         if isinstance(row, Mapping)
+        and (
+            str(row.get("evidence_grade") or "") in _OFFICIAL_GRADES
+            and isinstance(row.get("evidence_ref"), str)
+            and bool(row["evidence_ref"].strip())
+        )
         and (
             row.get("resolved") is True
             or str(row.get("stage") or "") in _RESOLVED_STAGES
