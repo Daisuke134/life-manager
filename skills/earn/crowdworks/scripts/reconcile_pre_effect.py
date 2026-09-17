@@ -26,7 +26,8 @@ def _run_proves_no_dispatch(path: Path, occurrence_id: str) -> bool:
     value = _read(path)
     return (isinstance(value, dict) and value.get("version") == 1
             and value.get("occurrence_id") == occurrence_id
-            and value.get("status") == "pre_effect")
+            and (value.get("status") == "pre_effect"
+                 or (value.get("status") == "completed" and value.get("effect") == 0)))
 
 
 def find_matching_intent(state_root: Path, contract_id: str,

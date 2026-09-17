@@ -64,3 +64,25 @@ def test_run_marker_must_prove_the_same_occurrence_was_pre_effect(tmp_path):
     }), encoding="utf-8")
     assert module._run_proves_no_dispatch(marker, "crowdworks-revenue-paid:run-1") is True
     assert module._run_proves_no_dispatch(marker, "crowdworks-revenue-paid:other") is False
+
+
+def test_completed_zero_effect_run_marker_proves_no_dispatch(tmp_path):
+    module = load()
+    marker = tmp_path / "run.json"
+    marker.write_text(json.dumps({
+        "version": 1, "occurrence_id": "crowdworks-revenue-paid:run-1",
+        "status": "completed", "effect": 0,
+    }), encoding="utf-8")
+
+    assert module._run_proves_no_dispatch(marker, "crowdworks-revenue-paid:run-1") is True
+
+
+def test_completed_effectful_run_marker_is_not_no_dispatch_proof(tmp_path):
+    module = load()
+    marker = tmp_path / "run.json"
+    marker.write_text(json.dumps({
+        "version": 1, "occurrence_id": "crowdworks-revenue-paid:run-1",
+        "status": "completed", "effect": 1,
+    }), encoding="utf-8")
+
+    assert module._run_proves_no_dispatch(marker, "crowdworks-revenue-paid:run-1") is False
