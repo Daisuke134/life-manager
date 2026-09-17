@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` to implement this plan task by task. Read each applicable current Superpowers skill before acting. Steps use checkbox syntax for tracking.
 
-**Goal:** Clear only provider-verified mobile publish fences and resume one idempotent natural wake per owner without changing Postiz routing.
+**Goal:** Prove which mobile publish fences are eligible for provider reconciliation and prepare a safe one-owner executor without changing Postiz routing.
 
-**Architecture:** Keep the existing host admission ledger and `resolve_unknown_occurrence()` as the only fence-clearing boundary. Add the smallest missing identity/readback bridge in the existing publication adapters, then run a serialized recovery pass and verify provider receipt plus replay-zero.
+**Architecture:** Keep the existing host admission ledger and `resolve_unknown_occurrence()` as the only eventual fence-clearing boundary. The checked-in reconciler is deliberately read-only: it validates a private identity sidecar and an explicit Postiz readback proof, then reports `ready`; a provider-owned executor must perform the live readback again immediately before any future resolve.
 
 **Tech Stack:** Python 3.14, Node.js, SQLite admission ledger, existing Life Manager runtime events, Postiz publication adapters and launchd-owned `lm-loop` commands.
 
@@ -59,17 +59,17 @@
 - [ ] Return an explicit proof object containing `owner_id`, `occurrence_id`, `verified`, `provider_receipt_id` and the exact matched identity.
 - [x] Run the focused adapter tests: 37 tests pass. The provider official-readback portion remains open; no new provider request was made.
 
-### Task 4: Reconcile released rows only
+### Task 4: Gate released rows for a provider executor
 
 **Files:**
 - Create: `apps/life-manager/scripts/mobile-postiz-effect-reconcile.py`
 - Test: `apps/life-manager/tests/test_mobile_postiz_effect_reconcile.py`
-- Reuse: `runtime.host.resource_admission.resolve_unknown_occurrence`
+- Read: `runtime.host.resource_admission.resolve_unknown_occurrence` contract; the live executor is not part of this read-only change.
 
-- [ ] Write a failing test proving the script skips `claimed` rows and inconclusive/mismatched receipts.
-- [ ] Write a failing test proving one exact official proof clears one `released` unknown occurrence and does not touch another owner.
-- [ ] Implement owner-scoped, one-occurrence-at-a-time reconciliation with a redacted evidence output. Never issue direct SQL updates.
-- [ ] Run the script in read-only/dry inventory mode first; execute clearing only for rows with official proof.
+- [x] Write tests proving the script skips `claimed` rows and inconclusive/mismatched receipts.
+- [x] Implement owner-scoped, read-only proof gating with a redacted output. The script never issues SQL updates or calls `resolve_unknown_occurrence`.
+- [x] Run the script in read-only mode for a historical occurrence; it returned `identity_missing_or_invalid` and left the ledger unchanged.
+- [ ] Implement a provider-owned executor that performs official Postiz API/account readback in the same call and invokes `resolve_unknown_occurrence` only after that fresh proof. This remains blocked for historical rows whose exact identity is missing.
 
 ### Task 5: Resume and verify one natural wake
 

@@ -95,29 +95,18 @@ def test_missing_or_unverified_provider_receipt_stays_held():
     assert MODULE.evaluate_proof(value, missing_readback)["status"] == "inconclusive"
 
 
-def test_only_a_released_unknown_row_can_be_cleared():
+def test_only_a_released_unknown_row_is_ready_for_a_future_provider_executor():
     value = identity()
     proof = proof_for(value)
-    calls = []
-
-    def resolver(owner_id, occurrence_id, *, official_readback):
-        calls.append((owner_id, occurrence_id, official_readback()))
-        return True
 
     result = MODULE.reconcile_proof(
         value, proof, state="released", effect_unknown=1,
-        execute=True, resolver=resolver,
     )
-    assert result["status"] == "reconciled"
-    assert calls == [(value["loop_id"], value["occurrence_id"], proof)]
-
-    calls.clear()
+    assert result["status"] == "ready"
     held = MODULE.reconcile_proof(
         value, proof, state="claimed", effect_unknown=1,
-        execute=True, resolver=resolver,
     )
     assert held["status"] == "inconclusive"
-    assert calls == []
 
 
 def test_carousel_proof_requires_the_exact_ordered_media_hashes():

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Clear one mobile publish admission fence only after exact provider proof."""
+"""Check one mobile publish fence against exact provider proof without mutating state."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 import re
 import sqlite3
-from typing import Any, Callable
+from typing import Any
 
 
 ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$")
@@ -125,8 +125,7 @@ def _admission_state(database: Path, owner_id: str, occurrence_id: str) -> tuple
 
 def reconcile_proof(
     identity: dict[str, Any], proof: dict[str, Any], *, state: str | None,
-    effect_unknown: int | None, execute: bool = False,
-    resolver: Callable[..., bool] | None = None,
+    effect_unknown: int | None,
 ) -> dict[str, str]:
     result = evaluate_proof(identity, proof)
     if result["status"] != "ready":
@@ -136,17 +135,7 @@ def reconcile_proof(
             result["owner_id"], result["occurrence_id"],
             "claimed_or_already_resolved",
         )
-    if not execute:
-        return result
-    if resolver is None:
-        from runtime.host.resource_admission import resolve_unknown_occurrence
-        resolver = resolve_unknown_occurrence
-    changed = resolver(
-        result["owner_id"], result["occurrence_id"],
-        official_readback=lambda: proof,
-    )
-    return ({**result, "status": "reconciled"} if changed
-            else _inconclusive(result["owner_id"], result["occurrence_id"], "ledger_not_changed"))
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -156,7 +145,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--owner-id", required=True)
     parser.add_argument("--occurrence-id", required=True)
     parser.add_argument("--admission-db", type=Path, default=Path.home() / ".local/state/life-manager/host-admission/resources/admission-v2.sqlite3")
-    parser.add_argument("--execute", action="store_true", help="clear one released row after proof validation")
     args = parser.parse_args(argv)
     if not ID.fullmatch(args.owner_id) or not OCCURRENCE.fullmatch(args.occurrence_id):
         parser.error("owner and occurrence IDs are invalid")
@@ -171,10 +159,9 @@ def main(argv: list[str] | None = None) -> int:
         state, effect_unknown = _admission_state(args.admission_db, args.owner_id, args.occurrence_id)
         result = reconcile_proof(
             identity, proof, state=state, effect_unknown=effect_unknown,
-            execute=args.execute,
         )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
-    return 0 if result["status"] in {"ready", "reconciled"} else 1
+    return 0 if result["status"] == "ready" else 1
 
 
 if __name__ == "__main__":
