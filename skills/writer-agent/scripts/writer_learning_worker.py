@@ -84,6 +84,16 @@ def validate_winner_observation(value: Any) -> dict[str, Any]:
     return {**value, "observed_at": observed.isoformat()}
 
 
+def validate_decision_evidence(value: Any) -> dict[str, Any]:
+    """Validate model decision evidence without changing the decision contract."""
+    if not isinstance(value, dict) or not isinstance(value.get("winner_observation"), dict):
+        raise ValueError("decision evidence requires winner_observation")
+    observation = validate_winner_observation(value["winner_observation"])
+    if value.get("decision") != observation["decision"]:
+        raise ValueError("decision and winner_observation decision differ")
+    return {**value, "winner_observation": observation}
+
+
 def _canonical(value: Any) -> bytes:
     return (json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
 
@@ -1141,13 +1151,15 @@ def close_canary(
                 "judge",
                 "Decide KEEP, REVERT, or INCONCLUSIVE from this frozen Writer "
                 "experiment evidence. Cite only receipt IDs present in evidence. "
-                "Return only JSON with exactly decision, reason, evidence_refs.\n"
+                "Return only JSON with exactly decision, reason, evidence_refs, winner_observation.\n"
                 + json.dumps(evidence, ensure_ascii=False, sort_keys=True),
                 f"{experiment_id}-decision",
             )
         )
     )
     decision = store.decide(experiment_id, interpreter=decision_call)
+    # Validate the model-generated learning evidence before promotion or close.
+    decision = validate_decision_evidence(decision)
     if decision["decision"] == "KEEP":
         store.promote(experiment_id)
     assignment.update(

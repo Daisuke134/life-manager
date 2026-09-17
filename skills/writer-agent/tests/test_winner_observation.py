@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "scripts"))
-from writer_learning_worker import validate_winner_observation
+from writer_learning_worker import validate_decision_evidence, validate_winner_observation
 
 
 def valid_observation() -> dict:
@@ -81,3 +81,15 @@ def test_two_changed_variables_are_rejected():
 
     with pytest.raises(ValueError, match="variable"):
         validate_winner_observation(observation)
+
+
+def test_decision_evidence_requires_and_validates_winner_observation():
+    decision = {"decision": "KEEP", "reason": "supports the hypothesis", "evidence_refs": ["receipt-1"]}
+    with pytest.raises(ValueError, match="winner_observation"):
+        validate_decision_evidence(decision)
+
+    observation = valid_observation()
+    observation["decision"] = "KEEP"
+    decision["winner_observation"] = observation
+    result = validate_decision_evidence(decision)
+    assert result["winner_observation"]["decision"] == "KEEP"
