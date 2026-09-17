@@ -57,3 +57,48 @@ class ArticlePendingCompleteTest(unittest.TestCase):
                 publication_resume.PublicationStore = original
 
             self.assertEqual(result, {"status": "IDLE", "reason": "no-valid-incomplete-run"})
+
+    def test_historical_invalid_run_is_idle_with_repair_metadata(self) -> None:
+        import publication_resume
+
+        with TemporaryDirectory() as tmp:
+            state_root = Path(tmp) / "state"
+            run_dir = state_root / "runs" / "20260917-112542"
+            gates = run_dir / "gates"
+            gates.mkdir(parents=True)
+            state = {
+                "run_id": run_dir.name,
+                "created_at": "2026-09-17T13:17:32+00:00",
+                "publication_contract": "active-four",
+                "run_dir": str(run_dir),
+            }
+            (gates / "publication-state.json").write_text(json.dumps(state), encoding="utf-8")
+
+            class FakeStore:
+                def __init__(self, *_args: object) -> None:
+                    pass
+
+                def worker_plan(self) -> dict:
+                    return {"resumable": False, "reason": "invalid-state"}
+
+                def initialization_plan(self) -> dict:
+                    return {"initializable": False, "reason": "historical-invalid"}
+
+                def read(self) -> dict:
+                    return state
+
+            original = publication_resume.PublicationStore
+            publication_resume.PublicationStore = FakeStore
+            try:
+                result = MODULE.plan_oldest(
+                    state_root, datetime.fromisoformat("2026-09-18T00:00:00+09:00")
+                )
+            finally:
+                publication_resume.PublicationStore = original
+
+            self.assertEqual(result["status"], "IDLE")
+            self.assertEqual(result["reason"], "no-valid-incomplete-run")
+            self.assertEqual(
+                result["blocked_runs"],
+                [{"run_id": "20260917-112542", "reason": "historical-invalid"}],
+            )

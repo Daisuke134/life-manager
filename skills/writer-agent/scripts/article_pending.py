@@ -357,8 +357,11 @@ def plan_oldest(state_root: Path, now: datetime) -> dict[str, Any]:
     if not discovered:
         if blocked_runs:
             return {
-                "status": "BLOCKED",
-                "reason": "invalid-incomplete-run",
+                # There is no actionable publication run. Keep the historical
+                # diagnostics for the repair dispatcher, but do not report the
+                # publication queue itself as blocked or starve today's run.
+                "status": "IDLE",
+                "reason": "no-valid-incomplete-run",
                 "blocked_runs": blocked_runs,
             }
         return {"status": "IDLE", "reason": "no-valid-incomplete-run"}
