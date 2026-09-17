@@ -16,11 +16,11 @@
 | 6 | `shared/security.md` | secret rotation policy, never-commit list |
 | 7 | the spec it derives from (`specs/07-HERMES-PIVOT.md` or `specs/05-SERVER-NATIVE-DEPLOY.md`) | authoritative source of truth |
 
-## HARD RULES (inherited from `~/anicca-project/CLAUDE.md`)
+## HARD RULES (inherited from repository root `../AGENTS.md`)
 
 | Rule | Applied here as |
 |---|---|
-| #0 Superpowers 8-stage flow | any change to this directory goes through spec → plan → worktree → impl → review → finish + push |
+| #0 Superpowers workflow | any change to this directory reads the current applicable skills, verifies, reviews, integrates, and removes the exact worktree |
 | #0.12 verify-before-completion | every "done" claim needs fresh evidence (run command, paste output, check exit code) |
 | #18 NO parallel implementation | one profile edit at a time; never edit two profiles' files in parallel |
 | #-2 NO secrets in OSS | never paste raw `CDP_*`, `OPENROUTER_API_KEY`, `BWS_*`, wallet privkey, or any value from `~/.openclaw/.env` into any file under this directory |

@@ -66,6 +66,33 @@ Remove that exact worktree without force.
         finally:
             shutil.rmtree(root)
 
+    def test_stale_nested_control_room_reference_fails(self):
+        root = self.fixture()
+        try:
+            nested = root / "control-room"
+            nested.mkdir()
+            (nested / "CLAUDE.md").write_text(
+                "inherited from " + "~/" + "anicca-project/CLAUDE.md\n", encoding="utf-8",
+            )
+            result = self.run_gate(root)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("nested", result.stderr)
+        finally:
+            shutil.rmtree(root)
+
+    def test_nested_hyperframes_claude_must_import_local_agents(self):
+        root = self.fixture()
+        try:
+            nested = root / "skills/video/hyperframes/capafy-o13-review"
+            nested.mkdir(parents=True)
+            (nested / "AGENTS.md").write_text("local rules\n", encoding="utf-8")
+            (nested / "CLAUDE.md").write_text("duplicate local rules\n", encoding="utf-8")
+            result = self.run_gate(root)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("nested", result.stderr)
+        finally:
+            shutil.rmtree(root)
+
     def test_missing_claude_import_fails(self):
         root = self.fixture()
         try:
