@@ -1,0 +1,58 @@
+# Test 8: Nudge card display after onboarding
+# Verifies: After onboarding, nudge card shows notification + detail text
+
+appId: ai.anicca.app.ios
+name: Nudge Card Display
+tags:
+  - nudge
+  - v1.8.0
+
+---
+- clearState
+- clearKeychain
+- launchApp:
+    arguments:
+      UITESTING: "true"
+    env:
+      PAYWALL_VARIANT: "control"
+
+- runFlow: ../_onboarding_to_paywall.yaml
+
+# Dismiss paywall to reach home
+- extendedWaitUntil:
+    visible:
+      id: "paywall-plan-cta"
+    timeout: 15000
+
+- tapOn:
+    id: "paywall-dismiss"
+
+- tapOn:
+    text: "今はしない|Not Now"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "mypath-root"
+    timeout: 10000
+
+# Trigger nudge card via debug menu
+- tapOn:
+    id: "debug-nudge-test-staying_up_late"
+    optional: true
+
+# Verify nudge card appears
+- extendedWaitUntil:
+    visible:
+      id: "nudge-card-view"
+    timeout: 10000
+
+- takeScreenshot: "v180-08-nudge-card"
+
+# Verify card content is visible
+- assertVisible:
+    id: "nudge-card-content"
+
+# Close card
+- tapOn:
+    id: "nudge-card-close"

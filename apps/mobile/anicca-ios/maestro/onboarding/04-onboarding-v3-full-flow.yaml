@@ -1,0 +1,167 @@
+# Onboarding v3 Full Flow E2E Test
+# Tests: Welcome → Struggles → Depth → Goals → Insight → ValueProp → Notifications → Primer → Plan Selection → Dismiss
+# Screenshots at every step for visual verification
+# Flow: 7 onboarding steps + 2 paywall steps (Live Demo & Trial Timeline removed)
+
+appId: ai.anicca.app.ios
+name: Onboarding v3 Full Flow
+tags:
+  - onboarding
+  - paywall
+  - v3
+
+---
+# Clean start
+- clearState
+- clearKeychain
+- launchApp:
+    arguments:
+      UITESTING: "true"
+
+# Handle Apple Account sign-in dialog (appears on fresh simulator)
+- tapOn:
+    text: "キャンセル|Cancel|Not Now"
+    optional: true
+
+# === Step 1: Welcome ===
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-welcome-cta"
+    timeout: 60000
+
+- takeScreenshot: "v3-01-welcome"
+
+- tapOn:
+    id: "onboarding-welcome-cta"
+
+# === Step 2: Struggles ===
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-struggle-staying_up_late"
+    timeout: 15000
+
+- takeScreenshot: "v3-02-struggles"
+
+# Select two struggles
+- tapOn:
+    id: "onboarding-struggle-staying_up_late"
+
+- tapOn:
+    id: "onboarding-struggle-procrastination"
+    optional: true
+
+- tapOn:
+    id: "onboarding-struggles-next"
+
+# === Step 3: Struggle Depth ===
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-depth-daily"
+    timeout: 15000
+
+- takeScreenshot: "v3-03-struggle-depth"
+
+- tapOn:
+    id: "onboarding-depth-daily"
+
+# === Step 4: Goals ===
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-goals-next"
+    timeout: 15000
+
+- takeScreenshot: "v3-04-goals"
+
+# Select a goal chip (using first available)
+- tapOn:
+    id: "onboarding-goal-better_sleep"
+    optional: true
+
+- tapOn:
+    id: "onboarding-goal-self_discipline"
+    optional: true
+
+- tapOn:
+    id: "onboarding-goals-next"
+
+# === Step 5: Personal Insight ===
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-insight-continue"
+    timeout: 15000
+
+- takeScreenshot: "v3-05-personal-insight"
+
+- tapOn:
+    id: "onboarding-insight-continue"
+
+# === Step 6: Value Prop ===
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-valueprop-continue"
+    timeout: 15000
+
+- takeScreenshot: "v3-06-value-prop"
+
+- tapOn:
+    id: "onboarding-valueprop-continue"
+
+# === Step 7: Notifications ===
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-notifications-allow"
+    timeout: 15000
+
+- takeScreenshot: "v3-07-notifications"
+
+- tapOn:
+    id: "onboarding-notifications-allow"
+
+# Handle system notification dialog
+- tapOn:
+    text: "許可|Allow"
+    optional: true
+
+# === Paywall Step P0: Primer ===
+- extendedWaitUntil:
+    visible:
+      id: "paywall-primer-continue"
+    timeout: 15000
+
+- takeScreenshot: "v3-08-paywall-primer"
+
+- tapOn:
+    id: "paywall-primer-continue"
+
+# === Paywall Step P1: Plan Selection ===
+- extendedWaitUntil:
+    visible:
+      id: "paywall-plan-cta"
+    timeout: 15000
+
+- takeScreenshot: "v3-09-plan-selection"
+
+# Verify key elements exist
+- assertVisible:
+    id: "paywall-dismiss"
+- assertVisible:
+    id: "paywall-maybe-later"
+- assertVisible:
+    id: "paywall-restore"
+
+# Dismiss via X button → main screen
+- tapOn:
+    id: "paywall-dismiss"
+
+# Handle App Store review dialog
+- tapOn:
+    text: "今はしない|Not Now"
+    optional: true
+
+# === Verify: Main Screen ===
+- extendedWaitUntil:
+    visible:
+      id: "mypath-root"
+    timeout: 10000
+
+- takeScreenshot: "v3-10-main-screen"

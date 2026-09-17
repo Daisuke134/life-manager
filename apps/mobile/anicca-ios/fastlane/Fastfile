@@ -1,0 +1,538 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+default_platform(:ios)
+
+platform :ios do
+  # プロジェクト設定
+  PROJECT_NAME = "aniccaios"
+  SCHEME = "aniccaios"
+  BUNDLE_ID = "ai.anicca.app.ios"
+  TEAM_ID = "S5U8UH3JLJ"
+  APP_ID = "6755129214"
+  
+  # App Store Connect API 認証設定
+  API_KEY_ID = ENV.fetch("APP_STORE_CONNECT_KEY_ID", "")
+  API_ISSUER_ID = ENV.fetch("APP_STORE_CONNECT_ISSUER_ID", "")
+  API_KEY_PATH = ENV.fetch("APP_STORE_CONNECT_KEY_FILE", File.expand_path("~/.local/share/life-manager/private/app-store-connect-key.p8"))
+  
+  # API キーを取得
+  def get_api_key
+    app_store_connect_api_key(
+      key_id: API_KEY_ID,
+      issuer_id: API_ISSUER_ID,
+      key_filepath: API_KEY_PATH,
+      duration: 1200,
+      in_house: false
+    )
+  end
+  
+  desc "Build and install on connected device"
+  lane :build_for_device do |options|
+    selected_scheme = options[:scheme] || SCHEME
+    project_path = File.expand_path("../aniccaios.xcodeproj", __dir__)
+    derived_data = File.expand_path("./build/DerivedData")
+
+    # 接続デバイスを検出（xctrace の UDID を使用 — xcodebuild と互換性あり）
+    device_lines = sh("xcrun xctrace list devices 2>&1", log: false)
+      .split("\n")
+      .select { |l| l.include?("(") && !l.include?("Simulator") && !l.include?("MacBook") && !l.include?("Mac mini") && !l.include?("Mac Mini") && !l.include?("== ") }
+      .reject { |l| l.strip.empty? || l.include?("Mac") }
+    UI.user_error!("❌ No connected device found. Please connect your iPhone.") if device_lines.empty?
+    # フォーマット: "Device Name  (OS) (UDID)"
+    match = device_lines.first.match(/^(.+?)\s+\([\d.]+\)\s+\(([A-F0-9\-]+)\)$/i)
+    UI.user_error!("❌ Could not parse device info: #{device_lines.first}") unless match
+    device_name = match[1].strip
+    device_id = match[2]
+    UI.important("📱 Target device: #{device_name} (#{device_id})")
+
+    # xcodebuild build で直接デバイス向けにビルド（Xcode 26 対応: archive+export を回避）
+    UI.important("🔨 Building #{selected_scheme} for device...")
+    build_log = "#{derived_data}/build_for_device.log"
+    FileUtils.mkdir_p(derived_data)
+    config = options[:configuration] || "Debug"
+    sh(
+      "xcodebuild build " \
+      "-scheme '#{selected_scheme}' " \
+      "-project '#{project_path}' " \
+      "-destination 'platform=iOS,id=#{device_id}' " \
+      "-configuration '#{config}' " \
+      "-derivedDataPath '#{derived_data}' " \
+      "-allowProvisioningUpdates " \
+      "ONLY_ACTIVE_ARCH=YES " \
+      "2>&1 | tee '#{build_log}' | xcpretty"
+    )
+
+    # ビルド成果物の .app を探す
+    app_path = Dir.glob("#{derived_data}/Build/Products/*-iphoneos/#{PROJECT_NAME}.app").first
+    UI.user_error!("❌ Could not find .app bundle in #{derived_data}") unless app_path
+    UI.message("📦 Built app: #{app_path}")
+
+    # ios-deploy でインストール & 起動
+    UI.important("📲 Installing on device...")
+    sh("ios-deploy --bundle '#{app_path}' --justlaunch --no-wifi 2>&1 || true")
+
+    UI.success("✅ Build completed, installed, and launched on device!")
+
+    # macOS通知
+    notification(
+      title: "Anicca iOS",
+      message: "Build installed and launched on #{device_name}!",
+      sound: "default"
+    )
+  end
+  
+  # ビルドエラーを抽出
+  def extract_build_errors(log_path)
+    return nil unless File.exist?(log_path)
+    
+    log_content = File.read(log_path)
+    errors = []
+    
+    # Swiftコンパイルエラーのパターン
+    log_content.scan(/error:.*$/i) do |error_line|
+      error_line = error_line.strip
+      
+      # インポート不足
+      if error_line.match?(/cannot find|no such module|use of undeclared type/i)
+        if match = error_line.match(/['"]([^'"]+)['"]/)
+          errors << {
+            type: :missing_import,
+            message: error_line,
+            module: match[1],
+            suggestion: "Add 'import #{match[1]}' at the top of the file"
+          }
+        end
+      # スコープ不足
+      elsif error_line.match?(/cannot find|value of type.*has no member/i)
+        if match = error_line.match(/['"]([^'"]+)['"]/)
+          errors << {
+            type: :missing_scope,
+            message: error_line,
+            symbol: match[1],
+            suggestion: "Check if '#{match[1]}' is accessible in the current scope"
+          }
+        end
+      # 構文エラー
+      elsif error_line.match?(/expected|unexpected|invalid token/i)
+        errors << {
+          type: :syntax_error,
+          message: error_line,
+          suggestion: "Check syntax around the error location"
+        }
+      end
+    end
+    
+    # ファイル名と行番号を抽出
+    errors.each do |error|
+      if match = log_content.match(/([^:]+):(\d+):(\d+):.*#{Regexp.escape(error[:message])}/)
+        error[:file] = match[1]
+        error[:line] = match[2].to_i
+        error[:column] = match[3].to_i
+      end
+    end
+    
+    { errors: errors, has_errors: !errors.empty? }
+  end
+  
+  # エラー分析を表示
+  def display_error_analysis(error_summary)
+    return unless error_summary && error_summary[:has_errors]
+    
+    UI.important("=" * 80)
+    UI.important("🔍 BUILD ERROR ANALYSIS")
+    UI.important("=" * 80)
+    
+    error_summary[:errors].each_with_index do |error, index|
+      UI.error("\n[Error #{index + 1}] #{error[:type].to_s.upcase}")
+      UI.error("  Message: #{error[:message]}")
+      if error[:file]
+        UI.error("  File: #{error[:file]}:#{error[:line]}:#{error[:column]}")
+      end
+      if error[:suggestion]
+        UI.important("  💡 Suggestion: #{error[:suggestion]}")
+      end
+    end
+    
+    UI.important("=" * 80)
+  end
+  
+  # 修正案を提示
+  def suggest_fixes(error_summary)
+    return unless error_summary && error_summary[:has_errors]
+    
+    UI.important("\n📝 SUGGESTED FIXES:")
+    
+    missing_imports = error_summary[:errors].select { |e| e[:type] == :missing_import }
+    if missing_imports.any?
+      UI.important("\n  Missing imports detected:")
+      missing_imports.each do |error|
+        UI.important("    - Add 'import #{error[:module]}' to #{error[:file] || 'the file'}")
+      end
+    end
+    
+    missing_scopes = error_summary[:errors].select { |e| e[:type] == :missing_scope }
+    if missing_scopes.any?
+      UI.important("\n  Scope issues detected:")
+      missing_scopes.each do |error|
+        UI.important("    - Check accessibility of '#{error[:symbol]}' in #{error[:file] || 'the file'}")
+      end
+    end
+    
+    UI.important("\n  After fixing, run: fastlane build_for_device")
+  end
+  
+  # リトライ可能なエラーかチェック
+  def retryable_error?(error)
+    error_message = error.message.downcase
+    # ネットワークエラーや一時的なエラーはリトライ可能
+    retryable_patterns = [
+      /network/i,
+      /timeout/i,
+      /temporary/i,
+      /connection/i
+    ]
+    
+    retryable_patterns.any? { |pattern| error_message.match?(pattern) }
+  end
+
+  desc "Build, archive, and export IPA for App Store"
+  lane :build do
+    # 署名 identity は System.keychain に常駐 (2026-07-04 incident: この Mac の
+    # headless session は system security domain のため user keychain が見えない。
+    # 復旧手順 = ~/.anicca-signing/*.p12 を sudo security import -k /Library/Keychains/System.keychain)
+    archive_path = File.expand_path("./build/aniccaios.xcarchive")
+    export_path = File.expand_path("./build/export")
+
+    # Step 1: Archive only (skip_package_ipa to avoid Widget Extension export failure)
+    build_app(
+      scheme: SCHEME,
+      skip_package_ipa: true,
+      archive_path: archive_path,
+      clean: true,
+      xcargs: "-allowProvisioningUpdates -authenticationKeyPath #{API_KEY_PATH} -authenticationKeyID #{API_KEY_ID} -authenticationKeyIssuerID #{API_ISSUER_ID}"
+    )
+
+    # Step 2: Export with xcodebuild (method: app-store + signingStyle: automatic)
+    export_plist = File.expand_path("./build/ExportOptions.plist")
+    File.write(export_plist, <<~PLIST)
+      <?xml version="1.0" encoding="UTF-8"?>
+      <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+      <plist version="1.0">
+      <dict>
+          <key>method</key>
+          <string>app-store</string>
+          <key>signingStyle</key>
+          <string>automatic</string>
+          <key>teamID</key>
+          <string>#{TEAM_ID}</string>
+          <key>uploadBitcode</key>
+          <false/>
+          <key>uploadSymbols</key>
+          <true/>
+      </dict>
+      </plist>
+    PLIST
+
+    # Strip existing Development signature from WebRTC.framework to avoid codesign error
+    webrtc_fw = "#{archive_path}/Products/Applications/aniccaios.app/Frameworks/WebRTC.framework"
+    if File.exist?(webrtc_fw)
+      sh("codesign --remove-signature '#{webrtc_fw}'")
+      UI.message("🔑 Stripped existing signature from WebRTC.framework")
+    end
+
+    FileUtils.rm_rf(export_path)
+    sh("xcodebuild -exportArchive -archivePath '#{archive_path}' -exportOptionsPlist '#{export_plist}' -exportPath '#{export_path}' -allowProvisioningUpdates -authenticationKeyPath #{API_KEY_PATH} -authenticationKeyID #{API_KEY_ID} -authenticationKeyIssuerID #{API_ISSUER_ID}")
+
+    ipa = Dir.glob("#{export_path}/*.ipa").first
+    UI.user_error!("❌ No IPA found in #{export_path}") unless ipa
+    lane_context[SharedValues::IPA_OUTPUT_PATH] = ipa
+    UI.success("✅ Build completed! IPA: #{ipa}")
+  end
+
+  desc "Upload IPA to App Store Connect"
+  lane :upload do
+    api_key = get_api_key
+    ipa_path = lane_context[SharedValues::IPA_OUTPUT_PATH]
+    
+    unless ipa_path
+      ipa_path = Dir.glob(File.expand_path("../build/export/*.ipa", __dir__)).first ||
+                 Dir.glob(File.expand_path("../*.ipa", __dir__)).first
+      UI.user_error!("No IPA found. Run 'fastlane build' first.") unless ipa_path
+      UI.message("📦 Found IPA: #{ipa_path}")
+    end
+    
+    upload_to_app_store(
+      api_key: api_key,
+      ipa: ipa_path,
+      skip_metadata: true,
+      skip_screenshots: true,
+      force: true,
+      run_precheck_before_submit: false,
+      precheck_include_in_app_purchases: false
+    )
+    
+    UI.success("✅ Upload completed! Build will appear in App Store Connect within a few minutes.")
+  end
+
+  desc "Build and upload only (use full_release for complete automation)"
+  lane :release do
+    # 1. ビルド・アーカイブ
+    build
+    
+    # 2. App Store Connectにアップロード
+    upload
+    
+    UI.success("✅ Build uploaded to App Store Connect!")
+    UI.important("")
+    UI.important("📋 For complete automation (including review submission), use:")
+    UI.important("   fastlane full_release")
+  end
+
+  desc "Wait for build processing to complete"
+  lane :wait_for_processing do |options|
+    api_key = get_api_key
+    
+    # 現在のビルド番号を取得（アップロード前の最新 + 1）
+    current_build = options[:build_number]
+    unless current_build
+      # 最新のTestFlightビルド番号を取得して1を足す
+      current_build = latest_testflight_build_number(api_key: api_key, app_identifier: BUNDLE_ID).to_i
+    end
+    
+    UI.important("⏳ Waiting for build #{current_build} to finish processing...")
+    
+    # Spaceship APIを初期化
+    Spaceship::ConnectAPI.token = Spaceship::ConnectAPI::Token.create(
+      key_id: API_KEY_ID,
+      issuer_id: API_ISSUER_ID,
+      filepath: API_KEY_PATH
+    )
+    
+    max_attempts = 60  # 最大30分待機（30秒間隔 × 60回）
+    attempts = 0
+    processed_build = nil
+
+    loop do
+      attempts += 1
+
+      begin
+        # アプリのビルド一覧を取得
+        app = Spaceship::ConnectAPI::App.find(BUNDLE_ID)
+        builds = app.get_builds(
+          filter: { version: current_build.to_s },
+          includes: "preReleaseVersion"
+        )
+
+        if builds.any?
+          build = builds.first
+          processing_state = build.processing_state
+
+          UI.message("  Attempt #{attempts}/#{max_attempts}: Build #{current_build} state = #{processing_state}")
+
+          if processing_state == "VALID"
+            UI.success("✅ Build #{current_build} processing complete!")
+            processed_build = build
+            break
+          elsif processing_state == "INVALID"
+            UI.user_error!("❌ Build #{current_build} failed processing!")
+          end
+        else
+          UI.message("  Attempt #{attempts}/#{max_attempts}: Build #{current_build} not yet visible...")
+        end
+      rescue => e
+        UI.message("  Attempt #{attempts}/#{max_attempts}: Error checking build: #{e.message}")
+      end
+
+      if attempts >= max_attempts
+        UI.user_error!("❌ Timeout waiting for build #{current_build} to process")
+      end
+
+      break if processed_build
+      sleep(30)
+    end
+    processed_build
+  end
+
+  desc "Submit the latest build for App Store review"
+  lane :submit_review do |options|
+    api_key = get_api_key
+    
+    # 最新のビルド番号を取得
+    build_number = options[:build_number] || latest_testflight_build_number(api_key: api_key, app_identifier: BUNDLE_ID)
+    version = options[:version] || get_version_number(target: PROJECT_NAME)
+
+    UI.important("📤 Submitting build #{build_number} (v#{version}) for App Store review...")
+
+    deliver(
+      api_key: api_key,
+      app_identifier: BUNDLE_ID,
+      skip_metadata: false,
+      skip_screenshots: true,
+      skip_binary_upload: true,
+      build_number: build_number.to_s,
+      submit_for_review: true,
+      automatic_release: true,
+      force: true,
+      run_precheck_before_submit: false,
+      precheck_include_in_app_purchases: false,
+      overwrite_screenshots: false,
+      reject_if_possible: true,
+      ignore_language_directory_validation: true,
+      submission_information: {
+        add_id_info_serves_ads: false,
+        add_id_info_tracks_action: false,
+        add_id_info_tracks_install: false,
+        add_id_info_uses_idfa: false,
+        content_rights_contains_third_party_content: false,
+        content_rights_has_rights: true,
+        export_compliance_uses_encryption: false,
+        export_compliance_is_exempt: true
+      }
+    )
+    
+    UI.success("✅ Build #{build_number} submitted for App Store review!")
+    
+    # macOS通知
+    notification(
+      title: "Anicca iOS",
+      message: "Build #{build_number} submitted for App Store review!",
+      sound: "default"
+    )
+  end
+
+  desc "Complete automated release: build, upload, wait, and submit for review"
+  lane :full_release do
+    UI.important("🚀 Starting full automated release...")
+    start_time = Time.now
+    
+    # 1. ビルド・アーカイブ
+    UI.important("[1/4] Building and archiving...")
+    build
+    
+    # 2. App Store Connectにアップロード
+    UI.important("[2/4] Uploading to App Store Connect...")
+    upload
+    
+    # 3. ビルド処理待機
+    UI.important("[3/4] Waiting for build processing...")
+    wait_for_processing
+    
+    # 4. 審査提出
+    UI.important("[4/4] Submitting for App Store review...")
+    submit_review
+    
+    elapsed = ((Time.now - start_time) / 60).round(1)
+    UI.success("🎉 Full release completed in #{elapsed} minutes!")
+    
+    # macOS通知
+    notification(
+      title: "Anicca iOS Release Complete",
+      message: "Full release completed in #{elapsed} minutes!",
+      sound: "Glass"
+    )
+  end
+
+  desc "Build and run on simulator"
+  lane :build_for_simulator do
+    # シミュレータ用ビルド
+    build_app(
+      scheme: SCHEME,
+      configuration: "Debug",
+      destination: "generic/platform=iOS Simulator",
+      derived_data_path: "./build/DerivedData",
+      skip_archive: true,
+      skip_codesigning: true,
+      output_directory: "./build"
+    )
+
+    # シミュレータを起動してアプリをインストール
+    sh("xcrun simctl boot 'iPhone 16 Pro' 2>/dev/null || true")
+
+    # アプリをインストール（.appバンドルを探す）
+    app_path = Dir.glob("./build/DerivedData/Build/Products/Debug-iphonesimulator/*.app").first
+    if app_path
+      sh("xcrun simctl install booted '#{app_path}'")
+      sh("xcrun simctl launch booted #{BUNDLE_ID}")
+      UI.success("✅ App installed and launched on simulator!")
+    else
+      UI.error("❌ Could not find .app bundle")
+    end
+
+    # シミュレータアプリを前面に
+    sh("open -a Simulator")
+
+    # macOS通知
+    notification(
+      title: "Anicca iOS",
+      message: "App launched on simulator!",
+      sound: "default"
+    )
+  end
+
+  desc "Run unit tests on simulator"
+  lane :test do
+    # シミュレータでユニットテスト実行
+    run_tests(
+      project: "aniccaios.xcodeproj",
+      scheme: "aniccaios-staging",
+      device: "iPhone 16 Pro",
+      clean: false,
+      code_coverage: true,
+      output_directory: "./build/test_output",
+      output_types: "html,junit"
+    )
+
+    UI.success("✅ All tests passed!")
+
+    # macOS通知
+    notification(
+      title: "Anicca iOS Tests",
+      message: "All tests passed!",
+      sound: "default"
+    )
+  end
+
+  desc "Set MARKETING_VERSION across all targets"
+  lane :set_version do |options|
+    version = options[:version]
+    UI.user_error!("Usage: fastlane set_version version:X.Y.Z") unless version
+    UI.user_error!("Invalid format. Expected X.Y.Z, got: #{version}") unless version.match?(/^\d+\.\d+\.\d+$/)
+
+    pbxproj = File.expand_path("../aniccaios.xcodeproj/project.pbxproj", __dir__)
+    UI.user_error!("#{pbxproj} not found") unless File.exist?(pbxproj)
+
+    content = File.read(pbxproj)
+    count = content.scan(/MARKETING_VERSION = [0-9]+\.[0-9]+\.[0-9]+;/).length
+    updated = content.gsub(/MARKETING_VERSION = [0-9]+\.[0-9]+\.[0-9]+;/, "MARKETING_VERSION = #{version};")
+    File.write(pbxproj, updated)
+
+    UI.success("✅ MARKETING_VERSION updated to #{version} (#{count} occurrences)")
+  end
+
+  desc "Quick test: build and install on device, then notify"
+  lane :test_on_device do
+    start_time = Time.now
+    
+    build_for_device
+    
+    elapsed = ((Time.now - start_time) / 60).round(1)
+    
+    # macOS通知
+    notification(
+      title: "Anicca iOS",
+      message: "Build installed on device in #{elapsed} minutes!",
+      sound: "default"
+    )
+  end
+end
+

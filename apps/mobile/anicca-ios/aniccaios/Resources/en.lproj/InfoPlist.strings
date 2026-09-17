@@ -1,0 +1,9 @@
+/* App display name */
+"CFBundleDisplayName" = "Anicca";
+
+/* Camera permission description */
+"NSCameraUsageDescription" = "The WebRTC library references camera APIs, but this app does not use the camera.";
+
+/* Notification permission description */
+"NSUserNotificationsUsageDescription" = "Anicca uses notifications to gently nudge you for waking up and routines.";
+

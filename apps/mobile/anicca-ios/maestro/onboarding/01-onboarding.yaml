@@ -1,0 +1,70 @@
+# Onboarding Flow Test (Updated for Soft Paywall - new 4-step flow)
+# Tests: welcome -> struggles -> liveDemo -> notifications
+# Value step removed, LIVE DEMO added
+# Uses accessibilityIdentifier-based selectors for reliability
+# Note: inspect_view_hierarchy で全ID確認済み
+
+appId: ai.anicca.app.ios
+name: Onboarding new flow
+tags:
+  - smokeTest
+  - onboarding
+
+---
+# Clean start - simulate first launch
+- clearState
+- clearKeychain
+- launchApp:
+    arguments:
+      UITESTING: "true"
+
+# Step 1: Welcome screen - wait for app to fully load
+# CI環境ではコールドスタートに時間がかかるため60sに設定
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-welcome-cta"
+    timeout: 60000
+
+- tapOn:
+    id: "onboarding-welcome-cta"
+
+# Step 2: Struggles screen (value screen removed - direct transition)
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-struggle-staying_up_late"
+    timeout: 15000
+
+# Select one struggle
+- tapOn:
+    id: "onboarding-struggle-staying_up_late"
+
+- tapOn:
+    id: "onboarding-struggles-next"
+
+# Step 3: LIVE DEMO screen (new - replaces value step)
+- extendedWaitUntil:
+    visible:
+      id: "live_demo_title"
+    timeout: 15000
+
+# Tap demo trigger button
+- tapOn:
+    id: "live_demo_trigger_button"
+
+# Wait for NudgeCard slide-in animation
+- extendedWaitUntil:
+    visible:
+      id: "nudge-card-view"
+    timeout: 5000
+
+# Tap PRIMARY action to advance to notifications
+- tapOn:
+    id: "nudge-primary-action"
+
+# Step 4: Notifications screen - verify arrival
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-notifications-allow"
+    timeout: 15000
+
+- takeScreenshot: "onboarding-new-flow-complete"

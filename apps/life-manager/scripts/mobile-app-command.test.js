@@ -36,6 +36,10 @@ test("all mobile publication loops share one command and one manifest", () => {
       ...product.source,
       git_remote: new URL(product.source.git_remote).toString(),
     });
+    if (expected.product_id === "anicca-ios") {
+      assert.equal(resolved.source.canonical_source_rel, "apps/mobile/anicca-ios");
+      assert.ok(fs.existsSync(path.join(root, resolved.source.canonical_source_rel, "aniccaios.xcodeproj", "project.pbxproj")));
+    }
   }
 });
 

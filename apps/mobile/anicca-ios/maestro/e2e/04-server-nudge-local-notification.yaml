@@ -1,0 +1,129 @@
+# E2E: Server Nudge -> Local Notification scheduled
+# Goal: tap a DEBUG-only panel that triggers /mobile/nudge/trigger and then verify a pending
+# local notification request exists (stable automation; avoids Notification Center UI).
+
+appId: ai.anicca.app.ios
+name: E2E server nudge schedules local notification
+tags:
+  - e2e
+  - notification
+
+---
+- clearState
+- clearKeychain
+- launchApp
+
+# Onboarding (same path as onboarding/01-onboarding.yaml but we stop at main screen)
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-welcome-cta"
+    timeout: 30000
+- tapOn:
+    id: "onboarding-welcome-cta"
+
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-struggle-staying_up_late"
+    timeout: 15000
+- tapOn:
+    id: "onboarding-struggle-staying_up_late"
+- tapOn:
+    id: "onboarding-struggles-next"
+
+- extendedWaitUntil:
+    visible:
+      id: "live_demo_trigger_button"
+    timeout: 15000
+- tapOn:
+    id: "live_demo_trigger_button"
+- extendedWaitUntil:
+    visible:
+      id: "nudge-card-view"
+    timeout: 5000
+- tapOn:
+    id: "nudge-primary-action"
+
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-notifications-allow"
+    timeout: 15000
+- tapOn:
+    id: "onboarding-notifications-allow"
+- tapOn:
+    text: "許可|Allow"
+    optional: true
+
+# Paywall may appear; dismiss to reach MyPath
+- tapOn:
+    id: "paywall-close-button"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "mypath-root"
+    timeout: 15000
+
+# Dismiss iOS review prompt if it appears (can block taps/scrolls)
+- tapOn:
+    text: "今はしない|Not Now"
+    optional: true
+
+# Open E2E debug panel (DEBUG build only)
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- swipe:
+    direction: UP
+- tapOn:
+    text: "今はしない|Not Now"
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: "debug-e2e-notification"
+    timeout: 15000
+- tapOn:
+    id: "debug-e2e-notification"
+
+- extendedWaitUntil:
+    visible:
+      id: "e2e-notif-title"
+    timeout: 10000
+
+# Ensure permissions and clear pending (idempotent)
+- tapOn:
+    id: "e2e-request-notif-permission"
+- tapOn:
+    text: "許可|Allow"
+    optional: true
+- tapOn:
+    id: "e2e-clear-pending"
+
+# Trigger server nudge and wait for pending request
+- tapOn:
+    id: "e2e-trigger-server-nudge"
+
+- extendedWaitUntil:
+    visible:
+      text: "Scheduled: YES"
+    timeout: 15000
+
+- takeScreenshot: "e2e-server-nudge-pending-notification"

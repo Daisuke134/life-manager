@@ -1,0 +1,111 @@
+# Screen 3: My Path (EN)
+# オンボーディング全通過後の My Path メイン画面をキャプチャ
+appId: ai.anicca.app.ios
+---
+- clearState
+- clearKeychain
+- launchApp:
+    arguments:
+      UITESTING: "true"
+
+# Welcome screen
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-welcome-cta"
+    timeout: 60000
+- tapOn:
+    id: "onboarding-welcome-cta"
+
+# Struggle Selection — 複数選択
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-struggle-cant_wake_up"
+    timeout: 15000
+
+- tapOn:
+    id: "onboarding-struggle-cant_wake_up"
+- tapOn:
+    id: "onboarding-struggle-procrastination"
+- tapOn:
+    id: "onboarding-struggle-rumination"
+- tapOn:
+    id: "onboarding-struggle-bad_mouthing"
+- tapOn:
+    id: "onboarding-struggle-loneliness"
+
+# Next ボタンをタップ（テキストで探す）
+- tapOn:
+    text: "Next"
+
+# 頻度画面が出たら回答する（出ない場合もありうるので conditional 的に対応）
+# 「How often」が出たら回答
+- extendedWaitUntil:
+    visible:
+      text: "How often"
+    timeout: 10000
+- tapOn:
+    text: "Every day"
+
+# 2つ目の頻度画面が出る可能性
+- extendedWaitUntil:
+    visible:
+      text: "How often"
+    timeout: 10000
+- tapOn:
+    text: "Several times a week"
+
+# 3つ目
+- extendedWaitUntil:
+    visible:
+      text: "How often"
+    timeout: 10000
+- tapOn:
+    text: "Every day"
+
+# 4つ目
+- extendedWaitUntil:
+    visible:
+      text: "How often"
+    timeout: 10000
+- tapOn:
+    text: "Once a week"
+
+# 5つ目
+- extendedWaitUntil:
+    visible:
+      text: "How often"
+    timeout: 10000
+- tapOn:
+    text: "Occasionally"
+
+# Live Demo
+- extendedWaitUntil:
+    visible:
+      id: "live_demo_title"
+    timeout: 20000
+- tapOn:
+    id: "live_demo_trigger_button"
+
+- extendedWaitUntil:
+    visible:
+      id: "nudge-card-view"
+    timeout: 10000
+- tapOn:
+    id: "nudge-primary-action"
+
+# Notifications screen
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-notifications-allow"
+    timeout: 15000
+- tapOn:
+    text: "Skip"
+
+# My Path タブに到着
+- extendedWaitUntil:
+    visible:
+      text: "My Path"
+    timeout: 15000
+- waitForAnimationToEnd
+
+- takeScreenshot: "screen3-my-path-en"

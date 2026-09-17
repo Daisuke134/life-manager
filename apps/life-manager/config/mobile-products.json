@@ -8,7 +8,8 @@
         "git_remote": "https://github.com/Daisuke134/anicca-products.git",
         "subdirectory": "aniccaios",
         "revision": "a9ab8a17c7dee9af8c3f2ad752a902ce26e7d1d3",
-        "access": "public"
+        "access": "public",
+        "canonical_source_rel": "apps/mobile/anicca-ios"
       }
     },
     {

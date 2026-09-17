@@ -20,6 +20,7 @@ The primary outcome is that every Life Manager coding session actually uses the 
 ├── AGENTS.md                              # one concise project instruction body for coding agents
 ├── CLAUDE.md                              # @AGENTS.md plus only Claude-specific loading notes
 ├── apps/                                  # Life Manager web, mobile and other owned app source
+│   └── mobile/anicca-ios/                 # canonical Anicca iOS source and Xcode project
 ├── skills/                                # product capabilities and provider adapters
 ├── runtime/                               # local/cloud execution code
 ├── services/                              # supporting service source
@@ -34,7 +35,7 @@ outside the Git repository:
   browser profiles, logs and receipts     # runtime data, never source authority
 ```
 
-One repository does not mean one physical directory. Temporary worktrees and runtime-owned state remain outside the source authority. Only assets actually needed by Life Manager move from other repositories; existing copies are compared before any migration.
+One repository does not mean one physical directory. Temporary worktrees and runtime-owned state remain outside the source authority. Only assets actually needed by Life Manager move from other repositories; existing copies are compared before any migration. A registry remote/revision retained after migration is provenance, while `canonical_source_rel` identifies the source used for local edits and build preparation.
 
 ## Superpowers adherence contract
 
@@ -79,7 +80,8 @@ This order fixes the process that will execute the larger consolidation before t
 - On 2026-09-17, `scripts/worktree-lease.py audit` returned 179 registered worktrees: states `unmanaged=44`, `unmanaged-locked=29`, `expired=90`, `active=16`; 135 were locked and 15 registered paths were missing. A separate status scan found 4 dirty existing worktrees, 4 prunable registrations, 144 paths under `/private/tmp`, and 23 under the canonical repository's `.worktrees`. These are classification counts only; none was removed.
 - A read-only repository scan found 38 Git repositories under `/Users/anicca/Projects`: 12 with the canonical `Daisuke134/life-manager.git` remote, one `life-manager-workrooms.git` repository, and the rest external research/reference repositories. The canonical checkout was dirty on `capafy/account-plan-deck-offline-20260912`; the `GH-32` Life Manager workroom checkout was also dirty. They remain untouched.
 - `/Users/anicca/anicca-project` is a separate dirty checkout whose `origin` is `Daisuke134/anicca-products.git`. It contains 36M of `aniccaios` and 213M of `mobile-apps`, alongside unrelated apps and generated artifacts. It is an inventory source, not a migration target to edit in place.
-- C2 classification: `apps/life-manager/mobile-starter-packs/`, mobile loop runners, and the scoped `apps/landing` files are already in the canonical repository; the real `aniccaios` source referenced by `mobile-products.json` at revision `a9ab8a17c7dee9af8c3f2ad752a902ce26e7d1d3` is a required-missing candidate pending comparison; the private `honne-ai` source at revision `b57928bb13ef1f9a1e774e4bca2467e3059c9eac` is another required-missing candidate; unrelated old Swift apps, screenshots, IPAs, reports and build outputs are historical or runtime data and are not migrated by default. The external pointers remain until C3 proves the canonical replacement.
+- C2 classification: `apps/life-manager/mobile-starter-packs/`, mobile loop runners, and the scoped `apps/landing` files are already in the canonical repository; the real `aniccaios` source referenced by `mobile-products.json` at revision `a9ab8a17c7dee9af8c3f2ad752a902ce26e7d1d3` was a required-missing candidate; the private `honne-ai` source at revision `b57928bb13ef1f9a1e774e4bca2467e3059c9eac` remains another required-missing candidate; unrelated old Swift apps, screenshots, IPAs, reports and build outputs are historical or runtime data and are not migrated by default.
+- C3 Anicca iOS result: the source, Xcode project, widget/notification extensions, tests, localizations, runtime resources, Maestro definitions and deployment scripts from the fixed public revision are now under `apps/mobile/anicca-ios/`. Generated screenshots/reports, editor metadata, signing/export files and credential-bearing config values were excluded. The registry keeps the remote/subdirectory/revision as provenance and adds `canonical_source_rel: apps/mobile/anicca-ios`; the focused registry and mobile-command tests assert that path exists. `Configs/*.example` documents the private build inputs. Honne remains unmaterialized until its private source and credential boundary can be audited safely.
 
 ## B4/V-series closeout evidence
 
