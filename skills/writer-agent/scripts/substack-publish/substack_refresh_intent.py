@@ -32,9 +32,17 @@ def _publication_for_pair(pair):
     if pair not in {"substack/ja", "substack/en"}:
         return ""
     lang = pair.rsplit("/", 1)[1].upper()
-    specific = os.environ.get(f"SUBSTACK_PUBLICATION_{lang}", "")
-    return _publication_host(specific) or _publication_host(
-        os.environ.get("SUBSTACK_PUBLICATION", "")
+    specific = _publication_host(
+        os.environ.get(f"SUBSTACK_PUBLICATION_{lang}", "")
+    )
+    if specific:
+        return specific
+    # The generic variable predates separate JA/EN publications and is safe
+    # only for JA. EN must never silently target the JA publication.
+    return (
+        _publication_host(os.environ.get("SUBSTACK_PUBLICATION", ""))
+        if lang == "JA"
+        else ""
     )
 
 def _draft_publication_host(draft):

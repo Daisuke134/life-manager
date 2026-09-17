@@ -23,3 +23,18 @@ def test_html_title_comment_is_not_used_as_x_article_title(tmp_path: Path) -> No
     parsed = MODULE.parse_markdown_file(str(source))
 
     assert parsed["title"] == "Real X Article title"
+
+
+def test_html_title_comment_is_removed_when_no_h1_exists(tmp_path: Path) -> None:
+    source = tmp_path / "article.md"
+    source.write_text(
+        '<!-- title: Comment title -->\n\n'
+        'Plain title\n\n'
+        'Body text.\n',
+        encoding="utf-8",
+    )
+
+    parsed = MODULE.parse_markdown_file(str(source))
+
+    assert parsed["title"] == "Plain title"
+    assert "Comment title" not in parsed["html"]

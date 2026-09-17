@@ -240,10 +240,11 @@ def extract_title(markdown: str) -> tuple[str, str]:
             title = stripped[:100]
             break
 
-    # Remove H1 title line from markdown to avoid duplication
+    # Remove title comments and the H1 title line from markdown to avoid
+    # leaking metadata into the published body or duplicating the heading.
     if title_line_idx is not None:
         lines.pop(title_line_idx)
-        markdown = '\n'.join(lines)
+    markdown = '\n'.join(lines)
 
     return title, markdown
 
