@@ -350,6 +350,8 @@ class MercorPassContractTests(unittest.TestCase):
             "One broken card must not block the whole pass",
             "invoke `.click()` once on that",
             "ranking signals rather",
+            "Missing years, degrees, or experience evidence is medium",
+            "unless Mercor explicitly marks the condition as required or blocked",
             "shared_apply_context.policy.ranking.band_definitions",
             "overlap alone never makes a senior/specialist role high",
             "low_fit_person_bound_skipped",

@@ -69,7 +69,10 @@ Pass order:
    queue; it is not a rejection. A material contradiction with a required language, location,
    domain specialization, or seniority makes the candidate low and `no_reasonable_shot`.
    Treat preferred qualifications, years, degrees and experience as ranking signals rather
-   than automatic rejection gates. Apply maximally among reasonable-shot roles and let the provider
+   than automatic rejection gates. Missing years, degrees, or experience evidence is medium
+   unless Mercor explicitly marks the condition as required or blocked or the listing has a
+   required location, language, legal, domain, or seniority contradiction. Do not infer a
+   contradiction from absent résumé proof alone. Apply maximally among reasonable-shot roles and let the provider
    or hiring party decide. Never invent a credential, experience, language level, or legal
    answer. Answer ordinary controls from `shared_apply_context.verified_facts` and the supplied
    profile; if a form accepts that truthful answer, continue and submit when missing evidence is
