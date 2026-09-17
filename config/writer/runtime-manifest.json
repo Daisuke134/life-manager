@@ -7,7 +7,7 @@
   "source": {
     "repository": "https://github.com/Daisuke134/life-manager.git",
     "path": "skills/writer-agent",
-    "commit": "102f86c5ff693cacd54819a7fc36011dc95318fa",
+    "commit": "cb2bc5ccb4c65617cf36f85427445c9891247440",
     "status": "canonical source on merged main"
   },
   "active_release": {
