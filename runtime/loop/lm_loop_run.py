@@ -8,6 +8,7 @@ import os
 import plistlib
 import re
 import signal
+import sqlite3
 import stat
 import subprocess
 import sys
@@ -403,7 +404,16 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                    "capafy-loop-healthcheck"}:
         _atomic_json(receipt, {"status": "pass", "effect": 0,
                               "reason": "control_plane_exempt"})
-        return _run_entrypoint(command, env=env, timeout_seconds=limit)
+        result = _run_entrypoint(command, env=env, timeout_seconds=limit)
+        if result == 0 and loop_id != "capafy-loop-healthcheck":
+            try:
+                if durable_protocol_version() == 2:
+                    reserved = reserve_available_resource()
+                    if reserved:
+                        _dispatch_reserved(reserved)
+            except (OSError, RuntimeError, sqlite3.Error) as error:
+                print(f"lm-loop-run: safety dispatch deferred: {error}", file=sys.stderr)
+        return result
     if limit is None:
         _atomic_json(receipt, {"status": "pass", "effect": 0,
                               "reason": "continuous_owner_exempt"})
