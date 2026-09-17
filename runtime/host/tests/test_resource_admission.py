@@ -607,6 +607,26 @@ def test_aged_revenue_waiter_advances_during_continuous_paid_arrivals(
     assert reserved == ["connector-aged"]
 
 
+def test_aged_revenue_beats_older_aged_support_backlog(tmp_path, monkeypatch):
+    """A long support backlog must not park a revenue loop for hours."""
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    running, reason = admission.try_acquire(
+        "agent", "running", retain_ticket=False, admission_class="revenue")
+    assert running is not None and reason == "acquired"
+    admission.enqueue_durable(
+        "agent", "old-support", admission_class="borrow",
+        priority="support", now=0)
+    admission.enqueue_durable(
+        "browser", "connector-aged", admission_class="revenue",
+        priority="revenue", now=100)
+    admission.enqueue_durable(
+        "agent", "new-paid", admission_class="revenue",
+        priority="critical_paid", now=8000)
+
+    assert admission.release_and_reserve(running, now=8000) == ["connector-aged"]
+
+
 def test_existing_paid_waiter_upgrades_priority_without_resetting_queue_age(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")

@@ -532,6 +532,17 @@ def _effective_priority(row: dict[str, object], now: float) -> int:
     return rank
 
 
+def _queue_order(row: dict[str, object], now: float) -> tuple[int, int, int, int, str]:
+    priority = row.get("base_priority")
+    queued_at = row.get("queued_at")
+    aged = (isinstance(priority, str) and priority in PRIORITY_AGE_SECONDS
+            and isinstance(queued_at, (int, float)) and not isinstance(queued_at, bool)
+            and now - float(queued_at) >= PRIORITY_AGE_SECONDS[priority])
+    return (_effective_priority(row, now), 0 if aged else 1,
+            0 if row.get("admission_class") == "revenue" else 1,
+            int(row["sequence"]), str(row["owner_id"]))
+
+
 def _durable_queue_rows(connection: sqlite3.Connection, resource_class: str,
                         now: float) -> list[dict[str, object]]:
     rows = [
@@ -553,11 +564,7 @@ def _durable_queue_rows(connection: sqlite3.Connection, resource_class: str,
             (resource_class, now),
         )
     ]
-    rows.sort(key=lambda row: (
-        _effective_priority(row, now),
-        int(row["sequence"]),
-        str(row["owner_id"]),
-    ))
+    rows.sort(key=lambda row: _queue_order(row, now))
     return rows
 
 
@@ -1122,13 +1129,10 @@ def _reserve_locked(connection: sqlite3.Connection, owners: Path, tickets: Path,
             if candidate:
                 owner_id = str(candidate["owner_id"])
                 sequence = int(candidate["sequence"])
-                candidates.append((
-                    _effective_priority(candidate, instant),
-                    sequence, owner_id, resource_class,
-                ))
+                candidates.append((*_queue_order(candidate, instant), resource_class))
         if not candidates:
             break
-        _, sequence, owner_id, resource_class = min(candidates)
+        _, _, _, sequence, owner_id, resource_class = min(candidates)
         connection.execute(
             "INSERT INTO reservations(owner_id,resource_class,sequence,lease_until) VALUES(?,?,?,?)",
             (owner_id, resource_class, sequence, instant + lease_seconds))
