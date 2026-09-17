@@ -88,7 +88,7 @@ that the provider currently has an authenticated account, a verified external ef
 |---|---|---|
 | Coconala | Apply is exact-loaded from `0401cb6a`; Reply and Storefront retain `0aba1191`; Paid is exact-loaded from `2e0716c7`. Ryu's latest ordinary message is officially read back and a natural Paid wake replayed zero across four rooms. Apply's current `0401cb6a` run observed both one-off and continuous sources; four eligible one-off applications have official exact-ID readbacks, zero failures, while old uncertain intents stayed duplicate-fenced for background reconciliation. The continuous page had zero active cards. Reply's latest retained pass observed 179 threads with 164 official readbacks and 15 pending. Static five-finite-run capacity, only two durable revenue-priority owners, and manual orphan-lease recovery leave 24/7 no-starvation/self-heal unproved. | Every active client has its own durable work item, newest-buyer coverage, provider effect/readback, replay-zero and payout attribution; every lane meets its cadence without a fixed global-slot bottleneck, and one client's failure never pauses another lane. |
 | Lancers | Application, browser, negotiation, paid, storefront, work-sync and report owners are registered. Production fixes exist in main, but durable login and the full Apply→Paid→payout proof are not closed. | One persistent account/browser owner runs the complete lifecycle with official proposal, work, payment and payout receipts. |
-| CrowdWorks | Application, Reply, Paid and Report owners are registered. Existing contracts still need fulfillment from buyer instruction/link through actual submission and readback. | Each accepted contract becomes an independent fulfillment item and reaches artifact submission, official receipt, payout and replay-zero; Storefront is explicitly `not_applicable` unless the provider exposes it. |
+| CrowdWorks | Application, Reply, Paid and Report owners are registered. Reply and Paid both have possible effects on a post-contract form/thread; Paid's latest retained result failed at `provider_inventory` with zero observed/effect/readback. Existing contracts still need the buyer's actual work, formal delivery and payout. | Apply owns proposals; Reply owns pre-contract negotiation/acceptance; one Paid owner owns all post-contract replies, work, quality, external submit, formal delivery and revision for each contract ID. Report remains internal. Each item reaches exact official receipt, acceptance, payout and replay-zero; Storefront is `not_applicable` unless officially observed. |
 | Mercor | Application, Reply and Paid owners are registered, but repeated-login/authentication and full contract proof remain open. | Persistent authenticated account state, application, reply/interview handoff, contract, paid work and payout are independently evidenced. |
 | Freelancer.com | Runtime work is registered in the fleet, but current provider account/policy and end-to-end revenue proof are not closed. | Official account/policy state plus Apply→Reply→Paid→payout, with Storefront only if officially supported. |
 | Upwork | Browser/application/report infrastructure and historical evidence exist, but current account/policy and paid attribution are not a closed revenue loop. | Official proposal, reply, contract, delivery/payment and payout receipts with duplicate-zero replay. |
@@ -1006,12 +1006,35 @@ work item and leave a sibling trace unchanged.
 
 ### 3. CrowdWorks vertical proof
 
-- [ ] Close the three existing active contracts first through independent per-client workers. The observed
-  contract with a supplied Google Docs work link must progress from instruction read to real artifact,
-  provider submission and official readback; an empty reply/upload form is unfinished.
-- [ ] Prove exact delivery readback, payout attribution and replay-zero for each existing contract.
-- [ ] Keep Apply and Reply healthy, finish Paid and payout, and mark Storefront `not_applicable` unless an
-  official listing surface is observed.
+**Plan:** `docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md` and
+`docs/superpowers/plans/2026-09-17-crowdworks-contract-fulfillment.md`. Current cursor is CW-1.
+The prior order treated Apply, Reply and Paid as independent full-life lanes and asked for a general
+three-contract close. The revised order is inventory repair → exact contract handoff → real work/quality →
+formal delivery/payout → recurring revenue. Reason: the funded work can be reached only after the current
+inventory failure is fixed, and Reply/Paid currently overlap on the contract page. This changes the
+CrowdWorks engineering cursor, not the parallel schedule or owners of other platforms.
+
+- [ ] **CW-1 — exact inventory:** Re-read proposal `306120094` and contracts `63659463`/`63657015`
+  through the existing authenticated owner; record exact status, escrow, milestone, latest buyer request,
+  work link and deadline. Repair Paid `provider_inventory` failure and prove a natural wake observes every
+  active contract without treating an unreadable list as empty.
+- [ ] **CW-2 — one post-contract owner:** Keep Apply independent. Let Reply negotiate and accept on the
+  proposal route, then hand the exact contract ID to Paid. Reply must not send a post-contract message or
+  submit the same external form; reconcile any old uncertain intent before the handoff.
+- [ ] **CW-3 — do the work:** For each funded contract, read the full buyer instruction (including the
+  Google Docs link on `63657015`), produce the requested deliverable or real external action, and verify
+  quality against that buyer's acceptance criteria. `63659463` needs its full request read before choosing
+  an email/message action. A generic acknowledgement or empty composer is not completion.
+- [ ] **CW-4 — formal delivery:** Fence and verify external submissions separately from the exact
+  CrowdWorks `納品する`/milestone delivery action. Read back inspection, revisions, acceptance, settlement
+  and payout per contract; replay must create no duplicate message, form post or delivery.
+- [ ] **CW-5 — revenue:** Close the existing active contracts first, then pursue repeat/retainer work.
+  Measure received cash and verified active monthly recurring revenue separately; USD 10,000 MRR remains
+  open until actual recurring payment records support it. Keep Report read-only on business state and
+  mark Storefront `not_applicable` absent an official listing surface.
+- [ ] Share the proven contract-ID handoff, real-work quality and receipt rules through the existing
+  marketplace kernel only after a second provider validates the boundary. Lancers requires its own
+  official page-flow inspection before changing its lanes. Keep all other loop owners and releases running.
 
 ### 4. Lancers vertical proof
 
