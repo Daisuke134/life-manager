@@ -114,6 +114,55 @@ class PublicationInitializationBoundaryTest(unittest.TestCase):
             self.assertTrue(plan["initializable"])
             self.assertEqual(plan["initialization_pairs"], ["note/ja", "x-article/ja"])
 
+    def test_existing_targeted_draft_row_does_not_block_initialization(self) -> None:
+        with TemporaryDirectory() as tmp:
+            store, state = _state(Path(tmp))
+            state["pairs"]["substack/ja"]["target"] = "123"
+            store._validate_state_boundary_locked = lambda *_args, **_kwargs: None
+            store._drafts_intact = lambda _state: True
+            store._ledger_rows_locked = lambda: [
+                _pending_row(
+                    state,
+                    platform="substack",
+                    lang="ja",
+                    state="staged:authenticated-editor-own-eyes; render-verify-pass",
+                    draft_url="https://writer-ja.substack.com/publish/post/123",
+                    verified_logged_in=True,
+                ),
+                _pending_row(
+                    state,
+                    platform="substack",
+                    lang="en",
+                    state="pending:authenticated-editor-redirect-loop; render-verify-screenshot-failed",
+                    draft_url="https://writer-en.substack.com/publish/post/456",
+                ),
+            ]
+
+            plan = store.initialization_plan()
+
+            self.assertTrue(plan["initializable"])
+
+    def test_targeted_draft_row_with_conflicting_target_still_blocks(self) -> None:
+        with TemporaryDirectory() as tmp:
+            store, state = _state(Path(tmp))
+            store._validate_state_boundary_locked = lambda *_args, **_kwargs: None
+            store._drafts_intact = lambda _state: True
+            store._ledger_rows_locked = lambda: [
+                _pending_row(
+                    state,
+                    platform="substack",
+                    lang="ja",
+                    state="staged:authenticated-editor-own-eyes",
+                    draft_url="https://writer-ja.substack.com/publish/post/999",
+                    verified_logged_in=True,
+                )
+            ]
+
+            plan = store.initialization_plan()
+
+            self.assertFalse(plan["initializable"])
+            self.assertEqual(plan["reason"], "run-ledger-boundary-exists")
+
     def test_pending_row_with_effect_signal_still_blocks_initialization(self) -> None:
         for updates in (
             {"state": "pending:published-effect-unknown"},
