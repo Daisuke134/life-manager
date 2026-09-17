@@ -19,9 +19,10 @@ Status: `IN_PROGRESS` — production code and schema are live; the seven-day nat
 - Exact replay response: `200 duplicate`.
 - Supabase readback: one structured row.
 - The synthetic row and its send receipt were deleted by exact `source_outcome_id` filters after verification.
+- The synthetic provider message ID was passed to Telegram `deleteMessage` with the exact mapped chat; the provider returned `ok=true`.
 - Raw Gmail body, subject, snippet, and prompt text were not transmitted.
 
-The production scheduler also observed the synthetic projection and logged a Telegram provider message ID. The MTProto history readback for the mapped chat did not contain that ID, so this is retained as provider-receipt evidence only and is not counted as a confirmed natural canary message.
+The production scheduler also observed the synthetic projection and logged a Telegram provider message ID. The exact synthetic message was deleted after verification, so it is not counted as a confirmed natural canary message.
 
 ## Remaining canary gates
 
