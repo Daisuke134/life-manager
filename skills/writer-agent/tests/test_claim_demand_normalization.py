@@ -2,7 +2,10 @@ import hashlib
 import importlib.util
 import json
 import sqlite3
+import sys
 from pathlib import Path
+
+import pytest
 
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "claim_supply.py"
@@ -10,6 +13,7 @@ SPEC = importlib.util.spec_from_file_location("claim_supply", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(MODULE)
+DEMAND = sys.modules["demand_card"]
 
 
 def _row(observation_id: str, url: str, family: str) -> dict:
@@ -195,3 +199,44 @@ def test_refill_queue_uses_normalized_ids_for_materialization_lookup(tmp_path: P
     assert result["queue_after"] == 1
     assert result["created_topics"][0]["installed"] is True
     assert json.loads(receipt.read_text(encoding="utf-8"))["status"] == "FILLED"
+
+
+def test_validate_bindings_rejects_equivalent_duplicate_ids() -> None:
+    fields = (
+        "buyer",
+        "problem",
+        "transformation",
+        "deliverable",
+        "price_hypothesis",
+        "distribution_path",
+    )
+    bindings = {
+        "buyer": "technical editors",
+        "problem": "finding accepted work",
+        "transformation": "publish-ready article",
+        "deliverable": "one article",
+        "price_hypothesis": {"amount": 49, "currency": "USD", "basis": "receipt"},
+        "distribution_path": [{"channel": "publisher", "role": "submission"}],
+        "binding_observation_ids": {
+            field: ["publisher-1"] for field in fields
+        },
+    }
+    bindings["binding_observation_ids"]["buyer"] = [
+        "publisher-1", "ｐｕｂｌｉｓｈｅｒ－１"
+    ]
+
+    with pytest.raises(DEMAND.DemandCardError, match="unique"):
+        DEMAND._validate_bindings(bindings, observation_ids={"publisher-1"})
+
+
+def test_select_rejects_equivalent_duplicate_observation_ids() -> None:
+    observations = [
+        _row("publisher-1", "https://publisher.example/one", "publisher_opportunity"),
+        _row("ｐｕｂｌｉｓｈｅｒ－１", "https://publisher.example/two", "publisher_opportunity"),
+        _row("paid-1", "https://paid.example/offer", "paid_market"),
+        _row("reader-1", "https://reader.example/job", "reader_demand"),
+        _row("funnel-1", "https://funnel.example/cta", "owned_funnel"),
+    ]
+
+    with pytest.raises(DEMAND.DemandCardError, match="unique"):
+        DEMAND.select_demand_observations(observations)
