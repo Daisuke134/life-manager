@@ -27,6 +27,7 @@ const {
   geminiLiveWsUrl,
   buildGeminiTurn,
   parseGeminiTranscripts,
+  muLawDecodeSample,
 } = require("./lib/call-logic.js");
 const { startScheduler, startWakeLoop, startReminderLoop, startTravelLoop, startAskLoop, startOnboardLoop, startDiscoveryLoop, buildStreamUrl, langForPhone } = require("./scheduler.js");
 const { openingTurnForLang, resolveCallLang } = require("./lib/call-language.js");
@@ -1472,7 +1473,12 @@ wss.on("connection", (carrierWs, req) => {
   liveCalls++;
   const { event, urgency, lang, name, wakeUid, wakeEventKey, voiceReservation } = ctx;
   console.log(`[bridge] carrier connected urgency=${urgency} live=${liveCalls}`);
-  const state = { streamSid: null, inFrames: 0, outFrames: 0, setupComplete: false };
+  const state = { streamSid: null, inFrames: 0, outFrames: 0, setupComplete: false,
+    firstAudioAtMs: null, audioBytes: 0, audioSquares: 0, audioSamples: 0,
+    invalidAudioChunks: 0, clearCount: 0,
+    clearBeforeMark: 0, markSent: false, markAck: false, markAckAfterClear: false,
+    streamErrors: 0, sendErrors: 0,
+    inputTranscriptEvents: 0, outputTranscriptEvents: 0, outputTurns: 0 };
 
   // C1 (VCSDD life-manager-cost-connect-reliability): Gemini Live is the DEFAULT — every answered call
   // is a two-way Charon conversation from the first second (no one-way clip). `liveWsOpened` is the
@@ -1483,7 +1489,23 @@ wss.on("connection", (carrierWs, req) => {
   let liveWsOpened = 0;
   let gotAudio = false;       // has Gemini emitted any audio yet on this call?
   let geminiReconnects = 0;   // one-retry guard for a pre-audio socket drop
-  const carrierSend = (o) => { if (carrierWs.readyState === WebSocket.OPEN) carrierWs.send(JSON.stringify(o)); };
+  const carrierSend = (o) => {
+    if (carrierWs.readyState !== WebSocket.OPEN) { state.sendErrors++; return; }
+    carrierWs.send(JSON.stringify(o), (error) => { if (error) state.sendErrors++; });
+  };
+  const carrierAudioSend = (frame) => {
+    const audio = Buffer.from(frame.media.payload, "base64");
+    const bytes = audio.length;
+    if (state.firstAudioAtMs == null) state.firstAudioAtMs = Date.now();
+    state.audioBytes += bytes;
+    if (bytes < 160 || bytes > 240000) state.invalidAudioChunks++;
+    for (const sample of audio) {
+      const pcm = muLawDecodeSample(sample);
+      state.audioSquares += pcm * pcm;
+    }
+    state.audioSamples += bytes;
+    carrierSend(frame);
+  };
   const geminiSend = (o) => { if (gemini && gemini.readyState === WebSocket.OPEN) gemini.send(JSON.stringify(o)); };
 
   // Open the Gemini Live bridge (billed, ~$0.023/min). Called on the Telnyx `start` frame (call
@@ -1501,15 +1523,26 @@ wss.on("connection", (carrierWs, req) => {
     gemini.on("message", (data) => {
       let msg;
       try { msg = JSON.parse(data.toString()); } catch { return; }
-      const r = routeGeminiMessage(msg, state, carrierSend, buildTelnyxMediaFrame);
+      const r = routeGeminiMessage(msg, state, carrierAudioSend, buildTelnyxMediaFrame);
       if (r.kind === "setupComplete") geminiSend(buildGeminiTurn(openingTurnForLang(lang)));
       if (r.kind === "audio") gotAudio = true;
+      if (r.kind === "audio" && !state.markSent) {
+        state.markSent = true;
+        carrierSend({ event: "mark", mark: { name: "first_ai_audio" } });
+      }
       // Barge-in: the caller spoke over Charon (Gemini server-VAD). Flush Telnyx's queued playback so
       // the caller is heard immediately instead of talked over.
       const carrierAction = carrierActionForGeminiKind(r.kind);
-      if (carrierAction) carrierSend(carrierAction); // barge-in: flush Telnyx queued playback
+      if (carrierAction) {
+        state.clearCount++;
+        if (state.markSent && !state.markAck) state.clearBeforeMark++;
+        carrierSend(carrierAction); // barge-in: flush Telnyx queued playback
+      }
+      const t = parseGeminiTranscripts(msg);
+      if (t.input) state.inputTranscriptEvents++;
+      if (t.output) state.outputTranscriptEvents++;
+      if (msg.serverContent?.turnComplete) state.outputTurns++;
       if (DEBUG_TRANSCRIPTS) {
-        const t = parseGeminiTranscripts(msg);
         if (t.input) console.error(`[transcript] USER: ${t.input}`);
         if (t.output) console.error(`[transcript] CHARON: ${t.output}`);
       }
@@ -1552,6 +1585,14 @@ wss.on("connection", (carrierWs, req) => {
     let msg;
     try { msg = JSON.parse(data.toString()); } catch { return; }
     const kind = routeTelnyxMessage(msg, state, geminiSend);
+    if (msg.event === "mark" && msg.mark?.name === "first_ai_audio") {
+      state.markAck = true;
+      state.markAckAfterClear = state.clearBeforeMark > 0;
+    }
+    if (msg.event === "error") {
+      state.streamErrors++;
+      console.error(`[bridge] carrier media error ccid=${state.callControlId || "unknown"} code=${String(msg.payload?.code || "unknown").slice(0, 32)}`);
+    }
     if (kind === "start") {
       if (callStartedAtMs == null) callStartedAtMs = Date.now();
       // Recording still begins on media start. answered_at does not: with AMD enabled, only the
@@ -1584,6 +1625,17 @@ wss.on("connection", (carrierWs, req) => {
   carrierWs.on("close", () => {
     release();
     console.log(`[bridge] carrier closed in=${state.inFrames} out=${state.outFrames} live_ws_opened=${liveWsOpened} live=${liveCalls}`);
+    const audioRmsDb = state.audioSamples
+      ? Math.round(20 * Math.log10(Math.sqrt(state.audioSquares / state.audioSamples) / 32768)) : null;
+    // A mark can also be echoed after `clear`; these counters are diagnostics, not proof of audible speech.
+    console.log(`[bridge] media diagnostics ccid=${state.callControlId || "unknown"} firstAudioMs=${state.firstAudioAtMs && callStartedAtMs
+      ? state.firstAudioAtMs - callStartedAtMs : "none"} audioMs=${Math.round(state.audioBytes / 8)} invalidChunks=${state.invalidAudioChunks}
+      audioRmsDb=${audioRmsDb}
+      markAck=${state.markAck} markAckAfterClear=${state.markAckAfterClear}
+      clears=${state.clearCount} clearBeforeMark=${state.clearBeforeMark}
+      streamErrors=${state.streamErrors} sendErrors=${state.sendErrors}
+      inputTranscriptEvents=${state.inputTranscriptEvents} outputTranscriptEvents=${state.outputTranscriptEvents}
+      outputTurns=${state.outputTurns}`);
     if (callStartedAtMs != null) {
       const quantity = Math.max(0, (Date.now() - callStartedAtMs) / 1000);
       recordCost({ uid: wakeUid || null, kind: "telnyx_call", quantity, unit: "seconds",

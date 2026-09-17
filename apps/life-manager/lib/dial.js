@@ -133,7 +133,7 @@ async function retrieveCallDuration(ccid, opts = {}) {
 async function startRecording(ccid) {
   if (!ccid) return { ok: false, error: "no ccid" };
   try {
-    await txPost(`/calls/${encodeURIComponent(ccid)}/actions/record_start`, { format: "mp3", channels: "single" });
+    await txPost(`/calls/${encodeURIComponent(ccid)}/actions/record_start`, { format: "mp3", channels: "dual" });
     return { ok: true };
   } catch (e) {
     return { ok: false, error: String(e.message || e) };
