@@ -15,7 +15,7 @@ Observed shared-foundation problems and disposition:
 |---|---|---|
 | A branch-only SHA could become global `current` | Release selection admitted a pushed but unmerged SHA. | Fixed in main PR #5351; production `current` must remain an `origin/main` ancestor. |
 | One owner with many old wakes could repeatedly win its own next turn | RED fixture selected owner A twice before owner B; production queue had repeated old occurrences. | Fixed in main PR #5354; new-main natural terminals advanced `x402-ledger` → `x402-experiment-franklin1` → `founder-loop-cadence` → `x402-inflow-watch` without deleting pending occurrences. |
-| A same-owner environment JSON replaced an installed plist | `writer-report` installed file is JSON, so its installed SHA is unreadable although launchd still holds a main-derived argv. The writer of that file is not yet identified. | Shared `lm_loop_apply.py` recovery merged in PR #5362, but the CLI candidate filter still skips the malformed file; the follow-up fix is not yet merged or live-proved. The repair accepts only matching loop ID/state root and preserves existing environment keys. |
+| A same-owner environment JSON replaced an installed plist | `writer-report` installed file was JSON, so its installed SHA was unreadable although launchd held a main-derived argv. The writer of that file is not yet identified. | Shared recovery and candidate/rollback repair merged in PRs #5362/#5367. A targeted loaded-idle reconcile restored XML and loaded SHA `f1f5bcb9` with `effect_unknown` still fenced. |
 | Reconciler sometimes exits `entrypoint_exit_1` while idle owners wait | Loaded `a4070714` has both fail and pass outer terminals; one run stayed active for several minutes. Malformed installed input is a concrete candidate, not a proven sole cause. | Open until the repaired main-derived release has a natural outer terminal and an exact first-failure readback. |
 | Disk pressure has caused `ENOSPC` during release/receipt writes | Historical runtime logs contain `ENOSPC`; current free space is about 2 GiB and cleanup has also reached natural `pass`. | Open as a bounded headroom/cleanup acceptance check; do not erase profiles, credentials, receipts, active runs, or other owners' worktrees. |
 
@@ -58,7 +58,7 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   `18d61918b61058e8-67760` on loaded SHA `aa0f37fc8c46` reached outer
   `pass` at 2026-09-17T11:54:06Z with `blocker=null`; status readback showed
   the same installed/event SHA and `loaded-idle`.
-- [ ] **A15-06 — read the repaired installed plist.** `writer-report.plist`
+- [x] **A15-06 — read the repaired installed plist.** `writer-report.plist`
   must parse as XML and its installed/loaded argv must name a main-derived
   immutable release. This is a shared config repair, not permission to send a
   Writer report or clear its effect fence. The first targeted reconcile on
@@ -66,8 +66,11 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   `installed_release_sha=null`, so candidate filtering bypassed the merged
   recovery function. The follow-up candidate fix and pre-swap rollback from
   the old immutable release passed 95 tests and 30 subtests locally, including
-  a failed Writer swap with a minimal JSON snapshot. CI/main/live proof remain
-  open; the installed file remains JSON and `effect_unknown` remains fenced.
+  a failed Writer swap with a minimal JSON snapshot. PR #5367 passed all CI
+  checks and merged as `f1f5bcb91d`. The targeted loaded-idle reconcile
+  installed XML (`plutil -lint: OK`, install event
+  `4cb761c203938bf18fdf0660`) with installed and loaded argv at complete
+  main release `20260917T211820-f1f5bcb9`; `effect_unknown` remains fenced.
 - [ ] **A15-07 — prove an agent-class handoff.** From the private admission
   SQLite and `bin/lm-loop status`, join one natural agent owner claim, outer
   terminal, release and a *different* eligible agent owner's next claim.
