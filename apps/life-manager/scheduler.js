@@ -822,7 +822,15 @@ async function organsUserOnce(u, nowMs, deps = {}) {
     run: () => (deps.mental || mentalV1UserOnce)(u, now, mentalV1Deps(u, events, deps)),
   });
   if (mental && mental.delivered) {
-    log(`[mental] uid=${String(u.uid).slice(0, 12)} trigger=${mental.trigger} tg_message_id=${mental.telegramMessageId}`);
+    log(`[mental] uid=${String(u.uid).slice(0, 12)} decision=send trigger=${mental.trigger || mental.window || "none"}`
+      + `${mental.family ? ` family=${mental.family}` : ""}`
+      + `${mental.templateId ? ` template_id=${mental.templateId}` : ""}`
+      + ` tg_message_id=${mental.telegramMessageId}`);
+  } else if (mental && mental.decision === "suppress" && mental.reason !== "outside-opportunity-window") {
+    // Keep the evidence useful at the three opportunity windows without emitting a 60-second
+    // outside-window heartbeat for every tenant. Reasons are policy-safe enums, never user text.
+    log(`[mental] uid=${String(u.uid).slice(0, 12)} decision=suppress reason=${mental.reason || "unknown"}`
+      + `${mental.window ? ` window=${mental.window}` : ""}`);
   }
 
   // 11a/11b: the PHYSICAL organ rides the same 60s tick. careUserOnce holds a durable daily claim
