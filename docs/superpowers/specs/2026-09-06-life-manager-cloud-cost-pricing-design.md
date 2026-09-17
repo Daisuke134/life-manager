@@ -433,11 +433,37 @@ Life Manager has three cooperating business paths:
    `plan_status`, `current_period_end`, and `stripe_subscription_id` were all null. The entitlement
    flag is therefore not an active-subscription or MRR receipt.
 
+### 2026-09-18 Stripe CLI recovery and production readback
+
+The previous `STRIPE-KEY-MISSING` finding covered the money loop's runtime secret path, not the
+Stripe account itself. The operator CLI path was recovered through the existing Stripe owner session:
+
+- `stripe login --complete` returned `Done!` for the existing `anicca` account (`acct_1RT5QgEeDsUAcaLS`).
+  The active CLI profile now has a refreshed live credential expiring 2026-12-16. No credential value is
+  recorded here.
+- `stripe customers list --live --limit 1` returned a live customer list successfully.
+- `stripe balance retrieve --live` returned `livemode=true` with available and pending JPY balances of
+  zero. This is a current balance readback, not lifetime revenue.
+- `stripe subscriptions list --live --status active --limit 100` returned `has_more=false` and
+  `page_count=0`. Provider-side active-subscription MRR is therefore USD 0 at this readback; there are
+  no subscription rows from which to read a price or period end.
+- The browser flow used the existing Google login and Stripe two-factor authentication. Credentials are
+  not stored in the repository or this spec.
+
+The product money loop remains incomplete: `skills/self/life-manager-loop/loop.sh` reads
+`STRIPE_SECRET_KEY` from its private runtime state and does not consume the Stripe CLI profile. The next
+implementation must either inject a valid live key through the private SSOT/runtime path or add a secure
+CLI-backed read path, then rerun the loop and read back `lm_mrr_usd`, plan status, period end, refunds, and
+failed payments. Until that app-level receipt exists, the CLI result is an operator/provider readback, not
+an application loop receipt.
+
 **Remaining revenue TODO, in order:**
 
-1. Restore the Stripe live-key runtime path from the private credential source and read back active
-   subscriptions, status, period end, refunds, and failed payments. Until this succeeds, MRR is
-   `unknown`, not zero.
+1. Wire the confirmed Stripe live account into the money-loop runtime (or add a secure CLI-backed read
+   path), then rerun the loop and read back active subscriptions, plan status, period end, refunds, and
+   failed payments. The 2026-09-18 provider readback showed zero active subscriptions and zero
+   provider-side subscription MRR; application-level MRR remains unverified until the loop receipt is
+   recorded.
 2. Choose one canonical price. The current product spec says `$29/month`, while older landing and
    payment-link tests still describe `$20/month`. Update the Stripe price/link, landing copy, Telegram
    `/subscribe` copy, and tests together after the price is selected. Do not advertise one price while
