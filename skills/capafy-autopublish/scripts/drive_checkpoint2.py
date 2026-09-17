@@ -4,7 +4,7 @@ drive_checkpoint2.py — Capafy CP2 (credential hosting) automation.
 
 Sets the LLM Config to the CANONICAL recipe (verified 2026-06-25):
   Base URL = https://openrouter.ai/api/v1
-  Model    = anthropic/claude-sonnet-4.6   (real Claude Sonnet 4.6 = what all winners use)
+  Model    = $CAPAFY_HOSTED_MODEL_ID (from the prepared listing contract)
   API Key  = $CAPAFY_HOST_OPENROUTER_KEY   (Life Manager state env)
   Format   = openai-responses (Capafy default; OpenRouter /responses verified working)
 Deletes the blockrun (127.0.0.1 localhost) card which always fails verification.
@@ -21,7 +21,7 @@ from urllib.error import HTTPError
 from urllib.parse import parse_qs, parse_qsl, urlsplit
 
 BASE_URL = "https://openrouter.ai/api/v1"
-MODEL    = "anthropic/claude-sonnet-4.6"
+MODEL    = os.environ.get("CAPAFY_HOSTED_MODEL_ID", "anthropic/claude-sonnet-4.6")
 CDP_ATTACH_TIMEOUT_MS = int(os.environ.get("CP2_CDP_ATTACH_TIMEOUT_MS", "15000"))
 RAW_NAV_TIMEOUT_S = float(os.environ.get("CP2_RAW_NAV_TIMEOUT_S", "30"))
 RAW_CALL_TIMEOUT_S = float(os.environ.get("CP2_RAW_CALL_TIMEOUT_S", "20"))

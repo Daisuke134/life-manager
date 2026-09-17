@@ -55,6 +55,17 @@ step "[0] LINT $LISTING"
 python3 "$AUTO/scripts/lint_listing.py" "$LISTING" || die "lint FAIL — fix the listing first"
 [ -f "$ICON" ] || die "icon not found: $ICON"
 [ -d "$SKILL_DIR" ] || die "skill dir not found: $SKILL_DIR"
+CFG_ONE="$CAPAFY_PUBLISHER_STATE_HOME/cfg_one.json"
+python3 "$AUTO/scripts/build_config.py" "$LISTING" "$ICON" "$CFG_ONE" >/dev/null \
+  || die "build_config failed"
+read -r CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS < <(
+  python3 - "$CFG_ONE" <<'PY'
+import json, sys
+config = json.load(open(sys.argv[1], encoding="utf-8"))
+print(config["model_id"], config["max_tokens"])
+PY
+)
+export CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS
 
 step "[0b] KEY-HEALTH GATE (fail-closed) — never publish into an under-funded host key"
 # 2026-07-18 A1: 4 agents were rejected with a billing error caused by a THIN OpenRouter
@@ -75,16 +86,17 @@ cp -R "$SKILL_DIR" "$WS/skills/$SKILL_NAME" || die "clean-WS copy failed"
 # Give that runtime one explicit hosted provider contract.  Keep only an env
 # reference here: CP2 supplies the real key from the private state env.
 mkdir -p "$CAPAFY_PUBLISH_HOME/.openclaw"
-python3 - "$CAPAFY_PUBLISH_HOME/.openclaw/openclaw.json" <<'PY'
+python3 - "$CAPAFY_PUBLISH_HOME/.openclaw/openclaw.json" "$CAPAFY_HOSTED_MODEL_ID" "$CAPAFY_HOSTED_MAX_TOKENS" <<'PY'
 import json, sys
+model_id, max_tokens = sys.argv[2], int(sys.argv[3])
 json.dump({
   "models": {"providers": {"openrouter": {
     "baseUrl": "https://openrouter.ai/api/v1",
     "api": "openai-responses",
     "apiKey": "${CAPAFY_HOST_OPENROUTER_KEY}",
-    "models": [{"id": "anthropic/claude-sonnet-4.6", "name": "Claude Sonnet 4.6"}]
+    "models": [{"id": model_id, "name": model_id, "maxTokens": max_tokens}]
   }}},
-  "agents": {"defaults": {"model": {"primary": "openrouter/anthropic/claude-sonnet-4.6"}}}
+  "agents": {"defaults": {"model": {"primary": "openrouter/" + model_id}}}
 }, open(sys.argv[1], "w"), ensure_ascii=False, indent=2)
 PY
 
@@ -190,10 +202,6 @@ EDIT_URL_RESULT="$(printf '%s' "$RAW" | python3 "$AUTO/scripts/save_review_url.p
   || die "publish-refresh-url response failed strict Agent-ID/URL validation"
 EDIT_URL_FILE="$(printf '%s' "$EDIT_URL_RESULT" | sed -n 's/^EDIT_URL_FILE=//p' | tail -1)"
 [ "$EDIT_URL_FILE" = "$EDIT_URL_PATH" ] || die "review URL file path was not returned as expected"
-CFG_ONE="$CAPAFY_PUBLISHER_STATE_HOME/cfg_one.json"
-mkdir -p "$CAPAFY_PUBLISHER_STATE_HOME"
-python3 "$AUTO/scripts/build_config.py" "$LISTING" "$ICON" "$CFG_ONE" >/dev/null 2>&1 || die "build_config failed"
-
 step "PREPARE DONE — hand off to agentic CP1"
 echo "AGENT_ID=$ID"
 echo "EDIT_URL_FILE=$EDIT_URL_FILE"

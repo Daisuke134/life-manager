@@ -20,6 +20,11 @@ from pathlib import Path
 
 
 NO_FREE_TRIAL = re.compile(r"no[\s_-]+free[\s_-]+trial", re.I)
+MODEL_IDS = {
+    "Claude Sonnet 4.6": "anthropic/claude-sonnet-4.6",
+    "DeepSeek V4.1 Flash": "deepseek/deepseek-v4.1-flash",
+}
+HOSTED_MAX_TOKENS = {"Claude Sonnet 4.6": 128000, "DeepSeek V4.1 Flash": 8192}
 
 
 def main():
@@ -37,6 +42,10 @@ def main():
 
     model_m = re.search(r"Primary Model:\s*([^·\n]+)", L)
     model = model_m.group(1).strip() if model_m else "Claude Sonnet 4.6"
+    model_id = MODEL_IDS.get(model)
+    if model_id is None:
+        print(f"ERROR: unsupported hosted model: {model}", file=sys.stderr)
+        return 2
     cat_m = re.search(r"category:\s*([^\(·\n]+)", L)
     category = cat_m.group(1).strip() if cat_m else "ライティング"
     tags_m = re.search(r"tags:\s*([^\n]+)", L)
@@ -64,7 +73,8 @@ def main():
         "title": title, "short": short, "welcome": welcome,
         "detailed": detailed, "privacy_url": "https://aniccaai.com/privacy",
         "support_email": "contact@aniccaai.com", "tags": tags, "category": category,
-        "icon": icon, "model": model, "provider": "openrouter.ai",
+        "icon": icon, "model": model, "model_id": model_id,
+        "max_tokens": HOSTED_MAX_TOKENS[model], "provider": "openrouter.ai",
         "test_input": test_input, "plans": plans,
     }
     js = json.dumps(cfg, ensure_ascii=False)
