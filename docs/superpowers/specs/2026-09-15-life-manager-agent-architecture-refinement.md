@@ -1378,6 +1378,14 @@ escalationは実行しない。Node 14件（intent/plan/executor）がPASSした
 実行境界のコード完了であり、harness failureからintentを自動生成する配線、自然wake、
 terminal repair receipt、duplicate effect 0の実機証明は未完了なので、S-01全体は未完のままにする。
 
+**2026-09-17 foundation slice (S-01 failure input):** runtime/loop now adds a
+typed `recovery_intent` to the existing private `harness-failures.jsonl` line
+when canonical loop identity and immutable release SHA are present. Missing
+provenance deliberately produces no guessed owner. Tool timeout/logic and
+brain-transport integration tests pass; the record still does not execute a
+retry, and supervisor consumption, natural wake, terminal repair receipt and
+duplicate-effect-zero remain open.
+
 **2026-09-17 foundation slice (S-04 candidate boundary):** existing
 `apps/life-manager/eval/agent-contract/gate.js` now exposes
 `decideCandidatePromotion` and `validateCandidateBoundary`, plus the

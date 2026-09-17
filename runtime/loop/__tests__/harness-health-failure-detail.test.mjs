@@ -142,6 +142,8 @@ test('R6: wake_error wake -> exactly one harness-failures.jsonl line, no slot ke
 
   const proc = spawnLoop({
     ANICCA_HOME: home,
+    LIFE_MANAGER_LOOP_ID: 'test-loop',
+    LIFE_MANAGER_RELEASE_SHA: 'a'.repeat(40),
     OPENAI_BASE_URL: url,
     ANICCA_BALANCE_OVERRIDE: '0',
     SLEEP_BASE_S: '0',
@@ -164,6 +166,9 @@ test('R6: wake_error wake -> exactly one harness-failures.jsonl line, no slot ke
     assert.equal(line.kind, 'wake_error');
     assert.ok(line.detail.length <= 4000);
     assert.ok('ts' in line && 'wake_id' in line && 'exit_code' in line);
+    assert.equal(line.recovery_intent.loop_id, 'test-loop');
+    assert.equal(line.recovery_intent.action, 'reconcile_owner');
+    assert.equal(line.recovery_intent.mutates_external_effect, false);
   } finally {
     server.close();
     proc.kill('SIGTERM');

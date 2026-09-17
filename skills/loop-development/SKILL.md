@@ -87,6 +87,12 @@ escalate a repeated/unclassified failure. It must never mutate a provider,
 browser, credential, scheduler, or sibling owner directly. A later supervisor
 may execute only the action allowed by the intent and its existing lease.
 
+Runtime failures with a canonical `LIFE_MANAGER_LOOP_ID` and immutable
+`LIFE_MANAGER_RELEASE_SHA` also carry the typed intent in the existing private
+`harness-failures.jsonl` record. Missing identity or release provenance
+produces no guessed target. This record is an input to recovery, not an
+automatic provider retry; the executor below remains the only mutation boundary.
+
 Before execution, compile the intent into a bounded owner plan:
 
 ```bash
