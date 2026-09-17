@@ -193,7 +193,19 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   `released/effect_unknown=1`; that exact effect fence is untouched. Probe's
   occurrence stayed `queued/effect_unknown=0` with browser queue sequence
   32683 rather than being cancelled. A later natural probe claim and terminal
-  are still needed to close this lifecycle gate.
+  are still needed to close this lifecycle gate. At 19:53:28Z probe was
+  nevertheless installed on `47b01035`, its old queued occurrence was
+  cancelled, and run `18d633c2e82f1ac0-63254` passed on that SHA at
+  19:53:58Z. The reconciler stdout listed probe in `skipped_pending`, so
+  that run did not prove it was the rebind actor. `lateness-heartbeat` on
+  older release `a0a4e522` reached a terminal at 19:53:01Z and is one
+  plausible older-dispatch caller, not confirmed attribution. A targeted
+  loaded-idle reconcile at 20:09Z safely returned
+  `skipped_pending=[lateness-heartbeat]` with no apply; its own pending work
+  must drain naturally. A proposed cross-version bootout wrapper was rejected
+  in fresh read-only review because old explicit apply and unloaded-service
+  paths could bypass it, and was reverted before main integration. A15-08
+  remains open pending a real same-SHA distinct-owner handoff.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
