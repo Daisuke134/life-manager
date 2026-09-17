@@ -57,7 +57,7 @@ def test_exhaustive_discovery_has_one_bounded_turn():
     module = _load_application_loop()
 
     assert module._discovery_turn_count(exhaustive=True, source=None, query=None) == 1
-    assert module._discovery_turn_count(exhaustive=False, source=None, query=None) == 3
+    assert module._discovery_turn_count(exhaustive=False, source=None, query=None) == 1
     assert module._discovery_turn_count(exhaustive=False, source=object(), query=None) == 1
 
 

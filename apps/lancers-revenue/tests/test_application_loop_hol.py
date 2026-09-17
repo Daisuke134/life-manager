@@ -409,7 +409,7 @@ class ApplicationLoopHolTests(unittest.TestCase):
         self.assertEqual(result.provider_terminal_blocked_count, 1)
         self.assertEqual(result.provider_terminal_blocked_project_ids, ("5599976",))
 
-    def test_discovery_query_rotates_by_utc_half_hour_slot(self):
+    def test_discovery_query_rotates_by_utc_wake_slot(self):
         application_loop = _load_deployed_loop()
         calls = []
         clock_calls = []
@@ -427,7 +427,7 @@ class ApplicationLoopHolTests(unittest.TestCase):
             # queries were re-derived from the catalogue, which is a change this test should not
             # have an opinion about.
             total = len(application_loop.DISCOVERY_QUERIES)
-            slots = [datetime(2026, 8, 13, 3, 0, tzinfo=timezone.utc) + timedelta(minutes=30 * index)
+            slots = [datetime(2026, 8, 13, 3, 0, tzinfo=timezone.utc) + timedelta(minutes=index)
                      for index in range(total)]
             for slot in slots:
                 application_loop.run_loop(state_path=root / "application.json", evidence_root=root / "evidence", discoverer=discoverer, clock=clock_for(slot))
@@ -436,7 +436,7 @@ class ApplicationLoopHolTests(unittest.TestCase):
                 application_loop.run_loop(state_path=root / "application.json", evidence_root=root / "evidence", discoverer=discoverer, clock=clock_for(same_slot))
             application_loop.run_loop(state_path=root / "application.json", evidence_root=root / "evidence", discoverer=discoverer, clock=clock_for(same_slot), query="explicit-query")
 
-        # Every query is used exactly once across consecutive half-hour slots, starting wherever
+        # Every query is used exactly once across consecutive one-minute wakes, starting wherever
         # the slot arithmetic lands rather than at index 0.
         used = [call["query"] for call in calls[:total]]
         assert sorted(used) == sorted(application_loop.DISCOVERY_QUERIES)
@@ -447,6 +447,20 @@ class ApplicationLoopHolTests(unittest.TestCase):
         self.assertEqual(calls[total + 2]["query"], "explicit-query")
         self.assertEqual(len(calls), len(clock_calls))
         self.assertTrue(all(call["limit"] == 20 for call in calls))
+
+    def test_empty_default_discovery_fetches_one_query_per_wake(self):
+        application_loop = _load_deployed_loop()
+        empty = {"ok": False, "error": "no_normalized_opportunities",
+                 "provider_count": 0, "opportunities": []}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with (patch.object(application_loop, "_capacity_reason", return_value=None),
+                  patch.object(application_loop.status, "run_discovery", return_value=empty) as search):
+                result = application_loop.run_loop(
+                    state_path=root / "application.json", evidence_root=root / "evidence",
+                    clock=lambda: datetime(2026, 8, 13, 3, 0, tzinfo=timezone.utc))
+        self.assertTrue(result["ok"])
+        self.assertEqual(search.call_count, 1)
 
     def test_default_discovery_skips_a_query_containing_only_claimed_projects(self):
         application_loop = _load_deployed_loop(); calls = []
