@@ -1832,7 +1832,8 @@ function absoluteDirectory(value) {
 
 function createBoundedPrivateFactSelector(options = {}) {
   const repoRoot = absoluteDirectory(options.repoRoot);
-  const evidenceDir = path.join(absoluteDirectory(options.evidenceDir), `fact-${randomUUID()}`);
+  const sessionId = randomUUID();
+  const evidenceDir = path.join(absoluteDirectory(options.evidenceDir), `fact-${sessionId}`);
   const runAgentRunner = options.runAgentRunner || runLocalAgentRunner;
   if (typeof runAgentRunner !== "function") invalid();
   let sequence = 0;
@@ -1856,7 +1857,7 @@ function createBoundedPrivateFactSelector(options = {}) {
         schema: { type: "object", additionalProperties: false, required: ["source_key"],
           properties: { source_key: { type: "string", enum: choices } } },
         taskClass: "repeatable-agent", timeoutMs: 30_000, readOnly: true,
-        tokenBudget: 2_048, budgetScopeId: `connector-fact-${++sequence}`,
+        tokenBudget: 24_576, budgetScopeId: `connector-fact-${sessionId}-${++sequence}`,
         evidenceDir: path.join(evidenceDir, String(sequence)), repoRoot,
       });
       const chosen = result?.value?.source_key;

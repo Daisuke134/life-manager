@@ -27,6 +27,8 @@ test("bounded fact selector maps new question wording to a key without seeing pr
   assert.equal(await select({ question: "現在お勤めの企業を教えてください", available_keys: ["Affiliation / company name"] }),
     "Affiliation / company name");
   assert.equal(request.readOnly, true);
+  assert.equal(request.tokenBudget, 24_576);
+  assert.match(request.budgetScopeId, /^connector-fact-[a-f0-9-]+-1$/);
   assert.equal(request.schema.properties.source_key.enum.includes("__abstain__"), true);
   assert.equal(request.prompt.includes("Private Company"), false);
 });
