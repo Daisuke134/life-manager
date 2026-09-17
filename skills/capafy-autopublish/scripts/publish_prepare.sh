@@ -13,7 +13,7 @@
 # card-save step is now agent-driven, not a brittle script.
 #
 # Usage: publish_prepare.sh <skill-dir> <LISTING.md> <icon.png> [draft-agent-id]
-# Prints (machine-greppable):  AGENT_ID=<id>  EDIT_URL_FILE=<path>  then the target pricing.
+# Prints (machine-greppable): AGENT_ID, AGENT_VERSION_ID, EDIT_URL_FILE, CONFIG_PATH.
 set -euo pipefail
 
 SKILL_DIR="${1:?skill-dir required}"
@@ -35,10 +35,13 @@ VENV="${CAPAFY_BROWSER_PYTHON:-python3}"
 # OpenClaw resolves provider config from the isolated publisher HOME's
 # .openclaw/openclaw.json, not from runtime_dir. Give the publisher an isolated HOME so it cannot package the
 # operator's live OpenClaw providers. Canonical skill source remains in this repo.
-CAPAFY_PUBLISH_HOME="${CAPAFY_PUBLISH_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher-home}"
+CAPAFY_PUBLISH_HOME_BASE="${CAPAFY_PUBLISH_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher-home}"
 CAPAFY_PUBLISHER_STATE_HOME="${CAPAFY_PUBLISHER_STATE_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher}"
-WS="${CAPAFY_WORKSPACE:-$CAPAFY_PUBLISH_HOME/.openclaw/workspace}"
 SKILL_NAME="$(basename "$SKILL_DIR")"
+export CAPAFY_PUBLISHER_STATE_HOME
+if [ "${CAPAFY_PUBLISH_LOCK_HELD:-}" != "1" ]; then
+  exec python3 "$AUTO/scripts/with_publish_lock.py" "$0" "$@"
+fi
 
 # launchd and direct recovery runs must use the same private credential SSOT.
 # Load names into the process only; never copy values into the repo or output.
@@ -47,6 +50,9 @@ for ENV_FILE in "$LIFE_MANAGER_STATE_HOME/.env"; do
     set -a; . "$ENV_FILE" 2>/dev/null; set +a
   fi
 done
+# Vendored OpenClaw resolution prioritizes these overrides above HOME. An
+# inherited operator path would package another profile's model or secrets.
+unset OPENCLAW_CONFIG_PATH OPENCLAW_STATE_DIR
 
 step(){ echo ""; echo "━━━ $* ━━━"; }
 die(){ echo "❌ $*"; exit 1; }
@@ -55,6 +61,41 @@ step "[0] LINT $LISTING"
 python3 "$AUTO/scripts/lint_listing.py" "$LISTING" || die "lint FAIL — fix the listing first"
 [ -f "$ICON" ] || die "icon not found: $ICON"
 [ -d "$SKILL_DIR" ] || die "skill dir not found: $SKILL_DIR"
+TITLE="$(grep -A1 '^## Title' "$LISTING" | tail -1)"
+# Resolve the Agent identity before writing its package inputs. Existing Agents
+# get an ID-owned HOME; fresh candidates get a unique bootstrap HOME.
+export HOME="$CAPAFY_PUBLISH_HOME_BASE"
+export CAPAFY_PUBLISHER_STATE_HOME
+unset CAPAFY_PUBLISH_WORK_DIR
+mkdir -p "$CAPAFY_PUBLISH_HOME_BASE"
+cd "$PUB" || die "cd PUB"
+PRELIST="$(python3 packager.py publish-list 2>/dev/null)" \
+  || die "publish-list failed before preparing inputs"
+PRESELECTOR=(--title "$TITLE" --require-free-slot)
+[ -z "$REUSE_AGENT_ID" ] || PRESELECTOR+=(--reuse-agent-id "$REUSE_AGENT_ID")
+PRESELECTED_ID="$(printf '%s' "$PRELIST" | python3 "$AUTO/scripts/select_publish_agent.py" "${PRESELECTOR[@]}")" \
+  || die "cannot bind package inputs to a unique Agent"
+if [ -n "$PRESELECTED_ID" ]; then
+  CAPAFY_PUBLISH_HOME="$CAPAFY_PUBLISH_HOME_BASE/agents/$PRESELECTED_ID"
+else
+  mkdir -p "$CAPAFY_PUBLISH_HOME_BASE/bootstrap"
+  CAPAFY_PUBLISH_HOME="$(mktemp -d "$CAPAFY_PUBLISH_HOME_BASE/bootstrap/$SKILL_NAME.XXXXXX")" \
+    || die "could not allocate unique publisher HOME"
+fi
+WS="$CAPAFY_PUBLISH_HOME/.openclaw/workspace"
+[ -z "${CAPAFY_WORKSPACE:-}" ] || [ "$CAPAFY_WORKSPACE" = "$WS" ] \
+  || die "CAPAFY_WORKSPACE override is not Agent-isolated"
+CFG_ONE="$CAPAFY_PUBLISH_HOME/listing-config.json"
+python3 "$AUTO/scripts/build_config.py" "$LISTING" "$ICON" "$CFG_ONE" >/dev/null \
+  || die "build_config failed"
+read -r CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS < <(
+  python3 - "$CFG_ONE" <<'PY'
+import json, sys
+config = json.load(open(sys.argv[1], encoding="utf-8"))
+print(config["model_id"], config["max_tokens"])
+PY
+)
+export CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS
 
 step "[0b] KEY-HEALTH GATE (fail-closed) — never publish into an under-funded host key"
 # 2026-07-18 A1: 4 agents were rejected with a billing error caused by a THIN OpenRouter
@@ -75,16 +116,17 @@ cp -R "$SKILL_DIR" "$WS/skills/$SKILL_NAME" || die "clean-WS copy failed"
 # Give that runtime one explicit hosted provider contract.  Keep only an env
 # reference here: CP2 supplies the real key from the private state env.
 mkdir -p "$CAPAFY_PUBLISH_HOME/.openclaw"
-python3 - "$CAPAFY_PUBLISH_HOME/.openclaw/openclaw.json" <<'PY'
+python3 - "$CAPAFY_PUBLISH_HOME/.openclaw/openclaw.json" "$CAPAFY_HOSTED_MODEL_ID" "$CAPAFY_HOSTED_MAX_TOKENS" <<'PY'
 import json, sys
+model_id, max_tokens = sys.argv[2], int(sys.argv[3])
 json.dump({
   "models": {"providers": {"openrouter": {
     "baseUrl": "https://openrouter.ai/api/v1",
     "api": "openai-responses",
     "apiKey": "${CAPAFY_HOST_OPENROUTER_KEY}",
-    "models": [{"id": "anthropic/claude-sonnet-4.6", "name": "Claude Sonnet 4.6"}]
+    "models": [{"id": model_id, "name": model_id, "maxTokens": max_tokens}]
   }}},
-  "agents": {"defaults": {"model": {"primary": "openrouter/anthropic/claude-sonnet-4.6"}}}
+  "agents": {"defaults": {"model": {"primary": "openrouter/" + model_id}}}
 }, open(sys.argv[1], "w"), ensure_ascii=False, indent=2)
 PY
 
@@ -100,11 +142,13 @@ TITLE="$(grep -A1 '^## Title' "$LISTING" | tail -1)"
 # top-level agents array and fails closed on duplicate/invalid rows.
 LIST_OUT="$(python3 packager.py publish-list 2>/dev/null)" \
   || die "publish-list failed; cannot select an Agent safely"
-SELECTOR_ARGS=(--title "$TITLE")
+SELECTOR_ARGS=(--title "$TITLE" --require-free-slot)
 [ -z "$REUSE_AGENT_ID" ] || SELECTOR_ARGS+=(--reuse-agent-id "$REUSE_AGENT_ID")
 if ! ID="$(printf '%s' "$LIST_OUT" | python3 "$AUTO/scripts/select_publish_agent.py" "${SELECTOR_ARGS[@]}")"; then
   die "publish-list Agent selection failed closed (duplicate or invalid official shape)"
 fi
+[ "$ID" = "$PRESELECTED_ID" ] \
+  || die "Agent identity changed after package inputs were prepared"
 if [ -n "$REUSE_AGENT_ID" ] && [ "$ID" != "$REUSE_AGENT_ID" ]; then
   die "explicit reuse target is missing or is not draft/review_rejected: $REUSE_AGENT_ID"
 fi
@@ -182,6 +226,17 @@ except: print('')")"
   export CAPAFY_PUBLISH_WORK_DIR="$AGENT_WORK_DIR"
 fi
 
+python3 "$AUTO/scripts/publish_input_contract.py" write \
+  --agent-id "$ID" --skill-name "$SKILL_NAME" --config "$CFG_ONE" \
+  --workspace "$WS" --publisher-home "$CAPAFY_PUBLISH_HOME" \
+  --work-dir "$CAPAFY_PUBLISH_WORK_DIR" \
+  || die "could not bind publisher inputs to agent_id=$ID"
+AGENT_VERSION_ID="$(python3 - "$CAPAFY_PUBLISH_WORK_DIR/publisher-inputs.json" <<'PY'
+import json,sys
+print(json.load(open(sys.argv[1], encoding="utf-8"))["agent_version_id"])
+PY
+)" || die "prepared version identity is missing"
+
 REFRESH_RC=0
 RAW="$(python3 packager.py publish-refresh-url --agent-id "$ID" --step init 2>/dev/null)" || REFRESH_RC=$?
 [ "$REFRESH_RC" -eq 0 ] || die "publish-refresh-url failed; no edit URL was stored"
@@ -190,12 +245,9 @@ EDIT_URL_RESULT="$(printf '%s' "$RAW" | python3 "$AUTO/scripts/save_review_url.p
   || die "publish-refresh-url response failed strict Agent-ID/URL validation"
 EDIT_URL_FILE="$(printf '%s' "$EDIT_URL_RESULT" | sed -n 's/^EDIT_URL_FILE=//p' | tail -1)"
 [ "$EDIT_URL_FILE" = "$EDIT_URL_PATH" ] || die "review URL file path was not returned as expected"
-CFG_ONE="$CAPAFY_PUBLISHER_STATE_HOME/cfg_one.json"
-mkdir -p "$CAPAFY_PUBLISHER_STATE_HOME"
-python3 "$AUTO/scripts/build_config.py" "$LISTING" "$ICON" "$CFG_ONE" >/dev/null 2>&1 || die "build_config failed"
-
 step "PREPARE DONE — hand off to agentic CP1"
 echo "AGENT_ID=$ID"
+echo "AGENT_VERSION_ID=$AGENT_VERSION_ID"
 echo "EDIT_URL_FILE=$EDIT_URL_FILE"
 echo "CONFIG_PATH=$CFG_ONE"
 echo ""
@@ -209,4 +261,4 @@ for p in c["plans"]:
 print("  category:", c.get("category"), "| model:", c.get("model"))
 PY
 echo ""
-echo "NEXT: drive CP1 agentically (CP1_AGENTIC.md), then: publish_finish.sh $ID"
+echo "NEXT: drive CP1 agentically (CP1_AGENTIC.md), then: publish_finish.sh $ID $SKILL_NAME '$LISTING' $AGENT_VERSION_ID"

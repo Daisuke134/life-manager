@@ -12,6 +12,12 @@ from collections import Counter
 KNOWN_STATUSES = frozenset(
     {"draft", "review_rejected", "under_review", "approved", "online"}
 )
+UNLISTED_STATUSES = frozenset({"draft", "under_review", "review_rejected"})
+CAPACITY_STATUSES = KNOWN_STATUSES | frozenset({
+    "banned", "offline", "user_offline", "user_delisted", "taken_down",
+    "pending_online", "audit_passed_pending_online",
+})
+CAPAFY_REVIEW_CAP = 5
 
 
 def _fail(message: str) -> int:
@@ -51,11 +57,17 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--title", required=True)
     parser.add_argument("--reuse-agent-id", default="")
+    parser.add_argument("--require-free-slot", action="store_true")
     args = parser.parse_args(argv)
 
     agents, code = _load_agents()
     if agents is None:
         return code
+    if args.require_free_slot:
+        if any(agent["agent_status"] not in CAPACITY_STATUSES for agent in agents):
+            return _fail("inventory has unsupported status; review capacity unknown")
+        if sum(agent["agent_status"] in UNLISTED_STATUSES for agent in agents) >= CAPAFY_REVIEW_CAP:
+            return _fail("CAP_FULL: no review slot for a new version")
     title = str(args.title or "").strip()
     if not title:
         return _fail("title must not be empty")
