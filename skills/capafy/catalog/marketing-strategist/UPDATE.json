@@ -2,5 +2,6 @@
   "agent_id": "9563867391",
   "from_version_id": "2070737929294868480",
   "target_model_id": "deepseek/deepseek-v4.1-flash",
+  "icon_sha256": "5a1006789b42b933f02cbe72bd737340e120d6bb46a154066e6adbbea421c7b7",
   "reason": "paid_hosted_402_recovery"
 }
