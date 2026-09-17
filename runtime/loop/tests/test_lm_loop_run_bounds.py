@@ -872,6 +872,39 @@ def test_dispatch_reserved_rejects_stale_loaded_release_prefix(tmp_path):
     assert run.call_count == 1
 
 
+def test_dispatch_drift_syncs_one_idle_owner_without_resending(tmp_path):
+    current = tmp_path / "release"
+    agents = tmp_path / "agents"
+    (current / "config").mkdir(parents=True)
+    agents.mkdir()
+    row = {
+        "label": "ai.anicca.example", "domain": "earn", "entrypoint": "bin/example",
+        "cadence": {"start_interval_seconds": 300}, "effect_class": "none",
+        "state_root": "~/.local/state/life-manager/example",
+        "log_root": "~/.local/state/life-manager/example/logs",
+        "cleanup": {"max_runs": 10, "max_age_days": 7},
+        "provider_route": "deterministic",
+    }
+    (current / "config/loop-registry.json").write_text(json.dumps({
+        "schema_version": 2, "loops": {"example": row},
+    }))
+    (agents / "ai.anicca.example.plist").write_bytes(plistlib.dumps({
+        "ProgramArguments": ["/old/bin/lm-loop-run", "example", "/old"],
+    }))
+    expected = [str(current.resolve() / "bin/lm-loop-run"),
+                "example", str(current.resolve())]
+    with (patch("runtime.loop.lm_loop_run.apply_live", create=True,
+                return_value=[{"ok": True, "loaded_arguments": expected}]) as apply,
+          patch("runtime.loop.lm_loop_run.defer_durable_resource") as defer,
+          patch("runtime.loop.lm_loop_run.subprocess.run") as run):
+        assert _dispatch_reserved(["example"], current=current, agents_dir=agents) == []
+    apply.assert_called_once()
+    assert apply.call_args.kwargs["target"] == "example"
+    assert apply.call_args.kwargs["skip_busy"] is True
+    defer.assert_not_called()
+    run.assert_not_called()
+
+
 def test_dispatch_release_drift_preserves_real_sqlite_waiter(tmp_path, monkeypatch):
     admission_root = tmp_path / "admission"
     monkeypatch.setenv("LIFE_MANAGER_RESOURCE_ADMISSION_ROOT", str(admission_root))

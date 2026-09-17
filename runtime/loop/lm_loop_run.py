@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path
+from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path, apply_live
 from runtime.loop.lm_loop_apply import _loaded_arguments
 from runtime.loop.loop_cleanup import remove_owned_tree
 from runtime.loop.macos_loop_registry import validate_registry
@@ -354,7 +354,16 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
             continue
         expected = [str(root / "bin/lm-loop-run"), loop_id, str(root)]
         if arguments != expected:
-            defer(loop_id)
+            try:
+                applied = apply_live(
+                    root, installed, safe, target=loop_id, skip_busy=True,
+                    protocol_reader=durable_protocol_version)
+            except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):
+                defer(loop_id)
+                continue
+            if not any(result.get("ok") and result.get("loaded_arguments") == expected
+                       for result in applied):
+                defer(loop_id)
             continue
         service = f"gui/{os.getuid()}/{label}"
         try:
