@@ -94,7 +94,10 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   CloakBrowser Chromium timed out at 30 seconds and system Chrome at 20
   seconds (network-service/Mach port errors). Both own process groups were
   terminated, temporary profiles removed, and no probe profile process
-  remained. A scheduled browser owner built on this path would not be a
+  remained. A second isolated CloakBrowser attempt using the same
+  `--no-sandbox` family as the existing owner also timed out at 20 seconds
+  with network/GPU child exits; its process group and temporary profile were
+  cleaned. A scheduled browser owner built on this path would not be a
   reliable operational healthcheck, so none was registered.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
