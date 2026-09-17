@@ -4,8 +4,8 @@ Status: `IN_PROGRESS` — production code and schema are live; the seven-day nat
 
 ## Current production readback
 
-- Merged main deployment: `b325a34d5b8e3ca9eaecc396311026d58d0ce399`.
-- Railway `life-call` deployment: `SUCCESS`; `/health` returned `200` with the same build SHA.
+- Merged main deployment: `294534883b82a98080b02000dd36d392394dfa6f` (PR #5452 merge).
+- Railway `life-call` deployment: `SUCCESS`, instance `RUNNING`; `/health` returned `200` with build `294534883b82a98080b02000dd36d392394dfa6f`.
 - Production Supabase tables: `lm_verified_outcomes`, `lm_mental_outcome_send_log`, and `lm_mental_profile_tags` exist with additive columns, checks, unique keys, and RLS enabled.
 - `LM_MENTAL_OUTCOME_INGEST_SECRET` is present in production Railway variables.
 - `LM_MENTAL_V1_ALLOWED_UIDS` is present and contains only the Dais tenant UID; the value is never written here.
@@ -26,7 +26,8 @@ The production scheduler also observed the synthetic projection and logged a Tel
 
 ## Remaining canary gates
 
-- Latest automated readback: `v1_count=0`, `legacy_count=34`, `pass=false` over the trailing 14-day window. This is an honest pre-window state, not a canary pass.
+- Latest automated readback at `2026-09-18T03:15:04+09:00`: `v1_count=0`, `legacy_count=34`, `pass=false` over the trailing 14-day window. This is an honest pre-window state, not a canary pass.
+- The merged offline policy scorecard is available for replay, but no policy is promoted from it until natural provider receipts exist; this readback contains no synthetic rows.
 - [ ] Capture one natural Dais morning affirmation in `morning_orientation`.
 - [ ] Capture one natural Dais midday mindfulness/body-awareness line in `midday_awareness`.
 - [ ] Capture one natural Dais evening manifestation/release line in `evening_direction`.
