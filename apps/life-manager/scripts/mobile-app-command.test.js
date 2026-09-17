@@ -40,6 +40,10 @@ test("all mobile publication loops share one command and one manifest", () => {
       assert.equal(resolved.source.canonical_source_rel, "apps/mobile/anicca-ios");
       assert.ok(fs.existsSync(path.join(root, resolved.source.canonical_source_rel, "aniccaios.xcodeproj", "project.pbxproj")));
     }
+    if (expected.product_id === "honne-ai") {
+      assert.equal(resolved.source.canonical_source_rel, "apps/mobile/honne-ai");
+      assert.ok(fs.existsSync(path.join(root, resolved.source.canonical_source_rel, "BenYinFanYiAI.xcodeproj", "project.pbxproj")));
+    }
   }
 });
 
