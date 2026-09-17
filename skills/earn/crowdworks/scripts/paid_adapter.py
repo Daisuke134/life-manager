@@ -640,6 +640,15 @@ class CrowdWorksPaidAdapter:
 
         visible = visible_forms()
         if not visible:
+            dialog = self.page.locator(
+                f'a[href="#message-dialog-completion-{_text(payload.get("milestone_id"))}"]:visible')
+            if dialog.count() == 1:
+                dialog.click()
+                self.page.locator(
+                    f'{selector} textarea[name="message[body]"]:visible').wait_for(
+                    state="visible", timeout=15_000)
+                visible = visible_forms()
+        if not visible:
             def visible_todo_tabs():
                 tabs = self.page.get_by_text("やること", exact=True)
                 return [tabs.nth(index) for index in range(tabs.count()) if tabs.nth(index).is_visible()]
