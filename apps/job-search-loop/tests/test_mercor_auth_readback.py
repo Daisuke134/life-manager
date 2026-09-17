@@ -33,6 +33,12 @@ class MercorAuthReadbackTests(unittest.TestCase):
             login_form_visible=False,
         ), "indeterminate")
         self.assertEqual(classify_auth_snapshot(
+            url="https://work.mercor.com/explore",
+            visible_text="Explore Applications Earnings Profile",
+            login_form_visible=False,
+            authenticated_api_status=403,
+        ), "indeterminate")
+        self.assertEqual(classify_auth_snapshot(
             url="https://work.mercor.com/jobs/apply/candidate-one?returnPath=%2Fexplore",
             visible_text=(
                 "General business strategy Evaluator Application\n"

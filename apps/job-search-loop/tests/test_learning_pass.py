@@ -58,6 +58,22 @@ class LearningPassTests(unittest.TestCase):
         self.assertEqual(result["source_count"], 3)
         self.assertEqual(result["income_receipts_promoted"], 0)
 
+    def test_official_source_requires_expected_document_markers(self):
+        import job_search_loop.mercor_learning_sources as sources
+
+        def fake_run(command, *, timeout=30):
+            if command[0].endswith("crwl"):
+                return 0, "transport succeeded but document body is absent", ""
+            return 2, "", "source unavailable"
+
+        with patch.object(sources, "_run", side_effect=fake_run), patch.object(
+            sources.Path, "is_file", return_value=False
+        ):
+            result = collect_sources(observed_at="2026-09-17T11:30:00Z")
+        official = result["sources"][0]
+        self.assertTrue(official["source_unavailable"])
+        self.assertEqual(official["evidence_grade"], "unavailable")
+
     def test_learning_wake_collects_bounded_mercor_sources_before_strategy_run(self):
         script = (Path(__file__).resolve().parents[1] / "scripts" / "run-learning.sh").read_text()
         self.assertIn("mercor_learning_sources collect", script)

@@ -54,21 +54,23 @@ def record_and_notify(
     account_id: str | None = None, step_id: str | None = None,
 ) -> dict[str, Any]:
     exact_key = bool(step_id and step_id.strip())
+    if exact_key and (not isinstance(account_id, str) or not account_id.strip()):
+        raise ValueError("account_id is required when step_id is supplied")
     gate = HumanGateStore(gate_store).record(
         run_id=run_id, reason=f"{listing_id}: {reason}", evidence_ref=evidence_ref,
-        account_id=(account_id or os.environ.get("MERCOR_OPERATOR_ID", "default"))
-        if exact_key else None,
+        account_id=account_id if exact_key else None,
         listing_id=listing_id if exact_key else None,
         step_id=step_id if exact_key else None,
     )
     chat_id = _chat_id(telegram_env)
     if not chat_id:
         raise RuntimeError("job_search_telegram_chat_unavailable")
+    account_label = account_id.strip() if exact_key else "Mercorの既存Daisukeアカウント"
     message = (
         "Codex::: Mercor応募に人間操作が必要です\n\n"
         f"案件: {title.strip()}\n"
         f"リンク: {url.strip() or evidence_ref.strip()}\n"
-        "アカウント: Mercorの既存Daisukeアカウント\n"
+        f"アカウント: {account_label}\n"
         f"必要な操作: {reason.strip()}\n"
         f"期限: {deadline.strip() or '公式期限表示なし'}\n"
         "状態: 人間操作の直前まで進行済みです。完了後、次のwakeが自動再開します。"

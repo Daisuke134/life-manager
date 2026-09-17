@@ -8,6 +8,19 @@ from job_search_loop.mercor_human_gate_notify import record_and_notify
 
 
 class MercorHumanGateNotifyTests(unittest.TestCase):
+    def test_step_gate_requires_explicit_account_id(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            env = root / "telegram.env"
+            env.write_text("JOB_SEARCH_TELEGRAM_CHAT_ID=123\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "account_id"):
+                record_and_notify(
+                    gate_store=root / "gates.jsonl", outbox=root / "outbox.sqlite3",
+                    telegram_env=env, run_id="run-1", listing_id="list-jp",
+                    title="Japanese Writer", reason="assessment",
+                    evidence_ref="run:run-1", step_id="assessment-jp",
+                )
+
     def test_same_human_gate_uses_one_stable_notification_identity(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -38,7 +51,7 @@ class MercorHumanGateNotifyTests(unittest.TestCase):
             self.assertEqual(calls[0]["event_key"], calls[1]["event_key"])
             self.assertIn("人間操作の直前まで進行済み", calls[0]["message"])
             self.assertIn("リンク: https://work.mercor.com/explore?listingId=list-jp", calls[0]["message"])
-            self.assertIn("アカウント: Mercorの既存Daisukeアカウント", calls[0]["message"])
+            self.assertIn("アカウント: daisuke", calls[0]["message"])
             self.assertIn("期限: 公式期限表示なし", calls[0]["message"])
             self.assertNotIn("applicationは保存済み", calls[0]["message"])
             rows = [json.loads(line) for line in (root / "gates.jsonl").read_text().splitlines()]

@@ -145,7 +145,14 @@ def collect_sources(*, query: str = _DEFAULT_QUERY,
 
     crwl = shutil.which("crwl") or "/Users/anicca/.local/bin/crwl"
     code, stdout, stderr = _run([crwl, "crawl", _OFFICIAL_URL, "-o", "markdown-fit"])
-    if code == 0 and stdout.strip():
+    official_text = stdout.casefold()
+    official_ok = (
+        code == 0
+        and stdout.strip()
+        and "apply" in official_text
+        and "submit" in official_text
+    )
+    if official_ok:
         source = build_source_observation(**_base_kwargs(
             source_url=_OFFICIAL_URL,
             source_kind="official_guidance",
@@ -165,7 +172,8 @@ def collect_sources(*, query: str = _DEFAULT_QUERY,
     else:
         sources.append(_unavailable(
             source_url=_OFFICIAL_URL, source_kind="official_guidance",
-            observed_at=timestamp, reason=stderr or f"exit_{code}",
+            observed_at=timestamp,
+            reason=stderr or ("document_markers_missing" if code == 0 else f"exit_{code}"),
         ))
 
     x_script = Path(os.environ.get(
