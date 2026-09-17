@@ -187,6 +187,9 @@ elif git -C "$REPO_ROOT" branch -r --contains "$SHA" 2>/dev/null | grep -q .; th
 else
   die "$SHORT exists only locally -- push it before cutting a release"
 fi
+if [ "$ACTIVATE_CURRENT" = "1" ] && [ "$PROVENANCE" != "ancestor-of-origin-main" ]; then
+  die "current activation requires an origin/main ancestor; use LOOPS_ACTIVATE_CURRENT=0 for a candidate"
+fi
 
 DEST="$RELEASES/$(date +%Y%m%dT%H%M%S)-$SHORT"
 [ -e "$DEST" ] && die "$DEST already exists"
@@ -395,7 +398,8 @@ PY
 )"
   fi
   if [ -n "$CURRENT_SHA" ] && [ "$CURRENT_SHA" != "$SHA" ] \
-    && git -C "$REPO_ROOT" merge-base --is-ancestor "$SHA" "$CURRENT_SHA" 2>/dev/null; then
+    && git -C "$REPO_ROOT" merge-base --is-ancestor "$SHA" "$CURRENT_SHA" 2>/dev/null \
+    && git -C "$REPO_ROOT" merge-base --is-ancestor "$CURRENT_SHA" origin/main 2>/dev/null; then
     BUILD_COMPLETE=0
     die "refusing to move current backwards from $CURRENT_SHA to $SHA"
   fi
