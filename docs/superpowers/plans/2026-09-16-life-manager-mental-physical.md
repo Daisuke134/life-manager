@@ -169,7 +169,7 @@ node --test \
 
 - [ ] Commit, push, merge, and wait for the Railway deployment whose `commitHash` equals merged `main`.
 
-- [ ] Place one authorized real test call. Record non-empty `call_control_id`, terminal provider state, absence of `90029`, and replay-zero.
+- [ ] Place one authorized real test call. Partial evidence is recorded in `docs/evidence/life-manager-mental-canary.md`: provider control ID, HTTP 200, 18-second provider duration, AMD `machine`, and no `90029`; duplicate-call replay-zero remains unrun.
 
 ---
 

@@ -13,6 +13,12 @@ Status: `IN_PROGRESS` — production code and schema are live; the seven-day nat
 - `lm_mental_profile_tags` is present with RLS, closed kind/basis/explicit/source-hash checks, expiry/supersession columns, and zero rows until an explicit source-backed profile statement is available.
 - Production scheduler logs show `organ:mental-outcome` and `organ:mental` startup/ticks.
 
+## Telnyx authorized test-call receipt
+
+- The post-fix authorized `/test-call` returned HTTP `200` with provider control ID `v3:tobFLiJMYkq_lUpUidoo8WXcofHUuutSy-vcIt__FxA9sHa-BqrQJA`.
+- Telnyx `GET /v2/calls/{call_control_id}` returned HTTP `200` and `call_duration=18`; the related signed webhook logged AMD `machine` and the test branch performed no automatic hangup.
+- No `90029` or `time_limit_secs` rejection appeared in the provider response/log readback. Duplicate-call replay-zero was not run because the first provider effect was already accepted.
+
 ## Signed outcome bridge proof
 
 - A synthetic structured projection was posted to production over HTTPS.
