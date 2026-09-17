@@ -9,6 +9,27 @@ const {
 
 const MAX_COST_MULTIPLIER = 1.2;
 const MAX_LATENCY_MULTIPLIER = 1.2;
+const CANDIDATE_BOUNDARY_SCHEMA_VERSION = 1;
+const CANDIDATE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
+const CANDIDATE_HASH = /^[a-f0-9]{64}$/u;
+const CANDIDATE_PATH = /^[A-Za-z0-9._/-]{1,512}$/u;
+const CANDIDATE_REF = /^[a-z][a-z0-9+.-]*:\/\/\S{1,1024}$/iu;
+const CANDIDATE_CAPABILITIES = Object.freeze([
+  "identity", "permissions", "credentials", "evidence_rules", "evaluator",
+  "provider_effect", "scheduler",
+]);
+const PROTECTED_CANDIDATE_PATHS = Object.freeze([
+  /^AGENTS\.md$/u,
+  /^CLAUDE\.md$/u,
+  /^\.github\//u,
+  /^config\//u,
+  /^runtime\//u,
+  /^apps\/life-manager\/eval\/agent-contract\//u,
+  /^apps\/life-manager\/lib\/(?:product-onboarding|notification-policy)\.js$/u,
+  /^skills\/(?:context|eval|goal|graph|harness|loop|observability)-engineering\//u,
+  /^skills\/loop-development\//u,
+  /(^|\/)(?:credentials?|secrets?|state|\.env)(?:\/|$)/iu,
+]);
 
 function invalid(label) {
   throw new Error(`EvalGate ${label} invalid`);
@@ -29,6 +50,65 @@ function finiteRatio(value, label) {
 function nonNegativeInteger(value, label) {
   if (!Number.isSafeInteger(value) || value < 0) invalid(label);
   return value;
+}
+
+function validateCandidateBoundary(value) {
+  exactKeys(value, [
+    "schema_version", "candidate_id", "base_release_sha256", "candidate_sha256",
+    "changed_paths", "capabilities", "rollback_ref",
+  ], "candidate boundary");
+  if (value.schema_version !== CANDIDATE_BOUNDARY_SCHEMA_VERSION) invalid("candidate boundary version");
+  if (typeof value.candidate_id !== "string" || !CANDIDATE_ID.test(value.candidate_id)) {
+    invalid("candidate boundary candidate_id");
+  }
+  if (typeof value.base_release_sha256 !== "string" || !CANDIDATE_HASH.test(value.base_release_sha256)) {
+    invalid("candidate boundary base hash");
+  }
+  if (typeof value.candidate_sha256 !== "string" || !CANDIDATE_HASH.test(value.candidate_sha256)) {
+    invalid("candidate boundary candidate hash");
+  }
+  if (!Array.isArray(value.changed_paths) || value.changed_paths.length < 1 || value.changed_paths.length > 1024) {
+    invalid("candidate boundary changed paths");
+  }
+  const changedPaths = value.changed_paths.map((changedPath) => {
+    if (typeof changedPath !== "string" || !CANDIDATE_PATH.test(changedPath)
+      || changedPath.startsWith("/") || changedPath.includes("..") || changedPath.includes("\\")) {
+      invalid("candidate boundary path");
+    }
+    return changedPath;
+  });
+  if (new Set(changedPaths).size !== changedPaths.length) invalid("candidate boundary duplicate path");
+  exactKeys(value.capabilities, CANDIDATE_CAPABILITIES, "candidate boundary capabilities");
+  const reasons = [];
+  for (const capability of CANDIDATE_CAPABILITIES) {
+    if (value.capabilities[capability] !== false) reasons.push("mutation_capability_forbidden");
+  }
+  for (const changedPath of changedPaths) {
+    if (PROTECTED_CANDIDATE_PATHS.some((pattern) => pattern.test(changedPath))) {
+      reasons.push("protected_path_changed");
+    } else if (!(
+      changedPath.startsWith("prompts/")
+      || changedPath.startsWith("docs/agent-engineering/")
+      || /^skills\/[^/]+\/SKILL\.md$/u.test(changedPath)
+      || /^skills\/[^/]+\/prompts\//u.test(changedPath)
+    )) {
+      reasons.push("candidate_path_not_allowed");
+    }
+  }
+  if (typeof value.rollback_ref !== "string" || !CANDIDATE_REF.test(value.rollback_ref)) {
+    invalid("candidate boundary rollback_ref");
+  }
+  return Object.freeze({
+    schema_version: CANDIDATE_BOUNDARY_SCHEMA_VERSION,
+    candidate_id: value.candidate_id,
+    base_release_sha256: value.base_release_sha256,
+    candidate_sha256: value.candidate_sha256,
+    changed_paths: Object.freeze(changedPaths),
+    capabilities: Object.freeze({ ...value.capabilities }),
+    rollback_ref: value.rollback_ref,
+    promotable: reasons.length === 0,
+    reasons: Object.freeze([...new Set(reasons)]),
+  });
 }
 
 function validateBaseline(value) {
@@ -161,8 +241,38 @@ function decidePromotionGate(input) {
   });
 }
 
+function decideCandidatePromotion(input) {
+  exactKeys(input, ["eval", "candidateBoundary"], "candidate promotion input");
+  if (!input.candidateBoundary || typeof input.candidateBoundary !== "object"
+    || Array.isArray(input.candidateBoundary)) {
+    throw new Error("EvalGate candidate boundary required");
+  }
+  const boundary = validateCandidateBoundary(input.candidateBoundary);
+  const evaluation = decidePromotionGate(input.eval);
+  const reasons = [...new Set([
+    ...evaluation.gate.reasons,
+    ...boundary.reasons,
+  ])].slice(0, 16);
+  const promote = evaluation.promote && boundary.promotable;
+  const gate = validateGate({
+    ...evaluation.gate,
+    decision: promote ? "pass" : "block",
+    reasons: promote ? [] : reasons.length ? reasons : ["candidate_boundary_blocked"],
+  });
+  return Object.freeze({
+    promote,
+    boundary,
+    gate,
+    metrics: evaluation.metrics,
+  });
+}
+
 module.exports = {
+  CANDIDATE_BOUNDARY_SCHEMA_VERSION,
+  CANDIDATE_CAPABILITIES,
   MAX_COST_MULTIPLIER,
   MAX_LATENCY_MULTIPLIER,
+  decideCandidatePromotion,
   decidePromotionGate,
+  validateCandidateBoundary,
 };

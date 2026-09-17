@@ -3,7 +3,11 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 
-const { decidePromotionGate } = require("./gate.js");
+const {
+  decideCandidatePromotion,
+  decidePromotionGate,
+  validateCandidateBoundary,
+} = require("./gate.js");
 const { EVAL_SCHEMA_VERSION } = require("./records.js");
 
 const HASH = "a".repeat(64);
@@ -76,6 +80,27 @@ function input(overrides = {}) {
   };
 }
 
+function candidateBoundary(overrides = {}) {
+  return {
+    schema_version: 1,
+    candidate_id: "candidate-1",
+    base_release_sha256: "c".repeat(64),
+    candidate_sha256: "b".repeat(64),
+    changed_paths: ["skills/example/SKILL.md"],
+    capabilities: {
+      identity: false,
+      permissions: false,
+      credentials: false,
+      evidence_rules: false,
+      evaluator: false,
+      provider_effect: false,
+      scheduler: false,
+    },
+    rollback_ref: "rollback://candidate-1",
+    ...overrides,
+  };
+}
+
 test("EVAL-03 passes only when held-out, safety, cost, latency, live evidence, and rollback clear", () => {
   const result = decidePromotionGate(input());
   assert.equal(result.promote, true);
@@ -105,4 +130,50 @@ test("missing held-out coverage, score identity mismatch, and absent rollback fa
   assert.equal(decidePromotionGate(input({ scores: [score("score-tuning", "case-tuning"), score("score-other", "case-other")] })).promote, false);
   assert.equal(decidePromotionGate(input({ rollback_ref: null })).promote, false);
   assert.throws(() => decidePromotionGate(input({ baseline: { held_out_score: 2, cost_minor: 10, latency_ms: 100, safety: "pass" } })), /baseline/i);
+});
+
+test("candidate promotion requires the immutable candidate boundary as well as the eval gate", () => {
+  const result = decideCandidatePromotion({
+    eval: input(),
+    candidateBoundary: candidateBoundary(),
+  });
+  assert.equal(result.promote, true);
+  assert.equal(result.boundary.promotable, true);
+  assert.equal(result.gate.decision, "pass");
+});
+
+test("candidate boundary blocks protected paths and mutation capabilities", () => {
+  const protectedPath = validateCandidateBoundary(candidateBoundary({
+    changed_paths: ["runtime/loop/lm_loop.py"],
+  }));
+  assert.equal(protectedPath.promotable, false);
+  assert.ok(protectedPath.reasons.includes("protected_path_changed"));
+
+  const capability = validateCandidateBoundary(candidateBoundary({
+    capabilities: {
+      ...candidateBoundary().capabilities,
+      permissions: true,
+    },
+  }));
+  assert.equal(capability.promotable, false);
+  assert.ok(capability.reasons.includes("mutation_capability_forbidden"));
+});
+
+test("a blocked candidate boundary cannot promote even when every eval metric passes", () => {
+  const result = decideCandidatePromotion({
+    eval: input(),
+    candidateBoundary: candidateBoundary({
+      changed_paths: ["apps/life-manager/eval/agent-contract/gate.js"],
+    }),
+  });
+  assert.equal(result.promote, false);
+  assert.equal(result.gate.decision, "block");
+  assert.ok(result.gate.reasons.includes("protected_path_changed"));
+});
+
+test("candidate promotion refuses a missing boundary instead of falling back to the legacy gate", () => {
+  assert.throws(
+    () => decideCandidatePromotion({ eval: input(), candidateBoundary: null }),
+    /candidate boundary/i,
+  );
 });
