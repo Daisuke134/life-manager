@@ -1265,7 +1265,7 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                     )
                 else:
                     connection.execute(
-                        "UPDATE occurrences SET state=? WHERE occurrence_id=?",
+                        "UPDATE occurrences SET state=?,effect_unknown=0 WHERE occurrence_id=?",
                         ("queued" if requeue else "released", occurrence_id),
                     )
             elif effect_unknown:
