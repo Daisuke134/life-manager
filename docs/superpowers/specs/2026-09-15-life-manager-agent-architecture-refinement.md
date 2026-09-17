@@ -85,6 +85,20 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   queue-age before/after and receipt pointers here, then hand provider effect
   and readback blockers to their owners without claiming all loops work.
 
+A15-02 integration observation: PR #5362 at `eb72e7cb1b` has seven passing CI
+checks and one failing `OSS self-contained boundary` check. The local verifier
+reproduces `manifest_inventory_mismatch` at `skills/_shared` and
+`forbidden_source_root` at `skills/earn/gig/TODO.md`; neither path is in this
+PR's diff. Keep A15-02 open until the owner-controlled source/baseline issue is
+resolved and the exact PR head passes CI. During the broader local unittest
+run, disk free space fell to about 176 MiB, causing temporary-file `ENOSPC`
+errors; the focused A15-01 test and CI loop contracts passed. `lm-loop status`
+also could not create a temporary file at that point. Free space later rose
+to 1.4 GiB, but cleanup's latest status is outer `fail`/
+`entrypoint_exit_1` at release `393f17458a4e`; a prior pass is recorded at
+2026-09-17T11:31:01Z. The cause of the later free-space rise is unverified.
+This remains an open A15-12 runtime failure.
+
 ## Current foundation correction — fleet first, provider effects second
 
 **The foundation is partially repaired, not Done.** The active A15 checklist
