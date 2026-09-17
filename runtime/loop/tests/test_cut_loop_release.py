@@ -49,12 +49,12 @@ class CutLoopReleaseTest(unittest.TestCase):
                        check=True, capture_output=True)
         return repo, main_sha, candidate_sha
 
-    def _cut_sparse(self, root, repo, sha, *, activate):
+    def _cut_sparse(self, root, repo, sha, *, activate, paths="payload.txt"):
         return subprocess.run(
             ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), sha],
             cwd=repo,
             env={**os.environ, "LIFE_MANAGER_SOURCE_REPO": str(repo),
-                 "LOOPS_ROOT": str(root / "loops"), "LOOPS_RELEASE_PATHS": "payload.txt",
+                 "LOOPS_ROOT": str(root / "loops"), "LOOPS_RELEASE_PATHS": paths,
                  "LOOPS_ACTIVATE_CURRENT": "1" if activate else "0",
                  "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
                  "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
@@ -71,6 +71,15 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertIn("origin/main", result.stderr)
             self.assertFalse((root / "loops/current").exists())
 
+    def test_sparse_main_release_cannot_activate_global_current(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, main_sha, _candidate_sha = self._pushed_branch_fixture(root)
+            result = self._cut_sparse(root, repo, main_sha, activate=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("complete release", result.stderr)
+            self.assertFalse((root / "loops/current").exists())
+
     def test_main_release_recovers_current_from_unmerged_branch(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -79,7 +88,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             self.assertEqual(candidate.returncode, 0, candidate.stderr)
             release = next((root / "loops/releases").iterdir())
             (root / "loops/current").symlink_to(release)
-            recovered = self._cut_sparse(root, repo, main_sha, activate=True)
+            recovered = self._cut_sparse(root, repo, main_sha, activate=True, paths="")
             self.assertEqual(recovered.returncode, 0, recovered.stderr)
             self.assertEqual(json.loads((root / "loops/current/RELEASE.json").read_text())["sha"],
                              main_sha)
@@ -192,37 +201,25 @@ class CutLoopReleaseTest(unittest.TestCase):
     def test_release_cannot_move_current_to_an_older_main_ancestor(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            repo, older_sha, _candidate_sha = self._pushed_branch_fixture(root)
+            subprocess.run(["git", "switch", "main"], cwd=repo, check=True,
+                           capture_output=True)
+            (repo / "payload.txt").write_text("newer main\n")
+            subprocess.run(["git", "commit", "-am", "newer main"], cwd=repo,
+                           check=True, capture_output=True)
+            current_sha = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+            subprocess.run(["git", "push", "origin", "main"], cwd=repo,
+                           check=True, capture_output=True)
             loops = root / "loops"
             current_release = loops / "releases" / "current-release"
             current_release.mkdir(parents=True)
-            current_sha = "fb80cadd5d0bba58de3fece64db6ab0203ba1e83"
-            older_sha = "1d4bca431546c1604c388abbe6542c9764d274e8"
             (current_release / "RELEASE.json").write_text(
                 json.dumps({"sha": current_sha, "release_paths": "ALL"}) + "\n"
             )
             current = loops / "current"
             current.symlink_to(current_release)
-            agents = root / "agents"
-            agents.mkdir()
-            admission = root / "admission"
-            admission.mkdir()
-
-            result = subprocess.run(
-                ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), older_sha],
-                cwd=ROOT,
-                env={
-                    **os.environ,
-                    "LOOPS_ROOT": str(loops),
-                    "LOOPS_RELEASE_PATHS": "runtime/loop",
-                    "LOOPS_KEEP_RELEASES": "1",
-                    "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
-                    "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(admission),
-                    "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
-                },
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+            result = self._cut_sparse(root, repo, older_sha, activate=True, paths="")
 
             self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn("current backwards", result.stderr)
@@ -307,7 +304,7 @@ class CutLoopReleaseTest(unittest.TestCase):
             result = subprocess.run(
                 ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), "origin/main"],
                 cwd=ROOT,
-                env={**os.environ, "LOOPS_ROOT": str(loops), "LOOPS_KEEP_RELEASES": "2", "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint", "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"), "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"), "NPM_BIN": str(npm), "NPM_VERSION": "test", "NPM_NODE_VERSION": "test"},
+                env={**os.environ, "LOOPS_ROOT": str(loops), "LOOPS_KEEP_RELEASES": "2", "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint", "LOOPS_ACTIVATE_CURRENT": "0", "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"), "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"), "NPM_BIN": str(npm), "NPM_VERSION": "test", "NPM_NODE_VERSION": "test"},
                 capture_output=True, text=True, check=False,
             )
 
@@ -420,6 +417,7 @@ class CutLoopReleaseTest(unittest.TestCase):
                     "LOOPS_ROOT": str(root / "loops"),
                     "LOOPS_KEEP_RELEASES": "1",
                     "LOOPS_RELEASE_PATHS": "package.json package-lock.json runtime/compute-proxy runtime/agentmail apps/life-manager skills/earn/x402-sell services/x402-endpoint",
+                    "LOOPS_ACTIVATE_CURRENT": "0",
                     "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
                     "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
                     "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),

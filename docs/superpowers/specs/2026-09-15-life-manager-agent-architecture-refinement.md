@@ -14,6 +14,7 @@ Observed shared-foundation problems and disposition:
 | Problem | Evidence and boundary | Disposition |
 |---|---|---|
 | A branch-only SHA could become global `current` | Release selection admitted a pushed but unmerged SHA. | Fixed in main PR #5351; production `current` must remain an `origin/main` ancestor. |
+| A sparse main-derived release could become global `current` | While a natural reconciler used complete release `f1f5bcb9`, other owner cuts replaced `current` with sparse release `6c7d2062`; exact apply then failed closed with `release is no longer current`. | Open follow-up: `bin/cut-loop-release.sh` now rejects sparse `LOOPS_ACTIVATE_CURRENT=1` on this branch. RED then GREEN test and 22 cut tests passed locally; CI/main/live recovery remain unproved. |
 | One owner with many old wakes could repeatedly win its own next turn | RED fixture selected owner A twice before owner B; production queue had repeated old occurrences. | Fixed in main PR #5354; new-main natural terminals advanced `x402-ledger` → `x402-experiment-franklin1` → `founder-loop-cadence` → `x402-inflow-watch` without deleting pending occurrences. |
 | A same-owner environment JSON replaced an installed plist | `writer-report` installed file was JSON, so its installed SHA was unreadable although launchd held a main-derived argv. The writer of that file is not yet identified. | Shared recovery and candidate/rollback repair merged in PRs #5362/#5367. A targeted loaded-idle reconcile restored XML and loaded SHA `f1f5bcb9` with `effect_unknown` still fenced. |
 | Reconciler sometimes exits `entrypoint_exit_1` while idle owners wait | Loaded `a4070714` has both fail and pass outer terminals; one run stayed active for several minutes. Malformed installed input is a concrete candidate, not a proven sole cause. | Open until the repaired main-derived release has a natural outer terminal and an exact first-failure readback. |
@@ -144,7 +145,11 @@ Remaining A15 actions, in order; each checkbox is one observable action:
 - [ ] **A15-14 — record the A15 verdict.** Mark Foundation Done only when
   A15-03 through A15-13 pass. Record main/release/loaded SHA, exact run IDs,
   queue-age before/after and receipt pointers here, then hand provider effect
-  and readback blockers to their owners without claiming all loops work.
+  and readback blockers to their owners without claiming all loops work. Also
+  require the sparse-current fence above on main with a complete current
+  release and a follow-up natural reconciler terminal; subsequent old-SHA
+  runs `18d61b8087f758e8-78178` and `18d61bdd46062100-91865` failed when
+  parallel cuts advanced `current` mid-reconcile.
 
 A15-02 integration observation: an earlier PR #5362 head at `eb72e7cb1b` had
 one failing `OSS self-contained boundary` check. The exact inventory digest
