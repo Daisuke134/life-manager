@@ -285,32 +285,53 @@ def _contract_sources(page: Any) -> dict[str, Any]:
 
 def _proposal_pipeline(page: Any, receipt_count: int) -> dict[str, int]:
     path = "/mypage/proposals/limit:100/sort:Proposal.id/direction:DESC"
-    response = page.goto("https://www.lancers.jp" + path, wait_until="domcontentloaded", timeout=20_000)
-    parsed = urlsplit(str(page.url))
-    if response is None or response.status != 200 or (parsed.scheme, parsed.netloc, parsed.path, parsed.query, parsed.fragment) != ("https", "www.lancers.jp", path, "", ""):
-        raise SourceFailure("proposal_pipeline_unavailable")
-    value = page.evaluate("""() => ({
-      total: document.querySelector("li.p-mypage-pagers__list-item")?.innerText?.trim(),
-      rows: [...document.querySelectorAll("li.p-mypage-work__media.c-media-job")].map(card => ({
-        href: card.querySelector('a[href^="/work/detail/"]')?.getAttribute("href"),
-        status: [...card.querySelectorAll(".c-media-job__statuses > .c-media-job__status")][1]?.innerText?.replace(/\\s+/g, " ")?.trim()
-      }))
-    })""")
-    if not isinstance(value, Mapping) or not isinstance(value.get("rows"), list):
-        raise SourceFailure("proposal_pipeline_unavailable")
-    match = re.fullmatch(r"([0-9][0-9,]*)件中[0-9][0-9,]*-[0-9][0-9,]*件表示", "".join(str(value.get("total") or "").split()))
-    total = int(match.group(1).replace(",", "")) if match else -1
     counts = {key: 0 for key in ("open", "selecting", "canceled", "ended", "working", "unknown")}
-    project_ids = []
-    for row in value["rows"]:
-        if not isinstance(row, Mapping): raise SourceFailure("proposal_pipeline_unavailable")
-        project = re.fullmatch(r"/work/detail/([0-9]+)", str(row.get("href") or ""))
-        status = row.get("status")
-        if project is None or not isinstance(status, str): raise SourceFailure("proposal_pipeline_unavailable")
-        project_ids.append(project.group(1))
-        key = "open" if status.startswith("残り ") else {"選定中": "selecting", "キャンセル": "canceled", "終了": "ended", "進行中": "working"}.get(status, "unknown")
-        counts[key] += 1
-    if total < 0 or total > 100 or total != len(project_ids) or len(project_ids) != len(set(project_ids)):
+    project_ids: list[str] = []
+    total: int | None = None
+    page_number = 1
+    while True:
+        response = page.goto("https://www.lancers.jp" + path, wait_until="domcontentloaded", timeout=20_000)
+        parsed = urlsplit(str(page.url))
+        if response is None or response.status != 200 or (parsed.scheme, parsed.netloc, parsed.path, parsed.query, parsed.fragment) != ("https", "www.lancers.jp", path, "", ""):
+            raise SourceFailure("proposal_pipeline_unavailable")
+        value = page.evaluate("""() => ({
+          total: document.querySelector("li.p-mypage-pagers__list-item")?.innerText?.trim(),
+          rows: [...document.querySelectorAll("li.p-mypage-work__media.c-media-job")].map(card => ({
+            href: card.querySelector('a[href^="/work/detail/"]')?.getAttribute("href"),
+            status: [...card.querySelectorAll(".c-media-job__statuses > .c-media-job__status")][1]?.innerText?.replace(/\\s+/g, " ")?.trim()
+          })),
+          pagers: [...document.querySelectorAll(".p-mypage-pagers a[href]")].map(a => a.getAttribute("href"))
+        })""")
+        if not isinstance(value, Mapping) or not isinstance(value.get("rows"), list):
+            raise SourceFailure("proposal_pipeline_unavailable")
+        match = re.fullmatch(r"([0-9][0-9,]*)件中([0-9][0-9,]*)-([0-9][0-9,]*)件表示", "".join(str(value.get("total") or "").split()))
+        if match is None:
+            raise SourceFailure("proposal_pipeline_incomplete")
+        page_total, start, end = (int(part.replace(",", "")) for part in match.groups())
+        rows = value["rows"]
+        if (total is not None and page_total != total) or start != len(project_ids) + 1 or end != start + len(rows) - 1 or not rows or len(rows) > 100 or end > page_total:
+            raise SourceFailure("proposal_pipeline_incomplete")
+        total = page_total
+        for row in rows:
+            if not isinstance(row, Mapping): raise SourceFailure("proposal_pipeline_unavailable")
+            project = re.fullmatch(r"/work/detail/([0-9]+)", str(row.get("href") or ""))
+            status = row.get("status")
+            if project is None or not isinstance(status, str) or not status.strip(): raise SourceFailure("proposal_pipeline_unavailable")
+            project_ids.append(project.group(1))
+            key = "open" if status.startswith("残り ") else {"選定中": "selecting", "キャンセル": "canceled", "終了": "ended", "進行中": "working"}.get(status, "unknown")
+            counts[key] += 1
+        if end == total:
+            break
+        page_number += 1
+        pagers = value.get("pagers")
+        if not isinstance(pagers, list):
+            raise SourceFailure("proposal_pipeline_incomplete")
+        pattern = rf"/mypage/proposals/(?:limit:100/sort:Proposal\.id/direction:desc/page:{page_number}|page:{page_number}/limit:100/sort:Proposal\.id/direction:desc)"
+        next_paths = {link for link in pagers if isinstance(link, str) and re.fullmatch(pattern, link)}
+        if len(next_paths) != 1:
+            raise SourceFailure("proposal_pipeline_incomplete")
+        path = next_paths.pop()
+    if total != len(project_ids) or len(project_ids) != len(set(project_ids)):
         raise SourceFailure("proposal_pipeline_incomplete")
     return {"current_count": total, "receipt_count": receipt_count, "unlisted_receipt_count": max(0, receipt_count - total), **{f"{key}_count": count for key, count in counts.items()}}
 
