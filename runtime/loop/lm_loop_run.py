@@ -108,6 +108,10 @@ def reset_loop_scratch(state_root: Path, loop_id: str, run_id: str) -> tuple[Pat
             raise RuntimeError("scratch inode changed during creation")
         run_verified = True
         try:
+            marker_fd = os.open(
+                ".terminal-unrecorded", os.O_WRONLY | os.O_CREAT | os.O_EXCL
+                | getattr(os, "O_NOFOLLOW", 0), 0o600, dir_fd=run_fd)
+            os.close(marker_fd)
             owner_fd = os.open(
                 ".owner.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL
                 | getattr(os, "O_NOFOLLOW", 0), 0o600, dir_fd=run_fd)
@@ -115,10 +119,6 @@ def reset_loop_scratch(state_root: Path, loop_id: str, run_id: str) -> tuple[Pat
                 json.dump({"pid": os.getpid(), "process_start": identity}, handle,
                           sort_keys=True, separators=(",", ":"))
                 handle.write("\n"); handle.flush(); os.fsync(handle.fileno())
-            marker_fd = os.open(
-                ".terminal-unrecorded", os.O_WRONLY | os.O_CREAT | os.O_EXCL
-                | getattr(os, "O_NOFOLLOW", 0), 0o600, dir_fd=run_fd)
-            os.close(marker_fd)
             os.fsync(run_fd)
         except Exception:
             raise
