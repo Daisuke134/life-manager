@@ -112,6 +112,8 @@ flowchart LR
 
 **有料Agent更新の供給順:** repo catalogの`marketing-strategist/UPDATE.json`は既存Agent `9563867391` と旧版 `2070737929294868480` を指定する。公式review空きが生じ、同じAgentがonlineかつ旧版のままなら、既存のretryの後・fresh新規候補の前に`update_existing`を1件選ぶ。`publish_prepare`はそのAgent/旧版をpublisher lock内で作成直前に再検査し、不一致ならplatform write 0。更新後はそのwakeで次のfresh Agentを送らず、審査結果とbuyer Test Runを別の自然wakeで確認する。現時点の公式review枠5/5では更新要求は待機し、公開中Sonnet v1.0.0を維持する。
 
+**最新の引き継ぎ:** 提出契約PR `#5323`と有料Agent更新キューPR `#5325`はmainへ統合済み（後者のmerge SHA `19d338b7`）。後者はCI全件PASS、`2026-09-17`の公式5/5 inventoryで`CAP_FULL`・新版作成0・Agent版ID不変を実測した。一方、確認時の稼働`current` releaseは`a617184d`、Capafy供給labelのloaded SHAは`ccc0b47c`であり、PR `#5325`後の自然提出passではない。直近供給terminalは`resource_effect_unknown`、hourly moneyは`resource_capacity_busy`。共有host admissionの修復は別ownerのA15作業として扱い、このCapafy作業ではPID・host-admission DBを操作しない。次はA15の実測合格後にmain由来releaseの対象label読戻し→自然wake→同Agent版提出・buyer Test Runを順に証明する。マーケティング/ReelはDaisの指示で完了gateから除外済み。
+
 | 順 | owner / exact files | 最小変更 | 完了条件 |
 |---|---|---|---|
 | R0-C1 | `skills/capafy-autopublish/scripts/{publish_prepare.sh,publish_finish.sh,build_config.py,drive_checkpoint2.py,key_health_gate.sh,select_publish_agent.py,publish_input_contract.py,verify_cp1_model.py,with_publish_lock.py}`、`skills/capafy/catalog/marketing-strategist/{SKILL.md,LISTING.md,test/case1.md,icon.webp}`、focused tests | 元SKILLとListingをcredential無しでrepo正本へ移し、model ID/capをlisting別に封入する。Agent/版/manifest/source/CP1/CP2を同一契約へ結び、CAP_FULLではplatform write 0。公開中Sonnetのkey probeは維持する。 | code＋公式CAP_FULL no-writeはPASS。残りは同じAgent IDの新版提出、旧版の継続、審査承認、Capafy Test Run全文、provider error 0、品質と1実行costのreadback、secret leak 0。previewの`already_running`は成功と扱わない。 |
