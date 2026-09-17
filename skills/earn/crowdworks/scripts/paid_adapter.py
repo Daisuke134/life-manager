@@ -713,6 +713,28 @@ class CrowdWorksPaidAdapter:
 
     def mutate(self, intent: dict[str, Any]) -> None:
         try:
+            if intent.get("action") == "answer":
+                payload = intent.get("payload")
+                if not isinstance(payload, Mapping):
+                    raise RuntimeError("crowdworks_paid_answer_invalid")
+                body = _text(payload.get("body"))
+                work_id = _text(intent.get("work_id"))
+                current = self._targeted_detail(work_id)
+                if current.get("provider_state") != "funded":
+                    raise RuntimeError("crowdworks_paid_context_changed")
+                self._goto_contract(work_id)
+                areas = self.page.locator('textarea[name="message[body]"]')
+                visible = [areas.nth(index) for index in range(areas.count())
+                           if areas.nth(index).is_visible()]
+                if len(visible) != 1:
+                    raise RuntimeError("crowdworks_paid_message_composer_unavailable")
+                visible[0].fill(body)
+                button = self.page.get_by_role("button", name="メッセージを投稿する", exact=True)
+                if button.count() != 1 or not button.is_visible() or not button.is_enabled():
+                    raise RuntimeError("crowdworks_paid_message_submit_unavailable")
+                button.click()
+                self.page.wait_for_timeout(2_000)
+                return
             if intent.get("action") != "submit" or not isinstance(intent.get("payload"), Mapping):
                 raise RuntimeError("crowdworks_paid_effect_unsupported")
             payload = intent["payload"]
@@ -729,6 +751,19 @@ class CrowdWorksPaidAdapter:
 
     def readback(self, intent: dict[str, Any]) -> dict[str, Any]:
         try:
+            if intent.get("action") == "answer":
+                payload = intent.get("payload")
+                if not isinstance(payload, Mapping):
+                    return {"authoritative_absent": True}
+                body = _text(payload.get("body")); work_id = _text(intent.get("work_id"))
+                self._goto_contract(work_id)
+                visible_body = _text(self.page.locator("body").inner_text(),
+                                     "crowdworks_paid_contract_unavailable")
+                if body in visible_body:
+                    return {"verified": True,
+                            "provider_receipt_id": f"contract:{work_id}:answer:{_text(intent.get('effect_key'))}",
+                            "observed_at": _now()}
+                return {"authoritative_absent": True}
             if intent.get("action") != "submit" or not isinstance(intent.get("payload"), Mapping):
                 return {"authoritative_absent": True}
             payload = intent["payload"]; work_id = _text(intent.get("work_id")); self._goto_contract(work_id)

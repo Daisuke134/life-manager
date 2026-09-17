@@ -110,6 +110,73 @@ def test_no_form_contract_does_not_require_application_date():
     assert action["reason"] == "buyer_task_detail_required"
 
 
+def test_answer_mutation_posts_one_contract_message():
+    module = load()
+    events = []
+
+    class Area:
+        def is_visible(self): return True
+        def fill(self, value): events.append(("fill", value))
+
+    class Areas:
+        def count(self): return 1
+        def nth(self, index): return Area()
+
+    class Button:
+        def count(self): return 1
+        def is_visible(self): return True
+        def is_enabled(self): return True
+        def click(self): events.append(("click", "message"))
+
+    class Page:
+        def locator(self, selector):
+            assert selector == 'textarea[name="message[body]"]'
+            return Areas()
+
+        def get_by_role(self, role, name, exact):
+            assert (role, name, exact) == ("button", "メッセージを投稿する", True)
+            return Button()
+
+        def wait_for_timeout(self, timeout): events.append(("wait", timeout))
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda work_id: events.append(("contract", work_id))
+    adapter._targeted_detail = lambda work_id: funded()
+
+    adapter.mutate({"action": "answer", "work_id": "63570481",
+                    "payload": {"body": "顧客向け回答を再提出します。"}})
+
+    assert events == [
+        ("contract", "63570481"),
+        ("fill", "顧客向け回答を再提出します。"),
+        ("click", "message"),
+        ("wait", 2000),
+    ]
+
+
+def test_answer_readback_requires_seller_visible_body():
+    module = load()
+
+    class Body:
+        def inner_text(self): return "buyer text\n顧客向け回答を再提出します。"
+
+    class Page:
+        def locator(self, selector):
+            assert selector == "body"
+            return Body()
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda work_id: None
+    result = adapter.readback({"action": "answer", "work_id": "63570481",
+                               "effect_key": "answer-key",
+                               "payload": {"body": "顧客向け回答を再提出します。"}})
+
+    assert result["verified"] is True
+    assert result["provider_receipt_id"] == "contract:63570481:answer:answer-key"
+
+
 def test_cached_inventory_detail_is_reused_until_explicit_refresh():
     module = load()
     adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
