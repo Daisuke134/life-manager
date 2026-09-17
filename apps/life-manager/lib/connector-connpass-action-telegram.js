@@ -16,6 +16,7 @@ const UNCERTAIN_REASONS = new Set(["delivery_unknown", "missing_message_id", "pr
 const CLAIM_KEYS = "candidate_snapshot_sha256,claimed_at,schema_version,wake_id";
 const DELIVERY_KEYS = "candidate_snapshot_sha256,observed_at,schema_version,telegram_provider_id,wake_id";
 const UNCERTAIN_KEYS = "candidate_snapshot_sha256,quarantined_at,reason,schema_version,wake_id";
+const QUESTIONNAIRE_KEYS = "candidate_snapshot_sha256,observed_at,questions,schema_version,telegram_provider_id,wake_id";
 const CLAIM_DIR_NAME = "connpass-action-boundary-claims";
 const NO_FOLLOW = fs.constants.O_NOFOLLOW || 0;
 
@@ -56,6 +57,13 @@ function normalize(candidate) {
     preference_reason: publicText(candidate.preference_reason, 500),
   });
 }
+function normalizeQuestionnaire(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) invalid();
+  const candidate = normalize(input.candidate);
+  if (!Array.isArray(input.questions) || input.questions.length < 1 || input.questions.length > 20) invalid();
+  const questions = input.questions.map((question) => publicText(question, 300));
+  return Object.freeze({ candidate, questions: Object.freeze(questions) });
+}
 function digest(value) { return createHash("sha256").update(JSON.stringify(value), "utf8").digest("hex"); }
 function escapeHtml(value) {
   return String(value).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -84,8 +92,13 @@ function validateLedger(row, kind) {
   if (row.schema_version !== 1) invalid();
   if (kind === "delivery" && (typeof row.telegram_provider_id !== "string"
     || !POSITIVE_PROVIDER_ID.test(row.telegram_provider_id) || !Number.isSafeInteger(Number(row.telegram_provider_id)))) invalid();
+  if (kind === "questionnaire" && (typeof row.telegram_provider_id !== "string"
+    || !POSITIVE_PROVIDER_ID.test(row.telegram_provider_id) || !Number.isSafeInteger(Number(row.telegram_provider_id))
+    || !Array.isArray(row.questions) || row.questions.length < 1 || row.questions.length > 20)) invalid();
+  if (kind === "questionnaire") row.questions.forEach((question) => publicText(question, 300));
   if (kind === "uncertain" && (typeof row.reason !== "string" || !UNCERTAIN_REASONS.has(row.reason))) invalid();
-  const timestamp = kind === "claim" ? row.claimed_at : kind === "delivery" ? row.observed_at : row.quarantined_at;
+  const timestamp = kind === "claim" ? row.claimed_at
+    : ["delivery", "questionnaire"].includes(kind) ? row.observed_at : row.quarantined_at;
   if (typeof timestamp !== "string" || exactInstant(timestamp) !== timestamp) invalid();
 }
 function readLedger(file, keys, kind) {
@@ -229,9 +242,71 @@ function createConnpassActionTelegram(options = {}) {
   const send = options.send;
   if (!path.isAbsolute(stateDir) || stateDir === path.parse(stateDir).root || typeof now !== "function" || typeof send !== "function") invalid();
   const file = path.join(stateDir, "connpass-action-boundary-deliveries.jsonl");
+  const questionnaireFile = path.join(stateDir, "connpass-questionnaire-requests.jsonl");
   const claimFile = path.join(stateDir, "connpass-action-boundary-send-claims.jsonl");
   const uncertainFile = path.join(stateDir, "connpass-action-boundary-uncertain.jsonl");
   return Object.freeze({
+    async reportQuestionnaire(input = {}) {
+      let normalized;
+      try { normalized = normalizeQuestionnaire(input); }
+      catch { throw stageError("CONNPASS_QUESTIONNAIRE_CANDIDATE_FAILED"); }
+      const snapshot = digest({
+        event_ref: normalized.candidate.event_ref,
+        questions: normalized.questions,
+      });
+      try { ensurePrivateDirectory(stateDir); }
+      catch { throw stageError("CONNPASS_QUESTIONNAIRE_LEDGER_FAILED"); }
+      let rows;
+      try { rows = readLedger(questionnaireFile, QUESTIONNAIRE_KEYS, "questionnaire"); }
+      catch { throw stageError("CONNPASS_QUESTIONNAIRE_LEDGER_FAILED"); }
+      const existing = rows.find((row) => row.candidate_snapshot_sha256 === snapshot);
+      if (existing) {
+        return Object.freeze({ telegram_provider_id: existing.telegram_provider_id, completion_disposition: "reused" });
+      }
+      let claimed;
+      try { claimed = acquireClaimMarker(stateDir, "questionnaire", snapshot); }
+      catch { throw stageError("CONNPASS_QUESTIONNAIRE_REPORT_UNCERTAIN"); }
+      if (!claimed) throw stageError("CONNPASS_QUESTIONNAIRE_REPORT_UNCERTAIN");
+      const lines = [
+        "Connector::: Connpass質問が未解決のため / 自動申込: 0件",
+        `${normalized.candidate.title}`,
+        normalized.candidate.canonical_url,
+        "",
+        ...normalized.questions.map((question, index) => `${index + 1}. ${question}`),
+        "",
+        "回答を保存後、private profileへ反映して次の自然wakeで再開します。推測回答は行いません。",
+      ];
+      let response;
+      try {
+        response = await send(escapeHtml(lines.join("\n")), {
+          telegramTarget,
+          idempotencyKey: `connpass-questionnaire:${snapshot}`,
+        });
+      } catch {
+        try { quarantine(uncertainFile, wakeId, snapshot, "transport", now); } catch { /* preserve stable stage */ }
+        throw stageError("CONNPASS_QUESTIONNAIRE_REPORT_FAILED");
+      }
+      let providerId;
+      try { providerId = positiveProviderId(response); }
+      catch {
+        try { quarantine(uncertainFile, wakeId, snapshot, "missing_message_id", now); } catch { /* preserve stable stage */ }
+        throw stageError("CONNPASS_QUESTIONNAIRE_REPORT_FAILED");
+      }
+      try {
+        appendDurable(questionnaireFile, Object.freeze({
+          schema_version: 1,
+          wake_id: wakeId,
+          candidate_snapshot_sha256: snapshot,
+          questions: normalized.questions,
+          telegram_provider_id: providerId,
+          observed_at: exactInstant(now()),
+        }));
+      } catch {
+        try { quarantine(uncertainFile, wakeId, snapshot, "delivery_unknown", now); } catch { /* preserve stable stage */ }
+        throw stageError("CONNPASS_QUESTIONNAIRE_REPORT_UNCERTAIN");
+      }
+      return Object.freeze({ telegram_provider_id: providerId, completion_disposition: "created" });
+    },
     async report(input = {}) {
       if (!Array.isArray(input.candidates) || input.candidates.length < 1 || input.candidates.length > 10_000) {
         throw stageError("CONNPASS_ACTION_BOUNDARY_INPUT_FAILED");

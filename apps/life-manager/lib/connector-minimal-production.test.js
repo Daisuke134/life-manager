@@ -228,7 +228,7 @@ test("official production factory exposes the complete minimal wake dependency c
     assert.equal(dependencies.browserRail, browserRail);
     assert.deepEqual(Object.keys(dependencies).sort(), [
       "browserRail", "completeEvidence", "completeTalkEvidence", "discoverCandidates", "now", "readCalendarGaps",
-      "readProviderState", "recordAction", "reportConnpassActionBoundary", "reportWake", "runAgentFallback", "runCachedAction",
+      "readProviderState", "recordAction", "reportConnpassActionBoundary", "reportConnpassQuestionnaire", "reportWake", "runAgentFallback", "runCachedAction",
       "runDirectAction", "runTalkApplication", "saveRepairedActions",
     ]);
     assert.deepEqual(await dependencies.readCalendarGaps(), await calendarReader.readCalendarGaps());
@@ -285,6 +285,8 @@ test("official production factory exposes the manual Connpass boundary only whil
   try {
     assert.equal(typeof createMinimalProductionDependencies(common).reportConnpassActionBoundary, "function");
     assert.equal(createMinimalProductionDependencies({ ...common, connpassAutomatedSubmitAllowed: true }).reportConnpassActionBoundary, undefined);
+    assert.equal(createMinimalProductionDependencies(common).reportConnpassQuestionnaire, undefined);
+    assert.equal(typeof createMinimalProductionDependencies({ ...common, connpassAutomatedSubmitAllowed: true }).reportConnpassQuestionnaire, "function");
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });
 

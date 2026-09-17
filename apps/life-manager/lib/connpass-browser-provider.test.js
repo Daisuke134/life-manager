@@ -364,6 +364,21 @@ test("a required unanswered organizer questionnaire clicks nothing and fails clo
   assert.deepEqual(page.calls, ["url", "click-join", "wait"]);
 });
 
+test("a blocked questionnaire exposes only bounded public question labels", async () => {
+  const page = joinFlowFixture({
+    states: [{ state: "absent" }],
+    questionnaireGroups: [questionnaireGroupFixture({
+      questionText: "必須 Xアカウント（なければ「なし」と記載ください）",
+      fields: [{ tagName: "INPUT", type: "text", name: "q1", value: "", disabled: false }],
+    })],
+  });
+  await assert.rejects(submitConnpassOnPage(page), (error) => {
+    assert.equal(error.code, "CONNPASS_QUESTIONNAIRE_REQUIRED");
+    assert.deepEqual(error.question_labels, ["Xアカウント（なければ「なし」と記載ください）"]);
+    return true;
+  });
+});
+
 test("an optional-only organizer questionnaire does not block registration", async () => {
   const page = joinFlowFixture({
     states: [{ state: "absent" }, { state: "registered" }],
