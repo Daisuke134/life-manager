@@ -9,7 +9,7 @@ const SAFE_REASON = /^[a-z0-9][a-z0-9_:-]{1,99}$/;
 // stack, URL, or env value.
 const ERROR_CLASS = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
 const FALLBACK_COMPLETION_RESERVE_MS = 160_000;
-const CONNPASS_CANDIDATES_PER_WAKE = 4;
+const CONNPASS_CANDIDATES_PER_WAKE = 12;
 
 function invalid() {
   throw new Error("Connector minimal runner invalid");
