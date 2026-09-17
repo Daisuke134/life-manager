@@ -611,7 +611,7 @@ This section is the operational status of the design. The production evidence le
 `docs/evidence/life-manager-mental-canary.md`; its provider readbacks, not a local test or a
 synthetic row, decide whether a rollout milestone is closed.
 
-### 19.1 Implemented and currently not blocking
+### 19.1 Done now (implemented and verified)
 
 - The shared Telnyx boundary clamps `time_limit_secs` to an integer with a minimum of 30. One
   authorized production test call returned a provider receipt without `90029`; duplicate-call
@@ -625,37 +625,37 @@ synthetic row, decide whether a rollout milestone is closed.
   buttons or reply instruction.
 - Explicit profile/correction intake, the signed verified-outcome bridge, the bounded safety
   adapter, and the offline policy scorecard are implemented and covered by focused tests.
-- Production deployment, schema/RLS readback, tenant preflight, and worker health are already
-  recorded as passing in the evidence ledger. These are not the current release blocker.
+- The live `life-call` deployment is `92e9fc01664b65e8a22d37d3969b8379c67cb1fe` with `/health`
+  returning `200`; production schema/RLS readback and the Dais-only tenant preflight are recorded
+  as passing in the evidence ledger. These are not the current release blocker.
 
-### 19.2 Observed production state
+### 19.2 Not done yet (current observed state)
 
-- The live `life-call` deployment is `92e9fc01664b65e8a22d37d3969b8379c67cb1fe` and `/health`
-  returns `200`.
-- The Dais-only preflight has the required Telegram, Calendar, Gmail, timezone, notification,
-  automation, entitlement, and schema prerequisites.
-- The latest automated canary readback in the evidence ledger is `v1_count=0`, `legacy_count=34`,
-  and `pass=false`. No natural V1 Telegram receipt is therefore available yet. Synthetic bridge
-  rows/messages were deleted and do not count toward this result.
+- The latest automated canary readback recorded in the evidence ledger is `v1_count=0`,
+  `legacy_count=34`, and `pass=false`. No natural V1 Telegram receipt is therefore available yet.
+- The signed outcome bridge has only synthetic proof so far. Its test row, send receipt, and
+  Telegram message were deleted and do not count toward the natural canary.
+- The following work is still open; the order is intentional and is the execution cursor for this
+  design.
 
-### 19.3 Remaining TODO, in outcome order
+### 19.3 Remaining TODO — execute in this order
 
-| Priority | TODO | Completion evidence |
+| Step / state | TODO | Completion evidence |
 |---|---|---|
-| P0 | Observe a natural Dais morning, midday, and evening opportunity. | Provider-native Telegram message ID, exact text, family/window, and durable `lm_mental_send_log` row for each family. |
-| P0 | Keep the Dais-only canary running for seven consecutive local days. | Daily decision/send ledger with no synthetic rows and at least one real delivery from every V1 family. |
-| P0 | Close safety and UX counters across that canary. | `<=3` per local day, `>=3h` spacing, zero Calendar-busy sends, zero configured quiet-hour sends, zero unsupported claims, zero repeated templates within 14 days, and replay-zero. |
-| P0 | Read back the actual Telegram messages. | Plain text only: no keyboard/callback data, sender prefix, reply instruction, or unnatural/unreviewed locale text. |
-| P1 | Persist a closed decision row for every send or silence and add bounded policy promotion/rollback. | Production rows contain policy/profile versions, candidate/selected quote or silence reason, source refs, busy state, window, locale, and Telegram ID; old/new replay score promotes only when safety does not regress. |
-| P1 | Make quiet hours a real explicit per-user source, or remove the production acceptance claim. | A versioned preference field is read by the scheduler and its suppression is observed; the current `quietHours` dependency alone is not production proof. |
-| P1 | Verify the existing crisis handoff owner and route. | A tested, location-appropriate handoff is read back; until then MENTAL makes no suicide-prevention or emergency-support claim. |
-| P2 | Run Telnyx duplicate/replay-zero if the stronger provider proof is required. | A second authorized test is deduplicated or otherwise reconciled without an unapproved duplicate effect. This does not block the mental canary. |
-| P2 | After the canary, unlock verified Job Hunter outcome context, then any separate general-mail owner. | Freshness, owner receipt, native copy, production readback, and replay-zero for each context class; no second Gmail poller. |
-| P3 | Review Anicca iOS affirmation copy independently. | Separate mobile-app acceptance; no Life Manager runtime dependency or shared ledger. |
+| 1 — BLOCKED by wall clock | Observe a natural Dais morning, midday, and evening opportunity. | Provider-native Telegram message ID, exact text, family/window, and durable `lm_mental_send_log` row for each family. |
+| 2 — OPEN after step 1 | Keep the Dais-only canary running for seven consecutive local days. | Daily decision/send ledger with no synthetic rows and at least one real delivery from every V1 family. |
+| 3 — OPEN after step 2 | Close safety and UX counters and read back the actual Telegram messages. | `<=3` per local day, `>=3h` spacing, zero Calendar-busy sends, zero configured quiet-hour sends, zero unsupported claims, zero repeated templates within 14 days, replay-zero, and plain text with no keyboard/callback data, sender prefix, reply instruction, or unnatural/unreviewed locale text. |
+| 4 — OPEN after P0 | Persist a closed decision row for every send or silence and add bounded policy promotion/rollback. | Production rows contain policy/profile versions, candidate/selected quote or silence reason, source refs, busy state, window, locale, and Telegram ID; old/new replay score promotes only when safety does not regress. |
+| 5 — OPEN for full acceptance | Make quiet hours a real explicit per-user source, or remove the production acceptance claim. | A versioned preference field is read by the scheduler and its suppression is observed; the current `quietHours` dependency alone is not production proof. |
+| 6 — OPEN for full acceptance | Verify the existing crisis handoff owner and route. | A tested, location-appropriate handoff is read back; until then MENTAL makes no suicide-prevention or emergency-support claim. |
+| 7 — OPTIONAL, non-blocking | Run Telnyx duplicate/replay-zero if the stronger provider proof is required. | A second authorized test is deduplicated or otherwise reconciled without an unapproved duplicate effect. This does not block the mental canary. |
+| 8 — LOCKED until P0 | After the canary, unlock verified Job Hunter outcome context, then any separate general-mail owner. | Freshness, owner receipt, native copy, production readback, and replay-zero for each context class; no second Gmail poller. |
+| 9 — SEPARATE product | Review Anicca iOS affirmation copy independently. | Separate mobile-app acceptance; no Life Manager runtime dependency or shared ledger. |
 
 ### 19.4 What is blocking now
 
-**Primary blocker:** the natural seven-day provider observation has not started producing V1 rows.
+**Primary blocker:** step 1 has not started producing natural V1 rows for the seven-day provider
+observation.
 The evaluator reports `v1_count=0`, so there is no real Telegram text or send receipt from which to
 prove family coverage, spacing, cap behavior, native fluency, or replay-zero. This is a wall-clock
 and provider-readback dependency, not a code, test, schema, deployment, health, or credential
