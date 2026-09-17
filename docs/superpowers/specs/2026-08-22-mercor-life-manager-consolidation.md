@@ -1,5 +1,7 @@
 # Mercor → Life Manager 統合仕様
 
+初契約・初入金を目的とするプロフィール、適合案件、成果学習の設計と実装順序 → [Mercor first income design](./2026-09-17-mercor-first-income-design.md) / [implementation plan](../plans/2026-09-17-mercor-first-income.md)。この文書はMercorの稼働経路と既存の契約境界の正本を維持する。
+
 **Status:** resident runtime recovery passed / hourly owner live / 3 applications pending / no payment / human-gate canonicalization verified live / shared money receipts next
 **Canonical repository:** `https://github.com/Daisuke134/life-manager`
 **Canonical checkout:** `/Users/anicca/Projects/life-manager-main`
