@@ -89,7 +89,7 @@
       "scope": "Portable booking, Capafy automation, browser fallback, and shared policy source are absorbed. Personal configuration, credentials, account identifiers, memory, generated listing artwork, and live state remain outside the OSS product.",
       "absorbed_roots": [
         {"source": "skills/anicca-booking", "target": "skills/anicca-booking", "files": 5, "inventory_sha256": "ce5c1b46422d1a564896a20069d9bacfed8595f67dc67b270f73d0ff1ceb220d"},
-        {"source": "skills/capafy-autopublish", "target": "skills/capafy-autopublish", "files": 223, "inventory_sha256": "21506813d252787006aa6254d330898c43f0623d155f8a6931d5e9838f9f351d"},
+        {"source": "skills/capafy-autopublish", "target": "skills/capafy-autopublish", "files": 223, "inventory_sha256": "9374108b87c9776261a2a9dcbc6b23b99240105ebf43c85b426a07b8b3e127f4"},
         {"source": "skills/_shared", "target": "skills/_shared", "files": 184, "inventory_sha256": "c9b6a8f633f9384b8678703c157f33dfa758df69fd0ce31360ecc55124f9efa1"},
         {"source": "skills/anicca-life-manager", "target": "skills/anicca-life-manager", "files": 19, "inventory_sha256": "fc981f3cfc29e5018c165829cb720e073fd8f994b2e07f51ebbb4b277c9bc9ea"}
       ]

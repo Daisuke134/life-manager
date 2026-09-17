@@ -1094,6 +1094,32 @@ def test_unknown_occurrence_requires_matching_official_readback(tmp_path, monkey
     assert (row["state"], row["effect_unknown"]) == ("released", 0)
 
 
+def test_released_unknown_occurrence_can_be_closed_by_exact_official_readback(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "capafy-loop-daily"
+    occurrence = f"{owner}:stale"
+    admission.enqueue_durable("deterministic", owner, admission_class="revenue",
+                              occurrence_id=occurrence, now=100)
+    claim, reason = admission.claim_durable(
+        "deterministic", owner, admission_class="revenue", now=101)
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        connection.execute(
+            "UPDATE occurrences SET state='released' WHERE occurrence_id=?", (occurrence,))
+        connection.commit()
+
+    assert admission.resolve_unknown_occurrence(owner, occurrence, official_readback=lambda: {
+        "owner_id": owner, "occurrence_id": occurrence,
+        "verified": True, "provider_receipt_id": "capafy-cap-full-102",
+    }) is True
+    row = next(row for row in durable_rows(tmp_path, "occurrences")
+               if row["occurrence_id"] == occurrence)
+    assert (row["state"], row["effect_unknown"]) == ("released", 0)
+
+
 def test_connector_old_unknown_is_observable_without_blocking_new_wake(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="2")
     admission.activate_durable_v2()
