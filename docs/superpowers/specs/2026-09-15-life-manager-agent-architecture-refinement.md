@@ -184,6 +184,16 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   `054f8dc63aa17754b3a6a92e`); both loaded argv match and the browser
   pending set was empty. The next natural same-SHA handoff remains to be
   measured for A15-08.
+  At the next natural wake Connector run `18d632ed20ec2a28-35885` claimed
+  browser on `b2feb56c` at 19:38:15Z; probe run
+  `18d632f06cf05360-38606` queued known on the same SHA at 19:38:30Z.
+  Global `current` advanced to complete `47b01035`, but the queued probe's
+  installed/loaded argv remained `b2feb56c`. Connector timed out with outer
+  `fail/entrypoint_exit_124` at 19:51:14Z and its occurrence became
+  `released/effect_unknown=1`; that exact effect fence is untouched. Probe's
+  occurrence stayed `queued/effect_unknown=0` with browser queue sequence
+  32683 rather than being cancelled. A later natural probe claim and terminal
+  are still needed to close this lifecycle gate.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
