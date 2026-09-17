@@ -141,7 +141,8 @@ def _pending(row: Mapping[str, Any], reason: str) -> dict[str, Any]:
 
 
 def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[str, Any]],
-                    state_root: Path, source: Mapping[str, Any]) -> dict[str, Any]:
+                    state_root: Path, source: Mapping[str, Any],
+                    mutation_started: list[bool] | None = None) -> dict[str, Any]:
     row = _observation(source)
     path = _state_path(state_root, row)
     state = _load(path)
@@ -204,6 +205,8 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
                       "receipt": receipt, "status": "verified"})
         return {"work_id": row["work_id"], "status": "verified", "reason": "reconciled",
                 "effect": 0, "readback": 1, "failed": 0}
+    if mutation_started is not None:
+        mutation_started[0] = True
     adapter.mutate(intent)
     official = adapter.readback(intent)
     if official.get("verified") is not True:
@@ -221,8 +224,16 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
 def _run_one(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[str, Any]],
              state_root: Path, source: Mapping[str, Any]) -> dict[str, Any]:
     row = _observation(source)
+    mutation_started = [False]
     with _item_lock(_state_path(state_root, row)):
-        return _run_one_locked(adapter, decide, state_root, row)
+        try:
+            return _run_one_locked(adapter, decide, state_root, row, mutation_started)
+        except Exception as error:
+            error_detail = str(error).strip() or type(error).__name__
+            return {"work_id": row["work_id"], "status": "failed",
+                    "reason": type(error).__name__, "error_detail": error_detail,
+                    "effect": 0, "readback": 0, "failed": 1,
+                    "pre_effect": not mutation_started[0]}
 
 
 def run_wake(*, adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[str, Any]],
@@ -321,9 +332,18 @@ def main(argv: list[str] | None = None) -> int:
                 result["error_detail"] = error_detail
     _write(args.output.expanduser().resolve(), result)
     hint_path = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
-    if (hint_path and result.get("status") == "failed"
-            and result.get("failed_step") == "provider_inventory"
-            and result.get("effect") == 0):
+    failed_items = [item for item in result.get("items", [])
+                    if isinstance(item, Mapping) and item.get("failed") == 1]
+    all_item_failures_pre_effect = (
+        bool(failed_items)
+        and result.get("failed") == len(failed_items)
+        and result.get("effect") == 0
+        and all(item.get("pre_effect") is True for item in failed_items)
+    )
+    if (hint_path and result.get("effect") == 0
+            and ((result.get("status") == "failed"
+                  and result.get("failed_step") == "provider_inventory")
+                 or all_item_failures_pre_effect)):
         _write(Path(hint_path).expanduser().resolve(),
                {"status": "pre_effect_failure", "effect": 0})
     return int(result["failed"] > 0)
