@@ -12,7 +12,7 @@ def test_writer_uses_authenticated_x_driver_not_coconala_driver():
     writer_env = json.loads(MANIFEST.read_text())['writer_env']
     assert writer_env['WRITER_CDP_URL'] == 'http://127.0.0.1:9222'
     assert writer_env['WRITER_CDP_PORT'] == '9222'
-    assert writer_env['WRITER_CDP_PROFILE'].endswith('/.cloak/profiles/job-search-daily')
-    assert writer_env['CLOAK_BROWSER_LAUNCHD_LABEL'] == 'ai.anicca.job-search-browser'
+    assert writer_env['WRITER_CDP_PROFILE'].endswith('/.cloak/profiles/daily-driver')
+    assert writer_env['CLOAK_BROWSER_LAUNCHD_LABEL'] == 'ai.anicca.life-manager-daily-driver'
     assert 'BROWSER_GUARD=' in DAILY.read_text()
     assert 'WRITER_CDP_URL' in RESUME.read_text()

@@ -85,6 +85,8 @@ class HumanGateStore:
         self.path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         os.chmod(self.path.parent, 0o700)
         if self.path.exists():
+            if self.path.is_symlink() or not self.path.is_file():
+                raise HumanGateError("human gate store path must be a regular file")
             os.chmod(self.path, 0o600)
 
     def _rows(self) -> list[dict[str, Any]]:

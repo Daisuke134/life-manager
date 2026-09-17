@@ -164,11 +164,16 @@ Pass order:
    sharing controls. Do not call browser media-device or permission APIs. Never request
    camera, microphone, or screen-sharing permission from macOS.
    Then immediately run
-   `python3 -m job_search_loop.mercor_human_gate_notify` with the exact `--account-id`,
-   `--listing-id`, provider `--step-id`, title, live URL, exact remaining action and
-   fresh evidence reference. Require its delivered or delivery-uncertain receipt, add one concise gate to `needs_human`, and
-   skip that candidate for the rest of this wake without waiting for the operator, then
-   continue scanning other candidates. A step already shown as `Completed` or `reused`
+   `python3 -m job_search_loop.mercor_human_gate_notify` with the exact paths from the
+   bounded context: pass `human_gate_store` to `--gate-store`, `application_report_outbox`
+   to `--outbox`, and `application_report_telegram_env` to `--telegram-env`. These values
+   are regular file paths. Do not pass `state_root` as `--gate-store` or `--outbox`, or pass
+   any directory itself to either option. Include the exact `--account-id`, `--listing-id`, provider `--step-id`,
+   title, live URL, exact remaining action and fresh evidence reference. Require its delivered
+   or delivery-uncertain receipt; if a usage/path error occurs, retry once with those exact
+   context paths before recording a blocker. After a receipt, add one concise gate to
+   `needs_human`, skip that candidate for the rest of this wake without waiting for the
+   operator, then continue scanning other candidates. A step already shown as `Completed` or `reused`
    is not a human requirement and may be used automatically. The human gate is resumable;
    a later wake observes official completion and continues the same application.
 4. For a ready listing, save fresh pre-action screenshot and bounded DOM evidence.
@@ -205,6 +210,8 @@ Pass order:
 6. When the bounded scan ends, return `submitted` if at least one submission has a
    verified readback; otherwise return `observed_no_action` with the
    exact inspected evidence. A transient browser/model failure is `blocked`, not success.
+   A verified `submitted` result may end the wake immediately after its official
+   readback and delivered receipt; it is exempt from the twelve-item scan requirement.
    Unless a transient blocker or ambiguous post-click effect stops the pass, inspect
    twelve distinct candidate detail pages when at least twelve distinct cards are
    visible in the evidence. Return `needs_human` when at least one person-bound gate
