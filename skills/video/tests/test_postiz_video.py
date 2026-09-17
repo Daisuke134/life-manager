@@ -393,6 +393,28 @@ class PostizVideoTests(unittest.TestCase):
             ),
         )
 
+    def test_existing_published_row_is_not_reused_without_public_readback(self):
+        rows = {
+            "posts": [{
+                "id": "post-1",
+                "state": "PUBLISHED",
+                "content": "Exact caption\n#line",
+                "integration": {"id": "integration-1"},
+                "releaseURL": "https://www.tiktok.com/@life/video/222",
+                "releaseId": "v_pub_file~v2-1.222",
+                "publishDate": "2026-09-18T00:00:00Z",
+                "lifeManagerVideoSha256": "b" * 64,
+            }],
+        }
+        with patch.object(postiz_video, "verify_tiktok_public_url", return_value=False):
+            with self.assertRaisesRegex(postiz_video.PostizError, "public readback"):
+                postiz_video.find_existing_post(
+                    rows,
+                    integration="integration-1",
+                    caption="Exact caption\n#line",
+                    video_sha256="b" * 64,
+                )
+
     def test_profile_release_url_resolves_to_matching_recent_video(self):
         payload = {
             "entries": [
@@ -453,7 +475,7 @@ class PostizVideoTests(unittest.TestCase):
             )
         )
 
-    def test_profile_only_post_never_falls_back_to_browser(self):
+    def test_profile_only_post_falls_back_to_browser_for_public_readback(self):
         calls = []
 
         def browser(profile_url, caption, *, posted_after, caption_prefix):
@@ -467,8 +489,13 @@ class PostizVideoTests(unittest.TestCase):
             runner=lambda *_args, **_kwargs: subprocess.CompletedProcess([], 1, "", ""),
             browser_resolver=browser,
         )
-        self.assertIsNone(result)
-        self.assertEqual(calls, [])
+        self.assertEqual(result, "https://www.tiktok.com/@honne_reveal/video/7676388327427149077")
+        self.assertEqual(calls, [(
+            "https://www.tiktok.com/@honne_reveal",
+            "someone tell me\nthis is illegal",
+            1_777_000_000,
+            "someone tell me this is",
+        )])
 
     def test_profile_caption_join_rejects_an_old_duplicate(self):
         rows = [
@@ -480,6 +507,36 @@ class PostizVideoTests(unittest.TestCase):
             "https://www.tiktok.com/@life/video/7676852644698262791",
         )
         self.assertIsNone(postiz_video._matching_profile_url(rows[1:], "exact caption", 1_787_406_536))
+
+    def test_tiktok_public_readback_accepts_only_the_exact_captioned_video_url(self):
+        observed = []
+
+        def browser(profile_url, caption, *, posted_after, caption_prefix):
+            observed.append((profile_url, caption, posted_after, caption_prefix))
+            return "https://www.tiktok.com/@life/video/222"
+
+        self.assertTrue(
+            postiz_video.verify_tiktok_public_url(
+                "https://www.tiktok.com/@life/video/222",
+                "Exact caption\n#line",
+                posted_after=200,
+                browser_resolver=browser,
+            )
+        )
+        self.assertEqual(observed[0][0], "https://www.tiktok.com/@life")
+
+    def test_tiktok_public_readback_rejects_provider_url_when_profile_shows_another_video(self):
+        def browser(*_args, **_kwargs):
+            return "https://www.tiktok.com/@life/video/333"
+
+        self.assertFalse(
+            postiz_video.verify_tiktok_public_url(
+                "https://www.tiktok.com/@life/video/222",
+                "Exact caption\n#line",
+                posted_after=200,
+                browser_resolver=browser,
+            )
+        )
 
 
 if __name__ == "__main__":

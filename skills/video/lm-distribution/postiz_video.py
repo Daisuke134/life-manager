@@ -301,21 +301,22 @@ def find_existing_post(
         if state["state"] != "PUBLISHED":
             continue
         if _valid_public_url(platform, state.get("post_url")):
+            if platform == "tiktok" and not verify_tiktok_public_url(
+                state["post_url"],
+                caption,
+                posted_after=_published_after_epoch(row.get("publishDate") or row.get("date")),
+            ):
+                raise PostizError("TikTok public readback did not match the provider URL")
             return {"post_id": post_id, **state, "reconciled": True}
         if platform == "tiktok":
-            published_at = row.get("publishDate") or row.get("date")
-            try:
-                posted_after = int(datetime.fromisoformat(
-                    str(published_at).replace("Z", "+00:00"),
-                ).timestamp())
-            except (TypeError, ValueError, OverflowError):
-                posted_after = int(time.time()) - 7200
+            posted_after = _published_after_epoch(row.get("publishDate") or row.get("date"))
             resolved = resolve_profile_release_url(
                 str(state.get("post_url") or ""),
                 caption,
                 posted_after=posted_after,
+                browser_resolver=_resolve_profile_release_url_browser,
             )
-            if resolved:
+            if resolved and verify_tiktok_public_url(resolved, caption, posted_after=posted_after):
                 return {
                     "post_id": post_id,
                     "state": "PUBLISHED",
@@ -327,6 +328,13 @@ def find_existing_post(
 
 def _normalized(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip().casefold()
+
+
+def _published_after_epoch(value) -> int:
+    try:
+        return int(datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp())
+    except (TypeError, ValueError, OverflowError):
+        return int(time.time()) - 7200
 
 
 def _matching_profile_url(rows, caption_prefix: str, posted_after: int) -> str | None:
@@ -345,6 +353,33 @@ def _matching_profile_url(rows, caption_prefix: str, posted_after: int) -> str |
     return max(candidates)[1] if candidates else None
 
 
+def verify_tiktok_public_url(
+    public_url: str,
+    caption: str,
+    *,
+    posted_after: int,
+    browser_resolver=None,
+) -> bool:
+    """Require a visible profile receipt for the exact provider URL and caption.
+
+    Postiz can report PUBLISHED while TikTok later hides or rejects the video. The
+    profile readback is the existing browser-owned observation path; matching the
+    exact URL prevents a newer duplicate with the same caption from proving the
+    older provider row.
+    """
+    match = re.fullmatch(r"https://www\.tiktok\.com/@([^/]+)/video/[0-9]+/?", public_url or "")
+    if not match or not isinstance(caption, str) or not caption.strip():
+        return False
+    resolver = browser_resolver or _resolve_profile_release_url_browser
+    observed = resolver(
+        f"https://www.tiktok.com/@{match.group(1)}",
+        caption,
+        posted_after=posted_after,
+        caption_prefix=_normalized(caption)[:24].strip(),
+    )
+    return observed == public_url
+
+
 def resolve_profile_release_url(
     profile_url: str,
     caption: str,
@@ -353,7 +388,6 @@ def resolve_profile_release_url(
     runner=subprocess.run,
     browser_resolver=None,
 ) -> str | None:
-    del browser_resolver
     if not re.fullmatch(r"https://www\.tiktok\.com/@[^/]+/?", profile_url):
         return None
     caption_prefix = _normalized(caption)[:24].strip()
@@ -396,6 +430,13 @@ def resolve_profile_release_url(
                 candidates.append((timestamp, url))
         if candidates:
             return max(candidates)[1]
+    if browser_resolver is not None:
+        return browser_resolver(
+            profile_url,
+            caption,
+            posted_after=posted_after,
+            caption_prefix=caption_prefix,
+        )
     return None
 
 
@@ -722,20 +763,29 @@ def _publish(args, api_key: str, caption: str) -> int:
     )
     post_id = create_post(payload, api_key)
     state = {"state": "QUEUE", "post_url": None}
+    public_verified = False
     for _ in range(18):
         time.sleep(10)
         state = read_publish_state(post_id, api_key, args.platform)
         if state["state"] == "PUBLISHED" and state["post_url"]:
             if _valid_public_url(args.platform, state["post_url"]):
-                break
+                if args.platform != "tiktok" or verify_tiktok_public_url(
+                    state["post_url"], caption, posted_after=posted_after,
+                ):
+                    public_verified = True
+                    break
             if args.platform == "tiktok":
                 resolved = resolve_profile_release_url(
                     state["post_url"],
                     caption,
                     posted_after=posted_after,
+                    browser_resolver=_resolve_profile_release_url_browser,
                 )
-                if resolved:
+                if resolved and verify_tiktok_public_url(
+                    resolved, caption, posted_after=posted_after,
+                ):
                     state["post_url"] = resolved
+                    public_verified = True
                     break
         if state["state"] == "ERROR":
             break
@@ -745,11 +795,20 @@ def _publish(args, api_key: str, caption: str) -> int:
     result = {
         "post_id": post_id,
         **state,
-        "reconciled": is_reconciled_state(state, args.platform),
+        "reconciled": is_reconciled_state(state, args.platform)
+        and (args.platform != "tiktok" or public_verified),
     }
     print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
-    if state["state"] != "PUBLISHED" or not _valid_public_url(args.platform, state.get("post_url")):
-        reason = state.get("error")
+    if (
+        state["state"] != "PUBLISHED"
+        or not _valid_public_url(args.platform, state.get("post_url"))
+        or (args.platform == "tiktok" and not public_verified)
+    ):
+        reason = state.get("error") or (
+            "TikTok public readback did not match the provider URL"
+            if args.platform == "tiktok" and state["state"] == "PUBLISHED"
+            else None
+        )
         suffix = f": {reason}" if isinstance(reason, str) and reason else ""
         raise PostizError(f"Postiz terminal state is {state['state']}{suffix}")
     return 0

@@ -482,10 +482,25 @@ money-path smoke passed. Direct live `/lm` HTML readback contains `$29/mo`, the 
 old `$20` or trial marker. The active TikTok distribution path published creative `B03` through
 Postiz with provider post `cmu5ug9ld01uas00yhafhfnz8` at
 `https://www.tiktok.com/@anicca.comedy/video/7686568093934405649`; the provider returned
-`PUBLISHED` with `provider_reconciled=true` and the public URL returned HTTP 200. Instagram remains
-an explicitly separate lane because its old direct account is provider-challenged; no alternate
-account was substituted. The daily route is now TikTok-only by contract, records unavailable public
-metrics without claiming growth, and routes its bounded marketing agent to `gpt-5.6-luna`.
+`PUBLISHED` with `provider_reconciled=true` and the public URL returned HTTP 200. A subsequent
+browser-owned TikTok profile readback found that exact URL showed 「動画は現在ご利用できません」
+and did not expose the captioned video; HTTP 200 and Postiz `PUBLISHED` therefore do not prove a
+provider effect. `skills/video/lm-distribution/postiz_video.py` now requires the exact captioned
+video URL to appear in the browser profile readback before it records a successful TikTok receipt.
+The existing B03 ledger row is retained as historical evidence but must not count as a verified
+publication. Instagram remains an explicitly separate lane because its old direct account is
+provider-challenged; no alternate account was substituted. The daily route is now TikTok-only by
+contract, records unavailable public metrics without claiming growth, and routes its bounded
+marketing agent to `gpt-5.6-luna`.
+
+**2026-09-18 B04 reconciliation:** A one-time B04 run through the guarded adapter created Postiz
+provider post `cmu5yzfsb04aps00y9i7s7rrw` with `PUBLISHED` state. Postiz's release ID pointed at
+`.../video/7686600320759547905`, but the browser-owned profile readback resolved the exact B04
+caption to `https://www.tiktok.com/@anicca.comedy/video/7686600583180045585`. That profile URL and
+caption were verified and written once to the append-only distribution ledger with
+`public_readback_verified=true`; no duplicate upload was made. The direct video page currently
+returns HTTP 403 to this host, so native view/like metrics remain unavailable and no growth claim
+is made.
 
 **Remaining revenue TODO, in order:**
 
@@ -496,9 +511,11 @@ metrics without claiming growth, and routes its bounded marketing agent to `gpt-
 3. **DONE (measurement path):** Read back the product funnel from Supabase and persist only aggregate
    counts in the bounded money-loop state. Landing visits, renewal, and referral remain unavailable until
    their provider adapters produce a real receipt.
-4. **IN PROGRESS (outcome proof):** A real TikTok publication receipt and LP deployment are now
-   verified, but public TikTok metrics are currently unavailable from this host and no activation,
-   retention, cost, or MRR movement is proven yet. The self-build loop still selects metric-matched PRs.
+4. **IN PROGRESS (outcome proof):** LP deployment and one B04 profile-level publication are verified,
+   but native TikTok metrics are unavailable from this host and the B03 provider row remains invalid.
+   The next publication must pass the exact URL+caption readback guard and produce usable metrics;
+   no activation, retention, cost, or MRR movement is proven yet. The self-build loop still selects
+   metric-matched PRs.
 5. Scale the selected plan to the required active paid count. At `$29/month`, 345 active subscribers
    produce `$10,005` gross MRR.
 
