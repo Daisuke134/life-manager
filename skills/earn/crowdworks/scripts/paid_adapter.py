@@ -28,6 +28,12 @@ FORM_SELECTION_COMPLETE = "__no_additional_form_required__"
 PERMISSION_REQUEST_BODY = "リンク先の閲覧権限を付与いただくか、本文を貼り付けてください。"
 
 
+def _delivery_message(milestone_id: str, *, form: bool) -> str:
+    prefix = ("Googleフォームへの回答を完了しました。"
+              if form else "依頼内容への対応を完了しました。")
+    return f"{prefix}（納品対象マイルストーン: {milestone_id}）ご確認のほどよろしくお願いいたします。"
+
+
 def _load(name: str, path: Path):
     spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
@@ -1272,6 +1278,7 @@ class CrowdWorksPaidAdapter:
                     answer_body = payload.get("answer_body")
                     answer_effect_key = payload.get("answer_effect_key")
                     quality_sha256 = payload.get("quality_sha256")
+                    marker = f"納品対象マイルストーン: {_text(payload.get('milestone_id'))}"
                     if (form_urls or not isinstance(answer_body, str) or not answer_body.strip()
                             or not isinstance(answer_effect_key, str) or not answer_effect_key.strip()
                             or not isinstance(payload.get("buyer_event_id"), str)
@@ -1279,6 +1286,7 @@ class CrowdWorksPaidAdapter:
                             or payload.get("correct_work_verified") is not True
                             or not isinstance(quality_sha256, str)
                             or not re.fullmatch(r"[0-9a-f]{64}", quality_sha256)
+                            or marker not in str(payload.get("message") or "")
                             or quality_sha256 != _digest({
                                 "buyer_context": current.get("buyer_context"),
                                 "artifact_content": current.get("artifact_content"),
@@ -1292,7 +1300,8 @@ class CrowdWorksPaidAdapter:
                     return
                 if (not form_urls or not completed
                         or not completed.issubset(set(current.get("completed_form_urls") or []))
-                        or completed | ignored != form_urls):
+                        or completed | ignored != form_urls
+                        or f"納品対象マイルストーン: {_text(payload.get('milestone_id'))}" not in str(payload.get("message") or "")):
                     raise RuntimeError("crowdworks_paid_form_progress_changed")
                 self._complete_once(current, payload)
                 return
@@ -1352,6 +1361,8 @@ class CrowdWorksPaidAdapter:
                 milestone_id = _text(payload.get("milestone_id"))
                 delivery_message = payload.get("message")
                 if not isinstance(delivery_message, str) or not delivery_message.strip():
+                    return {"authoritative_absent": True}
+                if f"納品対象マイルストーン: {milestone_id}" not in delivery_message:
                     return {"authoritative_absent": True}
                 actions = self.page.locator('form[action^="/milestones/"][action$="/complete"]').evaluate_all(
                     "forms => forms.map(form => form.getAttribute('action'))")
@@ -1513,7 +1524,7 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
                     "remaining_work": ["retain the verified answer and milestone identity before formal delivery"]}
         return {"action": "formal_delivery", "payload": {
             "milestone_id": milestone.strip(),
-            "message": "依頼内容への対応を完了しました。ご確認のほどよろしくお願いいたします。",
+            "message": _delivery_message(milestone.strip(), form=False),
             "no_form": True,
             "answer_body": answer_body.strip(),
             "answer_effect_key": answer_effect_key.strip(),
@@ -1542,7 +1553,7 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
                         "remaining_work": ["complete one official form and select or explicitly exclude every remaining form"]}
             return {"action": "formal_delivery", "payload": {
                 "milestone_id": milestone_id,
-                "message": "Googleフォームへの回答を完了しました。ご確認のほどよろしくお願いいたします。",
+                "message": _delivery_message(milestone_id, form=True),
                 "completed_form_urls": sorted(completed),
                 "ignored_form_urls": sorted(ignored),
                 "buyer_event_id": contract["buyer_event_id"].strip(),

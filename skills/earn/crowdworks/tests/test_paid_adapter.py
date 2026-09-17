@@ -260,7 +260,7 @@ def test_all_selected_forms_advance_to_separate_formal_delivery():
         "action": "formal_delivery",
         "payload": {
             "milestone_id": contract["milestone_id"],
-            "message": "Googleフォームへの回答を完了しました。ご確認のほどよろしくお願いいたします。",
+            "message": module._delivery_message(contract["milestone_id"], form=True),
                 "completed_form_urls": [url],
                 "ignored_form_urls": [],
                 "buyer_event_id": contract["buyer_event_id"],
@@ -544,6 +544,7 @@ def test_formal_delivery_is_a_separate_mutation():
 
     adapter.mutate({"action": "formal_delivery", "work_id": "63570481",
                     "payload": {"milestone_id": funded()["milestone_id"],
+                                "message": module._delivery_message(funded()["milestone_id"], form=True),
                                 "completed_form_urls": ["https://forms.gle/ads"],
                                 "ignored_form_urls": [],
                                 "buyer_event_id": funded()["buyer_event_id"]}})
@@ -580,7 +581,8 @@ def test_no_form_formal_delivery_requires_verified_answer_message():
     adapter.mutate({"action": "formal_delivery", "work_id": "63570481",
                     "payload": {"milestone_id": funded()["milestone_id"],
                                 "no_form": True, "answer_body": answer,
-                                "answer_effect_key": "answer-effect", "message": answer,
+                                "answer_effect_key": "answer-effect",
+                                "message": module._delivery_message(funded()["milestone_id"], form=False),
                                 "buyer_event_id": funded()["buyer_event_id"],
                                 "correct_work_verified": True,
                                 "quality_sha256": module._digest({
@@ -614,6 +616,7 @@ def test_formal_delivery_readback_rejects_unrelated_inspection_text():
 
 def test_formal_delivery_readback_requires_target_dialog_to_be_gone():
     module = load()
+    message = module._delivery_message("13798056", form=False)
 
     class Locator:
         def count(self): return 0
@@ -621,7 +624,7 @@ def test_formal_delivery_readback_requires_target_dialog_to_be_gone():
             if "node.innerText" in expression:
                 return [{"label": "納品", "className": "done"}]
             return []
-        def inner_text(self): return "納品済み 検収"
+        def inner_text(self): return "納品済み 検収\n" + message
 
     class Page:
         def locator(self, _selector): return Locator()
@@ -632,7 +635,7 @@ def test_formal_delivery_readback_requires_target_dialog_to_be_gone():
     adapter._seller_message_contains = lambda _work_id, _buyer_event_id, _body: True
     result = adapter.readback({"action": "formal_delivery", "work_id": "63570481",
                                "effect_key": "delivery-effect",
-                               "payload": {"milestone_id": "13798056", "message": "納品済み",
+                               "payload": {"milestone_id": "13798056", "message": message,
                                            "buyer_event_id": "427573234"}})
     assert result["verified"] is True
 
@@ -660,6 +663,34 @@ def test_formal_delivery_readback_rejects_another_open_milestone():
     result = adapter.readback({"action": "formal_delivery", "work_id": "63570481",
                                "effect_key": "delivery-effect",
                                "payload": {"milestone_id": "13798056", "message": "納品済み",
+                                           "buyer_event_id": "427573234"}})
+    assert result == {"authoritative_absent": True}
+
+
+def test_formal_delivery_readback_rejects_same_message_for_different_milestone():
+    module = load()
+    target_message = module._delivery_message("13798056", form=False)
+
+    class Locator:
+        def count(self): return 0
+        def evaluate_all(self, expression):
+            if "forms =>" in expression:
+                return []
+            if "node.innerText" in expression:
+                return [{"label": "納品", "className": "done"}]
+            return []
+        def inner_text(self): return "納品済み 検収\n" + target_message
+
+    class Page:
+        def locator(self, _selector): return Locator()
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda _work_id: None
+    adapter._seller_message_contains = lambda _work_id, _buyer_event_id, body: body != target_message
+    result = adapter.readback({"action": "formal_delivery", "work_id": "63570481",
+                               "effect_key": "delivery-effect",
+                               "payload": {"milestone_id": "13798056", "message": target_message,
                                            "buyer_event_id": "427573234"}})
     assert result == {"authoritative_absent": True}
 
@@ -1683,7 +1714,7 @@ def test_verified_no_form_answer_advances_to_formal_delivery():
 
     assert action == {"action": "formal_delivery", "payload": {
         "milestone_id": contract["milestone_id"],
-        "message": "依頼内容への対応を完了しました。ご確認のほどよろしくお願いいたします。",
+        "message": module._delivery_message(contract["milestone_id"], form=False),
         "no_form": True,
         "answer_body": "依頼内容に沿ったフィードバックです。",
         "answer_effect_key": "answer-effect",
