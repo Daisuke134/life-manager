@@ -404,7 +404,10 @@ def _limits(resource_class: str, admission_class: str = "borrow") -> tuple[int, 
             return total, _capacity("LIFE_MANAGER_HOST_MAX_REVENUE_RUNS", total)
         if resource_class == "browser":
             return total, _capacity("LIFE_MANAGER_HOST_MAX_BROWSER_RUNS", 1)
-        return total, _capacity("LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS", 2)
+        # Keep one deterministic revenue slot available when two support
+        # deterministic owners are active. The total finite-run cap still
+        # controls the host-wide bound.
+        return total, _capacity("LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS", 3)
     per_class = _capacity(
         "LIFE_MANAGER_HOST_MAX_AGENT_RUNS" if resource_class == "agent"
         else "LIFE_MANAGER_HOST_MAX_BROWSER_RUNS" if resource_class == "browser"
