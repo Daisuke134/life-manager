@@ -204,7 +204,19 @@ class CrowdWorksPaidAdapter:
                 raise RuntimeError("crowdworks_paid_browser_state_invalid")
             self.page = self.owned_context.new_page()
             self.page.set_default_timeout(15_000)
-        except Exception:
+        except Exception as error:
+            if (self.source_context is not None
+                    and str(error) != "crowdworks_paid_browser_state_invalid"):
+                try:
+                    if self.owns_context and self.owned_context is not None:
+                        self.owned_context.close()
+                    self.owned_context = self.source_context
+                    self.owns_context = False
+                    self.page = self.source_context.new_page()
+                    self.page.set_default_timeout(15_000)
+                    return
+                except Exception:
+                    pass
             if self.owned_context is not None and self.owns_context:
                 try: self.owned_context.close()
                 except Exception: pass
