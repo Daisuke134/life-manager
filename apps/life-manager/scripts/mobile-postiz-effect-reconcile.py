@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -38,7 +39,6 @@ def _valid_identity(value: Any, owner_id: str, occurrence_id: str) -> bool:
     if (not OCCURRENCE.fullmatch(occurrence_id)
             or not ID.fullmatch(str(value.get("runtime_run_id", "")))
             or not ID.fullmatch(str(value.get("job_id", "")))
-            or not str(value.get("effect_key", "")).startswith("marketing:")
             or not ID.fullmatch(str(value.get("product_id", "")))
             or not ID.fullmatch(str(value.get("format_id", "")))
             or not ID.fullmatch(str(value.get("form", "")))
@@ -55,6 +55,43 @@ def _valid_identity(value: Any, owner_id: str, occurrence_id: str) -> bool:
     media = value.get("media_sha256")
     if media is not None and (not isinstance(media, list)
                               or not media or any(not re.fullmatch(r"[0-9a-f]{64}", str(x)) for x in media)):
+        return False
+    integration_match = re.fullmatch(
+        r"integration://postiz/([a-z]+)/[A-Za-z0-9._:-]{1,200}",
+        str(value["integration_ref"]), re.IGNORECASE,
+    )
+    if integration_match is None or integration_match.group(1).lower() != value["platform"]:
+        return False
+    video_key = re.fullmatch(
+        r"marketing:video:([^:]+):(instagram|tiktok|youtube):([^:]+):([0-9a-f]{64}):([0-9a-f]{64})(?::([0-9a-f]{64}))?",
+        str(value["effect_key"]),
+    )
+    carousel_key = re.fullmatch(
+        r"marketing:carousel:([^:]+):([^:]+):([0-9a-f]{64}):([0-9a-f]{64}):([0-9a-f]{64})(?::([0-9a-f]{64}))?",
+        str(value["effect_key"]),
+    )
+    if video_key:
+        if (value["product_id"] != video_key.group(1)
+                or value["platform"] != video_key.group(2)
+                or value["creative_id"] != video_key.group(3)
+                or value.get("video_sha256") != video_key.group(4)
+                or value["caption_sha256"] != video_key.group(5)
+                or (video_key.group(6) is not None
+                    and video_key.group(6) != hashlib.sha256(value["slot"].encode()).hexdigest())):
+            return False
+    elif carousel_key:
+        if (value["product_id"] != carousel_key.group(1)
+                or value["creative_id"] != carousel_key.group(2)
+                or value.get("video_sha256") is not None
+                or not isinstance(media, list) or len(media) != 6
+                or value.get("pack_sha256") != carousel_key.group(3)
+                or value.get("media_order_sha256") != carousel_key.group(4)
+                or hashlib.sha256(json.dumps(media, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest() != carousel_key.group(4)
+                or value["caption_sha256"] != carousel_key.group(5)
+                or (carousel_key.group(6) is not None
+                    and carousel_key.group(6) != hashlib.sha256(value["slot"].encode()).hexdigest())):
+            return False
+    else:
         return False
     return True
 

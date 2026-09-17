@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
+import json
 from pathlib import Path
 
 
@@ -79,6 +81,14 @@ def test_proof_must_match_every_effect_identity_field():
     }
     assert MODULE.evaluate_proof(value, wrong_provider)["status"] == "inconclusive"
 
+    missing_hashes = {key: value[key] for key in value if key not in {
+        "effect_key", "video_sha256", "caption_sha256",
+    }}
+    missing_hashes["effect_key"] = "marketing:anything"
+    missing_hashes["video_sha256"] = None
+    missing_hashes["caption_sha256"] = None
+    assert MODULE.evaluate_proof(value, {**proof_for(value), "identity": missing_hashes})["status"] == "inconclusive"
+
 
 def test_missing_or_unverified_provider_receipt_stays_held():
     value = identity()
@@ -112,17 +122,20 @@ def test_only_a_released_unknown_row_is_ready_for_a_future_provider_executor():
 def test_carousel_proof_requires_the_exact_ordered_media_hashes():
     value = identity()
     media = [f"{chr(97 + i)}" * 64 for i in range(6)]
+    media_order = hashlib.sha256(
+        json.dumps(media, ensure_ascii=False, separators=(",", ":")).encode(),
+    ).hexdigest()
     value.update({
         "product_id": "anicca-ios",
         "platform": "instagram",
-        "effect_key": "marketing:carousel:anicca-ios:creative:" + "d" * 64 + ":" + "e" * 64 + ":" + "f" * 64,
+        "effect_key": "marketing:carousel:anicca-ios:creative:" + "d" * 64 + ":" + media_order + ":" + "f" * 64,
         "integration_ref": "integration://postiz/instagram/anicca-carousel",
         "account_id": "@anicca.carousel",
         "video_sha256": None,
         "caption_sha256": "f" * 64,
         "media_sha256": media,
         "pack_sha256": "d" * 64,
-        "media_order_sha256": "e" * 64,
+        "media_order_sha256": media_order,
     })
     proof = proof_for(value)
     assert MODULE.evaluate_proof(value, proof)["status"] == "ready"
