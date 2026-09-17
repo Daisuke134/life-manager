@@ -16,6 +16,13 @@ test("catalog loads only the approved external source set", () => {
   assert.ok(ja.every((quote) => FAMILIES.includes(quote.family)));
 });
 
+test("English catalog is independently authored and uses the same external provenance", () => {
+  const en = loadMentalCatalog("en");
+  assert.equal(en.length, 8);
+  assert.ok(en.every((quote) => quote.text && !/anicca/i.test(quote.sourceRepo)));
+  assert.ok(en.some((quote) => quote.text === "Courage can be quiet and still be real."));
+});
+
 test("catalog selection is deterministic and honors explicit themes", () => {
   const input = {
     uid: "u1",
