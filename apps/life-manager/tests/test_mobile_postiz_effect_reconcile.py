@@ -65,6 +65,16 @@ def test_exact_provider_proof_is_ready_without_mutating_the_ledger():
     assert result == {"status": "ready", "owner_id": value["loop_id"], "occurrence_id": value["occurrence_id"]}
 
 
+def test_read_identity_accepts_one_private_sidecar(tmp_path):
+    value = identity()
+    sidecar = tmp_path / "run-1.jsonl"
+    sidecar.write_text(json.dumps(value) + "\n", encoding="utf-8")
+    sidecar.chmod(0o600)
+    assert MODULE.read_identity(
+        sidecar, value["loop_id"], value["occurrence_id"],
+    ) == value
+
+
 def test_proof_must_match_every_effect_identity_field():
     value = identity()
     wrong_account = proof_for(value)

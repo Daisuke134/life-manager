@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import re
 import sqlite3
+import stat
 from typing import Any
 
 
@@ -102,7 +103,7 @@ def read_identity(path: Path, owner_id: str, occurrence_id: str) -> dict[str, An
     """Read one private identity row without following symlinks."""
     try:
         info = path.lstat()
-        if (not info.is_file() or info.st_uid != os.getuid() or info.st_nlink != 1
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_nlink != 1
                 or info.st_mode & 0o777 != 0o600):
             return None
         descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
