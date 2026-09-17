@@ -49,6 +49,21 @@ Mobile等のprovider adapter・browser・account・公式receiptを進めてよ�
 `lm-loop status`、recovery supervisorを使う。共有profile/state/外部effectを二つのownerが同時に
 操作してはならない。
 
+### Daisにもう一度やってもらう必要があること
+
+現時点で、Daisがskillsの再読込、CLIの再作成、基盤の再実装、mergeのやり直し、worktreeの
+再作成、providerへの同じ応募の再送を行う必要はありません。これらはCodexのownerが行います。
+
+Daisの操作が必要になる可能性があるのは、次の外部human gateだけです。
+
+- 認証、応募送信、契約、面接、公開、支払いなど、実際の画面で明示的な承認を求められた時に、
+  その一件を一度だけ承認する。
+- Cloudのphone-only canaryで同じhuman gateが表示された時に、スマホから承認する。
+
+`effect_unknown`や古いreceiptを見て、Daisが手動で再送してはいけません。ownerが先に公式状態・
+ledger・replay-zeroを照合し、再実行しても安全な時だけ同じrunの中で処理します。人間の操作が
+不要な通常wakeは、Daisの返信を待たずに継続します。
+
 ### 現在の観測（read-only、時間で変わる）
 
 - `~/loops/current`はmain SHA `fc31d1227b6356f917ddc750bbb6bfeef0fe2a7b`の
@@ -56,16 +71,17 @@ Mobile等のprovider adapter・browser・account・公式receiptを進めてよ�
 - release-reconcilerは旧loaded SHA `d0401d93…`で`entrypoint_exit_1`、Connectorは
   `b2feb56c…`で`resource_control_busy`。これは基盤受入れが未完である証拠であり、provider成功の
   証拠ではない。
-- ディスク空きは約0.37GiB（100%表示）で、`ENOSPC`/SQLite lockが再発し得る。稼働中PIDを
-  このdocs更新から停止・再起動しない。
+- 今回のread-only再確認ではディスク空きは約6.9GiB（97%表示）まで回復している。ただし、
+  過去の`ENOSPC`/SQLite lockは履歴として残り、release-cut中に再発し得る。稼働中PIDをこの
+  docs更新から停止・再起動しない。
 
 ### Worktree / sessionの終了判定
 
-このfoundation作業の旧実装worktreeは、push・main統合後に削除済みです。したがって、この
-Codexのsessionと一時docs worktreeは、spec更新をmainへ統合した後に閉じて構いません。閉じても
-mainのcommitやskills/CLIは消えません。provider ownerのworktreeや稼働中loopを削除・停止する意味
-ではありません。A15-08、A15-14、R2、S-04、Cloud gateが未完なので、sessionを閉じることと
-Life Manager全体が完成することは同じではありません。
+このfoundation作業の旧実装worktreeは、push・main統合後に削除済みです。今回のdocs worktreeも
+commit/push後は閉じて構いません。branch上のcommitは残り、mainのcommitやskills/CLIは消えません。
+provider ownerのworktreeや稼働中loopを削除・停止する意味ではありません。A15-08、A15-14、R2、
+S-04、Cloud gateが未完なので、sessionを閉じることとLife Manager全体が完成することは同じでは
+ありません。docs commitは最終受入れ時に一度だけmainへ統合します。
 
 ## Active A15 foundation cursor — atomic remaining TODO
 
