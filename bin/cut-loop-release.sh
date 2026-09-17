@@ -190,6 +190,9 @@ fi
 if [ "$ACTIVATE_CURRENT" = "1" ] && [ "$PROVENANCE" != "ancestor-of-origin-main" ]; then
   die "current activation requires an origin/main ancestor; use LOOPS_ACTIVATE_CURRENT=0 for a candidate"
 fi
+if [ "$ACTIVATE_CURRENT" = "1" ] && [ -n "$RELEASE_PATHS" ]; then
+  die "current activation requires a complete release; use LOOPS_ACTIVATE_CURRENT=0 for a sparse build"
+fi
 
 DEST="$RELEASES/$(date +%Y%m%dT%H%M%S)-$SHORT"
 [ -e "$DEST" ] && die "$DEST already exists"

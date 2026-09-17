@@ -14,8 +14,9 @@ Observed shared-foundation problems and disposition:
 | Problem | Evidence and boundary | Disposition |
 |---|---|---|
 | A branch-only SHA could become global `current` | Release selection admitted a pushed but unmerged SHA. | Fixed in main PR #5351; production `current` must remain an `origin/main` ancestor. |
+| A sparse main-derived release could become global `current` | While a natural reconciler used complete release `f1f5bcb9`, other owner cuts replaced `current` with sparse release `6c7d2062`; exact apply then failed closed with `release is no longer current`. | Open follow-up: `bin/cut-loop-release.sh` now rejects sparse `LOOPS_ACTIVATE_CURRENT=1` on this branch. RED then GREEN test and 22 cut tests passed locally; CI/main/live recovery remain unproved. |
 | One owner with many old wakes could repeatedly win its own next turn | RED fixture selected owner A twice before owner B; production queue had repeated old occurrences. | Fixed in main PR #5354; new-main natural terminals advanced `x402-ledger` → `x402-experiment-franklin1` → `founder-loop-cadence` → `x402-inflow-watch` without deleting pending occurrences. |
-| A same-owner environment JSON replaced an installed plist | `writer-report` installed file is JSON, so its installed SHA is unreadable although launchd still holds a main-derived argv. The writer of that file is not yet identified. | Shared `lm_loop_apply.py` recovery merged in PR #5362, but the CLI candidate filter still skips the malformed file; the follow-up fix is not yet merged or live-proved. The repair accepts only matching loop ID/state root and preserves existing environment keys. |
+| A same-owner environment JSON replaced an installed plist | `writer-report` installed file was JSON, so its installed SHA was unreadable although launchd held a main-derived argv. The writer of that file is not yet identified. | Shared recovery and candidate/rollback repair merged in PRs #5362/#5367. A targeted loaded-idle reconcile restored XML and loaded SHA `f1f5bcb9` with `effect_unknown` still fenced. |
 | Reconciler sometimes exits `entrypoint_exit_1` while idle owners wait | Loaded `a4070714` has both fail and pass outer terminals; one run stayed active for several minutes. Malformed installed input is a concrete candidate, not a proven sole cause. | Open until the repaired main-derived release has a natural outer terminal and an exact first-failure readback. |
 | Disk pressure has caused `ENOSPC` during release/receipt writes | Historical runtime logs contain `ENOSPC`; current free space is about 2 GiB and cleanup has also reached natural `pass`. | Open as a bounded headroom/cleanup acceptance check; do not erase profiles, credentials, receipts, active runs, or other owners' worktrees. |
 
@@ -58,7 +59,7 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   `18d61918b61058e8-67760` on loaded SHA `aa0f37fc8c46` reached outer
   `pass` at 2026-09-17T11:54:06Z with `blocker=null`; status readback showed
   the same installed/event SHA and `loaded-idle`.
-- [ ] **A15-06 — read the repaired installed plist.** `writer-report.plist`
+- [x] **A15-06 — read the repaired installed plist.** `writer-report.plist`
   must parse as XML and its installed/loaded argv must name a main-derived
   immutable release. This is a shared config repair, not permission to send a
   Writer report or clear its effect fence. The first targeted reconcile on
@@ -66,37 +67,89 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   `installed_release_sha=null`, so candidate filtering bypassed the merged
   recovery function. The follow-up candidate fix and pre-swap rollback from
   the old immutable release passed 95 tests and 30 subtests locally, including
-  a failed Writer swap with a minimal JSON snapshot. CI/main/live proof remain
-  open; the installed file remains JSON and `effect_unknown` remains fenced.
-- [ ] **A15-07 — prove an agent-class handoff.** From the private admission
+  a failed Writer swap with a minimal JSON snapshot. PR #5367 passed all CI
+  checks and merged as `f1f5bcb91d`. The targeted loaded-idle reconcile
+  installed XML (`plutil -lint: OK`, install event
+  `4cb761c203938bf18fdf0660`) with installed and loaded argv at complete
+  main release `20260917T211820-f1f5bcb9`; `effect_unknown` remains fenced.
+- [x] **A15-07 — prove an agent-class handoff.** From the private admission
   SQLite and `bin/lm-loop status`, join one natural agent owner claim, outer
   terminal, release and a *different* eligible agent owner's next claim.
+  `writer-sales-measure` run `18d61b575ac2e690-73318` reached outer pass at
+  12:26:28Z and its claimed occurrence `18d61a34e26facf0-40245` is
+  `released/effect_unknown=0`. Different owner `pm-decision-loop` started at
+  12:28:15Z, claimed `18d619fc6f2cbdd8-32593`, and reached outer pass at
+  12:30:16Z; that occurrence is also released/known. Both status readbacks
+  show installed/event SHA `f1f5bcb91d`.
 - [ ] **A15-08 — prove a browser-class handoff.** Join the same four events for
   two browser owners without starting a provider submission or touching a
   sibling profile. A no-work terminal is valid lifecycle evidence only.
-- [ ] **A15-09 — prove a deterministic-class handoff.** Join the same four
+  Current registry and admission SQLite have only one browser-class owner,
+  `life-manager-connector-native`; its historical unknown rows stay fenced.
+  Reclassifying `session-vault` or `browser-state-backup` would involve sibling
+  authenticated profiles and does not satisfy this gate. No second-owner
+  browser claim is proved.
+- [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
-  substitute for a newer SHA.
-- [ ] **A15-10 — read an active owner's heartbeat.** Its PID/start identity
+  substitute for a newer SHA. `cadence-deadline-check` run
+  `18d61b8ce8458b50-79278` reached outer pass at 12:29:58Z and released
+  occurrence `18d61afbbb440f00-63650` with unknown=0. Different owner
+  `x402-inflow-watch-franklin1` started at 12:30:14Z, claimed occurrence
+  `18d616ec6eb86108-89072`, and reached pass at 12:30:22Z; it too is
+  released/known. Both loaded/event SHAs are `f1f5bcb91d`.
+- [x] **A15-10 — read an active owner's heartbeat.** Its PID/start identity
   and `heartbeat_at` must agree with a live claim within the configured
   300-second timeout; do not reclaim a progressing owner from age alone.
-- [ ] **A15-11 — read RAM headroom.** Check measured free percentage against
+  At 12:35:12Z, live claim `x402-inflow-watch-claude-p` PID 90983 had matching
+  process-start identity and heartbeat age 1.8 seconds against timeout 300;
+  `job-search-daily` PID 88394 also matched at age 12.1 seconds.
+- [x] **A15-11 — read RAM headroom.** Check measured free percentage against
   `LIFE_MANAGER_MIN_MEMORY_FREE_PERCENT` from the exact loaded job; no assumed
-  eight-slot safety or extra slot is a PASS.
-- [ ] **A15-12 — read disk/cleanup headroom.** Check free bytes, the latest
+  eight-slot safety or extra slot is a PASS. `pm-live-trade` loaded argv names
+  release `f1f5bcb9`, with no threshold override; that release's
+  `memory_admission.py` defaults to 15%. `memory_pressure -Q` measured 31% free.
+- [x] **A15-12 — read disk/cleanup headroom.** Check free bytes, the latest
   `life-manager-disk-cleanup` natural terminal, errors and protected deletions.
   If admission can still start a child into reproducible `ENOSPC`, fix the
   shared preflight in `runtime/host/disk_admission.py` and its focused test;
-  never delete protected state to make this green.
-- [ ] **A15-13 — read queue safety.** Measure only eligible waiting owners for
+  never delete protected state to make this green. Latest natural cleanup run
+  `18d61b66c2f65eb8-75721` on main-derived `86fa863d` reached outer pass at
+  12:29:46Z; its matching stdout receipt has release-GC, host and scratch
+  errors 0, protected deletions 0, free bytes 1,955,004,416 before and
+  2,206,543,872 after. Later `df -Pk` measured 3,235,340 KiB free. The
+  earlier local unittest `ENOSPC` bypassed host admission and is not proof of
+  an admitted child failure; the loaded release defaults to a 512 MiB disk
+  producer floor, and focused `test_disk_admission.py` passed 8 tests.
+- [x] **A15-13 — read queue safety.** Measure only eligible waiting owners for
   starvation; count `effect_unknown=1` separately and verify it remains
   fenced. `resource_control_busy` must recover on a later natural wake rather
-  than becoming a permanent owner lock.
+  than becoming a permanent owner lock. Read-only SQLite using the runtime's
+  eligibility query at 12:35:52Z counted agent 8, browser 0, deterministic 9
+  eligible waiting owners; oldest waits were 2.8 and 4.5 minutes for agent and
+  deterministic. Unknown occurrences were separately agent 53 owners, browser
+  1 owner/5 rows, deterministic 34 owners. At 12:36:32Z eligible counts were
+  agent 8, browser 0, deterministic 10; the oldest deterministic candidate
+  changed owner. At 12:39:50Z the same eligibility query counted agent 9
+  (oldest 6.8 minutes), browser 0, deterministic 10 (oldest 5.8 minutes).
+  No eligible owner had reached the configured 2-hour support age, and the
+  separate A15-07/09 receipts prove different owners did advance. Unknown
+  occurrences remained separate (agent 52 owners, browser 1/5 rows,
+  deterministic 34 owners); `_durable_capacity` counts live claims and
+  reservations, not those old rows. Capafy hourly, IG account, IG marketing,
+  healthcheck and outcome owners retain exact effect-unknown fences.
+  Historical `resource_control_busy` at
+  `x402-inflow-watch` run `18d6188f810e41c0-43797` recovered to a later
+  natural pass `18d618b1235b1a90-48212`. This is a finite queue check,
+  not a claim that every effect-fenced provider loop works.
 - [ ] **A15-14 — record the A15 verdict.** Mark Foundation Done only when
   A15-03 through A15-13 pass. Record main/release/loaded SHA, exact run IDs,
   queue-age before/after and receipt pointers here, then hand provider effect
-  and readback blockers to their owners without claiming all loops work.
+  and readback blockers to their owners without claiming all loops work. Also
+  require the sparse-current fence above on main with a complete current
+  release and a follow-up natural reconciler terminal; subsequent old-SHA
+  runs `18d61b8087f758e8-78178` and `18d61bdd46062100-91865` failed when
+  parallel cuts advanced `current` mid-reconcile.
 
 A15-02 integration observation: an earlier PR #5362 head at `eb72e7cb1b` had
 one failing `OSS self-contained boundary` check. The exact inventory digest
