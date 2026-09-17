@@ -31,6 +31,16 @@ function runLoader(envFile) {
   ], { encoding: "utf8" });
 }
 
+function runRequired(envFile) {
+  return spawnSync("bash", [
+    "-c",
+    `set -euo pipefail; source "$1"; lm_load_env_file "$2"; lm_require_env_keys LM_POSTIZ_API_KEY; echo "REQUIRED_OK"`,
+    "bash",
+    LIB,
+    envFile,
+  ], { encoding: "utf8" });
+}
+
 test("a missing env file warns on stderr but keeps booting", () => {
   const missing = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "lm-env-")), "no.env");
   const result = runLoader(missing);
@@ -64,6 +74,22 @@ test("a valid env file is sourced with its variables exported", () => {
   assert.ok(!/warning/i.test(result.stderr), result.stderr);
 });
 
+test("required env keys fail closed without printing their values", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lm-env-"));
+  const missing = path.join(dir, "missing.env");
+  const absent = runRequired(missing);
+  assert.equal(absent.status, 2, absent.stderr);
+  assert.match(absent.stderr, /LM_POSTIZ_API_KEY/);
+  assert.doesNotMatch(absent.stderr, /secret-value/);
+
+  const present = path.join(dir, "present.env");
+  fs.writeFileSync(present, "LM_POSTIZ_API_KEY=secret-value\n");
+  const available = runRequired(present);
+  assert.equal(available.status, 0, available.stderr);
+  assert.match(available.stdout, /REQUIRED_OK/);
+  assert.doesNotMatch(available.stdout + available.stderr, /secret-value/);
+});
+
 test("all four launchd boot scripts load the shared guarded env loader", () => {
   for (const script of [
     "payout-boot.sh",
@@ -87,6 +113,17 @@ test("the shared mobile app command loads the private marketing env", () => {
   assert.ok(source.includes("command -v node"));
   assert.ok(source.includes("command -v python3"));
   assert.ok(!source.includes("/opt/homebrew/bin/timeout"));
+});
+
+test("all Postiz marketing launchers require the key before doing work", () => {
+  for (const script of [
+    "mobile-app",
+    "instagram-metrics-production-boot.sh",
+    "tiktok-metrics-production-boot.sh",
+  ]) {
+    const source = fs.readFileSync(path.join(__dirname, script), "utf8");
+    assert.match(source, /lm_require_env_keys LM_POSTIZ_API_KEY/);
+  }
 });
 
 test("JA main TikTok boot executes the Larry carousel owner", () => {
