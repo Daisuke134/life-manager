@@ -53,8 +53,21 @@ def _direct_capture_expression(names: list[str]) -> str:
         }
         db.close();
       } catch(error) { return JSON.stringify(out); }
-      const emptyNotifications=/You don[’']t have any notifications|No notifications|You[’']re all caught up|No new notifications/i
-        .test(document.body?.innerText||'');
+      const emptyTexts=new Set([
+        'You don’t have any notifications', "You don't have any notifications",
+        'You’re all caught up', "You're all caught up", 'No new notifications',
+        'No notifications',
+      ]);
+      const visible=element=>{
+        if(!element) return false;
+        const style=getComputedStyle(element);
+        const rect=element.getBoundingClientRect();
+        return style.display!=='none' && style.visibility!=='hidden' &&
+          style.opacity!=='0' && rect.width>0 && rect.height>0;
+      };
+      const emptyNotifications=[...document.querySelectorAll('*')].some(element=>
+        visible(element) && emptyTexts.has((element.innerText||element.textContent||'').trim())
+      );
       if(urls.notifications && token && emptyNotifications){
         out.notifications={items:[],nextCursor:null,hasMore:false};
         delete urls.notifications;

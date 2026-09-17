@@ -147,6 +147,14 @@ def test_current_notifications_api_payload_is_normalized_for_reply_adapter():
     assert normalized["hasMore"] is False
 
 
+def test_direct_capture_uses_exact_visible_empty_notification_markers():
+    expression = snapshot._direct_capture_expression(["notifications"])
+
+    assert "You don’t have any notifications" in expression
+    assert "emptyTexts" in expression
+    assert "visible(element)" in expression
+
+
 def test_gmail_inventory_groups_full_history_by_thread_and_excludes_auth(monkeypatch):
     calls = []
 
