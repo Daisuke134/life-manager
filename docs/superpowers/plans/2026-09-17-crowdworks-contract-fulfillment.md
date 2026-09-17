@@ -10,6 +10,27 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md`
 
+## Live cursor (2026-09-17)
+
+The five active official contracts are currently all `funded`; formal CrowdWorks delivery/readback is zero.
+Historical form receipts exist for `63583795` and `63570481`, but they do not close the CrowdWorks delivery
+stage. The next implementation cursor is bounded contract context and correct-work execution, followed by
+separate external receipt and `納品する` readback for each contract. Do not treat the old three-contract
+example below as the current scope; the current scope is all five IDs: `63659463`, `63657015`, `63583795`,
+`63570481`, and `63568785`.
+
+**Ready-to-close facts:** `63583795` has a historical form receipt and a buyer request to click formal
+delivery; `63570481` has a historical form receipt but the buyer says the customer-address answer is missing.
+**Work-required facts:** `63659463` exposes common/Web-ad/video candidates and needs model-confirmed role
+selection; `63657015` exposes a hearing sheet plus a common test and a designer-only branch; `63568785`
+provides a Google Docs assignment and no current form. The model must read the full conversation and linked
+content before choosing the action; code must not choose the first form or infer work from a URL.
+
+**Current code/runtime evidence:** shared Paid pre-effect failure handling is merged in PR `#5365` and loaded
+from immutable release `c16f437b`. A Paid readback that exceeded the useful bounded wake was stopped and
+reconciled with official no-write proof; no new external effect was accepted. The next live gate is a
+per-contract bounded context readback, not slot availability.
+
 ## Global constraints
 
 - This plan does not authorize another session to mutate the shared CrowdWorks browser, account, state, release, or launchd labels while an existing owner is using them. Coordinate the exact effect window with that owner.

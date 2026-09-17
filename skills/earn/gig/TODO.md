@@ -1007,62 +1007,47 @@ work item and leave a sibling trace unchanged.
 ### 3. CrowdWorks vertical proof
 
 **Plan:** `docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md` and
-`docs/superpowers/plans/2026-09-17-crowdworks-contract-fulfillment.md`. Current cursor is CW-1.
-The prior order treated Apply, Reply and Paid as independent full-life lanes and asked for a general
-three-contract close. The revised order is inventory repair → exact contract handoff → real work/quality →
-formal delivery/payout → recurring revenue. Reason: the funded work can be reached only after the current
-inventory failure is fixed, and Reply/Paid currently overlap on the contract page. This changes the
-CrowdWorks engineering cursor, not the parallel schedule or owners of other platforms.
+`docs/superpowers/plans/2026-09-17-crowdworks-contract-fulfillment.md`. Current cursor is **CW-F1**.
 
-- [ ] **CW-1 — exact inventory:** Re-read proposal `306120094` and contracts `63659463`/`63657015`
-  through the existing authenticated owner; record exact status, escrow, milestone, latest buyer request,
-  work link and deadline. Repair Paid `provider_inventory` failure and prove a natural wake observes every
-  active contract without treating an unreadable list as empty. A read-only owner-locked probe on
-  2026-09-17 observed five official funded contracts, including both target IDs; their detail pages expose
-  milestone IDs and multiple Google Form links. The adapter now retains all links and does not discard the
-  contract as `task_unavailable`; local Paid tests pass 39/39. CW-1 remains open until the installed owner
-  gets a natural wake past host admission and persists the same contract inventory/readback. Read-only form
-  metadata shows `63659463` has separate candidate forms for a work URL and Web広告/SNS実績; the loop must
-  read buyer context plus form fields and choose only an unambiguous requested task. The installed release
-  remains unchanged: `lm-loop doctor` currently reports `ok=false` because of the unrelated unmanaged label
-  `ai.anicca.provision-browser.colors-hachioji.owner-18211957`; no sibling loop was mutated to bypass it.
-  Fresh official contract readback shows all five active contracts still `funded` with no `delivered`/検収
-  state: `63659463` has 3 form candidates, `63657015` 2, `63583795` 1, and `63570481`/`63568785` 0.
-  Therefore no client has a verified formal submission yet.
-- [ ] **CW-2 — one post-contract owner:** Keep Apply independent. Let Reply negotiate and accept on the
-  proposal route, then hand the exact contract ID to Paid. Reply must not send a post-contract message or
-  submit the same external form; reconcile any old uncertain intent before the handoff. Reply now suppresses
-  external-form actions for accepted/non-proposed rows or conversations containing an exact contract URL,
-  and rejects a persisted post-contract external intent or ordinary reply with
-  `crowdworks_post_contract_owned_by_paid`. Context and mutation refresh the official thread detail before
-  any effect, treat a `/contracts/<id>` redirect as Paid-owned, and fail closed with
-  `crowdworks_contract_ownership_unknown` when the current thread inventory is absent. A stale `proposed`
-  row cannot cross the boundary, and an unproven proposal page cannot send. Focused Reply tests pass 32/32
-  and the full CrowdWorks suite passes 108/108.
-  CW-2 remains open until the installed owner performs a natural handoff and its contract-specific Paid
-  state is read back.
-- [ ] **CW-3 — do the work:** For each funded contract, read the full buyer instruction (including the
-  Google Docs link on `63657015`), agreed scope, later corrections and any buyer complaint. Map each
-  request to the real action, deliverable and proof; produce the requested result and verify it against
-  that buyer's acceptance criteria. `63659463` needs its full request read before choosing an
-  email/message action. A generic acknowledgement or empty composer is not completion.
-- [ ] **CW-4 — formal delivery:** Fence and verify external submissions separately from the exact
-  CrowdWorks `納品する`/milestone delivery action. Reopen the buyer-visible message, link, file or form
-  result and check the **content and access**, not only the send receipt. Read back inspection,
-  revisions, acceptance, settlement and payout per contract; replay must create no duplicate effect.
-- [ ] **CW-4a — live correctness and repair:** Observe the installed Paid loop on a natural wake for
-  each ready contract. If it replies or submits the wrong thing, keep the contract open, read the
-  buyer's correction, trace the bad decision, fix the loop, run a focused regression, deploy the
-  corrected owner release and inspect the next natural buyer-visible result. Repeat until the work
-  matches the request and its state is honestly classified, or record an exact external blocker.
-  A successful send, green test or empty buyer response never closes this item.
-- [ ] **CW-5 — revenue:** Close the existing active contracts first, then pursue repeat/retainer work.
-  Measure received cash and verified active monthly recurring revenue separately; USD 10,000 MRR remains
-  open until actual recurring payment records support it. Keep Report read-only on business state and
-  mark Storefront `not_applicable` absent an official listing surface.
-- [ ] Share the proven contract-ID handoff, real-work quality and receipt rules through the existing
-  marketplace kernel only after a second provider validates the boundary. Lancers requires its own
-  official page-flow inspection before changing its lanes. Keep all other loop owners and releases running.
+**Live verified state (2026-09-17):** official readback shows five active contracts, all `funded`, and
+zero formal `delivered`/`検収` states. Historical confirmed form receipts exist for `63583795` and
+`63570481`, but neither proves CrowdWorks formal delivery or buyer acceptance. The latest Paid attempts
+have `effect=0`; the shared pre-effect-failure repair is merged as PR `#5365` and loaded from immutable
+release `c16f437b`. A Paid readback that exceeded the useful bounded wake was stopped and reconciled by
+official no-write proof. No contract is complete yet.
+
+- [ ] **CW-F1 — bounded context:** Read and persist the full current buyer conversation, expanded hidden
+  messages, linked documents/forms, scope, corrections, milestone and newest buyer event per contract.
+  A slow contract must terminate as a replayable `waiting_external`/failure item and must not hold the
+  Paid owner indefinitely.
+- [ ] **CW-F2 — correct work selection:** Expose all exact form URLs with visible titles, required fields
+  and choices to the model. Never select the first URL, submit every candidate, or infer work from a URL.
+  For `63659463`, the current body lists common, Web-ad and video candidates; the model must confirm the
+  intended role. For `63657015`, it lists a hearing sheet, common email test and designer-only task; the
+  model must confirm the worker role. Ambiguity means one specific buyer question and zero effects.
+- [ ] **CW-F3 — artifact production and QA:**
+  - `63659463`: complete only the requested common/role-specific tests, then verify each buyer-visible result.
+  - `63657015`: copy/fill the hearing sheet, submit it in the allowed CrowdWorks format, complete the
+    applicable common test, and verify access/content.
+  - `63583795`: reconcile the existing form receipt; no second form POST; prepare formal delivery.
+  - `63570481`: read the complete buyer task, identify the missing customer-address response, submit only
+    that missing work, and verify it.
+  - `63568785`: read the Google Docs assignment, produce the requested feedback artifact, and verify it.
+  Every row needs `correct_work_verified=true`; a message, URL or filled composer is insufficient.
+- [ ] **CW-F4 — separate effects:** Fence each external form/message/file submission separately from the
+  exact CrowdWorks `納品する` milestone action. Read back the provider receipt before retrying either effect.
+  Formal delivery is never inferred from a normal message.
+- [ ] **CW-F5 — formal delivery and acceptance:** For each contract, read back `納品 → 検収/acceptance →
+  settlement → payout`, preserve revisions as new buyer-event versions, and prove replay-zero. A wrong or
+  incomplete result keeps the row open and triggers focused repair plus a new natural wake.
+- [ ] **CW-F6 — installed-owner proof:** Cut a main-derived release, apply only the CrowdWorks Paid label,
+  kickstart without waiting for a global slot, and verify the natural terminal receipt plus exact official
+  provider readback for every ready row. Keep other loop owners/releases unchanged.
+- [ ] **CW-F7 — revenue:** Close all five existing contracts before pursuing repeat/retainer work. Separate
+  cash received from verified recurring MRR; USD 10,000 MRR remains open until collected/settled evidence.
+- [ ] Share the contract-ID handoff, quality gate and receipt rules through the existing shared marketplace
+  kernel only after a second provider confirms the same boundary. Lancers requires its own official flow
+  inspection; do not copy CrowdWorks page assumptions.
 
 ### 4. Lancers vertical proof
 

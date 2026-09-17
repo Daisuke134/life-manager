@@ -16,6 +16,61 @@ Read-only production status at the planning snapshot: all four labels were `load
 
 CrowdWorks' official fixed-price guide defines application, negotiation, contract, escrow, work, **「納品する」**, inspection, and payment as distinct steps. A normal message in the same contract page does not invoke formal delivery. The official guide also says to begin work after escrow. Sources: [worker guide](https://crowdworks.jp/pages/guides/employee/fixed_price), [terms](https://crowdworks.jp/pages/agreement). Lancers' [project guide](https://www.lancers.jp/help/guide/lancer/project/3) likewise distinguishes proposal from work after escrow; its actual page/owner mapping needs separate inspection.
 
+## Live production cursor — 2026-09-17
+
+This section is the current execution SSOT. It supersedes the older planning snapshot above where the
+observed state differs. The read-only CrowdWorks owner re-read all five active contract pages on
+2026-09-17:
+
+| contract | official state | current buyer request evidence | remaining fulfillment |
+|---|---|---|---|
+| `63659463` OnJob | `funded`; formal delivery not read back | Contract message lists a common test and separate Web-ad / video candidates; the contract title is Web広告運用. The model must confirm the intended role from the full conversation before choosing a form. | Read every candidate form's title/required fields, choose only the form(s) justified by the request, submit and verify, then formal delivery and readback. |
+| `63657015` Orecon | `funded`; formal delivery not read back | Buyer asks for a copied/fillable hearing sheet and a common email-writing test; a designer-only task is separately described. The model must confirm the worker role and required scope. | Create the requested hearing artifact, send it through the contract message using the allowed format, complete the applicable test, then formal delivery and readback. |
+| `63583795` Mirafull | `funded`; one historical form receipt; formal delivery not read back | Buyer message says the task was received and asks the worker to click formal delivery. | Reconcile the existing form receipt, use the official `納品する` control, and read back the milestone/inspection state. |
+| `63570481` Effect | `funded`; one historical form receipt; formal delivery not read back | Buyer says the staff-address answer was seen but the customer-address answer was not. | Read the complete/expanded buyer task, identify the missing customer response, submit only that missing work, then formal delivery and readback. |
+| `63568785` undym67231 | `funded`; formal delivery not read back | Buyer supplied a Google Docs assignment link; no external form is exposed on the current contract page. | Read the document and full buyer instruction, produce the requested feedback artifact, send it through the contract, then formal delivery and readback. An application-date gate must not block a no-form task. |
+
+### Verified current facts
+
+- Official contract readback: **5/5 `funded`, 0/5 `delivered`/`検収`**.
+- Historical confirmed Google Form receipts exist for `63583795` and `63570481`; they do not prove formal CrowdWorks delivery or buyer acceptance.
+- The latest Paid attempts have `effect=0`; no new form or formal-delivery effect is accepted as successful.
+- The shared Paid kernel pre-effect-failure fix is merged in PR `#5365` and is loaded in immutable release
+  `c16f437b`. A timed Paid readback was stopped after it exceeded the useful bounded wake; the contract
+  item remains open and must be reconciled from official state before retry.
+- The Paid owner is the only post-contract effect owner. Reply may hand off an exact contract ID but must
+  not send an ordinary post-contract reply or external form for a Paid-owned contract.
+
+### Remaining TODO, in execution order
+
+1. **Bound the contract readback.** Keep per-contract timeouts and cached inventory facts separate from
+   external mutation. A slow contract must become a terminal, replayable `waiting_external`/failure item;
+   it must not hold the Paid owner indefinitely or block other contracts.
+2. **Persist full buyer context.** Store the newest buyer event, expanded message history, linked document/form
+   metadata, scope, corrections and the model's request-to-result mapping in private contract state.
+3. **Choose the requested work with model judgment.** For multiple forms, expose every exact URL plus visible
+   title, required fields and choices to the model. Never choose the first URL, submit all candidates, or infer
+   a task from a URL alone. If the mapping is ambiguous, ask one specific buyer question and perform no effect.
+4. **Create and quality-check each artifact.** Open the linked document/form, do the actual requested work,
+   verify content, completeness, format, permissions and buyer-visible access, and persist `correct_work_verified`
+   only after that readback.
+5. **Submit separate effects.** Fence external form/message/file submission separately from CrowdWorks formal
+   delivery. Read back each exact receipt before retrying. Formal delivery is the named milestone control,
+   not a normal message or an empty composer.
+6. **Close each contract.** Read back `納品 → 検収/acceptance → settlement → payout`, preserve revisions as new
+   buyer-event versions, and prove replay-zero per contract.
+7. **Run the installed owner.** Cut a main-derived release, apply only the CrowdWorks Paid label, kickstart
+   without waiting for a global slot, and inspect a natural terminal receipt plus official provider readback.
+8. **Only after all five close, pursue recurring work.** Record cash received separately from verified recurring
+   MRR; USD 10,000 MRR remains open until collected/settled monthly-equivalent payment evidence exists.
+
+### Completion gate
+
+The CrowdWorks fulfillment work is complete only when all five contract rows have a contract-specific artifact
+or required response, `correct_work_verified=true`, separate external receipts where applicable, formal delivery
+readback, honest inspection/acceptance state, settlement/payout evidence, and replay-zero. A green test, a running
+PID, a `送信中`/filled form, a historical receipt, or a message-only readback cannot close a row.
+
 ## Boundary decision
 
 The three choices are (A) keep Reply and Paid both acting on contract threads, (B) merge every CrowdWorks activity into one owner, or (C) keep independent acquisition and pre-contract negotiation while giving **one existing Paid owner exclusive responsibility for each accepted contract**. Choose C. It removes the overlapping post-contract effect authority, retains Apply's independent opportunity cadence, and reuses the existing Paid kernel and registered owner. The number or identity of page URLs is evidence about navigation, not the criterion for a loop boundary; the criterion is one durable business item and one effect owner. The pre-contract proposal page can redirect to a contract page after acceptance, but the contract ID becomes the durable key.
