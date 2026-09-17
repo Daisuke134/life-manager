@@ -716,7 +716,7 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 
 **Goal / historical acceptance:** **DONE.** Main-derived release `393f17458a4e6a62e01ae46215ab32ba5f02ea83` applied only to `life-manager-connector-native`. Connpass event `405297` (`【秋葉原】AIエンジニアの集いLT＆交流会`) reached official `registered`; provider receipt `f1bbe06389aff318ebb40c02e9e91b6af6be261e012629e126795dcb7f157273`; Calendar ID `hkpcm5qds9fhk6khorr2kfqnro`; independent Google Calendar API filtered by the Connector private property returned exact count 1 with canonical URL `https://mecha-mote-se.connpass.com/event/405297/`; Telegram receipts `86619` and `86620`; durable bundle `e8c393f6cd21636df0057ce49e82bd44257c9d128870dd8054585ff6a1c6b869`. The same loaded SHA then completed natural wakes `wake-953036ad8babec6ae03109f1` and `wake-96cc924ba6c56c1562a25308`; both continued to other candidates, submitted `405297` zero additional times, and preserved Calendar exact count 1. Official page readback returned `registered`. The owner remains on the existing 30-minute interval; this proves repeatable continuation, not an application on every wake.
 
-**Current operational status:** **OPEN.** The latest loaded release `fc31d122...` has not produced a new natural Connector terminal yet. The latest completed wake `wake-27c8cf1b61e2cf778bac5617` reached Connpass discovery (`free_open=234`, `calendar_free=10`) but recorded no Connpass action/readback before a later TechPlay discovery failure; Luma recorded `free_open=2`, `calendar_free=0`. The active repair cursor is Connpass/Luma diagnosis. KokuchPro remains deferred as a last-resort fallback.
+**Current operational status:** **OPEN.** The latest loaded release `fc31d122...` run `18d63a6d2b0a4738-90273` / wake `wake-80c07bbd05aaaa6ea4320a9a` read Calendar successfully (`5014ms`) and then failed at the browser boundary with `wake_boundary_failed`; no Luma or Connpass discovery began. The preceding wake `wake-27c8cf1b61e2cf778bac5617` reached Connpass discovery (`free_open=234`, `calendar_free=10`) but recorded no Connpass action/readback before a later TechPlay discovery failure; Luma recorded `free_open=2`, `calendar_free=0`. The active repair cursor is browser transport first, then Connpass selection/action, then Luma when Calendar-free. KokuchPro remains deferred as a last-resort fallback.
 
 **A15 dependency decision:** A15 remains the separate fleet fairness/recovery gate. It does **not** block Connector-specific diagnosis or source repair: the `203bbe8854` natural Connector run `18d6089253cdbf18-32608` acquired a browser slot, reached Connpass, and ended `completed_no_effect / provider_discovery_failed` at 2026-09-17 06:47 UTC. Its three Connpass direct attempts failed with `connpass_questionnaire_required`, each followed by `unsafe_agent_action`; Luma found 3 free/open events but Calendar-free 0. Do not alter A15's PID, admission DB, spec branch state outside this Connector section, or another browser/profile. A main-derived Connector release can be applied to the one loaded-idle Connector label after that run's terminal, without a fleet restart.
 
@@ -751,12 +751,13 @@ providers worked or did not work.
 
 | Boundary | Observed behavior | Decision |
 |---|---|---|
-| launchd and release | `ai.anicca.life-manager-connector-native` currently loads immutable release `fc31d1227b6356f917ddc750bbb6bfeef0fe2a7b` with `StartInterval=1800` and has `runs=0` since that install. The latest completed primary wake `wake-27c8cf1b61e2cf778bac5617` ran before the install on the prior main-derived release. | Lifecycle is present; idle or exit 0 is not an effect. |
-| Calendar inventory | `calendar_busy` succeeds in `14087ms` and supplies the 28-day busy intervals. | Calendar read is not the first failure. |
+| launchd and release | `ai.anicca.life-manager-connector-native` loads immutable release `fc31d1227b6356f917ddc750bbb6bfeef0fe2a7b` with `StartInterval=1800`; its latest run `18d63a6d2b0a4738-90273` exits `1`. | Lifecycle is present; idle or exit 0 is not an effect. |
+| Calendar inventory | In the latest wake, `calendar_busy` succeeds in `5014ms` and supplies the 28-day busy intervals. | Calendar read is not the latest first failure. |
 | provider discovery | The same wake records Luma `free_open=2/calendar_free=0` and Connpass `free_open=234/calendar_free=10`. The older fallback wake also recorded KokuchPro candidates. | Connpass has eligible candidates; Luma has no Calendar-free candidate. KokuchPro is not part of this primary cursor. |
 | primary action boundary | In `wake-27c8cf1b61e2cf778bac5617`, Connpass discovery records `free_open=234/calendar_free=10`, but no Connpass `navigate`, provider readback or Submit action follows. The next recorded provider failure is TechPlay discovery (`137334ms`). | Connpass discovery succeeds, but the persisted evidence cannot identify whether ranking returned zero `auto_apply_eligible` candidates or whether the runner skipped the candidate. Add that exact selection/action evidence before changing the provider. |
 | fallback boundary (historical) | Earlier wake `wake-c413bf68fe543285c41c3ac5` spent `441412ms` in KokuchPro discovery and ended `circuit_open/wake_deadline`. | KokuchPro is deferred; this does not justify repairing it before Connpass/Luma. |
 | latest primary terminal | `wake-27c8cf1b61e2cf778bac5617` ends `completed_no_effect/fallback_deferred_for_wake_budget` after TechPlay fails. No Connpass Submit/readback, evidence completion, Calendar creation or new bundle follows. | The current missing boundary is between Connpass discovery and the action path; ranking versus runner filtering is unrecorded. |
+| newest terminal | `wake-80c07bbd05aaaa6ea4320a9a` ends `circuit_open/wake_boundary_failed` after Calendar and before provider discovery. The current `127.0.0.1:9222/json/version` probe also times out, and the persisted target lease has an old heartbeat. | The newest run cannot diagnose Connpass or Luma provider behavior. Restore the existing browser transport/lease path before interpreting a provider no-effect. |
 | proven downstream path | Earlier run `18d62ca40c6f7e78-29272` on release `846c6911cbc85118aa412be2505a9c90cbeff141` registered Connpass event `404531`, receipt `b8da8f5f0b48d3745b4e4b1768a2f04a5aaf7ccfcace9234544d51f00cdaeffe`, and runtime Calendar ID `0v6ri3de5pdqsd6btrqs8ndsgs`. | Provider submit, official readback and evidence chain work when discovery leaves time. Independent Calendar exact-one and replay-zero for `404531` are still open. |
 
 The current code path is:
@@ -802,9 +803,18 @@ the exact control and require official `registered/pending` readback. It never
 invents consent, identity, or a missing private fact. An unknown fact remains a
 bounded pending/report state and does not authorize a duplicate Submit.
 
+**Loop topology decision:** keep one Connector loop for now. Luma and Connpass
+share the same authenticated browser endpoint, Google Calendar, evidence store,
+and effect fence; two production labels would create two owners for one mutable
+resource and would require shared registry/admission changes. First make the
+single loop primary-only. A later split is justified only if each provider gets
+an independent browser/account/evidence owner and a separate acceptance chain.
+
 **Connector operational TODO after this diagnosis:**
 
 - [ ] Add a Connector-only priority test around `skills/connector/native-pass.js::providersForSlot`: Luma and Connpass must be the primary acceptance pair; fallback providers, including KokuchPro, must not run before that pair reaches a truthful terminal. Do not delete KokuchPro code in this step.
+- [ ] After the priority test passes, remove fallback providers from the active Connector provider list so the production cursor runs only Luma and Connpass. Keep unused provider files dormant until the primary gates pass; delete them only after a reachability check proves no owner depends on them.
+- [ ] Repair the existing browser transport/lease boundary first: `wake-80c07bbd05aaaa6ea4320a9a` must reach the primary browser target after Calendar read, with no stale target/lock ambiguity.
 - [ ] Add one Connector-only Connpass selection/action diagnostic test and record ranked versus `auto_apply_eligible` counts for a real primary wake. Do not modify KokuchPro.
 - [ ] If Connpass has `calendar_free>0` and `auto_apply_eligible=0`, repair only the existing ranking/eligibility boundary with a failing test; if it has an eligible candidate, trace the first provider action/readback boundary instead.
 - [ ] For Luma, wait for a real `calendar_free>0` candidate before diagnosing Submit; keep `calendar_free=0` as no-work.
