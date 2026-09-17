@@ -1,5 +1,10 @@
 import json
+import os
+import signal
+import subprocess
+import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -52,7 +57,14 @@ class AgentRunnerTests(unittest.TestCase):
             (root / "result.json").write_text('{"answer":"ok"}', encoding="utf-8")
             schema = root / "schema.json"
             schema.write_text('{"type":"object","required":["answer"]}', encoding="utf-8")
-            with patch("subprocess.run", return_value=completed) as call:
+            process = type("Process", (), {
+                "pid": 4242,
+                "returncode": completed.returncode,
+                "communicate": lambda self, **kwargs: (completed.stdout, completed.stderr),
+                "wait": lambda self, **kwargs: self.returncode,
+                "poll": lambda self: self.returncode,
+            })()
+            with patch("subprocess.Popen", return_value=process) as call:
                 runner.run(
                     task="mercor_pass",
                     prompt="Grounded task",
@@ -90,7 +102,15 @@ class AgentRunnerTests(unittest.TestCase):
             schema.write_text(
                 '{"type":"object","required":["answer"]}', encoding="utf-8"
             )
-            with patch("subprocess.run", return_value=completed) as call:
+            process = type("Process", (), {
+                "pid": 4242,
+                "returncode": completed.returncode,
+                "received_input": None,
+                "communicate": lambda self, **kwargs: (setattr(self, "received_input", kwargs.get("input")) or (completed.stdout, completed.stderr)),
+                "wait": lambda self, **kwargs: self.returncode,
+                "poll": lambda self: self.returncode,
+            })()
+            with patch("subprocess.Popen", return_value=process) as call:
                 result = runner.run(
                     task="tailor",
                     prompt="Grounded task",
@@ -101,7 +121,7 @@ class AgentRunnerTests(unittest.TestCase):
             argv = call.call_args.args[0]
             self.assertIn("--prompt-stdin", argv)
             self.assertNotIn("--prompt-file", argv)
-            self.assertEqual(call.call_args.kwargs["input"], "Grounded task")
+            self.assertEqual(process.received_input, "Grounded task")
             self.assertNotIn("Grounded task", argv)
             prompt_path = root / "evidence" / "one" / "prompt.md"
             self.assertEqual(prompt_path.read_text(encoding="utf-8"), "Grounded task")
@@ -126,7 +146,14 @@ class AgentRunnerTests(unittest.TestCase):
                 "stdout": "",
                 "stderr": "LIFE_MANAGER_PROVIDER_LEASE_BUSY\nprovider lease busy\n",
             })()
-            with patch("subprocess.run", return_value=completed):
+            process = type("Process", (), {
+                "pid": 4242,
+                "returncode": completed.returncode,
+                "communicate": lambda self, **kwargs: (completed.stdout, completed.stderr),
+                "wait": lambda self, **kwargs: self.returncode,
+                "poll": lambda self: self.returncode,
+            })()
+            with patch("subprocess.Popen", return_value=process):
                 with self.assertRaises(PassAlreadyRunning):
                     runner.run(
                         task="mercor_pass", prompt="Grounded task",
@@ -145,12 +172,103 @@ class AgentRunnerTests(unittest.TestCase):
             completed = type("Completed", (), {
                 "returncode": 75, "stdout": "", "stderr": "budget blocked\n",
             })()
-            with patch("subprocess.run", return_value=completed):
+            process = type("Process", (), {
+                "pid": 4242,
+                "returncode": completed.returncode,
+                "communicate": lambda self, **kwargs: (completed.stdout, completed.stderr),
+                "wait": lambda self, **kwargs: self.returncode,
+                "poll": lambda self: self.returncode,
+            })()
+            with patch("subprocess.Popen", return_value=process):
                 with self.assertRaises(ContractError):
                     runner.run(
                         task="mercor_pass", prompt="Grounded task",
                         schema_path=schema, workdir=root, run_id="budget-blocked",
                     )
+
+    def test_timeout_terminates_the_runner_process_group(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runner = AgentRunner(
+                runner_path=Path("/opt/agent_runner.py"),
+                evidence_root=root / "evidence",
+            )
+            schema = root / "schema.json"
+            schema.write_text('{"type":"object"}', encoding="utf-8")
+
+            class HangingProcess:
+                pid = 4242
+                returncode = None
+
+                def communicate(self, *, input=None, timeout=None):
+                    raise subprocess.TimeoutExpired(["agent-runner"], timeout)
+
+                def wait(self, timeout=None):
+                    self.returncode = -signal.SIGTERM
+                    return self.returncode
+
+                def poll(self):
+                    return self.returncode
+
+            process = HangingProcess()
+            with patch("subprocess.Popen", return_value=process) as popen, patch(
+                "job_search_loop.agent_runner.os.killpg"
+            ) as killpg:
+                with self.assertRaisesRegex(ContractError, "timed out"):
+                    runner.run(
+                        task="mercor_pass", prompt="Grounded task",
+                        schema_path=schema, workdir=root, run_id="timeout",
+                    )
+            self.assertEqual(
+                killpg.call_args_list,
+                [
+                    unittest.mock.call(4242, signal.SIGTERM),
+                    unittest.mock.call(4242, 0),
+                    unittest.mock.call(4242, signal.SIGKILL),
+                ],
+            )
+            self.assertTrue(popen.call_args.kwargs["start_new_session"])
+
+    def test_timeout_reaps_a_real_runner_descendant(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            child_pid_path = root / "child.pid"
+            runner_script = root / "runner.py"
+            runner_script.write_text(
+                "import os, subprocess, sys, time\n"
+                "from pathlib import Path\n"
+                "child = subprocess.Popen([sys.executable, '-c', "
+                "'import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(30)'])\n"
+                "Path(os.environ['CHILD_PID_FILE']).write_text(str(child.pid))\n"
+                "time.sleep(30)\n",
+                encoding="utf-8",
+            )
+            schema = root / "schema.json"
+            schema.write_text('{"type":"object"}', encoding="utf-8")
+            runner = AgentRunner(
+                runner_path=runner_script,
+                evidence_root=root / "evidence",
+            )
+            with patch.dict(os.environ, {"CHILD_PID_FILE": str(child_pid_path)}), patch(
+                "job_search_loop.agent_runner.AGENT_RUNNER_TIMEOUT_SECONDS", 1
+            ):
+                with self.assertRaisesRegex(ContractError, "timed out"):
+                    runner.run(
+                        task="mercor_pass", prompt="Grounded task",
+                        schema_path=schema, workdir=root, run_id="real-timeout",
+                    )
+            child_pid = int(child_pid_path.read_text(encoding="utf-8"))
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                probe = subprocess.run(
+                    ["/bin/ps", "-p", str(child_pid), "-o", "pid="],
+                    check=False, capture_output=True, text=True,
+                )
+                if not probe.stdout.strip():
+                    break
+                time.sleep(0.05)
+            else:
+                self.fail(f"runner descendant {child_pid} survived timeout cleanup")
 
 
 if __name__ == "__main__":
