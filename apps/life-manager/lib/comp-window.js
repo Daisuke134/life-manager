@@ -1,6 +1,6 @@
 // lib/comp-window.js — LM_COMP_UNTIL: a time-boxed, read-time comp for live demos.
 //
-// WHY: onboarding hard-stops at the $20 subscription (telegram-onboard computeStage → "pay") and the
+// WHY: onboarding hard-stops at the $29 subscription (telegram-onboard computeStage → "pay") and the
 // scheduler cohort filter selects `paid=is.true` only (user-selector), so a stranger who scans the
 // demo QR gets a paywall and then zero calls/travel/asks. LM_COMP_UNTIL lets those users through for
 // a bounded window.

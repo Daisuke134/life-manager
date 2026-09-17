@@ -19,7 +19,9 @@ const {
   SELF_BUILD_PROTECTED_PATHS,
   selfBuildLedgerPath,
   inspectGuardLock,
+  orderCandidates,
   pickEligiblePr,
+  readMetricFocus,
   readSelfBuildDays,
   selfBuildStreak,
   runSelfBuildDay,
@@ -106,6 +108,39 @@ test("the oldest open eligible error-fix PR is the one picked", async () => {
   assert.equal(picked.skipped.length, 0);
   // Oldest-first: the precheck must not have burned a read on a newer PR before deciding.
   assert.deepEqual(deps.calls.prechecked, [100]);
+});
+
+
+test("metric-matched loop PR is preferred before an older unmatched PR", async () => {
+  const prs = [
+    eligiblePr(100, "2026-07-20T09:00:00Z", { body: "[lm-dev-loop]" }),
+    eligiblePr(200, "2026-07-22T09:00:00Z", { body: "[lm-dev-loop]\n[lm-metric-focus:paid]" }),
+  ];
+  const deps = depsFor(prs, {
+    listErrorFixPrs: async () => prs.map((pr) => ({
+      number: pr.number, createdAt: pr.createdAt, body: pr.body,
+    })),
+  });
+  const picked = await pickEligiblePr({ deps, options: { metricFocus: { focus: "paid" } } });
+  assert.equal(picked.prNumber, 200);
+  assert.deepEqual(deps.calls.prechecked, [200]);
+  assert.deepEqual(orderCandidates(prs, { metricFocus: { focus: "paid" } }).map((pr) => pr.number), [200, 100]);
+});
+
+
+test("readMetricFocus chooses the largest measured funnel drop", () => {
+  const dir = tempDir();
+  const state = path.join(dir, "STATE.md");
+  fs.writeFileSync(state, [
+    "funnel_users: 315",
+    "funnel_calendar_connected: 3",
+    "funnel_phone_saved: 3",
+    "funnel_call_opt_in: 2",
+    "funnel_paid: 1",
+  ].join("\n"));
+  const focus = readMetricFocus({ statePath: state });
+  assert.equal(focus.focus, "calendar");
+  assert.equal(focus.values.funnel_users, 315);
 });
 
 

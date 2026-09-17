@@ -33,6 +33,7 @@ const {
   DEFAULT_BUDGET_MS,
   SELF_BUILD_PROTECTED_PATHS,
   readSelfBuildDays,
+  readMetricFocus,
   runSelfBuildDay,
   selfBuildLedgerPath,
   selfBuildStreak,
@@ -167,7 +168,12 @@ function createSelfBuildDeps(io = {}) {
         // Three independent signals, all required. Branch and author are conventions a human can
         // satisfy by accident; the marker is written by the producer and nothing else.
         .filter((pr) => String(pr?.body || "").includes(LOOP_PR_MARKER))
-        .map((pr) => ({ number: Number(pr.number), createdAt: String(pr.createdAt) }));
+        .map((pr) => ({
+          number: Number(pr.number),
+          createdAt: String(pr.createdAt),
+          title: String(pr.title || ""),
+          body: String(pr.body || ""),
+        }));
     },
     getPullRequest: guardIo.getPullRequest,
     listChangedFiles: guardIo.listChangedFiles,
@@ -206,6 +212,7 @@ async function main() {
   }
 
   const deps = createSelfBuildDeps();
+  const metricFocus = readMetricFocus();
   if (options.dryRun) {
     // Everything up to (not including) the guard, so the picker can be exercised without promoting
     // anything. Matches `scripts/dev-merge-guard.js --dry-run` in spirit.
@@ -220,6 +227,7 @@ async function main() {
       guardLockPath: guardLockPath(guardLedgerPath()),
       budgetMs: Number.isFinite(options.budgetMs) ? options.budgetMs : DEFAULT_BUDGET_MS,
       protectedPaths: [...SELF_BUILD_PROTECTED_PATHS],
+      metricFocus,
       // Per-run, so a previous day's abandoned file can never be mistaken for today's merge.
       progressFile: path.join(os.tmpdir(), `lm-self-build-progress-${process.pid}.json`),
     },
