@@ -228,6 +228,23 @@ test("runner dispatch audit stops at the candidate that ends the wake", async ()
   }]);
 });
 
+test("runner dispatch audit records an empty batch as no dispatch", async () => {
+  const audits = [];
+  const state = fixture({
+    async discoverCandidates() { return []; },
+    async recordCandidateDispatchAudit(input) { audits.push(input); },
+  });
+
+  await runMinimalConnectorWake({ ownerToken: "owner-token-dispatch-empty", providers: ["connpass"] }, state.dependencies);
+
+  assert.deepEqual(audits, [{
+    provider: "connpass",
+    candidate_count: 0,
+    selected_count: 0,
+    selected_candidate_refs: [],
+  }]);
+});
+
 test("connpass candidates produce one action-boundary receipt and skip every provider action", async () => {
   let state = fixture({
     async discoverCandidates(provider) {
