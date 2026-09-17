@@ -57,3 +57,45 @@ def test_normalization_includes_selected_binding_receipts() -> None:
     normalized = MODULE._normalize_model_demand_observation_ids(card, observations)
 
     assert normalized["observation_ids"] == ["publisher-1", "price-1"]
+
+
+def test_nfkc_equivalent_observation_and_binding_ids_share_normalization() -> None:
+    observations = [
+        _row("ｐｕｂｌｉｓｈｅｒ－１", "https://techi.com/authors", "publisher_opportunity"),
+        _row("price-1", "https://example.com/rate", "paid_market"),
+        _row("reader-1", "https://reader.example/job", "reader_demand"),
+        _row("funnel-1", "https://funnel.example/cta", "owned_funnel"),
+    ]
+    fields = (
+        "buyer",
+        "problem",
+        "transformation",
+        "deliverable",
+        "price_hypothesis",
+        "distribution_path",
+    )
+    card = {
+        "buyer": "technical editors",
+        "problem": "finding accepted work",
+        "transformation": "publish-ready article",
+        "deliverable": "one article",
+        "price_hypothesis": {"amount": 49, "currency": "USD", "basis": "receipt"},
+        "distribution_path": [{"channel": "publisher", "role": "submission"}],
+        "observation_ids": ["publisher-1", "price-1", "reader-1", "funnel-1"],
+        "binding_observation_ids": {
+            field: ["ｐｕｂｌｉｓｈｅｒ－１"] for field in fields
+        },
+    }
+
+    normalized = MODULE._normalize_model_demand_observation_ids(card, observations)
+    assert normalized["observation_ids"] == [
+        "publisher-1", "price-1", "reader-1", "funnel-1"
+    ]
+
+    demand_card = MODULE.build_demand_card(
+        observations,
+        {field: normalized[field] for field in fields}
+        | {"binding_observation_ids": normalized["binding_observation_ids"]},
+    )
+    assert demand_card["observations"][0]["observation_id"] == "publisher-1"
+    assert demand_card["binding_observation_ids"]["buyer"] == ["publisher-1"]

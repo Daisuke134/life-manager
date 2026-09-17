@@ -50,6 +50,7 @@ def test_generate_records_complete_receipt_and_replay_calls_api_zero_times(
     assert len(calls) == 1
     assert result["request_model"] == "gpt-image-2-2026-04-21"
     assert result["x_request_id"] == "req_test_123"
+    assert result["request_sha256"] == image._sha(calls[0][0].data)
     assert result["file_sha256"] == image._sha(PNG)
     assert (result["width"], result["height"]) == (1536, 1024)
     assert replay["replay"] == "reused"
