@@ -118,19 +118,23 @@ tables remain evidence of the superseded plan, not the active cursor.
 | 12 | Promote the identical approved business kernel/source SHA to tenant-isolated Cloud; test Steel owner lease/release and phone-only status/human handoff/readback; run Cloud gate. | Tenant cross-read 0, credential/state mix 0, official effects and replay-zero, Local/Eval/Cloud all PASS. |
 | 13 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
 
-### Atomic remaining execution list — current cursor CN01
+### Atomic remaining execution list — current cursor A12b
 
-Order correction: the previous cursor was A12 before CN01/CN02. Live admission DB has two
-`claimed/effect_unknown=1` Connector occurrences, so a new Connector wake is correctly fenced
-before it can claim a browser slot. New order is CN01 → CN02 → A12 → A13–A15 → CN03 onward.
-This moves only the prerequisite readbacks; no in-flight effect is interrupted or resent.
+Order correction: the prior order was CN01 → CN02 → A12. Dais clarified that the two
+historical `effect_unknown` records are **observability**, not a completion or admission gate.
+New order: A12a → A12b → A12c → A12 → A13–A15 → CN03 onward. The old rows remain
+unaltered and visible; the Connector-only owner-wide stop is removed while every *new*
+candidate still requires an official pre-submit `absent` readback and post-effect proof.
+No in-flight effect is interrupted or resent. The two historical occurrence IDs are
+`life-manager-connector-native:18d5cc1bd5aeb4a0-9766` and
+`life-manager-connector-native:18d5d38a21bdf160-33935`.
 
 This list tracks the current atomic work. Each checkbox is one reviewable
 transition with its own evidence. The table above is a program map, not a
 second execution cursor. Provider/client IDs are read from fresh official
 inventory rather than invented here; one selected ID is handled per item.
 
-- [x] A01 — Add proof-bound disposition of one exact `effect_unknown` occurrence in `runtime/host/resource_admission.py`; refuse missing/mismatched official readback. Source branch `fd33a5abd0`: exact owner+occurrence+verified provider receipt required; absence/inconclusive remains fenced. Focused admission tests 87 PASS. This is a code gate only, not a production official effect; CN01/CN02 retain live reconciliation.
+- [x] A01 — Add proof-bound disposition of one exact `effect_unknown` occurrence in `runtime/host/resource_admission.py`; refuse missing/mismatched official readback. Source branch `fd33a5abd0`: exact owner+occurrence+verified provider receipt required; absence/inconclusive remains fenced. Focused admission tests 87 PASS. Historical Connector rows remain observational; this API is not required to clear them before a new wake.
 - [x] A02 — Prove one old-loaded runner cannot claim or erase another release's new occurrence during a mixed-release fixture; fix only the failing admission boundary. Existing old-release/orphan/legacy-claim fences cover this boundary; four targeted mixed-release tests PASS on source branch `fd33a5abd0`. No extra code change needed; production release remains pending A07–A14.
 - [x] A03 — Prove one freed finite slot automatically reserves the next eligible `agent` owner under saturation. Parametrized handoff test PASS on `b1cb03a6f2`.
 - [x] A04 — Prove one freed finite slot automatically reserves the next eligible `browser` owner under saturation. Same handoff test PASS on `b1cb03a6f2`.
@@ -141,9 +145,10 @@ inventory rather than invented here; one selected ID is handled per item.
 - [x] A09 — Apply the release to one loaded-idle agent owner and read back exact loaded argv/SHA. `hf-gig-reply-detector` alone was reconciled `--loaded-idle-only`; apply returned `changed=true`, `failed=[]`, and independent plist/launchctl readback both show `20260917T110101-7047b6ad` with exact SHA `7047b6adef`. The most recent business terminal before install was on old SHA and blocked by `resource_fifo_wait`; A10 is not yet proved.
 - [x] A10 — Observe that agent owner's natural release→next-claim→outer terminal without a manual kickstart. `hf-gig-reply-detector` naturally ran at 2026-09-17 02:08 UTC on SHA `7047b6adef`, occurrence `hf-gig-reply-detector:18d5f9a355324ae8-30601` reached `released/effect_unknown=0`, outer report was `pass`, and launchd returned `exit 0`/idle. This is lifecycle evidence, not proof that all Reply threads are resolved.
 - [x] A11 — Apply the same release to one loaded-idle browser owner and read back exact loaded argv/SHA. `life-manager-connector-native` alone was reconciled from `loaded-idle`; independent plist and launchctl readback both show release `20260917T110101-7047b6ad` and SHA `7047b6adef`, with no running Connector process at apply time. Its last business terminal remains on old SHA with `resource_admission_unavailable`; A12 is not yet proved.
-- [ ] CN01 — Reconcile exact Connector occurrence `life-manager-connector-native:18d5cc1bd5aeb4a0-9766` against official provider and Calendar records; do not resend before disposition. The matched time-window wake report says `completed_no_effect`, but its action history includes failed submit attempts, so that report alone is insufficient.
-- [ ] CN02 — Reconcile exact Connector occurrence `life-manager-connector-native:18d5d38a21bdf160-33935` against official provider and Calendar records. Its matched time-window wake likewise says `completed_no_effect` while failed submit attempts are recorded; no inferred retry.
-- [ ] A12 — Observe that browser owner's natural release→next-claim→outer terminal without a manual kickstart, after CN01/CN02 clear the replay fence.
+- [x] A12a — Keep historical Connector unknown rows observable without blocking a fresh occurrence, and fail closed when a new candidate's official pre-submit readback is unavailable. Candidate branch `43ec132c90`: a reproducing admission test failed before the change; 139 Python and 78 Connector runner tests PASS after it. No live claim is inferred.
+- [ ] A12b — Merge only candidate `43ec132c90` after CI; do not mutate the two historical rows.
+- [ ] A12c — Cut a main-derived immutable release and apply it to the Connector label only when loaded-idle; read back exact argv/SHA.
+- [ ] A12 — Observe that browser owner's natural release→next-claim→outer terminal without a manual kickstart.
 - [ ] A13 — Apply the same release to one loaded-idle deterministic owner and read back exact loaded argv/SHA.
 - [ ] A14 — Observe that deterministic owner's natural release→next-claim→outer terminal without a manual kickstart.
 - [ ] A15 — Run one bounded pressure/recovery check and confirm queue age, owner heartbeat and no fleet starvation; only then mark foundation Done.
