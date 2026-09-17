@@ -122,8 +122,11 @@ class MercorAuthReadbackTests(unittest.TestCase):
         self.assertIn("firebase_token_refreshed", expression)
         self.assertIn("expirationTime", expression)
         self.assertIn("readwrite", expression)
+        self.assertIn("profile_surface_visible", expression)
+        self.assertIn("textarea#summary", expression)
         self.assertIn("Page.reload", inspect.getsource(observe))
         self.assertIn("https://work.mercor.com/profile?tab=resume", inspect.getsource(observe))
+        self.assertIn("firebase_profile_readback_verified", inspect.getsource(observe))
 
 
 if __name__ == "__main__":

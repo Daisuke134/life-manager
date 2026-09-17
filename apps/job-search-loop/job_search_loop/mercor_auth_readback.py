@@ -92,6 +92,10 @@ def auth_snapshot_expression() -> str:
         .filter(visible)
         .map(element=>(element.innerText||element.getAttribute('aria-label')||'').trim())
         .filter(label=>['Explore','Applications','Earnings','Profile'].includes(label)));
+      const profile_surface_visible=location.pathname.startsWith('/profile') &&
+        visible(document.querySelector('textarea#summary')) &&
+        visible(document.querySelector('input[type="email"]')) &&
+        document.querySelectorAll('[role="tab"]').length>=3;
       let firebase_user_present=false;
       let authenticated_api_status=null;
       let firebase_token_expired=false;
@@ -193,6 +197,7 @@ def auth_snapshot_expression() -> str:
         text:(document.body?.innerText||'').slice(0,20000),
         login_form_visible:!!email && !!login,
         authenticated_navigation_visible:labels.size>=2,
+        profile_surface_visible,
         firebase_user_present,
         authenticated_api_status,
         firebase_token_expired,
@@ -274,11 +279,13 @@ async def observe(ws_url: str) -> dict[str, object]:
                     and profile_parsed.hostname == "work.mercor.com"
                     and profile_parsed.path.startswith("/profile")
                     and profile.get("login_form_visible") is False
+                    and profile.get("profile_surface_visible") is True
                     and profile.get("firebase_user_present") is True
                     and profile.get("authenticated_api_status") == 200
                 )
                 if not profile_ok:
                     profile["firebase_navigation_verified"] = False
+                    profile["firebase_profile_readback_verified"] = False
                     profile["firebase_token_refresh_failed"] = True
                     value = profile
                 else:
@@ -286,9 +293,11 @@ async def observe(ws_url: str) -> dict[str, object]:
                     await wait_for_page(510)
                     value = await evaluate(600)
                     value["firebase_navigation_verified"] = True
+                    value["firebase_profile_readback_verified"] = True
             except Exception:
                 value["firebase_token_refresh_failed"] = True
                 value["firebase_navigation_verified"] = False
+                value["firebase_profile_readback_verified"] = False
     url = value.get("url", "")
     return {
         "status": classify_auth_snapshot(
@@ -306,6 +315,7 @@ async def observe(ws_url: str) -> dict[str, object]:
         "url": url,
         "login_form_visible": value.get("login_form_visible") is True,
         "authenticated_navigation_visible": value.get("authenticated_navigation_visible") is True,
+        "profile_surface_visible": value.get("profile_surface_visible") is True,
         "firebase_user_present": value.get("firebase_user_present") is True,
         "authenticated_api_status": value.get("authenticated_api_status"),
         "firebase_token_expired": value.get("firebase_token_expired") is True,
@@ -313,6 +323,7 @@ async def observe(ws_url: str) -> dict[str, object]:
         "firebase_token_refresh_failed": value.get("firebase_token_refresh_failed") is True,
         "firebase_token_refresh_invalid": value.get("firebase_token_refresh_invalid") is True,
         "firebase_navigation_verified": value.get("firebase_navigation_verified"),
+        "firebase_profile_readback_verified": value.get("firebase_profile_readback_verified"),
     }
 
 
