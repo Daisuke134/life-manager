@@ -97,7 +97,20 @@ The plan may contain only one `loaded-idle-only` reconcile command for the
 canonical `loop_id`, with `max-owners=1`. `hold_effect_unknown` and escalation
 intents produce no command. The planner is pure; a supervisor remains
 responsible for checking the immutable release SHA and executing through the
-existing `lm-loop reconcile` path.
+existing `lm-loop reconcile` path. The repository-owned execution boundary is:
+
+```bash
+./bin/lm-recovery-execute --intent <intent.json> \
+  --release-root <immutable-release> \
+  [--registry <immutable-release>/config/loop-registry.json]
+```
+
+It refuses a release SHA mismatch, a command other than the one owner-scoped
+reconcile form, a missing release entrypoint, a sibling target, or a reconcile
+result that does not name exactly the intended owner. A failed reconcile stays
+`queued` for the next bounded wake; an uncertain external effect remains
+`held` and never reaches this command. This CLI is a supervisor boundary, not
+provider/browser execution and not proof of an external business effect.
 
 ## Source, state, and ownership
 
