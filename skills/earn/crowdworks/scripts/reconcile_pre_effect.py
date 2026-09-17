@@ -51,7 +51,7 @@ def find_matching_intent(state_root: Path, contract_id: str,
 
 def reconcile(*, state_root: Path, owner: str, occurrence: str,
               contract_id: str, form_sha256: str,
-              run_marker: Path) -> dict[str, Any]:
+              run_marker: Path, expected_state: str = "claimed") -> dict[str, Any]:
     value = find_matching_intent(state_root, contract_id, form_sha256, occurrence)
     if value is None:
         raise RuntimeError("exact_persisted_form_intent_unavailable")
@@ -74,7 +74,7 @@ def reconcile(*, state_root: Path, owner: str, occurrence: str,
                 "evidence_ref": f"google-form-prepared-absent:{_identity(binding)}"}
 
     resolved = resolve_pre_effect_occurrence(
-        owner, occurrence, pre_effect_readback=proof,
+        owner, occurrence, pre_effect_readback=proof, expected_state=expected_state,
     )
     return {"resolved": resolved, "owner_id": owner, "occurrence_id": occurrence,
             "contract_id": contract_id, "form_revision_sha256": form_sha256,
@@ -89,10 +89,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--contract-id", required=True)
     parser.add_argument("--form-sha256", required=True)
     parser.add_argument("--run-marker", required=True, type=Path)
+    parser.add_argument("--expected-state", choices=("claimed", "released"), default="claimed")
     args = parser.parse_args(argv)
     result = reconcile(state_root=args.state_root.expanduser().resolve(), owner=args.owner,
                        occurrence=args.occurrence, contract_id=args.contract_id,
-                       form_sha256=args.form_sha256, run_marker=args.run_marker.expanduser().resolve())
+                       form_sha256=args.form_sha256, run_marker=args.run_marker.expanduser().resolve(),
+                       expected_state=args.expected_state)
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0 if result["resolved"] else 1
 

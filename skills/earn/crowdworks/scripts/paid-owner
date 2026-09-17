@@ -25,26 +25,4 @@ set +e
 RC=$?
 set -e
 
-if [[ "$RC" -ne 0 && -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]]; then
-  "$PYTHON" - "$STATE_ROOT/paid-latest.json" "$LIFE_MANAGER_RESULT_HINT_PATH" <<'PY' || true
-import json
-import os
-from pathlib import Path
-import sys
-
-try:
-    result = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-    if (result.get("status") == "failed"
-            and result.get("failed_step") == "provider_inventory"
-            and result.get("effect") == 0):
-        target = Path(sys.argv[2])
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(json.dumps({"status": "pre_effect_failure", "effect": 0}) + "\n",
-                          encoding="utf-8")
-        os.chmod(target, 0o600)
-except (OSError, TypeError, ValueError, json.JSONDecodeError):
-    pass
-PY
-fi
-
 exit "$RC"

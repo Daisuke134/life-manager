@@ -1319,7 +1319,8 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
 
 
 def _close_unknown_occurrence(owner_id: str, occurrence_id: str,
-                              expected_state: str | None = None) -> bool:
+                              expected_state: str | None = None,
+                              proof_check: Callable[[], bool] | None = None) -> bool:
     root, owners, _, database = _durable_paths()
     descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
     try:
@@ -1331,6 +1332,8 @@ def _close_unknown_occurrence(owner_id: str, occurrence_id: str,
                    and _live(path, starts, snapshot_started_ns)
                    for path in owners.glob("*.json")):
                 return False
+        if proof_check is not None and not proof_check():
+            return False
         with _database(database) as connection:
             state_clause = "state IN ('claimed','released')" if expected_state is None else "state=?"
             params = (owner_id, occurrence_id) if expected_state is None else (
@@ -1382,7 +1385,7 @@ def resolve_unknown_occurrence(owner_id: str, occurrence_id: str, *,
 
 def resolve_pre_effect_occurrence(owner_id: str, occurrence_id: str, *,
                                   pre_effect_readback: Callable[[], Mapping[str, object]],
-                                  expected_state: str = "released") -> bool:
+                                  expected_state: str = "claimed") -> bool:
     """Close a fenced effect only after an explicit no-dispatch proof.
 
     This path is narrower than provider readback: an adapter must prove that its
@@ -1390,18 +1393,19 @@ def resolve_pre_effect_occurrence(owner_id: str, occurrence_id: str, *,
     is rejected so this cannot silently turn an unknown effect into no effect.
     """
     if (not owner_id or not _normalize_occurrence_id(occurrence_id)
-            or expected_state != "released"):
+            or expected_state not in {"claimed", "released"}):
         raise RuntimeError("invalid occurrence identity")
-    proof = pre_effect_readback()
-    if (not isinstance(proof, Mapping)
-            or proof.get("owner_id") != owner_id
-            or proof.get("occurrence_id") != occurrence_id
-            or proof.get("verified") is not True
-            or proof.get("proof_type") != "pre_effect"
-            or not isinstance(proof.get("evidence_ref"), str)
-            or not proof["evidence_ref"].strip()):
-        return False
-    return _close_unknown_occurrence(owner_id, occurrence_id, expected_state)
+    def proof_check() -> bool:
+        proof = pre_effect_readback()
+        return (isinstance(proof, Mapping)
+                and proof.get("owner_id") == owner_id
+                and proof.get("occurrence_id") == occurrence_id
+                and proof.get("verified") is True
+                and proof.get("proof_type") == "pre_effect"
+                and isinstance(proof.get("evidence_ref"), str)
+                and bool(proof["evidence_ref"].strip()))
+    return _close_unknown_occurrence(owner_id, occurrence_id, expected_state,
+                                     proof_check=proof_check)
 
 
 def clear_no_effect_unknown(owner_id: str) -> int:

@@ -1160,10 +1160,6 @@ def test_unknown_occurrence_can_close_with_explicit_pre_effect_proof(
         "browser", owner, admission_class="revenue", now=101)
     assert claim is not None and reason == "acquired"
     admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
-    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
-        connection.execute(
-            "UPDATE occurrences SET state='released' WHERE occurrence_id=?", (occurrence,))
-        connection.commit()
 
     assert admission.resolve_pre_effect_occurrence(
         owner, occurrence,
@@ -1197,14 +1193,13 @@ def test_pre_effect_reconcile_rejects_a_live_claim(tmp_path, monkeypatch):
         "version": 2, "pid": os.getpid(),
         "process_start": admission.process_start(os.getpid()), "owner_id": owner,
     })
-    with pytest.raises(RuntimeError, match="invalid occurrence identity"):
-        admission.resolve_pre_effect_occurrence(
-            owner, occurrence, expected_state="claimed",
-            pre_effect_readback=lambda: {
-                "owner_id": owner, "occurrence_id": occurrence,
-                "verified": True, "proof_type": "pre_effect", "evidence_ref": "x",
-            },
-        )
+    assert admission.resolve_pre_effect_occurrence(
+        owner, occurrence, expected_state="claimed",
+        pre_effect_readback=lambda: {
+            "owner_id": owner, "occurrence_id": occurrence,
+            "verified": True, "proof_type": "pre_effect", "evidence_ref": "x",
+        },
+    ) is False
 
 
 def test_pre_effect_reconcile_rejects_provider_receipt_shaped_proof(
