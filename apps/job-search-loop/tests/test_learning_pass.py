@@ -39,7 +39,7 @@ class LearningPassTests(unittest.TestCase):
 
         def fake_run(command, *, timeout=30):
             if command[0].endswith("crwl"):
-                return 0, "official guide", ""
+                return 0, "Navigate to Explore; Submit Application; Resume Later", ""
             if command[0].endswith("gh"):
                 return 0, json.dumps([{
                     "fullName": "example/mercor-jobs",

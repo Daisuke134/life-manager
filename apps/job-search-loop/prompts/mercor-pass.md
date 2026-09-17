@@ -82,8 +82,8 @@ Pass order:
    current-pass submitted set.
    If the current Explore page is exhausted without a grounded candidate, use the
    visible pagination controls (for example a button titled `Page N` or `Next`) to
-   inspect up to four additional pages, with a bounded maximum of twelve candidate
-   detail pages per wake. Never stop after the first Explore page solely because its
+   inspect the remaining pages up to page 4, with a bounded maximum of four total
+   Explore pages and twelve candidate detail pages per wake. Never stop after the first Explore page solely because its
    candidates fail a fact gate; record the exact page/listing evidence and continue.
    Open each candidate through its live Explore card's visible `Apply` or
    `1-click apply` control and wait for the listing/application content to render.

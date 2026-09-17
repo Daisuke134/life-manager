@@ -20,6 +20,7 @@ _EVIDENCE_GRADES = frozenset({
     "official", "first_person", "marketing", "code", "unavailable",
 })
 _OFFICIAL_URL = "https://talent.docs.mercor.com/how-to/apply"
+_OFFICIAL_MARKERS = ("navigate to explore", "submit application", "resume later")
 _DEFAULT_QUERY = "Mercor Japanese AI evaluator application"
 _STRATEGY_VERSION = "mercor-fit-evidence-v1"
 
@@ -146,11 +147,8 @@ def collect_sources(*, query: str = _DEFAULT_QUERY,
     crwl = shutil.which("crwl") or "/Users/anicca/.local/bin/crwl"
     code, stdout, stderr = _run([crwl, "crawl", _OFFICIAL_URL, "-o", "markdown-fit"])
     official_text = stdout.casefold()
-    official_ok = (
-        code == 0
-        and stdout.strip()
-        and "apply" in official_text
-        and "submit" in official_text
+    official_ok = code == 0 and stdout.strip() and all(
+        marker in official_text for marker in _OFFICIAL_MARKERS
     )
     if official_ok:
         source = build_source_observation(**_base_kwargs(
