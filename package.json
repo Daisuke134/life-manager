@@ -7,6 +7,7 @@
     "preview:funder": "node skills/apply-to-funder/preview.mjs",
     "test:install": "node --test test/install-isolation.test.mjs",
     "test:oss": "node --test test/oss-self-contained.test.mjs",
+    "verify:source-boundary": "bash scripts/verify-source-boundary.sh",
     "verify:oss": "node scripts/verify-oss-self-contained.mjs"
   },
   "dependencies": {
