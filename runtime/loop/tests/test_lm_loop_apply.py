@@ -2066,6 +2066,48 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(installed["EnvironmentVariables"]["CUSTOM"], "kept")
         self.assertNotIn("WorkingDirectory", installed)
 
+    def test_recover_matching_env_snapshot_installed_as_plist(self):
+        rendered = plistlib.dumps({
+            "Label": "ai.anicca.example",
+            "ProgramArguments": ["/release/bin/lm-loop-run", "example", "/release"],
+            "EnvironmentVariables": {
+                "LIFE_MANAGER_LOOP_ID": "example",
+                "LIFE_MANAGER_STATE_ROOT": "/state/example",
+                "LIFE_MANAGER_RELEASE_SHA": "new-sha",
+            },
+        })
+        env_snapshot = json.dumps({
+            "LIFE_MANAGER_LOOP_ID": "example",
+            "LIFE_MANAGER_STATE_ROOT": "/state/example",
+            "LIFE_MANAGER_RELEASE_SHA": "old-sha",
+            "ARTICLE_PROVIDER": "writer-custom",
+        }).encode()
+
+        repaired = plistlib.loads(lm_loop._preserve_operational_attributes(
+            rendered, env_snapshot))
+
+        self.assertEqual(repaired["ProgramArguments"],
+                         ["/release/bin/lm-loop-run", "example", "/release"])
+        self.assertEqual(repaired["EnvironmentVariables"]["ARTICLE_PROVIDER"],
+                         "writer-custom")
+        self.assertEqual(repaired["EnvironmentVariables"]["LIFE_MANAGER_RELEASE_SHA"],
+                         "new-sha")
+
+    def test_reject_other_owners_env_snapshot(self):
+        rendered = plistlib.dumps({
+            "Label": "ai.anicca.example",
+            "ProgramArguments": ["/release/bin/lm-loop-run", "example", "/release"],
+            "EnvironmentVariables": {
+                "LIFE_MANAGER_LOOP_ID": "example",
+                "LIFE_MANAGER_STATE_ROOT": "/state/example",
+            },
+        })
+        with self.assertRaisesRegex(RuntimeError, "snapshot identity"):
+            lm_loop._preserve_operational_attributes(rendered, json.dumps({
+                "LIFE_MANAGER_LOOP_ID": "another-owner",
+                "LIFE_MANAGER_STATE_ROOT": "/state/example",
+            }).encode())
+
     def test_equal_effective_plist_still_installs_when_service_is_unloaded(self):
         release = self._release("release-a").resolve()
         current = self.root / "current"
