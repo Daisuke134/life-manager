@@ -38,7 +38,7 @@ test("outcome envelope rejects raw mail fields and stale signatures", () => {
 
 test("verified outcome persists structured fields only", async () => {
   let request;
-  const fetchImpl = async (url, init) => { request = { url, init }; return { status: 201, ok: true }; };
+  const fetchImpl = async (url, init) => { request = { url, init }; return { status: 201, ok: true, json: async () => [{}] }; };
   const result = await persistVerifiedOutcome(PAYLOAD, { supaUrl: "https://s", supaKey: "k", fetchImpl });
   assert.equal(result, "inserted");
   assert.deepEqual(JSON.parse(request.init.body), {
@@ -49,3 +49,10 @@ test("verified outcome persists structured fields only", async () => {
   assert.doesNotMatch(request.init.body, /body|subject|snippet/);
 });
 
+test("duplicate verified outcome is an idempotent terminal result", async () => {
+  const result = await persistVerifiedOutcome(PAYLOAD, {
+    supaUrl: "https://s", supaKey: "k",
+    fetchImpl: async () => ({ status: 201, ok: true, json: async () => [] }),
+  });
+  assert.equal(result, "duplicate");
+});

@@ -54,20 +54,24 @@ def build_mental_outcome_projection(row: dict[str, Any]) -> dict[str, str]:
         raise ValueError("observed_at cannot predate occurred_at")
     company = str(row.get("company") or "").strip()
     title = str(row.get("title") or "").strip()
+    uid = str(row.get("uid") or "").strip()
     if not company or not title:
         raise ValueError("application identity is required")
+    if not uid:
+        raise ValueError("Life Manager uid is required")
     if stage == "offer" and disposition != "positive":
         raise ValueError("offer mental outcome requires a positive disposition")
     kind = "interview" if stage == "interview" and disposition == "positive" else (
         "offer" if stage == "offer" else "rejection"
     )
     return {
-        "source_outcome_id": f"job-search:{outcome_id}",
+        "uid": uid,
+        "sourceOutcomeId": f"job-search:{outcome_id}",
         "kind": kind,
         "company": company,
         "role": title,
-        "verified_at": observed.isoformat(),
-        "evidence_ref": f"job-search-outcome://{outcome_id}",
+        "verifiedAt": observed.isoformat(),
+        "evidenceRef": f"job-search-outcome://{outcome_id}",
     }
 
 
@@ -83,6 +87,9 @@ def publish_mental_outcome(
         raise ValueError("mental outcome endpoint must use HTTPS")
     if not secret or len(secret) < 32:
         raise ValueError("mental outcome signing secret is unavailable")
+    required = {"uid", "sourceOutcomeId", "kind", "company", "role", "verifiedAt", "evidenceRef"}
+    if set(outcome) != required or any(not isinstance(outcome.get(key), str) or not outcome[key] for key in required):
+        raise ValueError("mental outcome payload is not normalized")
     timestamp = now.astimezone().isoformat().replace("+00:00", "Z")
     raw = json.dumps(outcome, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     signature = base64.urlsafe_b64encode(
@@ -107,7 +114,7 @@ def publish_mental_outcome(
 
 
 def project_model_outcomes(
-    result: dict[str, Any], candidates: dict[str, Any], ledger: Any, *, observed_at: str
+    result: dict[str, Any], candidates: dict[str, Any], ledger: Any, *, uid: str, observed_at: str
 ) -> list[dict[str, str]]:
     """Record only model outcomes bound to an exact fetched Gmail message, then project them."""
     rows = result.get("outcomes", []) if isinstance(result, dict) else []
@@ -155,29 +162,33 @@ def project_model_outcomes(
             "offer" if row["funnel_stage"] == "offer" else "rejection"
         )
         projected.append({
-            "source_outcome_id": f"job-search:{outcome_id}",
+            "uid": uid,
+            "sourceOutcomeId": f"job-search:{outcome_id}",
             "kind": kind,
             "company": str(application["company"]),
             "role": str(application["title"]),
-            "verified_at": observed_at,
-            "evidence_ref": f"job-search-outcome://{outcome_id}",
-            "evidence_sha256": evidence_sha256,
+            "verifiedAt": observed_at,
+            "evidenceRef": f"job-search-outcome://{outcome_id}",
         })
     return projected
 
 
 def record_and_publish_outcomes(
     *, ledger_path: Path, candidates_path: Path, result_path: Path,
-    output_path: Path, endpoint: str | None = None, secret: str | None = None,
+    output_path: Path, uid: str | None = None, endpoint: str | None = None, secret: str | None = None,
 ) -> dict[str, Any]:
     from .ledger import Ledger
 
     candidates = json.loads(candidates_path.read_text(encoding="utf-8"))
     result = json.loads(result_path.read_text(encoding="utf-8"))
     observed_at = datetime.now(timezone.utc).isoformat()
+    target_uid = str(uid or os.environ.get("LIFE_MANAGER_MENTAL_OUTCOME_UID")
+                    or os.environ.get("LM_RUNTIME_TENANT_ID") or "").strip()
+    if result.get("outcomes") and not target_uid:
+        raise ValueError("Life Manager uid is unavailable")
     ledger = Ledger(ledger_path)
     try:
-        projections = project_model_outcomes(result, candidates, ledger, observed_at=observed_at)
+        projections = project_model_outcomes(result, candidates, ledger, uid=target_uid, observed_at=observed_at)
     finally:
         ledger.close()
     deliveries = []
@@ -199,6 +210,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--candidates", type=Path, required=True)
     parser.add_argument("--result", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--uid")
     parser.add_argument("--endpoint")
     parser.add_argument("--secret")
     args = parser.parse_args(argv)
@@ -207,6 +219,7 @@ def main(argv: list[str] | None = None) -> int:
         candidates_path=args.candidates,
         result_path=args.result,
         output_path=args.output,
+        uid=args.uid,
         endpoint=args.endpoint,
         secret=args.secret,
     ), ensure_ascii=False))

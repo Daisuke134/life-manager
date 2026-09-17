@@ -30,6 +30,31 @@ async function readOutcomeSendState(uid, nowMs, supa, fetchImpl = globalThis.fet
   };
 }
 
+async function readVerifiedOutcomes(uid, nowMs, supa, fetchImpl = globalThis.fetch) {
+  const url = supa && (supa.url || supa.supaUrl);
+  const key = supa && (supa.key || supa.supaKey);
+  if (!url || !key) throw new Error("verified outcome provider unavailable");
+  const since = new Date(nowMs - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const query = `uid=eq.${encodeURIComponent(uid)}&verified_at=gte.${encodeURIComponent(since)}`
+    + "&select=uid,source_outcome_id,kind,company,role,verified_at,evidence_ref"
+    + "&order=verified_at.asc&limit=20";
+  const response = await fetchImpl(`${baseUrl(url)}/rest/v1/lm_verified_outcomes?${query}`, {
+    headers: headers(key),
+  }).catch(() => null);
+  if (!response || !response.ok) throw new Error(`verified outcome lookup failed (${response ? response.status : "no response"})`);
+  const rows = await response.json().catch(() => null);
+  if (!Array.isArray(rows)) throw new Error("verified outcome lookup returned no rows array");
+  return rows.map((row) => ({
+    uid: String(row.uid || ""),
+    sourceOutcomeId: String(row.source_outcome_id || ""),
+    kind: String(row.kind || ""),
+    company: String(row.company || ""),
+    role: String(row.role || ""),
+    verifiedAt: Date.parse(row.verified_at),
+    evidenceRef: String(row.evidence_ref || ""),
+  }));
+}
+
 async function recordOutcomeSend(row, supa, fetchImpl = globalThis.fetch) {
   const url = supa && (supa.url || supa.supaUrl);
   const key = supa && (supa.key || supa.supaKey);
@@ -48,4 +73,4 @@ async function recordOutcomeSend(row, supa, fetchImpl = globalThis.fetch) {
   return Boolean(response && response.status === 201);
 }
 
-module.exports = { readOutcomeSendState, recordOutcomeSend };
+module.exports = { readOutcomeSendState, readVerifiedOutcomes, recordOutcomeSend };

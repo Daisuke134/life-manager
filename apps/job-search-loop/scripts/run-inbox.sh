@@ -52,6 +52,14 @@ job_search_load_private_env GOG_KEYRING_PASSWORD || {
   FINAL_REASON="gmail_private_env_unavailable"
   exit 78
 }
+# The outcome bridge is optional, but if configured all three values are loaded
+# from the existing private env file; they never belong in the model prompt or
+# evidence log. Missing values keep the local inbox path unchanged unless an
+# outcome is actually observed, in which case the projection command fails
+# closed before `inbox mark`.
+job_search_load_private_env LIFE_MANAGER_MENTAL_OUTCOME_ENDPOINT || true
+job_search_load_private_env LIFE_MANAGER_MENTAL_OUTCOME_SECRET || true
+job_search_load_private_env LIFE_MANAGER_MENTAL_OUTCOME_UID || true
 if [[ -z "$GMAIL_ACCOUNT" ]]; then
   GMAIL_ACCOUNT=$("$JOB_SEARCH_JQ" -er \
     '.candidate.application_email // empty' "$JOB_SEARCH_PROFILE")
@@ -174,6 +182,7 @@ MENTAL_OUTCOME_ARGS=(
   --candidates "$CANDIDATES"
   --result "$RESULT_PATH"
   --output "$MENTAL_OUTCOME_OUTPUT"
+  --uid "${LIFE_MANAGER_MENTAL_OUTCOME_UID:-${LM_RUNTIME_TENANT_ID:-}}"
 )
 if [[ -n "${LIFE_MANAGER_MENTAL_OUTCOME_ENDPOINT:-}" ]]; then
   MENTAL_OUTCOME_ARGS+=(

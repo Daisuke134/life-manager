@@ -40,7 +40,7 @@ async function persistVerifiedOutcome(outcome, { supaUrl, supaKey, fetchImpl = g
       apikey: supaKey,
       Authorization: `Bearer ${supaKey}`,
       "Content-Type": "application/json",
-      Prefer: "return=minimal,resolution=ignore-duplicates",
+      Prefer: "return=representation,resolution=ignore-duplicates",
     },
     body: JSON.stringify({
       uid: outcome.uid,
@@ -52,7 +52,10 @@ async function persistVerifiedOutcome(outcome, { supaUrl, supaKey, fetchImpl = g
       evidence_ref: outcome.evidenceRef,
     }),
   }).catch(() => null);
-  if (response && response.status === 201) return "inserted";
+  if (response && response.status === 201) {
+    const rows = typeof response.json === "function" ? await response.json().catch(() => null) : null;
+    return Array.isArray(rows) && rows.length === 0 ? "duplicate" : "inserted";
+  }
   if (response && response.status === 409) return "duplicate";
   throw new Error(`outcome persistence failed (${response ? response.status : "no response"})`);
 }

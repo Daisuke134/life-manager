@@ -21,7 +21,7 @@ const { preceptsMirrorOnce } = require("./lib/precepts-mirror.js");
 const { relationsUserOnce } = require("./lib/relations-runtime.js");
 const { readMentalSendState, recordMentalSend } = require("./lib/mental-send-log.js");
 const { runVerifiedOutcomes } = require("./lib/mental-outcome-runtime.js");
-const { readOutcomeSendState, recordOutcomeSend } = require("./lib/mental-outcome-store.js");
+const { readOutcomeSendState, readVerifiedOutcomes, recordOutcomeSend } = require("./lib/mental-outcome-store.js");
 
 // 12c: TROUGH_AFTER_MS (30 min) plus margin — how far back the tick looks for ended events.
 const MENTAL_LOOKBACK_MS = 35 * 60000;
@@ -407,7 +407,8 @@ function mentalDeps(u, events, deps = {}) {
 function mentalOutcomeDeps(u, nowMs, deps = {}) {
   const supa = SUPA();
   return {
-    fetchVerifiedOutcomes: deps.fetchVerifiedOutcomes,
+    fetchVerifiedOutcomes: deps.fetchVerifiedOutcomes
+      || ((uid, now) => readVerifiedOutcomes(uid, now, supa)),
     readOutcomeSendState: deps.readOutcomeSendState
       || ((uid, now, opts) => readOutcomeSendState(uid, now, supa, undefined, opts)),
     recordOutcomeSend: deps.recordOutcomeSend
@@ -415,6 +416,7 @@ function mentalOutcomeDeps(u, nowMs, deps = {}) {
     sendMessage: deps.sendMessage || sendMessage,
     telegramToken: deps.telegramToken !== undefined ? deps.telegramToken : process.env.LM_TELEGRAM_BOT_TOKEN,
     profile: deps.mentalProfile || {},
+    calendarBusy: Boolean(deps.calendarBusy),
     nowMs,
     localDay: deps.localDay,
   };
@@ -760,6 +762,8 @@ async function organsUserOnce(u, nowMs, deps = {}) {
     }
   }
   const futureEvents = (events || []).filter((e) => Number(e.startMs) >= now);
+  const calendarBusy = (events || []).some((event) => Number(event.startMs) <= now
+    && Number(event.endMs || event.startMs) > now);
 
   // Every runOrgan label is namespaced `organ:<name>` so the stopwatch receipt can never be confused
   // with the organ's OWN outcome line. Both are `[…] uid=…`, the receipt prints on EVERY tick (an
@@ -782,7 +786,7 @@ async function organsUserOnce(u, nowMs, deps = {}) {
   // MENTAL never reads Gmail itself and never turns an ambiguous message into a personal claim.
   const outcomeResults = await runOrgan({
     label: "organ:mental-outcome", uid: u.uid, log,
-    run: () => runVerifiedOutcomes(u, now, mentalOutcomeDeps(u, now, deps)),
+    run: () => runVerifiedOutcomes(u, now, mentalOutcomeDeps(u, now, { ...deps, calendarBusy })),
   });
   for (const outcome of Array.isArray(outcomeResults) ? outcomeResults : []) {
     if (outcome && outcome.delivered) {

@@ -2,7 +2,7 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { readOutcomeSendState, recordOutcomeSend } = require("./mental-outcome-store.js");
+const { readOutcomeSendState, readVerifiedOutcomes, recordOutcomeSend } = require("./mental-outcome-store.js");
 
 const SUPA = { url: "https://supabase.example", key: "service" };
 const ROW = { uid: "u1", sourceOutcomeId: "gmail:1", evidenceRef: "gmail-message://1", quoteId: "q1", telegramMessageId: "tg-1" };
@@ -47,4 +47,24 @@ test("strict outcome state lookup throws instead of permitting a duplicate", asy
     readOutcomeSendState("u1", Date.now(), SUPA, async () => ({ ok: false, status: 503 }), { strict: true }),
     /outcome send state lookup failed/,
   );
+});
+
+test("verified outcome provider reads only structured rows and normalizes timestamps", async () => {
+  let request;
+  const fetchImpl = async (url) => {
+    request = url;
+    return { ok: true, json: async () => [{
+      uid: "u1", source_outcome_id: "job-search:outcome-1", kind: "interview",
+      company: "Example社", role: "Engineer", verified_at: "2026-09-17T01:00:00.000Z",
+      evidence_ref: "job-search-outcome://1",
+    }] };
+  };
+  const rows = await readVerifiedOutcomes("u1", Date.parse("2026-09-17T02:00:00.000Z"), SUPA, fetchImpl);
+  assert.deepEqual(rows, [{
+    uid: "u1", sourceOutcomeId: "job-search:outcome-1", kind: "interview",
+    company: "Example社", role: "Engineer", verifiedAt: Date.parse("2026-09-17T01:00:00.000Z"),
+    evidenceRef: "job-search-outcome://1",
+  }]);
+  assert.match(request, /select=uid,source_outcome_id,kind,company,role,verified_at,evidence_ref/);
+  assert.doesNotMatch(request, /subject|body|snippet/);
 });

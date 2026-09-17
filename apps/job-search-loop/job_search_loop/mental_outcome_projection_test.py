@@ -10,6 +10,7 @@ from job_search_loop.mental_outcome_projection import project_model_outcomes
 
 
 BASE = {
+    "uid": "user-1",
     "outcome_id": "outcome-1",
     "application_id": "app-1",
     "company": "Example社",
@@ -26,12 +27,13 @@ BASE = {
 def test_projection_contains_only_verified_structured_outcome():
     result = build_mental_outcome_projection(BASE)
     assert result == {
-        "source_outcome_id": "job-search:outcome-1",
+        "uid": "user-1",
+        "sourceOutcomeId": "job-search:outcome-1",
         "kind": "interview",
         "company": "Example社",
         "role": "Software Engineer",
-        "verified_at": "2026-09-17T01:01:00+00:00",
-        "evidence_ref": "job-search-outcome://outcome-1",
+        "verifiedAt": "2026-09-17T01:01:00+00:00",
+        "evidenceRef": "job-search-outcome://outcome-1",
     }
 
 
@@ -86,7 +88,9 @@ def test_publish_mental_outcome_sends_signed_normalized_payload_only():
     assert request.full_url.startswith("https://")
     assert request.get_header("X-lm-outcome-signature")
     assert request.get_header("X-lm-outcome-timestamp")
-    assert b'"source_outcome_id":"job-search:outcome-1"' in request.data
+    assert b'"sourceOutcomeId":"job-search:outcome-1"' in request.data
+    assert b'"uid":"user-1"' in request.data
+    assert b"evidence_sha256" not in request.data
     assert b"body" not in request.data
 
 
@@ -120,8 +124,8 @@ def test_project_model_outcome_hashes_private_candidate_and_records_funnel_recei
         "sender": "recruiter@example.test", "received_at": "2026-09-17T01:00:00+00:00",
         "body": "private body stays local",
     }]}
-    projected = project_model_outcomes(result, candidates, Ledger(), observed_at="2026-09-17T01:02:00+00:00")
+    projected = project_model_outcomes(result, candidates, Ledger(), uid="user-1", observed_at="2026-09-17T01:02:00+00:00")
     assert projected[0]["kind"] == "interview"
-    assert projected[0]["source_outcome_id"] == "job-search:outcome-recorded"
-    assert len(projected[0]["evidence_sha256"]) == 64
+    assert projected[0]["sourceOutcomeId"] == "job-search:outcome-recorded"
+    assert projected[0]["uid"] == "user-1"
     assert "private body" not in str(projected[0])
