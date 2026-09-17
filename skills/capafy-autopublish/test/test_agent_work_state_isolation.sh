@@ -93,6 +93,13 @@ existing_id="$(printf '%s' '{"agents":[{"agent_id":"existing-1","name":"Existing
 [ "$existing_id" = "existing-1" ] || { echo "FAIL: existing Agent fixture" >&2; exit 1; }
 online_id="$(printf '%s' '{"agents":[{"agent_id":"9563867391","name":"Marketing Strategist — The One Move to Make","agent_status":"online"}]}' | python3 "$SELECTOR" --title 'Marketing Strategist — The One Move to Make')"
 [ "$online_id" = "9563867391" ] || { echo "FAIL: same-Agent online version selection" >&2; exit 1; }
+update_fixture='{"agents":[{"agent_id":"9563867391","name":"Marketing Strategist — The One Move to Make","agent_status":"online","latest_agent_version_id":"2070737929294868480"}]}'
+update_id="$(printf '%s' "$update_fixture" | python3 "$SELECTOR" --title 'Marketing Strategist — The One Move to Make' --require-free-slot --expected-agent-id 9563867391 --expected-version-id 2070737929294868480)"
+[ "$update_id" = "9563867391" ] || { echo "FAIL: same-Agent source version preflight" >&2; exit 1; }
+if printf '%s' "$update_fixture" | python3 "$SELECTOR" --title 'Marketing Strategist — The One Move to Make' --require-free-slot --expected-agent-id 9563867391 --expected-version-id wrong-version >/dev/null 2>&1; then
+  echo "FAIL: stale same-Agent source version was accepted" >&2
+  exit 1
+fi
 if printf '%s' '{"agents":[{"agent_id":"online-1","name":"Online","agent_status":"online"},{"agent_id":"r1","name":"R1","agent_status":"under_review"},{"agent_id":"r2","name":"R2","agent_status":"under_review"},{"agent_id":"r3","name":"R3","agent_status":"under_review"},{"agent_id":"r4","name":"R4","agent_status":"under_review"},{"agent_id":"r5","name":"R5","agent_status":"under_review"}]}' | python3 "$SELECTOR" --title Online --require-free-slot >/dev/null 2>&1; then
   echo "FAIL: same-Agent new version bypassed CAP_FULL" >&2
   exit 1

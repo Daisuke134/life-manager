@@ -117,7 +117,7 @@ def normalize_agents(agents):
 
 
 def allocate_action(normalized, retries, publishable, resumable_drafts=None, recoveries=None,
-                    ready_to_publish=None):
+                    ready_to_publish=None, updates=None):
     """Choose at most one stable action without performing any platform write.
 
     An exact-title repository draft can be resumed in place even when all five
@@ -128,6 +128,7 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
     resumable_drafts = resumable_drafts or []
     recoveries = recoveries or []
     ready_to_publish = ready_to_publish or []
+    updates = updates or []
     if not normalized.get("readable"):
         return {"verdict": "SERVER_UNREADABLE"}
     occupied = (normalized.get("counts") or {}).get("occupied")
@@ -177,6 +178,16 @@ def allocate_action(normalized, retries, publishable, resumable_drafts=None, rec
             "reason": "review_rejected retry",
             "action": "retry_existing",
             "action_key": f"retry:{item['agent_id']}",
+            "item": item,
+        }
+    if updates:
+        item = min(updates, key=lambda row: str(row.get("agent_id") or ""))
+        request = item["update_request"]
+        return {
+            "verdict": "PUBLISHABLE",
+            "reason": "paid existing Agent has an explicit version update request",
+            "action": "update_existing",
+            "action_key": f"update:{item['agent_id']}:{request['from_version_id']}",
             "item": item,
         }
     if publishable:
@@ -264,8 +275,18 @@ def ready_inventory():
                          if os.path.isfile(os.path.join(d, candidate))), None)
             title = listing_title(listing) if os.path.isfile(listing) else None
             if title and icon and os.path.isfile(skill):
-                items.append({"feature": f"catalog:{name}", "title": title, "icon": icon,
-                              "listing": listing, "skill": skill, "source": "repo_catalog"})
+                item = {"feature": f"catalog:{name}", "title": title, "icon": icon,
+                        "listing": listing, "skill": skill, "source": "repo_catalog"}
+                update_file = os.path.join(d, "UPDATE.json")
+                if os.path.isfile(update_file):
+                    request = json.load(open(update_file, encoding="utf-8"))
+                    if (not isinstance(request, dict)
+                            or not all(str(request.get(key) or "").isdigit()
+                                       for key in ("agent_id", "from_version_id"))
+                            or not str(request.get("target_model_id") or "").strip()):
+                        raise ValueError(f"invalid same-Agent update request: {name}")
+                    item["update_request"] = request
+                items.append(item)
 
     # The repository catalog is authoritative when a legacy candidate has the same title.
     by_title = {}
@@ -305,8 +326,25 @@ def main():
     inflight_titles = {(a.get("name") or "").strip() for a in unlisted}
 
     items = ready_inventory()
+    update_items = []
+    for item in items:
+        request = item.get("update_request")
+        if request is None:
+            continue
+        matches = [agent for agent in agents
+                   if str(agent.get("agentId") or "") == str(request["agent_id"])]
+        if len(matches) != 1 or (matches[0].get("name") or "").strip() != item["title"]:
+            print("VERDICT=SERVER_UNREADABLE")
+            print(json.dumps({"verdict": "SERVER_UNREADABLE",
+                              "reason": "same-Agent update target is missing or changed"}))
+            return 0
+        target = matches[0]
+        if (target.get("agentStatus") == "online"
+                and str(target.get("latestAgentVersionId") or "") == str(request["from_version_id"])):
+            update_items.append({"agent_id": str(request["agent_id"]), **item})
     rejected_titles = {(a.get("name") or "").strip() for a in rejected}
-    publishable = [it for it in items if it["title"] not in online_titles
+    publishable = [it for it in items if not it.get("update_request")
+                   and it["title"] not in online_titles
                    and it["title"] not in inflight_titles
                    and it["title"] not in rejected_titles]
 
@@ -352,7 +390,8 @@ def main():
         for agent in ready_to_publish
     ]
     v = allocate_action(
-        normalized, retry_items, fresh_items, resumable_drafts, recovery_items, ready_publish_items
+        normalized, retry_items, fresh_items, resumable_drafts, recovery_items, ready_publish_items,
+        updates=update_items,
     )
 
     v.update({
