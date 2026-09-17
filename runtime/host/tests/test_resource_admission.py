@@ -942,6 +942,28 @@ def test_completed_occurrence_advances_owner_age_to_next_queued_occurrence(
     assert admission.release_and_reserve(first, now=2002) == ["owner-b"]
 
 
+def test_owner_with_old_backlog_yields_turn_to_other_waiting_owner(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    admission.enqueue_durable("agent", "owner-a", admission_class="revenue",
+                              occurrence_id="owner-a:first", now=0)
+    admission.enqueue_durable("agent", "owner-a", admission_class="revenue",
+                              occurrence_id="owner-a:second", now=10)
+    admission.enqueue_durable("agent", "owner-b", admission_class="revenue",
+                              occurrence_id="owner-b:only", now=50)
+
+    assert admission.reserve_available(now=2000) == ["owner-a"]
+    first, reason = admission.claim_durable(
+        "agent", "owner-a", admission_class="revenue", now=2001)
+    assert first is not None and reason == "acquired"
+    assert json.loads(first.read_text())["occurrence_id"] == "owner-a:first"
+    assert admission.release_and_reserve(first, now=2002) == ["owner-b"]
+    states = {row["occurrence_id"]: row["state"]
+              for row in durable_rows(tmp_path, "occurrences")}
+    assert states["owner-a:second"] == "queued"
+
+
 def test_independent_natural_wake_during_reservation_is_not_lost(
         tmp_path, monkeypatch):
     """A reserved owner does not prove a new launchd wake was its kickstart."""
@@ -1794,6 +1816,29 @@ def test_three_revenue_slots_remain_with_two_support_owners(tmp_path, monkeypatc
         claims.append(claim)
     for claim in claims:
         admission.release_and_reserve(claim, reserve=False)
+
+
+def test_deterministic_revenue_keeps_one_slot_beside_two_support_owners(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="8")
+    admission.activate_durable_v2()
+    support_claims = []
+    for owner in ("support-deterministic-a", "support-deterministic-b"):
+        admission.enqueue_durable("deterministic", owner, admission_class="borrow")
+        claim, reason = admission.claim_durable(
+            "deterministic", owner, admission_class="borrow")
+        assert claim is not None and reason == "acquired"
+        support_claims.append(claim)
+
+    admission.enqueue_durable("deterministic", "capafy-loop-daily",
+                              admission_class="revenue")
+    claim, reason = admission.claim_durable(
+        "deterministic", "capafy-loop-daily", admission_class="revenue")
+
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, reserve=False)
+    for support_claim in support_claims:
+        admission.release_and_reserve(support_claim, reserve=False)
 
 
 def test_legacy_revenue_uses_host_capacity_beyond_borrow_agent_limit(

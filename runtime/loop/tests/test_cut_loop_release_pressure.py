@@ -63,11 +63,11 @@ class CutLoopReleasePressureTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw_home:
             home = Path(raw_home)
             result, loops = self.run_cut(
-                repo, home, "runtime/loop/runtime_event.py"
+                repo, home, "runtime/loop/runtime_event.py", LOOPS_ACTIVATE_CURRENT="0"
             )
 
             self.assertEqual(result.returncode, 0, result.stderr)
-            release = (loops / "current").resolve()
+            release, = (loops / "releases").iterdir()
             self.assertTrue((release / "runtime/loop/runtime_event.py").is_file())
             self.assertTrue((release / "RELEASE.json").is_file())
 
@@ -163,10 +163,11 @@ class CutLoopReleasePressureTest(unittest.TestCase):
         repo = Path(__file__).resolve().parents[3]
         with tempfile.TemporaryDirectory() as raw_home:
             result, loops = self.run_cut(
-                repo, Path(raw_home), "bin\truntime/loop/runtime_event.py"
+                repo, Path(raw_home), "bin\truntime/loop/runtime_event.py",
+                LOOPS_ACTIVATE_CURRENT="0",
             )
             self.assertEqual(result.returncode, 0, result.stderr)
-            release = (loops / "current").resolve()
+            release, = (loops / "releases").iterdir()
             self.assertTrue((release / "bin/lm-loop-run").is_file())
             self.assertTrue((release / "skills/_shared/browser-state-backup.sh").is_file())
 

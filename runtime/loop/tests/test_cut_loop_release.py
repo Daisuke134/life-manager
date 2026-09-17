@@ -18,6 +18,72 @@ DEPENDENCY_ROOTS = (
 
 
 class CutLoopReleaseTest(unittest.TestCase):
+    def _pushed_branch_fixture(self, root):
+        repo, origin = root / "repo", root / "origin.git"
+        repo.mkdir()
+        subprocess.run(["git", "init", "--bare", str(origin)], check=True,
+                       capture_output=True)
+        subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True,
+                       capture_output=True)
+        for key, value in (("user.email", "release-test@example.invalid"),
+                           ("user.name", "Release Test")):
+            subprocess.run(["git", "config", key, value], cwd=repo, check=True)
+        subprocess.run(["git", "remote", "add", "origin", str(origin)],
+                       cwd=repo, check=True)
+        (repo / "payload.txt").write_text("main\n")
+        subprocess.run(["git", "add", "."], cwd=repo, check=True)
+        subprocess.run(["git", "commit", "-m", "main"], cwd=repo, check=True,
+                       capture_output=True)
+        main_sha = subprocess.check_output(["git", "rev-parse", "HEAD"],
+                                           cwd=repo, text=True).strip()
+        subprocess.run(["git", "push", "-u", "origin", "main"], cwd=repo,
+                       check=True, capture_output=True)
+        subprocess.run(["git", "switch", "-c", "candidate"], cwd=repo,
+                       check=True, capture_output=True)
+        (repo / "payload.txt").write_text("candidate\n")
+        subprocess.run(["git", "commit", "-am", "candidate"], cwd=repo,
+                       check=True, capture_output=True)
+        candidate_sha = subprocess.check_output(["git", "rev-parse", "HEAD"],
+                                                cwd=repo, text=True).strip()
+        subprocess.run(["git", "push", "-u", "origin", "candidate"], cwd=repo,
+                       check=True, capture_output=True)
+        return repo, main_sha, candidate_sha
+
+    def _cut_sparse(self, root, repo, sha, *, activate):
+        return subprocess.run(
+            ["/bin/bash", str(ROOT / "bin/cut-loop-release.sh"), sha],
+            cwd=repo,
+            env={**os.environ, "LIFE_MANAGER_SOURCE_REPO": str(repo),
+                 "LOOPS_ROOT": str(root / "loops"), "LOOPS_RELEASE_PATHS": "payload.txt",
+                 "LOOPS_ACTIVATE_CURRENT": "1" if activate else "0",
+                 "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(root / "admission"),
+                 "LIFE_MANAGER_DISK_PRESSURE_FILE": str(root / "no-pressure"),
+                 "NPM_BIN": ""},
+            capture_output=True, text=True, check=False,
+        )
+
+    def test_pushed_unmerged_release_cannot_activate_current(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, _main_sha, candidate_sha = self._pushed_branch_fixture(root)
+            result = self._cut_sparse(root, repo, candidate_sha, activate=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("origin/main", result.stderr)
+            self.assertFalse((root / "loops/current").exists())
+
+    def test_main_release_recovers_current_from_unmerged_branch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, main_sha, candidate_sha = self._pushed_branch_fixture(root)
+            candidate = self._cut_sparse(root, repo, candidate_sha, activate=False)
+            self.assertEqual(candidate.returncode, 0, candidate.stderr)
+            release = next((root / "loops/releases").iterdir())
+            (root / "loops/current").symlink_to(release)
+            recovered = self._cut_sparse(root, repo, main_sha, activate=True)
+            self.assertEqual(recovered.returncode, 0, recovered.stderr)
+            self.assertEqual(json.loads((root / "loops/current/RELEASE.json").read_text())["sha"],
+                             main_sha)
+
     def test_release_builds_immutable_bytecode_for_its_runtime_python(self):
         with tempfile.TemporaryDirectory() as directory:
             loops = Path(directory) / "loops"

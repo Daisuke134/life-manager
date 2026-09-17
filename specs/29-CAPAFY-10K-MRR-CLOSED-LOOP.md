@@ -93,7 +93,7 @@ flowchart LR
 
 #### R0 execution cursor and patch contract
 
-**現在のruntime修復:** `runtime/host/resource_admission.py`は、公式readbackが渡された場合に限り`released/effect_unknown=1`の同一 occurrence を解消し、ownerに未知行が残っていなければpriority fenceも戻す。`skills/self/capafy-loop/capafy-effect-reconcile.py`は、同一runの`pass`、`CAP_FULL` terminal、現在の公式inventory `occupied=5`を照合し、claimed行を触らずreleased行だけをruntime APIでreconcileする。`capafy-loop-healthcheck.sh`から5分ごとにこの処理を呼ぶ。`capafy-loop-healthcheck`自体はdata-planeの5枠を消費しないcontrol-plane ownerにする。これにより、CAP_FULL no-write後の古いfenceでdaily供給が永久停止する経路を閉じる。証拠が足りない`effect_unknown`は残し、再送しない。
+**現在のruntime修復:** `runtime/host/resource_admission.py`は、公式readbackが渡された場合に限り`released/effect_unknown=1`の同一 occurrence を解消し、ownerに未知行が残っていなければpriority fenceも戻す。`skills/self/capafy-loop/capafy-effect-reconcile.py`は、同一runの`pass`、`CAP_FULL` terminal、現在の公式inventory `occupied=5`を照合し、claimed行を触らずreleased行だけをruntime APIでreconcileする。`capafy-loop-healthcheck.sh`から5分ごとにこの処理を呼ぶ。`capafy-loop-healthcheck`自体はdata-planeの有限枠を消費しないcontrol-plane ownerにする。有限総枠は8へ拡張し、deterministic revenueはsupport deterministic ownerが2件いても最低1枠を残す。これにより、CAP_FULL no-write後の古いfenceとdeterministic support飢餓でdaily供給が永久停止する経路を閉じる。証拠が足りない`effect_unknown`は残し、再送しない。
 
 **モデル費用境界:** `key_health_gate.sh`の既定live probeは`deepseek/deepseek-v4.1-flash`・`max_tokens=8192`。Marketing Strategistの公式公開版はまだSonnet 4.6 v1.0.0で、DeepSeek版は`UPDATE.json`の同一Agent更新キューにある。5/5審査中の間はpublish writeを発生させず、枠が空いた自然wakeでのみ提出する。現行公開版のbuyer Test Run成功は未証明。
 
@@ -103,7 +103,7 @@ flowchart LR
 
 **月間売上の表示:** Daisの明示優先を受け、CLI期間をUTC月初〜現在へ変更する。現行Seller Console APIの2026-09-01〜09-17実測はgross `$71.89`、creator earnings `$51.76`、unit `75`（trial `57`、non-trial `18`）。上の直近30日スナップショットは変更前の履歴であり、現在のCLI表示値ではない。OpenRouter key暦月実請求はhost全用途を含み、Capafy購入者のmodel費用と同一視しない。
 
-**R0-C2資源実測:** 毎時money ownerはmain release `edd0812c`へtargeted apply後、UTC 01:00の自然wakeでも`exit 75 / host_admission_deferred:resource_capacity_busy`で本体開始前に止まった。top-of-hour同時起動が具体的blockerなので、LLMを呼ばないgoal 3件とoutcome 1件を`deterministic`へ移し、money wakeを毎時`:07`へ分散する。healthcheckのkey gate失敗はrestartせず、private blocked receiptを保存してnonzero terminalへ変更する。全host有限5枠・daily供給ownerの3600秒cadence・1 wake最大1提出は維持する。実行分類と時刻変更は次の自然`:07`で検証するまで回復済みとしない。
+**R0-C2資源実測:** 毎時money ownerはmain release `edd0812c`へtargeted apply後、UTC 01:00の自然wakeでも`exit 75 / host_admission_deferred:resource_capacity_busy`で本体開始前に止まった。top-of-hour同時起動が具体的blockerなので、LLMを呼ばないgoal 3件とoutcome 1件を`deterministic`へ移し、money wakeを毎時`:07`へ分散する。healthcheckのkey gate失敗はrestartせず、private blocked receiptを保存してnonzero terminalへ変更する。全host有限8枠・deterministic revenueの最低1枠・daily供給ownerの3600秒cadence・1 wake最大1提出を維持する。実行分類と時刻変更は次の自然`:07`で検証するまで回復済みとしない。
 
 **実行順の再更新:** 旧順序`R0-C3a → R0-C3b → R0-C1 → R0-C2`は、C3bの新release自然wakeがhost admissionで止まり、money観測を回復できなかった。新順序`R0-C3a → R0-C3b(code済・自然pass待ち) → R0-C2 → R0-C1`へ変更し、現在cursorは`R0-C2`。収益ownerの実行を先に通すことで、モデル切替の実費と品質を継続観測できる。進行中の投稿・審査effectは再送しない。
 

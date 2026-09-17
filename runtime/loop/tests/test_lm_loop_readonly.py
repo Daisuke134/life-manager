@@ -55,6 +55,15 @@ class LmLoopReadonlyTest(unittest.TestCase):
         self.assertEqual(report["unmanaged_labels"], [])
         self.assertTrue(report["ok"])
 
+    def test_live_colors_hachioji_owner_is_classified_as_external(self):
+        root = Path(__file__).resolve().parents[3]
+        registry = json.loads((root / "config/loop-registry.json").read_text(encoding="utf-8"))
+        label = "ai.anicca.provision-browser.colors-hachioji.owner-18211957"
+        report = doctor_report(registry, installed_labels={label}, loaded_labels={label},
+                              existing_entrypoints={entry["entrypoint"] for entry in registry["loops"].values()})
+        self.assertEqual(report["unmanaged_labels"], [])
+        self.assertTrue(report["ok"])
+
     def test_no_event_never_becomes_success_from_pid_or_exit(self):
         row = status_rows(REGISTRY, loaded={}, disabled={}, events={}, installed_releases={})[0]
         self.assertEqual(row["next_eligible_run"], "interval:60s")
