@@ -498,7 +498,7 @@ def activate_current(current: Path, release_root: Path,
                      protocol_reader: Callable[[], int] = _protocol_v1) -> None:
     current = Path(current).expanduser()
     release_root = Path(release_root).expanduser()
-    with _protocol_transition_lock(current, exclusive=False):
+    with _protocol_transition_lock(current, exclusive=True):
         with _apply_lock(current, lock_path):
             release_root = release_root.resolve(strict=True)
             if not release_root.is_dir():
@@ -569,6 +569,7 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                preserve_unloaded: bool = False,
                skip_busy: bool = False,
                reload_running: bool = False,
+               require_current: bool = False,
                protocol_reader: Callable[[], int] = _protocol_v1,
                event_writer=append_runtime_event,
                _protocol_guarded: bool = False) -> list[dict]:
@@ -579,10 +580,13 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                 release_root, agents_dir, launchctl_safe, target,
                 current=current, lock_path=lock_path,
                 preserve_unloaded=preserve_unloaded, skip_busy=skip_busy,
-                reload_running=reload_running, protocol_reader=protocol_reader,
+                reload_running=reload_running, require_current=require_current,
+                protocol_reader=protocol_reader,
                 event_writer=event_writer, _protocol_guarded=True,
             )
     release_root = release_root.resolve()
+    if require_current and current.resolve(strict=True) != release_root:
+        raise RuntimeError("release is no longer current")
     if (protocol_reader() == 2
             and not _supports_durable_admission_v2(release_root)):
         raise RuntimeError("target release does not support durable admission v2")
@@ -928,6 +932,7 @@ def main(argv: list[str] | None = None) -> int:
                     preserve_unloaded=row["launchd_state"] == "unloaded",
                     skip_busy=(loaded_idle_only and
                                row["loop_id"] not in explicitly_reloadable),
+                    require_current=True,
                     reload_running=row["launchd_state"] == "loaded-running",
                     protocol_reader=durable_protocol_version))
             except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
