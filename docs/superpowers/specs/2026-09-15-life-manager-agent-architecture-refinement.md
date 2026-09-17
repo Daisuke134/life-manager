@@ -14,7 +14,7 @@ Observed shared-foundation problems and disposition:
 | Problem | Evidence and boundary | Disposition |
 |---|---|---|
 | A branch-only SHA could become global `current` | Release selection admitted a pushed but unmerged SHA. | Fixed in main PR #5351; production `current` must remain an `origin/main` ancestor. |
-| A sparse main-derived release could become global `current` | While a natural reconciler used complete release `f1f5bcb9`, other owner cuts replaced `current` with sparse release `6c7d2062`; exact apply then failed closed with `release is no longer current`. | Open follow-up: `bin/cut-loop-release.sh` now rejects sparse `LOOPS_ACTIVATE_CURRENT=1` on this branch. RED then GREEN test and 22 cut tests passed locally; CI/main/live recovery remain unproved. |
+| A sparse main-derived release could become global `current` | While a natural reconciler used complete release `f1f5bcb9`, other owner cuts replaced `current` with sparse release `6c7d2062`; exact apply then failed closed with `release is no longer current`. | Fixed in main PR #5383: sparse `LOOPS_ACTIVATE_CURRENT=1` fails before export. All CI and 22 cut tests passed; main-derived complete release `deb08642` contains the guard, and its loaded natural reconciler run reached outer pass. Later `current` advanced only to another complete main release. |
 | One owner with many old wakes could repeatedly win its own next turn | RED fixture selected owner A twice before owner B; production queue had repeated old occurrences. | Fixed in main PR #5354; new-main natural terminals advanced `x402-ledger` → `x402-experiment-franklin1` → `founder-loop-cadence` → `x402-inflow-watch` without deleting pending occurrences. |
 | A same-owner environment JSON replaced an installed plist | `writer-report` installed file was JSON, so its installed SHA was unreadable although launchd held a main-derived argv. The writer of that file is not yet identified. | Shared recovery and candidate/rollback repair merged in PRs #5362/#5367. A targeted loaded-idle reconcile restored XML and loaded SHA `f1f5bcb9` with `effect_unknown` still fenced. |
 | Reconciler sometimes exits `entrypoint_exit_1` while idle owners wait | Loaded `a4070714` has both fail and pass outer terminals; one run stayed active for several minutes. Malformed installed input is a concrete candidate, not a proven sole cause. | Open until the repaired main-derived release has a natural outer terminal and an exact first-failure readback. |
@@ -149,7 +149,19 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   require the sparse-current fence above on main with a complete current
   release and a follow-up natural reconciler terminal; subsequent old-SHA
   runs `18d61b8087f758e8-78178` and `18d61bdd46062100-91865` failed when
-  parallel cuts advanced `current` mid-reconcile.
+  parallel cuts advanced `current` mid-reconcile. That fence is now merged as
+  `deb086429a1a`, loaded via install event `052ad42894863fede5aec9f8`;
+  natural run `18d61e16f28b15d0-75320` reached outer pass at 13:22:55Z on
+  loaded SHA `deb086429a1a`. At 13:24Z global `current` was another complete
+  main-derived SHA `8e19948de6c`, `lm-loop doctor` was ok with 165 entries and
+  missing/unmanaged/retired 0. Eligible queue was agent 16 (oldest 5.0 min),
+  browser 0, deterministic 13 (oldest 14.8 min); unknown owners were agent 45,
+  browser 0, deterministic 31. Disk-cleanup's latest natural pass at 13:21:04Z
+  on `deb086429a1a` had host/release/scratch errors 0 and protected deletions
+  0; free bytes rose 638,849,024 to 1,236,148,224. **Verdict remains NOT
+  DONE:** A15-08 has no second eligible browser-class owner/claim. Provider
+  effect readbacks, including three remaining Capafy owner fences, remain with
+  their separate owners.
 
 A15-02 integration observation: an earlier PR #5362 head at `eb72e7cb1b` had
 one failing `OSS self-contained boundary` check. The exact inventory digest
