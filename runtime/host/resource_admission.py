@@ -539,7 +539,10 @@ def _queue_order(row: dict[str, object], now: float) -> tuple[int, int, int, int
     aged = (isinstance(priority, str) and priority in PRIORITY_AGE_SECONDS
             and isinstance(queued_at, (int, float)) and not isinstance(queued_at, bool)
             and now - float(queued_at) >= PRIORITY_AGE_SECONDS[priority])
-    return (_effective_priority(row, now), 0 if aged else 1,
+    # The revenue floor leaves one borrow slot; let an aged support owner use it.
+    borrow_slot = _revenue_floor(_capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 5)) > 0
+    overdue_support = aged and priority == "support" and row.get("admission_class") == "borrow" and borrow_slot
+    return (-1 if overdue_support else _effective_priority(row, now), 0 if aged else 1,
             0 if row.get("admission_class") == "revenue" else 1,
             int(row["sequence"]), str(row["owner_id"]))
 
