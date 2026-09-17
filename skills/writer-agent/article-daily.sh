@@ -660,6 +660,7 @@ if route_status == "absent":
             isinstance(item, dict)
             and item.get("path") in {
                 "gates/selfimprove-verify.json",
+                "gates/selfimprove-verify-defect.json",
                 "gates/required-demand-authority-blocker.json",
                 "gates/telegram-report.json",
             }
