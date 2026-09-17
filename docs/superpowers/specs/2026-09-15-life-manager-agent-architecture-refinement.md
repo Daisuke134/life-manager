@@ -118,7 +118,7 @@ tables remain evidence of the superseded plan, not the active cursor.
 | 12 | Promote the identical approved business kernel/source SHA to tenant-isolated Cloud; test Steel owner lease/release and phone-only status/human handoff/readback; run Cloud gate. | Tenant cross-read 0, credential/state mix 0, official effects and replay-zero, Local/Eval/Cloud all PASS. |
 | 13 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
 
-### Atomic remaining execution list — current cursor A12c3
+### Atomic remaining execution list — current cursor A12
 
 Order correction: the prior order was CN01 → CN02 → A12. Dais clarified that the two
 historical `effect_unknown` records are **observability**, not a completion or admission gate.
@@ -151,7 +151,7 @@ inventory rather than invented here; one selected ID is handled per item.
 - [x] A12b — Merge only candidate `43ec132c90` after CI; do not mutate the two historical rows. PR #5312 passed all nine CI jobs and merged at main `889c767056`; live admission DB rows remain unchanged until the new release runs.
 - [x] A12c1 — Fix the existing dispatcher stopping after 16 stale-release reservations. A one-slot Connector can be blocked even with no active owner and over 30% memory free: live readback found five rotating reservations, zero owners and about 97 queued rows. A red fixture with 17 incompatible loaded labels before one healthy owner reproduced starvation; removing the two-line cap passed 140 focused Python tests in candidate `f6467c87fd`. No new CLI or scheduler was added.
 - [x] A12c2 — Merge the narrow dispatcher fix after PR #5313 CI; keep earlier historical Connector rows observable. All eight CI jobs passed; main merge `0f0f987f4b` contains only the existing dispatcher and its regression test.
-- [ ] A12c3 — Cut a main-derived immutable release and apply it to the Connector label only when loaded-idle; read back exact argv/SHA. Release `20260917T112536-889c7670` had been exact-loaded and its one manual canary ended `resource_capacity_busy` before provider work, so it does not prove a registration.
+- [x] A12c3 — Cut a main-derived immutable release and apply it to the Connector label only when loaded-idle; read back exact argv/SHA. Release `20260917T114229-0f0f987f` is `ALL`, ancestor of main, and its Python/Connector modules import from the exact release. Connector alone was loaded-idle reconciled; independent launchctl readback matches `0f0f987f4b`. The two historical unknown rows remain observable. The preceding `889c7670` canary ended `resource_capacity_busy` before provider work and does not prove registration.
 - [ ] A12 — Observe that browser owner's natural release→next-claim→outer terminal without a manual kickstart.
 - [ ] A13 — Apply the same release to one loaded-idle deterministic owner and read back exact loaded argv/SHA.
 - [ ] A14 — Observe that deterministic owner's natural release→next-claim→outer terminal without a manual kickstart.
