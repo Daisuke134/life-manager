@@ -372,6 +372,8 @@ def _adopted_staged_prepublication(
         and receipt.get("version") == 1
         and receipt.get("run_id") == run_id
         and receipt.get("prompt_sha256") == state.get("prompt_sha256")
+        and receipt.get("artifact_manifest_sha256") == manifest_sha256(recorded_artifacts)
+        and receipt.get("receipt_sha256") == _adoption_receipt_hash(receipt)
         and receipt.get("publication_state_absent") is True
         and receipt.get("public_ledger_rows") == 0
     )
@@ -400,6 +402,10 @@ def adopt_prepublication(
         drafts, artifacts = _adoption_manifests(resolved)
 
         if state.get("status") == "quality-repair-ready":
+            if _adopted_staged_prepublication(
+                resolved, run_id, prompt_file, ledger, state
+            ):
+                return {"action": "unchanged", "status": "quality-repair-ready"}
             if receipt_path.is_symlink() or not receipt_path.is_file():
                 raise GenerationInvariant("adoption receipt is missing")
             receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
