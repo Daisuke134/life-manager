@@ -1,19 +1,19 @@
 # Capafy Publishing Runbook — 0.9.11 canonical flow
 
-The canonical path publishes a run_online subscription listing with REAL Claude Sonnet 4.6.
+The canonical path publishes a run_online subscription listing with the model in its LISTING.md contract.
 Every step has a VERIFY gate. Never trust a local success/toast alone — confirm with
 publish-remote-status.
 
-## Canonical LLM config (copy the winners = Claude Sonnet 4.6)
-- CP1 Primary Model (display) = **Claude Sonnet 4.6**
-- CP2 LLM Config: Base URL **https://openrouter.ai/api/v1** · Model **anthropic/claude-sonnet-4.6** (dot 4.6) · API Format **openai-responses** (Capafy default) · Key **CAPAFY_HOST_OPENROUTER_KEY** ($LIFE_MANAGER_STATE_HOME/.env)
-- Direct Anthropic FAILS (no /responses). OpenRouter speaks /responses + serves Claude. Verified.
+## Canonical LLM config
+- CP1 Primary Model (display) = the exact `model` in `<CONFIG_PATH>`.
+- CP2 LLM Config: Base URL **https://openrouter.ai/api/v1** · Model = the exact `model_id` in `<CONFIG_PATH>` · API Format **openai-responses** · Key **CAPAFY_HOST_OPENROUTER_KEY** ($LIFE_MANAGER_STATE_HOME/.env). The package output cap is `max_tokens` from the same config.
+- The direct OpenRouter `/responses` probe verifies availability; Capafy Test Run verifies the hosted buyer path after review.
 
 ## Flow (one listing)
-1. **Research winner live**: `capafy-user` GET `/agent/agent/agents/<id>` with `X-Access-Token` header → copy pricing (cycle/price/cap) + categoryId + structure. Words = original (anti-plagiarism), facts = verbatim. The paid-only policy below overrides any winner free-trial field.
+1. **Research demand and economics**: inspect official listings and sales, then choose subscription cycle/price/cap with positive expected hosted contribution. Write original copy and no free trial.
 2. **Build skill**: pure-LLM, self-contained, NO local deps/secrets. Add `test/case1.md`. grep-verify clean.
 3. **Write LISTING.md**: title ≤50 chars, shortDescription, **welcomeMessage**, detailedDescription (emoji sections + table).
-4. **Copy skill to clean-WS** `$LIFE_MANAGER_STATE_HOME/work/capafy/skills/<skill>` (LEAK GUARD — never publish from live `$LIFE_MANAGER_STATE_HOME/work`).
+4. **Isolate package inputs**: `publish_prepare.sh` copies the Skill into a private Agent-owned HOME/workspace and binds that source, version and model before any upload. Do not publish from the operator's live workspace.
 5. **Prepare and initialize** with `scripts/publish_prepare.sh <skill-dir> <LISTING.md> <icon>`.
    The wrapper runs lint and clean-WS copy, then mandatory Phase A
    `publish-init` **without selections** using the same `--env`, `--runtime-dir`,
@@ -22,15 +22,15 @@ publish-remote-status.
    Existing-Agent retries preserve the selected `agent_id`; new Agents are created
    in a bootstrap directory and then moved to repo-external
    `.../runtime/capafy-publisher/work/agents/<agent-id>`. Never create a duplicate Agent.
-   The wrapper emits `AGENT_ID=`, `EDIT_URL_FILE=`, and `CONFIG_PATH=`. Read the exact
+   The wrapper emits `AGENT_ID=`, `AGENT_VERSION_ID=`, `EDIT_URL_FILE=`, and `CONFIG_PATH=`. Read the exact
    URL bytes from `EDIT_URL_FILE` for CP1; never reconstruct, append parameters, or
    print the URL. ★ NOTE: init selections do NOT set the card — the CARD MUST be filled in CP1. ★
 6. **CP1 (CloakBrowser)** — fill ALL of these or "提出を確認" silently fails:
    - 基本情報: title (real-type), shortDescription (textarea[0]), detailedDescription (textarea[1]), **welcomeMessage (the "初回実行前にユーザーへ表示" textarea — REQUIRED, easy to miss)**, tags, privacy URL, category dropdown.
-   - 価格設定: "Capafy で実行" → "Subscription" → set Plan 1 cycle + Add Plan ×2 → fill price/cap per cycle (placeholders: day 0.07/50, week 0.5/200, month 2/500) → **Primary Model = Claude Sonnet 4.6** → **test input (the "例：『たくさん買って…』" textarea — REQUIRED)** → **AI service provider field** → **select No Free Trial on EVERY plan (an unselected trial radio silently blocks save; enabled free trials are forbidden).**
+   - 価格設定: "Capafy で実行" → "Subscription" → set Plan 1 cycle + Add Plan ×2 → fill price/cap per cycle (placeholders: day 0.07/50, week 0.5/200, month 2/500) → **Primary Model = the exact `model` in `<CONFIG_PATH>`** → **test input (the "例：『たくさん買って…』" textarea — REQUIRED)** → **AI service provider field** → **select No Free Trial on EVERY plan (an unselected trial radio silently blocks save; enabled free trials are forbidden).**
    - Click **提出を確認**. ★ VERIFY GATE: page must reach `page=card-done` / "カードを保存しました". If still `page=edit`, a required field is empty/invalid — find the red error or empty input and fix; do NOT proceed. ★
 7. **Finish through the 0.9.11 submit flow** with
-   `scripts/publish_finish.sh <agent-id> <skill-name> <LISTING.md>`.
+   `scripts/publish_finish.sh <agent-id> <skill-name> <LISTING.md> <agent-version-id>` using the exact `AGENT_VERSION_ID` emitted by prepare.
    It first verifies CP1, then runs ordinary `publish-submit --action prepare`.
    Require a parsed `security_ready` result for the same `agent_id` before
    uploading. The deterministic wrapper does not synthesize findings or invoke
@@ -54,14 +54,14 @@ publish-remote-status.
     status. Do not retry an uncertain external effect.
 11. ★★ FINAL VERIFY (truth source) ★★ `publish-remote-status --agent-id <id>` →
     MUST show: **platform_status=1** (審査中) · **is_confirmed_config_keys=true** ·
-    **agent_type=run_online** · title=<our title> · model="Claude Sonnet 4.6".
+    **agent_type=run_online** · title=<our title> · exact prepared Agent version. Read back CP1 model with `verify_cp1_model.py`; remote-status alone does not expose it.
     If platform_status=0 or agent_type=download or title=old → the chain operated on the
     wrong/old draft; DO NOT claim done. Then append to `state/published.jsonl`.
 
 ## Hard lessons (why this runbook exists)
 - A local success can refer to the wrong draft when CP1 never saved. ALWAYS verify
-  remote-status fields (platform_status/is_confirmed_config_keys/agent_type/title/model), not
-  local output.
+  remote-status fields (agent_version_id/platform_status/is_confirmed_config_keys/agent_type/title)
+  plus the official Agent detail's `model`, not local output.
 - CP1 silent-block causes: empty welcomeMessage, empty test input, an unselected per-plan trial radio, empty provider field. Fill all, then confirm `page=card-done`.
 - CP2 card defaults to SUMMARY mode → must click Edit before fields exist. drive_checkpoint2.py now does this.
 - Direct Anthropic never passes CP2 (openai-responses /responses 404) → OpenRouter only.

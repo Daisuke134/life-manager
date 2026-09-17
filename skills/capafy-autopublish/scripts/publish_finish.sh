@@ -6,19 +6,24 @@
 # Fail-closed: refuses to start unless is_confirmed_skills=true; exits 0 only if the final
 # remote-status is platform_status=1 (under review) AND is_confirmed_config_keys=true.
 #
-# Usage: publish_finish.sh <agent-id> <skill-name> [LISTING.md]
+# Usage: publish_finish.sh <agent-id> <skill-name> <LISTING.md> <agent-version-id>
 set -euo pipefail
 
 ID="${1:?agent-id required}"
 SKILL_NAME="${2:?skill-name required}"
 LISTING="${3:-}"
+EXPECTED_AGENT_VERSION_ID="${4:-}"
 
 AUTO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PUB="$AUTO/vendor/capafy-publisher"
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-$HOME/.local/state/life-manager}"
-CAPAFY_PUBLISH_HOME="${CAPAFY_PUBLISH_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher-home}"
+CAPAFY_PUBLISH_HOME_BASE="${CAPAFY_PUBLISH_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher-home}"
 CAPAFY_PUBLISHER_STATE_HOME="${CAPAFY_PUBLISHER_STATE_HOME:-$LIFE_MANAGER_STATE_HOME/runtime/capafy-publisher}"
 VENV="${CAPAFY_BROWSER_PYTHON:-python3}"
+export CAPAFY_PUBLISHER_STATE_HOME
+if [ "${CAPAFY_PUBLISH_LOCK_HELD:-}" != "1" ]; then
+  exec python3 "$AUTO/scripts/with_publish_lock.py" "$0" "$@"
+fi
 
 # Keep package state bound to the selected agent even when a previous retry
 # left a recoverable manifest behind.  The publisher reads this before parsing
@@ -36,7 +41,7 @@ for ENV_FILE in "$LIFE_MANAGER_STATE_HOME/.env"; do
   fi
 done
 
-export HOME="$CAPAFY_PUBLISH_HOME"
+export HOME="$CAPAFY_PUBLISH_HOME_BASE"
 export CAPAFY_PUBLISHER_STATE_HOME
 cd "$PUB" || { echo "❌ cd PUB"; exit 1; }
 
@@ -68,19 +73,44 @@ poll(){ local field="$1" want="$2" tries="${3:-15}" slp="${4:-5}" i v
   for ((i=0;i<tries;i++)); do v="$(rstat "$field")"; [ "$v" = "$want" ] && { echo "$field=$v (${i}x)"; return 0; }; sleep "$slp"; done
   echo "$field=$v (want $want, gave up ${tries}x${slp}s)"; return 1; }
 
+    [ -n "$EXPECTED_AGENT_VERSION_ID" ] \
+      || die "AGENT_VERSION_ID from publish_prepare is required before any publish effect"
+    CAPAFY_PUBLISH_HOME="$(python3 - "$CAPAFY_PUBLISH_WORK_DIR/publish-work-state.json" "$CAPAFY_PUBLISH_HOME_BASE" "$ID" "$EXPECTED_AGENT_VERSION_ID" <<'PY'
+import json, pathlib, sys
+manifest = json.load(open(sys.argv[1], encoding="utf-8"))
+base = pathlib.Path(sys.argv[2]).resolve()
+expected_id, expected_version = sys.argv[3:5]
+runtime = pathlib.Path(manifest["extra"]["runtime_dir"]).resolve()
+home = runtime.parent.parent
+if (manifest.get("agent_id") != expected_id or not manifest.get("agent_version_id")
+        or manifest.get("agent_version_id") != expected_version
+        or runtime != home / ".openclaw/workspace"
+        or not any(home.is_relative_to(base / part) for part in ("agents", "bootstrap"))):
+    raise SystemExit(1)
+print(home)
+PY
+    )" || die "publisher manifest is not bound to agent_id=$ID"
+    export HOME="$CAPAFY_PUBLISH_HOME"
+    CFG_ONE="$CAPAFY_PUBLISH_HOME/listing-config.json"
+    MODEL_CONTRACT="$(python3 "$AUTO/scripts/publish_input_contract.py" verify \
+      --agent-id "$ID" --skill-name "$SKILL_NAME" --config "$CFG_ONE" \
+      --workspace "$CAPAFY_PUBLISH_HOME/.openclaw/workspace" \
+      --publisher-home "$CAPAFY_PUBLISH_HOME" \
+      --work-dir "$CAPAFY_PUBLISH_WORK_DIR")" \
+      || die "prepared package/model does not match agent_id=$ID; no publish effect"
+    read -r CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS <<<"$MODEL_CONTRACT"
+    CAPAFY_DISPLAY_MODEL="$(python3 - "$CFG_ONE" <<'PY'
+import json,sys
+print(json.load(open(sys.argv[1], encoding="utf-8"))["model"])
+PY
+)" || die "prepared CP1 model is missing"
+    [ "$(rstat agent_version_id)" = "$EXPECTED_AGENT_VERSION_ID" ] \
+      || die "Capafy latest version changed after prepare; no publish effect"
+    export CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS
+
 INITIAL_PLATFORM_STATUS="$(rstat platform_status)"
 case "$INITIAL_PLATFORM_STATUS" in
   0)
-    CFG_ONE="$CAPAFY_PUBLISHER_STATE_HOME/cfg_one.json"
-    [ -f "$CFG_ONE" ] || die "missing prepared model contract"
-    read -r CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS < <(
-      python3 - "$CFG_ONE" <<'PY'
-import json, sys
-config = json.load(open(sys.argv[1], encoding="utf-8"))
-print(config["model_id"], config["max_tokens"])
-PY
-    )
-    export CAPAFY_HOSTED_MODEL_ID CAPAFY_HOSTED_MAX_TOKENS
     # 2026-07-18 A1: fail-closed key-health gate. A submit into an under-funded
     # OpenRouter account triggered billing-error review rejections.
     "$AUTO/scripts/key_health_gate.sh" || die "KEY-HEALTH gate FAIL — restore OpenRouter funding (>= \$20 remaining) before submitting; see state/lessons.md"
@@ -103,6 +133,9 @@ if [ "$INITIAL_PLATFORM_STATUS" = "0" ]; then
   step "[2b] verify CP1 (fail-closed, polled)"
   # Short poll (not one-shot): the agentic CP1 save may still be registering server-side.
   poll is_confirmed_skills 1 6 5 || die "CP1 not confirmed (is_confirmed_skills!=1) — drive CP1 agentically first (CP1_AGENTIC.md)"
+  python3 "$AUTO/scripts/verify_cp1_model.py" --agent-id "$ID" \
+    --version-id "$EXPECTED_AGENT_VERSION_ID" --model "$CAPAFY_DISPLAY_MODEL" \
+    || die "official CP1 model/version differs from the prepared package"
   echo "is_confirmed_skills=1 ✓"
 
   PUBLISH_REVIEW_URL=""
@@ -123,6 +156,8 @@ if [ "$INITIAL_PLATFORM_STATUS" = "0" ]; then
     case "$(rstat package_uploaded)" in
       0)
         step "[3] publish-submit prepare"
+        [ "$(rstat agent_version_id)" = "$EXPECTED_AGENT_VERSION_ID" ] \
+          || die "Capafy latest version changed before package preparation"
         if [ -e "$CAPAFY_PUBLISH_WORK_DIR/staging" ]; then
           chmod -R u+w "$CAPAFY_PUBLISH_WORK_DIR/staging" 2>/dev/null || true
           rm -rf "$CAPAFY_PUBLISH_WORK_DIR/staging" 2>/dev/null \
@@ -158,6 +193,8 @@ except Exception: print('')")"
 
         step "[4] publish-submit continue_upload (exactly once)"
         CONTINUE_RC=0
+        [ "$(rstat agent_version_id)" = "$EXPECTED_AGENT_VERSION_ID" ] \
+          || die "Capafy latest version changed before package upload"
         CONTINUE_OUT="$(python3 packager.py publish-submit --agent-id "$ID" --action continue_upload 2>&1)" || CONTINUE_RC=$?
         CONTINUE_VALID="$(printf '%s' "$CONTINUE_OUT" | python3 -c "import json,sys
 try:
@@ -217,10 +254,19 @@ fi
 POST_CP2_STATUS="$(rstat platform_status)"
 case "$POST_CP2_STATUS" in
 1)
+  if [ -n "$EXPECTED_AGENT_VERSION_ID" ]; then
+    [ "$(rstat agent_version_id)" = "$EXPECTED_AGENT_VERSION_ID" ] \
+      || die "submitted version differs from the prepared Agent version"
+  fi
   echo "platform_status=1 already ✓ — already submitted, skip CP3"
   ;;
 0)
   step "[6] CP3 submit (審査に提出, final review page) — exactly once"
+  python3 "$AUTO/scripts/verify_cp1_model.py" --agent-id "$ID" \
+    --version-id "$EXPECTED_AGENT_VERSION_ID" --model "$CAPAFY_DISPLAY_MODEL" \
+    || die "official CP1 model/version changed before review submission"
+  [ "$(rstat agent_version_id)" = "$EXPECTED_AGENT_VERSION_ID" ] \
+    || die "Capafy latest version changed before review submission"
   if [ -z "$PUBLISH_REVIEW_URL" ]; then
     PUBLISH_REVIEW_URL="$(refresh publish)"
   fi
@@ -259,8 +305,16 @@ def number(value):
     except (TypeError,ValueError): return None
 st=number(v.get('platform_status')); cfg=number(v.get('is_confirmed_config_keys')); sk=number(v.get('is_confirmed_skills')); au=number(v.get('audit_status')); pkg=number(v.get('package_uploaded'))
 print(f'platform_status={st} skills={sk} cfg={cfg} package_uploaded={pkg} audit={au} title={str(v.get(\"title\"))[:42]}')
-sys.exit(0 if (st==1 and cfg==1 and sk==1 and pkg==1) else 1)
-" || die "FINAL VERIFY failed (status/cfg not 1) for agent $ID"
+expected_id, expected_version = sys.argv[1:3]
+sys.exit(0 if (st==1 and cfg==1 and sk==1 and pkg==1
+               and str(v.get('agent_id') or '') == expected_id
+               and (not expected_version or str(v.get('agent_version_id') or '') == expected_version)) else 1)
+" "$ID" "$EXPECTED_AGENT_VERSION_ID" || die "FINAL VERIFY failed (Agent/version/status/config) for agent $ID"
+if [ -n "${CAPAFY_DISPLAY_MODEL:-}" ]; then
+  python3 "$AUTO/scripts/verify_cp1_model.py" --agent-id "$ID" \
+    --version-id "$EXPECTED_AGENT_VERSION_ID" --model "$CAPAFY_DISPLAY_MODEL" \
+    || die "FINAL VERIFY failed (CP1 model/version) for agent $ID"
+fi
 
 step "[8] ledger"
 LEDGER="$LIFE_MANAGER_STATE_HOME/state/capafy-autopublish/published.jsonl"

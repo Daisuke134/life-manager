@@ -28,16 +28,16 @@ Capafy has two agent types:
 - **download** (buyout, one-time): the buyer runs the package in THEIR own env — can
   include tools/browser. (The auto-publisher itself could be sold this way, not run_online.)
 
-We publish **run_online subscription** skills that are sandbox-complete and copy a
-proven winner's pricing/structure verbatim.
+We publish **run_online subscription** skills that are sandbox-complete and
+retain positive contribution after hosted model cost.
 
 ## Canonical publish flow (verification-baked)
 Use the split, 0.9.11-compatible flow:
 
 ```
 scripts/publish_prepare.sh <skill-dir> <LISTING.md> <icon.png>
-→ `AGENT_ID` + `EDIT_URL_FILE` / CP1_AGENTIC.md + cp1_agent.py (agentic card confirmation)
-→ scripts/publish_finish.sh <agent-id> <skill-name> <LISTING.md>
+→ `AGENT_ID` + `AGENT_VERSION_ID` + `EDIT_URL_FILE` / CP1_AGENTIC.md + cp1_agent.py (agentic card confirmation)
+→ scripts/publish_finish.sh <agent-id> <skill-name> <LISTING.md> <agent-version-id>
 ```
 
 The sequence is **Phase A discovery → confirmed selection/init → CP1 →
@@ -81,19 +81,18 @@ print it. After the split flow prints ✅, **you still do the browser render che
    header (Primary Model / category / tags), a pricing table copied from the winner with
    `No Free Trial` on every plan, and
    `## Title / ## shortDescription / ## welcomeMessage / ## detailedDescription`.
-4. **Icon**: OpenAI image_generation (`CAPAFY_HOST_OPENAI_KEY`) → 512px PNG.
+4. **Icon**: reuse the owner-controlled listing icon when available; otherwise create a suitable 512px asset.
 5. **Lint**: `scripts/lint_listing.py <LISTING.md>` until PASS.
-6. **(risky only)** spawn VCSDD adversary → require PASS.
+6. **Review**: check the exact listing, package model/cap, and same-Agent version binding.
 7. **Publish**: run `scripts/publish_prepare.sh <skill-dir> <LISTING.md> <icon>`,
    complete CP1 from `CP1_AGENTIC.md`/`cp1_agent.py`, then run
-   `scripts/publish_finish.sh <agent-id> <skill-name> <LISTING.md>` → status=1.
+   `scripts/publish_finish.sh <agent-id> <skill-name> <LISTING.md> <agent-version-id>` → status=1.
 8. **Browser-verify** + record in `state/published.jsonl` + commit+push.
 
 ## Hard-won rules (full detail in PUBLISHING_RUNBOOK.md)
-- **WE COPY**: winner's price/cap/category/structure verbatim; every plan uses `No Free Trial`.
-- **LEAK GUARD**: publish from clean WS `$LIFE_MANAGER_STATE_HOME/work/capafy` (skill only), never LIVE.
-- **LLM host (CP2)**: OpenRouter `anthropic/claude-sonnet-4.6`, format `openai-responses`,
-  key `CAPAFY_HOST_OPENROUTER_KEY`; delete any blockrun/localhost card.
+- **ECONOMICS**: price/cap must retain positive hosted contribution; every plan uses `No Free Trial`.
+- **LEAK GUARD**: publish from the isolated Agent HOME/workspace emitted by prepare, never the operator's live workspace.
+- **LLM host (CP2)**: use the exact OpenRouter model ID and output cap from the listing contract, format `openai-responses`, key `CAPAFY_HOST_OPENROUTER_KEY`; delete any blockrun/localhost card.
 - **CP1 15 gotchas** baked into `cp1_agent.py` (RHF element.fill, real mouse clicks,
   unique title, 下書き persist, monetization heading-click, Subscription scroll, provider
   field, per-plan trial = No Free Trial, On-Demand, DPA checkbox, price-tab SVG green,

@@ -91,6 +91,12 @@ PY
 SELECTOR="$ROOT/scripts/select_publish_agent.py"
 existing_id="$(printf '%s' '{"agents":[{"agent_id":"existing-1","name":"Existing","agent_type":"run_online","agent_status":"draft"}]}' | python3 "$SELECTOR" --title Existing)"
 [ "$existing_id" = "existing-1" ] || { echo "FAIL: existing Agent fixture" >&2; exit 1; }
+online_id="$(printf '%s' '{"agents":[{"agent_id":"9563867391","name":"Marketing Strategist — The One Move to Make","agent_status":"online"}]}' | python3 "$SELECTOR" --title 'Marketing Strategist — The One Move to Make')"
+[ "$online_id" = "9563867391" ] || { echo "FAIL: same-Agent online version selection" >&2; exit 1; }
+if printf '%s' '{"agents":[{"agent_id":"online-1","name":"Online","agent_status":"online"},{"agent_id":"r1","name":"R1","agent_status":"under_review"},{"agent_id":"r2","name":"R2","agent_status":"under_review"},{"agent_id":"r3","name":"R3","agent_status":"under_review"},{"agent_id":"r4","name":"R4","agent_status":"under_review"},{"agent_id":"r5","name":"R5","agent_status":"under_review"}]}' | python3 "$SELECTOR" --title Online --require-free-slot >/dev/null 2>&1; then
+  echo "FAIL: same-Agent new version bypassed CAP_FULL" >&2
+  exit 1
+fi
 new_id="$(printf '%s' '{"agents":[{"agent_id":"other-1","name":"Other","agent_type":"run_online","agent_status":"banned"}]}' | python3 "$SELECTOR" --title New)"
 [ -z "$new_id" ] || { echo "FAIL: new Agent fixture fell through" >&2; exit 1; }
 if printf '%s' '{"agents":[{"agent_id":"a-1","name":"Duplicate","agent_status":"draft"},{"agent_id":"a-2","name":"Duplicate","agent_status":"draft"}]}' | python3 "$SELECTOR" --title Duplicate >/dev/null 2>&1; then
@@ -214,6 +220,33 @@ if printf '%s' "$multi_selection_payload" | python3 "$SELECTION_HELPER" --skill-
   exit 1
 fi
 
+make_binding_fixture() {
+  local state_root="$1" skill="unused-skill" home workspace config work
+  home="$state_root/runtime/capafy-publisher-home/agents/agent-1"
+  workspace="$home/.openclaw/workspace"
+  config="$home/listing-config.json"
+  work="$state_root/runtime/capafy-publisher/work/agents/agent-1"
+  mkdir -p "$workspace/skills/$skill" "$(dirname "$config")" "$work"
+  printf '%s\n' '# Fixture Skill' > "$workspace/skills/$skill/SKILL.md"
+  printf '%s\n' icon > "$state_root/icon.png"
+  python3 - "$config" "$home/.openclaw/openclaw.json" "$state_root/icon.png" "$work/publish-work-state.json" "$workspace" "$workspace/skills/$skill" <<'PY'
+import json,sys
+config, hosted, icon, manifest, workspace, skill_dir = sys.argv[1:]
+model = "anthropic/claude-sonnet-4.6"
+json.dump({"title":"Fixture","model":"Claude Sonnet 4.6","model_id":model,"max_tokens":128000,"icon":icon},open(config,"w"))
+json.dump({"models":{"providers":{"openrouter":{"api":"openai-responses",
+    "apiKey":"${CAPAFY_HOST_OPENROUTER_KEY}",
+    "models":[{"id":model,"name":model,"maxTokens":128000}]}}},
+    "agents":{"defaults":{"model":{"primary":"openrouter/"+model}}}},open(hosted,"w"))
+json.dump({"agent_id":"agent-1","agent_version_id":"version-1",
+    "extra":{"runtime_dir":workspace,"explicit_skill":{"source_path":skill_dir}}},
+    open(manifest,"w"))
+PY
+  python3 "$ROOT/scripts/publish_input_contract.py" write \
+    --agent-id agent-1 --skill-name "$skill" --config "$config" \
+    --workspace "$workspace" --publisher-home "$home" --work-dir "$work"
+}
+
 FAKE_BIN="$STATE_HOME/fake-bin"
 mkdir -p "$FAKE_BIN"
 REAL_PYTHON="$(command -v python3)"
@@ -225,19 +258,25 @@ Path(sys.argv[1]).write_text(
     """#!/bin/sh
 printf '%s\\n' "$*" >> "$FAKE_CALLS"
 if [ "$1" = "packager.py" ] && [ "$2" = "publish-remote-status" ]; then
-  printf '%s\\n' '{"ok":true,"latest_version":{"agent_id":"agent-1","platform_status":2,"audit_status":1,"is_confirmed_skills":true,"is_confirmed_config_keys":true,"agent_package_id":"pkg-1","package_uploaded":true}}'
+  if [ "$FAKE_MODE" = "submitted-mismatch" ]; then
+    printf '%s\\n' '{"ok":true,"latest_version":{"agent_id":"agent-1","agent_version_id":"version-1","platform_status":1,"audit_status":1,"is_confirmed_skills":true,"is_confirmed_config_keys":true,"agent_package_id":"pkg-1","package_uploaded":true}}'
+    exit 0
+  fi
+  printf '%s\\n' '{"ok":true,"latest_version":{"agent_id":"agent-1","agent_version_id":"version-1","platform_status":2,"audit_status":1,"is_confirmed_skills":true,"is_confirmed_config_keys":true,"agent_package_id":"pkg-1","package_uploaded":true}}'
   exit 0
 fi
+case "$1" in */verify_cp1_model.py) : > "$FAKE_CP1_MARKER"; exit 1 ;; esac
 exec "$REAL_PYTHON" "$@"
 """,
     encoding="utf-8",
 )
 PY
 chmod +x "$FAKE_BIN/python3"
+make_binding_fixture "$STATE_HOME/status-state"
 set +e
 FAKE_CALLS="$FAKE_CALLS" REAL_PYTHON="$REAL_PYTHON" PATH="$FAKE_BIN:$PATH" \
   LIFE_MANAGER_STATE_HOME="$STATE_HOME/status-state" CAPAFY_PUBLISHER_STATE_HOME="$STATE_HOME/status-state/runtime/capafy-publisher" \
-  bash "$ROOT/scripts/publish_finish.sh" agent-1 unused-skill >/dev/null 2>&1
+  bash "$ROOT/scripts/publish_finish.sh" agent-1 unused-skill "" version-1 >/dev/null 2>&1
 status_gate_rc=$?
 set -e
 [ "$status_gate_rc" -ne 0 ] || { echo "FAIL: review_rejected status gate allowed finish" >&2; exit 1; }
@@ -245,6 +284,18 @@ if rg -q 'drive_checkpoint|publish-submit|publish-refresh-url|key_health_gate' "
   echo "FAIL: status gate reached provider/browser effect" >&2
   exit 1
 fi
+make_binding_fixture "$STATE_HOME/submitted-state"
+FAKE_CP1_MARKER="$STATE_HOME/submitted-cp1-checked"
+set +e
+FAKE_MODE=submitted-mismatch FAKE_CP1_MARKER="$FAKE_CP1_MARKER" FAKE_CALLS="$FAKE_CALLS" REAL_PYTHON="$REAL_PYTHON" PATH="$FAKE_BIN:$PATH" \
+  LIFE_MANAGER_STATE_HOME="$STATE_HOME/submitted-state" CAPAFY_PUBLISHER_STATE_HOME="$STATE_HOME/submitted-state/runtime/capafy-publisher" \
+  bash "$ROOT/scripts/publish_finish.sh" agent-1 unused-skill "" version-1 >/dev/null 2>&1
+submitted_rc=$?
+set -e
+[ "$submitted_rc" -ne 0 ] && [ -f "$FAKE_CP1_MARKER" ] \
+  || { echo "FAIL: submitted version bypassed official CP1 model gate" >&2; exit 1; }
+[ ! -f "$STATE_HOME/submitted-state/state/capafy-autopublish/published.jsonl" ] \
+  || { echo "FAIL: CP1 model mismatch wrote the submission ledger" >&2; exit 1; }
 
 UNKNOWN_BIN="$STATE_HOME/unknown-bin"
 mkdir -p "$UNKNOWN_BIN"
@@ -266,7 +317,7 @@ if [ "$1" = "packager.py" ] && [ "$2" = "publish-remote-status" ]; then
   if [ "$FAKE_MODE" = "unknown-config" ]; then config=2; fi
   if [ "$FAKE_MODE" = "refresh-mismatch" ]; then config=0; fi
   if [ "$FAKE_MODE" = "unknown-post" ] && [ "$count" -ge 5 ]; then status=9; fi
-  printf '%s\\n' "{\\\"ok\\\":true,\\\"latest_version\\\":{\\\"agent_id\\\":\\\"agent-1\\\",\\\"platform_status\\\":$status,\\\"audit_status\\\":0,\\\"is_confirmed_skills\\\":true,\\\"is_confirmed_config_keys\\\":$config,\\\"agent_package_id\\\":\\\"pkg-1\\\",\\\"package_uploaded\\\":true}}"
+  printf '%s\\n' "{\\\"ok\\\":true,\\\"latest_version\\\":{\\\"agent_id\\\":\\\"agent-1\\\",\\\"agent_version_id\\\":\\\"version-1\\\",\\\"platform_status\\\":$status,\\\"audit_status\\\":0,\\\"is_confirmed_skills\\\":true,\\\"is_confirmed_config_keys\\\":$config,\\\"agent_package_id\\\":\\\"pkg-1\\\",\\\"package_uploaded\\\":true}}"
   exit 0
 fi
 if [ "$1" = "packager.py" ] && [ "$2" = "publish-refresh-url" ]; then
@@ -276,6 +327,7 @@ if [ "$1" = "packager.py" ] && [ "$2" = "publish-refresh-url" ]; then
     exit 0
   fi
 fi
+case "$1" in */verify_cp1_model.py) printf '%s\\n' CP1_MODEL=VERIFIED; exit 0 ;; esac
 exec "$REAL_PYTHON" "$@"
 """,
     encoding="utf-8",
@@ -284,7 +336,7 @@ Path(curl_path).write_text(
     """#!/bin/sh
 case "$*" in
   *https://openrouter.ai/api/v1/key*) printf '%s\\n' '{"data":{"limit_remaining":null}}' ;;
-  *https://openrouter.ai/api/v1/credits*) printf '%s\\n' '{"data":{"total_credits":10,"total_usage":1}}' ;;
+  *https://openrouter.ai/api/v1/credits*) printf '%s\\n' '{"data":{"total_credits":30,"total_usage":1}}' ;;
   *https://openrouter.ai/api/v1/chat/completions*) printf '%s\\n' '{"choices":[{"message":{"content":"ok"}}]}' ;;
   *) exit 1 ;;
 esac
@@ -293,12 +345,15 @@ esac
 )
 PY
 chmod +x "$UNKNOWN_BIN/python3" "$UNKNOWN_BIN/curl"
-for mode in unknown-config unknown-post refresh-mismatch; do
+for mode in unknown-config unknown-post refresh-mismatch stale-version; do
   : > "$UNKNOWN_REMOTE_COUNT"
+  make_binding_fixture "$STATE_HOME/$mode-state"
+  expected_version=version-1
+  [ "$mode" != stale-version ] || expected_version=version-0
   set +e
   FAKE_CALLS="$UNKNOWN_CALLS" REAL_PYTHON="$REAL_PYTHON" FAKE_REMOTE_COUNT="$UNKNOWN_REMOTE_COUNT" FAKE_REFRESH_MARKER="$FAKE_REFRESH_MARKER" FAKE_MODE="$mode" PATH="$UNKNOWN_BIN:$PATH" \
     LIFE_MANAGER_STATE_HOME="$STATE_HOME/$mode-state" CAPAFY_PUBLISHER_STATE_HOME="$STATE_HOME/$mode-state/runtime/capafy-publisher" CAPAFY_HOST_OPENROUTER_KEY=test-key \
-    bash "$ROOT/scripts/publish_finish.sh" agent-1 unused-skill >/dev/null 2>&1
+    bash "$ROOT/scripts/publish_finish.sh" agent-1 unused-skill "" "$expected_version" >/dev/null 2>&1
   unknown_rc=$?
   set -e
   [ "$unknown_rc" -ne 0 ] || { echo "FAIL: $mode readback was not fail-closed" >&2; exit 1; }
@@ -327,7 +382,7 @@ inc() {
   n=$((n + 1)); printf '%s' \"$n\" > \"$1\"
 }
 if [ \"$1\" = \"packager.py\" ] && [ \"$2\" = \"publish-remote-status\" ]; then
-  printf '%s\\n' '{\"ok\":true,\"latest_version\":{\"agent_id\":\"agent-1\",\"platform_status\":0,\"audit_status\":0,\"is_confirmed_skills\":true,\"is_confirmed_config_keys\":false,\"agent_package_id\":\"\",\"package_uploaded\":false}}'
+  printf '%s\\n' '{\"ok\":true,\"latest_version\":{\"agent_id\":\"agent-1\",\"agent_version_id\":\"version-1\",\"platform_status\":0,\"audit_status\":0,\"is_confirmed_skills\":true,\"is_confirmed_config_keys\":false,\"agent_package_id\":\"\",\"package_uploaded\":false}}'
   exit 0
 fi
 if [ \"$1\" = \"packager.py\" ] && [ \"$2\" = \"publish-submit\" ]; then
@@ -355,6 +410,7 @@ case \"$*\" in
   *drive_checkpoint2.py*) : > \"$CP2_MARKER\"; exit 0 ;;
   *drive_checkpoint3.py*) : > \"$CP3_MARKER\"; exit 0 ;;
 esac
+case \"$1\" in */verify_cp1_model.py) printf '%s\\n' CP1_MODEL=VERIFIED; exit 0 ;; esac
 exec \"$REAL_PYTHON\" \"$@\"
 """,
     encoding="utf-8",
@@ -363,7 +419,7 @@ Path(curl_path).write_text(
     """#!/bin/sh
 case \"$*\" in
   *https://openrouter.ai/api/v1/key*) printf '%s\\n' '{"data":{"limit_remaining":null}}' ;;
-  *https://openrouter.ai/api/v1/credits*) printf '%s\\n' '{"data":{"total_credits":10,"total_usage":1}}' ;;
+  *https://openrouter.ai/api/v1/credits*) printf '%s\\n' '{"data":{"total_credits":30,"total_usage":1}}' ;;
   *https://openrouter.ai/api/v1/chat/completions*) printf '%s\\n' '{"choices":[{"message":{"content":"ok"}}]}' ;;
   *) exit 1 ;;
 esac
@@ -374,11 +430,12 @@ PY
 chmod +x "$PREPARE_BIN/python3" "$PREPARE_BIN/curl"
 for mode in prepare-envelope wrong-status security-false next-action-missing wrong-agent; do
   rm -f "$PREPARE_COUNT" "$CONTINUE_COUNT" "$CP2_MARKER" "$CP3_MARKER"
+  make_binding_fixture "$STATE_HOME/$mode-state"
   set +e
   PREPARE_COUNT="$PREPARE_COUNT" CONTINUE_COUNT="$CONTINUE_COUNT" CP2_MARKER="$CP2_MARKER" CP3_MARKER="$CP3_MARKER" \
     REAL_PYTHON="$REAL_PYTHON" FAKE_MODE="$mode" PATH="$PREPARE_BIN:$PATH" \
     LIFE_MANAGER_STATE_HOME="$STATE_HOME/$mode-state" CAPAFY_PUBLISHER_STATE_HOME="$STATE_HOME/$mode-state/runtime/capafy-publisher" CAPAFY_HOST_OPENROUTER_KEY=test-key \
-    bash "$ROOT/scripts/publish_finish.sh" agent-1 unused-skill >/dev/null 2>&1
+    bash "$ROOT/scripts/publish_finish.sh" agent-1 unused-skill "" version-1 >/dev/null 2>&1
   prepare_rc=$?
   set -e
   [ "$prepare_rc" -ne 0 ] || { echo "FAIL: prepare envelope mode $mode unexpectedly succeeded" >&2; exit 1; }
@@ -459,7 +516,8 @@ assert '--agent-id "$ID"' not in new_selection_line, 'new selection must omit Ag
 assert text.index('SEL_FILE=', existing_discovery) > existing_discovery, 'selection file must be built after Phase A'
 PY
 rg -q 'CAPAFY_PUBLISH_WORK_DIR="\$CAPAFY_PUBLISHER_STATE_HOME/work/agents/\$ID"' "$ROOT/scripts/publish_finish.sh"
-rg -q 'CFG_ONE="\$CAPAFY_PUBLISHER_STATE_HOME/cfg_one\.json"' "$ROOT/scripts/publish_prepare.sh"
+rg -q 'CFG_ONE="\$CAPAFY_PUBLISH_HOME/listing-config\.json"' "$ROOT/scripts/publish_prepare.sh"
+rg -q 'CFG_ONE="\$CAPAFY_PUBLISH_HOME/listing-config\.json"' "$ROOT/scripts/publish_finish.sh"
 rg -q 'build_config\.py.*"\$CFG_ONE"' "$ROOT/scripts/publish_prepare.sh"
 rg -q 'python3 - "\$CFG_ONE"' "$ROOT/scripts/publish_prepare.sh"
 rg -q 'CAPAFY_PUBLISH_WORK_DIR/staging' "$ROOT/scripts/publish_finish.sh"
