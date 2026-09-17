@@ -1183,7 +1183,7 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
     starts, snapshot_started_ns = _identity_snapshot(owners, tickets)
     descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
     try:
-        if not _acquire_bounded(descriptor, timeout_seconds=0.5):
+        if not _acquire_bounded(descriptor, timeout_seconds=5.0):
             raise RuntimeError("control_busy")
         instant = time.time() if now is None else now
         with _database(database) as connection:

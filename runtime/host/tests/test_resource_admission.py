@@ -1900,7 +1900,8 @@ def test_transfer_control_lock_contention_is_time_bounded(tmp_path, monkeypatch)
     admission.release_and_reserve(claim, reserve=False)
 
 
-def test_release_control_lock_contention_is_time_bounded(tmp_path, monkeypatch):
+def test_release_control_lock_waits_for_short_contention_then_completes(
+        tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     admission.enqueue_durable("agent", "first")
     claim, reason = admission.claim_durable("agent", "first")
@@ -1913,13 +1914,12 @@ def test_release_control_lock_contention_is_time_bounded(tmp_path, monkeypatch):
     try:
         assert ready.wait(timeout=10)
         started = time.monotonic()
-        with pytest.raises(RuntimeError, match="control_busy"):
-            admission.release_and_reserve(claim, reserve=False)
-        assert time.monotonic() - started < 1.5
+        assert admission.release_and_reserve(claim, reserve=False) == []
+        assert time.monotonic() - started < 6
     finally:
         holder.terminate()
         holder.join(timeout=5)
-    admission.release_and_reserve(claim, reserve=False)
+    assert not claim.exists()
 
 
 def test_cancel_retired_owner_removes_queue_and_reservation(tmp_path, monkeypatch):
