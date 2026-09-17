@@ -178,11 +178,11 @@ test("CORE 8e drives the production DAILY journey with provider-ordered reportin
     alertLowBalance: async () => assert.fail("successful dials do not alert"),
   };
 
-  await wakeUserOnce(user, DEPARTURE_MS - 15 * MINUTE, wakeDeps);
-  await wakeUserOnce(user, DEPARTURE_MS - 10 * MINUTE, wakeDeps);
-  await wakeUserOnce(user, DEPARTURE_MS - 10 * MINUTE, wakeDeps);
-  await wakeUserOnce(user, DEPARTURE_MS - 5 * MINUTE, wakeDeps);
-  await wakeUserOnce(user, DEPARTURE_MS - 5 * MINUTE, wakeDeps);
+  await wakeUserOnce(user, EVENT_START_MS - 15 * MINUTE, wakeDeps);
+  await wakeUserOnce(user, EVENT_START_MS - 10 * MINUTE, wakeDeps);
+  await wakeUserOnce(user, EVENT_START_MS - 10 * MINUTE, wakeDeps);
+  await wakeUserOnce(user, EVENT_START_MS - 5 * MINUTE, wakeDeps);
+  await wakeUserOnce(user, EVENT_START_MS - 5 * MINUTE, wakeDeps);
 
   assert.deepEqual(WAKE_LEVELS.map((level) => level.min), [10, 5], "T-15 is not configured");
   assert.deepEqual(dialed.map((call) => call.urgency), ["firm", "harsh"]);

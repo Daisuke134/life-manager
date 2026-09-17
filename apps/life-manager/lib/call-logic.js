@@ -311,6 +311,7 @@ function telnyxStreamingStartBody({ streamUrl }) {
   return {
     stream_url: streamUrl,
     stream_track: "inbound_track",
+    stream_codec: "PCMU",
     stream_bidirectional_mode: "rtp",
     stream_bidirectional_codec: "PCMU",
     stream_bidirectional_target_legs: "self",
@@ -351,6 +352,7 @@ function telnyxDialBody({ connectionId, to, from, streamUrl, timeLimitSeconds })
     from,
     stream_url: streamUrl,
     stream_track: "inbound_track",
+    stream_codec: "PCMU",
     stream_bidirectional_mode: "rtp",
     stream_bidirectional_codec: "PCMU",
     stream_bidirectional_target_legs: "self",

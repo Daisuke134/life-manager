@@ -235,6 +235,10 @@ Life Managerが発信先・時刻・会話を決め、Telnyxが電話網へ接�
 [`time_limit_secs`](https://developers.telnyx.com/api-reference/call-commands/dial)は**1回の通話の最長時間**で、
 30〜14,400秒を受け付ける。省略時は14,400秒なので、残枠が30秒未満のときに値を省略して発信しない。
 月3,600接続秒はTelnyxの要件ではなく、この製品の有料電話向け費用上限である。
+電話へ明示opt-inした有料ユーザーには、場所の有無や移動時間に関係なく、時刻のある実予定ごとに
+**予定開始10分前と5分前の2回**発信する。2回は別のclaim・allowance identityを持ち、
+1回目の成功で2回目を抑止しない。Telegramは補助であり、読むことを電話の前提にしない。
+月間電話枠の枯渇がこの約束を止める点は残る商品上の制約として明示し、無音のAI通話を成功と数えない。
 公開例では、[Noota](https://telnyx.com/customer-stories/noota)はTelnyxを電話基盤に使い、
 [自社の料金表](https://www.noota.io/pricing)に月ごとの含有分数を置く。
 [Dialpad](https://telnyx.com/customer-stories/dialpad)もTelnyxを通話基盤に使い、
@@ -260,6 +264,10 @@ AMD OFFの再試行は14秒接続したものの、本人は自分だけが話�
 `gotAudio=true`とWebSocket送信フレーム数はTelnyxでの再生証明ではない。
 次の通話前にTelnyxのerror/mark応答、送信音声の長さ・音量、Geminiの入力/出力/割り込みを
 内容を記録せずに計測し、AI音声がどこで止まるかを確定する。
+AMDの分類はreceiptへ残すが、`machine`だけで通話を切らない。`not_sure`はTelnyxの
+[推奨](https://developers.telnyx.com/docs/voice/programmable-voice/answering-machine-detection)どおり
+人として扱う。分類が`human`/`not_sure`ならmanaged actionを精算し、それ以外は過大計上しない。
+音声入力はTelnyxの`stream_codec=PCMU`を明示し、ブリッジのμ-law復号と一致させる。
 
 **To-be:** 予定時刻のwakeが正確な残枠を使い、30秒以上なら上限付きで1回だけ発信する。
 終了後は署名済み[`call.hangup`](https://developers.telnyx.com/docs/voice/programmable-voice/voice-api-webhooks)

@@ -17,7 +17,7 @@ test("isHelperBlock: our own blocks are not commitments", () => {
   assert.equal(isHelperBlock("渋谷で打合せ"), false);
 });
 
-// ── shouldWake: travel-only (default) ──────────────────────────────────────────────────────────────
+// ── shouldWake: all timed events by default; explicit travel-only remains available ────────────────
 test("travel-only: real venue ≠ home → WAKE", () => {
   assert.equal(shouldWake({ summary: "打合せ", location: "渋谷ヒカリエ", startMs: at(14) }, HOME, "travel-only"), true);
 });
@@ -44,9 +44,9 @@ test("all-events: routine at home → WAKE (user opted into everything)", () => 
 test("all-events: still never wakes for a helper block", () => {
   assert.equal(shouldWake({ summary: "[Travel] 🚆 A→B", location: "x", startMs: at(6) }, HOME, "all-events"), false);
 });
-test("policy defaults to travel-only when omitted/unknown", () => {
-  assert.equal(shouldWake({ summary: "🧘", location: HOME, startMs: at(6) }, HOME), false);
-  assert.equal(shouldWake({ summary: "🧘", location: HOME, startMs: at(6) }, HOME, "garbage"), false);
+test("an opted-in phone user receives timed events when the policy is omitted or unknown", () => {
+  assert.equal(shouldWake({ summary: "🧘", location: HOME, startMs: at(6) }, HOME), true);
+  assert.equal(shouldWake({ summary: "🧘", location: HOME, startMs: at(6) }, HOME, "garbage"), true);
 });
 
 // ── departureMs: leave-time anchor ─────────────────────────────────────────────────────────────────

@@ -23,8 +23,8 @@ test("AMD disabled falls back to the legacy media-start approximation", () => {
   assert.equal(shouldMarkAnswered({ amdEnabled: false, signal: "media-start" }), true);
 });
 
-test("not_sure is not a human-confirmed answer", () => {
-  assert.equal(shouldMarkAnswered({ amdEnabled: true, signal: "amd", result: "not_sure" }), false);
+test("Telnyx not_sure preserves a possible human answer", () => {
+  assert.equal(shouldMarkAnswered({ amdEnabled: true, signal: "amd", result: "not_sure" }), true);
 });
 
 test("AMD dial options request detection and correlate the webhook to the wake row", () => {

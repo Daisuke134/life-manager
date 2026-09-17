@@ -12,13 +12,13 @@ const assert = require("node:assert");
 process.env.LM_CALL_SECRET = "unit_secret";
 process.env.PUBLIC_WSS = "wss://life-call.invalid";
 
-const { wakeUserOnce, LATE_CUTOFF_MIN } = require("../scheduler.js");
+const { wakeUserOnce, wakeCallOnce, LATE_CUTOFF_MIN } = require("../scheduler.js");
 
 const MINUTE = 60_000;
 const EVENT_START_ISO = "2026-08-05T14:00:00+09:00";
 const EVENT_START_MS = Date.parse(EVENT_START_ISO);
-const TRAVEL_MIN = 35; // + the 5-min buffer resolveDeparture adds → departure = start − 40 min
-const DEPARTURE_MS = EVENT_START_MS - 40 * MINUTE;
+const TRAVEL_MIN = 35;
+const DEPARTURE_MS = EVENT_START_MS; // legacy test name; wake calls now use the event start
 const TEST_PHONE = "+99900000000";
 
 const USER = {
@@ -49,6 +49,7 @@ function harness({ dial } = {}) {
   const claimed = [];
   const dialed = [];
   const released = [];
+  const missed = [];
   const deps = {
     recordDailyPoll: async () => true,
     fetchUpcomingEvents: async () => [{ ...EVENT }],
@@ -68,14 +69,15 @@ function harness({ dial } = {}) {
       return dial ? dial(dialed.length) : { ok: true, ccid: `catchup-call-${dialed.length}` };
     },
     releaseWake: async (_uid, key) => { released.push(key); held.delete(key); },
+    recordWakeMiss: async (_uid, miss) => { missed.push(miss); return { ok: true }; },
     alertLowBalance: async () => {},
   };
-  return { deps, held, claimed, dialed, released };
+  return { deps, held, claimed, dialed, released, missed };
 }
 
-test("a tick 5 minutes AFTER the T-5 threshold still places exactly one call", async () => {
+test("a tick one minute after T-5 still places one call before the event", async () => {
   const h = harness();
-  await wakeUserOnce(USER, DEPARTURE_MS, h.deps); // T-5 passed 5 minutes ago; nothing rang yet
+  await wakeUserOnce(USER, DEPARTURE_MS - 4 * MINUTE, h.deps);
   assert.deepEqual(h.dialed, [{ urgency: "harsh", level: "5" }], "the missed threshold still rings, once");
 });
 
@@ -93,20 +95,59 @@ test("an on-time sequence still rings T-10 first and T-5 on a later tick", async
   assert.equal(h.held.size, 2, "exactly the two (event, level) claims are held");
 });
 
+test("each timed event rings at event T-10 and T-5 with separate paid-action identities", async () => {
+  const h = harness();
+  const actions = new Set();
+  let routes = 0;
+  h.deps.directionsMinutes = async () => { routes++; return TRAVEL_MIN; };
+  h.deps.reserveManagedAction = async (_uid, key) => {
+    if (actions.has(key)) return { allowed: false };
+    actions.add(key);
+    return { allowed: true, periodStart: "2026-08-01",
+      reservationToken: "11111111-1111-4111-8111-111111111111" };
+  };
+  h.deps.releaseManagedAction = async () => ({ allowed: true });
+  await wakeCallOnce(USER, EVENT_START_MS - 10 * MINUTE, h.deps);
+  await wakeCallOnce(USER, EVENT_START_MS - 5 * MINUTE, h.deps);
+  assert.deepEqual(h.dialed.map((call) => call.level), ["10", "5"]);
+  assert.equal(actions.size, 2, "both reminders have independent allowance identities");
+  assert.equal(routes, 0, "the phone schedule does not wait for a travel route");
+});
+
+test("a paid user receives a timed event call even without a location or wake policy", async () => {
+  const h = harness();
+  h.deps.fetchUpcomingEvents = async () => [{ ...EVENT, location: "" }];
+  await wakeCallOnce(USER, EVENT_START_MS - 10 * MINUTE, h.deps);
+  assert.deepEqual(h.dialed.map((call) => call.level), ["10"]);
+});
+
+test("two distinct events starting together keep separate call claims", async () => {
+  const h = harness();
+  h.deps.fetchUpcomingEvents = async () => [
+    { ...EVENT, id: "first-event" },
+    { ...EVENT, id: "second-event", summary: "別の予定" },
+  ];
+  await wakeCallOnce(USER, EVENT_START_MS - 10 * MINUTE, h.deps);
+  assert.equal(h.dialed.length, 2);
+  assert.equal(h.held.size, 2);
+});
+
 test("one tick with both levels due places ONE call and claims the coarser level without ringing", async () => {
   const h = harness();
   await wakeUserOnce(USER, DEPARTURE_MS - 4 * MINUTE, h.deps); // T-10 passed, T-5 due, same tick
   assert.deepEqual(h.dialed, [{ urgency: "harsh", level: "5" }], "only the most urgent level rings");
   assert.deepEqual([...h.held].map((k) => k.split("|").at(-1)).sort(), ["10", "5"],
     "the superseded T-10 is claimed so a later tick cannot resurrect it");
+  assert.equal(h.missed.length, 1, "the missed T-10 is recorded rather than silently claimed");
+  assert.equal(h.missed[0].reason, "missed_level");
   await wakeUserOnce(USER, DEPARTURE_MS - 3 * MINUTE, h.deps);
   assert.equal(h.dialed.length, 1, "the superseded level stays silent on every later tick");
 });
 
-test("a departure more than LATE_CUTOFF_MIN minutes past places no call at all", async () => {
-  assert.equal(LATE_CUTOFF_MIN, -15, "the cutoff is the named constant, not a magic number");
+test("an event after its start places no call at all", async () => {
+  assert.equal(LATE_CUTOFF_MIN, 0, "the cutoff is the event start");
   const h = harness();
-  await wakeUserOnce(USER, DEPARTURE_MS + 16 * MINUTE, h.deps); // event itself is still in the future
+  await wakeUserOnce(USER, DEPARTURE_MS + 16 * MINUTE, h.deps);
   assert.deepEqual(h.dialed, [], "past the cutoff the late-notice organ owns this, not a wake call");
   assert.deepEqual(h.claimed, [], "and no claim is burned on the way out");
 });

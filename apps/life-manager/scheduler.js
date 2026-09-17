@@ -11,7 +11,7 @@ const crypto = require("crypto");
 const { fetchUpcomingEvents } = require("./lib/events.js");
 const { schedulerCohortFilter, isCallablePhone } = require("./lib/user-selector.js");
 const { DEFAULTS: RUNTIME_DEFAULTS, readRuntimePreferences } = require("./lib/runtime-preferences.js");
-const { shouldWake, departureMs, resolveDeparture, isHelperBlock } = require("./lib/wake-filter.js");
+const { shouldWake, isHelperBlock } = require("./lib/wake-filter.js");
 const { mentalUserOnce, resolveSleepTarget } = require("./lib/mental-runtime.js");
 const { careUserOnce } = require("./lib/care-daily-runtime.js");
 const { dietUserOnce } = require("./lib/diet-runtime.js");
@@ -85,10 +85,13 @@ const WAKE_LEVELS = [
   { min: 10, urgency: "firm" },
   { min: 5, urgency: "harsh" },
 ];
-// How late after DEPARTURE a wake call may still be STARTED. Past this the call has nothing left to
-// achieve — the user is already late and the late-notice organ owns that territory — so the catch-up
-// below stops here instead of ringing someone about a departure they can no longer make.
-const LATE_CUTOFF_MIN = -15;
+function wakeEventKey(ev, levelMin) {
+  const identity = String(ev.id || `${ev.startIso}|${ev.summary || ""}|${ev.location || ""}`);
+  const digest = crypto.createHash("sha256").update(identity).digest("base64url").slice(0, 22);
+  return `${ev.startIso}|${digest}|${levelMin}`;
+}
+// A scheduled wake starts before the event, never after its start time.
+const LATE_CUTOFF_MIN = 0;
 
 const SUPA = () => ({ url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SERVICE_ROLE_KEY });
 
@@ -103,7 +106,7 @@ async function supaUsers() {
   // FAIL-SAFE: try WITH wake_policy; if the column is missing (PostgREST 400) fall back to the base
   // columns rather than returning [] — a missing column must NOT silently disable wakes fleet-wide.
   let r = await fetch(`${base}&select=${cols},wake_policy`, { headers: hdr });
-  if (!r.ok) r = await fetch(`${base}&select=${cols}`, { headers: hdr }); // wake_policy → undefined → travel-only
+  if (!r.ok) r = await fetch(`${base}&select=${cols}`, { headers: hdr }); // missing wake_policy → all-events
   if (!r.ok) return [];
   const users = await r.json().catch(() => []);
   if (!Array.isArray(users) || users.length === 0) return [];
@@ -448,50 +451,26 @@ async function wakeCallOnce(u, nowMs, deps = {}) {
   } catch {
     return;
   }
-  const futureEvents = (events || []).filter((e) => Number(e.startMs) >= now);
-  // The organ tick reads this instead of fetching. Publishing the RAW events (not futureEvents) is
-  // deliberate: the MENTAL organ needs the lookback slice that futureEvents throws away.
+  const wakeEvents = (events || []).filter((e) => Number(e.startMs) >= now - 2 * 60000);
+  // The organ tick reads this instead of fetching. Publish the raw events because MENTAL needs
+  // its wider lookback; the wake scan uses only the final two minutes for missed-call evidence.
   (deps.putEvents || putEvents)(u.uid, events, now);
-  // #69 importance filter: only wake for events the user must TRAVEL to (per their wake_policy),
-  // and anchor the 10/5 levels to DEPARTURE (leave time), not the event start — so a 30-min-travel
-  // event is called before they must leave. resolveDeparture uses the [Travel] block if present, else
-  // computes the leave time inline (never-late even before the 30-min travel loop inserts the block).
-  const mapsKey = deps.mapsKey || process.env.LIFE_MAPS_KEY || process.env.GOOGLE_API_KEY;
+  // Calls use each timed event's start; travel guidance is a separate owner.
   // spec §5.2.1: `=== true`, not `!== false`. The phone is opt-IN now, and three different shapes all
   // mean "expressed no preference" — no row, a SQL NULL column, and an unmerged undefined. `!== false`
   // dialled all three. A malformed/missing phone is an independent hard gate. This is also the LAST
   // gate on the Inngest per-user path, which reaches wakeCallOnce through wakeUserOnce and never passes
   // wakeTick's filter.
   if (u.paid === true && u.call_enabled === true && isCallablePhone(u.phone)) {
-    for (const ev of futureEvents.filter((e) => shouldWake(e, u.home_address, u.wake_policy))) {
-      const managedActionKey = String(ev.id || `${ev.startMs || ev.startIso}:${ev.summary || ""}`);
+    for (const ev of wakeEvents.filter((e) => shouldWake(e, u.home_address, u.wake_policy))) {
+      const actionBaseKey = String(ev.id || `${ev.startMs || ev.startIso}:${ev.summary || ""}`);
       const allowanceReserve = deps.reserveManagedAction || (deps.placeCall ? undefined : reserveManagedAction);
       const allowanceRelease = deps.releaseManagedAction || (deps.placeCall ? undefined : releaseManagedAction);
       const voiceReserve = deps.reserveVoiceAllowance || (deps.placeCall ? undefined : reserveVoiceAllowance);
       const voiceAccept = deps.acceptVoiceAllowance || (deps.placeCall ? undefined : acceptVoiceAllowance);
       const voiceRelease = deps.releaseVoiceAllowance || (deps.placeCall ? undefined : releaseVoiceAllowance);
-      let allowanceReserved = false;
-      let allowanceReservation = null;
-      const allowanceState = {};
       const { url: allowanceUrl, key: allowanceKey } = SUPA();
-      if ((deps.directionsRoute || deps.directionsMinutes) && typeof allowanceReserve === "function") {
-        const allowance = await allowanceReserve(u.uid, managedActionKey, allowanceUrl, allowanceKey);
-        if (!allowance || allowance.allowed !== true) continue;
-        allowanceState.receipt = allowance.reservationToken ? allowance : null;
-      }
-      const depMs = await resolveDeparture(ev, futureEvents, {
-        home: u.home_address, mapsKey, nowMs: now, bufferMin: 5,
-        directionsFn: deps.directionsMinutes || directionsMinutes,
-        routeFn: deps.directionsRoute || (deps.directionsMinutes ? undefined : directionsRoute), uid: u.uid,
-        timezone: u.call_time_zone || u.time_zone,
-        routeOptions: {
-          supaUrl: allowanceUrl, supaKey: allowanceKey, _allowanceState: allowanceState,
-          _reserveManagedAction: allowanceReserve, _releaseManagedAction: allowanceRelease,
-        },
-      });
-      allowanceReservation = allowanceState.receipt || null;
-      allowanceReserved = Boolean(allowanceReservation);
-      const mins = (depMs - now) / 60000;
+      const mins = (Number(ev.startMs) - now) / 60000;
       // A level is DUE once its threshold has passed, not only while the tick sits inside a ~2-min
       // window: this tick is not periodic (the organs above share the per-user timeout, and a redeploy
       // restarts the loop), so a window-bound level was lost FOREVER whenever a tick landed outside it.
@@ -500,46 +479,47 @@ async function wakeCallOnce(u, nowMs, deps = {}) {
       const due = WAKE_LEVELS
         .filter((lvl) => mins <= lvl.min + 0.5 && mins > LATE_CUTOFF_MIN)
         .sort((a, b) => a.min - b.min);
-      if (!due.length && allowanceReserved && typeof allowanceRelease === "function") {
-        await allowanceRelease(u.uid, managedActionKey, allowanceUrl, allowanceKey,
-          { reservation: allowanceReservation });
-        allowanceReserved = false;
-        allowanceReservation = null;
-      }
-      if (due.length && !allowanceReserved && typeof allowanceReserve === "function") {
-        const allowance = await allowanceReserve(u.uid, managedActionKey, allowanceUrl, allowanceKey);
-        if (!allowance || allowance.allowed !== true) continue;
-        allowanceReservation = allowance.reservationToken ? allowance : null;
-        allowanceReserved = Boolean(allowanceReservation);
-      }
-      // 1b: the moment departure crosses the cutoff, this event can never ring again. If the finest
+      // The moment an event starts, its wake cannot ring again. If the finest
       // level was never even claimed, nothing was ever attempted — the exact failure that looked like
       // a non-event in lm_wake_log. Record it once, in the two ticks just past the cutoff: later ticks
       // belong to the late-notice organ, and re-recording would keep restamping an old failure as new.
       if (mins <= LATE_CUTOFF_MIN && mins > LATE_CUTOFF_MIN - 2) {
         const finest = WAKE_LEVELS.reduce((a, b) => (a.min <= b.min ? a : b));
-        const finestKey = `${u.uid}|${ev.startIso}|${finest.min}`;
+        const finestKey = wakeEventKey(ev, finest.min);
         try {
           const everClaimed = await (deps.wakeWasClaimed || wakeWasClaimed)(u.uid, finestKey);
           if (!everClaimed) {
             await noteWakeMiss(u, {
-              eventKey: `${u.uid}|${ev.startIso}|departure`,
+              eventKey: wakeEventKey(ev, "event"),
               eventStartIso: ev.startIso,
-              dueAtIso: new Date(depMs).toISOString(),
-              reason: WAKE_MISS_REASONS.NO_CALL_BEFORE_DEPARTURE,
+              dueAtIso: new Date(ev.startMs).toISOString(),
+              reason: WAKE_MISS_REASONS.NO_CALL_BEFORE_EVENT,
               eventSummary: ev.summary,
             }, deps, now);
-            console.error(`[scheduler] wake never rang uid=${u.uid.slice(0, 12)} departure passed`);
+            console.error(`[scheduler] wake never rang uid=${u.uid.slice(0, 12)} event started`);
           }
         } catch (e) {
           console.error(`[wake-miss] uid=${String(u.uid).slice(0, 12)} err ${e && e.message}`);
         }
       }
       for (const lvl of due) {
-        const eventKey = `${u.uid}|${ev.startIso}|${lvl.min}`;
+        const eventKey = wakeEventKey(ev, lvl.min);
         if (lvl !== due[0]) {
-          await (deps.claimWake || claimWake)(u.uid, eventKey);
+          const skipped = await (deps.claimWake || claimWake)(u.uid, eventKey);
+          if (skipped) await noteWakeMiss(u, {
+            eventKey, eventStartIso: ev.startIso,
+            dueAtIso: new Date(ev.startMs - lvl.min * 60000).toISOString(),
+            levelMin: lvl.min, reason: WAKE_MISS_REASONS.MISSED_LEVEL,
+            eventSummary: ev.summary,
+          }, deps, now);
           continue;
+        }
+        const managedActionKey = `${actionBaseKey}|wake:${lvl.min}`;
+        let allowanceReservation = null;
+        if (typeof allowanceReserve === "function") {
+          const allowance = await allowanceReserve(u.uid, managedActionKey, allowanceUrl, allowanceKey);
+          if (!allowance || allowance.allowed !== true) continue;
+          allowanceReservation = allowance.reservationToken ? allowance : null;
         }
         const voice = typeof voiceReserve === "function"
           ? await voiceReserve(u.uid, eventKey, allowanceUrl, allowanceKey)
@@ -548,7 +528,7 @@ async function wakeCallOnce(u, nowMs, deps = {}) {
           if (voice && voice.reservationToken && typeof voiceRelease === "function") {
             await voiceRelease(u.uid, eventKey, allowanceUrl, allowanceKey, { reservation: voice });
           }
-          if (allowanceReserved && typeof allowanceRelease === "function") {
+          if (allowanceReservation && typeof allowanceRelease === "function") {
             await allowanceRelease(u.uid, managedActionKey, allowanceUrl, allowanceKey,
               { reservation: allowanceReservation });
           }
@@ -561,6 +541,10 @@ async function wakeCallOnce(u, nowMs, deps = {}) {
         if (!fresh) {
           if (typeof voiceRelease === "function") await voiceRelease(u.uid, eventKey, allowanceUrl, allowanceKey,
             { reservation: voice });
+          if (allowanceReservation && typeof allowanceRelease === "function") {
+            await allowanceRelease(u.uid, managedActionKey, allowanceUrl, allowanceKey,
+              { reservation: allowanceReservation });
+          }
           continue;
         }
         if (typeof voiceAccept === "function") {
@@ -569,7 +553,7 @@ async function wakeCallOnce(u, nowMs, deps = {}) {
             await (deps.releaseWake || releaseWake)(u.uid, eventKey, fresh);
             if (typeof voiceRelease === "function") await voiceRelease(u.uid, eventKey, allowanceUrl, allowanceKey,
               { reservation: voice });
-            if (allowanceReserved && typeof allowanceRelease === "function") {
+            if (allowanceReservation && typeof allowanceRelease === "function") {
               await allowanceRelease(u.uid, managedActionKey, allowanceUrl, allowanceKey,
                 { reservation: allowanceReservation });
             }
@@ -631,7 +615,7 @@ async function wakeCallOnce(u, nowMs, deps = {}) {
           await noteWakeMiss(u, {
             eventKey,
             eventStartIso: ev.startIso,
-            dueAtIso: new Date(depMs - lvl.min * 60000).toISOString(),
+            dueAtIso: new Date(ev.startMs - lvl.min * 60000).toISOString(),
             levelMin: lvl.min,
             reason: WAKE_MISS_REASONS.DIAL_FAILED,
             detail: res.error,

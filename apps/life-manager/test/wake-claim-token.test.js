@@ -18,6 +18,7 @@
 // Run: node --test test/wake-claim-token.test.js
 const { test } = require("node:test");
 const assert = require("node:assert");
+const crypto = require("node:crypto");
 
 process.env.LM_CALL_SECRET = "unit_secret";
 process.env.PUBLIC_WSS = "wss://life-call.invalid";
@@ -106,7 +107,7 @@ test("a claim survives a store that has not run the migration yet", async () => 
 const MINUTE = 60_000;
 const EVENT_START_ISO = "2026-08-05T14:00:00+09:00";
 const EVENT_START_MS = Date.parse(EVENT_START_ISO);
-const DEPARTURE_MS = EVENT_START_MS - 40 * MINUTE; // 35 min travel + resolveDeparture's 5-min buffer
+const DEPARTURE_MS = EVENT_START_MS; // legacy test name; calls use event start
 const TEST_PHONE = "+99900000000";
 
 const USER = {
@@ -129,6 +130,7 @@ const EVENT = {
   startIso: EVENT_START_ISO,
   endMs: EVENT_START_MS + 60 * MINUTE,
 };
+const WAKE_KEY = `${EVENT_START_ISO}|${crypto.createHash("sha256").update(EVENT.id).digest("base64url").slice(0, 22)}|5`;
 
 test("a failed dial releases with the token it claimed with, not a bare key", async () => {
   const released = [];
@@ -147,7 +149,7 @@ test("a failed dial releases with the token it claimed with, not a bare key", as
   });
 
   assert.equal(released.length, 1, "the claim is still released so the next tick retries");
-  assert.equal(released[0].key, `${USER.uid}|${EVENT_START_ISO}|5`);
+  assert.equal(released[0].key, WAKE_KEY);
   assert.equal(released[0].claimToken, "claim-token-xyz",
     "the token travels from claim to release — a release that cannot name its claim can delete someone else's");
   assert.equal(receipts.length, 0, "a rejected dial has no provider receipt to write");
@@ -192,7 +194,7 @@ test("an accepted dial passes exact claim state and writes its receipt after the
       assert.deepEqual(decodeCallClientState(clientState), {
         kind: "wake",
         wakeUid: USER.uid,
-        wakeEventKey: `${USER.uid}|${EVENT_START_ISO}|5`,
+        wakeEventKey: WAKE_KEY,
         wakeClaimToken: "sentinel-claim-token",
       });
       return {
@@ -205,7 +207,7 @@ test("an accepted dial passes exact claim state and writes its receipt after the
     receipt: async (input, config) => {
       assert.deepEqual(input, {
         uid: USER.uid,
-        eventKey: `${USER.uid}|${EVENT_START_ISO}|5`,
+        eventKey: WAKE_KEY,
         claimToken: "sentinel-claim-token",
         callControlId: "provider-control-sentinel",
         callSessionId: "provider-session-sentinel",

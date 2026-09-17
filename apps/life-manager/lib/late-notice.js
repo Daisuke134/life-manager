@@ -4,7 +4,6 @@
 
 const { isHelperBlock } = require("./wake-filter.js");
 const { shouldMarkAnswered } = require("./answered.js");
-const { hangupCall } = require("./dial.js");
 const { recordTelnyxWakeReceipt } = require("./telnyx-receipt.js");
 const { resolveLateRecipients } = require("./late-recipient-resolver.js");
 const {
@@ -504,26 +503,9 @@ async function recordAmdResult(uid, key, opts = {}) {
   return patchWakeLog(uid, key, { ...opts, body: { amd_result: result } });
 }
 
-// The whole of what a call.machine.detection.ended means for the wake row, in one testable place:
-// record the raw result always, latch answered_at only for a human, and hang up on anything AMD
-// says is not a human. server.js owns the transport (signature, decode, HTTP reply); this owns the
-// decision, so the outcomes are provable without booting the server or reaching for global fetch.
-//
-// spec §3 row 2b / §5.2.1 — why the hangup lives here and why it is second:
-//   * Measured, this service never hung up at all: `hangup_source` was `callee` on all 43 correlated
-//     events, so every voicemail ran to the carrier's 120s recording limit at ~$0.05 of Gemini Live.
-//     17 machines against 3 humans, and four straight days of nothing but voicemail.
-//   * `not_sure` hangs up too. Telnyx's docs recommend treating it as human; the measured ratio says
-//     otherwise, and the asymmetry settles it — being wrong here costs one missed nudge, being wrong
-//     the other way costs two minutes of paid speech into a recording nobody plays back.
-//   * A result we could not read at all (empty/missing) hangs up on NOBODY. That is not an AMD
-//     verdict, it is a payload we failed to parse, and hanging up on it would turn one Telnyx schema
-//     change into "no wake call ever completes again" — the silent-total-failure class of §1.3.
-//   * The record is written FIRST. The hangup is a cost saving; amd_result is the evidence that tells
-//     a voicemail apart from a webhook that never arrived, and it must not be hostage to Telnyx.
-//
-// `hangup` mirrors `answered`'s vocabulary: null = deliberately not attempted, { ok:false, error } =
-// we meant to and could not, which is a thing to log rather than a thing to skip.
+// AMD is a probabilistic observation. Keep its raw result and mark human/not_sure as answered,
+// but never end a paid user's call solely because a machine label might be wrong. The provider
+// per-call time limit and monthly voice ledger still bound voicemail cost.
 async function applyAmdDetection(uid, key, opts = {}) {
   const result = typeof opts.result === "string" ? opts.result.trim() : "";
   const claimBound = validProviderId(opts.claimToken);
@@ -551,35 +533,14 @@ async function applyAmdDetection(uid, key, opts = {}) {
       : await markAnswered(uid, key, opts);
     return { result, amd, answered, hangup: null };
   }
-  if (!result) return { result, amd, answered: null, hangup: null };
-  const hangup = await hangupCall(opts.callControlId, {
-    fetchImpl: opts.fetchImpl, apiKey: opts.telnyxApiKey,
-  });
-  return { result, amd, answered: null, hangup };
+  return { result, amd, answered: null, hangup: null };
 }
 
-// spec §3 row 2d — the /test-call twin of applyAmdDetection, and the difference is deliberate:
-//   * NOTHING is written. A test call is placed straight from the dashboard button, so no scheduler
-//     ever inserted an lm_wake_log row for it. Reusing applyAmdDetection here would PATCH a row that
-//     does not exist and answer matched=0 on every single test call — the exact log line that is
-//     supposed to mean "a real wake row went missing" (§1.3). Evidence you cannot trust is worse
-//     than no evidence, so this path records nothing and says so.
-//   * The hangup is IDENTICAL to the wake path, because the cost is identical: reaching a voicemail
-//     runs to the carrier's 120s recording limit at ~$0.05 of Gemini Live spoken into a recording
-//     nobody plays back, whether or not we have a row to write it on. Same three rules, unchanged —
-//     `human` is never cut off, `not_sure` is (measured 17 machines / 3 humans), and a result we
-//     could not read at all cuts off NOBODY, because that is a parse failure and not an AMD verdict.
-// Deriving both from the same shouldMarkAnswered() keeps the two paths from drifting: change what
-// counts as a human and both the wake call and the test call change with it, in one edit.
+// Test calls have no wake row to update. A detection only returns the observed label;
+// it cannot justify hanging up on someone who may be speaking.
 async function applyTestCallDetection(opts = {}) {
   const result = typeof opts.result === "string" ? opts.result.trim() : "";
-  if (!result || shouldMarkAnswered({ amdEnabled: true, signal: "amd", result })) {
-    return { result, hangup: null };
-  }
-  const hangup = await hangupCall(opts.callControlId, {
-    fetchImpl: opts.fetchImpl, apiKey: opts.telnyxApiKey,
-  });
-  return { result, hangup };
+  return { result, hangup: null };
 }
 
 module.exports = {

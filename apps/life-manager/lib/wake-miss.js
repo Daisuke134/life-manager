@@ -21,6 +21,8 @@ const WAKE_MISS_REASONS = {
   DIAL_FAILED: "dial_failed",
   // Departure passed LATE_CUTOFF_MIN and no level was ever claimed: nothing rang at all.
   NO_CALL_BEFORE_DEPARTURE: "no_call_before_departure",
+  NO_CALL_BEFORE_EVENT: "no_call_before_event",
+  MISSED_LEVEL: "missed_level",
 };
 
 function supaHeaders(key, prefer) {
@@ -117,6 +119,12 @@ function wakeMissLine(miss, nowMs, opts = {}) {
   if (miss.reason === WAKE_MISS_REASONS.NO_CALL_BEFORE_DEPARTURE) {
     return `🔔 Missed: ${when} never rang before your departure time`;
   }
+  if (miss.reason === WAKE_MISS_REASONS.NO_CALL_BEFORE_EVENT) {
+    return `🔔 Missed: ${when} never rang before the event started`;
+  }
+  if (miss.reason === WAKE_MISS_REASONS.MISSED_LEVEL) {
+    return `🔔 Missed: ${when} reminder threshold passed before the scheduler ran`;
+  }
   return `🔔 Missed: ${when} did not go out (${miss.reason})`;
 }
 
@@ -159,6 +167,16 @@ function wakeMissNotice(miss, opts = {}) {
     return ja
       ? `⚠️ ${when} の呼び出しが鳴りませんでした。出発時刻はすでに過ぎています。`
       : `⚠️ Your ${when} call never rang. Your departure time has already passed.`;
+  }
+  if (miss.reason === WAKE_MISS_REASONS.NO_CALL_BEFORE_EVENT) {
+    return ja
+      ? `⚠️ ${when} の呼び出しが鳴りませんでした。予定はすでに始まっています。`
+      : `⚠️ Your ${when} call never rang. The event has already started.`;
+  }
+  if (miss.reason === WAKE_MISS_REASONS.MISSED_LEVEL) {
+    return ja
+      ? `⚠️ ${when} の呼び出しは時刻を過ぎたため実行できませんでした。`
+      : `⚠️ The ${when} call could not run before its reminder time passed.`;
   }
   const why = miss.detail ? (ja ? `（理由: ${miss.detail}）` : ` (${miss.detail})`) : "";
   if (miss.reason === WAKE_MISS_REASONS.DIAL_FAILED) {

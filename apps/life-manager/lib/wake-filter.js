@@ -13,12 +13,12 @@ function isHelperBlock(summary) {
 const norm = (s) => (s || "").replace(/\s+/g, "").toLowerCase();
 
 // Should we place a wake call for this event?
-//   travel-only (default): only events you must TRAVEL to — a real location that isn't home. Routines
+//   travel-only: only events you must TRAVEL to — a real location that isn't home. Routines
 //     (no location, or at home) are skipped → no 27-calls-a-day spam. Home unknown → skip.
-//   all-events: any timed non-helper event (opt-in to the original behavior).
+//   all-events (default for an opted-in phone user): any timed non-helper event.
 function shouldWake(ev, home, policy) {
   if (!ev || isHelperBlock(ev.summary)) return false;
-  const p = policy === "all-events" ? "all-events" : "travel-only"; // null/garbage → safe default
+  const p = policy === "travel-only" ? "travel-only" : "all-events";
   if (p === "all-events") return true;
   const loc = norm(ev.location);
   if (!loc) return false;            // no location → routine / phone task → no travel

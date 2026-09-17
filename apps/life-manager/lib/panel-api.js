@@ -302,7 +302,7 @@ async function settings(uid, opts) {
     call_schedule: {
       time_zone: configuredTimeZone(preferences.call_time_zone || opts.timeZone),
       minutes_before: [...CALL_MINUTES_BEFORE],
-      wake_policy: user && user.wake_policy != null ? user.wake_policy : "travel-only",
+      wake_policy: user && user.wake_policy != null ? user.wake_policy : "all-events",
     },
     connections: {
       calendar,
