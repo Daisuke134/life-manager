@@ -267,7 +267,7 @@ def _discovery_query(value: object) -> str:
             return DEFAULT_DISCOVERY_QUERY
         if parsed.tzinfo is None or parsed.utcoffset() is None:
             return DEFAULT_DISCOVERY_QUERY
-        slot = int(parsed.astimezone(timezone.utc).timestamp() // 1800) % len(DISCOVERY_QUERIES)
+        slot = int(parsed.astimezone(timezone.utc).timestamp() // WAKE_INTERVAL_SECONDS) % len(DISCOVERY_QUERIES)
         return DISCOVERY_QUERIES[slot]
     except (TypeError, ValueError, OverflowError, OSError):
         return DEFAULT_DISCOVERY_QUERY
@@ -290,9 +290,8 @@ def _discovery_window(tick_value: object) -> tuple[str, ...]:
     """DISCOVERY_WINDOW queries starting where the slot lands, so every wake reads a different
     slice of the vocabulary at a constant request rate."""
     total = len(DISCOVERY_QUERIES)
-    # Advance once per wake, not once per half hour. _discovery_query's 1800s slot is right for
-    # the default path, which reads one query; borrowing it here left the window standing still
-    # for thirty consecutive wakes and put a full pass over the vocabulary 14 hours away.
+    # Both discovery paths advance with the scheduled 60-second wake; the window
+    # reads several terms while the default path reads one.
     try:
         if isinstance(tick_value, datetime):
             parsed = tick_value
@@ -553,8 +552,8 @@ def _safety_outcome(row: Mapping[str, object], decision: Mapping[str, object], e
 
 
 def _discovery_turn_count(*, exhaustive: bool, source: object, query: object) -> int:
-    """Keep the all-query discovery path to one bounded union per wake."""
-    return 1 if exhaustive or source is not None or query is not None else 3
+    """Read one selected slice per wake; another turn would fetch that slice again."""
+    return 1
 
 
 def _pending_descriptor_for_wake(state_path: Path, tick_value: object) -> Optional[Mapping[str, object]]:
