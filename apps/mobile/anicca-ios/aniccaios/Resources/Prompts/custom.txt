@@ -1,0 +1,6 @@
+${LANGUAGE_LINE}
+
+${USER_NAME}さん、${TASK_DESCRIPTION}の時間です。
+${USER_NAME}, it's time for ${TASK_DESCRIPTION}.
+
+

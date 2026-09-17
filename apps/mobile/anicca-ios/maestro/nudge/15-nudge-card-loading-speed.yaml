@@ -1,0 +1,49 @@
+appId: ai.anicca.app.ios
+name: "NudgeCard Loading Speed Test"
+tags:
+  - performance
+  - nudge
+---
+# NudgeCard表示速度テスト
+# 目標: カード表示が1秒以内に完了すること
+
+- launchApp:
+    clearState: false
+
+# オンボーディング完了していない場合、スキップ
+- runFlow:
+    when:
+      notVisible: "tab-mypath"
+    file: ../onboarding/01-onboarding.yaml
+
+# Profile タブに移動（accessibilityIdentifier使用）
+- tapOn:
+    id: "tab-profile"
+
+# デバッグセクションまでスクロール（DEBUG buildのみ）
+- scrollUntilVisible:
+    element:
+      id: "debug-nudge-test-staying-up-late"
+    direction: DOWN
+
+# カード表示テスト開始（accessibilityIdentifier使用）
+- tapOn:
+    id: "debug-nudge-test-staying-up-late"
+
+# 1秒以内にNudgeCardViewが表示されることを確認（accessibilityIdentifier使用）
+- extendedWaitUntil:
+    visible:
+      id: "nudge-card-view"
+    timeout: 1000
+
+# カードの主要要素（フィードバックボタン）が表示されていることを確認
+- assertVisible:
+    id: "feedback-thumbs-up"
+
+# カードを閉じる（accessibilityIdentifier使用）
+- tapOn:
+    id: "nudge-card-close"
+
+# メイン画面に戻ったことを確認
+- assertVisible:
+    id: "tab-profile"

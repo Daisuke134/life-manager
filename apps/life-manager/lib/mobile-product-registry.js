@@ -40,6 +40,9 @@ function normalizeSource(origin, raw) {
   requireValue(["public", "private"].includes(raw.access), "source access must be public or private");
   const source = { git_remote: remote.toString(), revision: raw.revision, access: raw.access };
   if (raw.subdirectory !== undefined) source.subdirectory = portableRelative(raw.subdirectory, "subdirectory");
+  if (raw.canonical_source_rel !== undefined) {
+    source.canonical_source_rel = portableRelative(raw.canonical_source_rel, "canonical_source_rel");
+  }
   return Object.freeze(source);
 }
 

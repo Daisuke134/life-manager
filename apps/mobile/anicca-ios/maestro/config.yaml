@@ -1,0 +1,12 @@
+# Maestro Test Suite Configuration
+# サブディレクトリのフローを認識させるための設定
+# 注意: 新しいサブディレクトリを追加した場合、flows: にパターンを追記すること
+
+executionOrder:
+  continueOnFailure: false
+
+flows:
+  - "onboarding/*"
+  - "nudge/*"
+  - "nudge/phase6/*"
+  - "v1.8.0/[0-9]*"

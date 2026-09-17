@@ -1,0 +1,1607 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		09624508B5E4DDDA28A62154 /* DayCyclingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5539993CAC07B523C82A078D /* DayCyclingTests.swift */; };
+		2FE5F42A07D6CA9CCE447F06 /* NudgeStatsManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88497BECBC635C3BB2A4F5F9 /* NudgeStatsManagerTests.swift */; };
+		3762F96744B5E043FA73E510 /* NudgeLocalizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E074536A7E39DB9F93036849 /* NudgeLocalizationTests.swift */; };
+		4F1218EA511B25B8CF4F5D23 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1FFFD13F67306F87B5AA845 /* Foundation.framework */; };
+		840034502EE52C5200A2F44C /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8400344F2EE52C5100A2F44C /* WidgetKit.framework */; };
+		840034522EE52C5200A2F44C /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 840034512EE52C5200A2F44C /* SwiftUI.framework */; };
+		840034632EE52C5400A2F44C /* AniccaWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8400344D2EE52C5100A2F44C /* AniccaWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		840BA3AA2EC772EA005CDB8D /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 840BA3A92EC772EA005CDB8D /* RevenueCat */; };
+		840BA3AC2EC772EA005CDB8D /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 840BA3AB2EC772EA005CDB8D /* RevenueCatUI */; };
+		840BA3AF2EC77316005CDB8D /* ComponentsKit in Frameworks */ = {isa = PBXBuildFile; productRef = 840BA3AE2EC77316005CDB8D /* ComponentsKit */; };
+		840BA3B22EC77325005CDB8D /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = 840BA3B12EC77325005CDB8D /* WebRTC */; };
+		84CC791A2EFAA90F005078AE /* AniccaNotificationService.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 84CC79132EFAA90F005078AE /* AniccaNotificationService.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		84DE437F2F090BDA00198F6C /* Mixpanel in Frameworks */ = {isa = PBXBuildFile; productRef = 84DE437E2F090BDA00198F6C /* Mixpanel */; };
+		95CE51F76BE712E891E85F2A /* ProblemNotificationSchedulerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D79CF80F4A02460444C7B3A5 /* ProblemNotificationSchedulerTests.swift */; };
+		A0714DDB2FC1D35400D7F9C7 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 84PH00012F2B000000000001 /* PostHog */; };
+		A0714DDC2FC1D35400D7F9C7 /* Singular in Frameworks */ = {isa = PBXBuildFile; productRef = EF17B89AF1FF1936EB1AE58E /* Singular */; };
+		A2A557539B41673D5F86B4DD /* BetaDistributionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D65F6D43EDB935AF0AB2C0DD /* BetaDistributionTests.swift */; };
+		BE2E7C57C0FFEE0000000002 /* PaywallE2ETests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE2E7C57C0FFEE0000000001 /* PaywallE2ETests.swift */; };
+		E81BA10340AD7BEFF6488EB4 /* ScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A9BCCF09BD4516FCF9B831 /* ScreenshotTests.swift */; };
+		F29A0962172B02EC2AF48600 /* NotificationHotfixTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76CE63902F0DC6A555FFB103 /* NotificationHotfixTests.swift */; };
+		FEBAE36E43A36F64C5743079 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E1FFFD13F67306F87B5AA845 /* Foundation.framework */; };
+		SUBINF1234567890ABCDEF /* SubscriptionInfoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SUBINF9876543210FEDCBA /* SubscriptionInfoTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		5425069D3307EDDD7B4657C0 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8471AE732EB783E1002CECAA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8471AE7A2EB783E1002CECAA;
+			remoteInfo = aniccaios;
+		};
+		840034612EE52C5400A2F44C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8471AE732EB783E1002CECAA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8400344C2EE52C5100A2F44C;
+			remoteInfo = AniccaWidgetExtension;
+		};
+		84CC79182EFAA90F005078AE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8471AE732EB783E1002CECAA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 84CC79122EFAA90F005078AE;
+			remoteInfo = AniccaNotificationService;
+		};
+		E5031F081CC342A0F4BD8C09 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8471AE732EB783E1002CECAA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8471AE7A2EB783E1002CECAA;
+			remoteInfo = aniccaios;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		8400346A2EE52C5400A2F44C /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				84CC791A2EFAA90F005078AE /* AniccaNotificationService.appex in Embed Foundation Extensions */,
+				840034632EE52C5400A2F44C /* AniccaWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		134D591FFF1E0B40CA405490 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5539993CAC07B523C82A078D /* DayCyclingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DayCyclingTests.swift; sourceTree = "<group>"; };
+		76CE63902F0DC6A555FFB103 /* NotificationHotfixTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotificationHotfixTests.swift; sourceTree = "<group>"; };
+		8400344D2EE52C5100A2F44C /* AniccaWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AniccaWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		8400344F2EE52C5100A2F44C /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		840034512EE52C5200A2F44C /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		8471AE7B2EB783E1002CECAA /* aniccaios.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = aniccaios.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8471B0792EB8D091002CECAA /* Configs/Staging.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Configs/Staging.xcconfig; sourceTree = "<group>"; };
+		8471B07B2EB8D0B0002CECAA /* Configs/Production.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Configs/Production.xcconfig; sourceTree = "<group>"; };
+		84A5279B2EEDDA2F008CAEA1 /* AniccaWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = AniccaWidgetExtension.entitlements; sourceTree = "<group>"; };
+		84CC79132EFAA90F005078AE /* AniccaNotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = AniccaNotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		88497BECBC635C3BB2A4F5F9 /* NudgeStatsManagerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NudgeStatsManagerTests.swift; sourceTree = "<group>"; };
+		8EB5063EEB22012F0836EE85 /* aniccaiosTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = aniccaiosTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AE2E7C57C0FFEE0000000001 /* PaywallE2ETests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PaywallE2ETests.swift; sourceTree = "<group>"; };
+		D65F6D43EDB935AF0AB2C0DD /* BetaDistributionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BetaDistributionTests.swift; sourceTree = "<group>"; };
+		D79CF80F4A02460444C7B3A5 /* ProblemNotificationSchedulerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProblemNotificationSchedulerTests.swift; sourceTree = "<group>"; };
+		E074536A7E39DB9F93036849 /* NudgeLocalizationTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NudgeLocalizationTests.swift; sourceTree = "<group>"; };
+		E1A9BCCF09BD4516FCF9B831 /* ScreenshotTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ScreenshotTests.swift; sourceTree = "<group>"; };
+		E1FFFD13F67306F87B5AA845 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		FE5786A433C595C56594222F /* aniccaiosUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = aniccaiosUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		SUBINF9876543210FEDCBA /* SubscriptionInfoTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SubscriptionInfoTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		8471AF782EB7B8AF002CECAA /* Exceptions for "aniccaios" folder in "aniccaios" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 8471AE7A2EB783E1002CECAA /* aniccaios */;
+		};
+		84CC79202EFAA90F005078AE /* Exceptions for "AniccaNotificationService" folder in "AniccaNotificationService" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 84CC79122EFAA90F005078AE /* AniccaNotificationService */;
+		};
+		84F1C0DE2F0D111100C0FFEE /* Exceptions for "AniccaWidget" folder in "AniccaWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 8400344C2EE52C5100A2F44C /* AniccaWidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		840034532EE52C5200A2F44C /* AniccaWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				84F1C0DE2F0D111100C0FFEE /* Exceptions for "AniccaWidget" folder in "AniccaWidgetExtension" target */,
+			);
+			path = AniccaWidget;
+			sourceTree = "<group>";
+		};
+		8471AE7D2EB783E1002CECAA /* aniccaios */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				8471AF782EB7B8AF002CECAA /* Exceptions for "aniccaios" folder in "aniccaios" target */,
+			);
+			path = aniccaios;
+			sourceTree = "<group>";
+		};
+		84CC79142EFAA90F005078AE /* AniccaNotificationService */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				84CC79202EFAA90F005078AE /* Exceptions for "AniccaNotificationService" folder in "AniccaNotificationService" target */,
+			);
+			path = AniccaNotificationService;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		8400344A2EE52C5100A2F44C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				840034522EE52C5200A2F44C /* SwiftUI.framework in Frameworks */,
+				840034502EE52C5200A2F44C /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8471AE782EB783E1002CECAA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A0714DDC2FC1D35400D7F9C7 /* Singular in Frameworks */,
+				A0714DDB2FC1D35400D7F9C7 /* PostHog in Frameworks */,
+				840BA3AC2EC772EA005CDB8D /* RevenueCatUI in Frameworks */,
+				84DE437F2F090BDA00198F6C /* Mixpanel in Frameworks */,
+				840BA3B22EC77325005CDB8D /* WebRTC in Frameworks */,
+				840BA3AF2EC77316005CDB8D /* ComponentsKit in Frameworks */,
+				840BA3AA2EC772EA005CDB8D /* RevenueCat in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		84CC79102EFAA90F005078AE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A7BE355897246AB5B8EAF0AB /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4F1218EA511B25B8CF4F5D23 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B10759B6ED60609371143781 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FEBAE36E43A36F64C5743079 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		09B92126377B982A93282FF1 /* aniccaiosUITests */ = {
+			isa = PBXGroup;
+			children = (
+				E1A9BCCF09BD4516FCF9B831 /* ScreenshotTests.swift */,
+				AE2E7C57C0FFEE0000000001 /* PaywallE2ETests.swift */,
+			);
+			path = aniccaiosUITests;
+			sourceTree = "<group>";
+		};
+		8400344E2EE52C5100A2F44C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				8400344F2EE52C5100A2F44C /* WidgetKit.framework */,
+				840034512EE52C5200A2F44C /* SwiftUI.framework */,
+				D58F082AD20410C3202351BF /* iOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		8471AE722EB783E1002CECAA = {
+			isa = PBXGroup;
+			children = (
+				84A5279B2EEDDA2F008CAEA1 /* AniccaWidgetExtension.entitlements */,
+				8471AE7D2EB783E1002CECAA /* aniccaios */,
+				840034532EE52C5200A2F44C /* AniccaWidget */,
+				84CC79142EFAA90F005078AE /* AniccaNotificationService */,
+				8400344E2EE52C5100A2F44C /* Frameworks */,
+				8471AE7C2EB783E1002CECAA /* Products */,
+				8471B0792EB8D091002CECAA /* Configs/Staging.xcconfig */,
+				8471B07B2EB8D0B0002CECAA /* Configs/Production.xcconfig */,
+				8471C1A22EC12345002CECAA /* aniccaios/WebRTCShims */,
+				D9FF005033DBB2BB16D6C884 /* aniccaiosTests */,
+				09B92126377B982A93282FF1 /* aniccaiosUITests */,
+			);
+			sourceTree = "<group>";
+		};
+		8471AE7C2EB783E1002CECAA /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				8471AE7B2EB783E1002CECAA /* aniccaios.app */,
+				8400344D2EE52C5100A2F44C /* AniccaWidgetExtension.appex */,
+				84CC79132EFAA90F005078AE /* AniccaNotificationService.appex */,
+				8EB5063EEB22012F0836EE85 /* aniccaiosTests.xctest */,
+				FE5786A433C595C56594222F /* aniccaiosUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		8471C1A22EC12345002CECAA /* aniccaios/WebRTCShims */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = aniccaios/WebRTCShims;
+			sourceTree = "<group>";
+		};
+		D58F082AD20410C3202351BF /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				E1FFFD13F67306F87B5AA845 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
+		D9FF005033DBB2BB16D6C884 /* aniccaiosTests */ = {
+			isa = PBXGroup;
+			children = (
+				D65F6D43EDB935AF0AB2C0DD /* BetaDistributionTests.swift */,
+				88497BECBC635C3BB2A4F5F9 /* NudgeStatsManagerTests.swift */,
+				134D591FFF1E0B40CA405490 /* Info.plist */,
+				D79CF80F4A02460444C7B3A5 /* ProblemNotificationSchedulerTests.swift */,
+				SUBINF9876543210FEDCBA /* SubscriptionInfoTests.swift */,
+				76CE63902F0DC6A555FFB103 /* NotificationHotfixTests.swift */,
+				E074536A7E39DB9F93036849 /* NudgeLocalizationTests.swift */,
+				5539993CAC07B523C82A078D /* DayCyclingTests.swift */,
+			);
+			path = aniccaiosTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5A38FE013FDF38087656B01B /* aniccaiosUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7BBA81DE368012551EE357C1 /* Build configuration list for PBXNativeTarget "aniccaiosUITests" */;
+			buildPhases = (
+				512EC275208A7441560F5CA0 /* Sources */,
+				A7BE355897246AB5B8EAF0AB /* Frameworks */,
+				59FC6E1E7FB5E79BB62CDD61 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F1D46F7B5A1A7DD54F7B82AC /* PBXTargetDependency */,
+			);
+			name = aniccaiosUITests;
+			productName = aniccaiosUITests;
+			productReference = FE5786A433C595C56594222F /* aniccaiosUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		8400344C2EE52C5100A2F44C /* AniccaWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 840034642EE52C5400A2F44C /* Build configuration list for PBXNativeTarget "AniccaWidgetExtension" */;
+			buildPhases = (
+				840034492EE52C5100A2F44C /* Sources */,
+				8400344A2EE52C5100A2F44C /* Frameworks */,
+				8400344B2EE52C5100A2F44C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				840034532EE52C5200A2F44C /* AniccaWidget */,
+			);
+			name = AniccaWidgetExtension;
+			productName = AniccaWidgetExtension;
+			productReference = 8400344D2EE52C5100A2F44C /* AniccaWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		8471AE7A2EB783E1002CECAA /* aniccaios */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 8471AE862EB783E3002CECAA /* Build configuration list for PBXNativeTarget "aniccaios" */;
+			buildPhases = (
+				8471AE772EB783E1002CECAA /* Sources */,
+				8471AE782EB783E1002CECAA /* Frameworks */,
+				8471AE792EB783E1002CECAA /* Resources */,
+				8471AE802EB783E1002CECAA /* Copy WebRTC dSYM */,
+				8400346A2EE52C5400A2F44C /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				840034622EE52C5400A2F44C /* PBXTargetDependency */,
+				84CC79192EFAA90F005078AE /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				8471AE7D2EB783E1002CECAA /* aniccaios */,
+			);
+			name = aniccaios;
+			packageProductDependencies = (
+				840BA3A92EC772EA005CDB8D /* RevenueCat */,
+				840BA3AB2EC772EA005CDB8D /* RevenueCatUI */,
+				840BA3AE2EC77316005CDB8D /* ComponentsKit */,
+				840BA3B12EC77325005CDB8D /* WebRTC */,
+				84DE437E2F090BDA00198F6C /* Mixpanel */,
+				84PH00012F2B000000000001 /* PostHog */,
+				EF17B89AF1FF1936EB1AE58E /* Singular */,
+			);
+			productName = aniccaios;
+			productReference = 8471AE7B2EB783E1002CECAA /* aniccaios.app */;
+			productType = "com.apple.product-type.application";
+		};
+		84CC79122EFAA90F005078AE /* AniccaNotificationService */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 84CC791B2EFAA90F005078AE /* Build configuration list for PBXNativeTarget "AniccaNotificationService" */;
+			buildPhases = (
+				84CC790F2EFAA90F005078AE /* Sources */,
+				84CC79102EFAA90F005078AE /* Frameworks */,
+				84CC79112EFAA90F005078AE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				84CC79142EFAA90F005078AE /* AniccaNotificationService */,
+			);
+			name = AniccaNotificationService;
+			productName = AniccaNotificationService;
+			productReference = 84CC79132EFAA90F005078AE /* AniccaNotificationService.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		EDAF1F028727C0CEB1747B46 /* aniccaiosTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 60520CD38924A868239E5688 /* Build configuration list for PBXNativeTarget "aniccaiosTests" */;
+			buildPhases = (
+				CE3412D75D285B05E66EF9EB /* Sources */,
+				B10759B6ED60609371143781 /* Frameworks */,
+				AA846905DCD6272AE253268B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9789B740D4D93B462DE531FB /* PBXTargetDependency */,
+			);
+			name = aniccaiosTests;
+			productName = aniccaiosTests;
+			productReference = 8EB5063EEB22012F0836EE85 /* aniccaiosTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		8471AE732EB783E1002CECAA /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2620;
+				LastUpgradeCheck = 2620;
+				TargetAttributes = {
+					8400344C2EE52C5100A2F44C = {
+						CreatedOnToolsVersion = 26.1.1;
+					};
+					8471AE7A2EB783E1002CECAA = {
+						CreatedOnToolsVersion = 26.1;
+					};
+					84CC79122EFAA90F005078AE = {
+						CreatedOnToolsVersion = 26.2;
+					};
+				};
+			};
+			buildConfigurationList = 8471AE762EB783E1002CECAA /* Build configuration list for PBXProject "aniccaios" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				ja,
+				de,
+				es,
+				"pt-BR",
+				fr,
+			);
+			mainGroup = 8471AE722EB783E1002CECAA;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				840BA3A82EC772EA005CDB8D /* XCRemoteSwiftPackageReference "purchases-ios" */,
+				840BA3AD2EC77316005CDB8D /* XCRemoteSwiftPackageReference "ComponentsKit" */,
+				840BA3B02EC77325005CDB8D /* XCRemoteSwiftPackageReference "WebRTC" */,
+				84DE437B2F08F5D000198F6C /* XCRemoteSwiftPackageReference "mixpanel-swift" */,
+				84PH00002F2B000000000000 /* XCRemoteSwiftPackageReference "posthog-ios" */,
+				C4B1D88B80DC2E78A575FFA4 /* XCRemoteSwiftPackageReference "Singular-iOS-SDK" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 8471AE7C2EB783E1002CECAA /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				8471AE7A2EB783E1002CECAA /* aniccaios */,
+				8400344C2EE52C5100A2F44C /* AniccaWidgetExtension */,
+				84CC79122EFAA90F005078AE /* AniccaNotificationService */,
+				EDAF1F028727C0CEB1747B46 /* aniccaiosTests */,
+				5A38FE013FDF38087656B01B /* aniccaiosUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		59FC6E1E7FB5E79BB62CDD61 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8400344B2EE52C5100A2F44C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8471AE792EB783E1002CECAA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		84CC79112EFAA90F005078AE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA846905DCD6272AE253268B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		8471AE802EB783E1002CECAA /* Copy WebRTC dSYM */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy WebRTC dSYM";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"${ARCHIVE_PRODUCTS_PATH}/../dSYMs/WebRTC.framework.dSYM",
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+			shellPath = /bin/sh;
+			shellScript = "#!/bin/bash\n# Copy/Generate WebRTC.framework dSYM for archive\n# Based on verified solution from GitHub issues #105 and #1818\n# Reference: https://github.com/stasel/WebRTC/issues/105\n\nif [ -z \"${ARCHIVE_PRODUCTS_PATH}\" ]; then\n    exit 0\nfi\n\nif [ \"${CONFIGURATION}\" = \"Release\" ] || [ \"${CONFIGURATION}\" = \"staging Release\" ]; then\n    ARCHIVE_DSYM_DEST=\"${ARCHIVE_PRODUCTS_PATH}/../dSYMs\"\n    mkdir -p \"${ARCHIVE_DSYM_DEST}\"\n    \n    # Find .app bundle dynamically\n    APP_BUNDLE=\"\"\n    for APP in \"${ARCHIVE_PRODUCTS_PATH}/Applications\"/*.app; do\n        if [ -d \"${APP}\" ]; then\n            APP_BUNDLE=\"${APP}\"\n            break\n        fi\n    done\n    \n    if [ -z \"${APP_BUNDLE}\" ]; then\n        echo \"⚠️ Warning: No .app bundle found\"\n        exit 0\n    fi\n    \n    WEBRTC_FRAMEWORK=\"${APP_BUNDLE}/Frameworks/WebRTC.framework\"\n    WEBRTC_BINARY=\"${WEBRTC_FRAMEWORK}/WebRTC\"\n    \n    if [ ! -f \"${WEBRTC_BINARY}\" ]; then\n        echo \"⚠️ Warning: WebRTC.framework binary not found\"\n        exit 0\n    fi\n    \n    # Extract UUID from binary using otool (more reliable for stripped binaries)\n    echo \"🔍 Extracting WebRTC.framework binary UUID...\"\n    BINARY_UUID=\"\"\n    if command -v otool &> /dev/null; then\n        # Extract UUID from LC_UUID load command\n        UUID_LINE=$(otool -l \"${WEBRTC_BINARY}\" 2>/dev/null | grep -A 1 \"LC_UUID\" | tail -1)\n        if [ -n \"${UUID_LINE}\" ]; then\n            # Extract UUID string (format: 4C4C44C3-5555-3144-A1CD-4B81B709C407)\n            BINARY_UUID=$(echo \"${UUID_LINE}\" | awk '{print $2}')\n            echo \"📋 WebRTC.framework UUID: ${BINARY_UUID}\"\n        fi\n    fi\n    \n    # Try to generate dSYM (may fail if binary is stripped)\n    echo \"🔍 Attempting to generate dSYM for WebRTC.framework...\"\n    dsymutil -o \"${ARCHIVE_DSYM_DEST}/WebRTC.framework.dSYM\" \"${WEBRTC_BINARY}\" 2>&1 | head -20\n    DSYMUTIL_EXIT_CODE=${PIPESTATUS[0]}\n    \n    if [ ${DSYMUTIL_EXIT_CODE} -eq 0 ] && [ -d \"${ARCHIVE_DSYM_DEST}/WebRTC.framework.dSYM\" ]; then\n        echo \"✅ Successfully generated WebRTC.framework.dSYM\"\n        if command -v dwarfdump &> /dev/null; then\n            echo \"📋 Generated dSYM UUID:\"\n            dwarfdump -u \"${ARCHIVE_DSYM_DEST}/WebRTC.framework.dSYM\" 2>/dev/null\n        fi\n    else\n        echo \"⚠️ Warning: Failed to generate dSYM (expected if WebRTC binary is stripped)\"\n        echo \"ℹ️  Creating UUID-matched dSYM structure for App Store Connect compliance\"\n        \n        # Create dSYM directory structure\n        DSYM_DIR=\"${ARCHIVE_DSYM_DEST}/WebRTC.framework.dSYM\"\n        mkdir -p \"${DSYM_DIR}/Contents/Resources/DWARF\"\n        \n        # Create Info.plist with UUID\n        cat > \"${DSYM_DIR}/Contents/Info.plist\" <<EOF\n<?xml version=\\\"1.0\\\" encoding=\\\"UTF-8\\\"?>\n<!DOCTYPE plist PUBLIC \\\"-//Apple//DTD PLIST 1.0//EN\\\" \\\"http://www.apple.com/DTDs/PropertyList-1.0.dtd\\\">\n<plist version=\\\"1.0\\\">\n<dict>\n    <key>CFBundleIdentifier</key>\n    <string>com.apple.xcode.dsym.WebRTC.framework</string>\n    <key>CFBundleInfoDictionaryVersion</key>\n    <string>6.0</string>\n    <key>CFBundlePackageType</key>\n    <string>dSYM</string>\n    <key>CFBundleSignature</key>\n    <string>????</string>\nEOF\n        \n        # Add UUID if extracted\n        if [ -n \"${BINARY_UUID}\" ]; then\n            cat >> \"${DSYM_DIR}/Contents/Info.plist\" <<EOF\n    <key>UUID</key>\n    <string>${BINARY_UUID}</string>\nEOF\n        fi\n        \n        cat >> \"${DSYM_DIR}/Contents/Info.plist\" <<EOF\n</dict>\n</plist>\nEOF\n        \n        # Create empty DWARF file (required for dSYM structure)\n        touch \"${DSYM_DIR}/Contents/Resources/DWARF/WebRTC\"\n        \n        echo \"✅ Created UUID-matched dSYM structure at ${DSYM_DIR}\"\n        if [ -n \"${BINARY_UUID}\" ]; then\n            echo \"📋 dSYM UUID: ${BINARY_UUID}\"\n        fi\n        echo \"ℹ️  Note: This is a placeholder dSYM. WebRTC.framework binary is stripped by stasel/WebRTC.\"\n    fi\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		512EC275208A7441560F5CA0 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E81BA10340AD7BEFF6488EB4 /* ScreenshotTests.swift in Sources */,
+				BE2E7C57C0FFEE0000000002 /* PaywallE2ETests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		840034492EE52C5100A2F44C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8471AE772EB783E1002CECAA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		84CC790F2EFAA90F005078AE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		CE3412D75D285B05E66EF9EB /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A2A557539B41673D5F86B4DD /* BetaDistributionTests.swift in Sources */,
+				2FE5F42A07D6CA9CCE447F06 /* NudgeStatsManagerTests.swift in Sources */,
+				95CE51F76BE712E891E85F2A /* ProblemNotificationSchedulerTests.swift in Sources */,
+				SUBINF1234567890ABCDEF /* SubscriptionInfoTests.swift in Sources */,
+				F29A0962172B02EC2AF48600 /* NotificationHotfixTests.swift in Sources */,
+				3762F96744B5E043FA73E510 /* NudgeLocalizationTests.swift in Sources */,
+				09624508B5E4DDDA28A62154 /* DayCyclingTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		840034622EE52C5400A2F44C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8400344C2EE52C5100A2F44C /* AniccaWidgetExtension */;
+			targetProxy = 840034612EE52C5400A2F44C /* PBXContainerItemProxy */;
+		};
+		84CC79192EFAA90F005078AE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 84CC79122EFAA90F005078AE /* AniccaNotificationService */;
+			targetProxy = 84CC79182EFAA90F005078AE /* PBXContainerItemProxy */;
+		};
+		9789B740D4D93B462DE531FB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = aniccaios;
+			target = 8471AE7A2EB783E1002CECAA /* aniccaios */;
+			targetProxy = 5425069D3307EDDD7B4657C0 /* PBXContainerItemProxy */;
+		};
+		F1D46F7B5A1A7DD54F7B82AC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = aniccaios;
+			target = 8471AE7A2EB783E1002CECAA /* aniccaios */;
+			targetProxy = E5031F081CC342A0F4BD8C09 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		1B4979E630E6238C3D52331F /* staging Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				INFOPLIST_FILE = aniccaiosUITests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.daisuke.aniccaios.uitests;
+				PRODUCT_NAME = aniccaiosUITests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = aniccaios;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = "staging Release";
+		};
+		4FF25BCB8F8140B0A35A36BE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				INFOPLIST_FILE = aniccaiosUITests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.daisuke.aniccaios.uitests;
+				PRODUCT_NAME = aniccaiosUITests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = aniccaios;
+			};
+			name = Debug;
+		};
+		5CAA7AB8F6437D64D6DBDA76 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				INFOPLIST_FILE = aniccaiosUITests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.daisuke.aniccaios.uitests;
+				PRODUCT_NAME = aniccaiosUITests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = aniccaios;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		840034652EE52C5400A2F44C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = AniccaWidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 365;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = AniccaWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AniccaWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.9.5;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.anicca.app.ios.AniccaWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		840034662EE52C5400A2F44C /* staging Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = AniccaWidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 365;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = AniccaWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AniccaWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.9.5;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.anicca.app.ios.AniccaWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = "staging Debug";
+		};
+		840034672EE52C5400A2F44C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = AniccaWidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 365;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = AniccaWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AniccaWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.9.5;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.anicca.app.ios.AniccaWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		840034682EE52C5400A2F44C /* staging Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = AniccaWidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 365;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = AniccaWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AniccaWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.9.5;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.anicca.app.ios.AniccaWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = "staging Release";
+		};
+		8471AE842EB783E3002CECAA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8471B07B2EB8D0B0002CECAA /* Configs/Production.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ANICCA_PROXY_BASE_URL = "https://anicca-proxy-staging.up.railway.app/api";
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		8471AE852EB783E3002CECAA /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8471B07B2EB8D0B0002CECAA /* Configs/Production.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ANICCA_PROXY_BASE_URL = "https://anicca-proxy-staging.up.railway.app/api";
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				DWARF_DSYM_FILE_SHOULD_ACCOMPANY_PRODUCT = NO;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		8471AE872EB783E3002CECAA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8471B0792EB8D091002CECAA /* Configs/Staging.xcconfig */;
+			buildSettings = {
+				ANICCA_PROXY_BASE_URL = "https://anicca-proxy-production.up.railway.app/api";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = aniccaios/aniccaiosDebug.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 365;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/aniccaios/WebRTCShims",
+				);
+				INFOPLIST_FILE = aniccaios/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Anicca;
+				INFOPLIST_KEY_CFBundleLocalizations = "ja en";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSAlarmKitUsageDescription = "Anicca schedules alarms to wake you up and remind you of routines.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "The WebRTC library references camera APIs, but this app does not use the camera.";
+				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "Anicca uses notifications to remind you about wake-up calls and routine start times.";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.9.5;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.anicca.app.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = NO;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/aniccaios/aniccaios-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		8471AE882EB783E3002CECAA /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8471B07B2EB8D0B0002CECAA /* Configs/Production.xcconfig */;
+			buildSettings = {
+				ANICCA_PROXY_BASE_URL = "https://anicca-proxy-production.up.railway.app/api";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = aniccaios/aniccaiosDistribution.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 365;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/aniccaios/WebRTCShims",
+				);
+				INFOPLIST_FILE = aniccaios/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Anicca;
+				INFOPLIST_KEY_CFBundleLocalizations = "ja en";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSAlarmKitUsageDescription = "Anicca schedules alarms to wake you up and remind you of routines.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "The WebRTC library references camera APIs, but this app does not use the camera.";
+				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "Anicca uses notifications to remind you about wake-up calls and routine start times.";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.9.5;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.anicca.app.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = NO;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "$(SRCROOT)/aniccaios/aniccaios-Bridging-Header.h";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		8471B0732EB8CD64002CECAA /* staging Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8471B0792EB8D091002CECAA /* Configs/Staging.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ANICCA_PROXY_BASE_URL = "https://anicca-proxy-staging.up.railway.app/api";
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = "staging Debug";
+		};
+		8471B0742EB8CD64002CECAA /* staging Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8471B0792EB8D091002CECAA /* Configs/Staging.xcconfig */;
+			buildSettings = {
+				ANICCA_PROXY_BASE_URL = "https://anicca-proxy-staging.up.railway.app/api";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = aniccaios/aniccaios.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 365;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/aniccaios/WebRTCShims",
+				);
+				INFOPLIST_FILE = aniccaios/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Anicca;
+				INFOPLIST_KEY_CFBundleLocalizations = "ja en";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSAlarmKitUsageDescription = "Anicca schedules alarms to wake you up and remind you of routines.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "The WebRTC library references camera APIs, but this app does not use the camera.";
+				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "Anicca uses notifications to remind you about wake-up calls and routine start times.";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.9.5;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.anicca.app.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = NO;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = "staging Debug";
+		};
+		8471B0762EB8CD69002CECAA /* staging Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8471B0792EB8D091002CECAA /* Configs/Staging.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ANICCA_PROXY_BASE_URL = "https://anicca-proxy-staging.up.railway.app/api";
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				DWARF_DSYM_FILE_SHOULD_ACCOMPANY_PRODUCT = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = "staging Release";
+		};
+		8471B0772EB8CD69002CECAA /* staging Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 8471B0792EB8D091002CECAA /* Configs/Staging.xcconfig */;
+			buildSettings = {
+				ANICCA_PROXY_BASE_URL = "https://anicca-proxy-staging.up.railway.app/api";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = aniccaios/aniccaiosDistribution.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 365;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/aniccaios/WebRTCShims",
+				);
+				INFOPLIST_FILE = aniccaios/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Anicca;
+				INFOPLIST_KEY_CFBundleLocalizations = "ja en";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSAlarmKitUsageDescription = "Anicca schedules alarms to wake you up and remind you of routines.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "The WebRTC library references camera APIs, but this app does not use the camera.";
+				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "Anicca uses notifications to remind you about wake-up calls and routine start times.";
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.9.5;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.anicca.app.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SKIP_INSTALL = NO;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = "staging Release";
+		};
+		84CC791C2EFAA90F005078AE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = AniccaNotificationService/AniccaNotificationService.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 365;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AniccaNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AniccaNotificationService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.9.5;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.anicca.app.ios.AniccaNotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		84CC791D2EFAA90F005078AE /* staging Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = AniccaNotificationService/AniccaNotificationService.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 365;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AniccaNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AniccaNotificationService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.9.5;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.anicca.app.ios.AniccaNotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = "staging Debug";
+		};
+		84CC791E2EFAA90F005078AE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = AniccaNotificationService/AniccaNotificationService.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 365;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AniccaNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AniccaNotificationService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.9.5;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.anicca.app.ios.AniccaNotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		84CC791F2EFAA90F005078AE /* staging Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = AniccaNotificationService/AniccaNotificationService.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 365;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = AniccaNotificationService/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = AniccaNotificationService;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.9.5;
+				PRODUCT_BUNDLE_IDENTIFIER = ai.anicca.app.ios.AniccaNotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = "staging Release";
+		};
+		990DE49A0E25E10E89F7FA4F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 9HV2TS77KM;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = aniccaiosTests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.anicca.ios.tests;
+				PRODUCT_NAME = aniccaiosTests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/aniccaios.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/aniccaios";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		9D96546B3C7C067311C39E8C /* staging Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 9HV2TS77KM;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = aniccaiosTests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.anicca.ios.tests;
+				PRODUCT_NAME = aniccaiosTests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/aniccaios.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/aniccaios";
+			};
+			name = "staging Debug";
+		};
+		D61FF727F856A49D08BD9464 /* staging Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = S5U8UH3JLJ;
+				INFOPLIST_FILE = aniccaiosUITests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.daisuke.aniccaios.uitests;
+				PRODUCT_NAME = aniccaiosUITests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = aniccaios;
+			};
+			name = "staging Debug";
+		};
+		D877EC6409485C1BD5208698 /* staging Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 9HV2TS77KM;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = aniccaiosTests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.anicca.ios.tests;
+				PRODUCT_NAME = aniccaiosTests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/aniccaios.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/aniccaios";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = "staging Release";
+		};
+		FF8A3495866953404BE6DA22 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 9HV2TS77KM;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = aniccaiosTests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.anicca.ios.tests;
+				PRODUCT_NAME = aniccaiosTests;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/aniccaios.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/aniccaios";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		60520CD38924A868239E5688 /* Build configuration list for PBXNativeTarget "aniccaiosTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				990DE49A0E25E10E89F7FA4F /* Release */,
+				FF8A3495866953404BE6DA22 /* Debug */,
+				9D96546B3C7C067311C39E8C /* staging Debug */,
+				D877EC6409485C1BD5208698 /* staging Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7BBA81DE368012551EE357C1 /* Build configuration list for PBXNativeTarget "aniccaiosUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5CAA7AB8F6437D64D6DBDA76 /* Release */,
+				4FF25BCB8F8140B0A35A36BE /* Debug */,
+				D61FF727F856A49D08BD9464 /* staging Debug */,
+				1B4979E630E6238C3D52331F /* staging Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		840034642EE52C5400A2F44C /* Build configuration list for PBXNativeTarget "AniccaWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				840034652EE52C5400A2F44C /* Debug */,
+				840034662EE52C5400A2F44C /* staging Debug */,
+				840034672EE52C5400A2F44C /* Release */,
+				840034682EE52C5400A2F44C /* staging Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8471AE762EB783E1002CECAA /* Build configuration list for PBXProject "aniccaios" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8471AE842EB783E3002CECAA /* Debug */,
+				8471B0732EB8CD64002CECAA /* staging Debug */,
+				8471AE852EB783E3002CECAA /* Release */,
+				8471B0762EB8CD69002CECAA /* staging Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		8471AE862EB783E3002CECAA /* Build configuration list for PBXNativeTarget "aniccaios" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8471AE872EB783E3002CECAA /* Debug */,
+				8471B0742EB8CD64002CECAA /* staging Debug */,
+				8471AE882EB783E3002CECAA /* Release */,
+				8471B0772EB8CD69002CECAA /* staging Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		84CC791B2EFAA90F005078AE /* Build configuration list for PBXNativeTarget "AniccaNotificationService" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				84CC791C2EFAA90F005078AE /* Debug */,
+				84CC791D2EFAA90F005078AE /* staging Debug */,
+				84CC791E2EFAA90F005078AE /* Release */,
+				84CC791F2EFAA90F005078AE /* staging Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		840BA3A82EC772EA005CDB8D /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.47.1;
+			};
+		};
+		840BA3AD2EC77316005CDB8D /* XCRemoteSwiftPackageReference "ComponentsKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/componentskit/ComponentsKit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.5.4;
+			};
+		};
+		840BA3B02EC77325005CDB8D /* XCRemoteSwiftPackageReference "WebRTC" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stasel/WebRTC.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 141.0.0;
+			};
+		};
+		84DE437B2F08F5D000198F6C /* XCRemoteSwiftPackageReference "mixpanel-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/mixpanel/mixpanel-swift";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+		84PH00002F2B000000000000 /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PostHog/posthog-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.0;
+			};
+		};
+		C4B1D88B80DC2E78A575FFA4 /* XCRemoteSwiftPackageReference "Singular-iOS-SDK" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/singular-labs/Singular-iOS-SDK";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.9.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		840BA3A92EC772EA005CDB8D /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 840BA3A82EC772EA005CDB8D /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCat;
+		};
+		840BA3AB2EC772EA005CDB8D /* RevenueCatUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 840BA3A82EC772EA005CDB8D /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			productName = RevenueCatUI;
+		};
+		840BA3AE2EC77316005CDB8D /* ComponentsKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 840BA3AD2EC77316005CDB8D /* XCRemoteSwiftPackageReference "ComponentsKit" */;
+			productName = ComponentsKit;
+		};
+		840BA3B12EC77325005CDB8D /* WebRTC */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 840BA3B02EC77325005CDB8D /* XCRemoteSwiftPackageReference "WebRTC" */;
+			productName = WebRTC;
+		};
+		84DE437E2F090BDA00198F6C /* Mixpanel */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 84DE437B2F08F5D000198F6C /* XCRemoteSwiftPackageReference "mixpanel-swift" */;
+			productName = Mixpanel;
+		};
+		84PH00012F2B000000000001 /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 84PH00002F2B000000000000 /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
+		};
+		EF17B89AF1FF1936EB1AE58E /* Singular */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C4B1D88B80DC2E78A575FFA4 /* XCRemoteSwiftPackageReference "Singular-iOS-SDK" */;
+			productName = Singular;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 8471AE732EB783E1002CECAA /* Project object */;
+}

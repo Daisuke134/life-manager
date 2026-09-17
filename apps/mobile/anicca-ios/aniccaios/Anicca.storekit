@@ -1,0 +1,121 @@
+{
+  "appPolicies": {
+    "eula": "",
+    "policies": [
+      {
+        "locale": "en_US",
+        "policyText": "",
+        "policyURL": ""
+      }
+    ]
+  },
+  "identifier": "A1CCA51E",
+  "nonRenewingSubscriptions": [],
+  "products": [
+    {
+      "displayPrice": "99.99",
+      "familyShareable": false,
+      "internalID": "ANB0004L",
+      "localizations": [
+        {
+          "description": "Anicca Premium, forever.",
+          "displayName": "Lifetime",
+          "locale": "en_US"
+        },
+        {
+          "description": "アニッチャ プレミアムを永久に。",
+          "displayName": "買い切り",
+          "locale": "ja"
+        }
+      ],
+      "productID": "ai.anicca.app.ios.lifetime",
+      "referenceName": "Anicca Lifetime",
+      "type": "NonConsumable"
+    }
+  ],
+  "settings": {
+    "_applicationInternalID": "6755129214",
+    "_developerTeamID": "S5U8UH3JLJ",
+    "_failTransactionsEnabled": false,
+    "_lastSynchronizedDate": 0,
+    "_locale": "en_US",
+    "_storefront": "USA",
+    "_storeKitErrors": []
+  },
+  "subscriptionGroups": [
+    {
+      "id": "21833082",
+      "localizations": [],
+      "name": "Anicca Premium B",
+      "subscriptions": [
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "39.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "ANB0001A",
+          "localizations": [
+            {
+              "description": "Anicca Annual",
+              "displayName": "Anicca Annual",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "ai.anicca.app.ios.yearly.b",
+          "recurringSubscriptionPeriod": "P1Y",
+          "referenceName": "Anicca Annual B",
+          "subscriptionGroupID": "21833082",
+          "type": "RecurringSubscription",
+          "winbackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "9.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "ANB0002A",
+          "localizations": [
+            {
+              "description": "Anicca Monthly",
+              "displayName": "Anicca Monthly",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "ai.anicca.app.ios.monthly.b",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "Anicca Monthly B",
+          "subscriptionGroupID": "21833082",
+          "type": "RecurringSubscription",
+          "winbackOffers": []
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "7.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "ANB0003A",
+          "localizations": [
+            {
+              "description": "Anicca Weekly",
+              "displayName": "Anicca Weekly",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "ai.anicca.app.ios.weekly.b",
+          "recurringSubscriptionPeriod": "P1W",
+          "referenceName": "Anicca Weekly B",
+          "subscriptionGroupID": "21833082",
+          "type": "RecurringSubscription",
+          "winbackOffers": []
+        }
+      ]
+    }
+  ],
+  "version": {
+    "major": 4,
+    "minor": 0
+  }
+}

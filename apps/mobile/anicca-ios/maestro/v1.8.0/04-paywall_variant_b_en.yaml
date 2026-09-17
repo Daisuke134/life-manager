@@ -1,0 +1,64 @@
+# Test 4: Paywall Variant B — English
+# Variant B (test): PaywallVariantBView
+# Verifies: EN localization, plans, review copy, lifetime は英語では非表示, soft × で無課金メイン到達
+
+appId: ai.anicca.app.ios
+name: Paywall Variant B EN
+tags:
+  - paywall
+  - v1.8.0
+  - variant-b
+
+---
+- clearState
+- clearKeychain
+- launchApp:
+    arguments:
+      AppleLanguages: "(en)"
+      AppleLocale: "en_US"
+
+- runFlow: ./_onboarding_to_paywall.yaml
+
+# Variant B paywall
+- extendedWaitUntil:
+    visible:
+      id: "paywall-plan-cta"
+    timeout: 15000
+
+- takeScreenshot: "v180-04-variant-b-en"
+
+# Verify Variant B elements
+- assertVisible:
+    text: "Gentle words when you need them most"
+- assertVisible:
+    text: "Monthly Plan"
+- assertVisible:
+    text: "Annual Plan"
+- assertVisible:
+    id: "paywall-restore"
+
+# Verify review text
+- assertVisible:
+    text: ".*Anicca helped me.*"
+
+# 英語(非日本語)には lifetime(買い切り) を表示しない
+- assertNotVisible:
+    text: "Lifetime"
+
+# Soft paywall: 右上 × で無課金メインへ
+- assertVisible:
+    id: "paywall-close-button"
+
+- tapOn:
+    id: "paywall-close-button"
+
+- tapOn:
+    text: "今はしない|Not Now"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "feed-scroll"
+    timeout: 10000
+
+- takeScreenshot: "v180-04-variant-b-en-home"

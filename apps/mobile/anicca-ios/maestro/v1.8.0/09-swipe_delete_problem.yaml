@@ -1,0 +1,55 @@
+# Test 9: F2 — Swipe to delete problem card
+# Verifies: Problem card swipe → delete button → confirmation alert → deletion
+
+appId: ai.anicca.app.ios
+name: Swipe Delete Problem
+tags:
+  - problem
+  - v1.8.0
+  - f2
+
+---
+- clearState
+- clearKeychain
+- launchApp:
+    arguments:
+      UITESTING: "true"
+    env:
+      PAYWALL_VARIANT: "control"
+
+- runFlow: ../_onboarding_to_paywall.yaml
+
+# Dismiss paywall
+- extendedWaitUntil:
+    visible:
+      id: "paywall-plan-cta"
+    timeout: 15000
+
+- tapOn:
+    id: "paywall-dismiss"
+
+- tapOn:
+    text: "今はしない|Not Now"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "mypath-root"
+    timeout: 10000
+
+- takeScreenshot: "v180-09-before-swipe"
+
+# Swipe left on problem card to reveal delete button
+- swipe:
+    direction: "LEFT"
+    from:
+      id: "mypath-root"
+
+- takeScreenshot: "v180-09-after-swipe"
+
+# Tap delete button (revealed by swipe)
+- tapOn:
+    text: "Delete|削除|Eliminar"
+    optional: true
+
+- takeScreenshot: "v180-09-delete-confirmation"

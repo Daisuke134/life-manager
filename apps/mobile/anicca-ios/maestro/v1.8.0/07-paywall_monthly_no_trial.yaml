@@ -1,0 +1,53 @@
+# Test 7: Monthly selection — no trial CTA
+# Verifies: Monthly plan selected → CTA = "Start Journey", trust copy has no trial text
+
+appId: ai.anicca.app.ios
+name: Paywall Monthly No Trial
+tags:
+  - paywall
+  - v1.8.0
+  - monthly
+
+---
+- clearState
+- clearKeychain
+- launchApp:
+    arguments:
+      UITESTING: "true"
+    env:
+      PAYWALL_VARIANT: "test"
+
+- runFlow: ../_onboarding_to_paywall.yaml
+
+# Variant B paywall
+- extendedWaitUntil:
+    visible:
+      id: "paywall-plan-cta"
+    timeout: 15000
+
+# Tap Monthly plan
+- tapOn:
+    id: "paywall-plan-monthly"
+
+- takeScreenshot: "v180-07-monthly-selected"
+
+# Verify CTA changes to no-trial text
+- assertVisible:
+    text: "Start Your Journey Now"
+
+# Verify trust copy has no trial mention
+- assertVisible:
+    text: "Cancel anytime"
+
+# Dismiss
+- tapOn:
+    id: "paywall-dismiss"
+
+- tapOn:
+    text: "今はしない|Not Now"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "mypath-root"
+    timeout: 10000

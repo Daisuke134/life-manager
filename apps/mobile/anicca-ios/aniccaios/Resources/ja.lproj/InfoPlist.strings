@@ -1,0 +1,9 @@
+/* Camera permission description */
+"NSCameraUsageDescription" = "WebRTCライブラリがカメラAPIを参照していますが、このアプリはカメラを使用しません。";
+
+/* Notification permission description */
+"NSUserNotificationsUsageDescription" = "アニッチャは起床やルーティンのタイミングで、やさしく促す通知を送ります。";
+
+/* App display name */
+"CFBundleDisplayName" = "アニッチャ";
+

@@ -10,8 +10,8 @@ route once you are out the door, and asks before telling anyone you are late.
 | ★ daily organ — wake calls, travel blocks, live location, route, late notice ★ | `docs/superpowers/specs/2026-08-01-lm-daily-organ-design.md` — **the order of work lives there** |
 | platform (finance, marketing, runtime migration, panel) | `docs/superpowers/specs/2026-07-29-life-manager-finance-marketing-platform-design.md` |
 
-This repository (`Daisuke134/life-manager`) is canonical. Copies of these specs
-under `anicca-project` / `anicca-products` are pointers, not sources of truth.
+This repository (`Daisuke134/life-manager`) is canonical. External copies of
+these specs are not sources of truth.
 Runtime state and the single-user BYOK build live under the portable state home
 `${LIFE_MANAGER_STATE_HOME:-${XDG_STATE_HOME:-$HOME/.local/state}/life-manager}`;
 they are not production source.

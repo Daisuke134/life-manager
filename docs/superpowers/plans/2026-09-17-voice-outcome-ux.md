@@ -181,6 +181,8 @@ Change only the status/evidence lines needed to reflect observed production resu
 ## Current execution status
 
 - [x] Tasks 1–3: implementation, focused tests, commits, and pushes completed.
-- [x] Task 4 steps 1–2: 209/209 focused tests passed and the working tree is clean.
+- [x] Task 4 steps 1–2: 246/246 focused tests passed serially and the working tree is clean.
 - [x] Task 4 read-only production probe: current Supabase schema lacks the new columns and Outcome RPC.
-- [ ] Task 4 steps 3–6: migration readback remains blocked because CLI login succeeds but `supabase link` returns `necessary privileges`; the release now has an old-schema fallback through `amd_result`/`lm_wake_miss`, so Railway deploy can proceed without the new RPC and migration can be applied later for richer provider-cause data.
+- [x] Task 4 step 4: Railway production deploy is SUCCESS at main SHA `b28b88a3c6`; `/health` matches the SHA.
+- [x] Task 4 step 5 partial: natural T-5 readback proved CDR 24s + AMD machine + no_answer fallback + voice 0s + managed action success; natural T-10 remains unobserved because the eligible event was already inside the T-5 window.
+- [ ] Task 4 step 3: apply/read back the richer outcome migration when project access is available.

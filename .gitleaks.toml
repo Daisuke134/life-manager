@@ -25,6 +25,13 @@ paths = [
 ]
 
 [[allowlists]]
+description = "Anicca iOS static question identifiers (not credentials)"
+regexTarget = "match"
+regexes = [
+  '''questionKey:\s*"deepdive_[a-z0-9_]+"''',
+]
+
+[[allowlists]]
 description = "public on-chain contract addresses (NOT secrets — anyone can look them up on basescan.org / etherscan.io)"
 regexTarget = "match"
 regexes = [

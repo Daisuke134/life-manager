@@ -1,0 +1,56 @@
+# Test 5: Paywall Variant B — Japanese
+# Verifies: JA localization on Variant B + 日本語話者に lifetime(買い切り) が表示される + 右上 × で無課金メイン到達
+
+appId: ai.anicca.app.ios
+name: Paywall Variant B JA
+tags:
+  - paywall
+  - v1.8.0
+  - variant-b
+  - ja
+
+---
+- clearState
+- clearKeychain
+- launchApp:
+    arguments:
+      AppleLanguages: "(ja)"
+      AppleLocale: "ja_JP"
+
+- runFlow: ./_onboarding_to_paywall.yaml
+
+- extendedWaitUntil:
+    visible:
+      id: "paywall-plan-cta"
+    timeout: 15000
+
+- takeScreenshot: "v180-05-variant-b-ja"
+
+# JA Variant B の要素
+- assertVisible:
+    text: ".*そっと届く言葉.*"
+
+- assertVisible:
+    text: "月額プラン"
+
+- assertVisible:
+    text: "年額プラン"
+
+# 日本語話者には lifetime(買い切り) プランが表示される
+- assertVisible:
+    text: "買い切り"
+
+# Soft paywall: 右上 × で無課金メインへ
+- tapOn:
+    id: "paywall-close-button"
+
+- tapOn:
+    text: "今はしない|Not Now"
+    optional: true
+
+- extendedWaitUntil:
+    visible:
+      id: "feed-scroll"
+    timeout: 10000
+
+- takeScreenshot: "v180-05-variant-b-ja-home"

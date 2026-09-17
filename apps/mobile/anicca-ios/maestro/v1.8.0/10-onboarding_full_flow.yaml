@@ -1,0 +1,137 @@
+# Test 10: Full onboarding flow → paywall → dismiss → home
+# Verifies: Complete flow from fresh start to home screen
+
+appId: ai.anicca.app.ios
+name: Onboarding Full Flow
+tags:
+  - onboarding
+  - v1.8.0
+
+---
+- clearState
+- clearKeychain
+- launchApp:
+    arguments:
+      UITESTING: "true"
+    env:
+      PAYWALL_VARIANT: "control"
+
+# Handle Apple Account dialog
+- tapOn:
+    text: "キャンセル|Cancel|Not Now"
+    optional: true
+
+# Step 1: Welcome
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-welcome-cta"
+    timeout: 60000
+
+- takeScreenshot: "v180-10-welcome"
+- tapOn:
+    id: "onboarding-welcome-cta"
+
+# Step 2: Struggles
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-struggle-staying_up_late"
+    timeout: 15000
+
+- takeScreenshot: "v180-10-struggles"
+- tapOn:
+    id: "onboarding-struggle-staying_up_late"
+- tapOn:
+    id: "onboarding-struggle-procrastination"
+    optional: true
+- tapOn:
+    id: "onboarding-struggles-next"
+
+# Step 3: Struggle Depth
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-depth-daily"
+    timeout: 15000
+
+- takeScreenshot: "v180-10-depth"
+- tapOn:
+    id: "onboarding-depth-daily"
+
+# Step 4: Goals
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-goals-next"
+    timeout: 15000
+
+- takeScreenshot: "v180-10-goals"
+- tapOn:
+    id: "onboarding-goal-better_sleep"
+    optional: true
+- tapOn:
+    id: "onboarding-goals-next"
+
+# Step 5: Personal Insight
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-insight-continue"
+    timeout: 15000
+
+- takeScreenshot: "v180-10-insight"
+- tapOn:
+    id: "onboarding-insight-continue"
+
+# Step 6: Value Prop
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-valueprop-continue"
+    timeout: 15000
+
+- takeScreenshot: "v180-10-valueprop"
+- tapOn:
+    id: "onboarding-valueprop-continue"
+
+# Step 7: Notifications
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-notifications-allow"
+    timeout: 15000
+
+- takeScreenshot: "v180-10-notifications"
+- tapOn:
+    id: "onboarding-notifications-allow"
+- tapOn:
+    text: "許可|Allow"
+    optional: true
+
+# Step 8: Primer
+- extendedWaitUntil:
+    visible:
+      id: "paywall-primer-cta"
+    timeout: 15000
+
+- takeScreenshot: "v180-10-primer"
+- tapOn:
+    id: "paywall-primer-cta"
+
+# Step 9: Paywall
+- extendedWaitUntil:
+    visible:
+      id: "paywall-plan-cta"
+    timeout: 15000
+
+- takeScreenshot: "v180-10-paywall"
+
+# Dismiss paywall
+- tapOn:
+    id: "paywall-dismiss"
+
+- tapOn:
+    text: "今はしない|Not Now"
+    optional: true
+
+# Step 10: Home screen
+- extendedWaitUntil:
+    visible:
+      id: "mypath-root"
+    timeout: 10000
+
+- takeScreenshot: "v180-10-home"

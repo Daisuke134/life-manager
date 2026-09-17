@@ -1,0 +1,21 @@
+# Local configuration and credentials
+Configs/Production.xcconfig
+Configs/Staging.xcconfig
+.env.ios
+AppStoreInfo.plist
+ExportOptions.plist
+*.mobileprovision
+*.p12
+*.cer
+*.pem
+*.key
+
+# Xcode and release output
+build/
+DerivedData/
+fastlane/report.xml
+fastlane/screenshots/
+maestro/results/
+*.xcarchive
+*.ipa
+.DS_Store

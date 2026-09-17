@@ -1,0 +1,87 @@
+{
+  "originHash" : "bc9fd94c6cc17c19dad7ba553e3ceae4488d3bced6169180b97a99461411ac72",
+  "pins" : [
+    {
+      "identity" : "autolayout",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/componentskit/AutoLayout",
+      "state" : {
+        "revision" : "fb4d7ea7ad5cfbaaf972506e6e23f87824345e4d",
+        "version" : "1.0.1"
+      }
+    },
+    {
+      "identity" : "componentskit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/componentskit/ComponentsKit",
+      "state" : {
+        "revision" : "e47e4976667b9a34c9c39d5a1227d2c73ef2154e",
+        "version" : "1.6.1"
+      }
+    },
+    {
+      "identity" : "json-logic-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/advantagefse/json-logic-swift",
+      "state" : {
+        "revision" : "9088eed1b26937fe13d248aa24d7632a51be28e2",
+        "version" : "1.2.4"
+      }
+    },
+    {
+      "identity" : "mixpanel-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mixpanel/mixpanel-swift",
+      "state" : {
+        "branch" : "master",
+        "revision" : "6e2a786b1e88b57b90f5a6d401337bc1bb2ba69c"
+      }
+    },
+    {
+      "identity" : "plcrashreporter",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/microsoft/plcrashreporter.git",
+      "state" : {
+        "revision" : "0254f941c646b1ed17b243654723d0f071e990d0",
+        "version" : "1.12.2"
+      }
+    },
+    {
+      "identity" : "posthog-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/PostHog/posthog-ios.git",
+      "state" : {
+        "revision" : "af5b8e4c1a8e68c1e99ccbb62521f35e3928eb8d",
+        "version" : "3.49.0"
+      }
+    },
+    {
+      "identity" : "purchases-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/RevenueCat/purchases-ios",
+      "state" : {
+        "revision" : "66f81c19e29170cecc1f155c62cd586cf53b8400",
+        "version" : "5.67.1"
+      }
+    },
+    {
+      "identity" : "singular-ios-sdk",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/singular-labs/Singular-iOS-SDK",
+      "state" : {
+        "revision" : "ed4e1caad42ed97dd1b01943890f0df2812cbd81",
+        "version" : "12.10.1"
+      }
+    },
+    {
+      "identity" : "webrtc",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/stasel/WebRTC.git",
+      "state" : {
+        "revision" : "117d290e37742ea3a792a345f8ba1ec268eb7090",
+        "version" : "141.0.0"
+      }
+    }
+  ],
+  "version" : 3
+}

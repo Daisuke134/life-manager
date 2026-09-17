@@ -2,7 +2,7 @@
 # F4a — one-command Zenn publisher (the note-skill's sibling, for git-based Zenn). Repeatable, with the SAME
 # verification discipline as note: adapt → NO-LIE gate → LOCAL render verify (agent Reads screenshots) →
 # draft (published:false, verify non-public) → publish (published:true, gated, rate-limit aware) → verify LIVE.
-# Spec: anicca-project/docs/superpowers/specs/2026-06-24-publish-to-zenn-F4a.md. NEVER /tmp; SSH remote (no PAT).
+# Spec: the repository writer publication design record. NEVER /tmp; SSH remote (no PAT).
 set -uo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../writer-runtime-env.sh
