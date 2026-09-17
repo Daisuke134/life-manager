@@ -26,6 +26,12 @@ Pass order:
    Profile page, then reload it and the résumé parser. Return `profile_sync` as `synced` or
    `unchanged` only when the exact profile version, field hashes, and résumé SHA match the
    readback; a save click without reload is `unknown` and leaves the prior version active.
+   Start every wake at Explore page 1 when pagination is visible. Collect the distinct listing
+   cards from each visible page before opening detail, and inspect pages 1 through 4 in order
+   (or until the provider shows no further page). Do not treat the page left open by a previous
+   listing as the full candidate set; return to Explore and collect the current page controls
+   first. Rank the collected cards together so a suitable page 3 candidate is not displaced by
+   a newer but contradictory specialist page.
    Inspect every Japanese/Japan card found in the bounded pages before spending the
    twelve-detail budget on lower-priority work. A nonblocked pass is invalid if that
    priority queue was observed but omitted. `submitted_pending_review` entries are
