@@ -788,7 +788,7 @@ const server = http.createServer(async (req, res) => {
               reservationToken: wake.voiceReservationToken,
               allowedSeconds: wake.voiceAllowedSeconds,
             },
-            connectedSeconds,
+            connectedSeconds: outcome === "conversation" ? connectedSeconds : 0,
           });
           if (!voice || voice.allowed !== true) {
             console.error("[telnyx-events] voice allowance reconciliation failed");
