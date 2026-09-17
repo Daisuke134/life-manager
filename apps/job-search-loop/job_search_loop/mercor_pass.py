@@ -346,6 +346,37 @@ def record_profile_sync(
         }
         if not isinstance(proposal, dict) or not activate_profile(proposal, readback):
             status = "unknown"
+    if status == "unknown" and evidence_root is not None:
+        evidence_path = Path(evidence_ref).expanduser()
+        if not evidence_path.is_absolute():
+            evidence_path = evidence_root / evidence_path
+        try:
+            evidence_path = evidence_path.resolve()
+            evidence_path.relative_to(evidence_root.expanduser().resolve())
+            evidence_ok = evidence_path.is_file()
+        except (OSError, ValueError):
+            evidence_ok = False
+        proposal_path = state_root / "profile-proposal.json"
+        try:
+            proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            proposal = None
+        readback = {
+            "authenticated": authenticated,
+            "resume_visible": resume_visible,
+            "parser_reviewed": parser_reviewed,
+            "profile_version": str(sync.get("profile_version") or ""),
+            "field_hashes": sync.get("field_hashes") if isinstance(sync.get("field_hashes"), dict) else {},
+            "resume_sha256": resume_sha256,
+        }
+        if (
+            evidence_ok
+            and (not expected_resume_sha256 or resume_sha256 == expected_resume_sha256)
+            and isinstance(proposal, dict)
+            and activate_profile(proposal, readback)
+        ):
+            status = "unchanged"
+            evidence_ref = str(evidence_path)
     ledger = state_root / "profile-sync.jsonl"
     ledger.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     row = {

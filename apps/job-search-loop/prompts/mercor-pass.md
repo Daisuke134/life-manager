@@ -71,7 +71,9 @@ Pass order:
    Use `shared_apply_context.policy.ranking` as the only ranking contract. Rank the whole visible
    priority window before spending the detail budget: verified resume overlap first, then
    Japan/Japanese eligibility, software/AI/automation overlap, compensation, and absence of
-   contradictory requirements. Assign every inspected listing `ranking_band` (`high`, `medium`,
+   contradictory requirements. Do not spend detail slots in DOM order; build the shortlist
+   from all visible card titles and metadata first, then open plausible high/medium candidates
+   before contradictory specialist cards. Assign every inspected listing `ranking_band` (`high`, `medium`,
    or `low`) and `ranking_evidence` citing the posting text and matching verified facts. Also
    return the exact `strategy_version` from the bounded context so later funnel outcomes can
    be attributed to this ranking policy. Do not invent or alter that version.
