@@ -329,12 +329,51 @@ def _adopted_staged_prepublication(
         drafts, artifacts = _adoption_manifests(run_dir)
     except (OSError, TypeError, ValueError, json.JSONDecodeError, GenerationInvariant):
         return False
-    return _adoption_receipt_matches(
+    if _adoption_receipt_matches(
         receipt,
         run_id,
         str(state.get("prompt_sha256", "")),
         drafts,
         artifacts,
+    ):
+        return True
+    # Resume bookkeeping may add one of the explicitly allowed pre-publication
+    # receipts after adoption (for example topic-card-resume.json).  Preserve
+    # the original manifest as an immutable subset and accept only regular,
+    # allowlisted additions; any changed or unexpected byte remains fenced.
+    if not isinstance(receipt, dict):
+        return False
+    recorded_drafts = receipt.get("draft_manifest")
+    recorded_artifacts = receipt.get("artifact_manifest")
+    if not isinstance(recorded_drafts, list) or not isinstance(recorded_artifacts, list):
+        return False
+    current_by_path = {
+        item["path"]: item["sha256"] for item in [*drafts, *artifacts]
+    }
+    for item in [*recorded_drafts, *recorded_artifacts]:
+        if (
+            not isinstance(item, dict)
+            or not isinstance(item.get("path"), str)
+            or not isinstance(item.get("sha256"), str)
+            or item["path"] not in current_by_path
+            or current_by_path[item["path"]] != item["sha256"]
+        ):
+            return False
+    recorded_paths = {
+        item["path"]
+        for item in [*recorded_drafts, *recorded_artifacts]
+        if isinstance(item, dict) and isinstance(item.get("path"), str)
+    }
+    added = set(current_by_path) - recorded_paths
+    if any(not _is_allowed_prepublication(path) for path in added):
+        return False
+    return (
+        receipt.get("schema") == "writer.prepublication-adoption"
+        and receipt.get("version") == 1
+        and receipt.get("run_id") == run_id
+        and receipt.get("prompt_sha256") == state.get("prompt_sha256")
+        and receipt.get("publication_state_absent") is True
+        and receipt.get("public_ledger_rows") == 0
     )
 
 
