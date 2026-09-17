@@ -386,6 +386,7 @@ def test_post_contract_external_intent_is_rejected_before_form_submit():
         "sent_at": "2026-09-10T00:00:00Z", "body": "フォームへ回答してください",
         "links": ["https://forms.gle/AbCdEf123"],
     }]}
+    adapter._detail = lambda _thread: adapter.conversations["thread-1"]
     adapter._submit_google_form = lambda _payload: (_ for _ in ()).throw(
         AssertionError("Reply must not submit a post-contract form")
     )
@@ -400,6 +401,55 @@ def test_post_contract_external_intent_is_rejected_before_form_submit():
         assert str(error) == "crowdworks_post_contract_owned_by_paid"
     else:
         raise AssertionError("post-contract external intent was not rejected")
+
+
+def test_stale_proposed_reply_is_rejected_after_fresh_contract_readback():
+    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter.rows = {"thread-1": {
+        "thread_id": "thread-1", "id": "message-1", "proposal_status": "proposed",
+    }}
+    adapter._detail = lambda _thread: adapter.conversations.setdefault("thread-1", [{
+        "event_id": "contract-1", "role": "buyer", "sender": "buyer",
+        "sent_at": "2026-09-10T00:00:00Z", "body": "契約後の依頼です",
+        "links": ["https://crowdworks.jp/contracts/63657015"],
+    }])
+    intent = {"action": "reply", "thread_id": "thread-1", "payload": {
+        "body": "契約後の返信",
+    }}
+
+    try:
+        adapter.mutate(intent)
+    except RuntimeError as error:
+        assert str(error) == "crowdworks_post_contract_owned_by_paid"
+    else:
+        raise AssertionError("stale proposed reply crossed the Paid ownership boundary")
+
+
+def test_stale_proposed_external_intent_is_rejected_after_fresh_contract_readback():
+    adapter = adapter_module.CrowdWorksReplyAdapter({})
+    adapter.rows = {"thread-1": {
+        "thread_id": "thread-1", "id": "message-1", "proposal_status": "proposed",
+    }}
+    adapter._detail = lambda _thread: adapter.conversations.setdefault("thread-1", [{
+        "event_id": "contract-1", "role": "buyer", "sender": "buyer",
+        "sent_at": "2026-09-10T00:00:00Z", "body": "契約後のフォームです",
+        "links": ["https://crowdworks.jp/contracts/63657015",
+                  "https://forms.gle/AbCdEf123"],
+    }])
+    adapter._submit_google_form = lambda _payload: (_ for _ in ()).throw(
+        AssertionError("Reply must not submit a stale post-contract form")
+    )
+    intent = {"action": "external_action", "thread_id": "thread-1", "payload": {
+        "kind": "submit_google_form", "url": "https://forms.gle/AbCdEf123",
+        "url_sha256": "a" * 64, "completion_body": "回答を完了しました。",
+    }}
+
+    try:
+        adapter.mutate(intent)
+    except RuntimeError as error:
+        assert str(error) == "crowdworks_post_contract_owned_by_paid"
+    else:
+        raise AssertionError("stale proposed form intent crossed the Paid ownership boundary")
 
 
 def test_google_form_answers_bind_current_metadata_to_private_profiles(tmp_path):
