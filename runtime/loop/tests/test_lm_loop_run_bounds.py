@@ -297,7 +297,8 @@ def test_all_coconala_lanes_enter_revenue_admission(tmp_path):
             ) == 75
 
     assert enqueue.call_args_list == [
-        call("agent", loop_id, admission_class="revenue") for loop_id in loop_ids
+        call("agent", loop_id, admission_class="revenue",
+             priority=registry[loop_id]["priority"]) for loop_id in loop_ids
     ]
     assert claim.call_args_list == [
         call("agent", loop_id, admission_class="revenue") for loop_id in loop_ids
