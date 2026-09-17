@@ -206,14 +206,16 @@ Long waits belong in persisted `next_eligible_at` state and launchd cadence.
 - Symptom: an effectful owner stays at `resource_effect_unknown` after a
   terminal host-admission deferral. Wrong instinct: clear every fence for the
   owner or treat HTTP CDP health as provider readback. Correct action: join the
-  exact admission occurrence to its terminal event and prove the child never
-  started; release only that occurrence through `resolve_pre_effect_occurrence`.
-  If a child could have acted, keep the fence until exact official readback,
-  then use `resolve_unknown_occurrence`. Recheck the next natural wake because
-  another old occurrence may surface. General law: recovery proof belongs to
+  exact admission occurrence to the terminal event that actually claimed it;
+  a later run's event may reference the earlier occurrence as
+  `lm-occurrence://.../claim`. Use
+  `resolve_pre_effect_occurrence` only with proof that provider mutation never
+  started; if a child could have acted, keep the fence until exact official
+  readback, then use `resolve_unknown_occurrence`. Recheck the next natural wake
+  because another old occurrence may surface. General law: recovery proof belongs to
   one attempted effect, not an owner or a live port. Example: a capacity-busy
-  application wake has no provider child, while a storefront entrypoint failure
-  may have changed its listing and remains fenced.
+  occurrence with no later claim has no provider child, while a storefront
+  entrypoint failure may have changed its listing and remains fenced.
 - Symptom: an active work item is skipped forever because mutable state says
   `delegated=true`. Wrong instinct: trust an interactive session name or delete
   the flag by hand after every outage. Correct action: delegate only to a

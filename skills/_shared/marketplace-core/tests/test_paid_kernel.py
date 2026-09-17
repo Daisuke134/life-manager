@@ -76,6 +76,97 @@ def test_verified_effect_replays_with_zero_mutations(tmp_path: Path) -> None:
     assert len(adapter.effects) == 1
 
 
+def test_verified_effect_replays_zero_when_only_provider_digest_changes(
+        tmp_path: Path) -> None:
+    row = observation("work-1")
+    row["buyer_event_id"] = "buyer-1"
+    adapter = Adapter([row])
+
+    def submit_with_buyer_event(source: dict) -> dict:
+        return {"action": "submit", "payload": {
+            "message": "done " + source["work_id"],
+            "buyer_event_id": source["buyer_event_id"],
+        }}
+
+    assert paid.run_wake(adapter=adapter, decide=submit_with_buyer_event,
+                         state_root=tmp_path)["effect"] == 1
+    adapter.current["work-1"]["latest_event_id"] = "seller-message-digest"
+
+    result = paid.run_wake(adapter=adapter, decide=submit_with_buyer_event,
+                           state_root=tmp_path)
+
+    assert result["effect"] == 0
+    assert result["readback"] == 1
+    assert len(adapter.effects) == 1
+
+
+def test_verified_effect_can_advance_to_a_new_stage_without_replaying(
+        tmp_path: Path) -> None:
+    adapter = Adapter([observation("work-1")])
+    stages = []
+
+    def decide(row: dict) -> dict:
+        previous = row.get("context", {}).get("previous_intent")
+        if isinstance(previous, dict):
+            stages.append(previous["action"])
+            return {"action": "formal_delivery", "payload": {"message": "deliver"}}
+        return submit(row)
+
+    first = paid.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
+    second = paid.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
+
+    assert first["effect"] == 1
+    assert second["effect"] == 1
+    assert len(adapter.effects) == 2
+    assert stages == ["submit"]
+    state = json.loads(next(tmp_path.glob("items/*/state.json")).read_text())
+    assert [receipt["effect_key"] for receipt in state["receipt_history"]] == [
+        adapter.effects[0]["effect_key"], adapter.effects[1]["effect_key"]
+    ]
+
+
+def test_stage_mutation_failure_keeps_prior_verified_receipt_history(tmp_path: Path) -> None:
+    class FailingFormalAdapter(Adapter):
+        def mutate(self, intent: dict) -> None:
+            if intent["action"] == "formal_delivery":
+                self.effects.append(dict(intent))
+                raise RuntimeError("delivery delayed")
+            return super().mutate(intent)
+
+    adapter = FailingFormalAdapter([observation("work-1")])
+
+    def decide(row: dict) -> dict:
+        if isinstance(row.get("context", {}).get("previous_intent"), dict):
+            return {"action": "formal_delivery", "payload": {"message": "deliver"}}
+        return submit(row)
+
+    assert paid.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)["effect"] == 1
+    failed = paid.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
+
+    assert failed["failed"] == 1
+    state = json.loads(next(tmp_path.glob("items/*/state.json")).read_text())
+    assert state["status"] == "reconcile_unknown"
+    assert len(state["receipt_history"]) == 1
+
+
+def test_uncertain_message_effect_never_replays_after_mutation_exception(tmp_path: Path) -> None:
+    class FailingAdapter(Adapter):
+        def mutate(self, intent: dict) -> None:
+            self.effects.append(dict(intent))
+            raise RuntimeError("message visibility delayed")
+
+        def readback(self, intent: dict) -> dict:
+            return {"authoritative_absent": True}
+
+    adapter = FailingAdapter([observation("work-1")])
+    first = paid.run_wake(adapter=adapter, decide=submit, state_root=tmp_path)
+    second = paid.run_wake(adapter=adapter, decide=submit, state_root=tmp_path)
+
+    assert first["failed"] == 1
+    assert second["items"][0]["reason"] == "reconcile_unknown"
+    assert len(adapter.effects) == 1
+
+
 def test_single_worker_pre_effect_hint_clears_before_first_mutation(
         monkeypatch, tmp_path: Path) -> None:
     hint = tmp_path / "entrypoint-result.json"
@@ -93,6 +184,30 @@ def test_run_marker_persists_pre_effect_status(tmp_path: Path) -> None:
     assert json.loads(marker.read_text()) == {
         "version": 1, "occurrence_id": "fixture-paid:run-marker",
         "status": "pre_effect",
+    }
+
+
+def test_run_marker_preserves_effect_started_after_zero_effect_failure(
+        monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-paid:run-marker-failed")
+
+    class MutatingFailureAdapter(Adapter):
+        def mutate(self, intent: dict) -> None:
+            raise RuntimeError("mutation failed after fence")
+
+    result = paid.run_wake(
+        adapter=MutatingFailureAdapter([observation("work-1")]),
+        decide=submit,
+        state_root=tmp_path,
+    )
+
+    assert result["effect"] == 0
+    marker = paid._run_marker_path(tmp_path, "fixture-paid:run-marker-failed")
+    assert json.loads(marker.read_text()) == {
+        "version": 1,
+        "occurrence_id": "fixture-paid:run-marker-failed",
+        "status": "effect_started",
+        "effect": 0,
     }
 
 
@@ -131,6 +246,34 @@ def test_new_buyer_event_invalidates_intent_before_mutation(tmp_path: Path) -> N
     assert result["effect"] == 0
     assert result["pending"] == 1
     assert result["items"][0]["reason"] == "newer_provider_event"
+
+
+def test_context_stale_transition_keeps_prior_receipt_history(tmp_path: Path) -> None:
+    row = observation("work-1")
+    row["buyer_event_id"] = "buyer-1"
+    adapter = Adapter([row])
+    calls = [0]
+
+    def staged(row: dict) -> dict:
+        calls[0] += 1
+        if calls[0] == 1:
+            return {"action": "submit", "payload": {"message": "done", "buyer_event_id": "buyer-1"}}
+        if calls[0] == 2:
+            adapter.current[row["work_id"]]["latest_event_id"] = "message-2"
+        return {"action": "formal_delivery", "payload": {"message": "deliver"}}
+
+    assert paid.run_wake(adapter=adapter, decide=staged, state_root=tmp_path)["effect"] == 1
+
+    result = paid.run_wake(adapter=adapter, decide=staged, state_root=tmp_path)
+    state = json.loads(next(tmp_path.glob("items/*/state.json")).read_text())
+    assert result["items"][0]["reason"] == "newer_provider_event"
+    assert state["status"] == "context_stale"
+    assert len(state["receipt_history"]) == 1
+    assert state["previous_verified_intent"]["action"] == "submit"
+
+    resumed = paid.run_wake(adapter=adapter, decide=staged, state_root=tmp_path)
+    assert resumed["effect"] == 1
+    assert len(adapter.effects) == 2
 
 
 def test_blocked_item_does_not_prevent_sibling_effect(tmp_path: Path) -> None:
@@ -346,6 +489,33 @@ def build(argv): return Adapter(), decide
 
     assert json.loads(hint.read_text(encoding="utf-8")) == {
         "status": "pre_effect_failure", "effect": 0,
+    }
+
+
+def test_cli_inventory_failure_persists_completed_zero_effect_run_marker(tmp_path: Path, monkeypatch) -> None:
+    provider = tmp_path / "provider.py"
+    provider.write_text("""
+class Adapter:
+    def observe_active(self): raise RuntimeError("inventory unavailable")
+    def observe_one(self, work_id): raise AssertionError
+    def context(self, work_id): raise AssertionError
+    def mutate(self, intent): raise AssertionError
+    def readback(self, intent): raise AssertionError
+def decide(row): raise AssertionError
+def build(argv): return Adapter(), decide
+""", encoding="utf-8")
+    output = tmp_path / "result.json"
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-paid:inventory-failure")
+
+    assert paid.main([
+        "--provider-adapter", str(provider), "--state-root", str(tmp_path / "state"),
+        "--output", str(output),
+    ]) == 1
+
+    marker = paid._run_marker_path(tmp_path / "state", "fixture-paid:inventory-failure")
+    assert json.loads(marker.read_text(encoding="utf-8")) == {
+        "version": 1, "occurrence_id": "fixture-paid:inventory-failure",
+        "status": "completed", "effect": 0,
     }
 
 

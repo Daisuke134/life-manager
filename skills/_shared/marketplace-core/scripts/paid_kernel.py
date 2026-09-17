@@ -142,7 +142,12 @@ def _mark_run_effect_started(path: Path | None, occurrence_id: str | None) -> No
 
 def _observation(row: Mapping[str, Any]) -> dict[str, Any]:
     required = ("provider", "account_id", "work_id", "latest_event_id", "provider_state", "observed_at")
-    return {field: _text(row.get(field), field) for field in required}
+    observed = {field: _text(row.get(field), field) for field in required}
+    for field in ("buyer_event_id", "buyer_event_at"):
+        value = row.get(field)
+        if isinstance(value, str) and value.strip():
+            observed[field] = value.strip()
+    return observed
 
 
 def _intent(row: Mapping[str, Any], decision: Mapping[str, Any]) -> dict[str, Any]:
@@ -177,6 +182,37 @@ def _verified_receipt(intent: Mapping[str, Any], readback: Mapping[str, Any]) ->
     }
 
 
+def _stage_signature(intent: Mapping[str, Any]) -> tuple[str, str] | None:
+    """Identify a mutation stage without including a changing provider digest."""
+    action = intent.get("action")
+    payload = intent.get("payload")
+    if not isinstance(action, str) or not action.strip() or not isinstance(payload, Mapping):
+        return None
+    return action.strip(), _digest(payload)
+
+
+def _receipt_history(state: Mapping[str, Any], receipt: Mapping[str, Any] | None = None) -> list[dict[str, Any]]:
+    """Carry verified receipts across staged intents while retaining the latest shortcut."""
+    values: list[dict[str, Any]] = []
+    prior = state.get("receipt_history")
+    if isinstance(prior, list):
+        values.extend(dict(value) for value in prior if isinstance(value, Mapping))
+    latest = state.get("receipt")
+    if isinstance(latest, Mapping):
+        values.append(dict(latest))
+    if isinstance(receipt, Mapping):
+        values.append(dict(receipt))
+    unique: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for value in values:
+        key = str(value.get("effect_key") or _digest(value))
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(value)
+    return unique
+
+
 def _pending(row: Mapping[str, Any], reason: str) -> dict[str, Any]:
     return {"work_id": row["work_id"], "status": "pending", "reason": reason,
             "effect": 0, "readback": 0, "failed": 0}
@@ -205,23 +241,47 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
     row = refreshed
     previous_intent = state.get("intent")
     previous_observation = state.get("observation")
+    if (not isinstance(previous_intent, Mapping)
+            and isinstance(state.get("previous_verified_intent"), Mapping)):
+        previous_intent = state["previous_verified_intent"]
+        previous_observation = state.get("previous_verified_observation")
     same_event = (isinstance(previous_observation, Mapping)
                   and previous_observation.get("latest_event_id") == row["latest_event_id"])
-    if isinstance(previous_intent, Mapping) and same_event:
+    previous_payload = previous_intent.get("payload") if isinstance(previous_intent, Mapping) else None
+    previous_buyer_event = (previous_payload.get("buyer_event_id")
+                            if isinstance(previous_payload, Mapping) else None)
+    buyer_event_same = (isinstance(previous_buyer_event, str)
+                        and previous_buyer_event == row.get("buyer_event_id"))
+    replay_eligible = same_event or buyer_event_same
+    previous_receipt: dict[str, Any] | None = None
+    previous_effect_verified = False
+    if isinstance(previous_intent, Mapping) and (replay_eligible
+                                                 or state.get("status") == "reconcile_unknown"):
         official = adapter.readback(dict(previous_intent))
         if official.get("verified") is True:
             receipt = _verified_receipt(previous_intent, official)
-            _write_state(path, {"version": 1, "observation": row, "intent": previous_intent,
-                                "receipt": receipt, "status": "verified"}, occurrence_id)
-            return {"work_id": row["work_id"], "status": "verified", "reason": "replay_zero",
-                    "effect": 0, "readback": 1, "failed": 0}
-        if official.get("authoritative_absent") is not True:
+            previous_receipt = receipt
+            previous_effect_verified = True
+            state = {"version": 1, "observation": row, "intent": previous_intent,
+                     "receipt": receipt, "receipt_history": _receipt_history(state, receipt),
+                     "status": "verified"}
+        elif official.get("authoritative_absent") is not True:
+            return _pending(row, "reconcile_unknown")
+        if official.get("verified") is not True and state.get("status") == "reconcile_unknown":
             return _pending(row, "reconcile_unknown")
 
     context = adapter.context(row["work_id"])
     if not isinstance(context, Mapping):
         raise ValueError("paid_context_invalid")
-    decision = decide({**row, "context": dict(context)})
+    decision_context = dict(context)
+    if (isinstance(previous_intent, Mapping) and replay_eligible
+            and previous_effect_verified):
+        decision_context.update({
+            "previous_intent": dict(previous_intent),
+            "previous_receipt": dict(previous_receipt or {}),
+            "previous_effect_verified": True,
+        })
+    decision = decide({**row, "context": decision_context})
     if not isinstance(decision, Mapping):
         raise ValueError("paid_decision_invalid")
     action = _text(decision.get("action"), "action")
@@ -229,7 +289,12 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
         classification = str(decision.get("classification") or "noop").strip()
         if classification not in NO_EFFECT_CLASSIFICATIONS:
             raise ValueError("paid_noop_classification_invalid")
-        _write_state(path, {"version": 1, "observation": row, "status": classification}, occurrence_id)
+        saved = {"version": 1, "observation": row, "status": classification}
+        history = _receipt_history(state)
+        if history:
+            saved["receipt_history"] = history
+            saved["receipt"] = history[-1]
+        _write_state(path, saved, occurrence_id)
         return {"work_id": row["work_id"], "status": classification,
                 "reason": "no_effect_required",
                 "effect": 0, "readback": 1, "failed": 0}
@@ -238,24 +303,60 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
         remaining = decision.get("remaining_work")
         if not isinstance(remaining, list) or not remaining or not all(isinstance(v, str) and v.strip() for v in remaining):
             raise ValueError("remaining_work_invalid")
-        _write_state(path, {"version": 1, "observation": row, "status": "waiting_external",
-                            "blocker": reason, "remaining_work": remaining}, occurrence_id)
+        saved = {"version": 1, "observation": row, "status": "waiting_external",
+                 "blocker": reason, "remaining_work": remaining}
+        if isinstance(previous_intent, Mapping) and previous_effect_verified:
+            saved["intent"] = dict(previous_intent)
+            history = _receipt_history(state)
+            if history:
+                saved["receipt_history"] = history
+                saved["receipt"] = history[-1]
+        _write_state(path, saved, occurrence_id)
         return _pending(row, reason)
 
     intent = _intent(row, decision)
-    _write_state(path, {"version": 1, "observation": row, "intent": intent,
-                        "status": "intent_persisted"}, occurrence_id)
+    if (isinstance(previous_intent, Mapping) and replay_eligible
+            and previous_effect_verified
+            and _stage_signature(intent) == _stage_signature(previous_intent)):
+        saved = {"version": 1, "observation": row, "intent": dict(previous_intent),
+                 "receipt": dict(previous_receipt or {}), "status": "verified"}
+        history = _receipt_history(state, previous_receipt)
+        if history:
+            saved["receipt_history"] = history
+        _write_state(path, saved, occurrence_id)
+        return {"work_id": row["work_id"], "status": "verified", "reason": "replay_zero",
+                "effect": 0, "readback": 1, "failed": 0}
+    saved = {"version": 1, "observation": row, "intent": intent,
+             "status": "intent_persisted"}
+    history = _receipt_history(state)
+    if history:
+        saved["receipt_history"] = history
+        saved["previous_receipt"] = history[-1]
+    _write_state(path, saved, occurrence_id)
     current = _observation(_observe_one(adapter, row["work_id"], refresh=True))
     if any(current[field] != row[field] for field in ("provider", "account_id", "work_id")):
         raise ValueError("paid_work_identity_changed")
     if current["latest_event_id"] != row["latest_event_id"]:
-        _write_state(path, {"version": 1, "observation": current, "status": "context_stale"}, occurrence_id)
+        saved = {"version": 1, "observation": current, "status": "context_stale"}
+        history = _receipt_history(state)
+        if history:
+            saved["receipt_history"] = history
+            saved["receipt"] = history[-1]
+        if isinstance(previous_intent, Mapping) and previous_effect_verified:
+            saved["previous_verified_intent"] = dict(previous_intent)
+            if isinstance(previous_observation, Mapping):
+                saved["previous_verified_observation"] = dict(previous_observation)
+        _write_state(path, saved, occurrence_id)
         return _pending(row, "newer_provider_event")
     existing = adapter.readback(intent)
     if existing.get("verified") is True:
         receipt = _verified_receipt(intent, existing)
-        _write_state(path, {"version": 1, "observation": current, "intent": intent,
-                            "receipt": receipt, "status": "verified"}, occurrence_id)
+        saved = {"version": 1, "observation": current, "intent": intent,
+                 "receipt": receipt, "status": "verified"}
+        history = _receipt_history(state, receipt)
+        if history:
+            saved["receipt_history"] = history
+        _write_state(path, saved, occurrence_id)
         return {"work_id": row["work_id"], "status": "verified", "reason": "reconciled",
                 "effect": 0, "readback": 1, "failed": 0}
     if mutation_started is not None:
@@ -265,13 +366,21 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
     adapter.mutate(intent)
     official = adapter.readback(intent)
     if official.get("verified") is not True:
-        _write_state(path, {"version": 1, "observation": current, "intent": intent,
-                            "status": "reconcile_unknown"}, occurrence_id)
+        saved = {"version": 1, "observation": current, "intent": intent,
+                 "status": "reconcile_unknown"}
+        history = _receipt_history(state)
+        if history:
+            saved["receipt_history"] = history
+        _write_state(path, saved, occurrence_id)
         return {"work_id": row["work_id"], "status": "pending", "reason": "reconcile_unknown",
                 "effect": 1, "readback": 0, "failed": 0}
     receipt = _verified_receipt(intent, official)
-    _write_state(path, {"version": 1, "observation": current, "intent": intent,
-                        "receipt": receipt, "status": "verified"}, occurrence_id)
+    saved = {"version": 1, "observation": current, "intent": intent,
+             "receipt": receipt, "status": "verified"}
+    history = _receipt_history(state, receipt)
+    if history:
+        saved["receipt_history"] = history
+    _write_state(path, saved, occurrence_id)
     return {"work_id": row["work_id"], "status": "verified", "reason": "submitted",
             "effect": 1, "readback": 1, "failed": 0}
 
@@ -288,6 +397,18 @@ def _run_one(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[st
             return _run_one_locked(adapter, decide, state_root, row, mutation_started,
                                    occurrence_id, pre_effect_hint, run_marker)
         except Exception as error:
+            if mutation_started[0]:
+                try:
+                    current_state = _load(_state_path(state_root, row))
+                    intent = current_state.get("intent")
+                    if isinstance(intent, Mapping):
+                        saved = dict(current_state)
+                        saved.update({"version": 1,
+                                      "observation": current_state.get("observation", row),
+                                      "intent": dict(intent), "status": "reconcile_unknown"})
+                        _write_state(_state_path(state_root, row), saved, occurrence_id)
+                except (OSError, ValueError):
+                    pass
             error_detail = str(error).strip() or type(error).__name__
             return {"work_id": row["work_id"], "status": "failed",
                     "reason": type(error).__name__, "error_detail": error_detail,
@@ -297,7 +418,8 @@ def _run_one(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[st
 
 def run_wake(*, adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[str, Any]],
              state_root: Path, max_workers: int = 4,
-             pre_effect_hint: Path | None = None) -> dict[str, Any]:
+             pre_effect_hint: Path | None = None,
+             run_marker: Path | None = None) -> dict[str, Any]:
     rows = adapter.observe_active()
     if not isinstance(rows, list):
         raise ValueError("paid_inventory_invalid")
@@ -307,7 +429,7 @@ def run_wake(*, adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping
         raise ValueError("paid_inventory_duplicate")
     workers = max(1, min(max_workers, len(normalized) or 1))
     occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip() or None
-    run_marker = _prepare_run_marker(Path(state_root), occurrence_id)
+    run_marker = run_marker or _prepare_run_marker(Path(state_root), occurrence_id)
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = [pool.submit(_run_one, adapter, decide, Path(state_root), row, occurrence_id,
                                 pre_effect_hint, run_marker)
@@ -333,8 +455,16 @@ def run_wake(*, adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping
         "items": items,
     }
     if run_marker is not None:
+        marker_status = "effect_started"
+        try:
+            previous_marker = json.loads(run_marker.read_text(encoding="utf-8"))
+            if isinstance(previous_marker, Mapping) and previous_marker.get("status") != "effect_started":
+                marker_status = "completed"
+        except (OSError, ValueError, json.JSONDecodeError):
+            # A missing or malformed marker cannot prove that mutation was not armed.
+            pass
         _write(run_marker, {"version": 1, "occurrence_id": occurrence_id,
-                            "status": "completed", "effect": result["effect"]})
+                            "status": marker_status, "effect": result["effect"]})
     return result
 
 
@@ -372,11 +502,16 @@ def main(argv: list[str] | None = None) -> int:
         provider_argv = provider_argv[1:]
     pre_effect_hint = _prepare_pre_effect_hint(args.max_workers)
     adapter, decide = _load_provider(args.provider_adapter, provider_argv)
+    state_root = args.state_root.expanduser().resolve()
+    occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip() or None
+    run_marker = None
     try:
+        run_marker = _prepare_run_marker(state_root, occurrence_id)
         result = run_wake(adapter=adapter, decide=decide,
-                          state_root=args.state_root.expanduser().resolve(),
+                          state_root=state_root,
                           max_workers=args.max_workers,
-                          pre_effect_hint=pre_effect_hint)
+                          pre_effect_hint=pre_effect_hint,
+                          run_marker=run_marker)
     except Exception as error:
         wait_reason = getattr(error, "paid_wait_reason", None)
         remaining = getattr(error, "paid_remaining_work", None)
@@ -400,6 +535,14 @@ def main(argv: list[str] | None = None) -> int:
             if (isinstance(error_detail, str)
                     and re.fullmatch(r"[a-z][a-z0-9_]{1,127}", error_detail)):
                 result["error_detail"] = error_detail
+        if run_marker is not None:
+            try:
+                marker = json.loads(run_marker.read_text(encoding="utf-8"))
+            except (OSError, ValueError, json.JSONDecodeError):
+                marker = {"status": "effect_started"}
+            if not isinstance(marker, Mapping) or marker.get("status") != "effect_started":
+                _write(run_marker, {"version": 1, "occurrence_id": occurrence_id,
+                                    "status": "completed", "effect": result["effect"]})
     _write(args.output.expanduser().resolve(), result)
     hint_path = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
     failed_items = [item for item in result.get("items", [])
