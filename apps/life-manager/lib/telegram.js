@@ -110,6 +110,8 @@ function parseUpdate(update) {
     chatId: String(m.chat.id),
     userId: m.from ? String(m.from.id) : "",
     ...(m.message_id == null ? {} : { messageId: String(m.message_id) }),
+    ...(m.reply_to_message && m.reply_to_message.message_id == null ? {} : (m.reply_to_message ? { replyToMessageId: String(m.reply_to_message.message_id) } : {})),
+    ...(Number.isFinite(Number(m.date)) ? { observedAtMs: Number(m.date) * 1000 } : {}),
     text: (m.text || "").trim(),
     // Exact command boundary: payloads may follow whitespace (or an optional @bot suffix), but
     // punctuation/prefix lookalikes such as "/start-foo" and "/start?" must never open onboarding.
