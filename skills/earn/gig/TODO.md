@@ -9,16 +9,16 @@ durable runtime ledgers and receipts, not in duplicated historical checklists.
 This is the only restart cursor for the next Codex session. Re-check every value against Git and official
 runtime/provider readback before acting; conversation claims are not completion evidence.
 
-- Canonical local repository checkout: `/Users/anicca/Projects/life-manager-main`, remote
+- Canonical local repository checkout: `$LIFE_MANAGER_REPO`, remote
   `Daisuke134/life-manager`. The folder name on this Mac is **`life-manager-main`**. No separate project or
   repository named `life-manager/` was created.
-- Current task worktree: `/private/tmp/lm-runtime-admission-reservations-20260914`, branch
+- Current task worktree: `<task-worktree>`, branch
   `docs/coconala-paid-apply-proof-20260916`, lease
   `ac1f02d45387233d8866ce7dbd62c01a5b1a28987c9e2614a873535c1d766f69`. This is a linked Git worktree of
   the same `life-manager-main` repository, not another project. The main checkout is currently on the unrelated
   Capify branch `capafy/account-plan-deck-offline-20260912`, so it remains read-only for this workstream.
 - Canonical runtime source is `origin/main` at `0401cb6a34e89b32c5c1a7e637df0062b791e13c`. The newest
-  immutable release is `/Users/anicca/loops/releases/20260916T165426-0401cb6a`; Apply is exact-loaded from it.
+  immutable release is `$LIFE_MANAGER_RELEASES/20260916T165426-0401cb6a`; Apply is exact-loaded from it.
   Paid is exact-loaded from `2e0716c7`. PR `#5283` normalizes structured independent verifier evidence without
   weakening identity validation. PR `#5284` keeps older effect-started uncertain applications duplicate-fenced
   for background reconciliation instead of repeatedly deep-scanning them in the revenue foreground.
@@ -42,9 +42,9 @@ runtime/provider readback before acting; conversation claims are not completion 
   registry tests plus 100 subtests, exact stdlib CI discovery 434 tests, fresh read-only `ship`, and GitHub CI
   8/8 PASS. Earlier JSON 500-enqueue evidence was 35.93 seconds.
 - Current spec file in this worktree:
-  `/private/tmp/lm-runtime-admission-reservations-20260914/skills/earn/gig/TODO.md`. Its repository-relative
+  `<task-worktree>/skills/earn/gig/TODO.md`. Its repository-relative
   canonical path is `skills/earn/gig/TODO.md`; after merge the same file is available under
-  `/Users/anicca/Projects/life-manager-main/skills/earn/gig/TODO.md`. Do not create a second live TODO.
+  `skills/earn/gig/TODO.md`. Do not create a second live TODO.
 - Coconala is not complete. Ryu's latest three-message buyer cycle was completed with one ordinary Coconala
   seller message, formal delivery OFF and official talkroom readback. The next natural Paid wake observed all
   four active rooms with `effect=0`, `readback=4`, `failed=0`; Ryu was `deduplicated=true`. The earlier orphaned
@@ -129,20 +129,20 @@ that the provider currently has an authenticated account, a verified external ef
 
 The earlier report mixed two different snapshots: the canonical Paid result still said `12/300` while a later
 manual owner run wrote 288 `sent` rows with per-recipient official TikTok readback to
-`/Users/anicca/gig/projects/18180857/delivery/tiktok-message-effects.jsonl`. Together with the prior 12
+    `$LIFE_MANAGER_GIG_ROOT/projects/18180857/delivery/tiktok-message-effects.jsonl`. Together with the prior 12
 verified effects, the execution evidence supports 300 total sends; the official Sheet readback contains 300
 unique rows. The ordinary Coconala message and workbook were then sent and read back in
-`/Users/anicca/gig/projects/18180857/evidence/paid-direct-live/paid-direct/18180857/answer/chii-300-send/`,
+    `$LIFE_MANAGER_GIG_ROOT/projects/18180857/evidence/paid-direct-live/paid-direct/18180857/answer/chii-300-send/`,
 with `formal_delivery_control_checked=false`. The older `12/288` files remain historical input, not permission
 to reopen work. The official later seller message and existing effect fences make the next action buyer-waiting
 and replay-zero. Never resend an existing recipient or completion message.
 
 ## Shared architecture
 
-The real repository folder is `/Users/anicca/Projects/life-manager-main/`. The tree below is a
+The real repository folder is `$LIFE_MANAGER_REPO`. The tree below is a
 **repository-relative To-Be ownership map**, not a new `life-manager/` folder and not a second project. The
 current task worktree exposes the same relative paths under
-`/private/tmp/lm-runtime-admission-reservations-20260914/`.
+  `<task-worktree>`.
 
 ```text
 config/
@@ -395,7 +395,7 @@ never by deleting the guard.
 ### Live correction (re-read before every mutation)
 
 - `origin/main` is `172d3f2eaa4fedb815d0b8515f6454ab55ebe9a1`; Paid is exact-loaded from
-  `/Users/anicca/loops/releases/20260916T073615-172d3f2e`. Other Coconala labels retain their already-loaded
+  `$LIFE_MANAGER_RELEASES/20260916T073615-172d3f2e`. Other Coconala labels retain their already-loaded
   `0aba1191` release because this patch changes only Paid.
 - Admission protocol `2` is live. A four-Coconala-owner overlap is observed; Reply has a natural `pass`, and
   Paid selected Account 1. This proves one recovery slice, not 24-hour fairness or provider completion.
@@ -413,7 +413,7 @@ never by deleting the guard.
 
 - PRs `#5194` through `#5199` are merged. Current main is
   `b8cff053255f840cc02405c886bd4974005586cc`, published as full immutable release
-  `/Users/anicca/loops/releases/20260915T061515-b8cff053`. The release reconciler now covers both complete
+  `$LIFE_MANAGER_RELEASES/20260915T061515-b8cff053`. The release reconciler now covers both complete
   provider routes, changes only loaded-idle labels, skips running and unloaded labels, runs outside saturated
   data-plane admission, reconciles the local complete release before any remote fetch, bounds fetch with the
   existing portable process-group timeout, narrows Git negotiation to `origin/main`, and uses the release-pinned
@@ -430,7 +430,7 @@ never by deleting the guard.
   The `b8cff053` release reconciler still had only a running event, not a terminal summary. These observations
   supersede the earlier owners `2` / tickets `0` snapshot but may change naturally; re-read before mutation.
 - PR `#5193`, main SHA `3fbe75546d720add1bfa465731ddc94353b662b5`, is merged and published as
-  immutable release `/Users/anicca/loops/releases/20260915T025232-3fbe7554`. The safe two-stage rollout keeps
+  immutable release `$LIFE_MANAGER_RELEASES/20260915T025232-3fbe7554`. The safe two-stage rollout keeps
   protocol `1` until every finite label is exact-loaded from this capability-2 release. Initial loaded-idle
   reconciliation completed with failures 0: deterministic had 53 eligible results, 44 changes and nine
   snapshot-race running skips; shared-agent-runner changed 33 labels. A later targeted pass moved Coconala
@@ -472,7 +472,7 @@ never by deleting the guard.
   reclaimed by the central owner. Ancestor symlink, run replacement, terminal-write failure and no-clobber
   races are covered. Targeted 45 tests, the 425-test runtime suite, all CI and fresh Terra architecture review
   pass.
-- Immutable release `/Users/anicca/loops/releases/20260914T211512-0a7b8c8b` is current. The preceding
+- Immutable release `$LIFE_MANAGER_RELEASES/20260914T211512-0a7b8c8b` is current. The preceding
   `3e7b7771` loaded-idle rollout reconciled 57 deterministic and 40 shared-agent-runner labels with zero
   failures; target-only convergence to `59bd6cdd` has begun and running owners are skipped, not restarted.
 - Idle rollout succeeded cumulatively for 96 label installs with zero reconcile failures. The latest
