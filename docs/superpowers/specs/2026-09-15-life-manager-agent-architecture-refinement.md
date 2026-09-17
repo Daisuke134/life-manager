@@ -206,6 +206,16 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   in fresh read-only review because old explicit apply and unloaded-service
   paths could bypass it, and was reverted before main integration. A15-08
   remains open pending a real same-SHA distinct-owner handoff.
+  The Connector and probe both had a 30-minute StartInterval, repeatedly
+  causing the probe to queue behind the long Connector run. The operational
+  probe cadence is changed to 300 seconds in the branch while preserving its
+  `effect_class=none`, isolated profile, 45-second timeout and queued/reserved
+  wake coalescing. This uses the existing launchd job and admission scheduler;
+  it should obtain natural `cdp_ready` terminals during Connector idle windows
+  and allow a later natural Connector claim on the same loaded SHA. Registry
+  contract, generated job fixture and OSS verification passed locally. The
+  change is not A15-08 evidence until CI, main-derived apply and natural
+  lifecycle readback pass.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
