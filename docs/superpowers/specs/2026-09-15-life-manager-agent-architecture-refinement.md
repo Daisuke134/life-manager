@@ -81,7 +81,7 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   12:28:15Z, claimed `18d619fc6f2cbdd8-32593`, and reached outer pass at
   12:30:16Z; that occurrence is also released/known. Both status readbacks
   show installed/event SHA `f1f5bcb91d`.
-- [ ] **A15-08 — prove a browser-class handoff.** Join the same four events for
+- [x] **A15-08 — prove a browser-class handoff.** Join the same four events for
   two browser owners without starting a provider submission or touching a
   sibling profile. A no-work terminal is valid lifecycle evidence only.
   Current registry and admission SQLite have only one browser-class owner,
@@ -104,7 +104,23 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   tests passed 79 tests and 126 subtests with the registry/inventory checks;
   the loop contract and OSS boundary also passed. This is local evidence only:
   main integration, immutable-release apply, natural terminal and a distinct
-  `life-manager-connector-native` handoff are still required for A15-08.
+  `life-manager-connector-native` handoff were then measured. PR #5396 passed
+  all nine CI checks and merged as `9c97f0e140`. Complete main release
+  `20260918T001611-3444d81c` has `release_paths=ALL`; targeted apply event
+  `97372c441702b136c37ba286` loaded only the probe with that SHA. Connector
+  run `18d624c67945c920-61315` on main-derived `a77c5629` held the browser
+  claim and reached outer pass at 15:22:20Z. Probe occurrence
+  `18d624de0df789e8-64936` had queued known at 15:20:38Z while Connector
+  held capacity; after Connector release, the next probe run
+  `18d624f5e990c7f0-67714` started at 15:22:20Z and reached outer pass at
+  15:22:27Z on loaded `3444d81c`, before another manual probe start. The
+  admission SQLite readback shows both owners' exact occurrences
+  `released/effect_unknown=0`, no browser reservation, and browser queued
+  owners falling from one (about 1.7 minutes old) to zero. Probe stdout
+  reported `cdp_ready` from its isolated profile; no provider submission or
+  sibling profile was touched. A later targeted manual probe run
+  `18d6250438013538-69594` also passed, but is not used for the natural
+  handoff gate.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
