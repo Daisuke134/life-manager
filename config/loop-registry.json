@@ -521,7 +521,7 @@
       "entrypoint": "skills/earn/capafy-marketing/capafy-goal-monitor.sh",
       "label": "ai.anicca.capafy-goal-monitor",
       "log_root": "~/.local/state/life-manager/logs",
-      "provider_route": "shared-agent-runner",
+      "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager"
     },
     "capafy-goal-monitor-daily-close": {
@@ -540,13 +540,13 @@
       "entrypoint": "skills/earn/capafy-marketing/capafy-goal-monitor.sh",
       "label": "ai.anicca.capafy-goal-monitor-daily-close",
       "log_root": "~/.local/state/life-manager/logs",
-      "provider_route": "shared-agent-runner",
+      "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager"
     },
     "capafy-goal-monitor-hourly": {
       "cadence": {
         "calendar_interval": {
-          "Minute": 0
+          "Minute": 7
         }
       },
       "cleanup": {
@@ -558,7 +558,7 @@
       "entrypoint": "skills/earn/capafy-marketing/capafy-goal-monitor.sh",
       "label": "ai.anicca.capafy-goal-monitor-hourly",
       "log_root": "~/.local/state/life-manager/logs",
-      "provider_route": "shared-agent-runner",
+      "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager"
     },
     "capafy-ig-account-manager": {
@@ -640,7 +640,7 @@
       "entrypoint": "skills/earn/capafy-marketing/capafy-outcome-monitor.sh",
       "label": "ai.anicca.capafy-outcome-monitor",
       "log_root": "~/.local/state/life-manager/logs",
-      "provider_route": "shared-agent-runner",
+      "provider_route": "deterministic",
       "state_root": "~/.local/state/life-manager"
     },
     "ceo-runner": {

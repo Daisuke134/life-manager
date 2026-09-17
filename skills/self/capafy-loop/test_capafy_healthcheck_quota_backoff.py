@@ -184,7 +184,7 @@ class CapafyHealthcheckQuotaBackoffTest(unittest.TestCase):
             result, recorded, lifecycle, log = self.run_stale_owner_healthcheck(
                 key_gate_returncode=1
             )
-            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.returncode, 1, result.stderr)
             self.assertEqual(recorded, [])
             self.assertEqual(lifecycle, [])
             self.assertIn("provider admission unhealthy; no owner restart", log)
