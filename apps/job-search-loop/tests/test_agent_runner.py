@@ -1,7 +1,10 @@
 import json
+import os
 import signal
 import subprocess
+import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -218,6 +221,46 @@ class AgentRunnerTests(unittest.TestCase):
                     )
             killpg.assert_called_once_with(4242, signal.SIGTERM)
             self.assertTrue(popen.call_args.kwargs["start_new_session"])
+
+    def test_timeout_reaps_a_real_runner_descendant(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            child_pid_path = root / "child.pid"
+            runner_script = root / "runner.py"
+            runner_script.write_text(
+                "import os, subprocess, sys, time\n"
+                "from pathlib import Path\n"
+                "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(30)'])\n"
+                "Path(os.environ['CHILD_PID_FILE']).write_text(str(child.pid))\n"
+                "time.sleep(30)\n",
+                encoding="utf-8",
+            )
+            schema = root / "schema.json"
+            schema.write_text('{"type":"object"}', encoding="utf-8")
+            runner = AgentRunner(
+                runner_path=runner_script,
+                evidence_root=root / "evidence",
+            )
+            with patch.dict(os.environ, {"CHILD_PID_FILE": str(child_pid_path)}), patch(
+                "job_search_loop.agent_runner.AGENT_RUNNER_TIMEOUT_SECONDS", 1
+            ):
+                with self.assertRaisesRegex(ContractError, "timed out"):
+                    runner.run(
+                        task="mercor_pass", prompt="Grounded task",
+                        schema_path=schema, workdir=root, run_id="real-timeout",
+                    )
+            child_pid = int(child_pid_path.read_text(encoding="utf-8"))
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                probe = subprocess.run(
+                    ["/bin/ps", "-p", str(child_pid), "-o", "pid="],
+                    check=False, capture_output=True, text=True,
+                )
+                if not probe.stdout.strip():
+                    break
+                time.sleep(0.05)
+            else:
+                self.fail(f"runner descendant {child_pid} survived timeout cleanup")
 
 
 if __name__ == "__main__":

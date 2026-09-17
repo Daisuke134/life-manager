@@ -17,6 +17,7 @@ TASK_CLASSES = {
     "submit": "browser-lane-agent",
     "improve": "high-value-agent",
 }
+AGENT_RUNNER_TIMEOUT_SECONDS = 1_000
 
 
 class ContractError(RuntimeError):
@@ -45,6 +46,15 @@ def _terminate_process_group(process: subprocess.Popen) -> None:
     else:
         process.kill()
         process.wait(timeout=5)
+
+
+def _forward_signal_after_cleanup(
+    signum: int, _frame: Any, process: subprocess.Popen,
+) -> None:
+    """Stop the owned runner group before preserving the parent's signal."""
+    _terminate_process_group(process)
+    signal.signal(signum, signal.SIG_DFL)
+    os.kill(os.getpid(), signum)
 
 
 def wrap_untrusted(name: str, text: str) -> str:
@@ -130,11 +140,29 @@ class AgentRunner:
             text=True,
             start_new_session=os.name == "posix",
         )
+        previous_handlers: dict[int, Any] = {}
+        if os.name == "posix":
+            for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
+                previous_handlers[signum] = signal.getsignal(signum)
+                signal.signal(
+                    signum,
+                    lambda received, frame, process=process: _forward_signal_after_cleanup(
+                        received, frame, process
+                    ),
+                )
         try:
-            stdout, stderr = process.communicate(input=prompt_input, timeout=1_000)
+            stdout, stderr = process.communicate(
+                input=prompt_input, timeout=AGENT_RUNNER_TIMEOUT_SECONDS,
+            )
         except subprocess.TimeoutExpired as error:
             _terminate_process_group(process)
             raise ContractError("agent runner timed out") from error
+        except BaseException:
+            _terminate_process_group(process)
+            raise
+        finally:
+            for signum, handler in previous_handlers.items():
+                signal.signal(signum, handler)
         completed = subprocess.CompletedProcess(
             argv, process.returncode, stdout, stderr,
         )
