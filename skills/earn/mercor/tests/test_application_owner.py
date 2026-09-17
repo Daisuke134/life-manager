@@ -50,6 +50,8 @@ def test_owner_only_requests_email_auth_after_confirmed_logout():
     assert source.index('[[ "$AUTH_STATUS" == "logged_out" ]]') < source.index(
         "job_search_loop.mercor_email_auth"
     )
+    assert source.count('[[ "$AUTH_STATUS" == "logged_out" ]]') >= 2
+    assert "second bounded observation" in source
 
 
 def test_mercor_pass_binds_exact_leased_page():

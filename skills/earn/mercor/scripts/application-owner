@@ -78,6 +78,13 @@ if [[ "$AUTH_STATUS" == "indeterminate" ]]; then
   run_auth_readback || true
 fi
 if [[ "$AUTH_STATUS" == "logged_out" ]]; then
+  # A fresh context may briefly paint the login shell while Firebase hydrates.
+  # Require the same exact login-form signal on a second bounded observation
+  # before requesting a new magic link.
+  sleep 1
+  run_auth_readback || true
+fi
+if [[ "$AUTH_STATUS" == "logged_out" ]]; then
   PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
     -m job_search_loop.mercor_email_auth \
     --ws "$MERCOR_CDP_PAGE_WS" --after-epoch "$RUN_STARTED_AT" \
