@@ -305,6 +305,7 @@ test("adapter records the runtime occurrence before a video provider effect", as
       objectStore: { resolve: (ref) => `/objects/${ref.slice(-64)}` },
       secretProvider: { get: async () => "token" },
       integrationProvider: { get: async () => "integration-id" },
+      accountResolver: () => "@honnevideo",
       ledgerPath: () => path.join(root, "distribution.jsonl"),
       runDistribution: async () => {
         sidecarSeenByProvider = fs.existsSync(sidecar);
@@ -340,7 +341,7 @@ test("adapter records the runtime occurrence before a video provider effect", as
       creative_id: "HJA-007-aaaaaaaaaaaa",
       slot: "2026-07-30T12:30:00.000Z",
       integration_ref: "integration://postiz/tiktok/honne-ai-ja",
-      account_id: null,
+      account_id: "@honnevideo",
       video_sha256: VIDEO_HASH,
       caption_sha256: CAPTION_HASH,
     });

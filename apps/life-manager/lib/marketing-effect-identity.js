@@ -42,9 +42,7 @@ function writeMarketingEffectIdentity(input = {}) {
     creative_id: required(input.creativeId, "creative_id"),
     slot: required(input.slot, "slot"),
     integration_ref: required(input.integrationRef, "integration_ref", INTEGRATION_REF),
-    account_id: input.accountId == null
-      ? null
-      : required(input.accountId, "account_id", ACCOUNT),
+    account_id: required(input.accountId, "account_id", ACCOUNT),
     video_sha256: input.videoSha256 == null ? null : required(input.videoSha256, "video_sha256", HASH),
     caption_sha256: required(input.captionSha256, "caption_sha256", HASH),
     ...(Array.isArray(input.mediaSha256) ? {

@@ -176,9 +176,27 @@ class LoopCleanupTest(unittest.TestCase):
                 observed.update(env)
                 observed["LIFE_MANAGER_OCCURRENCE_ID"] = occurrence_id
                 on_claimed(occurrence_id)
-                Path(env["LIFE_MANAGER_EFFECT_IDENTITY_PATH"]).write_text(
-                    '{"job_id":"marketing-video-publication:job-1"}\n', encoding="utf-8",
-                )
+                Path(env["LIFE_MANAGER_EFFECT_IDENTITY_PATH"]).write_text(json.dumps({
+                    "schema_version": 1,
+                    "kind": "life_manager_effect_identity",
+                    "runtime_run_id": env["LIFE_MANAGER_RUN_ID"],
+                    "occurrence_id": occurrence_id,
+                    "loop_id": "job",
+                    "job_id": "marketing-video-publication:job-1",
+                    "effect_key": "marketing:video:job-product:tiktok:creative:" + "a" * 64 + ":" + "b" * 64,
+                    "product_id": "job-product",
+                    "format_id": "job-format",
+                    "form": "job-form",
+                    "locale": "ja",
+                    "platform": "tiktok",
+                    "creative_id": "creative",
+                    "slot": "2026-07-30T12:30:00.000Z",
+                    "integration_ref": "integration://postiz/tiktok/job-integration",
+                    "account_id": "@job-account",
+                    "video_sha256": "a" * 64,
+                    "caption_sha256": "b" * 64,
+                }) + "\n", encoding="utf-8")
+                Path(env["LIFE_MANAGER_EFFECT_IDENTITY_PATH"]).chmod(0o600)
                 receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
                 return 1
 
@@ -192,8 +210,8 @@ class LoopCleanupTest(unittest.TestCase):
             identity_files = list((home / "state/effect-identities").glob("*.jsonl"))
             self.assertEqual(len(identity_files), 1)
             self.assertEqual(
-                identity_files[0].read_text(encoding="utf-8"),
-                '{"job_id":"marketing-video-publication:job-1"}\n',
+                json.loads(identity_files[0].read_text(encoding="utf-8"))["job_id"],
+                "marketing-video-publication:job-1",
             )
             event = json.loads((home / "state/events.jsonl").read_text(encoding="utf-8").splitlines()[-1])
             self.assertIn(
