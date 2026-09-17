@@ -36,6 +36,12 @@ code before adopting a pattern; never let an eval mutate production.
 5. Report per-case variance and preserve failed trajectories.
 6. Compare with a frozen baseline and held-out set. Regressions in safety, cost, latency, or live
    evidence block promotion; the evaluator never mutates production.
+7. For self-improvement candidates, call the repository-owned candidate boundary before promotion:
+   `apps/life-manager/eval/agent-contract/gate.js::decideCandidatePromotion` (or
+   `apps/life-manager/scripts/candidate-promotion-gate.js`). The boundary permits only candidate
+   skill/prompt/docs paths and requires all mutation capabilities to be false. Identity,
+   permissions, credentials, scheduler, provider effects, evidence rules, and evaluator gates are
+   immutable. A passing metric gate without a passing candidate boundary is still `block`.
 
 ## Contract
 
@@ -44,7 +50,7 @@ code before adopting a pattern; never let an eval mutate production.
 | Case | stable ID, input/context hashes, expected evidence, split (`train`/`held_out`) |
 | Run | candidate/baseline version, model, prompt hash, tool fixture, seed, started/finished time |
 | Score | per-criterion values, scorer version, errors, trace/receipt pointers |
-| Gate | baseline comparison, safety tripwire, live-realism check, promotion decision/reason |
+| Gate | baseline comparison, safety tripwire, live-realism check, immutable candidate boundary, promotion decision/reason |
 | Artifact | immutable result file; no overwrite of prior runs |
 
 ## Example

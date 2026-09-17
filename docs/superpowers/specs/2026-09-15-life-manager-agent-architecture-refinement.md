@@ -1352,6 +1352,18 @@ escalationは実行しない。Node 14件（intent/plan/executor）がPASSした
 実行境界のコード完了であり、harness failureからintentを自動生成する配線、自然wake、
 terminal repair receipt、duplicate effect 0の実機証明は未完了なので、S-01全体は未完のままにする。
 
+**2026-09-17 foundation slice (S-04 candidate boundary):** existing
+`apps/life-manager/eval/agent-contract/gate.js` now exposes
+`decideCandidatePromotion` and `validateCandidateBoundary`, plus the
+`apps/life-manager/scripts/candidate-promotion-gate.js` CLI. A candidate may
+change only scoped skill/prompt/agent-engineering documentation paths; changes
+to identity, permissions, credentials, scheduler, provider effects, evidence
+rules, evaluator gates, runtime, or registry are blocked before promotion.
+The normal held-out/safety/cost/latency/live-evidence/rollback gate still runs,
+and both gates must pass. Contract tests pass; a real candidate baseline,
+held-out run, live evidence, promotion and rollback remain open, so S-04 is
+not marked complete.
+
 S-02では、recovery projectionに`escalate_repair`が一件だけある場合のみ、
 `~/.local/state/life-manager/recovery/repair-queue.jsonl`（mode 0600）へ
 `job_id`、`owner_id`、`route`、`slot`、原因、retry回数、event keyだけを記録する。
