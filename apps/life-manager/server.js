@@ -62,6 +62,7 @@ const { parseUserCommand, dispatchParsedControl, executeUserCommand } = require(
 const { parseSlashCommand, slashAliasText, handleSlashCommand } = require("./lib/slash-command.js");
 const { createInvestmentStateStore } = require("./lib/investment-state-store.js");
 const { handleFeedbackMessage, createPostgresFeedbackStore } = require("./lib/feedback-intake.js");
+const { handleMentalCorrectionMessage } = require("./lib/mental-correction.js");
 const { resolveTelegramReply } = require("./lib/telegram-reply.js");
 const { handleInboundReply, handleAskCallback, parseInboundRecipient } = require("./lib/ask.js");
 const { isReplyToken } = require("./lib/reply-token.js");
@@ -1277,6 +1278,21 @@ const server = http.createServer(async (req, res) => {
             if (intake.handled) {
               // Audit names the decision, never the address (it is payout PII-adjacent — log outcomes only).
               console.log(`[payout] typed intake ok=${intake.ok}${intake.action ? ` action=${intake.action}` : ""}${intake.reason ? ` reason=${intake.reason}` : ""}`);
+              res.writeHead(200); res.end("ok");
+              return;
+            }
+          }
+          // MENTAL corrections are opt-in natural replies, never a button or a survey. The handler
+          // claims only a reply to an existing V1 send receipt and persists a bounded tone tag;
+          // ordinary text and unrecognized timing complaints continue through the normal router.
+          if (u.kind === "message" && u.text) {
+            const correction = await handleMentalCorrectionMessage(u, row, {
+              supaUrl: SUPA_URL,
+              supaKey: SUPA_KEY,
+              locale: /^en(?:-|$)/i.test(String(u.languageCode || "")) ? "en" : "ja",
+            });
+            if (correction.handled) {
+              console.log(`[mental-correction] recorded=${correction.recorded === true}${correction.tag ? ` tag=${correction.tag}` : ""}${correction.reason ? ` reason=${correction.reason}` : ""}`);
               res.writeHead(200); res.end("ok");
               return;
             }
