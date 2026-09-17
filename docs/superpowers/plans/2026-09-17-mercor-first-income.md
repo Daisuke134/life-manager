@@ -153,7 +153,8 @@
 - [ ] Rerun focused tests. Generate one dry read-only learning proposal from the private baseline and verify its source links, affected strategy version, and explicit `insufficient_evidence` when outcome data is inadequate.
 - [x] Existing learning wake now writes a bounded private Mercor source receipt. The 2026-09-17 dry run recorded one official guide, three public code listings, an unavailable X surface, and `income_receipts_promoted=0`; no external claim became a profile fact or income.
 - [x] The source collector now reads the private official Mercor snapshot through the existing funnel projection. When official applications exist but replies are zero, the recorded hypothesis targets `reply` and changes only `application_presentation`; it does not keep applying a fixed listing-order experiment.
-- [ ] Commit and push.
+- [x] A read-only collector run at `/Users/anicca/.local/state/anicca/job-search/mercor/learning-sources-live-20260917.json` recorded five bounded sources, `loss_stage=reply`, `application_presentation` as the one proposed variable, and `income_receipts_promoted=0`; the receipt is mode `0600`.
+- [x] Commit and push.
 
 ### Task 7: Finish the Japanese Voice Actor application as a one-off
 
@@ -172,7 +173,8 @@
 
 **Files:** Update the canonical Mercor spec's cursor and this plan's checkboxes as tasks complete. Runtime release is created only from merged `main` using existing release tooling.
 
-- [ ] Review focused diff, verify no secrets/materials in Git, and run only the relevant Mercor/shared learning tests. Ensure registry entrypoints still resolve and the old production interpreter imports required modules.
-- [ ] Merge one complete reviewed implementation through the repository's required PR flow, create an immutable release from merged `main`, and use `lm-loop` targeted apply only after owner/GUI preflight. Keep reply and paid sibling releases untouched unless their exact contract was changed and tested.
+- [x] Review focused diff, verify no secrets/materials in Git, run the relevant Mercor/shared learning tests (`601 passed, 54 subtests passed`), pass `lm-loop-contract`, and pass `lm-loop doctor` (`missing_entrypoints=0`, `unmanaged_labels=0`).
+- [x] Merge one complete implementation through PR #5374 (`ce379c130f`), cut main-derived immutable release `6345e37abe108b8a53d58353b7bde48411ba7396`, and targeted-apply only `mercor-revenue-application`. Reply/Paid were not restarted.
+- [ ] Observe one natural application wake and official profile/application readback. Observe reply and paid natural wakes and reconcile current contract/earnings inventory. Record terminal event, loaded SHA, effect receipts, Telegram delivery and replay-zero for any mutation. An exit code alone is insufficient. A controlled target wake after the release read back loaded/event SHA `6345e37a` but stopped at the existing `resource_effect_unknown` fence before any Mercor provider action; this is not a natural provider-effect proof.
 - [ ] Observe one natural application wake and official profile/application readback. Observe reply and paid natural wakes and reconcile current contract/earnings inventory. Record terminal event, loaded SHA, effect receipts, Telegram delivery and replay-zero for any mutation. An exit code alone is insufficient.
 - [ ] **Business milestone A:** official Mercor offer or paid work-trial invitation with exact ID, deadline and account. **B:** official accepted contract or completed paid trial. **C:** paid/settled Mercor earnings row. **D:** received payout. Leave each unchecked until provider/bank evidence exists. Continue suitable applications and learning while waiting; do not rename progress as income.
