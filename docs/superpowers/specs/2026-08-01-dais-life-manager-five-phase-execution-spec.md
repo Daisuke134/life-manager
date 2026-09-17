@@ -1274,7 +1274,7 @@ GA-10は実provider・実receipt・自然owner wake・replay-zeroが必須で、
 
 ### Connector independent track contract — current foundation cursorには使わない
 
-Connectorの最新実測と引継ぎTODOは末尾の「O1B-25進捗537」を正本とする。この節の古いloaded release、hourly/30分schedule、active cursorの記述は各時点の履歴であり、進捗537の現行状態を上書きしない。
+Connectorの最新実測と引継ぎTODOは末尾の最新「O1B-25進捗」を正本とする。この節の古いloaded release、hourly/30分schedule、active cursorの記述は各時点の履歴であり、末尾の現行状態を上書きしない。
 
 このsectionはConnectorを明示的に再開した時だけ、同track内のcontract、実装順、完了条件を選ぶ。
 Life Manager foundationの先頭TODOはAtomic program ledger Seq 1 `ELZ-F01`であり、Connectorの未完了項目はそのcursorを上書きしない。後段の14日窓、daily/8-hour schedule、
@@ -10204,3 +10204,11 @@ Luma workflowはこの二つのeffect-unknown入力だけを`effect_unknown`と�
 6. Connector完了後にCoconala Apply、Reply、Paid、Storefrontを別々に公式readbackで診断する。前回確認時のReply pending 15件とPaid terminal照合残候補6件を再取得し、過去の不確定送信を照合前に再送しない。
 
 **状態:** Connectorは**NOT DONE**。Coconalaの今回の引継ぎ範囲も**NOT DONE**。旧CG-44以降の完了表示を、このwakeのexit 0やpush済みテストだけで更新しない。
+
+### O1B-25進捗538（main反映・起動結果・Connpass参加枠の原因）
+
+Connector候補巡回とreconciliation優先の差分はPR #5306、main merge `1a0424dbf8b432d184350190667bc0620d7d893a`となった。main由来full release `20260917T104612-1a0424db`を作り、対象Connector labelだけへapplyした。loaded argvとrelease SHAは一致し、他labelとglobal currentは切り替えていない。Daisが指定した`launchctl-safe kickstart gui/501/ai.anicca.life-manager-connector-native`を一回実行したが、run `18d5f8831c828828-87374`はworker開始前に`host_admission_deferred:resource_admission_unavailable`、exit 75で終了した。このrunはprovider申込・Calendar追加の試験になっていない。共有基盤branch `fix/connector-admission-main-20260917`は最終確認時にmain未反映であり、そのownerのworktreeやstateは変更しない。
+
+共有admissionと独立したConnector固有の欠陥も確定した。Connpass公式の[Findy event 404531](https://findy.connpass.com/event/404531/)は「現地参加枠 無料 6/40人」、[freee event 403447](https://freee.connpass.com/event/403447/)は「現地参加 無料 188/250人」を公開している。`connpass-browser-provider.js`の一般参加枠判定はこれらの明示的な対面無料枠を拒否し、`CONNPASS_TIER_UNAVAILABLE`にしていた。両表記を使ったfocused testは修正前RED、判定語彙の最小追加後34/34 GREEN。支払枠、限定枠、オンライン枠、必須質問、申込後の不確定効果に対する既存のfail-closed条件は維持する。修正はまだ本番release未反映であり、公式申込・Calendarイベントの成立は未確認。
+
+**次の順序:** (1) このConnpass固有差分をmainへ統合する。(2) 共有基盤ownerの修正がmain由来releaseに入ったことを確認する。(3) 対象Connectorだけを新releaseへapplyして一回実行し、provider公式登録ID→CalendarイベントIDの独立readback→次回重複0を確認する。`resource_admission_unavailable`で再びprovider前に止まったらConnectorの効果不成立と明記して共有基盤ownerへexact run IDを渡し、盲目的に連続kickstartしない。
