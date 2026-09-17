@@ -443,6 +443,22 @@ class LmLoopApplyTest(unittest.TestCase):
                 self.assertEqual(environment["LIFE_MANAGER_NODE"], shutil.which("node"))
                 self.assertTrue(Path(environment["LIFE_MANAGER_NODE"]).is_absolute())
 
+    def test_polymarket_plist_finds_managed_node_when_launchd_path_omits_homebrew(self):
+        node = self.root / "managed-node"
+        node.write_text("#!/bin/sh\nexit 0\n")
+        node.chmod(0o755)
+        entrypoint = "skills/earn/polymarket-trade/run_decision_loop.sh"
+        script = self.root / entrypoint
+        script.parent.mkdir(parents=True, exist_ok=True)
+        script.write_text("#!/bin/sh\nexit 0\n")
+        script.chmod(0o755)
+        value = registry(entrypoint)
+        value["loops"]["pm-decision-loop"] = value["loops"].pop("example")
+        with (patch("runtime.loop.lm_loop_apply.shutil.which", return_value=None),
+              patch("runtime.loop.lm_loop_apply.MANAGED_NODE_CANDIDATES", (node,), create=True)):
+            rendered = plistlib.loads(build_apply_plan(value, self.root, SHA)[0]["plist_bytes"])
+        self.assertEqual(rendered["EnvironmentVariables"]["LIFE_MANAGER_NODE"], str(node))
+
     def test_browser_owner_is_projected_into_shared_runtime_environment(self):
         value = registry()
         value["loops"]["example"]["browser_owner"] = {
