@@ -118,7 +118,14 @@ tables remain evidence of the superseded plan, not the active cursor.
 | 12 | Promote the identical approved business kernel/source SHA to tenant-isolated Cloud; test Steel owner lease/release and phone-only status/human handoff/readback; run Cloud gate. | Tenant cross-read 0, credential/state mix 0, official effects and replay-zero, Local/Eval/Cloud all PASS. |
 | 13 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
 
-### Atomic remaining execution list — current cursor A14
+### Atomic remaining execution list — current cursor A15b
+
+Order correction for the current tail: the previous order was A14 → A15. The
+deterministic Metrics label reports launchd `runs=0` since its loaded-idle swap,
+so its first scheduled wake is still pending; its durable queue position is
+already about seven hours old. The failing scheduling invariant can be repaired
+without kicking that label. New order is A15a → A15b → A14 → A15; no run is
+interrupted and the natural-wake gate remains required.
 
 Order correction: the prior order was CN01 → CN02 → A12. Dais clarified that the two
 historical `effect_unknown` records are **observability**, not a completion or admission gate.
@@ -164,6 +171,8 @@ inventory rather than invented here; one selected ID is handled per item.
 - [x] A12e3 — After Connector PID 16133 reached terminal `pass`, `current` advanced atomically to full release `20260917T122617-454fc8bb` while the next old-SHA PID 29011 kept running; no process was stopped. After PID 29011 also reached terminal `pass`, Connector alone was reconciled loaded-idle. Independent launchctl readback shows exact argv/SHA `454fc8bbbe`, with no sibling reload. The model-answer patch is deployed but has not yet produced a new external effect.
 - [x] A12 — Observe that browser owner's automatic release→next-claim→outer terminal without a manual kickstart. Connector runs `18d5fce89d880ad8-6986` and `18d5fd14c75486f8-9227` both used loaded SHA `1549021741`, reached `released/effect_unknown=0`, and wrote outer `pass` terminals. The second run started automatically after the first; no manual kickstart occurred between them. This proves lifecycle, not perpetual fleet health (A15).
 - [x] A13 — Apply the same release to one loaded-idle deterministic owner and read back exact loaded argv/SHA. `life-manager-instagram-metrics` (`resource_class=deterministic`, support priority) was reconciled alone from loaded-idle. Independent launchctl readback shows exact release `20260917T122617-454fc8bb` and SHA `454fc8bbbe`; its most recent business terminal remains on an older SHA with `resource_capacity_busy`, so A14 is still pending.
+- [x] A15a — Fix the actual support-starvation priority boundary without adding capacity. Live `life-manager-instagram-metrics` was queued about 422 minutes, `effect_unknown=0`, while five-slot reservations circulated. A red saturation fixture showed aged revenue always winning ahead of aged support. Candidate `aef0a0acbe` lets aged support use the one existing borrow slot when a revenue floor is configured; revenue keeps its other four slots. All 93 admission tests PASS. This is source evidence only.
+- [ ] A15b — Merge PR #5316 after CI, cut a main-derived immutable release, exact-load only the needed idle owner, and retain old release processes until terminal.
 - [ ] A14 — Observe that deterministic owner's natural release→next-claim→outer terminal without a manual kickstart.
 - [ ] A15 — Run one bounded pressure/recovery check and confirm queue age, owner heartbeat and no fleet starvation; only then mark foundation Done.
 - [x] CN03 — Observe one eligible Connector automatic wake through an official registration ID. On run `18d5fce89d880ad8-6986`, Connpass event `405705` reached `provider_status=registered`; provider receipt `cbff78d53a91288bf4268554b9ba6f615007047cd482b1b2c6bfe0d5b2e32c29` retains a screenshot of the official page with the cancellation control visible. This was release-driven, not manually kickstarted.
