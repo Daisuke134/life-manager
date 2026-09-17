@@ -87,6 +87,13 @@ run_auth_readback() {
   fi
   return "$auth_rc"
 }
+commit_auth_writeback() {
+  "$LEASE_PYTHON" "$LEASE_SCRIPT" commit-cookies "$TASK" --domain mercor.com \
+    --origin https://work.mercor.com --local-storage-key mercor-auth-store \
+    --session-storage-key mercor-session-id --session-storage-key mercor-user-ip \
+    --indexeddb firebaseLocalStorageDb/firebaseLocalStorage \
+    --token "$LEASE_TOKEN" --generation "$LEASE_GENERATION" >"$WRITEBACK_JSON"
+}
 run_auth_readback || true
 if [[ "$AUTH_STATUS" == "indeterminate" ]]; then
   sleep 1
@@ -119,6 +126,17 @@ if [[ "$AUTH_STATUS" != "authenticated" ]]; then
   fi
   exit 75
 fi
+# Persist a freshly refreshed Firebase record before the model can navigate
+# Profile or fail for an unrelated transient reason. This keeps the next
+# context recreation seeded with the current session rather than an expired
+# access token.
+commit_auth_writeback
+writeback_rc=$?
+if (( writeback_rc != 0 )); then
+  print -u2 "mercor application owner: authenticated session writeback failed"
+  pre_effect_failure
+  exit 75
+fi
 MERCOR_APPLICATION_STATE_ROOT="$STATE_ROOT" JOB_SEARCH_STATE_ROOT="${STATE_ROOT:h:h}" \
   MERCOR_RUN_EARNINGS_SYNC=0 \
   "$ROOT/apps/job-search-loop/scripts/run-mercor.sh"
@@ -130,11 +148,7 @@ if PYTHONPATH="$ROOT/apps/job-search-loop" "$LEASE_PYTHON" \
   auth_ok=1
 fi
 if (( auth_ok == 1 )); then
-  "$LEASE_PYTHON" "$LEASE_SCRIPT" commit-cookies "$TASK" --domain mercor.com \
-    --origin https://work.mercor.com --local-storage-key mercor-auth-store \
-    --session-storage-key mercor-session-id --session-storage-key mercor-user-ip \
-    --indexeddb firebaseLocalStorageDb/firebaseLocalStorage \
-    --token "$LEASE_TOKEN" --generation "$LEASE_GENERATION" >"$WRITEBACK_JSON"
+  commit_auth_writeback
   writeback_rc=$?
 else
   [[ -f "$AUTH_READBACK_JSON" ]] || \

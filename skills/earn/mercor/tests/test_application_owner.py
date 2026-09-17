@@ -41,6 +41,9 @@ def test_owner_uses_shared_browser_lease_and_revenue_name():
     assert 'session-writeback.json' in source
     assert '--token "$LEASE_TOKEN" --generation "$LEASE_GENERATION"' in source
     assert "9334" not in source
+    assert source.index("commit_auth_writeback") < source.index(
+        '"$ROOT/apps/job-search-loop/scripts/run-mercor.sh"'
+    )
 
 
 def test_owner_only_requests_email_auth_after_confirmed_logout():

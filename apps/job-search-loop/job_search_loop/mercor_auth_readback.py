@@ -21,6 +21,9 @@ def classify_auth_snapshot(
     login_form_visible: object = None,
     authenticated_navigation_visible: object = None,
     authenticated_api_status: object = None,
+    firebase_token_expired: object = None,
+    firebase_token_refreshed: object = None,
+    firebase_token_refresh_failed: object = None,
 ) -> str:
     if not isinstance(url, str) or not isinstance(visible_text, str):
         return "indeterminate"
@@ -37,7 +40,19 @@ def classify_auth_snapshot(
     if login_form_visible is True:
         return "logged_out"
     if authenticated_api_status == 200:
+        # Some provider API edges accept an expired bearer and still return a
+        # successful shell response. The Mercor SPA is authoritative here: an
+        # expired Firebase record that was not refreshed cannot open Profile or
+        # an application detail reliably.
+        if firebase_token_expired is True and firebase_token_refreshed is not True:
+            return "logged_out"
+        if firebase_token_refresh_failed is True:
+            return "indeterminate"
         return "authenticated"
+    if firebase_token_expired is True:
+        return "logged_out"
+    if firebase_token_refresh_failed is True:
+        return "indeterminate"
     # Navigation and content can render before Firebase hydration. Without an
     # authenticated API readback this wake must remain retryable, not logged out.
     if parsed.path.startswith("/jobs/apply/") and "application" in text and any(
@@ -75,6 +90,9 @@ def auth_snapshot_expression() -> str:
         .filter(label=>['Explore','Applications','Earnings','Profile'].includes(label)));
       let firebase_user_present=false;
       let authenticated_api_status=null;
+      let firebase_token_expired=false;
+      let firebase_token_refreshed=false;
+      let firebase_token_refresh_failed=false;
       try {
         const request=indexedDB.open('firebaseLocalStorageDb');
         const db=await new Promise((resolve,reject)=>{
@@ -88,12 +106,63 @@ def auth_snapshot_expression() -> str:
             get.onerror=()=>reject(get.error||new Error('firebase_idb_read_failed'));
             get.onsuccess=()=>resolve(get.result||[]);
           });
+          const records=Array.isArray(values)?values:[];
+          let token='';
+          for(let index=0; index<records.length; index+=1){
+            const entry=records[index];
+            const candidate=entry?.value && typeof entry.value==='object' ? entry.value : entry;
+            const manager=candidate?.stsTokenManager;
+            const expiration=Number(manager?.expirationTime)||0;
+            if(expiration>0 && expiration<=Date.now()) firebase_token_expired=true;
+            const refreshDue=expiration>0 && expiration<=Date.now()+60000;
+            if(refreshDue && manager?.refreshToken && candidate?.apiKey){
+              try {
+                const controller=new AbortController();
+                const timer=setTimeout(()=>controller.abort(),5000);
+                let response;
+                try {
+                  response=await fetch(
+                    'https://securetoken.googleapis.com/v1/token?key='+encodeURIComponent(candidate.apiKey),
+                    {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+                     body:new URLSearchParams({grant_type:'refresh_token',refresh_token:manager.refreshToken}),
+                     credentials:'omit',signal:controller.signal}
+                  );
+                } finally { clearTimeout(timer); }
+                if(!response.ok) throw new Error('firebase_refresh_http_'+response.status);
+                const payload=await response.json();
+                const accessToken=payload?.id_token||payload?.access_token||'';
+                const expiresIn=Number(payload?.expires_in)||0;
+                if(!accessToken || expiresIn<=0) throw new Error('firebase_refresh_response_invalid');
+                const nextValue={...candidate,stsTokenManager:{...manager,
+                  accessToken,refreshToken:payload?.refresh_token||manager.refreshToken,
+                  expirationTime:Date.now()+expiresIn*1000}};
+                const nextRecord=entry?.value && typeof entry.value==='object'
+                  ? {...entry,value:nextValue} : nextValue;
+                await new Promise((resolve,reject)=>{
+                  let transaction;
+                  try {
+                    transaction=db.transaction('firebaseLocalStorage','readwrite');
+                    transaction.objectStore('firebaseLocalStorage').put(nextRecord);
+                  } catch(error) { reject(error); return; }
+                  transaction.oncomplete=()=>resolve();
+                  transaction.onerror=()=>reject(transaction.error||new Error('firebase_idb_write_failed'));
+                  transaction.onabort=()=>reject(transaction.error||new Error('firebase_idb_write_aborted'));
+                });
+                records[index]=nextRecord;
+                firebase_token_refreshed=true;
+                firebase_token_expired=false;
+              } catch(error) {
+                firebase_token_refresh_failed=true;
+              }
+            }
+            if(firebase_token_refreshed) break;
+          }
           const tokenFrom=value=>value?.stsTokenManager?.accessToken||
             value?.value?.stsTokenManager?.accessToken||value?.accessToken||
             value?.value?.accessToken||'';
-          const token=(Array.isArray(values)?values:[]).map(tokenFrom).find(Boolean)||'';
+          token=records.map(tokenFrom).find(Boolean)||'';
           firebase_user_present=!!token;
-          if(token){
+          if(token && (!firebase_token_expired || firebase_token_refreshed)){
             const controller=new AbortController();
             const timer=setTimeout(()=>controller.abort(),5000);
             try {
@@ -114,7 +183,10 @@ def auth_snapshot_expression() -> str:
         login_form_visible:!!email && !!login,
         authenticated_navigation_visible:labels.size>=2,
         firebase_user_present,
-        authenticated_api_status
+        authenticated_api_status,
+        firebase_token_expired,
+        firebase_token_refreshed,
+        firebase_token_refresh_failed
       });
     })()"""
 
@@ -142,12 +214,18 @@ async def observe(ws_url: str) -> dict[str, object]:
             login_form_visible=value.get("login_form_visible"),
             authenticated_navigation_visible=value.get("authenticated_navigation_visible"),
             authenticated_api_status=value.get("authenticated_api_status"),
+            firebase_token_expired=value.get("firebase_token_expired"),
+            firebase_token_refreshed=value.get("firebase_token_refreshed"),
+            firebase_token_refresh_failed=value.get("firebase_token_refresh_failed"),
         ),
         "url": url,
         "login_form_visible": value.get("login_form_visible") is True,
         "authenticated_navigation_visible": value.get("authenticated_navigation_visible") is True,
         "firebase_user_present": value.get("firebase_user_present") is True,
         "authenticated_api_status": value.get("authenticated_api_status"),
+        "firebase_token_expired": value.get("firebase_token_expired") is True,
+        "firebase_token_refreshed": value.get("firebase_token_refreshed") is True,
+        "firebase_token_refresh_failed": value.get("firebase_token_refresh_failed") is True,
     }
 
 
