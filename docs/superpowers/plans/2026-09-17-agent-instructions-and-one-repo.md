@@ -43,6 +43,8 @@
   - [x] C3a. Migrate the required Anicca iOS source from pinned revision `a9ab8a17c7dee9af8c3f2ad752a902ce26e7d1d3` into `apps/mobile/anicca-ios/`. Preserve the remote/revision as provenance, add `canonical_source_rel`, scrub credential-bearing code/config into private build inputs, and verify the canonical Xcode project path plus focused registry/mobile tests.
   - [x] C3b. Audit the private Honne source at pinned revision `b57928bb13ef1f9a1e774e4bca2467e3059c9eac` through the authenticated GitHub API, migrate the app/Xcode/backend source into `apps/mobile/honne-ai`, replace embedded build credentials with private environment/bundle inputs, exclude signing and generated artifacts, and verify the canonical project path plus focused tests and secret scans.
 - [ ] C4. Re-scan active source and deployment references for old checkout paths/remotes. Archive an old repository only when the exact dependency count is zero and its required unmerged work is accounted for.
+  - [x] C4a. Re-scan active source and deployment code after both mobile migrations. The only mobile remotes are registry provenance; both active canonical paths exist. Remove the implicit legacy checkout default from the presentation helper and require an explicit `PPTX_SKILL_ROOT`.
+  - [ ] C4b. Archive the old `anicca-project` checkout only after its dirty work and active owners are cleared. The current preflight still finds uncommitted changes, a `node_repl` process whose cwd is that checkout, and no safe zero-owner handoff, so it remains retained.
 
 ### D. Close worktrees without losing work
 

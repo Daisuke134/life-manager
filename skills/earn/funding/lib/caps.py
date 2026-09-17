@@ -2,8 +2,8 @@
 network -- every function here takes plain data in and returns plain data out, so it is fully
 unit-testable (see tests/test_caps.py).
 
-Source of the rails this encodes: anicca-project docs/loop-engineering/11-parent-funding-loop.md
-§3 ("MUST per-transfer cap / daily cap / cumulative cap ... 超えたら halt", "MUST reserve 保護").
+Source of the rails this encodes: the repository funding design record §3
+("MUST per-transfer cap / daily cap / cumulative cap ... 超えたら halt", "MUST reserve 保護").
 """
 from __future__ import annotations
 

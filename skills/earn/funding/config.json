@@ -1,5 +1,5 @@
 {
-  "_comment": "Money-safety config for the claude-p -> Franklin funding pipeline. See docs/loop-engineering/11-parent-funding-loop.md §2-3 in anicca-project. Values are ops knobs, not code -- change here, never by editing script logic.",
+  "_comment": "Money-safety config for the claude-p -> Franklin funding pipeline. See the repository funding design record for §2-3. Values are ops knobs, not code -- change here, never by editing script logic.",
   "reserve_usd": 5.0,
   "per_transfer_usd_cap": 12.0,
   "daily_usd_cap": 15.0,
