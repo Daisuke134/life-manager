@@ -3,11 +3,11 @@
 状態: IN PROGRESS（未完了） — this document defines the next architecture boundary; it does not
 claim that the target control plane, marketplace effects, or cloud deployment are complete.
 
-## Active A15 foundation cursor — atomic remaining TODO
+## A15 Foundation completion record
 
-**A15 is one remaining foundation acceptance gate, not a declaration that every
-provider loop works.** The following is the authoritative A15 checklist; older
-A15 snapshots below are historical evidence. Do not reorder the provider TODO.
+**A15 Foundation is Done; this does not declare that every provider loop
+works.** The following is the authoritative A15 checklist and evidence;
+older A15 snapshots below are historical. Do not reorder the provider TODO.
 
 Observed shared-foundation problems and disposition:
 
@@ -27,7 +27,7 @@ fences, not available capacity and not to be bulk-cleared. The Writer/provider
 owner must reconcile exact external effects; a registry `effect_class=none` by
 itself is insufficient because some such entrypoints send notifications.
 
-Remaining A15 actions, in order; each checkbox is one observable action:
+A15 actions and receipts, in order; each checkbox is one observable action:
 
 - [x] **A15-01 — verify the rebased shared plist repair.** Run
   `python3 -m pytest -q runtime/loop/tests/test_lm_loop_apply.py` and
@@ -329,7 +329,7 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   `x402-inflow-watch` run `18d6188f810e41c0-43797` recovered to a later
   natural pass `18d618b1235b1a90-48212`. This is a finite queue check,
   not a claim that every effect-fenced provider loop works.
-- [ ] **A15-14 — record the A15 verdict.** Mark Foundation Done only when
+- [x] **A15-14 — record the A15 verdict.** Mark Foundation Done only when
   A15-03 through A15-13 pass. Record main/release/loaded SHA, exact run IDs,
   queue-age before/after and receipt pointers here, then hand provider effect
   and readback blockers to their owners without claiming all loops work. Also
@@ -421,10 +421,39 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   normal blocked terminal. Best-effort reservation dispatch also preserves
   that terminal if its database probe is locked. Focused regressions failed
   on the exact enqueue, claim, reservation and dispatch exceptions before
-  the fix; all 63 runner-bound tests passed after it. A15-14
-  remains open until this fix is on main, a complete main-derived release
-  is loaded, and a follow-up natural probe terminal plus final host readback
-  pass. No extra scheduler or provider submission is needed.
+  the fix; all 63 runner-bound tests passed after it. A15-14 remained open
+  at that snapshot until the fix reached main and a natural probe terminal
+  on a complete main-derived release was read back.
+  PR #5504 passed all ten CI checks and merged as `16be5dc2e6f5`.
+  Complete main-derived `current` release `20260918T072834-16be5dc2`
+  has `release_paths=ALL`, runtime Python metadata and 0 missing of 7,374
+  tracked files. Targeted loaded-idle probe install event
+  `366d6a5b8384832a062a7776` loaded exactly that SHA with
+  `StartInterval=300`. Its next natural run `18d63c8e871b9fe0-80811`
+  wrote `execute/running` at 22:34:44Z and outer `pass` at 22:34:47Z on
+  the same SHA; the admission occurrence is `released/effect_unknown=0`.
+  The post-cut release-reconciler natural run
+  `18d63c5abb53bbc8-74575` reached outer pass at 22:33:11Z. Disk-cleanup
+  natural run `18d63c6723c019e8-76349` reached outer pass at 22:32:03Z;
+  its matching receipt has errors 0 and protected deletions 0.
+  `lm-loop doctor` on current returned `ok=true`, 166 entries and zero
+  missing, unmanaged or retired labels. Disk availability was 13,788,524
+  KiB; memory free was 37%. Runtime-eligible queues were agent 22
+  (oldest 11.5 minutes), browser 0 and deterministic 11 (oldest 1.0
+  minute). Existing effect-unknown occurrences remain separate and fenced:
+  agent 41 owners, deterministic 37 owners and browser 0.
+  Receipt pointers: `~/.local/state/life-manager/browser-capacity-probe/events.jsonl`,
+  `~/.local/state/life-manager/release-reconciler/events.jsonl`,
+  `~/.local/state/life-manager/life-manager-disk-cleanup/events.jsonl`,
+  `~/.local/state/life-manager/state/last-receipt.json`, and
+  `~/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3`.
+  The Connector's later installed SHA was `311c9194` under its separate
+  repair owner; A15-08 uses the retained same-SHA `fc31d122` natural chain.
+  **A15 Foundation verdict: DONE.** A fresh read-only audit verified the
+  complete main-derived release, same-SHA browser handoff, corrected natural
+  terminal, doctor, queue, memory and cleanup receipts. Connector's internal
+  business failure and existing provider effect fences remain assigned to
+  their respective owners; this verdict claims shared lifecycle only.
 
 A15-02 integration observation: an earlier PR #5362 head at `eb72e7cb1b` had
 one failing `OSS self-contained boundary` check. The exact inventory digest
@@ -441,9 +470,9 @@ to 1.4 GiB, but cleanup's latest status is outer `fail`/
 at that snapshot; the later A15-12 natural cleanup receipt supersedes this
 historical failure observation.
 
-## Current foundation correction — fleet first, provider effects second
+## Historical foundation correction — fleet first, provider effects second
 
-**The foundation is partially repaired, not Done.** The active A15 checklist
+**At this snapshot, the foundation was partially repaired.** The A15 checklist
 above supersedes this section's older production snapshot; historical queue
 totals below include effect-fenced rows and are not an eligible-wait measure.
 
