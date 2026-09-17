@@ -157,9 +157,26 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   label apply lock plus a running readback protects the first transition from
   an older runner. Late skips are reported as `skipped_pending`, not applied.
   RED-to-green focused verification, admission 105 tests and loop 111 tests/30
-  subtests passed; fresh read-only review found no blocking defect. The guard
-  is not production evidence until CI, main integration and a main-derived
-  natural handoff are measured.
+  subtests passed; fresh read-only review found no blocking defect. PR #5410
+  passed nine CI checks and merged into main as `3d9788fce3`. Complete
+  main-derived release `20260918T030254-0f504c58` has `release_paths=ALL`,
+  both Connector dependencies and the owner lock code. Targeted loaded-idle
+  reconciles installed its exact SHA on Connector (event
+  `aea75f006da5c7a52fd7f07f`) and probe (event
+  `cca153e43fe3ca3df96b9a64`); both launchd loaded argv read back that
+  SHA, and browser queued/claimed rows were zero immediately after apply.
+  On the next natural wake Connector run `18d62f87228d8020-76376` claimed
+  browser at 18:35:59Z and probe run `18d62f8bd70017d0-76882` queued known
+  at 18:36:19Z, both on `0f504c58`. Connector reached outer pass and released
+  known at 18:41:48Z. Yet `_dispatch_reserved` saw the probe's installed SHA
+  behind global `current` and called `apply_live` at 18:41:44Z, moving probe
+  to `a0a4e522` and cancelling its queued occurrence before dispatch. Probe
+  run `18d62fd876d2e548-83976` then passed on the new SHA. This is still
+  not the same-SHA handoff. The branch-local dispatch fix validates an older
+  main-derived complete loaded release and kickstarts it without rebinding;
+  unverified old paths defer without deleting the queue. Its focused RED-to-
+  green test and the full runner bounds suite (60 tests) passed locally.
+  Main integration and natural readback remain required for A15-08.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
@@ -256,7 +273,11 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   loaded reconciler `deb086429a1a` had the required post-fence natural passes
   `18d61e16f28b15d0-75320` and `18d61e7fd253a1d8-92885`; later concurrent
   release cuts caused safe `entrypoint_exit_1` retries, and a newer natural
-  run was active at this readback. These observations do not claim provider effects
+  run was active at this readback. A later targeted loaded-idle reconcile
+  installed the shared owner-lock release `0f504c58` on the reconciler via
+  event `fc0ffb85066316ff7e044733`; reconciler, Connector and probe loaded
+  argv all read back that SHA, with no run yet since this latest install.
+  Its next natural terminal remains to be recorded. These observations do not claim provider effects
   or every loop's business outcome: Capafy and other exact effect/readback
   fences remain with their owners.
 

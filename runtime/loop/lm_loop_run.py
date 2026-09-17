@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path, apply_live
+from runtime.loop.lm_loop import _apply_lock, _label_apply_lock_path, _loaded_v2_release
 from runtime.loop.lm_loop_apply import _loaded_arguments
 from runtime.loop.loop_cleanup import remove_owned_tree
 from runtime.loop.macos_loop_registry import validate_registry
@@ -498,6 +498,35 @@ def _run_entrypoint(command: list[str], env: dict[str, str] | None = None, *,
     return return_code if return_code >= 0 else 128 - return_code
 
 
+def _dispatch_arguments(arguments: object, loop_id: str, entry: dict,
+                        root: Path) -> list[str] | None:
+    current = [str(root / "bin/lm-loop-run"), loop_id, str(root)]
+    if arguments == current:
+        return current
+    if (not isinstance(arguments, list) or len(arguments) != 3
+            or not all(isinstance(value, str) for value in arguments)
+            or not _loaded_v2_release(arguments, loop_id)):
+        return None
+    try:
+        loaded_root = Path(arguments[2]).resolve(strict=True)
+        manifest = json.loads((loaded_root / "RELEASE.json").read_text())
+        loaded_registry = validate_registry(json.loads(
+            (loaded_root / "config/loop-registry.json").read_text()))
+        loaded_entry = loaded_registry["loops"][loop_id]
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+        return None
+    if (not isinstance(manifest, dict)
+            or loaded_root.parent != root.parent
+            or manifest.get("provenance") != "ancestor-of-origin-main"
+            or manifest.get("release_paths") != "ALL"
+            or not isinstance(manifest.get("sha"), str)
+            or re.fullmatch(r"[0-9a-f]{40}", manifest["sha"]) is None
+            or loaded_entry["label"] != entry["label"]
+            or _resource_class(loaded_entry) != _resource_class(entry)):
+        return None
+    return arguments
+
+
 def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
                        agents_dir: Path | None = None) -> list[str]:
     """Kick only validated loaded-idle owners; reservations recover on failure."""
@@ -541,20 +570,10 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
         except (OSError, ValueError, plistlib.InvalidFileException):
             defer(loop_id)
             continue
-        expected = [str(root / "bin/lm-loop-run"), loop_id, str(root)]
-        if arguments != expected:
-            try:
-                applied = apply_live(
-                    root, installed, safe, target=loop_id, skip_busy=True,
-                    require_current=True,
-                    protocol_reader=durable_protocol_version)
-            except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):
-                defer(loop_id)
-                continue
-            if not any(result.get("ok") and result.get("loaded_arguments") == expected
-                       for result in applied):
-                defer(loop_id)
-                continue
+        expected = _dispatch_arguments(arguments, loop_id, entry, root)
+        if expected is None:
+            defer(loop_id)
+            continue
         service = f"gui/{os.getuid()}/{label}"
         try:
             observed = subprocess.run(
