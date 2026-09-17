@@ -3,6 +3,70 @@
 状態: IN PROGRESS（未完了） — this document defines the next architecture boundary; it does not
 claim that the target control plane, marketplace effects, or cloud deployment are complete.
 
+## Foundation-owner handoff（2026-09-18）
+
+このspecのfoundation owner（このCodex）の責任は、各サイトの応募・契約・納品を実装すること
+ではありません。全Product Loopが同じ実行契約を使えるようにする共通基盤と、その受入れを担当します。
+provider固有の外部操作は、`skills/earn/gig/TODO.md`を持つ別ownerの責任です。
+
+### Foundationで完了し、mainに統合済みの範囲
+
+`MERGE-01`〜`MERGE-07`に記録した次の基盤は、`origin/main`（今回のread-only確認:
+`fc31d1227b6356f917ddc750bbb6bfeef0fe2a7b`）に存在します。
+
+- 7つのagent-engineering skill、source map、Loop Contract。
+- Product Loop catalog、Graph/Eval/notification契約、Local/Cloud gate CLI。
+- runtime statusからmanifestへ結ぶ観測、official receipt/replay-zeroの証拠境界。
+- typed recovery intent → bounded plan → executor → one-owner supervisor の自己修復経路。
+- candidate promotion boundary（runtime・identity・credential・provider effect等の無断変更を拒否）。
+
+これは「全providerが成功した」という意味ではありません。基盤のコードをもう一度別branchへ
+作り直すTODOでもありません。以後は、同じ基盤をprovider ownerが各loopで使い、基盤側は
+受入れゲートの証拠だけを閉じます。
+
+### このfoundation ownerに残る、実際に実行するTODO（順序固定）
+
+1. **A15-08** — main由来の同一release SHAで、異なる2つのbrowser-class ownerの
+   `queued → claimed → started → terminal → released` handoffを自然runで記録する。
+   provider送信や他ownerのprofile/stateは触らない。
+2. **A15-14** — A15-08を含むA15の実測結果を一度判定し、Foundation verdictを記録する。
+   A15-14が未完の間は「Foundation Done」と書かない。
+3. **R2 Local gate** — Git外の実データmanifestを現在のmain-derived releaseで再生成し、
+   `apps/life-manager/scripts/local-completion-gate.js`を実行する。mock・fixture・PID・exit 0を
+   成功証拠にしない。BLOCKなら原因を一つずつtyped stateで残す。
+4. **S-04 real Eval** — Local gate後にbaseline・held-out・safety・cost・live evidence・
+   rollbackを同じcandidate SHAで実行する。評価器自身が権限・identity・provider効果を変更しない。
+5. **R3/R4/R5 Cloud acceptance** — Local/Evalと同一のimmutable SHAをtenant分離したCloudへ
+   配置し、Steel lease/releaseとphone-only human-gate/readbackをcanaryで確認し、Cloud gateを判定する。
+6. **最終release** — 上記が全てPASSした後だけ、一度だけmain由来immutable releaseを本番へ昇格する。
+
+### Provider ownerとの境界
+
+別Codexは自分のworktreeでCoconala、Lancers、CrowdWorks、Mercor、Freelancer、Upwork、
+Mobile等のprovider adapter・browser・account・公式receiptを進めてよい。彼らの完了条件は
+`skills/earn/gig/TODO.md`側にあり、foundation ownerのA15/Local/Eval/Cloud gateと混ぜない。
+各ownerは、providerの成功を主張する前にmainにあるLoop Contract、completion CLI、
+`lm-loop status`、recovery supervisorを使う。共有profile/state/外部effectを二つのownerが同時に
+操作してはならない。
+
+### 現在の観測（read-only、時間で変わる）
+
+- `~/loops/current`はmain SHA `fc31d1227b6356f917ddc750bbb6bfeef0fe2a7b`の
+  `release_paths=ALL` releaseを指す。
+- release-reconcilerは旧loaded SHA `d0401d93…`で`entrypoint_exit_1`、Connectorは
+  `b2feb56c…`で`resource_control_busy`。これは基盤受入れが未完である証拠であり、provider成功の
+  証拠ではない。
+- ディスク空きは約0.37GiB（100%表示）で、`ENOSPC`/SQLite lockが再発し得る。稼働中PIDを
+  このdocs更新から停止・再起動しない。
+
+### Worktree / sessionの終了判定
+
+このfoundation作業の旧実装worktreeは、push・main統合後に削除済みです。したがって、この
+Codexのsessionと一時docs worktreeは、spec更新をmainへ統合した後に閉じて構いません。閉じても
+mainのcommitやskills/CLIは消えません。provider ownerのworktreeや稼働中loopを削除・停止する意味
+ではありません。A15-08、A15-14、R2、S-04、Cloud gateが未完なので、sessionを閉じることと
+Life Manager全体が完成することは同じではありません。
+
 ## Active A15 foundation cursor — atomic remaining TODO
 
 **A15 is one remaining foundation acceptance gate, not a declaration that every
@@ -438,22 +502,24 @@ perform one 87-commit big-bang merge; merge candidate-only skills separately
 if they are useful. Later historical R2–R6 tables remain evidence of the
 superseded plan, not the active cursor.
 
-### Merge-owner TODO for this Codex (exact scope)
+### Merge-owner history（完了。現在のTODOではない）
 
-The following is the TODO for the **merge owner only**. It is separate from
-A15, Coconala, CrowdWorks, Lancers, Mercor, Freelancer, Upwork, Mobile, and
-the other provider/product-loop TODOs. Those remain with their implementation
-owners. The existing implementation worktree is the source; no new merge
-worktree is created for this TODO:
+The following records the already-completed merge slice for the **merge owner**.
+It is separate from A15, Coconala, CrowdWorks, Lancers, Mercor, Freelancer,
+Upwork, Mobile, and the other provider/product-loop TODOs. Those remain with
+their implementation owners. The old candidate worktree is no longer an active
+source and must not be revived for new work:
 
 ```text
-source worktree: /private/tmp/lm-fundamental-runtime-20260916
+source worktree: deleted after merge (historical path: /private/tmp/lm-fundamental-runtime-20260916)
 source branch:   fix/lm-fundamental-runtime-20260916
 source HEAD:     3a70e98867
 ```
 
-The source/main comparison and provider-boundary audit are already recorded
-above; they are preconditions, not TODO items. The actual merge TODO is:
+The source/main comparison and provider-boundary audit below are historical
+evidence, not pending confirmation tasks. `MERGE-01`〜`MERGE-07` are already
+checked off; the active remaining items are only A15-08, A15-14, Local/Eval,
+Cloud acceptance, and the final release listed in the handoff section above.
 
 - [x] **MERGE-01 — merge the Engineering Skills and source map**
   - Merge only: `skills/context-engineering/**`, `skills/eval-engineering/**`,
