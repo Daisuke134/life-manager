@@ -39,8 +39,21 @@ def proof_for(value: dict) -> dict:
         "owner_id": value["loop_id"],
         "occurrence_id": value["occurrence_id"],
         "verified": True,
+        "proof_kind": "postiz_official_readback",
         "provider_receipt_id": "postiz-provider-1",
         "identity": value,
+        "provider_readback": {
+            "provider": "postiz",
+            "state": "PUBLISHED",
+            "post_id": "postiz-provider-1",
+            "account_id": value["account_id"],
+            "integration_ref": value["integration_ref"],
+            "content": {
+                key: value[key]
+                for key in ("video_sha256", "caption_sha256", "media_sha256", "pack_sha256", "media_order_sha256")
+                if key in value
+            },
+        },
     }
 
 
@@ -60,6 +73,12 @@ def test_proof_must_match_every_effect_identity_field():
     wrong_hash["identity"] = {**value, "caption_sha256": "c" * 64}
     assert MODULE.evaluate_proof(value, wrong_hash)["status"] == "inconclusive"
 
+    wrong_provider = proof_for(value)
+    wrong_provider["provider_readback"] = {
+        **wrong_provider["provider_readback"], "account_id": "@wrong-account",
+    }
+    assert MODULE.evaluate_proof(value, wrong_provider)["status"] == "inconclusive"
+
 
 def test_missing_or_unverified_provider_receipt_stays_held():
     value = identity()
@@ -70,6 +89,10 @@ def test_missing_or_unverified_provider_receipt_stays_held():
     unverified = proof_for(value)
     unverified["verified"] = False
     assert MODULE.evaluate_proof(value, unverified)["status"] == "inconclusive"
+
+    missing_readback = proof_for(value)
+    del missing_readback["provider_readback"]
+    assert MODULE.evaluate_proof(value, missing_readback)["status"] == "inconclusive"
 
 
 def test_only_a_released_unknown_row_can_be_cleared():
@@ -95,3 +118,24 @@ def test_only_a_released_unknown_row_can_be_cleared():
     )
     assert held["status"] == "inconclusive"
     assert calls == []
+
+
+def test_carousel_proof_requires_the_exact_ordered_media_hashes():
+    value = identity()
+    media = [f"{chr(97 + i)}" * 64 for i in range(6)]
+    value.update({
+        "product_id": "anicca-ios",
+        "platform": "instagram",
+        "effect_key": "marketing:carousel:anicca-ios:creative:" + "d" * 64 + ":" + "e" * 64 + ":" + "f" * 64,
+        "integration_ref": "integration://postiz/instagram/anicca-carousel",
+        "account_id": "@anicca.carousel",
+        "video_sha256": None,
+        "caption_sha256": "f" * 64,
+        "media_sha256": media,
+        "pack_sha256": "d" * 64,
+        "media_order_sha256": "e" * 64,
+    })
+    proof = proof_for(value)
+    assert MODULE.evaluate_proof(value, proof)["status"] == "ready"
+    proof["provider_readback"]["content"].pop("media_sha256")
+    assert MODULE.evaluate_proof(value, proof)["status"] == "inconclusive"

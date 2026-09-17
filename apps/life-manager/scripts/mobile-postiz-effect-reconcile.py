@@ -83,14 +83,31 @@ def read_identity(path: Path, owner_id: str, occurrence_id: str) -> dict[str, An
 def evaluate_proof(identity: dict[str, Any], proof: dict[str, Any]) -> dict[str, str]:
     owner_id = str(identity.get("loop_id", ""))
     occurrence_id = str(identity.get("occurrence_id", ""))
+    readback = proof.get("provider_readback") if isinstance(proof, dict) else None
+    content = readback.get("content") if isinstance(readback, dict) else None
+    required_content = {
+        key: identity.get(key)
+        for key in ("video_sha256", "caption_sha256", "media_sha256", "pack_sha256", "media_order_sha256")
+        if key in identity
+    }
     if (not _valid_identity(identity, owner_id, occurrence_id)
             or not isinstance(proof, dict)
             or proof.get("owner_id") != owner_id
             or proof.get("occurrence_id") != occurrence_id
             or proof.get("verified") is not True
+            or proof.get("proof_kind") != "postiz_official_readback"
             or not PROVIDER_RECEIPT.fullmatch(str(proof.get("provider_receipt_id", "")))
             or proof.get("identity") != identity):
         return _inconclusive(owner_id, occurrence_id, "provider_proof_identity_mismatch")
+    if (not isinstance(readback, dict)
+            or readback.get("provider") != "postiz"
+            or readback.get("state") != "PUBLISHED"
+            or readback.get("post_id") != proof["provider_receipt_id"]
+            or readback.get("account_id") != identity.get("account_id")
+            or readback.get("integration_ref") != identity.get("integration_ref")
+            or not isinstance(content, dict)
+            or any(content.get(key) != value for key, value in required_content.items())):
+        return _inconclusive(owner_id, occurrence_id, "provider_readback_not_exact")
     return {"status": "ready", "owner_id": owner_id, "occurrence_id": occurrence_id}
 
 
