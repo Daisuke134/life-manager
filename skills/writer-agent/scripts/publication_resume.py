@@ -578,6 +578,44 @@ def _is_nonpublication_quality_audit(
     )
 
 
+def _is_nonpublication_preflight_row(
+    row: dict[str, Any],
+    state: dict[str, Any],
+) -> bool:
+    """Recognize a legacy pending preflight row that proves no publisher ran.
+
+    Early Writer runs recorded destination-shaped rows while quality/media
+    preflight was still failing.  Those rows have no target, URL, provider
+    identifier, or receipt; treating them as a publication boundary strands a
+    run whose durable state is explicitly waiting for target initialization.
+    Keep this allowlist narrower than a generic ``published=false`` check so
+    an effect-capable or unfamiliar schema remains fail-closed.
+    """
+    if set(row) - _NO_EFFECT_LEDGER_KEYS:
+        return False
+    pair = f"{row.get('platform', '')}/{row.get('lang', '')}"
+    if pair not in SUPPORTED_PAIRS:
+        return False
+    state_value = row.get("state")
+    if not isinstance(state_value, str) or not state_value.startswith("pending:"):
+        return False
+    lowered = state_value.lower()
+    if any(token in lowered for token in _NO_EFFECT_STATE_FORBIDDEN_TOKENS):
+        return False
+    if (
+        row.get("run_id") != state.get("run_id")
+        or row.get("topic_id") != state.get("topic_id")
+        or row.get("published") is not False
+        or row.get("verified_logged_in") is not False
+        or row.get("reality_gate") not in {None, ""}
+    ):
+        return False
+    return all(
+        row.get(key) in {None, ""}
+        for key in ("draft_url", "live_url", "public_id", "receipt", "published_at")
+    )
+
+
 def is_self_owned_publication_receipt(
     row: dict[str, Any], state: dict[str, Any]
 ) -> bool:
@@ -3354,6 +3392,7 @@ class PublicationStore:
             if any(
                 not (
                     _is_nonpublication_quality_audit(row, state)
+                    or _is_nonpublication_preflight_row(row, state)
                     or is_self_owned_publication_receipt(row, state)
                     or (
                         row.get("topic_id") == state.get("topic_id")
