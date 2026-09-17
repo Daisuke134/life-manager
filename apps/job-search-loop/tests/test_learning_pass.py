@@ -79,6 +79,37 @@ class LearningPassTests(unittest.TestCase):
         self.assertTrue(official["source_unavailable"])
         self.assertEqual(official["evidence_grade"], "unavailable")
 
+    def test_source_hypothesis_targets_measured_application_to_reply_loss(self):
+        import job_search_loop.mercor_learning_sources as sources
+
+        def fake_run(command, *, timeout=30):
+            if command[0].endswith("crwl"):
+                return 0, "Navigate to Explore; Job fit; Newest; Submit Application; Resume Later", ""
+            return 2, "", "source unavailable"
+
+        with patch.object(sources, "_run", side_effect=fake_run), patch.object(
+            sources.Path, "is_file", return_value=False
+        ):
+            result = collect_sources(
+                observed_at="2026-09-17T11:30:00Z",
+                funnel={
+                    "source": "official-snapshot",
+                    "resolved": 80,
+                    "stage_counts": {
+                        "application": 95, "reply": 0, "offer": 0,
+                        "trial": 0, "contract": 0, "work": 0, "payment": 0,
+                    },
+                },
+            )
+        official = result["sources"][0]
+        self.assertEqual(result["funnel_context"]["loss_stage"], "reply")
+        self.assertEqual(official["target_stage"], "reply")
+        self.assertEqual(official["one_variable"], "application_presentation")
+        self.assertEqual(official["baseline_cohort"]["resolved"], 80)
+        self.assertEqual(official["proposed_change"], {
+            "application_presentation": "profile_fit_summary",
+        })
+
     def test_learning_wake_collects_bounded_mercor_sources_before_strategy_run(self):
         script = (Path(__file__).resolve().parents[1] / "scripts" / "run-learning.sh").read_text()
         self.assertIn("mercor_learning_sources collect", script)
@@ -88,6 +119,7 @@ class LearningPassTests(unittest.TestCase):
         self.assertIn('source_unavailable', script)
         self.assertIn('source collection failed; strategy learning continues', script)
         self.assertIn("--query", script)
+        self.assertIn("--official-snapshot", script)
 
     def test_x_source_requires_first_person_outcome_language(self):
         self.assertEqual(
@@ -133,6 +165,43 @@ class LearningPassTests(unittest.TestCase):
         self.assertEqual(result["source_count"], 1)
         self.assertEqual(result["income_receipts_promoted"], 0)
         self.assertEqual(result["sources"][0]["source_url"], "https://talent.docs.mercor.com/how-to/apply")
+
+    def test_learning_report_preserves_funnel_loss_context(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "sources.json"
+            path.write_text(json.dumps({
+                "version": 1,
+                "source_count": 1,
+                "income_receipts_promoted": 0,
+                "funnel_context": {
+                    "resolved": 80,
+                    "loss_stage": "reply",
+                    "source": "official-snapshot",
+                    "stage_counts": {"application": 95, "reply": 0},
+                },
+                "sources": [{
+                    "source_url": "https://talent.docs.mercor.com/how-to/apply",
+                    "source_kind": "official_guidance",
+                    "evidence_grade": "official",
+                    "source_unavailable": False,
+                    "published_at": None,
+                    "observed_at": "2026-09-17T11:30:00Z",
+                    "author": "Mercor",
+                    "claimed_outcome": "Guidance only",
+                    "target_stage": "reply",
+                    "one_variable": "application_presentation",
+                    "strategy_version": "mercor-fit-evidence-v1",
+                    "baseline_cohort": {
+                        "resolved": 80,
+                        "stage_counts": {"application": 95, "reply": 0},
+                        "loss_stage": "reply",
+                    },
+                    "proposed_change": {"application_presentation": "profile_fit_summary"},
+                }],
+            }), encoding="utf-8")
+            result = summarize_mercor_sources(path)
+        self.assertEqual(result["funnel_context"]["loss_stage"], "reply")
+        self.assertEqual(result["sources"][0]["target_stage"], "reply")
 
     def test_source_observation_keeps_provenance_and_unavailable_surfaces_explicit(self):
         source = build_source_observation(

@@ -10,6 +10,7 @@ REPORT="$EVIDENCE/learning-decision.json"
 SUMMARY="$EVIDENCE/summary.json"
 MERCOR_SOURCES="$EVIDENCE/mercor-learning-sources.json"
 MERCOR_SOURCES_SUMMARY="$EVIDENCE/mercor-learning-sources-summary.json"
+MERCOR_OFFICIAL_SNAPSHOT="${MERCOR_OFFICIAL_SNAPSHOT:-$JOB_SEARCH_STATE_ROOT/mercor/reply/official-snapshot.json}"
 TELEGRAM_OUTBOX="$JOB_SEARCH_STATE_ROOT/telegram-outbox.sqlite3"
 
 mkdir -p "$EVIDENCE" "$JOB_SEARCH_STATE_ROOT/logs"
@@ -28,6 +29,7 @@ else
   "$JOB_SEARCH_PYTHON" -m job_search_loop.mercor_learning_sources collect \
     --output "$MERCOR_SOURCES" \
     --query "${MERCOR_LEARNING_QUERY:-Mercor Japanese AI evaluator application}" \
+    --official-snapshot "$MERCOR_OFFICIAL_SNAPSHOT" \
     >"$MERCOR_SOURCES_SUMMARY"
   SOURCE_RC=$?
   set -e

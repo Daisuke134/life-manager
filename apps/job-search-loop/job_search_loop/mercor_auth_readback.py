@@ -28,14 +28,14 @@ def classify_auth_snapshot(
     if parsed.scheme != "https" or parsed.hostname != "work.mercor.com":
         return "indeterminate"
     text = visible_text.casefold()
-    if login_form_visible is True:
-        return "logged_out"
-    if authenticated_api_status == 401:
-        return "logged_out"
     if authenticated_api_status == 403:
         # A forbidden endpoint can be a provider permission/CORS boundary, not
         # an expired Firebase session. Do not send a magic link on that signal.
         return "indeterminate"
+    if authenticated_api_status == 401:
+        return "logged_out"
+    if login_form_visible is True:
+        return "logged_out"
     if authenticated_api_status == 200:
         return "authenticated"
     # Navigation and content can render before Firebase hydration. Without an

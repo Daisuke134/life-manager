@@ -612,6 +612,12 @@ def _read_object(path: Path) -> dict[str, Any]:
 
 def summarize_mercor_sources(path: Path | None) -> dict[str, Any]:
     """Attach validated source provenance to a private learning report."""
+    unavailable_context = {
+        "resolved": 0,
+        "stage_counts": {},
+        "loss_stage": "unknown",
+        "source": "unavailable",
+    }
     if path is None or not Path(path).is_file():
         return {
             "status": "unavailable",
@@ -619,6 +625,7 @@ def summarize_mercor_sources(path: Path | None) -> dict[str, Any]:
             "source_count": 0,
             "income_receipts_promoted": 0,
             "sources": [],
+            "funnel_context": unavailable_context,
         }
     try:
         value = _read_object(Path(path))
@@ -629,6 +636,7 @@ def summarize_mercor_sources(path: Path | None) -> dict[str, Any]:
             "source_count": 0,
             "income_receipts_promoted": 0,
             "sources": [],
+            "funnel_context": unavailable_context,
         }
     rows = value.get("sources")
     if not isinstance(rows, list):
@@ -638,6 +646,26 @@ def summarize_mercor_sources(path: Path | None) -> dict[str, Any]:
             "source_count": 0,
             "income_receipts_promoted": 0,
             "sources": [],
+            "funnel_context": unavailable_context,
+        }
+    raw_context = value.get("funnel_context")
+    funnel_context = unavailable_context
+    if isinstance(raw_context, Mapping):
+        raw_counts = raw_context.get("stage_counts")
+        counts = {
+            str(stage): number
+            for stage, number in (raw_counts.items() if isinstance(raw_counts, Mapping) else [])
+            if isinstance(stage, str)
+            and isinstance(number, int)
+            and not isinstance(number, bool)
+            and number >= 0
+        }
+        raw_resolved = raw_context.get("resolved")
+        funnel_context = {
+            "resolved": raw_resolved if isinstance(raw_resolved, int) and not isinstance(raw_resolved, bool) and raw_resolved >= 0 else 0,
+            "stage_counts": counts,
+            "loss_stage": str(raw_context.get("loss_stage") or "unknown")[:80],
+            "source": str(raw_context.get("source") or "unknown")[:80],
         }
     accepted: list[dict[str, Any]] = []
     allowed_kinds = {"official_guidance", "first_person", "marketing", "code", "official_receipt"}
@@ -658,7 +686,7 @@ def summarize_mercor_sources(path: Path | None) -> dict[str, Any]:
             or not isinstance(row.get("source_unavailable"), bool)
         ):
             continue
-        accepted.append({
+        accepted_row = {
             "source_url": url.strip(),
             "source_kind": kind,
             "evidence_grade": grade,
@@ -667,12 +695,25 @@ def summarize_mercor_sources(path: Path | None) -> dict[str, Any]:
             "observed_at": str(row.get("observed_at") or ""),
             "author": str(row.get("author") or "")[:200],
             "claimed_outcome": str(row.get("claimed_outcome") or "")[:1000],
-        })
+        }
+        for key in ("target_stage", "one_variable", "strategy_version"):
+            if isinstance(row.get(key), str) and row[key].strip():
+                accepted_row[key] = row[key].strip()[:120]
+        if isinstance(row.get("baseline_cohort"), Mapping):
+            accepted_row["baseline_cohort"] = {
+                "resolved": row["baseline_cohort"].get("resolved", 0),
+                "stage_counts": row["baseline_cohort"].get("stage_counts", {}),
+                "loss_stage": str(row["baseline_cohort"].get("loss_stage") or "unknown")[:80],
+            }
+        if isinstance(row.get("proposed_change"), Mapping) and len(row["proposed_change"]) == 1:
+            accepted_row["proposed_change"] = dict(row["proposed_change"])
+        accepted.append(accepted_row)
     return {
         "status": "loaded",
         "source_count": len(accepted),
         "income_receipts_promoted": 0,
         "sources": accepted,
+        "funnel_context": funnel_context,
     }
 
 

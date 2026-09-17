@@ -63,7 +63,8 @@ Pass order:
    return `provider_fit_status` as the live Mercor Application Fit result (`allowed`, `warning`,
    `blocked`, `not_shown`, or `unknown`) and `requirement_evidence`, one object per material
    requirement with the posting requirement, matching verified `fact_id`, and a disposition such
-   as `verified`, `missing_preferred`, `contradiction`, or `unknown`. If the live fit control is not
+   as `verified`, `missing_preferred`, `contradiction`, or `unknown`. Use `fact_id:null` when no
+   verified fact exists; never invent an evidence ID. If the live fit control is not
    visible, use `not_shown` or `unknown`; never infer `allowed` from a card. Inspect
    high before medium before low. Missing or preferred evidence stays medium and later in the
    queue; it is not a rejection. A material contradiction with a required language, location,

@@ -58,7 +58,12 @@
               "required": ["requirement", "fact_id", "disposition"],
               "properties": {
                 "requirement": {"type": "string", "minLength": 1},
-                "fact_id": {"type": "string", "minLength": 1},
+                "fact_id": {
+                  "anyOf": [
+                    {"type": "string", "minLength": 1},
+                    {"type": "null"}
+                  ]
+                },
                 "disposition": {"type": "string", "minLength": 1}
               }
             }

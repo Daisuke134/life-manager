@@ -396,6 +396,34 @@ class MercorPassContractTests(unittest.TestCase):
             ["allowed", "warning", "blocked", "not_shown", "unknown"],
         )
 
+    def test_missing_requirement_evidence_accepts_null_fact_id(self):
+        schema = json.loads(
+            (ROOT / "schemas" / "mercor-pass-result.v1.schema.json").read_text(encoding="utf-8")
+        )
+        result = {
+            "status": "observed_no_action",
+            "inspected_listings": [{
+                "listing_id": "list-missing-proof",
+                "url": "https://work.mercor.com/explore?listingId=list-missing-proof",
+                "title": "Finance Evaluator",
+                "application_state": "ready",
+                "submit_visible": True,
+                "decision": "rank_medium",
+                "ranking_band": "medium",
+                "ranking_evidence": ["Related finance-services work; years evidence missing"],
+                "provider_fit_status": "warning",
+                "requirement_evidence": [{
+                    "requirement": "3+ years hands-on finance",
+                    "fact_id": None,
+                    "disposition": "missing_preferred",
+                }],
+                "strategy_version": "mercor-fit-evidence-v1",
+            }],
+            "submitted": [], "needs_human": [], "blocked": [],
+            "evidence": {"page_url": "https://work.mercor.com/explore", "screenshot_path": "", "dom_path": ""},
+        }
+        AgentRunner.validate(result, schema)
+
     def test_blocked_fit_cannot_be_submitted(self):
         with self.assertRaisesRegex(ValueError, "blocked_fit_submitted"):
             validate_submission_fit({
