@@ -10,6 +10,7 @@ const { buildRuntimeJob } = require("./runtime-job-store.js");
 const { createContentObjectStore } = require("./content-object-store.js");
 const { resolveRuntimePaths } = require("./runtime-paths.js");
 const { assertMarketingProductFormat } = require("./marketing-format-policy.js");
+const { writeMarketingEffectIdentity } = require("./marketing-effect-identity.js");
 
 const ADAPTER_ID = "marketing-video-publication";
 const LOOP_ID = "marketing.video.publish";
@@ -531,6 +532,21 @@ async function executeMarketingVideoPublicationJob(job, deps = {}) {
     job.tenant_id,
     contract.postizIntegrationRef,
   );
+  writeMarketingEffectIdentity({
+    jobId: job.job_id,
+    effectKey: job.effect_key,
+    productId: contract.productId,
+    formatId: contract.formatId,
+    form: contract.form,
+    locale: contract.locale,
+    platform: contract.platform,
+    creativeId: contract.creativeId,
+    slot: contract.slot,
+    integrationRef: contract.postizIntegrationRef,
+    accountId: profile ? profile.handle : null,
+    videoSha256: videoHash,
+    captionSha256: captionHash,
+  });
   const ledgerPath = services.ledgerPath(job.tenant_id, contract.productId);
   fs.mkdirSync(path.dirname(ledgerPath), { recursive: true, mode: 0o700 });
   let result;

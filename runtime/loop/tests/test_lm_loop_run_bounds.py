@@ -14,7 +14,7 @@ from runtime.host import resource_admission as admission
 from runtime.loop.lm_loop_run import (
     PRE_EFFECT_HINT_ENTRYPOINTS,
     _admission_class, _dispatch_reserved, _host_admission_deferred, _queue_priority,
-    _resource_class,
+    _persist_effect_identity, _resource_class,
     _run_admitted, _run_entrypoint, _runtime_limit, _terminal_outcome,
 )
 
@@ -525,6 +525,23 @@ def test_admitted_child_receives_exact_host_occurrence_identity(tmp_path):
         "browser", "connector", admission_class="revenue",
         coalesced_occurrence_id="connector:run-123")
     assert observed["LIFE_MANAGER_OCCURRENCE_ID"] == "connector:run-123"
+
+
+def test_unknown_effect_identity_moves_from_scratch_to_private_state(tmp_path):
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    sidecar = scratch / "effect-identity.jsonl"
+    sidecar.write_text('{"job_id":"job-1"}\n', encoding="utf-8")
+    state_root = tmp_path / "state"
+
+    ref = _persist_effect_identity(
+        sidecar, state_root, "life-manager-honne-ja", "run-1",
+    )
+
+    assert ref == "lm-effect://life-manager-honne-ja/run-1/identity.jsonl"
+    persisted = state_root / "effect-identities" / "run-1.jsonl"
+    assert persisted.read_text(encoding="utf-8") == '{"job_id":"job-1"}\n'
+    assert persisted.stat().st_mode & 0o777 == 0o600
 
 
 def test_noncoalesced_child_uses_claimed_older_occurrence(tmp_path):

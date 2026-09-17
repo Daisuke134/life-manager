@@ -149,6 +149,58 @@ class LoopCleanupTest(unittest.TestCase):
             ):
                 self.assertEqual(lm_loop_run.main(["job", str(root)]), 0)
 
+    def test_unknown_publish_preserves_effect_identity_before_scratch_cleanup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "release"
+            entrypoint = root / "bin/job.sh"
+            entrypoint.parent.mkdir(parents=True)
+            entrypoint.write_text("#!/bin/sh\n")
+            entrypoint.chmod(0o755)
+            (root / "config").mkdir()
+            (root / "config/loop-registry.json").write_text(json.dumps({
+                "schema_version": 2,
+                "loops": {"job": {
+                    "label": "ai.anicca.job", "domain": "growth",
+                    "entrypoint": "bin/job.sh", "cadence": {"run_at_load": True},
+                    "effect_class": "publish", "state_root": "~/state",
+                    "log_root": "~/state/logs", "cleanup": {"max_runs": 1, "max_age_days": 1},
+                    "provider_route": "deterministic",
+                }},
+            }))
+            (root / "RELEASE.json").write_text(json.dumps({"sha": "a" * 40}))
+            home = Path(directory) / "home"
+            home.mkdir()
+            observed = {}
+
+            def unknown_publish(_command, _entry, _loop_id, env, receipt, *, occurrence_id, on_claimed):
+                observed.update(env)
+                observed["LIFE_MANAGER_OCCURRENCE_ID"] = occurrence_id
+                on_claimed(occurrence_id)
+                Path(env["LIFE_MANAGER_EFFECT_IDENTITY_PATH"]).write_text(
+                    '{"job_id":"marketing-video-publication:job-1"}\n', encoding="utf-8",
+                )
+                receipt.write_text('{"status":"pass","effect":0}\n', encoding="utf-8")
+                return 1
+
+            with (
+                mock.patch.dict(os.environ, {"HOME": str(home)}, clear=False),
+                mock.patch("runtime.loop.lm_loop_run._run_admitted", side_effect=unknown_publish),
+            ):
+                self.assertEqual(lm_loop_run.main(["job", str(root)]), 1)
+
+            self.assertEqual(observed["LIFE_MANAGER_RUN_ID"], observed["LIFE_MANAGER_OCCURRENCE_ID"].split(":", 1)[1])
+            identity_files = list((home / "state/effect-identities").glob("*.jsonl"))
+            self.assertEqual(len(identity_files), 1)
+            self.assertEqual(
+                identity_files[0].read_text(encoding="utf-8"),
+                '{"job_id":"marketing-video-publication:job-1"}\n',
+            )
+            event = json.loads((home / "state/events.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+            self.assertIn(
+                f"lm-effect://job/{observed['LIFE_MANAGER_RUN_ID']}/identity.jsonl",
+                event["evidence_refs"],
+            )
+
     def test_terminal_event_failure_preserves_scratch_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

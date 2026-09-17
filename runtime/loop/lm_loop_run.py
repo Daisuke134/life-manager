@@ -164,6 +164,39 @@ def _atomic_json(path: Path, value: dict) -> None:
         except FileNotFoundError: pass
 
 
+def _persist_effect_identity(sidecar: Path, state_root: Path,
+                             loop_id: str, run_id: str) -> str | None:
+    """Move a run's effect identity out of scratch before unknown-effect cleanup."""
+    if (not SAFE_RUN_ID.fullmatch(loop_id) or not SAFE_RUN_ID.fullmatch(run_id)
+            or loop_id in {".", ".."} or run_id in {".", ".."}):
+        raise ValueError("unsafe effect identity id")
+    try:
+        data = sidecar.read_bytes()
+    except FileNotFoundError:
+        return None
+    if not data.strip():
+        return None
+    directory = state_root / "effect-identities"
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(directory, 0o700)
+    destination = directory / f"{run_id}.jsonl"
+    fd, temporary = tempfile.mkstemp(prefix=f".{run_id}.", suffix=".tmp", dir=directory)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, destination)
+        sidecar.unlink()
+    finally:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+    return f"lm-effect://{loop_id}/{run_id}/identity.jsonl"
+
+
 def _runtime_limit(entry: dict) -> int | None:
     if entry.get("cadence") == {"keep_alive": True}:
         return None
@@ -650,9 +683,19 @@ def main(argv: list[str] | None = None) -> int:
             claimed_occurrence_id = value
         return_code = _run_admitted(command, entry, loop_id, {
             **os.environ, "LIFE_MANAGER_RELEASE_ROOT": str(release_root),
+            "LIFE_MANAGER_RUN_ID": run_id,
+            "LIFE_MANAGER_EFFECT_IDENTITY_PATH": str(scratch / "effect-identity.jsonl"),
             "TMPDIR": f"{scratch}/", "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
         }, host_receipt, occurrence_id=f"{loop_id}:{run_id}", on_claimed=record_claimed)
         host_deferred = _host_admission_deferred(host_receipt, started_ns)
+        effect_identity_ref = None
+        if entry.get("effect_class") != "none" and return_code != 0:
+            try:
+                effect_identity_ref = _persist_effect_identity(
+                    scratch / "effect-identity.jsonl", loop_state_root, loop_id, run_id,
+                )
+            except (OSError, ValueError) as error:
+                print(f"lm-loop-run: effect identity preservation deferred: {error}", file=sys.stderr)
         terminal_saved = False
         try:
             succeeded, deferred, blocker = _terminal_outcome(
@@ -664,6 +707,7 @@ def main(argv: list[str] | None = None) -> int:
                 succeeded=succeeded, deferred=deferred, blocker=blocker,
                 evidence_scheme="lm-loop",
                 claimed_occurrence_id=claimed_occurrence_id,
+                effect_identity_ref=effect_identity_ref,
             )
             append_runtime_event(event_path, event)
             terminal_saved = True
