@@ -21,7 +21,7 @@
 
 ## Cursor and dependency order
 
-`0 auth continuity → 1 baseline → 2 profile → 3 fit → 4 funnel → 5 human resume → 6 learning → 7 one-off voice → 8 release and business proof`. Authentication is the current cursor and must pass before live profile or application work. Each task's own focused tests and review must pass before the next. Tasks 2–6 can be developed separately only with disjoint file ownership; application state and the Mercor account remain serialized.
+`0 auth continuity → 1 baseline → 1A Reply/Paid continuity → 2 profile → 3 fit → 4 funnel → 5 human resume → 6 learning → 7 one-off voice → 8 release and business proof`. Authentication is the current cursor and must pass before live profile or application work. Reply/Paid repair may be investigated read-only alongside Task 0 but effects remain serialized. Each task's own focused tests and review must pass before the next. Tasks 2–6 can be developed separately only with disjoint file ownership; application state and the Mercor account remain serialized.
 
 ### Task 0: Stop unnecessary Mercor login mail and prove session reuse
 
@@ -52,6 +52,18 @@
 - [ ] Build a one-time read-only baseline keyed by stable Mercor listing/application IDs; use `unknown` for absent provider metrics such as profile views. Record the evidence path and official page timestamp for each nonempty stage.
 - [ ] Review the baseline against the private `~/.config/anicca/job-search/profile.json` without writing values into Git. Mark each profile claim `verified`, `unsupported`, or `missing from Mercor` and each active application `submitted`, `incomplete`, `closed`, or `unknown` from its official UI.
 - [ ] Acceptance: report states exact unique counts and the first currently observed loss stage; no contract, payout or profile-view claim is inferred. If readback is unavailable, record the exact missing surface and continue only independent tasks.
+
+### Task 1A: Restore Reply and Paid observation after host admission
+
+**Files:** Inspect `runtime/loop/lm_loop_run.py` host-admission receipt handling, `skills/earn/mercor/scripts/reply-owner`, `apps/job-search-loop/job_search_loop/mercor_reply_snapshot.py`, and `skills/earn/mercor/scripts/paid_adapter.py`. Modify the narrow proven cause only; add the focused test beside that cause. Do not restart other loops or loosen the global admission limit merely to make Mercor pass.
+
+**Observed path:** Latest checked Reply and Paid terminal events are `blocked` with `host_admission_deferred:resource_effect_unknown`. Paid's last result is `official_work_inventory_stale`; `_official_contracts` requires a Reply-produced official contract snapshot no older than 900 seconds. Apply's `pass` does not refresh that snapshot or prove Reply/Paid effects.
+
+- [ ] Read the exact host-admission receipt and its named resource owner for each blocked wake. Determine whether `resource_effect_unknown` represents another live effect, an unreconciled prior effect, or a stale receipt. Inspect the current loaded release SHA and owner state before a change.
+- [ ] Write the smallest focused regression for the proven cause, run it failing, make the minimal repair in its existing owner/host path, then rerun it passing. Preserve effect fencing and existing shared capacity rules.
+- [ ] Observe a natural Reply wake that reads the official Applications/Contracts surfaces and writes a fresh identity-bound contract snapshot. Confirm the relevant Gmail/Telegram reply decision and replay-zero from provider readback; an exit code alone does not count.
+- [ ] Observe a subsequent natural Paid wake that consumes that fresh snapshot. If the official list has no contract, record `observed_empty` with readback; if a contract exists, bind its exact ID and proceed through the authorized work and payment chain. Do not invent contract or earnings rows.
+- [ ] Commit, push, and verify any affected targeted immutable release without restarting siblings. Acceptance: no recurring `resource_effect_unknown` for these owners, Reply snapshot age within 900 seconds when Paid reads it, and both terminal results reflect the official provider state.
 
 ### Task 2: Make profile and résumé evidence a maintained input
 
