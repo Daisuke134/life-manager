@@ -7,7 +7,7 @@ This repository is the source authority for Life Manager. The canonical remote i
 ## Before any development action
 
 - Confirm the Git root, current branch, common Git directory and `origin` before reading or editing source. If the root or remote is not Life Manager, stop and report the mismatch.
-- Run `npm run verify:source-boundary` before editing or pushing. It accepts only this canonical checkout or one of its temporary `.worktrees` and the canonical Life Manager `origin`.
+- Run `bash scripts/verify-source-boundary.sh` before editing or pushing. It accepts only this canonical checkout or one of its temporary `.worktrees` and the canonical Life Manager `origin`.
 - Read the current `superpowers:using-superpowers` skill first. If the harness exposes native skill names, the equivalent entry is `using-superpowers` backed by the linked Superpowers source in `~/.agents/skills/superpowers`. Then read and follow every Superpowers skill that applies to the task before its step. Use the installed skill text as the procedure; do not rely on a copied or stale stage list.
 - Use Ponytail as the minimal-solution check inside that workflow: reuse existing code, native tools and installed dependencies before adding anything.
 - For Life Manager loop, launchd, release, runtime-event, provider-routing or cleanup changes, read `skills/loop-development/SKILL.md` before acting.
