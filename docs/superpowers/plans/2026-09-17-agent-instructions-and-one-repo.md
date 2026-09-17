@@ -37,8 +37,8 @@
 
 ### C. Consolidate only required source
 
-- [ ] C1. Inventory other local repositories and linked worktrees by exact path, Git common directory, remote, branch, dirty state, lock, owner, open PR, active process and source/runtime references. Mark unknowns explicitly.
-- [ ] C2. Compare candidate mobile-app and other Life Manager assets against tracked source in `origin/main`. Classify each as already present, required missing, historical only, or runtime data; record the evidence and target path.
+- [x] C1. Inventory other local repositories and linked worktrees by exact path, Git common directory, remote, branch, dirty state, lock, owner, open PR, active process and source/runtime references. The 2026-09-17 read-only inventory records exact paths and lease state counts in the spec; open-PR and process ownership remain explicit per-candidate unknowns requiring the D1 preflight before any removal.
+- [x] C2. Compare candidate mobile-app and other Life Manager assets against tracked source in `origin/main`. The spec records the classification: starter/runtime source already present; `aniccaios` and private `honne-ai` required-missing candidates; unrelated Swift apps and generated artifacts historical/runtime data.
 - [ ] C3. For each required missing asset, use a dedicated worktree and a small migration PR: copy source, update imports/build/deployment references, run focused verification, merge, and confirm the canonical path is used. Repeat only for verified required assets.
 - [ ] C4. Re-scan active source and deployment references for old checkout paths/remotes. Archive an old repository only when the exact dependency count is zero and its required unmerged work is accounted for.
 
