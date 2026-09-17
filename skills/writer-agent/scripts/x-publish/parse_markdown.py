@@ -214,7 +214,11 @@ def extract_title(markdown: str) -> tuple[str, str]:
         (title, markdown_without_title): Title string and markdown with H1 title removed.
         If title is from H1, it's removed from markdown to avoid duplication.
     """
-    lines = markdown.strip().split('\n')
+    lines = [
+        line
+        for line in markdown.strip().split('\n')
+        if not re.fullmatch(r"\s*<!--\s*title:\s*.*?-->\s*", line)
+    ]
     title = "Untitled"
     title_line_idx = None
 

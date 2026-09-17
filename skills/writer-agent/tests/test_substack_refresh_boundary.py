@@ -13,6 +13,15 @@ assert SPEC.loader is not None
 SPEC.loader.exec_module(MODULE)
 
 
+def test_pair_publication_prefers_language_specific_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SUBSTACK_PUBLICATION", "aniccabuddha.substack.com")
+    monkeypatch.setenv("SUBSTACK_PUBLICATION_EN", "aniccaai2026.substack.com")
+
+    assert MODULE._publication_for_pair("substack/en") == "aniccaai2026.substack.com"
+
+
 def test_refresh_accepts_authenticated_post_bylines_shape() -> None:
     assert MODULE._owned_byline_ids({"postBylines": [{"user_id": 336441894}]}) == {336441894}
 

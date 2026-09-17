@@ -26,6 +26,17 @@ def _publication_host(value):
         value=f"{value}.substack.com"
     return value if value.endswith(".substack.com") else ""
 
+
+def _publication_for_pair(pair):
+    """Resolve the publication host from the pair, never from the JA default."""
+    if pair not in {"substack/ja", "substack/en"}:
+        return ""
+    lang = pair.rsplit("/", 1)[1].upper()
+    specific = os.environ.get(f"SUBSTACK_PUBLICATION_{lang}", "")
+    return _publication_host(specific) or _publication_host(
+        os.environ.get("SUBSTACK_PUBLICATION", "")
+    )
+
 def _draft_publication_host(draft):
     for key in ("publication", "draft_publication", "publication_host", "publication_subdomain", "subdomain"):
         host=_publication_host(draft.get(key))
@@ -104,6 +115,10 @@ def refresh(pair):
     return {"pair":pair,"target":target,"refreshed":True}
 def main():
     p=argparse.ArgumentParser();p.add_argument("--pair",required=True,choices=("substack/ja","substack/en"));a=p.parse_args()
+    publication = _publication_for_pair(a.pair)
+    if not publication:
+        raise SystemExit(f"SUBSTACK publication host is required for {a.pair}")
+    os.environ["SUBSTACK_PUBLICATION"] = publication
     lang=a.pair.rsplit("/", 1)[1]
     cookie=os.environ.get(f"SUBSTACK_SESSION_COOKIE_{lang.upper()}", "").strip()
     if not cookie and lang == "ja":

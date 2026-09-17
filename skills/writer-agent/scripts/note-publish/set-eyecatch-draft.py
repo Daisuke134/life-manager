@@ -21,6 +21,22 @@ thumb = WORK + "/thumb.png"
 if not os.path.exists(thumb):
     raise SystemExit(f"FATAL: {thumb} not found")
 
+
+def open_image_menu(page):
+    """Open Note's image menu across the current SVG and legacy button UIs."""
+    current_control = page.evaluate(
+        """()=>{
+            const svg=document.querySelector('svg[aria-label="画像を追加"]');
+            if (!svg) return false;
+            svg.dispatchEvent(new MouseEvent('click',{bubbles:true}));
+            return true;
+        }"""
+    )
+    if current_control:
+        return "svg"
+    page.click('button[aria-label="画像を追加"]')
+    return "button"
+
 ck = json.load(open(WORK + "/note-cookies.json"))
 cookies = [{"name": k, "value": v, "domain": ".note.com", "path": "/"} for k, v in ck.items()]
 ctx = launch_context(headless=True, humanize=False)
@@ -41,9 +57,9 @@ try:
         print("eyecatch already present; upload skipped")
     else:
         # 1) eyecatch upload
-        pg.click('button[aria-label="画像を追加"]'); time.sleep(2)
+        open_image_menu(pg); time.sleep(2)
         with pg.expect_file_chooser(timeout=8000) as fc:
-            pg.click("text=画像をアップロード")
+            pg.click('button:has-text("画像をアップロード")')
         fc.value.set_files(thumb); time.sleep(4)
 
         # 2) click 保存 in the crop dialog
