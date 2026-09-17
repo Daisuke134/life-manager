@@ -38,6 +38,16 @@ if _canonical.search(md):
             "canonical body diagram is missing: "
             + os.path.join(_search_dirs[0], "body-diagram.png")
         )
+    # The canonical envelope already supplies the reader-visible body figure.
+    # Remove Mermaid source blocks before the generic converter below runs;
+    # otherwise X receives a second Kroki-rendered image (often a tall
+    # vertical diagram) in addition to the immutable body asset and the
+    # readability gate rejects the draft.
+    md = re.sub(
+        r"(?ms)^[ \t]*```mermaid[^\n]*\n.*?^[ \t]*```[ \t]*\n?",
+        "",
+        md,
+    )
     # The canonical envelope is the sole source of X media. Older drafts also
     # carried bare relative copies after the envelope; keeping those paths in
     # the prepared directory makes the parser treat the same cover/body as

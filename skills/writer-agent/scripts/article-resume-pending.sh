@@ -31,6 +31,29 @@ export ARTICLE_ROOT ARTICLE_STATE_DIR STATE_DIR ARTICLE_SKILL_DIR \
   ARTICLE_PROVIDER ARTICLE_PROVIDER_COOLDOWN_SECONDS
 mkdir -p "$(dirname "$LOG")"
 
+# lm-loop-run uses this receipt only for failures proven to happen before any
+# publisher invocation. If it cannot be persisted, the outer runtime keeps the
+# conservative effect-unknown fence instead of guessing.
+write_pre_effect_failure_hint() {
+  local hint_path="${LIFE_MANAGER_RESULT_HINT_PATH:-}"
+  [ -n "$hint_path" ] || return 0
+  python3 - "$hint_path" <<'PY'
+import os
+import sys
+
+path = sys.argv[1]
+flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
+fd = os.open(path, flags, 0o600)
+try:
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write('{"status":"pre_effect_failure","effect":0}\n')
+        handle.flush()
+        os.fsync(handle.fileno())
+finally:
+    os.chmod(path, 0o600)
+PY
+}
+
 [ -d "$STATE_DIR/runs" ] || exit 0
 
 # A durable local pause is the emergency brake for an external-publication
@@ -77,6 +100,7 @@ export GIG_DISK_HEADROOM_KIB
 case "$GIG_DISK_HEADROOM_KIB" in
   ''|*[!0-9]*|0)
     echo "article-resume: disk floor configuration invalid" >>"$LOG"
+    write_pre_effect_failure_hint || true
     exit 1
     ;;
 esac
@@ -86,17 +110,20 @@ if [ -n "${ARTICLE_RESUME_MIN_FREE_BYTES:-}" ]; then
 fi
 DISK_MIN_FREE_BYTES="$(python3 "$ARTICLE_ROOT/scripts/writer_capacity_floor.py" --state-dir "$STATE_DIR")" || {
   echo "article-resume: capacity receipt invalid" >>"$LOG"
+  write_pre_effect_failure_hint || true
   exit 1
 }
 case "$DISK_MIN_FREE_BYTES" in
   ''|*[!0-9]*|0)
     echo "article-resume: disk floor configuration invalid" >>"$LOG"
+    write_pre_effect_failure_hint || true
     exit 1
     ;;
 esac
 if [ "$GIG_DISK_HEADROOM_KIB" -lt "$CANONICAL_DISK_HEADROOM_KIB" ] \
   || [ "$DISK_MIN_FREE_BYTES" -lt "$((CANONICAL_DISK_HEADROOM_KIB * 1024))" ]; then
   echo "article-resume: disk floor configuration below canonical minimum" >>"$LOG"
+  write_pre_effect_failure_hint || true
   exit 1
 fi
 disk_free_bytes() {
@@ -107,6 +134,7 @@ disk_free_bytes() {
 DISK_FREE_BYTES="$(disk_free_bytes)"
 if [ "${DISK_FREE_BYTES:-0}" -lt "$DISK_MIN_FREE_BYTES" ]; then
   echo "article-resume: disk floor blocked publication free=${DISK_FREE_BYTES}bytes required=${DISK_MIN_FREE_BYTES}bytes" >>"$LOG"
+  write_pre_effect_failure_hint || true
   exit 1
 fi
 
@@ -234,59 +262,17 @@ PRE_START_REASON="$(printf '%s' "$PRE_START_DECISION" | jq -r '.reason // empty'
 ADOPTION_ACTIVE=0
 # A calendar rollover must not strand the exact unpublished run that already
 # has durable pending ledger rows. Prefer the start controller's selected run;
-# otherwise adopt only one ledger-backed candidate. Multiple candidates are
-# ambiguous and fail closed instead of silently choosing or creating a run.
-ADOPTION_RUN_ID="$(python3 - "$STATE_DIR" "$QUALITY_LEDGER" "$PRE_START_DECISION" <<'PY'
-import json
-from pathlib import Path
-import re
-import sys
-
-state_root = Path(sys.argv[1]).resolve()
-ledger = Path(sys.argv[2]).resolve()
-decision = json.loads(sys.argv[3])
-runs = state_root / "runs"
-allowed = {"provider-failed-ambiguous", "quality-repair-ready"}
-
-def status(run_id):
-    if not re.fullmatch(r"(?:daily-\d{4}-\d{2}-\d{2}|\d{8}-\d{6})", run_id):
-        return None
-    run_dir = runs / run_id
-    state_path = run_dir / "gates/generation-state.json"
-    prompt = run_dir / "article-daily-prompt.txt"
-    if state_path.is_symlink() or prompt.is_symlink():
-        raise ValueError("adoption evidence is not regular")
-    if not state_path.is_file() or not prompt.is_file():
-        return None
-    value = json.loads(state_path.read_text(encoding="utf-8"))
-    return value.get("status")
-
-selected = decision.get("run_id")
-if isinstance(selected, str) and status(selected) in allowed:
-    print(selected)
-    raise SystemExit(0)
-
-ledger_ids = set()
-if ledger.is_file() and not ledger.is_symlink():
-    for line in ledger.read_text(encoding="utf-8").splitlines():
-        try:
-            row = json.loads(line)
-        except (json.JSONDecodeError, TypeError):
-            continue
-        run_id = row.get("run_id") if isinstance(row, dict) else None
-        if isinstance(run_id, str) and run_id:
-            ledger_ids.add(run_id)
-candidates = sorted(run_id for run_id in ledger_ids if status(run_id) in allowed)
-if len(candidates) > 1:
-    raise ValueError("multiple ledger-backed adoption candidates")
-if candidates:
-    print(candidates[0])
-PY
-)" || {
+# otherwise adopt one persisted publication candidate. Multiple publication
+# candidates remain ambiguous; generation-only quality markers are left to
+# their quality owner instead of blocking today's publication queue.
+ADOPTION_RUN_ID="$(python3 "$ARTICLE_ROOT/scripts/article_adoption_selection.py" \
+  --state-root "$STATE_DIR" --ledger "$QUALITY_LEDGER" \
+  --decision "$PRE_START_DECISION")" || {
   echo "article-resume: prepublication adoption selection failed closed" >>"$LOG"
   exit 1
 }
 PREVALIDATED_QUALITY_PLAN=""
+PUBLICATION_HANDOFF_READY=0
 if [ -n "$ADOPTION_RUN_ID" ]; then
   ADOPTION_RUN_DIR="$STATE_DIR/runs/$ADOPTION_RUN_ID"
   QUALITY_REPAIR_STATE_PATH="$ADOPTION_RUN_DIR/gates/quality-repair-state.json"
@@ -393,6 +379,17 @@ if [ -n "$ADOPTION_RUN_ID" ]; then
         echo "article-resume: quality repair prevalidation identity invalid run=$ADOPTION_RUN_ID" >>"$LOG"
         exit 1
       fi
+    elif [ "$PREVALIDATED_QUALITY_PLAN_RC" -eq 1 ] \
+      && [ "$PREVALIDATED_STATUS" = "REFUSED" ] \
+      && [ "$PREVALIDATED_REASON" = "publication-state-exists" ] \
+      && [ -f "$ADOPTION_RUN_DIR/gates/quality-feedback-recovery-state.json" ] \
+      && jq -e '.status == "publication-prepared" or .status == "publication-invoking" or .status == "handed-to-publication"' \
+        "$ADOPTION_RUN_DIR/gates/quality-feedback-recovery-state.json" >/dev/null 2>>"$LOG"; then
+      # The publication handoff already owns this persisted state.  Let the
+      # foreground planner reconcile its missing targets instead of treating
+      # the quality repair receipt as a fresh prepublication run.
+      PREVALIDATED_QUALITY_PLAN=""
+      PUBLICATION_HANDOFF_READY=1
     elif [ "$PREVALIDATED_QUALITY_PLAN_RC" -eq 1 ] \
       && [ "$PREVALIDATED_STATUS" = "REFUSED" ] \
       && [ "$PREVALIDATED_REASON" = "quality-repair-already-terminal-blocked" ] \
@@ -734,9 +731,16 @@ if [ "$PRIORITY_PUBLICATION_READY" -ne 1 ] \
   exit 0
 fi
 
-if [ "$ADOPTION_ACTIVE" -eq 1 ] && [ "$PRIORITY_PUBLICATION_READY" -ne 1 ]; then
-  echo "article-resume: adopted run remains owned by quality repair run=$GENERATION_RUN_ID" >>"$LOG"
-  exit 0
+if [ "$ADOPTION_ACTIVE" -eq 1 ] \
+  && [ "$PUBLICATION_HANDOFF_READY" -ne 1 ] \
+  && [ "$PRIORITY_PUBLICATION_READY" -ne 1 ]; then
+  if [ -n "$PREVALIDATED_QUALITY_PLAN" ] \
+    || [ -e "$GENERATION_RUN_DIR/gates/quality-repair-state.json" ] \
+    || [ -e "$GENERATION_RUN_DIR/gates/quality-self-heal.json" ]; then
+    echo "article-resume: adopted run remains owned by quality repair run=$GENERATION_RUN_ID" >>"$LOG"
+    exit 0
+  fi
+  echo "article-resume: adopted staged generation has no quality owner; handing same prompt back to article-daily run=$GENERATION_RUN_ID" >>"$LOG"
 fi
 
 if [ -f "$GENERATION_STATE_PATH" ] \

@@ -18,6 +18,29 @@ DEFAULT_RUNNER = REPO_ROOT / "runtime/agent-runner/agent_runner.py"
 SCHEMA = HERE / "shared-model-output.schema.json"
 
 
+def parse_contract_result(text: str) -> object:
+    """Extract the contract JSON from a provider reply with optional preamble.
+
+    The canonical agent runner validates this same boundary before returning a
+    successful summary.  Keep the adapter's final readback aligned with that
+    contract: a judge that says ``I checked...`` followed by one JSON object is
+    valid, while prose with no JSON remains a hard failure.
+    """
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        decoder = json.JSONDecoder()
+        for index, character in enumerate(text):
+            if character not in "{[":
+                continue
+            try:
+                value, _ = decoder.raw_decode(text, index)
+            except json.JSONDecodeError:
+                continue
+            return value
+    raise ValueError("no JSON object in provider result")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=("agent", "judge", "vision", "repair"))
@@ -73,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
         return completed.returncode
     try:
         summary = json.loads((evidence / "summary.json").read_text())
-        value = json.loads(Path(summary["result_path"]).read_text())
+        value = parse_contract_result(Path(summary["result_path"]).read_text())
     except (OSError, KeyError, TypeError, json.JSONDecodeError) as error:
         print(f"writer shared runner result invalid: {error}", file=sys.stderr)
         return os.EX_DATAERR

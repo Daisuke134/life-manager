@@ -38,6 +38,7 @@ from demand_card import (  # noqa: E402
     MIN_FULL_SOURCE_BODIES,
     DemandCardError,
     build_demand_card,
+    normalize_observation_id,
     select_demand_observations,
     validate_demand_card,
 )
@@ -559,29 +560,47 @@ def _normalize_model_demand_observation_ids(
     """
 
     raw_ids = selected_card.get("observation_ids")
-    if (
-        not isinstance(raw_ids, list)
-        or not raw_ids
-        or any(not isinstance(value, str) for value in raw_ids)
-        or len(set(raw_ids)) != len(raw_ids)
-    ):
+    if not isinstance(raw_ids, list) or not raw_ids:
         raise DemandCardError("model demand_card must list unique observation_ids")
-    by_id = {
-        str(row.get("observation_id")): row
-        for row in selected_observations
-        if isinstance(row, Mapping) and isinstance(row.get("observation_id"), str)
-    }
-    if not set(raw_ids) <= set(by_id):
+
+    chosen_ids: list[str] = []
+    for value in raw_ids:
+        try:
+            normalized_id = normalize_observation_id(
+                value, "model demand_card observation_id"
+            )
+        except DemandCardError as error:
+            raise DemandCardError(
+                "model demand_card must list unique observation_ids"
+            ) from error
+        if normalized_id in chosen_ids:
+            raise DemandCardError("model demand_card must list unique observation_ids")
+        chosen_ids.append(normalized_id)
+
+    by_id: dict[str, Mapping[str, Any]] = {}
+    for row in selected_observations:
+        if not isinstance(row, Mapping) or not isinstance(row.get("observation_id"), str):
+            continue
+        normalized_id = normalize_observation_id(row["observation_id"], "observation_id")
+        if normalized_id in by_id:
+            raise DemandCardError("selected observation IDs must be unique")
+        by_id[normalized_id] = row
+    if not set(chosen_ids) <= set(by_id):
         raise DemandCardError("model demand_card references an unsupported observation_id")
-    chosen_ids = list(raw_ids)
     supporting = selected_card.get("binding_observation_ids")
     if isinstance(supporting, Mapping):
-        for values in supporting.values():
+        for field, values in supporting.items():
             if not isinstance(values, list):
                 continue
             for value in values:
-                if isinstance(value, str) and value in by_id and value not in chosen_ids:
-                    chosen_ids.append(value)
+                try:
+                    normalized_id = normalize_observation_id(
+                        value, f"binding_observation_ids.{field}"
+                    )
+                except DemandCardError:
+                    continue
+                if normalized_id in by_id and normalized_id not in chosen_ids:
+                    chosen_ids.append(normalized_id)
     chosen = [by_id[value] for value in chosen_ids]
 
     def is_full_body(row: Mapping[str, Any]) -> bool:
@@ -626,7 +645,8 @@ def _normalize_model_demand_observation_ids(
         for row in selected_observations
         if isinstance(row, Mapping)
         and isinstance(row.get("observation_id"), str)
-        and row.get("observation_id") not in chosen_ids
+        and normalize_observation_id(row["observation_id"], "observation_id")
+        not in chosen_ids
         and body_key(row) is not None
     ]
     for candidate in candidates:
@@ -634,7 +654,9 @@ def _normalize_model_demand_observation_ids(
         if key is None or key in body_keys:
             continue
         family = str(candidate.get("source_family"))
-        candidate_id = str(candidate["observation_id"])
+        candidate_id = normalize_observation_id(
+            candidate["observation_id"], "observation_id"
+        )
         if family_count(family) < MAX_OBSERVATIONS_PER_FAMILY:
             chosen.append(candidate)
             chosen_ids.append(candidate_id)
@@ -790,7 +812,7 @@ def refill_queue(
                 )
                 observation_ids = selected_card["observation_ids"]
                 by_id = {
-                    str(row["observation_id"]): row
+                    normalize_observation_id(row["observation_id"], "observation_id"): row
                     for row in selected_observations or []
                 }
                 bindings = {

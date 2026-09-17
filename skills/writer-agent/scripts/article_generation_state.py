@@ -290,6 +290,195 @@ def _adoption_receipt_matches(
     )
 
 
+def _adopted_staged_prepublication(
+    run_dir: Path,
+    run_id: str,
+    prompt_file: Path,
+    ledger: Path,
+    state: dict[str, Any],
+) -> bool:
+    """Allow one same-prompt retry for a staged provider failure with no quality receipt.
+
+    A provider can return nonzero after writing drafts and before any quality or
+    publication gate exists.  Adoption preserves those bytes, but there is no
+    quality-repair owner to run in that shape.  Resume is safe only when the
+    adoption receipt still binds every staged byte and no external/publication
+    marker has appeared.
+    """
+    if state.get("status") != "quality-repair-ready":
+        return False
+    gates = run_dir / "gates"
+    if any(
+        (gates / name).exists() or (gates / name).is_symlink()
+        for name in (
+            "quality-repair-state.json",
+            "quality-self-heal.json",
+            "quality-self-heal-final.json",
+            "terminal-quality-blocked.json",
+            "publication-state.json",
+        )
+    ):
+        return False
+    if ledger_has_public_effect(ledger, run_id):
+        return False
+    receipt_path = gates / "prepublication-adoption.json"
+    if receipt_path.is_symlink() or not receipt_path.is_file():
+        return False
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        drafts, artifacts = _adoption_manifests(run_dir)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError, GenerationInvariant):
+        return False
+    if _adoption_receipt_matches(
+        receipt,
+        run_id,
+        str(state.get("prompt_sha256", "")),
+        drafts,
+        artifacts,
+    ):
+        return True
+    # Resume bookkeeping may add one of the explicitly allowed pre-publication
+    # receipts after adoption (for example topic-card-resume.json).  Preserve
+    # the original manifest as an immutable subset and accept only regular,
+    # allowlisted additions; any changed or unexpected byte remains fenced.
+    if not isinstance(receipt, dict):
+        return False
+    recorded_drafts = receipt.get("draft_manifest")
+    recorded_artifacts = receipt.get("artifact_manifest")
+    if not isinstance(recorded_drafts, list) or not isinstance(recorded_artifacts, list):
+        return False
+    current_by_path = {
+        item["path"]: item["sha256"] for item in [*drafts, *artifacts]
+    }
+    for item in [*recorded_drafts, *recorded_artifacts]:
+        if (
+            not isinstance(item, dict)
+            or not isinstance(item.get("path"), str)
+            or not isinstance(item.get("sha256"), str)
+            or item["path"] not in current_by_path
+            or current_by_path[item["path"]] != item["sha256"]
+        ):
+            return False
+    recorded_paths = {
+        item["path"]
+        for item in [*recorded_drafts, *recorded_artifacts]
+        if isinstance(item, dict) and isinstance(item.get("path"), str)
+    }
+    added = set(current_by_path) - recorded_paths
+    if any(not _is_allowed_prepublication(path) for path in added):
+        return False
+    return (
+        receipt.get("schema") == "writer.prepublication-adoption"
+        and receipt.get("version") == 1
+        and receipt.get("run_id") == run_id
+        and receipt.get("prompt_sha256") == state.get("prompt_sha256")
+        and receipt.get("artifact_manifest_sha256") == manifest_sha256(recorded_artifacts)
+        and receipt.get("receipt_sha256") == _adoption_receipt_hash(receipt)
+        and receipt.get("publication_state_absent") is True
+        and receipt.get("public_ledger_rows") == 0
+    )
+
+
+def _adopted_current_prepublication(
+    run_dir: Path,
+    run_id: str,
+    prompt_file: Path,
+    ledger: Path,
+    state: dict[str, Any],
+) -> bool:
+    """Recognize an exact adoption receipt after quality artifacts were added.
+
+    Once a provider has produced quality receipts, the staged-resume predicate
+    intentionally no longer applies.  The run is still safely movable when its
+    adoption receipt binds the complete current manifest and no public effect
+    exists; this lets a pruned immutable release be replaced without copying
+    prompt references by hand.
+    """
+    if state.get("status") != "quality-repair-ready":
+        return False
+    if (run_dir / "gates/publication-state.json").exists() or ledger_has_public_effect(
+        ledger, run_id
+    ):
+        return False
+    receipt_path = run_dir / "gates/prepublication-adoption.json"
+    if receipt_path.is_symlink() or not receipt_path.is_file():
+        return False
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        drafts, artifacts = _adoption_manifests(run_dir)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError, GenerationInvariant):
+        return False
+    return _adoption_receipt_matches(
+        receipt,
+        run_id,
+        str(state.get("prompt_sha256", "")),
+        drafts,
+        artifacts,
+    )
+
+
+def _advisory_publication_resume(
+    run_dir: Path,
+    run_id: str,
+    ledger: Path,
+    state: dict[str, Any],
+) -> bool:
+    """Allow only an unpublished, identity-safe advisory handoff to rebind."""
+    repair_state_path = run_dir / "gates/quality-repair-state.json"
+    if repair_state_path.is_symlink() or not repair_state_path.is_file():
+        return False
+    try:
+        repair_state = json.loads(repair_state_path.read_text(encoding="utf-8"))
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return False
+    if (
+        state.get("status") != "quality-repair-ready"
+        or not isinstance(repair_state, dict)
+        or repair_state.get("status") != "terminal-incomplete"
+    ):
+        return False
+    if (run_dir / "gates/publication-state.json").exists() or ledger_has_public_effect(
+        ledger, run_id
+    ):
+        return False
+    gates = run_dir / "gates"
+    try:
+        quality = json.loads((gates / "quality-self-heal.json").read_text(encoding="utf-8"))
+        attempt = json.loads(
+            (gates / "quality-self-heal-attempt-1.json").read_text(encoding="utf-8")
+        )
+    except (OSError, TypeError, ValueError, json.JSONDecodeError):
+        return False
+    if not isinstance(quality, dict) or quality != attempt:
+        return False
+    if not (
+        quality.get("version") == 2
+        and quality.get("run_id") == run_id
+        and quality.get("attempt") == 1
+        and quality.get("action") == "force_publish_advisory"
+        and quality.get("publication_policy") == "continuous"
+        and quality.get("quality_advisory") is True
+        and quality.get("force_publish_after_iterations") == 1
+        and quality.get("receipt_sha256") == _adoption_receipt_hash(quality)
+    ):
+        return False
+    records = quality.get("quality")
+    if not isinstance(records, dict):
+        return False
+    for lang in ("ja", "en"):
+        draft = run_dir / f"article-{lang}.md"
+        record = records.get(lang)
+        if (
+            draft.is_symlink()
+            or not draft.is_file()
+            or not isinstance(record, dict)
+            or record.get("article_sha256") != file_sha256(draft)
+            or record.get("identity") != "PASS"
+        ):
+            return False
+    return True
+
+
 def adopt_prepublication(
     run_dir: Path, run_id: str, prompt_file: Path, ledger: Path
 ) -> dict[str, Any]:
@@ -313,6 +502,10 @@ def adopt_prepublication(
         drafts, artifacts = _adoption_manifests(resolved)
 
         if state.get("status") == "quality-repair-ready":
+            if _adopted_staged_prepublication(
+                resolved, run_id, prompt_file, ledger, state
+            ):
+                return {"action": "unchanged", "status": "quality-repair-ready"}
             if receipt_path.is_symlink() or not receipt_path.is_file():
                 raise GenerationInvariant("adoption receipt is missing")
             receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
@@ -350,7 +543,7 @@ def adopt_prepublication(
             if receipt_path.is_symlink() or not receipt_path.is_file():
                 raise GenerationInvariant("adoption receipt is not regular")
             receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-            if not _adoption_receipt_matches(
+            if _adoption_receipt_matches(
                 receipt,
                 run_id,
                 state["prompt_sha256"],
@@ -358,8 +551,56 @@ def adopt_prepublication(
                 artifacts,
                 state_before_sha256,
             ):
-                raise GenerationInvariant("orphan adoption receipt does not match current evidence")
-            action = "recovered"
+                action = "recovered"
+            else:
+                # A prior adoption can be followed by another failed,
+                # publication-free generation attempt. Preserve that
+                # receipt in history, then bind the newer manifest instead
+                # of silently overwriting evidence or deadlocking repair.
+                prior_sha = receipt.get("receipt_sha256")
+                prior_valid = bool(
+                    receipt.get("schema") == "writer.prepublication-adoption"
+                    and receipt.get("version") == 1
+                    and receipt.get("run_id") == run_id
+                    and receipt.get("from_status") == "provider-failed-ambiguous"
+                    and receipt.get("to_status") == "quality-repair-ready"
+                    and receipt.get("publication_state_absent") is True
+                    and receipt.get("public_ledger_rows") == 0
+                    and isinstance(prior_sha, str)
+                    and prior_sha == _adoption_receipt_hash(receipt)
+                )
+                if not prior_valid:
+                    raise GenerationInvariant(
+                        "orphan adoption receipt does not match current evidence"
+                    )
+                history_dir = resolved / "gates/prepublication-adoption-history"
+                if history_dir.is_symlink():
+                    raise GenerationInvariant("adoption history is symlinked")
+                history_dir.mkdir(exist_ok=True)
+                history_path = history_dir / f"{prior_sha}.json"
+                if history_path.exists() or history_path.is_symlink():
+                    raise GenerationInvariant("adoption history collision")
+                receipt_path.replace(history_path)
+                drafts, artifacts = _adoption_manifests(resolved)
+                receipt = {
+                    "schema": "writer.prepublication-adoption",
+                    "version": 1,
+                    "run_id": run_id,
+                    "adopted_at": utc_now(),
+                    "from_status": "provider-failed-ambiguous",
+                    "to_status": "quality-repair-ready",
+                    "generation_state_before_sha256": state_before_sha256,
+                    "prompt_sha256": state["prompt_sha256"],
+                    "draft_manifest": drafts,
+                    "artifact_manifest": artifacts,
+                    "artifact_manifest_sha256": manifest_sha256(artifacts),
+                    "publication_state_absent": True,
+                    "public_ledger_rows": 0,
+                    "supersedes_receipt_sha256": prior_sha,
+                }
+                receipt["receipt_sha256"] = _adoption_receipt_hash(receipt)
+                _atomic_write(receipt_path, receipt)
+                action = "adopted-after-retry"
         else:
             receipt = {
                 "schema": "writer.prepublication-adoption",
@@ -463,26 +704,55 @@ def rebind_release(
         raise GenerationInvariant("current root is not a writer-agent release path")
     with _lock(state_path):
         state = _load(state_path)
-        if state.get("run_id") != run_id or state.get("status") not in {
+        staged_resume = _adopted_staged_prepublication(
+            resolved, run_id, prompt_file, ledger, state
+        )
+        adopted_resume = staged_resume or _adopted_current_prepublication(
+            resolved, run_id, prompt_file, ledger, state
+        )
+        advisory_resume = _advisory_publication_resume(
+            resolved, run_id, ledger, state
+        )
+        allowed_statuses = {
             "provider-failed-safe",
             "provider-failed-ambiguous",
             "interrupted-safe",
-        }:
+        }
+        if adopted_resume or advisory_resume:
+            allowed_statuses.add("quality-repair-ready")
+            allowed_statuses.add("terminal-incomplete")
+        if state.get("run_id") != run_id or state.get("status") not in allowed_statuses:
             raise GenerationInvariant("generation state is not safely resumable")
         safe, reason = prepublication_empty(resolved, run_id, ledger)
+        if adopted_resume or advisory_resume:
+            safe, reason = True, "adopted-staged-prepublication"
         if not safe:
             raise GenerationInvariant(reason)
         original = prompt_file.read_bytes()
         if state.get("prompt_sha256") != hashlib.sha256(original).hexdigest():
             raise GenerationInvariant("prompt hash does not match generation state")
-        pattern = re.compile(
-            re.escape(str(releases_dir)).encode()
-            + rb"/[^/\s`\"']+/skills/writer-agent"
-        )
-        roots = set(pattern.findall(original))
+        patterns = [
+            re.compile(
+                re.escape(str(releases_dir)).encode()
+                + rb"/[^/\s`\"']+/skills/writer-agent"
+            ),
+            re.compile(
+                re.escape(
+                    str(Path(os.environ.get("LOOPS_ROOT", "~/loops")).expanduser() / "current")
+                ).encode()
+                + rb"/skills/writer-agent"
+            ),
+        ]
+        roots = {
+            match
+            for pattern in patterns
+            for match in pattern.findall(original)
+        }
         if not roots:
             raise GenerationInvariant("prompt contains no writer release root")
-        updated = pattern.sub(str(current_root).encode(), original)
+        updated = original
+        for pattern in patterns:
+            updated = pattern.sub(str(current_root).encode(), updated)
         if updated == original:
             return {"action": "unchanged", "prompt_sha256": state["prompt_sha256"]}
         _atomic_write_bytes(prompt_file, updated)
@@ -497,6 +767,16 @@ def rebind_release(
                 "previous_prompt_sha256": previous_sha,
             }
         )
+        if adopted_resume:
+            adoption_path = resolved / "gates/prepublication-adoption.json"
+            adoption = json.loads(adoption_path.read_text(encoding="utf-8"))
+            adoption["prompt_sha256"] = state["prompt_sha256"]
+            adoption["receipt_sha256"] = _adoption_receipt_hash(adoption)
+            _atomic_write(adoption_path, adoption)
+            transitions = state.get("transitions")
+            if isinstance(transitions, list) and transitions and isinstance(transitions[-1], dict):
+                if transitions[-1].get("action") == "adopt-prepublication":
+                    transitions[-1]["receipt_sha256"] = adoption["receipt_sha256"]
         _atomic_write(state_path, state)
         return {"action": "rebound", "prompt_sha256": state["prompt_sha256"]}
 
@@ -516,7 +796,12 @@ def begin(
         state = _load(state_path)
         if state.get("run_id") != run_id or state.get("prompt_sha256") != file_sha256(prompt_file):
             raise GenerationInvariant("prompt or run identity changed")
+        staged_resume = _adopted_staged_prepublication(
+            resolved, run_id, prompt_file, ledger, state
+        )
         safe, reason = prepublication_empty(resolved, run_id, ledger)
+        if staged_resume:
+            safe, reason = True, "adopted-staged-prepublication"
         quality_reroute = _quality_reroute_pending(resolved, run_id, ledger)
         if not safe and not quality_reroute:
             raise GenerationInvariant(reason)
@@ -527,6 +812,8 @@ def begin(
         }
         if _failed_before_publication(state):
             allowed_statuses.add("provider-failed-ambiguous")
+        if staged_resume:
+            allowed_statuses.add("quality-repair-ready")
         if quality_reroute:
             allowed_statuses.add("provider-returned")
         if state.get("status") not in allowed_statuses:
@@ -868,6 +1155,19 @@ def resume_decision(
         ):
             return {"resumable": False, "reason": "generation-state-not-safe"}
         if state.get("status") == "quality-repair-ready":
+            if _adopted_staged_prepublication(
+                resolved, run_id, prompt_file, ledger, state
+            ):
+                attempts = state.get("attempts", [])
+                maximum = int(
+                    state.get("maximum_attempts", MAX_GENERATION_ATTEMPTS)
+                )
+                if isinstance(attempts, list) and _charged_attempt_count(state) < maximum:
+                    return {
+                        "resumable": True,
+                        "reason": "adopted-staged-prepublication",
+                        "status": "quality-repair-ready",
+                    }
             return {
                 "resumable": False,
                 "reason": "quality-repair-ready",

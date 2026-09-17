@@ -301,6 +301,12 @@ def plan_oldest(state_root: Path, now: datetime) -> dict[str, Any]:
             store = PublicationStore(state_path, ledger)
             worker_plan = store.worker_plan()
             if worker_plan.get("resumable") is not True:
+                # A terminal run is not an invalid incomplete run.  Its
+                # durable completion is already represented by the verified
+                # live ledger set; do not feed its full pair set into the
+                # partial-initialization validator on every future tick.
+                if worker_plan.get("reason") == "all-complete":
+                    continue
                 initialization = store.initialization_plan()
                 if initialization.get("initializable") is not True:
                     blocked_reason = str(
@@ -351,8 +357,11 @@ def plan_oldest(state_root: Path, now: datetime) -> dict[str, Any]:
     if not discovered:
         if blocked_runs:
             return {
-                "status": "BLOCKED",
-                "reason": "invalid-incomplete-run",
+                # There is no actionable publication run. Keep the historical
+                # diagnostics for the repair dispatcher, but do not report the
+                # publication queue itself as blocked or starve today's run.
+                "status": "IDLE",
+                "reason": "no-valid-incomplete-run",
                 "blocked_runs": blocked_runs,
             }
         return {"status": "IDLE", "reason": "no-valid-incomplete-run"}

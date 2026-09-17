@@ -266,8 +266,20 @@ case "$PHASE" in
         ;;
     esac
 
-    # Record to account-history (HR-C) — honest draft status, not a fabricated "posted"
-    . "$LIFE_MANAGER_REPO/skills/_shared/lib/account-history.sh"
+    # Record to account-history (HR-C) — honest draft status, not a fabricated "posted".
+    # A sparse/main checkout may not carry the shared helper even though the
+    # immutable Writer release does.  Prefer the configured repo for normal
+    # runs, then fall back to the release-local shared library without changing
+    # any payload or state ownership.
+    ACCOUNT_HISTORY_LIB="$LIFE_MANAGER_REPO/skills/_shared/lib/account-history.sh"
+    if [[ ! -f "$ACCOUNT_HISTORY_LIB" ]]; then
+      ACCOUNT_HISTORY_LIB="$SKILL_DIR/../_shared/lib/account-history.sh"
+    fi
+    [[ -f "$ACCOUNT_HISTORY_LIB" ]] || {
+      echo "❌ account-history helper missing from repo and immutable release" >&2
+      exit 1
+    }
+    . "$ACCOUNT_HISTORY_LIB"
     CTX="$(bash "$SKILL_DIR/scripts/propose.sh" --channel "$CHANNEL" 2>/dev/null || echo '{}')"
     PATTERN_ID="$(printf '%s' "$CTX" | jq -r '.pattern.source_id // "unknown"')"
     STRUCT_TYPE="$(printf '%s' "$CTX" | jq -r '.pattern.niche_tags[0] // "article"')"

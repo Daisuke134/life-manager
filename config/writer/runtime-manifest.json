@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "runtime_root": "skills/writer-agent",
-  "runtime_tree_sha256": "3edfb2ad69520ed619a80fcba53c4823da21d8bb9406c70a2ec30845e60c5e6e",
-  "runtime_file_count": 531,
+  "runtime_tree_sha256": "8fbd6b30b46c038e0c6d8672759fd1851c345a791a7da78fb4736b8741f2ab13",
+  "runtime_file_count": 533,
   "hash_algorithm": "sha256(sorted relative path + NUL + file bytes + NUL; excludes state and cache directories)",
   "source": {
     "repository": "https://github.com/Daisuke134/life-manager.git",
     "path": "skills/writer-agent",
-    "commit": "aa887b31080e34f769db7f937bf0db4f7f92b8e0",
+    "commit": "cb2bc5ccb4c65617cf36f85427445c9891247440",
     "status": "canonical source on merged main"
   },
   "active_release": {
@@ -15,7 +15,7 @@
       "25e45d359b64333943d8b45fcc7e740e16a4f37b",
       "7c71c900394167a19a48d4f86ccec78baea90d04"
     ],
-    "status": "all 14 installed Writer labels load repository-owned immutable releases"
+    "status": "registry/manifest parity reconciled for 15 Writer labels; release apply pending"
   },
   "state": {
     "active": "~/.local/state/life-manager/writer",
@@ -23,7 +23,7 @@
     "credentials": "~/.config/life-manager/accounts",
     "owner_fence": "~/.local/state/life-manager/writer/owner-fence",
     "validation": {
-      "status": "all-14-installed-labels-use-canonical-state",
+      "status": "all-15-registry-labels-use-canonical-state-after-apply",
       "target_directory_mode": "0700",
       "legacy_evidence_path": "~/.local/state/life-manager/writer/legacy-writer-engine-evidence",
       "legacy_evidence_file_count": 1274,
@@ -33,6 +33,7 @@
   "launchd_labels": [
     "ai.anicca.article-daily",
     "ai.anicca.article-healthcheck",
+    "ai.anicca.article-repair-candidate",
     "ai.anicca.article-resume",
     "ai.anicca.article-zenn-retry",
     "ai.anicca.article-self-improve",
@@ -49,6 +50,7 @@
   "launchd_sources": {
     "ai.anicca.article-daily": "~/Library/LaunchAgents/ai.anicca.article-daily.plist",
     "ai.anicca.article-healthcheck": "~/Library/LaunchAgents/ai.anicca.article-healthcheck.plist",
+    "ai.anicca.article-repair-candidate": "~/Library/LaunchAgents/ai.anicca.article-repair-candidate.plist",
     "ai.anicca.article-resume": "~/Library/LaunchAgents/ai.anicca.article-resume.plist",
     "ai.anicca.article-zenn-retry": "~/Library/LaunchAgents/ai.anicca.article-zenn-retry.plist",
     "ai.anicca.article-self-improve": "~/Library/LaunchAgents/ai.anicca.article-self-improve.plist",
@@ -76,12 +78,12 @@
     "launchctl_readback": "all five retired labels are absent from installed plists and gui launchd"
   },
   "path_audit": {
-    "installed_writer_launchagents": 14,
-    "life_manager_registry_entries": 14,
+    "installed_writer_launchagents": 15,
+    "life_manager_registry_entries": 15,
     "external_cli_labels": 0,
     "retired_external_cli_labels": 5,
     "status": "repository-releases-only",
-    "reason": "installed plist readback proves all 14 Writer labels execute Life Manager immutable releases and use the canonical Writer state"
+    "reason": "registry and manifest contain the same 15 Writer labels; release/apply readback is required before claiming all are loaded"
   },
   "external_dependencies": {
     "writer_engine_cli": "~/.local/bin/writer",
@@ -136,7 +138,7 @@
   },
   "cutover": {
     "status": "repository-releases-only",
-    "reason": "all 14 installed Writer labels use Life Manager immutable releases and canonical state; the five legacy CLI labels, legacy process, plist references and open files are absent",
+    "reason": "all 15 registry Writer labels are represented by the reconciled manifest; immutable release and loaded argv still require fresh apply readback",
     "publication_paused": false,
     "legacy_roots_must_not_be_deleted": false
   },
@@ -144,7 +146,7 @@
     "status": "resolved-for-legacy-retirement",
     "observed": "final external Writer root retirement",
     "evidence": [
-      "all 14 installed Writer labels resolve to repository-owned immutable releases and canonical Writer state",
+      "all 15 registry Writer labels resolve to repository-owned immutable releases and canonical Writer state after the reconciled apply",
       "all five retired legacy CLI labels are absent from installed plists and gui launchd",
       "legacy CLI process, open-file and executable plist references are zero",
       "1274 legacy evidence files were copied into canonical Writer state with matching tree SHA-256 before old roots were deleted"
@@ -155,7 +157,7 @@
   },
   "last_validation": {
     "source_main_sha": "aa887b31080e34f769db7f937bf0db4f7f92b8e0",
-    "installed_writer_labels": 14,
+    "installed_writer_labels": 15,
     "retired_legacy_labels_absent": 5,
     "legacy_processes": 0,
     "legacy_open_files": 0,

@@ -9,7 +9,17 @@ _WRITER_STATE_CALLER="${WRITER_STATE_DIR:-${ARTICLE_STATE_DIR:-${LIFE_MANAGER_ST
 _WRITER_LOG_CALLER="${WRITER_LOG_DIR:-$_WRITER_STATE_CALLER/logs}"
 _WRITER_ENV_CALLER="${LIFE_MANAGER_ENV_FILE:-$HOME/.local/state/life-manager/.env}"
 _LIFE_MANAGER_SOURCE_REPO_CALLER="${LIFE_MANAGER_SOURCE_REPO:-}"
-_WRITER_PYTHON_CALLER="${LIFE_MANAGER_PYTHON:-$(command -v python3)}"
+# Prefer the Life Manager managed venv when the caller did not explicitly
+# choose a Python.  It carries the browser-only dependencies (cloakbrowser,
+# Playwright, websocket client) required by Note/X staging; explicit launchd
+# or user overrides still win.
+_WRITER_MANAGED_PYTHON_DEFAULT="$HOME/.local/share/life-manager/venv/bin/python"
+if [ -x "$_WRITER_MANAGED_PYTHON_DEFAULT" ]; then
+  _WRITER_PYTHON_DEFAULT="$_WRITER_MANAGED_PYTHON_DEFAULT"
+else
+  _WRITER_PYTHON_DEFAULT="$(command -v python3)"
+fi
+_WRITER_PYTHON_CALLER="${LIFE_MANAGER_PYTHON:-$_WRITER_PYTHON_DEFAULT}"
 _WRITER_BROWSER_PYTHON_CALLER="${WRITER_BROWSER_PYTHON:-$_WRITER_PYTHON_CALLER}"
 _WRITER_CLOAK_PYTHON_CALLER="${WRITER_CLOAK_PYTHON:-$_WRITER_BROWSER_PYTHON_CALLER}"
 _ZENN_REPOSITORY_URL_CALLER="${ZENN_REPOSITORY_URL:-}"
