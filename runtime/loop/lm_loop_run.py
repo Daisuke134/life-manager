@@ -357,6 +357,7 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
             try:
                 applied = apply_live(
                     root, installed, safe, target=loop_id, skip_busy=True,
+                    require_current=True,
                     protocol_reader=durable_protocol_version)
             except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):
                 defer(loop_id)
