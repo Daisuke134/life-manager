@@ -408,7 +408,7 @@ function mentalOutcomeDeps(u, nowMs, deps = {}) {
   const supa = SUPA();
   return {
     fetchVerifiedOutcomes: deps.fetchVerifiedOutcomes
-      || ((uid, now) => readVerifiedOutcomes(uid, now, supa)),
+      || ((uid, context) => readVerifiedOutcomes(uid, context && context.nowMs, supa)),
     readOutcomeSendState: deps.readOutcomeSendState
       || ((uid, now, opts) => readOutcomeSendState(uid, now, supa, undefined, opts)),
     recordOutcomeSend: deps.recordOutcomeSend
