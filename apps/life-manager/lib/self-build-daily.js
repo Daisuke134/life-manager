@@ -146,8 +146,11 @@ function readMetricFocus(options = {}) {
     const match = line.match(/^([a-z_]+):\s*(-?\d+(?:\.\d+)?)\s*$/);
     if (match) values[match[1]] = Number(match[2]);
   }
+  const startedUsers = Number.isFinite(values.funnel_started_users)
+    ? values.funnel_started_users
+    : values.funnel_users;
   const stages = [
-    ["calendar", values.funnel_users, values.funnel_calendar_connected],
+    ["calendar", startedUsers, values.funnel_calendar_connected],
     ["phone", values.funnel_calendar_connected, values.funnel_phone_saved],
     ["call", values.funnel_phone_saved, values.funnel_call_opt_in],
     ["paid", values.funnel_call_opt_in, values.funnel_paid],
@@ -157,7 +160,7 @@ function readMetricFocus(options = {}) {
     .map(([focus, from, to]) => ({ focus, drop: Math.max(0, from - to) }));
   if (!drops.length) return null;
   drops.sort((left, right) => right.drop - left.drop || left.focus.localeCompare(right.focus));
-  return { focus: drops[0].focus, values, statePath: file };
+  return { focus: drops[0].focus, values, drops, statePath: file };
 }
 
 

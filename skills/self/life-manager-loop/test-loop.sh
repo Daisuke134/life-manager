@@ -23,5 +23,7 @@ a "billing period end"   "$(run_billing)"                                       
 a "billing refunds"      "$(run_billing)"                                                                                                  '^refund_count: 2$'
 a "billing failures"     "$(run_billing)"                                                                                                  '^failed_payment_count: 2$'
 a "funnel users"         "$(run_billing)"                                                                                                  '^funnel_users: 2$'
+a "funnel started"       "$(run_billing)"                                                                                                  '^funnel_started_users: 2$'
+a "funnel unstarted"     "$(run_billing)"                                                                                                  '^funnel_unstarted_users: 0$'
 a "funnel call opt-in"   "$(run_billing)"                                                                                                  '^funnel_call_opt_in: 1$'
 echo "=== life-manager-loop: $PASS passed $FAIL failed ==="; [ "$FAIL" = 0 ] && echo GREEN || exit 1

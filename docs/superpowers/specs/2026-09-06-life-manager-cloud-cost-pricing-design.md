@@ -467,13 +467,13 @@ lookup key `life_manager_monthly_29`; a new Payment Link was created at
 and Managed Payments disabled. The old `$20` Payment Link was disabled after the new link was verified.
 Railway production `LM_STRIPE_PAYMENT_LINK` now reads back as the new URL and `/health` remains 200.
 
-**2026-09-18 funnel/self-build readback:** The same money-loop wake now reads Supabase production
-funnel counts without persisting personal fields: `funnel_users=315`, stage counts
-`calendar=4,done=1,null=310`, Calendar connections `3`, saved phones `3`, call opt-ins `2`,
-`paid=1`, and `active_plan=0`. The self-build picker now reads this private state, identifies the
-largest measured funnel drop (`calendar` here), and prioritizes a loop-authored PR carrying the matching
-`[lm-metric-focus:<stage>]` marker while preserving the existing eligibility and merge guard.
-The picker/runtime suites pass 79/79; this proves metric-aware selection, not a growth result.
+**2026-09-18 funnel/self-build readback:** The money-loop reads Supabase production without persisting
+personal fields: `funnel_users=315`, stage counts `calendar=4,done=1,null=310`, Calendar connections
+`3`, saved phones `3`, call opt-ins `2`, `paid=1`, and `active_plan=0`. The cohort correction now
+also records `funnel_started_users=6` and `funnel_unstarted_users=309`; the self-build picker uses
+the started cohort as the Calendar denominator instead of treating all pre-start rows as Calendar
+drop-off. The corrected Calendar drop is therefore `6→3`, not `315→3`. The picker/runtime suites
+pass 79/79; this proves measurement selection, not a growth result.
 
 **2026-09-18 landing/marketing readback:** The canonical Netlify landing source now shows the live
 `$29/month` cloud plan and Telegram start CTA in English and Japanese; the stale `$20` and free-trial

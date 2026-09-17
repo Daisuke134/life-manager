@@ -133,6 +133,8 @@ test("readMetricFocus chooses the largest measured funnel drop", () => {
   const state = path.join(dir, "STATE.md");
   fs.writeFileSync(state, [
     "funnel_users: 315",
+    "funnel_started_users: 5",
+    "funnel_unstarted_users: 310",
     "funnel_calendar_connected: 3",
     "funnel_phone_saved: 3",
     "funnel_call_opt_in: 2",
@@ -141,6 +143,8 @@ test("readMetricFocus chooses the largest measured funnel drop", () => {
   const focus = readMetricFocus({ statePath: state });
   assert.equal(focus.focus, "calendar");
   assert.equal(focus.values.funnel_users, 315);
+  assert.equal(focus.values.funnel_started_users, 5);
+  assert.equal(focus.drops.find((drop) => drop.focus === "calendar").drop, 2);
 });
 
 

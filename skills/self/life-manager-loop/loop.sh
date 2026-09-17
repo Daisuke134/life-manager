@@ -120,16 +120,24 @@ try:
     for row in users:
         stage=str(row.get("tg_onboard_stage") or "null")
         stages[stage]=stages.get(stage,0)+1
+    started=sum(
+        bool(row.get("tg_onboard_stage"))
+        or bool(row.get("calendar_connected_account_id"))
+        or bool(row.get("phone"))
+        or row.get("paid") is True
+        or row.get("plan_status") == "active"
+        for row in users
+    )
     connected=sum(bool(row.get("calendar_connected_account_id")) for row in users)
     phone=sum(bool(row.get("phone")) for row in users)
     paid=sum(row.get("paid") is True for row in users)
     active=sum(row.get("plan_status") == "active" for row in users)
     stages_text=",".join(f"{key}={stages[key]}" for key in sorted(stages))
-    print("ok",len(users),connected,phone,paid,active,stages_text,sep="\t")
+    print("ok",len(users),started,len(users)-started,connected,phone,paid,active,stages_text,sep="\t")
 except Exception:
     print("error", "NA", "NA", "NA", "NA", "NA", sep="\t")
 ')"
-IFS=$'\t' read -r FUNNEL_PARSE_STATUS FUNNEL_USERS FUNNEL_CALENDAR FUNNEL_PHONE FUNNEL_PAID FUNNEL_ACTIVE_PLAN FUNNEL_STAGES <<<"$FUNNEL_USER_METRICS"
+IFS=$'\t' read -r FUNNEL_PARSE_STATUS FUNNEL_USERS FUNNEL_STARTED FUNNEL_UNSTARTED FUNNEL_CALENDAR FUNNEL_PHONE FUNNEL_PAID FUNNEL_ACTIVE_PLAN FUNNEL_STAGES <<<"$FUNNEL_USER_METRICS"
 FUNNEL_PREF_METRICS="$(printf '%s' "$LM_FUNNEL_PREFS" | python3 -c '
 import json,sys
 try:
@@ -168,6 +176,8 @@ TMP="$STATE_MD.tmp.$$"
   echo "failed_payment_count: $LM_FAILED_PAYMENTS"
   echo "funnel_source: ${FUNNEL_SOURCE:-none}"
   echo "funnel_users: $FUNNEL_USERS"
+  echo "funnel_started_users: $FUNNEL_STARTED"
+  echo "funnel_unstarted_users: $FUNNEL_UNSTARTED"
   echo "funnel_calendar_connected: $FUNNEL_CALENDAR"
   echo "funnel_phone_saved: $FUNNEL_PHONE"
   echo "funnel_paid: $FUNNEL_PAID"
