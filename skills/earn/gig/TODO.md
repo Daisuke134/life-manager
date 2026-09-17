@@ -1017,7 +1017,11 @@ CrowdWorks engineering cursor, not the parallel schedule or owners of other plat
 - [ ] **CW-1 — exact inventory:** Re-read proposal `306120094` and contracts `63659463`/`63657015`
   through the existing authenticated owner; record exact status, escrow, milestone, latest buyer request,
   work link and deadline. Repair Paid `provider_inventory` failure and prove a natural wake observes every
-  active contract without treating an unreadable list as empty.
+  active contract without treating an unreadable list as empty. A read-only owner-locked probe on
+  2026-09-17 observed five official funded contracts, including both target IDs; their detail pages expose
+  milestone IDs and multiple Google Form links. The adapter now retains all links and does not discard the
+  contract as `task_unavailable`; local Paid tests pass 38/38. CW-1 remains open until the installed owner
+  gets a natural wake past host admission and persists the same contract inventory/readback.
 - [ ] **CW-2 — one post-contract owner:** Keep Apply independent. Let Reply negotiate and accept on the
   proposal route, then hand the exact contract ID to Paid. Reply must not send a post-contract message or
   submit the same external form; reconcile any old uncertain intent before the handoff.
