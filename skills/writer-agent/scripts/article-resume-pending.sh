@@ -315,6 +315,7 @@ PY
   exit 1
 }
 PREVALIDATED_QUALITY_PLAN=""
+PUBLICATION_HANDOFF_READY=0
 if [ -n "$ADOPTION_RUN_ID" ]; then
   ADOPTION_RUN_DIR="$STATE_DIR/runs/$ADOPTION_RUN_ID"
   QUALITY_REPAIR_STATE_PATH="$ADOPTION_RUN_DIR/gates/quality-repair-state.json"
@@ -421,6 +422,17 @@ if [ -n "$ADOPTION_RUN_ID" ]; then
         echo "article-resume: quality repair prevalidation identity invalid run=$ADOPTION_RUN_ID" >>"$LOG"
         exit 1
       fi
+    elif [ "$PREVALIDATED_QUALITY_PLAN_RC" -eq 1 ] \
+      && [ "$PREVALIDATED_STATUS" = "REFUSED" ] \
+      && [ "$PREVALIDATED_REASON" = "publication-state-exists" ] \
+      && [ -f "$ADOPTION_RUN_DIR/gates/quality-feedback-recovery-state.json" ] \
+      && jq -e '.status == "publication-prepared" or .status == "publication-invoking" or .status == "handed-to-publication"' \
+        "$ADOPTION_RUN_DIR/gates/quality-feedback-recovery-state.json" >/dev/null 2>>"$LOG"; then
+      # The publication handoff already owns this persisted state.  Let the
+      # foreground planner reconcile its missing targets instead of treating
+      # the quality repair receipt as a fresh prepublication run.
+      PREVALIDATED_QUALITY_PLAN=""
+      PUBLICATION_HANDOFF_READY=1
     elif [ "$PREVALIDATED_QUALITY_PLAN_RC" -eq 1 ] \
       && [ "$PREVALIDATED_STATUS" = "REFUSED" ] \
       && [ "$PREVALIDATED_REASON" = "quality-repair-already-terminal-blocked" ] \
@@ -762,7 +774,9 @@ if [ "$PRIORITY_PUBLICATION_READY" -ne 1 ] \
   exit 0
 fi
 
-if [ "$ADOPTION_ACTIVE" -eq 1 ] && [ "$PRIORITY_PUBLICATION_READY" -ne 1 ]; then
+if [ "$ADOPTION_ACTIVE" -eq 1 ] \
+  && [ "$PUBLICATION_HANDOFF_READY" -ne 1 ] \
+  && [ "$PRIORITY_PUBLICATION_READY" -ne 1 ]; then
   if [ -n "$PREVALIDATED_QUALITY_PLAN" ] \
     || [ -e "$GENERATION_RUN_DIR/gates/quality-repair-state.json" ] \
     || [ -e "$GENERATION_RUN_DIR/gates/quality-self-heal.json" ]; then
