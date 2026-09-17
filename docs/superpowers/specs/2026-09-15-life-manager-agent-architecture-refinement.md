@@ -216,6 +216,37 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   contract, generated job fixture and OSS verification passed locally. The
   change is not A15-08 evidence until CI, main-derived apply and natural
   lifecycle readback pass.
+  Current readback at 21:06Z: PR #5495's 300-second registry change is on
+  `origin/main` and complete `current` release `20260918T055806-fc31d122`
+  (`release_paths=ALL`, `provenance=ancestor-of-origin-main`). The installed
+  probe plist still names `47b01035` with `StartInterval=1800`; the installed
+  Connector plist names `b2feb56c` with `StartInterval=1800`. The private
+  admission database has known browser occurrences queued for probe
+  `18d637a70561daa0-193` (sequence 33287) and Connector
+  `18d637a69e0e1260-99735` (sequence 33288), plus a Connector reservation.
+  Thus the remaining mismatch is at loaded job reconciliation and natural
+  lifecycle evidence; changing the registry again does not repair the loaded
+  plists. A concurrent deterministic reconciler was active, so no targeted
+  apply or forced bootout was performed. The latest disk-cleanup terminal was
+  `fail/entrypoint_exit_1` on loaded `a0a4e522`; its latest receipt had
+  `errors=2`, `protected_deletions=0`, and no reclaim, while `df -Pk` showed
+  about 272 MiB free. This is below the 512 MiB producer floor and blocks a
+  new release cut or broad verification run until headroom recovers.
+
+  Next exact patch to production state, using existing code: wait for the
+  active reconciler and browser pending work to reach terminal; verify the
+  browser queue and reservation are clear, cleanup has errors 0/protected
+  deletions 0, and disk is above the producer floor. Then run the existing
+  loaded-idle-only `bin/lm-loop reconcile deterministic --max-owners 1
+  --loop-id <id>` separately for `life-manager-browser-capacity-probe` and
+  `life-manager-connector-native` from the complete main-derived release.
+  Read back both loaded argv and the probe's installed `StartInterval=300`.
+  Keep any `effect_unknown` occurrence fenced. Finally join two *natural*
+  different-owner claims, terminals, releases and the next claim on that
+  same installed SHA; a manual kick or a `pass` on different SHAs cannot
+  close A15-08. If an old runner still rebinds a queued owner, capture its
+  exact PID/release/dispatch event before changing `runtime/loop/lm_loop_run.py`
+  again.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
