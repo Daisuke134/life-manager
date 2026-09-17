@@ -48,13 +48,19 @@ not a claim that money has been earned.
 - **`63568785` undym67231:** the funded contract and buyer Google Doc link are read back. The document
   currently shows `編集権限をリクエスト`; no artifact can be claimed until the buyer grants access or
   supplies the content.
+- **Host headroom:** the bounded existing cleanup owner completed a pass at `2026-09-17T21:30:32Z` with
+  `free_after=8,080,977,920` bytes (about 7.5 GiB). It reclaimed no allow-listed artifact and preserved
+  five candidates (`errors=1`), so capacity is currently above the immediate ENOSPC floor but the cleanup
+  pass itself is not a clean success.
 
 ### Not done (current blockers and open work)
 
 - **Admission blocker:** the Paid owner remains stopped by the exact stale occurrence
   `crowdworks-revenue-paid:18d62a63b8860a80-16007` (`claimed`, `effect_unknown=1`). The current code
   safely refuses to clear this legacy occurrence without an exact occurrence-bound, run-wide pre-effect
-  proof. The latest launchd readback is `state=not running`, `last exit code=75`.
+  proof. Reconcile probes for both persisted-form candidates (`63657015` and `63659463`) returned
+  `exact_persisted_form_intent_unavailable`; the DB row is still unchanged. The latest launchd readback
+  is `state=not running`, `last exit code=75`.
 - **`63657015` Orecon:** the latest wake timed out with `CrowdWorksPaidContractTimeout`; its durable
   form intent for `https://forms.gle/GxTdS4kZr8fbvej68` remains `intent_persisted` with no confirmed
   receipt. Do not retry from the intent alone; first reconcile the official form/provider state.
@@ -65,15 +71,17 @@ not a claim that money has been earned.
   the document, do the requested work, verify buyer-visible access/content and only then deliver.
 - **All five closures:** no contract has buyer acceptance, settlement, payout or verified USD 10,000 MRR.
   `correct_work_verified` is not true for every row; formal delivery and exact readback remain open for
-  four rows. The host also hit `ENOSPC` while creating a worktree during this update, so headroom must be
-  restored before the next build/release mutation.
+  four rows. The host hit `ENOSPC` while creating a worktree during this update; headroom has since
+  recovered above the immediate floor, but the cleanup receipt still records one error and zero reclaimed
+  bytes.
 
 ### Remaining TODO, in execution order
 
-1. **Restore headroom and reconcile the exact admission occurrence.** Safely recover host disk headroom,
-   then use the existing pre-effect reconciliation path for occurrence `18d62a63b8860a80-16007`. Clear it
-   only with exact run-wide evidence or an official provider receipt; never guess and never reinterpret a
-   browser timeout as a provider effect.
+1. **Reconcile the exact admission occurrence.** Headroom recovery is read back, but the cleanup error
+   remains open. Use the existing pre-effect reconciliation path for occurrence
+   `18d62a63b8860a80-16007` only when an exact run-wide marker and matching persisted intent exist. Clear it
+   only with exact evidence or an official provider receipt; never guess and never reinterpret a browser
+   timeout as a provider effect.
 2. **Wake the installed Paid owner without waiting for a global slot.** After reconciliation, kickstart the
    targeted owner and read back its terminal receipt, per-contract state and official active inventory. A
    blocked or slow contract must stay independently represented so other contracts can advance.

@@ -18,7 +18,11 @@ pending. The Paid label is loaded from immutable release `20260918T052034-8c19c9
 (`8c19c9dfdc9c63398fbc10fd44c6771598a55f49`) with a finite 900-second bound, but launchd is currently
 `not running` with exit `75` because the stale occurrence
 `crowdworks-revenue-paid:18d62a63b8860a80-16007` is still `claimed`/`effect_unknown=1`. The new
-pre-effect fence refuses to clear this legacy occurrence without exact run-wide proof.
+pre-effect fence refuses to clear this legacy occurrence without exact run-wide proof. The bounded disk
+cleanup pass recovered free space to `8,080,977,920` bytes but reclaimed zero artifacts and recorded one
+error; the capacity floor is currently cleared, while the cleanup error remains open. Reconcile probes for
+both possible persisted-form contracts returned `exact_persisted_form_intent_unavailable`, so no admission
+state changed.
 
 **Verified contract outcomes:** `63659463` has confirmed Web Ads and common form receipts; its latest
 row is `verified` (`effect=1/readback=1`) but formal delivery, quality verification, acceptance and payout
