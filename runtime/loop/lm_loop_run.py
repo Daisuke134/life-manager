@@ -340,8 +340,6 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
     for loop_id in pending:
         if loop_id in attempted:
             continue
-        if len(attempted) >= 16:
-            break
         attempted.add(loop_id)
         entry = registry["loops"].get(loop_id)
         if not isinstance(entry, dict) or entry.get("cadence", {}).get("keep_alive"):

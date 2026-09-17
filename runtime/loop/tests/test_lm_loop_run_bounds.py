@@ -781,6 +781,41 @@ def test_dispatch_reserved_cancels_missing_registry_owner(tmp_path):
     run.assert_not_called()
 
 
+def test_dispatch_scans_past_sixteen_stale_releases_to_healthy_owner(tmp_path):
+    current = tmp_path / "release"
+    agents = tmp_path / "agents"
+    (current / "config").mkdir(parents=True)
+    agents.mkdir()
+    loop_ids = [f"stale-{index}" for index in range(17)] + ["healthy"]
+    rows = {}
+    for loop_id in loop_ids:
+        label = f"ai.anicca.{loop_id}"
+        rows[loop_id] = {
+            "label": label, "domain": "earn", "entrypoint": "bin/example",
+            "cadence": {"start_interval_seconds": 300}, "effect_class": "none",
+            "state_root": f"~/.local/state/life-manager/{loop_id}",
+            "log_root": f"~/.local/state/life-manager/{loop_id}/logs",
+            "cleanup": {"max_runs": 10, "max_age_days": 7},
+            "provider_route": "deterministic",
+        }
+        args = ([str(current.resolve() / "bin/lm-loop-run"), loop_id, str(current.resolve())]
+                if loop_id == "healthy" else ["/old/bin/lm-loop-run", loop_id, "/old"])
+        (agents / f"{label}.plist").write_bytes(plistlib.dumps({"ProgramArguments": args}))
+    (current / "config/loop-registry.json").write_text(json.dumps({"schema_version": 2, "loops": rows}))
+
+    def launchctl_result(args, **_kwargs):
+        if args[1] == "kickstart":
+            return subprocess.CompletedProcess(args, 0, "")
+        expected = [str(current.resolve() / "bin/lm-loop-run"), "healthy", str(current.resolve())]
+        return subprocess.CompletedProcess(
+            args, 0, "arguments = {\n" + "\n".join(expected) + "\n}\nstate = waiting")
+
+    with (patch("runtime.loop.lm_loop_run.defer_durable_resource", return_value=True),
+          patch("runtime.loop.lm_loop_run.reserve_available_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run.subprocess.run", side_effect=launchctl_result)):
+        assert _dispatch_reserved(loop_ids, current=current, agents_dir=agents) == ["healthy"]
+
+
 def test_dispatch_reserved_tolerates_missing_owner_cancel_failure(tmp_path):
     current = tmp_path / "release"
     agents = tmp_path / "agents"
