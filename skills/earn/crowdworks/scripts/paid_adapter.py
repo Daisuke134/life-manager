@@ -417,6 +417,7 @@ class CrowdWorksPaidAdapter:
     def _detail_once(self, basic: Mapping[str, Any]) -> dict[str, Any]:
         work_id = _text(basic.get("work_id"))
         self._goto_contract(work_id)
+        self._expand_folded_messages()
         body = _text(self.page.locator("body").inner_text(), "crowdworks_paid_contract_unavailable")
         title, client = (_text(basic.get(key)) for key in ("title", "client"))
         if title not in body or client not in body:
@@ -466,6 +467,23 @@ class CrowdWorksPaidAdapter:
                 "form_url": form_urls[0] if len(form_urls) == 1 else None,
                 "proposal_id": proposal_id, "application_date": application_date,
                 "buyer_context": body}
+
+    def _expand_folded_messages(self) -> None:
+        if self.page is None:
+            return
+        try:
+            folded = self.page.get_by_text(re.compile(r"他の\d+件のメッセージを表示"), exact=False)
+            count = folded.count()
+        except Exception:
+            return
+        for index in range(count):
+            try:
+                item = folded.nth(index)
+                if item.is_visible():
+                    item.click()
+                    self.page.wait_for_timeout(300)
+            except Exception:
+                continue
 
     def _proposal_application_date(self, proposal_id: str) -> str | None:
         if self.owned_context is None:
@@ -558,10 +576,12 @@ class CrowdWorksPaidAdapter:
                 continue
             try:
                 digest = hashlib.sha256(url.encode()).hexdigest()
-                receipt = google_form.bound_receipt(
-                    self.state_path, self._form_binding(item, digest))
-                if isinstance(receipt, Mapping) and receipt.get("confirmation_sha256"):
+                if google_form.has_confirmed_bound_receipt(
+                        self.state_path, self._form_binding(item, digest)):
                     completed.append(url)
+            except RuntimeError as error:
+                if str(error) == "google_form_submission_uncertain":
+                    raise
             except Exception:
                 continue
         return sorted(set(completed))
@@ -669,9 +689,7 @@ class CrowdWorksPaidAdapter:
         if not isinstance(raw_urls, list):
             return None
         completed = set(item.get("completed_form_urls") or [])
-        urls = [url for url in raw_urls if url not in completed]
-        if not urls:
-            return FORM_SELECTION_COMPLETE
+        urls = list(raw_urls)
         if not isinstance(candidates, list):
             return None
         candidates = [candidate for candidate in candidates
@@ -686,7 +704,11 @@ class CrowdWorksPaidAdapter:
                 candidate_profile_path=self.candidate_profile,
                 provider_profile=self.provider_profile,
             )
-            source = "契約本文:\n" + str(item.get("buyer_context") or "") + "\n\n" + "\n\n".join(
+            source = "契約本文:\n" + str(item.get("buyer_context") or "")
+            if completed:
+                source += "\n\n既に確認済みのフォーム（買い手が不備を指摘した場合だけ再提出可能）:\n"
+                source += "\n".join(sorted(completed))
+            source += "\n\n" + "\n\n".join(
                 f"URL: {candidate.get('url')}\nタイトル: {candidate.get('title')}\n本文:\n{candidate.get('body')}"
                 for candidate in candidates if isinstance(candidate, Mapping)
             )
@@ -704,15 +726,48 @@ class CrowdWorksPaidAdapter:
         except Exception:
             return None
         selected = value.strip() if isinstance(value, str) else None
+        if selected in completed:
+            item["form_revision"] = True
         if selected == FORM_SELECTION_COMPLETE:
             item["ignored_form_urls"] = sorted(urls)
         return selected if selected in [*urls, FORM_SELECTION_COMPLETE] else None
+
+    def _compose_answer(self, item: Mapping[str, Any]) -> str | None:
+        buyer_context = item.get("buyer_context")
+        if (not isinstance(buyer_context, str) or not buyer_context.strip()
+                or self.candidate_profile is None or self.provider_profile is None
+                or self.state_path is None):
+            return None
+        try:
+            grounding = grounding_module.build_reply_grounding(
+                candidate_profile_path=self.candidate_profile,
+                provider_profile=self.provider_profile,
+            )
+            body = composer.compose({
+                "board": {"title": item.get("title", "")},
+                "grounding": grounding,
+                "conversation": [{"role": "buyer", "body": buyer_context}],
+                "action_contract": {
+                    "kind": "contract_answer",
+                    "question": (
+                        "契約済みの買い手の依頼に対して、次に必要な回答を作成してください。"
+                        "契約本文に編集権限の要求、アクセス不可、または本文不足がある場合は、"
+                        "作業完了を主張せず、閲覧権限の付与または本文の貼付を依頼する回答だけを作成してください。"
+                    ),
+                    "allowed_choices": [],
+                },
+                "provider_rules": {"outside_contact_before_approval": "forbidden"},
+            }, state_root=self.state_path / "compose", task_label="crowdworks-paid-answer")
+        except Exception:
+            return None
+        return body.strip() if isinstance(body, str) and body.strip() else None
 
     def context(self, work_id: str) -> dict[str, Any]:
         try:
             item = self._cached_item(work_id) or self._targeted_detail(work_id)
             urls = item.get("form_urls")
-            if (isinstance(urls, list) and len(urls) > 1 and
+            if (isinstance(urls, list) and urls
+                    and (len(urls) > 1 or item.get("completed_form_urls")) and
                     not isinstance(item.get("form_candidates"), list)):
                 try:
                     if self.owned_context is None:
@@ -815,9 +870,13 @@ class CrowdWorksPaidAdapter:
         )
 
     def _form_binding(self, item: Mapping[str, Any], form_sha256: str) -> dict[str, str]:
-        return {"provider": "crowdworks", "account_id": self.account_id,
-                "contract_id": _text(item.get("work_id")), "milestone_id": _text(item.get("milestone_id")),
-                "form_revision_sha256": form_sha256}
+        binding = {"provider": "crowdworks", "account_id": self.account_id,
+                   "contract_id": _text(item.get("work_id")), "milestone_id": _text(item.get("milestone_id")),
+                   "form_revision_sha256": form_sha256}
+        revision_event = item.get("form_revision_event_id")
+        if isinstance(revision_event, str) and revision_event.strip():
+            binding["revision_event_id"] = revision_event.strip()
+        return binding
 
     def _fill_delivery_message(self, value: str, form: Any | None = None) -> None:
         """Prime CrowdWorks' duplicate message fields before enabling delivery submit."""
@@ -952,10 +1011,13 @@ class CrowdWorksPaidAdapter:
                 available.add(current["form_url"])
             if (current.get("provider_state") != "funded" or payload.get("milestone_id") != current.get("milestone_id")
                     or not isinstance(url, str) or url not in available
-                    or url in set(current.get("completed_form_urls") or [])
+                    or (url in set(current.get("completed_form_urls") or [])
+                        and not (isinstance(payload.get("revision_event_id"), str)
+                                 and payload.get("revision_event_id").strip()))
                     or payload.get("form_sha256") != hashlib.sha256(url.encode()).hexdigest()):
                 raise RuntimeError("crowdworks_paid_context_changed")
-            self._submit_form_once({**current, "form_url": url})
+            self._submit_form_once({**current, "form_url": url,
+                                    "form_revision_event_id": payload.get("revision_event_id")})
         finally:
             self.close()
 
@@ -995,6 +1057,9 @@ class CrowdWorksPaidAdapter:
             form_sha256 = _text(payload.get("form_sha256"))
             binding = {"provider": "crowdworks", "account_id": self.account_id, "contract_id": work_id,
                        "milestone_id": _text(payload.get("milestone_id")), "form_revision_sha256": form_sha256}
+            revision_event_id = payload.get("revision_event_id")
+            if isinstance(revision_event_id, str) and revision_event_id.strip():
+                binding["revision_event_id"] = revision_event_id.strip()
             receipt = google_form.bound_receipt(self.state_path, binding)
             form_done = isinstance(receipt, Mapping) and receipt.get("url_sha256") == form_sha256 and bool(receipt.get("confirmation_sha256"))
             if form_done:
@@ -1030,7 +1095,8 @@ def read_only_inventory() -> dict[str, Any]:
         adapter.close()
 
 
-def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]], str | None] | None = None) -> dict[str, Any]:
+def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]], str | None] | None = None,
+           answer_selector: Callable[[Mapping[str, Any]], str | None] | None = None) -> dict[str, Any]:
     context = row.get("context"); contract = context.get("contract") if isinstance(context, Mapping) else None
     if not isinstance(contract, Mapping):
         raise RuntimeError("crowdworks_paid_context_unavailable")
@@ -1044,8 +1110,20 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
     form_url, milestone_id = contract.get("form_url"), contract.get("milestone_id")
     form_urls = contract.get("form_urls")
     completed = set(contract.get("completed_form_urls") or [])
-    if form_url in completed:
+    if form_url in completed and not contract.get("form_revision"):
         form_url = None
+    if not form_url and not (isinstance(form_urls, list) and form_urls):
+        if contract.get("provider_state") != "funded":
+            return {"action": "wait", "reason": "buyer_task_detail_required",
+                    "remaining_work": ["read the official funded contract task before any delivery effect"]}
+        buyer_context = contract.get("buyer_context")
+        answer = (answer_selector(contract)
+                  if callable(answer_selector) and isinstance(buyer_context, str)
+                  and buyer_context.strip() else None)
+        if isinstance(answer, str) and answer.strip():
+            return {"action": "answer", "payload": {"body": answer.strip()}}
+        return {"action": "wait", "reason": "buyer_task_detail_required",
+                "remaining_work": ["read the complete buyer instruction and compose the required response"]}
     if isinstance(form_urls, list) and form_urls and not form_url:
         selected = form_selector(contract) if callable(form_selector) else None
         if selected == FORM_SELECTION_COMPLETE:
@@ -1072,7 +1150,16 @@ def decide(row: Mapping[str, Any], *, form_selector: Callable[[Mapping[str, Any]
     if not isinstance(contract.get("application_date"), str):
         return {"action": "wait", "reason": "official_application_date_required",
                 "remaining_work": ["locate a labeled official CrowdWorks proposal application date before form submission"]}
-    return {"action": "submit", "payload": {"form_url": form_url, "form_sha256": hashlib.sha256(form_url.encode()).hexdigest(), "milestone_id": milestone_id}}
+    payload = {"form_url": form_url,
+               "form_sha256": hashlib.sha256(form_url.encode()).hexdigest(),
+               "milestone_id": milestone_id}
+    if contract.get("form_revision"):
+        revision_event_id = row.get("latest_event_id")
+        if not isinstance(revision_event_id, str) or not revision_event_id.strip():
+            return {"action": "wait", "reason": "buyer_event_required",
+                    "remaining_work": ["persist the buyer correction event before resubmitting the form"]}
+        payload["revision_event_id"] = revision_event_id.strip()
+    return {"action": "submit", "payload": payload}
 
 
 def build(argv: list[str]):
@@ -1084,7 +1171,8 @@ def build(argv: list[str]):
     args = parser.parse_args(argv); provider = profile_module.load_config(args.provider_profile)
     adapter = CrowdWorksPaidAdapter(account_id=args.account_id, state_path=args.state_path.expanduser().resolve(), candidate_profile=args.candidate_profile.expanduser().resolve(), provider_profile=provider,
                                     application_receipts_path=args.application_receipts_path)
-    return adapter, lambda row: decide(row, form_selector=adapter._select_form_url)
+    return adapter, lambda row: decide(row, form_selector=adapter._select_form_url,
+                                        answer_selector=adapter._compose_answer)
 
 
 __all__ = ["CrowdWorksPaidAdapter", "CrowdWorksPaidWait", "build", "decide", "read_only_inventory"]

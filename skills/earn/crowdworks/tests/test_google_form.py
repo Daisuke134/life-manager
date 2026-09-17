@@ -81,3 +81,21 @@ def test_pre_effect_receipt_absence_is_true_only_before_prepared_index(tmp_path)
     index = module._bound_index_path(tmp_path, binding)
     module.write_json(index, {"version": 1, "status": "prepared", "receipt_key": "x"})
     assert module.pre_effect_receipt_absent(tmp_path, binding) is False
+
+
+def test_confirmed_revision_receipt_counts_for_the_original_form(tmp_path):
+    module = load()
+    binding = {
+        "provider": "crowdworks", "account_id": "7145638",
+        "contract_id": "63659463", "milestone_id": "13820867",
+        "form_revision_sha256": "a" * 64,
+    }
+    revision = {**binding, "revision_event_id": "buyer-event-2"}
+    receipt_key = module._identity({**revision, "submission_payload_sha256": "payload"})
+    receipt = tmp_path / "external-actions" / f"{receipt_key}.json"
+    receipt.parent.mkdir(parents=True)
+    module.write_json(receipt, {"binding": revision, "status": "confirmed",
+                                "confirmation_sha256": "confirmed"})
+    module.write_json(tmp_path / "external-actions" / f"index-{module._identity(revision)}.json",
+                      {"version": 1, "status": "confirmed", "receipt_key": receipt_key})
+    assert module.has_confirmed_bound_receipt(tmp_path, binding) is True

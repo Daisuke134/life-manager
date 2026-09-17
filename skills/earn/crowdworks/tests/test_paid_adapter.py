@@ -99,6 +99,30 @@ def test_two_official_active_contracts_normalize_to_unique_stable_observations()
     assert len({row["latest_event_id"] for row in rows}) == 2
 
 
+def test_detail_expands_folded_buyer_messages_before_readback():
+    module = load()
+    events = []
+
+    class Folding:
+        def count(self): return 1
+        def nth(self, index): return self
+        def is_visible(self): return True
+        def click(self): events.append("click")
+
+    class Page:
+        def get_by_text(self, pattern, exact):
+            assert exact is False
+            assert "メッセージを表示" in pattern.pattern
+            return Folding()
+
+        def wait_for_timeout(self, value): events.append(("wait", value))
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._expand_folded_messages()
+    assert events == ["click", ("wait", 300)]
+
+
 def test_funded_contract_decides_one_form_then_one_milestone_submission():
     module = load()
     action = module.decide({"context": {"contract": funded()}})
@@ -223,6 +247,66 @@ def test_form_selector_uses_candidate_context_and_exact_allowed_url(tmp_path, mo
     assert "Web広告実績" in seen[0]["conversation"][0]["body"]
 
 
+def test_completed_form_can_be_selected_as_a_buyer_correction_revision(tmp_path, monkeypatch):
+    module = load()
+    url = "https://forms.gle/correction"
+    monkeypatch.setattr(module.grounding_module, "build_reply_grounding",
+                        lambda **_kwargs: {"candidate": {}})
+    monkeypatch.setattr(module.composer, "compose", lambda *_args, **_kwargs: url)
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", state_path=tmp_path,
+        candidate_profile=tmp_path / "candidate.json",
+        provider_profile={"display_name": "Kaito"},
+    )
+    item = {**funded(), "form_url": None, "form_urls": [url],
+            "completed_form_urls": [url],
+            "form_candidates": [{"url": url, "title": "顧客宛メール", "body": "顧客宛回答"}],
+            "buyer_context": "買い手が顧客宛回答の欠落を指摘した"}
+    assert adapter._select_form_url(item) == url
+    assert item["form_revision"] is True
+
+
+def test_decide_emits_new_event_binding_for_form_correction():
+    module = load()
+    url = "https://forms.gle/correction"
+    contract = {**funded(), "form_url": None, "form_urls": [url],
+                "completed_form_urls": [url], "form_revision": True}
+    action = module.decide(
+        {"latest_event_id": "buyer-event-2", "context": {"contract": contract}},
+        form_selector=lambda _item: url,
+    )
+    assert action["action"] == "submit"
+    assert action["payload"]["revision_event_id"] == "buyer-event-2"
+
+
+def test_form_binding_preserves_revision_event_as_a_new_receipt_namespace(tmp_path):
+    module = load()
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)
+    binding = adapter._form_binding({**funded(), "form_revision_event_id": "buyer-event-2"}, "a" * 64)
+    assert binding["revision_event_id"] == "buyer-event-2"
+
+
+def test_form_correction_readback_uses_revision_event_binding(tmp_path, monkeypatch):
+    module = load()
+    url = "https://forms.gle/correction"
+    bindings = []
+    form_sha = hashlib.sha256(url.encode()).hexdigest()
+    monkeypatch.setattr(module.google_form, "bound_receipt",
+                        lambda _root, binding: bindings.append(binding) or {
+                            "url_sha256": form_sha, "confirmation_sha256": "confirmed",
+                        })
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)
+    adapter._goto_contract = lambda _work_id: None
+
+    result = adapter.readback({"action": "submit", "work_id": "63570481", "effect_key": "revision",
+                               "payload": {"form_url": url, "form_sha256": form_sha,
+                                           "milestone_id": "13798056",
+                                           "revision_event_id": "buyer-event-2"}})
+
+    assert result["verified"] is True
+    assert bindings[0]["revision_event_id"] == "buyer-event-2"
+
+
 def test_context_reopens_browser_before_fetching_cached_form_candidates():
     module = load()
     urls = ["https://forms.gle/video", "https://forms.gle/ads"]
@@ -243,6 +327,46 @@ def test_context_reopens_browser_before_fetching_cached_form_candidates():
     assert [candidate["title"] for candidate in context["contract"]["form_candidates"]] == ["video", "ads"]
 
 
+def test_context_fetches_single_completed_form_candidate_for_correction():
+    module = load()
+    url = "https://forms.gle/correction"
+    item = {**funded(), "form_url": None, "form_urls": [url],
+            "completed_form_urls": [url]}
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter._contract_cache = {item["work_id"]: dict(item)}
+    calls = []
+    adapter._open = lambda: calls.append("open")
+    adapter._form_candidates = lambda values: [
+        {"url": values[0], "title": "顧客宛メール", "body": "顧客宛回答"},
+    ]
+    adapter.close = lambda: None
+
+    context = adapter.context(item["work_id"])
+
+    assert calls == ["open"]
+    assert context["contract"]["form_candidates"][0]["title"] == "顧客宛メール"
+
+
+def test_answer_prompt_requires_permission_request_when_buyer_context_is_inaccessible(tmp_path, monkeypatch):
+    module = load()
+    seen = []
+    monkeypatch.setattr(module.grounding_module, "build_reply_grounding",
+                        lambda **_kwargs: {"candidate": {}})
+    monkeypatch.setattr(module.composer, "compose",
+                        lambda context, **_kwargs: seen.append(context) or "権限を付与してください。")
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", state_path=tmp_path,
+        candidate_profile=tmp_path / "candidate.json",
+        provider_profile={"display_name": "Kaito"},
+    )
+
+    answer = adapter._compose_answer({**funded(), "form_url": None,
+                                      "buyer_context": "編集権限をリクエスト と表示されています"})
+
+    assert answer == "権限を付与してください。"
+    assert "作業完了を主張せず" in seen[0]["action_contract"]["question"]
+
+
 def test_submit_effect_does_not_formal_deliver_in_same_mutation():
     module = load()
     events = []
@@ -257,6 +381,25 @@ def test_submit_effect_does_not_formal_deliver_in_same_mutation():
                                 "milestone_id": funded()["milestone_id"]}})
 
     assert events == [("form", "63570481")]
+
+
+def test_form_correction_revision_can_resubmit_completed_form_with_new_event():
+    module = load()
+    url = funded()["form_url"]
+    events = []
+    current = {**funded(), "form_url": None, "form_urls": [url],
+               "completed_form_urls": [url]}
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter._targeted_detail = lambda _work_id: current
+    adapter._submit_form_once = lambda item: events.append(item["form_revision_event_id"])
+
+    adapter.mutate({"action": "submit", "work_id": current["work_id"],
+                    "payload": {"form_url": url,
+                                "form_sha256": hashlib.sha256(url.encode()).hexdigest(),
+                                "milestone_id": current["milestone_id"],
+                                "revision_event_id": "buyer-correction-2"}})
+
+    assert events == ["buyer-correction-2"]
 
 
 def test_formal_delivery_is_a_separate_mutation():
@@ -1063,6 +1206,36 @@ def test_awaiting_escrow_never_authorizes_work_or_delivery():
     action = module.decide({"context": {"contract": escrow()}})
     assert action["action"] == "wait"
     assert action["reason"] == "awaiting_client_escrow"
+
+
+def test_no_form_funded_contract_uses_full_buyer_context_for_answer(tmp_path, monkeypatch):
+    module = load()
+    captured = []
+    monkeypatch.setattr(module.grounding_module, "build_reply_grounding",
+                        lambda **_kwargs: {"verified": ["seller fact"]})
+    monkeypatch.setattr(module.composer, "compose",
+                        lambda context, **_kwargs: captured.append(context) or
+                        "編集権限を付与いただければ、内容を確認して対応します。")
+    contract = {**funded(), "form_url": None, "form_urls": [],
+                "buyer_context": "Google Docs assignment link and buyer request"}
+    adapter = module.CrowdWorksPaidAdapter(
+        account_id="7145638", state_path=tmp_path,
+        candidate_profile=tmp_path / "candidate.json", provider_profile={"display_name": "Kaito"})
+    action = module.decide({"context": {"contract": contract}},
+                           answer_selector=adapter._compose_answer)
+    assert action == {"action": "answer", "payload": {
+        "body": "編集権限を付与いただければ、内容を確認して対応します。"}}
+    assert captured and captured[0]["conversation"][0]["role"] == "buyer"
+    assert "Google Docs assignment link" in captured[0]["conversation"][0]["body"]
+
+
+def test_no_form_without_buyer_context_stays_waiting():
+    module = load()
+    contract = {**funded(), "form_url": None, "form_urls": [], "buyer_context": ""}
+    action = module.decide({"context": {"contract": contract}},
+                           answer_selector=lambda _item: "must not send")
+    assert action["action"] == "wait"
+    assert action["reason"] == "buyer_task_detail_required"
 
 
 def test_delivered_contract_is_kernel_noop_and_replay_zero(tmp_path):
