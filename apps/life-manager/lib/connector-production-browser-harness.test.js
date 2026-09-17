@@ -198,13 +198,14 @@ test("Connpass resolver approves only the exact safe radio predicates", async ()
   assert.equal(privateReads, cases.filter(([, , expected]) => expected == null).length);
 });
 
-test("Connpass fallback binds an arbitrary questionnaire radio to the exact private profile answer", async () => {
+test("Connpass fallback binds a newly worded questionnaire radio to an existing private answer", async () => {
   let step = 0;
+  let factLookups = 0;
   const operated = [];
   const page = Object.freeze({ url() { return "https://tokyo-builders.connpass.com/event/400029/join/"; } });
   const controls = [
-    { control: "role_employee", kind: "radio", label: "Employee", question: "Career status", required: true, submittable: false },
-    { control: "role_founder", kind: "radio", label: "Founder", question: "Career status", required: true, submittable: false },
+    { control: "role_employee", kind: "radio", label: "Employee", question: "現在のキャリア状況", required: true, submittable: false },
+    { control: "role_founder", kind: "radio", label: "Founder", question: "現在のキャリア状況", required: true, submittable: false },
     { control: "confirm_button", kind: "button", label: "申し込みを確定する", required: false, submittable: true },
   ];
   const harness = createProductionBrowserHarness({
@@ -216,12 +217,14 @@ test("Connpass fallback binds an arbitrary questionnaire radio to the exact priv
     resolveValue: createPrivateValueResolver({
       async readPeatixProfile() { return {}; },
       async readFormProfile() { return { form_answers: { "Career status": "Founder" } }; },
+      async selectFactKey() { factLookups += 1; return "Career status"; },
     }),
   });
   const result = await harness.runFallback({ provider: "connpass", candidate: { event_ref: "connpass-event://event/400029" }, page,
     pageWebsocket: "ws://127.0.0.1:9222/devtools/page/PROFILECONNPASS1", maxSteps: 3, expectedState: "registered_or_pending" });
   assert.equal(result.status, "completed");
   assert.deepEqual(operated, ["role_founder", "confirm_button"]);
+  assert.equal(factLookups, 1);
 });
 
 test("Connpass native rejects an unqualified online label", async () => {
@@ -949,6 +952,59 @@ test("Connpass agent may select a private fact key for a newly worded question, 
     async selectFactKey() { return "fabricated-key"; },
   });
   assert.equal(await rejecting({ ...base, control }), null);
+});
+
+test("Connpass radio questions use one semantic lookup of an existing approved answer", async () => {
+  let lookups = 0;
+  const resolver = createPrivateValueResolver({
+    readFormProfile: async () => ({ form_answers: { "本イベントをどこでお知りになりましたか？": "Connpass" } }),
+    async selectFactKey({ question, available_keys }) {
+      lookups += 1;
+      assert.equal(question, "何をきっかけに知りましたか？");
+      assert.deepEqual(available_keys, ["本イベントをどこでお知りになりましたか？"]);
+      return available_keys[0];
+    },
+  });
+  const input = (label) => ({ provider: "connpass", state: "connpass_join",
+    candidate: { event_ref: "connpass-event://event/405705" },
+    control: { control: `control_${label.toLowerCase()}`, kind: "radio", label,
+      question: "何をきっかけに知りましたか？", required: true, completed: false, submittable: false } });
+  assert.equal(await resolver(input("Connpass")), true);
+  assert.equal(await resolver(input("SNS")), null);
+  assert.equal(lookups, 1);
+});
+
+test("Connpass semantic radio lookup never reuses an unrelated consent answer", async () => {
+  let lookups = 0;
+  const resolver = createPrivateValueResolver({
+    readFormProfile: async () => ({ form_answers: { "広告目的の第三者提供に同意しますか？": "はい" } }),
+    async selectFactKey() { lookups += 1; return "広告目的の第三者提供に同意しますか？"; },
+  });
+  const result = await resolver({ provider: "connpass", state: "connpass_join",
+    control: { control: "consent_yes", kind: "radio", label: "はい",
+      question: "個人情報を広告会社へ渡してよいですか？", required: true } });
+  assert.equal(result, null);
+  assert.equal(lookups, 0);
+  const wrongFact = createPrivateValueResolver({
+    readFormProfile: async () => ({ form_answers: { "キャリア状況": "はい" } }),
+    async selectFactKey() { lookups += 1; return "キャリア状況"; },
+  });
+  assert.equal(await wrongFact({ provider: "connpass", state: "connpass_join",
+    control: { control: "consent_yes_again", kind: "radio", label: "はい",
+      question: "個人情報を広告会社へ渡してよいですか？", required: true } }), null);
+  assert.equal(lookups, 0);
+  const wrongReferral = createPrivateValueResolver({
+    readFormProfile: async () => ({ form_answers: { "本イベントをどこでお知りになりましたか？": "Connpass" } }),
+    async selectFactKey() { lookups += 1; return "本イベントをどこでお知りになりましたか？"; },
+  });
+  assert.equal(await wrongReferral({ provider: "connpass", state: "connpass_join",
+    control: { control: "contact_channel", kind: "radio", label: "Connpass",
+      question: "スポンサーからの連絡を受け取る媒体を選んでください", required: true } }), null);
+  assert.equal(lookups, 0);
+  assert.equal(await wrongReferral({ provider: "connpass", state: "connpass_join",
+    control: { control: "mixed_contact_channel", kind: "radio", label: "Connpass",
+      question: "どこで知りましたか？ 今後スポンサーからの連絡を受け取る媒体を選んでください", required: true } }), null);
+  assert.equal(lookups, 0);
 });
 
 test("Connpass exact join does not adopt a generic question outside .question_list", async () => {
