@@ -25,6 +25,17 @@ _PRIVATE_LOG_LOOP_IDS = frozenset({
     "money-printer-symphony-bridge",
     "money-printer-symphony",
 })
+MANAGED_NODE_CANDIDATES = (Path("/opt/homebrew/bin/node"), Path("/usr/local/bin/node"))
+
+
+def _managed_node(loop_id: str) -> str:
+    node = shutil.which("node")
+    if node and Path(node).is_absolute():
+        return node
+    for candidate in MANAGED_NODE_CANDIDATES:
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
+    raise ValueError(f"{loop_id}: managed node executable is unavailable")
 
 
 def _is_immutable_release_working_directory(value: object) -> bool:
@@ -148,9 +159,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             ),
         })
     if loop_id == "ubi-watcher":
-        node = shutil.which("node")
-        if not node or not Path(node).is_absolute():
-            raise ValueError("ubi-watcher: managed node executable is unavailable")
+        node = _managed_node(loop_id)
         value["EnvironmentVariables"].update({
             "LIFE_MANAGER_ENV_FILE": str(Path.home() / ".local/state/life-manager/.env"),
             "LIFE_MANAGER_NODE": node,
@@ -201,9 +210,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             "ANICCA_INSTANCE": "franklin" if loop_id == "franklin-loop" else "franklin2",
         })
     if loop_id == "compute-proxy":
-        node = shutil.which("node")
-        if not node or not Path(node).is_absolute():
-            raise ValueError("compute-proxy: managed node executable is unavailable")
+        node = _managed_node(loop_id)
         compute_home = (
             str(Path(life_manager_home).expanduser() / "agent-economy/instance")
             if life_manager_home
@@ -215,9 +222,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             "LIFE_MANAGER_NODE": node,
         })
     if loop_id in {"pm-decision-loop", "pm-live-trade"}:
-        node = shutil.which("node")
-        if not node or not Path(node).is_absolute():
-            raise ValueError(f"{loop_id}: managed node executable is unavailable")
+        node = _managed_node(loop_id)
         value["EnvironmentVariables"].update({
             "LIFE_MANAGER_ENV_FILE": str(Path.home() / ".local/state/life-manager/.env"),
             "LIFE_MANAGER_NODE": node,
