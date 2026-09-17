@@ -100,6 +100,66 @@ def test_funded_contract_without_google_form_waits_without_blocking_inventory():
     assert action["reason"] == "buyer_task_detail_required"
 
 
+def test_detail_retains_multiple_buyer_form_links_for_later_task_selection():
+    module = load()
+    title, client = "buyer task", "buyer"
+    links = [
+        "https://docs.google.com/forms/d/e/one/viewform",
+        "https://docs.google.com/forms/d/e/two/viewform",
+    ]
+
+    class Form:
+        def get_attribute(self, name):
+            assert name == "action"
+            return "/milestones/13798056/complete"
+
+    class Forms:
+        def count(self):
+            return 2
+
+        def nth(self, index):
+            return Form()
+
+    class Locator:
+        def __init__(self, selector):
+            self.selector = selector
+
+        def inner_text(self):
+            return f"{title} {client} 業務を開始しています 検収"
+
+        def evaluate_all(self, expression):
+            assert "href" in expression
+            return links
+
+    class Page:
+        def locator(self, selector):
+            if selector.startswith('form[action^="/milestones/"]'):
+                return Forms()
+            return Locator(selector)
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda work_id: None
+    adapter._proposal_application_date = lambda proposal_id: None
+
+    detail = adapter._detail_once({"work_id": "63570481", "title": title, "client": client})
+
+    assert detail["form_urls"] == links
+    assert detail["form_url"] is None
+
+
+def test_inventory_row_clears_singular_form_when_multiple_urls_are_present():
+    module = load()
+    row = {**funded(), "form_urls": [
+        "https://forms.gle/one", "https://forms.gle/two",
+    ]}
+
+    normalized = module.CrowdWorksPaidAdapter._row_from_list(row)
+
+    assert normalized["form_urls"] == ["https://forms.gle/one", "https://forms.gle/two"]
+    assert normalized["form_url"] is None
+
+
 def test_exact_verified_apply_receipt_is_jst_application_date_fallback(tmp_path):
     module = load()
     receipt = {"record_type": "application_receipt", "platform": "crowdworks", "status": "verified",

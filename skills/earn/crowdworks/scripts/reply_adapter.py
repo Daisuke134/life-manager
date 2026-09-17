@@ -213,14 +213,19 @@ class CrowdWorksReplyAdapter:
 
     def context(self, thread_id: str) -> dict[str, Any]:
         row = self.rows[thread_id]
-        conversation = self.conversations.get(thread_id) or self._detail(thread_id)
+        # Contract ownership and the buyer's latest request are live provider
+        # facts. Never plan from a cached conversation when an effect may follow.
+        conversation = self._detail(thread_id)
+        post_contract_owned = self._post_contract_owned_by_paid(thread_id)
         result = {"board": {"title": row.get("title"), "proposal_status": row.get("proposal_status")},
                 "conversation": conversation[-20:],
-                "reply_required": conversation[-1]["role"] == "buyer",
+                "reply_required": conversation[-1]["role"] == "buyer" and not post_contract_owned,
+                "post_contract_owned_by_paid": post_contract_owned,
                 "grounding": self.grounding,
                 "provider_rules": {
                     "outside_contact_before_approval": "forbidden",
                     "auto_accept_official_proposals": True,
+                    "post_contract_owner": "paid",
                 }}
         required_action = self._contract_action(thread_id) or self._external_form_action(thread_id)
         if required_action is not None:
@@ -231,7 +236,38 @@ class CrowdWorksReplyAdapter:
     def _google_form_url(url: str) -> bool:
         return google_form.is_google_form_url(url)
 
+    def _post_contract_owned_by_paid(self, thread_id: str) -> bool:
+        current_route = self._provider_route(str(getattr(self.page, "url", ""))) if self.page is not None else None
+        if current_route is not None and current_route[0] == "contracts":
+            return True
+        row = self.rows.get(thread_id)
+        if row is not None:
+            status = row.get("proposal_status")
+            if status is not None and status != "proposed":
+                return True
+        conversation = self.conversations.get(thread_id) or []
+        for message in conversation:
+            for link in message.get("links", []) if isinstance(message, Mapping) else []:
+                if isinstance(link, str):
+                    route = self._provider_route(link)
+                    if route is not None and route[0] == "contracts":
+                        return True
+        return False
+
+    def _refresh_post_contract_ownership(self, thread_id: str) -> bool:
+        if thread_id not in self.rows:
+            raise RuntimeError("crowdworks_contract_ownership_unknown")
+        self._detail(thread_id)
+        if self._post_contract_owned_by_paid(thread_id):
+            return True
+        if self.rows[thread_id].get("proposal_status") == "proposed":
+            if self.page is None or self._contract_action(thread_id) is None:
+                raise RuntimeError("crowdworks_contract_ownership_unknown")
+        return False
+
     def _external_form_action(self, thread_id: str) -> dict[str, Any] | None:
+        if self._post_contract_owned_by_paid(thread_id):
+            return None
         conversation = self.conversations.get(thread_id) or self._detail(thread_id)
         if not conversation:
             return None
@@ -427,6 +463,8 @@ class CrowdWorksReplyAdapter:
             self.page.wait_for_load_state("domcontentloaded", timeout=20_000)
             return
         if intent.get("action") == "external_action":
+            if self._refresh_post_contract_ownership(intent["thread_id"]):
+                raise RuntimeError("crowdworks_post_contract_owned_by_paid")
             payload = intent.get("payload")
             if not isinstance(payload, Mapping) or payload.get("kind") != "submit_google_form":
                 raise RuntimeError("crowdworks_external_action_unsupported")
@@ -454,7 +492,8 @@ class CrowdWorksReplyAdapter:
         body = intent.get("payload", {}).get("body")
         if not isinstance(body, str) or not body.strip():
             raise RuntimeError("reply_body_invalid")
-        self._detail(intent["thread_id"])
+        if self._refresh_post_contract_ownership(intent["thread_id"]):
+            raise RuntimeError("crowdworks_post_contract_owned_by_paid")
         self.page.locator('textarea[name="message[body]"]').fill(body.strip())
         self.page.get_by_role("button", name="メッセージを投稿する", exact=True).click()
         self.page.wait_for_timeout(2000)
