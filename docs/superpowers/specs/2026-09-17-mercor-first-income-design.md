@@ -31,6 +31,13 @@ This design covers truthful operator onboarding, Mercor profile and résumé qua
 - The current Explore page 3 includes a `Non-Investment Finance Expert (CL Funnel)` listing at `Ready to submit`, `2 of 2`, with no person-bound step. Its explicit 3+ years hands-on finance requirement is not present as a verified fact, so it remains a model-fit candidate rather than a submitted application. The Japanese Voice Actor listing reads `4 of 5 / 80%`, with only `Voice Actor Japanese Assessment` not done; seven supplied AAC/M4A files are verified privately but are not an assessment result.
 - Existing shared Apply policy ranks verified résumé overlap and material contradictions, but its top-level objective is still `maximize_truthful_submissions`. The Mercor prompt uses `high/medium/low` and bounded scans. The source branch now binds profile hashes, fit evidence and strategy version to later funnel receipts; first official offer, contract, earnings and payout remain unobserved.
 
+## 2026-09-17 production evidence
+
+- PR #5374 merged as `ce379c130f`; a main-derived immutable release `6345e37abe108b8a53d58353b7bde48411ba7396` was cut and only `mercor-revenue-application` was targeted-applied. Plist and loaded `ProgramArguments` point to the exact release, and `lm-loop-contract`/`lm-loop doctor` pass.
+- One controlled application wake from that release recorded `blocked:host_admission_deferred:resource_effect_unknown` before provider work. This proves the current stop is the host effect fence; it does not prove an application, offer, contract, or payment.
+- The private official snapshot remains 95 applications, 48 assessments, one completed interview record, zero contracts and zero notifications. The source collector uses this projection to target the measured `application → reply` loss, with `income_receipts_promoted=0`.
+- Three old Mercor occurrences remain fenced without an exact provider receipt: Reply claimed, Paid released, and Application claimed. The database has not been cleared by inference. A natural application/reply/paid wake, exact provider receipt resolution, and first business outcome remain open.
+
 ## To-be: one causal funnel
 
 ```text
