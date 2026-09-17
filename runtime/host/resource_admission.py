@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import pwd
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -15,11 +16,25 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Mapping
 
 
 ADMISSION_CLASSES = {"borrow", "revenue"}
 ADMISSION_POLICY = "revenue-floor-v1"
+RESOURCE_CLASSES = ("agent", "browser", "deterministic")
+
+# ``admission_class`` remains the mixed-release capacity fence.  These
+# explicit priorities are an ordering policy for durable waiters and are
+# evaluated from persisted queue age at claim time.
+BASE_PRIORITIES = ("critical_paid", "revenue", "support")
+PRIORITY_RANK = {name: rank for rank, name in enumerate(BASE_PRIORITIES)}
+PRIORITY_AGE_SECONDS = {
+    "critical_paid": 5 * 60,
+    "revenue": 30 * 60,
+    "support": 2 * 60 * 60,
+}
+OCCURRENCE_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
+DEFAULT_HEARTBEAT_TIMEOUT_SECONDS = 300
 
 
 class _ProcBsdInfo(ctypes.Structure):
@@ -262,11 +277,31 @@ def _database(path: Path) -> sqlite3.Connection:
     if version not in {0, 2}:
         connection.close()
         raise RuntimeError("unsupported durable admission schema")
-    connection.executescript("""
+    legacy_class_tables = []
+    renames = []
+    for table in ("queue", "occurrences"):
+        existing = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name=?",
+            (table,),
+        ).fetchone()
+        legacy_name = f"{table}_legacy_browser"
+        interrupted = connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+            (legacy_name,),
+        ).fetchone()
+        if interrupted:
+            legacy_class_tables.append((table, legacy_name))
+        if existing and "'browser'" not in str(existing[0]):
+            if interrupted:
+                connection.close()
+                raise RuntimeError("conflicting browser schema migration")
+            renames.append(f"ALTER TABLE {table} RENAME TO {legacy_name}")
+            legacy_class_tables.append((table, legacy_name))
+    schema = """
         CREATE TABLE IF NOT EXISTS queue (
             sequence INTEGER PRIMARY KEY AUTOINCREMENT,
             owner_id TEXT NOT NULL UNIQUE,
-            resource_class TEXT NOT NULL CHECK(resource_class IN ('agent','deterministic'))
+            resource_class TEXT NOT NULL CHECK(resource_class IN ('agent','browser','deterministic'))
         );
         CREATE TABLE IF NOT EXISTS reservations (
             owner_id TEXT PRIMARY KEY,
@@ -277,29 +312,103 @@ def _database(path: Path) -> sqlite3.Connection:
         CREATE TABLE IF NOT EXISTS priorities (
             owner_id TEXT PRIMARY KEY,
             admission_class TEXT NOT NULL CHECK(admission_class IN ('borrow','revenue')),
-            admission_policy TEXT
+            admission_policy TEXT,
+            base_priority TEXT,
+            queued_at REAL,
+            effect_unknown INTEGER NOT NULL DEFAULT 0 CHECK(effect_unknown IN (0,1))
+        );
+        CREATE TABLE IF NOT EXISTS occurrences (
+            occurrence_id TEXT PRIMARY KEY,
+            owner_id TEXT NOT NULL,
+            resource_class TEXT NOT NULL CHECK(resource_class IN ('agent','browser','deterministic')),
+            admission_class TEXT NOT NULL CHECK(admission_class IN ('borrow','revenue')),
+            base_priority TEXT NOT NULL,
+            queued_at REAL NOT NULL,
+            state TEXT NOT NULL CHECK(state IN ('queued','claimed','released','cancelled')),
+            sequence INTEGER,
+            effect_unknown INTEGER NOT NULL DEFAULT 0 CHECK(effect_unknown IN (0,1))
         );
         PRAGMA user_version=2;
-    """)
-    priority_columns = {
-        row[1] for row in connection.execute("PRAGMA table_info(priorities)")
-    }
-    if "admission_policy" not in priority_columns:
-        connection.execute("ALTER TABLE priorities ADD COLUMN admission_policy TEXT")
-    if "next_eligible_at" not in priority_columns:
+    """
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        for statement in [*renames, *schema.split(";")]:
+            if statement.strip():
+                connection.execute(statement)
+        for table, legacy_name in legacy_class_tables:
+            columns = "sequence,owner_id,resource_class" if table == "queue" else (
+                "occurrence_id,owner_id,resource_class,admission_class,base_priority,"
+                "queued_at,state,sequence"
+            )
+            if table == "occurrences" and any(
+                    row[1] == "effect_unknown"
+                    for row in connection.execute(f"PRAGMA table_info({legacy_name})")):
+                columns += ",effect_unknown"
+            connection.execute(
+                f"INSERT INTO {table}({columns}) SELECT {columns} FROM {legacy_name}"
+            )
+            connection.execute(f"DROP TABLE {legacy_name}")
+    except Exception:
+        connection.rollback()
+        connection.close()
+        raise
+    try:
+        priority_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(priorities)")
+        }
+        if "admission_policy" not in priority_columns:
+            connection.execute("ALTER TABLE priorities ADD COLUMN admission_policy TEXT")
+        if "next_eligible_at" not in priority_columns:
+            connection.execute(
+                "ALTER TABLE priorities ADD COLUMN next_eligible_at REAL NOT NULL DEFAULT 0")
+        if "base_priority" not in priority_columns:
+            connection.execute("ALTER TABLE priorities ADD COLUMN base_priority TEXT")
+        if "queued_at" not in priority_columns:
+            connection.execute("ALTER TABLE priorities ADD COLUMN queued_at REAL")
+        if "effect_unknown" not in priority_columns:
+            connection.execute(
+                "ALTER TABLE priorities ADD COLUMN effect_unknown INTEGER NOT NULL DEFAULT 0"
+            )
+        occurrence_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(occurrences)")
+        }
+        if "effect_unknown" not in occurrence_columns:
+            connection.execute(
+                "ALTER TABLE occurrences ADD COLUMN effect_unknown INTEGER NOT NULL DEFAULT 0"
+            )
+        # A missing timestamp is not evidence that a waiter has been present forever.
+        migration_now = time.time()
         connection.execute(
-            "ALTER TABLE priorities ADD COLUMN next_eligible_at REAL NOT NULL DEFAULT 0")
+            """UPDATE priorities
+                  SET base_priority = CASE admission_class
+                      WHEN 'revenue' THEN 'revenue' ELSE 'support' END
+                WHERE base_priority IS NULL"""
+        )
+        connection.execute(
+            "UPDATE priorities SET queued_at=? WHERE queued_at IS NULL",
+            (migration_now,),
+        )
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        connection.close()
+        raise
     return connection
 
 
 def _limits(resource_class: str, admission_class: str = "borrow") -> tuple[int, int]:
     total = _capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 5)
     if admission_class == "revenue":
-        return total, _capacity("LIFE_MANAGER_HOST_MAX_REVENUE_RUNS", total)
+        if resource_class == "agent":
+            return total, _capacity("LIFE_MANAGER_HOST_MAX_REVENUE_RUNS", total)
+        if resource_class == "browser":
+            return total, _capacity("LIFE_MANAGER_HOST_MAX_BROWSER_RUNS", 1)
+        return total, _capacity("LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS", 2)
     per_class = _capacity(
         "LIFE_MANAGER_HOST_MAX_AGENT_RUNS" if resource_class == "agent"
+        else "LIFE_MANAGER_HOST_MAX_BROWSER_RUNS" if resource_class == "browser"
         else "LIFE_MANAGER_HOST_MAX_DETERMINISTIC_RUNS",
-        1 if resource_class == "agent" else 2,
+        1 if resource_class in {"agent", "browser"} else 2,
     )
     return total, per_class
 
@@ -319,10 +428,169 @@ def _revenue_floor(total: int) -> int:
     return min(total, requested, revenue_limit)
 
 
+def _default_priority(admission_class: str) -> str:
+    return "revenue" if admission_class == "revenue" else "support"
+
+
+def _normalize_priority(priority: str | None, admission_class: str) -> str:
+    value = _default_priority(admission_class) if priority is None else priority
+    if value not in PRIORITY_RANK:
+        raise RuntimeError("invalid queue priority")
+    if value == "critical_paid" and admission_class != "revenue":
+        raise RuntimeError("critical_paid requires revenue admission")
+    return value
+
+
+def _promote_queued_priority(connection: sqlite3.Connection, owner_id: str,
+                             priority: str, queued_at: float) -> None:
+    """Raise a retained owner's priority without losing its first queue age."""
+    connection.execute(
+        """UPDATE priorities
+              SET admission_policy=?,
+                  base_priority=CASE
+                      WHEN base_priority IS NULL OR
+                           (CASE base_priority
+                                WHEN 'critical_paid' THEN 0
+                                WHEN 'revenue' THEN 1
+                                ELSE 2 END) > ?
+                      THEN ? ELSE base_priority END,
+                  queued_at=COALESCE(queued_at,?)
+            WHERE owner_id=?""",
+        (ADMISSION_POLICY, PRIORITY_RANK[priority], priority, queued_at, owner_id),
+    )
+
+
+def _normalize_occurrence_id(occurrence_id: str | None) -> str | None:
+    if occurrence_id is None:
+        return None
+    if not isinstance(occurrence_id, str) or not OCCURRENCE_ID_PATTERN.fullmatch(occurrence_id):
+        raise RuntimeError("invalid occurrence identity")
+    return occurrence_id
+
+
+def _heartbeat_timeout_seconds() -> int:
+    try:
+        value = int(os.environ.get(
+            "LIFE_MANAGER_CLAIM_HEARTBEAT_TIMEOUT_SECONDS",
+            str(DEFAULT_HEARTBEAT_TIMEOUT_SECONDS),
+        ))
+    except ValueError as error:
+        raise RuntimeError("invalid heartbeat timeout") from error
+    if not 1 <= value <= 3600:
+        raise RuntimeError("invalid heartbeat timeout")
+    return value
+
+
+def _heartbeat_expired(row: dict[str, object], now: float) -> bool:
+    if row.get("phase") not in {"claimed", "running"}:
+        return False
+    heartbeat_at = row.get("heartbeat_at")
+    timeout = row.get("heartbeat_timeout_seconds", DEFAULT_HEARTBEAT_TIMEOUT_SECONDS)
+    if (not isinstance(heartbeat_at, (int, float)) or isinstance(heartbeat_at, bool)
+            or not isinstance(timeout, (int, float)) or isinstance(timeout, bool)):
+        # Legacy claims have no heartbeat contract and remain governed by
+        # process identity until a compatible runner rewrites them.
+        return False
+    return now - float(heartbeat_at) > float(timeout)
+
+
+def _record_occurrence(connection: sqlite3.Connection, occurrence_id: str,
+                       owner_id: str, resource_class: str,
+                       admission_class: str, priority: str, queued_at: float,
+                       sequence: int) -> None:
+    existing = connection.execute(
+        """SELECT owner_id,resource_class,admission_class,base_priority
+             FROM occurrences WHERE occurrence_id=?""",
+        (occurrence_id,),
+    ).fetchone()
+    expected = (owner_id, resource_class, admission_class, priority)
+    if existing is not None and existing != expected:
+        raise RuntimeError("occurrence identity changed")
+    connection.execute(
+        """INSERT OR IGNORE INTO occurrences(
+               occurrence_id,owner_id,resource_class,admission_class,
+               base_priority,queued_at,state,sequence
+           ) VALUES(?,?,?,?,?,?,?,?)""",
+        (occurrence_id, owner_id, resource_class, admission_class,
+         priority, queued_at, "queued", sequence),
+    )
+
+
+def _effective_priority(row: dict[str, object], now: float) -> int:
+    priority = row.get("base_priority")
+    admission_class = row.get("admission_class", "borrow")
+    if not isinstance(priority, str) or priority not in PRIORITY_RANK:
+        priority = _default_priority(
+            admission_class if isinstance(admission_class, str) else "borrow"
+        )
+    rank = PRIORITY_RANK[priority]
+    queued_at = row.get("queued_at")
+    if not isinstance(queued_at, (int, float)) or isinstance(queued_at, bool):
+        return rank
+    if now - float(queued_at) >= PRIORITY_AGE_SECONDS[priority]:
+        return PRIORITY_RANK["critical_paid"]
+    return rank
+
+
+def _queue_order(row: dict[str, object], now: float) -> tuple[int, int, int, int, str]:
+    priority = row.get("base_priority")
+    queued_at = row.get("queued_at")
+    aged = (isinstance(priority, str) and priority in PRIORITY_AGE_SECONDS
+            and isinstance(queued_at, (int, float)) and not isinstance(queued_at, bool)
+            and now - float(queued_at) >= PRIORITY_AGE_SECONDS[priority])
+    return (_effective_priority(row, now), 0 if aged else 1,
+            0 if row.get("admission_class") == "revenue" else 1,
+            int(row["sequence"]), str(row["owner_id"]))
+
+
+def _durable_queue_rows(connection: sqlite3.Connection, resource_class: str,
+                        now: float) -> list[dict[str, object]]:
+    rows = [
+        dict(zip(("owner_id", "sequence", "resource_class",
+                  "admission_class", "base_priority", "queued_at"), row))
+        for row in connection.execute(
+            """SELECT q.owner_id,q.sequence,q.resource_class,
+                      COALESCE(p.admission_class,'borrow'),p.base_priority,p.queued_at
+                 FROM queue q
+                 LEFT JOIN reservations r ON r.owner_id=q.owner_id
+                 LEFT JOIN priorities p ON p.owner_id=q.owner_id
+                WHERE q.resource_class=? AND r.owner_id IS NULL
+                  AND COALESCE(p.next_eligible_at,0)<=?
+                   AND COALESCE(p.effect_unknown,0)=0
+                   AND NOT EXISTS (
+                       SELECT 1 FROM occurrences o
+                        WHERE o.owner_id=q.owner_id AND o.effect_unknown=1
+                   )""",
+            (resource_class, now),
+        )
+    ]
+    rows.sort(key=lambda row: _queue_order(row, now))
+    return rows
+
+
+def _next_durable_candidate(connection: sqlite3.Connection, owners: Path,
+                            tickets: Path, resource_class: str, now: float,
+                            starts: dict[int, str | None],
+                            snapshot_started_ns: int) -> dict[str, object] | None:
+    """Choose the first waiter that both wins ordering and fits capacity."""
+    if _legacy_waiter_exists(tickets, resource_class, starts, snapshot_started_ns):
+        return None
+    for row in _durable_queue_rows(connection, resource_class, now):
+        available, _ = _durable_capacity(
+            connection, owners, resource_class,
+            str(row.get("admission_class", "borrow")), now,
+            starts, snapshot_started_ns,
+        )
+        if available:
+            return row
+    return None
+
+
 def _uses_limited_capacity(row: dict[str, object], resource_class: str,
                            admission_class: str) -> bool:
-    if admission_class == "revenue":
-        return row.get("admission_class", "borrow") == "revenue"
+    if resource_class == "agent":
+        return (row.get("resource_class") == "agent"
+                and row.get("admission_class", "borrow") == admission_class)
     return row.get("resource_class") == resource_class
 
 
@@ -387,24 +655,81 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                       now: float, starts: dict[int, str | None],
                       snapshot_started_ns: int) -> tuple[bool, list[dict[str, object]]]:
     live = []
+    live_occurrences = set()
     for path in owners.glob("*.json"):
         row = _row(path) or {}
         if _live(path, starts, snapshot_started_ns):
             live.append(row)
+            if isinstance(row.get("occurrence_id"), str):
+                live_occurrences.add(row["occurrence_id"])
         else:
-            if (row.get("version") == 2 and row.get("phase", "claimed") == "claimed"
+            if (row.get("version") == 2 and row.get("phase", "claimed") in {"claimed", "running"}
                     and isinstance(row.get("sequence"), int)
                     and not isinstance(row.get("sequence"), bool)
                     and isinstance(row.get("owner_id"), str) and row["owner_id"]
-                    and row.get("resource_class") in {"agent", "deterministic"}):
-                connection.execute(
-                    "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
-                    (row["sequence"], row["owner_id"], row["resource_class"]))
-                connection.execute(
-                    "INSERT OR IGNORE INTO priorities(owner_id,admission_class,admission_policy) VALUES(?,?,?)",
-                    (row["owner_id"], row.get("admission_class", "borrow"),
-                     row.get("admission_policy")))
+                    and row.get("resource_class") in set(RESOURCE_CLASSES)):
+                occurrence_id = row.get("occurrence_id")
+                if row.get("phase", "claimed") == "claimed":
+                    occurrence_state = None
+                    if isinstance(occurrence_id, str) and occurrence_id:
+                        existing = connection.execute(
+                            "SELECT state FROM occurrences WHERE occurrence_id=?",
+                            (occurrence_id,),
+                        ).fetchone()
+                        occurrence_state = existing[0] if existing else None
+                    # A pre-effect claim is retryable only while its occurrence
+                    # still says claimed; a committed terminal row never revives.
+                    if not occurrence_id or occurrence_state == "claimed":
+                        connection.execute(
+                            "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
+                            (row["sequence"], row["owner_id"], row["resource_class"]))
+                        connection.execute(
+                            """INSERT OR IGNORE INTO priorities(
+                                   owner_id,admission_class,admission_policy,base_priority,queued_at
+                               ) VALUES(?,?,?,?,?)""",
+                            (row["owner_id"], row.get("admission_class", "borrow"),
+                             row.get("admission_policy"), row.get("base_priority"),
+                             row.get("queued_at", now)))
+                if isinstance(occurrence_id, str) and occurrence_id and row.get("phase", "claimed") == "claimed":
+                    connection.execute(
+                        "UPDATE occurrences SET state='queued' WHERE occurrence_id=? AND state='claimed'",
+                        (occurrence_id,),
+                    )
+                elif isinstance(occurrence_id, str) and occurrence_id:
+                    # A running child may have acted externally. Park for official
+                    # reconciliation; never turn process death into a blind retry.
+                    connection.execute(
+                        """UPDATE occurrences SET effect_unknown=1
+                             WHERE occurrence_id=? AND state='claimed'""",
+                        (occurrence_id,),
+                    )
+                elif row.get("phase", "claimed") == "running":
+                    # Older releases have no occurrence ID. Fence their owner
+                    # until the provider effect is reconciled.
+                    connection.execute(
+                        """INSERT OR IGNORE INTO priorities(
+                               owner_id,admission_class,admission_policy,
+                               base_priority,queued_at,effect_unknown
+                           ) VALUES(?,?,?,?,?,1)""",
+                        (row["owner_id"], row.get("admission_class", "borrow"),
+                         row.get("admission_policy"), row.get("base_priority"),
+                         row.get("queued_at", now)),
+                    )
+                    connection.execute(
+                        "UPDATE priorities SET effect_unknown=1 WHERE owner_id=?",
+                        (row["owner_id"],),
+                    )
+                # A file cannot be restored after unlink. Commit its ledger
+                # disposition first so a crash never leaves claimed/0 with
+                # no recovery handle. The control lock remains held.
+                connection.commit()
             path.unlink(missing_ok=True)
+    for (occurrence_id,) in connection.execute(
+            "SELECT occurrence_id FROM occurrences WHERE state='claimed' AND effect_unknown=0"):
+        if occurrence_id not in live_occurrences:
+            connection.execute(
+                "UPDATE occurrences SET effect_unknown=1 WHERE occurrence_id=?",
+                (occurrence_id,))
     connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (now,))
     reserved = [dict(zip(("owner_id", "resource_class", "sequence", "lease_until",
                           "admission_class", "admission_policy"), row))
@@ -434,11 +759,18 @@ def _legacy_waiter_exists(tickets: Path, resource_class: str,
 
 def enqueue_durable(resource_class: str, owner_id: str, *,
                     admission_class: str = "borrow",
+                    priority: str | None = None,
+                    occurrence_id: str | None = None,
+                    coalesce_reserved: bool = False,
                     now: float | None = None) -> tuple[Path | None, str]:
-    """Persist a process-independent FIFO position for a scheduled owner."""
-    if (resource_class not in {"agent", "deterministic"} or not owner_id
-            or admission_class not in ADMISSION_CLASSES):
+    """Persist a process-independent, priority-aware queue position."""
+    if (resource_class not in set(RESOURCE_CLASSES) or not owner_id
+            or admission_class not in ADMISSION_CLASSES
+            or type(coalesce_reserved) is not bool):
         raise RuntimeError("invalid resource identity")
+    priority_name = _normalize_priority(priority, admission_class)
+    occurrence_name = _normalize_occurrence_id(occurrence_id)
+    instant = time.time() if now is None else now
     root, owners, tickets, database = _durable_paths()
     starts, snapshot_started_ns = _identity_snapshot(owners, tickets)
     descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
@@ -451,8 +783,82 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                 connection, owners, resource_class, admission_class,
                 instant,
                 starts, snapshot_started_ns)
+            if (connection.execute(
+                    "SELECT 1 FROM occurrences WHERE owner_id=? AND effect_unknown=1 LIMIT 1",
+                    (owner_id,)).fetchone()
+                    or connection.execute(
+                        "SELECT 1 FROM priorities WHERE owner_id=? AND effect_unknown=1",
+                        (owner_id,)).fetchone()):
+                return None, "effect_unknown"
+            if occurrence_name is not None:
+                existing_occurrence = connection.execute(
+                    """SELECT owner_id,resource_class,admission_class,base_priority,
+                              state,effect_unknown
+                         FROM occurrences WHERE occurrence_id=?""",
+                    (occurrence_name,),
+                ).fetchone()
+                if existing_occurrence is not None:
+                    if existing_occurrence[:4] != (
+                            owner_id, resource_class, admission_class, priority_name):
+                        raise RuntimeError("occurrence identity changed")
+                    if existing_occurrence[5]:
+                        return None, "effect_unknown"
+                    if existing_occurrence[4] in {"released", "cancelled"}:
+                        return None, "occurrence_terminal"
+                    if existing_occurrence[4] == "claimed":
+                        return None, "occurrence_inflight"
+                queued_scan = connection.execute(
+                    """SELECT r.lease_until FROM queue q
+                         JOIN priorities p ON p.owner_id=q.owner_id
+                         JOIN occurrences o ON o.owner_id=q.owner_id
+                                           AND o.state='queued'
+                                           AND o.effect_unknown=0
+                         LEFT JOIN reservations r ON r.owner_id=q.owner_id
+                                                    AND r.sequence=q.sequence
+                        WHERE q.owner_id=? AND q.resource_class=?
+                          AND p.admission_class=? AND p.effect_unknown=0
+                        LIMIT 1""",
+                    (owner_id, resource_class, admission_class),
+                ).fetchone() if coalesce_reserved else None
+                if queued_scan is not None:
+                    _promote_queued_priority(connection, owner_id, priority_name, instant)
+                    return database, ("reservation_coalesced" if queued_scan[0] is not None
+                                      and queued_scan[0] > instant else "queued_coalesced")
             if any(item.get("owner_id") == owner_id for item in (
                     _row(path) or {} for path in owners.glob("*.json"))):
+                if occurrence_name is not None:
+                    connection.execute(
+                        "INSERT OR IGNORE INTO queue(owner_id,resource_class) VALUES(?,?)",
+                        (owner_id, resource_class),
+                    )
+                    connection.execute(
+                        """INSERT OR IGNORE INTO priorities(
+                               owner_id,admission_class,admission_policy,
+                               base_priority,queued_at
+                           ) VALUES(?,?,?,?,?)""",
+                        (owner_id, admission_class, ADMISSION_POLICY,
+                         priority_name, instant),
+                    )
+                    queued_identity = connection.execute(
+                        """SELECT q.resource_class,p.admission_class
+                             FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
+                            WHERE q.owner_id=?""",
+                        (owner_id,),
+                    ).fetchone()
+                    if queued_identity != (resource_class, admission_class):
+                        raise RuntimeError("durable owner resource class changed")
+                    _promote_queued_priority(connection, owner_id, priority_name, instant)
+                    queued = connection.execute(
+                        "SELECT sequence FROM queue WHERE owner_id=?",
+                        (owner_id,),
+                    ).fetchone()
+                    if queued is None:
+                        raise RuntimeError("durable occurrence queue missing")
+                    _record_occurrence(
+                        connection, occurrence_name, owner_id, resource_class,
+                        admission_class, priority_name, instant, int(queued[0]),
+                    )
+                    return database, "owner_busy"
                 connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
                 connection.execute("DELETE FROM queue WHERE owner_id=?", (owner_id,))
                 connection.execute("DELETE FROM priorities WHERE owner_id=?", (owner_id,))
@@ -460,28 +866,29 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
             connection.execute("INSERT OR IGNORE INTO queue(owner_id,resource_class) VALUES(?,?)",
                                (owner_id, resource_class))
             connection.execute(
-                "INSERT OR IGNORE INTO priorities(owner_id,admission_class,admission_policy) VALUES(?,?,?)",
-                (owner_id, admission_class, ADMISSION_POLICY))
-            connection.execute(
-                "UPDATE priorities SET admission_policy=? WHERE owner_id=?",
-                (ADMISSION_POLICY, owner_id))
+                """INSERT OR IGNORE INTO priorities(
+                       owner_id,admission_class,admission_policy,base_priority,queued_at
+                   ) VALUES(?,?,?,?,?)""",
+                (owner_id, admission_class, ADMISSION_POLICY, priority_name, instant))
+            _promote_queued_priority(connection, owner_id, priority_name, instant)
             row = connection.execute("""
-                SELECT q.sequence,q.resource_class,p.admission_class
+                SELECT q.sequence,q.resource_class,p.admission_class,
+                       p.base_priority,p.queued_at
                 FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
                 WHERE q.owner_id=?
             """, (owner_id,)).fetchone()
-            if row is None or row[1:] != (resource_class, admission_class):
+            if row is None or row[1:3] != (resource_class, admission_class):
                 raise RuntimeError("durable owner resource class changed")
-            head = connection.execute("""
-                SELECT q.owner_id FROM queue q
-                LEFT JOIN priorities p ON p.owner_id=q.owner_id
-                WHERE q.resource_class=? AND COALESCE(p.next_eligible_at,0)<=?
-                ORDER BY CASE COALESCE(p.admission_class,'borrow')
-                    WHEN 'revenue' THEN 0 ELSE 1 END, q.sequence LIMIT 1
-            """, (resource_class, instant)).fetchone()
+            if occurrence_name is not None:
+                _record_occurrence(
+                    connection, occurrence_name, owner_id, resource_class,
+                    admission_class, priority_name, instant, int(row[0]),
+                )
+            head_rows = _durable_queue_rows(connection, resource_class, instant)
+            head = head_rows[0] if head_rows else None
             ready = (available and not _legacy_waiter_exists(
                          tickets, resource_class, starts, snapshot_started_ns)
-                     and head and head[0] == owner_id)
+                     and head and head["owner_id"] == owner_id)
         return database, "ready" if ready else ("capacity_busy" if not available else "fifo_wait")
     finally:
         os.close(descriptor)
@@ -489,8 +896,10 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
 
 def claim_durable(resource_class: str, owner_id: str, *,
                   admission_class: str = "borrow",
+                  coalesced_occurrence_id: str | None = None,
                   now: float | None = None) -> tuple[Path | None, str]:
     """Convert this owner's queued/reserved v2 position into a live claim."""
+    coalesced_name = _normalize_occurrence_id(coalesced_occurrence_id)
     root, owners, tickets, database = _durable_paths()
     starts, snapshot_started_ns = _identity_snapshot(owners, tickets)
     started = process_start(os.getpid())
@@ -503,30 +912,45 @@ def claim_durable(resource_class: str, owner_id: str, *,
         except BlockingIOError:
             return None, "control_busy"
         with _database(database) as connection:
+            instant = time.time() if now is None else now
             row = connection.execute("""
                 SELECT q.sequence,q.resource_class,
-                       COALESCE(p.admission_class,'borrow')
+                       COALESCE(p.admission_class,'borrow'),
+                       p.base_priority,p.queued_at
                 FROM queue q LEFT JOIN priorities p ON p.owner_id=q.owner_id
                 WHERE q.owner_id=?
             """, (owner_id,)).fetchone()
-            if row is None or row[1:] != (resource_class, admission_class):
+            if row is None or row[1:3] != (resource_class, admission_class):
                 return None, "ticket_missing"
-            instant = time.time() if now is None else now
             available, occupied = _durable_capacity(
                 connection, owners, resource_class, admission_class, instant,
                 starts, snapshot_started_ns)
+            occurrence = connection.execute(
+                """SELECT occurrence_id,base_priority,queued_at
+                     FROM occurrences
+                    WHERE owner_id=? AND state='queued'
+                    ORDER BY queued_at,occurrence_id
+                    LIMIT 1""",
+                (owner_id,),
+            ).fetchone()
+            if (connection.execute(
+                    "SELECT 1 FROM occurrences WHERE owner_id=? AND effect_unknown=1 LIMIT 1",
+                    (owner_id,),
+                ).fetchone() or connection.execute(
+                    "SELECT 1 FROM priorities WHERE owner_id=? AND effect_unknown=1",
+                    (owner_id,),
+                ).fetchone()):
+                connection.execute(
+                    "DELETE FROM reservations WHERE owner_id=?", (owner_id,))
+                return None, "effect_unknown"
             reservation = connection.execute(
                 "SELECT resource_class,lease_until FROM reservations WHERE owner_id=?",
                 (owner_id,)).fetchone()
             reserved = bool(reservation and reservation[0] == resource_class
                             and reservation[1] > instant)
-            head = connection.execute("""
-                SELECT q.owner_id FROM queue q
-                LEFT JOIN priorities p ON p.owner_id=q.owner_id
-                WHERE q.resource_class=? AND COALESCE(p.next_eligible_at,0)<=?
-                ORDER BY CASE COALESCE(p.admission_class,'borrow')
-                    WHEN 'revenue' THEN 0 ELSE 1 END, q.sequence LIMIT 1
-            """, (resource_class, instant)).fetchone()
+            head = _next_durable_candidate(
+                connection, owners, tickets, resource_class, instant,
+                starts, snapshot_started_ns)
             if any(item.get("owner_id") == owner_id for item in (
                     _row(path) or {} for path in owners.glob("*.json"))):
                 return None, "owner_busy"
@@ -539,14 +963,38 @@ def claim_durable(resource_class: str, owner_id: str, *,
             if not reserved and (not available or _legacy_waiter_exists(
                     tickets, resource_class, starts, snapshot_started_ns)):
                 return None, "capacity_busy"
-            if not reserved and (head is None or head[0] != owner_id):
+            if not reserved and (head is None or head["owner_id"] != owner_id):
                 return None, "fifo_wait"
+            if coalesced_name is not None and (occurrence is None or occurrence[0] != coalesced_name):
+                if connection.execute(
+                        "SELECT 1 FROM occurrences WHERE occurrence_id=?",
+                        (coalesced_name,)).fetchone():
+                    return None, "occurrence_inflight"
+                if occurrence is not None:
+                    connection.execute(
+                        "UPDATE occurrences SET state='cancelled' WHERE occurrence_id=?",
+                        (occurrence[0],))
+                first_queued_at = occurrence[2] if occurrence else row[4] or instant
+                priority_name = row[3] or _default_priority(admission_class)
+                _record_occurrence(
+                    connection, coalesced_name, owner_id, resource_class,
+                    admission_class, priority_name, first_queued_at, int(row[0]))
+                occurrence = (coalesced_name, priority_name, first_queued_at)
             claim = owners / f"{_digest(owner_id)}-{os.getpid()}.json"
+            if occurrence is not None:
+                connection.execute(
+                    "UPDATE occurrences SET state='claimed' WHERE occurrence_id=?",
+                    (occurrence[0],),
+                )
             atomic_json(claim, {"version": 2, "pid": os.getpid(),
                         "process_start": started, "owner_id": owner_id,
                         "resource_class": resource_class, "sequence": row[0],
                         "admission_class": admission_class,
                         "admission_policy": ADMISSION_POLICY,
+                        "base_priority": row[3], "queued_at": row[4],
+                        "occurrence_id": occurrence[0] if occurrence else None,
+                        "heartbeat_at": instant,
+                        "heartbeat_timeout_seconds": _heartbeat_timeout_seconds(),
                         "phase": "claimed"})
             connection.execute("DELETE FROM reservations WHERE owner_id=?", (owner_id,))
             connection.execute("DELETE FROM queue WHERE owner_id=?", (owner_id,))
@@ -586,8 +1034,31 @@ def transfer_durable(claim: Path, child_pid: int) -> None:
             "process_start": child_start,
             "controller_pid": controller_pid,
             "controller_process_start": controller_start,
+            "heartbeat_at": time.time(),
             "phase": "running",
         })
+    finally:
+        os.close(descriptor)
+
+
+def heartbeat_durable(claim: Path, *, now: float | None = None) -> bool:
+    """Refresh progress for the exact live claim, without changing ownership."""
+    value = _row(claim)
+    started = process_start(os.getpid())
+    if not value or not started or not _controlled_by(value, os.getpid(), started):
+        return False
+    instant = time.time() if now is None else now
+    root, _, _, _ = _durable_paths()
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        if not _acquire_bounded(descriptor, timeout_seconds=0.5):
+            return False
+        current = _row(claim)
+        if (not current or not _controlled_by(current, os.getpid(), started)
+                or _heartbeat_expired(current, instant)):
+            return False
+        atomic_json(claim, {**current, "heartbeat_at": instant})
+        return True
     finally:
         os.close(descriptor)
 
@@ -646,36 +1117,22 @@ def _reserve_locked(connection: sqlite3.Connection, owners: Path, tickets: Path,
     dispatched = []
     while True:
         connection.execute("DELETE FROM reservations WHERE lease_until <= ?", (instant,))
-        for resource_class in ("agent", "deterministic"):
+        for resource_class in RESOURCE_CLASSES:
             _durable_capacity(
                 connection, owners, resource_class, "borrow", instant,
                 starts, snapshot_started_ns)
         candidates = []
-        for resource_class in ("agent", "deterministic"):
-            candidate = connection.execute("""
-                SELECT q.owner_id,q.sequence,
-                       COALESCE(p.admission_class,'borrow') FROM queue q
-                LEFT JOIN reservations r ON r.owner_id=q.owner_id
-                LEFT JOIN priorities p ON p.owner_id=q.owner_id
-                WHERE q.resource_class=? AND r.owner_id IS NULL
-                  AND COALESCE(p.next_eligible_at,0)<=?
-                ORDER BY CASE COALESCE(p.admission_class,'borrow')
-                    WHEN 'revenue' THEN 0 ELSE 1 END, q.sequence LIMIT 1
-            """, (resource_class, instant)).fetchone()
+        for resource_class in RESOURCE_CLASSES:
+            candidate = _next_durable_candidate(
+                connection, owners, tickets, resource_class, instant,
+                starts, snapshot_started_ns)
             if candidate:
-                owner_id, sequence, admission_class = candidate
-                available, _ = _durable_capacity(
-                    connection, owners, resource_class, admission_class, instant,
-                    starts, snapshot_started_ns)
-            if (candidate and available and not _legacy_waiter_exists(
-                    tickets, resource_class, starts, snapshot_started_ns)):
-                candidates.append((
-                    0 if admission_class == "revenue" else 1,
-                    sequence, owner_id, resource_class,
-                ))
+                owner_id = str(candidate["owner_id"])
+                sequence = int(candidate["sequence"])
+                candidates.append((*_queue_order(candidate, instant), resource_class))
         if not candidates:
             break
-        _, sequence, owner_id, resource_class = min(candidates)
+        _, _, _, sequence, owner_id, resource_class = min(candidates)
         connection.execute(
             "INSERT INTO reservations(owner_id,resource_class,sequence,lease_until) VALUES(?,?,?,?)",
             (owner_id, resource_class, sequence, instant + lease_seconds))
@@ -705,9 +1162,12 @@ def reserve_available(*, now: float | None = None,
 
 
 def release_and_reserve(claim: Path, *, requeue: bool = False,
+                        effect_unknown: bool = False,
                         reserve: bool = True, now: float | None = None,
                         lease_seconds: int = 60) -> list[str]:
     """Release one claim and reserve newly available capacity for queued owners."""
+    if type(effect_unknown) is not bool or (requeue and effect_unknown):
+        raise RuntimeError("invalid effect disposition")
     value = _row(claim)
     started = process_start(os.getpid())
     if not value or not started or not _controlled_by(value, os.getpid(), started):
@@ -719,19 +1179,69 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
         if not _acquire_bounded(descriptor, timeout_seconds=0.5):
             raise RuntimeError("control_busy")
         instant = time.time() if now is None else now
-        if requeue and value.get("version") == 2:
-            sequence = value.get("sequence")
-            if not isinstance(sequence, int):
-                raise RuntimeError("durable claim sequence missing")
-            with _database(database) as connection:
+        with _database(database) as connection:
+            if requeue and value.get("version") == 2:
+                sequence = value.get("sequence")
+                if not isinstance(sequence, int):
+                    raise RuntimeError("durable claim sequence missing")
                 connection.execute(
                     "INSERT OR IGNORE INTO queue(sequence,owner_id,resource_class) VALUES(?,?,?)",
                     (sequence, value["owner_id"], value["resource_class"]))
                 connection.execute(
-                    "INSERT OR IGNORE INTO priorities(owner_id,admission_class,admission_policy) VALUES(?,?,?)",
+                    """INSERT OR IGNORE INTO priorities(
+                           owner_id,admission_class,admission_policy,base_priority,queued_at
+                       ) VALUES(?,?,?,?,?)""",
                     (value["owner_id"], value.get("admission_class", "borrow"),
-                     value.get("admission_policy")))
-        claim.unlink()
+                      value.get("admission_policy"), value.get("base_priority"),
+                     value.get("queued_at", instant)))
+            occurrence_id = value.get("occurrence_id")
+            if isinstance(occurrence_id, str) and occurrence_id:
+                if effect_unknown:
+                    connection.execute(
+                        """UPDATE occurrences SET effect_unknown=1
+                             WHERE occurrence_id=? AND state='claimed'""",
+                        (occurrence_id,),
+                    )
+                else:
+                    connection.execute(
+                        "UPDATE occurrences SET state=? WHERE occurrence_id=?",
+                        ("queued" if requeue else "released", occurrence_id),
+                    )
+            elif effect_unknown:
+                connection.execute(
+                    """INSERT OR IGNORE INTO priorities(
+                           owner_id,admission_class,admission_policy,
+                           base_priority,queued_at,effect_unknown)
+                       VALUES(?,?,?,?,?,1)""",
+                    (value["owner_id"], value.get("admission_class", "borrow"),
+                     value.get("admission_policy"), value.get("base_priority"),
+                     value.get("queued_at", instant)),
+                )
+                connection.execute(
+                    "UPDATE priorities SET effect_unknown=1 WHERE owner_id=?",
+                    (value["owner_id"],),
+                )
+            if not requeue:
+                remaining = connection.execute(
+                    """SELECT 1 FROM occurrences
+                         WHERE owner_id=? AND state='queued' LIMIT 1""",
+                    (value["owner_id"],),
+                ).fetchone()
+                if remaining:
+                    connection.execute(
+                        "INSERT OR IGNORE INTO queue(owner_id,resource_class) VALUES(?,?)",
+                        (value["owner_id"], value["resource_class"]),
+                    )
+                    connection.execute(
+                        """INSERT OR IGNORE INTO priorities(
+                               owner_id,admission_class,admission_policy,
+                               base_priority,queued_at
+                           ) VALUES(?,?,?,?,?)""",
+                        (value["owner_id"], value.get("admission_class", "borrow"),
+                         value.get("admission_policy"), value.get("base_priority"),
+                            value.get("queued_at", instant)),
+                    )
+        claim.unlink(missing_ok=True)
         if not reserve:
             return []
         with _database(database) as connection:
@@ -743,12 +1253,46 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
         os.close(descriptor)
 
 
+def resolve_unknown_occurrence(owner_id: str, occurrence_id: str, *,
+                               official_readback: Callable[[], Mapping[str, object]]) -> bool:
+    """Close one fenced effect only after its provider adapter confirms the exact effect.
+
+    The callback must perform official provider readback, not inspect a local draft.
+    Absence and inconclusive readback remain fenced; neither authorizes a retry.
+    """
+    if not owner_id or not _normalize_occurrence_id(occurrence_id):
+        raise RuntimeError("invalid occurrence identity")
+    proof = official_readback()
+    if (not isinstance(proof, Mapping)
+            or proof.get("owner_id") != owner_id
+            or proof.get("occurrence_id") != occurrence_id
+            or proof.get("verified") is not True
+            or not isinstance(proof.get("provider_receipt_id"), str)
+            or not proof["provider_receipt_id"].strip()):
+        return False
+    root, _, _, database = _durable_paths()
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        if not _acquire_bounded(descriptor, timeout_seconds=0.5):
+            return False
+        with _database(database) as connection:
+            changed = connection.execute(
+                """UPDATE occurrences SET state='released',effect_unknown=0
+                     WHERE owner_id=? AND occurrence_id=?
+                       AND state='claimed' AND effect_unknown=1""",
+                (owner_id, occurrence_id),
+            )
+            return changed.rowcount == 1
+    finally:
+        os.close(descriptor)
+
+
 def try_acquire(resource_class: str, owner_id: str, *,
                 admission_class: str = "borrow",
                 retain_ticket: bool = True,
                 required_protocol: int | None = None) -> tuple[Path | None, str]:
     """Atomically claim a slot; live waiters are served FIFO within each class."""
-    if (resource_class not in {"agent", "deterministic"} or not owner_id
+    if (resource_class not in set(RESOURCE_CLASSES) or not owner_id
             or admission_class not in ADMISSION_CLASSES):
         raise RuntimeError("invalid resource identity")
     root = state_root()
@@ -782,13 +1326,29 @@ def try_acquire(resource_class: str, owner_id: str, *,
         owner_rows = []
         for path in owners.glob("*.json"):
             if not _live(path, live_starts, snapshot_started_ns, probe_missing=True):
-                path.unlink(missing_ok=True); continue
+                # v2 owns its occurrence ledger. Only its locked durable sweep
+                # may remove this file after parking or requeuing that row.
+                stale = _row(path) or {}
+                if stale.get("version") == 2:
+                    if stale.get("owner_id") == owner_id:
+                        return None, "owner_busy"
+                else:
+                    path.unlink(missing_ok=True)
+                continue
             owner_rows.append(_row(path) or {})
         if any(row.get("owner_id") == owner_id for row in owner_rows):
             return None, "owner_busy"
         reserved_rows = []
         if observed_protocol == 2:
             with _database(root / "admission-v2.sqlite3") as connection:
+                if (connection.execute(
+                    "SELECT 1 FROM occurrences WHERE owner_id=? AND effect_unknown=1 LIMIT 1",
+                    (owner_id,),
+                ).fetchone() or connection.execute(
+                    "SELECT 1 FROM priorities WHERE owner_id=? AND effect_unknown=1",
+                    (owner_id,),
+                ).fetchone()):
+                    return None, "effect_unknown"
                 connection.execute(
                     "DELETE FROM reservations WHERE lease_until <= ?", (time.time(),))
                 reserved_rows = [

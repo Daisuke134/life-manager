@@ -28,6 +28,20 @@ BASE = {
 
 
 class RuntimeEventTest(unittest.TestCase):
+    def test_outer_terminal_binds_claimed_older_occurrence(self):
+        event = build_runtime_event(
+            loop_id="example", domain="earn", run_id="new", release_sha="b" * 40,
+            provider="deterministic", profile_alias=None, effect_class="application",
+            succeeded=True, blocker=None, evidence_scheme="lm-loop",
+            claimed_occurrence_id="example:older",
+        )
+        self.assertEqual(event["run_id"], "new")
+        self.assertNotIn("claimed_occurrence_id", event)
+        self.assertEqual(event["evidence_refs"], [
+            "lm-loop://example/new/summary.json",
+            "lm-occurrence://example/older/claim",
+        ])
+
     def test_valid_event_appends_one_private_jsonl_row(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "events.jsonl"

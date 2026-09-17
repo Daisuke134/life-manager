@@ -127,12 +127,19 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
                         provider: str, profile_alias: str | None, effect_class: str,
                         succeeded: bool, blocker: str | None,
                         deferred: bool = False,
-                        evidence_scheme: str = "agent-runner") -> dict:
+                        evidence_scheme: str = "agent-runner",
+                        claimed_occurrence_id: str | None = None) -> dict:
     timestamp = datetime.now(timezone.utc).isoformat()
     if succeeded and deferred:
         raise ValueError("runtime event cannot be both succeeded and deferred")
     status = "blocked" if deferred else ("pass" if succeeded else "fail")
     material = f"{release_sha}:{loop_id}:{run_id}:report:{status}"
+    if claimed_occurrence_id is not None:
+        if (not isinstance(claimed_occurrence_id, str)
+                or not SAFE_ID.fullmatch(claimed_occurrence_id)
+                or not claimed_occurrence_id.startswith(f"{loop_id}:")):
+            raise ValueError("invalid claimed occurrence")
+        material += f":{claimed_occurrence_id}"
     event = {
         "version": 1,
         "event_id": hashlib.sha256(material.encode()).hexdigest()[:24],
@@ -150,6 +157,9 @@ def build_runtime_event(*, loop_id: str, domain: str, run_id: str, release_sha: 
         "blocker": blocker,
         "evidence_refs": [f"{evidence_scheme}://{loop_id}/{run_id}/summary.json"],
     }
+    if claimed_occurrence_id is not None and claimed_occurrence_id != f"{loop_id}:{run_id}":
+        suffix = claimed_occurrence_id[len(loop_id) + 1:]
+        event["evidence_refs"].append(f"lm-occurrence://{loop_id}/{suffix}/claim")
     return validate_runtime_event(event)
 
 

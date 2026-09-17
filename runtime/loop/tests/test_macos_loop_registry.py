@@ -38,6 +38,16 @@ def browser_entry(label: str, profile: str, port: int):
 
 
 class MacosLoopRegistryTest(unittest.TestCase):
+    def test_queued_wake_coalescing_requires_reserved_wake_coalescing(self):
+        row = entry()
+        row["coalesce_queued_wakes"] = True
+        with self.assertRaises(ValueError):
+            validate_registry({"schema_version": 2, "loops": {"example": row}})
+        row["coalesce_reserved_wakes"] = True
+        self.assertEqual(validate_registry({
+            "schema_version": 2, "loops": {"example": row},
+        })["loops"]["example"]["coalesce_queued_wakes"], True)
+
     def test_paper_and_shadow_are_retired_after_recurring_live_cutover(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         self.assertNotIn("alpaca-investment", registry["loops"])
@@ -233,6 +243,42 @@ class MacosLoopRegistryTest(unittest.TestCase):
         secret["loops"]["example"]["auth_token"] = "not-a-real-secret"
         with self.assertRaisesRegex(ValueError, "secret-like"):
             validate_registry(secret)
+
+    def test_registry_accepts_only_the_explicit_queue_priorities(self):
+        value = entry()
+        value["priority"] = "revenue"
+        self.assertEqual(
+            validate_registry({"schema_version": 2, "loops": {"example": value}})["loops"]["example"]["priority"],
+            "revenue",
+        )
+        invalid = entry()
+        invalid["priority"] = "urgent"
+        with self.assertRaisesRegex(ValueError, "invalid priority"):
+            validate_registry({"schema_version": 2, "loops": {"example": invalid}})
+
+    def test_shared_marketing_and_connector_owners_declare_runtime_class_and_priority(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        mobile_ids = [
+            loop_id for loop_id, row in registry["loops"].items()
+            if row["entrypoint"] == "apps/life-manager/scripts/mobile-app"
+        ]
+        assert len(mobile_ids) == 18
+        for loop_id in mobile_ids:
+            with self.subTest(loop_id=loop_id):
+                row = registry["loops"][loop_id]
+                self.assertEqual(row.get("resource_class"), "agent")
+                self.assertEqual(row.get("admission_class"), "revenue")
+                self.assertEqual(row.get("priority"), "revenue")
+        connector = registry["loops"]["life-manager-connector-native"]
+        self.assertEqual(connector.get("resource_class"), "browser")
+        self.assertEqual(connector.get("admission_class"), "revenue")
+        self.assertEqual(connector.get("priority"), "revenue")
+        for loop_id in ("life-manager-instagram-metrics", "life-manager-tiktok-metrics"):
+            with self.subTest(loop_id=loop_id):
+                row = registry["loops"][loop_id]
+                self.assertEqual(row.get("resource_class"), "deterministic")
+                self.assertEqual(row.get("admission_class"), "borrow")
+                self.assertEqual(row.get("priority"), "support")
 
     def test_command_and_adapter_are_validated_as_one_contract(self):
         value = entry()
@@ -773,6 +819,9 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "account_mutation", "application", "message", "money", "none", "publish", "trade",
         ])
         self.assertEqual(schema["properties"]["adapter"]["enum"], ["exec", "python"])
+        self.assertEqual(schema["properties"]["resource_class"]["enum"], [
+            "agent", "browser", "deterministic",
+        ])
         self.assertEqual(schema["properties"]["command"]["items"], {
             "type": "string", "minLength": 1,
         })

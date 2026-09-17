@@ -20,6 +20,7 @@ class CutLoopReleasePressureTest(unittest.TestCase):
                 **os.environ,
                 "HOME": str(home),
                 "LOOPS_ROOT": str(loops),
+                "LIFE_MANAGER_RESOURCE_ADMISSION_ROOT": str(home / "admission"),
                 "LIFE_MANAGER_DISK_PRESSURE_FILE": str(pressure),
                 "LIFE_MANAGER_SOURCE_REPO": str(repo),
                 "LOOPS_RELEASE_PATHS": paths,

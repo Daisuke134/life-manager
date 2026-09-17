@@ -8,9 +8,11 @@ import os
 import plistlib
 import re
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Callable
@@ -22,11 +24,13 @@ from runtime.loop.macos_loop_registry import validate_registry
 from runtime.loop.runtime_event import append_runtime_event, build_runtime_event, build_runtime_start_event
 from runtime.host.memory_admission import memory_free_percent
 from runtime.host.resource_admission import (
+    OCCURRENCE_ID_PATTERN,
     cancel_durable as cancel_durable_resource,
     claim_durable as claim_durable_resource,
     defer_durable as defer_durable_resource,
     durable_protocol_version,
     enqueue_durable as enqueue_durable_resource,
+    heartbeat_durable as heartbeat_durable_resource,
     process_start,
     release as release_resource,
     release_and_reserve as release_and_reserve_resource,
@@ -38,6 +42,15 @@ from runtime.host.resource_admission import (
 
 EXEC_GATE = Path(__file__).resolve().parents[1] / "host/exec_gate.py"
 SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
+SAFE_RESULT_HINT = re.compile(r"[a-z][a-z0-9_:-]{1,99}\Z")
+ADMISSION_CONTROL_RETRY_ATTEMPTS = 3
+ADMISSION_CONTROL_RETRY_DELAY_SECONDS = 0.05
+HEARTBEAT_INTERVAL_SECONDS = 30.0
+PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
+    "skills/earn/crowdworks/scripts/paid-owner",
+    "skills/earn/lancers/scripts/paid-owner",
+    "skills/earn/mercor/scripts/paid-owner",
+})
 
 
 def build_loop_command(registry: dict, loop_id: str, release_root: Path) -> list[str]:
@@ -163,6 +176,18 @@ def _admission_class(entry: dict) -> str:
     return entry.get("admission_class", "borrow")
 
 
+def _queue_priority(entry: dict) -> str | None:
+    """Return an explicitly declared queue priority, if present."""
+    value = entry.get("priority")
+    return value if isinstance(value, str) and value else None
+
+
+def _heartbeat_loop(claim: Path, stop: threading.Event) -> None:
+    while not stop.wait(HEARTBEAT_INTERVAL_SECONDS):
+        if not heartbeat_durable_resource(claim):
+            return
+
+
 def _host_admission_deferred(path: Path, started_ns: int) -> str | None:
     try:
         if path.stat().st_mtime_ns < started_ns:
@@ -176,6 +201,18 @@ def _host_admission_deferred(path: Path, started_ns: int) -> str | None:
     prefix = "host_admission_deferred:"
     return (reason if isinstance(reason, str) and SAFE_RUN_ID.fullmatch(reason)
             and len(prefix) + len(reason) <= 128 else "unknown")
+
+
+def _proven_pre_effect_failure(path: Path) -> bool:
+    try:
+        info = path.lstat()
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                or info.st_mode & 0o777 != 0o600):
+            return False
+        return json.loads(path.read_text(encoding="utf-8")) == {
+            "status": "pre_effect_failure", "effect": 0}
+    except (OSError, ValueError):
+        return False
 
 
 def _terminal_outcome(return_code: int, *, host_deferred: str | None = None
@@ -351,7 +388,8 @@ def _dispatch_reserved(loop_ids: list[str], *, current: Path | None = None,
 
 
 def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, str],
-                  receipt: Path) -> int:
+                  receipt: Path, *, occurrence_id: str | None = None,
+                  on_claimed: Callable[[str], None] = lambda _value: None) -> int:
     limit = _runtime_limit(entry)
     if loop_id in {"life-manager-release-reconciler", "life-manager-disk-cleanup"}:
         _atomic_json(receipt, {"status": "pass", "effect": 0,
@@ -369,9 +407,12 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
         return 64
     claim = None
     claim_started_child = False
+    heartbeat_stop = threading.Event()
+    heartbeat_thread: threading.Thread | None = None
     durable = False
     dispatch_after_release: list[str] = []
     interrupted = False
+    return_code: int | None = None
     previous = {}
 
     def interrupt_wait(_signum, _frame):
@@ -383,11 +424,19 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             previous[signum] = signal.signal(signum, interrupt_wait)
         resource_class = _resource_class(entry)
         admission_class = _admission_class(entry)
+        queue_priority = _queue_priority(entry)
         try:
             durable = durable_protocol_version() == 2
+            enqueue_kwargs = {"admission_class": admission_class}
+            if queue_priority is not None:
+                enqueue_kwargs["priority"] = queue_priority
+            if occurrence_id is not None:
+                enqueue_kwargs["occurrence_id"] = occurrence_id
+            if entry.get("coalesce_queued_wakes") is True:
+                enqueue_kwargs["coalesce_reserved"] = True
             ticket, admission_reason = (
                 enqueue_durable_resource(
-                    resource_class, loop_id, admission_class=admission_class)
+                    resource_class, loop_id, **enqueue_kwargs)
                 if durable else (None, "legacy")
             )
         except (OSError, RuntimeError):
@@ -419,13 +468,25 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                          else "memory_headroom_low"})
             return 75
         try:
-            claim, admission_reason = (
-                claim_durable_resource(
-                    resource_class, loop_id, admission_class=admission_class)
-                if durable else try_acquire_resource(
-                    resource_class, loop_id, admission_class=admission_class,
-                    retain_ticket=False, required_protocol=1)
-            )
+            claim = None
+            admission_reason = None
+            claim_kwargs = {"admission_class": admission_class}
+            if durable and entry.get("coalesce_queued_wakes") is True and occurrence_id is not None:
+                claim_kwargs["coalesced_occurrence_id"] = occurrence_id
+            for attempt in range(ADMISSION_CONTROL_RETRY_ATTEMPTS):
+                if interrupted:
+                    break
+                claim, admission_reason = (
+                    claim_durable_resource(
+                        resource_class, loop_id, **claim_kwargs)
+                    if durable else try_acquire_resource(
+                        resource_class, loop_id, admission_class=admission_class,
+                        retain_ticket=False, required_protocol=1)
+                )
+                if claim is not None or admission_reason != "control_busy":
+                    break
+                if attempt + 1 < ADMISSION_CONTROL_RETRY_ATTEMPTS:
+                    time.sleep(ADMISSION_CONTROL_RETRY_DELAY_SECONDS * (attempt + 1))
         except (OSError, RuntimeError):
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_unavailable"})
@@ -436,6 +497,20 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             if durable and not interrupted:
                 _dispatch_reserved(reserve_available_resource())
             return 75
+        claimed_occurrence_id = occurrence_id
+        if durable and occurrence_id is not None:
+            try:
+                claimed_occurrence_id = json.loads(claim.read_text(encoding="utf-8")).get(
+                    "occurrence_id")
+                if (not isinstance(claimed_occurrence_id, str)
+                        or not OCCURRENCE_ID_PATTERN.fullmatch(claimed_occurrence_id)
+                        or not claimed_occurrence_id.startswith(f"{loop_id}:")):
+                    raise ValueError("invalid claimed occurrence")
+            except (OSError, ValueError, AttributeError):
+                _atomic_json(receipt, {"status": "deferred", "effect": 0,
+                                      "reason": "resource_claim_identity_invalid"})
+                return 75
+            on_claimed(claimed_occurrence_id)
         available = memory_free_percent()
         if interrupted:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
@@ -455,26 +530,47 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             return 75
 
         def transfer_claim(child_pid: int) -> None:
-            nonlocal claim_started_child
+            nonlocal claim_started_child, heartbeat_thread
             transfer_durable_resource(claim, child_pid)
             claim_started_child = True
+            if durable:
+                heartbeat_thread = threading.Thread(
+                    target=_heartbeat_loop, args=(claim, heartbeat_stop),
+                    name=f"lm-heartbeat-{loop_id}", daemon=True,
+                )
+                heartbeat_thread.start()
 
+        hint_allowed = entry.get("entrypoint") in PRE_EFFECT_HINT_ENTRYPOINTS
+        child_env = {key: value for key, value in env.items()
+                     if key not in {"LIFE_MANAGER_OCCURRENCE_ID", "LIFE_MANAGER_RESULT_HINT_PATH"}}
+        if hint_allowed:
+            child_env["LIFE_MANAGER_RESULT_HINT_PATH"] = str(
+                receipt.parent / "entrypoint-result.json")
+        if claimed_occurrence_id is not None:
+            child_env["LIFE_MANAGER_OCCURRENCE_ID"] = claimed_occurrence_id
         return_code = _run_entrypoint(
-            command, env=env, timeout_seconds=limit, cancelled=lambda: interrupted,
+            command, env=child_env, timeout_seconds=limit, cancelled=lambda: interrupted,
             on_started=transfer_claim)
         if return_code == 75 and interrupted:
             _atomic_json(receipt, {"status": "deferred", "effect": 0,
                                   "reason": "resource_admission_interrupted"})
         return return_code
     finally:
+        heartbeat_stop.set()
+        if heartbeat_thread is not None:
+            heartbeat_thread.join(timeout=1)
         for signum, handler in previous.items():
             signal.signal(signum, handler)
         if claim is not None:
             try:
                 if durable:
-                    dispatch_after_release = release_and_reserve_resource(
-                        claim, requeue=not claim_started_child,
-                        reserve=claim_started_child)
+                    release_options = {"requeue": not claim_started_child,
+                                       "reserve": claim_started_child}
+                    if (claim_started_child and return_code != 0
+                            and not (hint_allowed and _proven_pre_effect_failure(
+                                receipt.parent / "entrypoint-result.json"))):
+                        release_options["effect_unknown"] = True
+                    dispatch_after_release = release_and_reserve_resource(claim, **release_options)
                 else:
                     release_resource(claim)
             except (OSError, RuntimeError) as error:
@@ -518,10 +614,14 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"lm-loop-run: start event failed: {error}", file=sys.stderr)
         host_receipt = scratch / "host-admission.json"
         started_ns = time.time_ns()
+        claimed_occurrence_id = None
+        def record_claimed(value: str) -> None:
+            nonlocal claimed_occurrence_id
+            claimed_occurrence_id = value
         return_code = _run_admitted(command, entry, loop_id, {
             **os.environ, "LIFE_MANAGER_RELEASE_ROOT": str(release_root),
             "TMPDIR": f"{scratch}/", "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
-        }, host_receipt)
+        }, host_receipt, occurrence_id=f"{loop_id}:{run_id}", on_claimed=record_claimed)
         host_deferred = _host_admission_deferred(host_receipt, started_ns)
         terminal_saved = False
         try:
@@ -533,6 +633,7 @@ def main(argv: list[str] | None = None) -> int:
                 profile_alias=None, effect_class=entry["effect_class"],
                 succeeded=succeeded, deferred=deferred, blocker=blocker,
                 evidence_scheme="lm-loop",
+                claimed_occurrence_id=claimed_occurrence_id,
             )
             append_runtime_event(event_path, event)
             terminal_saved = True
