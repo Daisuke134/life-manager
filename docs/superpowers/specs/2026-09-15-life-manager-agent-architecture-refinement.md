@@ -89,7 +89,13 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   released/known and 18 cancelled; no unknown browser row remained.
   Reclassifying `session-vault` or `browser-state-backup` would involve sibling
   authenticated profiles and does not satisfy this gate. No second-owner
-  browser claim is proved.
+  browser claim is proved. An isolated, uncredentialed `about:blank` headless
+  transport probe was tested at 14:43Z without a sibling profile: bundled
+  CloakBrowser Chromium timed out at 30 seconds and system Chrome at 20
+  seconds (network-service/Mach port errors). Both own process groups were
+  terminated, temporary profiles removed, and no probe profile process
+  remained. A scheduled browser owner built on this path would not be a
+  reliable operational healthcheck, so none was registered.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
