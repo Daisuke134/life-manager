@@ -146,6 +146,38 @@ test("recordAction persists provider and stage safe_reason for a failed discover
   }
 });
 
+test("recordAction persists a bounded provider on successful discovery", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-success-action-context-"));
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir,
+      wakeId: "wake-success-action-context",
+      telegramTarget: "private-target",
+      now: () => new Date("2026-08-16T14:03:56.454Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7002 } }; },
+    });
+    await operations.recordAction({
+      purpose: "observe",
+      method: "provider_discovery",
+      timestamp: "2026-08-16T14:03:56.454Z",
+      result: "success",
+      duration_ms: 100,
+      provider: "connpass",
+    });
+    const row = JSON.parse(fs.readFileSync(path.join(stateDir, "action-history.jsonl"), "utf8").trim());
+    assert.deepEqual(row, {
+      schema_version: 1,
+      wake_id: "wake-success-action-context",
+      purpose: "observe",
+      method: "provider_discovery",
+      timestamp: "2026-08-16T14:03:56.454Z",
+      result: "success",
+      duration_ms: 100,
+      provider: "connpass",
+    });
+  } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
+});
+
 test("recordAction keeps only a bounded Connpass candidate identity on a failed fallback", async () => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-candidate-action-"));
   try {

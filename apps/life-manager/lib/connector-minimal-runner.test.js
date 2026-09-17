@@ -140,6 +140,18 @@ test("one wake reuses one owned page and ordinary failures do not cross provider
   );
 });
 
+test("provider discovery success keeps its provider in action history", async () => {
+  const state = fixture({
+    async discoverCandidates() { return []; },
+  });
+
+  await runMinimalConnectorWake({ ownerToken: "owner-token-provider-success", providers: ["connpass"] }, state.dependencies);
+
+  const discovery = state.calls.find(([name, action]) => name === "history"
+    && action.method === "provider_discovery");
+  assert.equal(discovery[1].provider, "connpass");
+});
+
 test("connpass candidates produce one action-boundary receipt and skip every provider action", async () => {
   let state = fixture({
     async discoverCandidates(provider) {
@@ -1766,17 +1778,18 @@ test("every recorded action contains only the safe audit fields", async () => {
   const history = state.calls.filter(([name]) => name === "history").map(([, row]) => row);
   assert.ok(history.length > 0);
   const baseKeys = ["duration_ms", "method", "purpose", "result", "timestamp"];
+  const successProviderKeys = ["duration_ms", "method", "provider", "purpose", "result", "timestamp"];
   const failureKeys = ["duration_ms", "method", "provider", "purpose", "result", "safe_reason", "timestamp"];
   const failureKeysWithClass = ["duration_ms", "error_class", "method", "provider", "purpose", "result", "safe_reason", "timestamp"];
   const failureKeysWithCandidate = ["candidate_ref", ...failureKeys];
   const failureKeysWithClassAndCandidate = ["candidate_ref", ...failureKeysWithClass];
   for (const row of history) {
-    const hasFailureContext = Object.hasOwn(row, "provider") || Object.hasOwn(row, "safe_reason") || Object.hasOwn(row, "error_class");
+    const hasFailureContext = Object.hasOwn(row, "safe_reason") || Object.hasOwn(row, "error_class") || Object.hasOwn(row, "candidate_ref");
     assert.deepEqual(Object.keys(row).sort(), hasFailureContext
       ? (Object.hasOwn(row, "error_class") && Object.hasOwn(row, "candidate_ref") ? failureKeysWithClassAndCandidate
         : Object.hasOwn(row, "error_class") ? failureKeysWithClass
         : Object.hasOwn(row, "candidate_ref") ? failureKeysWithCandidate : failureKeys)
-      : baseKeys);
+      : Object.hasOwn(row, "provider") ? successProviderKeys : baseKeys);
     assert.match(row.purpose, /^(navigate|observe|fill|submit|readback)$/);
     assert.match(row.method, /^[a-z][a-z0-9_]{1,63}$/);
     assert.match(row.result, /^(success|failed)$/);
@@ -1791,6 +1804,9 @@ test("every recorded action contains only the safe audit fields", async () => {
         assert.equal(row.provider, "connpass");
         assert.match(row.candidate_ref, /^connpass-event:\/\/event\/[1-9][0-9]*$/);
       }
+    } else if (Object.hasOwn(row, "provider")) {
+      assert.equal(row.result, "success");
+      assert.match(row.provider, /^[a-z][a-z0-9_-]{1,31}$/);
     }
     assert.equal(new Date(Date.parse(row.timestamp)).toISOString(), row.timestamp);
     assert.equal(Number.isInteger(row.duration_ms) && row.duration_ms >= 0, true);

@@ -18,6 +18,7 @@ const ERROR_CLASS = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
 const PURPOSE = /^(?:navigate|observe|fill|submit|readback)$/;
 const RESULT = /^(?:success|failed)$/;
 const ACTION_KEYS = "duration_ms,method,purpose,result,timestamp";
+const ACTION_SUCCESS_PROVIDER_KEYS = "duration_ms,method,provider,purpose,result,timestamp";
 const ACTION_FAILURE_CONTEXT_KEYS = "duration_ms,method,provider,purpose,result,safe_reason,timestamp";
 const ACTION_FAILURE_CONTEXT_WITH_CLASS_KEYS = "duration_ms,error_class,method,provider,purpose,result,safe_reason,timestamp";
 const ACTION_CANDIDATE_FAILURE_KEYS = "candidate_ref,duration_ms,method,provider,purpose,result,safe_reason,timestamp";
@@ -94,9 +95,10 @@ function safeAction(input) {
   const keys = Object.keys(input).sort().join(",");
   const hasErrorClass = keys === ACTION_FAILURE_CONTEXT_WITH_CLASS_KEYS;
   const hasCandidateRef = keys === ACTION_CANDIDATE_FAILURE_KEYS;
+  const hasSuccessProvider = keys === ACTION_SUCCESS_PROVIDER_KEYS;
   const hasFailureContext = keys === ACTION_FAILURE_CONTEXT_KEYS || hasErrorClass || hasCandidateRef;
   if (
-    (keys !== ACTION_KEYS && !hasFailureContext)
+    (keys !== ACTION_KEYS && !hasFailureContext && !hasSuccessProvider)
     || !PURPOSE.test(String(input.purpose || ""))
     || !SAFE_METHOD.test(String(input.method || ""))
     || !RESULT.test(String(input.result || ""))
@@ -105,6 +107,9 @@ function safeAction(input) {
       input.result !== "failed"
       || !SAFE_PROVIDER.test(String(input.provider || ""))
       || !SAFE_REASON.test(String(input.safe_reason || ""))
+    ))
+    || (hasSuccessProvider && (
+      input.result !== "success" || !SAFE_PROVIDER.test(String(input.provider || ""))
     ))
     || (hasErrorClass && !ERROR_CLASS.test(String(input.error_class || "")))
     || (hasCandidateRef && (input.purpose !== "submit" || input.provider !== "connpass"
@@ -116,6 +121,7 @@ function safeAction(input) {
     timestamp: exactInstant(input.timestamp),
     result: input.result,
     duration_ms: input.duration_ms,
+    ...(hasSuccessProvider ? { provider: input.provider } : {}),
     ...(hasFailureContext ? { provider: input.provider, safe_reason: input.safe_reason } : {}),
     ...(hasErrorClass ? { error_class: input.error_class } : {}),
     ...(hasCandidateRef ? { candidate_ref: input.candidate_ref } : {}),
