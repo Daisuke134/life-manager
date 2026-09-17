@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import ctypes
+from contextlib import contextmanager
 import fcntl
+from functools import wraps
 import hashlib
 import json
 import os
@@ -254,6 +256,36 @@ def activate_durable_v2(*, allow_live_owners: bool = False) -> None:
 
 def _digest(owner_id: str) -> str:
     return hashlib.sha256(owner_id.encode()).hexdigest()
+
+
+@contextmanager
+def owner_deploy_lock(owner_id: str):
+    """Serialize one owner's admission with its release replacement."""
+    directory = state_root() / "deploy-locks"
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    descriptor = os.open(directory / f"{_digest(owner_id)}.lock",
+                         os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            yield False
+        else:
+            yield True
+    finally:
+        os.close(descriptor)
+
+
+def _defer_during_owner_deploy(function):
+    @wraps(function)
+    def guarded(resource_class, owner_id, *args, **kwargs):
+        if not owner_id:
+            return function(resource_class, owner_id, *args, **kwargs)
+        with owner_deploy_lock(owner_id) as acquired:
+            if not acquired:
+                return None, "control_busy"
+            return function(resource_class, owner_id, *args, **kwargs)
+    return guarded
 
 
 def _acquire_bounded(descriptor: int, timeout_seconds: float = 5.0) -> bool:
@@ -767,6 +799,7 @@ def _legacy_waiter_exists(tickets: Path, resource_class: str,
     return False
 
 
+@_defer_during_owner_deploy
 def enqueue_durable(resource_class: str, owner_id: str, *,
                     admission_class: str = "borrow",
                     priority: str | None = None,
@@ -921,6 +954,7 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
         os.close(descriptor)
 
 
+@_defer_during_owner_deploy
 def claim_durable(resource_class: str, owner_id: str, *,
                   admission_class: str = "borrow",
                   coalesced_occurrence_id: str | None = None,
@@ -1355,6 +1389,7 @@ def clear_no_effect_unknown(owner_id: str) -> int:
         os.close(descriptor)
 
 
+@_defer_during_owner_deploy
 def try_acquire(resource_class: str, owner_id: str, *,
                 admission_class: str = "borrow",
                 retain_ticket: bool = True,

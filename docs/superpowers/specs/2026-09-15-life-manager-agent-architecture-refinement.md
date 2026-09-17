@@ -102,9 +102,25 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   local smoke. The candidate `life-manager-browser-capacity-probe` uses the
   existing registry scheduler and has no provider/account effect. Its focused
   tests passed 79 tests and 126 subtests with the registry/inventory checks;
-  the loop contract and OSS boundary also passed. This is local evidence only:
-  main integration, immutable-release apply, natural terminal and a distinct
-  `life-manager-connector-native` handoff are still required for A15-08.
+  the loop contract and OSS boundary also passed. PR #5396 passed
+  all nine CI checks and merged as `9c97f0e140`. Complete main release
+  `20260918T001611-3444d81c` has `release_paths=ALL`; targeted apply event
+  `97372c441702b136c37ba286` loaded only the probe with that SHA. Connector
+  run `18d624c67945c920-61315` on main-derived `a77c5629` held the browser
+  claim and reached outer pass at 15:22:20Z. Probe occurrence
+  `18d624de0df789e8-64936` had queued known at 15:20:38Z while Connector
+  held capacity; after Connector release, the next probe run
+  `18d624f5e990c7f0-67714` started at 15:22:20Z and reached outer pass at
+  15:22:27Z on loaded `3444d81c`, before another manual probe start. The
+  admission SQLite readback shows both owners' exact occurrences
+  `released/effect_unknown=0`, no browser reservation, and browser queued
+  owners falling from one (about 1.7 minutes old) to zero. Probe stdout
+  reported `cdp_ready` from its isolated profile; no provider submission or
+  sibling profile was touched. A later targeted manual probe run
+  `18d6250438013538-69594` also passed, but is not used for the natural
+  handoff gate. The two passing owners above ran on different main-derived
+  SHAs, so this is preliminary lifecycle evidence rather than the same-SHA
+  acceptance receipt.
   On 2026-09-18, a complete main-derived release `e4f50c914b...` was cut
   after the prior current release was found truncated by `ENOSPC`; its
   `release_paths=ALL`, Python metadata, `playwright-core` and `jsqr` were
@@ -115,6 +131,35 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   the connector occurrence released (`sequence 30568 → 30609`). A natural
   connector terminal on the same exact release is still required, so this item
   remains open.
+  A later `6943af4c` current release had the tracked source tree but lacked
+  `apps/life-manager/node_modules/{playwright-core,jsqr}`; a targeted
+  Connector reconcile failed closed with `Connector runtime dependencies
+  missing`. The canonical cutter produced complete main-derived release
+  `20260918T011952-faac3e09` with `release_paths=ALL` and both packages
+  present. Targeted loaded-idle reconciles installed the exact SHA on
+  Connector (`fe92f92722cf82fbc9581200`) and probe
+  (`cf4ab074ba98d4f03f1aceb5`) without starting a provider submission.
+  Both loaded argv read back `faac3e09`; a natural two-owner terminal chain
+  on that SHA is still required.
+  A further same-SHA attempt on `846c6911` exposed a shared reconcile
+  race: Connector run `18d62a736e262c80-21286` claimed browser at
+  17:02:57Z, while probe run `18d62a74d6cd1bd0-23138` queued known at
+  17:03:03Z. At 17:12:43Z the idle probe was reloaded to `94e4898c` while
+  its queued occurrence remained unsettled; that occurrence became
+  `cancelled`. Connector reached outer pass at 17:13:01Z but its admission
+  occurrence is `released/effect_unknown=1`, so the exact effect fence stays
+  with its provider owner. Probe run `18d62aff3d7cbd38-46964` passed on
+  `94e4898c` at 17:13:21Z. This is not a same-SHA handoff. A branch-local
+  shared reconcile guard now excludes owners with a registered known queued
+  or claimed occurrence and allows stale unregistered queued rows to pass.
+  A per-owner deploy lock serializes new enqueue/claim with plist replacement
+  without holding the global admission lock through launchctl. The existing
+  label apply lock plus a running readback protects the first transition from
+  an older runner. Late skips are reported as `skipped_pending`, not applied.
+  RED-to-green focused verification, admission 105 tests and loop 111 tests/30
+  subtests passed; fresh read-only review found no blocking defect. The guard
+  is not production evidence until CI, main integration and a main-derived
+  natural handoff are measured.
 - [x] **A15-09 — prove a deterministic-class handoff.** Join the same four
   events for two deterministic owners on the new loaded SHA; the earlier
   `x402-ledger` → `x402-experiment-franklin1` pass is a baseline, not a
@@ -187,10 +232,33 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   0; free bytes rose 638,849,024 to 1,236,148,224. A second natural run
   `18d61e7fd253a1d8-92885` reached outer pass at 13:30:01Z on loaded SHA
   `deb086429a1a` while global `current` had advanced to complete main release
-  `f4d701999f1`. **Verdict remains NOT
-  DONE:** A15-08 has no second eligible browser-class owner/claim. Provider
-  effect readbacks, including three remaining Capafy owner fences, remain with
-  their separate owners.
+  `f4d701999f1`. **A15 Foundation verdict: NOT DONE pending a same-SHA
+  browser handoff.** A distinct-owner lifecycle was observed in A15-08's
+  Connector `18d624c67945c920-61315` → probe
+  `18d624f5e990c7f0-67714` natural terminal chain and released SQLite
+  occurrences. Its waiting age fell from about 1.7 minutes to zero; the
+  before/after receipt pointers are the two owners' `events.jsonl`, the
+  admission `occurrences` rows and the probe's `launchd.out.log` `cdp_ready`.
+  PR #5396 merged at `9c97f0e140`; probe loaded and event SHA is the complete
+  main-derived release `3444d81cb71f` (`release_paths=ALL`, install event
+  `97372c441702b136c37ba286`). The final readback found global `current`
+  complete main release `9c2776b3cf60` (`release_paths=ALL`, no missing
+  tracked paths), `origin/main` `9d38c4a3bde0`, and `lm-loop doctor`
+  `ok=true` with 166 registry entries and no missing, unmanaged or retired
+  labels. The runtime eligibility query counted agent 21 (oldest 69.8 min),
+  browser 0, deterministic 18 (oldest 57.9 min), below the configured 2-hour
+  support age; unknown effects remained separate and fenced. Memory free was
+  32%, and disk available was 4,234,912 KiB. After transient fail-closed
+  `probe-error` runs, disk-cleanup natural run `18d6260521ecf460-12303`
+  reached outer pass at 15:43:19Z on loaded `d29621be5159`, with host,
+  release and scratch errors 0, protected deletions 0 and free bytes rising
+  from 4,240,662,528 to 4,436,287,488 in its stdout receipt. The older
+  loaded reconciler `deb086429a1a` had the required post-fence natural passes
+  `18d61e16f28b15d0-75320` and `18d61e7fd253a1d8-92885`; later concurrent
+  release cuts caused safe `entrypoint_exit_1` retries, and a newer natural
+  run was active at this readback. These observations do not claim provider effects
+  or every loop's business outcome: Capafy and other exact effect/readback
+  fences remain with their owners.
 
 A15-02 integration observation: an earlier PR #5362 head at `eb72e7cb1b` had
 one failing `OSS self-contained boundary` check. The exact inventory digest

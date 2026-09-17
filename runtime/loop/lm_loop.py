@@ -9,6 +9,7 @@ import json
 import os
 import plistlib
 import re
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -26,10 +27,39 @@ from runtime.loop.lm_loop_apply import (
 )
 from runtime.loop.lm_loop_lifecycle import lifecycle, lifecycle_one
 from runtime.loop.runtime_event import append_runtime_event, build_install_event, validate_runtime_event
-from runtime.host.resource_admission import activate_durable_v2, durable_protocol_version
+from runtime.host.resource_admission import (
+    activate_durable_v2, durable_protocol_version, owner_deploy_lock,
+    state_root as admission_root,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _pending_admission_owners() -> set[str]:
+    database = admission_root() / "admission-v2.sqlite3"
+    try:
+        database.stat()
+    except FileNotFoundError:
+        return set()
+    with sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True, timeout=1) as connection:
+        return {owner_id for (owner_id,) in connection.execute(
+            """SELECT owner_id FROM occurrences WHERE state='claimed'
+               UNION
+               SELECT o.owner_id FROM occurrences o
+                 JOIN queue q ON q.owner_id=o.owner_id
+                WHERE o.state='queued' AND o.effect_unknown=0""")}
+
+
+@contextmanager
+def _admission_rebind_guard(loop_id: str, enabled: bool):
+    if not enabled:
+        yield False
+        return
+    with owner_deploy_lock(loop_id) as acquired:
+        if not acquired:
+            raise RuntimeError("owner deploy busy")
+        yield loop_id in _pending_admission_owners()
 
 
 def _next_eligible(cadence: dict) -> str:
@@ -583,6 +613,7 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                lock_path: Path | None = None,
                preserve_unloaded: bool = False,
                skip_busy: bool = False,
+               preserve_pending_admission: bool = False,
                reload_running: bool = False,
                require_current: bool = False,
                protocol_reader: Callable[[], int] = _protocol_v1,
@@ -595,6 +626,7 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                 release_root, agents_dir, launchctl_safe, target,
                 current=current, lock_path=lock_path,
                 preserve_unloaded=preserve_unloaded, skip_busy=skip_busy,
+                preserve_pending_admission=preserve_pending_admission,
                 reload_running=reload_running, require_current=require_current,
                 protocol_reader=protocol_reader,
                 event_writer=event_writer, _protocol_guarded=True,
@@ -626,8 +658,16 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
         item_lock = (None if reload_running else
                      _label_apply_lock_path(current, item["label"], lock_path))
         try:
-            with _apply_lock(current, item_lock):
-                if skip_busy:
+            with _apply_lock(current, item_lock), _admission_rebind_guard(
+                    item["loop_id"], preserve_pending_admission) as pending_admission:
+                if pending_admission:
+                    results.append({"ok": True, "label": item["label"],
+                                    "release_sha": release_sha, "changed": False,
+                                    "skipped": "pending-admission"})
+                    continue
+                # Old runners take this label lock before admission; the running
+                # readback closes their first-upgrade gap before the new owner lock.
+                if skip_busy or preserve_pending_admission:
                     skipped = _skip_if_not_loaded_idle(
                         item, release_sha, launchctl_safe)
                     if skipped is not None:
@@ -922,6 +962,11 @@ def main(argv: list[str] | None = None) -> int:
                            {"loaded-idle"} if loaded_idle_only else
                            {"loaded-idle", "unloaded"})
         ancestry_cache: dict[str, bool] = {}
+        try:
+            pending_owners = _pending_admission_owners()
+        except (OSError, sqlite3.Error) as exc:
+            print(json.dumps({"ok": False, "error": f"admission queue read failed: {type(exc).__name__}"}))
+            return 1
         if automatic_release_reconciler:
             for row in rows:
                 if row.get("provider_route") != route:
@@ -937,6 +982,7 @@ def main(argv: list[str] | None = None) -> int:
             row["classification"] == "managed"
             and row["loop_id"] != os.environ.get("LIFE_MANAGER_LOOP_ID")
             and row["provider_route"] == route
+            and row["loop_id"] not in pending_owners
             and (not requested_ids or row["loop_id"] in effective_requested_ids)
             and row["launchd_state"] in eligible_states
             and (row["launchd_state"] != "loaded-running"
@@ -955,24 +1001,33 @@ def main(argv: list[str] | None = None) -> int:
                      and row["loop_id"] == "life-manager-disk-cleanup"]
             eligible = [row for row in eligible if row not in extra][:max_owners] + extra
         skipped_non_ancestor = sorted(set(skipped_non_ancestor))
+        skipped_pending = sorted({row["loop_id"] for row in rows if (
+            row["provider_route"] == route and row["loop_id"] in pending_owners)})
         applied, failed = [], []
         for row in eligible:
             try:
-                applied.extend(apply_live(
+                results = apply_live(
                     release_root, Path("~/Library/LaunchAgents").expanduser(),
                     release_root / "bin/launchctl-safe",
                     target=row["loop_id"],
                     preserve_unloaded=row["launchd_state"] == "unloaded",
                     skip_busy=(loaded_idle_only and
                                row["loop_id"] not in explicitly_reloadable),
+                    preserve_pending_admission=(row["launchd_state"] == "loaded-idle"),
                     require_current=True,
                     reload_running=row["launchd_state"] == "loaded-running",
-                    protocol_reader=durable_protocol_version))
+                    protocol_reader=durable_protocol_version)
+                for result in results:
+                    if result.get("skipped") == "pending-admission":
+                        skipped_pending.append(row["loop_id"])
+                    else:
+                        applied.append(result)
             except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as exc:
                 failed.append({"loop_id": row["loop_id"], "error": str(exc)})
         print(json.dumps({
             "ok": not failed, "route": route, "release_sha": current_sha,
             "skipped_non_ancestor": skipped_non_ancestor,
+            "skipped_pending": sorted(set(skipped_pending)),
             "eligible": len(eligible), "applied": applied, "failed": failed,
             "skipped_running": [row["loop_id"] for row in rows if (
                 row["classification"] == "managed"
