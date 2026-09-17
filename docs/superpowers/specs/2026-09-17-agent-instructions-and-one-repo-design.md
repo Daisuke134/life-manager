@@ -97,7 +97,7 @@ This order fixes the process that will execute the larger consolidation before t
 ## E-series filesystem archive evidence
 
 - A read-only scan found clean, inactive non-Life-Manager repositories and loose artifacts outside the canonical checkout. They were moved one by one to `/Users/anicca/Archive/` with their contents and Git histories preserved: `anicca-core`, 16 agent-engineering reference repositories without `memory/`, three agent-rsi research repositories, the `video-use` fork, and four loose artifact folders.
-- `memory/` directories are protected by the global rule and were not moved (`conway-automaton`, `nous-hermes-agent`, and `anicca-products-lm-price`). Dirty `openai-symphony`, registered Life Manager worktrees, and unfinished or owner-controlled folders remain. Projects still has the canonical `life-manager-main` plus those retained items; the archive operation did not alter Life Manager source or runtime state.
+- `memory/` directories are protected by the global rule and were not moved (`conway-automaton`, `nous-hermes-agent`, and `anicca-products-lm-price`). Registered Life Manager worktrees and unfinished or owner-controlled folders remain. The dirty-but-inactive `openai-symphony` repo was moved with its untracked spike file preserved. Projects still has the canonical `life-manager-main` plus protected and retained items; the archive operation did not alter Life Manager source or runtime state.
 
 ## B4/V-series closeout evidence
 
