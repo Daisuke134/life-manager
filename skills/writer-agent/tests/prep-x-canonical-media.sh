@@ -25,7 +25,7 @@ MD
 
 X_SRC="$TMP/article.md" X_DST="$TMP/prepared.md" X_ASSETS="$TMP/assets" \
 X_TITLE="Canonical media test" X_COVER="$TMP/headline.png" ARTICLE_RUN_DIR="$TMP/run" \
-  /Users/anicca/.local/share/life-manager/venv/bin/python \
+  "${PYTHON_BIN:-python3}" \
   "$ROOT/scripts/x-publish/prep-x-md.py" >/dev/null
 
 grep -q 'body-diagram.png' "$TMP/prepared.md"

@@ -490,6 +490,68 @@ test("execute resolves and SHA-checks object refs, then returns verified receipt
   assert.equal(calls[0].token, "provider-token");
 });
 
+test("native carousel execution records the exact runtime occurrence and lane identity", async () => {
+  const value = job();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-carousel-effect-identity-"));
+  const sidecar = path.join(root, "effect-identity.jsonl");
+  const previous = {
+    LIFE_MANAGER_EFFECT_IDENTITY_PATH: process.env.LIFE_MANAGER_EFFECT_IDENTITY_PATH,
+    LIFE_MANAGER_OCCURRENCE_ID: process.env.LIFE_MANAGER_OCCURRENCE_ID,
+    LIFE_MANAGER_RUN_ID: process.env.LIFE_MANAGER_RUN_ID,
+    LIFE_MANAGER_LOOP_ID: process.env.LIFE_MANAGER_LOOP_ID,
+  };
+  Object.assign(process.env, {
+    LIFE_MANAGER_EFFECT_IDENTITY_PATH: sidecar,
+    LIFE_MANAGER_OCCURRENCE_ID: "life-manager-anicca-main-instagram:run-1",
+    LIFE_MANAGER_RUN_ID: "run-1",
+    LIFE_MANAGER_LOOP_ID: "life-manager-anicca-main-instagram",
+  });
+  try {
+    let sidecarSeenByProvider = false;
+    const services = fixtureServices(value, {
+      runDistribution: async () => {
+        sidecarSeenByProvider = fs.existsSync(sidecar);
+        return {
+          state: "PUBLISHED",
+          reconciled: true,
+          post_id: "postiz-carousel-1",
+          post_url: URL,
+        };
+      },
+    });
+    await executeMarketingNativeCarouselPublicationJob(value, services);
+    assert.equal(sidecarSeenByProvider, true);
+    assert.deepEqual(JSON.parse(fs.readFileSync(sidecar, "utf8")), {
+      schema_version: 1,
+      kind: "life_manager_effect_identity",
+      runtime_run_id: "run-1",
+      occurrence_id: "life-manager-anicca-main-instagram:run-1",
+      loop_id: "life-manager-anicca-main-instagram",
+      job_id: value.job_id,
+      effect_key: value.effect_key,
+      product_id: "anicca-ios",
+      format_id: "larry",
+      form: "affirmation-carousel",
+      locale: "ja",
+      platform: "instagram",
+      creative_id: "LARRY-JA-001",
+      slot: "2026-08-26T07:30:00.000Z",
+      integration_ref: INTEGRATION_REF,
+      account_id: "@ani.cca1234",
+      video_sha256: null,
+      caption_sha256: CAPTION_REF.slice(-64),
+      media_sha256: MEDIA_REFS.map((ref) => ref.slice(-64)),
+      pack_sha256: PACK_REF.slice(-64),
+      media_order_sha256: sha256Bytes(JSON.stringify(MEDIA_REFS.map((ref) => ref.slice(-64)))),
+    });
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
 test("provider errors and result mismatches are unknown effects", async () => {
   const value = job();
   for (const runDistribution of [

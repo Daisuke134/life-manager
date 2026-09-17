@@ -284,6 +284,75 @@ test("adapter publishes through tenant-scoped providers and returns product line
   );
 });
 
+test("adapter records the runtime occurrence before a video provider effect", async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-video-effect-identity-"));
+  const sidecar = path.join(root, "effect-identity.jsonl");
+  const previous = {
+    LIFE_MANAGER_EFFECT_IDENTITY_PATH: process.env.LIFE_MANAGER_EFFECT_IDENTITY_PATH,
+    LIFE_MANAGER_OCCURRENCE_ID: process.env.LIFE_MANAGER_OCCURRENCE_ID,
+    LIFE_MANAGER_RUN_ID: process.env.LIFE_MANAGER_RUN_ID,
+    LIFE_MANAGER_LOOP_ID: process.env.LIFE_MANAGER_LOOP_ID,
+  };
+  Object.assign(process.env, {
+    LIFE_MANAGER_EFFECT_IDENTITY_PATH: sidecar,
+    LIFE_MANAGER_OCCURRENCE_ID: "life-manager-honne-ja:run-1",
+    LIFE_MANAGER_RUN_ID: "run-1",
+    LIFE_MANAGER_LOOP_ID: "life-manager-honne-ja",
+  });
+  try {
+    let sidecarSeenByProvider = false;
+    const adapter = createMarketingVideoPublicationLoopAdapter({
+      objectStore: { resolve: (ref) => `/objects/${ref.slice(-64)}` },
+      secretProvider: { get: async () => "token" },
+      integrationProvider: { get: async () => "integration-id" },
+      accountResolver: () => "@honnevideo",
+      ledgerPath: () => path.join(root, "distribution.jsonl"),
+      runDistribution: async () => {
+        sidecarSeenByProvider = fs.existsSync(sidecar);
+        return {
+          creative_id: "HJA-007-aaaaaaaaaaaa",
+          video_sha256: VIDEO_HASH,
+          caption_sha256: CAPTION_HASH,
+          platform: "tiktok",
+          public_url: TT_URL,
+          provider_post_id: "postiz-honne-HJA-007",
+          provider_route: "postiz",
+          provider_reconciled: true,
+        };
+      },
+    });
+
+    await adapter.execute(job());
+    assert.equal(sidecarSeenByProvider, true);
+    const identity = JSON.parse(fs.readFileSync(sidecar, "utf8"));
+    assert.deepEqual(identity, {
+      schema_version: 1,
+      kind: "life_manager_effect_identity",
+      runtime_run_id: "run-1",
+      occurrence_id: "life-manager-honne-ja:run-1",
+      loop_id: "life-manager-honne-ja",
+      job_id: job().job_id,
+      effect_key: job().effect_key,
+      product_id: "honne-ai",
+      format_id: "reelclaw",
+      form: "relationship-confession",
+      locale: "ja",
+      platform: "tiktok",
+      creative_id: "HJA-007-aaaaaaaaaaaa",
+      slot: "2026-07-30T12:30:00.000Z",
+      integration_ref: "integration://postiz/tiktok/honne-ai-ja",
+      account_id: "@honnevideo",
+      video_sha256: VIDEO_HASH,
+      caption_sha256: CAPTION_HASH,
+    });
+  } finally {
+    for (const [key, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+});
+
 test("TikTok-only publication does not resolve an unassigned Instagram profile", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "lm-video-publish-tiktok-only-"));
   let received;

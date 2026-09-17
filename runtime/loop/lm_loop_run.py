@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import plistlib
 import re
@@ -163,6 +164,189 @@ def _atomic_json(path: Path, value: dict) -> None:
     finally:
         try: os.unlink(name)
         except FileNotFoundError: pass
+
+
+def _persist_effect_identity(sidecar: Path, state_root: Path,
+                             loop_id: str, run_id: str,
+                             claimed_occurrence_id: str | None = None) -> str | None:
+    """Move a validated run identity out of scratch before unknown-effect cleanup."""
+    if (not SAFE_RUN_ID.fullmatch(loop_id) or not SAFE_RUN_ID.fullmatch(run_id)
+            or loop_id in {".", ".."} or run_id in {".", ".."}):
+        raise ValueError("unsafe effect identity id")
+    expected_occurrence = claimed_occurrence_id or f"{loop_id}:{run_id}"
+    if not OCCURRENCE_ID_PATTERN.fullmatch(expected_occurrence):
+        raise ValueError("unsafe effect identity occurrence")
+    try:
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(sidecar, flags)
+        try:
+            info = os.fstat(descriptor)
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
+                    or info.st_nlink != 1 or info.st_mode & 0o777 != 0o600):
+                return None
+            with os.fdopen(descriptor, "rb") as handle:
+                descriptor = -1
+                data = handle.read(1024 * 1024 + 1)
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+    except (FileNotFoundError, OSError):
+        return None
+    home_prefix = str(Path.home()).encode()
+    if not data.strip() or len(data) > 1024 * 1024 or (home_prefix and home_prefix in data):
+        return None
+
+    identifier = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,255}$")
+    job_identifier = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$")
+    effect_key = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,511}$")
+    integration = re.compile(
+        r"^integration://postiz/([a-z]+)/([A-Za-z0-9._:-]{1,200})$", re.IGNORECASE,
+    )
+    account = re.compile(r"^@[A-Za-z0-9._-]{1,127}$")
+    hash_value = re.compile(r"^[0-9a-f]{64}$")
+    allowed = {
+        "schema_version", "kind", "runtime_run_id", "occurrence_id", "loop_id",
+        "job_id", "effect_key", "product_id", "format_id", "form", "locale",
+        "platform", "creative_id", "slot", "integration_ref", "account_id",
+        "video_sha256", "caption_sha256", "media_sha256", "pack_sha256",
+        "media_order_sha256",
+    }
+    for raw in data.splitlines():
+        try:
+            value = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return None
+        if (not isinstance(value, dict) or value.get("schema_version") != 1
+                or value.get("kind") != "life_manager_effect_identity"
+                or set(value) - allowed
+                or value.get("runtime_run_id") != run_id
+                or value.get("occurrence_id") != expected_occurrence
+                or value.get("loop_id") != loop_id
+                or not job_identifier.fullmatch(str(value.get("job_id", "")))
+                or not effect_key.fullmatch(str(value.get("effect_key", "")))
+                or not identifier.fullmatch(str(value.get("product_id", "")))
+                or not identifier.fullmatch(str(value.get("format_id", "")))
+                or not identifier.fullmatch(str(value.get("form", "")))
+                or not re.fullmatch(r"[a-z]{2}(?:-[A-Z]{2})?", str(value.get("locale", "")))
+                or value.get("platform") not in {"instagram", "tiktok", "youtube"}
+                or not identifier.fullmatch(str(value.get("creative_id", "")))
+                or not isinstance(value.get("slot"), str) or not value["slot"].strip()
+                or not integration.fullmatch(str(value.get("integration_ref", "")))
+                or not account.fullmatch(str(value.get("account_id", "")))
+                or (value.get("video_sha256") is not None
+                    and not hash_value.fullmatch(str(value.get("video_sha256"))))
+                or not hash_value.fullmatch(str(value.get("caption_sha256", "")))):
+            return None
+        if "media_sha256" in value and (
+                not isinstance(value["media_sha256"], list)
+                or not value["media_sha256"]
+                or any(not hash_value.fullmatch(str(item)) for item in value["media_sha256"])):
+            return None
+        for key in ("pack_sha256", "media_order_sha256"):
+            if key in value and not hash_value.fullmatch(str(value[key])):
+                return None
+        integration_match = integration.fullmatch(str(value["integration_ref"]))
+        if integration_match is None or integration_match.group(1).lower() != value["platform"]:
+            return None
+        video_key = re.fullmatch(
+            r"marketing:video:([^:]+):(instagram|tiktok|youtube):([^:]+):([0-9a-f]{64}):([0-9a-f]{64})(?::([0-9a-f]{64}))?",
+            str(value["effect_key"]),
+        )
+        carousel_key = re.fullmatch(
+            r"marketing:carousel:([^:]+):([^:]+):([0-9a-f]{64}):([0-9a-f]{64}):([0-9a-f]{64})(?::([0-9a-f]{64}))?",
+            str(value["effect_key"]),
+        )
+        if video_key:
+            if (value["product_id"] != video_key.group(1)
+                    or value["platform"] != video_key.group(2)
+                    or value["creative_id"] != video_key.group(3)
+                    or value["video_sha256"] != video_key.group(4)
+                    or value["caption_sha256"] != video_key.group(5)
+                    or (video_key.group(6) is not None
+                        and video_key.group(6) != hashlib.sha256(value["slot"].encode()).hexdigest())):
+                return None
+        elif carousel_key:
+            media_hashes = value.get("media_sha256")
+            expected_media_order = (
+                hashlib.sha256(json.dumps(
+                    media_hashes, ensure_ascii=False, separators=(",", ":"),
+                ).encode()).hexdigest()
+                if isinstance(media_hashes, list) else None
+            )
+            if (value["product_id"] != carousel_key.group(1)
+                    or value["creative_id"] != carousel_key.group(2)
+                    or value.get("video_sha256") is not None
+                    or not isinstance(media_hashes, list) or len(media_hashes) != 6
+                    or any(not hash_value.fullmatch(str(item)) for item in media_hashes)
+                    or value.get("pack_sha256") != carousel_key.group(3)
+                    or value.get("media_order_sha256") != carousel_key.group(4)
+                    or value.get("media_order_sha256") != expected_media_order
+                    or value["caption_sha256"] != carousel_key.group(5)
+                    or (carousel_key.group(6) is not None
+                        and carousel_key.group(6) != hashlib.sha256(value["slot"].encode()).hexdigest())):
+                return None
+        else:
+            return None
+
+    root_fd = identity_fd = descriptor = -1
+    temporary_name = None
+    try:
+        state_root = state_root.expanduser()
+        state_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        root_flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
+        root_fd = os.open(state_root, root_flags)
+        root_info = os.fstat(root_fd)
+        if (not stat.S_ISDIR(root_info.st_mode) or root_info.st_uid != os.getuid()
+                or root_info.st_mode & 0o777 != 0o700):
+            return None
+        try:
+            os.mkdir("effect-identities", mode=0o700, dir_fd=root_fd)
+        except FileExistsError:
+            pass
+        identity_fd = os.open("effect-identities", root_flags, dir_fd=root_fd)
+        identity_info = os.fstat(identity_fd)
+        if (not stat.S_ISDIR(identity_info.st_mode) or identity_info.st_uid != os.getuid()
+                or identity_info.st_mode & 0o777 != 0o700):
+            return None
+        write_flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        for attempt in range(8):
+            temporary_name = f".{run_id}.{os.getpid()}.{time.time_ns()}.{attempt}.tmp"
+            try:
+                descriptor = os.open(
+                    temporary_name, write_flags, 0o600, dir_fd=identity_fd,
+                )
+                break
+            except FileExistsError:
+                continue
+        if descriptor < 0:
+            return None
+        with os.fdopen(descriptor, "wb") as handle:
+            descriptor = -1
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(
+            temporary_name, f"{run_id}.jsonl",
+            src_dir_fd=identity_fd, dst_dir_fd=identity_fd,
+        )
+        temporary_name = None
+        os.fsync(identity_fd)
+        sidecar.unlink()
+    except OSError:
+        return None
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        if temporary_name is not None and identity_fd >= 0:
+            try:
+                os.unlink(temporary_name, dir_fd=identity_fd)
+            except FileNotFoundError:
+                pass
+        if identity_fd >= 0:
+            os.close(identity_fd)
+        if root_fd >= 0:
+            os.close(root_fd)
+    return f"lm-effect://{loop_id}/{run_id}/identity.jsonl"
 
 
 def _runtime_limit(entry: dict) -> int | None:
@@ -651,9 +835,20 @@ def main(argv: list[str] | None = None) -> int:
             claimed_occurrence_id = value
         return_code = _run_admitted(command, entry, loop_id, {
             **os.environ, "LIFE_MANAGER_RELEASE_ROOT": str(release_root),
+            "LIFE_MANAGER_RUN_ID": run_id,
+            "LIFE_MANAGER_EFFECT_IDENTITY_PATH": str(scratch / "effect-identity.jsonl"),
             "TMPDIR": f"{scratch}/", "NPM_CONFIG_CACHE": str(scratch / "npm-cache"),
         }, host_receipt, occurrence_id=f"{loop_id}:{run_id}", on_claimed=record_claimed)
         host_deferred = _host_admission_deferred(host_receipt, started_ns)
+        effect_identity_ref = None
+        if entry.get("effect_class") != "none" and return_code != 0:
+            try:
+                effect_identity_ref = _persist_effect_identity(
+                    scratch / "effect-identity.jsonl", loop_state_root, loop_id, run_id,
+                    claimed_occurrence_id,
+                )
+            except (OSError, ValueError) as error:
+                print(f"lm-loop-run: effect identity preservation deferred: {error}", file=sys.stderr)
         terminal_saved = False
         try:
             succeeded, deferred, blocker = _terminal_outcome(
@@ -665,6 +860,7 @@ def main(argv: list[str] | None = None) -> int:
                 succeeded=succeeded, deferred=deferred, blocker=blocker,
                 evidence_scheme="lm-loop",
                 claimed_occurrence_id=claimed_occurrence_id,
+                effect_identity_ref=effect_identity_ref,
             )
             append_runtime_event(event_path, event)
             terminal_saved = True

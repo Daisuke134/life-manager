@@ -24,7 +24,7 @@ class ExecuteInitializationRebindTest(unittest.TestCase):
             script.parent.mkdir(parents=True)
             script.write_text("#!/bin/sh\n", encoding="utf-8")
             script.chmod(0o555)
-            old = "/Users/anicca/loops/releases/20260917T221451-98fa0346/skills/writer-agent/scripts/run.sh"
+            old = "/old/loops/releases/20260917T221451-98fa0346/skills/writer-agent/scripts/run.sh"
 
             old_root = os.environ.get("ARTICLE_ROOT")
             os.environ["ARTICLE_ROOT"] = str(writer_root)
