@@ -44,10 +44,19 @@ async function readMentalSendState(uid, nowMs, supa, fetchImpl, opts = {}) {
   const f = fetchImpl || globalThis.fetch;
   const since = new Date(nowMs - MENTAL_SEND_WINDOW_MS).toISOString();
   const query = `uid=eq.${encodeURIComponent(uid)}&sent_at=gte.${encodeURIComponent(since)}`
-    + "&select=sent_at&order=sent_at.desc";
-  const response = await f(`${supaBase(url)}/rest/v1/lm_mental_send_log?${query}`, {
+    + "&select=sent_at,trigger,family,template_id,local_day,window&order=sent_at.desc";
+  let response = await f(`${supaBase(url)}/rest/v1/lm_mental_send_log?${query}`, {
     headers: authHeaders(key),
   }).catch(() => null);
+  // Deploy order can briefly expose the old schema. Strict V1 callers must stay silent; legacy
+  // callers may retain the historical count-only fallback until the additive migration lands.
+  if ((!response || !response.ok) && !strict) {
+    const legacyQuery = `uid=eq.${encodeURIComponent(uid)}&sent_at=gte.${encodeURIComponent(since)}`
+      + "&select=sent_at&order=sent_at.desc";
+    response = await f(`${supaBase(url)}/rest/v1/lm_mental_send_log?${legacyQuery}`, {
+      headers: authHeaders(key),
+    }).catch(() => null);
+  }
   if (!response || !response.ok) {
     if (strict) {
       throw new Error(`mental send state lookup failed (${response ? response.status : "no response"})`);
@@ -60,21 +69,39 @@ async function readMentalSendState(uid, nowMs, supa, fetchImpl, opts = {}) {
     return { sentTodayCount: 0, lastSentMs: null };
   }
   const times = rows.map((row) => Date.parse(row.sent_at)).filter(Number.isFinite);
-  return { sentTodayCount: times.length, lastSentMs: times.length ? Math.max(...times) : null };
+  return {
+    sentTodayCount: times.length,
+    lastSentMs: times.length ? Math.max(...times) : null,
+    sentFamilies: [...new Set(rows.map((row) => row.family).filter(Boolean))],
+    recentQuoteIds: rows.map((row) => row.template_id).filter(Boolean),
+    sentWindows: rows.map((row) => row.window).filter(Boolean),
+  };
 }
 
 // Best-effort by contract: the message has already been delivered by the time this runs, so a failed
 // write costs the cap one unit of accuracy and never rolls a sent message back. Returns whether the
 // row landed so callers can say so honestly instead of assuming.
-async function recordMentalSend(uid, trigger, messageId, supa, fetchImpl) {
+async function recordMentalSend(uid, triggerOrMeta, messageId, supa, fetchImpl) {
   const url = supa && (supa.url || supa.supaUrl);
   const key = supa && (supa.key || supa.supaKey);
   if (!url || !key) return false;
   const f = fetchImpl || globalThis.fetch;
+  const meta = triggerOrMeta && typeof triggerOrMeta === "object"
+    ? triggerOrMeta
+    : { trigger: triggerOrMeta, family: "legacy", templateId: String(triggerOrMeta || "legacy"), localDay: null, window: "legacy" };
+  const body = {
+    uid,
+    trigger: String(meta.trigger || meta.window || "legacy"),
+    family: String(meta.family || "legacy"),
+    template_id: String(meta.templateId || "legacy"),
+    window: String(meta.window || "legacy"),
+    telegram_message_id: String(messageId),
+  };
+  if (meta.localDay) body.local_day = String(meta.localDay);
   const response = await f(`${supaBase(url)}/rest/v1/lm_mental_send_log`, {
     method: "POST",
     headers: authHeaders(key, { "Content-Type": "application/json", Prefer: "return=minimal" }),
-    body: JSON.stringify({ uid, trigger, telegram_message_id: String(messageId) }),
+    body: JSON.stringify(body),
   }).catch(() => null);
   return Boolean(response && response.status === 201);
 }

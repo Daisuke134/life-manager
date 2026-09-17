@@ -112,13 +112,19 @@ Current execution path remains:
 
 ```text
 scheduler.js
-  -> mentalDeps(...)
-  -> mentalUserOnce(...)
-  -> evaluateMentalTrigger(...)
-  -> buildMentalMessage(...)
+  -> mentalV1Deps(...)
+  -> mentalV1UserOnce(...)
+  -> evaluateMentalOpportunity(...)
+  -> selectMentalQuote(...)
+  -> validateMentalMessage(...)
   -> Telegram sendMessage(...)
-  -> recordMentalSend(...)
+  -> recordMentalSend(... family/template/local_day/window ...)
 ```
+
+The legacy `mental-trigger.js` and `mental-runtime.js` contracts remain loadable for existing
+precepts/evaluation tests, but the scheduler's production MENTAL organ does not use
+`pre_event`, `between_events`, `pre_sleep`, event importance, location, attendee, or duration
+judgments. Calendar contributes only the current busy interval suppression input.
 
 ## 6. Delivery timing
 

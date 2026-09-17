@@ -13,6 +13,7 @@ const { schedulerCohortFilter, isCallablePhone } = require("./lib/user-selector.
 const { DEFAULTS: RUNTIME_DEFAULTS, readRuntimePreferences } = require("./lib/runtime-preferences.js");
 const { shouldWake, isHelperBlock } = require("./lib/wake-filter.js");
 const { mentalUserOnce, resolveSleepTarget } = require("./lib/mental-runtime.js");
+const { mentalV1UserOnce } = require("./lib/mental-v1-runtime.js");
 const { careUserOnce } = require("./lib/care-daily-runtime.js");
 const { dietUserOnce } = require("./lib/diet-runtime.js");
 const { dietNudgeOnce } = require("./lib/diet-nudge.js");
@@ -401,6 +402,22 @@ function mentalDeps(u, events, deps = {}) {
     sendMessage: deps.sendMessage || sendMessage,
     readSendState: deps.readMentalState || (async (uid, nowMs) => readMentalSendState(uid, nowMs, supa)),
     recordSend: deps.recordMentalSend || ((uid, trigger, messageId) => recordMentalSend(uid, trigger, messageId, supa)),
+  };
+}
+
+function mentalV1Deps(u, events, deps = {}) {
+  const supa = SUPA();
+  return {
+    fetchUpcomingEvents: async () => events,
+    readSendState: deps.readMentalState
+      || ((uid, now, opts) => readMentalSendState(uid, now, supa, undefined, { strict: true, ...opts })),
+    recordSend: deps.recordMentalSend
+      || ((row) => recordMentalSend(row.uid, row, row.telegramMessageId, supa)),
+    sendMessage: deps.sendMessage || sendMessage,
+    telegramToken: deps.telegramToken !== undefined ? deps.telegramToken : process.env.LM_TELEGRAM_BOT_TOKEN,
+    profile: deps.mentalProfile || {},
+    quietHours: deps.quietHours || null,
+    tzOffsetH: deps.tzOffsetH,
   };
 }
 
@@ -797,7 +814,7 @@ async function organsUserOnce(u, nowMs, deps = {}) {
   // MEN-c: the MENTAL organ rides the same 60s tick. It stays silent unless the day itself says now.
   const mental = await runOrgan({
     label: "organ:mental", uid: u.uid, log,
-    run: () => (deps.mental || mentalUserOnce)(u, now, mentalDeps(u, events, deps)),
+    run: () => (deps.mental || mentalV1UserOnce)(u, now, mentalV1Deps(u, events, deps)),
   });
   if (mental && mental.delivered) {
     log(`[mental] uid=${String(u.uid).slice(0, 12)} trigger=${mental.trigger} tg_message_id=${mental.telegramMessageId}`);
