@@ -219,11 +219,15 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
     launchd argv/readback point to that immutable release. This does not claim
     provider success.
 
-- [ ] **MERGE-07 — handover and cleanup**
-  - Record merge SHA, release SHA, focused test output, excluded provider
-    paths and remaining provider TODO. Only after those readbacks are
-    verified, delete `/private/tmp/lm-fundamental-runtime-20260916` and its
-    source branch.
+- [x] **MERGE-07 — handover and cleanup**
+  - Handover evidence is recorded in this spec: shared runtime PR #5348
+    merged at `17c78e4a1a`, docs PR #5352 merged at `686df1fde2`, focused
+    tests and OSS/security 9/9 are recorded above, and provider exclusions and
+    remaining provider TODOs remain explicit.
+  - The clean runtime and docs worktrees were removed normally after their
+    commits were pushed. The intentionally excluded candidate branch remains
+    as a recoverable remote backup; it is not part of main and is not loaded.
+  - This Codex does not claim provider/platform completion from the merge.
 ```
 
 ### Active remaining TODO — one program, through the final outcome
