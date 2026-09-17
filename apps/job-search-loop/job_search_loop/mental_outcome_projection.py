@@ -1,6 +1,11 @@
 from __future__ import annotations
 
 import re
+import base64
+import hashlib
+import hmac
+import json
+import urllib.request
 from datetime import datetime
 from typing import Any
 
@@ -62,3 +67,37 @@ def build_mental_outcome_projection(row: dict[str, Any]) -> dict[str, str]:
         "evidence_ref": f"job-search-outcome://{outcome_id}",
     }
 
+
+def publish_mental_outcome(
+    outcome: dict[str, str],
+    *,
+    endpoint: str,
+    secret: str,
+    now: datetime,
+    opener=urllib.request.urlopen,
+) -> dict[str, Any]:
+    if not endpoint.startswith("https://"):
+        raise ValueError("mental outcome endpoint must use HTTPS")
+    if not secret or len(secret) < 32:
+        raise ValueError("mental outcome signing secret is unavailable")
+    timestamp = now.astimezone().isoformat().replace("+00:00", "Z")
+    raw = json.dumps(outcome, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    signature = base64.urlsafe_b64encode(
+        hmac.new(secret.encode("utf-8"), timestamp.encode("utf-8") + b"\n" + raw, hashlib.sha256).digest()
+    ).rstrip(b"=").decode("ascii")
+    request = urllib.request.Request(
+        endpoint,
+        data=raw,
+        headers={
+            "Content-Type": "application/json",
+            "X-LM-Outcome-Timestamp": timestamp,
+            "X-LM-Outcome-Signature": signature,
+        },
+        method="POST",
+    )
+    with opener(request, timeout=10) as response:
+        status = int(response.status)
+        body = json.loads(response.read().decode("utf-8"))
+    if status not in {200, 201} or body.get("ok") is not True:
+        raise RuntimeError("mental outcome endpoint rejected projection")
+    return {"status": str(body.get("result") or "accepted"), "http_status": status}

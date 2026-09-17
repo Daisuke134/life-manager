@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import pytest
 
 from job_search_loop.mental_outcome_projection import build_mental_outcome_projection
+from job_search_loop.mental_outcome_projection import publish_mental_outcome
 
 
 BASE = {
@@ -50,3 +51,39 @@ def test_untrusted_or_invalid_outcomes_are_rejected_without_projection():
         with pytest.raises(ValueError):
             build_mental_outcome_projection({**BASE, **patch})
 
+
+def test_publish_mental_outcome_sends_signed_normalized_payload_only():
+    requests = []
+
+    class Response:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return b'{"ok":true,"result":"inserted"}'
+
+    def opener(request, timeout):
+        requests.append((request, timeout))
+        return Response()
+
+    outcome = build_mental_outcome_projection(BASE)
+    result = publish_mental_outcome(
+        outcome,
+        endpoint="https://life-call.example.test/api/internal/mental/outcomes",
+        secret="s" * 40,
+        now=datetime(2026, 9, 17, 1, 2, tzinfo=timezone.utc),
+        opener=opener,
+    )
+    assert result == {"status": "inserted", "http_status": 200}
+    request, timeout = requests[0]
+    assert timeout == 10
+    assert request.full_url.startswith("https://")
+    assert request.get_header("X-lm-outcome-signature")
+    assert request.get_header("X-lm-outcome-timestamp")
+    assert b'"source_outcome_id":"job-search:outcome-1"' in request.data
+    assert b"body" not in request.data

@@ -45,6 +45,10 @@
 | `apps/life-manager/lib/mental-outcome.test.js` | Outcome verification, timing, cap, and duplicate tests |
 | `apps/life-manager/lib/mental-outcome-store.js` | Receipt-only outcome dedupe and provenance persistence |
 | `apps/life-manager/lib/mental-outcome-store.test.js` | Store privacy and idempotency tests |
+| `apps/life-manager/lib/mental-outcome-ingest.js` | HMAC/timestamp/payload verification and Supabase insert |
+| `apps/life-manager/lib/mental-outcome-ingest.test.js` | Signature and raw-mail rejection tests |
+| `apps/life-manager/lib/mental-outcome-http.js` | Internal Cloud HTTP outcome handler |
+| `apps/life-manager/lib/mental-outcome-http.test.js` | HTTP handler auth/persistence tests |
 | `apps/life-manager/lib/mental-copy.js` | Verbatim catalog output and reviewed inquiry validation |
 | `apps/life-manager/lib/mental-copy.test.js` | Exact-source copy and forbidden-claim tests |
 | `apps/life-manager/lib/mental-runtime.js` | Select, send, and record one plain message |
@@ -55,6 +59,7 @@
 | `apps/life-manager/lib/mental-wiring.test.js` | Scheduler wiring and sibling isolation |
 | `apps/life-manager/migrations/2026-09-16-lm-mental-message-family.sql` | Family/template/local-day/window fields |
 | `apps/life-manager/migrations/2026-09-17-lm-mental-outcome-send.sql` | Receipt-only verified outcome send rows |
+| `apps/life-manager/migrations/2026-09-18-lm-verified-outcomes.sql` | Signed owner outcome projection table |
 | `apps/life-manager/migrations/2026-09-16-lm-mental-profile-tags.sql` | Private tag, weight, basis, hashed source ref, decay, and supersession |
 | `apps/life-manager/lib/mental-migration.test.js` | Additive schema contract |
 | `docs/evidence/life-manager-mental-canary.md` | Production truth and seven-day canary |
@@ -499,6 +504,44 @@ git add lib/mental-outcome.js lib/mental-outcome.test.js lib/mental-outcome-runt
 git commit -m "feat(life-manager): deliver receipt-grounded mental outcomes"
 git push
 ```
+
+### Task 5C: Receive signed projections in Life Manager Cloud
+
+**Files:**
+- Create: `apps/life-manager/lib/mental-outcome-ingest.js`
+- Create: `apps/life-manager/lib/mental-outcome-ingest.test.js`
+- Create: `apps/life-manager/lib/mental-outcome-http.js`
+- Create: `apps/life-manager/lib/mental-outcome-http.test.js`
+- Create: `apps/life-manager/migrations/2026-09-18-lm-verified-outcomes.sql`
+- Modify: `apps/life-manager/server.js`
+
+- [ ] Verify the signed envelope is HMAC-SHA256 over `timestamp + "\\n" + raw JSON`, timestamp skew is at most five minutes, and the secret is present.
+- [ ] Accept exactly the normalized projection keys: `uid`, `sourceOutcomeId`, `kind`, `company`, `role`, `verifiedAt`, `evidenceRef`. Reject raw body, subject, snippet, arbitrary metadata, and unknown keys.
+- [ ] Persist only structured fields into `lm_verified_outcomes` with unique `source_outcome_id`; duplicate insert returns an idempotent duplicate result.
+- [ ] Add `POST /api/internal/mental/outcomes` behind `LM_MENTAL_OUTCOME_INGEST_SECRET`. Missing secret returns 503; bad signature returns 401; schema failure returns 400; persistence failure returns 503. Never log the body.
+- [ ] Run:
+
+```bash
+cd apps/life-manager
+node --test lib/mental-outcome-ingest.test.js lib/mental-outcome-http.test.js
+node --check server.js
+```
+
+- [ ] Apply the additive migration in staging, read back columns/constraints, then commit and push.
+
+### Task 5D: Publish Job Hunter projections without raw Gmail
+
+**Files:**
+- Modify: `apps/job-search-loop/job_search_loop/mental_outcome_projection.py`
+- Modify: `apps/job-search-loop/job_search_loop/mental_outcome_projection_test.py`
+- Modify only the terminal inbox owner after its current outcome write/readback contract is located.
+
+- [ ] Sign and POST only the normalized projection to the Cloud endpoint over HTTPS with `X-LM-Outcome-Timestamp` and `X-LM-Outcome-Signature`.
+- [ ] Use the existing immutable Job Hunter evidence hash/message ID as `evidence_ref`; never transmit raw Gmail body, subject, or prompt text.
+- [ ] Make the event key `sourceOutcomeId` and treat HTTP 200 inserted/duplicate as terminal success. Do not blind-retry an unknown delivery.
+- [ ] Add a test for HTTPS enforcement, signature creation, normalized request body, duplicate response, rejection response, and no duplicate POST.
+- [ ] Wire the existing inbox/outcome owner after `record_funnel_outcome` commits. Do not add a second Gmail poller or a new Telegram sender.
+- [ ] Run the focused projection and current inbox owner tests, then perform one staging projection readback from Cloud before enabling production.
 
 ---
 
