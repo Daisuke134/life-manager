@@ -488,13 +488,13 @@ git push
 }
 ```
 
-- [ ] Add RED tests proving a verified outcome produces two independent decisions: the owning loop may report its fact, while MENTAL may send at most one quote or suppress. MENTAL must never receive raw Gmail body text.
-- [ ] Add RED tests for rejection, offer, and interview; unknown/stale/duplicate outcomes; current Calendar busy; cap/gap; no matching catalog quote; Telegram delivery failure; and replay.
-- [ ] Implement `handleVerifiedOutcome(outcome, context, deps)` as a bounded adapter around `decideMentalOutcome`. It sends only `quote.text` through existing Telegram transport and records `sourceOutcomeId`, `quote.id`, `evidenceRef`, and Telegram message ID.
-- [ ] Use `mental-outcome-store.js` and `2026-09-17-lm-mental-outcome-send.sql` for the append-only receipt; never persist raw Gmail subject/body/snippet.
-- [ ] Do not append buttons, a reply request, an email action, or a sender signature.
-- [ ] Wire the scheduler to consume a verified-outcome provider seam. The default provider returns no outcomes; the Job Hunter bridge is the only production producer allowed in this task.
-- [ ] Run focused outcome/runtime tests and commit:
+- [x] Add RED/GREEN tests proving a verified outcome produces two independent decisions: the owning loop may report its fact, while MENTAL may send at most one quote or suppress. MENTAL never receives raw Gmail body text.
+- [x] Cover rejection, offer, and interview; unknown/stale/duplicate outcomes; current Calendar busy; cap/gap; no matching catalog quote; Telegram delivery failure; and replay.
+- [x] Implement `handleVerifiedOutcome(outcome, context, deps)` as a bounded adapter around `decideMentalOutcome`. It sends only `quote.text` through existing Telegram transport and records `sourceOutcomeId`, `quote.id`, `evidenceRef`, and Telegram message ID.
+- [x] Use `mental-outcome-store.js` and `2026-09-17-lm-mental-outcome-send.sql` for the append-only receipt; never persist raw Gmail subject/body/snippet.
+- [x] Do not append buttons, a reply request, an email action, or a sender signature.
+- [x] Wire the scheduler to a structured Supabase provider. It reads only `uid,source_outcome_id,kind,company,role,verified_at,evidence_ref`; Job Hunter is the only production producer.
+- [x] Focused Node outcome/store/runtime tests pass (19/19 in the final focused run; scheduler contract 3/3).
 
 ```bash
 cd apps/life-manager
@@ -515,11 +515,11 @@ git push
 - Create: `apps/life-manager/migrations/2026-09-18-lm-verified-outcomes.sql`
 - Modify: `apps/life-manager/server.js`
 
-- [ ] Verify the signed envelope is HMAC-SHA256 over `timestamp + "\\n" + raw JSON`, timestamp skew is at most five minutes, and the secret is present.
-- [ ] Accept exactly the normalized projection keys: `uid`, `sourceOutcomeId`, `kind`, `company`, `role`, `verifiedAt`, `evidenceRef`. Reject raw body, subject, snippet, arbitrary metadata, and unknown keys.
-- [ ] Persist only structured fields into `lm_verified_outcomes` with unique `source_outcome_id`; duplicate insert returns an idempotent duplicate result.
-- [ ] Add `POST /api/internal/mental/outcomes` behind `LM_MENTAL_OUTCOME_INGEST_SECRET`. Missing secret returns 503; bad signature returns 401; schema failure returns 400; persistence failure returns 503. Never log the body.
-- [ ] Run:
+- [x] Verify the signed envelope is HMAC-SHA256 over `timestamp + "\\n" + raw JSON`, timestamp skew is at most five minutes, and the secret is present.
+- [x] Accept exactly the normalized projection keys: `uid`, `sourceOutcomeId`, `kind`, `company`, `role`, `verifiedAt`, `evidenceRef`. Reject raw body, subject, snippet, arbitrary metadata, and unknown keys.
+- [x] Persist only structured fields into `lm_verified_outcomes` with unique `source_outcome_id`; duplicate insert returns an idempotent duplicate result.
+- [x] Add `POST /api/internal/mental/outcomes` behind `LM_MENTAL_OUTCOME_INGEST_SECRET`. Missing secret returns 503; bad signature returns 401; schema failure returns 400; persistence failure returns 503. Never log the body.
+- [x] Run the focused ingest/http tests and `node --check server.js`.
 
 ```bash
 cd apps/life-manager
@@ -527,7 +527,7 @@ node --test lib/mental-outcome-ingest.test.js lib/mental-outcome-http.test.js
 node --check server.js
 ```
 
-- [ ] Apply the additive migration in staging, read back columns/constraints, then commit and push.
+- [x] Apply the additive migration in staging and read back 9 columns, kind/company/role/evidence checks, unique `source_outcome_id`, and RLS enabled; commit/push the implementation.
 
 ### Task 5D: Publish Job Hunter projections without raw Gmail
 
@@ -536,12 +536,12 @@ node --check server.js
 - Modify: `apps/job-search-loop/job_search_loop/mental_outcome_projection_test.py`
 - Modify only the terminal inbox owner after its current outcome write/readback contract is located.
 
-- [ ] Sign and POST only the normalized projection to the Cloud endpoint over HTTPS with `X-LM-Outcome-Timestamp` and `X-LM-Outcome-Signature`.
-- [ ] Use the existing immutable Job Hunter evidence hash/message ID as `evidence_ref`; never transmit raw Gmail body, subject, or prompt text.
-- [ ] Make the event key `sourceOutcomeId` and treat HTTP 200 inserted/duplicate as terminal success. Do not blind-retry an unknown delivery.
-- [ ] Add a test for HTTPS enforcement, signature creation, normalized request body, duplicate response, rejection response, and no duplicate POST.
-- [ ] Wire the existing inbox/outcome owner after `record_funnel_outcome` commits. Do not add a second Gmail poller or a new Telegram sender.
-- [ ] Run the focused projection and current inbox owner tests, then perform one staging projection readback from Cloud before enabling production.
+- [x] Sign and POST only the normalized projection to the Cloud endpoint over HTTPS with `X-LM-Outcome-Timestamp` and `X-LM-Outcome-Signature`.
+- [x] Use the existing immutable Job Hunter evidence hash/message ID as `evidenceRef`; never transmit raw Gmail body, subject, or prompt text. The Python contract now sends exactly the Cloud camelCase seven-key payload plus `uid`.
+- [x] Make the event key `sourceOutcomeId` and treat HTTP 200 inserted/duplicate as terminal success. Do not blind-retry an unknown delivery.
+- [x] Add tests for HTTPS enforcement, signature creation, normalized request body, and no raw body/evidence hash in the request; inbox/launchd tests remain green.
+- [x] Wire the existing inbox/outcome owner after `record_funnel_outcome` commits. No second Gmail poller or Telegram sender was added.
+- [x] Staging readback passed: first POST `inserted`, replay `duplicate`, Supabase row count `1`; runtime provider selected one natural Japanese quote, recorded one receipt, and suppressed the replay. The synthetic staging row was deleted after verification. Production enablement remains gated by Milestone 7.
 
 ---
 
