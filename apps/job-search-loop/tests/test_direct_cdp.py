@@ -18,6 +18,30 @@ from job_search_loop.runtime import main as compatibility_runtime_main
 
 
 class DirectCDPTypeTests(unittest.IsolatedAsyncioTestCase):
+    async def test_goto_waits_for_an_absolute_https_url_after_about_blank_ready_state(self):
+        page = DirectCDPPage("ws://example", "target")
+        page.call = AsyncMock(return_value={})
+        page.evaluate = AsyncMock(
+            side_effect=(
+                "complete",
+                "about:blank",
+                "complete",
+                "https://danaher.wd1.myworkdayjobs.com/DanaherJobs/job/role",
+            )
+        )
+
+        with patch(
+            "job_search_loop.browser_agent.direct_cdp.asyncio.sleep",
+            new=AsyncMock(),
+        ):
+            await page.goto("https://danaher.wd1.myworkdayjobs.com/DanaherJobs/job/role")
+
+        self.assertEqual(
+            page.url,
+            "https://danaher.wd1.myworkdayjobs.com/DanaherJobs/job/role",
+        )
+        self.assertEqual(page.evaluate.await_count, 4)
+
     async def test_click_observes_after_mouse_release_response_timeout_without_retry(self):
         page = DirectCDPPage("ws://example", "target")
         page.resolve_target = AsyncMock(return_value={"x": 10.0, "y": 20.0})
