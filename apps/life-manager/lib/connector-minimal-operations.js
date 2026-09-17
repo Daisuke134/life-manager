@@ -9,6 +9,8 @@ const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9:._-]{2,159}$/;
 const SAFE_REASON = /^[a-z0-9][a-z0-9_:-]{1,99}$/;
 const SAFE_METHOD = /^[a-z][a-z0-9_]{1,63}$/;
 const SAFE_PROVIDER = /^[a-z][a-z0-9_-]{1,31}$/;
+const PRIMARY_PROVIDERS = new Set(["luma", "connpass"]);
+const SAFE_CANDIDATE_REF = /^[A-Za-z][A-Za-z0-9._:/?&=%#@+~-]{2,239}$/;
 // Bounded, non-sensitive: a JS class/constructor name only (see
 // connector-minimal-runner.js's safeErrorClass), never a message, stack,
 // URL, or env value.
@@ -241,6 +243,41 @@ function safeRankingAudit(input, wakeId, recordedAt) {
   return Object.freeze({ ...input, wake_id: wakeId, recorded_at: recordedAt });
 }
 
+function safeCandidateSelectionAudit(input, wakeId, recordedAt) {
+  const keys = [
+    "auto_apply_eligible_count", "candidate_count", "provider", "ranked_count",
+    "selected_candidate_refs", "selected_count",
+  ];
+  if (
+    !input || typeof input !== "object" || Array.isArray(input)
+    || Object.keys(input).sort().join(",") !== keys.join(",")
+    || !PRIMARY_PROVIDERS.has(String(input.provider || ""))
+    || !Number.isInteger(input.candidate_count) || input.candidate_count < 0
+    || input.candidate_count > DISCOVERY_AUDIT_COUNT_CEILING
+    || !Number.isInteger(input.ranked_count) || input.ranked_count < 0
+    || input.ranked_count > input.candidate_count
+    || !Number.isInteger(input.auto_apply_eligible_count) || input.auto_apply_eligible_count < 0
+    || input.auto_apply_eligible_count > input.ranked_count
+    || !Number.isInteger(input.selected_count) || input.selected_count < 0
+    || input.selected_count > input.auto_apply_eligible_count
+    || !Array.isArray(input.selected_candidate_refs)
+    || input.selected_candidate_refs.length !== input.selected_count
+    || input.selected_candidate_refs.length > 12
+    || input.selected_candidate_refs.some((value) => !SAFE_CANDIDATE_REF.test(String(value || "")))
+  ) invalid();
+  return Object.freeze({
+    schema_version: 1,
+    wake_id: wakeId,
+    provider: input.provider,
+    candidate_count: input.candidate_count,
+    ranked_count: input.ranked_count,
+    auto_apply_eligible_count: input.auto_apply_eligible_count,
+    selected_count: input.selected_count,
+    selected_candidate_refs: Object.freeze([...input.selected_candidate_refs]),
+    recorded_at: recordedAt,
+  });
+}
+
 function safeDoorkeeperDiscoveryAudit(input, wakeId, recordedAt) {
   const keys = [
     "calendar_free_count", "discovered_count", "eligible_count", "selected_count", "within_window_count",
@@ -318,6 +355,7 @@ function createMinimalProductionOperations(options = {}) {
   const discoveryAuditFile = path.join(stateDir, "luma-discovery-audits.jsonl");
   const connpassDiscoveryAuditFile = path.join(stateDir, "connpass-discovery-audits.jsonl");
   const rankingAuditFile = path.join(stateDir, "ranking-audits.jsonl");
+  const candidateSelectionAuditFile = path.join(stateDir, "candidate-selection-audits.jsonl");
   const peatixDiscoveryAuditFile = path.join(stateDir, "peatix-discovery-audits.jsonl");
   const meetupDiscoveryAuditFile = path.join(stateDir, "meetup-discovery-audits.jsonl");
   const doorkeeperDiscoveryAuditFile = path.join(stateDir, "doorkeeper-discovery-audits.jsonl");
@@ -340,6 +378,10 @@ function createMinimalProductionOperations(options = {}) {
 
   async function recordRankingAudit(input) {
     append(rankingAuditFile, safeRankingAudit(input, wakeId, exactInstant(now())));
+  }
+
+  async function recordCandidateSelectionAudit(input) {
+    append(candidateSelectionAuditFile, safeCandidateSelectionAudit(input, wakeId, exactInstant(now())));
   }
 
   async function recordPeatixDiscoveryAudit(input) {
@@ -439,7 +481,7 @@ function createMinimalProductionOperations(options = {}) {
   }
 
   return Object.freeze({
-    recordAction, recordDiscoveryAudit, recordConnpassDiscoveryAudit, recordRankingAudit, recordPeatixDiscoveryAudit,
+    recordAction, recordDiscoveryAudit, recordConnpassDiscoveryAudit, recordRankingAudit, recordCandidateSelectionAudit, recordPeatixDiscoveryAudit,
     recordMeetupDiscoveryAudit, recordDoorkeeperDiscoveryAudit, recordEventbriteDiscoveryAudit, reportWake,
     recordTechPlayDiscoveryAudit, recordKokuchProDiscoveryAudit,
   });

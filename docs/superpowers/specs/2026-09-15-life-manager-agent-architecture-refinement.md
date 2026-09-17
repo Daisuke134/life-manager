@@ -766,6 +766,14 @@ contract is green. The change is not a production acceptance until it is pushed,
 cut into a complete release, loaded on the idle Connector label and followed by
 a natural wake.
 
+**Selection audit source change (branch):** `createProductionProviderRouter`
+now emits bounded `candidate_count`, `ranked_count`,
+`auto_apply_eligible_count`, `selected_count` and public
+`selected_candidate_refs` for Luma/Connpass. The existing operations layer writes
+these rows to `candidate-selection-audits.jsonl`; focused production and
+operations contracts are green. This remains source evidence until a loaded
+release produces a real primary wake with the row.
+
 **As-is readback:**
 
 | Boundary | Observed behavior | Decision |
@@ -832,7 +840,7 @@ an independent browser/account/evidence owner and a separate acceptance chain.
 **Connector operational TODO after this diagnosis:**
 
 - [ ] Add a Connector-only priority test around `skills/connector/native-pass.js::providersForSlot`: Luma and Connpass must be the primary acceptance pair; fallback providers, including KokuchPro, must not run before that pair reaches a truthful terminal. Do not delete KokuchPro code in this step.
-- [ ] After the priority test passes, remove fallback providers from the active Connector provider list so the production cursor runs only Luma and Connpass. Then run a repository reachability check and delete Connector-only fallback workflow/provider files (Peatix, Meetup, Doorkeeper, Eventbrite, TechPlay and KokuchPro) once no other owner depends on them; no fallback may remain in the Connector route.
+- [ ] Load the branch route change so the production cursor runs only Luma and Connpass. Then run a repository reachability check and delete Connector-only fallback workflow/provider files (Peatix, Meetup, Doorkeeper, Eventbrite, TechPlay and KokuchPro) once no other owner depends on them; no fallback may remain in the Connector route.
 - [ ] Repair the existing browser transport/lease boundary first: `wake-80c07bbd05aaaa6ea4320a9a` must reach the primary browser target after Calendar read, with no stale target/lock ambiguity.
 - [ ] Add one Connector-only Connpass selection/action diagnostic test and record ranked versus `auto_apply_eligible` counts for a real primary wake. Do not modify KokuchPro.
 - [ ] If Connpass has `calendar_free>0` and `auto_apply_eligible=0`, repair only the existing ranking/eligibility boundary with a failing test; if it has an eligible candidate, trace the first provider action/readback boundary instead.

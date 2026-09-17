@@ -321,6 +321,7 @@ function createProductionProviderRouter(options = {}) {
   const rankCandidates = options.rankCandidates;
   const classifyTalkOpportunity = options.classifyTalkOpportunity;
   const buildTalkPack = options.buildTalkPack;
+  const onCandidateSelectionAudit = options.onCandidateSelectionAudit;
   const eventPreferences = rankCandidates == null ? null : requiredText(options.eventPreferences);
   const connpassAutomatedSubmitAllowed = options.connpassAutomatedSubmitAllowed === true;
   const now = options.now || (() => new Date());
@@ -435,6 +436,17 @@ function createProductionProviderRouter(options = {}) {
           preference_reason: ranked.preference_reason,
           auto_apply_eligible: ranked.auto_apply_eligible,
         })).sort((a, b) => candidateCoverageWeek(a, observed) - candidateCoverageWeek(b, observed));
+        if (typeof onCandidateSelectionAudit === "function") {
+          await onCandidateSelectionAudit(Object.freeze({
+            provider,
+            candidate_count: candidates.length,
+            ranked_count: rankingCandidates.length,
+            auto_apply_eligible_count: eligible.length,
+            selected_count: Math.min(eligible.length, PROVIDER_RANK_MAX_CANDIDATES),
+            selected_candidate_refs: Object.freeze(eligible.slice(0, PROVIDER_RANK_MAX_CANDIDATES)
+              .map((candidate) => candidate.event_ref)),
+          }));
+        }
         if (classifyTalkOpportunity == null) return Object.freeze([...reconcile, ...eligible]);
         const enriched = new Array(eligible.length);
         let next = 0;
@@ -785,6 +797,7 @@ function createMinimalProductionDependencies(options = {}) {
     connpassAutomatedSubmitAllowed: options.connpassAutomatedSubmitAllowed === true,
     eventPreferences,
     rankCandidates,
+    onCandidateSelectionAudit: operations.recordCandidateSelectionAudit,
     classifyTalkOpportunity,
     buildTalkPack,
     now,

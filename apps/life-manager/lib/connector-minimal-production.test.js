@@ -385,6 +385,47 @@ test("production provider router ranks only twelve candidates round-robin across
   assert.equal(result.slice(2).length, 12);
 });
 
+test("production provider router records ranked and auto-apply candidate counts", async () => {
+  const candidate = rankingCandidate("eligible", "2026-09-10T09:00:00.000Z");
+  const rejected = rankingCandidate("rejected", "2026-09-11T09:00:00.000Z");
+  const audits = [];
+  const emptyWorkflow = {
+    async discoverCandidates() { return []; },
+    async runDirectAction() {},
+    async readProviderState() { return { status: "absent" }; },
+  };
+  const router = createProductionProviderRouter({
+    now: () => new Date("2026-09-08T19:00:00.000Z"),
+    lumaWorkflow: emptyWorkflow,
+    connpassWorkflow: { ...emptyWorkflow, async discoverCandidates() { return [candidate, rejected]; } },
+    eventPreferences: "Tokyo AI events",
+    async rankCandidates(input) {
+      return validateProviderCandidateRanking({ ranked_events: input.candidates.map((row) => ({
+        event_ref: row.event_ref,
+        priority_class: row.event_ref.endsWith("eligible") ? "ai" : "other",
+        preference_fit: row.event_ref.endsWith("eligible") ? "strong" : "weak",
+        preference_reason: "fixture",
+      })) }, input);
+    },
+    onCandidateSelectionAudit(input) { audits.push(input); },
+    actionCache: { async replay() {}, async saveVerifiedRepair() {} },
+    browserHarness: { async runFallback() {} },
+    async performAction() {},
+  });
+
+  const result = await router.discoverCandidates("connpass", [], {});
+
+  assert.deepEqual(result.map((row) => row.event_ref), [candidate.event_ref]);
+  assert.deepEqual(audits, [{
+    provider: "connpass",
+    candidate_count: 2,
+    ranked_count: 2,
+    auto_apply_eligible_count: 1,
+    selected_count: 1,
+    selected_candidate_refs: [candidate.event_ref],
+  }]);
+});
+
 test("production router prioritizes a durable Connpass reconciliation candidate and records completed submit", async () => {
   const queued = rankingCandidate("queued", "2026-09-10T09:00:00.000Z", {
     title: "Queued AI event", ends_at: "2026-09-10T10:00:00.000Z", venue_name: "Tokyo",
