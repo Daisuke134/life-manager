@@ -3,14 +3,37 @@
 import tempfile
 import unittest
 import os
+import time
 from unittest import mock
 from pathlib import Path
 
 from runtime.loop.loop_cleanup import remove_owned_tree
+from runtime.loop.central_cleanup import scratch_gc
 from runtime.loop.lm_loop_run import reset_loop_scratch
 
 
 class LoopScratchTest(unittest.TestCase):
+    def test_partial_owner_write_stays_protected_when_disk_is_full(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "state"
+
+            def partial_owner(_value, handle, **_kwargs):
+                handle.write("{")
+                raise OSError(28, "No space left on device")
+
+            with (mock.patch("runtime.loop.lm_loop_run.json.dump",
+                             side_effect=partial_owner),
+                  mock.patch("runtime.loop.lm_loop_run.remove_owned_tree",
+                             side_effect=OSError(28, "No space left on device")),
+                  self.assertRaises(OSError)):
+                reset_loop_scratch(state, "job", "safe-run")
+
+            run = state / "loop-tmp/job/safe-run"
+            self.assertTrue((run / ".terminal-unrecorded").is_file())
+            result = scratch_gc({state}, snapshot_started_ns=time.time_ns() + 1,
+                                starts={})
+            self.assertEqual((result["preserved"], result["errors"]), (1, 0))
+
     def test_creates_isolated_run_without_touching_leftovers(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory) / "state"
