@@ -904,6 +904,32 @@ def test_milestone_completion_opens_the_contract_dialog_anchor():
     assert any(item[0] == "fill" for item in events if isinstance(item, tuple))
 
 
+def test_delivery_primes_visible_duplicate_message_textareas():
+    module = load()
+    events = []
+
+    class Area:
+        def __init__(self, visible): self.visible = visible
+        def is_visible(self): return self.visible
+        def fill(self, value): events.append(value)
+
+    class Areas:
+        def count(self): return 3
+        def nth(self, index): return [Area(True), Area(False), Area(True)][index]
+
+    class Page:
+        def locator(self, selector):
+            assert selector == 'textarea[name="message[body]"]'
+            return Areas()
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+
+    adapter._fill_delivery_message("納品メッセージ")
+
+    assert events == ["納品メッセージ", "納品メッセージ"]
+
+
 def test_milestone_completion_reveals_mobile_only_todo_surface_before_effect():
     module = load()
     events = []
