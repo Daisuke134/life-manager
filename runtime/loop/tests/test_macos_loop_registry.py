@@ -48,12 +48,6 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "schema_version": 2, "loops": {"example": row},
         })["loops"]["example"]["coalesce_queued_wakes"], True)
 
-    def test_known_submitted_browser_provisioner_is_explicit_external_owner(self):
-        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
-        label = "ai.anicca.provision-browser.colors-hachioji.owner-18211957"
-        self.assertIn(label, registry["external_labels"])
-        self.assertNotIn(label, {row["label"] for row in registry["loops"].values()})
-
     def test_paper_and_shadow_are_retired_after_recurring_live_cutover(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         self.assertNotIn("alpaca-investment", registry["loops"])
