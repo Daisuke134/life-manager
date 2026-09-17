@@ -268,18 +268,24 @@ AMDの分類はreceiptへ残すが、`machine`だけで通話を切らない。`
 [推奨](https://developers.telnyx.com/docs/voice/programmable-voice/answering-machine-detection)どおり
 人として扱う。分類が`human`/`not_sure`ならmanaged actionを精算し、それ以外は過大計上しない。
 音声入力はTelnyxの`stream_codec=PCMU`を明示し、ブリッジのμ-law復号と一致させる。
+main由来本番コミット`96d1586`の制御したT-10 wakeで、Daisは**AIの声が聞こえ、返事もあった**と確認した。
+署名済み終了webhook、AMD=`human`、Telnyx公式`GET /v2/calls/{id}`の終了済み10秒、
+voice ledgerの`succeeded/10秒`、managed actionの`succeeded`を同一通話で読み戻した。
+これは注入したテスト予定であり、実カレンダー取得とT-5の自然発信は未確認。
 
-**To-be:** 予定時刻のwakeが正確な残枠を使い、30秒以上なら上限付きで1回だけ発信する。
+**To-be:** 時刻のある各実予定の開始10分前と5分前に別々の電話をかけ、本人とAIが会話する。
+同時刻の別予定は別IDで扱い、電話ごとに正確な残枠と通話上限を使う。
 終了後は署名済み[`call.hangup`](https://developers.telnyx.com/docs/voice/programmable-voice/voice-api-webhooks)
 と公式通話記録から実接続秒数を精算し、電話が鳴らない場合は利用者へ理由を示す。
 
 **Ordered correction TODO項目3の本番是正:**
 
 1. **DONE:** 残留`accepted`29件をwake sessionとTelnyx CDRで照合し、29件を接続0秒で精算する。
-2. 終了webhookや通話時間取得が失敗しても`accepted`を無期限に抱えないCDR再照合を既存wake ownerへ組み込み、
-   二重発信・過少計上を防ぐテストと本番自然起動のreadbackを通す。
-3. 本番の通常wakeで、30秒未満の無発信と30秒以上の発信・Telnyx通話結果・ledger精算を読み戻し、
-   本人がAIの声を聞き会話できたことまで確認する。送信フレーム数だけで会話成功にしない。
+2. **DONE:** CDR再照合を既存wake ownerへ組み込み、本番自然起動で実行を確認する。
+3. **PARTIAL PASS:** 制御したT-10 wakeでは本人との会話と両ledgerの精算を確認済み。
+   次の実カレンダー予定でT-10とT-5がそれぞれ1回鳴り、本人が会話できたかを読み戻す。
+4. 新規ユーザー向け`wake_policy=all-events`のDB既定値を適用する。既存の明示的な`travel-only`は保持する。
+   月3,600秒の硬い上限は「全予定に電話する」という商品約束を止めるため、料金・原価と合わせて解消する。
 
 無料枠到達時の正本copy:
 
