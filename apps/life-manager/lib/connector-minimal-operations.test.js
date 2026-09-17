@@ -146,6 +146,26 @@ test("recordAction persists provider and stage safe_reason for a failed discover
   }
 });
 
+test("recordAction keeps only a bounded Connpass candidate identity on a failed fallback", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-candidate-action-"));
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir, wakeId: "wake-connpass-question", telegramTarget: "private-target",
+      now: () => new Date("2026-09-17T07:28:57.000Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7003 } }; },
+    });
+    const action = { purpose: "submit", method: "browser_harness",
+      timestamp: "2026-09-17T07:28:57.000Z", result: "failed", duration_ms: 9000,
+      provider: "connpass", safe_reason: "unsafe_agent_action",
+      candidate_ref: "connpass-event://event/405297" };
+    await operations.recordAction(action);
+    const row = JSON.parse(fs.readFileSync(path.join(stateDir, "action-history.jsonl"), "utf8"));
+    assert.equal(row.candidate_ref, action.candidate_ref);
+    await assert.rejects(() => operations.recordAction({ ...action, candidate_ref: "https://connpass.com/event/405297/" }));
+    await assert.rejects(() => operations.recordAction({ ...action, result: "success" }));
+  } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
+});
+
 test("recordAction persists a bounded error_class and rejects malformed or oversized values", async () => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-minimal-error-class-"));
   try {

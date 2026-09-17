@@ -106,11 +106,12 @@ function operationSafeReason(value, fallback) {
   return SAFE_REASON.test(reason) ? reason : fallback;
 }
 
-function resolvedSubmitFailureContext(provider, value, fallback) {
+function resolvedSubmitFailureContext(provider, value, fallback, candidateRef = null) {
   if (!value || typeof value !== "object" || Array.isArray(value) || value.status !== "failed") return null;
   return Object.freeze({
     provider,
     safe_reason: operationSafeReason(value, fallback),
+    ...(provider === "connpass" && candidateRef ? { candidate_ref: candidateRef } : {}),
   });
 }
 
@@ -492,7 +493,7 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
                 expectedState: "registered_or_pending",
               }),
               (error) => submitFailureContext(provider, error, "agent_action_failed"),
-              (value) => resolvedSubmitFailureContext(provider, value, "agent_action_failed"),
+              (value) => resolvedSubmitFailureContext(provider, value, "agent_action_failed", selected.event_ref),
             );
             usedFallback = operation && operation.status === "completed";
             ambiguousAgentEffect = Boolean(operation && operation.status === "failed" && operation.safe_reason === "effect_unknown");
