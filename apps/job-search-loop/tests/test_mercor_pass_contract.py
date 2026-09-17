@@ -394,6 +394,8 @@ class MercorPassContractTests(unittest.TestCase):
             "do not use Job Hunter policy",
             "profile_material",
             "2–4 representative",
+            "copy the exact profile_version and field hashes from the supplied profile proposal",
+            "highest-priority card by visible title",
             "profile_sync",
             "field hashes",
         ):
