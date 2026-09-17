@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-17  
 **Status:** design approved for planning  
-**Source of truth:** `docs/writer-agent/WRITER-AGENT-SSOT.md`  
+**Source of truth:** `docs/superpowers/specs/2026-08-20-writer-loop-life-manager-consolidation.md`, `docs/ARTICLE-LAUNCH-TODO.md`, `skills/writer-agent/SKILL.md`, and `config/loop-registry.json`  
 **Repository:** `Daisuke134/life-manager`  
 **Design base:** `origin/main` at `4835540a7f31bc4396b7e7c78c7877bc42718892`
 
@@ -25,12 +25,14 @@ is not revenue.
 - The current Writer checkout is not a safe editing target: the normal
   `life-manager-main` checkout contains unrelated dirty work. This design uses
   a linked worktree from the latest `origin/main`.
-- The Writer SSOT says the only binding implementation queue is A0-C9. A0-A7
-  are recorded complete; A8 is active.
-- The active A8 cursor is the existing run `20260831-114833`, not a new run.
-  Its JA/EN drafts, X text, headline media, CTA, identity, and conscience
-  evidence exist. `quality-self-heal.json` and `publication-state.json` are not
-  yet proven, so publication must not be claimed.
+- Life Manager main's binding execution cursor is `docs/ARTICLE-LAUNCH-TODO.md`.
+  W0 and W1 are recorded complete; W2 is active and is currently guarded by
+  the measured article-run capacity floor and provider/demand receipts.
+- The current run ID must be read from the private Writer state at execution
+  time. The latest cursor records `20260829-165022` as the canary candidate,
+  but the plan never assumes that ID is still current. Existing artifacts,
+  `quality-self-heal.json`, `publication-state.json`, and ledger rows are read
+  back before any owner wake; no publication is inferred from the cursor text.
 - The focused baseline in the clean worktree is `45 passed, 31 subtests
   passed` for the adoption, resume-adoption, and daily-start-control tests.
 - Loaded scheduler state, immutable release, source commit, and state root can
@@ -38,16 +40,29 @@ is not revenue.
 
 ## Surface contract
 
-The phrase “each platform” is fixed to the current SSOT matrix:
+The phrase “each platform” is split into the binding main contract and the
+user-requested discovery extension. This avoids silently changing the main
+queue while still making the final six-surface outcome explicit.
+
+### Binding active-four (main contract)
 
 | Surface | Language | Role | Daily gate |
 |---|---|---|---|
 | note paid article | JA | direct one-time writing revenue | required live URL, authenticated price/paywall, owner, body/media hash |
 | Substack paid publication | JA | recurring writing revenue | required live URL, authenticated paid audience/paywall, publication identity |
 | Substack paid publication | EN | recurring writing revenue | required live URL, distinct EN publication identity, paid audience/paywall |
-| Dev.to article | EN | free discovery | live public title/body/media readback |
-| Zenn article | JA | free discovery | live public title/body/media readback or platform-specific pending receipt |
 | X Article | JA | long-form acquisition | live Article URL and rendered-body readback |
+
+### Discovery extension (after active-four replay-zero)
+
+| Surface | Language | Role | Gate |
+|---|---|---|---|
+| Dev.to article | EN | free discovery | public title/body/media readback |
+| Zenn article | JA | free discovery | public title/body/media readback or durable platform-specific pending receipt |
+
+The extension is non-blocking for the first revenue canary, but the requested
+final state includes it when its provider-native receipts are available. The
+main cursor's W3-W6 order remains unchanged.
 
 `x-article/en` and `x-post/ja` remain `DORMANT_EXPERIMENT` until their
 reactivation gates are met. They are not silently added to the daily quota.
@@ -67,9 +82,9 @@ flowchart LR
   P --> N[note]
   P --> SJ[Substack JA]
   P --> SE[Substack EN]
-  P --> DV[Dev.to EN]
-  P --> Z[Zenn JA]
   P --> X[X Article JA]
+  P -. after active-four .-> DV[Dev.to EN]
+  P -. after active-four .-> Z[Zenn JA]
   N --> R[Native readback + effect ledger]
   SJ --> R
   SE --> R
@@ -99,12 +114,12 @@ natural Writer owner.
 |---|---|---|---|---|
 | W1. Source and owner control | bind source SHA → immutable release → loaded Writer labels; protect state and sibling loops | `config/writer/runtime-manifest.json`, Writer plists, `bin/lm-loop`, `bin/cut-loop-release.sh`, `writer_owner_fence.py` | current main and A8 code | source/release/argv/state parity receipt; Connector unchanged |
 | W2. Same-run recovery | adopt the safe unpublished run, repair current-hash quality evidence, resume without attempt inflation | `quality_repair_control.py`, `quality_self_heal.py`, `article-resume-pending.sh`, `article_daily_start_control.py` and their tests | W1 | valid A8 receipts, publication-state initialization, same run ID |
-| W3. Publisher execution | publish six intents independently with identity, paywall, media, timeout, and readback guards | `publication_resume.py`, `note-publish/`, `publish-substack-managed-contract.sh`, `x-publish/`, Dev.to/Zenn adapters | W2 | one native receipt per surface; platform-specific pending/terminal evidence if blocked |
-| W4. Observability and replay | make publication, failures, recovery, and reporting inspectable and idempotent | `writer_observability_trace.py`, `article-completion-notify.py`, `writer_report.py`, `writer_report_worker.py`, `article_weekly_audit.py` | W2 and W3 | receipt graph, Telegram message ID, second-wake zero-effect proof |
-| W5. Demand and topic supply | keep reader and editorial demand evidence-backed and feed payer hypotheses to the creator | `claim_supply.py`, `claim_topic.py`, `demand_authority.py`, `demand_card.py`, `opportunity_discovery.py`, `config/opportunity-*.json` | W1; may prepare in parallel | current demand card or truthful zero-candidate receipt |
-| W6. Money and attribution | reconcile external payments, fees, refunds, payouts, renewals, and article attribution | `money_ledger.py`, `money_sync.py`, `writer_stripe_sync.py`, `attribution-join.py`, `config/revenue-surfaces.json` | W3 and W4 | idempotent money ledger; one-time revenue separate from MRR |
-| W7. Economic learning and scale | close editorial opportunities, run one-variable canaries, and promote only positive-net units | `opportunity_pitch.py`, `opportunity_response.py`, `self_improve_control.py`, `writer_learning_worker.py`, report milestone projector | W5/W6 | first-dollar → $400 → $1K → $10K monthly → $10K MRR evidence |
-| W8. OSS and independent owner | freeze the proven contract, create self-owned credential-free mode, install/rollback, isolate owners, prove clean-machine money E2E | `skills/writer-agent/SKILL.md`, `self_owned_article.py`, `config/writer/runtime-manifest.json`, root `install.sh`, OSS tests/docs | W1-W7 gates | independent-owner install, payment, report, restart, and isolation receipts |
+| W3. Note execution | publish the paid JA Note intent with identity, paywall, media, timeout, and native readback guards | `publication_resume.py`, `note-publish/`, Note tests | W2 | Note native live receipt |
+| W4. Substack execution | publish JA and EN through separate publication identities and native readback | `publication_resume.py`, `publish-substack-managed-contract.sh`, Substack tests | W2 | two distinct Substack native live receipts |
+| W5. X execution | publish X Article JA with browser ACI, readable body media, and rendered-body readback | `publication_resume.py`, `x-publish/`, X tests | W2 | X Article native live receipt |
+| W6. Discovery extension | add Dev.to EN and Zenn JA only after active-four replay-zero; preserve independent retry owners | existing Dev.to/Zenn adapters and tests | W3-W5, W7 | discovery native receipts or platform-specific pending receipts |
+| W7. Observability and replay | make publication, failures, recovery, and reporting inspectable and idempotent | `writer_observability_trace.py`, `article-completion-notify.py`, `writer_report.py`, `writer_report_worker.py`, `article_weekly_audit.py` | W2-W5 | receipt graph, Telegram message ID, second-wake zero-effect proof |
+| W8. Demand, money, learning, and OSS | supply payer-backed topics, reconcile payments, run one-variable canaries, then freeze/install the same contract for independent owners | `claim_supply.py`, `claim_topic.py`, `demand_authority.py`, `demand_card.py`, `opportunity_discovery.py`, `money_ledger.py`, `money_sync.py`, `writer_stripe_sync.py`, `attribution-join.py`, `opportunity_pitch.py`, `opportunity_response.py`, `self_improve_control.py`, `writer_learning_worker.py`, `self_owned_article.py`, `install.sh` | W2-W7 | demand receipt, payment/MRR gates, clean OSS install and owner isolation |
 
 The eight streams are not eight Writer executors. There is one creator, one
 same-run recovery owner, one effect ledger, and one account/browser mutation at
@@ -117,20 +132,17 @@ ordered.
 The binding critical path is:
 
 ```text
-A8.6 reapply owner-prompt recovery
-  -> A8.7 immutable release and Writer-only apply
-  -> A8.8 natural resume of the existing run
-  -> A8.9 unchanged second wake
-  -> A9 six independent publisher intents
-  -> A10 replay-zero
-  -> A11 report and Telegram readback
-  -> B0/B1/B2/B3/B4/B5/B9 economic unit
-  -> B6 first dollar
-  -> B7 $400/month
-  -> B8 $1,000/month
-  -> B10 $10,000 monthly for 3 consecutive months
-  -> B11 $10,000 active MRR for 3 consecutive months
-  -> C0-C9 OSS and independent-owner gates
+W2 capacity/provider/demand canary
+  -> W3 Note native readback
+  -> W4 Substack JA/EN native readback
+  -> W5 X Article native readback
+  -> W7 replay-zero and report
+  -> W6 Dev.to/Zenn discovery extension
+  -> W8 money, opportunity, learning, and OSS gates
+  -> first dollar -> $400/month -> $1,000/month
+  -> $10,000 monthly for 3 consecutive months
+  -> $10,000 active MRR for 3 consecutive months
+  -> independent-owner clean-install and revenue gates
 ```
 
 The first incomplete atom is always the only foreground mutation. W5-W8 can
@@ -162,13 +174,14 @@ publisher effect early.
 ## Daily operating contract
 
 - Publish one long-form article per JST day initially. JA and EN are separately
-  localized artifacts from one topic.
+  localized artifacts from one topic; the active-four destinations receive
+  independent intents from that run.
 - Use the existing eight-hour beats for recovery, opportunity discovery, money
   sync, learning, health, and reporting. Do not turn them into eight daily
   publication attempts until 14 days of stable evidence justify that change.
-- The daily SLO is six destination outcomes with native readback. The three
-  revenue surfaces are blocking for shipment; discovery surfaces continue with
-  their own owner and SLO.
+- The first binding daily SLO is active-four native readback. Dev.to and Zenn
+  are added as independent discovery intents after active-four replay-zero;
+  they cannot block the revenue canary or be represented as revenue.
 - If credentials, KYC, CAPTCHA, a provider window, or an external editorial or
   payment response is genuinely required, persist the exact target, reason,
   retry time, owner, parallel work, and Telegram event UUID. “Wait for the next
@@ -210,7 +223,8 @@ runtime, not just code or a mock.
 |---|---|
 | source/release ownership | source SHA, immutable release SHA/tree hash, loaded `ProgramArguments`, state root, rollback receipt |
 | A8 recovery | existing run ID unchanged; current-hash JA/EN gates; valid quality terminal; publication state initialized; no public effect before A9 |
-| six-platform publication | six publisher-native URLs/readbacks with owner, artifact hash, identity, and media/body evidence |
+| active-four publication | Note, Substack JA, Substack EN, and X Article JA native URLs/readbacks with owner, artifact hash, identity, and media/body evidence |
+| discovery extension | Dev.to EN and Zenn JA native readbacks or durable provider-specific pending receipts after active-four replay-zero |
 | isolation | one platform failure produces only its own circuit/pending/terminal receipt |
 | replay-zero | unchanged second natural wake; identical effect IDs/URLs; zero new remote mutations |
 | Telegram/reporting | report snapshot equals ledger/provider receipts; delivery has a real message ID; semantic duplicate suppressed |
@@ -239,7 +253,8 @@ runtime, not just code or a mock.
 
 - Scope is one Writer implementation on Life Manager main, not eight competing
   executors.
-- All six requested active surfaces are named with language, role, and receipt.
+- All six requested surfaces are named with language, role, and receipt; the
+  main contract's active-four boundary is preserved.
 - The current A8 cursor is preserved; no new run or manual publication is used
   as a substitute.
 - Each workstream has owned modules, dependencies, and a durable output.
@@ -247,4 +262,3 @@ runtime, not just code or a mock.
   bounded.
 - No placeholder implementation, unbounded retry, platform-wide blocker, or
   unsupported universal revenue claim remains in the design.
-
