@@ -533,7 +533,7 @@ def _effective_priority(row: dict[str, object], now: float) -> int:
     return rank
 
 
-def _queue_order(row: dict[str, object], now: float) -> tuple[int, int, int, int, str]:
+def _queue_order(row: dict[str, object], now: float) -> tuple[int, int, int, float, int, str]:
     priority = row.get("base_priority")
     queued_at = row.get("queued_at")
     aged = (isinstance(priority, str) and priority in PRIORITY_AGE_SECONDS
@@ -542,9 +542,11 @@ def _queue_order(row: dict[str, object], now: float) -> tuple[int, int, int, int
     # The revenue floor leaves one borrow slot; let an aged support owner use it.
     borrow_slot = _revenue_floor(_capacity("LIFE_MANAGER_HOST_MAX_FINITE_RUNS", 5)) > 0
     overdue_support = aged and priority == "support" and row.get("admission_class") == "borrow" and borrow_slot
+    wait_started = (float(queued_at) if isinstance(queued_at, (int, float))
+                    and not isinstance(queued_at, bool) else float("inf"))
     return (-1 if overdue_support else _effective_priority(row, now), 0 if aged else 1,
             0 if row.get("admission_class") == "revenue" else 1,
-            int(row["sequence"]), str(row["owner_id"]))
+            wait_started, int(row["sequence"]), str(row["owner_id"]))
 
 
 def _durable_queue_rows(connection: sqlite3.Connection, resource_class: str,
@@ -1137,7 +1139,7 @@ def _reserve_locked(connection: sqlite3.Connection, owners: Path, tickets: Path,
                 candidates.append((*_queue_order(candidate, instant), resource_class))
         if not candidates:
             break
-        _, _, _, sequence, owner_id, resource_class = min(candidates)
+        _, _, _, _, sequence, owner_id, resource_class = min(candidates)
         connection.execute(
             "INSERT INTO reservations(owner_id,resource_class,sequence,lease_until) VALUES(?,?,?,?)",
             (owner_id, resource_class, sequence, instant + lease_seconds))
