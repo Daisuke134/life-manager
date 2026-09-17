@@ -1,0 +1,19 @@
+# Local configuration and credentials
+.env
+.env.*
+*.mobileprovision
+ExportOptions.plist
+*.p8
+*.p12
+*.cer
+*.pem
+*.key
+
+# Xcode, Fastlane and build output
+build/
+DerivedData/
+fastlane/report.xml
+screenshots/
+*.xcarchive
+*.ipa
+.DS_Store

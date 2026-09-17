@@ -1,0 +1,70 @@
+{
+  "identifier" : "F2D6F5A0-1234-4567-89AB-CDEF01234567",
+  "nonRenewingSubscriptions" : [ ],
+  "products" : [ ],
+  "settings" : {
+    "_applicationInternalID" : "6759667221",
+    "_developerTeamID" : "S5U8UH3JLJ"
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "premium_group",
+      "localizations" : [
+        {
+          "description" : "本音翻訳AI プレミアムプラン",
+          "displayName" : "プレミアム",
+          "locale" : "ja"
+        }
+      ],
+      "name" : "Premium",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "monthly_001",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "月額プラン - いつでもキャンセル可能",
+              "displayName" : "月額プレミアム",
+              "locale" : "ja"
+            }
+          ],
+          "productID" : "app.honyaku-ai.premium.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Monthly Premium",
+          "subscriptionGroupID" : "premium_group",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [ ],
+          "codeOffers" : [ ],
+          "displayPrice" : "49.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "yearly_001",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "年額プラン - 月額換算で50%お得",
+              "displayName" : "年額プレミアム",
+              "locale" : "ja"
+            }
+          ],
+          "productID" : "app.honyaku-ai.premium.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Yearly Premium",
+          "subscriptionGroupID" : "premium_group",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
