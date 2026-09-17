@@ -1009,6 +1009,27 @@ def test_unknown_occurrence_requires_matching_official_readback(tmp_path, monkey
     assert (row["state"], row["effect_unknown"]) == ("released", 0)
 
 
+def test_connector_old_unknown_is_observable_without_blocking_new_wake(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="2")
+    admission.activate_durable_v2()
+    owner = "life-manager-connector-native"
+    admission.enqueue_durable("browser", owner, admission_class="revenue",
+                              occurrence_id=f"{owner}:old", now=100)
+    old, reason = admission.claim_durable("browser", owner, admission_class="revenue", now=101)
+    assert old is not None and reason == "acquired"
+    admission.release_and_reserve(old, effect_unknown=True, reserve=False, now=102)
+
+    ticket, reason = admission.enqueue_durable("browser", owner, admission_class="revenue",
+                                               occurrence_id=f"{owner}:new", now=103)
+    assert ticket is not None
+    new, reason = admission.claim_durable("browser", owner, admission_class="revenue", now=104)
+    assert new is not None and reason == "acquired"
+    assert json.loads(new.read_text())["occurrence_id"] == f"{owner}:new"
+    assert next(row for row in durable_rows(tmp_path, "occurrences")
+                if row["occurrence_id"] == f"{owner}:old")["effect_unknown"] == 1
+    admission.release_and_reserve(new, reserve=False)
+
+
 def test_expired_running_heartbeat_keeps_live_child_claim(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
