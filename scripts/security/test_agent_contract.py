@@ -31,6 +31,7 @@ class AgentContractTests(unittest.TestCase):
 
 canonical remote https://github.com/Daisuke134/life-manager.git
 Read superpowers:using-superpowers first.
+Use Astra Advisor orchestration when available.
 Use Ponytail for the smallest implementation.
 Remove that exact worktree without force.
 """,
@@ -56,7 +57,7 @@ Remove that exact worktree without force.
         root = self.fixture()
         try:
             (root / "AGENTS.md").write_text(
-                (root / "AGENTS.md").read_text(encoding="utf-8") + "Use /Users/anicca/anicca-project.\n",
+                (root / "AGENTS.md").read_text(encoding="utf-8") + "Use " + "/" + "Users/anicca/anicca-project.\n",
                 encoding="utf-8",
             )
             result = self.run_gate(root)

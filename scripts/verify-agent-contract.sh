@@ -19,12 +19,13 @@ grep -Fq 'https://github.com/Daisuke134/life-manager.git' "$AGENTS" \
   || fail "canonical remote missing"
 grep -Fq 'superpowers:using-superpowers' "$AGENTS" \
   || fail "using-superpowers requirement missing"
+grep -Fqi 'Astra Advisor' "$AGENTS" || fail "Astra Advisor requirement missing"
 grep -Fqi 'Ponytail' "$AGENTS" || fail "Ponytail requirement missing"
 grep -Fqi 'remove that exact worktree without force' "$AGENTS" \
   || fail "worktree cleanup contract missing"
 grep -Fxq '@AGENTS.md' "$CLAUDE" || fail "CLAUDE.md must import @AGENTS.md"
 
-if grep -Eiq '(/Users/[^[:space:]]*/anicca-project|~/?anicca-project|Felix)' "$AGENTS" "$CLAUDE"; then
+if grep -Eiq '(^|[/~])anicca-project|Felix' "$AGENTS" "$CLAUDE"; then
   fail "stale checkout or Felix reference"
 fi
 
