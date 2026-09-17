@@ -65,6 +65,7 @@ def _semantic_payload(sources: dict) -> dict:
                 "native_url": outcome.get("reel_url"),
                 "creative_sha256": outcome.get("media_sha256"),
                 "owner_session_verified": outcome.get("owner_session_verified"),
+                "status": marketing.get("status", "unknown"),
             }
         ],
         "money": copy.deepcopy(money_source.get("money") or {}),
@@ -246,6 +247,31 @@ def _load(path: Path) -> dict:
     return value
 
 
+def _marketing_from_ledger(path: Path) -> dict:
+    if not path.is_file():
+        return {"status": "unknown_no_native_ig_ledger", "outcome": {}}
+    latest = None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if (isinstance(row, dict) and row.get("platform") in {"ig", "instagram"}
+                and str(row.get("reel_url") or "").startswith("https://www.instagram.com/")):
+            latest = row
+    if latest is None:
+        return {"status": "unknown_no_native_reel", "outcome": {}}
+    artifact_hash = latest.get("artifact_sha256")
+    return {"status": "native_ledger_observed", "outcome": {
+        "agent_id": latest.get("agent_id"),
+        "title": latest.get("listing_name"),
+        "reel_url": latest.get("reel_url"),
+        "media_sha256": ("sha256:" + artifact_hash if isinstance(artifact_hash, str)
+                         and len(artifact_hash) == 64 else None),
+        "owner_session_verified": None,
+    }}
+
+
 def _live_sources() -> dict:
     inventory_result = subprocess.run(
         [sys.executable, str(REPO_ROOT / "skills/capafy-autopublish/scripts/inventory_status.py")],
@@ -259,7 +285,9 @@ def _live_sources() -> dict:
     if not candidates:
         raise ValueError("candidate backlog has no receipt candidate")
     candidate = sorted(candidates, key=lambda item: item["candidate_id"])[0]
-    marketing = _load(CAPAFY_STATE / "capafy-marketing-terminal.json")
+    marketing_path = CAPAFY_STATE / "capafy-marketing-terminal.json"
+    marketing = (_load(marketing_path) if marketing_path.is_file() else
+                 _marketing_from_ledger(CAPAFY_STATE / "capafy-marketing-ig-ledger.jsonl"))
     outcome = marketing.get("outcome") or {}
     media_path = Path(str(outcome.get("media_path") or ""))
     if media_path.is_file():
