@@ -80,8 +80,8 @@
 - Read: provider distribution ledger and runtime `events.jsonl`
 - Read: admission SQLite before and after the wake
 
-- [ ] Re-read the shared apply lock, host owner list, loaded argv and target's last terminal event.
-- [ ] Permit one natural scheduled wake for one verified owner through the existing owner path; do not post a synthetic test item.
+- [x] Re-read the admission ledger, loaded argv and target's last terminal event. The ledger still has 17 mobile/Honne `effect_unknown=1` rows (14 released, 3 claimed); `life-manager-honne-ja` is `loaded-idle` but terminal `blocked`, exit 75, blocker `host_admission_deferred:resource_effect_unknown`.
+- [ ] Permit one natural scheduled wake for one verified owner through the existing owner path; do not post a synthetic test item. No owner is currently eligible because no historical row has an exact identity proof.
 - [ ] Verify separate process result, terminal runtime event, official provider receipt, exact content/account mapping and replay-zero.
 - [ ] Repeat only after the prior owner has a terminal receipt; leave inconclusive/claimed rows fenced.
 
@@ -92,12 +92,12 @@
 - Read: loaded mobile plist `ProgramArguments` and `LIFE_MANAGER_RELEASE_SHA`
 - Modify only through: `lm-loop apply` from a pushed immutable main-derived release, if evidence requires it
 
-- [ ] Confirm the current release contains both canonical mobile trees and that the target's loaded argv is one exact immutable directory.
-- [ ] If no runtime cutover is needed, record that decision and keep production unchanged.
+- [x] Confirm the current release contains both canonical mobile trees and each inspected target plist points to one exact immutable release directory. The observed current release is main-derived; the loaded Honne releases remain older immutable directories.
+- [x] No runtime cutover is needed while all mobile publish fences remain unresolved; keep production unchanged and do not mutate loaded jobs during the posting window.
 - [ ] If a cutover is required, apply one label at a time, verify plist argv, loaded argv, release SHA, state path and rollback receipt, then wait for a natural terminal event.
 
 ### Task 7: Close out
 
-- [x] Run focused tests, `git diff --check`, source-boundary verification and the relevant `lm-loop` targeted status checks for the read-only reconciler; six reconciler tests pass and no ledger row changed.
+- [x] Run focused tests, `git diff --check`, source-boundary verification and the relevant `lm-loop` targeted status checks for the read-only reconciler; seven reconciler tests pass and no ledger row changed.
 - [x] Update the spec evidence with verified/inconclusive counts and the exact remaining fences; the 17 historical mobile/Honne rows remain inconclusive or claimed-held.
 - [x] Commit and push the dedicated branch, merge after checks pass, and remove the exact worktree without force. PR #5438 merged as `e3e44eb76d8e12d6476c9c3d74662ab4bb7f0a41`; the worktree path and Git registration were then removed without force.
