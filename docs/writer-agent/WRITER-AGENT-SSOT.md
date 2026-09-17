@@ -54,54 +54,67 @@ recovery.
 
 This checkpoint supersedes older "current" paragraphs and queue claims below
 when they conflict. It is based on the live Writer state, immutable release
-manifest, launchd readback, publisher-native receipts, and fresh public reads.
+manifest, launchd readback, publisher-native receipts, fresh public reads, and
+replay verification.
 
 #### Done
 
 | Area | Evidence | Result |
 |---|---|---|
-| Active-four publication | Run `20260917-192416`, topic `paid-demand:023969393c3000c37245880d7d49de0cce6d155d7e72d9a1a94090f51a3b2aa2` | `note/ja`, `substack/ja`, `substack/en`, and `x-article/ja` are all `live`; each has a ledger row with `published=true`, `reality_gate=PASS`, `verified=true`, immutable artifact hash, public ID, timestamp, and media proofs |
-| Publisher readback | Anonymous HTTP 200 and title/body reads for all four URLs; Note API reports `status=published`, `price=500`, `is_limited=false`, `is_trial=false`; authenticated Substack draft reads report `is_published=true`, `audience=only_paid`, `should_send_free_preview=true`; X public Article page contains the selected title | External effects are real; staging, a draft URL, or a plan is not being counted as publication |
-| URLs | Note `https://note.com/anicca123/n/n28934793a7a0`; Substack JA `https://aniccabuddha.substack.com/p/claude-codeapify`; Substack EN `https://aniccaai2026.substack.com/p/claude-code-and-apify-turn-one-useful`; X `https://x.com/diceai0/article/2100683225194807492` | All four active destinations have canonical public URLs |
-| Completion and replay | `article-run-complete.py` exit `0`; `publication_resume.py plan` returns `{"resumable":false,"reason":"all-complete"}`; state SHA `14b7217cd681f046c761dd41575d1bd65d8c28235d2bb89830398dca17a0236c` and ledger SHA `658c3fa2bfe443a0e91935076c0ce3da3d79fd7307cda397fed9b8252ced01cc` stay unchanged on replay | Same-run completion and replay-zero are proven |
-| Observability | `article-completion-notify.py` sent message ID `86959`; `run-blocker.json` is resolved; topic card is in `topics/done/` | The run has a durable completion report and an honest historical blocker resolution |
-| Runtime hardening | PR `#5496`, merge `7cc80e3`; current release manifest SHA `fc31d1227b6356f917ddc750bbb6bfeef0fe2a7b`, provenance `ancestor-of-origin-main`; Writer creator/recovery labels load that SHA | Note eyecatch SVG drift, X title-comment drift, Substack EN host fallback, and the model's `--help` gate misclassification are fixed and tested |
+| Active-four publication | Run `20260917-212739`, topic `paid-demand:640316555af715f28b2f96954223ddb0f5ae82ad6f92567b0c58405f4b5c9fee` | `note/ja`, `substack/ja`, `substack/en`, and `x-article/ja` each have `status=live`, `published=true`, `verified=true`, `reality_gate=PASS`, immutable artifact hashes, public IDs, timestamps, and media proofs |
+| Publisher readback | Fresh anonymous HTTP GET returned `200` for all four canonical URLs; provider-native receipts verify Note paid state (`price=500`, eyecatch/body media) and Substack/X public content and media | External effects are real; drafts, editor URLs, and plans are not counted as publication |
+| URLs | Note `https://note.com/anicca123/n/nee55ce000bc1`; Substack JA `https://aniccabuddha.substack.com/p/apify500techiai`; Substack EN `https://aniccaai2026.substack.com/p/apify-pays-500-techi-wont-say-neither`; X `https://x.com/diceai0/article/2100724960213991424` | All four active destinations have canonical public URLs |
+| Completion and replay | `article-run-complete.py` exit `0`; `publication_resume.py plan` is `{"resumable":false,"reason":"all-complete"}` before and after replay; state SHA `ca6fbe70280acd90f5acbc54b123b9336fd369f213652e049f780fd76c84f2ca` and ledger SHA `f53fe3a64e2c4a2a58eeb0f03b887f80f23b01af09552eee459333338e22a507` are unchanged | Same-run completion and replay-zero are proven |
+| Observability | `article-completion-notify.py` sent event `article-active-four:20260917-212739` with Telegram message ID `87086`; the topic card is in `topics/done/` | The run has a durable completion report and an honest timeout/recovery history |
+| Quality boundary | JA `identity=PASS`, `safety=ALLOW`, `editorial=PASS`, `reader=ADVISORY`; EN `identity=PASS`, `safety=ALLOW`, `editorial=PASS`, `reader=PASS`; policy is `continuous` | Quality advisory did not hide a safety or identity failure |
+| Runtime hardening | PR `#5496` (merge `7cc80e3`), PR `#5501` (merge `311c9194`), and PR `#5502` (merge `e55aef27`) are merged; current release is `3aeed4c459b9b941e98464fe7daf2431c1d5255f`, provenance `ancestor-of-origin-main`; installed Writer plists read back canonical browser owner/profile | Browser recovery now targets the existing `ai.anicca.life-manager-daily-driver` / `~/.cloak/profiles/daily-driver`; the shared apply path cannot retain `job-search-*` values |
 
 #### Not done yet
 
 | Area | Current truth | Closing evidence still required |
 |---|---|---|
-| Unattended daily recurrence | The latest natural launchd wake reached `article-daily` disk preflight and stopped before creating a new run. No article was generated or published in that wake. | One post-remediation natural wake that reaches generation, stages exactly four, publishes all four, records completion, and passes replay-zero without foreground publisher commands |
-| Received money | Writer money DB currently has `money_events=0`, `subscription_contracts=0`, and `payouts=0`. Note is a ¥500 one-time product; Substack posts are paid-only, but neither state is a purchase or subscription receipt. | A non-test purchase/subscription/accepted editorial fee joined to the exact article artifact, followed by fee, refund, payout, and net-revenue reconciliation |
+| Unattended daily recurrence | Natural `article-daily` wakes at 06:27, 07:19, and 07:22 reached the launchd owner but were blocked by browser recovery/admission capacity. Run `20260917-212739` completed through a foreground Writer invocation plus the pending worker, not a launchd-owned full pass. | One launchd-owned natural wake that reaches generation, stages exactly four, publishes all four, records completion, and passes replay-zero without foreground publisher commands |
+| Received money | Writer money DB reads `money_events=0`, `subscription_contracts=0`, `payouts=0`; `money_artifacts=118` and metric observations are not receipts of payment. Note's ¥500 price and Substack `only_paid` audience are offers/access state, not a sale or subscription. | A non-test purchase, subscription, or accepted editorial fee joined to the exact article artifact, followed by fee, refund, payout, and net-revenue reconciliation |
 | $10K monthly / $10K MRR | No external revenue or active recurring-contract receipt exists, so both targets remain unproven. | Separate three-consecutive-month gross/net and active-renewal/churn receipts; one-time Note sales never enter MRR |
-| Learning and quality | This run used `force_publish_advisory`: editorial was advisory for JA/EN and EN reader testing had one unanswered question. `.selfimprove-todo.json` still reports two historical missing rubric receipts for `daily-2026-08-21`. | Improve the next article's evidence/reader answers, close the historical evidence gap without fabricating receipts, then run a matched canary with a later consuming run |
+| Learning and quality | The current run closed with JA reader `ADVISORY` and EN reader `PASS`; the self-improve ledger still has historical missing rubric receipts. | Improve the next article's evidence/reader answers, close the historical evidence gap without fabricating receipts, then run a matched canary with a later consuming run |
 | OSS / independent users | No fresh external user has reproduced install-to-public-publication-to-real-revenue. | Fresh-machine install, owner isolation, provider setup, public output, and external received-money receipt |
 
 #### Blocking bottleneck
 
-The bottleneck is host storage admission, before Writer generation—not a Note,
-Substack, X, model quota, or five-slot scheduling failure. The earlier
-`resource_fifo_wait`/capacity responses are a separate admission state; the
-verified foreground run proved that a direct Writer pass can proceed when the
-host gate is clear. The Writer floor is `1,155,780,608` bytes;
-the latest host probe showed about `188 MiB` available. The canonical disk
-governor reclaimed `0` bytes and preserved 44 release generations because
-LaunchAgents or running processes still reference them. The daily wrapper
-therefore exits before run allocation, provider invocation, topic selection,
-and publication.
+The immediate production bottleneck is **host admission capacity**, before the
+launchd Writer entrypoint runs. Three fresh `article-daily` kickstarts reached
+the launchd owner and recorded `host_admission_deferred:resource_capacity_busy`;
+they never entered generation or publication. A direct foreground invocation
+was able to complete the same active-four contract, proving this is a shared
+admission/owner-capacity boundary rather than a Note, Substack, X, or five-slot
+content failure.
+
+The earlier browser blocker is fixed and read back: Writer no longer asks for
+the absent `ai.anicca.job-search-browser` or `job-search-daily` profile. Disk is
+also not the current blocker: the latest free-space probe is about 14 GiB,
+above the Writer floor `1,155,780,608` bytes. The image-size refusal was
+transient in attempt 2; attempt 3 produced a verified 1536x1024 image.
+
+After admission was bypassed, model/runtime latency became the secondary
+availability risk: attempt 2 timed out at 900 seconds, while attempt 3 needed
+the extended 1800-second boundary and safely handed one pending X target to the
+resume worker. The pending worker then published X and closed the run. This is
+progress evidence, not unattended-daily proof.
 
 ```mermaid
 flowchart LR
   A[launchd article-daily wake] --> B[disk preflight]
-  B -->|free < 1,155,780,608 bytes| C[exit before run/provider]
-  C --> D[no daily article receipt]
-  D --> E[no new conversion or revenue evidence]
-  B -->|free >= floor| F[generate -> gate -> publish 4 -> readback]
+  B -->|resource_capacity_busy| C[exit 75 before Writer]
+  C --> D[no unattended daily receipt]
+  B -->|admitted| E[browser ALIVE + demand FILLED]
+  E --> F[generate -> gates -> publish 4 -> public readback]
+  F --> G[completion + replay-zero]
 ```
 
-Writer must not delete or stop another loop's protected release/process to
-clear this gate. Storage recovery belongs to the host/release-retention owner;
-once it clears the floor, Writer can run the unattended recurrence proof above.
+Writer must not delete, stop, or steal another loop's protected release,
+process, browser profile, or admission lease to clear this gate. The next
+repair belongs to the shared host-admission capacity owner; once it admits a
+Writer wake, the existing browser/demand/publication path is already proven.
 
 ### 0.1.1 Historical planning slice: daily shipping, control beats, and Telegram UX
 
@@ -1740,16 +1753,17 @@ responses concurrently. External waiting never blocks the foreground queue.
 
 | Priority | Item | State | Exact next receipt |
 |---:|---|---|---|
-| P0 | Restore host disk headroom above `1,155,780,608` bytes | **BLOCKED**: latest probe about 188 MiB; disk governor reclaimed 0 bytes and preserved 44 referenced releases | host cleanup receipt showing free space at or above the Writer floor, with no protected release/session deletion |
-| P0 | Run one unattended Writer daily wake | **NOT DONE**: the latest wake stopped at disk preflight, before run allocation/provider/publication | launchd-owned `article-daily` run with a new run ID, four active reality-PASS rows, completion `rc=0`, Telegram message ID, and replay-zero |
+| P0 | Keep Writer browser owner/profile canonical | **DONE**: PRs `#5501`/`#5502` merged; installed Writer env readback is `ai.anicca.life-manager-daily-driver` + `~/.cloak/profiles/daily-driver` | retain the same owner/profile across the next release cut |
+| P0 | Remove the launchd admission-capacity bottleneck | **BLOCKED**: three Writer wakes recorded `host_admission_deferred:resource_capacity_busy` before generation | one launchd Writer wake reaches the entrypoint and records an admitted execution, without stealing another owner's lease |
+| P0 | Prove one unattended Writer daily wake | **NOT DONE**: foreground run `20260917-212739` completed all four, but launchd wakes were admission-blocked | launchd-owned run with four active reality-PASS rows, completion `rc=0`, Telegram message ID, and replay-zero |
 | P1 | Prove writing revenue | **NOT DONE**: money DB has zero external money events, subscriptions, and payouts | non-test payment or accepted editorial fee joined to the exact artifact, plus fee/refund/payout/net receipts |
 | P1 | Reach $10K monthly and $10K active MRR | **NOT DONE**: no external revenue or active recurring contract | each target's separate three-consecutive-month gross/net/renewal/churn evidence |
-| P2 | Improve quality and learning | **PARTIAL**: continuous policy published with editorial/reader advisory; two historical rubric receipts remain missing | next matched canary, decision (`KEEP`/`REVERT`/`INCONCLUSIVE`), and later consuming run |
+| P2 | Improve quality and learning | **PARTIAL**: current JA reader is advisory, EN reader passes; historical rubric gaps remain | next matched canary, decision (`KEEP`/`REVERT`/`INCONCLUSIVE`), and later consuming run |
 | P2 | Local OSS and independent-user proof | **NOT DONE** | fresh-machine install through public article and real external revenue receipt |
 
-The first action is storage recovery. Do not bypass the floor, lower the
-threshold, delete another loop's release, or treat a successful foreground
-manual publication as proof of unattended cadence.
+The first action is to clear shared admission capacity. Do not lower the disk
+floor, delete another loop's release/process, or treat a successful foreground
+publication as proof of unattended cadence.
 
 #### Atomic remaining queue
 
