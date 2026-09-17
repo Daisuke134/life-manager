@@ -62,3 +62,10 @@ test("V1 does not create a fourth message when the cap or gap is exhausted", asy
   const gap = deps({ readSendState: async () => ({ sentTodayCount: 1, lastSentMs: NOW - 1, sentFamilies: [], recentQuoteIds: [] }) });
   assert.equal((await mentalV1UserOnce(USER, NOW, gap.base)).reason, "too-soon-after-last");
 });
+
+test("V1 canary allowlist suppresses every tenant outside the explicit UID set", async () => {
+  const d = deps({ allowedUids: ["another-user"] });
+  const result = await mentalV1UserOnce(USER, NOW, d.base);
+  assert.deepEqual(result, { decision: "suppress", reason: "mental-v1-not-allowlisted" });
+  assert.equal(d.sent.length, 0);
+});

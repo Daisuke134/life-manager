@@ -18,6 +18,10 @@ function familyCandidates(window) {
 
 async function mentalV1UserOnce(user, nowMs, deps = {}) {
   if (!user || !user.uid || !user.telegram_chat_id) return { decision: "suppress", reason: "unreachable" };
+  if (Array.isArray(deps.allowedUids) && deps.allowedUids.length > 0
+      && !deps.allowedUids.includes(String(user.uid))) {
+    return { decision: "suppress", reason: "mental-v1-not-allowlisted" };
+  }
   const tzOffsetH = resolveUserTzOffsetH(
     { tzOffsetH: deps.tzOffsetH },
     user,

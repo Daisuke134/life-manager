@@ -407,6 +407,8 @@ function mentalDeps(u, events, deps = {}) {
 
 function mentalV1Deps(u, events, deps = {}) {
   const supa = SUPA();
+  const allowedUids = String(process.env.LM_MENTAL_V1_ALLOWED_UIDS || "")
+    .split(",").map((value) => value.trim()).filter(Boolean);
   return {
     fetchUpcomingEvents: async () => events,
     readSendState: deps.readMentalState
@@ -418,6 +420,7 @@ function mentalV1Deps(u, events, deps = {}) {
     profile: deps.mentalProfile || {},
     quietHours: deps.quietHours || null,
     tzOffsetH: deps.tzOffsetH,
+    allowedUids: deps.allowedUids || allowedUids,
   };
 }
 
