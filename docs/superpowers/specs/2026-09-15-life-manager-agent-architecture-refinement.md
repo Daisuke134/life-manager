@@ -284,7 +284,11 @@ Remaining A15 actions, in order; each checkbox is one observable action:
   installed the shared owner-lock release `0f504c58` on the reconciler via
   event `fc0ffb85066316ff7e044733`; reconciler, Connector and probe loaded
   argv all read back that SHA, with no run yet since this latest install.
-  Its next natural terminal remains to be recorded. These observations do not claim provider effects
+  A later targeted loaded-idle sync moved only the reconciler to complete
+  main-derived `d0401d93` (install event `04012e51656abac980f9439f`),
+  while Connector and probe remained together on `b2feb56c`. Its natural
+  run `18d631aa23fbc618-78737` reached outer pass at 19:30:36Z with
+  loaded/event SHA `d0401d93`. These observations do not claim provider effects
   or every loop's business outcome: Capafy and other exact effect/readback
   fences remain with their owners.
 
