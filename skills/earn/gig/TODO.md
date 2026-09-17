@@ -1026,6 +1026,9 @@ CrowdWorks engineering cursor, not the parallel schedule or owners of other plat
   read buyer context plus form fields and choose only an unambiguous requested task. The installed release
   remains unchanged: `lm-loop doctor` currently reports `ok=false` because of the unrelated unmanaged label
   `ai.anicca.provision-browser.colors-hachioji.owner-18211957`; no sibling loop was mutated to bypass it.
+  Fresh official contract readback shows all five active contracts still `funded` with no `delivered`/検収
+  state: `63659463` has 3 form candidates, `63657015` 2, `63583795` 1, and `63570481`/`63568785` 0.
+  Therefore no client has a verified formal submission yet.
 - [ ] **CW-2 — one post-contract owner:** Keep Apply independent. Let Reply negotiate and accept on the
   proposal route, then hand the exact contract ID to Paid. Reply must not send a post-contract message or
   submit the same external form; reconcile any old uncertain intent before the handoff. Reply now suppresses
