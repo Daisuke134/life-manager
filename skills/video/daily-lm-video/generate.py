@@ -161,7 +161,7 @@ def validate_render(output, ffprobe_bin):
     return duration
 
 
-def has_filter(ffmpeg_bin, filter_name):
+def has_filter(ffmpeg_bin, filter_name, cwd=None):
     """Return whether this FFmpeg build exposes a named video filter."""
     try:
         result = subprocess.run(
@@ -169,6 +169,7 @@ def has_filter(ffmpeg_bin, filter_name):
             check=False,
             text=True,
             capture_output=True,
+            cwd=cwd,
         )
     except OSError:
         return False
@@ -211,7 +212,7 @@ def render(args, row, output):
         temporary_path = Path(temporary)
         write_whisper_only_ass(args.whisper_ass, temporary_path / "whisper.ass", offset_seconds=5)
         write_creative_ass(temporary_path / "creative.ass", row, args.duration)
-        if has_filter(args.ffmpeg_bin, "ass"):
+        if has_filter(args.ffmpeg_bin, "ass", cwd=temporary_path):
             caption_chain = "[withproof]ass=filename=whisper.ass,ass=filename=creative.ass[v]"
         else:
             print("daily-lm-video: ffmpeg has no ass filter; rendering without caption overlays", file=sys.stderr)
