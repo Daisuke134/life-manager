@@ -1,10 +1,14 @@
-# Capafy $10K MRR closed loop
+# Capafy $10K monthly revenue closed loop
 
 ## Goal
 
-Life Manager public repositoryだけをsourceとして、Capafy skillの発見、改善、新規開発、審査枠が空いた時の公開、subscription revenue照合、Telegram receiptまでを毎日自走させる。監視と収益照合は毎時動かし、settled subscription MRRが `$10,000` に到達するまで実測値から反復する。Reel・HyperFrames・Instagram集客はDaisの明示指示により現在の完了条件から外す。
+Life Manager public repositoryだけをsourceとして、Capafy skillの発見、改善、新規開発、審査枠が空いた時の公開、月間売上・作成者収益・費用照合、Telegram receiptまでを毎日自走させる。監視と収益照合は毎時動かし、月間作成者収益が `$10,000` に到達するまで実測値から反復する。Reel・HyperFrames・Instagram集客はDaisの明示指示により現在の完了条件から外す。
 
-`done="Capafyのbuild/publish、key health、hourly moneyがmain由来releaseから自然wakeし、空き枠の最初の適格wakeで最大1件を重複なく提出する。Agent/version/status・購入者Test Run・当月売上・作成者収益・モデル費用を公式readbackし、settled active subscription MRR >= $10,000"`
+`done="Capafyのbuild/publish、key health、hourly moneyがmain由来releaseから自然wakeし、空き枠の最初の適格wakeで最大1件を重複なく提出する。Agent/version/status・購入者Test Run・当月gross sales・作成者収益・モデル費用を公式readbackし、月間作成者収益 >= $10,000"`
+
+## Current metric policy
+
+Daisの現在の完了条件は**月間売上のreadback**であり、active MRRの取得を完了gateにしない。主指標はSeller Consoleの`creator_earnings_usd`、補助指標は`gross_sales_usd`、費用はAgent別推定model costとOpenRouter実請求を別々に表示する。`active_mrr_usd`はseller側のactive/canceled subscription identity sourceがCapafyから提供されるまで`null`のまま保持し、月間売上から推定しない。既存のMRR記述は履歴・定義として残るが、現在の実行順・完了判定には使わない。
 
 ## Read this first — 現在地と次の1手
 
@@ -16,7 +20,7 @@ flowchart LR
   R1 --> M0["M0 recurring candidateを選ぶ"]
   M0 --> M1["M1 1件だけpublish"]
   M1 --> M3["M3 subscription・cost・settlement照合"]
-  M3 --> M4{"official net MRR >= $10K?"}
+  M3 --> M4{"monthly creator earnings >= $10K?"}
   M4 -- no --> M0
   M4 -- yes --> O0["O0 operator-owned OSS化"]
   O0 --> O1["O1 clean clone E2E"]
@@ -25,13 +29,13 @@ flowchart LR
 
 | order | state | atomic TODO | 完了の公式証拠 |
 |---|---|---|---|
-| R0 | **ACTIVE: buyer health + supply/runtime recovery** | paid Agentの現行公開版はSonnet 4.6。DeepSeek V4.1 Flash / `max_tokens=8192` の同一Agent更新キューはrepoに存在し、公式inventoryは5/5 under reviewのため待機中。A15由来release `a76c8931` の予約dispatch後、Capafy dailyは`pass`・`CAP_FULL`・platform write 0・SHA一致まで実測した。released stale `effect_unknown` は公式CAP_FULL no-write証拠を runtime API で1件reconcile済み。 | review枠が空いた最初の適格wakeで同じAgent IDのDeepSeek新版を1件提出し、承認後にbuyer Test Runの回答を公式readbackする。新しいreleaseにはreleased-only effect reconcileと、5分healthcheckのcontrol-plane exemptionを含める。現行公開Sonnet版のTest Runが成功したとは推論しない。Reelはgateにしない。 |
+| R0 | **ACTIVE: buyer health + supply/runtime recovery** | paid Agentの現行公開版はSonnet 4.6。DeepSeek V4.1 Flash / `max_tokens=8192` の同一Agent更新キューはrepoに存在し、公式inventoryは5/5 under reviewのため待機中。A15由来release `a76c8931` の予約dispatch後、Capafy dailyは`pass`・`CAP_FULL`・platform write 0・SHA一致まで実測した。released stale `effect_unknown` は公式CAP_FULL no-write証拠を runtime API で1件reconcile済み。枠が満杯でも、対象launchdの単発kickstartでcontrol/data経路を検証できる。 | review枠が空いた最初の適格wakeで同じAgent IDのDeepSeek新版を1件提出し、承認後にbuyer Test Runの回答を公式readbackする。新しいreleaseにはreleased-only effect reconcileと、5分healthcheckのcontrol-plane exemptionを含める。現行公開Sonnet版のTest Runが成功したとは推論しない。Reelはgateにしない。 |
 | R1 | pending | 全新規listingを有料subscription、No Free Trial、正のcontribution marginへfail-closedする。公開中40件のうち14件にtrialが残るため、収益上位から同じAgent IDで更新する。sandbox feeは固定値でなくpublish時の公式console値をreceiptへ保存する | lintとcandidate backlogがtrial・赤字・one-shot候補をrejectし、official CP1 readbackがsubscriptionかつtrial 0。既存版のtrialは掲載中の別問題として追跡する |
 | M0 | pending | fresh official demandから、毎周期に新inputが入り前回outputが陳腐化するcustomer jobを1件だけ選ぶ | hypothesis、renewal reason、price/cap/cost、success metric、stop conditionを持つready candidate 1件 |
-| M1 | pending | free slotの最初のwakeでsame-Agent retryを優先し、なければM0 candidateをCP1→CP2→CP3まで1件だけsubmitする | Agent/version/package、under-reviewまたはonline、billing/trial、duplicate/replay 0のofficial readback |
+| M1 | pending | free slotの最初のwakeでsame-Agent retryを優先し、なければM0 candidateをCP1→CP2→CP3まで1件だけsubmitする。枠が満杯でも、提出を行わない単発kickstartでloopのloaded SHA・terminal・CAP_FULL readbackを検証する | Agent/version/package、under-reviewまたはonline、billing/trial、duplicate/replay 0のofficial readback。満杯時の検証は`platform_write=0`であること |
 | M2 | **deferred by Dais** | Reel・HyperFrames・Instagram集客は今回の開発・提出loopの完了条件に入れない | 再開はDaisが集客を明示依頼した時のみ |
-| M3 | pending | orderごとにactive/canceled subscription、refund、platform/sandbox fee、hosted API/LLM cost、settlementをjoinする | official receiptからgross MRR、Capafy net MRR、contribution MRR、withdrawable、bankedを分離。欠損は`unknown` |
-| M4 | economic loop | M0–M3を一仮説ずつ反復し、churn-adjusted contributionを増やす | official settled active subscription net MRR `>= $10,000`。one-time、trial、pending、viewsは不算入 |
+| M3 | pending | UTC月初から現在までのgross sales、creator earnings、refund、platform/sandbox fee、hosted API/LLM cost、settlementを同じ期間でjoinする | official receiptから月間gross sales、月間creator earnings、contribution、withdrawable、bankedを分離。active subscription sourceが欠損しても月間売上は失敗にしない |
+| M4 | economic loop | M0–M3を一仮説ずつ反復し、churn-adjusted contributionを増やす | official monthly creator earnings `>= $10,000`。one-time、trial、pending、views、active MRRは月間売上へ加算しない |
 | O0 | blocked by M4 | sourceを公開し、各operatorのCapafy publisher identity、credential、payout/bank、stateをrepo外private SSOTへ分離する | clone A/Bが別publisher・別state・別収益を持ち、中央credentialと自動rev-share 0 |
 | O1 | blocked by O0 | clean Macでone-time onboarding後に24/7 loopを自然wakeさせる | install→auth/preflight→launchd→candidate→receiptのclean-clone E2E、secret/log leak 0 |
 | O2 | blocked by O1 | README、security boundary、economics template、release artifactを公開する | signed/tagged release、reproducible install、operator-owned payout説明、fresh user readback |
@@ -51,11 +55,13 @@ flowchart LR
 
 Readback sources: Capafy Seller Console [Sales](https://capafy.ai/developer/salesTrends) `POST /app/sales/clickhouse/trend|ranking`、[Earnings](https://capafy.ai/developer/analytics) `POST /app/realtime-revenue/clickhouse/trend|comparison`、[Unit Sales](https://capafy.ai/developer/salesVolume) `POST /app/unit-sales/clickhouse/trend|ranking`、`POST /app/usage/overview|requests`（request cursorは`cursorTime/cursorRequestId`）、`GET /agent/developer/payout-info`、`GET /agent/agents`。OpenRouter [Credits](https://openrouter.ai/settings/credits)、`GET /api/v1/key|credits|models`、Responses API。OpenClaw provider `maxTokens`の[一次仕様](https://github.com/openclaw/openclaw/blob/main/docs/gateway/config-tools/custom-providers.md)。provider token/keyはprivate SSOTから読んだが、このspecとreceiptには値を保存しない。
 
-`$10,000 MRR`の計算契約は、**active subscriptionごとの月換算publisher受取額 − 同じsubscriberの予測hosted request cost − refunds/fees**の合計である。30日収益、公開数、無料trial、未払残高をMRRへ変換しない。active subscriber identity・更新/解約時刻・実際のrequest costが公式sourceから揃わない限り数値は`unknown`。M0–M4は一度に一つのcustomer job/creative/price仮説だけ変え、paid renewalと正のcontributionを観測して継続する。
+月間売上の計算契約は、**公式Seller ConsoleのUTC月初から現在までのgross salesとcreator earningsをreadbackし、同じ期間のhosted model cost・OpenRouter実請求・refund・payoutと分離表示する**ことである。active subscriber identity・更新/解約時刻は任意の追加sourceであり、取得できない場合も月間売上readbackを失敗扱いにしない。30日収益、公開数、無料trial、未払残高は月間作成者収益へ変換しない。M0–M4は一度に一つのcustomer job/creative/price仮説だけ変え、正の月間contributionを観測して継続する。
 
 **提出cadenceの確認:** 現行`capafy-loop-daily`は3600秒ごとに起動し、allocatorは1 passにつき最大1 action。5枠が全て`under_review`ならplatform write 0で正しい。Daisはこの直列方式を維持する方針なので、追加の5分drainerや第6 Agent、別schedulerを作らない。空きが出た次の適格hourly wakeでretry/readyを1件処理し、同じAgent/version/statusのofficial readback後に次回へ進む。
 
-**Money CLIの境界:** 新しいCLI基盤ではなく既存`capafy-loop-cli.sh --money [--json]`を使う。Daisが優先する月間売上に合わせ、UTC暦月の月初から現在までのgross sales、creator earnings、total/free-trial/non-trial unit sales、subscription cash earnings、payout、Agent別request/tokens/推定model cost、実際のOpenRouter key usage、`active_mrr=null`と`missing_seller_active_subscription_source`を分離する。Seller Consoleのoverview/salesTrends/analytics/salesVolumeとbuyer自身のsubscription list・seller aggregate CSVではactive契約状態を返さない。seller active契約を得るprovider API/webhookが無い限り、観測された月内課金をMRRとして表示しない。Capafyへ必要なsourceとして`subscription_id, agent_id, status, cycle, net_cycle_amount, next_billing_at, cancellation_at`を要求する準備をし、提供前に数値を捏造しない。
+**slot非依存の検証kickstart契約:** review slotは本番のplatform writeだけを制限する。slotが5/5でも、既存の`launchd` ownerへ対象labelを1回だけkickstartし、release SHA、loaded argv、terminal event、公式inventory、`platform_write=0`を読み戻してloopの健康状態を検証する。このkickstartは提出・新規Agent作成・第6枠の代替ではない。枠が空いた後だけ、自然wake（または同じ対象への単発wake）でsame-Agent retryを最大1件送信する。kickstartの成功をDeepSeek版の審査承認やbuyer Test Run成功とは扱わない。
+
+**Money CLIの境界:** 新しいCLI基盤ではなく既存`capafy-loop-cli.sh --money [--json]`を使う。Daisが優先する月間売上に合わせ、UTC暦月の月初から現在までのgross sales、creator earnings、total/free-trial/non-trial unit sales、subscription cash earnings、payout、Agent別request/tokens/推定model cost、実際のOpenRouter key usageを返す。`active_mrr=null`と`missing_seller_active_subscription_source`は補助診断値として表示するが、月間売上の完了gateにはしない。Seller Consoleのoverview/salesTrends/analytics/salesVolumeとbuyer自身のsubscription list・seller aggregate CSVではactive契約状態を返さない。active MRR sourceが無い場合も月間売上を捏造せず、公式creator earningsをそのまま記録する。
 
 #### As-Is: 載っていても供給・集客・監視が停滞する
 
@@ -86,8 +92,8 @@ flowchart LR
   Worker --> Reel[verified asset + native Reel URL]
   Submit --> Sales[現行売上・収益・fee・LLM cost]
   Reel --> Sales
-  Sales --> MRR[active subscriptionがあればnet MRR<br/>無ければunknown]
-  MRR --> Decision[正のcontributionとretentionを改善]
+  Sales --> Revenue[monthly creator earnings + cost]
+  Revenue --> Decision[正のmonthly contributionを改善]
   Decision --> Worker
 ```
 
@@ -117,6 +123,8 @@ flowchart LR
 **有料Agent更新の供給順:** repo catalogの`marketing-strategist/UPDATE.json`は既存Agent `9563867391` と旧版 `2070737929294868480` を指定する。公式review空きが生じ、同じAgentがonlineかつ旧版のままなら、既存のretryの後・fresh新規候補の前に`update_existing`を1件選ぶ。`publish_prepare`はそのAgent/旧版をpublisher lock内で作成直前に再検査し、不一致ならplatform write 0。更新後はそのwakeで次のfresh Agentを送らず、審査結果とbuyer Test Runを別の自然wakeで確認する。現時点の公式review枠5/5では更新要求は待機し、公開中Sonnet v1.0.0を維持する。
 
 **最新の引き継ぎ:** 提出契約PR `#5323`と有料Agent更新キューPR `#5325`はmainへ統合済み（後者のmerge SHA `19d338b7`）。後者はCI全件PASS、`2026-09-17`の公式5/5 inventoryで`CAP_FULL`・新版作成0・Agent版ID不変を実測した。一方、確認時の稼働`current` releaseは`a617184d`、Capafy供給labelのloaded SHAは`ccc0b47c`であり、PR `#5325`後の自然提出passではない。直近供給terminalは`resource_effect_unknown`、hourly moneyは`resource_capacity_busy`。共有host admissionの修復は別ownerのA15作業として扱い、このCapafy作業ではPID・host-admission DBを操作しない。次はA15の実測合格後にmain由来releaseの対象label読戻し→自然wake→同Agent版提出・buyer Test Runを順に証明する。マーケティング/ReelはDaisの指示で完了gateから除外済み。
+
+**2026-09-17 slot非依存kickstartの最新readback:** Aqua/Directory Services/`gui/501` preflight PASS後、loaded release `393f17458a4e6a62e01ae46215ab32ba5f02ea83`の`ai.anicca.capafy-loop-daily`を1回だけkickstartした。公式inventoryは`40 online / 5 under_review / free 0 / CAP_FULL`で、Capafy側のplatform writeは0。healthcheckはcontrol-planeで`pass`したが、dailyのouter terminalは共通host admissionの`resource_effect_unknown`で`blocked / exit 75`となり、同じrunの自然`pass`とは数えない。この結果は「slotを待たずに検証できる」ことと「shared admissionが未解消ならproduction wakeは完了しない」ことを分離する。共有PID・host-admission DBは変更しない。最新money CLIはUTC `2026-09-01`–`2026-09-17`でgross sales `$66.90`、creator earnings `$48.16`、OpenRouter暦月請求 `$24.18`、Agent別推定model cost `$22.90`、`active_mrr=null`（seller active契約source欠損）をreadbackした。
 
 **対象限定の反映:** Aqua/Directory Services/`gui/501` preflight PASSの後、loaded-idleの`ai.anicca.capafy-loop-daily`だけをmain由来のfull release `20260917T163930-19d338b7`へapplyした。install event `f6936fe941a1b72812766663`、launchctl loaded argvとinstalled SHAは`19d338b7`で一致。event SHAは旧`203bbe88`のままで、直近blocker `resource_effect_unknown` は未解決。自然wakeのpass、Agent新版提出、buyer Test Runをこのapplyから推論しない。公式inventoryは引き続き`40 online / 5 under_review / free 0`。
 
@@ -153,23 +161,23 @@ flowchart LR
 | M0.1 economic selector | `skills/self/capafy-loop/sales_selector.py`の`select_signal`、new `skills/self/capafy-loop/economic_selector.py` | official seller winnerがあればretained contribution順、なければfresh demand evidence順で1 candidateを返す。出力を`candidate_id,hypothesis,renewal_reason,price,cap,max_cost,success_metric,stop_condition,evidence`へ固定し、viewsだけ・one-timeだけ・source staleならwinnerを返さない | `test_sales_selector.py`既存挙動維持 + new `test_economic_selector.py`のwinner/no-signal/stale/negative-margin | 1 prod + 1 new + 1 test / 95 LOC |
 | M1.1 one-write publisher | `skills/capafy-autopublish/scripts/inventory_status.py:107-153` allocator、`daily_loop.sh:64-118` verdict path、`skills/self/capafy-loop/capafy-loop-daily.sh:56-123` | action priorityを`server unreadable stop → free slot+retry → free slot+economic-ready fresh → cap-full offline build → no-op`へ固定する。action keyを`retry:<agent>:<source_version>`または`create:<candidate_hash>`にし、same wake最大1 write。CP1 readbackでsubscription/trial0、CP2 hosted key、CP3 under-reviewを確認できなければfailure | `test_inventory_status.py`へnegative-margin skipとone-write、live natural wakeでAgent/version/package/status、replay write 0 | 3 prod + 1 test / 90 LOC |
 | M2.1 listing attribution | `skills/earn/capafy-marketing/capafy-ig-marketing-daily.sh:210-217` selected identity、`:264-290` prompt、`site/netlify/functions/allowed-agents.json` | selected Agent IDとcontent hashを一度だけ固定し、caption/on-screen CTA/bioを同じ`/go/<agent_id>?run_id=<run_id>`へ統一する。publish後にnative URL、exact caption URL、redirect counter baselineをreceiptへ保存し、same effect replayはpostしない | `tests/test_capafy_direct_listing_bio.py`、`test_select_listing.py`、`test_pull_attribution.py`、official native URL + redirect delta | 2 prod/data + 3 tests / 70 LOC |
-| M3.1 money and cost ledger | `skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py:89-147` `_seller_money`、`:196-247` `build_receipt`、`capafy_company_receipt.py:39-79` `_semantic_payload` | order/subscription identityを取得できるofficial console sourceを追加し、active/canceled、cycle、refund、platform fee、sandbox fee、settlementへ正規化する。candidate manifestのhosted max/actual callsをjoinし、`gross_subscription_mrr_usd`、`publisher_net_mrr_usd`、`contribution_mrr_usd`、`withdrawable_usd`、`banked_usd`を分離する。欠損値は0でなく`null/unknown` | `tests/test_capafy_hourly_reconcile.py`へactive/canceled/refund/fee/cost/unknown、`test_capafy_company_receipt.py`へsemantic dedupe。official console snapshot readback | 2 prod + 2 tests / 100 LOC |
-| M4.1 experiment state machine | new `skills/self/capafy-loop/capafy_growth_experiment.py`、`capafy-loop-daily.sh:97-123` prompt/result | 一度に変更するのはcandidate/listing/creative/priceの1変数だけ。baseline、success metric、stop condition、minimum window、resultをdurable stateへ保存し、failure/negative contributionならstop、positive retained contributionなら同じjobを改善する。`publisher_net_mrr_usd >= 10000`までは次のM0へ戻る | new `test_capafy_growth_experiment.py`でone-variable、window、stop、replay。7日自然運転はduplicate/missing receipt 0 | 2 prod + 1 test / 100 LOC |
+| M3.1 money and cost ledger | `skills/earn/capafy-marketing/scripts/capafy_hourly_reconcile.py`、`capafy_company_receipt.py`、tests | official consoleからUTC月初〜現在のgross sales、creator earnings、unit、refund、platform fee、sandbox fee、settlement、hosted costを正規化する。active MRR sourceは任意診断として取得を試み、欠損値は0でなく`null` | focused testsでmonthly revenue/refund/fee/cost/unknownとsemantic dedupe。official console snapshot readback | 2 prod + 2 tests / 100 LOC |
+| M4.1 experiment state machine | new `skills/self/capafy-loop/capafy_growth_experiment.py`、`capafy-loop-daily.sh` prompt/result | 一度に変更するのはcandidate/listing/creative/priceの1変数だけ。baseline、success metric、stop condition、minimum window、resultをdurable stateへ保存し、failure/negative contributionならstop、positive monthly contributionなら同じjobを改善する。`monthly_creator_earnings_usd >= 10000`までは次のM0へ戻る | testsでone-variable、window、stop、replay。7日自然運転はduplicate/missing receipt 0 | 2 prod + 1 test / 100 LOC |
 | O0.1 operator boundary | `install.sh:26-55` product routing、`start-local.sh`、`uninstall.sh:17-50`、Capafy launchd templates | M4 receiptをgateに`./install.sh capafy`を追加する。credential/publisher/payout/stateは`$LIFE_MANAGER_HOME`配下private SSOT、source/releaseはpublic immutable、operator A/B間で共有0。uninstallはlaunchdだけ停止し、payout/history削除は明示hard modeだけ | `test/oss-self-contained.test.mjs`、new install fixture、secret scan、operator A/B isolated state | 3 prod + templates/tests / 100 LOC |
 | O1.1 clean-clone release | `README.md` Capafy section、new `docs/capafy-operator.md`、release workflow | one-time onboarding、収益帰属、20% fee/console sandbox、cost cap、hard stops、recoveryを記載。clean cloneでinstall→preflight→natural wake→receiptまで再現し、tagged immutable releaseを作る | clean Mac transcript、loaded launchd、official account readback、repo secret 0、tag SHA | 2 docs + workflow / 90 LOC |
 
-### Economic truth and $10K denominator
+### Economic truth and $10K monthly revenue denominator
 
-Capafy subscriptionはpublisherが継続課金を設定し、platform feeはnet amountの20%、publisher受取はsandbox fee控除後の80%である。Sales/Proceeds表示は入金ではなく、dispute window、monthly settlement、payout thresholdを通過した公式settlementだけをcashとして扱う。
+Capafy subscriptionはpublisherが継続課金を設定し、platform feeはnet amountの20%、publisher受取はsandbox fee控除後の80%である。Sales/Proceeds表示は入金ではなく、dispute window、monthly settlement、payout thresholdを通過した公式settlementだけをcashとして扱う。現在の完了gateはactive MRRではなく、公式Seller Consoleの月間creator earningsである。
 
 ```text
-publisher_net_per_cycle = (cycle_price - official_console_sandbox_fee) * 0.80
-contribution_per_cycle  = publisher_net_per_cycle - hosted_api_llm_cost - refunds
-publisher_net_mrr      = sum(active_subscription.publisher_net_per_cycle normalized monthly)
-contribution_mrr       = publisher_net_mrr - monthly hosted costs - monthly refunds
+monthly_creator_earnings = official_seller_console_creator_earnings(UTC_month_to_date)
+monthly_gross_sales      = official_seller_console_gross_sales(UTC_month_to_date)
+monthly_contribution     = monthly_creator_earnings - hosted_api_llm_cost - refunds - fees
+active_mrr               = null when seller active-subscription identity is unavailable
 ```
 
-最後に確認できた週額`$9.99`、sandbox `$0.50/week`を仮定するとpublisher netは約`$32.90/subscriber/month`で、Capafy net MRR `$10K`には約`304` active subscribersが必要である。hosted costを`20 calls/week × $0.12`と仮定するとcontributionは約`$22.50/subscriber/month`、実利益 `$10K`には約`445` subscribersが必要になる。これは計画値であり、実装はpublish時の公式console feeとactual usageで毎回再計算する。
+月間売上目標は公式`monthly_creator_earnings >= $10,000`で判定する。gross sales、trial、pending、payout残高、active MRRは別フィールドとして保持し、互いに変換しない。これは計画値ではなく、毎回公式console readbackとactual usageで再計算する。
 
 ソース: [Capafy: Become a Publisher](https://capafy.ai/earn) / 核心: subscriptionはrecurring closed-source、platform revenue shareは20%。
 
@@ -210,13 +218,13 @@ P1は最初のcreative quality barを確定する一回限りのhuman gateであ
 3. fresh Agentの作成はnormalized lifecycleが`occupied`の別Agentが5未満の時だけ行う。現在のplatform文字列では`draft`と`under_review`だけがoccupiedである。server unreadable時は新規Agentを作らない。
 4. `review_rejected`はactive 5-slotから外す。同じ`agent_id`で原因を保存し、production/listingを修正し、全gate後に同じAgentのrevisionとして再提出する。ただし同時提出は最大5件であり、`draft/under_review=5`ならretryも送信せず、accepted/rejectedで空いた次の1枠を使う。
 5. `online`へ遷移したAgentはactive slotから外れ、次のready candidateを1件だけsubmitする。同一wakeで空いた全slotを一斉に埋めない。
-6. 5-slot満杯時もlisted skillのmarketing、creative改善、metrics、refund、subscription、MRR、Telegram reporting、次candidateのoffline build/testを継続する。
+6. 5-slot満杯時もlisted skillのmarketing、creative改善、metrics、refund、monthly revenue、Telegram reporting、次candidateのoffline build/testを継続する。
 7. marketing creativeは実skillのinput→outputまたはbefore→afterを見せ、canonical video quality gateを通る。generic stock b-roll + TTSだけのartifactをpublicへ出さない。
 8. 各terminal runはskill/version status、slot counts、creative hash、account、native URL、money split、Telegram message IDを単一`run_id`で保存する。
 9. hourly control loopとdaily side-effect loopが7日連続で動き、duplicate Agent、duplicate version、duplicate public post、missing receiptが0件になる。
-10. revenue truthはone-time、hourly、subscription、refund、fee、pending、settledを分離し、settled net MRRだけで`$10,000` gateを判定する。
+10. revenue truthはgross sales、creator earnings、one-time、hourly、subscription cash、refund、fee、pending、settled、hosted costを分離し、monthly creator earningsで`$10,000` gateを判定する。active MRRは任意診断値で、source欠損時は`null`とする。
 11. 新規listingはpaid subscriptionかつNo Free Trialで、official console sandbox feeとhosted costを含むpositive contribution gateを通る。recurring inputとstaleness reasonがないone-shot jobは公開しない。
-12. official publisherがsettled net MRR `$10,000`へ到達するまでOSS onboarding/releaseへ進まない。到達後のOSSはoperatorごとにpublisher identity、credential、payout、stateを分離し、収益は各operatorへ帰属する。
+12. official publisherがmonthly creator earnings `$10,000`へ到達するまでOSS onboarding/releaseへ進まない。到達後のOSSはoperatorごとにpublisher identity、credential、payout、stateを分離し、収益は各operatorへ帰属する。
 
 ## As-Is / To-Be
 
@@ -228,7 +236,7 @@ P1は最初のcreative quality barを確定する一回限りのhuman gateであ
 | rejection | retry codeはあるがcompany-wide receipt/queueと未統合 | same-agent correction loop、原因分類、再発test、resubmit readback |
 | cap full | healthy-idleとしてpublisher全体が終了 | fresh submitだけidle。build、marketing、money、repairは継続 |
 | creative | generic stock b-roll + TTS、repo外renderer | real demonstration first、FFmpeg quality gate、artifact evidence |
-| money | gross/order/pending/MRRのsnapshotがstale | hourly fresh reconciliation、settled net MRRがobjective |
+| money | gross/order/pending/費用のsnapshotがstale | hourly fresh reconciliation、monthly creator earningsがobjective |
 | reporting |別jobのTelegram文面 | single run receipt + state-change/daily-close dedupe |
 
 ## Five-slot lifecycle
@@ -266,14 +274,15 @@ The Life Manager runbook is the primary implementation contract: `DAILY_LOOP.md`
 
 ## Metric contract
 
-`MRR` はactive paid subscriptionの正規化月額合計だけを指す。一時購入、pending payout、gross order value、download、view、click、trialはMRRへ加算しない。
+現在のprimary metricは`monthly_creator_earnings_usd`。UTC月初から現在までの公式creator earningsをreadbackし、`monthly_gross_sales_usd`、`estimated_model_cost_usd`、`openrouter_usage_usd`、payoutを別々に保持する。`active_mrr_usd`は任意診断値で、seller active-subscription identityが無い場合は`null`とする。
 
 ```text
-settled_mrr_usd = sum(active_subscription.normalized_monthly_amount_usd)
-net_mrr_usd = settled_mrr_usd - refunds_usd - recurring_platform_fees_usd
+monthly_creator_earnings_usd = official_seller_creator_earnings(UTC_month_to_date)
+monthly_contribution_usd = monthly_creator_earnings_usd - hosted_model_cost_usd - refunds_usd - fees_usd
+active_mrr_usd = null when seller_active_subscription_source is unavailable
 ```
 
-一時購入は`one_time_revenue_usd`、入金待ちは`pending_usd`、全注文は`gross_usd`へ分離する。Capafy APIがactive subscription identityを返さない場合、MRRは`unknown`とし、grossから推定しない。
+一時購入は`one_time_revenue_usd`、入金待ちは`pending_usd`、全注文は`gross_usd`へ分離する。active MRR sourceが無くてもmonthly creator earningsは公式値として記録し、grossやtrialからactive MRRを推定しない。
 
 ソース: [Stripe: What is monthly recurring revenue?](https://stripe.com/resources/more/what-is-monthly-recurring-revenue) / 核心の引用: 「MRRとは、顧客から毎月発生する予測可能な定期収入を指します。」
 
@@ -361,14 +370,14 @@ Macが起動中ならlaunchd user agentsが運転する。sleep/offlineでmiss�
 3. **Distribution**: listed Agentごとに実outputを見せるshort videoを作り、native accountからlanding/listingへ送る。
 4. **Monetization**: Capafyのsubscription、hourly access、downloadの実orderを受ける。
 5. **Retention**: usage、review、refund、support、churnを読み、売れるAgentのversionを改善する。
-6. **Allocation**: slotが空いたら、最も高いsettled contributionを見込むready candidateを1件入れる。
+6. **Allocation**: slotが空いたら、最も高いmonthly contributionを見込むready candidateを1件入れる。
 7. **Compounding**: listed portfolioは新規submission待ち中も販売とmarketingを継続する。
 
 Capafy自身もrepeatable AI workflowをpaid Skillにし、subscription、hourly access、downloadでearnすると説明する。
 
 ソース: [Capafy: How to Make Money With AI](https://capafy.ai/blog/how-to-make-money-with-ai) / 核心の引用: 「earn through subscriptions, hourly access, or downloads on Capafy.」
 
-`$10K MRR`へ数えるのはsubscriptionだけである。hourly/downloadはcash revenueとcontributionへ数えるがMRRへ混ぜない。marketingのprimary optimization chainは`qualified native view → landing click → product view → paid subscription → retained subscription → settled net MRR`とする。
+`$10K`へ数えるのは公式monthly creator earningsである。gross sales、trial、pending、views、clicksは補助指標として分離し、active MRRは取得できた場合だけ診断表示する。marketingのprimary optimization chainは`qualified native view → landing click → product view → paid order → creator earnings`とする。
 
 ## Creative contract
 
@@ -616,7 +625,7 @@ Current production truth:
 | C19 | recover every occupied draft, then prove one review transition frees a slot | no incomplete draft remains; a listed/rejected transition reduces occupied count and the next hourly wake submits exactly one candidate | pending/event-driven — draft recovery is complete: all five occupied rows are `under_review`, incomplete draft 0, sixth Agent 0. After the next accepted/rejected transition, the first eligible hourly wake alone must resubmit Football `1037238583` as the same Agent |
 | C20 | connect post/click/subscription windows without claiming causal proof | attribution row is candidate unless Capafy exposes order-level UTM/source | completed — live attribution v2 joins one IG post + 23 counters + Capafy snapshot; clicks 7; causal=false; subscription unknown; Netlify deploy `6a89b4126e21fe74286b7a79`; TG `29036` |
 | C21 | prove seven consecutive daily healthy terminals and hourly freshness | 7-day ledger has no stale source, duplicate Agent/version/post or missing Telegram receipt | observing — strict proof `0/7` because an earlier same-day failed execution correctly breaks the streak。run `9`はCAP_FULL/rc0/write0、false-green classifierはfocused 10件でfailure/invalidを非zeroへ写像する |
-| C22 | operate growth and retention experiments until settled net MRR reaches `$10,000` | active subscription readback and refunds/fees reconcile to target | **active** — hourly control plane、official seller money readback、token refresh、Telegram dedupe、IG real metrics、official seller winner selectorは稼働済み。現在の公式値はpaid order `1`、one-time `$9.99`、subscription MRR `$0`。Data Analyst `7785270416`の新HyperFrames + Andrew MP4はquality gateを通りTelegram `29647`へ送信済みで、user approval後のcadence-open wakeだけが同bytesを投稿する。`$10K`完了は公式settled net subscription MRRでのみ判定する |
+| C22 | operate growth experiments until monthly creator earnings reach `$10,000` | monthly gross sales, creator earnings, refunds/fees, payout and hosted cost readback reconcile to target | **active** — hourly control plane、official seller money readback、token refresh、Telegram dedupe、official seller winner selectorは稼働済み。active MRRは任意診断値で、seller active-subscription sourceが無いためnullを維持する。`$10K`完了は公式monthly creator earningsで判定する |
 | C23 | sustain offline skill development while all five submission slots are occupied | at most one bounded build per calendar day produces a repo-owned SKILL/LISTING/icon/evidence candidate; hourly CAP_FULL wakes outside that cadence spend 0 and all passes write 0 to Capafy | completed — run `7` created lint-clean `peer-review-response-editor`, backlog `ready=0→1`, official Agent total stayed `33`; run `8` reused the daily claim and spent 0 with platform write 0 |
 
 ### Remaining execution order
@@ -628,8 +637,8 @@ Current production truth:
 3. **M0:** M0.1。fresh official evidenceからhighest contribution EVのrecurring customer jobを1件だけ選ぶ。
 4. **M1:** M1.1。same-Agent retry優先でCP1→CP2→CP3を1件だけ閉じ、subscription/trial0/remote statusをreadbackする。
 5. **M2:** Daisの指示によりdeferred。Reel・HyperFrames・Instagram投稿は現在の完了gateから外す。
-6. **M3:** M3.1。active subscription、refund、20% fee、console sandbox fee、hosted cost、settlementを公式receiptへjoinする。
-7. **M4:** M4.1。一仮説・一変更・一指標・一停止条件で反復し、official publisher net MRR `$10,000`を実測する。
+6. **M3:** M3.1。monthly gross sales、creator earnings、unit、refund、payout、hosted cost、OpenRouter実請求を公式receiptへjoinする。active MRRは任意診断値として欠損を明示する。
+7. **M4:** M4.1。一仮説・一変更・一指標・一停止条件で反復し、official monthly creator earnings `$10,000`を実測する。
 8. **O0–O2:** M4達成後だけ、operator-owned credential/payout/state、clean-clone E2E、public releaseを順に閉じる。
 
 ### Start-to-finish atomic TODO checklist
@@ -647,8 +656,8 @@ Current production truth:
 | 7 | pending | M0.1 — `sales_selector.py`、new `economic_selector.py`、tests | fresh official evidenceからretained contribution EV最大のrecurring customer jobを1件だけ返す。stale/one-time-only/negative-marginはwinnerなし | ready candidate 1件にhypothesis、renewal reason、price/cap/max cost、metric、stop condition、evidenceが全て存在 |
 | 8 | pending | M1.1 — `inventory_status.py`、`daily_loop.sh`、`capafy-loop-daily.sh`、tests | `server unreadable stop → same-Agent retry → economic-ready fresh → cap-full offline build → no-op`を固定し、same wake最大1 platform writeにする | natural wake 1件だけsubmit、Agent/version/package/status official readback、action-key replay write 0 |
 | 9 | pending | M2.1 — `capafy-ig-marketing-daily.sh`、`allowed-agents.json`、attribution tests | verified outputからlisting固有creativeを作り、同じAgent/runの固有campaign URLでnative postを1件だけ公開する | artifact hash、listing URL、native post URL、exact CTA URL、view/click baseline、Telegram messageIdが同じrun_id |
-| 10 | pending | M3.1 — `capafy_hourly_reconcile.py`、`capafy_company_receipt.py`、tests | order/subscription/refund/platform fee/sandbox fee/hosted cost/settlementをjoinし、gross/net/contribution/withdrawable/bankedを分離する。欠損は`unknown` | official active/canceled subscription receipt、refund/fee/cost、withdrawable、bankedが同じeconomic windowへjoin |
-| 11 | pending loop | M4.1 — new `capafy_growth_experiment.py`、daily prompt/result、tests | candidate/listing/creative/priceの1変数だけを変更し、minimum window後にcontinue/stopを判定。未達ならM0へ戻る | one-variable/replay tests、各experimentにbaseline/metric/stop/window/result、official settled net MRRが`$10,000`以上になるまで反復 |
+| 10 | pending | M3.1 — `capafy_hourly_reconcile.py`、`capafy_company_receipt.py`、tests | monthly gross sales/creator earnings/unit/refund/payout/hosted cost/OpenRouter請求を同じ期間でjoinし、売上・費用・payoutを分離する。active MRR欠損は`null` | official monthly revenue/cost receipt、refund/fee/cost、withdrawable、bankedが同じeconomic windowへjoin |
+| 11 | pending loop | M4.1 — new `capafy_growth_experiment.py`、daily prompt/result、tests | candidate/listing/creative/priceの1変数だけを変更し、minimum window後にcontinue/stopを判定。未達ならM0へ戻る | one-variable/replay tests、各experimentにbaseline/metric/stop/window/result、official monthly creator earningsが`$10,000`以上になるまで反復 |
 | 12 | blocked by 11 | O0.1 — `install.sh`、`start-local.sh`、`uninstall.sh`、Capafy templates | `./install.sh capafy`を追加し、publisher identity、credential、payout/bank、stateを各operatorのprivate SSOTへ分離する | operator A/Bのpublisher/state/revenue共有0、central credential 0、automatic contributor rev-share 0 |
 | 13 | blocked by 12 | O1.1 — `README.md`、new `docs/capafy-operator.md`、release workflow | clean Macでone-time onboardingからnatural money loopまで再現する | clean clone install→auth/preflight→launchd→candidate→official receipt、secret/log leak 0 |
 | 14 | blocked by 13 | O2.1 — public release metadata、security/economics docs | README、operator ownership、money truth、recovery、signed/tagged artifactを公開する | reproducible install、signed tag/release、fresh external operator readback、official Done audit |
@@ -663,8 +672,8 @@ Historical hosted-credit incident: Hook Lab Agent `8123079349` /旧Version `2063
 
 - C0–C23は過去実装のacceptance履歴であり、現在の実行進捗はR0–O2だけで表す。過去の`21/24`を事業目標達成率に使わない。
 - Scheduler定義とhost-key gateは現行mainに存在するが、8 labelのloaded SHAは混在し、R0 4/4 natural proofは未達。過去release `8bf47873`のmanual passを現行24/7 proofへ流用しない。
-- 現在の公式active subscription MRRは`unknown`であり、`$10K`のcalendar ETAは算出不能。現行金額は上の`Verified operating baseline`を正本とする。表示listing数、one-time売上、views、pending payoutは進捗代理にしない。
-- `$10K`達成予測はactive subscriber identity、churn、official fee、Agent別hosted costが同じ期間で揃ってから更新する。旧304/445件の仮定を現在の必要subscriber数として提示しない。
+- 現在のactive subscription MRRはseller source欠損で`null`だが、これは現在の完了gateではない。現行月間gross sales、creator earnings、費用、payoutは上の`Verified operating baseline`とlive CLI readbackを正本とする。表示listing数、trial、views、pending payoutはcreator earningsの代用にしない。
+- `$10K`達成予測は月間creator earnings、refund、payout、Agent別hosted cost、OpenRouter実請求が同じ期間で揃ってから更新する。active subscriber identityが提供されない限り、MRRや必要subscriber数を推定しない。
 - OSS完了率はM4達成まで`blocked`である。M4後はO0 operator boundary、O1 clean-clone E2E、O2 public releaseを順に行う。
 
 ## Test matrix
@@ -706,7 +715,7 @@ Historical hosted-credit incident: Hook Lab Agent `8123079349` /旧Version `2063
 4. platform writeはslot inventory fresh、lock acquired、idempotency key presentの時だけ行う。
 5. public postはquality gateとaccount/cadence gate通過後に1件だけ行う。
 6. 各milestoneをcommit/pushし、Telegram message IDをspec evidenceへ記録する。
-7. C21の7日連続proof後もM0–M4を継続し、settled net MRR `$10,000`を実測する。O0–O2はそのreceipt後にだけ解禁する。
+7. C21の7日連続proof後もM0–M4を継続し、monthly creator earnings `$10,000`を実測する。O0–O2はそのreceipt後にだけ解禁する。
 
 ## Growth decision rule
 
@@ -714,7 +723,7 @@ Historical hosted-credit incident: Hook Lab Agent `8123079349` /旧Version `2063
 - If there is no subscription signal, choose a differentiated customer job from live marketplace and support evidence; do not fabricate a winner from views.
 - Each daily supply action states one hypothesis, one success metric and one stop condition.
 - Each creative action compares at least hook retention proxy, native reach, landing click and subscription result.
-- Price, packaging and retention changes use active subscriber/readback evidence. One-time revenue never validates MRR.
+- Price and packaging changes use official monthly sales/earnings readback. Active subscriber evidence is optional; one-time, trial, pending and view counts never substitute for monthly creator earnings.
 
 ## $10K operating forecast
 
@@ -726,6 +735,6 @@ This is a target model, not current evidence.
 | base | `$19` | `527` | several repeatable category winners plus daily acquisition and retention |
 | worst | `$9` | `1,112` | low-ticket catalog requires much larger distribution and creates support/churn pressure |
 
-The strongest argument against the plan is not that automation cannot publish skills; it is that a larger catalog can increase gross orders without producing retained active subscriptions. The loop therefore optimizes settled net MRR and churn, not listing count or views.
+The strongest argument against the plan is not that automation cannot publish skills; it is that a larger catalog can increase gross orders without producing creator earnings after cost. The loop therefore optimizes monthly creator earnings and contribution, not listing count or views.
 
-If this spec is wrong, the most likely reason is that Capafy does not expose reliable active-subscription identity or order-level attribution; then `$10K MRR` cannot be verified from its current API and the loop must report `MRR unknown` until a source-of-truth endpoint or payout ledger exists.
+If this spec is wrong, the most likely reason is that Capafy changes its seller earnings source or settlement semantics; then monthly creator earnings must remain tied to the current official Seller Console readback rather than being inferred from orders or plans.

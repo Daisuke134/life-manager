@@ -182,8 +182,9 @@ Change only the status/evidence lines needed to reflect observed production resu
 
 - [x] Tasks 1–3: implementation, focused tests, commits, and pushes completed.
 - [x] Task 4 steps 1–2: 247/247 focused tests passed serially and the working tree is clean.
-- [x] Task 4 read-only production probe: current Supabase schema lacks the new columns and Outcome RPC.
+- [x] Task 4 read-only production probe: production is `Anicca Project Anicca` (`cycgdwndgfgdbnndithc`); stopped `life-manager-staging-20260808` (`ulhsqqkyejzvqgoyjwte`) is separate.
+- [x] Task 4 step 3: SQL Editor applied the outcome migration; readback found all three columns, both checks, the outcome index, and the owner-token RPC. REST columns and RPC probe returned HTTP 200.
 - [x] Task 4 step 4: Railway production `/health` is SUCCESS at main build `0e0758d7f7495af034f28e15bb4bdd3ab9f20b60`.
 - [x] Task 4 step 5: natural T-10 and T-5 readback both show Telnyx HTTP 200, AMD `machine`, `no_answer/time_limit`, and voice `succeeded/0`.
 - [x] Task 4 cleanup: temporary calendar probe was deleted (Composio HTTP 200) and absent from the subsequent events list (HTTP 200).
-- [ ] Task 4 step 3: apply/read back the richer outcome migration after a project owner grants the required Supabase project privilege; current fallback path is live and verified.
+- [x] Task 4 completion: correct production project selected, migration applied/read back, natural no-answer E2E read back, temporary event deleted, and health verified.

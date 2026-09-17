@@ -845,6 +845,73 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(target.read_bytes(), old)
         self.assertGreaterEqual(sum(call[0] == "bootstrap" for call in calls), 2)
 
+    def test_failed_snapshot_swap_restores_loaded_argv_as_xml(self):
+        target = self.root / "installed.plist"
+        old_release = self._release("old-release").resolve()
+        new_release = self._release("new-release").resolve()
+        writer_registry = registry()
+        writer_registry["loops"]["writer-report"] = writer_registry["loops"].pop("example")
+        writer_registry["loops"]["writer-report"]["label"] = "ai.anicca.writer-report"
+        for release in (old_release, new_release):
+            (release / "config/loop-registry.json").write_text(json.dumps(writer_registry))
+        (old_release / "RELEASE.json").write_text(json.dumps({
+            "sha": "b" * 40, "release_paths": "ALL",
+        }))
+        old_args = [str(old_release / "bin/lm-loop-run"), "writer-report", str(old_release)]
+        old_env = {
+            "LIFE_MANAGER_LOOP_ID": "writer-report",
+            "LIFE_MANAGER_STATE_ROOT": os.path.expanduser(
+                writer_registry["loops"]["writer-report"]["state_root"]),
+            "LIFE_MANAGER_RELEASE_SHA": "b" * 40,
+            "CUSTOM_OWNER_KEY": "kept",
+        }
+        target.write_text(json.dumps(old_env))
+        rendered = build_apply_plan(writer_registry, new_release, SHA)[0]
+        calls = []
+
+        def launchctl(args):
+            calls.append(args)
+            if args[0] == "print":
+                return 0, "arguments = {\n" + "\n".join(old_args) + "\n}\n"
+            if args[0] == "bootstrap":
+                installed = plistlib.loads(target.read_bytes())
+                return ((0, "") if installed["ProgramArguments"] == old_args
+                        else (5, "new bootstrap failed"))
+            return 0, ""
+
+        with self.assertRaisesRegex(RuntimeError, "restored previous job"):
+            install_one(rendered, target, launchctl, attempts=1, sleeper=lambda _: None)
+        restored = plistlib.loads(target.read_bytes())
+        self.assertEqual(restored["ProgramArguments"], old_args)
+        self.assertEqual(restored["EnvironmentVariables"]["CUSTOM_OWNER_KEY"], "kept")
+        self.assertEqual(restored["EnvironmentVariables"]["LIFE_MANAGER_RELEASE_SHA"], "b" * 40)
+        self.assertEqual(restored["EnvironmentVariables"]["LIFE_MANAGER_REPO"], str(old_release))
+        self.assertEqual(restored["EnvironmentVariables"]["ARTICLE_ROOT"],
+                         str(old_release / "skills/writer-agent"))
+        self.assertGreaterEqual(sum(call[0] == "bootstrap" for call in calls), 2)
+
+    def test_snapshot_swap_does_not_bootout_without_old_release(self):
+        target = self.root / "installed.plist"
+        old = json.dumps({
+            "LIFE_MANAGER_LOOP_ID": "example",
+            "LIFE_MANAGER_STATE_ROOT": os.path.expanduser(
+                registry()["loops"]["example"]["state_root"]),
+            "LIFE_MANAGER_RELEASE_SHA": "b" * 40,
+        }).encode()
+        target.write_bytes(old)
+        rendered = build_apply_plan(registry(), self.root, SHA)[0]
+        calls = []
+
+        def launchctl(args):
+            calls.append(args)
+            return 0, ("arguments = {\n/absent/bin/lm-loop-run\nexample\n/absent\n}\n"
+                       if args[0] == "print" else "")
+
+        with self.assertRaises((OSError, RuntimeError)):
+            install_one(rendered, target, launchctl, sleeper=lambda _: None)
+        self.assertEqual(target.read_bytes(), old)
+        self.assertEqual([call[0] for call in calls], ["print"])
+
     def test_swap_preserves_existing_operational_attributes_but_drops_undeclared_working_directory(self):
         target = self.root / "installed.plist"
         target.write_bytes(plistlib.dumps({
@@ -1487,6 +1554,80 @@ class LmLoopApplyTest(unittest.TestCase):
             ["hf-gig-apply-direct", "hf-gig-reply-detector"],
         )
 
+    def test_reconcile_repairs_matching_loaded_idle_environment_snapshot(self):
+        release = self._release("release-env-recovery").resolve()
+        value = registry()
+        value["loops"]["example"]["provider_route"] = "shared-agent-runner"
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        agents = self.root / "snapshot-agents"
+        agents.mkdir()
+        (agents / "ai.anicca.example.plist").write_text(json.dumps({
+            "LIFE_MANAGER_LOOP_ID": "example",
+            "LIFE_MANAGER_STATE_ROOT": os.path.expanduser(
+                value["loops"]["example"]["state_root"]),
+            "LIFE_MANAGER_RELEASE_SHA": "b" * 40,
+        }))
+        rows = [{
+            "classification": "managed", "provider_route": "shared-agent-runner",
+            "launchd_state": "loaded-idle", "installed_release_sha": None,
+            "event_release_sha": "b" * 40, "loop_id": "example",
+        }]
+        applied = []
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "snapshot", return_value=rows),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
+            patch.object(lm_loop, "apply_live",
+                         side_effect=lambda *args, **kwargs: applied.append(kwargs["target"]) or [{"ok": True}]),
+            patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
+                "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+            }),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(lm_loop.main([
+                "reconcile", "shared-agent-runner", "--loaded-idle-only",
+                "--max-owners", "1",
+            ]), 0)
+        self.assertEqual(applied, ["example"])
+        self.assertEqual(json.loads(output.getvalue())["eligible"], 1)
+
+    def test_reconcile_rejects_other_owner_environment_snapshot(self):
+        release = self._release("release-other-env").resolve()
+        value = registry()
+        value["loops"]["example"]["provider_route"] = "shared-agent-runner"
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        agents = self.root / "other-snapshot-agents"
+        agents.mkdir()
+        (agents / "ai.anicca.example.plist").write_text(json.dumps({
+            "LIFE_MANAGER_LOOP_ID": "another-owner",
+            "LIFE_MANAGER_STATE_ROOT": os.path.expanduser(
+                value["loops"]["example"]["state_root"]),
+            "LIFE_MANAGER_RELEASE_SHA": "b" * 40,
+        }))
+        rows = [{
+            "classification": "managed", "provider_route": "shared-agent-runner",
+            "launchd_state": "loaded-idle", "installed_release_sha": None,
+            "event_release_sha": "b" * 40, "loop_id": "example",
+        }]
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "snapshot", return_value=rows),
+            patch.object(lm_loop, "apply_live", side_effect=AssertionError("other owner applied")),
+            patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LAUNCH_AGENTS_DIR": str(agents),
+                "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+            }),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(lm_loop.main([
+                "reconcile", "shared-agent-runner", "--loaded-idle-only",
+                "--max-owners", "1",
+            ]), 0)
+        self.assertEqual(json.loads(output.getvalue())["eligible"], 0)
+
     def test_old_release_reconciler_command_also_moves_idle_disk_cleanup(self):
         release = self._release("release-a").resolve()
         value = registry()
@@ -2065,6 +2206,48 @@ class LmLoopApplyTest(unittest.TestCase):
         installed = plistlib.loads(target.read_bytes())
         self.assertEqual(installed["EnvironmentVariables"]["CUSTOM"], "kept")
         self.assertNotIn("WorkingDirectory", installed)
+
+    def test_recover_matching_env_snapshot_installed_as_plist(self):
+        rendered = plistlib.dumps({
+            "Label": "ai.anicca.example",
+            "ProgramArguments": ["/release/bin/lm-loop-run", "example", "/release"],
+            "EnvironmentVariables": {
+                "LIFE_MANAGER_LOOP_ID": "example",
+                "LIFE_MANAGER_STATE_ROOT": "/state/example",
+                "LIFE_MANAGER_RELEASE_SHA": "new-sha",
+            },
+        })
+        env_snapshot = json.dumps({
+            "LIFE_MANAGER_LOOP_ID": "example",
+            "LIFE_MANAGER_STATE_ROOT": "/state/example",
+            "LIFE_MANAGER_RELEASE_SHA": "old-sha",
+            "ARTICLE_PROVIDER": "writer-custom",
+        }).encode()
+
+        repaired = plistlib.loads(lm_loop._preserve_operational_attributes(
+            rendered, env_snapshot))
+
+        self.assertEqual(repaired["ProgramArguments"],
+                         ["/release/bin/lm-loop-run", "example", "/release"])
+        self.assertEqual(repaired["EnvironmentVariables"]["ARTICLE_PROVIDER"],
+                         "writer-custom")
+        self.assertEqual(repaired["EnvironmentVariables"]["LIFE_MANAGER_RELEASE_SHA"],
+                         "new-sha")
+
+    def test_reject_other_owners_env_snapshot(self):
+        rendered = plistlib.dumps({
+            "Label": "ai.anicca.example",
+            "ProgramArguments": ["/release/bin/lm-loop-run", "example", "/release"],
+            "EnvironmentVariables": {
+                "LIFE_MANAGER_LOOP_ID": "example",
+                "LIFE_MANAGER_STATE_ROOT": "/state/example",
+            },
+        })
+        with self.assertRaisesRegex(RuntimeError, "snapshot identity"):
+            lm_loop._preserve_operational_attributes(rendered, json.dumps({
+                "LIFE_MANAGER_LOOP_ID": "another-owner",
+                "LIFE_MANAGER_STATE_ROOT": "/state/example",
+            }).encode())
 
     def test_equal_effective_plist_still_installs_when_service_is_unloaded(self):
         release = self._release("release-a").resolve()

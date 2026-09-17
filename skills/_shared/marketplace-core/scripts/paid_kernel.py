@@ -140,8 +140,17 @@ def _pending(row: Mapping[str, Any], reason: str) -> dict[str, Any]:
             "effect": 0, "readback": 0, "failed": 0}
 
 
+def _observe_one(adapter: PaidAdapter, work_id: str, *, refresh: bool = False) -> dict[str, Any]:
+    if refresh:
+        refresh_one = getattr(adapter, "refresh_one", None)
+        if callable(refresh_one):
+            return refresh_one(work_id)
+    return adapter.observe_one(work_id)
+
+
 def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[str, Any]],
-                    state_root: Path, source: Mapping[str, Any]) -> dict[str, Any]:
+                    state_root: Path, source: Mapping[str, Any],
+                    mutation_started: list[bool] | None = None) -> dict[str, Any]:
     row = _observation(source)
     path = _state_path(state_root, row)
     state = _load(path)
@@ -191,7 +200,7 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
     intent = _intent(row, decision)
     _write(path, {"version": 1, "observation": row, "intent": intent,
                   "status": "intent_persisted"})
-    current = _observation(adapter.observe_one(row["work_id"]))
+    current = _observation(_observe_one(adapter, row["work_id"], refresh=True))
     if any(current[field] != row[field] for field in ("provider", "account_id", "work_id")):
         raise ValueError("paid_work_identity_changed")
     if current["latest_event_id"] != row["latest_event_id"]:
@@ -204,6 +213,8 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
                       "receipt": receipt, "status": "verified"})
         return {"work_id": row["work_id"], "status": "verified", "reason": "reconciled",
                 "effect": 0, "readback": 1, "failed": 0}
+    if mutation_started is not None:
+        mutation_started[0] = True
     adapter.mutate(intent)
     official = adapter.readback(intent)
     if official.get("verified") is not True:
@@ -221,8 +232,16 @@ def _run_one_locked(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Map
 def _run_one(adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[str, Any]],
              state_root: Path, source: Mapping[str, Any]) -> dict[str, Any]:
     row = _observation(source)
+    mutation_started = [False]
     with _item_lock(_state_path(state_root, row)):
-        return _run_one_locked(adapter, decide, state_root, row)
+        try:
+            return _run_one_locked(adapter, decide, state_root, row, mutation_started)
+        except Exception as error:
+            error_detail = str(error).strip() or type(error).__name__
+            return {"work_id": row["work_id"], "status": "failed",
+                    "reason": type(error).__name__, "error_detail": error_detail,
+                    "effect": 0, "readback": 0, "failed": 1,
+                    "pre_effect": not mutation_started[0]}
 
 
 def run_wake(*, adapter: PaidAdapter, decide: Callable[[dict[str, Any]], Mapping[str, Any]],
@@ -320,6 +339,21 @@ def main(argv: list[str] | None = None) -> int:
                     and re.fullmatch(r"[a-z][a-z0-9_]{1,127}", error_detail)):
                 result["error_detail"] = error_detail
     _write(args.output.expanduser().resolve(), result)
+    hint_path = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
+    failed_items = [item for item in result.get("items", [])
+                    if isinstance(item, Mapping) and item.get("failed") == 1]
+    all_item_failures_pre_effect = (
+        bool(failed_items)
+        and result.get("failed") == len(failed_items)
+        and result.get("effect") == 0
+        and all(item.get("pre_effect") is True for item in failed_items)
+    )
+    if (hint_path and result.get("effect") == 0
+            and ((result.get("status") == "failed"
+                  and result.get("failed_step") == "provider_inventory")
+                 or all_item_failures_pre_effect)):
+        _write(Path(hint_path).expanduser().resolve(),
+               {"status": "pre_effect_failure", "effect": 0})
     return int(result["failed"] > 0)
 
 

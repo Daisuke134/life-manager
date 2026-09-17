@@ -100,6 +100,91 @@ def test_funded_contract_without_google_form_waits_without_blocking_inventory():
     assert action["reason"] == "buyer_task_detail_required"
 
 
+def test_no_form_contract_does_not_require_application_date():
+    module = load()
+    contract = {key: value for key, value in funded().items()
+                if key not in {"form_url", "application_date"}}
+    action = module.decide({"context": {"contract": contract}})
+
+    assert action["action"] == "wait"
+    assert action["reason"] == "buyer_task_detail_required"
+
+
+def test_cached_inventory_detail_is_reused_until_explicit_refresh():
+    module = load()
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    calls = []
+    row = funded()
+    adapter._list_contracts = lambda: [row]
+    adapter._detail = lambda value: calls.append(value["work_id"]) or dict(value)
+
+    adapter._inventory()
+    adapter.observe_one(row["work_id"])
+    adapter.refresh_one(row["work_id"])
+
+    assert calls == [row["work_id"], row["work_id"]]
+
+
+def test_detail_retains_multiple_buyer_form_links_for_later_task_selection():
+    module = load()
+    title, client = "buyer task", "buyer"
+    links = [
+        "https://docs.google.com/forms/d/e/one/viewform",
+        "https://docs.google.com/forms/d/e/two/viewform",
+    ]
+
+    class Form:
+        def get_attribute(self, name):
+            assert name == "action"
+            return "/milestones/13798056/complete"
+
+    class Forms:
+        def count(self):
+            return 2
+
+        def nth(self, index):
+            return Form()
+
+    class Locator:
+        def __init__(self, selector):
+            self.selector = selector
+
+        def inner_text(self):
+            return f"{title} {client} 業務を開始しています 検収"
+
+        def evaluate_all(self, expression):
+            assert "href" in expression
+            return links
+
+    class Page:
+        def locator(self, selector):
+            if selector.startswith('form[action^="/milestones/"]'):
+                return Forms()
+            return Locator(selector)
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda work_id: None
+    adapter._proposal_application_date = lambda proposal_id: None
+
+    detail = adapter._detail_once({"work_id": "63570481", "title": title, "client": client})
+
+    assert detail["form_urls"] == links
+    assert detail["form_url"] is None
+
+
+def test_inventory_row_clears_singular_form_when_multiple_urls_are_present():
+    module = load()
+    row = {**funded(), "form_urls": [
+        "https://forms.gle/one", "https://forms.gle/two",
+    ]}
+
+    normalized = module.CrowdWorksPaidAdapter._row_from_list(row)
+
+    assert normalized["form_urls"] == ["https://forms.gle/one", "https://forms.gle/two"]
+    assert normalized["form_url"] is None
+
+
 def test_exact_verified_apply_receipt_is_jst_application_date_fallback(tmp_path):
     module = load()
     receipt = {"record_type": "application_receipt", "platform": "crowdworks", "status": "verified",
@@ -621,9 +706,9 @@ def test_real_kernel_paths_close_every_thread_owned_runtime(tmp_path):
     for index, adapter in enumerate((waiting, completed, failing, submitted)):
         kernel.run_wake(adapter=adapter, decide=module.decide, state_root=tmp_path / str(index), max_workers=1)
     assert events.count("page") == events.count("runtime")
-    # All four kernel paths perform multiple independent public calls; no
-    # browser/page/runtime can survive ThreadPoolExecutor worker teardown.
-    assert events.count("runtime") >= 15
+    # Every public adapter call owns and tears down its runtime; cached
+    # observations intentionally avoid reopening the browser for wait/no-op rows.
+    assert events.count("runtime") >= 11
 
 
 def test_kernel_does_not_repeat_full_inventory_for_each_worker_call(tmp_path):
@@ -637,10 +722,10 @@ def test_kernel_does_not_repeat_full_inventory_for_each_worker_call(tmp_path):
 
     assert result["failed"] == 0
     assert list_calls == ["full"]
-    # Initial observation details both contracts once; each worker then refreshes
-    # exactly its own contract.  context consumes the fresh pure-data cache.
+    # Initial inventory details both contracts once. Wait/no-op rows consume the
+    # cached facts and do not reopen a browser; mutation rows use refresh_one.
     assert details[:2] == ["63568785", "63570481"]
-    assert sorted(details[2:]) == ["63568785", "63570481"]
+    assert details[2:] == []
 
 
 def test_mutation_targeted_refresh_rejects_changed_contract_before_submit(tmp_path):
@@ -769,6 +854,79 @@ def test_milestone_completion_targets_only_the_visible_duplicate_form():
     assert ("click", "visible") in selected
     assert not any(row[:2] == ("fill", "hidden") for row in selected)
 
+
+def test_milestone_completion_opens_the_contract_dialog_anchor():
+    module = load()
+    events = []
+    page = None
+
+    class Control:
+        def __init__(self, visible=True): self.visible = visible
+        def is_visible(self): return self.visible
+        def count(self): return 1
+        def click(self): events.append("dialog"); page.dialog_open = True
+        def fill(self, value): events.append(("fill", value))
+        def is_disabled(self): return False
+        def wait_for(self, **kwargs): events.append(("wait", kwargs))
+
+    class Form:
+        def locator(self, selector):
+            return Control(page.dialog_open)
+
+    class Forms:
+        def count(self): return 1
+        def nth(self, index): return Form()
+
+    class Page:
+        dialog_open = False
+        def locator(self, selector):
+            if selector.startswith('a[href="#message-dialog-completion-'):
+                return Control(True)
+            if selector.startswith('form[action="/milestones/13798056/complete"]') and "textarea" in selector:
+                return Control(page.dialog_open)
+            if selector.startswith('form[action="/milestones/13798056/complete"]'):
+                return Forms()
+            return Control(False)
+        def get_by_text(self, text, exact=False):
+            class EmptyTabs:
+                def count(self): return 0
+            return EmptyTabs()
+        def wait_for_load_state(self, *args, **kwargs): pass
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    page = Page()
+    adapter.page = page
+    adapter._goto_contract = lambda work_id: None
+
+    adapter._complete_once(funded(), {"milestone_id": "13798056"})
+
+    assert "dialog" in events
+    assert any(item[0] == "fill" for item in events if isinstance(item, tuple))
+
+def test_delivery_primes_visible_duplicate_message_textareas():
+    module = load()
+    events = []
+
+    class Area:
+        def __init__(self, visible): self.visible = visible
+        def is_visible(self): return self.visible
+        def fill(self, value): events.append(value)
+
+    class Areas:
+        def count(self): return 3
+        def nth(self, index): return [Area(True), Area(False), Area(True)][index]
+
+    class Page:
+        def locator(self, selector):
+            assert selector == 'textarea[name="message[body]"]'
+            return Areas()
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+
+    adapter._fill_delivery_message("納品メッセージ")
+
+    assert events == ["納品メッセージ", "納品メッセージ"]
 
 def test_milestone_completion_reveals_mobile_only_todo_surface_before_effect():
     module = load()
