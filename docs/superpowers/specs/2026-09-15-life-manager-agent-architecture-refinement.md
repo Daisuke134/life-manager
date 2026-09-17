@@ -185,6 +185,16 @@ does not transfer ownership of their browser/account state.
   shared-runtime blocker is nonzero-child `effect_unknown` liveness: a proven
   pre-effect failure must not permanently freeze an owner, while an uncertain
   external effect must remain fenced until official reconciliation.
+- [x] **Source-only proven pre-effect Paid recovery:** main-derived branch
+  `fix/connector-admission-main-20260917` commit `5243dba608` lets the shared
+  Paid kernel record a secret-free, mode-0600 `pre_effect_failure/effect=0`
+  hint only when `observe_active` raises before worker submission. The runner
+  accepts the exact hint only from CrowdWorks/Lancers/Mercor shared Paid owner
+  entrypoints; generic/Connector children cannot bypass `effect_unknown` even
+  with a spoofed same-UID hint. RED→GREEN, Paid/runner/admission 144/144 PASS,
+  independent read-only review SHIP. **Not main/loaded.** Historical unknown
+  rows and other lanes still need official readback-driven reconciliation;
+  this bounded patch must not be reported as fleet-wide natural recovery.
 - [ ] `borrow` is **not deleted**: current `resource_admission.py` SQLite
   schema/capacity calculations and `lm_loop_run.py` default still use
   `admission_class=borrow` for maintenance. It is an old reserved-capacity
