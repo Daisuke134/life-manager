@@ -1230,11 +1230,11 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                 )
             if not requeue:
                 remaining = connection.execute(
-                    """SELECT 1 FROM occurrences
-                         WHERE owner_id=? AND state='queued' LIMIT 1""",
+                    """SELECT MIN(queued_at) FROM occurrences
+                         WHERE owner_id=? AND state='queued'""",
                     (value["owner_id"],),
-                ).fetchone()
-                if remaining:
+                ).fetchone()[0]
+                if remaining is not None:
                     connection.execute(
                         "INSERT OR IGNORE INTO queue(owner_id,resource_class) VALUES(?,?)",
                         (value["owner_id"], value["resource_class"]),
@@ -1246,7 +1246,11 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                            ) VALUES(?,?,?,?,?)""",
                         (value["owner_id"], value.get("admission_class", "borrow"),
                          value.get("admission_policy"), value.get("base_priority"),
-                            value.get("queued_at", instant)),
+                         remaining),
+                    )
+                    connection.execute(
+                        "UPDATE priorities SET queued_at=? WHERE owner_id=?",
+                        (remaining, value["owner_id"]),
                     )
         claim.unlink(missing_ok=True)
         if not reserve:

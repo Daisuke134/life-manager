@@ -920,6 +920,28 @@ def test_multiple_occurrences_drain_one_owner_queue_without_loss(
     ]
 
 
+def test_completed_occurrence_advances_owner_age_to_next_queued_occurrence(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    running, reason = admission.try_acquire(
+        "agent", "running", retain_ticket=False, admission_class="revenue")
+    assert running is not None and reason == "acquired"
+    admission.enqueue_durable("agent", "owner-a", admission_class="revenue",
+                              occurrence_id="owner-a:first", now=0)
+    admission.enqueue_durable("agent", "owner-b", admission_class="revenue",
+                              occurrence_id="owner-b:only", now=50)
+    admission.enqueue_durable("agent", "owner-a", admission_class="revenue",
+                              occurrence_id="owner-a:second", now=100)
+
+    assert admission.release_and_reserve(running, now=2000) == ["owner-a"]
+    first, reason = admission.claim_durable(
+        "agent", "owner-a", admission_class="revenue", now=2001)
+    assert first is not None and reason == "acquired"
+    assert json.loads(first.read_text())["occurrence_id"] == "owner-a:first"
+    assert admission.release_and_reserve(first, now=2002) == ["owner-b"]
+
+
 def test_independent_natural_wake_during_reservation_is_not_lost(
         tmp_path, monkeypatch):
     """A reserved owner does not prove a new launchd wake was its kickstart."""
