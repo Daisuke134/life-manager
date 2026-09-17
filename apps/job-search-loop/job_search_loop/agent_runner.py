@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import signal
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,26 @@ class ContractError(RuntimeError):
 
 class PassAlreadyRunning(RuntimeError):
     pass
+
+
+def _terminate_process_group(process: subprocess.Popen) -> None:
+    """Stop an agent-runner process and its provider descendants after timeout."""
+    if os.name == "posix":
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=5)
+    else:
+        process.kill()
+        process.wait(timeout=5)
 
 
 def wrap_untrusted(name: str, text: str) -> str:
@@ -101,13 +122,21 @@ class AgentRunner:
             "--task-label",
             task,
         ])
-        completed = subprocess.run(
+        process = subprocess.Popen(
             argv,
-            check=False,
-            capture_output=True,
-            input=prompt_input,
+            stdin=subprocess.PIPE if prompt_input is not None else subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            timeout=1_000,
+            start_new_session=os.name == "posix",
+        )
+        try:
+            stdout, stderr = process.communicate(input=prompt_input, timeout=1_000)
+        except subprocess.TimeoutExpired as error:
+            _terminate_process_group(process)
+            raise ContractError("agent runner timed out") from error
+        completed = subprocess.CompletedProcess(
+            argv, process.returncode, stdout, stderr,
         )
         if (
             completed.returncode == 75

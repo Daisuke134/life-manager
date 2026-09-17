@@ -1,4 +1,6 @@
 import json
+import signal
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -52,7 +54,14 @@ class AgentRunnerTests(unittest.TestCase):
             (root / "result.json").write_text('{"answer":"ok"}', encoding="utf-8")
             schema = root / "schema.json"
             schema.write_text('{"type":"object","required":["answer"]}', encoding="utf-8")
-            with patch("subprocess.run", return_value=completed) as call:
+            process = type("Process", (), {
+                "pid": 4242,
+                "returncode": completed.returncode,
+                "communicate": lambda self, **kwargs: (completed.stdout, completed.stderr),
+                "wait": lambda self, **kwargs: self.returncode,
+                "poll": lambda self: self.returncode,
+            })()
+            with patch("subprocess.Popen", return_value=process) as call:
                 runner.run(
                     task="mercor_pass",
                     prompt="Grounded task",
@@ -90,7 +99,15 @@ class AgentRunnerTests(unittest.TestCase):
             schema.write_text(
                 '{"type":"object","required":["answer"]}', encoding="utf-8"
             )
-            with patch("subprocess.run", return_value=completed) as call:
+            process = type("Process", (), {
+                "pid": 4242,
+                "returncode": completed.returncode,
+                "received_input": None,
+                "communicate": lambda self, **kwargs: (setattr(self, "received_input", kwargs.get("input")) or (completed.stdout, completed.stderr)),
+                "wait": lambda self, **kwargs: self.returncode,
+                "poll": lambda self: self.returncode,
+            })()
+            with patch("subprocess.Popen", return_value=process) as call:
                 result = runner.run(
                     task="tailor",
                     prompt="Grounded task",
@@ -101,7 +118,7 @@ class AgentRunnerTests(unittest.TestCase):
             argv = call.call_args.args[0]
             self.assertIn("--prompt-stdin", argv)
             self.assertNotIn("--prompt-file", argv)
-            self.assertEqual(call.call_args.kwargs["input"], "Grounded task")
+            self.assertEqual(process.received_input, "Grounded task")
             self.assertNotIn("Grounded task", argv)
             prompt_path = root / "evidence" / "one" / "prompt.md"
             self.assertEqual(prompt_path.read_text(encoding="utf-8"), "Grounded task")
@@ -126,7 +143,14 @@ class AgentRunnerTests(unittest.TestCase):
                 "stdout": "",
                 "stderr": "LIFE_MANAGER_PROVIDER_LEASE_BUSY\nprovider lease busy\n",
             })()
-            with patch("subprocess.run", return_value=completed):
+            process = type("Process", (), {
+                "pid": 4242,
+                "returncode": completed.returncode,
+                "communicate": lambda self, **kwargs: (completed.stdout, completed.stderr),
+                "wait": lambda self, **kwargs: self.returncode,
+                "poll": lambda self: self.returncode,
+            })()
+            with patch("subprocess.Popen", return_value=process):
                 with self.assertRaises(PassAlreadyRunning):
                     runner.run(
                         task="mercor_pass", prompt="Grounded task",
@@ -145,12 +169,55 @@ class AgentRunnerTests(unittest.TestCase):
             completed = type("Completed", (), {
                 "returncode": 75, "stdout": "", "stderr": "budget blocked\n",
             })()
-            with patch("subprocess.run", return_value=completed):
+            process = type("Process", (), {
+                "pid": 4242,
+                "returncode": completed.returncode,
+                "communicate": lambda self, **kwargs: (completed.stdout, completed.stderr),
+                "wait": lambda self, **kwargs: self.returncode,
+                "poll": lambda self: self.returncode,
+            })()
+            with patch("subprocess.Popen", return_value=process):
                 with self.assertRaises(ContractError):
                     runner.run(
                         task="mercor_pass", prompt="Grounded task",
                         schema_path=schema, workdir=root, run_id="budget-blocked",
                     )
+
+    def test_timeout_terminates_the_runner_process_group(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runner = AgentRunner(
+                runner_path=Path("/opt/agent_runner.py"),
+                evidence_root=root / "evidence",
+            )
+            schema = root / "schema.json"
+            schema.write_text('{"type":"object"}', encoding="utf-8")
+
+            class HangingProcess:
+                pid = 4242
+                returncode = None
+
+                def communicate(self, *, input=None, timeout=None):
+                    raise subprocess.TimeoutExpired(["agent-runner"], timeout)
+
+                def wait(self, timeout=None):
+                    self.returncode = -signal.SIGTERM
+                    return self.returncode
+
+                def poll(self):
+                    return self.returncode
+
+            process = HangingProcess()
+            with patch("subprocess.Popen", return_value=process) as popen, patch(
+                "job_search_loop.agent_runner.os.killpg"
+            ) as killpg:
+                with self.assertRaisesRegex(ContractError, "timed out"):
+                    runner.run(
+                        task="mercor_pass", prompt="Grounded task",
+                        schema_path=schema, workdir=root, run_id="timeout",
+                    )
+            killpg.assert_called_once_with(4242, signal.SIGTERM)
+            self.assertTrue(popen.call_args.kwargs["start_new_session"])
 
 
 if __name__ == "__main__":
