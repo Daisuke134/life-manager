@@ -387,7 +387,9 @@ class CrowdWorksPaidAdapter:
         if ((parsed.scheme, parsed.netloc, parsed.path, parsed.query, parsed.fragment)
                 != ("https", "crowdworks.jp", "/e/contracts", "status=active", "")):
             raise RuntimeError("crowdworks_paid_contract_source_unavailable")
-        values = self.page.locator('a[href^="/contracts/"]').evaluate_all(
+        links = self.page.locator('a[href^="/contracts/"]')
+        links.nth(0).wait_for(state="attached", timeout=20_000)
+        values = links.evaluate_all(
             """nodes => nodes.map(a => { const row=a.closest('tr'); return {
               href:a.getAttribute('href'), title:a.innerText.trim(), row:row?.innerText.trim() || ''
             }}).filter(x => x.href && x.title && x.row)"""
