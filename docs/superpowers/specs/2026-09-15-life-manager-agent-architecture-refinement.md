@@ -15,7 +15,7 @@ Observed shared-foundation problems and disposition:
 |---|---|---|
 | A branch-only SHA could become global `current` | Release selection admitted a pushed but unmerged SHA. | Fixed in main PR #5351; production `current` must remain an `origin/main` ancestor. |
 | One owner with many old wakes could repeatedly win its own next turn | RED fixture selected owner A twice before owner B; production queue had repeated old occurrences. | Fixed in main PR #5354; new-main natural terminals advanced `x402-ledger` → `x402-experiment-franklin1` → `founder-loop-cadence` → `x402-inflow-watch` without deleting pending occurrences. |
-| A same-owner environment JSON replaced an installed plist | `writer-report` installed file is JSON, so its installed SHA is unreadable although launchd still holds a main-derived argv. The writer of that file is not yet identified. | Shared `lm_loop_apply.py` recovery is pushed on `fix/lm-a15-env-plist-recovery-20260917`, not merged or live-proved. It accepts only matching loop ID/state root and preserves existing environment keys. |
+| A same-owner environment JSON replaced an installed plist | `writer-report` installed file is JSON, so its installed SHA is unreadable although launchd still holds a main-derived argv. The writer of that file is not yet identified. | Shared `lm_loop_apply.py` recovery is pushed on `fix/lm-a15-plist-recovery-plan-20260917`, not merged or live-proved. It accepts only matching loop ID/state root and preserves existing environment keys. |
 | Reconciler sometimes exits `entrypoint_exit_1` while idle owners wait | Loaded `a4070714` has both fail and pass outer terminals; one run stayed active for several minutes. Malformed installed input is a concrete candidate, not a proven sole cause. | Open until the repaired main-derived release has a natural outer terminal and an exact first-failure readback. |
 | Disk pressure has caused `ENOSPC` during release/receipt writes | Historical runtime logs contain `ENOSPC`; current free space is about 2 GiB and cleanup has also reached natural `pass`. | Open as a bounded headroom/cleanup acceptance check; do not erase profiles, credentials, receipts, active runs, or other owners' worktrees. |
 
@@ -30,7 +30,7 @@ Remaining A15 actions, in order; each checkbox is one observable action:
 
 - [ ] **A15-01 — verify the rebased shared plist repair.** Run
   `python3 -m pytest -q runtime/loop/tests/test_lm_loop_apply.py` and
-  `git diff --check` on branch `fix/lm-a15-env-plist-recovery-20260917`.
+  `git diff --check` on branch `fix/lm-a15-plist-recovery-plan-20260917`.
   Files: `runtime/loop/lm_loop_apply.py` and
   `runtime/loop/tests/test_lm_loop_apply.py`. The pre-rebase run passed 91 tests
   and 30 subtests; the post-rebase run was interrupted, so it is not PASS yet.
