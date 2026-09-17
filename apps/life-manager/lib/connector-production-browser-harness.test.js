@@ -1079,6 +1079,17 @@ test("Connpass trusted radio fact wins over an assumed answer for sibling option
   assert.equal(await resolver({ ...base, control: { control: "employee", kind: "radio", label: "Employee", question: "現在のキャリア状況", required: true, completed: false, submittable: false } }), null);
   assert.equal(await resolver({ ...base, control: { control: "founder", kind: "radio", label: "Founder", question: "現在のキャリア状況", required: true, completed: false, submittable: false } }), true);
   assert.equal(assumedCalls, 0);
+  let fallbackCalls = 0;
+  const unmatched = createPrivateValueResolver({
+    assumeUnknownConnpassAnswers: true,
+    readFormProfile: async () => ({ form_answers: { "Career status": "Founder" } }),
+    async selectFactKey() { return "Career status"; },
+    async answerConnpassQuestion() { fallbackCalls += 1; return "Employee"; },
+  });
+  const unmatchedBase = { ...base, question_options: ["Employee", "Student"] };
+  assert.equal(await unmatched({ ...unmatchedBase, control: { control: "employee2", kind: "radio", label: "Employee", question: "現在のキャリア状況", required: true, completed: false, submittable: false } }), true);
+  assert.equal(await unmatched({ ...unmatchedBase, control: { control: "student2", kind: "radio", label: "Student", question: "現在のキャリア状況", required: true, completed: false, submittable: false } }), null);
+  assert.equal(fallbackCalls, 1);
 });
 
 test("Connpass production resolver lets the existing agent answer unknown required controls when enabled", async () => {

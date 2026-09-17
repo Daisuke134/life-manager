@@ -1892,8 +1892,15 @@ function createPrivateValueResolver(options = {}) {
           selectedRadioFacts.set(cacheKey, available_keys.includes(chosen) ? chosen : null);
         }
         const selectedFactKey = selectedRadioFacts.get(cacheKey);
-        if (selectedFactKey && approvedValue(answers[selectedFactKey], label)) return true;
-        if (selectedFactKey) return null;
+        if (selectedFactKey) {
+          const selectedValue = answers[selectedFactKey];
+          const offered = Array.isArray(input.question_options) ? input.question_options : null;
+          const trustedOptionExists = offered
+            ? offered.some((option) => typeof option === "string" && approvedValue(selectedValue, normalizedLabel(option)))
+            : approvedValue(selectedValue, label);
+          if (trustedOptionExists) return approvedValue(selectedValue, label) ? true : null;
+          if (!offered) return null;
+        }
         const assumed = await assumedAnswerFor(input, control);
         return typeof assumed === "string" && approvedValue(assumed, label) ? true : null;
       }
