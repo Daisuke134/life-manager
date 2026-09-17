@@ -395,6 +395,8 @@ class MercorPassContractTests(unittest.TestCase):
             "profile_material",
             "2–4 representative",
             "copy the exact profile_version and field hashes from the supplied profile proposal",
+            "save a fresh local Profile/Résumé readback JSON",
+            "a provider URL alone is not evidence",
             "highest-priority card by visible title",
             "profile_sync",
             "field hashes",
