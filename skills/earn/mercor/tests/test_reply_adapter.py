@@ -315,6 +315,7 @@ def test_owner_and_registry_use_shared_reply_kernel():
     assert "_shared/marketplace-core/scripts/reply_kernel.py" in owner
     assert "mercor_auth_readback" in owner
     assert "mercor_email_auth" not in owner
+    assert "--indexeddb firebaseLocalStorageDb/firebaseLocalStorage" in owner
     assert 'TASK="mercor-revenue-application"' in owner
     assert '"$LEASE_SCRIPT" release "$TASK"' not in owner
     row = registry["loops"]["mercor-revenue-reply"]

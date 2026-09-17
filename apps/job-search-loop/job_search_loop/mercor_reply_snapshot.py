@@ -19,11 +19,34 @@ import websockets
 
 ENDPOINTS = {
     "applications": "https://aws.api.mercor.com/work/candidates",
-    "notifications": "https://aws.api.mercor.com/work/comms/on-platform",
+    "notifications": "https://coil.mercor.com/v1/notifications?limit=25&filter=all",
     "assessments": "https://coil.mercor.com/work/assessments",
     "contracts": "https://aws.api.mercor.com/work/jobs",
     "interviews": "https://coil.mercor.com/work/interviews?isComplete=1",
 }
+
+
+def _normalize_response(name: str, value: object) -> object:
+    if name != "notifications" or not isinstance(value, dict):
+        return value
+    items = value.get("items")
+    if not isinstance(items, list):
+        return value
+    notifications = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        normalized = dict(item)
+        normalized.setdefault("commId", item.get("id") or item.get("notificationId"))
+        normalized.setdefault("commEvent", item.get("event"))
+        normalized.setdefault("createdAt", item.get("occurredAt"))
+        normalized.setdefault("content", item.get("content") or item.get("event") or "Mercor notification")
+        notifications.append(normalized)
+    return {
+        "notifications": notifications,
+        "nextCursor": value.get("nextCursor"),
+        "hasMore": value.get("hasMore"),
+    }
 
 
 def _has_mercor_address(value: object) -> bool:
@@ -79,6 +102,28 @@ async def _capture(ws_url: str) -> dict[str, object]:
         await call("Page.navigate", {
             "url": "https://work.mercor.com/home?tab=applications"
         })
+        for index in range(20):
+            clicked = await call("Runtime.evaluate", {
+                "expression": """(()=>{
+                  const visible=(element)=>{
+                    if(!element) return false;
+                    const style=getComputedStyle(element);
+                    const rect=element.getBoundingClientRect();
+                    return style.display!=='none' && style.visibility!=='hidden' &&
+                      style.opacity!=='0' && rect.width>0 && rect.height>0;
+                  };
+                  const button=[...document.querySelectorAll('button,[role="button"]')]
+                    .find(element=>visible(element) &&
+                      (element.getAttribute('aria-label')||'').trim()==='Notifications');
+                  if(!button) return false;
+                  button.click();
+                  return true;
+                })()""",
+                "returnByValue": True,
+            })
+            if clicked.get("result", {}).get("value") is True:
+                break
+            await asyncio.sleep(0.25)
         response_names: dict[str, str] = {}
         result: dict[str, object] = {}
         deadline = asyncio.get_running_loop().time() + 15
@@ -99,7 +144,9 @@ async def _capture(ws_url: str) -> dict[str, object]:
                 name = response_names.pop(network_id)
                 body = await call("Network.getResponseBody", {"requestId": network_id})
                 try:
-                    result[name] = json.loads(str(body.get("body") or ""))
+                    result[name] = _normalize_response(
+                        name, json.loads(str(body.get("body") or ""))
+                    )
                 except ValueError:
                     raise RuntimeError(f"mercor_reply_{name}_invalid") from None
             if len(result) == len(ENDPOINTS):

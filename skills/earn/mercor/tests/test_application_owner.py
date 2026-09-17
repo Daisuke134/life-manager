@@ -31,6 +31,7 @@ def test_owner_uses_shared_browser_lease_and_revenue_name():
     assert '"reason":"authenticated_readback_required"' in source
     assert '--origin https://work.mercor.com --local-storage-key mercor-auth-store' in source
     assert '--session-storage-key mercor-session-id --session-storage-key mercor-user-ip' in source
+    assert '--indexeddb firebaseLocalStorageDb/firebaseLocalStorage' in source
     assert 'CLOAK_SESSION_VAULT_WRITEBACK_FILE="$STATE_ROOT/auth-overlay.json"' in source
     assert 'CLOAK_CONTEXT_COOKIE_DOMAINS="mercor.com"' in source
     reply = (ROOT / "skills/earn/mercor/scripts/reply-owner").read_text()
