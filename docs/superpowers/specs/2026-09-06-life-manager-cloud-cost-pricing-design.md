@@ -297,16 +297,18 @@ voice ledgerの`succeeded/10秒`、managed actionの`succeeded`を同一通話�
 - パネルには「応答なし」「会話できた」「発信失敗」と月間会話残り時間が別々に表示される。
 
 **2026-09-17実測status:** voice outcome・Webhook精算・Panel表示のfocused suiteは最終コードで247/247 PASS。
-本番Supabaseをread-only確認した結果、`call_outcome`列と`record_lm_wake_telnyx_outcome` RPCは未登録のままである。
-Supabase CLI loginは完了したが、対象projectへのlinkは`necessary privileges`で拒否されたため、管理権限を自分で追加することはできない。
-新migrationが未適用でも、旧schema互換経路が`amd_result`を保持し、`lm_wake_miss`とvoice ledgerを正本として精算する。
-新migrationが適用済みの場合は新Outcome RPC・新列を優先する。
+Supabase DashboardのOwnerセッションで本番project `Anicca Project Anicca`（ref `cycgdwndgfgdbnndithc`）を確認した。
+停止メールの`life-manager-staging-20260808`（ref `ulhsqqkyejzvqgoyjwte`）はstagingであり、本番Railway接続先ではない。
+本番SQL Editorで`2026-09-17-lm-wake-call-outcome.sql`を実行し、Successをreadbackした。
+SQL readbackは3列、2 constraint、`lm_wake_log_uid_called_outcome_idx`、
+`record_lm_wake_telnyx_outcome(p_uid text, p_event_key text, p_claim_token text, p_telnyx_call_control_id text, p_call_outcome text, p_hangup_cause text, p_connected_seconds integer)`を確認した。
+Service-role REST readbackは列HTTP 200、Outcome RPC OpenAPI掲載、存在しないwakeへのRPC probe HTTP 200/戻り値0。
 Railway production `/health`はmain由来build `0e0758d7f7495af034f28e15bb4bdd3ab9f20b60`でSUCCESS。
 検証用の実カレンダー予定（19:20 JST）ではT-10とT-5の両方が自然発火し、各wake rowをTelnyx公式GET（HTTP 200）で照合した。
 両方とも`amd_result=machine`、`answered_at=null`、`lm_wake_miss=no_answer/time_limit`、
 voice ledger=`succeeded/0秒`となり、応答なし通話を会話時間として請求しないことを本番で確認した。
 検証用イベントはComposio delete（HTTP 200）後、`GOOGLECALENDAR_EVENTS_LIST`（HTTP 200）で対象IDが不在であることを確認した。
-残る作業はSupabase project ownerがmigrationを適用できる権限を付与した後のschema/RPC readbackだけであり、現行fallback経路は稼働済みである。
+旧schema fallbackは残し、新Outcome列/RPCが適用済みの場合は新経路を優先する。
 
 **Ordered correction TODO項目3の本番是正:**
 
