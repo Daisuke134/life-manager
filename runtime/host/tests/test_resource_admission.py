@@ -920,6 +920,28 @@ def test_multiple_occurrences_drain_one_owner_queue_without_loss(
     ]
 
 
+def test_completed_occurrence_advances_owner_age_to_next_queued_occurrence(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    running, reason = admission.try_acquire(
+        "agent", "running", retain_ticket=False, admission_class="revenue")
+    assert running is not None and reason == "acquired"
+    admission.enqueue_durable("agent", "owner-a", admission_class="revenue",
+                              occurrence_id="owner-a:first", now=0)
+    admission.enqueue_durable("agent", "owner-b", admission_class="revenue",
+                              occurrence_id="owner-b:only", now=50)
+    admission.enqueue_durable("agent", "owner-a", admission_class="revenue",
+                              occurrence_id="owner-a:second", now=100)
+
+    assert admission.release_and_reserve(running, now=2000) == ["owner-a"]
+    first, reason = admission.claim_durable(
+        "agent", "owner-a", admission_class="revenue", now=2001)
+    assert first is not None and reason == "acquired"
+    assert json.loads(first.read_text())["occurrence_id"] == "owner-a:first"
+    assert admission.release_and_reserve(first, now=2002) == ["owner-b"]
+
+
 def test_independent_natural_wake_during_reservation_is_not_lost(
         tmp_path, monkeypatch):
     """A reserved owner does not prove a new launchd wake was its kickstart."""
@@ -1720,6 +1742,34 @@ def test_durable_reservation_fills_revenue_floor_around_one_borrower(
         admission.release(claim)
 
 
+def test_three_revenue_slots_remain_with_two_support_owners(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="5")
+    monkeypatch.setenv("LIFE_MANAGER_HOST_MIN_REVENUE_RUNS", "3")
+    admission.activate_durable_v2()
+    claims = []
+    for resource_class, owner in (("agent", "support-agent"),
+                                  ("deterministic", "support-deterministic")):
+        admission.enqueue_durable(resource_class, owner, admission_class="borrow")
+        claim, reason = admission.claim_durable(
+            resource_class, owner, admission_class="borrow")
+        assert claim is not None and reason == "acquired"
+        claims.append(claim)
+
+    admission.enqueue_durable("browser", "third-support", admission_class="borrow")
+    claim, reason = admission.claim_durable(
+        "browser", "third-support", admission_class="borrow")
+    assert claim is None and reason == "capacity_busy"
+    for index in range(3):
+        owner = f"paid-{index}"
+        admission.enqueue_durable("agent", owner, admission_class="revenue")
+        claim, reason = admission.claim_durable(
+            "agent", owner, admission_class="revenue")
+        assert claim is not None and reason == "acquired"
+        claims.append(claim)
+    for claim in claims:
+        admission.release_and_reserve(claim, reserve=False)
+
+
 def test_legacy_revenue_uses_host_capacity_beyond_borrow_agent_limit(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="3")
@@ -1878,7 +1928,8 @@ def test_transfer_control_lock_contention_is_time_bounded(tmp_path, monkeypatch)
     admission.release_and_reserve(claim, reserve=False)
 
 
-def test_release_control_lock_contention_is_time_bounded(tmp_path, monkeypatch):
+def test_release_control_lock_waits_for_short_contention_then_completes(
+        tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     admission.enqueue_durable("agent", "first")
     claim, reason = admission.claim_durable("agent", "first")
@@ -1891,13 +1942,12 @@ def test_release_control_lock_contention_is_time_bounded(tmp_path, monkeypatch):
     try:
         assert ready.wait(timeout=10)
         started = time.monotonic()
-        with pytest.raises(RuntimeError, match="control_busy"):
-            admission.release_and_reserve(claim, reserve=False)
-        assert time.monotonic() - started < 1.5
+        assert admission.release_and_reserve(claim, reserve=False) == []
+        assert time.monotonic() - started < 6
     finally:
         holder.terminate()
         holder.join(timeout=5)
-    admission.release_and_reserve(claim, reserve=False)
+    assert not claim.exists()
 
 
 def test_cancel_retired_owner_removes_queue_and_reservation(tmp_path, monkeypatch):

@@ -68,9 +68,8 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             "LIFE_MANAGER_RUNTIME_PYTHON": str(
                 runtime_python or Path(sys.executable).resolve()
             ),
-            # Four revenue lanes remain available on the measured five-run host.
-            # Borrow-only maintenance may use only the remaining headroom.
-            "LIFE_MANAGER_HOST_MIN_REVENUE_RUNS": "4",
+            # Keep three slots for revenue while two support owners share the five-run host.
+            "LIFE_MANAGER_HOST_MIN_REVENUE_RUNS": "3",
         },
         "StandardOutPath": str(Path(log_root) / "launchd.out.log"),
         "StandardErrorPath": str(Path(log_root) / "launchd.err.log"),

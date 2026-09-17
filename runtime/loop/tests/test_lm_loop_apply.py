@@ -186,7 +186,7 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(value["EnvironmentVariables"]["LIFE_MANAGER_RELEASE_SHA"], SHA)
         self.assertEqual(
             value["EnvironmentVariables"]["LIFE_MANAGER_HOST_MIN_REVENUE_RUNS"],
-            "4",
+            "3",
         )
 
     def test_release_runtime_python_cache_tag_must_match(self):
