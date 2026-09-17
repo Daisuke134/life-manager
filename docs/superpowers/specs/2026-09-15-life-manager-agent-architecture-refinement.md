@@ -118,7 +118,7 @@ tables remain evidence of the superseded plan, not the active cursor.
 | 12 | Promote the identical approved business kernel/source SHA to tenant-isolated Cloud; test Steel owner lease/release and phone-only status/human handoff/readback; run Cloud gate. | Tenant cross-read 0, credential/state mix 0, official effects and replay-zero, Local/Eval/Cloud all PASS. |
 | 13 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
 
-### Atomic remaining execution list — current cursor A12d2
+### Atomic remaining execution list — current cursor A12d3
 
 Order correction: the prior order was CN01 → CN02 → A12. Dais clarified that the two
 historical `effect_unknown` records are **observability**, not a completion or admission gate.
@@ -155,7 +155,8 @@ inventory rather than invented here; one selected ID is handled per item.
 - [x] A12c2 — Merge the narrow dispatcher fix after PR #5313 CI; keep earlier historical Connector rows observable. All eight CI jobs passed; main merge `0f0f987f4b` contains only the existing dispatcher and its regression test.
 - [x] A12c3 — Cut a main-derived immutable release and apply it to the Connector label only when loaded-idle; read back exact argv/SHA. Release `20260917T114229-0f0f987f` is `ALL`, ancestor of main, and its Python/Connector modules import from the exact release. Connector alone was loaded-idle reconciled; independent launchctl readback matches `0f0f987f4b`. The two historical unknown rows remain observable. The preceding `889c7670` canary ended `resource_capacity_busy` before provider work and does not prove registration.
 - [x] A12d1 — Diagnose the first bounded `0f0f987f` Connector canary to terminal and fix only its next real provider bottleneck. After one non-Paid stale reservation was deferred for 60 seconds without deleting its queue row, Connector run `18d5fbadecd869c0-80055` acquired a browser slot and ended outer `pass`; inner wake `wake-df564afb9c473a51c22a0e32` ended `completed_no_effect`. Connpass reached two candidate join forms and both required organizer questionnaires; Luma observed four free/open events but zero calendar-free events. Official registration and Calendar creation were zero. Existing read-only browser inspection showed Findy consent/account fields and fresh-engineers new-graduate/Discord fields, not facts to invent. Candidate branch `4d051e360f` raises only the existing Connpass per-wake batch from 4 to 12 so later simple events can be attempted; a red six-blocker-then-simple test and all 79 runner tests PASS. No new CLI or scheduler.
-- [ ] A12d2 — Merge PR #5314 after CI, cut a main-derived immutable release, and exact-load Connector only while idle.
+- [x] A12d2 — Merge PR #5314 after CI. All nine CI jobs PASS; main merge `1549021741`. Existing Connector runner remains unchanged apart from the 4→12 per-wake candidate limit; Luma time reserve and deadline remain.
+- [ ] A12d3 — Cut a main-derived immutable release from `1549021741` and exact-load Connector only while idle. An official registration and Calendar event are still required for effect success.
 - [ ] A12 — Observe that browser owner's natural release→next-claim→outer terminal without a manual kickstart.
 - [ ] A13 — Apply the same release to one loaded-idle deterministic owner and read back exact loaded argv/SHA.
 - [ ] A14 — Observe that deterministic owner's natural release→next-claim→outer terminal without a manual kickstart.
