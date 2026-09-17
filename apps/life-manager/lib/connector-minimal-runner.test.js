@@ -789,6 +789,30 @@ test("a long Connpass blocker queue leaves time for Luma and rotates next wake",
   assert.equal(first.some((ref) => second.includes(ref)), false);
 });
 
+test("Connpass reconciliation stays ahead of rotated new applications", async () => {
+  const state = fixture({
+    async discoverCandidates(provider) {
+      return provider === "connpass" ? [
+        { ...candidate("connpass", "registered"), reconciliation_only: true },
+        ...Array.from({ length: 8 }, (_, index) => candidate("connpass", String(index + 1))),
+      ] : [];
+    },
+    async readProviderState({ candidate: selected }) {
+      state.calls.push(["readback", selected.event_ref]);
+      return { status: selected.reconciliation_only === true ? "registered" : "absent" };
+    },
+    async completeEvidence() {
+      return { status: "applied_bundle", bundle_id: "reconciled", completion_disposition: "created" };
+    },
+  });
+  const result = await runMinimalConnectorWake({
+    ownerToken: "owner-token-connpass-reconciliation", providers: ["connpass"],
+  }, state.dependencies);
+  assert.equal(result.status, "applied_bundle");
+  assert.deepEqual(state.calls.filter(([name]) => name === "readback").map(([, ref]) => ref),
+    ["connpass-event://event/registered"]);
+});
+
 test("a successful submit action row stays exactly the same shape as before (no provider/safe_reason/error_class)", async () => {
   const state = fixture();
 

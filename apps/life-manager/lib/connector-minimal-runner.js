@@ -343,11 +343,16 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         consecutiveFailures = 0;
         continue;
       }
-      const connpassBatchStart = provider === "connpass" && candidates.length > 0
-        ? (Math.floor(startedAt / 1_800_000) % Math.ceil(candidates.length / CONNPASS_CANDIDATES_PER_WAKE))
+      const pendingCandidates = provider === "connpass"
+        ? candidates.filter((candidate) => candidate.reconciliation_only !== true) : candidates;
+      const reconciliationCandidates = provider === "connpass"
+        ? candidates.filter((candidate) => candidate.reconciliation_only === true) : [];
+      const connpassBatchStart = provider === "connpass" && pendingCandidates.length > 0
+        ? (Math.floor(startedAt / 1_800_000) % Math.ceil(pendingCandidates.length / CONNPASS_CANDIDATES_PER_WAKE))
           * CONNPASS_CANDIDATES_PER_WAKE : 0;
       const candidateBatch = provider === "connpass"
-        ? candidates.slice(connpassBatchStart, connpassBatchStart + CONNPASS_CANDIDATES_PER_WAKE)
+        ? [...reconciliationCandidates,
+          ...pendingCandidates.slice(connpassBatchStart, connpassBatchStart + CONNPASS_CANDIDATES_PER_WAKE)]
         : candidates;
       for (const selected of candidateBatch) {
         if (selected.auto_apply_eligible === false) continue;
