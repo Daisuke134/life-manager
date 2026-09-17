@@ -54,22 +54,24 @@
 - Test: the corresponding adapter and publication-chain tests
 
 - [x] Add pre-effect identity emission to the existing video and native-carousel adapters. Video account IDs resolve through the canonical destination contract; native carousel lanes use their exact account and integration IDs. PR #5423 merged as `c947b72dbc7f`.
-- [ ] Write failing tests for exact account, integration, provider post ID, content hash and reconciled status; reject a same-platform different-account receipt.
-- [ ] Reuse each adapter's existing `reconcile()`/receipt verifier. Do not add a second Postiz client or a local-only proof path.
-- [ ] Return an explicit proof object containing `owner_id`, `occurrence_id`, `verified`, `provider_receipt_id` and the exact matched identity.
-- [x] Run the focused adapter tests: 37 tests pass. The provider official-readback portion remains open; no new provider request was made.
+- [x] Write failing tests for exact account, integration, provider post ID, content hash and reconciled status; reject a same-platform different-account receipt. The provider executor suite has 9 tests.
+- [x] Reuse the existing `postiz_video.py` official post parser and canonical ledger contracts; the executor has no create or second Postiz client path. Provider-observed content and local media-hash evidence remain separate.
+- [x] Return an explicit proof object containing `owner_id`, `occurrence_id`, `verified`, `provider_receipt_id` and the exact matched identity. PR #5453 merged as `23afec79cd640f343e5ac152a4950f90faac4b4d`.
+- [x] Run the focused adapter/provider tests: 37 mobile publication tests, 9 provider-executor tests and 24 Postiz adapter tests pass. No live provider request was made during verification.
 
 ### Task 4: Gate released rows for a provider executor
 
 **Files:**
 - Create: `apps/life-manager/scripts/mobile-postiz-effect-reconcile.py`
 - Test: `apps/life-manager/tests/test_mobile_postiz_effect_reconcile.py`
-- Read: `runtime.host.resource_admission.resolve_unknown_occurrence` contract; the live executor is not part of this read-only change.
+- Create: `apps/life-manager/scripts/mobile-postiz-provider-reconcile.py`
+- Test: `apps/life-manager/tests/test_mobile_postiz_provider_reconcile.py`
+- Modify: `runtime/host/resource_admission.py` to support an atomic expected-state predicate
 
 - [x] Write tests proving the script skips `claimed` rows and inconclusive/mismatched receipts.
 - [x] Implement owner-scoped, read-only proof gating with a redacted output. The script never issues SQL updates or calls `resolve_unknown_occurrence`.
 - [x] Run the script in read-only mode for a historical occurrence; it returned `identity_missing_or_invalid` and left the ledger unchanged. PR #5431 merged as `b325a34d5b8e3ca9eaecc396311026d58d0ce399`.
-- [ ] Implement a provider-owned executor that performs official Postiz API/account readback in the same call and invokes `resolve_unknown_occurrence` only after that fresh proof. This remains blocked for historical rows whose exact identity is missing.
+- [x] Implement a provider-owned executor that performs official Postiz API/account readback in the same call and invokes `resolve_unknown_occurrence` only after a fresh proof. `--resolve` requires the authoritative admission DB and passes an atomic `expected_state='released'` predicate; PR #5453 merged as `23afec79cd640f343e5ac152a4950f90faac4b4d`. Historical rows whose exact identity is missing remain blocked.
 
 ### Task 5: Resume and verify one natural wake
 
