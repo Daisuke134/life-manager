@@ -28,7 +28,8 @@ is not revenue.
 - Life Manager main's binding execution cursor is `docs/ARTICLE-LAUNCH-TODO.md`.
   W0 and W1 are recorded complete in the historical cursor, but the current
   registry has 15 Writer labels while `config/writer/runtime-manifest.json`
-  still lists 14 and omits `ai.anicca.article-repair-candidate`. Current
+  still lists 14 and omits `ai.anicca.article-repair-candidate`; its worker
+  cutover list also repeats `ai.anicca.writer-opportunity-discovery`. Current
   source/manifest parity must therefore be repaired or explicitly reconciled
   before the W2 canary is treated as production-ready.
 - The current run ID must be read from the private Writer state at execution

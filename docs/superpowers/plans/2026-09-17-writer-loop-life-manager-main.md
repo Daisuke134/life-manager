@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Daisuke134/life-manager on origin/main is the only source authority; use a linked worktree from current origin/main before editing.
-- docs/ARTICLE-LAUNCH-TODO.md is the execution cursor. W0/W1 are historical completions; current preflight must reconcile the registry's 15 Writer labels with the runtime manifest's 14-label snapshot (which omits ai.anicca.article-repair-candidate) before W2 is production-ready. Do not reorder the cursor or revive historical queues.
+- docs/ARTICLE-LAUNCH-TODO.md is the execution cursor. W0/W1 are historical completions; current preflight must reconcile the registry's 15 Writer labels with the runtime manifest's 14-label snapshot (which omits ai.anicca.article-repair-candidate and repeats writer-opportunity-discovery in worker cutover) before W2 is production-ready. Do not reorder the cursor or revive historical queues.
 - The one Writer implementation lives under skills/writer-agent. Do not create a second executor, scheduler, state tree, money ledger, or provider-specific fixed workflow.
 - The binding active-four contract is Note JA, Substack JA, Substack EN, and X Article JA. Dev.to EN and Zenn JA are an independent discovery extension after active-four replay-zero.
 - Start at one source article per JST day with independent JA/EN localization. Existing eight-hour beats handle recovery, money, learning, health, and reporting; cadence expansion requires recorded stability evidence.
@@ -46,6 +46,7 @@ Every code task uses a separate linked worktree from the latest origin/main and 
 **Files**
 - Read: docs/ARTICLE-LAUNCH-TODO.md, docs/superpowers/specs/2026-08-20-writer-loop-life-manager-consolidation.md, config/loop-registry.json, config/writer/runtime-manifest.json
 - Read: bin/lm-loop, scripts/verify-source-boundary.sh, scripts/worktree-lease.py
+- Test/create if the parity assertion is not already owned: skills/writer-agent/tests/test_writer_runtime_manifest_parity.py
 - Evidence outside Git: ~/.local/state/life-manager/evidence/writer-plan-20260917/preflight.json
 
 **Interfaces**
@@ -126,13 +127,14 @@ assert len(registry_labels) == 15
 assert len(manifest_labels) == 14
 assert registry_labels[-1] == "ai.anicca.article-repair-candidate"
 assert set(registry_labels) - set(manifest_labels) == {"ai.anicca.article-repair-candidate"}
-print("registry_manifest_drift=one-repair-candidate-label")
+assert manifest["worker_plist_cutover"]["labels"].count("ai.anicca.writer-opportunity-discovery") == 2
+print("registry_manifest_drift=missing-repair-candidate-and-duplicate-worker-label")
 PY
 ~~~
 
 Expected: the test records the exact one-label drift; it does not silently treat the historical 14-label manifest as complete.
 
-- [ ] Step 5: Reconcile the manifest through the existing registry/release path. Add `ai.anicca.article-repair-candidate` and its source path to the manifest, update the manifest's label/path counters and validation text, and add a focused test that fails on any future registry/manifest set difference. Do not hand-create a plist; let `bin/lm-loop` render/apply the registry row after the code is integrated. Read back all 15 Writer labels and unchanged sibling/Connector labels before W2.
+- [ ] Step 5: Reconcile the manifest through the existing registry/release path. Add `ai.anicca.article-repair-candidate` and its source path to the manifest, remove the duplicated `ai.anicca.writer-opportunity-discovery` cutover entry, update label/path counters and validation text, and add a focused test that fails on any future registry/manifest set difference or duplicate cutover label. Do not hand-create a plist; let `bin/lm-loop` render/apply the registry row after the code is integrated. Read back all 15 Writer labels and unchanged sibling/Connector labels before W2.
 
 - [ ] Step 6: Read owner and lease evidence. If a Writer owner is active, do not kickstart it; pass its exact run ID into Task 2.
 
