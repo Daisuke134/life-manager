@@ -41,10 +41,10 @@
 - Modify: `runtime/loop/runtime_event.py` only if the existing schema needs the identity fields
 - Test: `runtime/loop/tests/test_lm_loop_run_bounds.py` and the runtime-event tests
 
-- [ ] Write a failing test that a publish occurrence's summary/event contains the exact occurrence ID, `effect_key`, `job_id`, account/integration reference and media/caption hashes before an effect-bearing child exits.
-- [ ] Write a failing test that a missing or malformed identity produces a held `effect_unknown` result and never becomes retryable.
-- [ ] Implement the smallest repository-owned identity record using existing event/summary paths; keep credentials and provider tokens outside the release.
-- [ ] Run the focused Python tests and validate the event schema.
+- [x] Write a failing test that a publish occurrence's summary/event contains the exact occurrence ID, `effect_key`, `job_id`, account/integration reference and media/caption hashes before an effect-bearing child exits.
+- [x] Write a failing test that a missing or malformed identity produces a held `effect_unknown` result and never becomes retryable.
+- [x] Implement the smallest repository-owned identity record using the existing runtime scratch and private state paths; keep credentials and provider tokens outside the release. Nonzero effect-bearing runs persist only a validated sidecar and add an `lm-effect://` evidence reference.
+- [x] Run the focused Python tests and validate the event schema: 109 relevant tests pass.
 
 ### Task 3: Add provider-owned official readback proof
 
@@ -53,10 +53,11 @@
 - Modify: `apps/life-manager/lib/marketing-native-carousel-publication-adapter.js`
 - Test: the corresponding adapter and publication-chain tests
 
+- [x] Add pre-effect identity emission to the existing video and native-carousel adapters. Video account IDs resolve through the canonical destination contract; native carousel lanes use their exact account and integration IDs. PR #5423 merged as `c947b72dbc7f`.
 - [ ] Write failing tests for exact account, integration, provider post ID, content hash and reconciled status; reject a same-platform different-account receipt.
 - [ ] Reuse each adapter's existing `reconcile()`/receipt verifier. Do not add a second Postiz client or a local-only proof path.
 - [ ] Return an explicit proof object containing `owner_id`, `occurrence_id`, `verified`, `provider_receipt_id` and the exact matched identity.
-- [ ] Run the focused adapter tests and the existing 149-test mobile/Postiz suite.
+- [x] Run the focused adapter tests: 37 tests pass. The provider official-readback portion remains open; no new provider request was made.
 
 ### Task 4: Reconcile released rows only
 

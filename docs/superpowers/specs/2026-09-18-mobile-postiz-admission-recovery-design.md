@@ -53,6 +53,10 @@ unknown occurrence
 
 The first read-only inventory is recorded at `docs/superpowers/evidence/mobile-postiz-admission/mobile-fence-inventory.json`. It contains 17 mobile/Honne unknown occurrences, with 0 exact identities recovered, 14 released rows and 3 claimed rows held. The current runtime event format does not carry the occurrence's `effect_key`/`job_id` or the provider account identity, so every row remains inconclusive until the identity bridge and official readback are implemented.
 
+## Implementation evidence
+
+The identity bridge is now in `runtime/loop/lm_loop_run.py`, `runtime/loop/runtime_event.py`, `apps/life-manager/lib/marketing-effect-identity.js`, and the existing video/native-carousel adapters. It records the exact occurrence, runtime run, job/effect key, destination integration, account and content hashes before a provider call, then preserves only validated nonzero-effect sidecars outside scratch. PR #5423 merged at `c947b72dbc7f`; 109 relevant Python tests and 37 mobile publication tests pass. This changes future evidence quality only; it does not clear the 17 historical fences.
+
 ## Non-goals
 
 - Enabling the held OBOU ebook account.
