@@ -3,6 +3,40 @@
 状態: IN PROGRESS（未完了） — this document defines the next architecture boundary; it does not
 claim that the target control plane, marketplace effects, or cloud deployment are complete.
 
+## Current foundation correction — fleet first, provider effects second
+
+**The foundation problem is not fixed.** Current main does not yet run the
+reviewed admission/occurrence/recovery changes, and the main-derived source
+branch is not a production release. A test PASS or a single Connector `pass`
+cannot close fleet liveness. The active engineering cursor is the shared
+runtime, not Connector registration or Calendar.
+
+Foundation Done means **all three** of these hold, without inventing another
+scheduler or raising the finite RAM ceiling by guess:
+
+1. Under five occupied finite claims and memory/disk pressure, durable work
+   remains queued; release, timeout, owner death and recovery admit the next
+   eligible **agent, browser and deterministic** owner automatically. Paid
+   priority cannot starve an aged non-Paid owner; no orphan claim silently
+   becomes a duplicate external effect.
+2. Each actual child effect uses the occurrence it claimed, its outer terminal
+   links the execution attempt to that occurrence, and a proven pre-effect
+   failure can continue while an uncertain effect stays fenced for official
+   readback. The CLI distinguishes queued, running, failed, unknown effect and
+   verified provider effect; none is inferred from `loaded` or `exit 0`.
+3. Those contracts are present in a **main-derived immutable release**, with
+   exact loaded argv/SHA and targeted natural wakes under controlled saturation
+   and recovery. A follow-up wake advances without a human kickstart. Use a
+   finite fault/cadence check, not a fixed 24-hour soak or one provider submit.
+
+Connector registration→Google Calendar and Coconala/CrowdWorks/Lancers effects
+come **after** this foundation gate as product-loop acceptance. Their official
+readbacks are mandatory to call those loops working, but one Connector-specific
+historical intent must not be promoted into a fleet-wide engineering cursor.
+Existing Connector unknown rows remain fenced and are reconciled by the
+Connector owner before that provider canary; they do not justify changing the
+shared scheduler for every loop.
+
 ## Current handover and one-program execution order
 
 This file is the architecture/specification SSOT:
@@ -22,15 +56,13 @@ Cloud/phone-only, and prove attributable revenue. “24/7” means continuous du
 eligibility, bounded queue wait, owner-scoped recovery, and verified provider effects;
 it does not mean one immortal process or unlimited simultaneous Codex/Chrome runs.
 
-**Verified integration snapshot:** foundation candidate
-`/private/tmp/lm-fundamental-runtime-20260916` is clean at `3a70e98867`, ahead
-of `origin/main` by 87 commits and behind it by 22 at the readback. Its full
-admission/manifest/Graph/Eval/repair candidate is **not merged to main**. Smaller
-release-drift and TechPlay slices are already in main `ba9246eeaf`; they do not
-equal the candidate. The live Connector still loads `cf655388` and its last
-outer terminal was pre-effect `resource_capacity_busy`, not a new Calendar
-registration. Coconala has historical official effects and some current passes,
-but four-lane continuous progress and Storefront publication are unproved.
+**Integration snapshot:** the old foundation candidate `3a70e98867` remains
+separate; do not merge it wholesale. The current focused shared-runtime branch
+`fix/connector-admission-main-20260917` is pushed at `b8fbbd833b` but is
+**not merged to main `fad27d99e8` or loaded in production**. The live Connector
+still loads an older `cf655388` release. Coconala has historical official
+effects, but four-lane continuous progress and Storefront publication are
+unproved. Re-read these SHAs and every current owner before mutation.
 The observed source/test work and documentation are real; the requested
 combined production outcome is not complete.
 
@@ -56,16 +88,14 @@ Local gate and Eval, build meta/self-heal on those proven contracts, then promot
 the approved source to Cloud and pass its gate.
 Reason: a candidate checkout or mock cannot be the production code authority;
 deferring main until after Cloud leaves live owners on the old admission path.
-Current cursor is step 2's occurrence-ID safety atomic. Step 1 is closed only
+Current cursor is step 2's fleet-wide admission/recovery gate. Step 1 is closed only
 for the shared-runtime files needed for that slice; it is not a fleet-wide
 inventory or a serial dependency for independent provider developers.
-Current difficulty is concrete, not missing planning: the foundation branch
-has diverged from advancing main; the priority-upgrade patch is only on a
-candidate branch; old loaded runs and SQLite rows still use the earlier
-admission contract; and the runner may hand a child a newer occurrence ID
-than the one it actually claimed. Therefore neither the Connector canary nor
-provider replay-zero can be certified by the source tests alone. Resolve
-these boundaries in steps 1–3 before reporting a fleet-wide fix.
+Current difficulty is concrete: source changes for priority, claim identity,
+pre-effect Paid failures, DB migration and orphan fencing have passed focused
+tests, but main/loaded owners still use earlier admission contracts. Mixed
+release compatibility, official unknown-effect reconciliation and natural
+release→dispatch proof remain open. Source tests cannot certify a fleet fix.
 Do not perform one 87-commit big-bang merge; merge/release focused reviewed
 slices, preserving main ancestry and exact owner scope. Later historical R2–R6
 tables remain evidence of the superseded plan, not the active cursor.
@@ -75,13 +105,13 @@ tables remain evidence of the superseded plan, not the active cursor.
 | # | Atomic result, in dependency order | Acceptance; do not advance on source-only PASS |
 |---:|---|---|
 | 1 | **Scoped overlap check — done for step 2:** compare latest main, foundation `3a70e98867`, admission source `c7ce1e9fc6` and the exact provider-owned paths below. Skip a fleet-wide audit before the first patch. | Shared runtime/registry/Connector/provider ownership is mapped below; no other owner's worktree, profile or state was edited. Recheck only changed overlaps before each integration. |
-| 2 | **Shared-runtime source gate:** `runtime/host/resource_admission.py` + `runtime/loop/lm_loop_run.py`: (a) bind the claimed oldest occurrence ID to the actual child effect, (b) finish durable queue/release→next claim and mixed-release recovery, (c) keep Paid priority plus bounded aging and owner heartbeat, (d) pressure-test RAM/disk/resource classes and uncertain-effect fence. Priority upgrade `c7ce1e9fc6` is pushed/tested, not live. | RED→GREEN focused regressions; five active owners → release → eligible waiter starts without another timer; no effect replay, lost queue row or hard-cap violation. Do not call `capacity_busy` elimination a RAM guarantee. |
-| 3 | **Integrate and deploy shared slices:** land only reviewed step-2 changes plus needed manifest/CLI/observability in main, cut main-derived immutable releases and apply one loaded-idle owner at a time. After all old loaded readers and queue rows are reconciled, migrate `borrow` maintenance rows to explicit `support` priority/resource limits and retire the legacy name with old/new schema tests. | Exact source/release/loaded argv and queue migration readback, no sibling restart. `borrow` is not yet deleted; remove it only after the mixed-release compatibility gate. |
+| 2 | **Fix the fleet-wide shared runtime:** `runtime/host/resource_admission.py` + `runtime/loop/lm_loop_run.py`: durable queue, exact claim→child→terminal identity, release→next claim, bounded priority/aging, owner recovery, pressure limits and uncertain-effect reconciliation. Fix only demonstrated gaps on the existing path; do not tune the slot count to hide liveness failure. | Focused saturation/crash/replay tests for agent, browser and deterministic work; no lost queue row, endless waiter, unsafe replay or permanent pre-effect failure. Source-only fixes are partial until step 3. |
+| 3 | **Prove the foundation in production:** integrate only reviewed shared-runtime/CLI slices into main, cut a main-derived immutable release and apply loaded-idle owners without sibling restarts. Observe targeted natural wakes under saturated and released capacity across resource classes, not a Connector provider submit. Defer `borrow` name retirement unless it is itself a demonstrated blocker; preserve old-row compatibility. | Exact loaded SHA/argv, queue age and automatic release→dispatch→outer terminal for representative agent/browser/deterministic owners; safe unknown-effect disposition and no starvation. This is the foundation Done gate. |
 | 4 | Connector first: resolve the current pre-effect capacity stop, let a natural outer run terminate, and reconcile exact provider registration → Google Calendar ID → next-wake replay-zero; then tune its cadence/phase only against event freshness. | Official registration/Calendar readback where eligible, or truthful no-work; loaded PID/inner pass is insufficient. |
 | 5 | Coconala Apply, Reply, Paid, Storefront as separate lanes: current eligible screening-answer submit; 15 pending replies; per-client funded work, attachments and payout; official listing state; reconcile old 54 uncertain intents only as preemptible background work. | Each applicable lane has current same-SHA terminal, exact official effect/readback or truthful wait/no-work, and replay-zero; no account/browser interference. |
 | 6 | CrowdWorks: complete the three existing paid contracts first, then restore inventory, Reply and Apply continuity; Lancers: browser/auth, Apply→Reply→Paid→payout and supported Storefront; Mercor: persistent auth, Apply→Reply→human handoff→Paid→payout. | Each provider's actual effect/readback and per-client terminal, not generic exit 0. Unsupported Storefront is proven not-applicable. |
 | 7 | Freelancer.com and Upwork: verify current account/policy, then applicable Apply→Reply→Paid→payout and Storefront only if official surface exists. | Official receipts, payout attribution and replay-zero. |
-| 8 | Observe every job in all 14 Product Loops (the marketplace lanes plus Writer, Affiliate, Investment, Agent Economy, Job Hunter, Fundraiser, Connector, Self-Build, Mobile Apps, Capafy and CFO); repair each remaining typed blocker, including Mobile/Metrics. | Local manifest binds current installed SHA, outer terminal, official receipt or explicit setup/not-applicable state; no starvation in controlled pressure/recovery tests. |
+| 8 | After the shared gate, observe every job in all 14 Product Loops (the marketplace lanes plus Writer, Affiliate, Investment, Agent Economy, Job Hunter, Fundraiser, Connector, Self-Build, Mobile Apps, Capafy and CFO); repair each remaining provider/domain blocker, including Mobile/Metrics. | Local manifest binds current installed SHA, outer terminal, official receipt or explicit setup/not-applicable state. A foundation PASS does not turn a broken provider adapter into success. |
 | 9 | Run Local completion gate and S-04 Eval on the actual main-derived candidate: baseline, held-out, safety, latency/cost, live evidence and rollback. | Both PASS without mock as external success; a failed gate stays failed. No fixed 24-hour waiting gate is invented, but later cadence misses remain monitored. |
 | 10 | New-platform meta loop: qualify policy and net value, create a thin adapter, canary its official effect, and promote only the passing result. | A new platform reuses the shared runtime without a new scheduler or provider-specific queue. |
 | 11 | Activate bounded self-heal and self-improve through existing supervisor/reconcile/eval paths: missed-cadence alert → exact-owner recovery → isolated candidate → held-out/safety/cost/live gate → promotion or rollback. | A real injected failure resumes only its owner with terminal repair receipt and leaves siblings unchanged; identity, permissions and gate criteria are immutable to self-improvement. |
@@ -98,13 +128,11 @@ tables remain evidence of the superseded plan, not the active cursor.
 | `skills/connector/native-pass.js`, `apps/life-manager/lib/connector-minimal-operations.js` and their existing tests | Connector-owned surface; source candidate differs from loaded old Connector | Read-only contract check for the A→B fence, then target only Connector after a main-derived release. No browser/provider action during step 2. |
 | `skills/earn/lancers/**`, `skills/earn/crowdworks/**`, `skills/earn/gig/**`, provider browser/profile/state | Separate provider owners and branches; some candidate branches contain old provider edits | Exclude from the foundation patch and leave independent development parallel. Their exact repair comes at steps 5–6. |
 
-Step 1 is necessary as this five-row overlap check because the candidate has
-many unrelated files and latest main has moved. It is **not** a license for
-another full-repository mapping exercise. The first implementation target is
-step 2's existing claim/terminal contract, with the files above and a failing
-cross-boundary test. The priority slice `c7ce1e9fc6` stays candidate-only
-until this identity gate and main-ancestry review pass; it is neither discarded
-as bad nor merged on test-green alone.
+Step 1 was only this five-row overlap check, not a full-repository mapping
+exercise. The exact claim/terminal source fix now exists on the main-derived
+branch; its next gate is the fleet-wide semantics and live-release check in
+steps 2–3. `c7ce1e9fc6` and later slices remain candidate-only until that
+gate; neither discard them by guess nor merge on test-green alone.
 
 Independent provider *development* may run in separate owned worktrees while
 steps 1–4 proceed. Only the exact shared browser/account/effect or integration
