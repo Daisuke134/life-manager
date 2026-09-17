@@ -552,8 +552,8 @@ if [ -x "$BROWSER_GUARD" ]; then
   BROWSER_STATUS="$(
     CLOAK_CDP_BASE_URL="${WRITER_CDP_URL:-http://127.0.0.1:9222}" \
     CDP_DAILY_DRIVER_PORT="${WRITER_CDP_PORT:-9222}" \
-    CDP_DAILY_DRIVER_PROFILE="${WRITER_CDP_PROFILE:-$HOME/.cloak/profiles/job-search-daily}" \
-    CLOAK_BROWSER_LAUNCHD_LABEL="${WRITER_BROWSER_LAUNCHD_LABEL:-ai.anicca.job-search-browser}" \
+    CDP_DAILY_DRIVER_PROFILE="${WRITER_CDP_PROFILE:-$HOME/.cloak/profiles/daily-driver}" \
+    CLOAK_BROWSER_LAUNCHD_LABEL="${WRITER_BROWSER_LAUNCHD_LABEL:-ai.anicca.life-manager-daily-driver}" \
     bash "$BROWSER_GUARD" 2>>"$LOG" | tail -1
   )"
 else
