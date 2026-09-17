@@ -714,9 +714,14 @@ class CrowdWorksPaidAdapter:
             urls = item.get("form_urls")
             if (isinstance(urls, list) and len(urls) > 1 and
                     not isinstance(item.get("form_candidates"), list)):
-                item = self._cache_update({
-                    **item, "form_candidates": self._form_candidates(urls),
-                })
+                try:
+                    if self.owned_context is None:
+                        self._open()
+                    candidates = self._form_candidates(urls)
+                except Exception:
+                    candidates = []
+                if candidates:
+                    item = self._cache_update({**item, "form_candidates": candidates})
             return {"contract": dict(item), "delivery": {
                 "formal_delivery_authorized": item["provider_state"] == "funded",
                 "form_required": bool(item.get("form_urls") or item.get("form_url")),

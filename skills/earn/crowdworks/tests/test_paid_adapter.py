@@ -223,6 +223,26 @@ def test_form_selector_uses_candidate_context_and_exact_allowed_url(tmp_path, mo
     assert "Web広告実績" in seen[0]["conversation"][0]["body"]
 
 
+def test_context_reopens_browser_before_fetching_cached_form_candidates():
+    module = load()
+    urls = ["https://forms.gle/video", "https://forms.gle/ads"]
+    item = {**funded(), "form_url": None, "form_urls": urls}
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter._cache_replace([item])
+    calls = []
+    adapter._open = lambda: calls.append("open")
+    adapter._form_candidates = lambda values: [
+        {"url": values[0], "title": "video", "body": "video"},
+        {"url": values[1], "title": "ads", "body": "ads"},
+    ]
+    adapter.close = lambda: None
+
+    context = adapter.context(item["work_id"])
+
+    assert calls == ["open"]
+    assert [candidate["title"] for candidate in context["contract"]["form_candidates"]] == ["video", "ads"]
+
+
 def test_submit_effect_does_not_formal_deliver_in_same_mutation():
     module = load()
     events = []
