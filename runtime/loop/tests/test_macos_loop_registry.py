@@ -283,6 +283,9 @@ class MacosLoopRegistryTest(unittest.TestCase):
                 self.assertEqual(row.get("resource_class"), "deterministic")
                 self.assertEqual(row.get("admission_class"), "borrow")
                 self.assertEqual(row.get("priority"), "support")
+        daily = registry["loops"]["life-manager-daily"]
+        self.assertEqual(daily.get("admission_class"), "revenue")
+        self.assertEqual(daily.get("priority"), "revenue")
 
     def test_connector_runtime_timeout_bounds_provider_hang_to_one_wake_budget(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
