@@ -26,14 +26,15 @@ observed state differs. The read-only CrowdWorks owner re-read all five active c
 |---|---|---|---|
 | `63659463` OnJob | `funded`; formal delivery not read back | Contract message lists a common test and separate Web-ad / video candidates; the contract title is Web広告運用. The model must confirm the intended role from the full conversation before choosing a form. | Read every candidate form's title/required fields, choose only the form(s) justified by the request, submit and verify, then formal delivery and readback. |
 | `63657015` Orecon | `funded`; formal delivery not read back | Buyer asks for a copied/fillable hearing sheet and a common email-writing test; a designer-only task is separately described. The model must confirm the worker role and required scope. | Create the requested hearing artifact, send it through the contract message using the allowed format, complete the applicable test, then formal delivery and readback. |
-| `63583795` Mirafull | `funded`; one historical form receipt; formal delivery not read back | Buyer message says the task was received and asks the worker to click formal delivery. | Reconcile the existing form receipt, use the official `納品する` control, and read back the milestone/inspection state. |
+| `63583795` Mirafull | `funded`; formal delivery read back; inspection pending | Historical form receipt is present. The seller-visible contract now says the client is inspecting the delivery, and the seller message confirms the Google Form response. | Do not resend the form or delivery. Reconcile the local Paid receipt, monitor `検収`/acceptance, and read back settlement/payout. |
 | `63570481` Effect | `funded`; one historical form receipt; formal delivery not read back | Buyer says the staff-address answer was seen but the customer-address answer was not. | Read the complete/expanded buyer task, identify the missing customer response, submit only that missing work, then formal delivery and readback. |
 | `63568785` undym67231 | `funded`; formal delivery not read back | Buyer supplied a Google Docs assignment link; no external form is exposed on the current contract page. | Read the document and full buyer instruction, produce the requested feedback artifact, send it through the contract, then formal delivery and readback. An application-date gate must not block a no-form task. |
 
 ### Verified current facts
 
-- Official contract readback: **5/5 `funded`, 0/5 `delivered`/`検収`**.
-- Historical confirmed Google Form receipts exist for `63583795` and `63570481`; they do not prove formal CrowdWorks delivery or buyer acceptance.
+- Official contract readback: **5/5 `funded`; 1/5 (`63583795`) has formal delivery read back and is awaiting buyer inspection; 4/5 have no formal delivery read back**.
+- Confirmed Google Form receipts exist for `63583795` and `63570481`. The `63583795` row now also has a buyer-visible seller message and official inspection-pending readback; the `63570481` form receipt still does not prove formal CrowdWorks delivery or buyer acceptance.
+- The local Paid item for `63583795` was persisted before the later provider readback and must be reconciled from the official contract before any retry. The provider readback is authoritative; do not resend a form or delivery from a stale local row.
 - The latest Paid attempts have `effect=0`; no new form or formal-delivery effect is accepted as successful.
 - The shared Paid kernel pre-effect-failure fix is merged in PR `#5365` and is loaded in immutable release
   `c16f437b`. A timed Paid readback was stopped after it exceeded the useful bounded wake; the contract
@@ -43,8 +44,10 @@ observed state differs. The read-only CrowdWorks owner re-read all five active c
 
 ### Remaining TODO, in execution order
 
-1. **Bound the contract readback.** Keep per-contract timeouts and cached inventory facts separate from
-   external mutation. A slow contract must become a terminal, replayable `waiting_external`/failure item;
+1. **Reconcile the already-observed delivery, then bound the remaining reads.** Promote the official
+   `63583795` delivery/inspection readback into the durable Paid receipt without replaying it. Keep
+   per-contract timeouts and cached inventory facts separate from external mutation. A slow contract must
+   become a terminal, replayable `waiting_external`/failure item;
    it must not hold the Paid owner indefinitely or block other contracts.
 2. **Persist full buyer context.** Store the newest buyer event, expanded message history, linked document/form
    metadata, scope, corrections and the model's request-to-result mapping in private contract state.
@@ -55,10 +58,12 @@ observed state differs. The read-only CrowdWorks owner re-read all five active c
    verify content, completeness, format, permissions and buyer-visible access, and persist `correct_work_verified`
    only after that readback.
 5. **Submit separate effects.** Fence external form/message/file submission separately from CrowdWorks formal
-   delivery. Read back each exact receipt before retrying. Formal delivery is the named milestone control,
-   not a normal message or an empty composer.
-6. **Close each contract.** Read back `納品 → 検収/acceptance → settlement → payout`, preserve revisions as new
-   buyer-event versions, and prove replay-zero per contract.
+   delivery. `63583795` is already sent and must remain replay-zero. For every other contract, read back each
+   exact receipt before retrying. Formal delivery is the named milestone control, not a normal message or an
+   empty composer.
+6. **Close each contract.** Read back `納品 → 検収/acceptance → settlement → payout`; for `63583795`,
+   continue from inspection pending. Preserve revisions as new buyer-event versions, and prove replay-zero
+   per contract.
 7. **Run the installed owner.** Cut a main-derived release, apply only the CrowdWorks Paid label, kickstart
    without waiting for a global slot, and inspect a natural terminal receipt plus official provider readback.
 8. **Only after all five close, pursue recurring work.** Record cash received separately from verified recurring

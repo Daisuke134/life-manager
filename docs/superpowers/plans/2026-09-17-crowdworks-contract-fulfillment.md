@@ -12,15 +12,18 @@
 
 ## Live cursor (2026-09-17)
 
-The five active official contracts are currently all `funded`; formal CrowdWorks delivery/readback is zero.
-Historical form receipts exist for `63583795` and `63570481`, but they do not close the CrowdWorks delivery
-stage. The next implementation cursor is bounded contract context and correct-work execution, followed by
-separate external receipt and `納品する` readback for each contract. Do not treat the old three-contract
-example below as the current scope; the current scope is all five IDs: `63659463`, `63657015`, `63583795`,
-`63570481`, and `63568785`.
+The five active official contracts are currently all `funded`; formal CrowdWorks delivery is read back for
+`63583795` only, and that row is awaiting buyer inspection. Historical form receipts exist for `63583795`
+and `63570481`; the former also has a buyer-visible seller message and inspection-pending readback. The
+local Paid row for `63583795` must be reconciled before any retry, and the form/delivery must not be replayed.
+The next implementation cursor is bounded contract context and correct-work execution for the other four
+contracts, followed by separate external receipt and `納品する` readback. Do not treat the old
+three-contract example below as the current scope; the current scope is all five IDs: `63659463`, `63657015`,
+`63583795`, `63570481`, and `63568785`.
 
-**Ready-to-close facts:** `63583795` has a historical form receipt and a buyer request to click formal
-delivery; `63570481` has a historical form receipt but the buyer says the customer-address answer is missing.
+**Ready-to-close facts:** `63583795` has a historical form receipt, verified formal delivery, and official
+inspection-pending readback; continue to acceptance/settlement without another send. `63570481` has a
+historical form receipt but the buyer says the customer-address answer is missing.
 **Work-required facts:** `63659463` exposes common/Web-ad/video candidates and needs model-confirmed role
 selection; `63657015` exposes a hearing sheet plus a common test and a designer-only branch; `63568785`
 provides a Google Docs assignment and no current form. The model must read the full conversation and linked

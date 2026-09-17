@@ -88,7 +88,7 @@ that the provider currently has an authenticated account, a verified external ef
 |---|---|---|
 | Coconala | Apply is exact-loaded from `0401cb6a`; Reply and Storefront retain `0aba1191`; Paid is exact-loaded from `2e0716c7`. Ryu's latest ordinary message is officially read back and a natural Paid wake replayed zero across four rooms. Apply's current `0401cb6a` run observed both one-off and continuous sources; four eligible one-off applications have official exact-ID readbacks, zero failures, while old uncertain intents stayed duplicate-fenced for background reconciliation. The continuous page had zero active cards. Reply's latest retained pass observed 179 threads with 164 official readbacks and 15 pending. Static five-finite-run capacity, only two durable revenue-priority owners, and manual orphan-lease recovery leave 24/7 no-starvation/self-heal unproved. | Every active client has its own durable work item, newest-buyer coverage, provider effect/readback, replay-zero and payout attribution; every lane meets its cadence without a fixed global-slot bottleneck, and one client's failure never pauses another lane. |
 | Lancers | Application, browser, negotiation, paid, storefront, work-sync and report owners are registered. Production fixes exist in main, but durable login and the full Apply→Paid→payout proof are not closed. | One persistent account/browser owner runs the complete lifecycle with official proposal, work, payment and payout receipts. |
-| CrowdWorks | Application, Reply, Paid and Report owners are registered. Reply and Paid both have possible effects on a post-contract form/thread; Paid's latest retained result failed at `provider_inventory` with zero observed/effect/readback. Existing contracts still need the buyer's actual work, formal delivery and payout. | Apply owns proposals; Reply owns pre-contract negotiation/acceptance; one Paid owner owns all post-contract replies, work, quality, external submit, formal delivery and revision for each contract ID. Report remains internal. Each item reaches exact official receipt, acceptance, payout and replay-zero; Storefront is `not_applicable` unless officially observed. |
+| CrowdWorks | Application, Reply, Paid and Report owners are registered. Reply is proposal-only after the contract-ID handoff; Paid owns post-contract work and effects. Paid's latest retained result failed at `provider_inventory` with zero observed/effect/readback. Five contracts are funded; one (`63583795`) has formal delivery read back and is awaiting inspection, while four still need correct work, delivery and payout. | Apply owns proposals; Reply owns pre-contract negotiation/acceptance; one Paid owner owns all post-contract replies, work, quality, external submit, formal delivery and revision for each contract ID. Report remains internal. Each item reaches exact official receipt, acceptance, payout and replay-zero; Storefront is `not_applicable` unless officially observed. |
 | Mercor | Application, Reply and Paid owners are registered, but repeated-login/authentication and full contract proof remain open. | Persistent authenticated account state, application, reply/interview handoff, contract, paid work and payout are independently evidenced. |
 | Freelancer.com | Runtime work is registered in the fleet, but current provider account/policy and end-to-end revenue proof are not closed. | Official account/policy state plus Apply→Reply→Paid→payout, with Storefront only if officially supported. |
 | Upwork | Browser/application/report infrastructure and historical evidence exist, but current account/policy and paid attribution are not a closed revenue loop. | Official proposal, reply, contract, delivery/payment and payout receipts with duplicate-zero replay. |
@@ -1007,14 +1007,21 @@ work item and leave a sibling trace unchanged.
 ### 3. CrowdWorks vertical proof
 
 **Plan:** `docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md` and
-`docs/superpowers/plans/2026-09-17-crowdworks-contract-fulfillment.md`. Current cursor is **CW-F1**.
+`docs/superpowers/plans/2026-09-17-crowdworks-contract-fulfillment.md`. Current cursor is **CW-F1 (provider reconciliation)**.
 
-**Live verified state (2026-09-17):** official readback shows five active contracts, all `funded`, and
-zero formal `delivered`/`検収` states. Historical confirmed form receipts exist for `63583795` and
-`63570481`, but neither proves CrowdWorks formal delivery or buyer acceptance. The latest Paid attempts
+**Live verified state (2026-09-17):** official readback shows five active contracts, all `funded`. Contract
+`63583795` now has formal delivery read back and is awaiting buyer inspection; the other four have no formal
+delivery read back. Historical confirmed form receipts exist for `63583795` and `63570481`; `63583795` also
+has a buyer-visible seller message and inspection-pending readback. Its local Paid row predates that provider
+readback and must be reconciled before any retry; do not resend the form or delivery. The latest Paid attempts
 have `effect=0`; the shared pre-effect-failure repair is merged as PR `#5365` and loaded from immutable
 release `c16f437b`. A Paid readback that exceeded the useful bounded wake was stopped and reconciled by
-official no-write proof. No contract is complete yet.
+official no-write proof. No contract has buyer acceptance, settlement, payout, or verified MRR yet.
+
+**Merged code slices (live proof still open):** bounded context/readback PR `#5369`, delivery dialog/field
+fixes PRs `#5372`, `#5373`, `#5375`, `#5381`, and contract answer action PR `#5385`. These changes do not
+count as a completed contract until the installed owner performs the requested work, reads back the correct
+buyer-visible result, and closes the official provider stages.
 
 - [ ] **CW-F1 — bounded context:** Read and persist the full current buyer conversation, expanded hidden
   messages, linked documents/forms, scope, corrections, milestone and newest buyer event per contract.
@@ -1029,7 +1036,8 @@ official no-write proof. No contract is complete yet.
   - `63659463`: complete only the requested common/role-specific tests, then verify each buyer-visible result.
   - `63657015`: copy/fill the hearing sheet, submit it in the allowed CrowdWorks format, complete the
     applicable common test, and verify access/content.
-  - `63583795`: reconcile the existing form receipt; no second form POST; prepare formal delivery.
+  - `63583795`: reconcile the existing form and formal-delivery receipts; no second POST or delivery; continue
+    from official inspection pending to acceptance/settlement/payout.
   - `63570481`: read the complete buyer task, identify the missing customer-address response, submit only
     that missing work, and verify it.
   - `63568785`: read the Google Docs assignment, produce the requested feedback artifact, and verify it.
