@@ -39,10 +39,12 @@ observed state differs. The read-only CrowdWorks owner re-read all five active c
 - The shared Paid kernel pre-effect-failure fix is merged in PR `#5365` and is loaded in immutable release
   `c16f437b`. A timed Paid readback was stopped after it exceeded the useful bounded wake; the contract
   item remains open and must be reconciled from official state before retry.
-- PR `#5393` adds `runtime_timeout_seconds=180` to the CrowdWorks Paid owner. It is merged as `a77c5629`,
-  cut into immutable release `20260918T000511-a77c5629`, and the CrowdWorks Paid plist readback points to
-  that exact release. Its targeted kickstart reached the installed owner and ended with `effect=0` and
-  `crowdworks_paid_browser_unavailable`; no form, message, or formal-delivery effect was accepted.
+- PR `#5393` adds `runtime_timeout_seconds=180` to the CrowdWorks Paid owner. PR `#5401` makes the
+  provider-inventory pre-effect hint survive the owner shell boundary. They are merged in current main
+  release `e4f50c91`, cut into immutable release `20260918T002409-e4f50c91`, and the CrowdWorks Paid plist
+  readback points to that exact release. Its targeted kickstart ended at the 180-second bound with
+  `entrypoint_exit_124`, `effect=0`, and the claimed occurrence returned to `queued/effect_unknown=0`;
+  no form, message, or formal-delivery effect was accepted.
 - The CrowdWorks CDP listener is present, but the authenticated provider context is currently unstable
   during context/page creation. This is a browser-readback blocker, not evidence of a provider submission.
 - The Paid owner is the only post-contract effect owner. Reply may hand off an exact contract ID but must

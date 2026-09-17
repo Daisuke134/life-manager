@@ -1018,14 +1018,16 @@ have `effect=0`; the shared pre-effect-failure repair is merged as PR `#5365` an
 release `c16f437b`. A Paid readback that exceeded the useful bounded wake was stopped and reconciled by
 official no-write proof. No contract has buyer acceptance, settlement, payout, or verified MRR yet.
 
-PR `#5393` adds a 180-second runtime bound for CrowdWorks Paid. It is merged as `a77c5629`, loaded in
-immutable release `20260918T000511-a77c5629`, and the targeted Paid apply read back the exact SHA. The
-installed kickstart reached the owner and ended with `effect=0`, `crowdworks_paid_browser_unavailable`;
-no form, message, or formal-delivery effect was accepted. The CDP listener is present, but authenticated
-context/page creation remains unstable, so official provider readback is still open.
+PR `#5393` adds a 180-second runtime bound and PR `#5401` preserves the provider-inventory pre-effect hint
+across the owner shell. Current main is `e4f50c91`, loaded from immutable release
+`20260918T002409-e4f50c91`; targeted Paid apply read back the exact SHA. The installed kickstart ended at
+the 180-second bound with `entrypoint_exit_124`, `effect=0`, and its claimed occurrence returned to
+`queued/effect_unknown=0`. No form, message, or formal-delivery effect was accepted. The CDP listener is
+present, but authenticated context/page creation remains unstable, so official provider readback is still open.
 
 **Merged code slices (live proof still open):** bounded context/readback PR `#5369`, delivery dialog/field
-fixes PRs `#5372`, `#5373`, `#5375`, `#5381`, and contract answer action PR `#5385`. These changes do not
+fixes PRs `#5372`, `#5373`, `#5375`, `#5381`, contract answer action PR `#5385`, runtime bound PR `#5393`,
+and pre-effect hint PR `#5401`. These changes do not
 count as a completed contract until the installed owner performs the requested work, reads back the correct
 buyer-visible result, and closes the official provider stages.
 

@@ -29,10 +29,11 @@ selection; `63657015` exposes a hearing sheet plus a common test and a designer-
 provides a Google Docs assignment and no current form. The model must read the full conversation and linked
 content before choosing the action; code must not choose the first form or infer work from a URL.
 
-**Current code/runtime evidence:** PR `#5393` adds a 180-second runtime bound to the CrowdWorks Paid owner.
-It is merged as `a77c5629`, cut into immutable release `20260918T000511-a77c5629`, and the targeted Paid
-plist readback points to that exact SHA. The installed kickstart reached the owner and ended with
-`effect=0`, `crowdworks_paid_browser_unavailable`; no new external effect was accepted. The next live gate
+**Current code/runtime evidence:** PR `#5393` adds a 180-second runtime bound and PR `#5401` preserves
+the provider-inventory pre-effect hint across the owner shell. Current main is `e4f50c91`, cut into
+immutable release `20260918T002409-e4f50c91`, and the targeted Paid plist readback points to that exact SHA.
+The installed kickstart ended at the bound with `entrypoint_exit_124`, `effect=0`, and the claimed
+occurrence returned to `queued/effect_unknown=0`; no new external effect was accepted. The next live gate
 is authenticated browser readback and bounded context, not slot availability.
 
 ## Global constraints
