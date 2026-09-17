@@ -279,7 +279,8 @@ def test_acquired_slot_keeps_the_full_entrypoint_runtime_budget(tmp_path):
 def test_control_plane_safety_loops_bypass_data_plane_admission(tmp_path):
     entry = {"cadence": {"start_interval_seconds": 60},
              "provider_route": "deterministic", "runtime_timeout_seconds": 900}
-    for loop_id in ("life-manager-release-reconciler", "life-manager-disk-cleanup"):
+    for loop_id in ("life-manager-release-reconciler", "life-manager-disk-cleanup",
+                    "capafy-loop-healthcheck"):
         receipt = tmp_path / f"receipt-{loop_id}"
         with (patch("runtime.loop.lm_loop_run.memory_free_percent") as memory,
               patch("runtime.loop.lm_loop_run.durable_protocol_version") as protocol,

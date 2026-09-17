@@ -47,6 +47,24 @@ case "$KEY_HEALTH" in
   *KEY_SELF_HEAL=OK*) echo "$(date '+%F %T') provider admission self-healed; $KEY_HEALTH" >>"$LOG" ;;
 esac
 
+# A crashed no-write wake may leave a released effect_unknown fence behind. Clear
+# only rows whose exact run report, CAP_FULL terminal, and current official
+# inventory prove that no Capafy write was possible. Claimed rows and any
+# ambiguous provider effect remain fenced. This is read-only discovery plus the
+# runtime reconciliation API; the healthcheck never edits SQLite directly.
+RECONCILER="$RELEASE_ROOT/skills/self/capafy-loop/capafy-effect-reconcile.py"
+if [ -f "$RECONCILER" ]; then
+  RECONCILE_OUTPUT="$(PYTHONPATH="$RELEASE_ROOT" python3 "$RECONCILER" \
+    --owner-id capafy-loop-daily --reconcile-released \
+    --events "$EVENTS" \
+    --terminals "$LIFE_MANAGER_STATE_HOME/state/capafy-daily-terminals.jsonl" \
+    --release-root "$RELEASE_ROOT" 2>&1)" || {
+      echo "$(date '+%F %T') effect reconcile deferred: $RECONCILE_OUTPUT" >>"$LOG"
+      RECONCILE_OUTPUT=""
+    }
+  [ -z "$RECONCILE_OUTPUT" ] || echo "$(date '+%F %T') $RECONCILE_OUTPUT" >>"$LOG"
+fi
+
 OWNER_STATUS="$(launchctl print "$DOMAIN/$LABEL" 2>/dev/null)" || OWNER_STATUS=""
 
 now="$(date +%s)"

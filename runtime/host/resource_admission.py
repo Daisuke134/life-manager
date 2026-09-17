@@ -1290,9 +1290,20 @@ def resolve_unknown_occurrence(owner_id: str, occurrence_id: str, *,
             changed = connection.execute(
                 """UPDATE occurrences SET state='released',effect_unknown=0
                      WHERE owner_id=? AND occurrence_id=?
-                       AND state='claimed' AND effect_unknown=1""",
+                       AND state IN ('claimed','released') AND effect_unknown=1""",
                 (owner_id, occurrence_id),
             )
+            if changed.rowcount == 1:
+                remaining = connection.execute(
+                    """SELECT 1 FROM occurrences
+                         WHERE owner_id=? AND effect_unknown=1 LIMIT 1""",
+                    (owner_id,),
+                ).fetchone()
+                if remaining is None:
+                    connection.execute(
+                        "UPDATE priorities SET effect_unknown=0 WHERE owner_id=?",
+                        (owner_id,),
+                    )
             return changed.rowcount == 1
     finally:
         os.close(descriptor)

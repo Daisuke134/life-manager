@@ -25,7 +25,7 @@ flowchart LR
 
 | order | state | atomic TODO | 完了の公式証拠 |
 |---|---|---|---|
-| R0 | **ACTIVE: buyer health + supply/runtime recovery** | paid Agentの現在版はSonnet 4.6。DeepSeek次版はrepo候補のみ。daily供給はCAP_FULLで正常待機するが、money/health等にはhost admission blockerが残る。 | 同じAgentのDeepSeek新版を審査・Test Runまで閉じ、旧版を先に止めない。build/publish、hourly money、healthcheckの自然passと公式売上・提出effectをreadbackする。Reelはgateにしない。 |
+| R0 | **ACTIVE: buyer health + supply/runtime recovery** | paid Agentの現行公開版はSonnet 4.6。DeepSeek V4.1 Flash / `max_tokens=8192` の同一Agent更新キューはrepoに存在し、公式inventoryは5/5 under reviewのため待機中。A15由来release `a76c8931` の予約dispatch後、Capafy dailyは`pass`・`CAP_FULL`・platform write 0・SHA一致まで実測した。released stale `effect_unknown` は公式CAP_FULL no-write証拠を runtime API で1件reconcile済み。 | review枠が空いた最初の適格wakeで同じAgent IDのDeepSeek新版を1件提出し、承認後にbuyer Test Runの回答を公式readbackする。新しいreleaseにはreleased-only effect reconcileと、5分healthcheckのcontrol-plane exemptionを含める。現行公開Sonnet版のTest Runが成功したとは推論しない。Reelはgateにしない。 |
 | R1 | pending | 全新規listingを有料subscription、No Free Trial、正のcontribution marginへfail-closedする。公開中40件のうち14件にtrialが残るため、収益上位から同じAgent IDで更新する。sandbox feeは固定値でなくpublish時の公式console値をreceiptへ保存する | lintとcandidate backlogがtrial・赤字・one-shot候補をrejectし、official CP1 readbackがsubscriptionかつtrial 0。既存版のtrialは掲載中の別問題として追跡する |
 | M0 | pending | fresh official demandから、毎周期に新inputが入り前回outputが陳腐化するcustomer jobを1件だけ選ぶ | hypothesis、renewal reason、price/cap/cost、success metric、stop conditionを持つready candidate 1件 |
 | M1 | pending | free slotの最初のwakeでsame-Agent retryを優先し、なければM0 candidateをCP1→CP2→CP3まで1件だけsubmitする | Agent/version/package、under-reviewまたはonline、billing/trial、duplicate/replay 0のofficial readback |
@@ -45,7 +45,7 @@ flowchart LR
 | 購入者向けAgent | Marketing Strategist `9563867391` v1.0.0は`status=4/audit=4/config=1`、runtime model `anthropic/claude-sonnet-4.6`。OpenRouter host keyはdaily cap `$50`、残枠約`$49.73`。自動補充は残高`< $20`で`$50`を支払い方法へ請求する設定。Capafy previewは今回の新規Test Runに`すでにタスクが実行中`を返したためfresh回答は**未証明**。前日のTest Run成功を現時点の成功に流用しない。 | 同じAgent IDのDeepSeek版を審査承認→Capafy Test Runの回答全文→現行版との品質・実費比較→購入者経路の監視へ進める。auto top-upはCapafy売上の自動振替ではなくカード請求、日次key capも独立なので絶対無障害とは報告しない。 |
 | モデル候補 | OpenRouter公式model catalogはSonnet 4.6 input/output `$3/$15` per 1M tokens、`deepseek/deepseek-v4.1-flash`は`$0.15/$0.60`。DeepSeekの`openai-responses`はHTTP 200。回収した元Marketing Strategist SKILLで3ケースが完了し、費用は`$0.0023586/$0.003369/$0.0027282`、所要時間は`30.5/12.8/14.8`秒。これはCapafy runtime品質の証明ではない。 | `publish_prepare.sh`がlistingsごとのruntime modelを封入し、`maxTokens`の候補`8192`を検証する。CP2とkey gateも同じmodelを使う。旧Sonnet版が売られている間は両modelの検査を維持する。 |
 | 掲載・候補 | 公式inventoryは`40 online / 5 under_review / free 0`。5件はいずれも9月15日から審査中。repo外backlogは`ready=9`だが、Capafyは第6新規Agentを受け付けない。17日のCAP_FULL offline buildは新ready候補を作れずrc1、その後のhourly wakeは当日claim済みとして無作業。 | review transitionを公式readbackして空きが生じた最初の適格hourly wakeで既存Agentのretryを優先し、最大1件だけsubmit。CAP_FULL中はplatform write 0、offline失敗は重複なしでbounded retry。 |
-| 8 owner | `capafy-loop-daily`と`capafy-loop-healthcheck`の自然passを観測したが、goal/IG/outcome等の直近6 labelは`host_admission_deferred:resource_capacity_busy`。loaded SHAが混在し、R0の4/4自然passは未達。healthcheckはkey gate失敗時にlogを書いて`exit 0`するfalse-green経路がある。 | 同じmain由来release・全8 loaded・4/4自然pass。軽いcontrol仕事はagent runner枠を消費せず、provider失敗はsecret-free blocked receiptと通知を出す。顧客向けの実際のCapafy応答をreadbackする。 |
+| 8 owner | `capafy-loop-daily`はA15の予約dispatch後に`a76c8931`で`pass`・`CAP_FULL`・platform write 0を実測。直前の`resource_effect_unknown`はreleased-onlyの公式CAP_FULL no-write照合で1件解消した。healthcheckの自動reconcileとcontrol-plane exemptionは次のreleaseへ収録する。 | 同じmain由来release・全8 loaded・4/4自然pass。軽いcontrol仕事はagent runner枠を消費せず、provider失敗はsecret-free blocked receiptと通知を出す。顧客向けの実際のCapafy応答をreadbackする。 |
 | 集客 | native IG Reel ledgerは3件、最新は8月24日。marketing ownerには別途blockerが残る。 | Daisの指示でdeferred。Reel・landing・HyperFramesをCapafy開発/提出の完了gateにしない。 |
 | お金 | 現行dashboard APIの9月1–16日gross sales `$71.89`、creator earnings `$51.76`。累計は`$91.87/$66.16`。銀行paid payoutは`$0`。Capafy unit-sales画面は同期間`75` unit、うち`57` free trial、残り`18` non-trial unit（有料注文数とは断定しない）。Marketing Strategistは`9` unit中`7` free trial、週次SKU`2`。使用量APIは同期間`161` request、うち`70`件が0 token。Sonnet公式単価でAgent別に計算したhosted costは合計約`$22.90`、OpenRouter host key実請求の9月利用額は約`$24.17`であり、差額・他費用・未払いを無視した利益とは呼ばない。Hook Labはcreator earnings`$19.76`に対し推定model cost`$20.10`で赤字候補、Marketing Strategistは`$10.40/$2.29`。active/canceled seller subscription sourceは未取得なのでMRRは`unknown`。旧seller GETは現行ClickHouse画面と不一致で、hourly money ownerは存在しないmarketing terminalファイルを必須読込して失敗する。 | 現行sales/earnings/usage/payoutを同一期間・Agent単位で読むread-only CLIとhourly receiptを1経路で共有する。実請求と推定費用を区別。active契約sourceが無ければ`active_mrr=null`と欠損理由を表示し、30日subscription収益をMRRと呼ばない。 |
 
@@ -92,6 +92,10 @@ flowchart LR
 ```
 
 #### R0 execution cursor and patch contract
+
+**現在のruntime修復:** `runtime/host/resource_admission.py`は、公式readbackが渡された場合に限り`released/effect_unknown=1`の同一 occurrence を解消し、ownerに未知行が残っていなければpriority fenceも戻す。`skills/self/capafy-loop/capafy-effect-reconcile.py`は、同一runの`pass`、`CAP_FULL` terminal、現在の公式inventory `occupied=5`を照合し、claimed行を触らずreleased行だけをruntime APIでreconcileする。`capafy-loop-healthcheck.sh`から5分ごとにこの処理を呼ぶ。`capafy-loop-healthcheck`自体はdata-planeの5枠を消費しないcontrol-plane ownerにする。これにより、CAP_FULL no-write後の古いfenceでdaily供給が永久停止する経路を閉じる。証拠が足りない`effect_unknown`は残し、再送しない。
+
+**モデル費用境界:** `key_health_gate.sh`の既定live probeは`deepseek/deepseek-v4.1-flash`・`max_tokens=8192`。Marketing Strategistの公式公開版はまだSonnet 4.6 v1.0.0で、DeepSeek版は`UPDATE.json`の同一Agent更新キューにある。5/5審査中の間はpublish writeを発生させず、枠が空いた自然wakeでのみ提出する。現行公開版のbuyer Test Run成功は未証明。
 
 **順序理由:** 当初は`R0-C1 model → R0-C2 runtime → R0-C3 money`だった。money ownerの旧seller APIと欠損ファイル、Agent別使用量APIで観測した赤字候補を踏まえて、収益の可視化とhourly receipt回復を先行する。現在cursorと最新順序は下の実行順更新を参照する。提出cadenceと1 pass最大1 effectは維持し、platform review 5枠をローカルで撤廃せず、進行中の外部effectを再送しない。
 
@@ -619,7 +623,7 @@ Current production truth:
 
 このsectionは冒頭R0–O2 queueの短縮readbackである。実装diffは`Patch-level implementation cursor`を正本とし、常に最上段の未完了atomだけをactiveにする。
 
-1. **R0 NOW:** 実行cursorは上の`R0-C3a → R0-C3b(code済・自然pass待ち) → R0-C2 → R0-C1`。live money CLIは取得済みで、次にhourly receiptのhost admissionを回復してからDeepSeek次版の審査へ進む。提出は現行hourly/1 effectのまま維持する。
+1. **R0 NOW:** 実行cursorは`effect reconcile/control-plane release → 4/4 natural Capafy lanes → review slot transition → same-Agent DeepSeek update → buyer Test Run`。dailyは`a76c8931`で予約dispatch後の`CAP_FULL` passまで実測済み。次はこの差分をmain由来immutable releaseへ載せ、healthcheck自動reconcileの自然pass、hourly money/healthの同一SHA readback、5/5からの最初のreview transitionを待たずに安全に観測する。提出は現行hourly/1 effectのまま維持する。
 2. **R1:** R1.1→R1.2。trial、固定sandbox、human approval、verbatim copyを契約から削除し、paid recurring・renewal・positive contributionをlint/backlogで強制する。
 3. **M0:** M0.1。fresh official evidenceからhighest contribution EVのrecurring customer jobを1件だけ選ぶ。
 4. **M1:** M1.1。same-Agent retry優先でCP1→CP2→CP3を1件だけ閉じ、subscription/trial0/remote statusをreadbackする。
