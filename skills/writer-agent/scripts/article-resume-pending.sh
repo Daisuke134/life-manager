@@ -763,8 +763,13 @@ if [ "$PRIORITY_PUBLICATION_READY" -ne 1 ] \
 fi
 
 if [ "$ADOPTION_ACTIVE" -eq 1 ] && [ "$PRIORITY_PUBLICATION_READY" -ne 1 ]; then
-  echo "article-resume: adopted run remains owned by quality repair run=$GENERATION_RUN_ID" >>"$LOG"
-  exit 0
+  if [ -n "$PREVALIDATED_QUALITY_PLAN" ] \
+    || [ -e "$GENERATION_RUN_DIR/gates/quality-repair-state.json" ] \
+    || [ -e "$GENERATION_RUN_DIR/gates/quality-self-heal.json" ]; then
+    echo "article-resume: adopted run remains owned by quality repair run=$GENERATION_RUN_ID" >>"$LOG"
+    exit 0
+  fi
+  echo "article-resume: adopted staged generation has no quality owner; handing same prompt back to article-daily run=$GENERATION_RUN_ID" >>"$LOG"
 fi
 
 if [ -f "$GENERATION_STATE_PATH" ] \

@@ -290,6 +290,54 @@ def _adoption_receipt_matches(
     )
 
 
+def _adopted_staged_prepublication(
+    run_dir: Path,
+    run_id: str,
+    prompt_file: Path,
+    ledger: Path,
+    state: dict[str, Any],
+) -> bool:
+    """Allow one same-prompt retry for a staged provider failure with no quality receipt.
+
+    A provider can return nonzero after writing drafts and before any quality or
+    publication gate exists.  Adoption preserves those bytes, but there is no
+    quality-repair owner to run in that shape.  Resume is safe only when the
+    adoption receipt still binds every staged byte and no external/publication
+    marker has appeared.
+    """
+    if state.get("status") != "quality-repair-ready":
+        return False
+    gates = run_dir / "gates"
+    if any(
+        (gates / name).exists() or (gates / name).is_symlink()
+        for name in (
+            "quality-repair-state.json",
+            "quality-self-heal.json",
+            "quality-self-heal-final.json",
+            "terminal-quality-blocked.json",
+            "publication-state.json",
+        )
+    ):
+        return False
+    if ledger_has_public_effect(ledger, run_id):
+        return False
+    receipt_path = gates / "prepublication-adoption.json"
+    if receipt_path.is_symlink() or not receipt_path.is_file():
+        return False
+    try:
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        drafts, artifacts = _adoption_manifests(run_dir)
+    except (OSError, TypeError, ValueError, json.JSONDecodeError, GenerationInvariant):
+        return False
+    return _adoption_receipt_matches(
+        receipt,
+        run_id,
+        str(state.get("prompt_sha256", "")),
+        drafts,
+        artifacts,
+    )
+
+
 def adopt_prepublication(
     run_dir: Path, run_id: str, prompt_file: Path, ledger: Path
 ) -> dict[str, Any]:
@@ -463,11 +511,17 @@ def rebind_release(
         raise GenerationInvariant("current root is not a writer-agent release path")
     with _lock(state_path):
         state = _load(state_path)
-        if state.get("run_id") != run_id or state.get("status") not in {
+        staged_resume = _adopted_staged_prepublication(
+            resolved, run_id, prompt_file, ledger, state
+        )
+        allowed_statuses = {
             "provider-failed-safe",
             "provider-failed-ambiguous",
             "interrupted-safe",
-        }:
+        }
+        if staged_resume:
+            allowed_statuses.add("quality-repair-ready")
+        if state.get("run_id") != run_id or state.get("status") not in allowed_statuses:
             raise GenerationInvariant("generation state is not safely resumable")
         safe, reason = prepublication_empty(resolved, run_id, ledger)
         if not safe:
@@ -498,6 +552,12 @@ def rebind_release(
             }
         )
         _atomic_write(state_path, state)
+        if staged_resume:
+            adoption_path = resolved / "gates/prepublication-adoption.json"
+            adoption = json.loads(adoption_path.read_text(encoding="utf-8"))
+            adoption["prompt_sha256"] = state["prompt_sha256"]
+            adoption["receipt_sha256"] = _adoption_receipt_hash(adoption)
+            _atomic_write(adoption_path, adoption)
         return {"action": "rebound", "prompt_sha256": state["prompt_sha256"]}
 
 
@@ -516,7 +576,12 @@ def begin(
         state = _load(state_path)
         if state.get("run_id") != run_id or state.get("prompt_sha256") != file_sha256(prompt_file):
             raise GenerationInvariant("prompt or run identity changed")
+        staged_resume = _adopted_staged_prepublication(
+            resolved, run_id, prompt_file, ledger, state
+        )
         safe, reason = prepublication_empty(resolved, run_id, ledger)
+        if staged_resume:
+            safe, reason = True, "adopted-staged-prepublication"
         quality_reroute = _quality_reroute_pending(resolved, run_id, ledger)
         if not safe and not quality_reroute:
             raise GenerationInvariant(reason)
@@ -527,6 +592,8 @@ def begin(
         }
         if _failed_before_publication(state):
             allowed_statuses.add("provider-failed-ambiguous")
+        if staged_resume:
+            allowed_statuses.add("quality-repair-ready")
         if quality_reroute:
             allowed_statuses.add("provider-returned")
         if state.get("status") not in allowed_statuses:
@@ -868,6 +935,19 @@ def resume_decision(
         ):
             return {"resumable": False, "reason": "generation-state-not-safe"}
         if state.get("status") == "quality-repair-ready":
+            if _adopted_staged_prepublication(
+                resolved, run_id, prompt_file, ledger, state
+            ):
+                attempts = state.get("attempts", [])
+                maximum = int(
+                    state.get("maximum_attempts", MAX_GENERATION_ATTEMPTS)
+                )
+                if isinstance(attempts, list) and _charged_attempt_count(state) < maximum:
+                    return {
+                        "resumable": True,
+                        "reason": "adopted-staged-prepublication",
+                        "status": "quality-repair-ready",
+                    }
             return {
                 "resumable": False,
                 "reason": "quality-repair-ready",

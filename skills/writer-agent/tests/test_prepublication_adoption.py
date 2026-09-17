@@ -121,6 +121,39 @@ class PrepublicationAdoptionTest(unittest.TestCase):
             with self.assertRaises(generation.GenerationInvariant):
                 generation.adopt_prepublication(run, run_id, prompt, ledger)
 
+    def test_staged_adoption_without_quality_receipt_can_resume_same_prompt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run, run_id, prompt, ledger = self.fixture(Path(tmp))
+            state_path = run / "gates/generation-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["attempts"] = state["attempts"][:1]
+            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+
+            generation.adopt_prepublication(run, run_id, prompt, ledger)
+
+            decision = generation.resume_decision(run, run_id, prompt, ledger)
+            self.assertEqual(decision["resumable"], True)
+            self.assertEqual(decision["reason"], "adopted-staged-prepublication")
+            generation.begin(run, run_id, prompt, ledger, owner_pid=os.getpid())
+            resumed = json.loads(state_path.read_text(encoding="utf-8"))
+            self.assertEqual(resumed["status"], "invoking")
+            self.assertEqual(len(resumed["attempts"]), 2)
+
+    def test_start_control_returns_generation_resume_for_staged_adoption(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            run, run_id, prompt, ledger = self.fixture(Path(tmp))
+            state_path = run / "gates/generation-state.json"
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            state["attempts"] = state["attempts"][:1]
+            state_path.write_text(json.dumps(state) + "\n", encoding="utf-8")
+            generation.adopt_prepublication(run, run_id, prompt, ledger)
+
+            with patch.object(start_control, "proof", side_effect=start_control.QuarantineError("no proof")):
+                decision = start_control.decide(Path(tmp), "2026-08-30")
+            self.assertEqual(decision["action"], "resume-generation")
+            self.assertEqual(decision["run_id"], run_id)
+            self.assertEqual(decision["reason"], "same-jst-day-prepublication-provider-failure")
+
     def test_refuses_unsafe_evidence_before_mutation(self):
         cases = {
             "prompt hash drift": lambda run, prompt, ledger: prompt.write_text(
