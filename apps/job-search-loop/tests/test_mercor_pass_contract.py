@@ -10,6 +10,7 @@ from unittest.mock import patch
 from job_search_loop.agent_runner import AgentRunner, PassAlreadyRunning, TASK_CLASSES
 from job_search_loop.mercor_pass import (
     _host_capabilities,
+    _blocked_for_evidence_violation,
     build_context,
     deny_mercor_media_permissions,
     main,
@@ -396,12 +397,36 @@ class MercorPassContractTests(unittest.TestCase):
             ["allowed", "warning", "blocked", "not_shown", "unknown"],
         )
 
+    def test_result_contract_requires_profile_sync_for_strict_provider_schema(self):
+        schema = json.loads(
+            (ROOT / "schemas" / "mercor-pass-result.v1.schema.json").read_text(encoding="utf-8")
+        )
+        self.assertIn("profile_sync", schema["required"])
+        profile_sync = schema["properties"]["profile_sync"]
+        self.assertEqual(
+            set(profile_sync["required"]),
+            set(profile_sync["properties"]),
+        )
+        field_hashes = profile_sync["properties"]["field_hashes"]
+        self.assertFalse(field_hashes.get("additionalProperties", True))
+        self.assertEqual(field_hashes["required"], ["claims"])
+
     def test_missing_requirement_evidence_accepts_null_fact_id(self):
         schema = json.loads(
             (ROOT / "schemas" / "mercor-pass-result.v1.schema.json").read_text(encoding="utf-8")
         )
         result = {
             "status": "observed_no_action",
+            "profile_sync": {
+                "status": "unchanged",
+                "authenticated": True,
+                "resume_visible": True,
+                "parser_reviewed": True,
+                "profile_version": "profile-v1",
+                "field_hashes": {"claims": "a" * 64},
+                "resume_sha256": "b" * 64,
+                "evidence_ref": "profile-readback.json",
+            },
             "inspected_listings": [{
                 "listing_id": "list-missing-proof",
                 "url": "https://work.mercor.com/explore?listingId=list-missing-proof",
@@ -511,6 +536,16 @@ class MercorPassContractTests(unittest.TestCase):
         )
         result = {
             "status": "submitted",
+            "profile_sync": {
+                "status": "synced",
+                "authenticated": True,
+                "resume_visible": True,
+                "parser_reviewed": True,
+                "profile_version": "profile-v1",
+                "field_hashes": {"claims": "a" * 64},
+                "resume_sha256": "b" * 64,
+                "evidence_ref": "profile-readback.json",
+            },
             "inspected_listings": [{
                 "listing_id": "list-test",
                 "url": "https://work.mercor.com/jobs/test",
@@ -545,6 +580,21 @@ class MercorPassContractTests(unittest.TestCase):
             },
         }
         AgentRunner.validate(result, schema)
+
+    def test_evidence_violation_fallback_keeps_strict_profile_sync_shape(self):
+        schema = json.loads(
+            (ROOT / "schemas" / "mercor-pass-result.v1.schema.json").read_text(encoding="utf-8")
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            fallback = _blocked_for_evidence_violation(
+                {"status": "submitted", "inspected_listings": [], "submitted": [],
+                 "needs_human": [], "blocked": [], "evidence": {}},
+                Path(directory),
+                ValueError("stale evidence"),
+            )
+        AgentRunner.validate(fallback, schema)
+        self.assertEqual(fallback["profile_sync"]["status"], "blocked")
+        self.assertEqual(fallback["profile_sync"]["field_hashes"], {"claims": "unavailable"})
 
     def test_runner_snapshots_prompt_and_schema_into_private_pass_evidence(self):
         script = (ROOT / "scripts" / "run-mercor.sh").read_text(encoding="utf-8")

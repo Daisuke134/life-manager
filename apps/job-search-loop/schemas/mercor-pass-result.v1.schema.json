@@ -3,7 +3,7 @@
   "$id": "mercor-pass-result.v1.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["status", "inspected_listings", "submitted", "needs_human", "blocked", "evidence"],
+  "required": ["status", "profile_sync", "inspected_listings", "submitted", "needs_human", "blocked", "evidence"],
   "properties": {
     "status": {
       "type": "string",
@@ -21,7 +21,11 @@
         "profile_version": {"type": "string", "minLength": 1},
         "field_hashes": {
           "type": "object",
-          "additionalProperties": {"type": "string", "minLength": 1}
+          "additionalProperties": false,
+          "required": ["claims"],
+          "properties": {
+            "claims": {"type": "string", "minLength": 1}
+          }
         },
         "resume_sha256": {"type": "string", "minLength": 1},
         "evidence_ref": {"type": "string", "minLength": 1}

@@ -498,11 +498,22 @@ def _blocked_for_evidence_violation(
     )
     os.chmod(violation_path, 0o600)
     evidence = result.get("evidence") if isinstance(result.get("evidence"), dict) else {}
+    profile_sync = {
+        "status": "blocked",
+        "authenticated": False,
+        "resume_visible": False,
+        "parser_reviewed": False,
+        "profile_version": "unavailable",
+        "field_hashes": {"claims": "unavailable"},
+        "resume_sha256": "unavailable",
+        "evidence_ref": "evidence-validation-error.json",
+    }
     blocked = result.get("blocked") if isinstance(result.get("blocked"), list) else []
     needs_human = result.get("needs_human") if isinstance(result.get("needs_human"), list) else []
     inspected = result.get("inspected_listings") if isinstance(result.get("inspected_listings"), list) else []
     return {
         "status": "blocked",
+        "profile_sync": profile_sync,
         "inspected_listings": inspected,
         "submitted": [],
         "needs_human": needs_human,
