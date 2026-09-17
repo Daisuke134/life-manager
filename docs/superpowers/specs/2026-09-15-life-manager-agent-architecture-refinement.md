@@ -118,7 +118,7 @@ tables remain evidence of the superseded plan, not the active cursor.
 | 12 | Promote the identical approved business kernel/source SHA to tenant-isolated Cloud; test Steel owner lease/release and phone-only status/human handoff/readback; run Cloud gate. | Tenant cross-read 0, credential/state mix 0, official effects and replay-zero, Local/Eval/Cloud all PASS. |
 | 13 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
 
-### Atomic remaining execution list — current cursor A07
+### Atomic remaining execution list — current cursor A08
 
 This list tracks the current atomic work. Each checkbox is one reviewable
 transition with its own evidence. The table above is a program map, not a
@@ -131,7 +131,7 @@ inventory rather than invented here; one selected ID is handled per item.
 - [x] A04 — Prove one freed finite slot automatically reserves the next eligible `browser` owner under saturation. Same handoff test PASS on `b1cb03a6f2`.
 - [x] A05 — Prove one freed finite slot automatically reserves the next eligible `deterministic` owner under saturation. Same handoff test PASS on `b1cb03a6f2`; production natural wake proof remains A09–A14.
 - [x] A06 — Prove a long-waiting revenue owner gets a turn despite successive new Paid arrivals, without exceeding measured RAM headroom. Live read-only sample found Connector queued about 424 minutes behind an older support backlog with four active revenue owners and 29–31% free memory; old release was **not** healthy. A reproducing cross-class test failed before the minimal ordering fix `bf823cfd1d` and all 91 admission tests passed after it. Existing two runner tests prove low/unknown memory requeues without launching a child. This closes the source-level gate only; loaded release and natural-wake fleet evidence remain A07–A15.
-- [ ] A07 — Integrate only the reviewed shared-runtime fix into latest main; exclude provider-owned files and unrelated candidate changes. Integration branch `fix/lm-admission-shared-main-20260917` at `9cb10af9e5`, PR #5307 targets latest main `1a0424dbf8`; its 12 files are runtime/registry/tests only, excluding Connector and Paid provider changes. Local integration tests: 224 PASS + 126 subtests, Connector entrypoint 17 PASS. Main merge and production release are **not yet done**; CI remains in progress.
+- [x] A07 — Integrate only the reviewed shared-runtime fix into latest main; exclude provider-owned files and unrelated candidate changes. PR #5307 merged at main `7047b6adef` after all eight CI jobs PASS; integration tests 260 PASS + 126 subtests and Connector entrypoint 17 PASS. Only runtime/registry/tests were included; Connector provider and Paid kernel changes were excluded. Production release remains A08 onward.
 - [ ] A08 — Cut one immutable full release from that exact main SHA and import-smoke its runtime/host dependencies.
 - [ ] A09 — Apply the release to one loaded-idle agent owner and read back exact loaded argv/SHA.
 - [ ] A10 — Observe that agent owner's natural release→next-claim→outer terminal without a manual kickstart.
