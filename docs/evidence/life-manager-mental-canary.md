@@ -4,11 +4,12 @@ Status: `IN_PROGRESS` — production code and schema are live; the seven-day nat
 
 ## Current production readback
 
-- Merged main deployment: `e70f4069e41dfba82241aa31c666efba6fe5d6be`.
+- Merged main deployment: `c3ead411e68ec62b196fb666c48e721bdc0572d9`.
 - Railway `life-call` deployment: `SUCCESS`; `/health` returned `200` with the same build SHA.
 - Production Supabase tables: `lm_verified_outcomes`, `lm_mental_outcome_send_log`, and `lm_mental_profile_tags` exist with additive columns, checks, unique keys, and RLS enabled.
 - `LM_MENTAL_OUTCOME_INGEST_SECRET` is present in production Railway variables.
 - `LM_MENTAL_V1_ALLOWED_UIDS` is present and contains only the Dais tenant UID; the value is never written here.
+- `lm_mental_profile_tags` is present with RLS, closed kind/basis/explicit/source-hash checks, expiry/supersession columns, and zero rows until an explicit source-backed profile statement is available.
 - Production scheduler logs show `organ:mental-outcome` and `organ:mental` startup/ticks.
 
 ## Signed outcome bridge proof
