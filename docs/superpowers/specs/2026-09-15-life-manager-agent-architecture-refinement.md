@@ -118,7 +118,7 @@ tables remain evidence of the superseded plan, not the active cursor.
 | 12 | Promote the identical approved business kernel/source SHA to tenant-isolated Cloud; test Steel owner lease/release and phone-only status/human handoff/readback; run Cloud gate. | Tenant cross-read 0, credential/state mix 0, official effects and replay-zero, Local/Eval/Cloud all PASS. |
 | 13 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
 
-### Atomic remaining execution list — current cursor A10
+### Atomic remaining execution list — current cursor A11
 
 This list tracks the current atomic work. Each checkbox is one reviewable
 transition with its own evidence. The table above is a program map, not a
@@ -134,7 +134,7 @@ inventory rather than invented here; one selected ID is handled per item.
 - [x] A07 — Integrate only the reviewed shared-runtime fix into latest main; exclude provider-owned files and unrelated candidate changes. PR #5307 merged at main `7047b6adef` after all eight CI jobs PASS; integration tests 260 PASS + 126 subtests and Connector entrypoint 17 PASS. Only runtime/registry/tests were included; Connector provider and Paid kernel changes were excluded. Production release remains A08 onward.
 - [x] A08 — Cut one immutable full release from that exact main SHA and import-smoke its runtime/host dependencies. Release `/Users/anicca/loops/releases/20260917T110101-7047b6ad` is `ALL`, SHA `7047b6adef`, `ancestor-of-origin-main`; the manifest interpreter imported `resource_admission` and `lm_loop_run` from this exact release. `current` was left unchanged. Disk free after cut was about 3.3 GiB.
 - [x] A09 — Apply the release to one loaded-idle agent owner and read back exact loaded argv/SHA. `hf-gig-reply-detector` alone was reconciled `--loaded-idle-only`; apply returned `changed=true`, `failed=[]`, and independent plist/launchctl readback both show `20260917T110101-7047b6ad` with exact SHA `7047b6adef`. The most recent business terminal before install was on old SHA and blocked by `resource_fifo_wait`; A10 is not yet proved.
-- [ ] A10 — Observe that agent owner's natural release→next-claim→outer terminal without a manual kickstart.
+- [x] A10 — Observe that agent owner's natural release→next-claim→outer terminal without a manual kickstart. `hf-gig-reply-detector` naturally ran at 2026-09-17 02:08 UTC on SHA `7047b6adef`, occurrence `hf-gig-reply-detector:18d5f9a355324ae8-30601` reached `released/effect_unknown=0`, outer report was `pass`, and launchd returned `exit 0`/idle. This is lifecycle evidence, not proof that all Reply threads are resolved.
 - [ ] A11 — Apply the same release to one loaded-idle browser owner and read back exact loaded argv/SHA.
 - [ ] A12 — Observe that browser owner's natural release→next-claim→outer terminal without a manual kickstart.
 - [ ] A13 — Apply the same release to one loaded-idle deterministic owner and read back exact loaded argv/SHA.
