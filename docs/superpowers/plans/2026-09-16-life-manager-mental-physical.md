@@ -43,6 +43,8 @@
 | `apps/life-manager/lib/mental-profile.test.js` | Explicit-statement, correction, decay, and privacy tests |
 | `apps/life-manager/lib/mental-outcome.js` | Verified outcome -> optional mental quote policy |
 | `apps/life-manager/lib/mental-outcome.test.js` | Outcome verification, timing, cap, and duplicate tests |
+| `apps/life-manager/lib/mental-outcome-store.js` | Receipt-only outcome dedupe and provenance persistence |
+| `apps/life-manager/lib/mental-outcome-store.test.js` | Store privacy and idempotency tests |
 | `apps/life-manager/lib/mental-copy.js` | Verbatim catalog output and reviewed inquiry validation |
 | `apps/life-manager/lib/mental-copy.test.js` | Exact-source copy and forbidden-claim tests |
 | `apps/life-manager/lib/mental-runtime.js` | Select, send, and record one plain message |
@@ -52,6 +54,7 @@
 | `apps/life-manager/scheduler.js` | Timezone, busy-state, quiet-hours, explicit preferences |
 | `apps/life-manager/lib/mental-wiring.test.js` | Scheduler wiring and sibling isolation |
 | `apps/life-manager/migrations/2026-09-16-lm-mental-message-family.sql` | Family/template/local-day/window fields |
+| `apps/life-manager/migrations/2026-09-17-lm-mental-outcome-send.sql` | Receipt-only verified outcome send rows |
 | `apps/life-manager/migrations/2026-09-16-lm-mental-profile-tags.sql` | Private tag, weight, basis, hashed source ref, decay, and supersession |
 | `apps/life-manager/lib/mental-migration.test.js` | Additive schema contract |
 | `docs/evidence/life-manager-mental-canary.md` | Production truth and seven-day canary |
@@ -483,6 +486,7 @@ git push
 - [ ] Add RED tests proving a verified outcome produces two independent decisions: the owning loop may report its fact, while MENTAL may send at most one quote or suppress. MENTAL must never receive raw Gmail body text.
 - [ ] Add RED tests for rejection, offer, and interview; unknown/stale/duplicate outcomes; current Calendar busy; cap/gap; no matching catalog quote; Telegram delivery failure; and replay.
 - [ ] Implement `handleVerifiedOutcome(outcome, context, deps)` as a bounded adapter around `decideMentalOutcome`. It sends only `quote.text` through existing Telegram transport and records `sourceOutcomeId`, `quote.id`, `evidenceRef`, and Telegram message ID.
+- [ ] Use `mental-outcome-store.js` and `2026-09-17-lm-mental-outcome-send.sql` for the append-only receipt; never persist raw Gmail subject/body/snippet.
 - [ ] Do not append buttons, a reply request, an email action, or a sender signature.
 - [ ] Wire the scheduler to consume a verified-outcome provider seam. The default provider returns no outcomes; the Job Hunter bridge is the only production producer allowed in this task.
 - [ ] Run focused outcome/runtime tests and commit:
