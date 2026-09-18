@@ -624,6 +624,11 @@ def normalize_card_only_fit_decisions(result: dict[str, Any]) -> None:
         item["ranking_evidence"] = ranking_evidence
 
 
+def _is_card_only_observation(item: dict[str, Any]) -> bool:
+    state = str(item.get("application_state") or "")
+    return state.startswith(("card_only", "submitted_pending_review_observed"))
+
+
 def validate_bounded_scan(result: dict[str, Any], evidence_root: Path | None = None) -> None:
     """Keep the detail-page scan bounded without forcing low-fit filler pages."""
     if result.get("status") in {"blocked", "submitted"}:
@@ -632,7 +637,7 @@ def validate_bounded_scan(result: dict[str, Any], evidence_root: Path | None = N
         item.get("listing_id")
         for item in result.get("inspected_listings", [])
         if isinstance(item, dict)
-        and not str(item.get("application_state") or "").startswith("card_only")
+        and not _is_card_only_observation(item)
         and isinstance(item.get("listing_id"), str)
     }
     if len(inspected) > 12:
