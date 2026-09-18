@@ -64,7 +64,7 @@ def test_refresh_creates_rebuild_output_directory(
     monkeypatch.setattr(MODULE.subprocess, "run", fake_run)
     state = {
         "run_dir": str(tmp_path / "run"),
-        "drafts": {"ja": {"path": str(source)}},
+        "drafts": {"ja": {"path": str(source), "sha256": MODULE.m.sha256(source)}},
         "media": {
             "headline_image": {"path": str(headline)},
             "body_assets": [{"path": str(body)}],
@@ -75,6 +75,38 @@ def test_refresh_creates_rebuild_output_directory(
 
     assert result == "# embedded\n"
     assert observed == [output.parent]
+
+
+def test_refresh_refuses_changed_draft_source_before_rebuild(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "article.md"
+    headline = tmp_path / "headline.png"
+    body = tmp_path / "body.png"
+    source.write_text("# changed\n", encoding="utf-8")
+    headline.write_bytes(b"headline")
+    body.write_bytes(b"body")
+
+    def unexpected_run(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        raise AssertionError("changed draft source reached rebuild subprocess")
+
+    monkeypatch.setattr(MODULE.subprocess, "run", unexpected_run)
+    state = {
+        "run_dir": str(tmp_path / "run"),
+        "drafts": {
+            "ja": {
+                "path": str(source),
+                "sha256": "0" * 64,
+            }
+        },
+        "media": {
+            "headline_image": {"path": str(headline)},
+            "body_assets": [{"path": str(body)}],
+        },
+    }
+
+    with pytest.raises(MODULE.m.SubstackRepairRefused, match="draft source"):
+        MODULE._build_embedded_markdown(state, "ja")
 
 
 @pytest.mark.parametrize(

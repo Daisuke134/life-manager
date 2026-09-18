@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Restore the paid contract on one persisted, unpublished Substack ID."""
-import argparse, importlib.util, json, os, subprocess, sys
+import argparse, hashlib, importlib.util, json, os, subprocess, sys
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -92,23 +92,32 @@ def _build_embedded_markdown(state, lang):
     """Rebuild same-draft media so cached tall Mermaid URLs cannot survive a refresh."""
     descriptor = state.get("drafts", {}).get(lang, {})
     source = Path(str(descriptor.get("path", "")))
+    expected_source_sha = str(descriptor.get("sha256", "")).strip()
     media = state.get("media", {})
     headline = media.get("headline_image", {})
     bodies = media.get("body_assets", [])
-    if not source.is_file() or not headline.get("path") or not bodies:
+    if not source.is_file() or not expected_source_sha or not headline.get("path") or not bodies:
         raise m.SubstackRepairRefused("immutable Substack media inputs are incomplete")
+    try:
+        source_bytes = source.read_bytes()
+    except OSError as error:
+        raise m.SubstackRepairRefused("immutable Substack draft source is unreadable") from error
+    if hashlib.sha256(source_bytes).hexdigest() != expected_source_sha:
+        raise m.SubstackRepairRefused("immutable Substack draft source SHA mismatch")
     run_dir = Path(str(state.get("run_dir", "")))
     out = run_dir / "gates" / "substack-refresh" / f"article-{lang}-embedded.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    source_snapshot = out.with_name(f"article-{lang}-source.md")
+    source_snapshot.write_bytes(source_bytes)
     command = [
         sys.executable,
         str(Path(__file__).parents[1] / "_shared" / "embed-mermaid-substack.py"),
-        "--markdown-file", str(source),
+        "--markdown-file", str(source_snapshot),
         "--out", str(out),
         "--headline-image", str(headline["path"]),
     ]
     for body in bodies:
         command.extend(("--body-image", str(body["path"])))
-    out.parent.mkdir(parents=True, exist_ok=True)
     result = subprocess.run(command, capture_output=True, text=True, check=False)
     if result.returncode != 0 or not out.is_file():
         raise m.SubstackRepairRefused("same-ID media rebuild failed")
