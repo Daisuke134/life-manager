@@ -70,3 +70,14 @@ def test_html_clipboard_chunks_preserve_block_boundaries():
     chunks = x_repair._clipboard_html_chunks(html, max_chars=14)
     assert "".join(chunks) == html
     assert all(chunk.endswith(("</p>", "</h2>")) for chunk in chunks)
+
+
+def test_x_clipboard_pastes_all_html_before_media():
+    chunks = [("html", "<p>a</p>"), ("img", "/tmp/table.png"),
+              ("html", "<p>b</p>"), ("img", "/tmp/body.png")]
+    ordered = x_repair._clipboard_chunks_with_images_last(chunks)
+    assert [kind for kind, _ in ordered] == ["html", "img", "img"]
+    assert "".join(value for kind, value in ordered if kind == "html") == "<p>a</p><p>b</p>"
+    assert [value for kind, value in ordered if kind == "img"] == [
+        "/tmp/table.png", "/tmp/body.png"
+    ]
