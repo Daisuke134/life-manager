@@ -24,6 +24,8 @@ Status: `IN_PROGRESS` — production code and schema are live; the seven-day nat
   `4.0 GiB`, `.codex/sessions` `3.5 GiB`, and `.openclaw` `4.5 GiB`.
 - No large Life Manager deleted-open file was found. These observations support resource pressure
   and missing retention/lease GC as the local foundation risk; they do not establish malware.
+- Fresh local verification on 2026-09-19: `npm run test:mental-v1` completed with `103` tests,
+  `103` pass, `0` fail. This is repository evidence only; no production mutation was performed.
 
 ## Telnyx authorized test-call receipt
 
