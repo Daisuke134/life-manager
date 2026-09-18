@@ -3,7 +3,7 @@
 **作成日:** 2026-08-13
 **正本:** Life Manager (`Daisuke134/life-manager`)
 **対象:** Lancers の acquisition、月額契約、納品、着金を一つの収益ループとして扱う
-**状態:** Applyは公式proposal receipt 203件、5分ごとのexhaustive ownerとlane専用Telegram ACKが稼働。Storefrontはcanonical 1件。ContractReceipt、DeliveryReceipt、PaymentReceipt、bank matchは0、公式financeのreceived grossは0円
+**状態:** Applyは公式proposal receipt 206件、Applicationは60秒の回転query owner、Storefront・Negotiate・Work Sync・Paidは独立ownerで稼働。Storefrontはcanonical 1件を含む公式公開状態をreadback済み。ContractReceipt、DeliveryReceipt、PaymentReceipt、bank matchは0、公式financeのreceived grossは0円
 
 canonical repository は Life Manager とし、Lancers の credential、browser session、
 runtime state、receipt、ledger は外部に残す。この仕様は runtime state を移動・複製・変更しない。
@@ -3068,6 +3068,31 @@ After this checkpoint, two pending Application readbacks completed without resub
 project `5604034` became proposal `27945100`, and project `5601693` became proposal
 `27945097` (180,000 JPY, due 2026-11-17). The Application ledger is now 206 verified
 receipts and both conversion-attribution records were written.
+
+**Live reconciliation (2026-09-18 12:42 UTC).** The latest source-complete contracts
+readback at `12:39:01 UTC` reports 14 boards, required replies 0, unread 1, incoming
+monthly offers 0, monthly contracts 0, working projects 0, contract candidates 0,
+received gross 0 JPY, and proposal pipeline current 316 / receipt 206 / unknown 0.
+The canonical Storefront readback at `12:22:48 UTC` is listing `1338228`, published,
+product version 6, with demand search 12 / detail 0 / favorite 0 / inquiry 0 / order 0.
+The v6 title experiment changed only the title; no inquiry or order has been observed.
+`paid-latest.json` remains `status=ok`, `effect=0`, `failed=0`, `pending=0`.
+
+The four claims that reappeared while older owners were still running have now been
+reconciled one at a time, with no provider resend: Application occurrence
+`18d64a5d0157fb60-96865` matches project `5601059` and official proposal `27920655`;
+Negotiate occurrence `18d65a3bb0a0f278-48520` matches seller message `59170392` on
+thread `9064025`; Work Sync occurrence `18d660a8a3644e98-50255` is the declared no-effect
+lane and was released; Storefront occurrence `18d6696cc824df78-83052` matches the
+official listing `1338228`. A fresh Admission query at `12:42 UTC` shows zero Lancers
+`effect_unknown` rows. The status command can continue to show the historical unknown
+until each lane emits its next report event; the Admission database and official
+readbacks are authoritative for the effect fence.
+
+The two legacy Application descriptors for projects `5601892` and `5601332` still have
+no complete official proposal readback and remain untouched. The two outreach boards
+`9077726` and `9077932` remain sent-but-unread; neither is a reply, award, contract or
+revenue event, so no duplicate follow-up is allowed.
 
 **Remaining execution order.** The numbered L-08→L-16 and M-01→M-04 atoms below remain
 the canonical order; the following are the concrete gates to work through, not a reorder:
