@@ -46,6 +46,13 @@ Pass order:
    that exact readback was not obtained.
    After the live Profile readback, use the visible Filter/Search controls to run the target
    queries once per wake. The target query set is: Japan, Japanese, Developer, automation, AI agent, Coding.
+   Use the existing `type_target` helper for each query so the provider's controlled input
+   receives a real keyboard value. Never use `.value =` or synthetic `input`/`change` events
+   as the search action. After every query, read back the exact input value, current page URL,
+   and visible card list; save the query label, input value, page URL, and card list incrementally
+   under the current `evidence_dir` before starting the next query. If the input value or cards
+   do not reflect the query, retry once with `type_target`; if it still does not match, record
+   that query as unavailable and continue without treating the default cards as query results.
    Collect and deduplicate each query's visible cards before opening any detail; if the
    control is unavailable, record that observation and continue with the default Explore queue.
    Start every wake at Explore page 1 when pagination is visible. Collect the distinct listing
