@@ -3,10 +3,7 @@
 const V1_FAMILIES = new Set(["affirmation", "manifestation", "mindfulness_inquiry"]);
 const V1_WINDOWS = ["morning_orientation", "midday_awareness", "evening_direction"];
 
-function evaluateCanaryRows(rows, nowMs = Date.now()) {
-  const list = Array.isArray(rows) ? rows : [];
-  const v1 = list.filter((row) => V1_FAMILIES.has(row && row.family));
-  const legacy = list.length - v1.length;
+function summarizeV1Rows(v1) {
   const dailyCounts = {};
   const familiesByDay = new Map();
   const windows = Object.fromEntries(V1_WINDOWS.map((window) => [window, 0]));
@@ -35,18 +32,44 @@ function evaluateCanaryRows(rows, nowMs = Date.now()) {
   }, 0);
   const templateRepeatCount = [...templateCounts.values()].reduce((count, value) => count + Math.max(0, value - 1), 0);
   const maxDaily = Object.values(dailyCounts).reduce((max, value) => Math.max(max, value), 0);
-  const pass = v1.length > 0 && maxDaily <= 3 && (minGap === null || minGap >= 3 * 60 * 60 * 1000)
-    && familyRepeatCount === 0 && templateRepeatCount === 0;
+  return { dailyCounts, maxDaily, minGap, familyRepeatCount, templateRepeatCount, windows };
+}
+
+function evaluateCanaryRows(rows, nowMs = Date.now(), options = {}) {
+  const list = Array.isArray(rows) ? rows : [];
+  const v1 = list.filter((row) => V1_FAMILIES.has(row && row.family));
+  const legacy = list.length - v1.length;
+  const baselineAtMs = options.baselineAtMs == null ? null : Number(options.baselineAtMs);
+  if (baselineAtMs !== null && !Number.isFinite(baselineAtMs)) throw new Error("canary baseline invalid");
+  const canaryRows = baselineAtMs === null
+    ? v1
+    : v1.filter((row) => Number.isFinite(Date.parse(row.sent_at)) && Date.parse(row.sent_at) >= baselineAtMs);
+  const preCanaryRows = baselineAtMs === null
+    ? []
+    : v1.filter((row) => Number.isFinite(Date.parse(row.sent_at)) && Date.parse(row.sent_at) < baselineAtMs);
+  const allSummary = summarizeV1Rows(v1);
+  const canarySummary = summarizeV1Rows(canaryRows);
+  const preCanarySummary = summarizeV1Rows(preCanaryRows);
+  const pass = canaryRows.length > 0 && canarySummary.maxDaily <= 3
+    && (canarySummary.minGap === null || canarySummary.minGap >= 3 * 60 * 60 * 1000)
+    && canarySummary.familyRepeatCount === 0 && canarySummary.templateRepeatCount === 0;
   return {
     observed_at: new Date(nowMs).toISOString(),
     v1_count: v1.length,
     legacy_count: legacy,
-    daily_counts: dailyCounts,
-    max_daily_count: maxDaily,
-    min_gap_ms: minGap,
-    family_repeats: familyRepeatCount,
-    template_repeats: templateRepeatCount,
-    windows,
+    daily_counts: allSummary.dailyCounts,
+    max_daily_count: allSummary.maxDaily,
+    min_gap_ms: allSummary.minGap,
+    family_repeats: allSummary.familyRepeatCount,
+    template_repeats: canarySummary.templateRepeatCount,
+    windows: allSummary.windows,
+    canary_v1_count: canaryRows.length,
+    canary_daily_counts: canarySummary.dailyCounts,
+    canary_max_daily_count: canarySummary.maxDaily,
+    canary_min_gap_ms: canarySummary.minGap,
+    canary_family_repeats: canarySummary.familyRepeatCount,
+    pre_canary_template_repeats: preCanarySummary.templateRepeatCount,
+    canary_start_at: baselineAtMs === null ? null : new Date(baselineAtMs).toISOString(),
     pass,
     telegram_content_readback: "required",
   };
@@ -69,7 +92,10 @@ async function readCanaryRows({ supaUrl, supaKey, uid, nowMs = Date.now(), fetch
 async function main() {
   const uid = String(process.env.LM_MENTAL_V1_ALLOWED_UIDS || process.env.LM_TENANT_UID || "").split(",")[0].trim();
   const rows = await readCanaryRows({ supaUrl: process.env.SUPABASE_URL, supaKey: process.env.SUPABASE_SERVICE_ROLE_KEY, uid });
-  process.stdout.write(`${JSON.stringify(evaluateCanaryRows(rows))}\n`);
+  const baselineRaw = String(process.env.LM_MENTAL_CANARY_START_AT || "").trim();
+  const baselineAtMs = baselineRaw ? Date.parse(baselineRaw) : null;
+  if (baselineRaw && !Number.isFinite(baselineAtMs)) throw new Error("LM_MENTAL_CANARY_START_AT invalid");
+  process.stdout.write(`${JSON.stringify(evaluateCanaryRows(rows, Date.now(), { baselineAtMs }))}\n`);
 }
 
 if (require.main === module) main().catch((error) => { process.stderr.write(`${error.message}\n`); process.exitCode = 1; });

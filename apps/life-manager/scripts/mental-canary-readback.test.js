@@ -43,3 +43,31 @@ test("canary evaluator fails duplicate family/template and over-cap days", () =>
 test("canary evaluator does not call an empty natural canary a pass", () => {
   assert.equal(evaluateCanaryRows([], Date.now()).pass, false);
 });
+
+test("canary baseline keeps pre-release duplicate visible without failing the fixed-release canary", () => {
+  const rows = [
+    { sent_at: "2026-09-18T00:00:00Z", family: "affirmation", template_id: "q1", local_day: "2026-09-18", window: "morning_orientation", telegram_message_id: "1" },
+    { sent_at: "2026-09-18T23:00:00Z", family: "affirmation", template_id: "q1", local_day: "2026-09-19", window: "morning_orientation", telegram_message_id: "2" },
+    { sent_at: "2026-09-19T12:00:00Z", family: "manifestation", template_id: "q2", local_day: "2026-09-19", window: "evening_direction", telegram_message_id: "3" },
+  ];
+  const result = evaluateCanaryRows(rows, Date.parse("2026-09-19T13:00:00Z"), {
+    baselineAtMs: Date.parse("2026-09-18T22:30:00Z"),
+  });
+  assert.equal(result.v1_count, 3);
+  assert.equal(result.canary_v1_count, 2);
+  assert.equal(result.pre_canary_template_repeats, 0);
+  assert.equal(result.template_repeats, 0);
+  assert.equal(result.pass, true);
+});
+
+test("canary baseline does not hide a repeat after the fixed release", () => {
+  const rows = [
+    { sent_at: "2026-09-18T23:00:00Z", family: "affirmation", template_id: "q1", local_day: "2026-09-19", window: "morning_orientation", telegram_message_id: "1" },
+    { sent_at: "2026-09-19T23:00:00Z", family: "affirmation", template_id: "q1", local_day: "2026-09-20", window: "morning_orientation", telegram_message_id: "2" },
+  ];
+  const result = evaluateCanaryRows(rows, Date.parse("2026-09-20T00:00:00Z"), {
+    baselineAtMs: Date.parse("2026-09-18T22:30:00Z"),
+  });
+  assert.equal(result.template_repeats, 1);
+  assert.equal(result.pass, false);
+});
