@@ -63,7 +63,7 @@
 - Consumes: existing `session_vault.py keepalive` and the current daily-driver vault.
 - Produces: one 30-minute keepalive/readback for the authenticated Connpass and Luma URLs without a second scheduler or automatic credential fabrication.
 
-- [ ] Write a failing test asserting the tick command contains the approved authenticated Connpass and Luma URLs.
+- [x] Write and run the failing test asserting the tick command contains the approved authenticated Connpass and Luma URLs.
 - [x] Add the URLs to the existing `KA_OUT` command only; preserve existing Coconala/Instagram/X behavior and Telegram alerting. PR #5615 merged as main `8eae86892e`.
 - [x] Run the focused shell/static test and existing vault tests (`31/31` pass); cut release `/Users/anicca/loops/releases/20260918T231001-8eae8689` with `release_paths=ALL`.
 - [ ] Reconcile stale `session-vault:18d606ad782b0140-83191`, load the release, and record `logged_out` explicitly if either provider is unauthenticated; do not report it as registered.
@@ -78,17 +78,17 @@
 - Consumes: shared admission owner’s official/pre-effect reconciliation of `life-manager-connector-native:18d66aef19152518-55543`.
 - Produces: loaded-idle Connector label with one complete main-derived SHA and no unresolved pending occurrence.
 
-- [ ] Do not edit the SQLite file or reclaim by age.
-- [ ] After the shared fence becomes released/known, run:
+- [x] Do not edit the SQLite file or reclaim by age. The earlier Connector effect fence became `released/effect_unknown=0` through the existing path.
+- [x] After the shared fence became released/known, load the latest complete release with:
 
 ```bash
-LIFE_MANAGER_RELEASE_ROOT=/Users/anicca/loops/releases/20260918T215945-5b6e1788 \
+LIFE_MANAGER_RELEASE_ROOT=/Users/anicca/loops/current \
   bin/lm-loop reconcile deterministic --loaded-idle-only --max-owners 1 \
   --loop-id life-manager-connector-native
 bin/lm-loop status life-manager-connector-native
 ```
 
-- [ ] Require installed SHA, launchd loaded SHA, event SHA, and the next natural terminal to agree.
+- [x] Installed and loaded Connector SHA now agree at `8eae86892e`; a natural wake on the previous SHA reached `completed_no_effect`, while the next manual wake was safely deferred by `resource_control_busy` before provider work and remains queued.
 
 ### Task 5: Official authentication and new effect
 
