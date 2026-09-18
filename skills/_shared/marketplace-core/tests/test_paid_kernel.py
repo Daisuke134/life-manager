@@ -8,6 +8,8 @@ import threading
 import time
 import json
 
+import pytest
+
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "scripts" / "paid_kernel.py"
 SPEC = importlib.util.spec_from_file_location("marketplace_paid_kernel", MODULE_PATH)
@@ -167,14 +169,59 @@ def test_uncertain_message_effect_never_replays_after_mutation_exception(tmp_pat
     assert len(adapter.effects) == 1
 
 
-def test_single_worker_pre_effect_hint_clears_before_first_mutation(
+def test_pre_effect_hint_clears_before_first_mutation_for_serial_and_parallel_wakes(
         monkeypatch, tmp_path: Path) -> None:
     hint = tmp_path / "entrypoint-result.json"
     monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
-    created = paid._prepare_pre_effect_hint(1)
-    assert created == hint
+    for workers in (1, 4):
+        created = paid._prepare_pre_effect_hint(workers)
+        assert created == hint
+        assert json.loads(hint.read_text()) == {"status": "pre_effect_failure", "effect": 0}
+        paid._clear_pre_effect_hint(created)
+        assert not hint.exists()
+
+
+def test_parallel_paid_hint_survives_inventory_failure_but_not_mutation(
+        monkeypatch, tmp_path: Path) -> None:
+    hint = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+    created = paid._prepare_pre_effect_hint(4)
+
+    class FailedInventory(Adapter):
+        def observe_active(self):
+            raise RuntimeError("browser_connect_failed")
+
+    with pytest.raises(RuntimeError, match="browser_connect_failed"):
+        paid.run_wake(adapter=FailedInventory([]), decide=submit,
+                      state_root=tmp_path / "failed", max_workers=4,
+                      pre_effect_hint=created)
     assert json.loads(hint.read_text()) == {"status": "pre_effect_failure", "effect": 0}
-    paid._clear_pre_effect_hint(created)
+
+    class Ready(Adapter):
+        def mutate(self, intent):
+            assert not hint.exists()
+            super().mutate(intent)
+
+    result = paid.run_wake(adapter=Ready([observation("a"), observation("b")]),
+                           decide=submit, state_root=tmp_path / "ready",
+                           max_workers=4, pre_effect_hint=created)
+    assert result["effect"] == 2
+    assert not hint.exists()
+
+
+def test_successful_no_effect_paid_kernel_clears_hint_before_lane_reporter(
+        monkeypatch, tmp_path: Path) -> None:
+    hint = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+    monkeypatch.setattr(paid, "_load_provider",
+                        lambda _path, _argv: (Adapter([]), submit))
+
+    assert paid.main([
+        "--provider-adapter", str(tmp_path / "provider.py"),
+        "--state-root", str(tmp_path / "state"),
+        "--output", str(tmp_path / "paid-result.json"),
+        "--max-workers", "4",
+    ]) == 0
     assert not hint.exists()
 
 
