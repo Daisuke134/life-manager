@@ -323,6 +323,12 @@ provider effect and it does not replace the ordered repair cursor in
 - Later Storefront wakes `44826` and `65665` recorded `effect=0`, `readback=0` and
   `no_executable_unfenced_mutation_contract`. They are later wakes, not a provider receipt for
   `18d5fce0aaee0680-6502`, so the Storefront fence remains conservative.
+- Owner action completed: session recovery, official applied-history capture, candidate-to-intent
+  reconciliation and evidence persistence. The exact files are
+  `skills/browser/scripts/session_vault.py`,
+  `skills/earn/gig/scripts/coconala_applied_readback.py`,
+  `~/gig/application-intents/{5276533,5266999,5275035,5266959}.json`, and
+  `~/gig/apply-direct/gig-apply-direct-1789611564192685000-46013/reconcile-evidence/`.
 - Paid has recent terminal `pass` receipts. Reply has recent passes, but also fail-closed
   collector results (`inbox_coverage_incomplete` / `missing_container`). Storefront remains
   `resource_effect_unknown`. None of these statuses authorizes a blind retry.
@@ -410,14 +416,19 @@ patch is safe until the whole unknown occurrence has an exact provider receipt.
    watcher settles.
 3. Use the existing official Coconala applied-history reader to reconcile
    `18d5f9cd9f029658-33307`; close it only with an exact provider receipt for the whole wake.
-   Do not edit the admission database manually and do not retry while it is unknown.
+   The owner has captured one confirmed candidate and three unresolved candidates. The next
+   allowed action is to obtain a fresh exact proof for all three started intents, then call
+   `runtime.host.resource_admission.resolve_unknown_occurrence` with the matching owner and
+   occurrence. Do not edit the admission database manually and do not retry while it is unknown.
 4. After the fence is resolved, observe one natural single Apply and one natural retainer Apply;
    require `effect=1`, exact official applied-page readback and replay-zero for each.
 5. Keep Reply fail-closed until inbox coverage is complete; fix the page/target ownership or
    collector boundary rather than treating `missing_container` as an empty inbox.
 6. Reconcile Storefront's `resource_effect_unknown` with an exact service readback, then prove a
-   natural publish wake. Paid remains operational but must keep its latest pass and release/env
-   readback in the same fleet gate.
+   natural publish wake. Later no-op wakes are evidence of no new mutation, not proof for the
+   old occurrence; the owner must retrieve an exact service receipt tied to
+   `18d5fce0aaee0680-6502` before calling `resolve_unknown_occurrence`. Paid remains operational
+   but must keep its latest pass and release/env readback in the same fleet gate.
 7. Handle the two defunct children as separate host hygiene: identify a safe owner-controlled reap
    path for the Chromium and ChatGPT parents after browser profile protection. Do not kill the live
    browser or delete its profile as a shortcut.
