@@ -1016,7 +1016,8 @@ work item and leave a sibling trace unchanged.
   post-contract work effects; there is no CrowdWorks Storefront owner.
 - Runtime hardening is merged through PRs `#5430`, `#5437`, `#5443`, `#5476`, `#5492`, `#5512` and
   `#5515`. Paid is targeted to main-derived immutable release
-  `20260918T085318-5be1a1a8` (`5be1a1a8bade238ecd393e02dcf2703b2e8b1b34`) with a finite 900-second bound.
+  `20260918T090049-e3c78a63` (`e3c78a63527fea3c09ab5d782939e3c18c619bb3`) with a finite 900-second bound.
+  Target apply receipt is `81c323cd38cb970453b24230`.
   The release includes the active-inventory row wait and quality/staged-delivery safeguards; Astra read-only
   review verdict was `ship`.
 - A fresh read-only provider pass after the row-wait fix returned exactly five contract IDs
@@ -1044,7 +1045,7 @@ work item and leave a sibling trace unchanged.
 - `63657015` timed out with durable common-form intent `intent_persisted` and no confirmed receipt.
 - `63570481` correction has not been submitted; the buyer-visible result and formal delivery are open.
   The context/form-revision implementation is now merged in `#5512` and loaded in release
-  `5be1a1a8`; it has not reached a natural child run because admission is still fenced.
+  `e3c78a63`; it has not reached a natural child run because admission is still fenced.
 - `63568785` has no artifact until permission/content is supplied.
 - `63659463` quality audit, formal delivery, acceptance, settlement and payout are open.
 - `63583795` is currently `funded` in the fresh list while an older formal-delivery receipt exists;

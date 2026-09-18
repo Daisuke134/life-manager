@@ -31,10 +31,10 @@ not a claim that money has been earned.
 - **Runtime safeguards:** the bounded wake, timeout isolation, inspection-pending no-op, and run-wide
   pre-effect fence are merged through PRs `#5430`, `#5437`, `#5443`, `#5476`, `#5492`, `#5512` and
   `#5515`. The Paid label is loaded from main-derived immutable release
-  `5be1a1a8bade238ecd393e02dcf2703b2e8b1b34` at
-  `/Users/anicca/loops/crowdworks/releases/20260918T085318-5be1a1a8` with a finite 900-second owner
+  `e3c78a63527fea3c09ab5d782939e3c18c619bb3` at
+  `/Users/anicca/loops/crowdworks/releases/20260918T090049-e3c78a63` with a finite 900-second owner
   bound. The release includes the active-inventory row wait and the quality/stage safeguards; Astra's
-  final read-only verdict was `ship`.
+  final read-only verdict was `ship`. Target apply receipt is `81c323cd38cb970453b24230`.
 - **Official inventory:** a fresh read-only provider pass after the row-wait fix returned exactly five
   contract IDs (`63659463`, `63657015`, `63583795`, `63570481`, `63568785`), all currently `funded`.
   The previous `63583795` delivery receipt remains historical evidence and is not replayed. A message,
@@ -75,7 +75,7 @@ not a claim that money has been earned.
   receipt. Do not retry from the intent alone; first reconcile the official form/provider state.
 - **`63570481` correction:** the missing customer-address answer must be produced from the full buyer
   task and submitted as a new correction revision bound to the buyer event. The implementation is merged
-  and present in release `5be1a1a8`, but no natural child run has reached it while admission is fenced.
+  and present in release `e3c78a63`, but no natural child run has reached it while admission is fenced.
 - **`63568785` artifact:** send one precise permission/content request through the Paid owner, then read
   the document, do the requested work, verify buyer-visible access/content and only then deliver.
 - **All five closures:** no contract has buyer acceptance, settlement, payout or verified USD 10,000 MRR.
