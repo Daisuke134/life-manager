@@ -3094,6 +3094,12 @@ no complete official proposal readback and remain untouched. The two outreach bo
 `9077726` and `9077932` remain sent-but-unread; neither is a reply, award, contract or
 revenue event, so no duplicate follow-up is allowed.
 
+After that snapshot, Application occurrence `18d64b3fd7555338-40446` was observed as
+`host_admission_deferred:resource_fifo_wait`. The child/provider boundary was never
+entered, so it was closed with an explicit pre-effect proof and no Lancers submission.
+The subsequent Admission query still shows zero Lancers `effect_unknown` rows; this is
+not an application failure or a reason to retry a project.
+
 **Remaining execution order.** The numbered L-08→L-16 and M-01→M-04 atoms below remain
 the canonical order; the following are the concrete gates to work through, not a reorder:
 
