@@ -108,8 +108,9 @@ def _write_state(path: Path, value: Mapping[str, Any],
 
 def _prepare_pre_effect_hint(max_workers: int) -> Path | None:
     hint = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
-    if max_workers != 1 or not hint:
+    if not hint:
         return None
+    # The first worker about to mutate clears this shared hint before its effect.
     path = Path(hint).expanduser().resolve()
     _write(path, {"status": "pre_effect_failure", "effect": 0})
     return path
@@ -559,7 +560,11 @@ def main(argv: list[str] | None = None) -> int:
                  or all_item_failures_pre_effect)):
         _write(Path(hint_path).expanduser().resolve(),
                {"status": "pre_effect_failure", "effect": 0})
-    return int(result["failed"] > 0)
+    failed = int(result["failed"] > 0)
+    if not failed:
+        # A successful kernel hands control to the lane reporter, which may send.
+        _clear_pre_effect_hint(pre_effect_hint)
+    return failed
 
 
 if __name__ == "__main__":

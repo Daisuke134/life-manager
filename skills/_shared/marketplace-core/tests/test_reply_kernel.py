@@ -3,6 +3,8 @@ import json
 from pathlib import Path
 import threading
 
+import pytest
+
 
 MODULE = Path(__file__).parents[1] / "scripts" / "reply_kernel.py"
 SPEC = importlib.util.spec_from_file_location("marketplace_reply_kernel_test", MODULE)
@@ -48,6 +50,36 @@ class Adapter:
         return self.receipts.get(intent["effect_key"], {"authoritative_absent": True})
 
 
+def test_single_worker_hint_survives_observe_failure_and_clears_before_mutation(
+        tmp_path, monkeypatch):
+    hint = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+
+    class BrowserUnavailable(Adapter):
+        def observe_threads(self):
+            raise RuntimeError("browser_connect_failed")
+
+    with pytest.raises(RuntimeError, match="browser_connect_failed"):
+        reply_kernel.run_wake(
+            adapter=BrowserUnavailable(), decide=lambda _context: {},
+            state_root=tmp_path / "failed", max_workers=1,
+        )
+    assert json.loads(hint.read_text()) == {"status": "pre_effect_failure", "effect": 0}
+
+    class Ready(Adapter):
+        def mutate(self, intent):
+            assert not hint.exists()
+            super().mutate(intent)
+
+    result = reply_kernel.run_wake(
+        adapter=Ready(),
+        decide=lambda _context: {"action": "reply", "payload": {"body": "Thanks"}},
+        state_root=tmp_path / "ready", max_workers=1,
+    )
+    assert result["effect"] == 1
+    assert not hint.exists()
+
+
 def test_reply_effect_is_fenced_read_back_and_replay_zero(tmp_path):
     adapter = Adapter()
 
@@ -60,39 +92,13 @@ def test_reply_effect_is_fenced_read_back_and_replay_zero(tmp_path):
     assert first["failed"] == 0
     assert len(adapter.effects) == 1
 
-    second = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
-    assert second["effect"] == 0
-    assert second["readback"] == 1
-    assert second["items"][0]["reason"] == "replay_zero"
-    assert len(adapter.effects) == 1
 
-
-def test_contract_acceptance_uses_same_fence_readback_and_replay_zero(tmp_path):
-    adapter = Adapter()
-    decide = lambda _context: {
-        "action": "accept_contract",
-        "payload": {"condition_id": "condition-1", "amount": "12円"},
-    }
-
-    first = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
-    replay = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
-
-    assert first["effect"] == 1
-    assert first["readback"] == 1
-    assert adapter.effects[0]["action"] == "accept_contract"
-    assert replay["effect"] == 0
-    assert replay["items"][0]["reason"] == "replay_zero"
-    assert len(adapter.effects) == 1
-
-
-def test_state_records_runtime_occurrence_id(monkeypatch, tmp_path):
+def test_state_records_runtime_occurrence_and_run_marker(monkeypatch, tmp_path):
     monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:run-1")
-    adapter = Adapter()
     result = reply_kernel.run_wake(
-        adapter=adapter,
-        decide=lambda _context: {
-            "action": "accept_contract", "payload": {"condition_id": "condition-1"}
-        },
+        adapter=Adapter(),
+        decide=lambda _context: {"action": "accept_contract",
+                                 "payload": {"condition_id": "condition-1"}},
         state_root=tmp_path,
     )
     assert result["effect"] == 1
@@ -104,15 +110,14 @@ def test_state_records_runtime_occurrence_id(monkeypatch, tmp_path):
 
 def test_reconcile_preserves_original_occurrence_binding(monkeypatch, tmp_path):
     adapter = Adapter()
-    decide = lambda _context: {
-        "action": "accept_contract", "payload": {"condition_id": "condition-1"}
-    }
+    decide = lambda _context: {"action": "accept_contract",
+                               "payload": {"condition_id": "condition-1"}}
     monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:run-a")
-    first = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
-    assert first["effect"] == 1
+    assert reply_kernel.run_wake(adapter=adapter, decide=decide,
+                                 state_root=tmp_path)["effect"] == 1
     monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:run-b")
-    replay = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
-    assert replay["effect"] == 0
+    assert reply_kernel.run_wake(adapter=adapter, decide=decide,
+                                 state_root=tmp_path)["effect"] == 0
     state = json.loads(next(tmp_path.glob("threads/*/state.json")).read_text())
     assert state["occurrence_id"] == "fixture-reply:run-a"
 
@@ -132,23 +137,42 @@ def test_new_intent_after_authoritatively_absent_rebinds_to_current_wake(
     monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:run-b")
     result = reply_kernel.run_wake(
         adapter=adapter,
-        decide=lambda _context: {
-            "action": "accept_contract", "payload": {"condition_id": "new"}
-        },
+        decide=lambda _context: {"action": "accept_contract",
+                                 "payload": {"condition_id": "new"}},
         state_root=tmp_path,
     )
     assert result["effect"] == 1
-    state = json.loads(path.read_text())
-    assert state["occurrence_id"] == "fixture-reply:run-b"
+    assert json.loads(path.read_text())["occurrence_id"] == "fixture-reply:run-b"
+
+def test_contract_acceptance_uses_same_fence_readback_and_replay_zero(tmp_path):
+    adapter = Adapter()
+    decide = lambda _context: {
+        "action": "accept_contract",
+        "payload": {"condition_id": "condition-1", "amount": "12円"},
+    }
+
+    first = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
+    replay = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
+
+    assert first["effect"] == 1
+    assert first["readback"] == 1
+    assert adapter.effects[0]["action"] == "accept_contract"
+    assert replay["effect"] == 0
+    assert replay["items"][0]["reason"] == "replay_zero"
+    assert len(adapter.effects) == 1
 
 
-def test_partial_external_action_resumes_only_after_authoritative_readback(tmp_path):
+def test_partial_external_action_resumes_only_after_authoritative_readback(tmp_path, monkeypatch):
+    hint = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
+
     class Partial(Adapter):
         def __init__(self):
             super().__init__()
             self.stage = "absent"
 
         def mutate(self, intent):
+            assert not hint.exists()
             self.effects.append(intent)
             self.stage = "partial" if self.stage == "absent" else "complete"
 
@@ -165,9 +189,12 @@ def test_partial_external_action_resumes_only_after_authoritative_readback(tmp_p
         "action": "external_action",
         "payload": {"kind": "schedule_meeting", "url": "https://example.com"},
     }
-    first = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
-    replay = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
-    final = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
+    first = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path,
+                                  max_workers=1)
+    replay = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path,
+                                   max_workers=1)
+    final = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path,
+                                  max_workers=1)
 
     assert first["pending"] == 1
     assert first["effect"] == 1
@@ -468,8 +495,11 @@ def test_human_gate_is_durable_pending_and_does_not_block_another_thread(tmp_pat
     assert [effect["thread_id"] for effect in adapter.effects] == ["ready"]
 
 
-def test_human_gate_notification_is_durable_deduplicated_and_keeps_scanning(tmp_path):
+def test_human_gate_notification_is_durable_deduplicated_and_keeps_scanning(tmp_path,
+                                                                            monkeypatch):
     adapter = Adapter([event("human", "buyer-1"), event("ready", "buyer-2")])
+    hint = tmp_path / "entrypoint-result.json"
+    monkeypatch.setenv("LIFE_MANAGER_RESULT_HINT_PATH", str(hint))
     notices = []
 
     def decide(context):
@@ -487,6 +517,7 @@ def test_human_gate_notification_is_durable_deduplicated_and_keeps_scanning(tmp_
         return {"action": "reply", "payload": {"body": "Ready"}}
 
     def human_notify(row, decision):
+        assert not hint.exists()
         notices.append((row["thread_id"], decision["handoff"]["url"]))
         return {"delivery": "delivered", "provider_message_id": "tg-1"}
 
@@ -495,6 +526,7 @@ def test_human_gate_notification_is_durable_deduplicated_and_keeps_scanning(tmp_
         "decide": decide,
         "state_root": tmp_path,
         "human_notify": human_notify,
+        "max_workers": 1,
     }
     first = reply_kernel.run_wake(**arguments)
     replay = reply_kernel.run_wake(**arguments)

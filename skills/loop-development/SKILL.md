@@ -216,6 +216,16 @@ Long waits belong in persisted `next_eligible_at` state and launchd cadence.
   one attempted effect, not an owner or a live port. Example: a capacity-busy
   occurrence with no later claim has no provider child, while a storefront
   entrypoint failure may have changed its listing and remains fenced.
+- Symptom: an effectful owner is fenced after an observation failure that
+  happened before any provider dispatch. Wrong instinct: clear all unknown
+  claims or repeatedly restart its browser. Correct action: for an exact
+  allowlisted single-worker entrypoint, write the host's owned 0600
+  `pre_effect_failure` hint before observation and remove it before every
+  provider mutation or notification callback; leave the hint absent whenever
+  any effect might have started. General law: exit status alone cannot prove
+  pre-effect failure, and notifications are external effects too. Example: a
+  reply observer timed out before opening its inbox, while a later message POST
+  must remain fenced if its readback fails.
 - Symptom: a loop recreates an already published item after a successful wake.
   Wrong instinct: patch the provider form selector or retry creation. Correct
   action: compare the provider's exact published IDs with every writer of the

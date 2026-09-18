@@ -84,8 +84,7 @@ def _write_run_marker(root: Path, occurrence_id: str | None,
         for item in marker_items
     )
     _write(_run_marker_path(root, occurrence_id.strip()), {
-        "version": 1,
-        "occurrence_id": occurrence_id.strip(),
+        "version": 1, "occurrence_id": occurrence_id.strip(),
         "status": "effect_unknown" if uncertain else "completed",
         "items": marker_items,
     })
@@ -93,13 +92,11 @@ def _write_run_marker(root: Path, occurrence_id: str | None,
 
 def run_marker_accounted(root: Path, occurrence_id: str,
                          target_thread_id: str) -> bool:
-    """Require every item in one wake to be terminal before clearing its fence."""
     try:
         marker = json.loads(_run_marker_path(root, occurrence_id).read_text(encoding="utf-8"))
     except (OSError, ValueError, json.JSONDecodeError):
         return False
-    if (not isinstance(marker, Mapping)
-            or marker.get("version") != 1
+    if (not isinstance(marker, Mapping) or marker.get("version") != 1
             or marker.get("occurrence_id") != occurrence_id
             or not isinstance(marker.get("items"), list)
             or not marker["items"]):
@@ -108,13 +105,12 @@ def run_marker_accounted(root: Path, occurrence_id: str,
     for item in marker["items"]:
         if not isinstance(item, Mapping):
             return False
-        thread_id = item.get("thread_id")
-        if thread_id == target_thread_id:
+        if item.get("thread_id") == target_thread_id:
             target_seen = True
             continue
         if (item.get("failed") == 1 or item.get("status") == "pending"
-                or item.get("effect") == 1 and item.get("readback") != 1
-                or item.get("effect") == 0 and item.get("readback") != 1):
+                or (item.get("effect") == 1 and item.get("readback") != 1)
+                or (item.get("effect") == 0 and item.get("readback") != 1)):
             return False
     return target_seen
 
@@ -160,6 +156,29 @@ def _write(path: Path, value: Mapping[str, Any]) -> None:
                 os.unlink(temporary)
             except FileNotFoundError:
                 pass
+
+
+def _prepare_pre_effect_hint(max_workers: int) -> Path | None:
+    hint = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
+    if max_workers != 1 or not hint:
+        return None
+    path = Path(hint).expanduser().resolve()
+    _write(path, {"status": "pre_effect_failure", "effect": 0})
+    return path
+
+
+def _clear_pre_effect_hint(path: Path | None) -> None:
+    if path is not None:
+        path.unlink(missing_ok=True)
+
+
+def _guard_effect_callback(callback, hint: Path | None):
+    if callback is None:
+        return None
+    def guarded(*args, **kwargs):
+        _clear_pre_effect_hint(hint)
+        return callback(*args, **kwargs)
+    return guarded
 
 
 def _intent(row: Mapping[str, Any], decision: Mapping[str, Any]) -> dict[str, Any]:
@@ -277,6 +296,7 @@ def _run_locked(
     source: Mapping[str, Any],
     notify=None,
     human_notify=None,
+    pre_effect_hint: Path | None = None,
     occurrence_id: str | None = None,
 ) -> dict[str, Any]:
     row = _observation(source)
@@ -285,9 +305,6 @@ def _run_locked(
     inventory_event_id = row["latest_event_id"]
     path = _state_path(state_root, row)
     state = _load(path)
-    # A later wake may reconcile an intent created by an earlier wake.  Keep
-    # that original binding; only a newly created intent may take this wake's
-    # occurrence ID.
     persisted_occurrence = state.get("occurrence_id")
     if not isinstance(state.get("intent"), Mapping):
         persisted_occurrence = occurrence_id
@@ -347,6 +364,7 @@ def _run_locked(
             return result
         if (prior_intent.get("action") == "external_action"
                 and official.get("resume_required") is True):
+            _clear_pre_effect_hint(pre_effect_hint)
             adapter.mutate(dict(prior_intent))
             resumed = adapter.readback(dict(prior_intent))
             if resumed.get("verified") is not True:
@@ -427,9 +445,6 @@ def _run_locked(
 
     _assert_private_identity_safe(decision, private_identity_values)
     intent = _intent(row, decision)
-    # Reaching this branch means a new intent is being created (for example,
-    # after an authoritatively absent legacy intent). Bind it to this wake,
-    # even when the prior state carried an older occurrence.
     if occurrence_id:
         persisted_occurrence = occurrence_id
     _save({"version": 1, "inventory_event_id": inventory_event_id,
@@ -459,6 +474,7 @@ def _run_locked(
                       "status": "intent_persisted"})
         return _pending(row, "pre_effect_reconcile_unknown")
     try:
+        _clear_pre_effect_hint(pre_effect_hint)
         adapter.mutate(intent)
     except Exception as error:
         classify = getattr(adapter, "classify_mutation_error", None)
@@ -496,13 +512,13 @@ def _run_locked(
 
 
 def _run_one(adapter, decide, state_root, source, notify=None, human_notify=None,
-             occurrence_id: str | None = None):
+             pre_effect_hint=None, occurrence_id: str | None = None):
     row = _observation(source)
     path = _state_path(state_root, row)
     with _lock(path):
         try:
             return _run_locked(adapter, decide, state_root, row, notify, human_notify,
-                               occurrence_id)
+                               pre_effect_hint, occurrence_id)
         except Exception as error:
             state = _load(path)
             error_detail = str(error).strip()[:500] or type(error).__name__
@@ -546,8 +562,11 @@ def _run_one(adapter, decide, state_root, source, notify=None, human_notify=None
 def run_wake(*, adapter: ReplyAdapter,
              decide: Callable[[dict[str, Any]], Mapping[str, Any]],
              state_root: Path, max_workers: int = 4, notify=None,
-             human_notify=None, occurrence_id: str | None = None) -> dict[str, Any]:
-    occurrence_id = occurrence_id or os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip() or None
+             human_notify=None) -> dict[str, Any]:
+    occurrence_id = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip() or None
+    pre_effect_hint = _prepare_pre_effect_hint(max_workers)
+    notify = _guard_effect_callback(notify, pre_effect_hint)
+    human_notify = _guard_effect_callback(human_notify, pre_effect_hint)
     try:
         rows = adapter.observe_threads()
         if not isinstance(rows, list):
@@ -562,12 +581,12 @@ def run_wake(*, adapter: ReplyAdapter,
             # Sync browser adapters are thread-affine: even a one-worker pool moves
             # their Playwright page to another thread and invalidates every call.
             items = [_run_one(adapter, decide, Path(state_root), row, notify, human_notify,
-                              occurrence_id)
+                              pre_effect_hint, occurrence_id)
                      for row in normalized]
         else:
             with ThreadPoolExecutor(max_workers=workers) as pool:
                 futures = [pool.submit(_run_one, adapter, decide, Path(state_root), row,
-                                       notify, human_notify, occurrence_id)
+                                       notify, human_notify, pre_effect_hint, occurrence_id)
                            for row in normalized]
                 items = []
                 for row, future in zip(normalized, futures):
