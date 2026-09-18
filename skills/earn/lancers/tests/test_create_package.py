@@ -2239,6 +2239,79 @@ def test_real_catalog_mvp_web_app_build_passes_require_create_fields_with_descri
 
 
 # --- Catalogue-driven creation: select_catalog_family_to_create / run_catalog_create ----------
+
+
+def test_canonical_receipt_refresh_preserves_catalog_creation_cursor(tmp_path):
+    module = _module()
+    state_path = tmp_path / "application.json"
+    module._write_catalog_listing(state_path, "mvp_web_app_build", {
+        "listing_external_id": "1342394",
+        "public_url": "https://www.lancers.jp/menu/detail/1342394",
+    })
+
+    module._write_receipt(state_path, {
+        "product_id": "sns_monthly",
+        "product_version": 5,
+        "listing_external_id": "1338228",
+    }, {"search_impressions": 12})
+
+    assert module._read_catalog_listings(state_path)["mvp_web_app_build"]["listing_external_id"] == "1342394"
+
+
+def test_catalog_selection_and_receipt_share_account_lock(tmp_path, monkeypatch):
+    import contextlib
+
+    module = _module()
+    catalog_path = _write_fixture_catalog(tmp_path, [_fixture_family("alpha")])
+    state_path = tmp_path / "application.json"
+    tick, _calls = _patch_browser_layer(module, monkeypatch, create_results={
+        "ok": True, "listing_external_id": "100001",
+        "canonical_url": "https://www.lancers.jp/menu/detail/100001",
+    })
+    held = False
+
+    @contextlib.contextmanager
+    def lock(_path):
+        nonlocal held
+        held = True
+        try:
+            yield
+        finally:
+            held = False
+
+    tick.account_lock = lock
+    select = module.select_catalog_family_to_create
+    write = module._write_catalog_listing
+
+    def select_locked(*args):
+        assert held, "catalog selection must be locked"
+        return select(*args)
+
+    def write_locked(*args):
+        assert held, "catalog receipt must be locked"
+        return write(*args)
+
+    monkeypatch.setattr(module, "select_catalog_family_to_create", select_locked)
+    monkeypatch.setattr(module, "_write_catalog_listing", write_locked)
+
+    assert module.run_catalog_create(state_path, catalog_path)["ok"] is True
+
+
+def test_invalid_catalog_receipt_refuses_creation(tmp_path, monkeypatch):
+    module = _module()
+    catalog_path = _write_fixture_catalog(tmp_path, [_fixture_family("alpha")])
+    state_path = tmp_path / "application.json"
+    (tmp_path / "listing.json").write_text("{broken", encoding="utf-8")
+    tick, calls = _patch_browser_layer(module, monkeypatch, create_results={
+        "ok": True, "listing_external_id": "100001",
+    })
+
+    result = module.run_catalog_create(state_path, catalog_path)
+
+    assert result["ok"] is False
+    assert result["error"] == "catalog_receipt_invalid"
+    assert calls == []
+    assert tick.opened_pages == 0
 #
 # The wake now has a decision, not just a capability: after the existing align/inspect chain in
 # run() leaves nothing to do, pick one catalogue family with no live Lancers listing and create
@@ -2473,11 +2546,13 @@ def test_run_catalog_create_reports_all_pending_incomplete_and_creates_nothing(t
         [_fixture_family("broken_a", drop_override_fields=("notice",)), _fixture_family("broken_b", drop_override_fields=("tags",))],
     )
     state_path = tmp_path / "application.json"
-    monkeypatch.setattr(module, "_load", lambda *a, **k: (_ for _ in ()).throw(AssertionError("browser layer must not be reached")))
+    tick = _FakeTick()
+    monkeypatch.setattr(module, "_load", lambda *a, **k: tick)
 
     result = module.run_catalog_create(state_path, catalog_path)
 
     assert result["action"] == "all_pending_incomplete"
+    assert tick.opened_pages == 0
     assert {item["family"] for item in result["skipped"]} == {"broken_a", "broken_b"}
     assert module._read_catalog_listings(state_path) == {}
 
@@ -2517,11 +2592,13 @@ def test_run_catalog_create_never_touches_the_browser_layer_when_all_published(t
     catalog_path = _write_fixture_catalog(tmp_path, [_fixture_family("alpha")])
     state_path = tmp_path / "application.json"
     module._write_catalog_listing(state_path, "alpha", {"listing_external_id": "111111"})
-    monkeypatch.setattr(module, "_load", lambda *a, **k: (_ for _ in ()).throw(AssertionError("browser layer must not be reached")))
+    tick = _FakeTick()
+    monkeypatch.setattr(module, "_load", lambda *a, **k: tick)
 
     result = module.run_catalog_create(state_path, catalog_path)
 
     assert result == {"action": "all_published", "skipped": []}
+    assert tick.opened_pages == 0
 
 
 # 10. --apply's behaviour on the existing listing is unchanged; catalogue creation is additive --
