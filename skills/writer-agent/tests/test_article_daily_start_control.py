@@ -49,6 +49,17 @@ QUARANTINE = load(
 
 
 class ArticleStartPolicyTest(unittest.TestCase):
+    def test_body_diagram_prompt_shape_is_shell_literal(self):
+        source = (ROOT / "skills/writer-agent/article-daily.sh").read_text(
+            encoding="utf-8"
+        )
+        line = next(
+            line for line in source.splitlines() if line.startswith("BODY DIAGRAM HARD SHAPE:")
+        )
+        self.assertIn("flowchart TD", line)
+        self.assertIn("flowchart LR", line)
+        self.assertNotIn("`", line)
+
     def test_empty_successful_provider_return_is_resumable(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
