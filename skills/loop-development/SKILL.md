@@ -52,6 +52,29 @@ locked worktree -> focused test -> merged main -> immutable release -> lm-loop a
 3. Name the exact loop IDs and files owned by one registry TODO. Do not modify a
    sibling loop unless the root cause is its shared runtime boundary.
 
+## Development plane versus promotion plane
+
+The worktree is a source/test environment. It owns the task branch, focused
+tests and private fixtures; it does not own production launchd, admission,
+browser profiles, credentials or provider effects. Do not point unfinished
+worktree code at a production profile and do not merge unfinished provider code
+just to remove a production observation blocker.
+
+Promotion is a separate contract:
+
+```text
+focused test -> push branch -> PR/checks -> merge main
+  -> complete immutable release -> targeted owner apply
+  -> loaded argv/SHA -> natural terminal -> official readback -> replay-zero
+```
+
+If source is wrong, fix it in the worktree. If release/load/admission/browser
+state is wrong, record the exact owner, file/function, command, SHA and
+occurrence and hand it to that boundary's owner; do not edit a sibling path.
+`no-work`, `capacity_busy` and `effect_unknown` are typed diagnostics, not
+permission to guess, resubmit, or stop source work. The full contract and
+references are in `docs/agent-engineering/WORKTREE-PROMOTION-CONTRACT.md`.
+
 ## Mandatory Loop Contract gate
 
 Every new or changed Product Loop must pass the repository-owned contract gate
