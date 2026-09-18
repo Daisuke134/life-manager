@@ -603,6 +603,10 @@ def test_mercor_application_and_reply_pre_effect_hints_are_allowlisted():
     assert "skills/earn/mercor/scripts/reply-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
 
 
+def test_lancers_application_pre_effect_hint_is_allowlisted():
+    assert "skills/earn/lancers/scripts/application-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
+
+
 def test_generic_child_hint_cannot_clear_unknown_effect(tmp_path):
     claim = tmp_path / "claim"
     claim.write_text("owned")
