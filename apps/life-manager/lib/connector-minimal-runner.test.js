@@ -778,7 +778,9 @@ test("an unavailable Connpass registration page does not invoke browser fallback
 
 test("a Connpass confirm-unavailable tier does not invoke browser fallback", async () => {
   let state = fixture({
-    async discoverCandidates() { return [candidate("connpass", "paid-only")]; },
+    async discoverCandidates() {
+      return [candidate("connpass", "paid-only-1"), candidate("connpass", "paid-only-2"), candidate("connpass", "paid-only-3")];
+    },
     async runDirectAction() {
       const error = new Error("private paid-only detail");
       error.code = "CONNPASS_CONFIRM_UNAVAILABLE";
@@ -789,7 +791,8 @@ test("a Connpass confirm-unavailable tier does not invoke browser fallback", asy
       throw new Error("browser fallback must not run for a paid-only tier");
     },
   });
-  await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-confirm-unavailable", providers: ["connpass"] }, state.dependencies);
+  const result = await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-confirm-unavailable", providers: ["connpass"] }, state.dependencies);
+  assert.deepEqual(result, { status: "completed_no_effect", safe_reason: "providers_exhausted", telegram_provider_id: "9001" });
   assert.equal(state.calls.some(([name]) => name === "agent"), false);
   const directFailure = state.calls
     .filter(([name]) => name === "history")
