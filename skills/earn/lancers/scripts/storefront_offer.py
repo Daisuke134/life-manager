@@ -422,6 +422,13 @@ def _write_receipt(state_path: Path, product: Mapping[str, Any], demand: Mapping
     path = state_path.with_name("listing.json"); path.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
     digest = hashlib.sha256(json.dumps(product, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     value = {"record_type": "listing_receipt", "schema_version": 1, "platform": "lancers", "product_id": product["product_id"], "product_version": product["product_version"], "listing_external_id": product["listing_external_id"], "public_url": f"{ORIGIN}/menu/detail/{product['listing_external_id']}", "status": "published", "content_sha256": digest, "idempotency_key": f"lancers:listing:{product['product_id']}:v{product['product_version']}", "demand": dict(demand), "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")}
+    try:
+        existing = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        existing = {}
+    if not isinstance(existing, dict): raise OfferError("listing_receipt_invalid")
+    if "catalog_listings" in existing:
+        value["catalog_listings"] = existing["catalog_listings"]
     fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     try:
         os.fchmod(fd, 0o600)
@@ -1481,16 +1488,20 @@ def _read_catalog_listings(state_path: Path) -> dict[str, Any]:
 
     Reads the same listing.json _write_receipt already owns, under one additional top-level
     key (_CATALOG_LISTINGS_KEY) -- extending the one file the lane already trusts rather than
-    adding a second, parallel store. A missing/unreadable/malformed file reads as "nothing
-    published yet", never as an error that blocks selection.
+    adding a second, parallel store. A missing file is a fresh state; malformed
+    existing state blocks creation instead of guessing that nothing was published.
     """
     path = Path(state_path).with_name("listing.json")
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except FileNotFoundError:
         return {}
-    listings = value.get(_CATALOG_LISTINGS_KEY) if isinstance(value, Mapping) else None
-    return dict(listings) if isinstance(listings, Mapping) else {}
+    except (OSError, ValueError) as error:
+        raise OfferError("catalog_receipt_invalid") from error
+    if not isinstance(value, Mapping): raise OfferError("catalog_receipt_invalid")
+    listings = value.get(_CATALOG_LISTINGS_KEY, {})
+    if not isinstance(listings, Mapping): raise OfferError("catalog_receipt_invalid")
+    return dict(listings)
 
 
 def _write_catalog_listing(state_path: Path, family: str, record: Mapping[str, Any]) -> None:
@@ -1505,10 +1516,14 @@ def _write_catalog_listing(state_path: Path, family: str, record: Mapping[str, A
     path.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
     try:
         existing = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(existing, dict): existing = {}
-    except (OSError, ValueError):
+    except FileNotFoundError:
         existing = {}
-    catalog_listings = dict(existing.get(_CATALOG_LISTINGS_KEY) or {})
+    except (OSError, ValueError) as error:
+        raise OfferError("catalog_receipt_invalid") from error
+    if not isinstance(existing, dict): raise OfferError("catalog_receipt_invalid")
+    catalog_listings = existing.get(_CATALOG_LISTINGS_KEY, {})
+    if not isinstance(catalog_listings, dict): raise OfferError("catalog_receipt_invalid")
+    catalog_listings = dict(catalog_listings)
     catalog_listings[family] = dict(record)
     existing[_CATALOG_LISTINGS_KEY] = catalog_listings
     fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -1597,17 +1612,28 @@ def run_catalog_create(state_path: Path, catalog_path: Path = DEFAULT_CATALOG) -
     discipline; a selection outcome other than "candidate_selected" is returned unchanged --
     there is nothing to create and nothing to persist.
     """
-    selection = select_catalog_family_to_create(catalog_path, Path(state_path))
-    if selection["action"] != "candidate_selected":
-        return selection
-    family, product = selection["family"], selection["product"]
+    selection: dict[str, Any] = {"skipped": []}
+    family: str | None = None
     tick = browser = page = None; logged_in = False; result: dict[str, Any] = {"ok": False, "error": "offer_unavailable"}
     try:
         tick = _load("lancers_storefront_create_from_catalog_tick", HERE / "application_tick.py")
         with tick.account_lock(Path(state_path).with_name("work-sync.json")):
+            selection = select_catalog_family_to_create(catalog_path, Path(state_path))
+            if selection["action"] != "candidate_selected":
+                return selection
+            family, product = selection["family"], selection["product"]
             browser = tick._default_browser_factory(tick.CDP_URL); page = tick._new_owned_page(browser)
             if not tick._production_account_ready(page): raise OfferError("account_unavailable")
             logged_in = True; result = create_package(page, product, DEFAULT_AVATAR)
+            listing_external_id = result.get("listing_external_id")
+            if result.get("ok") is True and isinstance(listing_external_id, str) and listing_external_id:
+                _write_catalog_listing(Path(state_path), family, {
+                    "listing_external_id": listing_external_id,
+                    "public_url": result.get("canonical_url"),
+                    "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                })
+            elif result.get("ok") is True:
+                result["ok"] = False; result.setdefault("error", "listing_id_missing")
     except OfferError as error: result = {"ok": False, "logged_in": logged_in, "error": str(error)}
     except Exception as error:
         print(f"storefront_offer_catalog_create:{type(error).__name__}: {str(error)[:400]}", file=sys.stderr)
@@ -1621,15 +1647,6 @@ def run_catalog_create(state_path: Path, catalog_path: Path = DEFAULT_CATALOG) -
         except Exception: closed = False
         if not closed: result = {"ok": False, "logged_in": logged_in, "error": "cleanup_failed"}
     result = dict(result); result["family"] = family; result["skipped"] = selection["skipped"]
-    listing_external_id = result.get("listing_external_id")
-    if result.get("ok") is True and isinstance(listing_external_id, str) and listing_external_id:
-        _write_catalog_listing(Path(state_path), family, {
-            "listing_external_id": listing_external_id,
-            "public_url": result.get("canonical_url"),
-            "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        })
-    elif result.get("ok") is True:
-        result["ok"] = False; result.setdefault("error", "listing_id_missing")
     return result
 
 
