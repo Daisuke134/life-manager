@@ -422,6 +422,8 @@ def _stale_auth_target(value: str) -> bool:
 
 def _cleanup_stale_targets(cdp_url: str) -> bool:
     targets = _cdp_inventory(cdp_url)
+    if targets is None:
+        return False
     stale = [target_id for target_id, url in targets if _stale_auth_target(url)]
     return bool(stale) and all(_cdp_request(f"{cdp_url}/json/close/{quote(target_id, safe='')}") for target_id in stale)
 
@@ -465,8 +467,9 @@ def _default_browser_factory(cdp_url: str = CDP_URL) -> Any:
         try: from playwright.sync_api import TimeoutError as PlaywrightTimeoutError; is_timeout = isinstance(exc, PlaywrightTimeoutError)
         except Exception: is_timeout = False
         if runtime is None or not is_timeout: raise RuntimeError("browser_connect_failed") from None
-    if runtime is None or not _cleanup_stale_targets(cdp_url):
+    if runtime is None:
         raise RuntimeError("browser_connect_failed") from None
+    _cleanup_stale_targets(cdp_url)
     retry_runtime = None
     try:
         retry_runtime = sync_playwright().start(); browser = retry_runtime.chromium.connect_over_cdp(cdp_url, timeout=BROWSER_ATTACH_TIMEOUT_MS)

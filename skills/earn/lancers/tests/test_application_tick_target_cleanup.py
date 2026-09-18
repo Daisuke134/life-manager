@@ -40,6 +40,12 @@ def test_cleanup_closes_only_stale_auth_targets(monkeypatch):
     ]
 
 
+def test_cleanup_skips_unavailable_cdp_inventory(monkeypatch):
+    module = _module()
+    monkeypatch.setattr(module, "_cdp_inventory", lambda _url: None)
+    assert module._cleanup_stale_targets(module.CDP_URL) is False
+
+
 def test_browser_attach_diagnostic_redacts_endpoint():
     module = _module()
     detail = module._safe_browser_failure(RuntimeError(
@@ -61,6 +67,46 @@ def test_browser_attach_diagnostic_cannot_block_cleanup(monkeypatch):
 
     monkeypatch.setattr(module.sys, "stderr", BrokenStderr())
     module._log_browser_failure("attempt1", RuntimeError("secret"))
+
+
+def test_cdp_timeout_retries_once_without_stale_auth_tabs(monkeypatch):
+    from playwright import sync_api
+
+    module = _module()
+    attempts = []
+    stopped = []
+
+    class Browser:
+        pass
+
+    class Runtime:
+        chromium = None
+
+        def __init__(self):
+            self.chromium = self
+
+        def connect_over_cdp(self, url, timeout):
+            attempts.append((url, timeout))
+            if len(attempts) == 1:
+                raise sync_api.TimeoutError("transient timeout")
+            return Browser()
+
+        def stop(self):
+            stopped.append(True)
+
+    class Manager:
+        def start(self):
+            return Runtime()
+
+    monkeypatch.setattr(sync_api, "sync_playwright", lambda: Manager())
+    monkeypatch.setattr(module, "_cdp_inventory", lambda _url: None)
+
+    browser = module._default_browser_factory()
+
+    assert len(attempts) == 2
+    assert attempts[0] == attempts[1] == (module.CDP_URL, module.BROWSER_ATTACH_TIMEOUT_MS)
+    assert stopped == [True]
+    assert browser._anicca_playwright_runtime is not None
 
 
 def test_open_owned_page_closes_failed_browser_before_retry(monkeypatch):
