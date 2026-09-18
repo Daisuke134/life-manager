@@ -3122,6 +3122,13 @@ projects 0, contract candidates 0, received gross 0 JPY, and proposal pipeline c
 318 / receipt 208 / unknown 0. A final Admission query after the Work Sync, Negotiate
 and Paid recovery pass reports zero Lancers `effect_unknown` rows.
 
+**Negotiate booking retry (2026-09-18 14:23 UTC).** PR #5616 adds one bounded retry
+for transient external-booking CDP attach failures on shared port `9222`; it does not
+change Lancers message posting or readback rules. The first post-release Negotiate wake
+completed with `effect=0`, and thread `9064025` remains `pending` with `readback=0`
+because the external booking is not yet confirmed. Existing seller message `59170392`
+remains the only confirmed reply; no duplicate message or booking was sent.
+
 **Remaining execution order.** The numbered L-08→L-16 and M-01→M-04 atoms below remain
 the canonical order; the following are the concrete gates to work through, not a reorder:
 
