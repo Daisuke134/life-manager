@@ -138,7 +138,7 @@ def test_false_provider_return_code_does_not_skip_card_recovery(tmp_path):
 def test_adopted_prepublication_does_not_rewrite_topic_card_receipt(tmp_path):
     result, receipt = run_resume(
         tmp_path,
-        route=None,
+        route={"topic_id": "paid-demand:unused"},
         card_topic="paid-demand:unused",
         generation_status="quality-repair-ready",
         adoption_receipt=True,

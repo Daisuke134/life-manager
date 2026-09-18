@@ -623,6 +623,40 @@ def path_status(path: Path) -> str:
 
 if publication_state.exists() or publication_state.is_symlink():
     fail("publication-state-exists")
+adoption_path = gates / "prepublication-adoption.json"
+if path_status(adoption_path) == "regular":
+    generation_path = gates / "generation-state.json"
+    if path_status(generation_path) == "regular" and path_status(ledger) == "regular":
+        try:
+            adoption = json.loads(adoption_path.read_text(encoding="utf-8"))
+            generation = json.loads(generation_path.read_text(encoding="utf-8"))
+            public_row = any(
+                isinstance(row, dict)
+                and row.get("run_id") == run_id
+                and (
+                    row.get("published") is True
+                    or bool(row.get("live_url"))
+                    or row.get("state") == "live"
+                    or row.get("reality_gate") == "PASS"
+                )
+                for line in ledger.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+                for row in [json.loads(line)]
+            )
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            public_row = True
+            adoption = {}
+            generation = {}
+        if (
+            isinstance(adoption, dict)
+            and adoption.get("run_id") == run_id
+            and adoption.get("to_status") == "quality-repair-ready"
+            and isinstance(generation, dict)
+            and generation.get("status") == "quality-repair-ready"
+            and not public_row
+        ):
+            print("topic-card resume: skipped adopted prepublication")
+            raise SystemExit(0)
 route_status = path_status(route_path)
 if route_status == "symlink":
     fail("topic-route-input-symlink")
