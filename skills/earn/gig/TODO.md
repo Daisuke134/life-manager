@@ -1073,9 +1073,12 @@ work item and leave a sibling trace unchanged.
 - [ ] **CW-F1b — all-lane admission reconcile:** Reconcile Application `18d5fce56607e540-6666`, Reply
   `18d5fa8f9d73cad8-49973`, and Paid `18d62cf32eb0c678-48194` only with exact run-wide pre-effect evidence
   or an official provider receipt. Do not clear any row by guess.
-- [ ] **CW-F2 — installed-owner wakes:** After exact reconciliation, kickstart Application, Reply and Paid
-  one at a time without waiting for a global slot. Read proposal/message/contract receipts and official
-  provider state for each; Reply must not perform post-contract effects.
+- [ ] **CW-F2 — release parity and installed-owner wakes:** After exact reconciliation, read loaded immutable
+  argv for all three owners. Application/Reply currently load `37384185` and Paid loads `8be258fc`; apply a
+  compatible main-derived release to any stale owner through the target-only path, verify the loaded SHA, then
+  kickstart Application, Reply and Paid one at a time without waiting for a global slot. Read
+  proposal/message/contract receipts and official provider state for each; Reply must not perform
+  post-contract effects.
 - [ ] **CW-F3 — `63657015`:** Reconcile the timed-out intent from official provider state before retry;
   then read the full hearing/common-test scope, do the requested work, verify it and avoid fabricating an
   AI share link.
