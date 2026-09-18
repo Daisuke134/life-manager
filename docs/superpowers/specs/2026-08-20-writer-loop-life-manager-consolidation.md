@@ -1605,3 +1605,56 @@ PII失敗runの安全な再開、日次連続公開、公式readbackの連続証
 - disk floor（1,155,780,608 bytes）とshared revenue FIFOは引き続き自然wakeの運用制約。現在の空きは約2.1GiBだが、生成・browser使用で変動するためbypassしない。
 
 **Current cursor:** `article-daily`のrun `20260918-221622`を自然終端まで観測し、4面公式readback→completion→replay-zeroを取得する。その後、最低7日/21 scheduled source runsとpayment receipt joinを続ける。現時点のボトルネックはprovider認証ではなく、自然runの連続証拠と実収益receiptである。
+
+## 2026-09-19 post-fix measured cursor (latest)
+
+この節が現在の運用cursorである。対象はLife Manager Main内の唯一のWriter loop
+（`article-daily`生成laneと`article-resume`再開lane）だけであり、失敗runを成功数へ加算しない。
+
+### Done (evidence-backed)
+
+- PR #5661（品質editorial recheckのhashless receiptを、同一draft SHAへ再結合してから評価する修正）はCI 10件PASS後にmainへmerge済み。merge SHAは
+  `5d732a30dfcc55a5a8009c03b4fbfc062e379507`。回帰テスト、`py_compile`、shell syntax、diff checkはPASSした。
+- main由来immutable release `/Users/anicca/loops/releases/20260919T082221-5d732a30` を作成した。`RELEASE.json` は
+  `provenance=ancestor-of-origin-main`、`release_paths=ALL`。`article-daily`はloaded `ProgramArguments`とinstalled/event SHAが
+  `5d732a30...`へ揃っている。`article-daily`のWriter専用 `effect_unknown` occurrenceは0件である。
+- run `20260918-221622` は、前節のrun `20260918-210852`に続く2回目の自然4面公開として、Note JA、Substack JA、Substack EN、X Article JAの
+  publisher-native URL、本文、identity、media、completion Telegram（message ID `88838`）、`article-run-complete rc=0`、
+  `publication_resume/publication-guard plan=all-complete`、state/ledger SHA不変のreplay-zeroを確認済み。よって「一度も公開できない」状態ではない。
+- 直近のsafe idle apply後、`article-daily`は同日重複防止で `20260918-225940` を再生成せず自然terminal PASSした。これは外部公開成功ではなく、
+  duplicate防止の観測証拠である。
+
+### Not done (must not be reported as success)
+
+- run `20260918-225940` は本文・画像・reader gateまで作成したが、両言語のeditorial recheck receiptに `article_sha256` がなく、quality self-healが
+  fail-closedした。`publication-init.out` は `REFUSED`、`report-evidence.json` は4宛先すべて `url=null / verified=false / Not staged`。
+  Note/Substack JA/EN/X Articleのdraft・live URL、publication ledger、provider receiptはこのrunにはない。hash再結合修正はmainへ入ったが、このrunを再実行していない。
+- `article-resume`は旧release `69c6ece1b6cd46e822cddac5d33c4baf3820199e`のloaded stateのままで、
+  occurrence `article-resume:18d68cb03ce73160-50940` が `claimed/effect_unknown=1`（report `entrypoint_exit_75`）。同じoccurrenceの外部作用を公式readbackまたは
+  exact pre-effect receiptで解消できていないため、release applyを安全に完了できない。
+- 日次SLOは未達。4面liveの成功は2回で、7日（最低）または21 scheduled source runsの自然terminal、各runの4面native live、連続replay-zero、
+  Telegram receiptはまだ揃っていない。
+- `money_events=0`、subscription contract=0、payment/payout receipt=0。Noteの¥500とSubstack paid-onlyは価格・アクセス設定のreadbackであって、
+  販売・入金・active MRRではない。確定売上¥0、`$10K MRR`未達。
+
+### Current blockers
+
+1. **article-resumeのeffect fence:** `18d68cb03ce73160-50940`はexit 75後にeffect unknownとして保持中。推測clear、DB手編集、同一targetのblind retryは禁止。
+2. **resumeのproduction反映:** 上記fence解消後にのみmain由来releaseを`article-resume`へtarget-only applyし、loaded argv／release SHA／event SHAを再読する。
+3. **次の自然runの4面readback:** quality receipt修正込みのreleaseで新しいsource runを作り、Note JA、Substack JA/EN、X Article JAを同一runで公開・公式readbackする。
+4. **連続運用と収益:** 7日/21runを自然観測し、provider/payment receiptをmoney ledgerへjoinするまで、日次公開・利益・MRRを成功扱いにしない。
+
+### Ordered remaining TODO
+
+| 順序 | 作業 | 完了条件 |
+|---:|---|---|
+| 1 | `article-resume:18d68cb03ce73160-50940`を同一occurrenceの証拠でreconcile | provider mutationなしのexact pre-effect proof、または公式receiptでeffect確定。証明不能ならfence保持 |
+| 2 | main由来release `5d732a30...`を`article-resume`へtarget-only apply | loaded `ProgramArguments`、`LIFE_MANAGER_RELEASE_SHA`、state root、event SHAが同じrelease |
+| 3 | safe idle窓でresumeを1回kickstartし、次のdaily natural wakeを観測 | resource FIFO/disk floorを破らず、自然terminal、run identity、重複外部作用0 |
+| 4 | 同一新runの4面を公式readback | Note/Substack JA/Substack EN/X Articleのnative URL、本文、owner、media、Telegram completionが全件PASS |
+| 5 | completionとreplay-zeroを再実行 | `article-run-complete --armed 1` rc0、両plan `all-complete`、state/ledger SHA不変 |
+| 6 | 7日（最低）または21 scheduled source runsを自然観測 | 各run4面live、自然terminal、effect fence 0、重複0、失敗時自然文receipt |
+| 7 | payment/publisher receiptをmoney ledgerへjoinし収益を算定 | received revenue、payout、cost、profit、active MRRを分離し、未取得はunknownのまま報告 |
+
+**最新結論:** Writerのコード修正と2回の4面公開は実証済み。現在止まっている理由はprovider認証ではなく、`article-resume`に残る1件のeffect fenceと、
+その後に必要な自然run連続証拠・実入金receiptである。`$10K MRR`はまだ未達である。
