@@ -46,11 +46,11 @@
 - Consumes: `Target.getBrowserContexts`, `Target.getTargets`, the lease ledger, and target-owner registry.
 - Produces: a read-only orphan report containing context ID, page URLs, lease/owner evidence, and disposition; cleanup may close only a context proven stale and owned by the caller’s ledger.
 
-- [ ] Write a failing test where `Target.getBrowserContexts` returns one leased context and one unregistered blank context; assert the report marks the latter `unknown_owner` and performs no close.
-- [ ] Write a failing test where a stale ledger row owns a blank context; assert cleanup calls `Target.disposeBrowserContext` only for that context and preserves a live leased context.
-- [ ] Implement bounded inventory and proof-aware disposition in the existing `gc` path; do not infer ownership from `about:blank` alone.
-- [ ] Run `python3 -m pytest -q skills/browser/scripts/test_cdp_context_lease_orphan_census.py skills/browser/scripts/test_cdp_context_lease_gc_lock.py`.
-- [ ] Run one read-only live census on `:9222`; record before/after counts and leave `unknown_owner` contexts untouched.
+- [x] Write a failing test where `Target.getBrowserContexts` returns one leased context and one unregistered blank context; assert the report marks the latter `unknown_owner` and performs no close.
+- [x] Add the read-only `context_inventory()` contract and existing CLI command `python3 skills/browser/scripts/cdp_context_lease.py audit`; do not infer ownership from `about:blank` alone.
+- [x] Run `python3 -m pytest -q skills/browser/scripts/test_cdp_context_lease_orphan_census.py skills/browser/scripts/test_cdp_context_lease_gc_lock.py skills/browser/scripts/test_cdp_context_lease_hangs.py skills/browser/scripts/test_cdp_context_lease_pid_reap.py` (`58 passed`) and `python3 -m py_compile skills/browser/scripts/cdp_context_lease.py`.
+- [x] Run one live read-only census on `:9222`: 36 contexts, one leased Mercor context, 35 unknown-owner contexts; no context closed. Branch `e0610e2f5d`, PR #5608 is pending main integration.
+- [ ] After merge, write the failing proof-gated recovery test for one stale owner-backed row and one unknown context; implement disposal only for the owner-backed row.
 
 ### Task 3: Session keepalive coverage (shared Browser owner)
 
@@ -118,4 +118,3 @@ bin/lm-loop status life-manager-connector-native
 - [ ] Observe replay wake 2 on the same loaded SHA.
 - [ ] Record run IDs, wake IDs, terminal results, provider receipt, Calendar ID, exact-one query, bundle ID, Telegram IDs, and release SHA.
 - [ ] Mark CN-C03–CN-C05 closed only when every receipt is present; otherwise retain truthful no-work or blocker state.
-
