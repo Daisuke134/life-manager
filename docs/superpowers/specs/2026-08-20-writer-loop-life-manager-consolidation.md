@@ -1582,3 +1582,42 @@ PII失敗runの安全な再開、日次連続公開、公式readbackの連続証
 | 5 | received revenue／payout／cost／profit／active MRRを分離集計 | `$10K MRR`の実測可否をunknownを残して報告 |
 
 **最新結論:** Writerは「一度も動かない」状態ではない。今回の run は4平台の公開・公式readback・completion・replay-zero・completion Telegram receiptまで実証済みだが、candidate-onlyの手動resumeであり、日次自然運転、main統合、実入金は未完了である。現在の最大ボトルネックは provider 認証ではなく、main由来releaseへの昇格とshared admission FIFOを含む自然wakeの連続証拠である。
+
+## 2026-09-19 natural canary update (latest measured cursor)
+
+この節が現在の自然launchd実測を示す。対象はLife Manager Main内の唯一のWriter loopであり、draft作成をlive公開や収益と数えない。
+
+### Done (evidence-backed)
+
+- PR #5649（Writer統合修正）とPR #5650（reader gateの空legacy出力修正）はmainへ統合済み。loaded `article-daily` / `article-resume` はmain由来release `a55bebbcb1d2b2bb82963d1517b62ff083182295` をargv・Environment・`LIFE_MANAGER_RELEASE_SHA`でreadbackした。
+- 自然launchd run `20260918-192814` は旧runのno-effect artifactsをhash付きarchiveへ隔離後、同一promptをattempt 3として再開した。attempt 1/2はpublication state前のprovider failureとして`interrupted-safe`、外部作用なしで保存された。
+- attempt 3はJA/ENのreader terminal receipt、identity PASS、conscience ALLOW、quality terminal、CTA/media/PII evidence、active-four publication stateを生成した。以前の`reader-testing-gate-{lang}.json`空ファイル競合は再発せず、修正が自然runで通過した。
+- 4件のdraft stageはforegroundで完了し、stable targetを取得した。Note key `ne4413b71da25`、Substack JA `216362820`、Substack EN `216362826`、X Article edit URL `https://x.com/compose/articles/edit/2101049750795804672`。これはdraft identityでありlive URLではない。
+- Note/Substack/Xの各不成功は、実行ログとguarded preflightにより外部作用なしで記録された。writer ownerのeffect fenceはexact event proofを通じて解消し、推測clearは行っていない。disk拒否時は`publication-state`を改ざんせず、他loopを停止せず、raw SQL更新をしていない。
+
+### Not done (must not be reported as success)
+
+- 現在の自然runでは4件ともlive receiptがない。Noteは`ModuleNotFoundError: cloakbrowser`でeyecatch/managed liveを実行できず`unavailable`。Substack JA/ENはdraft作成後、live wrapperがそれぞれ`disk_headroom_low`（available約652MB、required `1,155,780,608` bytes）で拒否。X Article JAも同じdisk floorで拒否した。
+- `publication-plan-final.json` は`resumable=false, reason=frozen-incomplete-pairs`（note/ja、substack/ja、substack/en、x-article/ja）であり、`article-run-complete --armed 1`、4面live URL、completion Telegram receipt、replay-zeroはこのrunでは未達。draft IDやNote keyを売上・公開成功へ加算しない。
+- 7日（最低）または21 scheduled source runsの自然terminal・各日4面live・連続replay-zeroは未取得。verified money event、payment/payout、subscription contract、active MRRも0件のままで、`$10K MRR`は未達。
+
+### Current blockers
+
+1. **Host disk floor/headroom:** live preflightに必要な`1,155,780,608` bytesを自然run中に下回った。clean worktree/cache cleanupで一時回復しても他loop書込みで再低下するため、live retry前にfloor超過だけでなく余裕を確保する必要がある。
+2. **Note managed browser runtime:** loaded Writer interpreterが`cloakbrowser`をimportできず、Noteのeyecatch/live wrapperがfail-closedした。credentialsやNote targetを推測で変更してはいけない。
+3. **Frozen unavailable targets:** publication guardが4 active pairをfrozen-incompleteへ記録した。容量とruntimeを直した後、既存targetだけをproof-boundに再armし、同じrunの`article-resume`で公式readbackを取る必要がある。新しいNote/Substack/X targetを作らない。
+4. **Shared admission/control contention:** 自然wake中に`resource_control_busy`、`resource_occurrence_inflight`、`resource_fifo_wait`が発生した。Writerのunknownはexact pre-effect evidenceで解消済みだが、他loopのfenceやFIFOを手編集・停止・bypassしてはいけない。
+
+### Ordered next TODO
+
+| 順序 | 作業 | 完了条件 |
+|---:|---|---|
+| 1 | Host diskをfloor＋実行headroomまで回復 | capacity receiptがPASS、live preflightが必要bytesを継続してPASS。protected state、`.cloak`、current/loaded release、active browser profileは保持 |
+| 2 | Writer managed browser runtimeを修復 | `WRITER_BROWSER_PYTHON`で`cloakbrowser` import/readbackがPASS。Note用credential/profileを変更せず、focused runtime test PASS |
+| 3 | frozen active pairをproof-boundに再arm | 同じrun/targetのpublication guard stateだけを更新し、Note key・Substack draft ID・X edit IDを不変のまま維持 |
+| 4 | `article-resume`自然wakeで4件をlive化 | Note ¥500、Substack JA/EN paid-only、X Article JAの各publisher-native live URL・本文・owner・media・timestamp receiptが全件PASS |
+| 5 | completion/replay-zeroを取得 | `article-run-complete --armed 1` rc0、`publication_resume.py plan` all-complete、Telegram message ID、同じrunの再実行で外部作用0 |
+| 6 | 日次自然SLOを観測 | 7日（最低）または21 scheduled source runs、各run4面live、自然terminal、effect fence 0、重複外部作用0 |
+| 7 | 収益receiptをjoinしてMRRを算定 | received revenue、payout、cost、profit、active MRRを分離。payment/source receiptが無い値はunknown/0のまま残す |
+
+**最新結論:** Writerはmain由来自然runで生成・品質・reader-gate・4件draft stageまで動くことを実証した。しかし、live公開はまだ一件もこのrunで成立しておらず、最大ボトルネックはprovider生成ではなく、disk headroomとNoteのmanaged browser依存、続いてfrozen targetの同一target再開である。4面live、日次連続証拠、実入金が揃うまで完了とは報告しない。
