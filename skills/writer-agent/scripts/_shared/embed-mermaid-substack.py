@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import json
 import math
 import os
@@ -169,11 +170,17 @@ def upload_image(png_path: str, publication: str, cookie: str) -> str:
 
 
 def upload(png_path: str, cache: dict, publication: str, cookie: str) -> str:
-    if png_path not in cache:
-        cache[png_path] = upload_image(png_path, publication, cookie)
-        save_cache(cache)
-        time.sleep(1.5)  # pace uploads to avoid Substack 429
-    return cache[png_path]
+    digest = hashlib.sha256(Path(png_path).read_bytes()).hexdigest()
+    cached = cache.get(png_path)
+    if isinstance(cached, dict) and cached.get("sha256") == digest:
+        url = cached.get("url")
+        if isinstance(url, str) and url:
+            return url
+    url = upload_image(png_path, publication, cookie)
+    cache[png_path] = {"url": url, "sha256": digest}
+    save_cache(cache)
+    time.sleep(1.5)  # pace uploads to avoid Substack 429
+    return url
 
 
 def main(argv: list[str] | None = None) -> int:
