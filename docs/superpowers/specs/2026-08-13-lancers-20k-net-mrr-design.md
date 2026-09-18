@@ -3042,16 +3042,42 @@ delivery 665544を公式確認、重複納品0。paymentは未確認であり0�
 The following order is immutable unless Dais explicitly says to change the order. Only the first
 unfinished atom is active.
 
-**Live checkpoint (2026-09-18 00:40 UTC).** This supersedes the older counts below; the L-08
+**Live checkpoint (2026-09-18 01:05 UTC).** This supersedes the older counts below; the L-08
 cursor and L-09 onward order stay in place. `contracts.json` is source-complete as of
 `00:36:59 UTC`: incoming monthly offers 0, monthly contracts 0, received gross JPY 0.
-The marketplace ledger has 193 `application_verified` receipts and no award, delivery or
+The marketplace ledger has 195 `application_verified` receipts and no award, delivery or
 payment event. Thus verified net MRR is 0 USD; applications and public packages do not count
 as recurring revenue.
 
+**Remaining execution order.** The numbered L-08→L-16 and M-01→M-04 atoms below remain
+the canonical order; the following are the concrete gates to work through, not a reorder:
+
+1. **Apply recovery acceptance:** PR #5531 is installed for Application at SHA `9e4a37ae…`.
+   A natural wake has passed with admission unknown 0. Prove a real
+   `submission_uncertain` with an exact durable pending claim exits as a truthful
+   reconciliation handoff, then the next natural wake reads the official proposal
+   ID, appends one receipt and sends no second proposal. Until that event occurs,
+   the production behavior is unverified; reconcile any newly fenced occurrence
+   only against its exact official proposal.
+2. **First paid conversion:** measure proposal→buyer reply→award by profile, proof,
+   proposal and price version; improve the weakest measured stage without inventing
+   reviews or completed client work. Keep Storefront catalog families distinct and
+   measure inquiry/order rather than listing count.
+3. **L-08 Contract activation:** wait for an exact client offer or project contract,
+   verify terms, capacity and escrow, and create one ContractReceipt. Empty official
+   offer sources authorize no acceptance effect.
+4. **L-09→L-14 Paid chain:** from a funded ContractReceipt, implement the currently
+   missing Lancers provider mutation, produce and independently check the artifact,
+   perform formal delivery, reconcile revisions and received payment, then calculate
+   net USD MRR from actual fees, costs and FX.
+5. **L-15→L-16 and M-01→M-04:** attribute conversion and retention, prove natural
+   four-lane continuity and replay-zero, then reuse the marketplace core and
+   loop-development contract for each additional provider. The target remains
+   at least 10,000 USD verified net MRR from Lancers before counting expansion.
+
 | Lane | Observed state | Next proof |
 |---|---|---|
-| Apply | The installed main-origin SHA is `8be258fc…`; official proposal IDs were reconciled for projects `5603097`, `5603812` and `5602787` without resending. Two older pending project IDs (`5601892`, `5601332`) remain absent from complete proposal readback. | Natural terminal event from installed SHA; reconcile only the exact pending occurrence after official readback. Never retry either older ID blindly. |
+| Apply | The installed main-origin SHA is `9e4a37ae…`; official proposal IDs were reconciled through project `5603600` without resending. Two older pending project IDs (`5601892`, `5601332`) remain absent from complete proposal readback. | Natural uncertain-submission handoff followed by next-wake official readback, receipt exactly one and duplicate submit zero. Never retry either older ID blindly. |
 | Storefront | SHA `59770dd5…` has natural passes. Official `/myplan` showed 19 identical Web-app packages within the 20 active slot limit. Eighteen duplicates were individually moved to `非表示` with exact settings readback; canonical SNS listing `1338228` and one Web-app listing `1342394` remain. PR #5522 preserves the catalog cursor and serializes select→create→persist. The recovered cursor survived later natural wakes; distinct catalog listings now have official IDs `1344056`, `1344057`, `1344058`, `1344060`. | Track each distinct public listing and its inquiry/order counters; prevent a second ID for one family and measure demand before claiming conversion. |
 | Negotiate / Work Sync | Source-complete inbox shows no required reply, incoming monthly offer, active monthly contract or funded project. | An exact buyer-last message or official offer/escrow record; otherwise no external reply/accept effect. |
 | Paid | A natural pass followed exact no-effect occurrence recovery, but historical queued occurrences can surface as `resource_effect_unknown`. The provider adapter still raises `lancers_paid_effect_not_implemented` for mutation. | Reconcile each exact pre-effect marker or official effect; implement and prove funded delivery only when a real ContractReceipt exists. |
