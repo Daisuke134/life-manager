@@ -95,6 +95,12 @@ class LancersPaidAdapter:
         raise RuntimeError("lancers_paid_effect_not_implemented")
 
     def readback(self, intent: dict[str, Any]) -> dict[str, Any]:
+        work_id = intent.get("work_id") if isinstance(intent, Mapping) else None
+        if not isinstance(work_id, str) or not work_id.strip():
+            return {"verified": False, "authoritative_absent": False}
+        active = self._inventory()
+        if not any(row["work_id"] == work_id for row in active):
+            return {"verified": False, "authoritative_absent": True}
         return {"verified": False, "authoritative_absent": False}
 
 
