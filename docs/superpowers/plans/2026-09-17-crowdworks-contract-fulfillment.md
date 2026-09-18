@@ -17,11 +17,13 @@ official CrowdWorks active-contract inventory was read at `2026-09-18T11:23:35Z`
 funded rows: `63712784`, `63659463`, `63657015`, `63570481`, and `63568785`. This is an inventory
 readback only; it is not a work submission, delivery, acceptance, settlement, payout, or MRR receipt.
 
-The immutable release `fed2839db846509585d6ba2d53da626a09dd0cae` is applied to the four CrowdWorks
-labels (`application`, `reply`, `paid`, and `report`); each loaded argv points to
-`/Users/anicca/loops/releases/20260918T203057-fed2839d`. The release includes occurrence binding in
-Paid output so future `paid-latest.json` results can be joined to the exact runtime wake. Focused tests
-and `./bin/lm-loop-contract` pass.
+Application, Reply, and Report remain on immutable release `fed2839db846509585d6ba2d53da626a09dd0cae`.
+Paid is now target-applied from immutable release `56d07a66eaa7c7d173c51314c47fb1c22b3f5610`
+(`/Users/anicca/loops/releases/20260918T213636-56d07a66`), which includes the buyer-form extraction,
+answer-URL normalization, receipt-alias preservation, and occurrence-bound Paid output. A target-only
+Paid kickstart at `2026-09-18T12:38:22Z` loaded and exited `75` before provider work with
+`host_admission_deferred:resource_effect_unknown`; no form, message, or delivery effect occurred in that
+wake. Focused tests (158 before this release cut) and `./bin/lm-loop-contract` pass.
 
 The following old admission rows remain fenced and were not cleared:
 
@@ -50,9 +52,10 @@ missing customer-address answer is not corrected. `63568785` links to a Google D
 `編集権限をリクエスト`; no artifact exists.
 
 **Implementation status:** the buyer-context expansion, no-form answer and correction-revision changes
-remain subject to their own provider readback gates. The occurrence-bound Paid result fix is merged and
-loaded. Legacy fences are intentionally held until exact provider readback or an occurrence-bound
-no-dispatch proof exists. No contract has buyer acceptance, settlement, payout or verified USD 10,000 MRR.
+remain subject to their own provider readback gates. The current Paid release now sees buyer-linked plain
+text Google Forms and uses the answerable URL while preserving old receipt hashes. Legacy fences are
+intentionally held until exact provider readback or an occurrence-bound no-dispatch proof exists. No
+contract has buyer acceptance, settlement, payout or verified USD 10,000 MRR.
 
 **Next order:** (1) obtain exact provider readback for each fenced occurrence without retrying an
 uncertain external action; (2) kickstart only the owner whose fence has been resolved and record the
