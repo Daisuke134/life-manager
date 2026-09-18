@@ -482,6 +482,8 @@ class MercorPassContractTests(unittest.TestCase):
             "Do not search for an href",
             "invoke `.click()` once on that same exact observed application-card button",
             "wait for the application detail or URL to change",
+            "wait up to five seconds for the detail surface",
+            "focus or selected styling is not detail readback",
         ):
             self.assertIn(required, prompt)
 
