@@ -66,6 +66,7 @@
 - [x] Write and run the failing test asserting the tick command contains the approved authenticated Connpass and Luma URLs.
 - [x] Add the URLs to the existing `KA_OUT` command only; preserve existing Coconala/Instagram/X behavior and Telegram alerting. PR #5615 merged as main `8eae86892e`.
 - [x] Run the focused shell/static test and existing vault tests (`31/31` pass); cut release `/Users/anicca/loops/releases/20260918T231001-8eae8689` with `release_paths=ALL`.
+- [ ] Shared runtime owner: add `session-vault` to the proof-bound no-effect recovery in `runtime/loop/lm_loop_run.py::_run_admitted` with a focused test; Connector must not edit this shared file or clear SQLite directly.
 - [ ] Reconcile stale `session-vault:18d606ad782b0140-83191`, load the release, and record `logged_out` explicitly if either provider is unauthenticated; do not report it as registered.
 
 ### Task 4: Reconcile the shared effect fence and load the merged release
