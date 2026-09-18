@@ -589,6 +589,51 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 
 **Ideal Connector loop (normative):** The loop runs one existing `life-manager-connector-native` wake every 1800 seconds. It reads the current Google Calendar busy inventory, opens one Connector-owned browser target, discovers Luma and Connpass events, and keeps only events that are in-person, free, open, relevant and wholly outside Calendar busy intervals. It performs a provider pre-submit readback, submits at most one candidate through the existing provider adapter, verifies the official provider state (`registered` or `pending`), creates one idempotent Google Calendar event, independently reads that event back with exact count 1, writes the durable evidence bundle and sends the terminal Telegram receipt. A later natural wake must read the same provider state, perform Submit 0 and preserve Calendar exact count 1. No X provider, TechPlay fallback, new scheduler or parallel Connector loop belongs in this flow.
 
+```mermaid
+flowchart TD
+    W[1800s natural wake] --> A[Host admission: browser occurrence]
+    A -->|capacity busy or effect fence| Q[Queue and terminal blocker; no provider work]
+    A --> B[skills/connector/run.sh]
+    B --> C[ensure_browser.sh: existing Chromium/Cloak profile]
+    C -->|FAILED| BF[Browser foundation terminal; Submit 0]
+    C --> D[Owner GC: life-manager-connector-native]
+    D --> E[Calendar busy inventory]
+    E --> F[Luma and Connpass discovery]
+    F --> G[Free, open, in-person, relevant, Calendar-free filter]
+    G -->|none| N[completed_no_effect + Telegram report]
+    G --> H[Official pre-submit provider readback]
+    H -->|registered or pending| R[Skip Submit; reconcile evidence]
+    H -->|absent| I[At most one existing adapter Submit]
+    I --> J[Official registered or pending readback]
+    J --> K[Idempotent Google Calendar create]
+    K --> L[Independent Calendar API exact count 1]
+    L --> M[Durable bundle + Telegram terminal]
+    M --> P[Two natural replays: Submit 0, Calendar exact 1]
+    R --> K
+```
+
+The target is owned for the whole wake and closed in the runner's `finally` path. A `login_required`, `capacity_busy`, `effect_unknown`, or orphan-context observation never authorizes a blind retry. `ensure_browser.sh` restores the existing vault/profile; it does not launch a second Chromium profile or create a new scheduler.
+
+**Production lock-in contract:** Connector is considered locked only when all five locks hold at once: (1) source lock — the change is merged into `origin/main`; (2) release lock — `RELEASE.json.sha` is a full `origin/main` ancestor and `release_paths=ALL`; (3) load lock — installed argv, launchd loaded argv, and the next event all name the same SHA while the label is `loaded-idle`; (4) browser lock — `ensure_browser.sh` returns `ALIVE|RECOVERED`, Connector owner GC closes only its owned targets, and no unknown context is mass-closed; (5) effect lock — official Luma/Connpass receipt, Calendar event ID with independent exact count 1, evidence bundle, Telegram provider IDs, and two natural replay-zero wakes. A branch test, exit 0, screenshot, or `completed_no_effect` report cannot satisfy this contract.
+
+**Commands used for the current repair:**
+
+```bash
+git fetch origin main
+node --test skills/connector/test/native-entrypoint.test.js
+gh pr merge 5602 --admin --merge --delete-branch=false
+LOOPS_ACTIVATE_CURRENT=0 LIFE_MANAGER_SOURCE_REPO=/Users/anicca/Projects/life-manager-connector-coconala-20260917 \
+  bash bin/cut-loop-release.sh origin/main
+LIFE_MANAGER_RELEASE_ROOT=/Users/anicca/loops/releases/20260918T215945-5b6e1788 \
+  bin/lm-loop reconcile deterministic --loaded-idle-only --max-owners 1 \
+  --loop-id life-manager-connector-native
+CLOAK_CDP_BASE_URL=http://127.0.0.1:9222 \
+  python3 skills/browser/scripts/cdp_tab_gc.py --owner life-manager-connector-native
+bin/lm-loop status life-manager-connector-native
+```
+
+The reconcile returned `skipped_pending` because the shared occurrence `life-manager-connector-native:18d66aef19152518-55543` remains `claimed/effect_unknown=1`. The owner GC returned `closed=0` because Connector had no owned target; the 36 blank contexts belong to the shared-browser orphan census and remain untouched.
+
 **Main browser-foundation comparison (read-only inspection of `origin/main` `5b6e178835`, 2026-09-18):** The shared contract in `skills/browser/SKILL.md` is `ensure_browser.sh` first, owner-scoped `cdp_tab_gc.py`, and the existing session-vault/context-lease path. Working browser loops follow that pattern: Writer's `article-daily.sh` calls the guard before browser work, while Gig Storefront passes the same guard and `cdp_context_lease.py` into its owner-scoped flow. The main Connector entrypoint at `skills/connector/run.sh` only exports `CLOAK_CDP_BASE_URL`; it did not call the guard or tab GC. The minimal self-owned repair (`life-manager-connector-native` owner, guard before `native-pass.js`, owner tab GC, RED→GREEN entrypoint test) merged in PR #5602 as main `5b6e178835`; it reuses the foundation and adds no scheduler or provider. A complete release `/Users/anicca/loops/releases/20260918T215945-5b6e1788` was cut with `release_paths=ALL` and both Connector runtime packages, but targeted loaded-idle reconcile returned `skipped_pending` because the shared admission fence below is still present; the loaded label remains on `c9fc8a6585f5fbdc389417b982eb701744fa07a4`.
 
 **Session persistence boundary:** `skills/browser/scripts/session_vault_tick.sh` currently warms Coconala, Instagram and X only; it does not keepalive an authenticated Connpass or Luma URL. A live `session_vault.py status` readback showed 1,522 cookies with an age of 20.1 hours and no Connpass/Luma origin in its reported logged-in-origin list. This is evidence of a session-vault/keepalive coverage gap, not evidence of a malicious process or a Connector provider crash. The shared session-vault owner must decide whether to add the existing Connpass/Luma authenticated URLs; Connector must not create a second scheduler or edit the shared runtime. Until an official Connpass page reads `registered`/`pending`, no 404714 resend is allowed.
