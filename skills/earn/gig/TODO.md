@@ -1015,22 +1015,26 @@ work item and leave a sibling trace unchanged.
 - Apply → Reply (pre-contract) → one Paid owner (post-contract) is the boundary. Reply must not send
   post-contract work effects; there is no CrowdWorks Storefront owner.
 - Runtime hardening is merged through PRs `#5430`, `#5437`, `#5443`, `#5476`, `#5492`, `#5512`,
-  `#5515` and `#5520`. Paid is targeted to main-derived immutable release
-  `20260918T091427-f8e6b9e1` (`f8e6b9e1293846a18b9d39b731f54d6665cad686`) with a finite 900-second bound.
-  Target apply receipt is `e8df5d0bee7c325a8f578b23`.
+  `#5515`, `#5520` and `#5524`. Paid is targeted to main-derived immutable release
+  `20260918T092955-8be258fc` (`8be258fc3430227d2606e75c92c6d5f2d22c1555`) with a finite 900-second bound.
+  Target apply receipt is `f0fb38f54b7e00774e5cde62`.
   The release includes the active-inventory row wait and quality/staged-delivery safeguards; Astra read-only
   review verdict was `ship`.
 - A fresh read-only provider pass returned five exact contract IDs. The detailed pass is authoritative,
   and the current form-candidate pass read back `3/2/1` candidates for `63659463/63657015/63570481`:
-  `63568785=funded`/milestone `13797948`/buyer event `426855154`/one Docs link/access unknown;
-  `63570481=funded`/milestone `13798056`/buyer event `427573234`/one form/no confirmed receipt;
+  `63568785=funded`/milestone `13797948`/buyer event `426855154`/one Docs link/permission request after
+  settle wait;
+  `63570481=funded`/milestone `13798056`/buyer event `427573234`/one form/one historical/base-binding
+  confirmed receipt (the correction binding is new);
   `63583795=delivered` with no current milestone (historical receipts remain replay-fenced);
   `63657015=funded`/milestone `13820268`/buyer event `427403807`/two forms/no confirmed receipt; and
-  `63659463=funded`/milestone `13820867`/buyer event `427428366`/three forms/no confirmed receipt
-  under the current buyer-event binding.
+  `63659463=funded`/milestone `13820867`/buyer event `427428366`/three forms/two historical
+  base-binding confirmed receipts; the current buyer-event-specific binding is new. Model selection says
+  no additional form is required.
 - `63570481` folded messages were expanded read-only; the buyer correction (customer-address answer
   missing) is known, but no correction is submitted.
-- `63568785` has one linked Google Doc, but current access is unknown; no artifact is claimed.
+- `63568785` has one linked Google Doc; after the settle wait it shows the permission-request surface, so no
+  artifact is claimed.
 - Host headroom was about 7.5 GiB after the bounded cleanup pass (`free_after=8,080,977,920`,
   `reclaimed=0`, `preserved=5`, `errors=1`); later release work read back about 10.7 GB free. Capacity is
   above the immediate ENOSPC floor, but the cleanup error remains open.
@@ -1039,7 +1043,7 @@ work item and leave a sibling trace unchanged.
 
 **Not done / blockers:**
 
-- Paid launchd is `not running`, exit `75`; latest target run `18d642197a967840-49557` ended with
+- Paid launchd is `not running`, exit `75`; latest target run `18d642f270ac5d70-4690` ended with
   `host_admission_deferred:resource_effect_unknown`; stale occurrence
   `crowdworks-revenue-paid:18d62cf32eb0c678-48194` remains `claimed`/`effect_unknown=1` after a legacy
   provider-inventory failure without a durable marker. The new release was applied and kickstarted once,
@@ -1049,7 +1053,7 @@ work item and leave a sibling trace unchanged.
   common-form intent remains unverified and must be reconciled before retry.
 - `63570481` correction has not been submitted; the buyer-visible result and formal delivery are open.
   The context/form-revision implementation is now merged in `#5512` and loaded in release
-  `e3c78a63`; it has not reached a natural child run because admission is still fenced.
+  `8be258fc`; it has not reached a natural child run because admission is still fenced.
 - `63568785` has no artifact until permission/content is supplied.
 - `63659463` has three current forms and no receipt under the current buyer-event binding; quality audit,
   formal delivery, acceptance, settlement and payout are open.

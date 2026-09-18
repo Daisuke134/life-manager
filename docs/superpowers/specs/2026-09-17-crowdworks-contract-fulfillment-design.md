@@ -30,19 +30,23 @@ not a claim that money has been earned.
   contract ID; the other 14 loop owners remain independent.
 - **Runtime safeguards:** the bounded wake, timeout isolation, inspection-pending no-op, and run-wide
   pre-effect fence are merged through PRs `#5430`, `#5437`, `#5443`, `#5476`, `#5492`, `#5512`,
-  `#5515` and `#5520`. The Paid label is loaded from main-derived immutable release
-  `f8e6b9e1293846a18b9d39b731f54d6665cad686` at
-  `/Users/anicca/loops/crowdworks/releases/20260918T091427-f8e6b9e1` with a finite 900-second owner
-  bound. The release includes the active-inventory and form-redirect waits plus quality/stage safeguards;
-  Astra's final read-only verdict was `ship`. Target apply receipt is `e8df5d0bee7c325a8f578b23`.
+  `#5515`, `#5520` and `#5524`. The Paid label is loaded from main-derived immutable release
+  `8be258fc3430227d2606e75c92c6d5f2d22c1555` at
+  `/Users/anicca/loops/crowdworks/releases/20260918T092955-8be258fc` with a finite 900-second owner
+  bound. The release includes active-inventory, form-redirect and Docs-access waits plus quality/stage
+  safeguards; Astra's final read-only verdict was `ship`. Target apply receipt is
+  `f0fb38f54b7e00774e5cde62`.
 - **Official inventory:** a fresh read-only provider pass after the row-wait fix returned exactly five
   contract IDs. A subsequent detailed read-only pass is authoritative for per-contract state:
-  `63568785=funded`/milestone `13797948`/buyer event `426855154`/one Docs link/access unknown;
-  `63570481=funded`/milestone `13798056`/buyer event `427573234`/one form/no confirmed receipt;
+  `63568785=funded`/milestone `13797948`/buyer event `426855154`/one Docs link/permission request after
+  settle wait;
+  `63570481=funded`/milestone `13798056`/buyer event `427573234`/one form/one historical/base-binding
+  confirmed receipt (the correction binding is new);
   `63583795=delivered` with no current milestone (historical form and delivery receipts are retained and
   not replayed); `63657015=funded`/milestone `13820268`/buyer event `427403807`/two forms/no confirmed
-  receipt; and `63659463=funded`/milestone `13820867`/buyer event `427428366`/three forms/no confirmed
-  receipt under the current buyer-event binding. Candidate metadata is read back for all three forms. A message,
+  receipt; and `63659463=funded`/milestone `13820867`/buyer event `427428366`/three forms/two historical
+  base-binding confirmed receipts, while the current buyer-event-specific binding is new. Candidate metadata is read back for all three forms; model
+  selection says no additional form is required. A message,
   filled composer, form URL, or local row is not
   treated as formal delivery, acceptance, settlement or payout.
 - **`63659463` OnJob:** the current detailed readback exposes three forms and buyer event `427428366`;
@@ -52,12 +56,13 @@ not a claim that money has been earned.
   form and formal-delivery receipts are retained; no replay is allowed. Acceptance, settlement and payout
   still need official readback.
 - **`63570481` Effect:** the complete folded message history was expanded in a read-only detail probe.
-  Current detail is funded, milestone `13798056`, buyer event `427573234`, one form and no confirmed
-  receipt. The one form candidate is read back. The buyer's missing customer-address answer identifies the
-  correction; it is not yet submitted.
+  Current detail is funded, milestone `13798056`, buyer event `427573234`, one form and one base-binding
+  receipt. The one form candidate was selected as a correction revision, but its buyer-event-specific receipt
+  is absent. The buyer's missing customer-address
+  answer identifies the correction; it is not yet submitted.
 - **`63568785` undym67231:** current detail is funded, milestone `13797948`, buyer event `426855154`,
-  with one Docs link whose access is currently unknown. No artifact can be claimed until readable content
-  or a permission/content response is read back.
+  with one Docs link. After the settle wait, the official page shows the permission-request surface; no
+  artifact can be claimed until readable content or a permission/content response is read back.
 - **Host headroom:** the bounded existing cleanup owner completed a pass with
   `free_after=8,080,977,920` bytes (about 7.5 GiB). It reclaimed no allow-listed artifact and preserved
   five candidates (`errors=1`); later release work read back about 10.7 GB free. Capacity is above the
@@ -72,7 +77,7 @@ not a claim that money has been earned.
   `crowdworks-revenue-paid:18d62cf32eb0c678-48194` (`claimed`, `effect_unknown=1`). It came from a
   provider-inventory failure in the legacy release with no durable run marker, so it cannot be cleared as
   no-effect. The new release was applied and kickstarted; latest target run
-  `18d642197a967840-49557` ended before the child with
+  `18d642f270ac5d70-4690` ended before the child with
   `host_admission_deferred:resource_effect_unknown`. Launchd readback is `state=not running`,
   `last exit code=75`.
 - **`63657015` Orecon:** the latest wake timed out with `CrowdWorksPaidContractTimeout`; its durable
@@ -80,7 +85,7 @@ not a claim that money has been earned.
   receipt. Do not retry from the intent alone; first reconcile the official form/provider state.
 - **`63570481` correction:** the missing customer-address answer must be produced from the full buyer
   task and submitted as a new correction revision bound to the buyer event. The implementation is merged
-  and present in release `f8e6b9e1`, but no natural child run has reached it while admission is fenced.
+  and present in release `8be258fc`, but no natural child run has reached it while admission is fenced.
 - **`63568785` artifact:** send one precise permission/content request through the Paid owner, then read
   the document, do the requested work, verify buyer-visible access/content and only then deliver.
 - **All five closures:** no contract has buyer acceptance, settlement, payout or verified USD 10,000 MRR.
