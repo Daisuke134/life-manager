@@ -624,6 +624,45 @@ def path_status(path: Path) -> str:
 if publication_state.exists() or publication_state.is_symlink():
     fail("publication-state-exists")
 adoption_path = gates / "prepublication-adoption.json"
+route_status = path_status(route_path)
+if route_status == "symlink":
+    fail("topic-route-input-symlink")
+if route_status == "unreadable":
+    fail("topic-route-input-unreadable")
+if route_status == "nonregular":
+    fail("topic-route-input-nonregular")
+
+# An adopted run must remain fenced even when a route is already present.  The
+# route branch below moves a card, so validate the ledger before it can mutate
+# queue/in-progress state.  A malformed/public/symlink ledger is never a safe
+# pre-publication adoption boundary.
+if path_status(adoption_path) == "regular" and route_status != "absent":
+    ledger_status = path_status(ledger)
+    if ledger_status != "regular":
+        fail("ledger-missing-or-symlink")
+    try:
+        ledger_lines = ledger.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        fail("ledger-invalid")
+    for line in ledger_lines:
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except (TypeError, json.JSONDecodeError):
+            fail("ledger-invalid")
+        if not isinstance(row, dict):
+            fail("ledger-invalid")
+        if (
+            row.get("run_id") == run_id
+            and (
+                row.get("published") is True
+                or bool(row.get("live_url"))
+                or row.get("state") == "live"
+                or row.get("reality_gate") == "PASS"
+            )
+        ):
+            fail("public-ledger-effect")
 if path_status(adoption_path) == "regular":
     generation_path = gates / "generation-state.json"
     if path_status(generation_path) == "regular" and path_status(ledger) == "regular":
@@ -655,15 +694,20 @@ if path_status(adoption_path) == "regular":
             and generation.get("status") == "quality-repair-ready"
             and not public_row
         ):
+            if path_status(receipt_path) == "absent":
+                # Adding this allowlisted bookkeeping receipt is safe: the
+                # immutable adoption manifest treats it as a pre-publication
+                # addition, while preserving every adopted draft/artifact byte.
+                write_receipt({
+                    "version": 1,
+                    "run_id": run_id,
+                    "action": "skip-adopted-prepublication",
+                    "reason": "quality-repair-ready-adoption",
+                })
+            elif path_status(receipt_path) != "regular":
+                fail("topic-card-resume-nonregular")
             print("topic-card resume: skipped adopted prepublication")
             raise SystemExit(0)
-route_status = path_status(route_path)
-if route_status == "symlink":
-    fail("topic-route-input-symlink")
-if route_status == "unreadable":
-    fail("topic-route-input-unreadable")
-if route_status == "nonregular":
-    fail("topic-route-input-nonregular")
 if route_status == "absent":
     # A SIGTERM before topic selection has no card to restore.  Resume the same
     # immutable prompt only when the generation journal proves that exact empty
@@ -820,12 +864,19 @@ PYEOF
     exit 75
   fi
   RESUME_CARD_ACTION="$(jq -r '.action // empty' "$RUN_DIR/gates/topic-card-resume.json" 2>/dev/null || true)"
-  if [ "$RESUME_CARD_ACTION" = "skip-pre-topic-recovery" ]; then
+  if [ "$RESUME_CARD_ACTION" = "skip-pre-topic-recovery" ] || [ "$RESUME_CARD_ACTION" = "skip-adopted-prepublication" ]; then
     unset ARTICLE_RESUME_CARD_BASENAME
     echo "=== article-daily topic-card resume skipped: empty pre-topic interruption ===" >>"$LOG"
   else
     RESUME_CARD_BASENAME="$(jq -r '.basename // empty' "$RUN_DIR/gates/topic-card-resume.json" 2>/dev/null || true)"
-    if [ -z "$RESUME_CARD_BASENAME" ] || [[ "$RESUME_CARD_BASENAME" == */* ]]; then
+    if [ -z "$RESUME_CARD_BASENAME" ] && [ -f "$RUN_DIR/gates/prepublication-adoption.json" ] \
+      && jq -e --arg run_id "$RUN_TS" '.run_id == $run_id and .to_status == "quality-repair-ready"' \
+        "$RUN_DIR/gates/prepublication-adoption.json" >/dev/null 2>&1 \
+      && jq -e --arg run_id "$RUN_TS" '.run_id == $run_id and .status == "quality-repair-ready"' \
+        "$RUN_DIR/gates/generation-state.json" >/dev/null 2>&1; then
+      unset ARTICLE_RESUME_CARD_BASENAME
+      echo "=== article-daily topic-card resume skipped: adopted prepublication ===" >>"$LOG"
+    elif [ -z "$RESUME_CARD_BASENAME" ] || [[ "$RESUME_CARD_BASENAME" == */* ]]; then
       echo "=== article-daily topic-card resume selector binding failed closed ===" >>"$LOG"
       exit 75
     fi

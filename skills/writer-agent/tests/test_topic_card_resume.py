@@ -23,6 +23,8 @@ def run_resume(
     generation_status="interrupted-safe",
     generation_return_code=0,
     adoption_receipt=False,
+    topic_card_receipt=True,
+    card_stage="queue",
 ):
     run_id = "20260821-054500"
     run = tmp_path / "runs" / run_id
@@ -70,10 +72,11 @@ def run_resume(
             }),
             encoding="utf-8",
         )
-        (gates / "topic-card-resume.json").write_text(
-            json.dumps({"action": "existing", "run_id": run_id}),
-            encoding="utf-8",
-        )
+        if topic_card_receipt:
+            (gates / "topic-card-resume.json").write_text(
+                json.dumps({"action": "existing", "run_id": run_id}),
+                encoding="utf-8",
+            )
     if generation_symlink:
         target = tmp_path / "generation-target.json"
         target.write_text(generation.read_text(encoding="utf-8"), encoding="utf-8")
@@ -88,7 +91,8 @@ def run_resume(
             route_path.unlink()
             route_path.symlink_to(target)
     if card_topic is not None:
-        (queue / "card.md").write_text(f"topic_id: {card_topic}\n", encoding="utf-8")
+        card_dir = queue if card_stage == "queue" else in_progress
+        (card_dir / "card.md").write_text(f"topic_id: {card_topic}\n", encoding="utf-8")
     result = subprocess.run(
         ["python3", "-", str(run), str(tmp_path), run_id],
         input=PYTHON,
@@ -145,6 +149,65 @@ def test_adopted_prepublication_does_not_rewrite_topic_card_receipt(tmp_path):
     )
     assert result.returncode == 0
     assert receipt == {"action": "existing", "run_id": "20260821-054500"}
+
+
+def test_adopted_prepublication_creates_allowlisted_skip_receipt_when_missing(tmp_path):
+    result, receipt = run_resume(
+        tmp_path,
+        route={"topic_id": "paid-demand:unused"},
+        card_topic="paid-demand:unused",
+        generation_status="quality-repair-ready",
+        adoption_receipt=True,
+        topic_card_receipt=False,
+    )
+    assert result.returncode == 0
+    assert receipt["action"] == "skip-adopted-prepublication"
+    assert receipt["reason"] == "quality-repair-ready-adoption"
+
+
+def test_adopted_route_malformed_ledger_fails_before_card_move(tmp_path):
+    result, receipt = run_resume(
+        tmp_path,
+        route={"topic_id": "paid-demand:abc"},
+        card_topic="paid-demand:abc",
+        card_stage="in_progress",
+        adoption_receipt=True,
+        ledger_text="{malformed\n",
+    )
+    assert result.returncode != 0
+    assert receipt["reason"] == "ledger-invalid"
+    assert (tmp_path / "topics/in-progress/card.md").is_file()
+    assert not (tmp_path / "topics/queue/card.md").exists()
+
+
+def test_adopted_route_ledger_symlink_fails_before_card_move(tmp_path):
+    result, receipt = run_resume(
+        tmp_path,
+        route={"topic_id": "paid-demand:abc"},
+        card_topic="paid-demand:abc",
+        card_stage="in_progress",
+        adoption_receipt=True,
+        ledger_symlink=True,
+    )
+    assert result.returncode != 0
+    assert receipt["reason"] == "ledger-missing-or-symlink"
+    assert (tmp_path / "topics/in-progress/card.md").is_file()
+    assert not (tmp_path / "topics/queue/card.md").exists()
+
+
+def test_adopted_route_public_ledger_row_fails_before_card_move(tmp_path):
+    result, receipt = run_resume(
+        tmp_path,
+        route={"topic_id": "paid-demand:abc"},
+        card_topic="paid-demand:abc",
+        card_stage="in_progress",
+        adoption_receipt=True,
+        ledger_text=json.dumps({"run_id": "20260821-054500", "published": True}) + "\n",
+    )
+    assert result.returncode != 0
+    assert receipt["reason"] == "public-ledger-effect"
+    assert (tmp_path / "topics/in-progress/card.md").is_file()
+    assert not (tmp_path / "topics/queue/card.md").exists()
 
 
 def test_existing_route_restores_exact_matching_card(tmp_path):
