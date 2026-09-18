@@ -404,6 +404,9 @@ class MercorPassContractTests(unittest.TestCase):
             "After every query, read back the exact input value",
             "save the query label, input value, page URL, and card list incrementally",
             "Never use `.value =` or synthetic `input`/`change` events",
+            "Treat the union of the six query card lists as the first candidate queue",
+            "rank that union before opening any default Explore card",
+            "Do not select a candidate by default Explore DOM order",
             "Do not open existing incomplete application cards before the target search queue",
             "human_gate_store",
             "application_report_outbox",
@@ -538,6 +541,42 @@ class MercorPassContractTests(unittest.TestCase):
             }
             with self.assertRaisesRegex(ValueError, "bounded_scan_incomplete:2_of_12"):
                 validate_bounded_scan(result)
+
+    def test_query_union_prevents_early_exit_after_default_detail(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            query_cards = {
+                "Japan": [
+                    {"id": f"list_{index}", "title": f"Role {index}",
+                     "href": f"https://work.mercor.com/explore?listingId=list_{index}"}
+                    for index in range(6)
+                ],
+                "Developer": [
+                    {"id": f"list_{index}", "title": f"Role {index}",
+                     "href": f"https://work.mercor.com/explore?listingId=list_{index}"}
+                    for index in range(6, 12)
+                ],
+            }
+            (root / "target-query-cards.json").write_text(
+                json.dumps(query_cards), encoding="utf-8"
+            )
+            final_detail = root / "final-observation.json"
+            final_detail.write_text(
+                json.dumps({
+                    "page_url": "https://work.mercor.com/explore?listingId=list_0"
+                }),
+                encoding="utf-8",
+            )
+            result = {
+                "status": "observed_no_action",
+                "inspected_listings": [
+                    {"listing_id": "list_0"}, {"listing_id": "list_1"}
+                ],
+                "evidence": {"dom_path": str(final_detail)},
+            }
+            with self.assertRaisesRegex(ValueError, "bounded_scan_incomplete:2_of_12"):
+                validate_bounded_scan(result, root)
+            validate_bounded_scan({**result, "status": "submitted"}, root)
 
     def test_transient_blocker_may_end_a_partial_scan(self):
         validate_bounded_scan({
