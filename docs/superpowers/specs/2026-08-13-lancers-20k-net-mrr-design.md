@@ -3110,10 +3110,17 @@ pass, without `entrypoint_exit_124` and without a new Admission fence.
 
 That wake produced two durable pending readbacks. Project `5603417` was confirmed by
 the official proposal page as proposal `27945506` (30,000 JPY, due 2026-09-26), and
-the Application ledger is now 207 verified receipts with one new product-version-6
-attribution record. Project `5603475` has no matching official proposal card and stays
-pending; no resend is permitted. This is acquisition progress only: official offers,
-active monthly contracts, funded work and received payment remain zero.
+project `5603475` was subsequently confirmed as proposal `27945507` (30,000 JPY, due
+2026-09-26). The Application ledger is now 208 verified receipts, with product-version-6
+attribution records for both proposals. Neither wake resent to Lancers. This is
+acquisition progress only: official offers, active monthly contracts, funded work and
+received payment remain zero.
+
+**Latest source-complete readback (2026-09-18 13:55 UTC).** Contracts still report 14
+boards, required replies 0, incoming monthly offers 0, monthly contracts 0, working
+projects 0, contract candidates 0, received gross 0 JPY, and proposal pipeline current
+318 / receipt 208 / unknown 0. A final Admission query after the Work Sync, Negotiate
+and Paid recovery pass reports zero Lancers `effect_unknown` rows.
 
 **Remaining execution order.** The numbered L-08→L-16 and M-01→M-04 atoms below remain
 the canonical order; the following are the concrete gates to work through, not a reorder:
