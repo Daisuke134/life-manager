@@ -287,6 +287,16 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual(daily.get("admission_class"), "revenue")
         self.assertEqual(daily.get("priority"), "revenue")
 
+    def test_writer_publication_owners_use_revenue_admission(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        for loop_id in ("article-daily", "article-resume"):
+            with self.subTest(loop_id=loop_id):
+                row = registry["loops"][loop_id]
+                self.assertEqual(row.get("effect_class"), "publish")
+                self.assertEqual(row.get("resource_class"), "agent")
+                self.assertEqual(row.get("admission_class"), "revenue")
+                self.assertEqual(row.get("priority"), "revenue")
+
     def test_connector_runtime_timeout_bounds_provider_hang_to_one_wake_budget(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         connector = registry["loops"]["life-manager-connector-native"]
