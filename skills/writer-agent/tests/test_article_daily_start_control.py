@@ -608,6 +608,43 @@ class ArticleStartPolicyTest(unittest.TestCase):
         self.assertEqual(alias["reason"], "same-jst-day-unclassified-run")
         self.assertEqual(unlisted["reason"], "same-jst-day-unclassified-run")
 
+    def test_exhausted_adopted_prepublication_without_quality_owner_releases_new_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp)
+            run_id = "20260821-072940"
+            run = state / "runs" / run_id
+            run.mkdir(parents=True)
+            prompt = run / "article-daily-prompt.txt"
+            prompt.write_text("immutable prompt\n", encoding="utf-8")
+            ledger = state / "articles.jsonl"
+            ledger.write_text("", encoding="utf-8")
+            GENERATION.initialize(run, run_id, prompt, ledger)
+            GENERATION.begin(run, run_id, prompt, ledger, owner_pid=os.getpid())
+            (run / "article-ja.md").write_text("# ja\n", encoding="utf-8")
+            (run / "article-en.md").write_text("# en\n", encoding="utf-8")
+            GENERATION.record_result(run, run_id, prompt, ledger, 1)
+            GENERATION.adopt_prepublication(run, run_id, prompt, ledger)
+            state_path = run / "gates" / "generation-state.json"
+            generation = json.loads(state_path.read_text(encoding="utf-8"))
+            generation["attempts"].extend(
+                {
+                    "attempt": attempt,
+                    "status": "provider-failed-ambiguous",
+                    "return_code": 1,
+                    "boundary": "generated-or-staged-artifacts:article-ja.md",
+                }
+                for attempt in (2, 3)
+            )
+            state_path.write_text(json.dumps(generation), encoding="utf-8")
+
+            with patch.object(START, "validated_live_set", return_value=(False, None)):
+                decision = START.decide(state, "2026-08-21")
+
+        self.assertEqual(decision["action"], "new")
+        self.assertEqual(
+            decision["reason"], "same-jst-day-exhausted-adopted-prepublication"
+        )
+
     def test_legacy_exact8_partial_active_subset_stays_blocked(self):
         with tempfile.TemporaryDirectory() as tmp:
             state = Path(tmp)

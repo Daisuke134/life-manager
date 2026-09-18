@@ -480,6 +480,82 @@ def quality_repair_ready_owner(run_dir: Path, ledger_path: Path) -> bool:
     return result == {"action": "unchanged", "status": "quality-repair-ready"}
 
 
+def exhausted_adopted_prepublication(
+    run_dir: Path, ledger_path: Path, rows: list[dict[str, Any]]
+) -> bool:
+    """Release an exhausted staged adoption when no quality owner exists.
+
+    A provider can leave a fully adopted, unpublished package behind after the
+    bounded generation budget is exhausted (for example a media-readability
+    blocker). Treating that marker as an active quality owner makes every
+    same-day wake return ``skip-pending-worker`` even though no repair state or
+    repair prompt exists. Preserve the old run and allocate a fresh identity;
+    publication state or any public ledger effect still fences this path.
+    """
+    state = _regular_json(run_dir / "gates" / "generation-state.json")
+    if not state or state.get("status") != "quality-repair-ready":
+        return False
+    if (run_dir / "gates" / "publication-state.json").exists():
+        return False
+    if any(
+        row.get("run_id") == run_dir.name
+        and (
+            row.get("published") is True
+            or bool(row.get("live_url"))
+            or row.get("state") == "live"
+            or row.get("reality_gate") == "PASS"
+        )
+        for row in rows
+    ):
+        return False
+    gates = run_dir / "gates"
+    if any(
+        (gates / name).exists() or (gates / name).is_symlink()
+        for name in (
+            "quality-repair-state.json",
+            "quality-self-heal.json",
+            "quality-self-heal-final.json",
+            "terminal-quality-blocked.json",
+        )
+    ):
+        return False
+    attempts = state.get("attempts")
+    try:
+        maximum = int(state.get("maximum_attempts", 3))
+    except (TypeError, ValueError):
+        return False
+    if not isinstance(attempts, list):
+        return False
+    empty_interruptions = sum(
+        1
+        for item in attempts
+        if isinstance(item, dict)
+        and item.get("status") == "interrupted-safe"
+        and item.get("archive_manifest") == []
+    )
+    charged = len(attempts) - min(
+        empty_interruptions,
+        int(state.get("maximum_empty_interruption_recoveries", 0)),
+    )
+    if charged < maximum:
+        return False
+    scripts = Path(__file__).resolve().parent
+    if str(scripts) not in sys.path:
+        sys.path.insert(0, str(scripts))
+    try:
+        import article_generation_state  # pylint: disable=import-outside-toplevel
+
+        prompt = run_dir / "article-daily-prompt.txt"
+        adopted = article_generation_state._adopted_staged_prepublication(
+            run_dir, run_dir.name, prompt, ledger_path, state
+        ) or article_generation_state._adopted_current_prepublication(
+            run_dir, run_dir.name, prompt, ledger_path, state
+        )
+    except Exception:
+        return False
+    return bool(adopted)
+
+
 def _regular_json(path: Path) -> dict[str, Any] | None:
     if path.is_symlink() or not path.is_file():
         return None
@@ -1155,6 +1231,13 @@ def decide(state_dir: Path | str, local_date: str) -> dict[str, str]:
             "reason": reason,
         }
     if quality_repair_ready_owner(run_dir, ledger):
+        if exhausted_adopted_prepublication(run_dir, ledger, rows):
+            return {
+                "action": "new",
+                "run_id": "",
+                "previous_run_id": run_id,
+                "reason": "same-jst-day-exhausted-adopted-prepublication",
+            }
         return {
             "action": "skip-pending-worker",
             "run_id": run_id,
