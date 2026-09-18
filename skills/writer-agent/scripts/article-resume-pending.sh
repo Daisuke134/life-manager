@@ -1052,7 +1052,7 @@ if [ "$INITIALIZATION_COUNT" -eq 0 ] \
       --code-file "$ARTICLE_ROOT/scripts/note-publish/note_inplace_repair.py"
     )
   elif [ "$NOTE_STATUS" = "intent" ]; then
-    NOTE_COMMAND=(python3 "$ARTICLE_ROOT/scripts/publish-note-managed.py")
+    NOTE_COMMAND=("$WRITER_BROWSER_PYTHON" "$ARTICLE_ROOT/scripts/publish-note-managed.py")
     NOTE_CODE_ARGS=(
       --code-file "$ARTICLE_ROOT/scripts/publish-note-managed.py"
       --code-file "$ARTICLE_ROOT/scripts/note-publish/set-eyecatch-draft.py"

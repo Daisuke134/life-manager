@@ -10,6 +10,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_managed_note_publisher_uses_browser_runtime_python() -> None:
+    worker = (ROOT / "scripts/article-resume-pending.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert (
+        'NOTE_COMMAND=("$WRITER_BROWSER_PYTHON" "$ARTICLE_ROOT/scripts/publish-note-managed.py")'
+        in worker
+    )
+
+
 def test_note_intent_circuit_hashes_every_executed_publisher_dependency() -> None:
     worker = (ROOT / "scripts/article-resume-pending.sh").read_text(
         encoding="utf-8"
@@ -100,6 +111,7 @@ def test_note_resume_prioritizes_publication_and_uses_failure_circuit(
     shutil.copy(ROOT / "scripts" / "publication_contract.py", scripts)
     shutil.copy(ROOT / "scripts" / "publication_remote.py", scripts)
     shutil.copy(ROOT / "scripts" / "publication_resume.py", scripts)
+    shutil.copy(ROOT / "scripts" / "article_adoption_selection.py", scripts)
     shutil.copy(ROOT / "scripts" / "resume_failure_circuit.py", scripts)
     shutil.copy(ROOT / "scripts" / "writer_capacity_floor.py", scripts)
     shutil.copy(ROOT / "scripts" / "_shared" / "notifier.sh", scripts / "_shared")

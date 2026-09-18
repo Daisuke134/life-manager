@@ -51,6 +51,7 @@ def test_worker_recovers_ambiguous_note_then_repairs_same_key(
     shutil.copy(ROOT / "scripts" / "writer_capacity_floor.py", scripts)
     for name in ("publication_remote.py", "publication_resume.py"):
         shutil.copy(ROOT / "scripts" / name, scripts)
+    shutil.copy(ROOT / "scripts" / "article_adoption_selection.py", scripts)
     shutil.copy(ROOT / "scripts" / "publication_contract_resolver.py", scripts)
     shutil.copy(ROOT / "scripts" / "publication_contract.py", scripts)
     shutil.copy(ROOT / "scripts" / "_shared" / "notifier.sh", scripts / "_shared")
