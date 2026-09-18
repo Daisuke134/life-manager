@@ -153,7 +153,7 @@ def _open_paths() -> frozenset[str] | None:
         )
     except (OSError, subprocess.TimeoutExpired):
         return None
-    if result.returncode not in (0, 1):
+    if result.returncode not in (0, 1) or result.stderr.strip():
         return None
     return frozenset(line[1:] for line in result.stdout.splitlines() if line.startswith("n/"))
 
