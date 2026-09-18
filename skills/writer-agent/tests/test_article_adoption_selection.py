@@ -66,3 +66,27 @@ class ArticleAdoptionSelectionTest(unittest.TestCase):
                 MODULE.select(root, ledger, {"action": "new"}),
                 "20260901-210011",
             )
+
+    def test_selected_publication_state_is_left_to_publication_planner(self) -> None:
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run = _generation_run(root, "20260918-135644", "provider-failed-ambiguous")
+            (run / "gates/publication-state.json").write_text(
+                json.dumps(
+                    {
+                        "publication_contract": "active-four",
+                        "run_id": run.name,
+                        "pairs": {
+                            "note/ja": {"status": "unavailable"},
+                            "substack/ja": {"status": "intent"},
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            ledger = root / "articles.jsonl"
+            ledger.write_text("", encoding="utf-8")
+
+            self.assertIsNone(
+                MODULE.select(root, ledger, {"run_id": run.name, "action": "resume"})
+            )
