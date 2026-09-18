@@ -10,8 +10,29 @@ if [[ ! -x "$PYTHON" ]]; then
   exit 69
 fi
 
-exec "$PYTHON" "$ROOT/skills/earn/lancers/scripts/storefront_offer.py" \
+set +e
+OUTPUT="$("$PYTHON" "$ROOT/skills/earn/lancers/scripts/storefront_offer.py" \
   --apply \
   --product "$ROOT/skills/earn/lancers/products/monthly-sns-content-ops-v1.json" \
   --state-path "$STATE_ROOT/application.json" \
-  "$@"
+  "$@")"
+STATUS=$?
+set -e
+printf '%s\n' "$OUTPUT"
+
+# These two errors happen before the storefront code can reach a provider mutation.  Preserve a
+# durable hint only for that exact boundary; form/readback/submission errors remain fenced.
+if [[ "$STATUS" -ne 0 && -n "${LIFE_MANAGER_RESULT_HINT_PATH:-}" ]] \
+  && printf '%s' "$OUTPUT" | /usr/bin/python3 -c 'import json,sys
+try:
+    value=json.load(sys.stdin)
+except Exception:
+    raise SystemExit(1)
+raise SystemExit(0 if isinstance(value,dict) and value.get("ok") is False and value.get("error") in {"account_unavailable","account_lock_busy"} else 1)' ; then
+  hint="$LIFE_MANAGER_RESULT_HINT_PATH"
+  temporary="$hint.tmp.$$"
+  (umask 077; printf '%s\n' '{"status":"pre_effect_failure","effect":0}' > "$temporary")
+  chmod 600 "$temporary"
+  mv -f "$temporary" "$hint"
+fi
+exit "$STATUS"
