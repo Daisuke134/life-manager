@@ -402,36 +402,94 @@ The live state is `~/.local/state/life-manager/host-admission/resources/admissio
 The first repair is operational headroom plus official integrity/lock diagnostics. No SQL row-delete
 patch is safe until the whole unknown occurrence has an exact provider receipt.
 
-**Remaining ordered TODO:**
+**Atomic execution ledger (one cursor at a time):**
 
-1. Recover safe disk headroom and audit the shared admission store. The first central cleanup pass
-   reclaimed 80,867,742 bytes, and the no-effect boundary released 20 stale non-effect rows.
-   Continue only through the owner cleanup and admission APIs. Protect current, loaded and pinned
-   releases, then use those paths to remove only disposable artifacts. Confirm `admission-v2.sqlite3`
-   integrity, queue/unknown counts and lock errors through the official admission tooling; do not
-   edit or delete rows by hand.
-2. Review and merge the loaded-environment invariant from
-   `fix/coconala-loaded-env-20260919`, cut one immutable release from that main commit, and
-   target-apply all four lanes from it. Read back argv plus browser environment after the release
-   watcher settles.
-3. Use the existing official Coconala applied-history reader to reconcile
-   `18d5f9cd9f029658-33307`; close it only with an exact provider receipt for the whole wake.
-   The owner has captured one confirmed candidate and three unresolved candidates. The next
-   allowed action is to obtain a fresh exact proof for all three started intents, then call
-   `runtime.host.resource_admission.resolve_unknown_occurrence` with the matching owner and
-   occurrence. Do not edit the admission database manually and do not retry while it is unknown.
-4. After the fence is resolved, observe one natural single Apply and one natural retainer Apply;
-   require `effect=1`, exact official applied-page readback and replay-zero for each.
-5. Keep Reply fail-closed until inbox coverage is complete; fix the page/target ownership or
-   collector boundary rather than treating `missing_container` as an empty inbox.
-6. Reconcile Storefront's `resource_effect_unknown` with an exact service readback, then prove a
-   natural publish wake. Later no-op wakes are evidence of no new mutation, not proof for the
-   old occurrence; the owner must retrieve an exact service receipt tied to
-   `18d5fce0aaee0680-6502` before calling `resolve_unknown_occurrence`. Paid remains operational
-   but must keep its latest pass and release/env readback in the same fleet gate.
-7. Handle the two defunct children as separate host hygiene: identify a safe owner-controlled reap
-   path for the Chromium and ChatGPT parents after browser profile protection. Do not kill the live
-   browser or delete its profile as a shortcut.
+Only the first unchecked item is active. Each item produces one named artifact or one verified
+state transition. The next item starts only after its pass condition is recorded.
+
+### Host and browser evidence
+
+- [x] **A0 — Snapshot the shared host.** Owner: Codex. Input: `admission-v2.sqlite3`, `df`, current
+  `RELEASE.json`, loaded plist inventory, CDP health. Action: read-only snapshot. Output:
+  timestamped counts for disk, queue, unknowns, reservations, loaded SHA/env, and browser status.
+  Pass: `integrity_check=ok` and every unknown row has owner plus occurrence identity. No SQL writes.
+- [x] **A1 — Run bounded host cleanup.** Owner: central cleanup owner. Input: A0 protected-release
+  set. Action: remove only unprotected regenerable releases and release only registry owners with
+  `effect_class=none` through `clear_no_effect_unknown()`. Output: cleanup receipt with reclaimed
+  bytes and changed owner IDs. Pass: current/loaded/running/pinned releases preserved; effect-bearing
+  unknowns unchanged.
+- [x] **A2 — Restore the Gig browser session.** Owner: browser owner. File:
+  `skills/browser/scripts/session_vault.py`. Action: run the rate-limited `relogin_coconala`, dump
+  the vault, then keepalive dashboard and applied-history pages. Output: dashboard URL, vault receipt,
+  applied-history HTTP status. Pass: dashboard and applied-history readback are authenticated.
+
+### Apply occurrence `18d5f9cd9f029658-33307`
+
+- [x] **A3 — Capture the candidate set.** Owner: Apply owner. Files:
+  `skills/earn/gig/scripts/coconala_applied_readback.py` and pass `46013` evidence. Action: read
+  the four exact candidates. Output: `5276533`, `5266999`, `5275035`, `5266959` plus readback JSON.
+  Pass: `observed=true`, three readback attempts, one verified and three unresolved.
+- [ ] **A4 — Inspect each started intent.** Owner: Apply owner. Files:
+  `~/gig/application-intents/<request_id>.json` and its recovery history. Action: bind each
+  candidate to its exact intent CAS, `effect_phase`, pass task, and saved nonlanding evidence.
+  Output: one row per candidate with `pre_effect`, `effect_started`, or `provider_verified`.
+  Pass: every candidate has an evidence-backed disposition. Do not infer from age or timestamps.
+- [ ] **A5 — Produce the whole-wake receipt.** Owner: Coconala provider reconciler. Inputs: A3
+  official readback plus A4 intent dispositions. Action: create one immutable receipt binding
+  `owner_id=hf-gig-apply-direct`, occurrence `18d5f9cd9f029658-33307`, all four candidate IDs,
+  official evidence hashes, and provider states. Output: receipt JSON with exact occurrence identity.
+  Pass: no candidate remains unresolved; otherwise leave the fence and emit the missing evidence.
+- [ ] **A6 — Resolve the Apply fence.** Owner: admission owner. File:
+  `runtime/host/resource_admission.py`. Action: call
+  `resolve_unknown_occurrence()` using the A5 receipt and `expected_state="claimed"`. Output:
+  `resolved=true` plus admission readback. Pass: the exact occurrence changes to `released,0`.
+  No direct SQL and no retry before A6 passes.
+
+### Storefront occurrence `18d5fce0aaee0680-6502`
+
+- [ ] **A7 — Capture the exact service state.** Owner: Storefront owner. File:
+  `skills/earn/gig/scripts/storefront_direct.py` plus official seller-service readback. Action:
+  read current service IDs, versions, mutation contracts, and publication state for the old wake.
+  Output: service-level evidence tied to the occurrence. Pass: every proposed mutation has an
+  official `published` or `not_published` state; later no-op wakes alone do not pass.
+- [ ] **A8 — Produce the Storefront receipt.** Owner: Storefront provider reconciler. Inputs: A7
+  evidence and the occurrence identity. Action: build one provider receipt whose `effect_key`
+  identifies the exact old wake. Output: immutable receipt JSON. Pass: exact occurrence binding;
+  otherwise retain `effect_unknown` and name the missing provider field.
+- [ ] **A9 — Resolve the Storefront fence.** Owner: admission owner. File:
+  `runtime/host/resource_admission.py`. Action: call `resolve_unknown_occurrence()` with A8.
+  Output: `resolved=true` and DB readback. Pass: occurrence is released with `effect_unknown=0`.
+
+### Release and natural acceptance
+
+- [ ] **A10 — Review the loaded-env patch.** Owner: runtime owner. Branch:
+  `fix/coconala-loaded-env-20260919`, commit `0071221f84`. Files:
+  `runtime/loop/lm_loop_apply.py` and `runtime/loop/tests/test_lm_loop_apply.py`. Action: verify
+  focused suite and diff against latest main. Output: review receipt. Pass: `103 passed, 31
+  subtests passed`; no production apply yet.
+- [ ] **A11 — Merge and cut one release.** Owner: release owner. Input: A10 review receipt and
+  latest `origin/main`. Action: merge once, cut one immutable main-derived release. Output:
+  release SHA and immutable path. Pass: release manifest SHA equals main commit.
+- [ ] **A12 — Target-apply the four lanes.** Owner: launchd owner. File:
+  `runtime/loop/lm_loop.py` apply path. Action: apply only the four Gig labels from A11. Output:
+  loaded `ProgramArguments`, release SHA, and required browser env for each lane. Pass: all four
+  argv/env readbacks match; no fleet-wide apply.
+- [ ] **A13 — Natural single Apply.** Owner: Apply scheduler. Input: A12 loaded fleet. Action:
+  wait for one natural single candidate. Output: terminal event, `effect=1`, official request/offer
+  readback, and replay-zero. Pass: all four receipts agree on owner, occurrence, release, and ID.
+- [ ] **A14 — Natural retainer Apply.** Owner: Apply scheduler. Action: wait for one natural
+  retainer candidate. Output: terminal event, `effect=1`, official retainer readback, replay-zero.
+  Pass: retainer identity and talkroom receipt are exact.
+- [ ] **A15 — Reply coverage gate.** Owner: Reply collector. Files: Reply collector and its
+  tests. Action: fix `inbox_coverage_incomplete` / `missing_container` ownership. Output: page,
+  target, and coverage receipt. Pass: an empty inbox is never inferred from a missing container.
+- [ ] **A16 — Natural Storefront publish.** Owner: Storefront scheduler. Action: wait for one
+  natural publish wake after A9 and A12. Output: effect, public service readback, and replay-zero.
+  Pass: published service version matches the intended mutation contract.
+- [ ] **A17 — Fleet closeout.** Owner: Codex. Input: A13–A16 receipts. Action: compare current
+  loaded SHA/env, terminal events, official provider receipts, and replay-zero. Output: final
+  immutable closeout receipt and spec cursor update. Pass: every lane has a current provider-native
+  receipt; otherwise the exact first failing atomic ID remains active.
 
 ### 0.3 Fundamentals: what is actually failing
 
