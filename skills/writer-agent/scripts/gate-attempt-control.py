@@ -130,9 +130,15 @@ def state_attempts(
 
 
 def terminal_record(
-    path: Path, args: argparse.Namespace
+    path: Path, args: argparse.Namespace, *, allow_empty: bool = False
 ) -> tuple[dict[str, Any], int] | None:
-    terminal = read_evidence(path, "terminal attempt evidence")
+    # A shell caller may redirect stdout directly to the canonical terminal
+    # path. The shell truncates that file before `begin` runs, so an empty
+    # regular file is not evidence yet; `finish` still writes and validates
+    # the strict terminal receipt later.
+    terminal = read_evidence(
+        path, "terminal attempt evidence", allow_empty=allow_empty
+    )
     if terminal is None:
         return None
     article_hash = terminal.get("article_sha256")
@@ -179,7 +185,7 @@ def begin(args: argparse.Namespace) -> int:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
 
         state_count = state_attempts(state_path, args, current_hash)
-        terminal_info = terminal_record(terminal_path, args)
+        terminal_info = terminal_record(terminal_path, args, allow_empty=True)
         # A shell caller may redirect stdout to this legacy path. The shell
         # truncates the file before this process starts, so empty regular
         # evidence means "not present yet", not malformed evidence. Attempt
