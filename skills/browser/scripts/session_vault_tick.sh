@@ -28,7 +28,9 @@ log "daily-driver: keepalive"
 KA_OUT="$(python3 "$V" keepalive \
   "https://coconala.com/mypage/dashboard" \
   "https://www.instagram.com/" \
-  "https://x.com/home" || true)"
+  "https://x.com/home" \
+  "https://connpass.com/dashboard/" \
+  "https://luma.com/home" || true)"
 echo "$KA_OUT"
 # alert immediately on any logged_out platform instead of only being discovered hours later by
 # the next real business pass (exactly what happened with X today) -- never block/exit on this,
