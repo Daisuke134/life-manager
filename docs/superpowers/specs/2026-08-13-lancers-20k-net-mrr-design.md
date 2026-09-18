@@ -3050,10 +3050,10 @@ still has 203 `application_verified` receipts and no award, delivery or payment 
 Thus verified net MRR is 0 USD; applications and public packages do not count as recurring
 revenue.
 
-The admission database currently has three Lancers effect fences: Application
-`18d6492796264af8-48639`, Storefront `18d6556c4dd03ee8-67903`, and Negotiate
-`18d658787159fae8-19316`. They remain claimed with `effect_unknown=1` because an exact
-pre-effect marker or provider receipt is unavailable. Paid has no active fence: the exact
+The admission database currently has two Lancers effect fences: Storefront
+`18d6556c4dd03ee8-67903` and Negotiate `18d658787159fae8-19316`. They remain claimed with
+`effect_unknown=1` because an exact pre-effect marker or provider receipt is unavailable. Paid
+has no active fence: the exact
 run `fde01e0c…` for occurrence `18d65712938c1d60-95360` completed with `effect=0`, and
 the next natural occurrence `18d65725f0c128a0-96252` also completed with `effect=0`;
 `paid-latest.json` reports `effect=0`, `failed=0`, `pending=0`.
@@ -3062,8 +3062,8 @@ the next natural occurrence `18d65725f0c128a0-96252` also completed with `effect
 shutdown boundary and was deployed as immutable release `3e9de7de71…` to all Lancers lanes,
 including Browser. The dedicated Browser owner was restarted once while preserving its profile;
 CDP/Playwright attach then completed in 3.5 seconds and created an owned page. A fresh Paid
-wake on the new release exited 0 with `effect=0`, `failed=0`, and `pending=0`. The three
-historical fences above remain unchanged and were not retried.
+wake on the new release exited 0 with `effect=0`, `failed=0`, and `pending=0`. The historical
+Storefront and Negotiate fences remain unchanged and were not retried.
 
 **Remaining execution order.** The numbered L-08→L-16 and M-01→M-04 atoms below remain
 the canonical order; the following are the concrete gates to work through, not a reorder:
@@ -3086,15 +3086,13 @@ the canonical order; the following are the concrete gates to work through, not a
    release `91f478bf82…` was applied only to Application. Its first natural wakes still held the
    historical unknown, but future submission timeouts now retain an explicit no-dispatch marker for
    safe reconciliation.
-   Release `5c12a42a6c…` was applied only to the Application owner. Its first natural wake reached
-   the new release but remained held by the exact admission occurrence
-   `lancers-revenue-application:18d6492796264af8-48639` (`effect_unknown=1`, prior
-   `entrypoint_exit_124`). No attribution file was written and no retry or fence clearing was done;
-   official proposal readback is required before resolving that occurrence. The run-chain maps the
-   original claim to project `5599100`; an authenticated read-only proposal-list readback returned
-   no proposal for that project. This proves provider absence for the project, but the durable
-   pre-dispatch marker is still unavailable, so the runtime fence remains until that boundary is
-   reconciled explicitly.
+   The run-chain maps the original claim to project `5599100`. A fresh complete official proposal
+   inventory found project `5599100` and the authenticated proposal page `27904482` with 9,000 JPY
+   and due date `2026-09-23`. The existing legacy pending descriptor was reconciled readback-only,
+   appended exactly one `application_verified` receipt (ledger total 204), wrote one conversion
+   attribution record, and then resolved the exact admission occurrence
+   `lancers-revenue-application:18d6492796264af8-48639` using provider proposal `27904482`.
+   No provider resend occurred.
    PR #5566 added complete-inventory `authoritative_absent` readback to Paid and was deployed as
    release `364fd9d4bd…`; the current installed SHA for the revenue lanes is `91f478bf82…`.
    Paid occurrence `18d64dd1d3d7f118-23242` and the later `18d65712938c1d60-95360` were
@@ -3106,7 +3104,7 @@ the canonical order; the following are the concrete gates to work through, not a
    `18d658787159fae8-19316`; no reply is required by the current official inventory. Telegram
    occurrence `18d608a51063bdc8-33964` was reconciled from the exact pre-child
    `resource_capacity_busy` event without sending again. The remaining Lancers fences are
-   therefore Application, Storefront and Negotiate; none authorizes a blind retry.
+   therefore Storefront and Negotiate; none authorizes a blind retry.
 2. **First paid conversion — CURRENT SUPPORTING ACTION:** measure proposal→buyer reply→award by profile, proof,
    proposal and price version; improve the weakest measured stage without inventing
    reviews or completed client work. Keep Storefront catalog families distinct and
@@ -3133,7 +3131,7 @@ the canonical order; the following are the concrete gates to work through, not a
 
 | Lane | Observed state | Next proof |
 |---|---|---|
-| Apply | The installed main-origin SHA is `5c12a42a…`; project `5603444` was naturally reconciled to proposal `27942627`, and a later readback-only reconciliation confirmed project `5602388` as proposal `27943408`. Each has exactly one receipt, with no resend. The ledger now has 203 verified applications. The first `5c12a42a…` wake is held by admission occurrence `18d6492796264af8-48639`; attribution is ready but not yet written because official readback is missing. Older pending IDs `5601892` and `5601332` remain absent from complete proposal readback. | Obtain exact official proposal readback for the fenced occurrence, then let the next natural wake write attribution; never retry the older pending IDs blindly. |
+| Apply | The installed release is `3e9de7de71…`; project `5603444` was naturally reconciled to proposal `27942627`, project `5602388` was later confirmed as proposal `27943408`, and orphaned project `5599100` was readback-only confirmed as proposal `27904482`. The ledger now has 204 verified applications and one new attribution record for `27904482`; no resend occurred. Older pending IDs `5601892` and `5601332` remain absent from complete proposal readback. | Keep the Application owner un-fenced and never retry the older pending IDs blindly; measure buyer reply/award from the verified funnel. |
 | Browser attach | PR #5549 retries one Playwright CDP timeout even when `/json/list` is temporarily unavailable or has no stale auth target; first client is stopped and normal tabs are left intact. The dedicated Browser owner was restarted once after repeated attach timeouts; the new owner at release `3e9de7de71…` passed a live attach/page-create probe in 3.5 seconds. | Keep the new owner alive and observe the next natural attach under production load; do not close unrelated tabs or clear the profile. |
 | Storefront | Official `/myplan` showed 7 active IDs exactly matching canonical plus catalog state: canonical `1338228`, Web-app `1342394`, and five other catalog listings. Eighteen duplicate Web-app packages were individually moved to `非表示`. The old uncertain occurrence was cleared only after an official ID set readback and pre-submit catalog state proof. A later occurrence `18d6506438976f18-85445` was cleared only from exact `action=unchanged / status_effect_count=0` evidence, but `18d6556c4dd03ee8-67903` is currently fenced. The durable listing receipt remains published; demand remains search 12 / detail 0 / inquiry 0 / order 0. | Obtain exact pre-effect or provider readback for `18d6556c4dd03ee8-67903`; keep report ACKs separate from publication effect and measure inquiry/order. |
 | Negotiate / Work Sync | Source-complete inventory has 14 boards, including outreach boards `9077726` and `9077932`, but required reply 0, incoming monthly offer 0, active monthly contract 0 and funded project 0. The current `contracts.json` snapshot is `10:50:32 UTC`; the Negotiate occurrence `18d658787159fae8-19316` remains fenced because one thread had no complete readback at the failed wake. | Reconcile that exact occurrence from a complete official conversation snapshot or retain the fence; then act only on an exact buyer-last message or official offer/escrow record. |
