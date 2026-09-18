@@ -1746,12 +1746,20 @@ def x_article(
             )
             if not content_verified:
                 return {
-                    "status": "unknown",
+                    # The exact authenticated editor is still not live.  A
+                    # prior same-target repair may have autosaved a partial
+                    # body, so preserve the target as a bounded repair proof
+                    # instead of freezing the run as an unrelated ambiguity.
+                    "status": "not-live",
+                    "verified": True,
                     "reason": "x-draft-content-mismatch",
                     "target": target,
+                    "artifact_sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+                    "repairable_content_mismatch": True,
                     "destination_identity": account,
                     "identity_verified": True,
                     "identity_source": "x-authenticated-edit-url",
+                    "source": "x-cdp-saved-article-editor",
                 }
             return {
                 "status": "not-live",
