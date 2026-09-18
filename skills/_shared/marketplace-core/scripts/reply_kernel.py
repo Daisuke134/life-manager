@@ -231,7 +231,12 @@ def _run_locked(
     inventory_event_id = row["latest_event_id"]
     path = _state_path(state_root, row)
     state = _load(path)
-    persisted_occurrence = occurrence_id or state.get("occurrence_id")
+    # A later wake may reconcile an intent created by an earlier wake.  Keep
+    # that original binding; only a newly created intent may take this wake's
+    # occurrence ID.
+    persisted_occurrence = state.get("occurrence_id")
+    if not isinstance(state.get("intent"), Mapping):
+        persisted_occurrence = occurrence_id
 
     def _save(value: Mapping[str, Any]) -> None:
         data = dict(value)

@@ -33,6 +33,29 @@ def _read_state(state_root: Path, thread_id: str) -> dict[str, Any] | None:
     return None
 
 
+def occurrence_effects_accounted(state_root: Path, occurrence: str,
+                                 target_thread_id: str) -> bool:
+    """Require every intent in one wake to be terminal or the verified target."""
+    matches: list[dict[str, Any]] = []
+    for path in sorted(state_root.glob("threads/*/state.json")):
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, json.JSONDecodeError):
+            continue
+        if isinstance(value, Mapping) and value.get("occurrence_id") == occurrence:
+            matches.append(dict(value))
+    if not matches:
+        return False
+    for value in matches:
+        intent = value.get("intent")
+        thread_id = intent.get("thread_id") if isinstance(intent, Mapping) else None
+        if thread_id == target_thread_id and value.get("status") == "reconcile_unknown":
+            continue
+        if isinstance(intent, Mapping) and value.get("status") != "verified":
+            return False
+    return True
+
+
 def official_accept_proof(*, owner: str, occurrence: str,
                           state: Mapping[str, Any],
                           readback: Mapping[str, Any] | None) -> dict[str, Any] | None:
@@ -82,6 +105,8 @@ def reconcile(*, state_root: Path, owner: str, occurrence: str,
                                   readback=observed["readback"])
     if proof is None:
         raise RuntimeError("exact_official_accept_receipt_unavailable")
+    if not occurrence_effects_accounted(state_root, occurrence, thread_id):
+        raise RuntimeError("occurrence_effects_unaccounted")
     resolved = False
     if resolve:
         resolved = resolve_unknown_occurrence(

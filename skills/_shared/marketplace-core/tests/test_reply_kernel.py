@@ -100,6 +100,21 @@ def test_state_records_runtime_occurrence_id(monkeypatch, tmp_path):
     assert state["occurrence_id"] == "fixture-reply:run-1"
 
 
+def test_reconcile_preserves_original_occurrence_binding(monkeypatch, tmp_path):
+    adapter = Adapter()
+    decide = lambda _context: {
+        "action": "accept_contract", "payload": {"condition_id": "condition-1"}
+    }
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:run-a")
+    first = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
+    assert first["effect"] == 1
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:run-b")
+    replay = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
+    assert replay["effect"] == 0
+    state = json.loads(next(tmp_path.glob("threads/*/state.json")).read_text())
+    assert state["occurrence_id"] == "fixture-reply:run-a"
+
+
 def test_partial_external_action_resumes_only_after_authoritative_readback(tmp_path):
     class Partial(Adapter):
         def __init__(self):
