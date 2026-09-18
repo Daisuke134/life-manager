@@ -417,6 +417,7 @@ function mentalV1Deps(u, events, deps = {}) {
   const supa = SUPA();
   const allowedUids = String(process.env.LM_MENTAL_V1_ALLOWED_UIDS || "")
     .split(",").map((value) => value.trim()).filter(Boolean);
+  const decisionLogRequired = String(process.env.LM_MENTAL_DECISION_LOG_REQUIRED || "").trim() === "1";
   return {
     fetchUpcomingEvents: async () => events,
     readSendState: deps.readMentalState
@@ -428,9 +429,9 @@ function mentalV1Deps(u, events, deps = {}) {
     profile: deps.mentalProfile || {},
     readProfile: deps.readMentalProfile || ((uid, now) => readMentalProfile(uid, now, supa)),
     quietHours: deps.quietHours !== undefined ? deps.quietHours : normalizeQuietHours(u),
-    recordDecision: deps.recordDecision || ((row) => recordMentalDecision(row, supa)),
-    completeDecision: deps.completeDecision || ((key, messageId) => completeMentalDecision(key, messageId, supa)),
-    failDecision: deps.failDecision || ((key, reason) => failMentalDecision(key, reason, supa)),
+    recordDecision: deps.recordDecision || (decisionLogRequired ? ((row) => recordMentalDecision(row, supa)) : undefined),
+    completeDecision: deps.completeDecision || (decisionLogRequired ? ((key, messageId) => completeMentalDecision(key, messageId, supa)) : undefined),
+    failDecision: deps.failDecision || (decisionLogRequired ? ((key, reason) => failMentalDecision(key, reason, supa)) : undefined),
     tzOffsetH: deps.tzOffsetH,
     allowedUids: deps.allowedUids || allowedUids,
   };
@@ -1360,6 +1361,7 @@ module.exports = {
   listPaidUsers,
   // per-uid re-fetch for Inngest per-user functions (PII: sweepers send only uid)
   getUserByUid,
+  mentalV1Deps,
   // utilities used by server.js and tests
   isHelperBlock, buildStreamUrl, langForPhone, langForUser,
   // wake claim ledger (C-H1 dedup) — claim before dial, release on dial failure so a retry can fire
