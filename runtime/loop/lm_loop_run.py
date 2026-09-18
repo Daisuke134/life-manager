@@ -54,6 +54,7 @@ PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
     "skills/earn/lancers/scripts/application-owner",
     "skills/earn/lancers/scripts/negotiate-owner",
     "skills/earn/lancers/scripts/paid-owner",
+    "skills/earn/lancers/scripts/storefront-owner",
     "skills/earn/mercor/scripts/application-owner",
     "skills/earn/mercor/scripts/paid-owner",
     "skills/earn/mercor/scripts/reply-owner",

@@ -653,6 +653,10 @@ def test_lancers_application_pre_effect_hint_is_allowlisted():
     assert "skills/earn/lancers/scripts/application-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
 
 
+def test_lancers_storefront_pre_effect_hint_is_allowlisted():
+    assert "skills/earn/lancers/scripts/storefront-owner" in PRE_EFFECT_HINT_ENTRYPOINTS
+
+
 def test_generic_child_hint_cannot_clear_unknown_effect(tmp_path):
     claim = tmp_path / "claim"
     claim.write_text("owned")
