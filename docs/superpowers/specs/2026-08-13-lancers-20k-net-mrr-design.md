@@ -3067,6 +3067,10 @@ the canonical order; the following are the concrete gates to work through, not a
    one additional `application_verified` receipt, and performed no resend. The ledger is now 203
    receipts; older pending IDs `5601892` and `5601332` remain without complete proposal readback.
    PR #5563 now persists proposal/profile/proof/price attribution after a verified application.
+   PR #5569 adds the Lancers Application entrypoint to the shared pre-effect result-hint allowlist;
+   release `91f478bf82…` was applied only to Application. Its first natural wakes still held the
+   historical unknown, but future submission timeouts now retain an explicit no-dispatch marker for
+   safe reconciliation.
    Release `5c12a42a6c…` was applied only to the Application owner. Its first natural wake reached
    the new release but remained held by the exact admission occurrence
    `lancers-revenue-application:18d6492796264af8-48639` (`effect_unknown=1`, prior
