@@ -3111,6 +3111,15 @@ to address buyer scope and questions; the next measured improvement is the verif
 profile/proof→proposal→reply→award funnel and a truthful first paid case, not a generic
 proposal template or invented review. The official examples add four operating rules:
 
+**Fresh public profile readback (2026-09-18 04:25 UTC).** The public profile currently
+shows the intended AI/API automation and SNS subtitle and description, a 10,000 JPY hourly
+rate, the canonical SNS menu, two portfolio links and one Life Manager business-experience
+entry. The 24-hour reply-rate field is `---%` because there is not yet a qualifying message
+history. Profile and portfolio alignment is therefore already proven; adding more generic
+profile text or another avatar is not the next conversion action. The measured bottleneck
+is visibility after search: the canonical listing has 12 search impressions, 0 detail views,
+0 inquiries and 0 orders.
+
 1. Explain the buyer's problem and why the proposed approach fits in a short, readable
    message; keep the profile, portfolio and menu complete so the buyer can verify trust
    after opening the profile (haru).
