@@ -34,4 +34,18 @@ bash "$ROOT/skills/writer-agent/scripts/reader-testing-gate.sh" \
 
 test "$(grep -c '^CALL$' "$TMP/calls")" -eq 2
 jq -e '.verdict == "PASS" and .status == "pass"' "$TMP/result.json" >/dev/null
-echo 'PASS: empty legacy reader evidence is treated as absent'
+
+# A model-led caller may redirect stdout directly to the canonical terminal path.
+# Shell truncation happens before gate-attempt-control.py begin runs; an empty
+# terminal file must be treated as absent at begin, then replaced by the strict
+# hash-bound terminal receipt at finish.
+mkdir -p "$TMP/run-terminal/gates"
+: >"$TMP/run-terminal/gates/reader-testing-gate-en.terminal.json"
+ARTICLE_RUN_DIR="$TMP/run-terminal" bash "$ROOT/skills/writer-agent/scripts/reader-testing-gate.sh" \
+  "$TMP/article.md" --lang en --questions-file "$TMP/run-terminal/gates/questions-en.json" \
+  >"$TMP/run-terminal/gates/reader-testing-gate-en.terminal.json"
+
+test "$(grep -c '^CALL$' "$TMP/calls")" -eq 4
+jq -e '.gate == "reader-testing-gate" and .lang == "en" and .status == "pass"' \
+  "$TMP/run-terminal/gates/reader-testing-gate-en.terminal.json" >/dev/null
+echo 'PASS: empty legacy and redirected terminal reader evidence are treated as absent at begin'
