@@ -12,6 +12,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=writer-runtime-env.sh
 source "$DIR/writer-runtime-env.sh"
 . "$DIR/substack-publish/substack-curl.sh"
+PYTHON_BIN="${LIFE_MANAGER_PYTHON:-python3}"
 
 MD_FILE=""
 TITLE=""
@@ -31,7 +32,7 @@ done
 # Nothing operator-identifying may reach Substack. ANY non-zero exit from the gate -- a finding,
 # an unconfigured blocklist, or an internal scanner error -- aborts this publish. Gate output
 # goes to stderr so it cannot pollute this script's single-line stdout contract.
-python3 "$DIR/pii-gate.py" --stage publish-substack "$MD_FILE" >&2 || exit $?
+"$PYTHON_BIN" "$DIR/pii-gate.py" --stage publish-substack "$MD_FILE" >&2 || exit $?
 
 
 case "${ARTICLE_PUBLISH_PAIR:-}" in
@@ -73,12 +74,12 @@ BYLINE_ID="$(printf '%s' "$PROFILE" | jq -r --arg subdomain "$SUBDOMAIN" '
 # Substack has no frontmatter concept and its draft renderer collapses GFM tables into one
 # paragraph containing literal pipes.  Strip the duplicate metadata/title and convert every
 # table to ordinary heading/list Markdown before draft_body leaves this process.
-BODY_MD="$(python3 "$DIR/_shared/substack_compat.py" --strip-frontmatter-h1 "$MD_FILE")"
+BODY_MD="$("$PYTHON_BIN" "$DIR/_shared/substack_compat.py" --strip-frontmatter-h1 "$MD_FILE")"
 
 # Writer is a money loop: every Substack draft is subscriber-only and contains
 # exactly one useful free preview before the paywall.  Keep this policy in one
 # builder so create and repair paths cannot silently diverge.
-PAYLOAD="$(printf '%s' "$BODY_MD" | python3 \
+PAYLOAD="$(printf '%s' "$BODY_MD" | "$PYTHON_BIN" \
   "$DIR/substack-publish/substack_paid_payload.py" \
   --title "$TITLE" \
   --subtitle "$SUBTITLE" \
