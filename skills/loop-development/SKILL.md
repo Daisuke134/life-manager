@@ -233,6 +233,14 @@ Long waits belong in persisted `next_eligible_at` state and launchd cadence.
   lock is busy. General law: read-then-apply is not an atomic deployment gate.
   Example: a scheduled marketplace owner entered provider work between the
   status read and plist swap, leaving the effect uncertain.
+- Symptom: a pending item remains unprocessed while its owner reports passing
+  wakes. Wrong instinct: increase polling cadence or replay its external effect.
+  Correct action: compare the selected IDs across runs that actually executed;
+  advance a durable cursor once per attempted reconciliation under the owner's
+  existing state lock. General law: wall-clock modulo the queue length does not
+  guarantee fairness when scheduled wakes are skipped or take variable time.
+  Example: a two-minute run with four pending items repeatedly selected the
+  first and third; a per-attempt cursor reached all four without resending.
 - Symptom: an active work item is skipped forever because mutable state says
   `delegated=true`. Wrong instinct: trust an interactive session name or delete
   the flag by hand after every outage. Correct action: delegate only to a

@@ -3042,24 +3042,27 @@ delivery 665544を公式確認、重複納品0。paymentは未確認であり0�
 The following order is immutable unless Dais explicitly says to change the order. Only the first
 unfinished atom is active.
 
-**Live checkpoint (2026-09-18 01:05 UTC).** This supersedes the older counts below; the L-08
+**Live checkpoint (2026-09-18 01:44 UTC).** This supersedes the older counts below; the L-08
 cursor and L-09 onward order stay in place. `contracts.json` is source-complete as of
-`00:36:59 UTC`: incoming monthly offers 0, monthly contracts 0, received gross JPY 0.
-The marketplace ledger has 195 `application_verified` receipts and no award, delivery or
+`01:40:54 UTC`: incoming monthly offers 0, monthly contracts 0, received gross JPY 0.
+The marketplace ledger has 197 `application_verified` receipts and no award, delivery or
 payment event. Thus verified net MRR is 0 USD; applications and public packages do not count
 as recurring revenue.
 
 **Remaining execution order.** The numbered L-08→L-16 and M-01→M-04 atoms below remain
 the canonical order; the following are the concrete gates to work through, not a reorder:
 
-1. **Apply recovery acceptance:** PR #5531 is installed for Application at SHA `9e4a37ae…`.
-   A natural wake has passed with admission unknown 0. Prove a real
-   `submission_uncertain` with an exact durable pending claim exits as a truthful
-   reconciliation handoff, then the next natural wake reads the official proposal
-   ID, appends one receipt and sends no second proposal. Until that event occurs,
-   the production behavior is unverified; reconcile any newly fenced occurrence
-   only against its exact official proposal.
-2. **First paid conversion:** measure proposal→buyer reply→award by profile, proof,
+1. **Apply recovery acceptance — DONE:** PR #5531 handed project `5603444` off
+   as `submission_uncertain` with an exact durable pending claim, process exit 0,
+   truthful `application_verified:false` and admission unknown 0. PR #5535 replaced
+   wall-clock pending selection, which sampled only half of four entries when a
+   wake took two minutes, with a per-attempt cursor. Its first natural wake selected
+   that project and officially read proposal `27942627`, appended exactly one
+   `application_verified` receipt, removed the pending claim and reported
+   `submitted:false`; admission unknown remained 0. No manual adoption or second
+   submit occurred for this receipt. This completion advances the supporting
+   acquisition cursor to item 2 without changing L-08→L-16 order.
+2. **First paid conversion — CURRENT SUPPORTING ACTION:** measure proposal→buyer reply→award by profile, proof,
    proposal and price version; improve the weakest measured stage without inventing
    reviews or completed client work. Keep Storefront catalog families distinct and
    measure inquiry/order rather than listing count.
@@ -3077,7 +3080,7 @@ the canonical order; the following are the concrete gates to work through, not a
 
 | Lane | Observed state | Next proof |
 |---|---|---|
-| Apply | The installed main-origin SHA is `9e4a37ae…`; official proposal IDs were reconciled through project `5603600` without resending. Two older pending project IDs (`5601892`, `5601332`) remain absent from complete proposal readback. | Natural uncertain-submission handoff followed by next-wake official readback, receipt exactly one and duplicate submit zero. Never retry either older ID blindly. |
+| Apply | The installed main-origin SHA is `81a7ddd8…`; project `5603444` was naturally reconciled to proposal `27942627` with one receipt, submit 0 and admission unknown 0. Older pending IDs `5601892` and `5601332` remain absent from complete proposal readback. | Continue natural discovery and measure proposal→reply→award. Never retry the older pending IDs blindly. |
 | Storefront | SHA `59770dd5…` has natural passes. Official `/myplan` showed 19 identical Web-app packages within the 20 active slot limit. Eighteen duplicates were individually moved to `非表示` with exact settings readback; canonical SNS listing `1338228` and one Web-app listing `1342394` remain. PR #5522 preserves the catalog cursor and serializes select→create→persist. The recovered cursor survived later natural wakes; distinct catalog listings now have official IDs `1344056`, `1344057`, `1344058`, `1344060`. | Track each distinct public listing and its inquiry/order counters; prevent a second ID for one family and measure demand before claiming conversion. |
 | Negotiate / Work Sync | Source-complete inbox shows no required reply, incoming monthly offer, active monthly contract or funded project. | An exact buyer-last message or official offer/escrow record; otherwise no external reply/accept effect. |
 | Paid | A natural pass followed exact no-effect occurrence recovery, but historical queued occurrences can surface as `resource_effect_unknown`. The provider adapter still raises `lancers_paid_effect_not_implemented` for mutation. | Reconcile each exact pre-effect marker or official effect; implement and prove funded delivery only when a real ContractReceipt exists. |
