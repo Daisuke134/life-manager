@@ -35,10 +35,13 @@ work was correct; correctness requires full buyer-context mapping and buyer-visi
   effect_unknown=1. PR #5634 makes new application receipts occurrence-bound while historical imports
   stay unbound. Latest Application/Paid wakes stop before provider work with
   host_admission_deferred:resource_effect_unknown.
-- Disk-cleanup release 65a1d563dca85d9c10019854c8f3bf7027c1e9 passed its target wake with errors=0 and
-  free_after=8281886720; current host headroom is about 7.0 GiB (97% used), still PRESSURE. Historical
-  ENOSPC and database-lock errors correlate with missing legacy evidence, but the exact row-level failed
-  write is not proven.
+- The previous disk-cleanup release 65a1d563dca85d9c10019854c8f3bf7027c1e9 passed one target wake,
+  but headroom is not stable: fresh probes reached about 0.7–1.3 GiB available at 100% capacity. Two
+  roughly 535 MiB directories remain under the no-effect `capafy-ig-marketing-daily` scratch root. One
+  has a stale owner and a run-bound `effect_class=none` event; the other has no owner identity and stays
+  protected. The shared cleanup root cause is confirmed: every `.terminal-unrecorded` run was preserved,
+  even for no-effect loops. A candidate now records per-run effect metadata and requires a unique,
+  run-bound `effect_class=none` event plus stale identity before deletion. It is not merged or loaded yet.
 - The official read-only inventory contains funded IDs 63712784, 63659463, 63657015, 63570481, and
   63568785. This inventory is not work submission, delivery, acceptance, settlement, payout, or MRR.
 - Read-only process inspection observed defunct children of Chromium and ChatGPT, and lsof showed normal
@@ -71,13 +74,16 @@ work was correct; correctness requires full buyer-context mapping and buyer-visi
   formal delivery. 63568785 lacks permitted document content. 63659463 needs a full quality audit and
   delivery. 63583795 needs acceptance, settlement, and payout readback.
 - The host capacity issue and admission fence are active. resource_control_busy is a transient lock;
-  effect_unknown is the durable evidence boundary. Zombie processes are not a reason to retry.
+  effect_unknown is the durable evidence boundary. Zombie processes are not a reason to retry. The
+  cleanup candidate must be merged, cut into an immutable release, target-applied only to disk-cleanup,
+  and read back before the stale no-effect directory can be reclaimed.
 
 ### Remaining TODO, in order
 
-1. Repair disk headroom through the existing disk governor, reclaiming only safe generated artifacts.
-   Preserve credentials, browser profiles, receipts, state, and loaded releases. Require stable headroom
-   and a cleanup receipt without an unexplained error.
+1. Merge and deploy the shared cleanup fix through the existing disk governor. Target-apply only
+   disk-cleanup, reclaim the stale no-effect scratch only after its run-bound event and stale identity
+   checks pass, and require stable headroom plus a cleanup receipt without an unexplained error. Preserve
+   credentials, browser profiles, receipts, state, and loaded releases.
 2. Resolve the Application occurrence through the resolver/readback path using an occurrence-bound no-dispatch
    marker or official receipt. Do not retry an unknown effect.
 3. Resolve the Paid occurrence 18d62cf32eb0c678-48194. The historical paid-latest result has no
