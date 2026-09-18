@@ -453,6 +453,17 @@ def validate_evidence_paths(result: dict[str, Any], evidence_root: Path) -> None
     if not isinstance(evidence, dict):
         return
 
+    human_gate_dom_optional = False
+    if result.get("status") == "needs_human":
+        screenshot_value = evidence.get("screenshot_path")
+        if isinstance(screenshot_value, str) and screenshot_value.strip():
+            screenshot = Path(screenshot_value).expanduser().resolve()
+            try:
+                screenshot.relative_to(root)
+                human_gate_dom_optional = screenshot.is_file()
+            except ValueError:
+                human_gate_dom_optional = False
+
     candidates: list[tuple[str, str]] = []
     for field in ("screenshot_path", "dom_path"):
         value = evidence.get(field)
@@ -478,6 +489,8 @@ def validate_evidence_paths(result: dict[str, Any], evidence_root: Path) -> None
         except ValueError as error:
             raise ValueError(f"{label}_outside_current_pass") from error
         if not resolved.is_file():
+            if label == "evidence.dom_path" and human_gate_dom_optional:
+                continue
             raise ValueError(f"{label}_missing")
 
 
