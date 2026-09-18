@@ -24,6 +24,7 @@ const ACTION_SUCCESS_PROVIDER_KEYS = "duration_ms,method,provider,purpose,result
 const ACTION_FAILURE_CONTEXT_KEYS = "duration_ms,method,provider,purpose,result,safe_reason,timestamp";
 const ACTION_FAILURE_CONTEXT_WITH_CLASS_KEYS = "duration_ms,error_class,method,provider,purpose,result,safe_reason,timestamp";
 const ACTION_CANDIDATE_FAILURE_KEYS = "candidate_ref,duration_ms,method,provider,purpose,result,safe_reason,timestamp";
+const ACTION_CANDIDATE_FAILURE_WITH_CLASS_KEYS = "candidate_ref,duration_ms,error_class,method,provider,purpose,result,safe_reason,timestamp";
 const REPORT_KEYS = "consecutive_failure_count,created_at,safe_reason,schema_version,status,wake_id";
 const DELIVERY_KEYS = "delivered_at,schema_version,telegram_provider_id,wake_id";
 const CLAIM_KEYS = "claimed_at,schema_version,wake_id";
@@ -95,8 +96,10 @@ function appendDurable(file, value) {
 function safeAction(input) {
   if (!input || typeof input !== "object" || Array.isArray(input)) invalid();
   const keys = Object.keys(input).sort().join(",");
-  const hasErrorClass = keys === ACTION_FAILURE_CONTEXT_WITH_CLASS_KEYS;
-  const hasCandidateRef = keys === ACTION_CANDIDATE_FAILURE_KEYS;
+  const hasErrorClass = keys === ACTION_FAILURE_CONTEXT_WITH_CLASS_KEYS
+    || keys === ACTION_CANDIDATE_FAILURE_WITH_CLASS_KEYS;
+  const hasCandidateRef = keys === ACTION_CANDIDATE_FAILURE_KEYS
+    || keys === ACTION_CANDIDATE_FAILURE_WITH_CLASS_KEYS;
   const hasSuccessProvider = keys === ACTION_SUCCESS_PROVIDER_KEYS;
   const hasFailureContext = keys === ACTION_FAILURE_CONTEXT_KEYS || hasErrorClass || hasCandidateRef;
   if (

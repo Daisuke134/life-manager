@@ -198,6 +198,37 @@ test("recordAction keeps only a bounded Connpass candidate identity on a failed 
   } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
 });
 
+test("recordAction keeps the error class with a bounded Connpass candidate identity", async () => {
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-candidate-error-class-"));
+  try {
+    const operations = createMinimalProductionOperations({
+      stateDir, wakeId: "wake-connpass-candidate-error-class", telegramTarget: "private-target",
+      now: () => new Date("2026-09-18T00:47:17.461Z"),
+      async sendMessage() { return { ok: true, result: { message_id: 7004 } }; },
+    });
+    await operations.recordAction({
+      purpose: "submit", method: "provider_direct", timestamp: "2026-09-18T00:47:17.461Z",
+      result: "failed", duration_ms: 1755, provider: "connpass",
+      safe_reason: "connpass_confirm_unavailable", error_class: "Error",
+      candidate_ref: "connpass-event://event/407256",
+    });
+    const row = JSON.parse(fs.readFileSync(path.join(stateDir, "action-history.jsonl"), "utf8").trim());
+    assert.deepEqual(row, {
+      schema_version: 1,
+      wake_id: "wake-connpass-candidate-error-class",
+      purpose: "submit",
+      method: "provider_direct",
+      timestamp: "2026-09-18T00:47:17.461Z",
+      result: "failed",
+      duration_ms: 1755,
+      provider: "connpass",
+      safe_reason: "connpass_confirm_unavailable",
+      error_class: "Error",
+      candidate_ref: "connpass-event://event/407256",
+    });
+  } finally { fs.rmSync(stateDir, { recursive: true, force: true }); }
+});
+
 test("recordAction persists a bounded error_class and rejects malformed or oversized values", async () => {
   const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), "connector-minimal-error-class-"));
   try {
