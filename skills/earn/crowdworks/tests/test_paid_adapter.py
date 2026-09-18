@@ -968,6 +968,34 @@ def test_document_access_reports_permission_required_without_verifying_artifact(
     }
 
 
+def test_document_access_waits_for_permission_surface_after_commit():
+    module = load()
+
+    class Body:
+        def __init__(self): self.ready = False
+        def inner_text(self): return "編集権限をリクエスト" if self.ready else "読み込み中"
+
+    class Surface:
+        def count(self): return 0
+
+    class Page:
+        def __init__(self): self.body = Body()
+        def goto(self, *_args, **_kwargs): return None
+        def wait_for_timeout(self, _timeout): self.body.ready = True
+        def locator(self, selector): return self.body if selector == "body" else Surface()
+        def close(self): return None
+
+    class Context:
+        def new_page(self): return Page()
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.owned_context = Context()
+    assert adapter._document_access(["https://docs.google.com/document/d/abc/edit"]) == {
+        "artifact_required": True, "artifact_access": "permission_required",
+        "artifact_verified": False,
+    }
+
+
 def test_document_access_keeps_readable_content_for_model_work():
     module = load()
 

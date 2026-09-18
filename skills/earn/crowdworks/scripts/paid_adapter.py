@@ -582,6 +582,9 @@ class CrowdWorksPaidAdapter:
             page = self.owned_context.new_page()
             try:
                 page.goto(url, wait_until="commit", timeout=20_000)
+                wait_for_timeout = getattr(page, "wait_for_timeout", None)
+                if callable(wait_for_timeout):
+                    wait_for_timeout(1_000)
                 body = str(page.locator("body").inner_text() or "")
                 if "編集権限をリクエスト" in body:
                     permission_seen = True
