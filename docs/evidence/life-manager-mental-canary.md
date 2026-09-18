@@ -53,12 +53,18 @@ The production scheduler also observed the synthetic projection and logged a Tel
 
 ## Remaining canary gates
 
-- Latest automated readback at `2026-09-18T22:32:41+09:00`: `v1_count=2`, `legacy_count=32`, `daily_counts={2026-09-18: 2}`, `min_gap_ms=48254748`, `windows.morning_orientation=1`, `windows.evening_direction=1`, and structural `pass=true` over the trailing 14-day window. This is two natural receipts, not a seven-day canary pass. The read-only wall-clock monitor was restarted after its prior process exited; no send or scheduler mutation was performed.
+- Latest automated readback at `2026-09-19T08:35:49+09:00`: `v1_count=3`, `legacy_count=32`, `daily_counts={2026-09-18: 2, 2026-09-19: 1}`, `min_gap_ms=38167867`, `windows.morning_orientation=2`, `windows.evening_direction=1`, `template_repeats=1`, and structural `pass=false` over the trailing 14-day window. This is three natural receipts, not a seven-day canary pass. The read-only wall-clock monitor was restarted after its prior process exited; no send or scheduler mutation was performed.
 - The receipt row has `family=affirmation`, `window=morning_orientation`, and template `antara:courage-quiet:ja`. The provider-native `Cloud Life Manager` dialog contains a same-second inbound MTProto message (`2026-09-17T23:00:50Z`) whose text hash/length exactly matches that approved catalog item; its message has no buttons/reply markup and `out=false`. Bot API receipt ID `1384` and MTProto ID `88742` are different API identifiers, so the cross-API ID mapping is recorded as an observation rather than assumed.
 - The midday opportunity on this local day was correctly suppressed by the shared trailing-24-hour cap; the evening opportunity later delivered one V1 manifestation. The durable row is `id=160`, `family=manifestation`, `window=evening_direction`, `template_id=antara:small-step-afraid:ja`, `telegram_message_id=1395`, `sent_at=2026-09-18T12:25:05.350819Z`. No cap bypass or extra send was authorized. Provider-native body/markup readback for this second receipt remains open.
-- Repository hardening is pushed on release branch `fix/lm-mental-production-release-20260919` at
-  `8023b98b9d`; focused MENTAL tests and the full Life Manager suite pass. Production has not
-  received this code release yet, so `LM_MENTAL_DECISION_LOG_REQUIRED=1` remains intentionally off.
+- A third natural row `id=162` delivered `family=affirmation`, `window=morning_orientation`,
+  `template_id=antara:courage-quiet:ja`, `telegram_message_id=1400`, at
+  `2026-09-18T23:01:13.217697Z`. This repeated the prior morning template after the old runtime's
+  24-hour history query expired. The release branch fixes the cause by fetching a 14-day template
+  horizon while keeping the 24-hour cap; the existing receipt is retained and is not deleted.
+- Repository hardening and the 14-day template-dedupe fix are pushed on release branch
+  `fix/lm-mental-production-release-20260919` at `5dcbb4e5ff`; MENTAL focused tests are `104/104`
+  and the full Life Manager suite exits `0`. Production has not received this code release yet,
+  so `LM_MENTAL_DECISION_LOG_REQUIRED=1` remains intentionally off.
 - The remaining release mismatch is code, not schema: production `/health` still reports the older
   build `d4659ff4bc7b4e13aa67836243060ad1d4efbb03`, while the release branch contains the decision
   wiring. No production flag change was attempted before that code release.
@@ -68,10 +74,11 @@ The production scheduler also observed the synthetic projection and logged a Tel
 - [x] Capture one natural Dais morning affirmation in `morning_orientation`.
 - [ ] Capture one natural Dais midday mindfulness/body-awareness line in `midday_awareness`.
 - [x] Capture one natural Dais evening manifestation/release line in `evening_direction` (body/markup readback still open).
-- [ ] For seven consecutive local days, record decision, family, template ID, window, Telegram ID, and durable receipt row.
+- [ ] Deploy `5dcbb4e5ff` and read back its exact production SHA before enabling the decision-log flag.
+- [ ] For seven consecutive local days after the fixed release, record decision, family, template ID, window, Telegram ID, and durable receipt row.
 - [x] Apply and read back the decision-log and quiet-hours migrations through Supabase CLI.
 - [ ] Deploy the decision-log wiring release and read back its exact production SHA before enabling the flag.
-- [ ] Prove daily count <= 3, spacing >= 3 hours, busy/quiet suppression, 14-day template dedupe, and replay-zero.
+- [ ] Prove daily count <= 3, spacing >= 3 hours, busy/quiet suppression, no new 14-day template repeats, and replay-zero. The pre-release duplicate remains historical until it ages out; do not delete it.
 - [ ] Verify the actual Telegram text has no buttons, callback data, reply instruction, sender signature, or unsupported personal claim.
 
 No production rollout beyond the Dais allowlist is authorized until these rows are closed with provider-native Telegram readback.
