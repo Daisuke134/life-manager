@@ -214,6 +214,7 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
   let discoveryFailureReason = "provider_discovery_failed";
   let lastSafeReason = "provider_discovery_failed";
   let reusedBundleObserved = false;
+  const knownNoEffectProviders = new Set();
 
   const elapsed = () => Date.parse(exactInstant(deps.now())) - startedAt;
   const deadlineReached = () => elapsed() >= settings.maxWakeMs;
@@ -652,7 +653,10 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
             "connpass_questionnaire_required",
           ].includes(lastSafeReason))
           || (provider === "luma" && ["luma_required_profile_field_unavailable", "private_value_unavailable"].includes(operationSafeReason(operation, lastSafeReason)));
-        if (knownNoEffect) continue;
+        if (knownNoEffect) {
+          knownNoEffectProviders.add(provider);
+          continue;
+        }
         consecutiveFailures += 1;
         if (ambiguousAgentEffect) return finish("circuit_open", "effect_unknown");
         if (consecutiveFailures >= settings.maxConsecutiveFailures) {
@@ -669,10 +673,12 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
       }
       consecutiveFailures = 0;
     }
+    const knownNoEffectReason = knownNoEffectProviders.size === 1
+      ? `${[...knownNoEffectProviders][0]}_candidates_ineligible` : null;
     return finish("completed_no_effect", providerDiscoveryFailed
       ? discoveryFailureReason : connpassBoundaryFailed ? "connpass_action_boundary_failed"
         : reusedBundleObserved ? "existing_bundles_reused"
-          : sessionExpiredReason || "providers_exhausted");
+          : sessionExpiredReason || knownNoEffectReason || "providers_exhausted");
   } catch (error) {
     if (deadlineReached()) return finish("circuit_open", "wake_deadline");
     return finish("circuit_open", error && error.unknownEffect === true ? "effect_unknown" : "wake_boundary_failed");
