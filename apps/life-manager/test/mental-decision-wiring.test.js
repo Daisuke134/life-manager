@@ -18,4 +18,3 @@ test("decision-log requirement is explicit and defaults off during migration rol
     else process.env.LM_MENTAL_DECISION_LOG_REQUIRED = old;
   }
 });
-
