@@ -58,6 +58,57 @@ def _atomic_write(path: Path, payload: dict[str, Any]) -> None:
     os.replace(temporary, path)
 
 
+def _repair_unbound_editorial_receipt(
+    run_dir: Path, lang: str, draft: Path
+) -> dict[str, Any]:
+    """Bind a model-written editorial verdict to the immutable draft bytes.
+
+    ``editorial-gate.sh`` normally writes ``article_sha256`` itself.  A model
+    can nevertheless redirect the gate's JSON to a recheck file and then copy
+    that raw verdict over the canonical receipt, dropping the binding field.
+    Preserve that raw receipt and add only the deterministic current-draft
+    hash; verdict, fixes, and strengths are never changed and PASS is never
+    fabricated.
+    """
+    if lang not in {"ja", "en"}:
+        raise QualitySelfHealError("editorial language is invalid")
+    gates = Path(run_dir) / "gates"
+    canonical = gates / f"editorial-{lang}.json"
+    value = _read_json(canonical)
+    if value is None:
+        raise QualitySelfHealError("editorial receipt is malformed")
+    digest = _sha256(Path(draft))
+    bound = value.get("article_sha256")
+    if bound is not None:
+        if bound != digest:
+            raise QualitySelfHealError("editorial receipt article hash mismatch")
+        return value
+    if (
+        value.get("verdict") not in {"PASS", "FAIL"}
+        or not isinstance(value.get("fixes"), list)
+        or not isinstance(value.get("strengths"), list)
+    ):
+        raise QualitySelfHealError("unbound editorial receipt is malformed")
+
+    raw_bytes = canonical.read_bytes()
+    raw_digest = hashlib.sha256(raw_bytes).hexdigest()
+    archive = gates / "editorial-unbound"
+    archive.mkdir(parents=True, exist_ok=True)
+    raw_copy = archive / f"editorial-{lang}-{raw_digest}.json"
+    if raw_copy.exists():
+        if raw_copy.is_symlink() or raw_copy.read_bytes() != raw_bytes:
+            raise QualitySelfHealError("unbound editorial receipt archive conflicts")
+    else:
+        raw_copy.write_bytes(raw_bytes)
+
+    repaired = dict(value)
+    repaired["article_sha256"] = digest
+    repaired["receipt_rebound_from_unbound"] = True
+    repaired["unbound_receipt_sha256"] = raw_digest
+    _atomic_write(canonical, repaired)
+    return repaired
+
+
 def _receipt_hash(payload: dict[str, Any]) -> str:
     unsigned = {
         key: value for key, value in payload.items() if key != "receipt_sha256"
@@ -620,6 +671,8 @@ def assess(run_dir: Path, drafts: dict[str, Path]) -> dict[str, Any]:
 
     if set(drafts) != {"ja", "en"}:
         raise QualitySelfHealError("drafts must contain ja and en")
+    for lang in ("ja", "en"):
+        _repair_unbound_editorial_receipt(run_dir, lang, Path(drafts[lang]))
     editorial_form = _route_form(run_dir)
     publication_policy = os.environ.get("ARTICLE_PUBLICATION_POLICY", "strict")
     if publication_policy not in {"strict", "continuous"}:
