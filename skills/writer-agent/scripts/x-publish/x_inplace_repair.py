@@ -159,6 +159,16 @@ def _clipboard_html_chunks(value: str, max_chars: int = 1800) -> list[str]:
     return chunks or [value]
 
 
+def _clipboard_chunks_with_images_last(
+    chunks: list[tuple[str, str]],
+) -> list[tuple[str, str]]:
+    """Paste all reader HTML before media to avoid Draft.js image focus loss."""
+    html = "".join(value for kind, value in chunks if kind == "html")
+    images = [value for kind, value in chunks if kind == "img"]
+    return [*(('html', value) for value in _clipboard_html_chunks(html)),
+            *(('img', value) for value in images)]
+
+
 def _focus_composer_end(page, composer) -> None:
     """Place Draft.js selection at the real document end before a paste."""
     composer.click()
@@ -956,15 +966,8 @@ class XBrowserAdapter:
             page.wait_for_timeout(500)
             if composer.inner_text().strip():
                 raise XRepairRefused("X composer did not clear deterministically")
-            previous_kind: str | None = None
-            for kind, value in chunks:
+            for kind, value in _clipboard_chunks_with_images_last(chunks):
                 if kind == "html":
-                    if previous_kind == "img":
-                        # Draft.js can leave focus on the newly inserted image;
-                        # restore the document end before pasting the trailing
-                        # HTML (notably the Sources block).
-                        _focus_composer_end(page, composer)
-                        page.wait_for_timeout(300)
                     for html_chunk in _clipboard_html_chunks(value):
                         if not html_chunk.strip():
                             continue
@@ -976,7 +979,6 @@ class XBrowserAdapter:
                     if not path.is_file():
                         raise XRepairRefused("X body image is missing")
                     self._paste_image_chunk(page, composer, path)
-                previous_kind = kind
             normalized_body = " ".join(
                 html_lib.unescape(re.sub(r"<[^>]+>", " ", body_html)).split()
             )
