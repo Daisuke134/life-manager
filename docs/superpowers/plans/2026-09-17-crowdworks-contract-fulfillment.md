@@ -47,6 +47,75 @@ The disk floor is currently above the admission threshold, but historical ENOSPC
 the missing legacy evidence. No contract has buyer acceptance, settlement, payout, or verified USD
 10,000 MRR.
 
+## Root-cause deep dive: host failure versus zombies
+
+**Evidence.** The historical launchd error log contains repeated `Errno 28 No space left on device`
+while CrowdWorks state files, terminal events, and cleanup files were being written. It also contains
+`database is locked`, `control_busy`, and missing-owner-file errors during the same recovery period.
+Current CrowdWorks launchd jobs are `loaded`/`not running` with exit `75` and
+`host_admission_deferred:resource_effect_unknown`; these wakes stop before the provider child starts.
+The host admission database still has three CrowdWorks rows in `claimed/effect_unknown=1`.
+
+Read-only process inspection found two `Z`/`<defunct>` processes. Their parents are a CloakBrowser
+Chromium process and the ChatGPT app. A zombie is an already-exited child waiting for its parent to reap
+it; it does not keep the browser task running and does not explain the admission rows. `lsof +L1`
+showed normal macOS deleted cache/allowlist files, not a large CrowdWorks file held open. No evidence in
+these checks indicates a virus. A malware verdict would require a separate security scan and is not the
+cause required to explain this failure.
+
+**Causal chain (AS-IS):**
+
+```mermaid
+flowchart TD
+    A[Historical disk pressure / ENOSPC] --> B[State, terminal, or cleanup write fails]
+    B --> C[Admission cannot prove effect disposition]
+    C --> D[Occurrence stays claimed + effect_unknown]
+    D --> E[Next wake stops before provider child]
+    E --> F[No new CrowdWorks work, receipt, or payout]
+    Z[Defunct child of Chromium/ChatGPT] -. separate symptom .-> H[Negligible process-table residue]
+```
+
+`resource_control_busy` is a separate transient host-lock condition. It can delay a wake, but it is not
+the root cause of the permanent CrowdWorks fence. The permanent fence exists because an older provider
+effect cannot be proven absent or tied to an exact official receipt.
+
+**Target causal chain (TO-BE):**
+
+```mermaid
+flowchart TD
+    A[Disk governor keeps safe headroom] --> B[Wake writes durable occurrence ID]
+    B --> C[Provider observation and buyer-context capsule]
+    C --> D[Correct work / artifact decision]
+    D --> E[Single fenced provider effect]
+    E --> F[Official provider receipt and buyer-visible readback]
+    F --> G[Release exact occurrence]
+    G --> H[Next one-by-one wake]
+    X[Missing or corrupt evidence] --> Y[Hold exact occurrence; no retry]
+    Y --> C
+```
+
+The TO-BE path makes every future result joinable to one occurrence and preserves form URL aliases so a
+later delivery stage cannot lose an earlier confirmed receipt. It still requires an official readback
+before an old uncertain effect is released.
+
+**Ordered TODO:**
+
+1. Inspect the disk-governor cleanup error and reclaim only safe generated artifacts until the headroom
+   floor remains stable; do not delete credentials, browser profiles, receipts, state, or releases.
+2. Resolve the legacy Paid occurrence from an exact provider receipt or an occurrence-bound no-dispatch
+   marker. The old `paid-latest.json` has no occurrence ID, so its timestamp is insufficient.
+3. Reconcile the legacy Reply wake item by item. Preserve the confirmed contract effect and the two
+   `confirmation_requested` form effects; do not resend them.
+4. Reconcile the legacy Application wake from occurrence-bound output or official application receipt;
+   do not retry while its prior effect is uncertain.
+5. After all three fences are resolved, kickstart one owner at a time. Start with `63712784`: submit the
+   common test form, read its confirmation, submit the Web Ads results form, read its confirmation, then
+   press CrowdWorks `納品する` and read the official milestone state.
+6. Continue through `63657015`, `63570481`, `63568785`, `63659463`, and `63583795`, requiring
+   `correct_work_verified`, formal delivery, buyer acceptance, settlement, payout, and replay-zero for
+   each contract.
+7. Count USD 10,000 MRR only from collected/settled recurring value with a documented continuation basis.
+
 **Verified contract outcomes:** `63659463` has confirmed Web Ads and common form receipts; its latest
 row is `verified` (`effect=1/readback=1`) but formal delivery, quality verification, acceptance and payout
 are open. `63583795` has historical form and formal-delivery receipts and is awaiting buyer inspection;
