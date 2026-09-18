@@ -1008,7 +1008,7 @@ work item and leave a sibling trace unchanged.
 
 **Plan/spec:** `docs/superpowers/plans/2026-09-17-crowdworks-contract-fulfillment.md` and
 `docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md`.
-**Current cursor:** **CW-F1 — all-lane exact admission reconciliation and installed-owner wakes**.
+**Current cursor:** **CW-F3 — Paid legacy admission reconciliation and funded-contract fulfillment**.
 
 **Done (verified):**
 
@@ -1040,19 +1040,18 @@ work item and leave a sibling trace unchanged.
   above the immediate ENOSPC floor, but the cleanup error remains open.
 - Paid admission progress: occurrences `16007`, `26778` and `36919` are reconciled to exact effect/no-effect
   evidence and now `released/effect_unknown=0`.
-- Current host ledger still has one `claimed/effect_unknown=1` row per CrowdWorks owner: Application
-  `18d5fce56607e540-6666`, Reply `18d5fa8f9d73cad8-49973`, and Paid `18d62cf32eb0c678-48194`. The
-  Application and Reply runs were admission-stopped before a child; Paid's legacy provider-inventory run
-  has no durable marker. Application has 162 historical verified application receipts with no pending
-  transaction; Reply retains `observed=57/readback=52/pending=4/failed=1/effect=0`. These are retained
-  readbacks, not proof of a new wake.
+- The Application and Reply stale rows are reconciled to exact proof and now `released/effect_unknown=0`.
+  Application is loaded on `4a81d525` and has 170 verified application receipts; its current state is
+  `profile_complete_no_eligible_open_job`. Reply is loaded on `818631d6`; its latest terminal is
+  `pass/effect=0/readback=53/pending=7/failed=0`, with no uncertain message retried. Reply kernel now
+  persists occurrence IDs and a whole-wake marker. Paid remains the only `claimed/effect_unknown=1` row.
 
 **Not done / blockers:**
 
-- Application, Reply and Paid launchd are all `not running`, exit `75`; latest target runs
-  `18d6476bd4be2618-91197`, `18d647699af710e0-90754`, and `18d6475aab0f20f8-82219` respectively ended
-  with `host_admission_deferred:resource_effect_unknown`. Their three exact stale occurrences remain
-  `claimed`/`effect_unknown=1`, and the current pre-effect code refuses an unbound legacy clear.
+- Paid launchd remains `not running`, exit `75`; its latest target wakes still end with
+  `host_admission_deferred:resource_effect_unknown`. The exact legacy occurrence
+  `18d62cf32eb0c678-48194` remains `claimed/effect_unknown=1`; the current pre-effect code correctly refuses
+  to clear it without a bound marker or provider receipt.
 - `63657015` has two current forms and no confirmed receipt under the current detail; its earlier durable
   common-form intent remains unverified and must be reconciled before retry.
 - `63570481` correction has not been submitted; the buyer-visible result and formal delivery are open.
@@ -1070,15 +1069,15 @@ work item and leave a sibling trace unchanged.
 
 - [x] **CW-F1a — host headroom:** Existing cleanup pass read back about 7.5 GiB free. It reclaimed zero
   artifacts and recorded one error, so capacity recovery is observed but cleanup health is not green.
-- [ ] **CW-F1b — all-lane admission reconcile:** Reconcile Application `18d5fce56607e540-6666`, Reply
-  `18d5fa8f9d73cad8-49973`, and Paid `18d62cf32eb0c678-48194` only with exact run-wide pre-effect evidence
-  or an official provider receipt. Do not clear any row by guess.
-- [ ] **CW-F2 — release parity and installed-owner wakes:** After exact reconciliation, read loaded immutable
-  argv for all three owners. Application/Reply currently load `37384185` and Paid loads `8be258fc`; apply a
-  compatible main-derived release to any stale owner through the target-only path, verify the loaded SHA, then
-  kickstart Application, Reply and Paid one at a time without waiting for a global slot. Read
-  proposal/message/contract receipts and official provider state for each; Reply must not perform
-  post-contract effects.
+- [x] **CW-F1b — Application/Reply admission reconcile:** Application and Reply stale rows were released
+  only from exact host-deferred/provider evidence; no direct SQL or guessed clear was used.
+- [x] **CW-F2 — release parity and installed-owner wakes:** Application is on `4a81d525`, Reply on
+  `818631d6`, Paid on `8be258fc`; loaded argv and terminal events were read back. Application produced
+  verified proposal receipts; Reply completed a no-new-effect wake with official readback and preserved
+  seven pending items without retrying uncertain messages.
+- [ ] **CW-F3 — Paid legacy admission reconcile:** Reconcile `18d62cf32eb0c678-48194` only when exact
+  run-wide pre-effect evidence or an official provider receipt exists. The legacy provider-inventory result
+  alone is insufficient.
 - [ ] **CW-F3 — `63657015`:** Reconcile the timed-out intent from official provider state before retry;
   then read the full hearing/common-test scope, do the requested work, verify it and avoid fabricating an
   AI share link.

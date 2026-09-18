@@ -30,7 +30,7 @@ not a claim that money has been earned.
   contract ID; the other 14 loop owners remain independent.
 - **Runtime safeguards:** the bounded wake, timeout isolation, inspection-pending no-op, and run-wide
   pre-effect fence are merged through PRs `#5430`, `#5437`, `#5443`, `#5476`, `#5492`, `#5512`,
-  `#5515`, `#5520` and `#5524`. The Paid label is loaded from main-derived immutable release
+  `#5515`, `#5520`, `#5524` and `#5543`. The Paid label is loaded from main-derived immutable release
   `8be258fc3430227d2606e75c92c6d5f2d22c1555` at
   `/Users/anicca/loops/crowdworks/releases/20260918T092955-8be258fc` with a finite 900-second owner
   bound. The release includes active-inventory, form-redirect and Docs-access waits plus quality/stage
@@ -80,18 +80,19 @@ not a claim that money has been earned.
   Reply's retained result is `observed=57`, `readback=52`, `pending=4`, `failed=1`, `effect=0`; its
   provider message IDs are historical readbacks and do not prove a new wake. All later scheduled wakes for
   both owners stopped at the shared admission fence.
+- **Production progress after reconciliation:** Application was aligned to immutable release `4a81d525`
+  and produced 8 new verified application receipts during this pass (`162 -> 170`); its current owner state
+  is `profile_complete_no_eligible_open_job` with `effect_delta=0`. Reply was aligned first to `4a81d525`
+  and then to `818631d6`; its latest wake ended `pass`, `effect=0`, `readback=53`, `pending=7`,
+  `failed=0`, and no uncertain message was retried. The new Reply kernel persists occurrence IDs and a
+  whole-wake marker for future reconciliation. Paid remains the only owner with an unreconciled legacy row.
 
 ### Not done (current blockers and open work)
 
-- **Admission blocker:** all three owners are stopped by exact stale occurrences: Application
-  `crowdworks-revenue-application:18d5fce56607e540-6666`, Reply
-  `crowdworks-revenue-reply:18d5fa8f9d73cad8-49973`, and Paid
-  `crowdworks-revenue-paid:18d62cf32eb0c678-48194` (`claimed`, `effect_unknown=1`). The Application and
-  Reply rows have no child-run marker; the Paid row came from a legacy provider-inventory failure without a
-  durable marker. The latest target wakes (`18d6476bd4be2618-91197`, `18d647699af710e0-90754`, and
-  `18d6475aab0f20f8-82219`) all ended before child execution with
-  `host_admission_deferred:resource_effect_unknown`. Launchd readback is `state=not running`,
-  `last exit code=75` for each. Application/Reply remain on release `37384185`; Paid is on `8be258fc`.
+- **Admission blocker:** Paid remains stopped by `crowdworks-revenue-paid:18d62cf32eb0c678-48194`
+  (`claimed`, `effect_unknown=1`). Its legacy provider-inventory failure has no exact run marker or bound
+  provider receipt, so the current reconciler rejects it. Application and Reply stale rows are
+  `released/effect_unknown=0`; their new immutable releases are loaded (`4a81d525` and `818631d6`).
 - **`63657015` Orecon:** the latest wake timed out with `CrowdWorksPaidContractTimeout`; its durable
   form intent for `https://forms.gle/GxTdS4kZr8fbvej68` remains `intent_persisted` with no confirmed
   receipt. Do not retry from the intent alone; first reconcile the official form/provider state.
@@ -108,18 +109,13 @@ not a claim that money has been earned.
 
 ### Remaining TODO, in execution order
 
-1. **Reconcile the three exact admission occurrences.** Headroom recovery and the Paid release apply are
-   read back, but the cleanup error remains open. Use the existing provider/no-effect reconciliation path
-   for Application `18d5fce56607e540-6666`, Reply `18d5fa8f9d73cad8-49973`, and Paid
-   `18d62cf32eb0c678-48194` only when an exact run receipt or run-wide marker exists. Clear a row only with
-   exact evidence; never guess and never reinterpret a browser timeout as a provider effect.
-2. **Align and wake all three installed owners without waiting for a global slot.** After exact
-   reconciliation, read each loaded immutable SHA; Application and Reply currently load `37384185`, while
-   Paid loads `8be258fc`. Apply a compatible main-derived release to a stale owner through the target-only
-   path, read back its loaded argv, then kickstart Application, Reply and Paid one at a time. Read each
-   terminal receipt plus its official provider readback: Application must prove the proposal receipt, Reply
-   only pre-contract negotiation, and Paid the five-contract fulfillment inventory. A blocked item stays
-   independently represented so other items can advance.
+1. **Reconcile the remaining Paid occurrence.** Use the existing provider/no-effect path for
+   `18d62cf32eb0c678-48194` only if an exact run-wide marker or bound provider receipt appears. The legacy
+   provider-inventory result is not enough; never guess or reinterpret it as no-effect.
+2. **Keep the three installed owners aligned and waking without a global slot.** Application is on
+   `4a81d525`, Reply on `818631d6`, and Paid on `8be258fc`. Read loaded argv after every target-only apply;
+   kickstart one owner at a time and read proposal/message/contract receipts. Reply's new whole-wake marker
+   must account for every item before any future uncertain occurrence can be cleared.
 3. **Finish `63657015` safely.** Inspect the exact provider/form readback for the persisted intent. If no
    effect occurred, read the full hearing/common-test instructions, produce the requested artifact, submit
    only the applicable work and verify it. Do not fabricate the requested AI share link.
