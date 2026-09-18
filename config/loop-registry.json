@@ -1332,6 +1332,7 @@
     },
     "lancers-revenue-work-sync": {
       "adapter": "exec",
+      "admission_class": "revenue",
       "cadence": {
         "start_interval_seconds": 300
       },
@@ -1347,6 +1348,7 @@
       "label": "ai.anicca.lancers-revenue-work-sync",
       "log_root": "~/.local/state/anicca/lancers/logs",
       "provider_route": "deterministic",
+      "priority": "revenue",
       "state_root": "~/.local/state/anicca/lancers"
     },
     "lateness-heartbeat": {
