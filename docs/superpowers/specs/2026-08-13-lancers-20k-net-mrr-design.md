@@ -3042,13 +3042,21 @@ delivery 665544を公式確認、重複納品0。paymentは未確認であり0�
 The following order is immutable unless Dais explicitly says to change the order. Only the first
 unfinished atom is active.
 
-**Live checkpoint (2026-09-18 04:44 UTC).** This supersedes the older counts below; the L-08
+**Live checkpoint (2026-09-18 10:50 UTC).** This supersedes the older counts below; the L-08
 cursor and L-09 onward order stay in place. `contracts.json` is source-complete as of
-`04:44:08 UTC`: 14 boards, required replies 0, unread 1, incoming monthly offers 0,
-monthly contracts 0, project working 0, and received gross JPY 0.
-The marketplace ledger has 203 `application_verified` receipts and no award, delivery or
-payment event. Thus verified net MRR is 0 USD; applications and public packages do not count
-as recurring revenue.
+`10:50:32 UTC`: 14 boards, required replies 0, unread 1, incoming monthly offers 0,
+monthly contracts 0, project working 0, and received gross JPY 0. The marketplace ledger
+still has 203 `application_verified` receipts and no award, delivery or payment event.
+Thus verified net MRR is 0 USD; applications and public packages do not count as recurring
+revenue.
+
+The admission database currently has three Lancers effect fences: Application
+`18d6492796264af8-48639`, Storefront `18d6556c4dd03ee8-67903`, and Negotiate
+`18d658787159fae8-19316`. They remain claimed with `effect_unknown=1` because an exact
+pre-effect marker or provider receipt is unavailable. Paid has no active fence: the exact
+run `fde01e0c…` for occurrence `18d65712938c1d60-95360` completed with `effect=0`, and
+the next natural occurrence `18d65725f0c128a0-96252` also completed with `effect=0`;
+`paid-latest.json` reports `effect=0`, `failed=0`, `pending=0`.
 
 **Remaining execution order.** The numbered L-08→L-16 and M-01→M-04 atoms below remain
 the canonical order; the following are the concrete gates to work through, not a reorder:
@@ -3081,14 +3089,17 @@ the canonical order; the following are the concrete gates to work through, not a
    pre-dispatch marker is still unavailable, so the runtime fence remains until that boundary is
    reconciled explicitly.
    PR #5566 added complete-inventory `authoritative_absent` readback to Paid and was deployed as
-   release `364fd9d4bd…`. Paid occurrence `18d64dd1d3d7f118-23242` was reconciled from its exact
-   run record (`status=completed`, `effect=0`); the next natural Paid wake passed with effect 0,
-   failed 0 and no funded work. Storefront occurrence `18d6506438976f18-85445` was reconciled
-   from its exact official output (`action=unchanged`, `status_effect_count=0`, canonical listing
-   `1338228`), and its next natural wake passed. Telegram occurrence
-   `18d608a51063bdc8-33964` was then reconciled from the exact pre-child
-   `resource_capacity_busy` event without sending again. The only remaining Lancers fence is
-   Application `18d6492796264af8-48639`.
+   release `364fd9d4bd…`; the current installed SHA for the revenue lanes is `91f478bf82…`.
+   Paid occurrence `18d64dd1d3d7f118-23242` and the later `18d65712938c1d60-95360` were
+   reconciled from exact no-effect run records; the following natural Paid wake also completed
+   with effect 0, failed 0 and no funded work. The Storefront occurrence
+   `18d6506438976f18-85445` was reconciled from exact `action=unchanged / status_effect_count=0`
+   evidence, but a later Storefront occurrence `18d6556c4dd03ee8-67903` is fenced again because
+   its exact pre-effect evidence is unavailable. Negotiate has the same unresolved condition at
+   `18d658787159fae8-19316`; no reply is required by the current official inventory. Telegram
+   occurrence `18d608a51063bdc8-33964` was reconciled from the exact pre-child
+   `resource_capacity_busy` event without sending again. The remaining Lancers fences are
+   therefore Application, Storefront and Negotiate; none authorizes a blind retry.
 2. **First paid conversion — CURRENT SUPPORTING ACTION:** measure proposal→buyer reply→award by profile, proof,
    proposal and price version; improve the weakest measured stage without inventing
    reviews or completed client work. Keep Storefront catalog families distinct and
@@ -3117,9 +3128,9 @@ the canonical order; the following are the concrete gates to work through, not a
 |---|---|---|
 | Apply | The installed main-origin SHA is `5c12a42a…`; project `5603444` was naturally reconciled to proposal `27942627`, and a later readback-only reconciliation confirmed project `5602388` as proposal `27943408`. Each has exactly one receipt, with no resend. The ledger now has 203 verified applications. The first `5c12a42a…` wake is held by admission occurrence `18d6492796264af8-48639`; attribution is ready but not yet written because official readback is missing. Older pending IDs `5601892` and `5601332` remain absent from complete proposal readback. | Obtain exact official proposal readback for the fenced occurrence, then let the next natural wake write attribution; never retry the older pending IDs blindly. |
 | Browser attach | PR #5549 retries one Playwright CDP timeout even when `/json/list` is temporarily unavailable or has no stale auth target; first client is stopped and normal tabs are left intact. Apply and Work Sync at current SHA `20eeb4eb…` and Negotiate/Paid at later main SHAs have natural passes. A live first-timeout→second-attach recovery under the new code has not yet been observed. | Observe any future attach timeout and exact attempt-2 outcome without restarting the browser owner or closing unrelated tabs. |
-| Storefront | Official `/myplan` showed 7 active IDs exactly matching canonical plus catalog state: canonical `1338228`, Web-app `1342394`, and five other catalog listings. Eighteen duplicate Web-app packages were individually moved to `非表示`. The old uncertain occurrence was cleared only after an official ID set readback and pre-submit catalog state proof. The later occurrence `18d6506438976f18-85445` was cleared only from exact `action=unchanged / status_effect_count=0` evidence; the next natural wake passed. Demand remains search 12 / detail 0 / inquiry 0 / order 0. | Keep report ACKs separate from publication effect; measure inquiry/order and wait for buyer conversion. |
-| Negotiate / Work Sync | Source-complete inventory has 14 boards, including outreach boards `9077726` and `9077932`, but required reply 0, incoming monthly offer 0, active monthly contract 0 and funded project 0. Work Sync had a 43-minute source gap under borrow/support admission; PR #5541 and a locked metadata migration restored revenue admission. The latest source snapshot is `04:44:08 UTC`; PR #5544 gives Reply an exact pre-effect hint cleared before provider mutation or notification; Negotiate/Paid natural runs pass with effect 0 and unknown 0. | Keep the five-minute source current and act only on an exact buyer-last message or official offer/escrow record. |
-| Paid | Historical queued occurrences surfaced after pre-effect browser timeouts; each cleared claim had its own `pre_effect` marker. PR #5546 makes the shared four-worker Paid kernel retain an owned host hint before any worker mutation and clear it before a successful reporter handoff. PR #5566 adds complete-inventory authoritative-absence readback. Release `364fd9d4bd…` passed the next natural wake with active funded work 0, effect 0, failed 0, admission unknown 0. The provider adapter still raises `lancers_paid_effect_not_implemented` for actual mutation. | Implement and prove funded delivery only when a real ContractReceipt exists; do not treat no-op as delivery. |
+| Storefront | Official `/myplan` showed 7 active IDs exactly matching canonical plus catalog state: canonical `1338228`, Web-app `1342394`, and five other catalog listings. Eighteen duplicate Web-app packages were individually moved to `非表示`. The old uncertain occurrence was cleared only after an official ID set readback and pre-submit catalog state proof. A later occurrence `18d6506438976f18-85445` was cleared only from exact `action=unchanged / status_effect_count=0` evidence, but `18d6556c4dd03ee8-67903` is currently fenced. The durable listing receipt remains published; demand remains search 12 / detail 0 / inquiry 0 / order 0. | Obtain exact pre-effect or provider readback for `18d6556c4dd03ee8-67903`; keep report ACKs separate from publication effect and measure inquiry/order. |
+| Negotiate / Work Sync | Source-complete inventory has 14 boards, including outreach boards `9077726` and `9077932`, but required reply 0, incoming monthly offer 0, active monthly contract 0 and funded project 0. The current `contracts.json` snapshot is `10:50:32 UTC`; the Negotiate occurrence `18d658787159fae8-19316` remains fenced because one thread had no complete readback at the failed wake. | Reconcile that exact occurrence from a complete official conversation snapshot or retain the fence; then act only on an exact buyer-last message or official offer/escrow record. |
+| Paid | Historical queued occurrences surfaced after pre-effect browser timeouts; each cleared claim had its own `pre_effect` marker. PR #5546 makes the shared four-worker Paid kernel retain an owned host hint before any worker mutation and clear it before a successful reporter handoff. PR #5566 adds complete-inventory authoritative-absence readback. The latest natural wake at `10:48:31 UTC` exited 0 with active funded work 0, effect 0, failed 0 and pending 0; the provider adapter still raises `lancers_paid_effect_not_implemented` for actual mutation. | Implement and prove funded delivery only when a real ContractReceipt exists; do not treat no-op as delivery. |
 | Reporter | The old effect-unknown occurrence `18d608a51063bdc8-33964` was reconciled from an exact pre-child admission event; no Telegram retry was sent. | Keep later report ACKs separate from business effects and fence any future uncertain send until provider readback. |
 
 **Conversion evidence and hypothesis.** The official profile shows bronze rank, JPY 0 total
