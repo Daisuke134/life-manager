@@ -1621,3 +1621,25 @@ PII失敗runの安全な再開、日次連続公開、公式readbackの連続証
 | 7 | 収益receiptをjoinしてMRRを算定 | received revenue、payout、cost、profit、active MRRを分離。payment/source receiptが無い値はunknown/0のまま残す |
 
 **最新結論:** Writerはmain由来自然runで生成・品質・reader-gate・4件draft stageまで動くことを実証した。しかし、live公開はまだ一件もこのrunで成立しておらず、最大ボトルネックはprovider生成ではなく、disk headroomとNoteのmanaged browser依存、続いてfrozen targetの同一target再開である。4面live、日次連続証拠、実入金が揃うまで完了とは報告しない。
+
+## 2026-09-19 same-run live recovery update (latest cursor)
+
+上記natural canaryのfrozen targetsを同じtargetのまま`article-resume`で再armし、4面liveまで到達した。これは1回の同一run canaryであり、日次SLO・収益の証明ではない。
+
+### Fresh PASS evidence
+
+- Note JA: `https://note.com/anicca123/n/ne4413b71da25`、key `ne4413b71da25`、price `500`、本文・owner・eyecatch/body media verified。
+- Substack JA: `https://aniccabuddha.substack.com/p/claude-code-47a`、draft ID `216362820`、paid-only/paywall・本文・headline/body media・identity verified、`SELF_VERIFY_OK`。
+- Substack EN: `https://aniccaai2026.substack.com/p/more-ai-drafts-do-not-create-a-sales`、draft ID `216362826`、JAとは別publication、paid-only/paywall・本文・media・identity verified、`SELF_VERIFY_OK`。
+- X Article JA: `https://x.com/diceai0/article/2101054407668547973`、同一edit target `https://x.com/compose/articles/edit/2101049750795804672`、本文・cover/body/table media・identity verified。
+- `article-run-complete.py --armed 1` はrc 0。直後の`publication_resume.py plan`は2回とも`resumable=false, reason=all-complete`。state SHA `38cb7bbb8949e17ab1e673ede0ed63ca2fd7850760586920b9cb272ebb834fbd`、ledger SHA `d54f410c65c6077aa96ffdbe50fac44eeeec99556017ac15a8089a6e9dce6211`は再実行前後不変。
+- completion Telegram receiptはmessage ID `88696`、4 URL/public IDを含み、送信済み。
+
+### Remaining
+
+- これは1回の4面live canaryのみ。7日（最低）または21 scheduled source runs、自然terminal、連続replay-zeroは未取得。
+- verified money event、payment/payout、subscription contract、active MRRは0件。公開・価格・paid-only設定は売上ではない。
+- `fix/writer-python-path-20260919`では裸`python3`をmanaged venvへ向ける修正をTDDで追加し、RED確認後、runtime env 18 tests/27 subtests PASS。ただしこの修正はまだmain/current releaseへ統合していない。今回のlive回復は既存`article-resume` managed pathで成立した。
+- 現在の最大の次cursorは、main統合前提を守りつつ、次の自然`article-daily`で同じ4面liveを再現し、その後7〜21 source runsを観測することである。
+
+**更新後結論:** Writerは同一自然runの再開で、Note・Substack JA/EN・X Article JAの4面live、公式readback、completion、replay-zeroまで実測PASSした。ただし1回のcanaryであり、日次連続運転と実収益は未完了である。次の完了条件は自然SLOとmoney receiptであり、現時点でgoal completeとはしない。
