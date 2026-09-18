@@ -598,6 +598,32 @@ def merge_card_only_evidence(result: dict[str, Any], run_evidence_dir: Path) -> 
         seen.add(listing_id)
 
 
+def normalize_card_only_fit_decisions(result: dict[str, Any]) -> None:
+    """Keep card-only fit decisions provisional until a detail page proves them."""
+    inspected = result.get("inspected_listings")
+    if not isinstance(inspected, list):
+        return
+    for item in inspected:
+        if not isinstance(item, dict):
+            continue
+        if (
+            not str(item.get("application_state") or "").startswith("card_only")
+            or item.get("decision") != "no_reasonable_shot"
+            or item.get("ranking_band") != "low"
+        ):
+            continue
+        requirement_evidence = item.get("requirement_evidence")
+        if isinstance(requirement_evidence, list) and requirement_evidence:
+            continue
+        item["decision"] = "card_only_unverified"
+        item["ranking_band"] = "medium"
+        ranking_evidence = item.get("ranking_evidence")
+        if not isinstance(ranking_evidence, list):
+            ranking_evidence = []
+        ranking_evidence.append("detail evidence required before a low-fit decision")
+        item["ranking_evidence"] = ranking_evidence
+
+
 def validate_bounded_scan(result: dict[str, Any], evidence_root: Path | None = None) -> None:
     """Keep the detail-page scan bounded without forcing low-fit filler pages."""
     if result.get("status") in {"blocked", "submitted"}:
@@ -764,6 +790,7 @@ def main(argv: list[str] | None = None) -> int:
         print("LIFE_MANAGER_PROVIDER_LEASE_BUSY", file=sys.stderr)
         return 75
     merge_card_only_evidence(result, args.evidence_dir.parent / args.run_id)
+    normalize_card_only_fit_decisions(result)
     try:
         validate_evidence_paths(result, args.evidence_dir.parent)
         validate_bounded_scan(result, args.evidence_dir.parent)
