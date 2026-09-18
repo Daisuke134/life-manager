@@ -1015,9 +1015,9 @@ work item and leave a sibling trace unchanged.
 - Apply → Reply (pre-contract) → one Paid owner (post-contract) is the boundary. Reply must not send
   post-contract work effects; there is no CrowdWorks Storefront owner.
 - Runtime hardening is merged through PRs `#5430`, `#5437`, `#5443`, `#5476`, `#5492`, `#5512`,
-  `#5515`, `#5520` and `#5524`. Paid is targeted to main-derived immutable release
-  `20260918T092955-8be258fc` (`8be258fc3430227d2606e75c92c6d5f2d22c1555`) with a finite 900-second bound.
-  Target apply receipt is `f0fb38f54b7e00774e5cde62`.
+  `#5515`, `#5520`, `#5524` and `#5543`. Paid is targeted to main-derived immutable release
+  `20260918T115510-818631d6` (`818631d60c812624ef7fc00bbc8d934e3fc128a0`) with a finite 900-second bound.
+  Target apply receipt is `179bf598f8139af9da0483e1`.
   The release includes the active-inventory row wait and quality/staged-delivery safeguards; Astra read-only
   review verdict was `ship`.
 - A fresh read-only provider pass returned five exact contract IDs. The detailed pass is authoritative,
@@ -1074,7 +1074,7 @@ work item and leave a sibling trace unchanged.
 - [x] **CW-F1b — Application/Reply admission reconcile:** Application and Reply stale rows were released
   only from exact host-deferred/provider evidence; no direct SQL or guessed clear was used.
 - [x] **CW-F2 — release parity and installed-owner wakes:** Application is on `4a81d525`, Reply on
-  `818631d6`, Paid on `8be258fc`; loaded argv and terminal events were read back. Application produced
+  `818631d6`, Paid on `818631d6`; loaded argv and terminal events were read back. Application produced
   verified proposal receipts; Reply completed a no-new-effect wake with official readback and preserved
   seven pending items without retrying uncertain messages.
 - [ ] **CW-F2b — legacy Reply acceptance:** obtain an exact historical occurrence binding plus official

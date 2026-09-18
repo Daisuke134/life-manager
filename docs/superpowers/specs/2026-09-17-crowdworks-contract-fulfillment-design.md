@@ -31,8 +31,8 @@ not a claim that money has been earned.
 - **Runtime safeguards:** the bounded wake, timeout isolation, inspection-pending no-op, and run-wide
   pre-effect fence are merged through PRs `#5430`, `#5437`, `#5443`, `#5476`, `#5492`, `#5512`,
   `#5515`, `#5520`, `#5524` and `#5543`. The Paid label is loaded from main-derived immutable release
-  `8be258fc3430227d2606e75c92c6d5f2d22c1555` at
-  `/Users/anicca/loops/crowdworks/releases/20260918T092955-8be258fc` with a finite 900-second owner
+  `818631d60c812624ef7fc00bbc8d934e3fc128a0` at
+  `/Users/anicca/loops/crowdworks/releases/20260918T115510-818631d6` with a finite 900-second owner
   bound. The release includes active-inventory, form-redirect and Docs-access waits plus quality/stage
   safeguards; Astra's final read-only verdict was `ship`. Target apply receipt is
   `f0fb38f54b7e00774e5cde62`.
@@ -117,7 +117,7 @@ not a claim that money has been earned.
    `18d62cf32eb0c678-48194` only if an exact run-wide marker or bound provider receipt appears. The legacy
    provider-inventory result is not enough; never guess or reinterpret it as no-effect.
 2. **Keep the three installed owners aligned and waking without a global slot.** Application is on
-   `4a81d525`, Reply on `818631d6`, and Paid on `8be258fc`. Read loaded argv after every target-only apply;
+   `4a81d525`, Reply on `818631d6`, and Paid on `818631d6`. Read loaded argv after every target-only apply;
    kickstart one owner at a time and read proposal/message/contract receipts. Reply's new whole-wake marker
    must account for every item before any future uncertain occurrence can be cleared.
 3. **Finish `63657015` safely.** Inspect the exact provider/form readback for the persisted intent. If no
