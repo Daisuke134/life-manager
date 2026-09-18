@@ -356,6 +356,15 @@ Add a regression that installs a Reply plist containing the legacy `9222` enviro
 the loaded readback cannot be accepted until it is replaced by the generated `9223` contract. This
 is a code change and remains **not implemented by this spec-only update**.
 
+**Admission/storage repair files:** the shared ledger implementation is
+`runtime/host/resource_admission.py` (its `_database()` path currently opens SQLite with
+`timeout=0`, uses `journal_mode=DELETE`, and starts `BEGIN IMMEDIATE`); its focused tests are
+`runtime/host/tests/test_resource_admission.py`. The existing disk gate is
+`runtime/host/disk_admission.py` with tests in `runtime/host/tests/test_disk_admission.py`.
+The live state is `~/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3`.
+The first repair is operational headroom plus official integrity/lock diagnostics. No SQL row-delete
+patch is safe until the whole unknown occurrence has an exact provider receipt.
+
 **Remaining ordered TODO:**
 
 1. Recover safe disk headroom and audit the shared admission store. Protect current, loaded and
