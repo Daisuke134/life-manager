@@ -3042,9 +3042,9 @@ delivery 665544を公式確認、重複納品0。paymentは未確認であり0�
 The following order is immutable unless Dais explicitly says to change the order. Only the first
 unfinished atom is active.
 
-**Live checkpoint (2026-09-18 04:12 UTC).** This supersedes the older counts below; the L-08
+**Live checkpoint (2026-09-18 04:44 UTC).** This supersedes the older counts below; the L-08
 cursor and L-09 onward order stay in place. `contracts.json` is source-complete as of
-`04:12:23 UTC`: 14 boards, required replies 0, unread 1, incoming monthly offers 0,
+`04:44:08 UTC`: 14 boards, required replies 0, unread 1, incoming monthly offers 0,
 monthly contracts 0, project working 0, and received gross JPY 0.
 The marketplace ledger has 203 `application_verified` receipts and no award, delivery or
 payment event. Thus verified net MRR is 0 USD; applications and public packages do not count
@@ -3066,6 +3066,12 @@ the canonical order; the following are the concrete gates to work through, not a
    reconciliation confirmed project `5602388` as official proposal `27943408`, appended exactly
    one additional `application_verified` receipt, and performed no resend. The ledger is now 203
    receipts; older pending IDs `5601892` and `5601332` remain without complete proposal readback.
+   PR #5563 now persists proposal/profile/proof/price attribution after a verified application.
+   Release `5c12a42a6c…` was applied only to the Application owner. Its first natural wake reached
+   the new release but remained held by the exact admission occurrence
+   `lancers-revenue-application:18d6492796264af8-48639` (`effect_unknown=1`, prior
+   `entrypoint_exit_124`). No attribution file was written and no retry or fence clearing was done;
+   official proposal readback is required before resolving that occurrence.
 2. **First paid conversion — CURRENT SUPPORTING ACTION:** measure proposal→buyer reply→award by profile, proof,
    proposal and price version; improve the weakest measured stage without inventing
    reviews or completed client work. Keep Storefront catalog families distinct and
@@ -3092,10 +3098,10 @@ the canonical order; the following are the concrete gates to work through, not a
 
 | Lane | Observed state | Next proof |
 |---|---|---|
-| Apply | The installed main-origin SHA is `20eeb4eb…`; project `5603444` was naturally reconciled to proposal `27942627`, and a later readback-only reconciliation confirmed project `5602388` as proposal `27943408`. Each has exactly one receipt, with no resend and admission unknown 0. The ledger now has 203 verified applications. Older pending IDs `5601892` and `5601332` remain absent from complete proposal readback. | Continue natural discovery and measure proposal→reply→award. Never retry the older pending IDs blindly. |
+| Apply | The installed main-origin SHA is `5c12a42a…`; project `5603444` was naturally reconciled to proposal `27942627`, and a later readback-only reconciliation confirmed project `5602388` as proposal `27943408`. Each has exactly one receipt, with no resend. The ledger now has 203 verified applications. The first `5c12a42a…` wake is held by admission occurrence `18d6492796264af8-48639`; attribution is ready but not yet written because official readback is missing. Older pending IDs `5601892` and `5601332` remain absent from complete proposal readback. | Obtain exact official proposal readback for the fenced occurrence, then let the next natural wake write attribution; never retry the older pending IDs blindly. |
 | Browser attach | PR #5549 retries one Playwright CDP timeout even when `/json/list` is temporarily unavailable or has no stale auth target; first client is stopped and normal tabs are left intact. Apply and Work Sync at current SHA `20eeb4eb…` and Negotiate/Paid at later main SHAs have natural passes. A live first-timeout→second-attach recovery under the new code has not yet been observed. | Observe any future attach timeout and exact attempt-2 outcome without restarting the browser owner or closing unrelated tabs. |
 | Storefront | Official `/myplan` showed 7 active IDs exactly matching canonical plus catalog state: canonical `1338228`, Web-app `1342394`, and five other catalog listings. Eighteen duplicate Web-app packages were individually moved to `非表示`. The old uncertain occurrence was cleared only after an official ID set readback and pre-submit catalog state proof. Current SHA `c4a6139c…` then passed natural wakes with `action=unchanged`, aligned canonical listing, no new catalog ID, and demand counters search 12 / detail 0 / inquiry 0 / order 0. | Keep report ACKs separate from publication effect; measure inquiry/order and wait for buyer conversion. |
-| Negotiate / Work Sync | Source-complete inventory has 14 boards, including outreach boards `9077726` and `9077932`, but required reply 0, incoming monthly offer 0, active monthly contract 0 and funded project 0. Work Sync had a 43-minute source gap under borrow/support admission; PR #5541 and a locked metadata migration restored revenue admission. Main SHA `20eeb4eb…` passed natural snapshots through `04:12:23 UTC`. PR #5544 gives Reply an exact pre-effect hint cleared before provider mutation or notification; Negotiate/Paid natural runs pass with effect 0 and unknown 0. | Keep the five-minute source current and act only on an exact buyer-last message or official offer/escrow record. |
+| Negotiate / Work Sync | Source-complete inventory has 14 boards, including outreach boards `9077726` and `9077932`, but required reply 0, incoming monthly offer 0, active monthly contract 0 and funded project 0. Work Sync had a 43-minute source gap under borrow/support admission; PR #5541 and a locked metadata migration restored revenue admission. The latest source snapshot is `04:44:08 UTC`; PR #5544 gives Reply an exact pre-effect hint cleared before provider mutation or notification; Negotiate/Paid natural runs pass with effect 0 and unknown 0. | Keep the five-minute source current and act only on an exact buyer-last message or official offer/escrow record. |
 | Paid | Historical queued occurrences surfaced after pre-effect browser timeouts; each cleared claim had its own `pre_effect` marker. PR #5546 makes the shared four-worker Paid kernel retain an owned host hint before any worker mutation and clear it before a successful reporter handoff. Main Paid SHA `912dab05…` has passed natural no-op wakes: active funded work 0, effect 0, failed 0, admission unknown 0. The parallel timeout boundary is test-backed and reviewed, not yet observed live. The provider adapter still raises `lancers_paid_effect_not_implemented` for actual mutation. | Implement and prove funded delivery only when a real ContractReceipt exists; do not treat no-op as delivery. |
 | Reporter | An old effect-unknown message occurrence remains fenced; loop status alone cannot prove a Telegram send. | Exact outbox/provider ACK readback before clearing that occurrence. |
 
