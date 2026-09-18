@@ -273,6 +273,14 @@ Long waits belong in persisted `next_eligible_at` state and launchd cadence.
 - Browser cleanup is owner-scoped: prove profile/port/PID ownership and open
   resources before closing stale contexts or tabs. Never use a global Chromium,
   WindowServer, loginwindow, GUI-session, or host restart as loop recovery.
+- Symptom: CDP HTTP inventory responds but a model-browser attach times out.
+  Wrong instinct: restart the browser owner or close every tab. Correct action:
+  stop only that attempt's browser client, inspect any validated owner-scoped
+  stale auth targets, and make one bounded attach retry even if the target
+  inventory is empty or temporarily unavailable. General law: endpoint health
+  and WebSocket attachment are separate observations; optional cleanup must
+  not gate a safe retry. Example: a dedicated marketplace browser with four
+  normal tabs accepted a later Playwright attach after an initial timeout.
 - External browser CLIs always use a loop/run-named session and close that exact
   session in `finally`; the parent must wait/reap its children. Symptom: zombies
   or a browser under a terminal run. Wrong instinct: kill zombies individually.
