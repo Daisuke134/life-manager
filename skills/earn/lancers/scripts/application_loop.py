@@ -117,8 +117,8 @@ PUBLIC_SOFTWARE_PROOF = {
 PLANNER_TASK_CLASS = "application-intent-planner"
 SAFETY_TASK_CLASS = "diagnostic-agent"
 ESCALATION_REASON = "application decision and client-facing proposal text come from this single call"
-PLANNER_TIMEOUT_SECONDS = 420
-SAFETY_TIMEOUT_SECONDS = 150
+PLANNER_TIMEOUT_SECONDS = 180
+SAFETY_TIMEOUT_SECONDS = 60
 SAFETY_REASONS = frozenset({
     "approved", "live_interaction_required", "physical_presence_required",
     "personal_identity_required", "recording_required", "unsupported_claim",

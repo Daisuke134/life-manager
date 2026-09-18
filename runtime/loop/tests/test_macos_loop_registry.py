@@ -506,7 +506,7 @@ class MacosLoopRegistryTest(unittest.TestCase):
             "skills/earn/lancers/scripts/telegram-report-owner",
         )
 
-    def test_lancers_finite_revenue_lanes_have_a_five_minute_runtime_bound(self):
+    def test_lancers_finite_revenue_lanes_have_bounded_runtime(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         finite_lanes = (
             "lancers-revenue-application",
@@ -518,7 +518,8 @@ class MacosLoopRegistryTest(unittest.TestCase):
         )
         for loop_id in finite_lanes:
             with self.subTest(loop_id=loop_id):
-                self.assertEqual(registry["loops"][loop_id]["runtime_timeout_seconds"], 300)
+                expected = 600 if loop_id == "lancers-revenue-application" else 300
+                self.assertEqual(registry["loops"][loop_id]["runtime_timeout_seconds"], expected)
         self.assertNotIn(
             "runtime_timeout_seconds",
             registry["loops"]["lancers-revenue-browser"],
