@@ -1045,6 +1045,8 @@ work item and leave a sibling trace unchanged.
   `profile_complete_no_eligible_open_job`. Reply is loaded on `818631d6`; its latest terminal is
   `pass/effect=0/readback=53/pending=7/failed=0`, with no uncertain message retried. Reply kernel now
   persists occurrence IDs and a whole-wake marker. Paid remains the only `claimed/effect_unknown=1` row.
+- Legacy Reply thread `305271360` remains `reconcile_unknown` without an occurrence binding or verified
+  provider receipt. Its pending proposal page is not a success/no-effect receipt; do not retry it.
 
 **Not done / blockers:**
 
@@ -1075,6 +1077,9 @@ work item and leave a sibling trace unchanged.
   `818631d6`, Paid on `8be258fc`; loaded argv and terminal events were read back. Application produced
   verified proposal receipts; Reply completed a no-new-effect wake with official readback and preserved
   seven pending items without retrying uncertain messages.
+- [ ] **CW-F2b — legacy Reply acceptance:** obtain an exact historical occurrence binding plus official
+  provider receipt for thread `305271360`, or leave it fenced and uncounted. Never infer from the pending
+  client-consent page.
 - [ ] **CW-F3 — Paid legacy admission reconcile:** Reconcile `18d62cf32eb0c678-48194` only when exact
   run-wide pre-effect evidence or an official provider receipt exists. The legacy provider-inventory result
   alone is insufficient.
