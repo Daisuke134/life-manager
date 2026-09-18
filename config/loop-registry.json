@@ -1213,7 +1213,7 @@
       "command": [],
       "domain": "earn",
       "effect_class": "application",
-      "runtime_timeout_seconds": 300,
+      "runtime_timeout_seconds": 600,
       "resource_class": "agent",
       "admission_class": "revenue",
       "entrypoint": "skills/earn/lancers/scripts/application-owner",
