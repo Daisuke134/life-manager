@@ -1014,13 +1014,14 @@ work item and leave a sibling trace unchanged.
 
 - Apply → Reply (pre-contract) → one Paid owner (post-contract) is the boundary. Reply must not send
   post-contract work effects; there is no CrowdWorks Storefront owner.
-- Runtime hardening is merged through PRs `#5430`, `#5437`, `#5443`, `#5476`, `#5492`, `#5512` and
-  `#5515`. Paid is targeted to main-derived immutable release
-  `20260918T090049-e3c78a63` (`e3c78a63527fea3c09ab5d782939e3c18c619bb3`) with a finite 900-second bound.
-  Target apply receipt is `81c323cd38cb970453b24230`.
+- Runtime hardening is merged through PRs `#5430`, `#5437`, `#5443`, `#5476`, `#5492`, `#5512`,
+  `#5515` and `#5520`. Paid is targeted to main-derived immutable release
+  `20260918T091427-f8e6b9e1` (`f8e6b9e1293846a18b9d39b731f54d6665cad686`) with a finite 900-second bound.
+  Target apply receipt is `e8df5d0bee7c325a8f578b23`.
   The release includes the active-inventory row wait and quality/staged-delivery safeguards; Astra read-only
   review verdict was `ship`.
-- A fresh read-only provider pass returned five exact contract IDs. The detailed pass is authoritative:
+- A fresh read-only provider pass returned five exact contract IDs. The detailed pass is authoritative,
+  and the current form-candidate pass read back `3/2/1` candidates for `63659463/63657015/63570481`:
   `63568785=funded`/milestone `13797948`/buyer event `426855154`/one Docs link/access unknown;
   `63570481=funded`/milestone `13798056`/buyer event `427573234`/one form/no confirmed receipt;
   `63583795=delivered` with no current milestone (historical receipts remain replay-fenced);
@@ -1038,7 +1039,8 @@ work item and leave a sibling trace unchanged.
 
 **Not done / blockers:**
 
-- Paid launchd is `not running`, exit `75`; stale occurrence
+- Paid launchd is `not running`, exit `75`; latest target run `18d642197a967840-49557` ended with
+  `host_admission_deferred:resource_effect_unknown`; stale occurrence
   `crowdworks-revenue-paid:18d62cf32eb0c678-48194` remains `claimed`/`effect_unknown=1` after a legacy
   provider-inventory failure without a durable marker. The new release was applied and kickstarted once,
   but admission stopped it before child execution with `host_admission_deferred:resource_effect_unknown`.
