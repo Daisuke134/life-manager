@@ -152,7 +152,9 @@ Pass order:
    answer. Answer ordinary controls from `shared_apply_context.verified_facts` and the supplied
    profile; if a form accepts that truthful answer, continue and submit when missing evidence is
    only preferred or non-material. If a required control cannot be answered truthfully, record the exact
-   control and continue to the next distinct listing. Submit every ready distinct listing
+   control and continue to the next distinct listing. required_control_missing_truthful_fact is
+   candidate-local, never terminal; continue scanning the remaining priority candidates and add
+   card-only records for any priority IDs not opened. Submit every ready distinct listing
    encountered within the bounded candidate scan. A listing is ready for submission only when the
    live application page shows every required step complete (`N of N` and `100%`),
    every required interview is visibly completed or reused, and a visible

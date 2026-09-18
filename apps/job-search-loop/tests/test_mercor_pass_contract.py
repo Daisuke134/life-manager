@@ -440,6 +440,8 @@ class MercorPassContractTests(unittest.TestCase):
             "Twelve candidate detail pages is a maximum, not a minimum",
             "After twelve detail pages, record remaining cards as `card_only`",
             "Do not open a thirteenth detail page",
+            "required_control_missing_truthful_fact is candidate-local",
+            "continue scanning the remaining priority candidates",
             "A Japanese/Japan title alone does not outrank a high/medium-fit software or AI role",
             "Do not open a low-band Japanese/Japan contradiction merely to satisfy the priority queue",
             "Record every skipped low, submitted, or recent card",
