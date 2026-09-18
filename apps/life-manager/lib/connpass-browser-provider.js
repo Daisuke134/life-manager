@@ -92,6 +92,14 @@ async function readConnpassRegistrationStateOnPage(page) {
       if (/\/(?:login|signin)(?:\/|$)/.test(path) || exact(["ログイン", "Login"])) {
         return { state: "login_required" };
       }
+      // Connpass keeps the join link visible on an anonymous event page, but
+      // replaces the authenticated action with this login wall. Treating the
+      // link alone as `absent` sends the caller into /join/, where the missing
+      // confirm button is misreported as a provider confirmation failure.
+      if (/イベントに申し込むには\s*(?:ログイン|サインイン)/.test(body)
+        || /(?:log|sign)\s*in\s+to\s+(?:join|register)/i.test(body)) {
+        return { state: "login_required" };
+      }
       if (/^\/event\/[1-9][0-9]*\/join\/complete\/$/.test(rawPath)) {
         return { state: "registered" };
       }
