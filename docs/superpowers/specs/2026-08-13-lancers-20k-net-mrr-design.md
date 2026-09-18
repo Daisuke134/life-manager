@@ -3042,6 +3042,34 @@ delivery 665544を公式確認、重複納品0。paymentは未確認であり0�
 The following order is immutable unless Dais explicitly says to change the order. Only the first
 unfinished atom is active.
 
+**Live checkpoint (2026-09-18 00:40 UTC).** This supersedes the older counts below; the L-08
+cursor and L-09 onward order stay in place. `contracts.json` is source-complete as of
+`00:36:59 UTC`: incoming monthly offers 0, monthly contracts 0, received gross JPY 0.
+The marketplace ledger has 193 `application_verified` receipts and no award, delivery or
+payment event. Thus verified net MRR is 0 USD; applications and public packages do not count
+as recurring revenue.
+
+| Lane | Observed state | Next proof |
+|---|---|---|
+| Apply | The installed main-origin SHA is `8be258fc…`; official proposal IDs were reconciled for projects `5603097`, `5603812` and `5602787` without resending. Two older pending project IDs (`5601892`, `5601332`) remain absent from complete proposal readback. | Natural terminal event from installed SHA; reconcile only the exact pending occurrence after official readback. Never retry either older ID blindly. |
+| Storefront | SHA `59770dd5…` has natural passes. Official `/myplan` showed 19 identical Web-app packages within the 20 active slot limit. Eighteen duplicates were individually moved to `非表示` with exact settings readback; canonical SNS listing `1338228` and one Web-app listing `1342394` remain. PR #5522 preserves the catalog cursor and serializes select→create→persist. The recovered cursor survived later natural wakes; distinct catalog listings now have official IDs `1344056`, `1344057`, `1344058`, `1344060`. | Track each distinct public listing and its inquiry/order counters; prevent a second ID for one family and measure demand before claiming conversion. |
+| Negotiate / Work Sync | Source-complete inbox shows no required reply, incoming monthly offer, active monthly contract or funded project. | An exact buyer-last message or official offer/escrow record; otherwise no external reply/accept effect. |
+| Paid | A natural pass followed exact no-effect occurrence recovery, but historical queued occurrences can surface as `resource_effect_unknown`. The provider adapter still raises `lancers_paid_effect_not_implemented` for mutation. | Reconcile each exact pre-effect marker or official effect; implement and prove funded delivery only when a real ContractReceipt exists. |
+| Reporter | An old effect-unknown message occurrence remains fenced; loop status alone cannot prove a Telegram send. | Exact outbox/provider ACK readback before clearing that occurrence. |
+
+**Conversion evidence and hypothesis.** The official profile shows bronze rank, JPY 0 total
+earnings, zero reviews and two portfolio items. That limits visible social proof, but the
+reason for zero awards is not yet proven. Lancers' own successful freelancer interviews
+describe concise buyer-specific reasoning, complete portfolio/profile, prompt replies,
+and growing a first engagement into related or recurring work
+([haru](https://www.lancers.jp/magazine/15097),
+[TAKA](https://www.lancers.jp/magazine/34037),
+[unit-value case](https://www.lancers.jp/magazine/35694)). Apply already instructs the planner
+to address buyer scope and questions; the next measured improvement is the verified
+profile/proof→proposal→reply→award funnel and a truthful first paid case, not a generic
+proposal template or invented review. Keep provider effects and shared receipts in
+`skills/_shared/marketplace-core`; Lancers owns only its UI, identity and readback.
+
 1. **L-01 Runtime truth inventory — DONE.** Five registry-owned labels exist: Browser, Application (300s), Storefront (1800s), Work Sync (300s) and legacy aggregate Telegram (300s). The original installed plists directly executed release `381e45d5…` and bypassed the control plane; Browser, Application, Storefront and Work Sync now execute `lm-loop-run` from the same immutable main release `50244baa…`. Application, Storefront and Work Sync all produce terminal runtime events from that SHA; Storefront run `18d138d767b67f18-32087` and Work Sync run `18d138c2483dbcb0-29470` pass. The aggregate Reporter is intentionally unloaded because lane owners now dispatch their own reports. Runtime hashes at inventory are `application.json=6555f1be…`, `contracts.json=8db7bb8b…`, `marketplace-ledger.sqlite3=1fbd9fd7…`, and `telegram.sqlite3=7adc27cc…`. Application wake report is provider-acknowledged as Telegram message ID `47223` with durable event key `lancers:application-wake:v1:ba21ac1c…`.
 2. **L-02 Report parity — DONE.** Dais fixes the order Apply → Storefront → Negotiate → Paid. **Apply PASS:** semantic skips use Coconala's seven-day ineligible-cache boundary, state repair reduced permanent fingerprints 259→35, all visible IDs are required, validation/effect is project-local, and every eligible row is processed sequentially. Release `a78ae6f8…` sent project `5594288`; reconcile recovered official proposal `27876539` without resend, cleared pending 1→0, appended ledger sequence 45 and delivered summary ACK `47339` plus project-local success ACK `47341`. Release `9425ab0e…` continuity wake advanced over the remaining current-query rows with duplicate effect 0 and pending 0; project-local ACKs `47348`/`47349` name the official-unavailable and mandatory-attribute outcomes. **Storefront PASS:** listing `1338228` readback unchanged, demand 6/0/0/0/0, ACK `47274`. **Negotiate PASS:** source-complete boards 2 / reply required 0 / unread 0 / monthly offer 0 / contract candidate 0, ACKs `47277`/`47278`. **Paid PASS:** release `9425ab0e…` run `18d13dfa3f53e678-98278` reported active project 0 / monthly contract 0 / payment history 0 / balance 0 / received 0 with provider ACK `47354`; funded work is absent so effect 0 is correct. The legacy combined `[Lancers][応募・出品]` scheduler stays unloaded.
 3. **L-03 First-review application canary — DONE.** The real Application owner submitted bounded AI PoC project `5595028` for JPY 480,000 with delivery due `2026-10-07`; the first effect was uncertain with a durable pending claim, and the next wake recovered official proposal `27876631` without resend, appended ledger sequence 46 and cleared pending. Strategy release is `343fb5b8…`; profile/proof product version 5 binds listing `1338228`, portfolio `743964` and software proof `743987`. Replay run `18d140e92fcd1e58-92514` observed 42 already-decided projects, returned `submitted false / no_eligible_project`, kept ledger sequence 46 and proved duplicate submit zero.
