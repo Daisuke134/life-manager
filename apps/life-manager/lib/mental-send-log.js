@@ -21,6 +21,7 @@
 //     is the organ that would be spending someone else's budget while doing it.
 
 const MENTAL_SEND_WINDOW_MS = 24 * 60 * 60000;
+const MENTAL_TEMPLATE_DEDUPE_WINDOW_MS = 14 * 24 * 60 * 60000;
 
 function supaBase(url) {
   return String(url).replace(/\/$/, "");
@@ -42,7 +43,10 @@ async function readMentalSendState(uid, nowMs, supa, fetchImpl, opts = {}) {
     return { sentTodayCount: 0, lastSentMs: null };
   }
   const f = fetchImpl || globalThis.fetch;
-  const since = new Date(nowMs - MENTAL_SEND_WINDOW_MS).toISOString();
+  // The rolling 24-hour window enforces the cap/spacing. Template repetition has a separate
+  // fourteen-day horizon, so fetching only the cap window makes yesterday's template eligible
+  // again at the exact 24-hour boundary.
+  const since = new Date(nowMs - MENTAL_TEMPLATE_DEDUPE_WINDOW_MS).toISOString();
   const query = `uid=eq.${encodeURIComponent(uid)}&sent_at=gte.${encodeURIComponent(since)}`
     + "&select=sent_at,trigger,family,template_id,local_day,window&order=sent_at.desc";
   let response = await f(`${supaBase(url)}/rest/v1/lm_mental_send_log?${query}`, {
@@ -68,13 +72,16 @@ async function readMentalSendState(uid, nowMs, supa, fetchImpl, opts = {}) {
     if (strict) throw new Error("mental send state lookup returned no rows array");
     return { sentTodayCount: 0, lastSentMs: null };
   }
-  const times = rows.map((row) => Date.parse(row.sent_at)).filter(Number.isFinite);
+  const parsedRows = rows.map((row) => ({ ...row, sentMs: Date.parse(row.sent_at) }))
+    .filter((row) => Number.isFinite(row.sentMs) && row.sentMs <= nowMs);
+  const capRows = parsedRows.filter((row) => row.sentMs >= nowMs - MENTAL_SEND_WINDOW_MS);
+  const recentTemplateRows = parsedRows.filter((row) => row.sentMs >= nowMs - MENTAL_TEMPLATE_DEDUPE_WINDOW_MS);
   return {
-    sentTodayCount: times.length,
-    lastSentMs: times.length ? Math.max(...times) : null,
-    sentFamilies: [...new Set(rows.map((row) => row.family).filter(Boolean))],
-    recentQuoteIds: rows.map((row) => row.template_id).filter(Boolean),
-    sentWindows: rows.map((row) => row.window).filter(Boolean),
+    sentTodayCount: capRows.length,
+    lastSentMs: capRows.length ? Math.max(...capRows.map((row) => row.sentMs)) : null,
+    sentFamilies: [...new Set(capRows.map((row) => row.family).filter(Boolean))],
+    recentQuoteIds: recentTemplateRows.map((row) => row.template_id).filter(Boolean),
+    sentWindows: capRows.map((row) => row.window).filter(Boolean),
   };
 }
 
@@ -106,4 +113,4 @@ async function recordMentalSend(uid, triggerOrMeta, messageId, supa, fetchImpl) 
   return Boolean(response && response.status === 201);
 }
 
-module.exports = { MENTAL_SEND_WINDOW_MS, readMentalSendState, recordMentalSend };
+module.exports = { MENTAL_SEND_WINDOW_MS, MENTAL_TEMPLATE_DEDUPE_WINDOW_MS, readMentalSendState, recordMentalSend };
