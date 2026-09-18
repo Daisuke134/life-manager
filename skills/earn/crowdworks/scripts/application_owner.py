@@ -327,6 +327,7 @@ def _reconcile(page):
 
 def _append(receipt):
     LEDGER.parent.mkdir(parents=True,exist_ok=True)
+    receipt = _bind_runtime_occurrence(receipt, os.environ.get("LIFE_MANAGER_OCCURRENCE_ID"))
     with LEDGER.open("a",encoding="utf-8") as handle:
         handle.write(json.dumps(receipt,ensure_ascii=False,separators=(",",":"))+"\n");handle.flush();os.fsync(handle.fileno())
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 import sys
 
@@ -35,6 +36,19 @@ def test_status_binds_runtime_occurrence_for_later_effect_reconciliation():
         "effect_delta": 0,
         "occurrence_id": "crowdworks-revenue-application:run-1",
     }
+
+
+def test_receipt_writer_persists_runtime_occurrence(tmp_path, monkeypatch):
+    module = load()
+    module.LEDGER = tmp_path / "application-receipts.jsonl"
+    monkeypatch.setenv(
+        "LIFE_MANAGER_OCCURRENCE_ID", "crowdworks-revenue-application:run-1"
+    )
+
+    module._append({"record_type": "application_receipt", "status": "verified"})
+
+    receipt = json.loads(module.LEDGER.read_text(encoding="utf-8"))
+    assert receipt["occurrence_id"] == "crowdworks-revenue-application:run-1"
 
 
 def test_discovery_groups_follow_durable_cursor_not_wall_clock(tmp_path):
