@@ -1429,3 +1429,26 @@ loaded definitionと自然tickまで読み戻すことを意味する。A1のcon
 | A12 | rollback検証後にWriter専用旧releaseだけをアーカイブする | archive hash、restore receipt、削除対象scope receipt。`.openclaw`と`/Users/anicca/profitable-claude`全体は削除しない | A11待ち |
 
 削除はA12の最後であり、現在は実行しない。
+
+## 2026-09-18 measured Writer status
+
+この節が現在の運用cursorである。過去のW0〜A12記録は履歴として保持し、現在の完了判定を上書きしない。
+
+### 完了した実測
+
+- main由来immutable release `e145a1d5` 系までのWriter runtime修正を反映した。旧Claude/gig model rootはloaded plistから消え、3 Writer label（`article-daily`、`article-resume`、`writer-claim-loop`）はCodex/provider-child境界、外部state/log root、release SHAをreadbackできる。
+- generation run `20260918-135644` は、fresh paid-demand card、JA/EN native draft、X post、headline image receipt、body diagram receiptを作成した。bodyは`526x582`へ透明side paddingされ、X投影範囲内である。Cliproxy headlineは`1536x1024`、provider model/key source/intent receipt hashを保存した。
+- quality editorial FAILはcontinuous-policyの`force_publish_advisory`で扱われ、identity/conscience/PII/CTA/media gatesは公開前に維持された。publication stateはactive-fourで初期化された。
+- Substack JAは`https://aniccabuddha.substack.com/p/x1`、Substack ENは`https://aniccaai2026.substack.com/p/do-not-start-with-the-paid-article`をpublisher-native/public canonical readbackで`live`確認した。本文、paywall、audience、headline/body media hash、destination identityを検証済み。
+- X Article JAは`https://x.com/diceai0/article/2100953380646703402`をpublic canonical account pathで確認した。現在は`live-media-mismatch`から`repair-required`であり、再公開ではなく同一targetのin-place repair待ちである。
+- Note JAは`https://note.com/anicca123/n/nae94757e2857`をpublic canonical URLで確認した。現在は`live-media-mismatch`から`repair-required`であり、managed browser runtime修正後のeyecatch/body readback待ちである。
+
+### 現在の未完了・ブロッカー
+
+1. Note JA: 既存live targetのeyecatch/body mediaを同一keyへin-place repairし、price=500、本文、media、identityの公式readbackを取る。新しいNoteを作らない。
+2. X Article JA: 既存live targetのmedia mismatchを同一edit/public targetへrepairし、公開本文・cover/body media・identityの公式readbackを取る。新しいX記事を作らない。
+3. active-four completion: Note/Xが`live`になった後、`article-run-complete.py --armed 1`、`publication_resume.py plan`、Telegram message ID、replay-zeroを同じrunで確認する。
+4. 日次SLO: 7日または21 scheduled source runsの自然terminal＋4面native live receiptがまだ無い。launchdのresource admission blockerは生成コードとは別の運用観測として残る。
+5. 収益: 現在の外部 received writing revenue、payout、subscription contract、active MRRは証拠上0。$10K MRRは未達で、公開数やdraft数を収益と数えない。
+
+現在の主ボトルネックはprovider生成やmedia creationではなく、Note/Xの既存live targetに対するpublisher-native repair/readbackである。未確認の外部状態を成功へ昇格させず、同一targetの公式readbackが取れるまで`repair-required`を保持する。
