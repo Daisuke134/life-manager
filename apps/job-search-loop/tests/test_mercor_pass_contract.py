@@ -722,6 +722,27 @@ class MercorPassContractTests(unittest.TestCase):
         }
         validate_bounded_scan(result)
 
+    def test_submitted_pending_card_observations_do_not_consume_detail_budget(self):
+        result = {
+            "status": "observed_no_action",
+            "inspected_listings": [
+                {
+                    "listing_id": f"list-submitted-{index}",
+                    "application_state": "submitted_pending_review_observed",
+                }
+                for index in range(25)
+            ] + [
+                {
+                    "listing_id": f"list-detail-{index}",
+                    "application_state": "2 of 4 steps completed",
+                }
+                for index in range(6)
+            ],
+            "evidence": {"dom_path": ""},
+        }
+
+        validate_bounded_scan(result)
+
         result["inspected_listings"].append({
             "listing_id": "list-card-submitted",
             "application_state": "card_only; Submitted on 09/11/26",
