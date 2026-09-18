@@ -45,6 +45,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
+from urllib.parse import parse_qs, urlsplit
 
 SCRIPTS = Path(__file__).resolve().parent.parent
 if str(SCRIPTS) not in os.sys.path:
@@ -222,6 +223,12 @@ _POSTAL_JP_ADDRESS = re.compile(
     r"(?<![0-9])[0-9]{3}-[0-9]{4}[\s　]*[^\s　]{0,12}?[都道府県][^\s　]{1,20}?[市区町村]"
 )
 _GITHUB_HANDLE = re.compile(r"(?i)\bgithub\.com/([A-Za-z0-9](?:[A-Za-z0-9-]{0,38}))")
+_CTA_URL = re.compile(r"https?://[^\s<>\]\[()\"']+")
+_CTA_TRACKING_QUERY = re.compile(
+    r"(?:\?|&)(?:run_id|artifact_id|variant_id|click_id)=([^&#\s<>\]\[()\"']*)"
+)
+_OWNED_CTA_HOSTS = frozenset({"aniccaai.com", "www.aniccaai.com"})
+_OWNED_CTA_FIELDS = frozenset({"product_id", "run_id", "artifact_id", "variant_id", "click_id"})
 
 
 def _luhn_valid(digits: str) -> bool:
@@ -236,7 +243,34 @@ def _luhn_valid(digits: str) -> bool:
     return total % 10 == 0
 
 
+def _mask_owned_cta_tracking(text: str) -> str:
+    """Hide internal attribution values from generic card detection, preserving positions.
+
+    The Writer CTA contract requires a timestamp-shaped run_id/click_id in the public URL. Those
+    values are not payment data, but a Luhn-valid timestamp can look like a card to the generic
+    detector. Only a complete, self-hosted CTA on the owned product host is exempt; external or
+    partial URLs remain fully scanned.
+    """
+    masked = list(text)
+    for url_match in _CTA_URL.finditer(text):
+        raw_url = url_match.group(0)
+        parsed = urlsplit(raw_url)
+        if (parsed.hostname or "").casefold() not in _OWNED_CTA_HOSTS:
+            continue
+        query = parse_qs(parsed.query, keep_blank_values=True)
+        if not _OWNED_CTA_FIELDS.issubset(query) or any(
+            not query[field][0] for field in _OWNED_CTA_FIELDS
+        ):
+            continue
+        for query_match in _CTA_TRACKING_QUERY.finditer(raw_url):
+            start = url_match.start() + query_match.start(1)
+            end = url_match.start() + query_match.end(1)
+            masked[start:end] = "_" * (end - start)
+    return "".join(masked)
+
+
 def _pattern_findings(text: str) -> list[Finding]:
+    text = _mask_owned_cta_tracking(text)
     findings: list[Finding] = []
     for match in _EMAIL.finditer(text):
         findings.append(
