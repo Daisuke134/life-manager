@@ -48,6 +48,7 @@ def test_owner_uses_shared_browser_lease_and_revenue_name():
     assert "firebase_profile_readback_verified" in source
     assert "RETAIN_LEASE_CONTEXT=0" in source
     assert 'release "$TASK"' in source
+    assert 'CLOAK_CONTEXT_LEASES_FILE="$STATE_ROOT/context-leases.json"' in source
     assert source.index("read_profile_readback_status") < source.index(
         'if [[ "$AUTH_STATUS" == "indeterminate" ]]; then\n  sleep 1'
     )
