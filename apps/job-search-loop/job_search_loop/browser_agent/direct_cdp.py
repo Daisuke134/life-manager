@@ -166,14 +166,16 @@ class DirectCDPPage:
         return self._closed
 
     async def close(self) -> None:
+        """Detach from the leased page without disposing its browser target.
+
+        The context lease owns target disposal. Calling ``Page.close`` here would
+        destroy the leased page while the parent owner still intends to reuse it.
+        """
         if self._closed:
             return
-        try:
-            await self.call("Page.close", timeout=5)
-        finally:
-            self._closed = True
-            if self._ws is not None:
-                await self._ws.close()
+        self._closed = True
+        if self._ws is not None:
+            await self._ws.close()
 
     @staticmethod
     def _target_script(target: dict[str, Any], scroll: bool = False) -> str:

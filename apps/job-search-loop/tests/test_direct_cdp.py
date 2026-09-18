@@ -76,6 +76,17 @@ class DirectCDPTypeTests(unittest.IsolatedAsyncioTestCase):
         )
         page.evaluate.assert_awaited_once_with("() => location.href")
 
+    async def test_close_detaches_websocket_without_closing_leased_target(self):
+        page = DirectCDPPage("ws://example", "target")
+        page._ws = AsyncMock()
+        page.call = AsyncMock()
+
+        await page.close()
+
+        page.call.assert_not_awaited()
+        page._ws.close.assert_awaited_once()
+        self.assertTrue(page.is_closed())
+
     async def test_email_recovery_checkpoint_persists_tenant_recovery_state(self):
         from job_search_loop.browser_agent import runtime
 
