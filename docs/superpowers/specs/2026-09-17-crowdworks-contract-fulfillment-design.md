@@ -16,135 +16,92 @@ Read-only production status at the planning snapshot: all four labels were `load
 
 CrowdWorks' official fixed-price guide defines application, negotiation, contract, escrow, work, **「納品する」**, inspection, and payment as distinct steps. A normal message in the same contract page does not invoke formal delivery. The official guide also says to begin work after escrow. Sources: [worker guide](https://crowdworks.jp/pages/guides/employee/fixed_price), [terms](https://crowdworks.jp/pages/agreement). Lancers' [project guide](https://www.lancers.jp/help/guide/lancer/project/3) likewise distinguishes proposal from work after escrow; its actual page/owner mapping needs separate inspection.
 
-## Live production cursor — 2026-09-18 (current)
+## Live production cursor — 2026-09-19 (current)
 
 This section is the current execution SSOT. It supersedes the planning snapshot above wherever the
-observed provider, state or release differs. Evidence below is read-only state/provider evidence; it is
-not a claim that money has been earned.
+observed provider, state, host or release differs. Every statement below is read-only evidence unless
+it explicitly says an effect was executed. A provider receipt alone does not prove that the submitted
+work was correct; correctness requires full buyer-context mapping and buyer-visible readback.
+
+### Current state
+
+- The admission database has four CrowdWorks rows with effect_unknown=1: Application, Paid, and Reply
+  are claimed; Report is released but unresolved. The three claimed rows fence new provider children.
+  The released Report row is not clean evidence. No direct SQL or guessed clear is permitted.
+- Application is loaded from immutable release 8fbfb3a2f2b1449018d46f1978a500ce77f003a9,
+  Paid from 56d07a66eaa7c7d173c51314c47fb1c22b3f5610, and Reply/Report from
+  fed2839db846509585d6ba2d53da626a09dd0cae. The latest target-only Application and Paid wakes loaded
+  their release and exited 75 before provider work with host_admission_deferred:resource_effect_unknown.
+- The latest host read has 4.2 GiB available (98% used). The disk-cleanup receipt is
+  free_after=8,080,977,920, reclaimed=0, errors=1; capacity recovery is not green. Historical ENOSPC
+  and database-lock errors correlate with missing legacy evidence, but the exact row-level failed write
+  is not proven.
+- The official read-only inventory contains funded IDs 63712784, 63659463, 63657015, 63570481, and
+  63568785. This inventory is not work submission, delivery, acceptance, settlement, payout, or MRR.
+- Read-only process inspection observed defunct children of Chromium and ChatGPT, and lsof showed normal
+  deleted cache/allowlist files. These are not the admission root cause; no virus evidence was found in
+  these checks.
 
 ### Done (verified)
 
-- **Boundary:** Apply owns proposals, Reply owns pre-contract negotiation/acceptance, and the existing
-  CrowdWorks Paid owner owns every post-contract reply, work artifact, external submission, revision and
-  formal `納品する` effect. There is no CrowdWorks Storefront owner. This is one post-contract lane per
-  contract ID; the other 14 loop owners remain independent.
-- **Runtime safeguards:** the bounded wake, timeout isolation, inspection-pending no-op, and run-wide
-  pre-effect fence are merged through PRs `#5430`, `#5437`, `#5443`, `#5476`, `#5492`, `#5512`,
-  `#5515`, `#5520`, `#5524` and `#5543`. The Paid label is loaded from main-derived immutable release
-  `818631d60c812624ef7fc00bbc8d934e3fc128a0` at
-  `/Users/anicca/loops/crowdworks/releases/20260918T115510-818631d6` with a finite 900-second owner
-  bound. The release includes active-inventory, form-redirect and Docs-access waits plus quality/stage
-  safeguards; Astra's final read-only verdict was `ship`. Target apply receipt is
-  `f0fb38f54b7e00774e5cde62`.
-- **Official inventory:** a fresh read-only provider pass after the row-wait fix returned exactly five
-  contract IDs. A subsequent detailed read-only pass is authoritative for per-contract state:
-  `63568785=funded`/milestone `13797948`/buyer event `426855154`/one Docs link/permission request after
-  settle wait;
-  `63570481=funded`/milestone `13798056`/buyer event `427573234`/one form/one historical/base-binding
-  confirmed receipt (the correction binding is new);
-  `63583795=delivered` with no current milestone (historical form and delivery receipts are retained and
-  not replayed); `63657015=funded`/milestone `13820268`/buyer event `427403807`/two forms/no confirmed
-  receipt; and `63659463=funded`/milestone `13820867`/buyer event `427428366`/three forms/two historical
-  base-binding confirmed receipts, while the current buyer-event-specific binding is new. Candidate metadata is read back for all three forms; model
-  selection says no additional form is required. A message,
-  filled composer, form URL, or local row is not
-  treated as formal delivery, acceptance, settlement or payout.
-- **`63659463` OnJob:** the current detailed readback exposes three forms and buyer event `427428366`;
-  no receipt matches the current binding. Earlier form receipts remain historical evidence and require
-  reconciliation before any retry. Formal delivery, buyer acceptance, settlement and payout are open.
-- **`63583795` Mirafull:** current detailed readback is `delivered` with no active milestone. Historical
-  form and formal-delivery receipts are retained; no replay is allowed. Acceptance, settlement and payout
-  still need official readback.
-- **`63570481` Effect:** the complete folded message history was expanded in a read-only detail probe.
-  Current detail is funded, milestone `13798056`, buyer event `427573234`, one form and one base-binding
-  receipt. The one form candidate was selected as a correction revision, but its buyer-event-specific receipt
-  is absent. The buyer's missing customer-address
-  answer identifies the correction; it is not yet submitted.
-- **`63568785` undym67231:** current detail is funded, milestone `13797948`, buyer event `426855154`,
-  with one Docs link. After the settle wait, the official page shows the permission-request surface; no
-  artifact can be claimed until readable content or a permission/content response is read back.
-- **Host headroom:** the bounded existing cleanup owner completed a pass with
-  `free_after=8,080,977,920` bytes (about 7.5 GiB). It reclaimed no allow-listed artifact and preserved
-  five candidates (`errors=1`); later release work read back about 10.7 GB free. Capacity is above the
-  immediate ENOSPC floor but the cleanup pass itself is not a clean success.
-- **Admission progress:** occurrence `16007` was reconciled to the exact `63659463` common-form receipt;
-  occurrences `26778` and `36919` were reconciled from durable `completed/effect=0` run markers. Their
-  rows are now `released/effect_unknown=0`.
-- **All-lane live cursor:** the current host ledger has one unreconciled `claimed/effect_unknown=1` row for
-  each owner: Apply `crowdworks-revenue-application:18d5fce56607e540-6666`, Reply
-  `crowdworks-revenue-reply:18d5fa8f9d73cad8-49973`, and Paid
-  `crowdworks-revenue-paid:18d62cf32eb0c678-48194`. The first two were stopped at admission with no child
-  run; Paid's legacy provider-inventory run has no durable marker. No row is cleared from a guess.
-- **Apply / Reply receipts:** Apply has 162 historical official application receipts and an empty pending
-  transaction queue; its retained owner state is `profile_navigation_failed` with `effect_delta=0`.
-  Reply's retained result is `observed=57`, `readback=52`, `pending=4`, `failed=1`, `effect=0`; its
-  provider message IDs are historical readbacks and do not prove a new wake. All later scheduled wakes for
-  both owners stopped at the shared admission fence.
-- **Production progress after reconciliation:** Application was aligned to immutable release `4a81d525`
-  and produced 8 new verified application receipts during this pass (`162 -> 170`); its current owner state
-  is `profile_complete_no_eligible_open_job` with `effect_delta=0`. Reply was aligned first to `4a81d525`
-  and then to `818631d6`; its latest wake ended `pass`, `effect=0`, `readback=53`, `pending=7`,
-  `failed=0`, and no uncertain message was retried. The new Reply kernel persists occurrence IDs and a
-  whole-wake marker for future reconciliation. The legacy `accept_contract` state for thread `305271360`
-  still has no occurrence binding and no verified provider receipt; its pending proposal page is not counted
-  as success or no-effect. Paid remains the only host `effect_unknown` row.
+- The boundary is Apply -> Reply (pre-contract) -> one Paid owner (post-contract). Reply must not send
+  post-contract work, form, or delivery effects; there is no CrowdWorks Storefront owner.
+- PR #5594 merged Paid buyer-form extraction, answer-URL normalization, and receipt-alias preservation.
+  PR #5599 merged Application occurrence binding. Both are target-applied from immutable releases.
+- Focused Paid tests (158), focused Application tests (15), and ./bin/lm-loop-contract passed before
+  release cuts. These prove code/release gates only, not a provider effect or revenue.
+- Five funded contract contexts were read-only inspected. Historical confirmed form receipts for
+  63659463, 63570481, and 63583795 remain replay-fenced. Application has 190 historical receipts.
+  Reply aggregate is observed=61, readback=54, pending=6, failed=1. Paid has no provider effect in the
+  latest target wake.
 
-### Not done (current blockers and open work)
+### Not done and blockers
 
-- **Admission blocker:** Paid remains stopped by `crowdworks-revenue-paid:18d62cf32eb0c678-48194`
-  (`claimed`, `effect_unknown=1`). Its legacy provider-inventory failure has no exact run marker or bound
-  provider receipt, so the current reconciler rejects it. Application and Reply stale rows are
-  `released/effect_unknown=0`; their new immutable releases are loaded (`4a81d525` and `818631d6`).
-- **Reply legacy intent:** thread `305271360` remains `reconcile_unknown`; official readback returned no
-  verified receipt, and the old state has no occurrence_id. Do not retry or count the contract acceptance.
-- **`63657015` Orecon:** the latest wake timed out with `CrowdWorksPaidContractTimeout`; its durable
-  form intent for `https://forms.gle/GxTdS4kZr8fbvej68` remains `intent_persisted` with no confirmed
-  receipt. Do not retry from the intent alone; first reconcile the official form/provider state.
-- **`63570481` correction:** the missing customer-address answer must be produced from the full buyer
-  task and submitted as a new correction revision bound to the buyer event. The implementation is merged
-  and present in release `8be258fc`, but no natural child run has reached it while admission is fenced.
-- **`63568785` artifact:** send one precise permission/content request through the Paid owner, then read
-  the document, do the requested work, verify buyer-visible access/content and only then deliver.
-- **All five closures:** no contract has buyer acceptance, settlement, payout or verified USD 10,000 MRR.
-  `correct_work_verified` is not true for every row; formal delivery and exact readback remain open for
-  all currently funded rows. The host hit `ENOSPC` while creating a worktree during this update; headroom
-  has since recovered above the immediate floor, but the cleanup receipt still records one error and zero
-  reclaimed bytes.
+- Application occurrence 18d6535f7dfb8910-33974, Paid occurrence 18d62cf32eb0c678-48194, and Reply
+  occurrence 18d64a10f2f1f838-83166 remain claimed/effect_unknown=1. Report occurrence
+  18d606cf95bd0ab0-85387 is released/effect_unknown=1. Available evidence cannot prove a no-dispatch
+  result or bind an exact provider receipt for these rows.
+- No current contract has the complete chain correct_work_verified -> formal delivery -> buyer acceptance
+  -> settlement -> payout. Verified USD 10,000 MRR is zero.
+- 63657015 has two current forms and no confirmed receipt; its timed-out intent requires official
+  reconciliation before any retry. 63570481 still needs its missing customer-address correction and
+  formal delivery. 63568785 lacks permitted document content. 63659463 needs a full quality audit and
+  delivery. 63583795 needs acceptance, settlement, and payout readback.
+- The host capacity issue and admission fence are active. resource_control_busy is a transient lock;
+  effect_unknown is the durable evidence boundary. Zombie processes are not a reason to retry.
 
-### Remaining TODO, in execution order
+### Remaining TODO, in order
 
-1. **Reconcile the remaining Paid occurrence.** Use the existing provider/no-effect path for
-   `18d62cf32eb0c678-48194` only if an exact run-wide marker or bound provider receipt appears. The legacy
-   provider-inventory result is not enough; never guess or reinterpret it as no-effect.
-2. **Keep the three installed owners aligned and waking without a global slot.** Application is on
-   `4a81d525`, Reply on `818631d6`, and Paid on `818631d6`. Read loaded argv after every target-only apply;
-   kickstart one owner at a time and read proposal/message/contract receipts. Reply's new whole-wake marker
-   must account for every item before any future uncertain occurrence can be cleared.
-3. **Finish `63657015` safely.** Inspect the exact provider/form readback for the persisted intent. If no
-   effect occurred, read the full hearing/common-test instructions, produce the requested artifact, submit
-   only the applicable work and verify it. Do not fabricate the requested AI share link.
-4. **Ship and run the buyer-correction path for `63570481`.** Merge the focused form-revision/context
-   implementation, load its immutable release, select `vZeQpKMg2ma72Eeu6` only because the buyer correction
-   requires it, submit the missing customer response with a new buyer-event binding, and read back both
-   the form result and formal delivery.
-5. **Unblock `63568785`.** Ask for document permission or pasted instructions, then create the actual
-   requested feedback artifact, check permissions/content from the buyer view, send it and formally deliver.
-6. **Audit and deliver `63659463`.** Compare every submitted field with the buyer's full request and
-   grounded profile facts. Repair any wrong or unsupported answer before formal `納品する`; then read back
-   buyer inspection, acceptance, settlement and payout.
-7. **Monitor `63583795`.** Continue from official inspection pending to acceptance, settlement and payout;
-   keep replay-zero for its existing form and delivery receipts.
-8. **Close the revenue gate.** For every contract record artifact/response, `correct_work_verified`, exact
-   external receipts, formal delivery, buyer acceptance/revision, settlement, payout and replay-zero. Only
-   collected/settled recurring value counts toward USD 10,000 MRR; current escrow and one-off receipts do
-   not.
+1. Repair disk headroom through the existing disk governor, reclaiming only safe generated artifacts.
+   Preserve credentials, browser profiles, receipts, state, and loaded releases. Require stable headroom
+   and a cleanup receipt without an unexplained error.
+2. Resolve the Application occurrence through the resolver/readback path using an occurrence-bound no-dispatch
+   marker or official receipt. Do not retry an unknown effect.
+3. Resolve the Paid occurrence 18d62cf32eb0c678-48194. The historical paid-latest result has no
+   occurrence ID, so its timestamp is insufficient.
+4. Reconcile Reply occurrence 18d64a10f2f1f838-83166 item by item. Preserve the verified contract effect
+   and confirmation-requested form effects; never resend an uncertain sibling.
+5. Resolve the released Report row through resolver/readback. released plus effect_unknown is not clean.
+6. After all four evidence fences resolve, kickstart one owner at a time. Start with 63712784: read the
+   full buyer request, do the requested work, submit the common test form and Web Ads results form only
+   when each mapping is unambiguous, read each confirmation, then press CrowdWorks 納品する and read
+   the official milestone state.
+7. Continue 63657015, 63570481, 63568785, 63659463, and 63583795 with the same full-context,
+   correct-work, buyer-visible-readback, formal-delivery, acceptance, settlement, payout, and replay-zero
+   gates. Count USD 10,000 MRR only from collected/settled recurring value with a continuation basis.
+8. Share the contract-ID handoff, quality gate, and receipt rules through the existing shared kernel only
+   after the same boundary is verified on another provider.
 
 ### Completion gate
 
-The CrowdWorks fulfillment work is complete only when all five contract rows have a contract-specific artifact
-or required response, `correct_work_verified=true`, separate external receipts where applicable, formal delivery
-readback, honest inspection/acceptance state, settlement/payout evidence, and replay-zero. A green test, a running
-PID, a `送信中`/filled form, a historical receipt, or a message-only readback cannot close a row.
+A CrowdWorks fulfillment run is complete only when every funded contract has a contract-specific artifact
+or required response, correct_work_verified=true, buyer-visible content/permission readback, exact
+external receipts where applicable, formal delivery readback, honest inspection/acceptance state,
+settlement/payout evidence, and replay-zero. A green test, running PID, filled composer, provider
+message, historical receipt, or form submission without confirmation cannot close a row. If the result
+is wrong or incomplete, retain the original receipt, record the mismatch, repair the owner in an isolated
+release, and repeat natural wake and buyer-visible readback until correct or a specific external blocker
+is recorded.
 
 ## Boundary decision
 

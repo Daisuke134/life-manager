@@ -10,9 +10,9 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md`
 
-## Live cursor (2026-09-18)
+## Live cursor (2026-09-19)
 
-The execution cursor is **CW-F1: exact admission reconciliation and installed-owner wake**. The
+The execution cursor is **CW-F1: four-row admission reconciliation and installed-owner wake**. The
 official CrowdWorks active-contract inventory was read at `2026-09-18T11:23:35Z` and returned five
 funded rows: `63712784`, `63659463`, `63657015`, `63570481`, and `63568785`. This is an inventory
 readback only; it is not a work submission, delivery, acceptance, settlement, payout, or MRR receipt.
@@ -42,10 +42,13 @@ The following old admission rows remain fenced and were not cleared:
 - `crowdworks-revenue-application:18d6535f7dfb8910-33974`: a later run references this claim and exits
   with `entrypoint_exit_1`; the receipt observed in the surrounding interval belongs to another claimed
   occurrence, so it cannot clear this row.
+- `crowdworks-revenue-report:18d606cf95bd0ab0-85387`: the row is `released` but remains
+  `effect_unknown=1`; reporting is not clean until the resolver/readback path proves its disposition.
 
-The disk floor is currently above the admission threshold, but historical ENOSPC remains the cause of
-the missing legacy evidence. No contract has buyer acceptance, settlement, payout, or verified USD
-10,000 MRR.
+The latest host read shows 4.2 GiB available (98% used). The disk-cleanup receipt reports
+`free_after=8,080,977,920`, `reclaimed=0`, and `errors=1`; this is not a green capacity result. Historical
+ENOSPC is correlated with the missing legacy evidence, but the exact row-level write failure is not
+proven. No contract has buyer acceptance, settlement, payout, or verified USD 10,000 MRR.
 
 ## Root-cause deep dive: host failure versus zombies
 
@@ -54,7 +57,9 @@ while CrowdWorks state files, terminal events, and cleanup files were being writ
 `database is locked`, `control_busy`, and missing-owner-file errors during the same recovery period.
 Current CrowdWorks launchd jobs are `loaded`/`not running` with exit `75` and
 `host_admission_deferred:resource_effect_unknown`; these wakes stop before the provider child starts.
-The host admission database still has three CrowdWorks rows in `claimed/effect_unknown=1`.
+The host admission database currently has four CrowdWorks rows with `effect_unknown=1`: three claimed
+rows (Paid, Reply, Application) and one released Report row. The three claimed rows still fence new
+provider work; the released Report row remains unresolved evidence and must not be treated as clean.
 
 Read-only process inspection found two `Z`/`<defunct>` processes. Their parents are a CloakBrowser
 Chromium process and the ChatGPT app. A zombie is an already-exited child waiting for its parent to reap
@@ -102,19 +107,23 @@ before an old uncertain effect is released.
 
 1. Inspect the disk-governor cleanup error and reclaim only safe generated artifacts until the headroom
    floor remains stable; do not delete credentials, browser profiles, receipts, state, or releases.
-2. Resolve the legacy Paid occurrence from an exact provider receipt or an occurrence-bound no-dispatch
-   marker. The old `paid-latest.json` has no occurrence ID, so its timestamp is insufficient.
-3. Reconcile the legacy Reply wake item by item. Preserve the confirmed contract effect and the two
-   `confirmation_requested` form effects; do not resend them.
-4. Reconcile the legacy Application wake from occurrence-bound output or official application receipt;
+2. Reconcile the legacy Application wake from occurrence-bound output or official application receipt;
    do not retry while its prior effect is uncertain.
-5. After all three fences are resolved, kickstart one owner at a time. Start with `63712784`: submit the
-   common test form, read its confirmation, submit the Web Ads results form, read its confirmation, then
-   press CrowdWorks `納品する` and read the official milestone state.
-6. Continue through `63657015`, `63570481`, `63568785`, `63659463`, and `63583795`, requiring
+3. Resolve the legacy Paid occurrence from an exact provider receipt or an occurrence-bound no-dispatch
+   marker. The old `paid-latest.json` has no occurrence ID, so its timestamp is insufficient.
+4. Reconcile the legacy Reply wake item by item. Preserve the confirmed contract effect and the two
+   `confirmation_requested` form effects; do not resend them.
+5. Resolve the released Report row through the resolver/readback path; `released` with
+   `effect_unknown=1` is not clean evidence.
+6. After all four evidence fences are resolved, kickstart one owner at a time. Start with `63712784`:
+   read the full current buyer context, map each requested result to its form and required fields, and
+   submit only the forms whose mapping is unambiguous. Read each form confirmation, verify the submitted
+   content, then press CrowdWorks `納品する` and read the official milestone state. If the mapping or
+   requested work is incomplete, persist the exact buyer blocker instead of sending a guess.
+7. Continue through `63657015`, `63570481`, `63568785`, `63659463`, and `63583795`, requiring
    `correct_work_verified`, formal delivery, buyer acceptance, settlement, payout, and replay-zero for
    each contract.
-7. Count USD 10,000 MRR only from collected/settled recurring value with a documented continuation basis.
+8. Count USD 10,000 MRR only from collected/settled recurring value with a documented continuation basis.
 
 **Verified contract outcomes:** `63659463` has confirmed Web Ads and common form receipts; its latest
 row is `verified` (`effect=1/readback=1`) but formal delivery, quality verification, acceptance and payout
@@ -130,13 +139,13 @@ text Google Forms and uses the answerable URL while preserving old receipt hashe
 intentionally held until exact provider readback or an occurrence-bound no-dispatch proof exists. No
 contract has buyer acceptance, settlement, payout or verified USD 10,000 MRR.
 
-**Next order:** (1) obtain exact provider readback for each fenced occurrence without retrying an
-uncertain external action; (2) kickstart only the owner whose fence has been resolved and record the
-new occurrence-bound terminal/provider result; (3) reconcile `63657015` before any retry; (4) ship the
-`63570481` correction path and verify its result; (5) obtain permission and complete `63568785`;
-(6) audit, formally deliver and close `63659463`; (7) monitor `63583795` through acceptance/payout;
-(8) close every row with `correct_work_verified`, replay-zero and actual payout before counting recurring
-revenue.
+**Next order:** (1) repair host headroom through the existing disk governor and obtain a clean cleanup
+receipt; (2) reconcile the Application occurrence; (3) reconcile the Paid occurrence; (4) reconcile the
+Reply occurrence item by item; (5) resolve the released Report fence; (6) kickstart one owner at a time,
+starting with `63712784` only after full buyer-context and request-to-form mapping; (7) reconcile and
+fulfill `63657015`, `63570481`, `63568785`, `63659463`, and `63583795` with correct-work and buyer-visible
+readback gates; (8) close every row with `correct_work_verified`, replay-zero, acceptance, settlement,
+and actual payout before counting recurring revenue.
 
 ## Global constraints
 
@@ -158,7 +167,7 @@ revenue.
 | `skills/earn/crowdworks/tests/test_reply_adapter.py`, `test_paid_adapter.py` | Focused handoff, quality, stage, duplicate and provider-readback tests |
 | `skills/earn/gig/TODO.md` | Completion state and next cursor after official receipts |
 
-### Task 1: Reconcile the three real records and recover Paid inventory
+### Task 1: Reconcile the funded inventory and recover Paid inventory
 
 **Files:** `skills/earn/crowdworks/scripts/paid_adapter.py`, `skills/earn/crowdworks/tests/test_paid_adapter.py`.
 
