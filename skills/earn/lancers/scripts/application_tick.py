@@ -27,6 +27,7 @@ _DOM_CONTRACT_MODULE_NAME = "anicca_lancers_shared_dom_contract"
 CDP_URL = "http://127.0.0.1:9227"
 BROWSER_ATTACH_TIMEOUT_MS = 10_000; CDP_REQUEST_TIMEOUT_SECONDS = 2; MAX_CDP_TARGETS = 32; MAX_CDP_RESPONSE_BYTES = 256 * 1024
 PLAYWRIGHT_STOP_TIMEOUT_SECONDS = 2.0
+SHARED_BROWSER_LOCK_TIMEOUT_SECONDS = 120.0
 PLATFORM = "lancers"
 DASHBOARD_URL = "https://www.lancers.jp/mypage"
 DEFAULT_STATE_PATH = Path.home() / ".local" / "state" / "anicca" / "lancers" / "application.json"
@@ -1210,7 +1211,10 @@ def run_live_tick(
         return TickResult(ok=False, error="state_invalid", project_id=str(project_id))
     browser = page = None
     try:
-        with account_lock(state_path.with_name("work-sync.json")):
+        with account_lock(
+            state_path.with_name("work-sync.json"),
+            timeout_seconds=SHARED_BROWSER_LOCK_TIMEOUT_SECONDS,
+        ):
             try:
                 browser, page = _open_owned_page(browser_factory)
             except Exception:

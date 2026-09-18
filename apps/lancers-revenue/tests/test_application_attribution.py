@@ -27,7 +27,7 @@ class ApplicationAttributionTests(unittest.TestCase):
         proof = load()._seller_proof()
 
         self.assertEqual(proof["catalog_product_id"], "monthly-sns-content-ops-v1")
-        self.assertEqual(proof["catalog_product_version"], 5)
+        self.assertEqual(proof["catalog_product_version"], 6)
         for field in ("profile_version", "proof_version", "price_version"):
             self.assertRegex(proof[field], r"^[0-9a-f]{64}$")
         self.assertEqual(len({proof["profile_version"], proof["proof_version"], proof["price_version"]}), 3)
