@@ -125,10 +125,15 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
         value["EnvironmentVariables"]["CLOAK_CONTEXT_PARK_ON_IDLE"] = "1"
     if loop_id == "hf-gig-reply-detector":
         value["EnvironmentVariables"].update({
-            "CLOAK_CDP_BASE_URL": "http://127.0.0.1:9222",
+            "CLOAK_CDP_BASE_URL": "http://127.0.0.1:9223",
+            "CDP_DAILY_DRIVER_PORT": "9223",
+            "CDP_DAILY_DRIVER_PROFILE": str(
+                Path.home() / ".cloak/profiles/gig-daily-driver"
+            ),
             "CLOAK_SESSION_VAULT_FILE": str(
                 Path.home() / ".cloak/vault/gig-daily-driver/auth-state.json"
             ),
+            "SESSION_VAULT_PORT": "9223",
             "CLOAK_CONTEXT_LEASES_FILE": str(
                 Path.home() / ".cloak/vault/coconala-reply-leases.json"
             ),
@@ -136,7 +141,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
                 Path.home() / ".cloak/vault/coconala-reply-targets.json"
             ),
             "CLOAK_CONTEXT_PARK_ON_IDLE": "1",
-            "GIG_CDP_HEALTH_URL": "http://127.0.0.1:9222/json/version",
+            "GIG_CDP_HEALTH_URL": "http://127.0.0.1:9223/json/version",
             "CLOAK_CONTEXT_COOKIE_DOMAINS": "coconala.com",
         })
     if loop_id == "life-manager-cfo-hourly":

@@ -533,12 +533,22 @@ class LmLoopApplyTest(unittest.TestCase):
             rendered["EnvironmentVariables"]["CLOAK_CONTEXT_PARK_ON_IDLE"], "1",
         )
 
-    def test_coconala_reply_uses_healthy_shared_cdp_with_gig_auth(self):
+    def test_coconala_reply_uses_dedicated_gig_cdp_with_gig_auth(self):
         value = registry()
         value["loops"]["hf-gig-reply-detector"] = value["loops"].pop("example")
         rendered = plistlib.loads(build_apply_plan(value, self.root, SHA)[0]["plist_bytes"])
         environment = rendered["EnvironmentVariables"]
-        self.assertEqual(environment["CLOAK_CDP_BASE_URL"], "http://127.0.0.1:9222")
+        self.assertEqual(environment["CLOAK_CDP_BASE_URL"], "http://127.0.0.1:9223")
+        self.assertEqual(environment["CDP_DAILY_DRIVER_PORT"], "9223")
+        self.assertEqual(
+            environment["CDP_DAILY_DRIVER_PROFILE"],
+            str(Path.home() / ".cloak/profiles/gig-daily-driver"),
+        )
+        self.assertEqual(
+            environment["GIG_CDP_HEALTH_URL"],
+            "http://127.0.0.1:9223/json/version",
+        )
+        self.assertEqual(environment["CLOAK_CONTEXT_COOKIE_DOMAINS"], "coconala.com")
         self.assertEqual(
             environment["CLOAK_SESSION_VAULT_FILE"],
             str(Path.home() / ".cloak/vault/gig-daily-driver/auth-state.json"),
