@@ -347,13 +347,17 @@ def test_form_candidates_wait_on_long_source_instead_of_truncating():
     class Body:
         def inner_text(self): return "x" * 12_001
 
+    class Form:
+        def wait_for(self, **_kwargs): pass
+
     class Page:
         url = "https://docs.google.com/forms/d/e/form/viewform"
         def set_default_timeout(self, _timeout): pass
         def goto(self, *_args, **_kwargs): pass
         def locator(self, selector):
-            assert selector == "body"
-            return Body()
+            if selector == "body": return Body()
+            if selector == "form": return Form()
+            raise AssertionError(selector)
         def title(self): return "long form"
         def close(self): pass
 
@@ -363,6 +367,37 @@ def test_form_candidates_wait_on_long_source_instead_of_truncating():
     adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
     adapter.owned_context = Context()
     assert adapter._form_candidates(["https://forms.gle/long"]) == []
+
+
+def test_form_candidates_wait_for_short_url_redirect_and_form():
+    module = load()
+    calls = []
+
+    class Form:
+        def wait_for(self, *, state, timeout): calls.append((state, timeout))
+
+    class Body:
+        def inner_text(self): return "form source"
+
+    class Page:
+        url = "https://forms.gle/short"
+        def set_default_timeout(self, _timeout): pass
+        def goto(self, *_args, **_kwargs): pass
+        def wait_for_url(self, _pattern, *, timeout):
+            calls.append(("redirect", timeout))
+            self.url = "https://docs.google.com/forms/d/e/form/viewform"
+        def locator(self, selector): return Form() if selector == "form" else Body()
+        def title(self): return "form title"
+        def close(self): pass
+
+    class Context:
+        def new_page(self): return Page()
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.owned_context = Context()
+    assert adapter._form_candidates(["https://forms.gle/short"]) == [{
+        "url": "https://forms.gle/short", "title": "form title", "body": "form source"}]
+    assert ("redirect", 10_000) in calls and ("attached", 20_000) in calls
 
 
 def test_completed_form_can_be_selected_as_a_buyer_correction_revision(tmp_path, monkeypatch):

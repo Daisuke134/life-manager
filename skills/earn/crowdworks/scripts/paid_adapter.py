@@ -853,6 +853,15 @@ class CrowdWorksPaidAdapter:
             try:
                 page.set_default_timeout(15_000)
                 page.goto(url, wait_until="commit", timeout=20_000)
+                if urlsplit(str(page.url)).netloc == "forms.gle":
+                    try:
+                        page.wait_for_url(
+                            re.compile(r"https://docs\.google\.com/forms/d/e/[^/]+/viewform(?:\?.*)?"),
+                            timeout=10_000,
+                        )
+                    except PlaywrightTimeoutError:
+                        return []
+                page.locator("form").wait_for(state="attached", timeout=20_000)
                 body = _text(page.locator("body").inner_text(), "crowdworks_paid_form_unavailable")
                 if len(body) > 12_000:
                     return []
