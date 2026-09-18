@@ -776,6 +776,28 @@ test("an unavailable Connpass registration page does not invoke browser fallback
   assert.equal(state.calls.some(([name, row]) => name === "history" && row.safe_reason === "unsafe_agent_action"), false);
 });
 
+test("a Connpass confirm-unavailable tier does not invoke browser fallback", async () => {
+  let state = fixture({
+    async discoverCandidates() { return [candidate("connpass", "paid-only")]; },
+    async runDirectAction() {
+      const error = new Error("private paid-only detail");
+      error.code = "CONNPASS_CONFIRM_UNAVAILABLE";
+      throw error;
+    },
+    async runAgentFallback() {
+      state.calls.push(["agent", "connpass-event://event/paid-only"]);
+      throw new Error("browser fallback must not run for a paid-only tier");
+    },
+  });
+  await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-confirm-unavailable", providers: ["connpass"] }, state.dependencies);
+  assert.equal(state.calls.some(([name]) => name === "agent"), false);
+  const directFailure = state.calls
+    .filter(([name]) => name === "history")
+    .map(([, row]) => row)
+    .find((row) => row.purpose === "submit" && row.method === "provider_direct" && row.result === "failed");
+  assert.equal(directFailure.safe_reason, "connpass_confirm_unavailable");
+});
+
 test("unavailable pre-submit provider readback never dispatches an action", async () => {
   const state = fixture({
     async readProviderState() { return { status: "unavailable" }; },
