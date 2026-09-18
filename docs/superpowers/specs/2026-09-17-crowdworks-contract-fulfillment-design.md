@@ -85,7 +85,9 @@ not a claim that money has been earned.
   is `profile_complete_no_eligible_open_job` with `effect_delta=0`. Reply was aligned first to `4a81d525`
   and then to `818631d6`; its latest wake ended `pass`, `effect=0`, `readback=53`, `pending=7`,
   `failed=0`, and no uncertain message was retried. The new Reply kernel persists occurrence IDs and a
-  whole-wake marker for future reconciliation. Paid remains the only owner with an unreconciled legacy row.
+  whole-wake marker for future reconciliation. The legacy `accept_contract` state for thread `305271360`
+  still has no occurrence binding and no verified provider receipt; its pending proposal page is not counted
+  as success or no-effect. Paid remains the only host `effect_unknown` row.
 
 ### Not done (current blockers and open work)
 
@@ -93,6 +95,8 @@ not a claim that money has been earned.
   (`claimed`, `effect_unknown=1`). Its legacy provider-inventory failure has no exact run marker or bound
   provider receipt, so the current reconciler rejects it. Application and Reply stale rows are
   `released/effect_unknown=0`; their new immutable releases are loaded (`4a81d525` and `818631d6`).
+- **Reply legacy intent:** thread `305271360` remains `reconcile_unknown`; official readback returned no
+  verified receipt, and the old state has no occurrence_id. Do not retry or count the contract acceptance.
 - **`63657015` Orecon:** the latest wake timed out with `CrowdWorksPaidContractTimeout`; its durable
   form intent for `https://forms.gle/GxTdS4kZr8fbvej68` remains `intent_persisted` with no confirmed
   receipt. Do not retry from the intent alone; first reconcile the official form/provider state.
