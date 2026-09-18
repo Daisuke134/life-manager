@@ -29,8 +29,10 @@ The following old admission rows remain fenced and were not cleared:
   `entrypoint_exit_1`; the historical `paid-latest.json` has no occurrence ID, and the host log records
   the ENOSPC/DB-lock period. There is no exact durable no-dispatch marker, so no retry or resolve is safe.
 - `crowdworks-revenue-reply:18d64a10f2f1f838-83166`: its later run marker contains pending/reconcile-unknown
-  items, including an external Google Form action with `confirmation_requested`; provider confirmation is
-  absent, so this remains effect-unknown.
+  items. Fresh provider readback classified `305318500` and `304737788` as authoritative absent and
+  verified `305271360` as `contract:63712784`, but `304736991` remained inconclusive and the two
+  Google Form items (`304360469`, `304333075`) remain `confirmation_requested` without buyer confirmation.
+  Because the whole wake still contains unresolved siblings, the owner-level claim remains effect-unknown.
 - `crowdworks-revenue-application:18d6535f7dfb8910-33974`: a later run references this claim and exits
   with `entrypoint_exit_1`; the receipt observed in the surrounding interval belongs to another claimed
   occurrence, so it cannot clear this row.
