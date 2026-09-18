@@ -3100,6 +3100,21 @@ entered, so it was closed with an explicit pre-effect proof and no Lancers submi
 The subsequent Admission query still shows zero Lancers `effect_unknown` rows; this is
 not an application failure or a reason to retry a project.
 
+**Application starvation repair and latest canary (2026-09-18 13:48 UTC).** PR #5605
+bounded Application's shared browser lock wait to 120 seconds; PR #5610 aligned the
+Application wake budget with that boundary by using a 60-second browser lock, planner
+180-second limit, safety-verifier 60-second limit, and a 600-second immutable runtime
+bound. Both are merged; release `2c7471b4ae…` is loaded only by the Application owner.
+The next natural wake ran from `13:45:05` to `13:48:20 UTC` and ended with a terminal
+pass, without `entrypoint_exit_124` and without a new Admission fence.
+
+That wake produced two durable pending readbacks. Project `5603417` was confirmed by
+the official proposal page as proposal `27945506` (30,000 JPY, due 2026-09-26), and
+the Application ledger is now 207 verified receipts with one new product-version-6
+attribution record. Project `5603475` has no matching official proposal card and stays
+pending; no resend is permitted. This is acquisition progress only: official offers,
+active monthly contracts, funded work and received payment remain zero.
+
 **Remaining execution order.** The numbered L-08→L-16 and M-01→M-04 atoms below remain
 the canonical order; the following are the concrete gates to work through, not a reorder:
 
