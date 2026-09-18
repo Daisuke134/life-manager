@@ -857,17 +857,34 @@ def _validate_asset_proofs(
             if proof.get("remote_sha256") != descriptor.get("sha256"):
                 raise InvariantError("receipt exact public asset hash does not match")
         elif method == "visual-dhash":
-            expected_dhash = descriptor.get("dhash")
+            expected_dhash = descriptor.get("visible_dhash")
+            if not isinstance(expected_dhash, str):
+                expected_path = Path(str(descriptor.get("path", "")))
+                if expected_path.is_file():
+                    try:
+                        expected_dhash = descriptor_from_file(expected_path).get(
+                            "visible_dhash"
+                        )
+                    except (OSError, ValueError):
+                        expected_dhash = None
+            if not isinstance(expected_dhash, str):
+                expected_dhash = descriptor.get("dhash")
+            allowed_expected_hashes = {
+                str(descriptor.get("dhash", "")),
+                str(expected_dhash or ""),
+            }
             remote_dhash = proof.get("remote_dhash")
             try:
-                distance = dhash_distance(expected_dhash, remote_dhash)
+                proof_expected_dhash = str(proof.get("expected_dhash", ""))
+                if proof_expected_dhash not in allowed_expected_hashes:
+                    raise ValueError("unexpected expected dHash")
+                distance = dhash_distance(proof_expected_dhash, remote_dhash)
                 expected_ratio = int(descriptor["width"]) / int(descriptor["height"])
                 remote_ratio = int(proof["remote_width"]) / int(proof["remote_height"])
             except (KeyError, TypeError, ValueError, ZeroDivisionError) as error:
                 raise InvariantError("receipt visual public asset proof is malformed") from error
             if (
-                proof.get("expected_dhash") != expected_dhash
-                or proof.get("dhash_distance") != distance
+                proof.get("dhash_distance") != distance
                 or distance > MAX_DHASH_DISTANCE
                 or (
                     abs(expected_ratio - remote_ratio) / expected_ratio

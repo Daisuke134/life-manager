@@ -41,6 +41,7 @@ def test_visual_media_proof_normalizes_transparent_background_reencoding(
 
     assert proof is not None
     assert proof["match_method"] == "visual-dhash"
+    assert proof["expected_dhash"] == proof["remote_dhash"]
 
 
 def note_media_gap() -> dict[str, object]:

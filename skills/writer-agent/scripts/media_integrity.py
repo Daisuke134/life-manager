@@ -79,7 +79,7 @@ def dhash_distance(left: str, right: str) -> int:
     return bin(int(left, 16) ^ int(right, 16)).count("1")
 
 
-def _visual_match(expected: dict[str, Any], remote: dict[str, Any]) -> tuple[bool, int | None]:
+def _expected_visible_dhash(expected: dict[str, Any]) -> str | None:
     expected_hash = expected.get("visible_dhash")
     if not isinstance(expected_hash, str):
         expected_path = Path(str(expected.get("path", "")))
@@ -90,6 +90,11 @@ def _visual_match(expected: dict[str, Any], remote: dict[str, Any]) -> tuple[boo
                 expected_hash = None
     if not isinstance(expected_hash, str):
         expected_hash = expected.get("dhash")
+    return expected_hash if isinstance(expected_hash, str) else None
+
+
+def _visual_match(expected: dict[str, Any], remote: dict[str, Any]) -> tuple[bool, int | None]:
+    expected_hash = _expected_visible_dhash(expected)
     remote_hash = remote.get("visible_dhash") or remote.get("dhash")
     dimensions = (
         expected.get("width"),
@@ -126,13 +131,18 @@ def content_proof(
         if not matched:
             return None
         method = "visual-dhash"
+        proof_expected_hash = _expected_visible_dhash(expected)
+        proof_remote_hash = remote.get("visible_dhash") or remote.get("dhash")
+    if remote["sha256"] == expected_sha:
+        proof_expected_hash = expected.get("dhash")
+        proof_remote_hash = remote.get("dhash")
     return {
         "expected_sha256": expected_sha,
         "remote_sha256": remote["sha256"],
         "remote_url": remote_url,
         "match_method": method,
-        "expected_dhash": expected.get("dhash"),
-        "remote_dhash": remote.get("dhash"),
+        "expected_dhash": proof_expected_hash,
+        "remote_dhash": proof_remote_hash,
         "dhash_distance": distance,
         "expected_width": expected.get("width"),
         "expected_height": expected.get("height"),
