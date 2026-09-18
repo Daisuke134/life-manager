@@ -402,3 +402,35 @@ def test_permission_failure_recovery_refuses_live_ledger(tmp_path: Path) -> None
         check=True,
     )
     assert not calls.exists()
+
+
+def test_rearms_note_cloakbrowser_runtime_failure_when_managed_python_recovers(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "state"
+    path = state_file(root)
+    state = json.loads(path.read_text(encoding="utf-8"))
+    state["pairs"]["note/ja"]["error"] = "note-eyecatch-module-not-found:cloakbrowser"
+    path.write_text(json.dumps(state), encoding="utf-8")
+    calls = tmp_path / "calls"
+    browser_python = executable(tmp_path / "browser-python", "exit 0\n")
+    guard = tmp_path / "guard"
+    guard.write_text(
+        'import os, sys\n'
+        'with open(os.environ["CALLS"], "a", encoding="utf-8") as out:\n'
+        '    out.write("guard:" + " ".join(sys.argv[1:]) + "\\n")\n',
+        encoding="utf-8",
+    )
+    subprocess.run(
+        ["python3", str(SCRIPT), "--state-root", str(root), "--run-id", "daily-2026-07-29"],
+        env={
+            **os.environ,
+            "CALLS": str(calls),
+            "WRITER_BROWSER_PYTHON": str(browser_python),
+            "ARTICLE_PUBLICATION_GUARD": str(guard),
+        },
+        check=True,
+    )
+    assert calls.read_text(encoding="utf-8").splitlines()[0] == (
+        "guard:clear-unavailable --pair note/ja"
+    )
