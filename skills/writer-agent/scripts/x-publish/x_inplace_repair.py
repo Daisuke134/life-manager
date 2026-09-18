@@ -159,6 +159,22 @@ def _clipboard_html_chunks(value: str, max_chars: int = 1800) -> list[str]:
     return chunks or [value]
 
 
+def _focus_composer_end(page, composer) -> None:
+    """Place Draft.js selection at the real document end before a paste."""
+    composer.click()
+    composer.evaluate(
+        """el => {
+            el.focus();
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            range.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }"""
+    )
+
+
 def _atomic_json(path: Path, value: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
@@ -947,8 +963,7 @@ class XBrowserAdapter:
                         # Draft.js can leave focus on the newly inserted image;
                         # restore the document end before pasting the trailing
                         # HTML (notably the Sources block).
-                        composer.click()
-                        page.keyboard.press("Meta+ArrowDown")
+                        _focus_composer_end(page, composer)
                         page.wait_for_timeout(300)
                     for html_chunk in _clipboard_html_chunks(value):
                         if not html_chunk.strip():
