@@ -88,8 +88,8 @@ not a claim that money has been earned.
   `crowdworks-revenue-reply:18d5fa8f9d73cad8-49973`, and Paid
   `crowdworks-revenue-paid:18d62cf32eb0c678-48194` (`claimed`, `effect_unknown=1`). The Application and
   Reply rows have no child-run marker; the Paid row came from a legacy provider-inventory failure without a
-  durable marker. The latest target wakes (`18d646d6332dc0c8-73504`, `18d646d7e678a0e8-73709`, and
-  `18d646cb227652a0-72465`) all ended before child execution with
+  durable marker. The latest target wakes (`18d6476bd4be2618-91197`, `18d647699af710e0-90754`, and
+  `18d6475aab0f20f8-82219`) all ended before child execution with
   `host_admission_deferred:resource_effect_unknown`. Launchd readback is `state=not running`,
   `last exit code=75` for each. Application/Reply remain on release `37384185`; Paid is on `8be258fc`.
 - **`63657015` Orecon:** the latest wake timed out with `CrowdWorksPaidContractTimeout`; its durable
