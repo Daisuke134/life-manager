@@ -251,6 +251,112 @@ The dedicated label `ai.anicca.life-manager-upwork-free-loop` is loaded from imm
 zero, updated only `observed_at`, reproduced identical official evidence hashes and emitted zero
 stderr bytes; no proposal, Connects or payment effect occurred.
 
+### 0.2 Coconala live gate and current repair cursor (measured 2026-09-18)
+
+This section records the current Coconala production boundary. It does not authorize a new
+provider effect and it does not replace the ordered repair cursor in
+`skills/earn/gig/TODO.md`.
+
+**Observed facts:**
+
+- The dedicated CloakBrowser is alive on CDP `127.0.0.1:9223` (Chrome 145). The authenticated
+  official page `https://coconala.com/mypage/job_matching/applied/offers` returns HTTP 200 and
+  exposes the seller's applied-offer cards.
+- PR #5578 corrected the Reply renderer so `hf-gig-reply-detector` uses the Gig browser
+  (`CLOAK_CDP_BASE_URL`, `GIG_CDP_HEALTH_URL`, driver profile and session-vault port all use
+  `9223`). The source contract is in `runtime/loop/lm_loop_apply.py` and its test is in
+  `runtime/loop/tests/test_lm_loop_apply.py`.
+- The loaded fleet can still drift at the environment layer while its immutable argv/SHA looks
+  current: a release reconciliation was observed with Reply argv on a current main-derived
+  release but `CLOAK_CDP_BASE_URL=9222`. Therefore a release SHA/argv readback alone is not a
+  sufficient browser acceptance check; the loaded environment must be read back too.
+- Historical Apply receipts are real: `~/gig/applied.jsonl` contains 1,117 rows with
+  `submit_verified=true` and `applied_page_verified=true` (1,096 single applications and 9
+  retainer applications). Request `5276533` is independently tied to official offer `6412654`.
+  This proves historical single/retainer capability, not a current successful wake.
+- Current Apply wakes remain blocked by `resource_effect_unknown` with `effect=0` and
+  `readback=0`. The one durable unknown row is
+  `hf-gig-apply-direct:18d5f9cd9f029658-33307` (`claimed/effect_unknown=1`). The matching later
+  pass `46013` recorded four actionable candidates, zero reported effect, zero readback and one
+  failure; one candidate (`5276533`) was later recovered by exact official readback. The wake
+  fence remains until the whole occurrence has an exact provider proof.
+- Paid has recent terminal `pass` receipts. Reply has recent passes, but also fail-closed
+  collector results (`inbox_coverage_incomplete` / `missing_container`). Storefront remains
+  `resource_effect_unknown`. None of these statuses authorizes a blind retry.
+
+**Required code patch before claiming the browser gate closed:**
+
+The generated Reply environment is already correct in `runtime/loop/lm_loop_apply.py`; the
+missing invariant is the loaded-environment readback. `install_one()` currently proves the loaded
+argv but not the browser endpoint. Add a required-environment comparison for the four Gig lanes and
+make the targeted apply fail/restore when it differs:
+
+```diff
+diff --git a/runtime/loop/lm_loop_apply.py b/runtime/loop/lm_loop_apply.py
+@@
+ def _loaded_arguments(text: str) -> list[str]:
+     ...
++
++def _loaded_environment(text: str) -> dict[str, str]:
++    """Parse launchd's environment block for the keys that form the browser contract."""
++    inside = False
++    values: dict[str, str] = {}
++    for raw in text.splitlines():
++        line = raw.strip()
++        if line == "environment = {":
++            inside = True
++            continue
++        if inside and line == "}":
++            break
++        if inside and " => " in line:
++            key, value = line.split(" => ", 1)
++            values[key] = value
++    return values
+@@
+             print_rc, printed = launchctl(["print", service])
+             loaded = _loaded_arguments(printed) if print_rc == 0 else []
+-            if loaded == item["expected_arguments"]:
++            expected_env = plistlib.loads(item["plist_bytes"])["EnvironmentVariables"]
++            required_env = {
++                key: str(expected_env[key])
++                for key in (
++                    "CLOAK_CDP_BASE_URL", "GIG_CDP_HEALTH_URL",
++                    "CDP_DAILY_DRIVER_PORT", "CDP_DAILY_DRIVER_PROFILE",
++                )
++                if key in expected_env
++            }
++            loaded_env = _loaded_environment(printed) if print_rc == 0 else {}
++            env_ok = all(loaded_env.get(key) == value
++                         for key, value in required_env.items())
++            if loaded == item["expected_arguments"] and env_ok:
+                 return {"ok": True, "label": label, "loaded_arguments": loaded,
+                         "release_sha": item["release_sha"]}
++            if loaded == item["expected_arguments"] and not env_ok:
++                last_detail = "loaded browser environment disagrees"
+                launchctl(["bootout", service])
+                sleeper(retry_delays[min(attempt, len(retry_delays) - 1)])
+                continue
+```
+
+Add a regression that installs a Reply plist containing the legacy `9222` environment and proves
+the loaded readback cannot be accepted until it is replaced by the generated `9223` contract. This
+is a code change and remains **not implemented by this spec-only update**.
+
+**Remaining ordered TODO:**
+
+1. Implement the loaded-environment invariant and regression above; target-apply all four lanes
+   from one current main-derived release and read back argv plus browser environment.
+2. Use the existing official Coconala applied-history reader to reconcile
+   `18d5f9cd9f029658-33307`; close it only with an exact provider receipt for the whole wake.
+   Do not edit the admission database manually and do not retry while it is unknown.
+3. After the fence is resolved, observe one natural single Apply and one natural retainer Apply;
+   require `effect=1`, exact official applied-page readback and replay-zero for each.
+4. Keep Reply fail-closed until inbox coverage is complete; fix the page/target ownership or
+   collector boundary rather than treating `missing_container` as an empty inbox.
+5. Reconcile Storefront's `resource_effect_unknown` with an exact service readback, then prove a
+   natural publish wake. Paid remains operational but must keep its latest pass and release/env
+   readback in the same fleet gate.
+
 ## 1. Goal, objective and boundaries
 
 ### 1.1 Goal
