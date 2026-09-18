@@ -101,6 +101,29 @@ def _write(path: Path, value: Mapping[str, Any]) -> None:
 def _write_state(path: Path, value: Mapping[str, Any],
                  occurrence_id: str | None) -> None:
     data = dict(value)
+    try:
+        prior = _load(path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        prior = {}
+    form_urls: set[str] = set()
+
+    def collect(node: Any) -> None:
+        if isinstance(node, Mapping):
+            for key, child in node.items():
+                if key in {"form_url", "form_url_history"} and isinstance(child, str):
+                    form_urls.add(child)
+                elif key in {"form_urls", "form_url_history"} and isinstance(child, list):
+                    form_urls.update(value for value in child if isinstance(value, str))
+                elif key not in {"buyer_context", "artifact_content"}:
+                    collect(child)
+        elif isinstance(node, list):
+            for child in node:
+                collect(child)
+
+    collect(prior)
+    collect(data)
+    if form_urls:
+        data["form_url_history"] = sorted(form_urls)
     if isinstance(occurrence_id, str) and occurrence_id.strip():
         data["occurrence_id"] = occurrence_id.strip()
     _write(path, data)

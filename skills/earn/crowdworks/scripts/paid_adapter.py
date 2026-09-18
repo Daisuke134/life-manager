@@ -14,7 +14,7 @@ import sys
 import threading
 import time
 from typing import Any, Callable, Mapping
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import unquote_plus, urlsplit, urlunsplit
 from zoneinfo import ZoneInfo
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError, sync_playwright
 
@@ -73,10 +73,13 @@ def _google_form_url(value: str) -> bool:
 def _canonical_google_form_url(value: str) -> str:
     parsed = urlsplit(value)
     if parsed.scheme == "https" and parsed.netloc in {"forms.gle", "docs.google.com"}:
-        query = urlencode(
-            [(key, item) for key, item in parse_qsl(parsed.query, keep_blank_values=True)
-             if key != "edit_requested"],
-            doseq=True,
+        query_parts = parsed.query.split("&") if parsed.query else []
+        if not any(unquote_plus(part.split("=", 1)[0]) == "edit_requested"
+                   for part in query_parts):
+            return value
+        query = "&".join(
+            part for part in query_parts
+            if unquote_plus(part.split("=", 1)[0]) != "edit_requested"
         )
         return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query, parsed.fragment))
     return value
@@ -795,9 +798,10 @@ class CrowdWorksPaidAdapter:
             def walk(node: Any) -> None:
                 if isinstance(node, Mapping):
                     for key, child in node.items():
-                        if key == "form_url" and isinstance(child, str) and _google_form_url(child):
+                        if key in {"form_url", "form_url_history"} \
+                                and isinstance(child, str) and _google_form_url(child):
                             found.add(child)
-                        elif key == "form_urls" and isinstance(child, list):
+                        elif key in {"form_urls", "form_url_history"} and isinstance(child, list):
                             found.update(value for value in child
                                          if isinstance(value, str) and _google_form_url(value))
                         elif key not in {"buyer_context", "artifact_content"}:
