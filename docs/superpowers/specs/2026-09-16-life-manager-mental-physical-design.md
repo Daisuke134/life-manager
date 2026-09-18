@@ -627,15 +627,16 @@ synthetic row, decide whether a rollout milestone is closed.
   adapter, and the offline policy scorecard are implemented and covered by focused tests.
 - Repository-owned durable decision rows for in-window send/silence decisions, replay keys, and
   post-Telegram receipt completion are implemented and covered by focused tests. The additive
-  production migration is present; production application/readback is still an open gate. The
-  runtime requires `LM_MENTAL_DECISION_LOG_REQUIRED=1` only after that readback; until then it
-  preserves the existing send-ledger path during migration rollout.
+  production migration is present and was applied/read back through Supabase CLI on 2026-09-19.
+  The runtime requires `LM_MENTAL_DECISION_LOG_REQUIRED=1` only after the matching code release;
+  until then it preserves the existing send-ledger path during rollout.
 - Explicit per-user quiet-hours columns, bounds, pair validation, scheduler read, and migration
   fallback are implemented. A reply to a durable V1 message can now map its known window to the
   quiet-hours preference; no free-form time is inferred.
 - The live `life-call` deployment is `d4659ff4bc7b4e13aa67836243060ad1d4efbb03` with `/health`
   returning `200`; production schema/RLS readback and the Dais-only tenant preflight are recorded
-  as passing in the evidence ledger. These are not the current release blocker.
+  as passing in the evidence ledger. The schema migration is now live; the current release blocker
+  is deploying the decision-log wiring code and reading back its exact SHA.
 
 ### 19.2 Not done yet (current observed state)
 
@@ -665,8 +666,8 @@ synthetic row, decide whether a rollout milestone is closed.
 | 1 — IN PROGRESS; wall clock | Observe a natural Dais morning, midday, and evening opportunity. | Provider-native Telegram message ID, exact text, family/window, and durable `lm_mental_send_log` row for each family. Morning and evening rows exist; midday and evening body/markup readback remain open. |
 | 2 — OPEN after step 1 | Keep the Dais-only canary running for seven consecutive local days. | Daily decision/send ledger with no synthetic rows and at least one real delivery from every V1 family. |
 | 3 — OPEN after step 2 | Close safety and UX counters and read back the actual Telegram messages. | `<=3` per local day, `>=3h` spacing, zero Calendar-busy sends, zero configured quiet-hour sends, zero unsupported claims, zero repeated templates within 14 days, replay-zero, and plain text with no keyboard/callback data, sender prefix, reply instruction, or unnatural/unreviewed locale text. |
-| 4 — IMPLEMENTED LOCALLY; production gate open | Apply/read back the closed decision-row migration, set `LM_MENTAL_DECISION_LOG_REQUIRED=1`, and add bounded policy promotion/rollback. | Production rows contain policy/profile versions, candidate/selected quote or silence reason, source refs, busy state, window, locale, and Telegram ID; old/new replay score promotes only when safety does not regress. |
-| 5 — IMPLEMENTED LOCALLY; production gate open | Apply/read back the explicit per-user quiet-hours source. | The versioned preference fields are populated/read by the scheduler and suppression is observed; incomplete pairs fail closed. |
+| 4 — MIGRATION LIVE; code release open | Deploy the decision-log wiring release, read back the exact production SHA, then set `LM_MENTAL_DECISION_LOG_REQUIRED=1` and add bounded policy promotion/rollback. | Production rows contain policy/profile versions, candidate/selected quote or silence reason, source refs, busy state, window, locale, and Telegram ID; old/new replay score promotes only when safety does not regress. |
+| 5 — MIGRATION LIVE; runtime read open | Read the explicit per-user quiet-hours source through the deployed scheduler and observe suppression. | The versioned preference fields are populated/read by the scheduler and suppression is observed; incomplete pairs fail closed. |
 | 6 — OPEN for full acceptance | Verify the existing crisis handoff owner and route. | A tested, location-appropriate handoff is read back; until then MENTAL makes no suicide-prevention or emergency-support claim. |
 | 7 — OPTIONAL, non-blocking | Run Telnyx duplicate/replay-zero if the stronger provider proof is required. | A second authorized test is deduplicated or otherwise reconciled without an unapproved duplicate effect. This does not block the mental canary. |
 | 8 — LOCKED until P0 | After the canary, unlock verified Job Hunter outcome context, then any separate general-mail owner. | Freshness, owner receipt, native copy, production readback, and replay-zero for each context class; no second Gmail poller. |
@@ -685,19 +686,19 @@ Clock manipulation, synthetic rows, or a local unit-test pass cannot close it.
 general users until the P0 rows above are closed. Silence is the correct behavior while the canary
 has no eligible natural receipt; it is not evidence of a successful canary.
 
-**Secondary blockers for the full acceptance claim:** the decision-row and quiet-hours migrations
-are implemented in the repository but have not yet been applied and read back in the live tenant;
-and the crisis handoff owner has not been verified. These items do not prevent collecting the first
+**Secondary blockers for the full acceptance claim:** the migration is now applied/read back, but the
+decision-log wiring release is not yet the live production SHA; the flag remains off until that
+readback. The crisis handoff owner is also unverified. These items do not prevent collecting the
 ordinary V1 message, but they prevent claiming the full self-improving, timing-personalized,
 safety-complete rollout.
 
 ### 19.5 Next action
 
 Continue the Dais-only natural canary through the three local windows, apply/read back the decision
-and quiet-hours migrations, and record provider-native receipts in the evidence ledger. Close the
-P0 checklist before changing copy, widening the allowlist, promoting a policy, or enabling
-Gmail/Calendar outcome context. Once P0 is closed, apply/read back the migrations, complete policy
-promotion, and verify the crisis route before general rollout.
+and quiet-hours fields, deploy the wiring release, and record provider-native receipts in the
+evidence ledger. Close the P0 checklist before changing copy, widening the allowlist, promoting a
+policy, or enabling Gmail/Calendar outcome context. Once the code SHA and schema readbacks agree,
+enable the flag, complete policy promotion, and verify the crisis route before general rollout.
 
 ## 20. Root-cause diagnosis: host pressure versus cloud gates
 
@@ -718,7 +719,7 @@ were performed on 2026-09-18 and are summarized in
 | Persistence inventory | `167` `ai.anicca` launchd jobs loaded, `34` with a live PID; names are repository-owned/known families | launchd is restarting/scheduling many jobs by design. A loaded job with PID `-` is not a zombie process. |
 | Deleted-open files | No large Life Manager artifact was found as a deleted file held open; `lsof +L1` output is dominated by macOS/browser/system resources | The primary disk issue is retained files and swap, not an invisible deleted log consuming the volume. |
 | Cloud MENTAL | evaluator: `v1_count=2`, `legacy_count=32`, morning `1`, evening `1`, `pass=true`; send row `id=160` exists | The cloud loop is alive and can naturally deliver. Silence was policy/state history, not a dead scheduler. |
-| Cloud schema | `lm_mental_decision_log` = `404/PGRST205`; quiet columns = `400/42703`; `lm_mental_send_log` = `200` | The hardening release is locally implemented but the production migration gate is genuinely open. |
+| Cloud schema | CLI migration list local/remote equal; decision-log, quiet-hours, and send-log REST readbacks all `200` | The production schema gate is closed; the remaining cloud gate is deploying the matching code SHA. |
 
 ### 20.2 Root cause
 
@@ -780,9 +781,9 @@ flowchart LR
    profiles, and credentials; archive before deletion where recovery matters.
 4. **Reduce pressure:** cap simultaneous browser contexts and release only owner-confirmed idle
    contexts. Re-measure process count, swap, `df`, and write latency after each bounded change.
-5. **Close Cloud gate:** obtain the Supabase project ref/access token through the private credential
-   SSOT, link the project, apply migration files through the official migration path, read back the
-   table/columns/RLS, then enable `LM_MENTAL_DECISION_LOG_REQUIRED=1` in a canary deployment.
+5. **Close Cloud code gate:** deploy release branch `8023b98b9d` through the main production path,
+   read back the exact `/health` SHA, then set `LM_MENTAL_DECISION_LOG_REQUIRED=1` in a Dais-only
+   canary. The schema migration is already applied/read back.
 6. **Finish proof:** read back the evening body/markup, capture midday or its legitimate suppression,
    complete seven local days, and only then widen the allowlist or unlock Gmail/Calendar outcome
    context.

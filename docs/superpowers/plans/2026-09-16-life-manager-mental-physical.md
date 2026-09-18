@@ -661,11 +661,13 @@ npm test
 - [x] Merge only after focused and full tests pass. V1 and profile PRs are merged with all CI checks green.
 
 - [x] Apply the earlier outcome/profile additive migrations and read columns/constraints/RLS back from production.
-- [ ] Apply and read back the newer decision-log and quiet-hours migrations; production probes still return
-  `lm_mental_decision_log=404/PGRST205` and missing quiet-hour columns.
+- [x] Apply and read back the decision-log and quiet-hours migrations through Supabase CLI using the
+  private token in `/Users/anicca/.openclaw/.env`; local/remote migration versions match and REST readback is 200.
 
-- [x] Require the Railway `life-call` deployment to reach `SUCCESS`; fresh `/health` readback is
+- [x] Require the current Railway `life-call` deployment to reach `SUCCESS`; fresh `/health` readback is
   `d4659ff4bc7b4e13aa67836243060ad1d4efbb03`.
+- [ ] Deploy the decision-log wiring release branch `8023b98b9d`, read back its exact production SHA,
+  then enable `LM_MENTAL_DECISION_LOG_REQUIRED=1` for the Dais-only canary.
 
 - [x] Verify startup logs show the standalone scheduler loops and no import/schema failure.
 
@@ -677,7 +679,7 @@ npm test
 - [ ] Verify both natural Telegram messages contain no button, callback, sender signature, reply instruction,
   or unsupported context claim; morning is read back, evening body/markup readback remains open.
 
-- [ ] Commit and push the deployment evidence.
+- [ ] Commit and push the deployment evidence after the wiring release/readback.
 
 ### Task 9: Close the seven-day canary
 
@@ -815,7 +817,8 @@ Anicca iOS is a separate product under the mobile-app loop, not a Life Manager c
 
 - [ ] Telnyx real-call receipt proves `90029` is gone.
 - [ ] Railway worker `commitHash` equals merged `main`.
-- [ ] Production schema matches the additive migration.
+- [x] Production schema matches the additive migration.
+- [ ] Production code SHA contains the decision-log wiring before the flag is enabled.
 - [ ] Host foundation has a bounded worktree/session/evidence retention ledger and safe concurrency cap.
 - [ ] V1 has exactly three message families.
 - [ ] Every delivered item is plain Telegram text.

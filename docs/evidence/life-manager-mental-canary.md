@@ -11,6 +11,12 @@ Status: `IN_PROGRESS` — production code and schema are live; the seven-day nat
 - Production preflight for that allowlisted tenant returned one matching `lm_users` row and one preferences row; Telegram chat, Calendar, Gmail, paid entitlement, timezone, notifications, and daily automation were all present/enabled. Raw identifiers are intentionally omitted.
 - `lm_mental_profile_tags` is present with RLS, closed kind/basis/explicit/source-hash checks, expiry/supersession columns, and zero rows until an explicit source-backed profile statement is available.
 - Production scheduler logs show `organ:mental-outcome` and `organ:mental` startup/ticks.
+- Supabase CLI token was found in the private `/Users/anicca/.openclaw/.env` (value never recorded);
+  project listing matched production ref `cycgdwndgfgdbnndithc`. The canonical CLI migration files
+  were applied to production at `2026-09-19T00:01:00Z` and `00:02:00Z`; `supabase migration list`
+  reports local/remote equality for both versions.
+- Post-migration REST readback returned `200` for `lm_mental_decision_log`, the two
+  `lm_panel_preferences.mental_quiet_*` columns, and the existing `lm_mental_send_log`.
 
 ## Host foundation audit (read-only)
 
@@ -50,11 +56,12 @@ The production scheduler also observed the synthetic projection and logged a Tel
 - Latest automated readback at `2026-09-18T22:32:41+09:00`: `v1_count=2`, `legacy_count=32`, `daily_counts={2026-09-18: 2}`, `min_gap_ms=48254748`, `windows.morning_orientation=1`, `windows.evening_direction=1`, and structural `pass=true` over the trailing 14-day window. This is two natural receipts, not a seven-day canary pass. The read-only wall-clock monitor was restarted after its prior process exited; no send or scheduler mutation was performed.
 - The receipt row has `family=affirmation`, `window=morning_orientation`, and template `antara:courage-quiet:ja`. The provider-native `Cloud Life Manager` dialog contains a same-second inbound MTProto message (`2026-09-17T23:00:50Z`) whose text hash/length exactly matches that approved catalog item; its message has no buttons/reply markup and `out=false`. Bot API receipt ID `1384` and MTProto ID `88742` are different API identifiers, so the cross-API ID mapping is recorded as an observation rather than assumed.
 - The midday opportunity on this local day was correctly suppressed by the shared trailing-24-hour cap; the evening opportunity later delivered one V1 manifestation. The durable row is `id=160`, `family=manifestation`, `window=evening_direction`, `template_id=antara:small-step-afraid:ja`, `telegram_message_id=1395`, `sent_at=2026-09-18T12:25:05.350819Z`. No cap bypass or extra send was authorized. Provider-native body/markup readback for this second receipt remains open.
-- Repository hardening is now pushed on the dedicated branch: closed decision rows with replay keys, explicit quiet-hours fields, and reply-to-window timing correction are implemented and covered by the full Life Manager test suite. Production has not received this release yet; `LM_MENTAL_DECISION_LOG_REQUIRED=1` is intentionally held until the migration readback.
-- A secret-free production schema probe confirms the migration gate is still open: `lm_mental_decision_log` returns `404/PGRST205`, the quiet-hours columns return `400/42703`, and the existing `lm_mental_send_log` family columns return `200`. No production mutation was attempted because the available Railway service environment exposes Supabase REST credentials but no SQL/DB connection or migration executor.
-- A supervised Supabase Dashboard attempt reached the GitHub OAuth passkey flow, but the existing
-  passkey attempt ended with `Authentication failed` and the Mac computer-password handoff remains
-  incomplete. No credential was entered by the agent and no production SQL was executed.
+- Repository hardening is pushed on release branch `fix/lm-mental-production-release-20260919` at
+  `8023b98b9d`; focused MENTAL tests and the full Life Manager suite pass. Production has not
+  received this code release yet, so `LM_MENTAL_DECISION_LOG_REQUIRED=1` remains intentionally off.
+- The remaining release mismatch is code, not schema: production `/health` still reports the older
+  build `d4659ff4bc7b4e13aa67836243060ad1d4efbb03`, while the release branch contains the decision
+  wiring. No production flag change was attempted before that code release.
 - The merged offline policy scorecard is available for replay, but no policy is promoted from it until natural provider receipts exist; this readback contains no synthetic rows.
 - Explicit reply correction intake is live in the same deployment: only a reply to a durable V1 Telegram receipt can create a bounded tone tag; ambiguous/timing corrections remain no-op and no raw text is stored.
 - Window-bound scheduler logs now record send family/template/message ID or enum suppression reasons; outside-window heartbeats remain silent.
@@ -62,6 +69,8 @@ The production scheduler also observed the synthetic projection and logged a Tel
 - [ ] Capture one natural Dais midday mindfulness/body-awareness line in `midday_awareness`.
 - [x] Capture one natural Dais evening manifestation/release line in `evening_direction` (body/markup readback still open).
 - [ ] For seven consecutive local days, record decision, family, template ID, window, Telegram ID, and durable receipt row.
+- [x] Apply and read back the decision-log and quiet-hours migrations through Supabase CLI.
+- [ ] Deploy the decision-log wiring release and read back its exact production SHA before enabling the flag.
 - [ ] Prove daily count <= 3, spacing >= 3 hours, busy/quiet suppression, 14-day template dedupe, and replay-zero.
 - [ ] Verify the actual Telegram text has no buttons, callback data, reply instruction, sender signature, or unsupported personal claim.
 
