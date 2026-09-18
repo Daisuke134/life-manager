@@ -1430,25 +1430,24 @@ loaded definitionと自然tickまで読み戻すことを意味する。A1のcon
 
 削除はA12の最後であり、現在は実行しない。
 
-## 2026-09-18 measured Writer status
+## 2026-09-19 measured Writer status
 
 この節が現在の運用cursorである。過去のW0〜A12記録は履歴として保持し、現在の完了判定を上書きしない。
 
 ### 完了した実測
 
-- main由来immutable release `e145a1d5` 系までのWriter runtime修正を反映した。旧Claude/gig model rootはloaded plistから消え、3 Writer label（`article-daily`、`article-resume`、`writer-claim-loop`）はCodex/provider-child境界、外部state/log root、release SHAをreadbackできる。
-- generation run `20260918-135644` は、fresh paid-demand card、JA/EN native draft、X post、headline image receipt、body diagram receiptを作成した。bodyは`526x582`へ透明side paddingされ、X投影範囲内である。Cliproxy headlineは`1536x1024`、provider model/key source/intent receipt hashを保存した。
-- quality editorial FAILはcontinuous-policyの`force_publish_advisory`で扱われ、identity/conscience/PII/CTA/media gatesは公開前に維持された。publication stateはactive-fourで初期化された。
-- Substack JAは`https://aniccabuddha.substack.com/p/x1`、Substack ENは`https://aniccaai2026.substack.com/p/do-not-start-with-the-paid-article`をpublisher-native/public canonical readbackで`live`確認した。本文、paywall、audience、headline/body media hash、destination identityを検証済み。
-- X Article JAは`https://x.com/diceai0/article/2100953380646703402`をpublic canonical account pathで確認した。現在は`live-media-mismatch`から`repair-required`であり、再公開ではなく同一targetのin-place repair待ちである。
-- Note JAは`https://note.com/anicca123/n/nae94757e2857`をpublic canonical URLで確認した。現在は`live-media-mismatch`から`repair-required`であり、managed browser runtime修正後のeyecatch/body readback待ちである。
+- run `20260918-135644` は、Note JA、Substack JA/EN、X Article JAのactive-fourを公式readbackで`live`にし、Telegram message id `88172`、`article-run-complete --armed 1` rc=0、`publication_resume.py plan` の`all-complete`、replay-zeroを確認済みである。4 URLはNote `https://note.com/anicca123/n/nae94757e2857`、Substack JA `https://aniccabuddha.substack.com/p/x1`、Substack EN `https://aniccaai2026.substack.com/p/do-not-start-with-the-paid-article`、X Article JA `https://x.com/diceai0/article/2100953380646703402`である。
+- 同runの4件は本文・destination identity・cover/body mediaのverified receiptを持つ。Noteはprice `500`、Note/Substackはmonetization receiptもverifiedである。ledgerとpublication stateのSHA-256は再検証前後で不変だった。
+- PR #5626 (`431b5020457190c9c458f732728d08034732fd25`) で、完全な自社CTA (`aniccaai.com` と5つのlineage query) のtimestamp型`run_id/click_id`をgeneric credit-card detectorが誤検出しないようPII scannerを修正した。外部／不完全URLは従来どおり検出する回帰テストがPASSしている。
+- immutable release `20260919T003014-431b5020`を`article-daily`と`article-resume`へtarget-applyし、両方のloaded `ProgramArguments`、release SHA、state rootをreadbackした。兄弟loopのreleaseは変更していない。
+- run `20260918-151040`は旧releaseのPII誤検出で4件ともprovider dispatch前に失敗しており、外部公開は0件。したがって新PII修正後の同run resumeは、同じ外部effectの再送ではなく未実行作業の再開として残っている。
 
-### 現在の未完了・ブロッカー
+### 未完了・ブロッカー
 
-1. Note JA: 既存live targetのeyecatch/body mediaを同一keyへin-place repairし、price=500、本文、media、identityの公式readbackを取る。新しいNoteを作らない。
-2. X Article JA: 既存live targetのmedia mismatchを同一edit/public targetへrepairし、公開本文・cover/body media・identityの公式readbackを取る。新しいX記事を作らない。
-3. active-four completion: Note/Xが`live`になった後、`article-run-complete.py --armed 1`、`publication_resume.py plan`、Telegram message ID、replay-zeroを同じrunで確認する。
-4. 日次SLO: 7日または21 scheduled source runsの自然terminal＋4面native live receiptがまだ無い。launchdのresource admission blockerは生成コードとは別の運用観測として残る。
-5. 収益: 現在の外部 received writing revenue、payout、subscription contract、active MRRは証拠上0。$10K MRRは未達で、公開数やdraft数を収益と数えない。
+1. `article-resume`のpending run再開: 新release適用後のkickstartは`exit 75`で、現在のadmission blockerは`host_admission_deferred:resource_capacity_busy`。resource ownerを停止・削除せず、FIFO条件が成立した自然wakeで同runの4媒体を再開し、PII PASS→provider-native readbackまで確認する。
+2. `article-daily`の次の自然wake: 新releaseはloaded済みだが、kickstartは`resource_capacity_busy`後に`resource_fifo_wait`へ遷移した。先行queue（sequence `22320`以降のrevenue/support owners）が解消するまで、同一runを重複生成せずに待つ。外部effectはまだ0件。
+3. 日次SLO: 7日または21 scheduled source runsについて、自然terminal、active-fourの4件native live receipt、Telegram delivery、replay-zeroを連続観測する必要がある。現時点で証明済みなのは`20260918-135644`の1 runだけである。
+4. 収益: Writer money ledgerは`verified_revenue_event_count=0`、subscriptions `rows=0`、stripe receipts `rows=0`、verified gross/net/MRR/payoutは空である。$10K MRRは未達で、実決済／publisher payout receiptをrun/artifactへ接続する必要がある。
+5. A11/A12: 14日間の連続運用観測とrollback後のWriter専用旧release archiveは、上記resume・日次SLO・収益receiptの後で実施する。
 
-現在の主ボトルネックはprovider生成やmedia creationではなく、Note/Xの既存live targetに対するpublisher-native repair/readbackである。未確認の外部状態を成功へ昇格させず、同一targetの公式readbackが取れるまで`repair-required`を保持する。
+現在の主ボトルネックはコード生成やNote/X修復ではない。PII誤検出は修正済みで、main由来releaseも反映済み。残る技術ボトルネックは共有host admissionのcapacity/FIFO待ち、成果ボトルネックは新releaseでの4媒体resume成功、連続日次receipt、実収益receiptの未取得である。
