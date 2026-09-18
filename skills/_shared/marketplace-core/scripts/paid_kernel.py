@@ -544,6 +544,8 @@ def main(argv: list[str] | None = None) -> int:
             if not isinstance(marker, Mapping) or marker.get("status") != "effect_started":
                 _write(run_marker, {"version": 1, "occurrence_id": occurrence_id,
                                     "status": "completed", "effect": result["effect"]})
+    if occurrence_id is not None:
+        result["occurrence_id"] = occurrence_id
     _write(args.output.expanduser().resolve(), result)
     hint_path = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
     failed_items = [item for item in result.get("items", [])
