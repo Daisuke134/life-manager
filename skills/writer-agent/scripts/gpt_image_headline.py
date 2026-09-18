@@ -130,6 +130,31 @@ def _api_credentials() -> tuple[str, str, str]:
 
 def verify(candidate: Path, receipt_path: Path) -> dict[str, Any]:
     receipt = _read_object(receipt_path, "headline-api-receipt-invalid")
+    intent_path = receipt_path.with_name("headline-image-api-intent.json")
+    intent = _read_object(intent_path, "headline-api-intent-invalid")
+    endpoint = receipt.get("endpoint")
+    provider_model = receipt.get("provider_model")
+    key_source = receipt.get("api_key_source")
+    fingerprint = intent.get("fingerprint")
+    if key_source not in {"openai", "cliproxy"}:
+        raise HeadlineImageRefused("headline-api-provenance-invalid")
+    if key_source == "openai" and (
+        endpoint != ENDPOINT or provider_model != MODEL
+    ):
+        raise HeadlineImageRefused("headline-api-provenance-invalid")
+    if key_source == "cliproxy" and (
+        endpoint == ENDPOINT or provider_model != CLIPROXY_MODEL
+    ):
+        raise HeadlineImageRefused("headline-api-provenance-invalid")
+    if (
+        intent.get("status") != "committed"
+        or not isinstance(fingerprint, dict)
+        or fingerprint.get("endpoint") != endpoint
+        or fingerprint.get("model") != provider_model
+        or fingerprint.get("output") != receipt.get("candidate")
+        or intent.get("receipt_sha256") != _sha(receipt_path.read_bytes())
+    ):
+        raise HeadlineImageRefused("headline-api-provenance-invalid")
     data = candidate.read_bytes()
     width, height = _png_dimensions(
         data, _allowed_dimensions(str(receipt.get("api_key_source", "openai")))

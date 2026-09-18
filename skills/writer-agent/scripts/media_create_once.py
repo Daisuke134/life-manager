@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -83,7 +84,9 @@ def _pad_tall_body_candidate(path: Path) -> None:
     target_width = max(width, math.ceil(X_RENDER_WIDTH * height / X_BODY_MAX_HEIGHT))
     image = Image.open(path).convert("RGBA")
     canvas = Image.new("RGBA", (target_width, height), (255, 255, 255, 0))
-    canvas.paste(image, ((target_width - width) // 2, 0), image)
+    # No mask: PIL copies all RGBA channels verbatim, preserving semitransparent
+    # Mermaid pixels instead of compositing them a second time.
+    canvas.paste(image, ((target_width - width) // 2, 0))
     temporary = path.with_name(f".{path.name}.{os.getpid()}.pad")
     canvas.save(temporary, format="PNG")
     os.replace(temporary, path)
@@ -190,6 +193,10 @@ def verify(run_dir: Path) -> dict[str, object]:
     if not legacy:
         candidate = run / HEADLINE_API_CANDIDATE
         api_receipt = _read_json(run / HEADLINE_API_RECEIPT, "headline-api-receipt-invalid")
+        intent = _read_json(
+            run / "gates/headline-image-api-intent.json",
+            "headline-api-intent-invalid",
+        )
         candidate_descriptor = _descriptor_from_file(candidate)
         required = {
             "schema": "writer.gpt-image-headline-receipt",
@@ -202,6 +209,37 @@ def verify(run_dir: Path) -> dict[str, object]:
             "width": candidate_descriptor.get("width"),
             "height": candidate_descriptor.get("height"),
         }
+        key_source = api_receipt.get("api_key_source")
+        provider_model = api_receipt.get("provider_model")
+        endpoint = api_receipt.get("endpoint")
+        if key_source == "openai":
+            provenance_valid = (
+                provider_model == "gpt-image-2-2026-04-21"
+                and endpoint == "https://api.openai.com/v1/images/generations"
+            )
+        elif key_source == "cliproxy":
+            provenance_valid = (
+                provider_model == "gpt-image-1.5"
+                and isinstance(endpoint, str)
+                and endpoint != "https://api.openai.com/v1/images/generations"
+            )
+        else:
+            provenance_valid = False
+        if not provenance_valid:
+            raise MediaCreateRefused("headline-api-provenance-invalid")
+        fingerprint = intent.get("fingerprint")
+        if (
+            intent.get("status") != "committed"
+            or not isinstance(fingerprint, dict)
+            or fingerprint.get("endpoint") != endpoint
+            or fingerprint.get("model") != provider_model
+            or fingerprint.get("output") != api_receipt.get("candidate")
+            or intent.get("receipt_sha256")
+            != hashlib.sha256(
+                (run / HEADLINE_API_RECEIPT).read_bytes()
+            ).hexdigest()
+        ):
+            raise MediaCreateRefused("headline-api-provenance-invalid")
         if any(api_receipt.get(key) != value for key, value in required.items()):
             raise MediaCreateRefused("headline-api-receipt-mismatch")
         for key in ("x_request_id", "prompt_sha256", "response_sha256", "alt", "rights_provenance"):

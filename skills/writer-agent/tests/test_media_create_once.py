@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 
@@ -43,7 +44,8 @@ def test_body_candidate_at_x_readability_floor_commits(tmp_path):
 
 def test_tall_body_candidate_is_padded_without_upscaling_content(tmp_path):
     candidate = tmp_path / "candidate.png"
-    Image.new("RGBA", (276, 510), (255, 255, 255, 0)).save(candidate, format="PNG")
+    original_pixel = (10, 20, 30, 128)
+    Image.new("RGBA", (276, 510), original_pixel).save(candidate, format="PNG")
     receipt = media.commit(
         candidate,
         tmp_path / "body-diagram.png",
@@ -53,6 +55,8 @@ def test_tall_body_candidate_is_padded_without_upscaling_content(tmp_path):
     assert receipt["height"] == 510
     assert receipt["width"] == 461
     assert receipt["width"] > 276
+    padded = Image.open(candidate).convert("RGBA")
+    assert padded.getpixel(((461 - 276) // 2, 0)) == original_pixel
 
 
 def test_new_run_requires_matching_gpt_image_receipt(tmp_path):
@@ -71,6 +75,9 @@ def test_new_run_requires_matching_gpt_image_receipt(tmp_path):
         "schema": "writer.gpt-image-headline-receipt", "version": 1,
         "status": "committed", "candidate": str(headline_candidate),
         "request_model": "gpt-image-2-2026-04-21",
+        "provider_model": "gpt-image-2-2026-04-21",
+        "api_key_source": "openai",
+        "endpoint": "https://api.openai.com/v1/images/generations",
         "file_sha256": headline["sha256"], "byte_length": headline["byte_length"],
         "width": headline["width"], "height": headline["height"],
         "x_request_id": "req_123", "prompt_sha256": "a" * 64,
@@ -78,6 +85,22 @@ def test_new_run_requires_matching_gpt_image_receipt(tmp_path):
         "rights_provenance": "OpenAI terms",
     }
     (run / media.HEADLINE_API_RECEIPT).write_text(json.dumps(api_receipt))
+    api_receipt_sha = hashlib.sha256(
+        (run / media.HEADLINE_API_RECEIPT).read_bytes()
+    ).hexdigest()
+    (run / "gates/headline-image-api-intent.json").write_text(
+        json.dumps(
+            {
+                "status": "committed",
+                "fingerprint": {
+                    "endpoint": api_receipt["endpoint"],
+                    "model": api_receipt["provider_model"],
+                    "output": api_receipt["candidate"],
+                },
+                "receipt_sha256": api_receipt_sha,
+            }
+        )
+    )
 
     assert media.verify(run)["headline_api_verified"] is True
 
