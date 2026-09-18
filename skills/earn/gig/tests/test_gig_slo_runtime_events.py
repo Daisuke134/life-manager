@@ -103,7 +103,41 @@ def test_telegram_state_uses_latest_sent_report_kind(tmp_path):
             "INSERT INTO telegram_reports(event_key,kind,message,state,created_at,updated_at) VALUES(?,?,?,?,?,?)",
             ("new", "paid-direct", "new", "sent", 200, 200),
         )
+        connection.execute(
+            "INSERT INTO telegram_reports(event_key,kind,message,state,created_at,updated_at) VALUES(?,?,?,?,?,?)",
+            ("incident", "incident", "incident", "sent", 300, 300),
+        )
 
     state = gig_slo._telegram_state(database, now=250)
     assert state["latest_pass_created_at"] == 200
     assert state["latest_pass_state"] == "sent"
+
+
+def test_incident_only_telegram_rows_do_not_hide_report_silence(tmp_path):
+    database = tmp_path / "telegram.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.executescript(
+            """
+            CREATE TABLE telegram_reports (
+                report_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_key TEXT NOT NULL UNIQUE,
+                kind TEXT NOT NULL,
+                message TEXT NOT NULL,
+                state TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            """
+        )
+        connection.execute(
+            "INSERT INTO telegram_reports(event_key,kind,message,state,created_at,updated_at) VALUES(?,?,?,?,?,?)",
+            ("incident", "incident", "incident", "sent", 200, 200),
+        )
+
+    state = gig_slo._telegram_state(database, now=10_000)
+    assert state["latest_pass_created_at"] is None
+    snapshot = {"last_pass_at": 10_000, "lanes": {}, "telegram": state}
+    assert any(
+        row["fingerprint"] == "telegram:pass_report_silence"
+        for row in gig_slo.evaluate(snapshot, now=10_000)
+    )

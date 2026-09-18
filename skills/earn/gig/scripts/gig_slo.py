@@ -34,6 +34,12 @@ RUNTIME_LANES = {
     "fulfill": ("paid", "hf-gig-paid-direct"),
     "list": ("storefront", "hf-gig-storefront-direct"),
 }
+TELEGRAM_HEALTH_REPORT_KINDS = (
+    "pass", "hourly", "daily", "weekly", "application", "application_recovery",
+    "apply-direct", "apply-decision", "reply_wake", "reply_verified", "reply_dlq",
+    "paid-direct", "contract", "delivery", "payment", "storefront_direct_effect",
+    "storefront_direct_failure", "storefront_direct_noop", "storefront_public_effect",
+)
 
 
 def _default_host_state_dir() -> Path:
@@ -610,9 +616,12 @@ def _telegram_state(database: Path, *, now: int) -> dict[str, Any]:
         return state
     try:
         with sqlite3.connect(f"file:{database}?mode=ro", uri=True) as connection:
+            placeholders = ",".join("?" for _ in TELEGRAM_HEALTH_REPORT_KINDS)
             latest = connection.execute(
-                """SELECT created_at,state FROM telegram_reports
-                   WHERE state='sent' ORDER BY created_at DESC,report_id DESC LIMIT 1"""
+                f"""SELECT created_at,state FROM telegram_reports
+                   WHERE state='sent' AND kind IN ({placeholders})
+                   ORDER BY created_at DESC,report_id DESC LIMIT 1""",
+                TELEGRAM_HEALTH_REPORT_KINDS,
             ).fetchone()
             unknown = connection.execute(
                 "SELECT COUNT(*) FROM telegram_reports WHERE state='delivery_unknown'"
