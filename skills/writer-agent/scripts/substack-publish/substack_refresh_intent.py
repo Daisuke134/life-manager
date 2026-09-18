@@ -108,6 +108,7 @@ def _build_embedded_markdown(state, lang):
     ]
     for body in bodies:
         command.extend(("--body-image", str(body["path"])))
+    out.parent.mkdir(parents=True, exist_ok=True)
     result = subprocess.run(command, capture_output=True, text=True, check=False)
     if result.returncode != 0 or not out.is_file():
         raise m.SubstackRepairRefused("same-ID media rebuild failed")
