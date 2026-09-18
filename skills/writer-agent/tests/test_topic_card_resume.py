@@ -20,6 +20,8 @@ def run_resume(
     ledger_symlink=False,
     generation_symlink=False,
     route_symlink=False,
+    generation_status="interrupted-safe",
+    generation_return_code=0,
 ):
     run_id = "20260821-054500"
     run = tmp_path / "runs" / run_id
@@ -37,21 +39,24 @@ def run_resume(
         ledger.unlink()
         ledger.symlink_to(target)
     generation = gates / "generation-state.json"
+    attempt = {"status": generation_status}
+    if generation_status == "provider-returned":
+        attempt.update({
+            "return_code": generation_return_code,
+            "boundary": "prepublication-empty",
+        })
+    else:
+        attempt.update({
+            "boundary": "archived-prepublication-artifacts",
+            "archive_manifest": [] if empty else [{"path": "article-ja.md"}],
+        })
     generation.write_text(
-        json.dumps(
-            {
-                "version": 1,
-                "run_id": run_id,
-                "status": "interrupted-safe",
-                "attempts": [
-                    {
-                        "status": "interrupted-safe",
-                        "boundary": "archived-prepublication-artifacts",
-                        "archive_manifest": [] if empty else [{"path": "article-ja.md"}],
-                    }
-                ],
-            }
-        ),
+        json.dumps({
+            "version": 1,
+            "run_id": run_id,
+            "status": generation_status,
+            "attempts": [attempt],
+        }),
         encoding="utf-8",
     )
     if generation_symlink:
@@ -89,6 +94,30 @@ def test_empty_pre_topic_interruption_skips_card_recovery(tmp_path):
     assert result.returncode == 0
     assert receipt["action"] == "skip-pre-topic-recovery"
     assert receipt["reason"] == "empty-pre-topic-interruption"
+
+
+def test_empty_provider_return_skips_card_recovery(tmp_path):
+    result, receipt = run_resume(
+        tmp_path,
+        route=None,
+        card_topic="paid-demand:unused",
+        generation_status="provider-returned",
+    )
+    assert result.returncode == 0
+    assert receipt["action"] == "skip-pre-topic-recovery"
+    assert receipt["reason"] == "empty-pre-topic-interruption"
+
+
+def test_false_provider_return_code_does_not_skip_card_recovery(tmp_path):
+    result, receipt = run_resume(
+        tmp_path,
+        route=None,
+        card_topic="paid-demand:unused",
+        generation_status="provider-returned",
+        generation_return_code=False,
+    )
+    assert result.returncode != 0
+    assert receipt["reason"] == "topic-route-input-missing"
 
 
 def test_existing_route_restores_exact_matching_card(tmp_path):
