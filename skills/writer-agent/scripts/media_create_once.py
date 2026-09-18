@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import shutil
 import sys
@@ -60,6 +61,32 @@ def _descriptor_from_file(path: Path) -> dict[str, object]:
     from media_integrity import descriptor_from_file
 
     return descriptor_from_file(path)
+
+
+def _pad_tall_body_candidate(path: Path) -> None:
+    """Add transparent side margins so a readable diagram fits X's column.
+
+    Mermaid's vertical layout can be narrow and tall even when its text is
+    readable. Padding never enlarges or re-encodes the diagram content; it only
+    gives the fixed 587px X column enough canvas width for the existing pixels.
+    Too-flat candidates remain refused because padding cannot make their text
+    readable.
+    """
+    descriptor = _descriptor_from_file(path)
+    width = int(descriptor.get("width", 0) or 0)
+    height = int(descriptor.get("height", 0) or 0)
+    projected = _body_projection(descriptor)
+    if projected <= X_BODY_MAX_HEIGHT or not width or not height:
+        return
+    from PIL import Image
+
+    target_width = max(width, math.ceil(X_RENDER_WIDTH * height / X_BODY_MAX_HEIGHT))
+    image = Image.open(path).convert("RGBA")
+    canvas = Image.new("RGBA", (target_width, height), (255, 255, 255, 0))
+    canvas.paste(image, ((target_width - width) // 2, 0), image)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.pad")
+    canvas.save(temporary, format="PNG")
+    os.replace(temporary, path)
 
 
 def _atomic_json(path: Path, payload: dict[str, object]) -> None:
@@ -189,6 +216,8 @@ def verify(run_dir: Path) -> dict[str, object]:
 def commit(candidate: Path, destination: Path, receipt: Path, kind: str) -> dict[str, object]:
     source = candidate.resolve(strict=True)
     target = destination.parent.resolve(strict=True) / destination.name
+    if kind == "body":
+        _pad_tall_body_candidate(source)
     descriptor = _descriptor_from_file(source)
     if not all(
         isinstance(descriptor.get(field), int) and int(descriptor[field]) > 0

@@ -41,6 +41,20 @@ def test_body_candidate_at_x_readability_floor_commits(tmp_path):
     assert receipt["height"] == 244
 
 
+def test_tall_body_candidate_is_padded_without_upscaling_content(tmp_path):
+    candidate = tmp_path / "candidate.png"
+    Image.new("RGBA", (276, 510), (255, 255, 255, 0)).save(candidate, format="PNG")
+    receipt = media.commit(
+        candidate,
+        tmp_path / "body-diagram.png",
+        tmp_path / "body-receipt.json",
+        "body",
+    )
+    assert receipt["height"] == 510
+    assert receipt["width"] == 461
+    assert receipt["width"] > 276
+
+
 def test_new_run_requires_matching_gpt_image_receipt(tmp_path):
     run = tmp_path / "run"
     (run / "gates/media-candidates").mkdir(parents=True)
