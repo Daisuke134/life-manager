@@ -1079,6 +1079,21 @@ def run_loop(*, exhaustive: bool = False, state_path: Path = DEFAULT_STATE_PATH,
 run_application_loop = run_loop
 run_once = run_loop
 
+
+def _durable_uncertain_pending(result: Mapping[str, object], state_path: Path) -> bool:
+    """Let the next wake reconcile only an exact, persisted pending submission."""
+    project_id = result.get("project_id")
+    if result.get("error") != "submission_uncertain" or not isinstance(project_id, str) or re.fullmatch(r"[0-9]+", project_id) is None:
+        return False
+    try:
+        return application_tick.state_has_claim(state_path, project_id) and any(
+            row.get("project_id") == project_id
+            for row in application_tick.shared.read_pending_descriptors(state_path)
+        )
+    except Exception:
+        return False
+
+
 def main(argv: Optional[Sequence[str]] = None, *, discovery: Optional[Callable[..., Mapping[str, object]]] = None, planner: Optional[Callable[..., object]] = None, submitter: Optional[Callable[..., object]] = None, now: Optional[Callable[[], object]] = None, clock: Optional[Callable[[], object]] = None, stdout: Optional[TextIO] = None) -> int:
     parser = argparse.ArgumentParser(allow_abbrev=False); parser.add_argument("--json", action="store_true", required=True); parser.add_argument("--reconcile-only", action="store_true"); parser.add_argument("--state-path", default=str(DEFAULT_STATE_PATH)); parser.add_argument("--exhaustive", action="store_true", help="union every discovery query instead of stopping at the first fruitful one"); parser.add_argument("--discovery-timeout", type=float, default=20.0, help="seconds per discovery request (provider bound: 0 < t <= 60). The exhaustive budget is this multiplied by the number of queries, not a larger single request."); args = parser.parse_args(list(argv) if argv is not None else None)
     output_stream = sys.stdout if stdout is None else stdout
@@ -1088,7 +1103,7 @@ def main(argv: Optional[Sequence[str]] = None, *, discovery: Optional[Callable[.
         delivery = reporter.notify_application_wake(result)
         if delivery.delivery_uncertain or delivery.pre_send_failed:
             return 1
-    return 0 if result["ok"] else 1
+    return 0 if result["ok"] or _durable_uncertain_pending(result, Path(args.state_path)) else 1
 
 __all__ = ["AGENT_RUNNER", "AGENT_RUNNER_PATH", "ApplicationLoopResult", "DEFAULT_EVIDENCE_DIR", "DEFAULT_EVIDENCE_ROOT", "DEFAULT_STATE_PATH", "PLANNER_SCHEMA", "SCHEMA_PATH", "application_tick", "build_planner_prompt", "invoke_planner", "main", "run_application_loop", "run_loop", "run_once", "run_reconcile_only", "status", "validate_decisions"]
 

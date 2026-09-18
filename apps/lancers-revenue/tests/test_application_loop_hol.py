@@ -891,6 +891,49 @@ class ApplicationLoopHolTests(unittest.TestCase):
                 )
                 self.assertEqual(called_project_ids, project_ids)
 
+    def test_main_leaves_durable_uncertain_application_for_next_wake(self):
+        application_loop = _load_deployed_loop()
+        project_id = "5603241"
+        marker = hashlib.sha256(f"lancers:application:{project_id}".encode()).hexdigest()
+        with tempfile.TemporaryDirectory() as directory:
+            state_path = Path(directory) / "application.json"
+            state_path.write_text(json.dumps({
+                "fingerprints": [marker],
+                "pending": {marker: {
+                    "project_id": project_id,
+                    "proposal_id": None,
+                    "content_sha256": hashlib.sha256(b"proposal").hexdigest(),
+                    "amount_minor": 250000,
+                    "delivery_due_on": "2026-10-01",
+                }},
+            }), encoding="utf-8")
+            uncertain = {"ok": False, "error": "submission_uncertain",
+                         "project_id": project_id, "application_verified": False,
+                         "submitted": False}
+            with patch.object(application_loop, "run_loop", return_value=uncertain):
+                output = io.StringIO()
+                self.assertEqual(application_loop.main(
+                    ["--json", "--state-path", str(state_path)],
+                    discovery=lambda **_kwargs: {}, stdout=output,
+                ), 0)
+                self.assertFalse(uncertain["application_verified"])
+                self.assertIn(marker, json.loads(state_path.read_text())["pending"])
+
+                with patch.object(application_loop, "run_loop", return_value={
+                    **uncertain, "error": "planner_runner_failed",
+                }):
+                    self.assertEqual(application_loop.main(
+                        ["--json", "--state-path", str(state_path)],
+                        discovery=lambda **_kwargs: {}, stdout=io.StringIO(),
+                    ), 1)
+
+                state_path.write_text(json.dumps({"fingerprints": [marker], "pending": {}}),
+                                      encoding="utf-8")
+                self.assertEqual(application_loop.main(
+                    ["--json", "--state-path", str(state_path)],
+                    discovery=lambda **_kwargs: {}, stdout=io.StringIO(),
+                ), 1)
+
     def test_uncertain_pending_is_quarantined_without_blocking_new_verified_application(self):
         application_loop = _load_deployed_loop()
         discovery_calls = []
