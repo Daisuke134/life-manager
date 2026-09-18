@@ -53,6 +53,7 @@ def descriptor_from_bytes(data: bytes) -> dict[str, Any]:
         "width": None,
         "height": None,
         "dhash": None,
+        "visible_dhash": None,
     }
     try:
         with Image.open(io.BytesIO(data)) as image:
@@ -61,6 +62,7 @@ def descriptor_from_bytes(data: bytes) -> dict[str, Any]:
                 width=int(image.width),
                 height=int(image.height),
                 dhash=_dhash(image),
+                visible_dhash=_visible_dhash(image),
             )
     except (OSError, ValueError, UnidentifiedImageError):
         pass
@@ -78,8 +80,17 @@ def dhash_distance(left: str, right: str) -> int:
 
 
 def _visual_match(expected: dict[str, Any], remote: dict[str, Any]) -> tuple[bool, int | None]:
-    expected_hash = expected.get("dhash")
-    remote_hash = remote.get("dhash")
+    expected_hash = expected.get("visible_dhash")
+    if not isinstance(expected_hash, str):
+        expected_path = Path(str(expected.get("path", "")))
+        if expected_path.is_file():
+            try:
+                expected_hash = descriptor_from_file(expected_path).get("visible_dhash")
+            except (OSError, ValueError, UnidentifiedImageError):
+                expected_hash = None
+    if not isinstance(expected_hash, str):
+        expected_hash = expected.get("dhash")
+    remote_hash = remote.get("visible_dhash") or remote.get("dhash")
     dimensions = (
         expected.get("width"),
         expected.get("height"),

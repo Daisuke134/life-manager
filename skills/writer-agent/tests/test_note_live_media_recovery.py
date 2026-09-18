@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import json
 import asyncio
+import io
 import sys
 from pathlib import Path
+
+from PIL import Image, ImageDraw
 
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
@@ -14,6 +17,30 @@ import publication_remote  # noqa: E402
 import note_inplace_repair  # noqa: E402
 from publication_resume import PublicationStore  # noqa: E402
 from media_integrity import descriptor_from_file  # noqa: E402
+from media_integrity import content_proof  # noqa: E402
+
+
+def test_visual_media_proof_normalizes_transparent_background_reencoding(
+    tmp_path: Path,
+) -> None:
+    expected_path = tmp_path / "body.png"
+    source = Image.new("RGBA", (526, 582), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(source)
+    draw.rectangle((100, 80, 420, 500), outline=(20, 20, 20, 255), width=8)
+    source.save(expected_path, format="PNG")
+    remote = Image.new("RGBA", source.size, (255, 255, 255, 255))
+    remote.alpha_composite(source)
+    output = io.BytesIO()
+    remote.convert("RGB").save(output, format="PNG")
+
+    proof = content_proof(
+        {"path": str(expected_path), **descriptor_from_file(expected_path)},
+        output.getvalue(),
+        "https://example.test/body.png",
+    )
+
+    assert proof is not None
+    assert proof["match_method"] == "visual-dhash"
 
 
 def note_media_gap() -> dict[str, object]:
