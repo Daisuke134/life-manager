@@ -27,4 +27,3 @@ CREATE INDEX IF NOT EXISTS lm_mental_decision_log_uid_observed
   ON public.lm_mental_decision_log (uid, observed_at DESC);
 
 ALTER TABLE public.lm_mental_decision_log ENABLE ROW LEVEL SECURITY;
-
