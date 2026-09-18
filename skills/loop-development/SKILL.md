@@ -216,6 +216,23 @@ Long waits belong in persisted `next_eligible_at` state and launchd cadence.
   one attempted effect, not an owner or a live port. Example: a capacity-busy
   occurrence with no later claim has no provider child, while a storefront
   entrypoint failure may have changed its listing and remains fenced.
+- Symptom: a loop recreates an already published item after a successful wake.
+  Wrong instinct: patch the provider form selector or retry creation. Correct
+  action: compare the provider's exact published IDs with every writer of the
+  shared durable cursor; preserve unrelated fields in each atomic write and
+  hold the same owner lock from selection through receipt persistence. Restore
+  erased IDs from official readback before the next wake; malformed existing
+  state must stop creation. General law: an atomic file replacement prevents
+  partial writes, not lost fields or duplicate provider effects. Example: a
+  listing refresh erased the catalog cursor and the next wake republished it.
+- Symptom: a targeted release apply interrupts a scheduled effectful run even
+  though a preceding status read said `loaded-idle`. Wrong instinct: repeat
+  the status check or reload the whole fleet. Correct action: hold that owner's
+  `owner_deploy_lock` across exact effect reconciliation, the loaded-idle
+  readback, and targeted `lm-loop apply`; defer if the owner is running or the
+  lock is busy. General law: read-then-apply is not an atomic deployment gate.
+  Example: a scheduled marketplace owner entered provider work between the
+  status read and plist swap, leaving the effect uncertain.
 - Symptom: an active work item is skipped forever because mutable state says
   `delegated=true`. Wrong instinct: trust an interactive session name or delete
   the flag by hand after every outage. Correct action: delegate only to a
