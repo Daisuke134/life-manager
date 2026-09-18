@@ -357,6 +357,56 @@ is a code change and remains **not implemented by this spec-only update**.
    natural publish wake. Paid remains operational but must keep its latest pass and release/env
    readback in the same fleet gate.
 
+### 0.3 Fundamentals: what is actually failing
+
+The failure is not a virus and there is no evidence of zombie processes. A zombie process would
+appear as `Z` in the process table; the measured count is zero. The host currently has about 6.9 GiB
+free, above the 512 MiB immediate disk floor. The immutable release directories under `~/loops/releases`
+are managed runtime artifacts, not malware. They can consume disk and must be retained or pruned only
+by the release/cleanup owner after current, loaded and pinned releases are protected, but they do not
+explain the Apply fence by themselves.
+
+The observed system is better described as **a safety circuit that is doing its job**:
+
+```mermaid
+flowchart LR
+  B[Chrome 145 on CDP 9223\nCoconala page HTTP 200] --> L[Apply lane wake]
+  L --> A{Durable admission}
+  A -->|old effect_unknown claim| S[Stop before new provider effect\neffect 0 / readback 0]
+  A -->|slot available| P[Provider Apply]
+  P --> R[Official applied-history readback]
+  R -->|exact receipt| C[Close occurrence]
+  R -->|missing or inconclusive| U[Keep unknown\nnever blind-retry]
+  Z[Zombies / virus?\nmeasured: no evidence] -.not causal.-> A
+  D[Disk pressure\ncurrent ~6.9 GiB free] -.historical signal only.-> A
+```
+
+In plain terms: the browser is the door, and the admission fence is the lock. The door opens, but
+the lock remembers one earlier Apply wake whose final provider result was not proven. The next Apply
+wake is therefore refused before another application can be safely sent. This prevents duplicate
+applications. The `resource_effect_unknown` label names uncertainty about one external effect; it does
+not mean that a zombie folder or malware is attacking the repository.
+
+The desired state is:
+
+```mermaid
+flowchart LR
+  M[One main-derived immutable release] --> E[Loaded argv + loaded env match]
+  E --> B[Dedicated Coconala browser 9223]
+  B --> S[Single Apply candidate]
+  B --> T[Retainer/continuous candidate]
+  S --> SR[Exact official request/offer readback]
+  T --> TR[Exact official retainer readback]
+  SR --> R[Replay zero]
+  TR --> R
+  R --> H[Normal next wake]
+```
+
+The repair order is deliberately mechanical: prove loaded browser environment, reconcile the one
+unknown Apply occurrence with an exact official provider receipt, run one natural single candidate,
+run one natural retainer candidate, and only then resume normal cadence. Disk cleanup is a separate
+maintenance task and must not be used as a substitute for provider readback.
+
 ## 1. Goal, objective and boundaries
 
 ### 1.1 Goal
