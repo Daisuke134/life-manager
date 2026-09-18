@@ -3306,3 +3306,65 @@ only its UI, identity and readback.
 18. **M-02 CrowdWorks first adapter** — connect read-only inventory, then one canary application, Negotiate, funded delivery and payment through the same contracts; create no copied scheduler or ledger.
 19. **M-03 Additional marketplace adapters** — add one provider at a time from measured demand and authorization, proving the complete paid chain before the next. Upwork remains excluded.
 20. **M-04 Portfolio-level money control** — schedule authorized providers concurrently with provider-local throttle and shared funded capacity; report verified net revenue/MRR by provider and aggregate, never applications or listings as money.
+
+## 18.48 Current production cursor after the latest live remeasurement
+
+This subsection supersedes older checkpoint numbers above. It records the current cursor and the
+next executable atom; it does not turn stale snapshots into current provider truth.
+
+### Current evidence
+
+- **Application:** the immutable main release `835f5640d1caa2b868812b8fdc63401c47d305ec` is
+  installed and the latest natural Application wake exited 0. The append-only Lancers ledger has
+  211 `application_verified` receipts; the newest observed proposal is `27945735`. Application
+  state has 417 fingerprints and 82 legacy pending descriptors. The pending descriptors are not
+  retried blindly.
+- **Sales / contract source:** the last source-complete `contracts.json` snapshot observed 14
+  boards, 0 required replies, 0 monthly offers, 0 working projects, 0 contract candidates and
+  0 payment history. Its proposal funnel was current 321 / receipt 211 / open 56 / selecting 127 /
+  canceled 111 / ended 27 / working 0. This snapshot is stale while Work Sync is fenced; it is not
+  a fresh absence proof for a new buyer event.
+- **Storefront:** canonical listing `1338228` remains published, product version 6, with search
+  impressions 9, detail views 0, favorites 0, inquiries 0 and orders 0. `listing.json` also records
+  six additional catalog entries (`1342394`, `1344056`–`1344061`). They are official listing
+  identities, not MRR, and must be audited read-only before any archive or replacement mutation.
+- **Browser:** the dedicated Lancers browser owner was recovered through the managed launchd path;
+  CDP `:9227` is listening with one `about:blank` page. Profile and session files were preserved.
+- **Paid:** the latest paid envelope is `effect=0`, `failed=0`, `items=0`, but its admission
+  occurrence remains fenced as `effect_unknown`; no PaymentReceipt exists. The fence is not cleared
+  from a local zero alone.
+- **Admission:** Lancers Work Sync is blocked by `resource_capacity_busy`. Nine old deterministic
+  borrow occurrences owned by other loops remain `effect_unknown`; Lancers Paid and Storefront also
+  have fenced occurrences. No admission database row is edited manually. The only permitted release
+  is an exact provider readback or an explicit pre-effect proof tied to the same owner and occurrence.
+- **Revenue:** active recurring contracts 0, DeliveryReceipt 0, PaymentReceipt 0, bank matches 0,
+  and verified MRR is **USD 0**. Applications, proposal amounts, listing prices and search exposure
+  remain outside the MRR denominator.
+
+### Ordered remaining TODO
+
+1. **Admission fence reconciliation (current blocker).** For each deterministic stale owner and
+   Lancers Paid/Storefront occurrence, obtain the exact provider or pre-effect evidence and close
+   only that occurrence through the supported admission resolver. Keep unresolved fences closed to
+   retries.
+2. **Fresh Work Sync inventory.** After the deterministic capacity fence is resolved, run one
+   source-complete Work Sync wake and update boards, proposal funnel, contract candidates, finance
+   and proposal-to-project attribution from the official readback.
+3. **Paid and Storefront effect fences.** Reconcile the existing Paid no-effect run and the
+   Storefront listing run one by one; preserve every official listing and receipt until its exact
+   status is read back. Do not archive the six additional listings from a local assumption.
+4. **ContractReceipt promotion.** When a positive project, monthly offer or Storefront contract
+   candidate appears, read back its official ID, scope, price, due date and funding/escrow state;
+   append one ContractReceipt only after that detail readback.
+5. **Capacity quota (G3C).** Persist authoritative active-contract capacity and apply the bounded
+   three-client/tick/day policy only after a fresh source-complete contract snapshot.
+6. **Fulfillment and finance (G5–G6).** For funded contracts only, produce, QA, deliver and read
+   back a DeliveryReceipt; then reconcile PaymentReceipt, fees, costs, payout batch and bank
+   transaction with delta zero.
+7. **MRR and learning (G7).** Compute recorded-FX net MRR from received recurring receipts only,
+   then attribute conversion, retention, margin and owner time one variable at a time.
+
+The cleanup race fix is merged and deployed, and browser recovery is complete. The next cursor is
+item 1 above; no new crawler, generic listing, external reply, offer or payment action is allowed
+while the admission fence is unresolved.
+
