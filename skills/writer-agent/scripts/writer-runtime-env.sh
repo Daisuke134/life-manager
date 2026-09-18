@@ -126,3 +126,14 @@ export NOTE_MCP_DIR NOTE_MCP_SRC PYTHONPATH
 export NOTE_WORK_ROOT
 export ZENN_REPO_PATH ZENN_ARTICLES_REPO ARTICLE_ZENN_REPO ZENN_REPOSITORY_URL ZENN_ACCOUNT
 export ZENN_GIT_NAME ZENN_GIT_EMAIL ARTICLE_MEDIA_RAW_BASE
+
+# Model-led live helpers sometimes invoke the interpreter by its conventional
+# `python3` name rather than expanding WRITER_BROWSER_PYTHON.  Keep that bare
+# command on the same managed venv, so a launchd shell cannot silently fall
+# back to Homebrew/system Python and lose cloakbrowser or Pillow.
+if [ -x "$WRITER_BROWSER_PYTHON" ]; then
+  _WRITER_PYTHON_BIN_DIR="$(cd "$(dirname "$WRITER_BROWSER_PYTHON")" && pwd -P)"
+  PATH="$_WRITER_PYTHON_BIN_DIR${PATH:+:$PATH}"
+  export PATH
+fi
+unset _WRITER_PYTHON_BIN_DIR
