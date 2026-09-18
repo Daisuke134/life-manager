@@ -20,6 +20,7 @@ This repository is the source authority for Life Manager. The canonical remote i
 - Follow the applicable Superpowers path: design or clarification, implementation plan when required, test-first implementation for behavior changes, focused verification, review when the skill requires it, and branch finishing.
 - Record observable evidence for the steps that matter: the skill path read, tests or checks run, the commit and remote, integration result, and worktree disposition. A prose claim that a skill was used is not evidence.
 - Do not claim completion from a plan, a draft, a process exit code, or a local mock when the requested result requires an external readback.
+- Development and production are separate planes. The worktree owns source edits, focused tests and private fixtures; production owns immutable releases, launchd, admission, browser profiles, credentials and provider effects. Promote only through PR/checks → merged `origin/main` → complete immutable release → targeted loaded-idle apply → natural terminal → official readback → replay-zero. See `docs/agent-engineering/WORKTREE-PROMOTION-CONTRACT.md`.
 
 ## Repository and runtime boundaries
 
