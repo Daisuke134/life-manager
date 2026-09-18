@@ -1670,3 +1670,12 @@ PII失敗runの安全な再開、日次連続公開、公式readbackの連続証
 
 **最新結論:** Writerのコード修正と2回の4面公開は実証済み。現在止まっている理由はprovider認証ではなく、`article-resume`に残る1件のeffect fenceと、
 その後に必要な自然run連続証拠・実入金receiptである。`$10K MRR`はまだ未達である。
+
+## 2026-09-19 runtime recheck after spec merge
+
+- `article-daily:18d68e6b21ab2908-5114` は08:34:55 JSTのdisk-floor preflight（free `702251008` bytes < required `1155780608`）で公開開始前にexit 1となった。
+  同一execute/report eventとpreflight logを結合したexact pre-effect proofでresolverを実行し、dailyの`effect_unknown`は0件へ戻した。provider URL、draft、publication stateはこのwakeに存在しない。
+- 現在のhost readbackでは`article-daily`のinstalled/event SHAは`5d732a30...`である。一方、`article-resume`は旧SHA `69c6ece1...`のまま、
+  `article-resume:18d68cb03ce73160-50940`のclaimed `effect_unknown=1`を保持している。現在の空き容量も約`654MiB`でcanonical floor未達のため、公開を開始しない。
+
+このrecheckで追加された残TODOは、disk floorをbypassせず再生成可能キャッシュを安全に整理してから、resume fenceの証拠解消→resume apply→次の自然4面runへ進むことである。
