@@ -298,6 +298,11 @@ provider effect and it does not replace the ordered repair cursor in
   80,867,742 bytes without deleting a current, loaded, running or pinned release. The latest
   read-only sample after that cleanup showed about 5.1 GiB available, `integrity_check=ok`, 101
   queued rows and 73 unknown rows; these counters are volatile while the schedulers continue.
+- Using the existing `clear_no_effect_unknown()` boundary, 20 stale unknowns whose registry
+  contracts declare `effect_class=none` were released only after confirming no live owner. The
+  latest sample then showed about 7.6 GiB available and 55 unknown rows. The remaining Coconala
+  effect-bearing unknowns are exactly one Apply occurrence and one Storefront occurrence; neither
+  was cleared.
 - Paid has recent terminal `pass` receipts. Reply has recent passes, but also fail-closed
   collector results (`inbox_coverage_incomplete` / `missing_container`). Storefront remains
   `resource_effect_unknown`. None of these statuses authorizes a blind retry.
@@ -374,10 +379,11 @@ patch is safe until the whole unknown occurrence has an exact provider receipt.
 **Remaining ordered TODO:**
 
 1. Recover safe disk headroom and audit the shared admission store. The first central cleanup pass
-   reclaimed 80,867,742 bytes; continue only through the owner cleanup path. Protect current, loaded
-   and pinned releases, then use that path to remove only disposable artifacts. Confirm
-   `admission-v2.sqlite3` integrity, queue/unknown counts and lock errors through the official
-   admission tooling; do not edit or delete rows by hand.
+   reclaimed 80,867,742 bytes, and the no-effect boundary released 20 stale non-effect rows.
+   Continue only through the owner cleanup and admission APIs. Protect current, loaded and pinned
+   releases, then use those paths to remove only disposable artifacts. Confirm `admission-v2.sqlite3`
+   integrity, queue/unknown counts and lock errors through the official admission tooling; do not
+   edit or delete rows by hand.
 2. Review and merge the loaded-environment invariant from
    `fix/coconala-loaded-env-20260919`, cut one immutable release from that main commit, and
    target-apply all four lanes from it. Read back argv plus browser environment after the release
