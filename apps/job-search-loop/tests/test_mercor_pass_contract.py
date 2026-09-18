@@ -469,6 +469,20 @@ class MercorPassContractTests(unittest.TestCase):
             prompt,
         )
 
+    def test_prompt_binds_existing_application_cards_to_observed_buttons(self):
+        prompt = " ".join(
+            (ROOT / "prompts" / "mercor-pass.md").read_text(encoding="utf-8").split()
+        )
+        for required in (
+            "Existing application cards are buttons, not links",
+            '`<button data-test="card">`',
+            "same exact observed application-card button",
+            "Do not search for an href",
+            "invoke `.click()` once on that same exact observed application-card button",
+            "wait for the application detail or URL to change",
+        ):
+            self.assertIn(required, prompt)
+
     def test_legacy_job_hunter_reference_only_points_to_mercor_canon(self):
         reference = (
             ROOT.parents[1] / "skills" / "job-hunter" / "references" / "mercor.md"
