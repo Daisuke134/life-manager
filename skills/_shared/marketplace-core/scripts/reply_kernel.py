@@ -223,6 +223,7 @@ def _run_locked(
     source: Mapping[str, Any],
     notify=None,
     human_notify=None,
+    occurrence_id: str | None = None,
 ) -> dict[str, Any]:
     row = _observation(source)
     if "pending_reason" in row:
@@ -230,6 +231,13 @@ def _run_locked(
     inventory_event_id = row["latest_event_id"]
     path = _state_path(state_root, row)
     state = _load(path)
+    persisted_occurrence = occurrence_id or state.get("occurrence_id")
+
+    def _save(value: Mapping[str, Any]) -> None:
+        data = dict(value)
+        if isinstance(persisted_occurrence, str) and persisted_occurrence.strip():
+            data["occurrence_id"] = persisted_occurrence.strip()
+        _write(path, data)
     retry_at = state.get("next_eligible_at")
     prior_observation = state.get("observation")
     same_source_event = state.get("inventory_event_id") == inventory_event_id
@@ -269,7 +277,7 @@ def _run_locked(
             notification = _notify_verified(
                 notify, prior_intent, receipt, state.get("notification")
             )
-            _write(path, {"version": 1, "inventory_event_id": inventory_event_id,
+            _save({"version": 1, "inventory_event_id": inventory_event_id,
                           "observation": row, "intent": prior_intent,
                           "receipt": receipt, "notification": notification,
                           "status": "verified"})
@@ -283,7 +291,7 @@ def _run_locked(
             adapter.mutate(dict(prior_intent))
             resumed = adapter.readback(dict(prior_intent))
             if resumed.get("verified") is not True:
-                _write(path, {"version": 1, "inventory_event_id": inventory_event_id,
+                _save({"version": 1, "inventory_event_id": inventory_event_id,
                               "observation": row, "intent": prior_intent,
                               "status": "reconcile_unknown"})
                 return {"thread_id": row["thread_id"], "status": "pending",
@@ -293,7 +301,7 @@ def _run_locked(
             notification = _notify_verified(
                 notify, prior_intent, receipt, state.get("notification")
             )
-            _write(path, {"version": 1, "inventory_event_id": inventory_event_id,
+            _save({"version": 1, "inventory_event_id": inventory_event_id,
                           "observation": row, "intent": prior_intent,
                           "receipt": receipt, "notification": notification,
                           "status": "verified"})
@@ -321,7 +329,7 @@ def _run_locked(
         classification = str(decision.get("classification") or "noop").strip()
         if classification not in NO_EFFECT:
             raise ValueError("reply_noop_classification_invalid")
-        _write(path, {"version": 1, "inventory_event_id": inventory_event_id,
+        _save({"version": 1, "inventory_event_id": inventory_event_id,
                       "decision_version": row.get("decision_version"),
                       "observation": row, "status": classification})
         return {"thread_id": row["thread_id"], "status": classification,
@@ -352,7 +360,7 @@ def _run_locked(
             if isinstance(decision.get("handoff"), Mapping):
                 saved["handoff"] = dict(decision["handoff"])
             saved["human_notification"] = notification
-        _write(path, saved)
+        _save(saved)
         result = _pending(row, reason)
         if notification is not None:
             result["notification"] = notification
@@ -360,19 +368,19 @@ def _run_locked(
 
     _assert_private_identity_safe(decision, private_identity_values)
     intent = _intent(row, decision)
-    _write(path, {"version": 1, "inventory_event_id": inventory_event_id,
+    _save({"version": 1, "inventory_event_id": inventory_event_id,
                   "observation": row, "intent": intent,
                   "status": "intent_persisted"})
     refreshed = _observation(adapter.observe_one(row["thread_id"]))
     if refreshed["latest_event_id"] != row["latest_event_id"]:
-        _write(path, {"version": 1, "inventory_event_id": inventory_event_id,
+        _save({"version": 1, "inventory_event_id": inventory_event_id,
                       "observation": refreshed, "status": "context_stale"})
         return _pending(row, "newer_provider_event")
     existing = adapter.readback(intent)
     if existing.get("verified") is True:
         receipt = _receipt(intent, existing)
         notification = _notify_verified(notify, intent, receipt)
-        _write(path, {"version": 1, "inventory_event_id": inventory_event_id,
+        _save({"version": 1, "inventory_event_id": inventory_event_id,
                       "observation": refreshed, "intent": intent,
                       "receipt": receipt, "notification": notification,
                       "status": "verified"})
@@ -382,7 +390,7 @@ def _run_locked(
             result["notification"] = notification
         return result
     if existing.get("authoritative_absent") is not True:
-        _write(path, {"version": 1, "inventory_event_id": inventory_event_id,
+        _save({"version": 1, "inventory_event_id": inventory_event_id,
                       "observation": refreshed, "intent": intent,
                       "status": "intent_persisted"})
         return _pending(row, "pre_effect_reconcile_unknown")
@@ -399,20 +407,20 @@ def _run_locked(
             isinstance(item, str) and item.strip() for item in remaining
         ):
             raise ValueError("remaining_work_invalid") from error
-        _write(path, {"version": 1, "inventory_event_id": inventory_event_id,
+        _save({"version": 1, "inventory_event_id": inventory_event_id,
                       "observation": refreshed, "status": "waiting_external",
                       "blocker": reason, "remaining_work": remaining})
         return _pending(row, reason)
     official = adapter.readback(intent)
     if official.get("verified") is not True:
-        _write(path, {"version": 1, "inventory_event_id": inventory_event_id,
+        _save({"version": 1, "inventory_event_id": inventory_event_id,
                       "observation": refreshed, "intent": intent,
                       "status": "reconcile_unknown"})
         return {"thread_id": row["thread_id"], "status": "pending",
                 "reason": "reconcile_unknown", "effect": 1, "readback": 0, "failed": 0}
     receipt = _receipt(intent, official)
     notification = _notify_verified(notify, intent, receipt)
-    _write(path, {"version": 1, "inventory_event_id": inventory_event_id,
+    _save({"version": 1, "inventory_event_id": inventory_event_id,
                   "observation": refreshed, "intent": intent,
                   "receipt": receipt, "notification": notification,
                   "status": "verified"})
@@ -423,12 +431,14 @@ def _run_locked(
     return result
 
 
-def _run_one(adapter, decide, state_root, source, notify=None, human_notify=None):
+def _run_one(adapter, decide, state_root, source, notify=None, human_notify=None,
+             occurrence_id: str | None = None):
     row = _observation(source)
     path = _state_path(state_root, row)
     with _lock(path):
         try:
-            return _run_locked(adapter, decide, state_root, row, notify, human_notify)
+            return _run_locked(adapter, decide, state_root, row, notify, human_notify,
+                               occurrence_id)
         except Exception as error:
             state = _load(path)
             error_detail = str(error).strip()[:500] or type(error).__name__
@@ -472,7 +482,8 @@ def _run_one(adapter, decide, state_root, source, notify=None, human_notify=None
 def run_wake(*, adapter: ReplyAdapter,
              decide: Callable[[dict[str, Any]], Mapping[str, Any]],
              state_root: Path, max_workers: int = 4, notify=None,
-             human_notify=None) -> dict[str, Any]:
+             human_notify=None, occurrence_id: str | None = None) -> dict[str, Any]:
+    occurrence_id = occurrence_id or os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "").strip() or None
     try:
         rows = adapter.observe_threads()
         if not isinstance(rows, list):
@@ -486,12 +497,13 @@ def run_wake(*, adapter: ReplyAdapter,
         if workers == 1:
             # Sync browser adapters are thread-affine: even a one-worker pool moves
             # their Playwright page to another thread and invalidates every call.
-            items = [_run_one(adapter, decide, Path(state_root), row, notify, human_notify)
+            items = [_run_one(adapter, decide, Path(state_root), row, notify, human_notify,
+                              occurrence_id)
                      for row in normalized]
         else:
             with ThreadPoolExecutor(max_workers=workers) as pool:
                 futures = [pool.submit(_run_one, adapter, decide, Path(state_root), row,
-                                       notify, human_notify)
+                                       notify, human_notify, occurrence_id)
                            for row in normalized]
                 items = []
                 for row, future in zip(normalized, futures):

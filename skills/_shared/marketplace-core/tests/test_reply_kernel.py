@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 import threading
 
@@ -82,6 +83,21 @@ def test_contract_acceptance_uses_same_fence_readback_and_replay_zero(tmp_path):
     assert replay["effect"] == 0
     assert replay["items"][0]["reason"] == "replay_zero"
     assert len(adapter.effects) == 1
+
+
+def test_state_records_runtime_occurrence_id(monkeypatch, tmp_path):
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:run-1")
+    adapter = Adapter()
+    result = reply_kernel.run_wake(
+        adapter=adapter,
+        decide=lambda _context: {
+            "action": "accept_contract", "payload": {"condition_id": "condition-1"}
+        },
+        state_root=tmp_path,
+    )
+    assert result["effect"] == 1
+    state = json.loads(next(tmp_path.glob("threads/*/state.json")).read_text())
+    assert state["occurrence_id"] == "fixture-reply:run-1"
 
 
 def test_partial_external_action_resumes_only_after_authoritative_readback(tmp_path):
