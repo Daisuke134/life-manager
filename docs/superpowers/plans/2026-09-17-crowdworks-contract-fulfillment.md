@@ -17,7 +17,11 @@ official CrowdWorks active-contract inventory was read at `2026-09-18T11:23:35Z`
 funded rows: `63712784`, `63659463`, `63657015`, `63570481`, and `63568785`. This is an inventory
 readback only; it is not a work submission, delivery, acceptance, settlement, payout, or MRR receipt.
 
-Application, Reply, and Report remain on immutable release `fed2839db846509585d6ba2d53da626a09dd0cae`.
+Reply and Report remain on immutable release `fed2839db846509585d6ba2d53da626a09dd0cae`.
+Application is now target-applied from immutable release `8fbfb3a2f2b1449018d46f1978a500ce77f003a9`
+(`/Users/anicca/loops/releases/20260918T214610-8fbfb3a2`), which binds its status output to the exact
+runtime occurrence. A target-only Application kickstart at `2026-09-18T12:48:23Z` loaded and exited
+`75` before provider work with `host_admission_deferred:resource_effect_unknown`.
 Paid is now target-applied from immutable release `56d07a66eaa7c7d173c51314c47fb1c22b3f5610`
 (`/Users/anicca/loops/releases/20260918T213636-56d07a66`), which includes the buyer-form extraction,
 answer-URL normalization, receipt-alias preservation, and occurrence-bound Paid output. A target-only
