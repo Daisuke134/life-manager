@@ -61,3 +61,23 @@ def test_inplace_repair_uses_repository_chunk_inserter_only():
     assert method.index("chunks = build_chunks") < method.index("manager, _browser, page = self._page()")
     assert ".claude/skills/x-article-publisher" not in source
     assert "spec_from_file_location" not in source
+    assert "createRange" in source
+    assert "range.collapse(false)" in source
+
+
+def test_html_clipboard_chunks_preserve_block_boundaries():
+    html = "<p>alpha</p><p>beta</p><h2>出典</h2><p>omega</p>"
+    chunks = x_repair._clipboard_html_chunks(html, max_chars=14)
+    assert "".join(chunks) == html
+    assert all(chunk.endswith(("</p>", "</h2>")) for chunk in chunks)
+
+
+def test_x_clipboard_pastes_all_html_before_media():
+    chunks = [("html", "<p>a</p>"), ("img", "/tmp/table.png"),
+              ("html", "<p>b</p>"), ("img", "/tmp/body.png")]
+    ordered = x_repair._clipboard_chunks_with_images_last(chunks)
+    assert [kind for kind, _ in ordered] == ["html", "img", "img"]
+    assert "".join(value for kind, value in ordered if kind == "html") == "<p>a</p><p>b</p>"
+    assert [value for kind, value in ordered if kind == "img"] == [
+        "/tmp/table.png", "/tmp/body.png"
+    ]

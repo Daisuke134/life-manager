@@ -99,7 +99,9 @@ def _image_node(alt: str, source: str) -> dict[str, Any]:
                     "imageSize": "normal",
                     "height": 819,
                     "width": 1456,
-                    "resizeWidth": 728,
+                    # Keep portrait provider images below verify-preview's 950px
+                    # height gate without changing the immutable asset bytes.
+                    "resizeWidth": 600,
                     "bytes": None,
                     "alt": alt or None,
                     "title": None,

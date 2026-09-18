@@ -76,6 +76,30 @@ class ManagedImmutableMediaTest(unittest.TestCase):
                 "# Title\n\n![figure](https://cdn.example/body-diagram.png)\n",
             )
 
+    def test_upload_replaces_cached_url_when_asset_sha_changes(self):
+        module = load_module()
+        with tempfile.TemporaryDirectory() as directory:
+            asset = Path(directory) / "figure.png"
+            asset.write_bytes(b"new-padded-png")
+            cache = {
+                str(asset): {
+                    "url": "https://cdn.example/old.png",
+                    "sha256": "old-sha",
+                }
+            }
+            with (
+                patch.object(
+                    module,
+                    "upload_image",
+                    return_value="https://cdn.example/new.png",
+                ) as upload_image,
+                patch.object(module, "save_cache"),
+            ):
+                result = module.upload(str(asset), cache, "writer.example", "cookie")
+            self.assertEqual(result, "https://cdn.example/new.png")
+            upload_image.assert_called_once()
+            self.assertEqual(cache[str(asset)]["url"], "https://cdn.example/new.png")
+
 
 if __name__ == "__main__":
     unittest.main()

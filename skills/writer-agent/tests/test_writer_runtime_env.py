@@ -319,6 +319,14 @@ class WriterRuntimeEnvTest(unittest.TestCase):
             (SCRIPTS / "self-improve-notify.py").read_text(),
         )
 
+    def test_substack_publishers_use_managed_python_for_runtime_imports(self):
+        for relative in ("publish-substack.sh", "_shared/publish-substack-mermaid.sh"):
+            with self.subTest(relative=relative):
+                body = (SCRIPTS / relative).read_text(encoding="utf-8")
+                self.assertIn('PYTHON_BIN="${LIFE_MANAGER_PYTHON:-python3}"', body)
+                self.assertNotIn('python3 "$DIR/', body)
+                self.assertNotIn('| python3 \\', body)
+
     def test_active_python_notifiers_use_life_manager_transport(self):
         for relative in (
             "publication_resume.py",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
@@ -33,6 +34,79 @@ def test_english_pair_does_not_fall_back_to_generic_host(
 
 def test_refresh_accepts_authenticated_post_bylines_shape() -> None:
     assert MODULE._owned_byline_ids({"postBylines": [{"user_id": 336441894}]}) == {336441894}
+
+
+def test_refresh_rebuilds_mermaid_media_before_same_id_put() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert "embed-mermaid-substack.py" in source
+    assert "embedded_markdown" in source
+
+
+def test_refresh_creates_rebuild_output_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "article.md"
+    headline = tmp_path / "headline.png"
+    body = tmp_path / "body.png"
+    source.write_text("# title\n", encoding="utf-8")
+    headline.write_bytes(b"headline")
+    body.write_bytes(b"body")
+    output = tmp_path / "run" / "gates" / "substack-refresh" / "article-ja-embedded.md"
+    observed: list[Path] = []
+
+    def fake_run(command, **_kwargs):  # type: ignore[no-untyped-def]
+        out = Path(command[command.index("--out") + 1])
+        observed.append(out.parent)
+        assert out.parent.is_dir()
+        out.write_text("# embedded\n", encoding="utf-8")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(MODULE.subprocess, "run", fake_run)
+    state = {
+        "run_dir": str(tmp_path / "run"),
+        "drafts": {"ja": {"path": str(source), "sha256": MODULE.m.sha256(source)}},
+        "media": {
+            "headline_image": {"path": str(headline)},
+            "body_assets": [{"path": str(body)}],
+        },
+    }
+
+    result = MODULE._build_embedded_markdown(state, "ja")
+
+    assert result == "# embedded\n"
+    assert observed == [output.parent]
+
+
+def test_refresh_refuses_changed_draft_source_before_rebuild(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "article.md"
+    headline = tmp_path / "headline.png"
+    body = tmp_path / "body.png"
+    source.write_text("# changed\n", encoding="utf-8")
+    headline.write_bytes(b"headline")
+    body.write_bytes(b"body")
+
+    def unexpected_run(*_args, **_kwargs):  # type: ignore[no-untyped-def]
+        raise AssertionError("changed draft source reached rebuild subprocess")
+
+    monkeypatch.setattr(MODULE.subprocess, "run", unexpected_run)
+    state = {
+        "run_dir": str(tmp_path / "run"),
+        "drafts": {
+            "ja": {
+                "path": str(source),
+                "sha256": "0" * 64,
+            }
+        },
+        "media": {
+            "headline_image": {"path": str(headline)},
+            "body_assets": [{"path": str(body)}],
+        },
+    }
+
+    with pytest.raises(MODULE.m.SubstackRepairRefused, match="draft source"):
+        MODULE._build_embedded_markdown(state, "ja")
 
 
 @pytest.mark.parametrize(

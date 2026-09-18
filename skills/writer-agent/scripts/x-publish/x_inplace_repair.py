@@ -135,6 +135,56 @@ def _body_media_readability(paths: list[Path]) -> dict[str, Any]:
     }
 
 
+def _clipboard_html_chunks(value: str, max_chars: int = 1800) -> list[str]:
+    """Split long HTML only at reader-block boundaries for reliable paste."""
+    if not value:
+        return []
+    if max_chars < 1:
+        raise XRepairRefused("X clipboard chunk limit must be positive")
+    boundaries = [match.end() for match in re.finditer(
+        r"</(?:p|h[1-6]|li|blockquote|ul|ol|pre|div)>",
+        value,
+        re.IGNORECASE,
+    )]
+    if not boundaries or len(value) <= max_chars:
+        return [value]
+    chunks: list[str] = []
+    start = 0
+    for end in boundaries:
+        if end - start >= max_chars:
+            chunks.append(value[start:end])
+            start = end
+    if start < len(value):
+        chunks.append(value[start:])
+    return chunks or [value]
+
+
+def _clipboard_chunks_with_images_last(
+    chunks: list[tuple[str, str]],
+) -> list[tuple[str, str]]:
+    """Paste all reader HTML before media to avoid Draft.js image focus loss."""
+    html = "".join(value for kind, value in chunks if kind == "html")
+    images = [value for kind, value in chunks if kind == "img"]
+    return [*(('html', value) for value in _clipboard_html_chunks(html)),
+            *(('img', value) for value in images)]
+
+
+def _focus_composer_end(page, composer) -> None:
+    """Place Draft.js selection at the real document end before a paste."""
+    composer.click()
+    composer.evaluate(
+        """el => {
+            el.focus();
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(el);
+            range.collapse(false);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }"""
+    )
+
+
 def _atomic_json(path: Path, value: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
@@ -916,13 +966,14 @@ class XBrowserAdapter:
             page.wait_for_timeout(500)
             if composer.inner_text().strip():
                 raise XRepairRefused("X composer did not clear deterministically")
-            for kind, value in chunks:
+            for kind, value in _clipboard_chunks_with_images_last(chunks):
                 if kind == "html":
-                    if not value.strip():
-                        continue
-                    self._clipboard_html(page, value)
-                    page.keyboard.press("Meta+v")
-                    page.wait_for_timeout(2_000)
+                    for html_chunk in _clipboard_html_chunks(value):
+                        if not html_chunk.strip():
+                            continue
+                        self._clipboard_html(page, html_chunk)
+                        page.keyboard.press("Meta+v")
+                        page.wait_for_timeout(2_000)
                 else:
                     path = Path(value)
                     if not path.is_file():
@@ -1139,18 +1190,27 @@ def repair(
     if decision.get("action") != expected_action:
         raise XRepairRefused(
             f"X guard did not authorize {expected_action}"
-        )
+    )
     remote_proof = decision.get("remote")
+    repairable_content_mismatch = (
+        isinstance(remote_proof, dict)
+        and remote_proof.get("repairable_content_mismatch") is True
+        and remote_proof.get("reason") == "x-draft-content-mismatch"
+    )
     if expected_action == "publish" and not (
         isinstance(remote_proof, dict)
         and remote_proof.get("status") == "not-live"
         and remote_proof.get("verified") is True
-        and remote_proof.get("content_verified") is True
+        and (
+            remote_proof.get("content_verified") is True
+            or repairable_content_mismatch
+        )
         and remote_proof.get("artifact_sha256") == sha256(source)
         and remote_proof.get("target") == target
         and remote_proof.get("destination_identity") == expected_identity
         and remote_proof.get("identity_verified") is True
         and remote_proof.get("identity_source") == "x-authenticated-edit-url"
+        and remote_proof.get("source") == "x-cdp-saved-article-editor"
     ):
         raise XRepairRefused("X draft target/content readback proof is incomplete")
     work = state_path.parent / "x-inplace-repair" / language

@@ -1452,3 +1452,133 @@ loaded definitionと自然tickまで読み戻すことを意味する。A1のcon
 5. 収益: 現在の外部 received writing revenue、payout、subscription contract、active MRRは証拠上0。$10K MRRは未達で、公開数やdraft数を収益と数えない。
 
 現在の主ボトルネックはprovider生成やmedia creationではなく、Note/Xの既存live targetに対するpublisher-native repair/readbackである。未確認の外部状態を成功へ昇格させず、同一targetの公式readbackが取れるまで`repair-required`を保持する。
+
+## 2026-09-19 measured Writer status (current cursor)
+
+この節が、上記の履歴を踏まえた現在の実行順序と完了判定である。対象はLife Manager Main内の
+唯一のWriter loop（`article-daily`生成laneと`article-resume`再開lane）だけであり、他のloopは作業範囲外とする。
+
+### Done (evidence-backed)
+
+- PII gateの誤検知修正はmainへ統合済み（PR #5626、main `431b5020457190c9c458f732728d08034732fd25`）。
+  `aniccaai.com`のCTA lineage query trackingだけを許可し、外部／部分URLは従来どおり拒否する。focused PII test 41件と
+  `py_compile`はPASS。
+- `article-daily`／`article-resume`はpublish・agent・revenueとしてregistryへ統合済み（PR #5629）。既存queueは
+  runtime rebindで`admission_class=revenue`、`base_priority=revenue`へ移行し、Writerのqueued occurrenceは
+  `effect_unknown=0`である（PR #5632、focused rebind/apply tests PASS）。
+- multi-initialization時にモデルが4媒体公開へfall-throughしない修正はmainへ統合済み（PR #5635、main
+  `b4a502a5ce89f2b5d2bc16e24fe139cf7bfc46b8`）。回帰テストは、初期化ペアを決定的に1件ずつstageし、モデルを呼ばないことを確認する。
+- run `20260918-135644`では、Note JA、Substack JA、Substack EN、X Article JAの4つについて、publisher-native URL、
+  本文／identity／media readback、Telegram completion、`article-run-complete rc=0`、`publication_resume plan=all-complete`、
+  replay-zeroを同一runで取得済みである。これは1回のcanaryの証拠であり、日次SLOや収益の証明ではない。
+
+### Not done (must not be reported as success)
+
+- 最新loaded releaseは`aabbd69495d633a156e9622ff0a1140d14c0dc2d`であり、PR #5635の`b4a502a5`はsource/mainにmerge済みだが、
+  `article-resume`のloaded runtimeへ未反映である。
+- run `20260918-151040`は旧releaseのPII gateで4媒体すべてがprovider effect前に停止した。live URL、delivery ledger、
+  payment/publisher receiptはこのrunには無い。PII修正後の同run再開と4媒体公式readbackは未実施である。
+- 2026-09-19 01:30 JSTのreadbackでは`article-resume`が`loaded-running`（PID 34238）で、`article-daily`は
+  `loaded-idle`だが直近exit 75である。したがってb4 releaseの安全なapplyと、その後のkickstart canaryは未完了である。
+- admission DBにはWriter以外の古い`effect_unknown=1`が残る。Writer固有では、`article-daily`に過去のclaimed
+  `effect_unknown=1` occurrenceが1件残っており、外部作用が無いことのexact event proofなしに再実行してはならない。
+- money readbackはverified revenue event 0件、subscription 0件、Stripe receipt 0件。確定売上は¥0、active MRRは未証明であり、
+  $10K MRRは未達である。価格設定・公開数・draft数を売上へ加算しない。
+- 7日／21 scheduled source runsの連続自然terminal、各日4媒体live、Telegram receipt、replay-zeroは未取得である。
+
+### Current blockers
+
+1. **安全なrelease反映窓がない。** `article-resume`が5分周期の実行中であるため、loaded-idleを再読してからb4 releaseをapplyする必要がある。
+2. **過去のdaily effect fence。** `article-daily`のclaimed unknown occurrenceは、同一occurrenceのイベント列でpre-effect／
+   `effect_status=not_applicable`を証明できた場合だけ、既存のproof-bound resolverで解決する。証明できなければ保持する。
+3. **4媒体の新しい公式readback。** b4反映後、同一runでNote JA、Substack JA、Substack EN、X Article JAを再実行し、各URL・本文・
+   owner・media・delivery receiptを読み戻すまで完了扱いにしない。
+4. **収益接続。** provider／paymentの実receiptをmoney ledgerへjoinし、金額・通貨・destination・runを確認するまでMRRはunknown／0のままにする。
+
+### Ordered next TODO
+
+| 順序 | 作業 | 完了条件 |
+|---:|---|---|
+| 1 | `article-resume`が自然terminalになった後、main由来b4 releaseをapply | loaded argv／release SHAがb4a502a5 lineage、admission rebindが安全終了、未確認作用を新規生成しない |
+| 2 | `article-daily`のold unknown occurrenceをevent proofで判定 | pre-effect proofならresolver receipt、証明不能ならeffect fence保持。推測でclearしない |
+| 3 | b4 releaseで`article-resume`を1回kickstart | multi-initは決定的stageのみ、モデルfall-throughなし、run／state／ledger receiptを保存 |
+| 4 | 同一runの4媒体を公開し公式readback | Note／Substack JA／Substack EN／X Articleのnative URL、本文、identity、media、Telegram receiptが全件PASS |
+| 5 | completion／replay-zeroを同一runで取得 | `article-run-complete --armed 1` rc0、resume plan all-complete、ledger/state SHA不変の再実行 |
+| 6 | 7日（最低）または21 scheduled source runsを自然観測 | 各日4媒体native live、重複外部作用0、自然terminal、失敗時の自然文報告 |
+| 7 | payment／publisher receiptをmoney ledgerへ接続 | verified revenue event、payout、subscription、active MRRをsource付きで記録。未取得はunknown |
+
+**結論:** Writerのコード修正と1回の4媒体canaryは完了している。しかし、現在のloaded runtimeでの修正反映、
+PII失敗runの安全な再開、日次連続公開、公式readbackの連続証拠、実収益は未完了である。現時点の最大の実行ボトルネックは
+`article-resume`の自然terminal待ちと、`article-daily`の過去effect fenceを証拠付きで処理することだ。
+
+## 2026-09-19 canary outcome update
+
+### 完了した同一runの実測
+
+- run `20260918-151040` は同一artifactから4面すべてがliveになった。公式readbackは次のとおり。
+  - Note JA: `https://note.com/anicca123/n/nc3be7228d633`（public id `nc3be7228d633`、¥500、本文・owner・eyecatch/body media PASS）
+  - Substack JA: `https://aniccabuddha.substack.com/p/claude-code-cc5`（public id `216328461`、paid-only/paywall・本文・media PASS）
+  - Substack EN: `https://aniccaai2026.substack.com/p/dont-start-a-paid-article-with-the`（public id `216328466`、別publication、paid-only/paywall・本文・media PASS）
+  - X Article JA: `https://x.com/diceai0/article/2100999875035107474`（public id `2100999875035107474`、同一edit target、本文・owner・cover/body/table media PASS）
+- Xは同じedit target `https://x.com/compose/articles/edit/2100981558832472064`だけを使った。途中の`x-draft-content-mismatch`、body image count mismatch、長文HTML貼付欠落を、authenticated not-live readbackと同一target repairで回復した。新規target／別X記事は作っていない。
+- `article-run-complete.py --armed 1` はrc0、`publication_resume.py plan`は`{"resumable":false,"reason":"all-complete"}`。同じcompletion/planを再実行しても state SHA `1ad1bd3a3d7e4ca9b03a9905291ab01b050b21d005ef015a613e08929955b11d`、ledger SHA `ba53be68e9e9b7ef97882d7aec25066b44484b6fd18f7d8ca4f45576e42e5ebe`は不変（replay-zero）。
+- completion Telegramはmessage ID `88394`、4 URLとpublic idを含み、送信・readback済み。
+- `article-resume`のloaded target-only candidateはrelease `7ebbaf64336cafbb129a04eb77768488bd1b9856`（branch `fix/writer-admission-revenue-20260919`、pushed-not-yet-on-main、`current` symlinkは未変更）。このcandidateにX recovery・長文HTML chunk・selection修正を含めた。
+- 旧`article-resume` occurrence `18d62f258…`、`18d630026…`、旧`article-daily` occurrence `18d664811…`、`18d6666…`は、events.jsonlのexecute/report両方が`effect_class=none`／`effect_status=not_applicable`で、`lm-effect://`参照なしのexact proofを検証してからpre-effect resolverで解放した。推測clearではない。
+
+### まだ未完了・ブロッカー
+
+- **日次SLO未達:** 4面liveの成功は1回だけ。7日または21 scheduled source runsの自然terminal、各日4面live、連続replay-zeroは未取得。
+- **article-daily runtime:** current readbackでは旧aab release／exit 75の履歴が残り、candidate applyは自然wake競合でまだloaded SHAを揃え切れていない。06:00 calendar wake後に、main由来release（X修正を統合したもの）で新runを生成し、4面公式readbackを取得する必要がある。
+- **共有admission FIFO:** Writerのrevenue queueより前に古いrevenue ownersが多数残るため、`host_admission_deferred:resource_fifo_wait`が自然に発生した。FIFOを破るDB手編集、他loop停止、slot bypassは行っていない。これは現在の実行ボトルネックであり、発行コード／provider認証の問題ではない。
+- **main統合:** X修正は専用branchとcandidateで実測PASSだが、まだorigin/mainへmergeしていない。candidateをproduction currentへ昇格していないため、日次SLOへ数えない。
+- **収益:** money ledgerのverified revenue event、subscription、Stripe receiptは0件のまま。Note価格¥500やSubstack paid-onlyは価格／設定readbackであり、販売・入金・active MRRではない。確定売上¥0、$10K MRR未達。
+
+### 次のTODO（成果順）
+
+| 順序 | 作業 | 完了条件 |
+|---:|---|---|
+| 1 | X修正branchをfresh review・focused回帰後にmainへ統合し、main由来immutable releaseをcut | main祖先SHA、loaded argv、release SHA、X recoveryテストPASS |
+| 2 | article-dailyの06:00 natural wakeをcandidate修正込みで実測 | 新run生成、Note/Substack JA/EN/Xの4 native readback、Telegram receipt、effect fence 0 |
+| 3 | article-resume/article-dailyの自然wakeを最低7日（推奨21 source runs）観測 | 各runの4面live、自然terminal、重複外部作用0、replay-zero |
+| 4 | publisher/payment receiptをmoney ledgerへjoin | receipt id・金額・通貨・destination・run、未取得はunknown保持 |
+| 5 | revenueをsource-backedに算定 | received revenue、payout、cost、profit、active MRRを分離し、$10K MRRの実測可否を報告 |
+
+**現在の結論:** 一回の4媒体公開・公式readback・completion・replay-zeroは実証済みで、Writer loopは「一度も動かない」状態ではない。未完了の本質は、candidate修正をmain由来releaseへ統合したうえでの日次連続観測と、実際の入金receiptである。最大の短期ボトルネックはarticle-dailyの自然wakeと共有revenue FIFOであり、X provider認証ではない。
+
+## 2026-09-19 current measured status (latest cursor)
+
+この節がこのspecの最新cursorである。対象はLife Manager Main内の唯一のWriter loopだけであり、candidateをproduction successへ昇格させない。
+
+### 今回の実測で完了したこと
+
+- run `20260918-172903` のactive-four 4件を、同一immutable artifact・同一targetで公式readbackした。
+  - Note JA: `https://note.com/anicca123/n/n0d1e76d41ab1`、public id `n0d1e76d41ab1`、price `500`、本文／owner／eyecatch／body media PASS。
+  - Substack JA: `https://aniccabuddha.substack.com/p/x`、draft id `216340163`、paid-only／paywall／本文／headline+body exact SHA／identity PASS。
+  - Substack EN: `https://aniccaai2026.substack.com/p/the-post-is-not-the-product-turn`、draft id `216340184`、JAとは別publication、paid-only／paywall／本文／media／identity PASS。
+  - X Article JA: `https://x.com/diceai0/article/2101021990039760968`、public id `2101021990039760968`、保存済み edit target `https://x.com/compose/articles/edit/2101003373684375552` の同一target repair、本文／owner／cover+body media PASS。
+- Substackの実測では `verify-preview` が両言語とも `images=2`, `tallest=900px`, `PASS`。公開後に `SELF_VERIFY_OK`（JA `images_found=26`、EN `images_found=14`）を取得した。
+- `article-run-complete.py --armed 1` は rc 0。直後の `publication_resume.py plan` は2回とも `{"resumable":false,"reason":"all-complete"}`（replay-zero）。最新 state SHA は `0f1ded90ed1c6c8d7549700ebda7c18434a9eeed00419d8c898538505f8fb4d9`、ledger SHA は `0ee508b1b9c4dcc6b8586da11386134454d26e7cf214e94ac654955fe8bd986c`。
+- `article-completion-notify.py` は target `8547730585` へ `status=sent`、message ID `88549` を記録し、`gates/completion-notification.json` を保存した。これはこのrunのobservability receiptであり、Codexの手動進捗報告とは別である。
+- stale Substack media cache は source SHA 付きへ変更し、same-ID refresh は `gates/substack-refresh/` を作ってから immutable media を再埋め込みするよう修正した。Substack payload は bytesを変更せず `resizeWidth=600` とし、portrait headlineでもpreview gate内に収めた。wrapperのbare `python3` は `LIFE_MANAGER_PYTHON`（Pillow入りmanaged venv）へ固定した。
+- 変更は branch `fix/writer-main-integration-20260919` の commit `f11a77448b46a270fe3658c6ac28ccd226170d77` までpush済み。実測に使った candidate release は `/Users/anicca/loops/releases/20260919T035041-f11a7744`（`pushed-not-yet-on-main`、`current`未変更）で、測定後の安全なrelease GCで現存しない。現在観測した `current` は main祖先 `83d2885fe0c2be3280a45ea1ac3a013415749fa4`、ただしWriterのloaded plistはなお daily `aabbd694`／resume `7e4f7ac5`。
+
+### まだ完了していないこと／阻塞
+
+- **main統合とproduction反映:** candidateはorigin/mainの祖先ではなく、main merge・fresh review・main由来immutable release cut・loaded `article-daily`/`article-resume` argvの更新は未完了。現在のloaded plistは daily `aabbd694`、resume `7e4f7ac5` のままで、今回の修正を日次SLOの証拠には数えない。
+- **日次SLO:** 今回の4面liveは1 runだけ。7日（最低）または21 scheduled source runsの自然terminal、各日4面native live、重複外部作用0、連続replay-zeroは未取得。
+- **Telegram completion receipt:** 今回のrunは解消済み（message ID `88549`）。次の自然runごとに同じreceiptを取得する必要がある。
+- **収益:** `money_events=0`、`subscription_contracts=0`、`commercial_payment_bindings=0`、`payouts=0`。Noteの¥500やSubstack paid-onlyは価格／アクセス設定のreadbackであって、販売・入金・active MRRではない。確定売上¥0、`$10K MRR`未達。
+- **運用阻塞:** disk floor（`1,155,780,608` bytes）とshared revenue FIFOが自然wakeを遅らせうる。今回の再実行前にはopen handleのない再生成可能 `~/.cache/puppeteer` 約555MBだけを削除し、`.cloak`・state・release・active browser cacheは保持した。admission DBの手編集、他loop停止、slot bypassはしていない。
+
+### 次のTODO（成果基準順）
+
+| 順序 | 作業 | 完了条件 |
+|---:|---|---|
+| 1 | `f11a774` をfresh read-only reviewし、mainへ統合してmain由来immutable releaseをcut | main祖先SHA、release SHA、loaded argvが一致し、focused Writer tests PASS |
+| 2 | safe idle窓で `article-daily`／`article-resume`へmain由来releaseをapplyし、自然wakeをkickstart | loaded releaseとevent SHAが一致し、新runの4面native readbackがPASS |
+| 3 | 7日（推奨21 source runs）を自然観測 | 各run4面live、自然terminal、effect fence 0、replay-zero、Telegram receipt |
+| 4 | publisher/payment receiptをmoney ledgerへjoin | receipt id・金額・通貨・destination・runをsource付きで記録 |
+| 5 | received revenue／payout／cost／profit／active MRRを分離集計 | `$10K MRR`の実測可否をunknownを残して報告 |
+
+**最新結論:** Writerは「一度も動かない」状態ではない。今回の run は4平台の公開・公式readback・completion・replay-zero・completion Telegram receiptまで実証済みだが、candidate-onlyの手動resumeであり、日次自然運転、main統合、実入金は未完了である。現在の最大ボトルネックは provider 認証ではなく、main由来releaseへの昇格とshared admission FIFOを含む自然wakeの連続証拠である。

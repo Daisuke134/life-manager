@@ -16,6 +16,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # .../scripts
 # shellcheck source=../writer-runtime-env.sh
 source "$DIR/writer-runtime-env.sh"
 . "$DIR/substack-publish/substack-curl.sh"
+PYTHON_BIN="${LIFE_MANAGER_PYTHON:-python3}"
 VC="${VC:-$WRITER_BROWSER_PYTHON}"   # only for the verify-preview vision gate
 WORK="$NOTE_WORK_ROOT"; mkdir -p "$WORK"
 
@@ -36,7 +37,7 @@ case "$cmd" in
     [ -f "$MD" ] && [ -n "$TITLE" ] || { echo "FATAL: --markdown-file and --title required" >&2; exit 1; }
     # fail-closed PII gate: covers BOTH --mode draft and --mode go, so neither the draft nor
     # the live flip can carry an operator identifier. Any non-zero exit aborts the publish.
-    python3 "$DIR/pii-gate.py" --stage publish-substack-wrapper "$MD" >&2 || exit $?
+    "$PYTHON_BIN" "$DIR/pii-gate.py" --stage publish-substack-wrapper "$MD" >&2 || exit $?
 
     PAIR=""
     case "${ARTICLE_PUBLISH_PAIR:-}" in substack/ja|substack/en) PAIR="$ARTICLE_PUBLISH_PAIR" ;; esac
@@ -88,7 +89,7 @@ case "$cmd" in
 
     DRAFT_ID=""
     if [ "$MANAGED" -eq 1 ]; then
-      TARGET_JSON="$(python3 "$DIR/publication-guard.py" query-target --pair "$PAIR")" || exit $?
+      TARGET_JSON="$("$PYTHON_BIN" "$DIR/publication-guard.py" query-target --pair "$PAIR")" || exit $?
       if [ "$(printf '%s' "$TARGET_JSON" | jq -r '.found // false')" = "true" ]; then
         DRAFT_ID="$(printf '%s' "$TARGET_JSON" | jq -r '.target // empty')"
         echo "== step 1/3: reuse stable Substack draft id=$DRAFT_ID ==" >&2
@@ -117,7 +118,7 @@ case "$cmd" in
           EMBED_ARGS+=(--body-image "$BODY_IMAGE")
         done < <(jq -r '.media.body_assets[].path' "$ARTICLE_PUBLICATION_STATE")
       fi
-      python3 "$DIR/_shared/embed-mermaid-substack.py" "${EMBED_ARGS[@]}" 1>&2 || exit 1
+      "$PYTHON_BIN" "$DIR/_shared/embed-mermaid-substack.py" "${EMBED_ARGS[@]}" 1>&2 || exit 1
 
       echo "== step 2/3: create draft ==" >&2
       DRAFT_LINE="$(bash "$DIR/publish-substack.sh" --markdown-file "$EMBEDDED" --title "$TITLE" --subtitle "$SUBTITLE")" || exit 1
@@ -128,12 +129,12 @@ case "$cmd" in
 
     GUARD_OUT=""
     if [ "$MODE" = "draft" ] && [ "$MANAGED" -eq 1 ]; then
-      python3 "$DIR/publication-guard.py" register-intent --pair "$PAIR" \
+      "$PYTHON_BIN" "$DIR/publication-guard.py" register-intent --pair "$PAIR" \
         --target-kind substack-draft-id --target "$DRAFT_ID" >/dev/null || exit $?
     elif [ "$MODE" = "go" ] && [ -n "$PAIR" ]; then
-      GUARD_OUT="$(python3 "$DIR/publication-guard.py" preflight --pair "$PAIR" --target-kind substack-draft-id --target "$DRAFT_ID")" || exit $?
+      GUARD_OUT="$("$PYTHON_BIN" "$DIR/publication-guard.py" preflight --pair "$PAIR" --target-kind substack-draft-id --target "$DRAFT_ID")" || exit $?
     elif [ "$MODE" = "go" ]; then
-      GUARD_OUT="$(python3 "$DIR/publication-guard.py" manual-check --pair substack/ja)" || exit $?
+      GUARD_OUT="$("$PYTHON_BIN" "$DIR/publication-guard.py" manual-check --pair substack/ja)" || exit $?
     fi
 
     if [ "$MODE" = "go" ]; then
@@ -160,7 +161,7 @@ case "$cmd" in
           echo "FATAL: authenticated Substack paid-draft readback failed" >&2
           exit 5
         }
-      printf '%s' "$PAID_DRAFT_READBACK" | python3 \
+      printf '%s' "$PAID_DRAFT_READBACK" | "$PYTHON_BIN" \
         "$DIR/substack-publish/substack_paid_payload.py" \
         --verify-response >/dev/null || {
           echo "FATAL: Substack draft lost its paid subscriber contract" >&2
@@ -226,7 +227,7 @@ case "$cmd" in
       fi
       echo "SELF_VERIFY_OK images_found=$IMG_COUNT url=$LIVE_URL"
       if [ -n "$PAIR" ]; then
-        python3 "$DIR/publication-guard.py" reconcile --pair "$PAIR" || exit $?
+        "$PYTHON_BIN" "$DIR/publication-guard.py" reconcile --pair "$PAIR" || exit $?
       fi
       exit 0
     else
