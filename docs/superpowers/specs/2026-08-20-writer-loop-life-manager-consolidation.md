@@ -1582,3 +1582,26 @@ PII失敗runの安全な再開、日次連続公開、公式readbackの連続証
 | 5 | received revenue／payout／cost／profit／active MRRを分離集計 | `$10K MRR`の実測可否をunknownを残して報告 |
 
 **最新結論:** Writerは「一度も動かない」状態ではない。今回の run は4平台の公開・公式readback・completion・replay-zero・completion Telegram receiptまで実証済みだが、candidate-onlyの手動resumeであり、日次自然運転、main統合、実入金は未完了である。現在の最大ボトルネックは provider 認証ではなく、main由来releaseへの昇格とshared admission FIFOを含む自然wakeの連続証拠である。
+
+## 2026-09-19 production four-platform completion (latest measured cursor)
+
+### Done (fresh evidence)
+
+- PR #5654（reader terminal race + managed Python path）とPR #5656（Note eyecatch helperのmanaged browser interpreter固定）はともにSecurity Scan全項目PASSでmainへmerge済み。main merge SHAは `0812457f7b76a845aa14ff7fee5e790fd6cd915c`。
+- main由来immutable release `/Users/anicca/loops/releases/20260919T065256-0812457f` を作成し、`RELEASE.json` は `provenance=ancestor-of-origin-main`、`release_paths=ALL`。`article-daily`／`article-resume`のloaded `ProgramArguments`、`ARTICLE_ROOT`、`LIFE_MANAGER_REPO`、`LIFE_MANAGER_RELEASE_SHA` は同じ `0812457f...` をreadback済み。
+- run `20260918-210852` は同一artifact・同一stable targetのまま4件すべてliveになった。fresh provider probeの結果は次のとおり。
+  - Note JA: `https://note.com/anicca123/n/n971d44e73dd3`（public id `n971d44e73dd3`、published `2026-09-19T07:01:14+09:00`、price=500、本文・owner・eyecatch/body media PASS）。
+  - Substack JA: `https://aniccabuddha.substack.com/p/ai4-df9`（public id `216368318`、published `2026-09-18T22:03:38.365Z`、paid-only/paywall、本文・media・identity PASS）。
+  - Substack EN: `https://aniccaai2026.substack.com/p/ai-articles-do-not-sell-through-volume`（public id `216368333`、published `2026-09-18T22:05:37.648Z`、JAとは別publication、paid-only/paywall、本文・media・identity PASS）。
+  - X Article JA: `https://x.com/diceai0/article/2101070911025877313`（public id `2101070911025877313`、same edit target `https://x.com/compose/articles/edit/2101064160062885888`、published `2026-09-18T22:08:35Z`、本文・cover/body media・identity PASS）。
+- `article-completion-notify.py` のcompletion receiptはTelegram message ID `88772`。`article-run-complete.py --armed 1` はrc0、`publication_resume.py plan`と`publication-guard.py plan`はともに `resumable=false / all-complete`。同じplanを再実行してもstate SHA `616992152b0fae5fad3ed8c10db0677e89ee26693bee95ca0e4169f0d085aee5`、ledger SHA `b737a36d33101252fddd8698a19a12e267b9d09573fc71fa480981f8cd042705` は不変（replay-zero）。
+- `article-daily`の07:00 blocked occurrence `article-daily:18d6893f9647ca18-65727` は、events.jsonlのexact execute/report 2行と、`same-jst-day-not-resumable:frozen-incomplete-pairs; no unsafe duplicate or ambiguous run` のstart-control logを束ねたpre-effect proofで解消した。Writer固有のadmission DB `effect_unknown=1` は現在0件。provider effectを成功扱いにしたのではなく、公開前停止を証拠付きで解放した。
+
+### Not done / current blockers
+
+- 次の自然生成run `20260918-221622` は現在 `article-daily` でinvoking中（07:16 JST開始）。このrunの4面live・completion・replay-zeroはまだ無く、前項のcanaryを日次SLOの実績へ加算しない。
+- 7日（最低）または21 scheduled source runsの自然terminal、各runの4面native live、Telegram receipt、連続replay-zeroは未取得。1回のlive canaryだけでは「毎日公開」を証明しない。
+- money ledgerのverified revenue event、subscription contract、payment/payout receiptは0件。Note ¥500とSubstack paid-onlyは価格／アクセス設定のreadbackであり、販売・入金・active MRRではない。確定売上¥0、`$10K MRR`未達。
+- disk floor（1,155,780,608 bytes）とshared revenue FIFOは引き続き自然wakeの運用制約。現在の空きは約2.1GiBだが、生成・browser使用で変動するためbypassしない。
+
+**Current cursor:** `article-daily`のrun `20260918-221622`を自然終端まで観測し、4面公式readback→completion→replay-zeroを取得する。その後、最低7日/21 scheduled source runsとpayment receipt joinを続ける。現時点のボトルネックはprovider認証ではなく、自然runの連続証拠と実収益receiptである。
