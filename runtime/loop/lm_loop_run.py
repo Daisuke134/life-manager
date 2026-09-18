@@ -51,6 +51,7 @@ ADMISSION_CONTROL_RETRY_DELAY_SECONDS = 0.25
 HEARTBEAT_INTERVAL_SECONDS = 30.0
 PRE_EFFECT_HINT_ENTRYPOINTS = frozenset({
     "skills/earn/crowdworks/scripts/paid-owner",
+    "skills/earn/lancers/scripts/application-owner",
     "skills/earn/lancers/scripts/negotiate-owner",
     "skills/earn/lancers/scripts/paid-owner",
     "skills/earn/mercor/scripts/application-owner",
