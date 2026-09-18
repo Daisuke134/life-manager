@@ -640,9 +640,11 @@ synthetic row, decide whether a rollout milestone is closed.
 - The latest automated canary readback recorded in the evidence ledger is `v1_count=1`,
   `legacy_count=33`, with one `morning_orientation` affirmation and structural `pass=true`.
   This is one natural receipt, not a seven-day canary pass.
-- The receipt's provider message ID was not found in the MTProto Telegram history probe, so exact
-  body/readback remains open and the evaluator's `telegram_content_readback=required` condition is
-  not closed.
+- The first natural morning receipt now has provider-native body readback in the `Cloud Life
+  Manager` dialog: the same-second inbound message matches the approved Japanese catalog template,
+  has no reply markup/buttons, and is not an outgoing user message. The Bot API and MTProto IDs are
+  different API identifiers; their same-second/template match is recorded without assuming an ID
+  equivalence.
 - The signed outcome bridge has only synthetic proof so far. Its test row, send receipt, and
   Telegram message were deleted and do not count toward the natural canary.
 - The following work is still open; the order is intentional and is the execution cursor for this
@@ -664,10 +666,11 @@ synthetic row, decide whether a rollout milestone is closed.
 
 ### 19.4 What is blocking now
 
-**Primary blocker:** the natural seven-day provider observation has only one morning row and its
-provider-native Telegram body has not been read back. The structural evaluator reports one V1 row
-and `pass=true`, but that does not prove family coverage, spacing, cap behavior, native fluency, or
-replay-zero. This is a wall-clock and provider-readback dependency, not a code or test failure.
+**Primary blocker:** the natural seven-day provider observation has only one morning row. Its
+provider-native Telegram body is now read back, but midday and evening families plus six more local
+days are still missing. The structural evaluator reports one V1 row and `pass=true`, but that does
+not prove family coverage, spacing, cap behavior, or replay-zero. This is a wall-clock dependency,
+not a code or test failure.
 Clock manipulation, synthetic rows, or a local unit-test pass cannot close it.
 
 **Release consequence:** keep `LM_MENTAL_V1_ALLOWED_UIDS` restricted to Dais and do not expand to
