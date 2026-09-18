@@ -35,6 +35,14 @@ class ResponseNoRequestID(Response):
 
 class ResponseWrongDimensions(Response):
     def read(self):
+        wrong = PNG[:16] + struct.pack(">II", 800, 800) + PNG[24:]
+        return json.dumps(
+            {"data": [{"b64_json": base64.b64encode(wrong).decode()}]}
+        ).encode()
+
+
+class ResponseSquare(Response):
+    def read(self):
         return json.dumps(
             {"data": [{"b64_json": base64.b64encode(SQUARE_PNG).decode()}]}
         ).encode()
@@ -44,7 +52,9 @@ def test_generate_records_complete_receipt_and_replay_calls_api_zero_times(
     tmp_path: Path, monkeypatch
 ) -> None:
     prompt, alt = tmp_path / "prompt.txt", tmp_path / "alt.txt"
-    candidate, intent, receipt = tmp_path / "candidate.png", tmp_path / "intent.json", tmp_path / "receipt.json"
+    candidate = tmp_path / "candidate.png"
+    intent = tmp_path / "headline-image-api-intent.json"
+    receipt = tmp_path / "headline-image-api-receipt.json"
     prompt.write_text("Article-specific visual about verified writing revenue")
     alt.write_text("A writer connecting an article to a verified payout receipt")
     monkeypatch.setenv("OPENAI_API_KEY", "test-secret")
@@ -102,8 +112,8 @@ def test_known_pre_effect_refusal_can_retry_after_key_is_available(
     prompt, alt = tmp_path / "prompt.txt", tmp_path / "alt.txt"
     candidate, intent, receipt = (
         tmp_path / "candidate.png",
-        tmp_path / "intent.json",
-        tmp_path / "receipt.json",
+        tmp_path / "headline-image-api-intent.json",
+        tmp_path / "headline-image-api-receipt.json",
     )
     prompt.write_text("specific prompt")
     alt.write_text("specific alt")
@@ -164,6 +174,69 @@ def test_local_cliproxy_is_an_openai_compatible_image_fallback(
     assert json.loads(calls[0][0].data)["model"] == "gpt-image-1.5"
     assert calls[0][0].headers["X-request-id"].startswith("lm-")
     assert result["request_id_source"] == "client-generated"
+
+
+def test_local_cliproxy_accepts_normalized_square_dimensions(
+    tmp_path: Path, monkeypatch
+) -> None:
+    prompt, alt = tmp_path / "prompt.txt", tmp_path / "alt.txt"
+    candidate, intent, receipt = (
+        tmp_path / "candidate.png",
+        tmp_path / "intent.json",
+        tmp_path / "receipt.json",
+    )
+    prompt.write_text("specific prompt")
+    alt.write_text("specific alt")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("CLIPROXY_API_KEY", "proxy-secret")
+    monkeypatch.setenv("ARTICLE_CODEX_PROVIDER_BASE_URL", "http://127.0.0.1:8317/v1")
+
+    result = image.generate(
+        prompt_path=prompt,
+        alt_path=alt,
+        candidate=candidate,
+        intent_path=intent,
+        receipt_path=receipt,
+        opener=lambda *_a, **_k: ResponseSquare(),
+    )
+
+    assert result["status"] == "committed"
+    assert (result["width"], result["height"]) == (1024, 1024)
+
+
+def test_verify_rejects_tampered_provider_provenance(
+    tmp_path: Path, monkeypatch
+) -> None:
+    prompt, alt = tmp_path / "prompt.txt", tmp_path / "alt.txt"
+    candidate, intent, receipt = (
+        tmp_path / "candidate.png",
+        tmp_path / "headline-image-api-intent.json",
+        tmp_path / "headline-image-api-receipt.json",
+    )
+    prompt.write_text("specific prompt")
+    alt.write_text("specific alt")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("CLIPROXY_API_KEY", "proxy-secret")
+    monkeypatch.setenv("ARTICLE_CODEX_PROVIDER_BASE_URL", "http://127.0.0.1:8317/v1")
+    image.generate(
+        prompt_path=prompt,
+        alt_path=alt,
+        candidate=candidate,
+        intent_path=intent,
+        receipt_path=receipt,
+        opener=lambda *_a, **_k: ResponseSquare(),
+    )
+    tampered = json.loads(receipt.read_text(encoding="utf-8"))
+    tampered.update(
+        {
+            "api_key_source": "openai",
+            "endpoint": image.ENDPOINT,
+            "provider_model": image.MODEL,
+        }
+    )
+    receipt.write_text(json.dumps(tampered), encoding="utf-8")
+    with pytest.raises(image.HeadlineImageRefused, match="provenance"):
+        image.verify(candidate, receipt)
 
 
 def test_known_dimension_refusal_is_recorded_and_allows_one_safe_retry(
