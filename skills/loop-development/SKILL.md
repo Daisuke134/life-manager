@@ -241,6 +241,16 @@ Long waits belong in persisted `next_eligible_at` state and launchd cadence.
   guarantee fairness when scheduled wakes are skipped or take variable time.
   Example: a two-minute run with four pending items repeatedly selected the
   first and third; a per-attempt cursor reached all four without resending.
+- Symptom: a new release changes an owner's admission class but its natural
+  wake returns `resource_admission_unavailable`. Wrong instinct: reapply the
+  plist or delete the whole queue. Correct action: read the owner's persisted
+  queue and priority identity; if the owner is idle, has no claimed occurrence
+  or effect unknown, hold its deploy lock and the admission control lock while
+  changing only that owner's queued occurrence and priority metadata. Preserve
+  queue sequence and reservations, then require a natural wake from the new
+  SHA. General law: changing release policy does not migrate durable queue
+  identity. Example: a read-only inbox observer retained 90 borrow/support
+  occurrences after its release requested revenue/revenue.
 - Symptom: an active work item is skipped forever because mutable state says
   `delegated=true`. Wrong instinct: trust an interactive session name or delete
   the flag by hand after every outage. Correct action: delegate only to a
