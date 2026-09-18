@@ -49,6 +49,17 @@ QUARANTINE = load(
 
 
 class ArticleStartPolicyTest(unittest.TestCase):
+    def test_body_diagram_prompt_shape_is_shell_literal(self):
+        source = (ROOT / "skills/writer-agent/article-daily.sh").read_text(
+            encoding="utf-8"
+        )
+        line = next(
+            line for line in source.splitlines() if line.startswith("BODY DIAGRAM HARD SHAPE:")
+        )
+        self.assertIn("flowchart TD", line)
+        self.assertIn("flowchart LR", line)
+        self.assertNotIn("`", line)
+
     def test_empty_successful_provider_return_is_resumable(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -607,6 +618,43 @@ class ArticleStartPolicyTest(unittest.TestCase):
         self.assertEqual(partial["reason"], "same-jst-day-unclassified-run")
         self.assertEqual(alias["reason"], "same-jst-day-unclassified-run")
         self.assertEqual(unlisted["reason"], "same-jst-day-unclassified-run")
+
+    def test_exhausted_adopted_prepublication_without_quality_owner_releases_new_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state = Path(tmp)
+            run_id = "20260821-072940"
+            run = state / "runs" / run_id
+            run.mkdir(parents=True)
+            prompt = run / "article-daily-prompt.txt"
+            prompt.write_text("immutable prompt\n", encoding="utf-8")
+            ledger = state / "articles.jsonl"
+            ledger.write_text("", encoding="utf-8")
+            GENERATION.initialize(run, run_id, prompt, ledger)
+            GENERATION.begin(run, run_id, prompt, ledger, owner_pid=os.getpid())
+            (run / "article-ja.md").write_text("# ja\n", encoding="utf-8")
+            (run / "article-en.md").write_text("# en\n", encoding="utf-8")
+            GENERATION.record_result(run, run_id, prompt, ledger, 1)
+            GENERATION.adopt_prepublication(run, run_id, prompt, ledger)
+            state_path = run / "gates" / "generation-state.json"
+            generation = json.loads(state_path.read_text(encoding="utf-8"))
+            generation["attempts"].extend(
+                {
+                    "attempt": attempt,
+                    "status": "provider-failed-ambiguous",
+                    "return_code": 1,
+                    "boundary": "generated-or-staged-artifacts:article-ja.md",
+                }
+                for attempt in (2, 3)
+            )
+            state_path.write_text(json.dumps(generation), encoding="utf-8")
+
+            with patch.object(START, "validated_live_set", return_value=(False, None)):
+                decision = START.decide(state, "2026-08-21")
+
+        self.assertEqual(decision["action"], "new")
+        self.assertEqual(
+            decision["reason"], "same-jst-day-exhausted-adopted-prepublication"
+        )
 
     def test_legacy_exact8_partial_active_subset_stays_blocked(self):
         with tempfile.TemporaryDirectory() as tmp:
