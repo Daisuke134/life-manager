@@ -36,24 +36,26 @@ not a claim that money has been earned.
   bound. The release includes the active-inventory row wait and the quality/stage safeguards; Astra's
   final read-only verdict was `ship`. Target apply receipt is `81c323cd38cb970453b24230`.
 - **Official inventory:** a fresh read-only provider pass after the row-wait fix returned exactly five
-  contract IDs (`63659463`, `63657015`, `63583795`, `63570481`, `63568785`), all currently `funded`.
-  The previous `63583795` delivery receipt remains historical evidence and is not replayed. A message,
-  filled composer, form URL, or local row is not treated as formal delivery, acceptance, settlement or
-  payout.
-- **`63659463` OnJob:** two Google Form effects have confirmed receipts (Web Ads form `f45…` and common
-  form `c7617bf45a655a8824b35e54171a8aa080987a2c61ccdd1c6b9f620f95d0e233`); the latest Paid row is
-  `verified` with `effect=1/readback=1`. Formal delivery, buyer acceptance, settlement and payout are
-  still open, and the submitted content still needs a request-to-result quality audit.
-- **`63583795` Mirafull:** a historical form receipt and formal CrowdWorks delivery exist, but the fresh
-  active inventory currently reports `funded`; current milestone state must be re-read before any action.
-  No historical form or delivery replay is allowed.
+  contract IDs. A subsequent detailed read-only pass is authoritative for per-contract state:
+  `63568785=funded`/milestone `13797948`/buyer event `426855154`/one Docs link/access unknown;
+  `63570481=funded`/milestone `13798056`/buyer event `427573234`/one form/no confirmed receipt;
+  `63583795=delivered` with no current milestone (historical form and delivery receipts are retained and
+  not replayed); `63657015=funded`/milestone `13820268`/buyer event `427403807`/two forms/no confirmed
+  receipt; and `63659463=funded`/milestone `13820867`/buyer event `427428366`/three forms/no confirmed
+  receipt under the current buyer-event binding. A message, filled composer, form URL, or local row is not
+  treated as formal delivery, acceptance, settlement or payout.
+- **`63659463` OnJob:** the current detailed readback exposes three forms and buyer event `427428366`;
+  no receipt matches the current binding. Earlier form receipts remain historical evidence and require
+  reconciliation before any retry. Formal delivery, buyer acceptance, settlement and payout are open.
+- **`63583795` Mirafull:** current detailed readback is `delivered` with no active milestone. Historical
+  form and formal-delivery receipts are retained; no replay is allowed. Acceptance, settlement and payout
+  still need official readback.
 - **`63570481` Effect:** the complete folded message history was expanded in a read-only detail probe.
-  The exact form `https://forms.gle/vZeQpKMg2ma72Eeu6` is visible, and the buyer says the staff-address
-  answer was received but the customer-address answer is missing. This identifies the correction; it is
-  not yet a corrected submission.
-- **`63568785` undym67231:** the funded contract and buyer Google Doc link are read back. The document
-  currently shows `編集権限をリクエスト`; no artifact can be claimed until the buyer grants access or
-  supplies the content.
+  Current detail is funded, milestone `13798056`, buyer event `427573234`, one form and no confirmed
+  receipt. The buyer's missing customer-address answer identifies the correction; it is not yet submitted.
+- **`63568785` undym67231:** current detail is funded, milestone `13797948`, buyer event `426855154`,
+  with one Docs link whose access is currently unknown. No artifact can be claimed until readable content
+  or a permission/content response is read back.
 - **Host headroom:** the bounded existing cleanup owner completed a pass with
   `free_after=8,080,977,920` bytes (about 7.5 GiB). It reclaimed no allow-listed artifact and preserved
   five candidates (`errors=1`); later release work read back about 10.7 GB free. Capacity is above the

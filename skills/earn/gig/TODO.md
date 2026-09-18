@@ -1020,15 +1020,16 @@ work item and leave a sibling trace unchanged.
   Target apply receipt is `81c323cd38cb970453b24230`.
   The release includes the active-inventory row wait and quality/staged-delivery safeguards; Astra read-only
   review verdict was `ship`.
-- A fresh read-only provider pass after the row-wait fix returned exactly five contract IDs
-  (`63659463`, `63657015`, `63583795`, `63570481`, `63568785`), all currently `funded`. The historical
-  `63583795` form/formal-delivery receipts remain replay-fenced and its current milestone state must be
-  re-read before any action.
-- `63659463` has confirmed Web Ads and common form receipts; latest Paid state is `verified`,
-  `effect=1/readback=1`.
-- `63570481` folded messages were expanded read-only; exact form `https://forms.gle/vZeQpKMg2ma72Eeu6`
-  and buyer correction (customer-address answer missing) are known.
-- `63568785` buyer Google Doc is known but currently shows `編集権限をリクエスト`.
+- A fresh read-only provider pass returned five exact contract IDs. The detailed pass is authoritative:
+  `63568785=funded`/milestone `13797948`/buyer event `426855154`/one Docs link/access unknown;
+  `63570481=funded`/milestone `13798056`/buyer event `427573234`/one form/no confirmed receipt;
+  `63583795=delivered` with no current milestone (historical receipts remain replay-fenced);
+  `63657015=funded`/milestone `13820268`/buyer event `427403807`/two forms/no confirmed receipt; and
+  `63659463=funded`/milestone `13820867`/buyer event `427428366`/three forms/no confirmed receipt
+  under the current buyer-event binding.
+- `63570481` folded messages were expanded read-only; the buyer correction (customer-address answer
+  missing) is known, but no correction is submitted.
+- `63568785` has one linked Google Doc, but current access is unknown; no artifact is claimed.
 - Host headroom was about 7.5 GiB after the bounded cleanup pass (`free_after=8,080,977,920`,
   `reclaimed=0`, `preserved=5`, `errors=1`); later release work read back about 10.7 GB free. Capacity is
   above the immediate ENOSPC floor, but the cleanup error remains open.
@@ -1042,15 +1043,16 @@ work item and leave a sibling trace unchanged.
   provider-inventory failure without a durable marker. The new release was applied and kickstarted once,
   but admission stopped it before child execution with `host_admission_deferred:resource_effect_unknown`.
   The current pre-effect code refuses an unbound legacy clear.
-- `63657015` timed out with durable common-form intent `intent_persisted` and no confirmed receipt.
+- `63657015` has two current forms and no confirmed receipt under the current detail; its earlier durable
+  common-form intent remains unverified and must be reconciled before retry.
 - `63570481` correction has not been submitted; the buyer-visible result and formal delivery are open.
   The context/form-revision implementation is now merged in `#5512` and loaded in release
   `e3c78a63`; it has not reached a natural child run because admission is still fenced.
 - `63568785` has no artifact until permission/content is supplied.
-- `63659463` quality audit, formal delivery, acceptance, settlement and payout are open.
-- `63583795` is currently `funded` in the fresh list while an older formal-delivery receipt exists;
-  current milestone status, acceptance, settlement and payout must be re-read before any action. No row
-  has verified MRR.
+- `63659463` has three current forms and no receipt under the current buyer-event binding; quality audit,
+  formal delivery, acceptance, settlement and payout are open.
+- `63583795` is currently `delivered` in detailed readback with an older formal-delivery receipt;
+  acceptance, settlement and payout still need official readback. No row has verified MRR.
 - Host hit `ENOSPC` during worktree creation; headroom is now recovered above the immediate floor, but
   cleanup still has one error and zero reclaimed bytes.
 
