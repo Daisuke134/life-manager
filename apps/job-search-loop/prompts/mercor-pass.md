@@ -74,8 +74,9 @@ Pass order:
    Before final output, compare every target-query card ID against `inspected_listings`; add a
    `card_only` record for each missing card, including low-fit and Japanese/Japan cards skipped
    without opening detail.
-   Twelve candidate detail pages is a maximum, not a minimum. When the current query union has
-   no unseen high/medium candidate after submitted/recent filtering, advance its visible
+   Twelve candidate detail pages is a maximum, not a minimum. After twelve detail pages,
+   record remaining cards as `card_only`. Do not open a thirteenth detail page. When the
+   current query union has no unseen high/medium candidate after submitted/recent filtering, advance its visible
    pagination or the next Explore page to discover more candidates before opening low-band
    filler details. Stop the wake when the bounded pages contain no remaining plausible candidate.
    Collect and deduplicate each query's visible cards before opening any detail; if the
