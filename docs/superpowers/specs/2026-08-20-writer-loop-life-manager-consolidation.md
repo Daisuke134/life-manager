@@ -1581,4 +1581,4 @@ PII失敗runの安全な再開、日次連続公開、公式readbackの連続証
 | 4 | publisher/payment receiptをmoney ledgerへjoin | receipt id・金額・通貨・destination・runをsource付きで記録 |
 | 5 | received revenue／payout／cost／profit／active MRRを分離集計 | `$10K MRR`の実測可否をunknownを残して報告 |
 
-**最新結論:** Writerは「一度も動かない」状態ではない。今回の run は4平台の公開・公式readback・completion・replay-zeroまで実証済みだが、candidate-onlyの手動resumeであり、日次自然運転、main統合、Telegram completion、実入金は未完了である。現在の最大ボトルネックは provider 認証ではなく、main由来releaseへの昇格とshared admission FIFOを含む自然wakeの連続証拠である。
+**最新結論:** Writerは「一度も動かない」状態ではない。今回の run は4平台の公開・公式readback・completion・replay-zero・completion Telegram receiptまで実証済みだが、candidate-onlyの手動resumeであり、日次自然運転、main統合、実入金は未完了である。現在の最大ボトルネックは provider 認証ではなく、main由来releaseへの昇格とshared admission FIFOを含む自然wakeの連続証拠である。
