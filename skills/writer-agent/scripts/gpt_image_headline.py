@@ -26,14 +26,8 @@ ENDPOINT = "https://api.openai.com/v1/images/generations"
 SIZE = "1536x1024"
 QUALITY = "high"
 EXPECTED_DIMENSIONS = (1536, 1024)
-CLIPROXY_ALLOWED_DIMENSIONS = {
-    EXPECTED_DIMENSIONS,
-    (1024, 1024),
-    (1024, 1536),
-    (1536, 1024),
-    (1024, 1792),
-    (1792, 1024),
-}
+CLIPROXY_MIN_DIMENSION = 512
+CLIPROXY_MAX_DIMENSION = 2048
 KNOWN_PRE_EFFECT_REFUSALS = {"OPENAI_API_KEY-unavailable"}
 KNOWN_RESPONSE_REFUSALS = {
     "image-response-is-not-png",
@@ -94,23 +88,23 @@ def _read_object(path: Path, reason: str) -> dict[str, Any]:
 
 
 def _png_dimensions(
-    data: bytes, allowed_dimensions: set[tuple[int, int]] | None = None
+    data: bytes, key_source: str = "openai"
 ) -> tuple[int, int]:
     if len(data) < 24 or data[:8] != b"\x89PNG\r\n\x1a\n" or data[12:16] != b"IHDR":
         raise HeadlineImageRefused("image-response-is-not-png")
     width, height = struct.unpack(">II", data[16:24])
     if width < 1 or height < 1:
         raise HeadlineImageRefused("image-dimensions-invalid")
-    if (width, height) not in (allowed_dimensions or {EXPECTED_DIMENSIONS}):
+    if key_source == "cliproxy":
+        valid = (
+            CLIPROXY_MIN_DIMENSION <= width <= CLIPROXY_MAX_DIMENSION
+            and CLIPROXY_MIN_DIMENSION <= height <= CLIPROXY_MAX_DIMENSION
+        )
+    else:
+        valid = (width, height) == EXPECTED_DIMENSIONS
+    if not valid:
         raise HeadlineImageRefused("image-dimensions-do-not-match-request")
     return width, height
-
-
-def _allowed_dimensions(key_source: str) -> set[tuple[int, int]]:
-    # Cliproxy's gpt-image-1.5 compatibility route may normalize the requested
-    # 1536x1024 canvas to its supported 1024x1024 canvas.  Both are complete,
-    # decodable headline assets; OpenAI's native route remains exact-size.
-    return CLIPROXY_ALLOWED_DIMENSIONS if key_source == "cliproxy" else {EXPECTED_DIMENSIONS}
 
 
 def _fingerprint(
@@ -163,9 +157,7 @@ def verify(candidate: Path, receipt_path: Path) -> dict[str, Any]:
     ):
         raise HeadlineImageRefused("headline-api-provenance-invalid")
     data = candidate.read_bytes()
-    width, height = _png_dimensions(
-        data, _allowed_dimensions(str(receipt.get("api_key_source", "openai")))
-    )
+    width, height = _png_dimensions(data, str(receipt.get("api_key_source", "openai")))
     required = {"schema": "writer.gpt-image-headline-receipt", "version": 1,
                 "status": "committed", "request_model": MODEL,
                 "candidate": str(candidate.resolve()), "file_sha256": _sha(data),
@@ -288,7 +280,7 @@ def generate(*, prompt_path: Path, alt_path: Path, candidate: Path, intent_path:
                                    "response_sha256": _sha(raw)})
         raise HeadlineImageRefused("headline-api-response-missing-request-id")
     try:
-        width, height = _png_dimensions(image, _allowed_dimensions(key_source))
+        width, height = _png_dimensions(image, key_source)
     except HeadlineImageRefused as error:
         # The complete response was received and inspected, but it cannot be
         # committed because the bytes violate the requested media contract.

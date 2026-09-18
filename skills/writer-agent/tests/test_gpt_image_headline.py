@@ -35,7 +35,7 @@ class ResponseNoRequestID(Response):
 
 class ResponseWrongDimensions(Response):
     def read(self):
-        wrong = PNG[:16] + struct.pack(">II", 800, 800) + PNG[24:]
+        wrong = PNG[:16] + struct.pack(">II", 256, 256) + PNG[24:]
         return json.dumps(
             {"data": [{"b64_json": base64.b64encode(wrong).decode()}]}
         ).encode()
