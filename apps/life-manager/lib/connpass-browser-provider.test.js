@@ -77,6 +77,16 @@ test("join-page attendee-section text does not impersonate pending registration"
   assert.deepEqual(await readConnpassRegistrationStateOnPage(page), { state: "unknown" });
 });
 
+test("Connpass login wall is not mistaken for an absent registration", async () => {
+  const control = (innerText) => ({ innerText, value: "", getAttribute() { return null; } });
+  const page = domFixture({
+    pathname: "/event/404714/",
+    bodyText: "イベントに申し込むには\nログインしてください",
+    controls: [control("イベントに申し込む"), control("ログイン・会員登録")],
+  });
+  assert.deepEqual(await readConnpassRegistrationStateOnPage(page), { state: "login_required" });
+});
+
 test("exact Connpass join completion path is registered without relying on page copy", async () => {
   assert.deepEqual(await readConnpassRegistrationStateOnPage(domFixture({
     pathname: "/event/403786/join/complete/",
