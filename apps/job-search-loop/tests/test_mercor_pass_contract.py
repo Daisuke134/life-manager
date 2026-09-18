@@ -17,6 +17,7 @@ from job_search_loop.mercor_pass import (
     record_inspections,
     record_profile_sync,
     record_verified_submissions,
+    merge_card_only_evidence,
     validate_bounded_scan,
     validate_evidence_paths,
     validate_priority_scan,
@@ -28,6 +29,51 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MercorPassContractTests(unittest.TestCase):
+    def test_card_only_evidence_is_recovered_from_current_run_artifact(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "run-1"
+            run.mkdir()
+            (run / "pass-result.json").write_text(json.dumps({
+                "status": "observed_no_action",
+                "inspected_listings": [
+                    {
+                        "listing_id": "list-card",
+                        "url": "https://work.mercor.com/explore?listingId=list-card",
+                        "title": "Japanese Evaluator",
+                        "application_state": "card_only",
+                        "submit_visible": False,
+                        "decision": "recent_human_gate_preserved",
+                        "ranking_band": "high",
+                        "ranking_evidence": ["visible priority card"],
+                        "provider_fit_status": "not_shown",
+                        "requirement_evidence": [],
+                        "strategy_version": "mercor-fit-evidence-v1",
+                    },
+                    {
+                        "listing_id": "list-detail-only",
+                        "url": "https://work.mercor.com/explore?listingId=list-detail-only",
+                        "title": "Detail",
+                        "application_state": "3 of 3 steps completed",
+                        "submit_visible": False,
+                        "decision": "observed",
+                        "ranking_band": "medium",
+                        "ranking_evidence": ["detail"],
+                        "provider_fit_status": "not_shown",
+                        "requirement_evidence": [],
+                        "strategy_version": "mercor-fit-evidence-v1",
+                    },
+                ],
+            }), encoding="utf-8")
+            result = {"inspected_listings": [{"listing_id": "list-existing"}]}
+
+            merge_card_only_evidence(result, run)
+
+            self.assertEqual(
+                [item["listing_id"] for item in result["inspected_listings"]],
+                ["list-existing", "list-card"],
+            )
+
     def test_media_permissions_are_denied_before_model_browser_work(self):
         class FakeWebSocket:
             def __init__(self):
