@@ -29,6 +29,7 @@ from runtime.loop.lm_loop_lifecycle import lifecycle, lifecycle_one
 from runtime.loop.runtime_event import append_runtime_event, build_install_event, validate_runtime_event
 from runtime.host.resource_admission import (
     activate_durable_v2, durable_protocol_version, owner_deploy_lock,
+    rebind_queued_owner,
     state_root as admission_root,
 )
 
@@ -52,14 +53,47 @@ def _pending_admission_owners() -> set[str]:
 
 
 @contextmanager
-def _admission_rebind_guard(loop_id: str, enabled: bool):
+def _admission_rebind_guard(
+    loop_id: str,
+    enabled: bool,
+    *,
+    entry: dict | None = None,
+    item: dict | None = None,
+    release_sha: str | None = None,
+    launchctl_safe: Path | None = None,
+):
     if not enabled:
-        yield False
+        yield None
         return
     with owner_deploy_lock(loop_id) as acquired:
         if not acquired:
             raise RuntimeError("owner deploy busy")
-        yield loop_id in _pending_admission_owners()
+        pending = loop_id in _pending_admission_owners()
+        if not pending:
+            yield None
+            return
+        admission_class = entry.get("admission_class") if entry else None
+        resource_class = entry.get("resource_class") if entry else None
+        priority = entry.get("priority") if entry else None
+        if not all(isinstance(value, str) and value for value in (
+                admission_class, resource_class, priority)):
+            # Legacy registry rows retain the old pending-admission skip contract.
+            yield "pending"
+            return
+        if item is not None and release_sha and launchctl_safe:
+            skipped = _skip_if_not_loaded_idle(item, release_sha, launchctl_safe)
+            if skipped is not None:
+                yield skipped
+                return
+        result = rebind_queued_owner(
+            loop_id,
+            resource_class=resource_class,
+            admission_class=admission_class,
+            priority=priority,
+        )
+        if result not in {"rebound", "unchanged"}:
+            raise RuntimeError(f"admission rebind refused: {result}")
+        yield None
 
 
 def _next_eligible(cadence: dict) -> str:
@@ -659,8 +693,14 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                      _label_apply_lock_path(current, item["label"], lock_path))
         try:
             with _apply_lock(current, item_lock), _admission_rebind_guard(
-                    item["loop_id"], preserve_pending_admission) as pending_admission:
-                if pending_admission:
+                    item["loop_id"], True,
+                    entry=registry["loops"][item["loop_id"]],
+                    item=item, release_sha=release_sha,
+                    launchctl_safe=launchctl_safe) as pending_admission:
+                if isinstance(pending_admission, dict):
+                    results.append(pending_admission)
+                    continue
+                if pending_admission == "pending":
                     results.append({"ok": True, "label": item["label"],
                                     "release_sha": release_sha, "changed": False,
                                     "skipped": "pending-admission"})

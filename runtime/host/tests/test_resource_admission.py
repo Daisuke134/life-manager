@@ -100,6 +100,47 @@ def test_one_shot_busy_attempt_does_not_leave_a_ticket(tmp_path, monkeypatch):
     admission.release(first)
 
 
+def test_rebind_queued_owner_updates_admission_without_changing_sequence(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="4")
+    ticket, reason = admission.enqueue_durable(
+        "agent", "writer", admission_class="borrow", priority="support",
+        occurrence_id="writer:wake",
+    )
+    assert ticket is not None and reason in {"ready", "capacity_busy", "fifo_wait"}
+    before = durable_rows(tmp_path, "queue")
+
+    result = admission.rebind_queued_owner(
+        "writer", resource_class="agent", admission_class="revenue", priority="revenue",
+    )
+
+    assert result == "rebound"
+    after = durable_rows(tmp_path, "queue")
+    assert after == before
+    priority = durable_rows(tmp_path, "priorities")
+    assert priority[0]["admission_class"] == "revenue"
+    assert priority[0]["base_priority"] == "revenue"
+    occurrence = durable_rows(tmp_path, "occurrences")
+    assert occurrence[0]["admission_class"] == "revenue"
+    assert occurrence[0]["base_priority"] == "revenue"
+
+
+def test_rebind_queued_owner_refuses_claimed_effect_boundary(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="2")
+    ticket, _ = admission.enqueue_durable(
+        "agent", "writer", admission_class="borrow", priority="support",
+        occurrence_id="writer:wake",
+    )
+    assert ticket is not None
+    claim, reason = admission.claim_durable(
+        "agent", "writer", coalesced_occurrence_id="writer:wake"
+    )
+    assert claim is not None and reason == "acquired"
+
+    assert admission.rebind_queued_owner(
+        "writer", resource_class="agent", admission_class="revenue", priority="revenue",
+    ) in {"not_queued", "reserved", "effect_unknown"}
+
+
 def test_durable_protocol_defaults_v1_and_activates_only_when_idle(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     assert admission.durable_protocol_version() == 1

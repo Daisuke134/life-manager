@@ -79,6 +79,30 @@ class LmLoopApplyTest(unittest.TestCase):
             self.assertEqual(lm_loop.main(["apply"]), 2)
         self.assertIn("LIFE_MANAGER_APPLY_TARGET", json.loads(output.getvalue())["error"])
 
+    def test_admission_rebind_guard_promotes_explicit_revenue_owner(self):
+        from runtime.host import resource_admission
+
+        resource_admission.enqueue_durable(
+            "agent", "writer", admission_class="borrow", priority="support",
+            occurrence_id="writer:wake",
+        )
+        entry = {
+            "resource_class": "agent",
+            "admission_class": "revenue",
+            "priority": "revenue",
+        }
+        with lm_loop._admission_rebind_guard(
+            "writer", True, entry=entry
+        ) as decision:
+            self.assertIsNone(decision)
+        with sqlite3.connect(self.root / "admission" / "admission-v2.sqlite3") as connection:
+            self.assertEqual(
+                connection.execute(
+                    "SELECT admission_class,base_priority FROM priorities WHERE owner_id='writer'"
+                ).fetchone(),
+                ("revenue", "revenue"),
+            )
+
     def test_apply_all_is_explicit(self):
         with patch.dict(os.environ, {
                 "LIFE_MANAGER_RELEASE_ROOT": str(self.root),
