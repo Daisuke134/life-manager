@@ -3071,7 +3071,11 @@ the canonical order; the following are the concrete gates to work through, not a
    the new release but remained held by the exact admission occurrence
    `lancers-revenue-application:18d6492796264af8-48639` (`effect_unknown=1`, prior
    `entrypoint_exit_124`). No attribution file was written and no retry or fence clearing was done;
-   official proposal readback is required before resolving that occurrence.
+   official proposal readback is required before resolving that occurrence. The run-chain maps the
+   original claim to project `5599100`; an authenticated read-only proposal-list readback returned
+   no proposal for that project. This proves provider absence for the project, but the durable
+   pre-dispatch marker is still unavailable, so the runtime fence remains until that boundary is
+   reconciled explicitly.
 2. **First paid conversion — CURRENT SUPPORTING ACTION:** measure proposal→buyer reply→award by profile, proof,
    proposal and price version; improve the weakest measured stage without inventing
    reviews or completed client work. Keep Storefront catalog families distinct and
