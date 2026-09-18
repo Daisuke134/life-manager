@@ -441,6 +441,8 @@ class MercorPassContractTests(unittest.TestCase):
             "A Japanese/Japan title alone does not outrank a high/medium-fit software or AI role",
             "Do not open a low-band Japanese/Japan contradiction merely to satisfy the priority queue",
             "Record every skipped low, submitted, or recent card",
+            "Final JSON must include every card-only record",
+            "do not return only detail records",
             "recently_inspected_listings",
             "no_reasonable_shot",
             "submitted_pending_review_observed",

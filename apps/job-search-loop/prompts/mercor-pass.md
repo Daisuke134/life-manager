@@ -69,7 +69,8 @@ Pass order:
    software or AI role. Do not open a low-band Japanese/Japan contradiction merely to satisfy
    the priority queue. Record every skipped low, submitted, or recent card in
    `inspected_listings` with its visible-card evidence and continue; a card-only record may use
-   `application_state: card_only` and does not consume a detail-page slot.
+   `application_state: card_only` and does not consume a detail-page slot. Final JSON must include
+   every card-only record; do not return only detail records.
    Twelve candidate detail pages is a maximum, not a minimum. When the current query union has
    no unseen high/medium candidate after submitted/recent filtering, advance its visible
    pagination or the next Explore page to discover more candidates before opening low-band
