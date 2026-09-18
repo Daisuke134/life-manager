@@ -803,7 +803,9 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
     finally:
         heartbeat_stop.set()
         if heartbeat_thread is not None:
-            heartbeat_thread.join(timeout=1)
+            # heartbeat_durable may wait up to five seconds for the shared
+            # control lock; never let the daemon thread outlive claim release.
+            heartbeat_thread.join(timeout=6)
         for signum, handler in previous.items():
             signal.signal(signum, handler)
         if claim is not None:
