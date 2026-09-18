@@ -73,6 +73,18 @@ def test_note_ambiguity_recovery_uses_the_same_failure_circuit() -> None:
     assert '--code-file "$ARTICLE_ROOT/scripts/publication_resume.py"' in recovery
 
 
+def test_multi_initialization_stays_in_deterministic_staging_boundary() -> None:
+    worker = (ROOT / "scripts/article-resume-pending.sh").read_text(
+        encoding="utf-8"
+    )
+
+    initialization = worker.split(
+        "# A missing managed target", 1
+    )[1].split("# The first money-bearing note intent", 1)[0]
+    assert 'if [ "$INITIALIZATION_COUNT" -gt 0 ]' in initialization
+    assert 'execute-initialization-pair.py"' in initialization
+
+
 def executable(path: Path, body: str) -> None:
     path.write_text(body)
     path.chmod(0o755)

@@ -1009,7 +1009,7 @@ fi
 # persisted its exact argv/env in the preflighted dispatch manifest. Execute
 # supported deterministic rows once and require a durable target before
 # exiting the publication-free initialization tick.
-if [ "$INITIALIZATION_COUNT" -eq 1 ] \
+if [ "$INITIALIZATION_COUNT" -gt 0 ] \
   && [ "$ELIGIBLE_COUNT" -eq 0 ] \
   && { [ "$FIRST_INITIALIZATION" = "note/ja" ] \
     || { [ "$PUBLICATION_CONTRACT" = "legacy-exact8" ] \
