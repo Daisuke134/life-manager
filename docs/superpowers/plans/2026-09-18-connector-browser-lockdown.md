@@ -50,7 +50,8 @@
 - [x] Add the read-only `context_inventory()` contract and existing CLI command `python3 skills/browser/scripts/cdp_context_lease.py audit`; do not infer ownership from `about:blank` alone.
 - [x] Run `python3 -m pytest -q skills/browser/scripts/test_cdp_context_lease_orphan_census.py skills/browser/scripts/test_cdp_context_lease_gc_lock.py skills/browser/scripts/test_cdp_context_lease_hangs.py skills/browser/scripts/test_cdp_context_lease_pid_reap.py` (`58 passed`) and `python3 -m py_compile skills/browser/scripts/cdp_context_lease.py`.
 - [x] Run one live read-only census on `:9222`: 36 contexts, one leased Mercor context, 35 unknown-owner contexts; no context closed. Branch `e0610e2f5d`, PR #5608 is pending main integration.
-- [ ] After merge, write the failing proof-gated recovery test for one stale owner-backed row and one unknown context; implement disposal only for the owner-backed row.
+- [x] Merge PR #5608 as main `a3efd6a28d` and cut complete release `/Users/anicca/loops/releases/20260918T230317-a3efd6a2`; verify `release_paths=ALL`, `context_inventory()` and its test are present.
+- [ ] Write the failing proof-gated recovery test for one stale owner-backed row and one unknown context; implement disposal only for the owner-backed row.
 
 ### Task 3: Session keepalive coverage (shared Browser owner)
 
