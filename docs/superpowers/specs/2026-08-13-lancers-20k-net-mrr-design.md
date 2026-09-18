@@ -3109,8 +3109,25 @@ and growing a first engagement into related or recurring work
 [unit-value case](https://www.lancers.jp/magazine/35694)). Apply already instructs the planner
 to address buyer scope and questions; the next measured improvement is the verified
 profile/proof→proposal→reply→award funnel and a truthful first paid case, not a generic
-proposal template or invented review. Keep provider effects and shared receipts in
-`skills/_shared/marketplace-core`; Lancers owns only its UI, identity and readback.
+proposal template or invented review. The official examples add four operating rules:
+
+1. Explain the buyer's problem and why the proposed approach fits in a short, readable
+   message; keep the profile, portfolio and menu complete so the buyer can verify trust
+   after opening the profile (haru).
+2. Reply quickly and personalize one sentence instead of sending a long fixed template.
+   TAKA's Lancers experiment reported 20 outreach messages, 35% replies and 10% closes
+   (2 jobs); that is a benchmark to measure against, not a promise for this account.
+3. Start from the buyer's business KPI and upstream problem, then propose the smallest
+   credible first step and a related monthly support path. The 2026 case grew a small
+   build request into a larger project and recurring support after the buyer's wider
+   goal was understood (unit-value case).
+4. Change one variable at a time and retain/revert it from reply, award and MRR evidence.
+   For the current two outreach boards, the message/package pair and official board ID
+   are already recorded; no resend or unrequested follow-up is allowed before a buyer
+   event.
+
+Keep provider effects and shared receipts in `skills/_shared/marketplace-core`; Lancers owns
+only its UI, identity and readback.
 
 1. **L-01 Runtime truth inventory — DONE.** Five registry-owned labels exist: Browser, Application (300s), Storefront (1800s), Work Sync (300s) and legacy aggregate Telegram (300s). The original installed plists directly executed release `381e45d5…` and bypassed the control plane; Browser, Application, Storefront and Work Sync now execute `lm-loop-run` from the same immutable main release `50244baa…`. Application, Storefront and Work Sync all produce terminal runtime events from that SHA; Storefront run `18d138d767b67f18-32087` and Work Sync run `18d138c2483dbcb0-29470` pass. The aggregate Reporter is intentionally unloaded because lane owners now dispatch their own reports. Runtime hashes at inventory are `application.json=6555f1be…`, `contracts.json=8db7bb8b…`, `marketplace-ledger.sqlite3=1fbd9fd7…`, and `telegram.sqlite3=7adc27cc…`. Application wake report is provider-acknowledged as Telegram message ID `47223` with durable event key `lancers:application-wake:v1:ba21ac1c…`.
 2. **L-02 Report parity — DONE.** Dais fixes the order Apply → Storefront → Negotiate → Paid. **Apply PASS:** semantic skips use Coconala's seven-day ineligible-cache boundary, state repair reduced permanent fingerprints 259→35, all visible IDs are required, validation/effect is project-local, and every eligible row is processed sequentially. Release `a78ae6f8…` sent project `5594288`; reconcile recovered official proposal `27876539` without resend, cleared pending 1→0, appended ledger sequence 45 and delivered summary ACK `47339` plus project-local success ACK `47341`. Release `9425ab0e…` continuity wake advanced over the remaining current-query rows with duplicate effect 0 and pending 0; project-local ACKs `47348`/`47349` name the official-unavailable and mandatory-attribute outcomes. **Storefront PASS:** listing `1338228` readback unchanged, demand 6/0/0/0/0, ACK `47274`. **Negotiate PASS:** source-complete boards 2 / reply required 0 / unread 0 / monthly offer 0 / contract candidate 0, ACKs `47277`/`47278`. **Paid PASS:** release `9425ab0e…` run `18d13dfa3f53e678-98278` reported active project 0 / monthly contract 0 / payment history 0 / balance 0 / received 0 with provider ACK `47354`; funded work is absent so effect 0 is correct. The legacy combined `[Lancers][応募・出品]` scheduler stays unloaded.
