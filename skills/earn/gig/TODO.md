@@ -1017,11 +1017,12 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
   cleared from the plan by inference or direct SQL.
 - Loaded immutable releases are Application 8fbfb3a2f2b1449018d46f1978a500ce77f003a9,
   Paid 56d07a66eaa7c7d173c51314c47fb1c22b3f5610, and Reply/Report
-  fed2839db846509585d6ba2d53da626a09dd0cae. The latest target-only Application and Paid wakes
-  loaded those releases and stopped before provider work with host_admission_deferred:
-  resource_effect_unknown (exit 75).
-- The latest host read has 4.2 GiB available (98% used). The disk-cleanup receipt reports
-  free_after=8,080,977,920, reclaimed=0, and errors=1; capacity recovery is not green.
+  fed2839db846509585d6ba2d53da626a09dd0cae. Candidate Application release
+  501058ec8237c3888d862ed92d0a048e0f2cc1f7 is ready, but target apply correctly refuses
+  effect_unknown=1. PR #5634 binds new application receipts to their runtime occurrence while
+  historical imports remain unbound.
+- Disk-cleanup release 65a1d563dca85d9c10019854c8f3bf7027c1e9 passed its target wake with errors=0 and
+  free_after=8281886720; current host headroom is about 7.0 GiB (97% used), still PRESSURE.
 - The read-only CrowdWorks inventory contains funded IDs 63712784, 63659463, 63657015,
   63570481, and 63568785. This inventory is not a work submission, delivery, acceptance,
   settlement, payout, or MRR receipt.
@@ -1030,6 +1031,8 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
 
 - Apply -> Reply (pre-contract) -> one Paid owner (post-contract) is the boundary. Reply has no
   post-contract work or delivery effect; there is no CrowdWorks Storefront owner.
+- PR #5594 and PR #5599 are merged, PR #5630 fixed cache open-path probing, and PR #5634
+  binds new application receipts to their runtime occurrence while keeping historical imports unbound.
 - PR #5594 (Paid buyer-form extraction, answer-URL normalization, and receipt-alias preservation)
   and PR #5599 (Application occurrence binding) are merged and target-applied from immutable releases.
 - The focused Paid tests (158) and Application tests (15) passed before their release cuts, and
@@ -1054,14 +1057,14 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
   reconciled before any retry. 63570481 still lacks the corrected customer-address answer and
   formal delivery. 63568785 still lacks permitted document content. 63659463 still needs the
   quality audit and delivery. 63583795 needs acceptance, settlement, and payout readback.
-- The host shows historical ENOSPC/DB-lock evidence and current low headroom; observed zombie
-  processes are separate exited children, and no virus evidence was found in the read-only checks.
+- The host has a clean latest disk-cleanup pass but remains PRESSURE at about 7.0 GiB free; observed
+  zombie processes are separate exited children, and no virus evidence was found in the read-only checks.
 
 **Remaining TODO, in order:**
 
-- [ ] **CW-F1 — host capacity:** inspect the disk-governor error and reclaim only safe generated
-  artifacts; preserve credentials, browser profiles, receipts, state, and loaded releases. Require
-  stable headroom and a cleanup receipt with no unexplained error.
+- [x] **CW-F1 — host capacity:** disk-cleanup release 65a1d563 completed a target pass with errors=0
+  and free_after=8281886720. Continue monitoring because the host remains PRESSURE; preserve credentials,
+  browser profiles, receipts, state, and loaded releases.
 - [ ] **CW-F2 — Application admission:** use the resolver/readback path to bind
   18d6535f7dfb8910-33974 to an exact no-dispatch marker or official receipt; never retry while
   the effect is unknown.
