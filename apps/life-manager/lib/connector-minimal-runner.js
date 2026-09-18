@@ -375,7 +375,9 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
         ? [...reconciliationCandidates,
           ...pendingCandidates.slice(connpassBatchStart, connpassBatchStart + CONNPASS_CANDIDATES_PER_WAKE)]
         : candidates;
-      const dispatchCandidates = candidateBatch.filter((selected) => selected.auto_apply_eligible !== false);
+      const dispatchCandidates = candidateBatch.filter((selected) => (
+        selected.auto_apply_eligible !== false || selected.reserve_apply_eligible === true
+      ));
       let dispatchAuditCount = 0;
       for (const selected of dispatchCandidates) {
         const hasTalk = typeof deps.runTalkApplication === "function"

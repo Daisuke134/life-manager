@@ -801,6 +801,32 @@ test("a Connpass confirm-unavailable tier does not invoke browser fallback", asy
   assert.equal(directFailure.safe_reason, "connpass_confirm_unavailable");
 });
 
+test("a paid priority candidate falls through to a moderate reserve candidate", async () => {
+  let state = fixture({
+    async discoverCandidates() {
+      return [
+        { ...candidate("connpass", "paid-priority"), auto_apply_eligible: true },
+        { ...candidate("connpass", "moderate-reserve"), auto_apply_eligible: false, reserve_apply_eligible: true },
+      ];
+    },
+    async runDirectAction({ candidate: selected }) {
+      state.calls.push(["direct", selected.event_ref]);
+      if (selected.event_ref.endsWith("/paid-priority")) return { status: "failed", safe_reason: "connpass_confirm_unavailable" };
+      return { status: "completed", provider_state: { status: "registered" } };
+    },
+    async readProviderState({ candidate: selected, phase }) {
+      return { status: phase === "pre_submit" ? "absent" : "registered" };
+    },
+    async completeEvidence({ candidate: selected }) {
+      return { status: "applied_bundle", bundle_id: selected.event_ref, completion_disposition: "created" };
+    },
+  });
+  const result = await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-reserve", providers: ["connpass"] }, state.dependencies);
+  assert.equal(result.status, "applied_bundle");
+  assert.equal(state.calls.some(([name, ref]) => name === "direct" && ref.endsWith("/moderate-reserve")), true);
+  assert.equal(state.calls.some(([name, ref]) => name === "agent" && ref.endsWith("/paid-priority")), false);
+});
+
 test("unavailable pre-submit provider readback never dispatches an action", async () => {
   const state = fixture({
     async readProviderState() { return { status: "unavailable" }; },

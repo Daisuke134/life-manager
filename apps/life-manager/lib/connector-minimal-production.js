@@ -463,8 +463,29 @@ function createProductionProviderRouter(options = {}) {
           preference_reason: ranked.preference_reason,
           auto_apply_eligible: ranked.auto_apply_eligible,
         })).sort((a, b) => candidateCoverageWeek(a, observed) - candidateCoverageWeek(b, observed));
+        const eligibleRefs = new Set(eligible.map((candidate) => candidate.event_ref));
+        // Keep a bounded same-provider reserve for the case where every
+        // priority candidate is provider-ineligible (for example paid-only
+        // Connpass tiers). The model still decides preference_fit; this
+        // reserve only permits a moderate `other` match after the primary
+        // priority candidates have been exhausted.
+        const reserve = ranking.ranked_events
+          .filter((ranked) => (
+            !eligibleRefs.has(ranked.event_ref)
+            && ranked.priority_class === "other"
+            && ["strong", "moderate"].includes(ranked.preference_fit)
+          ))
+          .map((ranked) => Object.freeze({
+            ...sourceByRef.get(ranked.event_ref),
+            priority_class: ranked.priority_class,
+            preference_fit: ranked.preference_fit,
+            preference_reason: ranked.preference_reason,
+            auto_apply_eligible: ranked.auto_apply_eligible,
+            reserve_apply_eligible: true,
+          }))
+          .sort((a, b) => candidateCoverageWeek(a, observed) - candidateCoverageWeek(b, observed));
         await emitCandidateRankingAudit(rankingCandidates.length, eligible, ranking.ranked_events);
-        if (classifyTalkOpportunity == null) return Object.freeze([...reconcile, ...eligible]);
+        if (classifyTalkOpportunity == null) return Object.freeze([...reconcile, ...eligible, ...reserve]);
         const enriched = new Array(eligible.length);
         let next = 0;
         async function classifyWorker() {
@@ -496,7 +517,7 @@ function createProductionProviderRouter(options = {}) {
         await Promise.all(Array.from({ length: Math.min(3, eligible.length) }, () => classifyWorker()));
         enriched.sort((a, b) => candidateCoverageWeek(a, observed) - candidateCoverageWeek(b, observed)
           || Number(b.priority_class === "open_talk") - Number(a.priority_class === "open_talk"));
-        return Object.freeze([...reconcile, ...enriched]);
+        return Object.freeze([...reconcile, ...enriched, ...reserve]);
       })();
     },
 
