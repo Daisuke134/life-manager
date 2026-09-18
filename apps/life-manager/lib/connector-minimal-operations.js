@@ -11,6 +11,8 @@ const SAFE_METHOD = /^[a-z][a-z0-9_]{1,63}$/;
 const SAFE_PROVIDER = /^[a-z][a-z0-9_-]{1,31}$/;
 const PRIMARY_PROVIDERS = new Set(["luma", "connpass"]);
 const SAFE_CANDIDATE_REF = /^[A-Za-z][A-Za-z0-9._:/?&=%#@+~-]{2,239}$/;
+const SAFE_PRIORITY_CLASS = /^(?:yc_hackathon|open_talk|ai|crypto|startup|other)$/;
+const SAFE_PREFERENCE_FIT = /^(?:strong|moderate|weak|unknown)$/;
 // Bounded, non-sensitive: a JS class/constructor name only (see
 // connector-minimal-runner.js's safeErrorClass), never a message, stack,
 // URL, or env value.
@@ -251,7 +253,8 @@ function safeRankingAudit(input, wakeId, recordedAt) {
 
 function safeCandidateRankingAudit(input, wakeId, recordedAt) {
   const keys = [
-    "auto_apply_eligible_count", "candidate_count", "eligible_candidate_refs", "provider", "ranked_count",
+    "auto_apply_eligible_count", "candidate_count", "eligible_candidate_refs",
+    "priority_fit_eligible_count", "provider", "ranked_candidate_summaries", "ranked_count",
   ];
   if (
     !input || typeof input !== "object" || Array.isArray(input)
@@ -261,12 +264,24 @@ function safeCandidateRankingAudit(input, wakeId, recordedAt) {
     || input.candidate_count > DISCOVERY_AUDIT_COUNT_CEILING
     || !Number.isInteger(input.ranked_count) || input.ranked_count < 0
     || input.ranked_count > input.candidate_count
+    || !Number.isInteger(input.priority_fit_eligible_count) || input.priority_fit_eligible_count < 0
+    || input.priority_fit_eligible_count > input.ranked_count
     || !Number.isInteger(input.auto_apply_eligible_count) || input.auto_apply_eligible_count < 0
-    || input.auto_apply_eligible_count > input.ranked_count
+    || input.auto_apply_eligible_count > input.priority_fit_eligible_count
     || !Array.isArray(input.eligible_candidate_refs)
     || input.eligible_candidate_refs.length !== input.auto_apply_eligible_count
     || input.eligible_candidate_refs.length > 12
     || input.eligible_candidate_refs.some((value) => !SAFE_CANDIDATE_REF.test(String(value || "")))
+    || !Array.isArray(input.ranked_candidate_summaries)
+    || input.ranked_candidate_summaries.length !== Math.min(input.ranked_count, 12)
+    || input.ranked_candidate_summaries.some((summary) => (
+      !summary || typeof summary !== "object" || Array.isArray(summary)
+      || Object.keys(summary).sort().join(",") !== "auto_apply_eligible,event_ref,preference_fit,priority_class"
+      || typeof summary.auto_apply_eligible !== "boolean"
+      || !SAFE_CANDIDATE_REF.test(String(summary.event_ref || ""))
+      || !SAFE_PREFERENCE_FIT.test(String(summary.preference_fit || ""))
+      || !SAFE_PRIORITY_CLASS.test(String(summary.priority_class || ""))
+    ))
   ) invalid();
   return Object.freeze({
     schema_version: 1,
@@ -274,8 +289,10 @@ function safeCandidateRankingAudit(input, wakeId, recordedAt) {
     provider: input.provider,
     candidate_count: input.candidate_count,
     ranked_count: input.ranked_count,
+    priority_fit_eligible_count: input.priority_fit_eligible_count,
     auto_apply_eligible_count: input.auto_apply_eligible_count,
     eligible_candidate_refs: Object.freeze([...input.eligible_candidate_refs]),
+    ranked_candidate_summaries: Object.freeze(input.ranked_candidate_summaries.map((summary) => Object.freeze({ ...summary }))),
     recorded_at: recordedAt,
   });
 }
