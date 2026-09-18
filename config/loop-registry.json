@@ -333,10 +333,13 @@
         "max_runs": 100
       },
       "domain": "earn",
-      "effect_class": "none",
+      "effect_class": "publish",
       "entrypoint": "skills/writer-agent/article-daily.sh",
       "label": "ai.anicca.article-daily",
       "log_root": "~/.local/state/life-manager/writer/logs",
+      "resource_class": "agent",
+      "admission_class": "revenue",
+      "priority": "revenue",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/writer"
     },
@@ -385,10 +388,13 @@
         "max_runs": 100
       },
       "domain": "earn",
-      "effect_class": "none",
+      "effect_class": "publish",
       "entrypoint": "skills/writer-agent/scripts/article-resume-pending.sh",
       "label": "ai.anicca.article-resume",
       "log_root": "~/.local/state/life-manager/writer/logs",
+      "resource_class": "agent",
+      "admission_class": "revenue",
+      "priority": "revenue",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager/writer"
     },
