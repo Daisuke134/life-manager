@@ -1559,6 +1559,7 @@ PII失敗runの安全な再開、日次連続公開、公式readbackの連続証
   - X Article JA: `https://x.com/diceai0/article/2101021990039760968`、public id `2101021990039760968`、保存済み edit target `https://x.com/compose/articles/edit/2101003373684375552` の同一target repair、本文／owner／cover+body media PASS。
 - Substackの実測では `verify-preview` が両言語とも `images=2`, `tallest=900px`, `PASS`。公開後に `SELF_VERIFY_OK`（JA `images_found=26`、EN `images_found=14`）を取得した。
 - `article-run-complete.py --armed 1` は rc 0。直後の `publication_resume.py plan` は2回とも `{"resumable":false,"reason":"all-complete"}`（replay-zero）。最新 state SHA は `0f1ded90ed1c6c8d7549700ebda7c18434a9eeed00419d8c898538505f8fb4d9`、ledger SHA は `0ee508b1b9c4dcc6b8586da11386134454d26e7cf214e94ac654955fe8bd986c`。
+- `article-completion-notify.py` は target `8547730585` へ `status=sent`、message ID `88549` を記録し、`gates/completion-notification.json` を保存した。これはこのrunのobservability receiptであり、Codexの手動進捗報告とは別である。
 - stale Substack media cache は source SHA 付きへ変更し、same-ID refresh は `gates/substack-refresh/` を作ってから immutable media を再埋め込みするよう修正した。Substack payload は bytesを変更せず `resizeWidth=600` とし、portrait headlineでもpreview gate内に収めた。wrapperのbare `python3` は `LIFE_MANAGER_PYTHON`（Pillow入りmanaged venv）へ固定した。
 - 変更は branch `fix/writer-main-integration-20260919` の commit `f11a77448b46a270fe3658c6ac28ccd226170d77` までpush済み。candidate release は `/Users/anicca/loops/releases/20260919T035041-f11a7744`（`pushed-not-yet-on-main`、`current`未変更）である。
 
@@ -1566,7 +1567,7 @@ PII失敗runの安全な再開、日次連続公開、公式readbackの連続証
 
 - **main統合とproduction反映:** candidateはorigin/mainの祖先ではなく、main merge・fresh review・main由来immutable release cut・loaded `article-daily`/`article-resume` argvの更新は未完了。現在のloaded plistは daily `aabbd694`、resume `7e4f7ac5` のままで、今回の修正を日次SLOの証拠には数えない。
 - **日次SLO:** 今回の4面liveは1 runだけ。7日（最低）または21 scheduled source runsの自然terminal、各日4面native live、重複外部作用0、連続replay-zeroは未取得。
-- **Telegram completion receipt:** 今回の直接resumeでは `Telegram target is required` が残り、completion message IDは未取得。URLとprovider readback自体はstate／ledgerに保存済み。
+- **Telegram completion receipt:** 今回のrunは解消済み（message ID `88549`）。次の自然runごとに同じreceiptを取得する必要がある。
 - **収益:** `money_events=0`、`subscription_contracts=0`、`commercial_payment_bindings=0`、`payouts=0`。Noteの¥500やSubstack paid-onlyは価格／アクセス設定のreadbackであって、販売・入金・active MRRではない。確定売上¥0、`$10K MRR`未達。
 - **運用阻塞:** disk floor（`1,155,780,608` bytes）とshared revenue FIFOが自然wakeを遅らせうる。今回の再実行前にはopen handleのない再生成可能 `~/.cache/puppeteer` 約555MBだけを削除し、`.cloak`・state・release・active browser cacheは保持した。admission DBの手編集、他loop停止、slot bypassはしていない。
 
