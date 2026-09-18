@@ -98,6 +98,8 @@ def test_state_records_runtime_occurrence_id(monkeypatch, tmp_path):
     assert result["effect"] == 1
     state = json.loads(next(tmp_path.glob("threads/*/state.json")).read_text())
     assert state["occurrence_id"] == "fixture-reply:run-1"
+    marker = reply_kernel._run_marker_path(tmp_path, "fixture-reply:run-1")
+    assert json.loads(marker.read_text())["occurrence_id"] == "fixture-reply:run-1"
 
 
 def test_reconcile_preserves_original_occurrence_binding(monkeypatch, tmp_path):
@@ -113,6 +115,31 @@ def test_reconcile_preserves_original_occurrence_binding(monkeypatch, tmp_path):
     assert replay["effect"] == 0
     state = json.loads(next(tmp_path.glob("threads/*/state.json")).read_text())
     assert state["occurrence_id"] == "fixture-reply:run-a"
+
+
+def test_new_intent_after_authoritatively_absent_rebinds_to_current_wake(
+        monkeypatch, tmp_path):
+    adapter = Adapter()
+    row = event()
+    legacy = reply_kernel._intent(row, {
+        "action": "accept_contract", "payload": {"condition_id": "old"}
+    })
+    path = reply_kernel._state_path(tmp_path, row)
+    reply_kernel._write(path, {
+        "version": 1, "inventory_event_id": row["latest_event_id"],
+        "observation": row, "intent": legacy, "status": "reconcile_unknown",
+    })
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:run-b")
+    result = reply_kernel.run_wake(
+        adapter=adapter,
+        decide=lambda _context: {
+            "action": "accept_contract", "payload": {"condition_id": "new"}
+        },
+        state_root=tmp_path,
+    )
+    assert result["effect"] == 1
+    state = json.loads(path.read_text())
+    assert state["occurrence_id"] == "fixture-reply:run-b"
 
 
 def test_partial_external_action_resumes_only_after_authoritative_readback(tmp_path):

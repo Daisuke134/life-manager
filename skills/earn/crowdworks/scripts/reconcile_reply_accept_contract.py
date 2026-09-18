@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import sys
 from typing import Any, Mapping
+import importlib.util
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
 from runtime.host.resource_admission import resolve_unknown_occurrence
@@ -14,6 +15,12 @@ from runtime.host.resource_admission import resolve_unknown_occurrence
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from reply_adapter import CrowdWorksReplyAdapter  # noqa: E402
+_KERNEL_PATH = HERE.parents[3] / "skills/_shared/marketplace-core/scripts/reply_kernel.py"
+_SPEC = importlib.util.spec_from_file_location("crowdworks_reply_kernel", _KERNEL_PATH)
+if _SPEC is None or _SPEC.loader is None:
+    raise RuntimeError("reply_kernel_unavailable")
+_KERNEL = importlib.util.module_from_spec(_SPEC)
+_SPEC.loader.exec_module(_KERNEL)
 
 
 OWNER = "crowdworks-revenue-reply"
@@ -31,29 +38,6 @@ def _read_state(state_root: Path, thread_id: str) -> dict[str, Any] | None:
                 and intent.get("thread_id") == thread_id):
             return dict(value)
     return None
-
-
-def occurrence_effects_accounted(state_root: Path, occurrence: str,
-                                 target_thread_id: str) -> bool:
-    """Require every intent in one wake to be terminal or the verified target."""
-    matches: list[dict[str, Any]] = []
-    for path in sorted(state_root.glob("threads/*/state.json")):
-        try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, ValueError, json.JSONDecodeError):
-            continue
-        if isinstance(value, Mapping) and value.get("occurrence_id") == occurrence:
-            matches.append(dict(value))
-    if not matches:
-        return False
-    for value in matches:
-        intent = value.get("intent")
-        thread_id = intent.get("thread_id") if isinstance(intent, Mapping) else None
-        if thread_id == target_thread_id and value.get("status") == "reconcile_unknown":
-            continue
-        if isinstance(intent, Mapping) and value.get("status") != "verified":
-            return False
-    return True
 
 
 def official_accept_proof(*, owner: str, occurrence: str,
@@ -105,7 +89,7 @@ def reconcile(*, state_root: Path, owner: str, occurrence: str,
                                   readback=observed["readback"])
     if proof is None:
         raise RuntimeError("exact_official_accept_receipt_unavailable")
-    if not occurrence_effects_accounted(state_root, occurrence, thread_id):
+    if not _KERNEL.run_marker_accounted(state_root, occurrence, thread_id):
         raise RuntimeError("occurrence_effects_unaccounted")
     resolved = False
     if resolve:

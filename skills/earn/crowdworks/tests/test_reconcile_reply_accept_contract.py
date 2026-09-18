@@ -53,40 +53,40 @@ def test_mismatched_occurrence_cannot_use_another_intent_receipt():
     ) is None
 
 
-def test_one_uncertain_sibling_blocks_occurrence_resolution(tmp_path):
+def test_run_marker_requires_all_sibling_effects_accounted(tmp_path):
     module = load()
     occurrence = "crowdworks-revenue-reply:run-1"
-    first = tmp_path / "threads" / "first" / "state.json"
-    second = tmp_path / "threads" / "second" / "state.json"
-    first.parent.mkdir(parents=True)
-    second.parent.mkdir(parents=True)
-    first.write_text(json.dumps({
-        **state(occurrence), "status": "reconcile_unknown",
-    }), encoding="utf-8")
-    second.write_text(json.dumps({
-        "version": 1, "occurrence_id": occurrence, "status": "reconcile_unknown",
-        "intent": {"action": "reply", "thread_id": "other-thread"},
-    }), encoding="utf-8")
-    assert module.occurrence_effects_accounted(tmp_path, occurrence, "305271360") is False
+    module._KERNEL._write_run_marker(tmp_path, occurrence, [
+        {"thread_id": "305271360", "status": "pending", "effect": 1,
+         "readback": 0, "failed": 0, "reason": "reconcile_unknown"},
+        {"thread_id": "other-thread", "status": "pending", "effect": 1,
+         "readback": 0, "failed": 0, "reason": "reconcile_unknown"},
+    ])
+    assert module._KERNEL.run_marker_accounted(tmp_path, occurrence, "305271360") is False
 
 
-def test_target_uncertain_state_can_be_accounted_by_its_receipt(tmp_path):
+def test_run_marker_allows_verified_target_and_terminal_siblings(tmp_path):
     module = load()
     occurrence = "crowdworks-revenue-reply:run-1"
-    path = tmp_path / "threads" / "first" / "state.json"
-    path.parent.mkdir(parents=True)
-    path.write_text(json.dumps({
-        **state(occurrence), "status": "reconcile_unknown",
-    }), encoding="utf-8")
-    assert module.occurrence_effects_accounted(tmp_path, occurrence, "305271360") is True
+    module._KERNEL._write_run_marker(tmp_path, occurrence, [
+        {"thread_id": "305271360", "status": "pending", "effect": 1,
+         "readback": 0, "failed": 0, "reason": "reconcile_unknown"},
+        {"thread_id": "other-thread", "status": "verified", "effect": 1,
+         "readback": 1, "failed": 0, "reason": "submitted"},
+    ])
+    assert module._KERNEL.run_marker_accounted(tmp_path, occurrence, "305271360") is True
 
 
 def test_reconcile_is_read_only_without_resolve(tmp_path, monkeypatch):
-    module = load()
     state_path = tmp_path / "threads" / "item" / "state.json"
     state_path.parent.mkdir(parents=True)
     state_path.write_text(json.dumps({**state(), "status": "reconcile_unknown"}),
                           encoding="utf-8")
+    module = load()
+    module._KERNEL._write_run_marker(tmp_path, "crowdworks-revenue-reply:run-1", [
+        {"thread_id": "305271360", "status": "pending", "effect": 1,
+         "readback": 0, "failed": 0, "reason": "reconcile_unknown"},
+    ])
     monkeypatch.setattr(module, "read_provider_state", lambda *_args, **_kwargs: {
         "state": state(),
         "readback": {"verified": True, "provider_receipt_id": "condition-accepted:1"},

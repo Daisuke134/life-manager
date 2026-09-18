@@ -65,6 +65,60 @@ def _state_path(root: Path, row: Mapping[str, Any]) -> Path:
     return root / "threads" / hashlib.sha256(identity.encode()).hexdigest() / "state.json"
 
 
+def _run_marker_path(root: Path, occurrence_id: str) -> Path:
+    digest = hashlib.sha256(occurrence_id.encode()).hexdigest()
+    return root / "runs" / f"{digest}.json"
+
+
+def _write_run_marker(root: Path, occurrence_id: str | None,
+                      items: list[Mapping[str, Any]]) -> None:
+    if not isinstance(occurrence_id, str) or not occurrence_id.strip():
+        return
+    marker_items = [{key: item.get(key) for key in
+                     ("thread_id", "status", "effect", "readback", "failed", "reason")}
+                    for item in items]
+    uncertain = any(
+        item.get("failed") == 1
+        or item.get("status") == "pending"
+        or (item.get("effect") == 1 and item.get("readback") != 1)
+        for item in marker_items
+    )
+    _write(_run_marker_path(root, occurrence_id.strip()), {
+        "version": 1,
+        "occurrence_id": occurrence_id.strip(),
+        "status": "effect_unknown" if uncertain else "completed",
+        "items": marker_items,
+    })
+
+
+def run_marker_accounted(root: Path, occurrence_id: str,
+                         target_thread_id: str) -> bool:
+    """Require every item in one wake to be terminal before clearing its fence."""
+    try:
+        marker = json.loads(_run_marker_path(root, occurrence_id).read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return False
+    if (not isinstance(marker, Mapping)
+            or marker.get("version") != 1
+            or marker.get("occurrence_id") != occurrence_id
+            or not isinstance(marker.get("items"), list)
+            or not marker["items"]):
+        return False
+    target_seen = False
+    for item in marker["items"]:
+        if not isinstance(item, Mapping):
+            return False
+        thread_id = item.get("thread_id")
+        if thread_id == target_thread_id:
+            target_seen = True
+            continue
+        if (item.get("failed") == 1 or item.get("status") == "pending"
+                or item.get("effect") == 1 and item.get("readback") != 1
+                or item.get("effect") == 0 and item.get("readback") != 1):
+            return False
+    return target_seen
+
+
 @contextmanager
 def _lock(path: Path):
     lock_path = path.with_suffix(".lock")
@@ -373,6 +427,11 @@ def _run_locked(
 
     _assert_private_identity_safe(decision, private_identity_values)
     intent = _intent(row, decision)
+    # Reaching this branch means a new intent is being created (for example,
+    # after an authoritatively absent legacy intent). Bind it to this wake,
+    # even when the prior state carried an older occurrence.
+    if occurrence_id:
+        persisted_occurrence = occurrence_id
     _save({"version": 1, "inventory_event_id": inventory_event_id,
                   "observation": row, "intent": intent,
                   "status": "intent_persisted"})
@@ -522,7 +581,7 @@ def run_wake(*, adapter: ReplyAdapter,
         close = getattr(adapter, "close", None)
         if callable(close):
             close()
-    return {
+    result = {
         "status": "ok", "observed": len(items),
         "actionable": sum(item["status"] not in NO_EFFECT for item in items),
         "effect": sum(item["effect"] for item in items),
@@ -531,6 +590,8 @@ def run_wake(*, adapter: ReplyAdapter,
         "pending": sum(item["status"] == "pending" for item in items),
         "items": items,
     }
+    _write_run_marker(Path(state_root), occurrence_id, items)
+    return result
 
 
 def _load_provider(path: Path, argv: list[str]):
