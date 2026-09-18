@@ -75,7 +75,25 @@ test("provider-neutral ranking preserves weak and unknown rows but never returns
   ]);
 });
 
-test("provider ranking requires an explicit target-topic signal even when the model over-ranks an unrelated business event", () => {
+test("provider ranking trusts a bounded model AI decision for a technical event without keyword matching", () => {
+  const candidate = {
+    provider: "connpass",
+    event_ref: "connpass-event://event/407258",
+    canonical_url: "https://rumicar.connpass.com/event/407258/",
+    title: "[9/23 PM] Autonomous Driving & RumiCar Programming",
+    body: "A hands-on programming experience with RC cars led by a working engineer.",
+  };
+  const ranking = validateProviderCandidateRanking({ ranked_events: [{
+    event_ref: candidate.event_ref,
+    priority_class: "ai",
+    preference_fit: "strong",
+    preference_reason: "Technical AI-adjacent programming event.",
+  }] }, { candidates: [candidate], preferences: "Tokyo AI and technical builder events" });
+
+  assert.equal(ranking.ranked_events[0].auto_apply_eligible, true);
+});
+
+test("provider ranking honors the model's other class for an unrelated business event", () => {
   for (const body of ["酒粕・米麹から生まれるビジネスの話", "酒粕・米麹の専門家が登壇するビジネスイベント"]) {
     const fermentation = {
       provider: "luma",
@@ -86,9 +104,9 @@ test("provider ranking requires an explicit target-topic signal even when the mo
     };
     const ranking = validateProviderCandidateRanking({ ranked_events: [{
       event_ref: fermentation.event_ref,
-      priority_class: "startup",
-      preference_fit: "moderate",
-      preference_reason: "The model inferred a business opportunity.",
+      priority_class: "other",
+      preference_fit: "strong",
+      preference_reason: "The model classified this outside the target event topics.",
     }] }, { candidates: [fermentation], preferences: "AI crypto hackathon lightning talk startup events" });
     assert.equal(ranking.ranked_events[0].auto_apply_eligible, false, body);
     assert.deepEqual(eligibleRankedCandidates(ranking), [], body);

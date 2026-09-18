@@ -730,6 +730,21 @@ remaining source defect is the active fallback route consuming the same wake, no
 browser admission. The branch change below is source/test only and is not yet
 loaded in production.
 
+**Ranking gate evidence (2026-09-18):** The first canary on the route release
+`15e645340dea4410d67b079ea2b7d779056b56b8` reached both primary providers in
+run `18d641a708de4880-32603` / wake `wake-91c21d082f93c05e33a9004b` and ended
+`completed_no_effect/providers_exhausted`. Connpass recorded
+`candidate_count=10`, `ranked_count=10`, `priority_fit_eligible_count=3`, but
+`auto_apply_eligible_count=0` and dispatch `0`. The three model-ranked `ai /
+strong` refs were `394390`, `407256` and `407258`; official Connpass API
+readback identifies them as RumiCar autonomous-driving/programming events.
+The parent `EXPLICIT_RELEVANCE` keyword gate rejected all three because their
+topic vocabulary did not contain its fixed token list. Luma recorded
+`free_open=1 / calendar_free=0`. No provider Submit, official registration,
+Calendar event or bundle occurred. The targeted branch fix removes that
+hardcoded judgment and trusts the validated model `priority_class` plus
+`preference_fit`; an `other` or weak/unknown model result remains ineligible.
+
 **A15 dependency decision:** A15 remains the separate fleet fairness/recovery gate. It does **not** block Connector-specific diagnosis or source repair: the `203bbe8854` natural Connector run `18d6089253cdbf18-32608` acquired a browser slot, reached Connpass, and ended `completed_no_effect / provider_discovery_failed` at 2026-09-17 06:47 UTC. Its three Connpass direct attempts failed with `connpass_questionnaire_required`, each followed by `unsafe_agent_action`; Luma found 3 free/open events but Calendar-free 0. Do not alter A15's PID, admission DB, spec branch state outside this Connector section, or another browser/profile. A main-derived Connector release can be applied to the one loaded-idle Connector label after that run's terminal, without a fleet restart.
 
 1. **CN-C01 — Flexible questionnaire:** **DONE.** The existing Connector agent runner now chooses answers for unknown required Connpass input, textarea, select, radio and checkbox controls; the parent validates exact DOM controls/options and still requires official provider readback. Known profile values win when they match offered options; otherwise the agent supplies the answer and the same single-submit fence applies. Focused Browser Harness tests: 186/186.
