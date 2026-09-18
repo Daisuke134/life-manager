@@ -6,7 +6,7 @@ export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOM
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=writer-runtime-env.sh
 source "$SCRIPT_DIR/writer-runtime-env.sh"
-ARTICLE_PROVIDER="claude"
+ARTICLE_PROVIDER="${ARTICLE_PROVIDER:-codex}"
 ARTICLE_PROVIDER_COOLDOWN_SECONDS="300"
 LOG="${ARTICLE_RESUME_LOG:-$WRITER_LOG_DIR/article-resume.log}"
 TELEGRAM_TARGET="${TELEGRAM_TARGET_ID:-${GIG_REPORT_CHAT:-${TELEGRAM_CHAT_ID:-}}}"

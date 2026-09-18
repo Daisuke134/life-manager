@@ -23,6 +23,7 @@ from runtime.loop.lm_loop_apply import _plist, apply_registry, build_apply_plan,
 
 
 SHA = "a" * 40
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def registry(entrypoint="bin/example.sh"):
@@ -212,6 +213,66 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(environment["WRITER_CDP_PORT"], "9222")
         self.assertEqual(environment["WRITER_CDP_PROFILE"],
                          str(Path.home() / ".cloak/profiles/daily-driver"))
+
+    def test_writer_apply_replaces_stale_provider_and_model_root(self):
+        loop_id = "article-daily"
+        release = self._release("release-writer-provider").resolve()
+        entrypoint = release / "skills/writer-agent/article-daily.sh"
+        entrypoint.parent.mkdir(parents=True, exist_ok=True)
+        entrypoint.write_text("#!/bin/sh\nexit 0\n")
+        entrypoint.chmod(0o755)
+        registry_value = registry("skills/writer-agent/article-daily.sh")
+        entry = registry_value["loops"].pop("example")
+        entry.update({
+            "label": "ai.anicca.article-daily",
+            "state_root": "~/.local/state/life-manager/writer",
+            "log_root": "~/.local/state/life-manager/writer/logs",
+        })
+        registry_value["loops"][loop_id] = entry
+        (release / "config/loop-registry.json").write_text(json.dumps(registry_value))
+        current = self.root / "current-writer-provider"
+        current.symlink_to(release)
+        values = self._apply_kwargs(
+            current,
+            self.root / "apply-writer-provider.lock",
+            [str(release / "bin/lm-loop-run"), loop_id, str(release)],
+            label="ai.anicca.article-daily",
+            agents_dir_name="LaunchAgents-writer-provider",
+        )
+        rendered = build_apply_plan(registry_value, release, SHA)[0]
+        target = values["agents_dir"] / "ai.anicca.article-daily.plist"
+        installed = plistlib.loads(rendered["plist_bytes"])
+        installed["EnvironmentVariables"].update({
+            "ARTICLE_PROVIDER": "claude",
+            "ARTICLE_CLAUDE_BIN": "/legacy/bin/claude",
+            "ARTICLE_MODEL_ROOT": "/legacy/gig/releases/life-manager/current/skills/writer-agent",
+            "ARTICLE_MODEL_RUNNER": "/legacy/gig/releases/life-manager/current/runtime/model-runner.sh",
+        })
+        target.write_bytes(plistlib.dumps(installed, fmt=plistlib.FMT_XML, sort_keys=True))
+
+        result = apply_live(
+            release,
+            values["agents_dir"],
+            values["launchctl_safe"],
+            target=loop_id,
+            current=current,
+            lock_path=values["lock_path"],
+            event_writer=lambda *_: None,
+        )
+
+        self.assertTrue(result[0]["changed"])
+        environment = plistlib.loads(target.read_bytes())["EnvironmentVariables"]
+        self.assertEqual(environment["ARTICLE_PROVIDER"], "codex")
+        self.assertEqual(
+            environment["ARTICLE_MODEL_ROOT"],
+            str(release / "skills/writer-agent"),
+        )
+        self.assertEqual(
+            environment["ARTICLE_MODEL_STATE_ROOT"],
+            str(Path.home() / ".local/state/life-manager/writer"),
+        )
+        self.assertNotIn("ARTICLE_CLAUDE_BIN", environment)
+        self.assertNotIn("ARTICLE_MODEL_RUNNER", environment)
 
     def test_release_runtime_python_cache_tag_must_match(self):
         manifest = self.root / "RELEASE.json"
@@ -444,6 +505,60 @@ class LmLoopApplyTest(unittest.TestCase):
         )
         self.assertEqual(runtime.returncode, 0, runtime.stderr)
         self.assertEqual(runtime.stdout, environment["LIFE_MANAGER_PYTHON"])
+
+    def test_writer_runtime_env_does_not_let_dotenv_override_provider_contract(self):
+        entrypoint = self.root / "skills/writer-agent/article-daily.sh"
+        entrypoint.parent.mkdir(parents=True, exist_ok=True)
+        entrypoint.write_text("#!/bin/sh\nexit 0\n")
+        entrypoint.chmod(0o755)
+        value = registry("skills/writer-agent/article-daily.sh")
+        entry = value["loops"].pop("example")
+        entry.update({
+            "label": "ai.anicca.article-daily",
+            "state_root": "~/.local/state/life-manager/writer",
+            "log_root": "~/.local/state/life-manager/writer/logs",
+        })
+        value["loops"]["article-daily"] = entry
+        environment = plistlib.loads(
+            build_apply_plan(value, self.root, SHA)[0]["plist_bytes"]
+        )["EnvironmentVariables"]
+        env_file = self.root / "writer.env"
+        env_file.write_text(
+            "ARTICLE_PROVIDER=claude\n"
+            "ARTICLE_MODEL_RUNNER=/legacy/runtime/model-runner.sh\n",
+            encoding="utf-8",
+        )
+        runtime_contract = self.root / "skills/writer-agent/scripts/writer-runtime-env.sh"
+        runtime_contract.parent.mkdir(parents=True, exist_ok=True)
+        runtime_contract.write_text(
+            (ROOT / "skills/writer-agent/scripts/writer-runtime-env.sh").read_text(
+                encoding="utf-8"
+            ),
+            encoding="utf-8",
+        )
+        runtime = subprocess.run(
+            [
+                "bash", "-c",
+                'source "$ARTICLE_ROOT/scripts/writer-runtime-env.sh" && '
+                'printf "%s|%s|%s" "$ARTICLE_PROVIDER" '
+                '"${ARTICLE_MODEL_RUNNER:-unset}" "$ARTICLE_MODEL_ROOT"',
+            ],
+            text=True,
+            capture_output=True,
+            env={
+                **os.environ,
+                **environment,
+                "ARTICLE_ROOT": str(self.root / "skills/writer-agent"),
+                "ARTICLE_SKILL_DIR": str(self.root / "skills/writer-agent"),
+                "LIFE_MANAGER_REPO": str(ROOT),
+                "LIFE_MANAGER_ENV_FILE": str(env_file),
+            },
+        )
+        self.assertEqual(runtime.returncode, 0, runtime.stderr)
+        self.assertEqual(
+            runtime.stdout,
+            f'codex|unset|{self.root.resolve() / "skills/writer-agent"}',
+        )
 
     def test_polymarket_plists_project_managed_python_and_install_env(self):
         for loop_id, entrypoint in (
@@ -2714,10 +2829,15 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual(environment["AGENT_ECONOMY_OPERATIONAL_SETTING"], "kept")
 
     def test_writer_targets_retire_only_legacy_log_environment(self):
-        retired = {"ARTICLE_DAILY_LOG", "ARTICLE_MODEL_LOG", "GIG_LOG_DIR"}
+        retired = {
+            "ARTICLE_DAILY_LOG", "GIG_LOG_DIR", "ARTICLE_CLAUDE_BIN",
+            "ARTICLE_CODEX_BIN", "ARTICLE_CODEX_PROVIDER_API_KEY",
+            "ARTICLE_MODEL_RUNNER",
+        }
         loop_ids = (
             "article-audit-7day", "article-daily", "article-healthcheck",
-            "article-learn-whitelist", "article-resume", "article-self-improve",
+            "article-learn-whitelist", "article-repair-candidate", "article-resume",
+            "article-self-improve",
             "article-zenn-retry", "writer-claim-loop", "writer-craft-train",
             "writer-money-sync", "writer-opportunity-discovery",
             "writer-opportunity-response", "writer-report", "writer-sales-measure",
@@ -2758,6 +2878,11 @@ class LmLoopApplyTest(unittest.TestCase):
                 self.assertTrue(result[0]["changed"])
                 environment = plistlib.loads(target.read_bytes())["EnvironmentVariables"]
                 self.assertTrue(retired.isdisjoint(environment))
+                self.assertEqual(environment["ARTICLE_PROVIDER"], "codex")
+                self.assertEqual(
+                    environment["ARTICLE_MODEL_LOG"],
+                    str(Path(os.path.expanduser(entry["log_root"])) / "model-runner.log"),
+                )
                 self.assertEqual(environment["WRITER_CUSTOM_OPERATIONAL_SETTING"], "kept")
 
     def test_polymarket_target_retires_legacy_home_and_signer_environment(self):

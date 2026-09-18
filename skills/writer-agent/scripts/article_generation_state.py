@@ -717,6 +717,10 @@ def rebind_release(
             "provider-failed-safe",
             "provider-failed-ambiguous",
             "interrupted-safe",
+            # A provider may return success after doing no Writer work.  The
+            # empty boundary below is the proof that retrying the same prompt
+            # cannot replay an external effect.
+            "provider-returned",
         }
         if adopted_resume or advisory_resume:
             allowed_statuses.add("quality-repair-ready")
@@ -810,6 +814,8 @@ def begin(
             "provider-failed-safe",
             "interrupted-safe",
         }
+        if state.get("status") == "provider-returned" and safe:
+            allowed_statuses.add("provider-returned")
         if _failed_before_publication(state):
             allowed_statuses.add("provider-failed-ambiguous")
         if staged_resume:
@@ -1175,7 +1181,7 @@ def resume_decision(
             }
         if (
             state.get("status")
-            not in {"provider-failed-safe", "interrupted-safe"}
+            not in {"provider-failed-safe", "interrupted-safe", "provider-returned"}
             and not _failed_before_publication(state)
         ):
             return {"resumable": False, "reason": "generation-state-not-safe"}

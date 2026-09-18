@@ -678,13 +678,21 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                 existing_bytes = target_path.read_bytes() if target_path.is_file() else None
                 writer_loop_ids = {
                     "article-audit-7day", "article-daily", "article-healthcheck",
-                    "article-learn-whitelist", "article-resume", "article-self-improve",
+                    "article-learn-whitelist", "article-repair-candidate", "article-resume",
+                    "article-self-improve",
                     "article-zenn-retry", "writer-claim-loop", "writer-craft-train",
                     "writer-money-sync", "writer-opportunity-discovery",
                     "writer-opportunity-response", "writer-report", "writer-sales-measure",
                 }
                 writer_retired_environment_keys = (
-                    ("ARTICLE_DAILY_LOG", "ARTICLE_MODEL_LOG", "GIG_LOG_DIR")
+                    (
+                        "ARTICLE_DAILY_LOG", "ARTICLE_MODEL_LOG", "GIG_LOG_DIR",
+                        # These executable/provider overrides came from the retired
+                        # gig Writer plist. Keep them out of the shared runner so a
+                        # stale Claude binary cannot bypass the immutable release.
+                        "ARTICLE_CLAUDE_BIN", "ARTICLE_CODEX_BIN",
+                        "ARTICLE_CODEX_PROVIDER_API_KEY", "ARTICLE_MODEL_RUNNER",
+                    )
                     if item["loop_id"] in writer_loop_ids else ()
                 )
                 retired_environment_keys = {

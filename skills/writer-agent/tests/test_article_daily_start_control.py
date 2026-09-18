@@ -49,6 +49,35 @@ QUARANTINE = load(
 
 
 class ArticleStartPolicyTest(unittest.TestCase):
+    def test_empty_successful_provider_return_is_resumable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_root = root / "state"
+            run_id = "20260822-000000"
+            run = state_root / "runs" / run_id
+            run.mkdir(parents=True)
+            prompt = run / "article-daily-prompt.txt"
+            prompt.write_text("immutable prompt\n", encoding="utf-8")
+            ledger = state_root / "articles.jsonl"
+            ledger.write_text("", encoding="utf-8")
+
+            GENERATION.initialize(run, run_id, prompt, ledger)
+            GENERATION.begin(run, run_id, prompt, ledger, owner_pid=os.getpid())
+            result = GENERATION.record_result(run, run_id, prompt, ledger, 0)
+
+            self.assertEqual(result["status"], "provider-returned")
+            resume = GENERATION.resume_decision(run, run_id, prompt, ledger)
+            self.assertTrue(resume["resumable"])
+            self.assertEqual(resume["status"], "provider-returned")
+            self.assertEqual(
+                START.decide(state_root, "2026-08-22"),
+                {
+                    "action": "resume-generation",
+                    "run_id": run_id,
+                    "reason": "same-jst-day-prepublication-provider-failure",
+                },
+            )
+
     def test_capacity_drain_archives_partial_provider_and_keeps_resume_identity(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
