@@ -294,6 +294,10 @@ provider effect and it does not replace the ordered repair cursor in
 - A read-only admission snapshot now passes `PRAGMA integrity_check` and shows 98 queued rows,
   17,300 occurrence rows, 74 `effect_unknown` rows and one reservation. The historical 7,922-row
   burst has therefore been reduced, but the shared fence is not repaired while unknown rows remain.
+- The central cleanup owner then removed exactly one unprotected immutable release and reclaimed
+  80,867,742 bytes without deleting a current, loaded, running or pinned release. The latest
+  read-only sample after that cleanup showed about 5.1 GiB available, `integrity_check=ok`, 101
+  queued rows and 73 unknown rows; these counters are volatile while the schedulers continue.
 - Paid has recent terminal `pass` receipts. Reply has recent passes, but also fail-closed
   collector results (`inbox_coverage_incomplete` / `missing_container`). Storefront remains
   `resource_effect_unknown`. None of these statuses authorizes a blind retry.
@@ -354,7 +358,9 @@ diff --git a/runtime/loop/lm_loop_apply.py b/runtime/loop/lm_loop_apply.py
 
 Add a regression that installs a Reply plist containing the legacy `9222` environment and proves
 the loaded readback cannot be accepted until it is replaced by the generated `9223` contract. This
-is a code change and remains **not implemented by this spec-only update**.
+is implemented on branch `fix/coconala-loaded-env-20260919` at commit `0071221f84`; its focused
+suite passes (`103 passed, 31 subtests passed`). It is not merged into `main` or loaded into
+production yet, so the live gate is still open.
 
 **Admission/storage repair files:** the shared ledger implementation is
 `runtime/host/resource_admission.py` (its `_database()` path currently opens SQLite with
@@ -367,12 +373,15 @@ patch is safe until the whole unknown occurrence has an exact provider receipt.
 
 **Remaining ordered TODO:**
 
-1. Recover safe disk headroom and audit the shared admission store. Protect current, loaded and
-   pinned releases, then use the owner cleanup path to remove only disposable artifacts. Confirm
+1. Recover safe disk headroom and audit the shared admission store. The first central cleanup pass
+   reclaimed 80,867,742 bytes; continue only through the owner cleanup path. Protect current, loaded
+   and pinned releases, then use that path to remove only disposable artifacts. Confirm
    `admission-v2.sqlite3` integrity, queue/unknown counts and lock errors through the official
    admission tooling; do not edit or delete rows by hand.
-2. Implement the loaded-environment invariant and regression above; target-apply all four lanes
-   from one current main-derived release and read back argv plus browser environment.
+2. Review and merge the loaded-environment invariant from
+   `fix/coconala-loaded-env-20260919`, cut one immutable release from that main commit, and
+   target-apply all four lanes from it. Read back argv plus browser environment after the release
+   watcher settles.
 3. Use the existing official Coconala applied-history reader to reconcile
    `18d5f9cd9f029658-33307`; close it only with an exact provider receipt for the whole wake.
    Do not edit the admission database manually and do not retry while it is unknown.
