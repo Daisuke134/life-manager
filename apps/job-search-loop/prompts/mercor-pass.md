@@ -50,7 +50,7 @@ Pass order:
    receives a real keyboard value. Never use `.value =` or synthetic `input`/`change` events
    as the search action. After every query, read back the exact input value, current page URL,
    and visible card list; save the query label, input value, page URL, and card list incrementally
-   under the current `evidence_dir` before starting the next query. If the input value or cards
+   in a `query-*.json` file under the current `evidence_dir` before starting the next query. If the input value or cards
    do not reflect the query, retry once with `type_target`; if it still does not match, record
    that query as unavailable and continue without treating the default cards as query results.
    Treat the union of the six query card lists as the first candidate queue; rank that union
@@ -61,6 +61,19 @@ Pass order:
    Explore pagination while a plausible unseen high/medium-fit candidate from the query union
    remains. Search-result collection alone does not inspect those candidates; a title match is
    only a reason to inspect, and eligibility still requires live detail evidence.
+   The context includes `recently_inspected_listings` with the prior decision, ranking band,
+   provider-fit status, and application state. Treat `submitted_pending_review_observed` and
+   `no_reasonable_shot` as durable candidate-local outcomes; do not reopen them merely to fill
+   the detail budget. A `listing_detail_not_rendered` record may be retried after unseen
+   candidates are exhausted. A Japanese/Japan title alone does not outrank a high/medium-fit
+   software or AI role. Do not open a low-band Japanese/Japan contradiction merely to satisfy
+   the priority queue. Record every skipped low, submitted, or recent card in
+   `inspected_listings` with its visible-card evidence and continue; a card-only record may use
+   `application_state: card_only` and does not consume a detail-page slot.
+   Twelve candidate detail pages is a maximum, not a minimum. When the current query union has
+   no unseen high/medium candidate after submitted/recent filtering, advance its visible
+   pagination or the next Explore page to discover more candidates before opening low-band
+   filler details. Stop the wake when the bounded pages contain no remaining plausible candidate.
    Collect and deduplicate each query's visible cards before opening any detail; if the
    control is unavailable, record that observation and continue with the default Explore queue.
    Start every wake at Explore page 1 when pagination is visible. Collect the distinct listing
@@ -71,10 +84,10 @@ Pass order:
    displaced by a newer but contradictory specialist page. If a high or medium-fit detail shows
    every required step complete and a visible Submit control, submit it immediately after the
    guard and official readback; do not postpone that action until all later pages are inspected.
-   Inspect every Japanese/Japan card found in the bounded pages before spending the
-   twelve-detail budget on lower-priority work. A nonblocked pass is invalid if that
-   priority queue was observed but omitted. `submitted_pending_review` entries are
-   observe-only and must never be resubmitted.
+   Treat Japanese/Japan eligibility as a ranking feature, not a detail-page quota. A
+   material contradiction remains low and may be recorded from the visible card without
+   opening its detail. `submitted_pending_review` entries are observe-only and must never
+   be resubmitted.
 2. Observe existing applications from the application-list cards only. Do not open existing
    incomplete application cards before the target search queue; record their visible state and
    continue to the target queries first. Inspect an existing
@@ -91,8 +104,8 @@ Pass order:
    every inspected listing in `inspected_listings` with its live URL, application state, and
    decision.
 3. Maintain a queue of distinct new listings. Before opening detail pages, compare visible
-   cards with `recently_inspected_listing_ids` and use model judgment to inspect the strongest
-   truthful-fit unseen candidates first. The highest-priority card by visible title is the one
+   cards with both `submitted_listing_ids` and `recently_inspected_listings`, then use model
+   judgment to inspect the strongest truthful-fit unseen candidates first. The highest-priority card by visible title is the one
    matching the verified AI, agent, software, automation, system-development, Japanese or
    language/audio profile; inspect it before HR, finance, chemistry, safety, or unrelated foreign-
    language cards. Revisit a recent candidate only after unseen candidates

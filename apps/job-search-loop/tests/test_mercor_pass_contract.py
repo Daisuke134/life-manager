@@ -82,6 +82,36 @@ class MercorPassContractTests(unittest.TestCase):
             )
             self.assertEqual(context["recently_inspected_listing_ids"], ["list-seen"])
 
+    def test_context_preserves_recent_inspection_dispositions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory)
+            record_inspections(state, {
+                "inspected_listings": [{
+                    "listing_id": "list-recent",
+                    "title": "Cloud role",
+                    "url": "https://work.mercor.com/explore?listingId=list-recent",
+                    "decision": "no_reasonable_shot",
+                    "ranking_band": "low",
+                    "provider_fit_status": "blocked",
+                    "application_state": "not started",
+                }],
+            }, run_id="run-1")
+            context = build_context(
+                state_root=state,
+                profile_path=self._profile(state / "profile.json"),
+                resume_path=state / "resume.pdf",
+                cdp_url="http://127.0.0.1:9222",
+            )
+            self.assertEqual(context["recently_inspected_listings"], [{
+                "listing_id": "list-recent",
+                "title": "Cloud role",
+                "url": "https://work.mercor.com/explore?listingId=list-recent",
+                "decision": "no_reasonable_shot",
+                "ranking_band": "low",
+                "provider_fit_status": "blocked",
+                "application_state": "not started",
+            }])
+
     @patch("job_search_loop.mercor_pass._sysctl")
     @patch("job_search_loop.mercor_pass.platform.mac_ver", return_value=("15.6", ("", "", ""), ""))
     @patch("job_search_loop.mercor_pass.platform.machine", return_value="arm64")
@@ -407,6 +437,14 @@ class MercorPassContractTests(unittest.TestCase):
             "Treat the union of the six query card lists as the first candidate queue",
             "rank that union before opening any default Explore card",
             "Do not select a candidate by default Explore DOM order",
+            "Twelve candidate detail pages is a maximum, not a minimum",
+            "A Japanese/Japan title alone does not outrank a high/medium-fit software or AI role",
+            "Do not open a low-band Japanese/Japan contradiction merely to satisfy the priority queue",
+            "Record every skipped low, submitted, or recent card",
+            "recently_inspected_listings",
+            "no_reasonable_shot",
+            "submitted_pending_review_observed",
+            "query-*.json",
             "Do not open existing incomplete application cards before the target search queue",
             "human_gate_store",
             "application_report_outbox",
@@ -424,6 +462,10 @@ class MercorPassContractTests(unittest.TestCase):
         self.assertNotIn("Never click an existing incomplete application", prompt)
         self.assertNotIn("Do not click `Continue application` when a person-bound step remains", prompt)
         self.assertNotIn("Do not resume an already-incomplete application", prompt)
+        self.assertNotIn(
+            "Inspect every Japanese/Japan card found in the bounded pages before spending",
+            prompt,
+        )
 
     def test_legacy_job_hunter_reference_only_points_to_mercor_canon(self):
         reference = (
@@ -524,7 +566,7 @@ class MercorPassContractTests(unittest.TestCase):
                 }],
             })
 
-    def test_nonblocked_pass_cannot_quit_after_two_of_twelve_visible_candidates(self):
+    def test_nonblocked_pass_may_stop_when_remaining_candidates_are_low(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             dom = root / "page.html"
@@ -539,10 +581,20 @@ class MercorPassContractTests(unittest.TestCase):
                 ],
                 "evidence": {"dom_path": str(dom)},
             }
-            with self.assertRaisesRegex(ValueError, "bounded_scan_incomplete:2_of_12"):
-                validate_bounded_scan(result)
+            validate_bounded_scan(result)
 
-    def test_query_union_prevents_early_exit_after_default_detail(self):
+    def test_nonblocked_pass_cannot_exceed_twelve_detail_pages(self):
+        result = {
+            "status": "observed_no_action",
+            "inspected_listings": [
+                {"listing_id": f"list_{index}"} for index in range(13)
+            ],
+            "evidence": {"dom_path": ""},
+        }
+        with self.assertRaisesRegex(ValueError, "bounded_scan_exceeded:13_of_12"):
+            validate_bounded_scan(result)
+
+    def test_query_union_does_not_force_low_detail_fill(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             query_cards = {
@@ -574,8 +626,7 @@ class MercorPassContractTests(unittest.TestCase):
                 ],
                 "evidence": {"dom_path": str(final_detail)},
             }
-            with self.assertRaisesRegex(ValueError, "bounded_scan_incomplete:2_of_12"):
-                validate_bounded_scan(result, root)
+            validate_bounded_scan(result, root)
             validate_bounded_scan({**result, "status": "submitted"}, root)
 
     def test_transient_blocker_may_end_a_partial_scan(self):
@@ -618,6 +669,27 @@ class MercorPassContractTests(unittest.TestCase):
             result["inspected_listings"] = [
                 {"listing_id": "list_jp"}
             ]
+            validate_priority_scan(result, root)
+
+    def test_priority_scan_reads_structured_query_cards(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "query-japan.json").write_text(json.dumps({
+                "query_label": "Japan",
+                "input_value": "Japan",
+                "cards": [{
+                    "listing_id": "list_jp_card",
+                    "title": "Japanese Generalist Expert",
+                }],
+            }), encoding="utf-8")
+            result = {"status": "observed_no_action", "inspected_listings": []}
+            with self.assertRaisesRegex(ValueError, "priority_scan_incomplete"):
+                validate_priority_scan(result, root)
+            result["inspected_listings"] = [{
+                "listing_id": "list_jp_card",
+                "decision": "no_reasonable_shot",
+                "ranking_band": "low",
+            }]
             validate_priority_scan(result, root)
 
     def test_current_skill_and_spec_match_continuous_application_policy(self):
