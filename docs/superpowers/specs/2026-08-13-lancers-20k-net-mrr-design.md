@@ -3330,12 +3330,13 @@ next executable atom; it does not turn stale snapshots into current provider tru
   identities, not MRR, and must be audited read-only before any archive or replacement mutation.
 - **Browser:** the dedicated Lancers browser owner was recovered through the managed launchd path;
   CDP `:9227` is listening with one `about:blank` page. Profile and session files were preserved.
-- **Paid:** the latest paid envelope is `effect=0`, `failed=0`, `items=0`, but its admission
-  occurrence remains fenced as `effect_unknown`; no PaymentReceipt exists. The fence is not cleared
-  from a local zero alone.
+- **Paid:** the latest paid envelope is `effect=0`, `failed=0`, `items=0`, and no PaymentReceipt
+  exists. The old Paid occurrence was released only after its same-occurrence run marker proved
+  `status=completed / effect=0`; the current zero remains a source observation, not revenue.
 - **Admission:** Lancers Work Sync is blocked by `resource_capacity_busy`. Nine old deterministic
-  borrow occurrences owned by other loops remain `effect_unknown`; Lancers Paid and Storefront also
-  have fenced occurrences. No admission database row is edited manually. The only permitted release
+  borrow occurrences owned by other loops remain `effect_unknown`; Lancers Application and Storefront
+  still have fenced occurrences. The old Negotiate replay-zero occurrence was released from its
+  same-occurrence marker. No admission database row is edited manually. The only permitted release
   is an exact provider readback or an explicit pre-effect proof tied to the same owner and occurrence.
 - **Revenue:** active recurring contracts 0, DeliveryReceipt 0, PaymentReceipt 0, bank matches 0,
   and verified MRR is **USD 0**. Applications, proposal amounts, listing prices and search exposure
@@ -3344,15 +3345,16 @@ next executable atom; it does not turn stale snapshots into current provider tru
 ### Ordered remaining TODO
 
 1. **Admission fence reconciliation (current blocker).** For each deterministic stale owner and
-   Lancers Paid/Storefront occurrence, obtain the exact provider or pre-effect evidence and close
+   Lancers Application/Storefront occurrence, obtain the exact provider or pre-effect evidence and close
    only that occurrence through the supported admission resolver. Keep unresolved fences closed to
    retries.
 2. **Fresh Work Sync inventory.** After the deterministic capacity fence is resolved, run one
    source-complete Work Sync wake and update boards, proposal funnel, contract candidates, finance
    and proposal-to-project attribution from the official readback.
-3. **Paid and Storefront effect fences.** Reconcile the existing Paid no-effect run and the
-   Storefront listing run one by one; preserve every official listing and receipt until its exact
-   status is read back. Do not archive the six additional listings from a local assumption.
+3. **Storefront effect fence and Paid source.** Reconcile the Storefront listing run one by one;
+   keep Paid on source-complete zero until a PaymentReceipt exists. Preserve every official listing
+   and receipt until its exact status is read back. Do not archive the six additional listings from a
+   local assumption.
 4. **ContractReceipt promotion.** When a positive project, monthly offer or Storefront contract
    candidate appears, read back its official ID, scope, price, due date and funding/escrow state;
    append one ContractReceipt only after that detail readback.
