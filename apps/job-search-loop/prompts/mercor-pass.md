@@ -94,6 +94,14 @@ Pass order:
    continue to the target queries first. Inspect an existing
    incomplete application only through its application card, then open its detail once when
    the card is a truthful-fit candidate. Continue application when the next step is reversible,
+   Existing application cards are buttons, not links. In the observed application-list DOM,
+   use the exact `<button data-test="card">` whose text contains the target title and step
+   count. Do not search for an href or construct a listing URL. Click that same exact observed
+   application-card button once, wait for the application detail or URL to change, and read back
+   the title, step count, and URL. If the physical click leaves the page unchanged, invoke
+   `.click()` once on that same exact observed application-card button and wait again. Only after
+   both attempts may you record `listing_detail_not_rendered`; an absent href is not a broken
+   application card.
    and finish consecutive reversible steps: resume/profile upload, ordinary written questions, availability, location,
    work authorization, or other factual controls answered from verified profile facts. Save
    and read back progress after each such step, then resume the same application on a later
