@@ -714,96 +714,88 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 
 ### Connector active goal and remaining TODO
 
-**Status: OPEN.** Connector is not complete. The historical Connpass registration and
-Calendar replay proof remain valid evidence, but they do not close the current
-post-repair acceptance gate.
+**Status: OPEN.** Connector source, browser authentication, Calendar reading and
+provider readback are working. The requested new-effect gate is not closed.
+Historical registrations are evidence only and are not reused as the new event.
 
-**Current production readback (2026-09-18 23:20 UTC):**
+**Current production readback (2026-09-18 23:27 UTC):**
 
-- `ai.anicca.life-manager-connector-native` is loaded-idle on complete release
-  `0812457f7b76a845aa14ff7fee5e790fd6cd915c`; installed SHA and event SHA match.
-  Current global release is newer (`d77b006d`), so the next step is a loaded-idle
-  reconcile to that complete release before the next natural wake.
-- Latest natural wake `wake-8df85ee1b5dfff6f5b52a9b9` reached
+- Current global release is complete `d77b006d42e8bf5035f1e220092e7b5633fbaacc`.
+  Connector is loaded-idle on complete release `0812457f7b76a845aa14ff7fee5e790fd6cd915c`;
+  installed/event SHA match for the last terminal, and the next natural wake must
+  reconcile to the newer current release.
+- Latest natural wake `wake-8df85ee1b5dfff6f5b52a9b9` ended
   `completed_no_effect/providers_exhausted`; Submit 0, Calendar create 0,
-  applied bundle 0, and `effect_unknown=0`.
-- Connpass discovery observed 279 events, 244 API-level free/open rows and 9
-  Calendar-free candidates. Official detail readback rejects the dispatched
-  candidates: RumiCar and AWS rows are paid; the AX row has a paid general tier
-  and a restricted LT tier; the free `406107` gathering is restricted to people
-  attending its main workshop; CoderDojo rows are child/mentor roles; the other
-  afterparty is paid.
-- Luma discovery observed 10 cards, normalized 6, found one free/open candidate
-  and zero Calendar-free candidates.
-- Connpass authentication is repaired through the existing GitHub OAuth path;
-  official dashboard readback succeeds and event `404714` is `registered`.
-  `404714` is an existing registration and cannot be reused as the new-effect
-  acceptance event. Session vault dump/keepalive also succeeds for Connpass and
-  Luma.
-- PR #5631 contains a Connector-only observability improvement but remains open
-  and `UNSTABLE` because the shared OSS manifest check reports unrelated
-  `runtime/agent-runner/agent_runner.py` and `skills/_shared` mismatches. It is
-  not loaded in production.
+  bundle 0, effect_unknown 0.
+- Connpass latest audit: observed 279, API free/open 244, Calendar-free 9.
+  Official detail gates reject the dispatched candidates: RumiCar and AWS are
+  paid; AX has a paid general tier and restricted LT tier; CoderDojo rows are
+  child/mentor roles; the free `406107` afterparty is restricted to attendees
+  of its main workshop.
+- Luma latest audit: observed 10, normalized 6, free/open 1,
+  Calendar-free 0.
+- Direct Calendar reader returned 119 timed busy intervals in the 28-day window.
+  Therefore the calendar has many gaps. The no-work result is candidate-level,
+  not a claim that every day is full: DB Square main workshop `404789` is free
+  and relevant at 19:00–20:30 JST, but an existing 19:45–20:30 busy interval
+  overlaps it; its 20:30–21:30 afterparty `406107` is free but participant-
+  restricted. The existing whole-event non-overlap gate is correct.
+- Connpass GitHub OAuth recovery is complete. Dashboard readback is authenticated,
+  event `404714` is officially `registered`, and vault keepalive succeeds.
+  `404714` is an existing effect and cannot close the new-effect gate.
+- PR #5631 is still open/unstable because the shared OSS manifest check reports
+  unrelated `runtime/agent-runner/agent_runner.py` and `skills/_shared` mismatches.
 
-**Observed Connector boundary:** the browser foundation, authentication, Calendar
-read, Luma/Connpass discovery, official pre-submit readback and paid/restricted
-provider guards all work. The current no-effect is truthful provider no-work,
-not a browser crash, login failure or Calendar failure. Do not loosen the
-relevance gate or submit child-only, paid, participant-only or restricted tiers.
-
-**Ideal Connector flow:**
+**Ideal flow:**
 
 ```mermaid
 flowchart TD
   W[1800s natural wake] --> A[Host admission: browser occurrence]
-  A -->|capacity/effect fence| Q[Queued or blocked terminal; no provider work]
+  A -->|capacity/effect fence| Q[Queue/block; no provider work]
   A --> B[Connector run.sh]
-  B --> C[ensure_browser.sh + owner GC]
-  C --> D[Calendar busy inventory]
+  B --> C[ensure_browser.sh + Connector owner GC]
+  C --> D[28-day Google Calendar busy inventory]
   D --> E[Luma discovery]
-  E --> F{free, open, in-person, relevant, Calendar-free?}
+  E --> F{free, open, in-person, relevant, wholly Calendar-free?}
   F -->|yes| G[Official pre-submit readback]
   F -->|none| H[Connpass discovery]
-  H --> I{free, open, in-person, relevant, Calendar-free?}
+  H --> I{free, open, in-person, relevant, wholly Calendar-free?}
   I -->|no| N[Truthful no-work terminal]
   I -->|yes| G
-  G -->|registered/pending| J[Evidence reconciliation; no Submit]
+  G -->|registered/pending| J[Evidence reconciliation; Submit 0]
   G -->|absent| K[Existing provider adapter Submit]
   K --> L[Official registered/pending readback]
   L --> M[Idempotent Calendar create]
   M --> R[Independent Calendar exact-one readback]
   R --> S[Bundle + Telegram terminal]
-  S --> T[Two natural replays: Submit 0, Calendar duplicate 0]
+  S --> T[Two natural replays: Submit 0, duplicate 0]
   J --> M
 ```
 
-**Remaining TODO, in execution order:**
+**Remaining TODO, in order:**
 
-1. Reconcile the idle Connector label to the current complete main-derived release
-   `d77b006d`; verify installed argv, event SHA and next terminal all match.
-2. Resolve the shared OSS manifest mismatch, then merge/load PR #5631 so the
-   provider-specific no-effect boundary is visible in production. Do not edit
-   shared runtime or `skills/_shared` from the Connector owner worktree.
-3. Keep the existing authenticated Connpass/Luma session warm. If official
-   readback ever returns `login_required`, restore through the existing GitHub
-   path and dump the vault before any provider retry.
-4. Wait for a new event that satisfies every official gate: free, open,
-   in-person, relevant, Calendar-free, and not already registered. Do not use
-   `404714` or any historical bundle as the new-effect proof.
-5. On that event, verify provider registration ID/state → Google Calendar event
-   exact count 1 via independent readback → provider/evidence/Telegram receipts
-   and durable bundle.
-6. Observe two subsequent natural wakes on the same loaded SHA with official
-   provider state still `registered/pending`, Submit 0, Calendar exact count 1,
-   and duplicate count 0.
-7. Mark Connector closed only after steps 1–6; then advance to Coconala Apply,
-   Reply, Paid and Storefront. Until then, do not report Connector complete.
+1. Reconcile the idle Connector label to current complete release `d77b006d`,
+   then verify installed SHA, event SHA and next natural terminal match.
+2. Resolve the shared OSS manifest mismatch and merge/load PR #5631 so the
+   provider-specific no-effect reason is visible in production. Connector does
+   not edit `runtime/` or `skills/_shared`.
+3. Keep Connpass/Luma authentication warm through the existing session vault;
+   if official readback returns login_required, use the existing GitHub OAuth
+   recovery and dump the vault before retrying.
+4. Wait for a **new** event satisfying every official gate: free, open,
+   in-person, relevant, wholly Calendar-free, and not already registered.
+5. Verify provider registration state/ID → Calendar event exact count 1 via
+   independent API readback → durable provider/evidence/Telegram receipts.
+6. Observe two subsequent natural wakes on the same loaded SHA with Submit 0,
+   Calendar exact count 1 and duplicate count 0.
+7. Close Connector only after 1–6, then advance to Coconala Apply, Reply, Paid
+   and Storefront.
 
-**Done condition:** source merged to main, complete immutable release loaded,
-owner browser lock held without orphan mass-close, new official provider effect,
-Calendar exact-one independent readback, durable evidence/Telegram receipts, and
-two replay-zero natural wakes. Tests, exit 0, loaded status, screenshots or a
-historical registration alone never satisfy this condition.
+**Done condition:** source merged to main; complete immutable release loaded;
+owner browser lock held without unknown-context mass cleanup; new official
+provider effect; independent Calendar exact-one; durable receipts; and two
+replay-zero natural wakes. Tests, exit 0, screenshots, existing 404714 or a
+full-looking calendar do not satisfy it.
 
 ### Atomic remaining execution list — current cursor A15
 
