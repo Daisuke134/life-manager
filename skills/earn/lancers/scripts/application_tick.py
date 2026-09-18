@@ -551,7 +551,16 @@ def _close_owned_page(page: Any, runtime: Any = None) -> bool:
     try:
         page.close()
         return True
-    except Exception:
+    except Exception as error:
+        message = str(error).lower()
+        if "page.handlejavascriptdialog" in message and "no dialog is showing" in message:
+            try:
+                page.close()
+                return True
+            except Exception as retry_error:
+                retry_message = str(retry_error).lower()
+                if "page.handlejavascriptdialog" in retry_message and "no dialog is showing" in retry_message:
+                    return True
         _force_stop_playwright_process(process)
         return False
     finally:
