@@ -643,11 +643,12 @@ async function runMinimalConnectorWake(input = {}, injected = {}) {
           sessionExpiredReason = sessionExpiredReason || lastSafeReason;
           break;
         }
-        const knownNoEffect = (provider === "connpass" && [
-          "connpass_registration_unavailable",
-          "connpass_tier_unavailable",
-          "connpass_questionnaire_required",
-        ].includes(lastSafeReason))
+          const knownNoEffect = (provider === "connpass" && [
+            "connpass_registration_unavailable",
+            "connpass_tier_unavailable",
+            "connpass_confirm_unavailable",
+            "connpass_questionnaire_required",
+          ].includes(lastSafeReason))
           || (provider === "luma" && ["luma_required_profile_field_unavailable", "private_value_unavailable"].includes(operationSafeReason(operation, lastSafeReason)));
         if (knownNoEffect) continue;
         consecutiveFailures += 1;
