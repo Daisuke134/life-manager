@@ -1043,7 +1043,7 @@ work item and leave a sibling trace unchanged.
 
 **Not done / blockers:**
 
-- Paid launchd is `not running`, exit `75`; latest target run `18d642f270ac5d70-4690` ended with
+- Paid launchd is `not running`, exit `75`; latest target run `18d6433866dccd98-13221` ended with
   `host_admission_deferred:resource_effect_unknown`; stale occurrence
   `crowdworks-revenue-paid:18d62cf32eb0c678-48194` remains `claimed`/`effect_unknown=1` after a legacy
   provider-inventory failure without a durable marker. The new release was applied and kickstarted once,
