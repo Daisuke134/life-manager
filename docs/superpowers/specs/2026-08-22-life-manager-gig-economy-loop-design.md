@@ -251,7 +251,7 @@ The dedicated label `ai.anicca.life-manager-upwork-free-loop` is loaded from imm
 zero, updated only `observed_at`, reproduced identical official evidence hashes and emitted zero
 stderr bytes; no proposal, Connects or payment effect occurred.
 
-### 0.2 Coconala live gate and current repair cursor (measured 2026-09-18)
+### 0.2 Coconala live gate and current repair cursor (measured 2026-09-18/19)
 
 This section records the current Coconala production boundary. It does not authorize a new
 provider effect and it does not replace the ordered repair cursor in
@@ -275,11 +275,22 @@ provider effect and it does not replace the ordered repair cursor in
   retainer applications). Request `5276533` is independently tied to official offer `6412654`.
   This proves historical single/retainer capability, not a current successful wake.
 - Current Apply wakes remain blocked by `resource_effect_unknown` with `effect=0` and
-  `readback=0`. The one durable unknown row is
-  `hf-gig-apply-direct:18d5f9cd9f029658-33307` (`claimed/effect_unknown=1`). The matching later
-  pass `46013` recorded four actionable candidates, zero reported effect, zero readback and one
-  failure; one candidate (`5276533`) was later recovered by exact official readback. The wake
-  fence remains until the whole occurrence has an exact provider proof.
+  `readback=0`. The Coconala Apply occurrence still held by the fence is
+  `hf-gig-apply-direct:18d5f9cd9f029658-33307` (`claimed/effect_unknown=1`); the host database
+  currently has 74 unknown occurrences across owners, so this is a host-wide admission incident,
+  not an Apply-only queue. The matching later pass `46013` recorded four actionable candidates,
+  zero reported effect, zero readback and one failure; one candidate (`5276533`) was later recovered
+  by exact official readback. The Apply wake fence remains until the whole occurrence has an exact
+  provider proof.
+- The host audit records the causal infrastructure incident: `admission-v2.sqlite3` accumulated
+  7,922 queued occurrences after disk-full and database-locked errors; the audit also records that
+  Coconala browser `:9223` was healthy (issue #5590). This is evidence for an admission/storage
+  outage, not evidence of a provider or browser outage.
+- A fresh host snapshot (2026-09-19) reports about 3.3 GiB free in `df` and 4.24 GiB available via
+  `statvfs` on the Life Manager volume. That is above the 512 MiB immediate floor but is still
+  low enough to keep SQLite and release writes at risk. The process table contains two long-lived
+  `Z` entries: one defunct child of CloakBrowser Chromium and one defunct child of ChatGPT. No
+  unknown executable was found; these are host-hygiene findings, not proof of malware.
 - Paid has recent terminal `pass` receipts. Reply has recent passes, but also fail-closed
   collector results (`inbox_coverage_incomplete` / `missing_container`). Storefront remains
   `resource_effect_unknown`. None of these statuses authorizes a blind retry.
@@ -344,27 +355,46 @@ is a code change and remains **not implemented by this spec-only update**.
 
 **Remaining ordered TODO:**
 
-1. Implement the loaded-environment invariant and regression above; target-apply all four lanes
+1. Recover safe disk headroom and audit the shared admission store. Protect current, loaded and
+   pinned releases, then use the owner cleanup path to remove only disposable artifacts. Confirm
+   `admission-v2.sqlite3` integrity, queue/unknown counts and lock errors through the official
+   admission tooling; do not edit or delete rows by hand.
+2. Implement the loaded-environment invariant and regression above; target-apply all four lanes
    from one current main-derived release and read back argv plus browser environment.
-2. Use the existing official Coconala applied-history reader to reconcile
+3. Use the existing official Coconala applied-history reader to reconcile
    `18d5f9cd9f029658-33307`; close it only with an exact provider receipt for the whole wake.
    Do not edit the admission database manually and do not retry while it is unknown.
-3. After the fence is resolved, observe one natural single Apply and one natural retainer Apply;
+4. After the fence is resolved, observe one natural single Apply and one natural retainer Apply;
    require `effect=1`, exact official applied-page readback and replay-zero for each.
-4. Keep Reply fail-closed until inbox coverage is complete; fix the page/target ownership or
+5. Keep Reply fail-closed until inbox coverage is complete; fix the page/target ownership or
    collector boundary rather than treating `missing_container` as an empty inbox.
-5. Reconcile Storefront's `resource_effect_unknown` with an exact service readback, then prove a
+6. Reconcile Storefront's `resource_effect_unknown` with an exact service readback, then prove a
    natural publish wake. Paid remains operational but must keep its latest pass and release/env
    readback in the same fleet gate.
+7. Handle the two defunct children as separate host hygiene: identify a safe owner-controlled reap
+   path for the Chromium and ChatGPT parents after browser profile protection. Do not kill the live
+   browser or delete its profile as a shortcut.
 
 ### 0.3 Fundamentals: what is actually failing
 
-The failure is not a virus and there is no evidence of zombie processes. A zombie process would
-appear as `Z` in the process table; the measured count is zero. The host currently has about 6.9 GiB
-free, above the 512 MiB immediate disk floor. The immutable release directories under `~/loops/releases`
-are managed runtime artifacts, not malware. They can consume disk and must be retained or pruned only
-by the release/cleanup owner after current, loaded and pinned releases are protected, but they do not
-explain the Apply fence by themselves.
+The primary failure is an admission/storage incident, not a virus. The host ran low enough on disk
+that writes to the durable SQLite admission ledger hit disk-full and locked errors. The resulting
+queue grew to 7,922 entries, and at least one Apply occurrence was left `claimed/effect_unknown=1`.
+The admission layer correctly refuses a new external Apply while that result is not proven, so the
+visible symptom is repeated `resource_effect_unknown` with zero new effect and zero readback.
+
+The browser is a separate layer and is currently healthy: CDP `9223` responds and the official
+Coconala applied-history page returns HTTP 200. The loaded-environment drift (source says `9223`,
+an observed loaded Reply plist used `9222`) is another real release bug that can break routing after
+the admission incident is repaired; it is not evidence that the browser itself is down.
+
+There are two long-lived `Z` entries, but they are defunct children of the known CloakBrowser
+Chromium and ChatGPT processes. A zombie process has already exited; it cannot submit an application
+or write the admission database. The entries should be handled as host hygiene after protecting the
+browser profile, not treated as a virus or as the cause of the Apply fence. The immutable release
+directories under `~/loops/releases` are managed runtime artifacts, not malware. They may contribute
+to disk pressure and must be retained or pruned only by the release/cleanup owner after current,
+loaded and pinned releases are protected.
 
 The observed system is better described as **a safety circuit that is doing its job**:
 
@@ -377,21 +407,25 @@ flowchart LR
   P --> R[Official applied-history readback]
   R -->|exact receipt| C[Close occurrence]
   R -->|missing or inconclusive| U[Keep unknown\nnever blind-retry]
-  Z[Zombies / virus?\nmeasured: no evidence] -.not causal.-> A
-  D[Disk pressure\ncurrent ~6.9 GiB free] -.historical signal only.-> A
+  D[Disk pressure\n3.3–4.24 GiB free] --> Q[SQLite disk-full / lock errors]
+  Q --> A
+  Z[Two defunct children\nknown Chromium + ChatGPT] -.hygiene only.-> A
 ```
 
-In plain terms: the browser is the door, and the admission fence is the lock. The door opens, but
-the lock remembers one earlier Apply wake whose final provider result was not proven. The next Apply
-wake is therefore refused before another application can be safely sent. This prevents duplicate
-applications. The `resource_effect_unknown` label names uncertainty about one external effect; it does
-not mean that a zombie folder or malware is attacking the repository.
+In plain terms: the browser is the door, the SQLite admission ledger is the notebook, and the
+admission fence is the lock. The notebook ran out of writing room and sometimes could not be locked,
+so one earlier wake was left with an uncertain final result. The lock then refuses the next Apply
+before another application can be safely sent. This prevents duplicate applications. The
+`resource_effect_unknown` label names uncertainty about one external effect; it does not mean that
+a zombie folder or malware is attacking the repository.
 
 The desired state is:
 
 ```mermaid
 flowchart LR
+  D[Safe disk headroom\nSQLite integrity + bounded lock handling] --> A[Admission queue is writable and auditable]
   M[One main-derived immutable release] --> E[Loaded argv + loaded env match]
+  A --> E
   E --> B[Dedicated Coconala browser 9223]
   B --> S[Single Apply candidate]
   B --> T[Retainer/continuous candidate]
@@ -402,10 +436,11 @@ flowchart LR
   R --> H[Normal next wake]
 ```
 
-The repair order is deliberately mechanical: prove loaded browser environment, reconcile the one
-unknown Apply occurrence with an exact official provider receipt, run one natural single candidate,
-run one natural retainer candidate, and only then resume normal cadence. Disk cleanup is a separate
-maintenance task and must not be used as a substitute for provider readback.
+The repair order is deliberately mechanical: restore safe disk headroom and inspect the admission
+ledger without editing it manually; prove SQLite integrity and lock behavior; prove loaded browser
+environment; reconcile the one unknown Apply occurrence with an exact official provider receipt; run
+one natural single candidate; run one natural retainer candidate; and only then resume normal cadence.
+Disk cleanup is a prerequisite host repair here, but it is never a substitute for provider readback.
 
 ## 1. Goal, objective and boundaries
 
