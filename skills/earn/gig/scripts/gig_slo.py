@@ -15,6 +15,7 @@ import os
 import shutil
 import sqlite3
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,12 @@ TELEGRAM_REPORT_SILENCE_SECONDS = 2 * 60 * 60
 TELEGRAM_BACKLOG_SECONDS = 15 * 60
 REVENUE_LANES = ("apply", "reply", "fulfill", "list")
 HERMES_AUDIT_LANES = ("paid", "reply", "apply", "storefront")
+RUNTIME_LANES = {
+    "apply": ("apply", "hf-gig-apply-direct"),
+    "reply": ("reply", "hf-gig-reply-detector"),
+    "fulfill": ("paid", "hf-gig-paid-direct"),
+    "list": ("storefront", "hf-gig-storefront-direct"),
+}
 
 
 def _default_host_state_dir() -> Path:
@@ -396,6 +403,47 @@ def _read_last_json_object(path: Path) -> dict[str, Any]:
     return {}
 
 
+def _event_epoch(value: object) -> int | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return int(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp())
+    except ValueError:
+        return None
+
+
+def _runtime_lane_state(runtime_state_dir: Path) -> tuple[dict[str, dict[str, Any]], int | None]:
+    lanes: dict[str, dict[str, Any]] = {}
+    latest_pass: int | None = None
+    for lane, (directory, loop_id) in RUNTIME_LANES.items():
+        path = runtime_state_dir / directory / "events.jsonl"
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()[-200:]
+        except OSError:
+            continue
+        last_attempt: int | None = None
+        last_success: int | None = None
+        for line in lines:
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(event, dict) or event.get("loop_id") != loop_id:
+                continue
+            timestamp = _event_epoch(event.get("timestamp"))
+            if timestamp is None:
+                continue
+            if event.get("phase") in {"execute", "report"}:
+                last_attempt = max(last_attempt or timestamp, timestamp)
+            if event.get("phase") == "report" and event.get("status") == "pass":
+                last_success = max(last_success or timestamp, timestamp)
+        if last_attempt is not None:
+            lanes[lane] = {"last_attempt_at": last_attempt}
+        if last_success is not None:
+            latest_pass = max(latest_pass or last_success, last_success)
+    return lanes, latest_pass
+
+
 def _read_bounded_logs(agent_dir: Path) -> str:
     chunks: list[str] = []
     for pattern in ("attempt-*.stdout.log", "attempt-*.stderr.log"):
@@ -564,7 +612,7 @@ def _telegram_state(database: Path, *, now: int) -> dict[str, Any]:
         with sqlite3.connect(f"file:{database}?mode=ro", uri=True) as connection:
             latest = connection.execute(
                 """SELECT created_at,state FROM telegram_reports
-                   WHERE kind='pass' ORDER BY created_at DESC,report_id DESC LIMIT 1"""
+                   WHERE state='sent' ORDER BY created_at DESC,report_id DESC LIMIT 1"""
             ).fetchone()
             unknown = connection.execute(
                 "SELECT COUNT(*) FROM telegram_reports WHERE state='delivery_unknown'"
@@ -592,6 +640,7 @@ def collect_snapshot(
     telegram_database: Path | str,
     now: int,
     host_state_dir: Path | str | None = None,
+    runtime_state_dir: Path | str | None = None,
     minimum_free_gb: int = 5,
 ) -> dict[str, Any]:
     root = Path(state_dir)
@@ -611,12 +660,24 @@ def collect_snapshot(
         )
     except OSError:
         disk_free_gb = None
-    return {
-        "last_pass_at": last_pass_at,
-        "lanes": {
+    legacy_lanes = {
             lane: _read_json(root / "state" / "lanes" / f"{lane}.json")
             for lane in REVENUE_LANES
-        },
+    }
+    runtime_root = Path(runtime_state_dir) if runtime_state_dir is not None else Path(
+        os.environ.get(
+            "GIG_RUNTIME_COCONALA_STATE_DIR",
+            str(Path.home() / ".local" / "state" / "life-manager" / "coconala"),
+        )
+    )
+    runtime_lanes, runtime_last_pass = _runtime_lane_state(runtime_root)
+    lanes = {lane: {**legacy_lanes.get(lane, {}), **runtime_lanes.get(lane, {})}
+             for lane in REVENUE_LANES}
+    if runtime_last_pass is not None:
+        last_pass_at = max(last_pass_at or runtime_last_pass, runtime_last_pass)
+    return {
+        "last_pass_at": last_pass_at,
+        "lanes": lanes,
         "telegram": _telegram_state(Path(telegram_database), now=now),
         "hermes_audit": _read_json(root / "hermes-canary-24h-audit.json"),
         "recent_failures": _recent_failures(
@@ -650,12 +711,14 @@ def evaluate_and_enqueue(
     repair_database: Path | str,
     now: int,
     host_state_dir: Path | str | None = None,
+    runtime_state_dir: Path | str | None = None,
 ) -> dict[str, Any]:
     snapshot = collect_snapshot(
         state_dir=state_dir,
         telegram_database=telegram_database,
         now=now,
         host_state_dir=host_state_dir,
+        runtime_state_dir=runtime_state_dir,
     )
     incidents = evaluate(snapshot, now=now)
     queue = _repair_queue_module().RepairQueue(repair_database)
@@ -689,6 +752,7 @@ def main() -> int:
         type=Path,
         default=_default_host_state_dir(),
     )
+    parser.add_argument("--runtime-state-dir", type=Path, default=None)
     parser.add_argument("--now", type=int, default=None)
     args = parser.parse_args()
     result = evaluate_and_enqueue(
@@ -697,6 +761,7 @@ def main() -> int:
         repair_database=args.repair_database,
         now=args.now if args.now is not None else int(time.time()),
         host_state_dir=args.host_state_dir,
+        runtime_state_dir=args.runtime_state_dir,
     )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0
