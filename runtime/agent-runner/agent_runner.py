@@ -574,6 +574,66 @@ def _strip_browser_routes_for_planner(child_env: dict[str, str]) -> dict[str, st
     }
 
 
+def _load_clipproxy_api_key(
+    child_env: dict[str, str], provider_config: dict[str, Any]
+) -> None:
+    """Load the owner key only into the Codex provider child environment."""
+    model_provider = provider_config.get("model_provider")
+    model_providers = provider_config.get("model_providers", {})
+    explicit_model_provider = isinstance(model_provider, str) and bool(model_provider.strip())
+    configured_proxy = model_provider in {"local_proxy", "cliproxy"}
+    selected_model_provider: dict[str, Any] | None = None
+    if isinstance(model_providers, dict):
+        if isinstance(model_provider, str) and model_provider:
+            selected = model_providers.get(model_provider)
+            selected_model_provider = selected if isinstance(selected, dict) else None
+        elif len(model_providers) == 1:
+            only = next(iter(model_providers.values()))
+            selected_model_provider = only if isinstance(only, dict) else None
+        configured_proxy = configured_proxy or (
+            isinstance(selected_model_provider, dict)
+            and selected_model_provider.get("env_key") == "CLIPROXY_API_KEY"
+        )
+    if not explicit_model_provider:
+        configured_proxy = configured_proxy or child_env.get("ARTICLE_CODEX_PROVIDER_ID") in {
+            "local_proxy", "cliproxy"
+        }
+    if not configured_proxy:
+        child_env.pop("CLIPROXY_API_KEY", None)
+        child_env.pop("ARTICLE_CODEX_PROVIDER_API_KEY", None)
+        return
+    if child_env.get("CLIPROXY_API_KEY"):
+        return
+    if child_env.get("ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE") != "cliproxyapi":
+        return
+    if child_env.get("ARTICLE_CODEX_PROVIDER_ENV_KEY") != "CLIPROXY_API_KEY":
+        return
+    direct = child_env.get("ARTICLE_CODEX_PROVIDER_API_KEY", "").strip()
+    if direct:
+        child_env["CLIPROXY_API_KEY"] = direct
+        return
+    config_path = child_env.get("ARTICLE_CLIPROXY_CONFIG", "").strip()
+    if not config_path:
+        raise ValueError("codex model provider auth unavailable")
+    try:
+        lines = Path(os.path.expandvars(os.path.expanduser(config_path))).read_text(
+            encoding="utf-8"
+        ).splitlines()
+    except OSError as error:
+        raise ValueError("codex model provider auth unavailable") from error
+    in_keys = False
+    for line in lines:
+        if line.strip() == "api-keys:":
+            in_keys = True
+            continue
+        if in_keys and line.lstrip().startswith('- "'):
+            key = line.strip()[3:-1]
+            if key:
+                child_env["CLIPROXY_API_KEY"] = key
+                return
+    raise ValueError("codex model provider auth unavailable")
+
+
 def provider_process_env(provider: str, provider_config: dict[str, Any],
                          environ: dict[str, str] | None = None, *,
                          task_class: str | None = None,
@@ -583,6 +643,10 @@ def provider_process_env(provider: str, provider_config: dict[str, Any],
     child_env.pop(CODEX_INVOCATION_HOME_MARKER, None)
     if provider != "codex":
         child_env.pop("CODEX_HOME", None)
+        child_env.pop("CLIPROXY_API_KEY", None)
+        child_env.pop("ARTICLE_CODEX_PROVIDER_API_KEY", None)
+    else:
+        _load_clipproxy_api_key(child_env, provider_config)
     if task_class == "application-intent-planner":
         child_env = _strip_browser_routes_for_planner(child_env)
     if provider == "codex":
@@ -633,23 +697,40 @@ def provider_process_env(provider: str, provider_config: dict[str, Any],
             child_env["SSL_CERT_FILE"] = str(ssl_cert_file)
 
         model_providers = provider_config.get("model_providers", {})
+        selected_model_provider = provider_config.get("model_provider")
+        selected_rows: list[dict[str, Any]] = []
         if isinstance(model_providers, dict):
-            for model_provider in model_providers.values():
-                if not isinstance(model_provider, dict):
-                    continue
-                env_key = model_provider.get("env_key")
-                if not isinstance(env_key, str) or not env_key or child_env.get(env_key):
-                    continue
-                token_file = os.path.expandvars(os.path.expanduser(str(
-                    model_provider.get("auth_token_file", "~/.cli-proxy-api-key")
-                )))
-                try:
-                    auth_token = Path(token_file).read_text(encoding="utf-8").strip()
-                except OSError as error:
-                    raise ValueError("codex model provider auth unavailable") from error
-                if not auth_token:
+            if isinstance(selected_model_provider, str) and selected_model_provider:
+                selected = model_providers.get(selected_model_provider)
+                if isinstance(selected, dict):
+                    selected_rows.append(selected)
+            elif len(model_providers) == 1:
+                only = next(iter(model_providers.values()))
+                if isinstance(only, dict):
+                    selected_rows.append(only)
+        for model_provider in selected_rows:
+            env_key = model_provider.get("env_key")
+            explicit_auth_file = bool(model_provider.get("auth_token_file"))
+            if (
+                not isinstance(env_key, str)
+                or not env_key
+                or (child_env.get(env_key) and not explicit_auth_file)
+            ):
+                continue
+            auth_token_file = model_provider.get("auth_token_file")
+            if not auth_token_file:
+                if env_key == "CLIPROXY_API_KEY":
+                    auth_token_file = "~/.cli-proxy-api-key"
+                else:
                     raise ValueError("codex model provider auth unavailable")
-                child_env[env_key] = auth_token
+            token_file = os.path.expandvars(os.path.expanduser(str(auth_token_file)))
+            try:
+                auth_token = Path(token_file).read_text(encoding="utf-8").strip()
+            except OSError as error:
+                raise ValueError("codex model provider auth unavailable") from error
+            if not auth_token:
+                raise ValueError("codex model provider auth unavailable")
+            child_env[env_key] = auth_token
         auth_file = Path(os.path.expandvars(os.path.expanduser(str(
             provider_config.get("auth_file", "~/.codex/auth.json")
         ))))
