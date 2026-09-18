@@ -3081,8 +3081,10 @@ the canonical order; the following are the concrete gates to work through, not a
    run record (`status=completed`, `effect=0`); the next natural Paid wake passed with effect 0,
    failed 0 and no funded work. Storefront occurrence `18d6506438976f18-85445` was reconciled
    from its exact official output (`action=unchanged`, `status_effect_count=0`, canonical listing
-   `1338228`), and its next natural wake passed. Remaining Lancers fences are Application
-   `18d6492796264af8-48639` and the old Telegram occurrence only.
+   `1338228`), and its next natural wake passed. Telegram occurrence
+   `18d608a51063bdc8-33964` was then reconciled from the exact pre-child
+   `resource_capacity_busy` event without sending again. The only remaining Lancers fence is
+   Application `18d6492796264af8-48639`.
 2. **First paid conversion — CURRENT SUPPORTING ACTION:** measure proposal→buyer reply→award by profile, proof,
    proposal and price version; improve the weakest measured stage without inventing
    reviews or completed client work. Keep Storefront catalog families distinct and
@@ -3114,7 +3116,7 @@ the canonical order; the following are the concrete gates to work through, not a
 | Storefront | Official `/myplan` showed 7 active IDs exactly matching canonical plus catalog state: canonical `1338228`, Web-app `1342394`, and five other catalog listings. Eighteen duplicate Web-app packages were individually moved to `非表示`. The old uncertain occurrence was cleared only after an official ID set readback and pre-submit catalog state proof. The later occurrence `18d6506438976f18-85445` was cleared only from exact `action=unchanged / status_effect_count=0` evidence; the next natural wake passed. Demand remains search 12 / detail 0 / inquiry 0 / order 0. | Keep report ACKs separate from publication effect; measure inquiry/order and wait for buyer conversion. |
 | Negotiate / Work Sync | Source-complete inventory has 14 boards, including outreach boards `9077726` and `9077932`, but required reply 0, incoming monthly offer 0, active monthly contract 0 and funded project 0. Work Sync had a 43-minute source gap under borrow/support admission; PR #5541 and a locked metadata migration restored revenue admission. The latest source snapshot is `04:44:08 UTC`; PR #5544 gives Reply an exact pre-effect hint cleared before provider mutation or notification; Negotiate/Paid natural runs pass with effect 0 and unknown 0. | Keep the five-minute source current and act only on an exact buyer-last message or official offer/escrow record. |
 | Paid | Historical queued occurrences surfaced after pre-effect browser timeouts; each cleared claim had its own `pre_effect` marker. PR #5546 makes the shared four-worker Paid kernel retain an owned host hint before any worker mutation and clear it before a successful reporter handoff. PR #5566 adds complete-inventory authoritative-absence readback. Release `364fd9d4bd…` passed the next natural wake with active funded work 0, effect 0, failed 0, admission unknown 0. The provider adapter still raises `lancers_paid_effect_not_implemented` for actual mutation. | Implement and prove funded delivery only when a real ContractReceipt exists; do not treat no-op as delivery. |
-| Reporter | An old effect-unknown message occurrence remains fenced; loop status alone cannot prove a Telegram send. | Exact outbox/provider ACK readback before clearing that occurrence. |
+| Reporter | The old effect-unknown occurrence `18d608a51063bdc8-33964` was reconciled from an exact pre-child admission event; no Telegram retry was sent. | Keep later report ACKs separate from business effects and fence any future uncertain send until provider readback. |
 
 **Conversion evidence and hypothesis.** The official profile shows bronze rank, JPY 0 total
 earnings, zero reviews and two portfolio items. That limits visible social proof, but the
