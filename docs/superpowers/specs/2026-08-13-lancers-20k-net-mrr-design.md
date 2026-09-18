@@ -3042,10 +3042,10 @@ delivery 665544を公式確認、重複納品0。paymentは未確認であり0�
 The following order is immutable unless Dais explicitly says to change the order. Only the first
 unfinished atom is active.
 
-**Live checkpoint (2026-09-18 01:44 UTC).** This supersedes the older counts below; the L-08
+**Live checkpoint (2026-09-18 01:58 UTC).** This supersedes the older counts below; the L-08
 cursor and L-09 onward order stay in place. `contracts.json` is source-complete as of
-`01:40:54 UTC`: incoming monthly offers 0, monthly contracts 0, received gross JPY 0.
-The marketplace ledger has 197 `application_verified` receipts and no award, delivery or
+`01:55:55 UTC`: incoming monthly offers 0, monthly contracts 0, received gross JPY 0.
+The marketplace ledger has 199 `application_verified` receipts and no award, delivery or
 payment event. Thus verified net MRR is 0 USD; applications and public packages do not count
 as recurring revenue.
 
@@ -3065,7 +3065,12 @@ the canonical order; the following are the concrete gates to work through, not a
 2. **First paid conversion — CURRENT SUPPORTING ACTION:** measure proposal→buyer reply→award by profile, proof,
    proposal and price version; improve the weakest measured stage without inventing
    reviews or completed client work. Keep Storefront catalog families distinct and
-   measure inquiry/order rather than listing count.
+   measure inquiry/order rather than listing count. The native Lancers footprint
+   surface exposed client `PTOT_net`, whose public requests include visiting-service
+   schedule/record management and data migration. One buyer-specific proposal-sales
+   message linked package `1344056`; official board `9077726` contains own message
+   `59234735`. Buyer-last is null, so this is outreach, not a reply, award, contract
+   or revenue. Wait for the buyer or a new exact request; do not resend the message.
 3. **L-08 Contract activation:** wait for an exact client offer or project contract,
    verify terms, capacity and escrow, and create one ContractReceipt. Empty official
    offer sources authorize no acceptance effect.
@@ -3082,7 +3087,7 @@ the canonical order; the following are the concrete gates to work through, not a
 |---|---|---|
 | Apply | The installed main-origin SHA is `81a7ddd8…`; project `5603444` was naturally reconciled to proposal `27942627` with one receipt, submit 0 and admission unknown 0. Older pending IDs `5601892` and `5601332` remain absent from complete proposal readback. | Continue natural discovery and measure proposal→reply→award. Never retry the older pending IDs blindly. |
 | Storefront | SHA `59770dd5…` has natural passes. Official `/myplan` showed 19 identical Web-app packages within the 20 active slot limit. Eighteen duplicates were individually moved to `非表示` with exact settings readback; canonical SNS listing `1338228` and one Web-app listing `1342394` remain. PR #5522 preserves the catalog cursor and serializes select→create→persist. The recovered cursor survived later natural wakes; distinct catalog listings now have official IDs `1344056`, `1344057`, `1344058`, `1344060`. | Track each distinct public listing and its inquiry/order counters; prevent a second ID for one family and measure demand before claiming conversion. |
-| Negotiate / Work Sync | Source-complete inbox shows no required reply, incoming monthly offer, active monthly contract or funded project. | An exact buyer-last message or official offer/escrow record; otherwise no external reply/accept effect. |
+| Negotiate / Work Sync | Source-complete inventory has 13 boards, including outreach board `9077726`, but required reply 0, incoming monthly offer 0, active monthly contract 0 and funded project 0. | An exact buyer-last message or official offer/escrow record; otherwise no external reply/accept effect. |
 | Paid | A natural pass followed exact no-effect occurrence recovery, but historical queued occurrences can surface as `resource_effect_unknown`. The provider adapter still raises `lancers_paid_effect_not_implemented` for mutation. | Reconcile each exact pre-effect marker or official effect; implement and prove funded delivery only when a real ContractReceipt exists. |
 | Reporter | An old effect-unknown message occurrence remains fenced; loop status alone cannot prove a Telegram send. | Exact outbox/provider ACK readback before clearing that occurrence. |
 
