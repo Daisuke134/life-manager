@@ -772,24 +772,73 @@ flowchart TD
   J --> M
 ```
 
-**Remaining TODO, in order:**
+**Remaining TODO — six management gates, in order:**
 
-1. Reconcile the idle Connector label to current complete release `d77b006d`,
-   then verify installed SHA, event SHA and next natural terminal match.
-2. Resolve the shared OSS manifest mismatch and merge/load PR #5631 so the
-   provider-specific no-effect reason is visible in production. Connector does
-   not edit `runtime/` or `skills/_shared`.
-3. Keep Connpass/Luma authentication warm through the existing session vault;
-   if official readback returns login_required, use the existing GitHub OAuth
-   recovery and dump the vault before retrying.
-4. Wait for a **new** event satisfying every official gate: free, open,
-   in-person, relevant, wholly Calendar-free, and not already registered.
-5. Verify provider registration state/ID → Calendar event exact count 1 via
-   independent API readback → durable provider/evidence/Telegram receipts.
-6. Observe two subsequent natural wakes on the same loaded SHA with Submit 0,
-   Calendar exact count 1 and duplicate count 0.
-7. Close Connector only after 1–6, then advance to Coconala Apply, Reply, Paid
-   and Storefront.
+1. **Release/load gate.** Reconcile Connector to the latest complete main-derived
+   release. Verify `RELEASE.json`, `release_paths=ALL`, installed argv, launchd
+   loaded argv, event SHA and the next terminal. Evidence: one same-SHA natural
+   terminal. Connector does not cut or repair immutable releases.
+2. **Observability gate.** Resolve the shared OSS manifest mismatch, merge/load
+   PR #5631, and verify that a no-effect wake reports the provider-specific
+   boundary. Evidence: PR checks, loaded SHA, action history, ranking/dispatch
+   audit and terminal report. Connector does not edit `runtime/` or
+   `skills/_shared` to make CI green.
+3. **Browser/session gate.** Keep the existing GitHub-backed Connpass and Luma
+   session alive with session-vault; if official readback becomes login-required,
+   restore through the existing GitHub path and dump the vault. Complete the
+   proof-gated orphan cleanup only through the browser foundation owner. Evidence:
+   official dashboard/readback, keepalive `logged_out=false`, owner target lease,
+   and no unknown-context mass-close.
+4. **Candidate gate.** On each natural 1800-second wake, read Calendar busy
+   intervals, discover Luma then Connpass, and retain only free, open, in-person,
+   relevant, wholly Calendar-free candidates. Empty calendar time alone is not a
+   candidate. Evidence: discovery totals, candidate ranking, official detail page
+   restriction/price readback and truthful no-work when no candidate qualifies.
+5. **Effect gate.** For the first new qualifying event, perform pre-submit
+   readback, one existing provider Submit, official `registered/pending` readback,
+   idempotent Google Calendar create, independent Calendar exact count 1, durable
+   provider/evidence/Telegram receipts and bundle. Evidence must contain the new
+   event identity; historical 404714/405297 receipts cannot substitute.
+6. **Replay/close gate.** Observe two subsequent natural wakes on the same loaded
+   SHA with Submit 0, official provider state retained, Calendar exact count 1 and
+   duplicate count 0. Only then mark Connector closed and advance to Coconala
+   Apply, Reply, Paid and Storefront.
+
+**No-self-blocking operating rule:** every failure is classified as one of
+`source`, `release`, `load`, `browser`, `admission`, `provider`, `calendar`, or
+`effect`. For Connector-owned failures, continue through test → commit → release
+→ targeted load → readback without pausing for permission. For shared-owner
+failures, do not edit foreign paths or state; record the exact file/function,
+command, occurrence/release SHA and evidence, continue all independent
+read-only work, and reserve the word `blocked` for the same unresolved boundary
+repeating across three goal turns. `completed_no_effect` and `capacity_busy`
+never become success, but they also never justify a blind retry or a self-created
+stop.
+
+**Connector component/folder map:**
+
+```mermaid
+graph TD
+  L[launchd ai.anicca.life-manager-connector-native] --> E[skills/connector/run.sh]
+  E --> G[skills/browser/ensure_browser.sh]
+  E --> GC[skills/browser/scripts/cdp_tab_gc.py]
+  E --> N[skills/connector/native-pass.js]
+  N --> R[apps/life-manager/lib/connector-minimal-runner.js]
+  N --> P[apps/life-manager/lib/connector-minimal-production.js]
+  P --> C[transport/calendar-gog.js + google-calendar-busy-inventory.js]
+  P --> X[Provider router]
+  X --> Lm[connector-luma-workflow.js]
+  X --> Cp[connector-connpass-workflow.js]
+  Lm --> Lb[luma-browser-provider.js]
+  Cp --> Cb[connpass-browser-provider.js]
+  R --> A[connector-minimal-operations.js]
+  R --> H[connector action-history/ranking/dispatch audits]
+  R --> B[connector-minimal-evidence.js]
+  B --> S[~/.local/state/life-manager/connector-native]
+  S --> T[Telegram + Calendar receipts]
+  D[docs/superpowers/specs/...architecture-refinement.md] --> O[acceptance cursor/TODO]
+```
+
 
 **Done condition:** source merged to main; complete immutable release loaded;
 owner browser lock held without unknown-context mass cleanup; new official
