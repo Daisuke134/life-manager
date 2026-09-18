@@ -2,9 +2,41 @@
 
 初契約・初入金を目的とするプロフィール、適合案件、成果学習の設計と実装順序 → [Mercor first income design](./2026-09-17-mercor-first-income-design.md) / [implementation plan](../plans/2026-09-17-mercor-first-income.md)。この文書はMercorの稼働経路と既存の契約境界の正本を維持する。
 
-**Status:** resident runtime recovery passed / hourly owner live / 3 applications pending / no payment / human-gate canonicalization verified live / shared money receipts next
+**Status:** application evidence repair merged / latest immutable release cut / owner transition pending after the active wake / no new submission / no contract or payment
 **Canonical repository:** `https://github.com/Daisuke134/life-manager`
 **Canonical checkout:** `/Users/anicca/Projects/life-manager-main`
+
+## Current cursor: application repair and first-income funnel
+
+### As-is
+
+- Profile and résumé readback are authenticated and hash-bound. The Mercor owner still has an active wake on `69c6ece1`; the newer release `d77b006d42e8bf5035f1e220092e7b5633fbaacc` is cut from `origin/main` and waits for the owner to become loaded-idle before rebind.
+- The prior d77 predecessor wake wrote 80 candidate rows. Thirty-one rows were initially counted as detail pages even though 25 were only `submitted_pending_review_observed` application-card observations; this produced `bounded_scan_exceeded:31_of_12`. The exact evidence replay now counts six actual detail states and passes the bounded and priority validators.
+- The account has existing submitted and person-bound applications. Recent passes produced no new submission, no offer, no contract, and no settled earnings. These are separate external outcomes and remain unverified.
+
+### To-be
+
+- Every wake reuses the authenticated profile/session, records the complete query-card union, and counts only opened detail pages against the twelve-page budget. Application-card observations do not consume that budget.
+- A card-only `no_reasonable_shot` result without requirement evidence remains `card_only_unverified/medium` until detail evidence supports a low decision. Detail-grounded high/medium roles continue through reversible controls and submit only with `N of N`, visible `Submit application`, fit evidence, ledger dedupe, and authoritative post-submit readback.
+- Human interviews, assessments, recordings, and unsupported required controls remain candidate-local gates. The loop continues with other candidates and resumes only after official completion.
+- First-income completion requires an official selection/contract, authorized work, acceptance, settled Earnings evidence, and payout/bank match. A projected hourly rate or `$10K` target never substitutes for those receipts.
+
+### Completed implementation in the current cursor
+
+- [x] PR #5655 / `e733d0b85d`: recover current-run `card_only` rows from `pass-result.json` before priority validation.
+- [x] PR #5657 / `69c6ece1b6`: keep card-only low-fit decisions provisional without detail requirement evidence.
+- [x] PR #5659 / `d77b006d42`: exclude submitted-pending application-card observations from the detail budget.
+- [x] Focused Mercor + Direct CDP tests pass: 74 tests and 2 subtests; `lm-loop-contract` passes; CI security/contract checks pass.
+
+### Remaining TODO in execution order
+
+1. [ ] Rebind the loaded Mercor owner from `69c6ece1` to immutable release `d77b006d` after the active wake exits; read back plist argv, loaded argv, SHA, terminal receipt, Telegram ACK, and `effect_unknown=0`.
+2. [ ] Observe one d77 natural wake. Confirm no `bounded_scan_exceeded` or `priority_scan_incomplete`; inspect the medium candidate queue and submit every genuinely ready, deduplicated listing with official readback.
+3. [ ] Complete person-bound gates when the operator chooses to act: Japanese Voice Actor (seven recordings plus English interview/Japanese assessment), Japanese PDF Annotation bilingual step, Bilingual Japanese Generalist gate, Consultant calibration assessment, and Sonic's missing required candidate ID. The loop must resume from official completion.
+4. [ ] Reconcile Gmail/Reply/Applications and identify an official selection or offer. Do not count pending review as a job.
+5. [ ] For a real contract, read back authorization, schedule human work where required, track artifacts, independent QA, delivery, acceptance, settled payment, and payout/bank match.
+6. [ ] Run the bounded Mercor learning wake against official guidance, X, first-person web sources, and GitHub; propose one evidence-backed funnel change without promoting anecdotes to facts.
+7. [ ] Complete clean-operator replay and the legacy `profitable-claude` deletion gate only after the business receipts above exist.
 
 ## 1. Repository boundary
 

@@ -23,6 +23,16 @@
 
 `0 auth continuity → 1 baseline → 1A Reply/Paid continuity → 2 profile → 3 fit → 4 funnel → 5 human resume → 6 learning → 7 one-off voice → 8 release and business proof`. Authentication continuity and the first production release are now exercised; the current cursor is the first suitable new application, then Reply/Paid reconciliation. Reply/Paid repair may be investigated read-only alongside Task 0 but effects remain serialized. Each task's own focused tests and review must pass before the next. Tasks 2–6 can be developed separately only with disjoint file ownership; application state and the Mercor account remain serialized.
 
+## Current implementation cursor
+
+- [x] Recover complete `card_only` candidate evidence before priority validation (PR #5655, `e733d0b85d`).
+- [x] Require detail evidence before a card-only low-fit rejection (PR #5657, `69c6ece1b6`).
+- [x] Keep submitted-pending application-card observations out of the twelve-detail-page budget (PR #5659, `d77b006d42`).
+- [x] Replay the blocked evidence: 80 rows reduce to six actual detail states; bounded and priority validation pass. Focused tests pass 74/74 plus two subtests.
+- [ ] Rebind the loaded owner to immutable `d77b006d`, then prove one natural wake with terminal receipt, loaded SHA, Telegram ACK, and no effect fence.
+- [ ] Continue only with detail-grounded high/medium candidates; submit when the official N/N, visible Submit, fit, dedupe and post-submit readback conditions all hold.
+- [ ] Reconcile selection, contract, authorized work, QA, delivery, acceptance, settled earnings and payout evidence. No offer, contract, payment or `$10K` claim is currently verified.
+
 ### Task 0: Stop unnecessary Mercor login mail and prove session reuse
 
 **Files:** Modify `apps/job-search-loop/job_search_loop/mercor_auth_readback.py` and its `apps/job-search-loop/tests/test_mercor_auth_readback.py`; modify `skills/earn/mercor/scripts/application-owner` and `skills/earn/mercor/tests/test_application_owner.py` only if the observed issue requires a bounded recheck before invoking existing `mercor_email_auth.py`. Inspect `apps/job-search-loop/job_search_loop/mercor_page_ready.py`, `skills/browser/scripts/cdp_context_lease.py` and Reply's `skills/earn/mercor/scripts/reply-owner`; change the shared lease only if a failed seed/reuse is actually demonstrated. Do not add an auth service, new vault or second browser.
