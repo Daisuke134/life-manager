@@ -1561,7 +1561,7 @@ PII失敗runの安全な再開、日次連続公開、公式readbackの連続証
 - `article-run-complete.py --armed 1` は rc 0。直後の `publication_resume.py plan` は2回とも `{"resumable":false,"reason":"all-complete"}`（replay-zero）。最新 state SHA は `0f1ded90ed1c6c8d7549700ebda7c18434a9eeed00419d8c898538505f8fb4d9`、ledger SHA は `0ee508b1b9c4dcc6b8586da11386134454d26e7cf214e94ac654955fe8bd986c`。
 - `article-completion-notify.py` は target `8547730585` へ `status=sent`、message ID `88549` を記録し、`gates/completion-notification.json` を保存した。これはこのrunのobservability receiptであり、Codexの手動進捗報告とは別である。
 - stale Substack media cache は source SHA 付きへ変更し、same-ID refresh は `gates/substack-refresh/` を作ってから immutable media を再埋め込みするよう修正した。Substack payload は bytesを変更せず `resizeWidth=600` とし、portrait headlineでもpreview gate内に収めた。wrapperのbare `python3` は `LIFE_MANAGER_PYTHON`（Pillow入りmanaged venv）へ固定した。
-- 変更は branch `fix/writer-main-integration-20260919` の commit `f11a77448b46a270fe3658c6ac28ccd226170d77` までpush済み。candidate release は `/Users/anicca/loops/releases/20260919T035041-f11a7744`（`pushed-not-yet-on-main`、`current`未変更）である。
+- 変更は branch `fix/writer-main-integration-20260919` の commit `f11a77448b46a270fe3658c6ac28ccd226170d77` までpush済み。実測に使った candidate release は `/Users/anicca/loops/releases/20260919T035041-f11a7744`（`pushed-not-yet-on-main`、`current`未変更）で、測定後の安全なrelease GCで現存しない。現在観測した `current` は main祖先 `83d2885fe0c2be3280a45ea1ac3a013415749fa4`、ただしWriterのloaded plistはなお daily `aabbd694`／resume `7e4f7ac5`。
 
 ### まだ完了していないこと／阻塞
 
