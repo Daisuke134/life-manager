@@ -540,6 +540,28 @@ def test_release_probe_uses_one_global_lsof_instead_of_walking_the_tree(tmp_path
     disk_cleanup._open_paths.cache_clear()
 
 
+def test_exact_cache_probe_uses_one_global_lsof_instead_of_walking_the_tree(tmp_path: Path, monkeypatch) -> None:
+    cache = tmp_path / "Codex"
+    cache.mkdir(parents=True)
+    calls: list[list[str]] = []
+
+    class Result:
+        returncode = 0
+        stdout = f"p123\nn{cache}/Contents/cache.db\n"
+        stderr = ""
+
+    def record(argv, **_kwargs):
+        calls.append(argv)
+        return Result()
+
+    monkeypatch.setattr(disk_cleanup.subprocess, "run", record)
+    disk_cleanup._open_paths.cache_clear()
+
+    assert disk_cleanup._default_lsof(cache) == "open"
+    assert calls == [["/usr/sbin/lsof", "-nP", "-Fn"]]
+    disk_cleanup._open_paths.cache_clear()
+
+
 def test_release_retention_keeps_referenced_and_current_generation(tmp_path: Path) -> None:
     releases = tmp_path / "loops" / "releases"
     releases.mkdir(parents=True)

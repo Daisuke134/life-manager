@@ -65,6 +65,7 @@ EXACT_CACHE_ROOTS = {
     "whisper-model-cache": ".cache/whisper",
     "zig-cache": ".cache/zig",
 }
+GLOBAL_OPEN_PROBE_NAMES = frozenset(Path(relative).name for relative in EXACT_CACHE_ROOTS.values())
 
 
 class _ReceiptAtomicFailure(Exception):
@@ -168,7 +169,11 @@ def _is_code_sign_clone(path: Path) -> bool:
 
 
 def _default_lsof(path: Path) -> str:
-    if RELEASE_NAME_PATTERN.fullmatch(path.name) or _is_code_sign_clone(path):
+    if (
+        RELEASE_NAME_PATTERN.fullmatch(path.name)
+        or _is_code_sign_clone(path)
+        or path.name in GLOBAL_OPEN_PROBE_NAMES
+    ):
         opened = _open_paths()
         if opened is None:
             return "probe-error"
