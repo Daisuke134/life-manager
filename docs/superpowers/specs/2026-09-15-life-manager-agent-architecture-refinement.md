@@ -714,257 +714,96 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 
 ### Connector active goal and remaining TODO
 
-**Goal / historical acceptance:** **DONE.** Main-derived release `393f17458a4e6a62e01ae46215ab32ba5f02ea83` applied only to `life-manager-connector-native`. Connpass event `405297` (`【秋葉原】AIエンジニアの集いLT＆交流会`) reached official `registered`; provider receipt `f1bbe06389aff318ebb40c02e9e91b6af6be261e012629e126795dcb7f157273`; Calendar ID `hkpcm5qds9fhk6khorr2kfqnro`; independent Google Calendar API filtered by the Connector private property returned exact count 1 with canonical URL `https://mecha-mote-se.connpass.com/event/405297/`; Telegram receipts `86619` and `86620`; durable bundle `e8c393f6cd21636df0057ce49e82bd44257c9d128870dd8054585ff6a1c6b869`. The same loaded SHA then completed natural wakes `wake-953036ad8babec6ae03109f1` and `wake-96cc924ba6c56c1562a25308`; both continued to other candidates, submitted `405297` zero additional times, and preserved Calendar exact count 1. Official page readback returned `registered`. The owner remains on the existing 30-minute interval; this proves repeatable continuation, not an application on every wake.
+**Status: OPEN.** Connector is not complete. The historical Connpass registration and
+Calendar replay proof remain valid evidence, but they do not close the current
+post-repair acceptance gate.
 
-**Current operational status:** **OPEN.** The latest loaded release `fc31d122...` run `18d63a6d2b0a4738-90273` / wake `wake-80c07bbd05aaaa6ea4320a9a` read Calendar successfully (`5014ms`) and then failed at the browser boundary with `wake_boundary_failed`; no Luma or Connpass discovery began. The preceding wake `wake-27c8cf1b61e2cf778bac5617` reached Connpass discovery (`free_open=234`, `calendar_free=10`) but recorded no Connpass action/readback before a later TechPlay discovery failure; Luma recorded `free_open=2`, `calendar_free=0`. The active repair cursor is browser transport first, then Connpass selection/action, then Luma when Calendar-free. Fallback providers are disabled in the branch route and remain out of the current goal.
+**Current production readback (2026-09-18 23:20 UTC):**
 
-**Current live readback (2026-09-18):** Connector now loads main-derived release
-`3aeed4c459b9b941e98464fe7daf2431c1d5255f` and is idle with no run on that SHA.
-The latest persisted wake `wake-a462dbbd46a53d4208e40c79` crossed the browser
-boundary and reached both primary audits: Luma `free_open=2,
-calendar_free=0`; Connpass `free_open=234, calendar_free=10`. It then continued
-into Peatix, KokuchPro, Doorkeeper, Eventbrite, TechPlay and Meetup before ending
-`completed_no_effect/provider_discovery_failed`; no provider Submit, official
-readback, Calendar event or new bundle was produced. This confirms that the
-remaining source defect is the active fallback route consuming the same wake, not
-browser admission. The branch change below is source/test only and is not yet
-loaded in production.
+- `ai.anicca.life-manager-connector-native` is loaded-idle on complete release
+  `0812457f7b76a845aa14ff7fee5e790fd6cd915c`; installed SHA and event SHA match.
+  Current global release is newer (`d77b006d`), so the next step is a loaded-idle
+  reconcile to that complete release before the next natural wake.
+- Latest natural wake `wake-8df85ee1b5dfff6f5b52a9b9` reached
+  `completed_no_effect/providers_exhausted`; Submit 0, Calendar create 0,
+  applied bundle 0, and `effect_unknown=0`.
+- Connpass discovery observed 279 events, 244 API-level free/open rows and 9
+  Calendar-free candidates. Official detail readback rejects the dispatched
+  candidates: RumiCar and AWS rows are paid; the AX row has a paid general tier
+  and a restricted LT tier; the free `406107` gathering is restricted to people
+  attending its main workshop; CoderDojo rows are child/mentor roles; the other
+  afterparty is paid.
+- Luma discovery observed 10 cards, normalized 6, found one free/open candidate
+  and zero Calendar-free candidates.
+- Connpass authentication is repaired through the existing GitHub OAuth path;
+  official dashboard readback succeeds and event `404714` is `registered`.
+  `404714` is an existing registration and cannot be reused as the new-effect
+  acceptance event. Session vault dump/keepalive also succeeds for Connpass and
+  Luma.
+- PR #5631 contains a Connector-only observability improvement but remains open
+  and `UNSTABLE` because the shared OSS manifest check reports unrelated
+  `runtime/agent-runner/agent_runner.py` and `skills/_shared` mismatches. It is
+  not loaded in production.
 
-**Ranking gate evidence (2026-09-18):** The first canary on the route release
-`15e645340dea4410d67b079ea2b7d779056b56b8` reached both primary providers in
-run `18d641a708de4880-32603` / wake `wake-91c21d082f93c05e33a9004b` and ended
-`completed_no_effect/providers_exhausted`. Connpass recorded
-`candidate_count=10`, `ranked_count=10`, `priority_fit_eligible_count=3`, but
-`auto_apply_eligible_count=0` and dispatch `0`. The three model-ranked `ai /
-strong` refs were `394390`, `407256` and `407258`; official Connpass API
-readback identifies them as RumiCar autonomous-driving/programming events.
-The parent `EXPLICIT_RELEVANCE` keyword gate rejected all three because their
-topic vocabulary did not contain its fixed token list. Luma recorded
-`free_open=1 / calendar_free=0`. No provider Submit, official registration,
-Calendar event or bundle occurred. The targeted branch fix removes that
-hardcoded judgment and trusts the validated model `priority_class` plus
-`preference_fit`; an `other` or weak/unknown model result remains ineligible.
+**Observed Connector boundary:** the browser foundation, authentication, Calendar
+read, Luma/Connpass discovery, official pre-submit readback and paid/restricted
+provider guards all work. The current no-effect is truthful provider no-work,
+not a browser crash, login failure or Calendar failure. Do not loosen the
+relevance gate or submit child-only, paid, participant-only or restricted tiers.
 
-**A15 dependency decision:** A15 remains the separate fleet fairness/recovery gate. It does **not** block Connector-specific diagnosis or source repair: the `203bbe8854` natural Connector run `18d6089253cdbf18-32608` acquired a browser slot, reached Connpass, and ended `completed_no_effect / provider_discovery_failed` at 2026-09-17 06:47 UTC. Its three Connpass direct attempts failed with `connpass_questionnaire_required`, each followed by `unsafe_agent_action`; Luma found 3 free/open events but Calendar-free 0. Do not alter A15's PID, admission DB, spec branch state outside this Connector section, or another browser/profile. A main-derived Connector release can be applied to the one loaded-idle Connector label after that run's terminal, without a fleet restart.
-
-1. **CN-C01 — Flexible questionnaire:** **DONE.** The existing Connector agent runner now chooses answers for unknown required Connpass input, textarea, select, radio and checkbox controls; the parent validates exact DOM controls/options and still requires official provider readback. Known profile values win when they match offered options; otherwise the agent supplies the answer and the same single-submit fence applies. Focused Browser Harness tests: 186/186.
-2. **CN-C02 — Main and release:** **DONE.** PR #5358 merged to main at `393f17458a4e6a62e01ae46215ab32ba5f02ea83`; immutable release `/Users/anicca/loops/releases/20260917T200804-393f1745` was loaded only by `life-manager-connector-native` while idle. Loaded argv, installed SHA, event SHA and terminal all match.
-3. **CN-C03 — Real Connpass acceptance:** **DONE.** New event `405297` has official `registered`, provider receipt, Calendar ID, independent exact-one API readback, Telegram IDs and durable applied bundle. Historical `405705` remains baseline only.
-4. **CN-C04 — Luma acceptance:** **DONE as truthful no-work for this gate.** Latest observed wake `wake-96cc924ba6c56c1562a25308` recorded `free_open=2 / calendar_free=0`; earlier wake recorded `free_open=3 / calendar_free=0`. This is a Calendar inventory conflict, not evidence of a broken Luma submit path. Continue the existing 28-day rotation; submit only when `calendar_free>0` and require the same provider→Calendar→bundle chain.
-5. **CN-C05 — Repeatability:** **DONE.** Natural wakes `wake-953036ad8babec6ae03109f1` and `wake-96cc924ba6c56c1562a25308` used the same loaded SHA, left `405297` at repeat Submit 0, kept Calendar exact 1, continued to other candidates, and released browser ownership cleanly. The configured interval remains 1800 seconds.
-6. **CN-C06 — Close and hand off:** **DONE.** Connector is closed and the next ordered work is Coconala Apply, Reply, Paid and Storefront. No TODO order was changed.
-
-#### Connector execution plan — follow CN-C01 through CN-C06 in order
-
-This plan implements step 4 above in the existing `life-manager-connector-native` owner. It changes no A15 file or state. The code owner uses `/Users/anicca/Projects/life-manager-connector-coconala-20260917`; the spec owner uses this file. Each checkbox is a separate evidence gate. The historical Connector registration gates are closed by the evidence recorded above; the current operational budget/cursor gate remains open before advancing to Coconala. A cheaper executor must preserve the official provider/Calendar readbacks and must not reopen a completed Connector effect by resubmitting the same event.
-
-**Connector closeout evidence:** PR #5358 merged at main `393f17458a4e6a62e01ae46215ab32ba5f02ea83`; release `/Users/anicca/loops/releases/20260917T200804-393f1745`; install event `30c40604e7fda6150959fe6d`; first canary run `18d61735ef61a7f8-5127` / wake `wake-74a1baca18a06583aa745c1f`; natural wakes `wake-953036ad8babec6ae03109f1` and `wake-96cc924ba6c56c1562a25308`. New Connpass event `405297` is officially registered, Calendar exact-one ID is `hkpcm5qds9fhk6khorr2kfqnro`, the provider receipt is `f1bbe06389aff318ebb40c02e9e91b6af6be261e012629e126795dcb7f157273`, Telegram IDs are `86619` and `86620`, and the durable bundle is `e8c393f6cd21636df0057ce49e82bd44257c9d128870dd8054585ff6a1c6b869`. Luma remains truthful no-work on the observed wakes (`free_open=2–3`, `calendar_free=0`).
-
-#### Connector current diagnosis and target flow
-
-The historical CN-C01–CN-C06 registration gate remains valid, but it does not
-mean that every later wake produces an application. The current production
-question is whether one bounded wake can reach an eligible provider candidate
-and preserve that candidate for the next wake.
-
-**Priority correction:** the active Connector goal covers **Luma and Connpass
-only**. The branch `native-pass.js::providersForSlot` now passes only those two
-providers. KokuchPro and the other fallbacks are not repaired; their active route
-is disabled, and their Connector-only source files are deleted only after a
-reachability check proves no other owner depends on them. A fallback failure must
-not be allowed to decide that the primary providers worked or did not work.
-
-**Primary route source change (branch):** `skills/connector/native-pass.js` now
-passes exactly `['luma', 'connpass']` or `['connpass', 'luma']` to the existing
-runner for every 30-minute slot. The focused `skills/connector/test/native-entrypoint.test.js`
-contract is green. The change is not a production acceptance until it is pushed,
-cut into a complete release, loaded on the idle Connector label and followed by
-a natural wake.
-
-**Selection audit source change (branch):** `createProductionProviderRouter`
-now emits bounded `candidate_count`, `ranked_count`,
-`priority_fit_eligible_count`, `auto_apply_eligible_count`, public
-`eligible_candidate_refs`, and bounded ranked candidate summaries for Luma/Connpass,
-including truthful zero rows for empty or reconciliation-only discovery. The
-runner separately records the candidates it actually dispatches in
-`candidate-dispatch-audits.jsonl`. Focused production, runner and operations
-contracts are green. This remains source evidence until a loaded release
-produces a real primary wake with both rows.
-
-**Dispatch audit correction (branch):** each dispatch row is emitted only after
-the candidate passes the wake deadline check and immediately before its existing
-navigation/action path. If an earlier candidate closes the wake with an
-`applied_bundle`, later candidates do not appear as dispatched. An empty batch
-emits `selected_count=0`.
-
-**Provider/browser action trace source change (branch):** successful
-`provider_discovery` rows carry the bounded provider name, and the existing
-browser target-open boundary records `provider=browser` on success or its safe
-failure reason/error class. Failure rows retain their existing redaction. The
-runner and operations contracts are green; this is not a live proof until a
-release containing the change records a primary wake.
-
-**As-is readback:**
-
-| Boundary | Observed behavior | Decision |
-|---|---|---|
-| launchd and release | `ai.anicca.life-manager-connector-native` loads immutable release `fc31d1227b6356f917ddc750bbb6bfeef0fe2a7b` with `StartInterval=1800`; its latest run `18d63a6d2b0a4738-90273` exits `1`. | Lifecycle is present; idle or exit 0 is not an effect. |
-| Calendar inventory | In the latest wake, `calendar_busy` succeeds in `5014ms` and supplies the 28-day busy intervals. | Calendar read is not the latest first failure. |
-| provider discovery | The same wake records Luma `free_open=2/calendar_free=0` and Connpass `free_open=234/calendar_free=10`. The older fallback wake also recorded KokuchPro candidates. | Connpass has eligible candidates; Luma has no Calendar-free candidate. KokuchPro is not part of this primary cursor. |
-| primary action boundary | In `wake-27c8cf1b61e2cf778bac5617`, Connpass discovery records `free_open=234/calendar_free=10`, but no Connpass `navigate`, provider readback or Submit action follows. The next recorded provider failure is TechPlay discovery (`137334ms`). | Connpass discovery succeeds, but the persisted evidence cannot identify whether ranking returned zero `auto_apply_eligible` candidates or whether the runner skipped the candidate. Add that exact selection/action evidence before changing the provider. |
-| fallback boundary (historical) | Earlier wake `wake-c413bf68fe543285c41c3ac5` spent `441412ms` in KokuchPro discovery and ended `circuit_open/wake_deadline`. | KokuchPro is deferred; this does not justify repairing it before Connpass/Luma. |
-| latest primary terminal | `wake-27c8cf1b61e2cf778bac5617` ends `completed_no_effect/fallback_deferred_for_wake_budget` after TechPlay fails. No Connpass Submit/readback, evidence completion, Calendar creation or new bundle follows. | The current missing boundary is between Connpass discovery and the action path; ranking versus runner filtering is unrecorded. |
-| newest terminal | `wake-80c07bbd05aaaa6ea4320a9a` ends `circuit_open/wake_boundary_failed` after Calendar and before provider discovery. The current `127.0.0.1:9222/json/version` probe also times out, and the persisted target lease has an old heartbeat. | The newest run cannot diagnose Connpass or Luma provider behavior. Restore the existing browser transport/lease path before interpreting a provider no-effect. |
-| proven downstream path | Earlier run `18d62ca40c6f7e78-29272` on release `846c6911cbc85118aa412be2505a9c90cbeff141` registered Connpass event `404531`, receipt `b8da8f5f0b48d3745b4e4b1768a2f04a5aaf7ccfcace9234544d51f00cdaeffe`, and runtime Calendar ID `0v6ri3de5pdqsd6btrqs8ndsgs`. | Provider submit, official readback and evidence chain work when discovery leaves time. Independent Calendar exact-one and replay-zero for `404531` are still open. |
-
-The current code path is:
+**Ideal Connector flow:**
 
 ```mermaid
 flowchart TD
-  A[launchd every 1800s] --> B[native-pass]
-  B --> C[read 28-day Calendar busy inventory]
-  C --> D[claim one Connector browser target]
-  D --> E[Luma primary discovery]
-  E --> F{Calendar-free Luma candidate}
-  F -->|none or conflict| G[Connpass primary discovery]
-  F -->|candidate| H[official pre-submit state absent]
-  G --> I{ranked auto-apply candidate}
-  I -->|none| J[record selection no-work]
-  I -->|candidate| H
-  H --> K[cache/direct/model action]
-  K --> L[official provider registered or pending]
-  L --> M[provider receipt and screenshot evidence]
-  M --> N[create Calendar event]
-  N --> O[Calendar filtered exact-one readback]
-  O --> P[applied bundle, Telegram report, terminal]
-  G -->|discovery/action boundary fails| Q[record exact provider blocker]
+  W[1800s natural wake] --> A[Host admission: browser occurrence]
+  A -->|capacity/effect fence| Q[Queued or blocked terminal; no provider work]
+  A --> B[Connector run.sh]
+  B --> C[ensure_browser.sh + owner GC]
+  C --> D[Calendar busy inventory]
+  D --> E[Luma discovery]
+  E --> F{free, open, in-person, relevant, Calendar-free?}
+  F -->|yes| G[Official pre-submit readback]
+  F -->|none| H[Connpass discovery]
+  H --> I{free, open, in-person, relevant, Calendar-free?}
+  I -->|no| N[Truthful no-work terminal]
+  I -->|yes| G
+  G -->|registered/pending| J[Evidence reconciliation; no Submit]
+  G -->|absent| K[Existing provider adapter Submit]
+  K --> L[Official registered/pending readback]
+  L --> M[Idempotent Calendar create]
+  M --> R[Independent Calendar exact-one readback]
+  R --> S[Bundle + Telegram terminal]
+  S --> T[Two natural replays: Submit 0, Calendar duplicate 0]
+  J --> M
 ```
 
-**To-be behavior:** Luma and Connpass run first on the existing Connector
-owner. The primary pass records, for each provider, discovered, Calendar-free,
-ranked, and `auto_apply_eligible` counts plus the selected event refs. A
-selected candidate reaches the existing pre-submit official state readback, the
-existing cache/direct/model action path, official `registered/pending` readback,
-provider receipt, Calendar create, Calendar filtered exact-one readback, applied
-bundle, and terminal report. Luma `calendar_free=0` is truthful no-work;
-Connpass `calendar_free>0` with `auto_apply_eligible=0` is a ranking/eligibility
-failure; Connpass `auto_apply_eligible>0` with no provider action is a runner
-dispatch failure. Only Luma and Connpass may run in this Connector cursor; no
-last-resort provider run is permitted. KokuchPro receives no repair and has no
-active route. The owner, browser target, Calendar transport, evidence chain and
-30-minute cadence remain unchanged.
+**Remaining TODO, in execution order:**
 
-For Connpass questionnaires, the existing agent action may answer controls
-using grounded private facts and model judgment, then the parent must validate
-the exact control and require official `registered/pending` readback. It never
-invents consent, identity, or a missing private fact. An unknown fact remains a
-bounded pending/report state and does not authorize a duplicate Submit.
+1. Reconcile the idle Connector label to the current complete main-derived release
+   `d77b006d`; verify installed argv, event SHA and next terminal all match.
+2. Resolve the shared OSS manifest mismatch, then merge/load PR #5631 so the
+   provider-specific no-effect boundary is visible in production. Do not edit
+   shared runtime or `skills/_shared` from the Connector owner worktree.
+3. Keep the existing authenticated Connpass/Luma session warm. If official
+   readback ever returns `login_required`, restore through the existing GitHub
+   path and dump the vault before any provider retry.
+4. Wait for a new event that satisfies every official gate: free, open,
+   in-person, relevant, Calendar-free, and not already registered. Do not use
+   `404714` or any historical bundle as the new-effect proof.
+5. On that event, verify provider registration ID/state → Google Calendar event
+   exact count 1 via independent readback → provider/evidence/Telegram receipts
+   and durable bundle.
+6. Observe two subsequent natural wakes on the same loaded SHA with official
+   provider state still `registered/pending`, Submit 0, Calendar exact count 1,
+   and duplicate count 0.
+7. Mark Connector closed only after steps 1–6; then advance to Coconala Apply,
+   Reply, Paid and Storefront. Until then, do not report Connector complete.
 
-**Loop topology decision:** keep one Connector loop for now. Luma and Connpass
-share the same authenticated browser endpoint, Google Calendar, evidence store,
-and effect fence; two production labels would create two owners for one mutable
-resource and would require shared registry/admission changes. First make the
-single loop primary-only. A later split is justified only if each provider gets
-an independent browser/account/evidence owner and a separate acceptance chain.
-
-**Connector operational TODO after this diagnosis:**
-
-- [x] Add a Connector-only priority test around `skills/connector/native-pass.js::providersForSlot`: every 30-minute slot passes only Luma and Connpass, in alternating priority order. The branch contract is green.
-- [ ] Load the branch route change so the production cursor runs only Luma and Connpass. Then run a repository reachability check and delete Connector-only fallback workflow/provider files (Peatix, Meetup, Doorkeeper, Eventbrite, TechPlay and KokuchPro) once no other owner depends on them; no fallback may remain in the Connector route.
-- [ ] Repair the existing browser transport/lease boundary first: `wake-80c07bbd05aaaa6ea4320a9a` must reach the primary browser target after Calendar read, with no stale target/lock ambiguity.
-- [ ] Add one Connector-only Connpass selection/action diagnostic test and record ranked versus `auto_apply_eligible` counts for a real primary wake. Do not modify KokuchPro.
-- [ ] If Connpass has `calendar_free>0` and `auto_apply_eligible=0`, repair only the existing ranking/eligibility boundary with a failing test; if it has an eligible candidate, trace the first provider action/readback boundary instead.
-- [ ] For Luma, wait for a real `calendar_free>0` candidate before diagnosing Submit; keep `calendar_free=0` as no-work.
-- [ ] Cut a complete release from pushed main and apply it only to the idle Connector label; read back exact argv and SHA.
-- [ ] Run a natural wake that reaches a new eligible candidate or records truthful no-work without the KokuchPro deadline.
-- [ ] For a new effect, pair official provider registration → independent Google Calendar API exact count 1 → one durable bundle.
-- [ ] Observe two subsequent natural wakes on the same loaded SHA with Submit 0 and Calendar duplicate 0 for that event.
-- [ ] Keep the 30-minute interval; change cadence only after measured same-minute browser contention, never to hide discovery latency.
-
-**KokuchPro disposition:** no repair and no active route. Delete its
-Connector-only source after the reachability check in the fallback cleanup step;
-do not add a cursor, provider patch, release, or canary for KokuchPro.
-
-The host currently has approximately 244 MiB free at 100% filesystem capacity.
-That shared storage/headroom condition can block a release or canary and is
-owned by the foundation workstream; this Connector patch does not mutate it.
-
-**Cross-loop read-only snapshot (2026-09-17):** Fundraiser has one recent `submitted_verified` Startuped AI receipt (`20260917T020858Z-31007`) but its current owner is blocked at `host_admission_deferred:resource_effect_unknown`; its latest natural run (`20260917T070943Z-72638`) deferred before provider work because disk headroom was `970980 KiB` against a `2097152 KiB` requirement. Job Hunter daily is loaded on `6c7d2062` with a 30-minute interval, but its latest Workday row (Danaher, Business Account Manager) is `transport_failed`, queued for same-row resume. The first boundary is `apps/job-search-loop/job_search_loop/browser_agent/runtime.py::_act_locked`: after a successful navigate, `wait` observes `about:blank`/non-HTTPS and raises `post-action browser context no longer exposes an absolute HTTPS page`; no application receipt was produced. Job Hunter inbox is exit `75` capacity-deferred and learning is exit `78` configuration/release-drift. These are separate TODOs and do not change Connector's closed gate or the TODO order.
-
-**Starting evidence at plan creation:** PR #5321 was unmerged; its branch `codex/connector-coconala-20260917` held the Connpass semantic-radio change. Its earlier head passed CI 10/10, and focused Browser Harness 181/181 passed. The installed Connector label loaded `203bbe8854` with `StartInterval=1800`; its natural run `18d6089253cdbf18-32608` got a browser slot, reached Connpass, and completed with new effect 0. Three direct submissions stopped at `connpass_questionnaire_required`; their fallback stopped at `unsafe_agent_action`. Luma observed free/open 3 and Calendar-free 0. These facts can drift; read live state again before any mutation. Event `405705` and Calendar ID `0c706h76f6ceoh99cdaug31cd4` are historical baseline, never the new-effect pass.
-
-**CN-C01 CI exception at integration:** After the branch absorbed newer main and PR #5321 was marked ready, its CI run `35193135206` failed the OSS self-contained check on `skills/capafy-autopublish` (`manifest_inventory_mismatch`) and `skills/capafy/catalog/marketing-strategist/icon.webp` (`generated_artifact`). The PR diff contained only the two Connector Browser Harness files and the Connector progress spec; this failure was in newer main-owned Capafy paths, not an observed Connector test failure. Focused Connector Browser Harness 181/181 and `git diff --check` passed on the updated branch. Leave Capafy files with their owner. For this exact pre-existing, unrelated red check only, Dais's explicit request to reach a real Connector effect permitted targeted `--admin` integration after fresh focused test, diff and read-only safety review; record the CI red as unresolved and never call CI green. A Connector-related CI failure stops any future merge. The earlier 10/10 CI PASS described the prior PR head, not the merged head.
-
-**CN-C01/C02 progress:** PR #5321 was targeted-admin merged at main `a617184d6f6ff9e739ef45f9ff001f4447052bb1` after focused Browser Harness 181/181, `git diff --check`, read-only safety review and nine non-Capafy CI jobs passed. The one Capafy OSS check above remained red; no CI-green claim is made and Capafy files were untouched. A first complete release was superseded and safely pruned by a concurrent cutter of the same SHA. The surviving `release_paths=ALL` main-derived release is `/Users/anicca/loops/releases/20260917T162452-a617184d`; Connector imports including `playwright-core` and GUI preflight passed. After the predecessor `203bbe8854` wake reached its terminal, only Connector was applied (install event `1797a2ceb0bbf6b6f4d5e62e`), and loaded argv/SHA matched `a617184d`.
-
-**CN-C03 first canary — FAIL, not a new effect:** one bounded kickstart ran `18d60b0bc6027b20-11223` / `wake-9d56ee64e47a01837fe152ce` on that loaded SHA. It acquired the browser slot and exited 0 with `completed_no_effect / provider_discovery_failed`. Luma audited observed 11, free/open 3, Calendar-free 0. Connpass audited observed 283, Calendar-free 21; among the four attempted candidates, direct action reported `tier_unavailable` twice and `questionnaire_required` twice, both questionnaire fallbacks `unsafe_agent_action`. `evidence_completion` and new applied bundle were 0; the latest bundle remains the historical `405705`. The question mapping repair did **not** close the user outcome. The action history lacked the exact failed candidate event ref, so an isolated Connector-only patch added bounded public `candidate_ref` only to failed Connpass browser-harness action rows; focused runner/operations tests were RED before and 102/102 GREEN after. At this checkpoint it was pushed as PR #5326 but not yet merged. Next identify the exact event and official question, then make one grounded repair; do not broaden a regex from a generic failure label.
-
-**CN-C03 diagnostic release and admission status:** PR #5326 passed all 10 CI jobs and merged at main `7b31ba6960e5d40175325e17c739721319f477ab`. Its change only adds the public `connpass-event://event/<id>` to failed Connpass browser-harness action rows in the existing private action history. The complete main-derived release `/Users/anicca/loops/releases/20260917T164208-7b31ba69` passed Connector imports and GUI preflight and was applied only to the loaded-idle Connector label (install event `d0528b9712b857ace0d63592`). A single kickstart started run `18d60bfbd59c1640-45268`, but it exited 75 with `host_admission_deferred:resource_capacity_busy` **before provider work**. Read-only host-admission SQLite showed the same occurrence queued at sequence `25766`, `effect_unknown=0`; at 07:46 UTC browser queue count was 1 and reservations 0. This is not evidence about the provider fix or a new registration. Do not repeat kickstart or modify A15's DB. Let the existing release/reservation or next natural owner wake advance it; if it remains queued despite capacity turnover, report this exact occurrence to A15's owner as a shared dispatch blocker. No new provider or Calendar receipt exists yet for this diagnostic SHA.
-
-**Latest read-only cursor:** The same occurrence `life-manager-connector-native:18d60bfbd59c1640-45268` remained `queued`, sequence `25766`, `effect_unknown=0`; its `next_eligible_at` advanced to 2026-09-17 07:56:57 UTC. The browser queue count was 1 and reservations were 4 at that snapshot. The Connector label was idle after one exit-75 run. Reservations and eligibility are moving, so `resource_capacity_busy` is an observed admission deferral, not yet proof of an A15 defect or a Connector provider failure. Check this exact occurrence and the next natural wake read-only. If it misses two configured 30-minute cadences despite browser-capacity turnover, give the A15 owner the occurrence ID, sequence, eligibility timestamps, loaded SHA and terminal; do not mutate its queue, restart owners, or kickstart again. Once provider work starts, use the new `candidate_ref` in `connector-native/action-history.jsonl` to inspect the exact official event, free tier, and first unanswered question. Make one Connector-only test-first repair only if that live boundary is reproduced.
-
-**08:09 UTC Connector retry after main advanced:** `~/loops/current` and `origin/main` pointed at complete release `5a1117e6adbec7514e3c4337b506c2c0761a5c90` (`release_paths=ALL`), while Connector still loaded `7b31ba69`. Connector source files did not differ between those SHAs. After the concurrently running release-reconciler run `18d60cee7b5eb950-92455` reached terminal, targeted Connector-only apply installed `5a1117e6` (event `5256de4af01b88ce6c3cb740`; loaded argv matched). One bounded kickstart ran `18d60d50af078810-1840` and reached outer terminal `blocked / host_admission_deferred:resource_capacity_busy` at 08:09:04 UTC, before provider work. The earlier occurrence remained queued at sequence `25766`, `effect_unknown=0`; no new wake report, official registration, or Calendar ID was produced. At the failure boundary, four live agent claims (three revenue, one borrow) and one borrow deterministic reservation occupied the host-wide five-run capacity; there was no browser reservation. Thus this attempt demonstrates host-wide capacity contention, not a Connpass or Luma action result. Do not kickstart again while that occurrence is queued. Observe the exact queue and natural owner wakes; if the occurrence remains starved after capacity turns over, report the concrete A15 dispatch/fairness evidence to its owner. Resume the `candidate_ref` investigation only after a run reaches Connpass.
-
-**Latest main/release and hard host blocker:** Main advanced through PR #5329 to `a76c8931ea87644696017f6ef87c820bc3651425`, with complete release `/Users/anicca/loops/releases/20260917T171043-a76c8931`. Targeted Connector-only apply installed that release (install event `b41d69a6d6105dbfe59e98ba`; loaded argv matched). No provider run has started on this SHA. The shared release-reconciler still loads `20c6067c` and exits `78/EX_CONFIG`; its stderr records repeated `OSError: [Errno 28] No space left on device` while creating loop scratch, writing the launchd preflight receipt, and cutting releases. Disk readback showed only about 450 MiB available and 100% capacity. The Connector queue occurrence `18d60bfbd59c1640-45268` remains `queued`, `effect_unknown=0`, and has not produced a provider or Calendar receipt. This is a shared disk/reconciler blocker. Do not edit `runtime/host`, `runtime/loop`, release control, or another owner's state from Connector; hand this exact evidence to the foundation owner. After host space and reconciler recovery, let the queued occurrence dispatch naturally before any further kickstart.
-
-**CN-C03 provider boundary finally reached:** After capacity turnover and natural dispatch, the latest main-derived Connector run `18d60e5de5a82420-47708` / wake `wake-8d634ad5cd16b29945da7215` loaded `a76c8931ea87644696017f6ef87c820bc3651425`, claimed the browser resource, and reached Connpass. It ended `completed_no_effect / provider_discovery_failed` with no Submit and no Calendar/bundle receipt. Action history recorded direct `connpass_questionnaire_required` followed by safe browser fallback `unsafe_agent_action` for public candidates `connpass-event://event/404531` and `connpass-event://event/405844`; a third candidate stopped at `connpass_tier_unavailable`. Official read-only join-page readback showed 404531 requires: consent to the event notices, affiliation, name, GitHub account or email, X account (or `なし`), and whether attending the next day's main conference. Event 405844 requires the user's graduation cohort/years-after-new-graduation selection plus a Discord acknowledgement. The private profile has verified name, MUIT affiliation and GitHub, but no verified X account, next-day attendance choice, graduation-year answer, or event-specific consent. Therefore no answer is safe to invent and no Submit occurred. This is now a demonstrated provider questionnaire boundary, not an admission failure. Keep the candidate pending/skip it, surface the exact public question once through the existing Connector action transport, and resume only after Dais explicitly supplies any missing fact or consent. Do not count this run as a new effect.
-
-**Connector questionnaire notification repair (branch, not live yet):** Commits `965b8c7`, `eb3d52d` and `dee979d` on `codex/connector-coconala-20260917` capture bounded public required-question labels from the existing Connpass DOM guard, carry them through the existing workflow, and send one durable Telegram receipt through `connector-connpass-action-telegram.js` after the browser fallback also fails. The receipt key is stable on event ID plus question labels across wake IDs, and an `effect_unknown` fallback suppresses any zero-submit claim. It never fills a radio/checkbox/select, never invents consent or a profile fact, and never calls Submit from the notification path. The focused Connpass/provider/runner/production/browser-harness tests are 401/401 green after merging main `4835540a`; a fresh read-only review returned `ship`. The branch is pushed but not merged or loaded. Next integrate this exact Connector diff into main, cut a complete release, apply only the idle Connector label, and run one natural canary. A notification receipt is not an external registration effect.
-
-**Live canary after merge:** PR #5339 merged as main `5748aaf859173eb2532847c65c0982a30d024f5d`; complete release `/Users/anicca/loops/releases/20260917T180413-5748aaf8` was cut and Connector-only applied (install event `865c357ee6a702d25f47fc24`, loaded argv matched). Natural run `18d6108262033890-67081` / wake `wake-6d27f99893d9b02ea270cd0e` reached Connpass. It recorded two successful `connpass_questionnaire_report` actions and durable Telegram receipts `86531` (event 405844) and `86532` (event 404531), with no provider Submit, evidence completion, Calendar creation or bundle. The run later ended `circuit_open / wake_deadline`; its occurrence is `effect_unknown=1`, so it must not be retried until the shared admission owner reconciles it. Independent official Connpass readback immediately after the terminal showed both event 404531 and 405844 `state=absent`. This proves the questionnaire notification path worked and the two candidate effects did not occur; it does not satisfy the new-registration gate. Preserve the fence and hand the occurrence plus official absent receipts to A15/foundation owner before the next canary.
-
-**Ownership and stop rules:** Keep the other A15 session's worktree, PID, host-admission DB, browser profile, CDP port, credential and state untouched. Use only the Connector label, its own state and the existing browser rail. Never reload a running owner or replace a loaded SHA before its current run has a terminal. An uncertain provider effect is a hard stop until official registration readback. A new personal fact or consent is not inferred; ask Dais once, save the explicit answer only in the private profile, then resume. The current draft PR does **not** implement that ask-and-resume path. Do not call Connector Done if it remains needed.
-
-**Subsequent wake after the fence:** A later natural wake loaded release `/Users/anicca/loops/releases/20260917T183447-93cb7459`; run `35143` / wake `wake-80240da29ae6a0a4568b40a0` reached Connpass and reused the two existing questionnaire receipts without sending duplicates. It ended `completed_no_effect / fallback_deferred_for_wake_budget` with exit 0, and its own occurrence `18d612b8d7cd8a48-35143` is `released/effect_unknown=0`. No new official registration, Calendar event or bundle exists. The older occurrence `18d6108262033890-67081` remains separately fenced at `effect_unknown=1`; do not treat the clean later release as clearing that fence or as Connector completion.
-
-##### CN-C01: Prove the question fix is safe and complete (closed; historical checklist)
-
-- [x] Current closeout: unknown required controls are answered by the existing agent runner; parent validation and official provider readback remain mandatory. Focused Browser Harness: 186/186.
-
-- [ ] In the Connector worktree, fetch `origin/main`; read `git status --short --branch`, `git diff origin/main...HEAD --name-only`, and PR #5321. Expect only `apps/life-manager/lib/connector-production-browser-harness.js`, its test, and the Connector-specific progress spec. If another owner changed either code file on main, compare exact functions before integration rather than overwriting.
-- [ ] Read `createPrivateValueResolver`, `createBoundedPrivateFactSelector`, `createBoundedActionProposer` and `runFallback` in `connector-production-browser-harness.js`, plus `planConnpassQuestionnaire` and `readConnpassRegistrationStateOnPage` in `connpass-browser-provider.js`. Preserve the existing `registered/pending` official readback and single-submit fence. The model may select a saved factual key; the parent must match its private value to exactly one offered option. Mixed questions, generic yes/no, consent and commitments must not be approved from a different stored answer.
-- [ ] Run `rtk proxy node --test apps/life-manager/lib/connector-production-browser-harness.test.js` and `rtk proxy git diff --check`; read exit codes and the test count. The focused file must pass all 181 tests. Read-only review already found and closed the wrong-`はい`, wrong-`Connpass`, and mixed-question consent paths; if the source changes, rerun those negative tests before merge.
-- [ ] On an actual future `questionnaire_required` after this patch is loaded, inspect the exact Connector-owned event/question without disturbing another profile. If the private profile lacks the answer, surface one bounded question/answer receipt through the existing `connector-connpass-action-telegram.js` transport, keyed by event identity plus question. Keep that candidate pending while other eligible events proceed. Dais or the authorized identity owner stores his explicit answer in the existing private form profile read by `luma-form-profile.js`; Connector never writes a guessed value or creates a second Telegram consumer. A focused test in `connector-production-browser-harness.test.js` and `connector-minimal-runner.test.js` must prove no Submit before the explicit answer, one resumed Submit after it, and no repeated question on replay. Do this only when the live question demonstrates the gap; the semantic patch alone does not satisfy this substep.
-
-##### CN-C02: Integrate one Connector source and install one release (closed; historical checklist)
-
-- [x] Current closeout: PR #5358 merged at `393f17458a4e`; release `20260917T200804-393f1745` is loaded only by Connector with idle readback.
-
-- [ ] Check `gh pr checks 5321` after any branch update. Once all required Connector and safety jobs pass, merge with `gh pr merge 5321 --admin --merge`; the one exact unrelated Capafy base failure is recorded above as a scoped exception, not a green CI claim. Record the merge SHA and verify `origin/main` contains the two changed Connector code paths. Do not merge the other A15 worktree or a broad candidate branch.
-- [ ] Confirm the Connector label is idle with `rtk proxy bin/launchctl-safe preflight` and `rtk proxy bin/launchctl-safe print gui/$(id -u)/ai.anicca.life-manager-connector-native`. If active, wait for that exact run's terminal; do not stop it to speed the test.
-- [ ] Cut a complete immutable release from `origin/main` using `rtk proxy env LOOPS_ACTIVATE_CURRENT=0 bash bin/cut-loop-release.sh origin/main`. Resolve the printed release path and inspect its `RELEASE.json`: full 40-character SHA equals `origin/main`, `release_paths=ALL`, and Connector runtime imports (`connector-minimal-production.js`, `connector-production-browser-harness.js`, `playwright-core`) load through the release's Node. Leave global `~/loops/current` unchanged.
-- [ ] With `LIFE_MANAGER_RELEASE_ROOT` set to that exact release and `LIFE_MANAGER_APPLY_TARGET=life-manager-connector-native`, run that release's `bin/lm-loop apply`. Read back loaded `ProgramArguments`, SHA, one exact label, installed event, and idle state. Stop if preflight, release completeness, apply lock, or ownership fails; do not reload siblings.
-
-##### CN-C03: Run and verify a new Connpass effect (closed)
-
-- [x] Current closeout: event `405297` official `registered`, provider receipt `f1bbe06389aff318ebb40c02e9e91b6af6be261e012629e126795dcb7f157273`, Calendar ID `hkpcm5qds9fhk6khorr2kfqnro`, independent exact count 1, Telegram `86619`/`86620`, bundle `e8c393f6cd21636df0057ce49e82bd44257c9d128870dd8054585ff6a1c6b869`.
-
-- [ ] Reconcile any existing uncertain submission for the selected event using the official Connpass registration page **before** another Submit. The old event `405705` is not a new effect. Inspect the Connector browser lease and target owner; if another account/browser operation owns the resource, wait for its terminal.
-- [ ] For the current `7b31ba69` release, first follow queued occurrence `18d60bfbd59c1640-45268` and subsequent natural wakes to a terminal and provider readback. Do not kickstart that queued occurrence again. If admission continues to defer it across two scheduled 30-minute cadences despite capacity turnover, report the exact shared admission evidence to A15's owner. A future bounded canary is only considered after the queued occurrence resolves and its official provider state is reconciled.
-- [ ] If a suitable candidate is submitted, require the exact official Connpass `registered` or `pending` result from `readConnpassRegistrationStateOnPage`, its event identity, the corresponding Google Calendar event ID, and an independent authenticated Calendar API readback using the existing `transport/calendar-gog.js` path. The readback must have the canonical URL, matching `lm_connector_event` private property and exact count 1. Check Telegram message/photo provider IDs and one durable `applied_bundle` for the same event. A button click, exit 0, agent PASS or a local bundle alone fails this gate.
-- [ ] If no new effect, inspect `connector-native/action-history.jsonl`, the matching `wake-reports.jsonl`, Connpass discovery audit and exact provider page to name the first candidate-specific failure. A `tier_unavailable` or unanswered question is not `capacity_busy`. Write one failing regression from that real question/control before changing its provider adapter. Do not count a candidate list of 21 as 21 valid free attendance tiers.
-
-##### CN-C04: Distinguish Luma no-work from a broken submit path (closed for current gate)
-
-- [x] Current closeout: latest Luma audit is `free_open=2 / calendar_free=0`; this is Calendar conflict no-work, not a Luma submit failure.
-
-- [ ] For the same run, read `luma-discovery-audits.jsonl` and the current Google Calendar busy inventory. `free_open>0, calendar_free=0` means observed inventory conflict; report no-work and continue the next scheduled search. It neither proves a Luma submit bug nor proves Luma submit success.
-- [ ] When `calendar_free>0`, inspect the exact Luma event detail, apply with the existing `connector-luma-workflow.js` / `luma-browser-provider.js` path, and require provider registered/pending readback → Calendar exact 1 → Telegram IDs → bundle. If this path fails, capture its first provider-specific boundary and write one focused red test before changing it. Do not manufacture an eligible event or clear a real Calendar conflict for testing.
-
-##### CN-C05: Prove scheduled continuation instead of one lucky registration (closed)
-
-- [x] Current closeout: natural wakes `wake-953036ad8babec6ae03109f1` and `wake-96cc924ba6c56c1562a25308` on the same SHA produced applied bundles, did not re-submit `405297`, and preserved Calendar exact 1.
-
-- [ ] Keep the installed `StartInterval=1800` while testing; do not add a parallel scheduler. After a new verified effect, observe **two subsequent natural launches on the same loaded SHA**. For each, pair launchd `runs`/argv, the Connector runtime run ID and terminal, its wake report, official provider state and independent Calendar exact-one query. Require repeat Submit 0 for that event, duplicate Calendar 0, candidate continuation or truthful no-work, and owned browser target/lock cleanup.
-- [ ] If either wake is deferred by admission, fails before provider readback, re-submits the same event, loses its Calendar event, or leaves an owner lease, this gate fails. Diagnose that exact boundary and repair only the responsible Connector file or report a shared-admission blocker to the A15 owner. Three manual kickstarts, three exit-0 records, or the old `405705` bundle cannot pass.
-- [ ] Keep 30 minutes as the default. Only if recorded browser admission shows repeated same-minute collision should the registry/release owner shift Connector to one fixed hourly offset; changing to three hours without evidence reduces chances to meet people and does not fix a questionnaire.
-
-##### CN-C06: Close with receipts, then advance (closed)
-
-- [x] Current closeout: Connector is complete; next ordered work is Coconala Apply, Reply, Paid and Storefront.
-
-- [ ] In this spec, replace the Connector row's open state only after CN-C03 through CN-C05 pass. Record the new event URL/ID, official status, Calendar ID and exact-one query, Telegram IDs, bundle, release SHA and three run IDs. State any remaining provider constraints and the truthful Luma result. Commit and push the focused evidence update without editing A15's queue state.
-- [ ] Only then mark the Connector goal complete and advance to Coconala Apply, Reply, Paid and Storefront separately. If no newly eligible event is present, keep the goal and schedule active, record no-work, and continue from CN-C03 on the next natural opportunity; never convert no-work into a registration claim.
+**Done condition:** source merged to main, complete immutable release loaded,
+owner browser lock held without orphan mass-close, new official provider effect,
+Calendar exact-one independent readback, durable evidence/Telegram receipts, and
+two replay-zero natural wakes. Tests, exit 0, loaded status, screenshots or a
+historical registration alone never satisfy this condition.
 
 ### Atomic remaining execution list — current cursor A15
 
