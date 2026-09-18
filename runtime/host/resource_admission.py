@@ -276,6 +276,83 @@ def owner_deploy_lock(owner_id: str):
         os.close(descriptor)
 
 
+def rebind_queued_owner(
+    owner_id: str,
+    *,
+    resource_class: str,
+    admission_class: str,
+    priority: str | None = None,
+) -> str:
+    """Migrate one effect-free queued owner to its current registry admission policy.
+
+    Release changes can legitimately promote a pending owner from borrow/support to
+    revenue/revenue. Preserve its FIFO sequence and occurrence identity; never touch a
+    reservation, claimed occurrence, or effect-unknown row.
+    """
+    if (
+        not owner_id
+        or resource_class not in set(RESOURCE_CLASSES)
+        or admission_class not in ADMISSION_CLASSES
+    ):
+        raise RuntimeError("invalid queued owner rebind identity")
+    priority_name = _normalize_priority(priority, admission_class)
+    root, _owners, _tickets, database = _durable_paths()
+    descriptor = os.open(root / "control.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        if not _acquire_bounded(descriptor):
+            return "control_busy"
+        with _database(database) as connection:
+            queue_row = connection.execute(
+                "SELECT resource_class,sequence FROM queue WHERE owner_id=?",
+                (owner_id,),
+            ).fetchone()
+            if queue_row is None:
+                return "not_queued"
+            if queue_row[0] != resource_class:
+                raise RuntimeError("queued owner resource class changed")
+            if connection.execute(
+                "SELECT 1 FROM reservations WHERE owner_id=?", (owner_id,)
+            ).fetchone():
+                return "reserved"
+            if connection.execute(
+                """SELECT 1 FROM occurrences
+                   WHERE owner_id=? AND (state='claimed' OR effect_unknown=1)
+                   LIMIT 1""",
+                (owner_id,),
+            ).fetchone():
+                return "effect_unknown"
+            if not connection.execute(
+                """SELECT 1 FROM occurrences
+                   WHERE owner_id=? AND state='queued' AND effect_unknown=0
+                   LIMIT 1""",
+                (owner_id,),
+            ).fetchone():
+                return "no_queued_occurrence"
+            current = connection.execute(
+                """SELECT admission_class,base_priority,admission_policy
+                   FROM priorities WHERE owner_id=?""",
+                (owner_id,),
+            ).fetchone()
+            if current is None:
+                raise RuntimeError("queued owner priority row missing")
+            changed = current != (admission_class, priority_name, ADMISSION_POLICY)
+            connection.execute(
+                """UPDATE priorities
+                   SET admission_class=?, admission_policy=?, base_priority=?
+                   WHERE owner_id=?""",
+                (admission_class, ADMISSION_POLICY, priority_name, owner_id),
+            )
+            connection.execute(
+                """UPDATE occurrences
+                   SET admission_class=?, base_priority=?
+                   WHERE owner_id=? AND state='queued' AND effect_unknown=0""",
+                (admission_class, priority_name, owner_id),
+            )
+            return "rebound" if changed else "unchanged"
+    finally:
+        os.close(descriptor)
+
+
 def _defer_during_owner_deploy(function):
     @wraps(function)
     def guarded(resource_class, owner_id, *args, **kwargs):
