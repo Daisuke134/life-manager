@@ -16,6 +16,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import sys
 from typing import Any, Callable, Mapping, Optional, Sequence
 
@@ -48,6 +49,12 @@ def _report_chat() -> str:
 
 
 TARGET = _report_chat()
+_OCCURRENCE_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
+
+
+def _runtime_occurrence() -> str | None:
+    value = os.environ.get("LIFE_MANAGER_OCCURRENCE_ID", "")
+    return value if _OCCURRENCE_PATTERN.fullmatch(value) else None
 
 
 def _load(name: str, path: Path):
@@ -172,8 +179,10 @@ def enqueue_wake_summary(database: Path, *, status_path: Path = STATUS, ledger_p
     )
     if not message: return 0
     observed = str(status.get("observed_at") or now)
+    occurrence = _runtime_occurrence()
+    event_key = f"crowdworks:wake:{occurrence}:{observed}" if occurrence else f"crowdworks:wake:{observed}"
     try:
-        return int(bool(outbox.enqueue(Path(database), f"crowdworks:wake:{observed}", message, now)))
+        return int(bool(outbox.enqueue(Path(database), event_key, message, now)))
     except Exception:
         return 0
 
