@@ -14,6 +14,7 @@ import shutil
 import shlex
 import subprocess
 import sys
+import time
 from typing import Any, Mapping
 from urllib.parse import parse_qs, quote, urlsplit
 
@@ -22,6 +23,9 @@ HERE = Path(__file__).resolve().parent
 REPO_ROOT = Path(os.environ.get("LIFE_MANAGER_RELEASE_ROOT") or HERE.parents[3]).resolve()
 JST = timezone(timedelta(hours=9))
 EXTERNAL_CDP_URL = "http://127.0.0.1:9222"
+EXTERNAL_CDP_CONNECT_TIMEOUT_MS = 30_000
+EXTERNAL_CDP_ATTACH_ATTEMPTS = 2
+EXTERNAL_CDP_RETRY_DELAY_SECONDS = 1.0
 BOOKING_ORIGIN = "https://yoyaku.triplek-rh.workers.dev"
 BOOKING_ACTION_VERSION = "external-booking-v1"
 URL_PATTERN = re.compile(r"https://[^\s<>]+")
@@ -262,15 +266,48 @@ class LancersReplyAdapter:
         runtime = getattr(self.browser, "_anicca_playwright_runtime", None)
         if runtime is None:
             raise work_sync.SourceFailure("external_browser_unavailable")
-        browser = runtime.chromium.connect_over_cdp(self.external_cdp_url, timeout=10_000)
-        if not browser.contexts:
-            raise work_sync.SourceFailure("external_browser_unavailable")
-        page = browser.contexts[0].new_page()
-        page.goto(url, wait_until="domcontentloaded", timeout=30_000)
-        if urlsplit(page.url)._replace(query="", fragment="").geturl() != BOOKING_ORIGIN + "/":
-            page.close()
-            raise work_sync.SourceFailure("external_booking_auth_required")
-        return page
+        for attempt in range(EXTERNAL_CDP_ATTACH_ATTEMPTS):
+            browser = None
+            page = None
+            try:
+                browser = runtime.chromium.connect_over_cdp(
+                    self.external_cdp_url, timeout=EXTERNAL_CDP_CONNECT_TIMEOUT_MS
+                )
+                if not browser.contexts:
+                    raise work_sync.SourceFailure("external_browser_unavailable")
+                page = browser.contexts[0].new_page()
+                page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+                if urlsplit(page.url)._replace(query="", fragment="").geturl() != BOOKING_ORIGIN + "/":
+                    raise work_sync.SourceFailure("external_booking_auth_required")
+                return page
+            except work_sync.SourceFailure:
+                if page is not None:
+                    try:
+                        page.close()
+                    except Exception:
+                        pass
+                if browser is not None:
+                    try:
+                        browser.close()
+                    except Exception:
+                        pass
+                raise
+            except Exception:
+                if page is not None:
+                    try:
+                        page.close()
+                    except Exception:
+                        pass
+                if browser is not None:
+                    try:
+                        browser.close()
+                    except Exception:
+                        pass
+                if attempt + 1 < EXTERNAL_CDP_ATTACH_ATTEMPTS:
+                    time.sleep(EXTERNAL_CDP_RETRY_DELAY_SECONDS)
+                    continue
+                raise work_sync.SourceFailure("external_browser_unavailable") from None
+        raise work_sync.SourceFailure("external_browser_unavailable")
 
     def _candidate(self) -> Mapping[str, Any]:
         value = json.loads(self.candidate_profile.read_text(encoding="utf-8"))

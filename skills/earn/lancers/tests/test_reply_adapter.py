@@ -1,5 +1,6 @@
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace
 
 
 MODULE = Path(__file__).parents[1] / "scripts" / "reply_adapter.py"
@@ -232,6 +233,51 @@ def test_booking_link_becomes_shared_external_action_even_when_seller_is_last(mo
     assert context["decision_required"] is True
     assert context["required_action"]["action"] == "external_action"
     assert context["required_action"]["payload"]["kind"] == "schedule_meeting"
+
+
+def test_external_page_retries_transient_cdp_attach(monkeypatch, tmp_path):
+    class Page:
+        url = "about:blank"
+
+        def goto(self, url, **_kwargs):
+            self.url = url
+
+        def close(self):
+            return None
+
+    class Context:
+        def new_page(self):
+            return Page()
+
+    class Browser:
+        contexts = [Context()]
+
+        def close(self):
+            return None
+
+    class Chromium:
+        def __init__(self):
+            self.calls = 0
+
+        def connect_over_cdp(self, _url, *, timeout):
+            self.calls += 1
+            assert timeout == adapter_module.EXTERNAL_CDP_CONNECT_TIMEOUT_MS
+            if self.calls == 1:
+                raise TimeoutError("transient attach")
+            return Browser()
+
+    chromium = Chromium()
+    runtime = SimpleNamespace(chromium=chromium)
+    adapter = adapter_module.LancersReplyAdapter(tmp_path / "state.json")
+    adapter.browser = SimpleNamespace(_anicca_playwright_runtime=runtime)
+    monkeypatch.setattr(adapter_module.time, "sleep", lambda _seconds: None)
+
+    page = adapter._external_page(
+        "https://yoyaku.triplek-rh.workers.dev/?lid=keiodaisuke"
+    )
+
+    assert page.url == "https://yoyaku.triplek-rh.workers.dev/?lid=keiodaisuke"
+    assert chromium.calls == 2
 
 
 def test_external_action_resumes_without_rebooking(monkeypatch, tmp_path):
