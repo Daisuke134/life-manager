@@ -91,6 +91,12 @@ def _admission_rebind_guard(
             admission_class=admission_class,
             priority=priority,
         )
+        if result == "reserved":
+            # A reserved occurrence already owns its admission policy. Keep the
+            # reservation intact and let the release install proceed; the next
+            # wake will reconcile any policy change after the reservation drains.
+            yield None
+            return
         if result not in {"rebound", "unchanged"}:
             raise RuntimeError(f"admission rebind refused: {result}")
         yield None
