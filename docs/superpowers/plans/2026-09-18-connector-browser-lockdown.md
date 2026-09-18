@@ -64,9 +64,9 @@
 - Produces: one 30-minute keepalive/readback for the authenticated Connpass and Luma URLs without a second scheduler or automatic credential fabrication.
 
 - [ ] Write a failing test asserting the tick command contains the approved authenticated Connpass and Luma URLs.
-- [ ] Add the URLs to the existing `KA_OUT` command only; preserve existing Coconala/Instagram/X behavior and Telegram alerting.
-- [ ] Run the focused shell/static test and `python3 skills/browser/scripts/session_vault.py status`.
-- [ ] Record `logged_out` explicitly if either provider is unauthenticated; do not report it as registered.
+- [x] Add the URLs to the existing `KA_OUT` command only; preserve existing Coconala/Instagram/X behavior and Telegram alerting. PR #5615 merged as main `8eae86892e`.
+- [x] Run the focused shell/static test and existing vault tests (`31/31` pass); cut release `/Users/anicca/loops/releases/20260918T231001-8eae8689` with `release_paths=ALL`.
+- [ ] Reconcile stale `session-vault:18d606ad782b0140-83191`, load the release, and record `logged_out` explicitly if either provider is unauthenticated; do not report it as registered.
 
 ### Task 4: Reconcile the shared effect fence and load the merged release
 
