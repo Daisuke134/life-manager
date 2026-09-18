@@ -940,8 +940,16 @@ class XBrowserAdapter:
             page.wait_for_timeout(500)
             if composer.inner_text().strip():
                 raise XRepairRefused("X composer did not clear deterministically")
+            previous_kind: str | None = None
             for kind, value in chunks:
                 if kind == "html":
+                    if previous_kind == "img":
+                        # Draft.js can leave focus on the newly inserted image;
+                        # restore the document end before pasting the trailing
+                        # HTML (notably the Sources block).
+                        composer.click()
+                        page.keyboard.press("Meta+ArrowDown")
+                        page.wait_for_timeout(300)
                     for html_chunk in _clipboard_html_chunks(value):
                         if not html_chunk.strip():
                             continue
@@ -953,6 +961,7 @@ class XBrowserAdapter:
                     if not path.is_file():
                         raise XRepairRefused("X body image is missing")
                     self._paste_image_chunk(page, composer, path)
+                previous_kind = kind
             normalized_body = " ".join(
                 html_lib.unescape(re.sub(r"<[^>]+>", " ", body_html)).split()
             )

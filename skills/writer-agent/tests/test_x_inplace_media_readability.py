@@ -61,6 +61,7 @@ def test_inplace_repair_uses_repository_chunk_inserter_only():
     assert method.index("chunks = build_chunks") < method.index("manager, _browser, page = self._page()")
     assert ".claude/skills/x-article-publisher" not in source
     assert "spec_from_file_location" not in source
+    assert "Meta+ArrowDown" in method
 
 
 def test_html_clipboard_chunks_preserve_block_boundaries():
