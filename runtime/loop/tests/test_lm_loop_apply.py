@@ -135,6 +135,24 @@ class LmLoopApplyTest(unittest.TestCase):
             "example", resource_class="agent", admission_class="revenue", priority="revenue"
         )
 
+    def test_admission_rebind_guard_installs_when_pending_owner_is_unloaded(self):
+        entry = {
+            "resource_class": "agent",
+            "admission_class": "revenue",
+            "priority": "revenue",
+        }
+        item = {"label": "ai.anicca.example"}
+        with (
+            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value={"skipped": "unloaded"}),
+            patch.object(lm_loop, "rebind_queued_owner", return_value="not_queued"),
+            lm_loop._admission_rebind_guard(
+                "example", True, entry=entry, item=item, release_sha=SHA,
+                launchctl_safe=Path("/tmp/launchctl-safe"),
+            ) as decision,
+        ):
+            self.assertIsNone(decision)
+
     def test_apply_all_is_explicit(self):
         with patch.dict(os.environ, {
                 "LIFE_MANAGER_RELEASE_ROOT": str(self.root),

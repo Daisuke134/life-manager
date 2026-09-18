@@ -82,7 +82,7 @@ def _admission_rebind_guard(
             return
         if item is not None and release_sha and launchctl_safe:
             skipped = _skip_if_not_loaded_idle(item, release_sha, launchctl_safe)
-            if skipped is not None:
+            if skipped is not None and skipped.get("skipped") != "unloaded":
                 yield skipped
                 return
         result = rebind_queued_owner(
