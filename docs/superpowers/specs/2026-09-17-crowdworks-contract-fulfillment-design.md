@@ -70,16 +70,28 @@ not a claim that money has been earned.
 - **Admission progress:** occurrence `16007` was reconciled to the exact `63659463` common-form receipt;
   occurrences `26778` and `36919` were reconciled from durable `completed/effect=0` run markers. Their
   rows are now `released/effect_unknown=0`.
+- **All-lane live cursor:** the current host ledger has one unreconciled `claimed/effect_unknown=1` row for
+  each owner: Apply `crowdworks-revenue-application:18d5fce56607e540-6666`, Reply
+  `crowdworks-revenue-reply:18d5fa8f9d73cad8-49973`, and Paid
+  `crowdworks-revenue-paid:18d62cf32eb0c678-48194`. The first two were stopped at admission with no child
+  run; Paid's legacy provider-inventory run has no durable marker. No row is cleared from a guess.
+- **Apply / Reply receipts:** Apply has 162 historical official application receipts and an empty pending
+  transaction queue; its retained owner state is `profile_navigation_failed` with `effect_delta=0`.
+  Reply's retained result is `observed=57`, `readback=52`, `pending=4`, `failed=1`, `effect=0`; its
+  provider message IDs are historical readbacks and do not prove a new wake. All later scheduled wakes for
+  both owners stopped at the shared admission fence.
 
 ### Not done (current blockers and open work)
 
-- **Admission blocker:** the Paid owner remains stopped by the exact stale occurrence
-  `crowdworks-revenue-paid:18d62cf32eb0c678-48194` (`claimed`, `effect_unknown=1`). It came from a
-  provider-inventory failure in the legacy release with no durable run marker, so it cannot be cleared as
-  no-effect. The new release was applied and kickstarted; latest target run
-  `18d6433866dccd98-13221` ended before the child with
+- **Admission blocker:** all three owners are stopped by exact stale occurrences: Application
+  `crowdworks-revenue-application:18d5fce56607e540-6666`, Reply
+  `crowdworks-revenue-reply:18d5fa8f9d73cad8-49973`, and Paid
+  `crowdworks-revenue-paid:18d62cf32eb0c678-48194` (`claimed`, `effect_unknown=1`). The Application and
+  Reply rows have no child-run marker; the Paid row came from a legacy provider-inventory failure without a
+  durable marker. The latest target wakes (`18d646d6332dc0c8-73504`, `18d646d7e678a0e8-73709`, and
+  `18d646cb227652a0-72465`) all ended before child execution with
   `host_admission_deferred:resource_effect_unknown`. Launchd readback is `state=not running`,
-  `last exit code=75`.
+  `last exit code=75` for each. Application/Reply remain on release `37384185`; Paid is on `8be258fc`.
 - **`63657015` Orecon:** the latest wake timed out with `CrowdWorksPaidContractTimeout`; its durable
   form intent for `https://forms.gle/GxTdS4kZr8fbvej68` remains `intent_persisted` with no confirmed
   receipt. Do not retry from the intent alone; first reconcile the official form/provider state.
@@ -96,14 +108,16 @@ not a claim that money has been earned.
 
 ### Remaining TODO, in execution order
 
-1. **Reconcile the exact admission occurrence.** Headroom recovery and the new release apply are read back,
-   but the cleanup error remains open. Use the existing provider/no-effect reconciliation path for occurrence
-   `18d62cf32eb0c678-48194` only when an exact run receipt or run-wide marker exists. Clear it only with
+1. **Reconcile the three exact admission occurrences.** Headroom recovery and the Paid release apply are
+   read back, but the cleanup error remains open. Use the existing provider/no-effect reconciliation path
+   for Application `18d5fce56607e540-6666`, Reply `18d5fa8f9d73cad8-49973`, and Paid
+   `18d62cf32eb0c678-48194` only when an exact run receipt or run-wide marker exists. Clear a row only with
    exact evidence; never guess and never reinterpret a browser timeout as a provider effect.
-2. **Wake the installed Paid owner without waiting for a global slot.** The new release has already been
-   applied and kickstarted once; after exact reconciliation, kickstart again and read its terminal receipt,
-   per-contract state and official active inventory. A blocked or slow contract must stay independently
-   represented so other contracts can advance.
+2. **Wake all three installed owners without waiting for a global slot.** After exact reconciliation,
+   kickstart Application, Reply and Paid one at a time and read each terminal receipt plus its official
+   provider readback. Application must prove the proposal receipt, Reply only pre-contract negotiation,
+   and Paid the five-contract fulfillment inventory. A blocked item stays independently represented so
+   other items can advance.
 3. **Finish `63657015` safely.** Inspect the exact provider/form readback for the persisted intent. If no
    effect occurred, read the full hearing/common-test instructions, produce the requested artifact, submit
    only the applicable work and verify it. Do not fabricate the requested AI share link.

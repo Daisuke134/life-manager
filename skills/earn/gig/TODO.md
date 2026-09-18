@@ -1008,7 +1008,7 @@ work item and leave a sibling trace unchanged.
 
 **Plan/spec:** `docs/superpowers/plans/2026-09-17-crowdworks-contract-fulfillment.md` and
 `docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md`.
-**Current cursor:** **CW-F1 — exact admission reconciliation and installed-owner wake**.
+**Current cursor:** **CW-F1 — all-lane exact admission reconciliation and installed-owner wakes**.
 
 **Done (verified):**
 
@@ -1040,15 +1040,19 @@ work item and leave a sibling trace unchanged.
   above the immediate ENOSPC floor, but the cleanup error remains open.
 - Paid admission progress: occurrences `16007`, `26778` and `36919` are reconciled to exact effect/no-effect
   evidence and now `released/effect_unknown=0`.
+- Current host ledger still has one `claimed/effect_unknown=1` row per CrowdWorks owner: Application
+  `18d5fce56607e540-6666`, Reply `18d5fa8f9d73cad8-49973`, and Paid `18d62cf32eb0c678-48194`. The
+  Application and Reply runs were admission-stopped before a child; Paid's legacy provider-inventory run
+  has no durable marker. Application has 162 historical verified application receipts with no pending
+  transaction; Reply retains `observed=57/readback=52/pending=4/failed=1/effect=0`. These are retained
+  readbacks, not proof of a new wake.
 
 **Not done / blockers:**
 
-- Paid launchd is `not running`, exit `75`; latest target run `18d6433866dccd98-13221` ended with
-  `host_admission_deferred:resource_effect_unknown`; stale occurrence
-  `crowdworks-revenue-paid:18d62cf32eb0c678-48194` remains `claimed`/`effect_unknown=1` after a legacy
-  provider-inventory failure without a durable marker. The new release was applied and kickstarted once,
-  but admission stopped it before child execution with `host_admission_deferred:resource_effect_unknown`.
-  The current pre-effect code refuses an unbound legacy clear.
+- Application, Reply and Paid launchd are all `not running`, exit `75`; latest target runs
+  `18d646d6332dc0c8-73504`, `18d646d7e678a0e8-73709`, and `18d646cb227652a0-72465` respectively ended
+  with `host_admission_deferred:resource_effect_unknown`. Their three exact stale occurrences remain
+  `claimed`/`effect_unknown=1`, and the current pre-effect code refuses an unbound legacy clear.
 - `63657015` has two current forms and no confirmed receipt under the current detail; its earlier durable
   common-form intent remains unverified and must be reconciled before retry.
 - `63570481` correction has not been submitted; the buyer-visible result and formal delivery are open.
@@ -1066,12 +1070,12 @@ work item and leave a sibling trace unchanged.
 
 - [x] **CW-F1a — host headroom:** Existing cleanup pass read back about 7.5 GiB free. It reclaimed zero
   artifacts and recorded one error, so capacity recovery is observed but cleanup health is not green.
-- [ ] **CW-F1b — admission reconcile:** Reconcile occurrence `18d62cf32eb0c678-48194` only with exact
-  run-wide pre-effect evidence or official provider receipt. Its legacy provider-inventory run has no durable
-  marker/intent; do not clear it by guess. The new release apply and one blocked kickstart are recorded.
-- [ ] **CW-F2 — installed-owner wake:** After exact reconciliation, kickstart the targeted Paid owner again
-  without waiting for a global slot; read terminal receipt, 5-contract inventory and per-contract detail.
-  Keep blocked contracts independent.
+- [ ] **CW-F1b — all-lane admission reconcile:** Reconcile Application `18d5fce56607e540-6666`, Reply
+  `18d5fa8f9d73cad8-49973`, and Paid `18d62cf32eb0c678-48194` only with exact run-wide pre-effect evidence
+  or an official provider receipt. Do not clear any row by guess.
+- [ ] **CW-F2 — installed-owner wakes:** After exact reconciliation, kickstart Application, Reply and Paid
+  one at a time without waiting for a global slot. Read proposal/message/contract receipts and official
+  provider state for each; Reply must not perform post-contract effects.
 - [ ] **CW-F3 — `63657015`:** Reconcile the timed-out intent from official provider state before retry;
   then read the full hearing/common-test scope, do the requested work, verify it and avoid fabricating an
   AI share link.
