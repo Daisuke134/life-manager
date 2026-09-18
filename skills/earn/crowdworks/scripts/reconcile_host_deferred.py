@@ -19,6 +19,10 @@ OWNERS = frozenset({
     "crowdworks-revenue-paid",
 })
 SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
+# These are emitted before `_run_entrypoint` can start.  In particular,
+# `resource_admission_interrupted` is deliberately excluded: the runtime can
+# write that receipt after a child has already started and was interrupted.
+PRE_CHILD_REASONS = frozenset({"resource_capacity_busy", "resource_fifo_wait"})
 
 
 def _events(path: Path) -> list[dict[str, Any]]:
@@ -59,9 +63,11 @@ def find_host_deferred_proof(events_path: Path, owner: str,
         return None
     terminal = terminals[0]
     blocker = terminal.get("blocker")
+    reason = blocker.split(":", 1)[1] if isinstance(blocker, str) and ":" in blocker else ""
     if (terminal.get("effect_status") != "unknown"
             or not isinstance(blocker, str)
             or not blocker.startswith("host_admission_deferred:")
+            or reason not in PRE_CHILD_REASONS
             or any(isinstance(ref, str) and ref.startswith("lm-effect://")
                    for ref in terminal.get("evidence_refs", []))):
         return None

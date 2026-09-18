@@ -75,6 +75,13 @@ def test_host_deferred_proof_rejects_effect_identity_and_non_deferred_terminal(t
 
     write_events(events, [
         event(owner=owner, run=run, status="running", effect_status="started"),
+        event(owner=owner, run=run, status="blocked", effect_status="unknown",
+              blocker="host_admission_deferred:resource_admission_interrupted"),
+    ])
+    assert module.find_host_deferred_proof(events, owner, f"{owner}:{run}") is None
+
+    write_events(events, [
+        event(owner=owner, run=run, status="running", effect_status="started"),
         event(owner=owner, run=run, status="fail", effect_status="unknown",
               blocker="entrypoint_exit_1"),
     ])
