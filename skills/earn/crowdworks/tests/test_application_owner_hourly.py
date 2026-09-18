@@ -98,6 +98,17 @@ def test_reconcile_import_uses_unbound_historical_writer(tmp_path, monkeypatch):
     assert "occurrence_id" not in receipt
 
 
+def test_applied_keeps_pending_projects_when_receipt_ledger_is_unreadable(tmp_path):
+    module = load()
+    module.LEDGER = tmp_path / "missing" / "application-receipts.jsonl"
+    module.TRANSACTION = tmp_path / "application-transaction.json"
+    module.TRANSACTION.write_text(
+        '{"pending":{"one":{"project_id":"123"}}}\n', encoding="utf-8"
+    )
+
+    assert "123" in module._applied()
+
+
 def test_discovery_groups_follow_durable_cursor_not_wall_clock(tmp_path):
     module = load()
     module.STATE = tmp_path

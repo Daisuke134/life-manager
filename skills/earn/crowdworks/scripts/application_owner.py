@@ -167,7 +167,7 @@ def _applied():
     """
     done = set()
     try: lines = LEDGER.read_text(encoding="utf-8").splitlines()
-    except OSError: return done
+    except OSError: lines = []
     for line in lines:
         try: record = json.loads(line)
         except ValueError: continue
