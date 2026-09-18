@@ -625,6 +625,12 @@ synthetic row, decide whether a rollout milestone is closed.
   buttons or reply instruction.
 - Explicit profile/correction intake, the signed verified-outcome bridge, the bounded safety
   adapter, and the offline policy scorecard are implemented and covered by focused tests.
+- Repository-owned durable decision rows for in-window send/silence decisions, replay keys, and
+  post-Telegram receipt completion are implemented and covered by focused tests. The additive
+  production migration is present; production application/readback is still an open gate.
+- Explicit per-user quiet-hours columns, bounds, pair validation, scheduler read, and migration
+  fallback are implemented. The correction parser still does not turn a timing complaint into a
+  setting automatically.
 - The live `life-call` deployment is `92e9fc01664b65e8a22d37d3969b8379c67cb1fe` with `/health`
   returning `200`; production schema/RLS readback and the Dais-only tenant preflight are recorded
   as passing in the evidence ledger. These are not the current release blocker.
@@ -645,8 +651,8 @@ synthetic row, decide whether a rollout milestone is closed.
 | 1 — BLOCKED by wall clock | Observe a natural Dais morning, midday, and evening opportunity. | Provider-native Telegram message ID, exact text, family/window, and durable `lm_mental_send_log` row for each family. |
 | 2 — OPEN after step 1 | Keep the Dais-only canary running for seven consecutive local days. | Daily decision/send ledger with no synthetic rows and at least one real delivery from every V1 family. |
 | 3 — OPEN after step 2 | Close safety and UX counters and read back the actual Telegram messages. | `<=3` per local day, `>=3h` spacing, zero Calendar-busy sends, zero configured quiet-hour sends, zero unsupported claims, zero repeated templates within 14 days, replay-zero, and plain text with no keyboard/callback data, sender prefix, reply instruction, or unnatural/unreviewed locale text. |
-| 4 — OPEN after P0 | Persist a closed decision row for every send or silence and add bounded policy promotion/rollback. | Production rows contain policy/profile versions, candidate/selected quote or silence reason, source refs, busy state, window, locale, and Telegram ID; old/new replay score promotes only when safety does not regress. |
-| 5 — OPEN for full acceptance | Make quiet hours a real explicit per-user source, or remove the production acceptance claim. | A versioned preference field is read by the scheduler and its suppression is observed; the current `quietHours` dependency alone is not production proof. |
+| 4 — IMPLEMENTED LOCALLY; production gate open | Apply/read back the closed decision-row migration and add bounded policy promotion/rollback. | Production rows contain policy/profile versions, candidate/selected quote or silence reason, source refs, busy state, window, locale, and Telegram ID; old/new replay score promotes only when safety does not regress. |
+| 5 — IMPLEMENTED LOCALLY; production gate open | Apply/read back the explicit per-user quiet-hours source. | The versioned preference fields are populated/read by the scheduler and suppression is observed; incomplete pairs fail closed. |
 | 6 — OPEN for full acceptance | Verify the existing crisis handoff owner and route. | A tested, location-appropriate handoff is read back; until then MENTAL makes no suicide-prevention or emergency-support claim. |
 | 7 — OPTIONAL, non-blocking | Run Telnyx duplicate/replay-zero if the stronger provider proof is required. | A second authorized test is deduplicated or otherwise reconciled without an unapproved duplicate effect. This does not block the mental canary. |
 | 8 — LOCKED until P0 | After the canary, unlock verified Job Hunter outcome context, then any separate general-mail owner. | Freshness, owner receipt, native copy, production readback, and replay-zero for each context class; no second Gmail poller. |
@@ -665,16 +671,16 @@ failure. Clock manipulation, synthetic rows, or a local unit-test pass cannot cl
 general users until the P0 rows above are closed. Silence is the correct behavior while the canary
 has no eligible natural receipt; it is not evidence of a successful canary.
 
-**Secondary blockers for the full acceptance claim:** per-user quiet hours are injectable but not
-yet backed by a production preference field; in-window scheduler suppressions are logged as enums
-(outside-window heartbeats are intentionally omitted) but are not yet durable scorecard decision
-rows; and the crisis handoff owner has not been verified. These items do not prevent collecting the
-first ordinary V1 message, but they prevent claiming the full self-improving, safety-complete
-rollout.
+**Secondary blockers for the full acceptance claim:** the decision-row and quiet-hours migrations
+are implemented in the repository but have not yet been applied and read back in the live tenant;
+the timing-correction parser is still no-op; and the crisis handoff owner has not been verified.
+These items do not prevent collecting the first ordinary V1 message, but they prevent claiming the
+full self-improving, timing-personalized, safety-complete rollout.
 
 ### 19.5 Next action
 
-Continue the Dais-only natural canary through the three local windows, record provider-native
-receipts in the evidence ledger, and close the P0 checklist before changing copy, widening the
-allowlist, promoting a policy, or enabling Gmail/Calendar outcome context. Once P0 is closed, do
-P1 decision persistence and quiet-hours/crisis ownership before general rollout.
+Continue the Dais-only natural canary through the three local windows, apply/read back the decision
+and quiet-hours migrations, and record provider-native receipts in the evidence ledger. Close the
+P0 checklist before changing copy, widening the allowlist, promoting a policy, or enabling
+Gmail/Calendar outcome context. Once P0 is closed, complete policy promotion, timing-correction
+ownership, and crisis-route verification before general rollout.

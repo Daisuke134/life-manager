@@ -44,19 +44,22 @@ function evaluateMentalOpportunity(input) {
   validateInput(input);
   if (input.tzOffsetH === null) return { decision: "suppress", reason: "no-timezone" };
   const minute = localMinuteOfDay(input.nowMs, input.tzOffsetH);
-  if (input.sentTodayCount >= DAILY_CAP) return { decision: "suppress", reason: "daily-cap-reached" };
-  if (input.lastSentMs !== null && input.nowMs - input.lastSentMs < MIN_GAP_MS) {
-    return { decision: "suppress", reason: "too-soon-after-last" };
-  }
-  if (input.calendarBusy) return { decision: "suppress", reason: "calendar-busy" };
-  if (inQuietHours(minute, input.quietHours)) return { decision: "suppress", reason: "quiet-hours" };
   const window = WINDOW_ORDER.find((name) => minute >= WINDOWS[name].start && minute < WINDOWS[name].end);
+  const suppress = (reason) => window
+    ? { decision: "suppress", reason, window, family: WINDOWS[window].family, localDay: localDay(input.nowMs, input.tzOffsetH) }
+    : { decision: "suppress", reason };
+  if (input.sentTodayCount >= DAILY_CAP) return suppress("daily-cap-reached");
+  if (input.lastSentMs !== null && input.nowMs - input.lastSentMs < MIN_GAP_MS) {
+    return suppress("too-soon-after-last");
+  }
+  if (input.calendarBusy) return suppress("calendar-busy");
+  if (inQuietHours(minute, input.quietHours)) return suppress("quiet-hours");
   if (!window) return { decision: "suppress", reason: "outside-opportunity-window" };
   const spec = WINDOWS[window];
-  if (input.sentFamilies.includes(spec.family)) return { decision: "suppress", reason: "family-already-sent" };
+  if (input.sentFamilies.includes(spec.family)) return suppress("family-already-sent");
   if (Array.isArray(input.eligibleQuoteIds)
       && input.eligibleQuoteIds.every((id) => input.recentQuoteIds.includes(id))) {
-    return { decision: "suppress", reason: "no-eligible-quote" };
+    return suppress("no-eligible-quote");
   }
   const day = localDay(input.nowMs, input.tzOffsetH);
   return {

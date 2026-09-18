@@ -5,6 +5,10 @@ const { evaluateMentalOpportunity } = require("./mental-opportunity.js");
 const { selectMentalQuote } = require("./mental-catalog.js");
 const { validateMentalMessage } = require("./mental-copy.js");
 const { evaluateMentalSafety } = require("./mental-safety.js");
+const {
+  DECISION_POLICY_VERSION,
+  profileVersion,
+} = require("./mental-decision-log.js");
 
 function calendarBusy(events, nowMs) {
   return (Array.isArray(events) ? events : []).some((event) => Number(event.startMs) <= nowMs
@@ -15,6 +19,47 @@ function familyCandidates(window) {
   if (window === "evening_direction") return ["manifestation", "affirmation"];
   if (window === "midday_awareness") return ["mindfulness_inquiry"];
   return ["affirmation"];
+}
+
+function normalizeQuietHours(user = {}) {
+  if (user.mental_quiet_start_minute == null || user.mental_quiet_end_minute == null) return null;
+  const start = Number(user.mental_quiet_start_minute);
+  const end = Number(user.mental_quiet_end_minute);
+  if (!Number.isInteger(start) || !Number.isInteger(end)
+      || start < 0 || start > 1440 || end < 0 || end > 1440) return null;
+  return { start, end };
+}
+
+function decisionInput({ user, profile, nowMs, base, calendarBusy: busy, family, candidateQuoteIds, selectedQuoteId, silenceReason, status }) {
+  return {
+    uid: user.uid,
+    policyVersion: DECISION_POLICY_VERSION,
+    profileVersion: profileVersion(profile),
+    sourceOutcomeId: null,
+    candidateQuoteIds: candidateQuoteIds || [],
+    selectedQuoteId: selectedQuoteId || null,
+    silenceReason: silenceReason || null,
+    calendarBusy: Boolean(busy),
+    window: base.window,
+    telegramMessageId: null,
+    locale: profile.locale || "ja",
+    family: family || base.family || null,
+    localDay: base.localDay,
+    observedAt: new Date(nowMs).toISOString(),
+    status,
+  };
+}
+
+async function persistSilence({ user, profile, nowMs, base, calendarBusy: busy, candidateQuoteIds = [], reason }, deps) {
+  if (!base.window || typeof deps.recordDecision !== "function") return null;
+  try {
+    return await deps.recordDecision(decisionInput({
+      user, profile, nowMs, base, calendarBusy: busy, candidateQuoteIds,
+      silenceReason: reason, status: "silence",
+    }));
+  } catch {
+    return { recorded: false, duplicate: false };
+  }
 }
 
 async function mentalV1UserOnce(user, nowMs, deps = {}) {
@@ -39,6 +84,7 @@ async function mentalV1UserOnce(user, nowMs, deps = {}) {
   } catch {
     return { decision: "suppress", reason: "calendar-unavailable" };
   }
+  const busy = calendarBusy(events, nowMs);
   let profile = deps.profile || {};
   if (typeof deps.readProfile === "function") {
     try { profile = await deps.readProfile(user.uid, nowMs); }
@@ -59,11 +105,14 @@ async function mentalV1UserOnce(user, nowMs, deps = {}) {
     sentFamilies: Array.isArray(state.sentFamilies) ? state.sentFamilies : [],
     recentQuoteIds: Array.isArray(state.recentQuoteIds) ? state.recentQuoteIds : [],
     eligibleQuoteIds: null,
-    calendarBusy: calendarBusy(events, nowMs),
+    calendarBusy: busy,
     quietHours: deps.quietHours || null,
     profile,
   });
-  if (base.decision !== "send") return base;
+  if (base.decision !== "send") {
+    const recorded = await persistSilence({ user, profile, nowMs, base, calendarBusy: busy, reason: base.reason }, deps);
+    return recorded ? { ...base, decisionRecorded: Boolean(recorded.recorded || recorded.duplicate) } : base;
+  }
 
   const day = base.localDay || localDay(nowMs, tzOffsetH);
   let quote = null;
@@ -80,14 +129,47 @@ async function mentalV1UserOnce(user, nowMs, deps = {}) {
     });
     if (quote) { selectedFamily = family; break; }
   }
-  if (!quote) return { decision: "suppress", reason: "no-eligible-quote" };
+  if (!quote) {
+    const silence = { decision: "suppress", reason: "no-eligible-quote", window: base.window, family: base.family, localDay: day };
+    const recorded = await persistSilence({ user, profile, nowMs, base: silence, calendarBusy: busy, reason: silence.reason }, deps);
+    return recorded ? { ...silence, decisionRecorded: Boolean(recorded.recorded || recorded.duplicate) } : silence;
+  }
   const valid = validateMentalMessage(quote.text);
-  if (!valid.ok) return { decision: "suppress", reason: "catalog-copy-invalid" };
+  if (!valid.ok) {
+    const silence = { decision: "suppress", reason: "catalog-copy-invalid", window: base.window, family: selectedFamily, localDay: day };
+    const recorded = await persistSilence({ user, profile, nowMs, base: silence, calendarBusy: busy, candidateQuoteIds: [quote.id], reason: silence.reason }, deps);
+    return recorded ? { ...silence, decisionRecorded: Boolean(recorded.recorded || recorded.duplicate) } : silence;
+  }
+
+  let decisionReceipt = null;
+  if (typeof deps.recordDecision === "function") {
+    try {
+      decisionReceipt = await deps.recordDecision(decisionInput({
+        user, profile, nowMs, base, calendarBusy: busy,
+        family: selectedFamily, candidateQuoteIds: [quote.id], selectedQuoteId: quote.id, status: "planned",
+      }));
+    } catch {
+      return { decision: "suppress", reason: "decision-log-unavailable", window: base.window, family: selectedFamily, localDay: day };
+    }
+    if (!decisionReceipt || (!decisionReceipt.recorded && !decisionReceipt.duplicate)) {
+      return { decision: "suppress", reason: "decision-log-unavailable", window: base.window, family: selectedFamily, localDay: day };
+    }
+    if (decisionReceipt.duplicate) {
+      return { decision: "suppress", reason: "decision-already-recorded", window: base.window, family: selectedFamily, localDay: day };
+    }
+  }
 
   const response = await deps.sendMessage(deps.telegramToken, user.telegram_chat_id, quote.text);
   const messageId = response && response.result && response.result.message_id;
   if (!response || !response.ok || messageId === undefined || messageId === null) {
+    if (decisionReceipt && typeof deps.failDecision === "function") {
+      await deps.failDecision(decisionReceipt.decisionKey, "telegram-send-failed").catch(() => {});
+    }
     return { ...base, family: selectedFamily, templateId: quote.id, delivered: false };
+  }
+  let decisionRecorded = true;
+  if (decisionReceipt && typeof deps.completeDecision === "function") {
+    decisionRecorded = Boolean(await deps.completeDecision(decisionReceipt.decisionKey, String(messageId)).catch(() => false));
   }
   const recorded = await deps.recordSend({
     uid: user.uid,
@@ -105,8 +187,9 @@ async function mentalV1UserOnce(user, nowMs, deps = {}) {
     text: quote.text,
     delivered: true,
     recorded: Boolean(recorded),
+    decisionRecorded,
     telegramMessageId: messageId,
   };
 }
 
-module.exports = { mentalV1UserOnce, calendarBusy, familyCandidates };
+module.exports = { mentalV1UserOnce, calendarBusy, familyCandidates, normalizeQuietHours, decisionInput };

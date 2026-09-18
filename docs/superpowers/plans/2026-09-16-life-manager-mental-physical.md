@@ -55,12 +55,16 @@
 | `apps/life-manager/lib/mental-runtime.test.js` | Delivery, failure, and no-button contracts |
 | `apps/life-manager/lib/mental-send-log.js` | Cap, spacing, 14-day template dedupe, receipt |
 | `apps/life-manager/lib/mental-send-log.test.js` | Strict history and replay tests |
+| `apps/life-manager/lib/mental-decision-log.js` | Closed send/silence decision rows and Telegram receipt completion |
+| `apps/life-manager/lib/mental-decision-log.test.js` | Decision-row provenance and replay tests |
 | `apps/life-manager/scheduler.js` | Timezone, busy-state, quiet-hours, explicit preferences |
 | `apps/life-manager/lib/mental-wiring.test.js` | Scheduler wiring and sibling isolation |
 | `apps/life-manager/migrations/2026-09-16-lm-mental-message-family.sql` | Family/template/local-day/window fields |
 | `apps/life-manager/migrations/2026-09-17-lm-mental-outcome-send.sql` | Receipt-only verified outcome send rows |
 | `apps/life-manager/migrations/2026-09-18-lm-verified-outcomes.sql` | Signed owner outcome projection table |
 | `apps/life-manager/migrations/2026-09-16-lm-mental-profile-tags.sql` | Private tag, weight, basis, hashed source ref, decay, and supersession |
+| `apps/life-manager/migrations/2026-09-18-lm-mental-decision-log.sql` | Closed send/silence decision rows, provenance, and replay key |
+| `apps/life-manager/migrations/2026-09-18-lm-mental-quiet-hours.sql` | Explicit per-user MENTAL quiet-hours source |
 | `apps/life-manager/lib/mental-migration.test.js` | Additive schema contract |
 | `docs/evidence/life-manager-mental-canary.md` | Production truth and seven-day canary |
 
@@ -769,8 +773,9 @@ Do not route YC/general Gmail directly into MENTAL until an owning mail workflow
 - `apps/life-manager/lib/mental-catalog.js`
 - Existing Telegram message intake and tests.
 
-- [ ] Store each decision as `send` or `silence` with reason, source outcome ID, Calendar busy version, chosen text version, and eventual Telegram ID. Do not store a full Gmail body or infer emotion from message-open state.
-- [ ] Treat an explicit user correction such as `この言い方は嫌`, `この時間は邪魔`, or `こういう時は短く` as source-backed feedback for that user; update tone/avoid tags or a delivery window only after the correction is tied to an exact prior message.
+- [x] Store each decision as `send` or `silence` with reason, source outcome ID, Calendar busy state, chosen text version, profile/policy versions, and eventual Telegram ID. The repository-owned decision log stores no Gmail body or inferred emotion; production migration/readback remains open.
+- [x] Add bounded per-user quiet-hours fields to the existing preferences source and make the scheduler fail closed on incomplete/out-of-range pairs. A user-facing correction-to-window parser remains open.
+- [ ] Treat an explicit user correction such as `この言い方は嫌`, `この時間は邪魔`, or `こういう時は短く` as source-backed feedback for that user; update tone/avoid tags or a delivery window only after the correction is tied to an exact prior message. Wording/tone corrections are live; timing corrections remain no-op until this parser is implemented.
 - [ ] Compare a changed policy with its prior version on verified cases: useful explicit reactions, intrusive corrections, false personal claims, duplicate sends, and missed material outcome reports. Keep the new policy only if it improves the intended signal without worsening the safety counters.
 - [ ] Test replay of the same correction and the same Gmail outcome. Both must have one durable update/effect at most.
 - [ ] Do not claim emotional benefit from silence, read receipts, or a delivered Telegram ID.
@@ -783,13 +788,13 @@ Do not route YC/general Gmail directly into MENTAL until an owning mail workflow
 - `apps/life-manager/lib/mental-send-log.js`
 - `docs/evidence/life-manager-mental-canary.md`
 
-- [ ] Record a compact decision row containing source receipt refs, profile version, candidate quote IDs, selected quote or silence reason, Calendar busy version, window, Telegram message ID, and policy version. Do not store mail bodies or infer emotional outcome.
+- [x] Record a compact decision row containing source receipt refs, profile version, candidate quote IDs, selected quote or silence reason, Calendar busy state, window, Telegram message ID, and policy version. Do not store mail bodies or infer emotional outcome. The local implementation and migration are merged into this task branch; production readback remains open.
 - [ ] Define the offline scorecard: false personal claims, busy-time sends, duplicate result reports, repeated text within 14 days, unsupported locale text, and missed verified material reports. Do not include `mood improved` or `message helped` because those are unobserved.
 - [ ] Add replay fixtures for a rejection, offer, interview, ambiguous mail, Calendar meeting, three-message cap, and no-context ordinary day. The evaluator may propose a policy version only when replay lowers safety/fit violations without reducing verified material reports.
 - [ ] Start a changed policy in a bounded Dais canary, record old/new policy IDs, and provide a rollback to the previous policy version. No rating buttons or user survey are allowed.
 - [x] Treat an unsolicited user correction as a direct profile signal only when it cites a prior MENTAL message; persist only a bounded tone tag with an idempotent hashed source reference. Timing complaints remain no-op until a window-preference field exists; never send a prompt requesting correction.
 
-Current state: the offline evaluator and unit tests are merged (`mental-policy-eval.js`); they validate closed decision rows, local-day cap/14-day dedupe, operational counters, and replay fixtures for rejection, offer, interview, ambiguity, meeting suppression, cap, and ordinary day. Decision-row persistence and bounded policy promotion remain open until the natural canary produces real provider receipts.
+Current state: the offline evaluator and unit tests are merged (`mental-policy-eval.js`); they validate closed decision rows, local-day cap/14-day dedupe, operational counters, and replay fixtures for rejection, offer, interview, ambiguity, meeting suppression, cap, and ordinary day. Decision-row persistence and quiet-hours wiring are implemented locally; production migration/readback and bounded policy promotion remain open until natural provider receipts exist.
 
 ### Task 14: Crisis-response safety boundary
 

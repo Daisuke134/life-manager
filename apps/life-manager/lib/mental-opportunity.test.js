@@ -44,7 +44,9 @@ test("outside all windows stays silent", () => {
 
 test("missing timezone, busy calendar, quiet hours, cap, and spacing suppress", () => {
   assert.equal(evaluateMentalOpportunity(input({ tzOffsetH: null })).reason, "no-timezone");
-  assert.equal(evaluateMentalOpportunity(input({ calendarBusy: true })).reason, "calendar-busy");
+  const busy = evaluateMentalOpportunity(input({ calendarBusy: true }));
+  assert.equal(busy.reason, "calendar-busy");
+  assert.equal(busy.window, "morning_orientation");
   assert.equal(evaluateMentalOpportunity(input({ quietHours: { start: 0, end: 1440 } })).reason, "quiet-hours");
   assert.equal(evaluateMentalOpportunity(input({ sentTodayCount: DAILY_CAP })).reason, "daily-cap-reached");
   assert.equal(evaluateMentalOpportunity(input({ lastSentMs: NOW - MIN_GAP_MS + 1 })).reason, "too-soon-after-last");
