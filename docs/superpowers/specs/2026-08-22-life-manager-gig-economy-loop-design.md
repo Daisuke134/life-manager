@@ -303,6 +303,11 @@ provider effect and it does not replace the ordered repair cursor in
   latest sample then showed about 7.6 GiB available and 55 unknown rows. The remaining Coconala
   effect-bearing unknowns are exactly one Apply occurrence and one Storefront occurrence; neither
   was cleared.
+- The four actionable candidates from Apply pass `46013` are `5276533`, `5266999`, `5275035` and
+  `5266959`. Read-only official request pages returned HTTP 200: `5276533` is closed and has an
+  exact applied-history receipt; the other three still expose the application form and no applied
+  marker. This narrows the likely outcome to one applied candidate and three no-dispatch candidates,
+  but it is not yet a whole-wake provider receipt, so the admission fence remains.
 - Paid has recent terminal `pass` receipts. Reply has recent passes, but also fail-closed
   collector results (`inbox_coverage_incomplete` / `missing_container`). Storefront remains
   `resource_effect_unknown`. None of these statuses authorizes a blind retry.
