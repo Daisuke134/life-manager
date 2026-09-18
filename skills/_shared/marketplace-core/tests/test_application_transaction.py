@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import errno
+import fcntl
 from pathlib import Path
 import sys
+from unittest.mock import patch
 
 
 PATH = Path(__file__).resolve().parents[1] / "scripts" / "application_transaction.py"
@@ -55,3 +58,23 @@ def test_hourly_terms_are_receipt_backed_and_replay_zero(tmp_path):
     assert receipts[0]["pricing_mode"] == "hourly"
     assert receipts[0]["proposed_hourly_rate_minor"] == 2000
     assert receipts[0]["weekly_limit_hours"] == 30
+
+
+def test_account_lock_timeout_raises_without_waiting(tmp_path):
+    module = load()
+    attempts = []
+
+    def flock(_fd, operation):
+        attempts.append(operation)
+        if operation & fcntl.LOCK_NB:
+            raise BlockingIOError(errno.EAGAIN, "busy")
+
+    with patch.object(module.fcntl, "flock", side_effect=flock):
+        try:
+            with module.account_lock(tmp_path / "work-sync.json", timeout_seconds=0):
+                raise AssertionError("lock must not be acquired")
+        except module._AccountLockBusy:
+            pass
+
+    assert attempts
+    assert attempts[0] & fcntl.LOCK_NB

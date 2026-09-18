@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from dataclasses import dataclass
+import errno
 import fcntl
 import hashlib
 import importlib.util
@@ -15,6 +16,7 @@ from pathlib import Path
 import re
 import sys
 import tempfile
+import time
 from typing import Callable, Dict, Mapping, Optional, Set, Tuple
 
 
@@ -225,13 +227,29 @@ def _write_state(
 
 
 @contextmanager
-def account_lock(state_path: Path):
+def account_lock(state_path: Path, timeout_seconds: Optional[float] = None):
+    if timeout_seconds is not None and timeout_seconds < 0:
+        raise ValueError("timeout_seconds must be non-negative")
     path = Path(state_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(str(path.with_name(path.name + ".lock")), os.O_CREAT | os.O_RDWR, 0o600)
     try:
         os.fchmod(fd, 0o600)
-        fcntl.flock(fd, fcntl.LOCK_EX)
+        if timeout_seconds is None:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        else:
+            deadline = time.monotonic() + timeout_seconds
+            while True:
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except OSError as error:
+                    if error.errno not in (errno.EACCES, errno.EAGAIN):
+                        raise
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise _AccountLockBusy() from None
+                    time.sleep(min(0.25, remaining))
         yield
     finally:
         try:
