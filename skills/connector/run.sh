@@ -13,6 +13,7 @@ REPO_ROOT="$(cd "$HERE/../.." && pwd -P)"
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
 export CLOAK_CDP_BASE_URL="${CLOAK_CDP_BASE_URL:-http://127.0.0.1:9222}"
+export CLOAK_BROWSER_OWNER="life-manager-connector-native"
 LIFE_MANAGER_STATE_HOME="${LIFE_MANAGER_STATE_HOME:-${XDG_STATE_HOME:-$HOME/.local/state}/life-manager}"
 LM_CONNECTOR_SHARED_ENV_FILE="${LM_CONNECTOR_SHARED_ENV_FILE:-$LIFE_MANAGER_STATE_HOME/.env}"
 export LM_CONNECTOR_SHARED_ENV_FILE
@@ -50,6 +51,35 @@ esac
 trap release_lock EXIT
 
 "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" native_started >/dev/null || exit 2
+
+# Use the shared Chromium/Cloak Browser foundation before any provider page work.  The
+# guard is idempotent when the browser is alive, restores the session vault after recovery,
+# and only the Connector-owned targets are eligible for this pass's tab cleanup.
+BROWSER_GUARD="$REPO_ROOT/skills/browser/ensure_browser.sh"
+BROWSER_TAB_GC="$REPO_ROOT/skills/browser/scripts/cdp_tab_gc.py"
+[ -x "$BROWSER_GUARD" ] || {
+  printf 'Connector browser foundation unavailable: %s\n' "$BROWSER_GUARD" >&2
+  "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_foundation_missing >/dev/null 2>&1 || true
+  exit 2
+}
+BROWSER_STATUS="$(
+  CLOAK_CDP_BASE_URL="$CLOAK_CDP_BASE_URL" \
+  CDP_DAILY_DRIVER_PORT="${CDP_DAILY_DRIVER_PORT:-9222}" \
+  CLOAK_BROWSER_OWNER="$CLOAK_BROWSER_OWNER" \
+  bash "$BROWSER_GUARD" 2>&1 | tail -n 1
+)" || BROWSER_STATUS="FAILED"
+case "$BROWSER_STATUS" in
+  ALIVE|RECOVERED) ;;
+  *)
+    printf 'Connector browser foundation unavailable: %s\n' "${BROWSER_STATUS:-EMPTY}" >&2
+    "$NODE_BIN" "$HERE/lib/native-state.js" heartbeat "$STATE_DIR" "$OWNER_TOKEN" browser_foundation_failed >/dev/null 2>&1 || true
+    exit 75
+    ;;
+esac
+if ! python3 "$BROWSER_TAB_GC" --owner "$CLOAK_BROWSER_OWNER" >/dev/null 2>&1; then
+  printf 'Connector browser tab GC failed; continuing with provider readback fence\n' >&2
+fi
+
 if "$NODE_BIN" "$HERE/native-pass.js" \
   --repo-root "$REPO_ROOT" \
   --state-dir "$STATE_DIR" \

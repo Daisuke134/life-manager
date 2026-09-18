@@ -33,6 +33,19 @@ test("official foreground entrypoint is directly executable", () => {
   assert.notEqual(mode & 0o111, 0);
 });
 
+test("foreground entrypoint invokes the shared browser foundation before provider work", () => {
+  const source = fs.readFileSync(path.join(REPO_ROOT, "skills", "connector", "run.sh"), "utf8");
+  const browserGuard = source.indexOf("ensure_browser.sh");
+  const tabGc = source.indexOf("cdp_tab_gc.py");
+  const nativePass = source.indexOf('"$NODE_BIN" "$HERE/native-pass.js"');
+  assert.ok(browserGuard >= 0, "Connector must use the shared browser guard");
+  assert.ok(tabGc >= 0, "Connector must run owner-scoped tab GC");
+  assert.ok(source.includes('CLOAK_BROWSER_OWNER="life-manager-connector-native"'),
+    "Connector must identify its browser owner");
+  assert.ok(browserGuard < nativePass, "browser guard must run before provider work");
+  assert.ok(tabGc < nativePass, "tab GC must run before provider work");
+});
+
 test("native terminal exit treats only healthy statuses as success", () => {
   for (const [result, expected] of [
     [{ status: "applied_bundle" }, 0],
