@@ -126,6 +126,17 @@ class ScannerContractTest(GateTestCase):
         findings = pii_scan.scan("ビルド番号 1234 5678 9012 3456 を記録した。")
         self.assertNotIn("credit-card", {item.matched_kind for item in findings})
 
+    def test_owned_cta_tracking_ids_are_not_reported_as_cards(self):
+        cta = (
+            "https://aniccaai.com?product_id=anicca&run_id=20260918-151040&"
+            "artifact_id=article-ja&variant_id=20260918-151040&"
+            "click_id=20260918-151040-article-ja"
+        )
+        findings = pii_scan.scan(cta)
+        self.assertNotIn("credit-card", {item.matched_kind for item in findings})
+        external_findings = pii_scan.scan(cta.replace("aniccaai.com", "example.com"))
+        self.assertIn("credit-card", {item.matched_kind for item in external_findings})
+
     def test_repeated_digit_padding_is_not_reported_as_a_card(self):
         for text in ("0000000000000000", "0-0-0-0-0-0-0-0-0-0-0-0-0"):
             with self.subTest(text=text):
