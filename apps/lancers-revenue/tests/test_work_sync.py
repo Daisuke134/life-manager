@@ -273,28 +273,36 @@ class WorkSyncTests(unittest.TestCase):
         with self.assertRaisesRegex(sync.SourceFailure, "provider_response_invalid"):
             sync._snapshot(fetch, set())
 
-    def test_cleanup_failure_returns_one_stable_nonzero_json_result(self):
-        sync = _load(); fetch, _ = _fetcher()
+    def test_cleanup_ignores_already_closed_dialog(self):
+        sync = _load()
+
+        class Process:
+            def __init__(self): self.terminated = False
+            def poll(self): return None if not self.terminated else 0
+            def terminate(self): self.terminated = True
+            def wait(self, timeout=None): return 0
+
+        process = Process()
+        runtime = type(
+            "Runtime",
+            (), {
+                "_connection": type(
+                    "Connection", (), {"_transport": type("Transport", (), {"_proc": process})()}
+                )(),
+            },
+        )()
+
         class Page:
-            url = ""
-            def goto(self, url, **_kwargs): self.url = url
-            def evaluate(self, _script, path=None):
-                if path is not None: return {"ok": True, "body": fetch(path)}
-                if self.url.endswith("/mypage/proposals/all/working"): return []
-                return {"empty": True, "hrefs": []}
-            def close(self): raise RuntimeError("Page.handleJavaScriptDialog: No dialog is showing")
-        class Browser:
-            def __init__(self):
-                self.contexts = [self]; self._anicca_playwright_runtime = self; self.stopped = False
-            def new_page(self): return Page()
-            def stop(self): self.stopped = True
-        browser, output = Browser(), io.StringIO()
-        with tempfile.TemporaryDirectory() as directory, patch.object(sync.application_tick, "_production_account_ready", return_value=True):
-            _ledger(Path(directory), "proposal-7")
-            code = sync.main(["--worker", "--json", "--state-path", str(Path(directory) / "application.json")], output_stream=output, browser_factory=lambda _url: browser)
-        self.assertEqual(code, 1)
-        self.assertEqual(json.loads(output.getvalue()), {"ok": False, "logged_in": True, "source_complete": False, "error": "cleanup_failed"})
-        self.assertTrue(browser.stopped)
+            context = type("Context", (), {"browser": type("Browser", (), {"_anicca_playwright_runtime": runtime})()})()
+            def __init__(self): self.close_calls = 0
+            def close(self):
+                self.close_calls += 1
+                if self.close_calls == 1:
+                    raise RuntimeError("Page.handleJavaScriptDialog: No dialog is showing")
+
+        page = Page()
+        self.assertTrue(sync.application_tick._close_owned_page(page))
+        self.assertEqual(page.close_calls, 2)
 
     def test_cleanup_uses_bounded_shared_playwright_stop(self):
         sync = _load()
