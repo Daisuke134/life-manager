@@ -310,8 +310,16 @@ provider effect and it does not replace the ordered repair cursor in
   but it is not yet a whole-wake provider receipt, so the admission fence remains.
 - A subsequent read-only scan of the existing applied-history tab returned HTTP 403 while CDP
   `9223` remained healthy. No form was clicked and no provider write occurred. The official
-  applied-history gate is therefore currently unavailable and must be restored through the browser
-  owner before another reconciliation attempt.
+  applied-history gate was temporarily unavailable and required the browser owner's session
+  recovery before another reconciliation attempt.
+- The browser session was restored through the existing rate-limited `session_vault.py
+  relogin_coconala` path; dashboard readback and vault dump passed. A fresh code-owned readback of
+  all four `46013` candidates is persisted at
+  `~/gig/apply-direct/gig-apply-direct-1789611564192685000-46013/reconcile-evidence/`:
+  `observed=true`, `readback_attempts=3`, `verified_count=1`, `unresolved_count=3`, and
+  `missing_count=0`. This confirms `5276533` and records the other three as unresolved absence;
+  their intent records still say `effect_phase=irreversible_attempt_started`, so this evidence does
+  not authorize clearing the whole wake.
 - Paid has recent terminal `pass` receipts. Reply has recent passes, but also fail-closed
   collector results (`inbox_coverage_incomplete` / `missing_container`). Storefront remains
   `resource_effect_unknown`. None of these statuses authorizes a blind retry.
