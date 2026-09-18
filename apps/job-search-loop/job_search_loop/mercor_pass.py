@@ -494,6 +494,110 @@ def validate_evidence_paths(result: dict[str, Any], evidence_root: Path) -> None
             raise ValueError(f"{label}_missing")
 
 
+def merge_card_only_evidence(result: dict[str, Any], run_evidence_dir: Path) -> None:
+    """Restore card-only rows emitted by the browser pass before final JSON output.
+
+    The model can persist a complete candidate union in ``pass-result.json`` while
+    its final response contains only the detail rows it opened.  Card-only rows are
+    read-only observations, so copying only those rows from this exact run keeps
+    the priority validator fail-closed without treating the artifact as a submit
+    receipt.
+    """
+    artifact = run_evidence_dir.expanduser() / "pass-result.json"
+    try:
+        payload = json.loads(artifact.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return
+    if not isinstance(payload, dict) or not isinstance(payload.get("inspected_listings"), list):
+        return
+
+    inspected = result.get("inspected_listings")
+    if not isinstance(inspected, list):
+        inspected = []
+        result["inspected_listings"] = inspected
+    seen = {
+        item.get("listing_id")
+        for item in inspected
+        if isinstance(item, dict) and isinstance(item.get("listing_id"), str)
+    }
+    valid_fit_statuses = {"allowed", "warning", "blocked", "not_shown", "unknown"}
+    valid_bands = {"high", "medium", "low"}
+    for candidate in payload["inspected_listings"]:
+        if not isinstance(candidate, dict):
+            continue
+        listing_id = candidate.get("listing_id")
+        application_state = candidate.get("application_state")
+        if (
+            not isinstance(listing_id, str)
+            or not isinstance(application_state, str)
+            or not application_state.startswith("card_only")
+        ):
+            continue
+        listing_id = listing_id.strip()
+        if not listing_id or listing_id in seen:
+            continue
+        url = candidate.get("url")
+        title = candidate.get("title")
+        if not isinstance(url, str) or not url.strip() or not isinstance(title, str):
+            continue
+        ranking_evidence = candidate.get("ranking_evidence")
+        if not isinstance(ranking_evidence, list) or not all(
+            isinstance(item, str) and item.strip() for item in ranking_evidence
+        ):
+            ranking_evidence = ["visible card; detail page was not opened in this pass"]
+        requirement_evidence = candidate.get("requirement_evidence")
+        normalized_requirements: list[dict[str, Any]] = []
+        if isinstance(requirement_evidence, list):
+            for requirement in requirement_evidence:
+                if not isinstance(requirement, dict):
+                    continue
+                requirement_name = requirement.get("requirement")
+                disposition = requirement.get("disposition")
+                fact_id = requirement.get("fact_id")
+                if (
+                    not isinstance(requirement_name, str)
+                    or not requirement_name.strip()
+                    or not isinstance(disposition, str)
+                    or not disposition.strip()
+                    or (
+                        fact_id is not None
+                        and (not isinstance(fact_id, str) or not fact_id.strip())
+                    )
+                ):
+                    continue
+                normalized_requirements.append({
+                    "requirement": requirement_name,
+                    "fact_id": fact_id,
+                    "disposition": disposition,
+                })
+        provider_fit_status = candidate.get("provider_fit_status")
+        if provider_fit_status not in valid_fit_statuses:
+            provider_fit_status = "not_shown"
+        ranking_band = candidate.get("ranking_band")
+        if ranking_band not in valid_bands:
+            ranking_band = "medium"
+        decision = candidate.get("decision")
+        if not isinstance(decision, str) or not decision.strip():
+            decision = "card_only_unopened"
+        strategy_version = candidate.get("strategy_version")
+        if not isinstance(strategy_version, str) or not strategy_version.strip():
+            strategy_version = MERCOR_STRATEGY_VERSION
+        inspected.append({
+            "listing_id": listing_id,
+            "url": url.strip(),
+            "title": title,
+            "application_state": application_state,
+            "submit_visible": candidate.get("submit_visible") is True,
+            "decision": decision,
+            "ranking_band": ranking_band,
+            "ranking_evidence": ranking_evidence,
+            "provider_fit_status": provider_fit_status,
+            "requirement_evidence": normalized_requirements,
+            "strategy_version": strategy_version,
+        })
+        seen.add(listing_id)
+
+
 def validate_bounded_scan(result: dict[str, Any], evidence_root: Path | None = None) -> None:
     """Keep the detail-page scan bounded without forcing low-fit filler pages."""
     if result.get("status") in {"blocked", "submitted"}:
@@ -659,6 +763,7 @@ def main(argv: list[str] | None = None) -> int:
     except PassAlreadyRunning:
         print("LIFE_MANAGER_PROVIDER_LEASE_BUSY", file=sys.stderr)
         return 75
+    merge_card_only_evidence(result, args.evidence_dir.parent / args.run_id)
     try:
         validate_evidence_paths(result, args.evidence_dir.parent)
         validate_bounded_scan(result, args.evidence_dir.parent)
