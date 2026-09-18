@@ -308,6 +308,10 @@ provider effect and it does not replace the ordered repair cursor in
   exact applied-history receipt; the other three still expose the application form and no applied
   marker. This narrows the likely outcome to one applied candidate and three no-dispatch candidates,
   but it is not yet a whole-wake provider receipt, so the admission fence remains.
+- A subsequent read-only scan of the existing applied-history tab returned HTTP 403 while CDP
+  `9223` remained healthy. No form was clicked and no provider write occurred. The official
+  applied-history gate is therefore currently unavailable and must be restored through the browser
+  owner before another reconciliation attempt.
 - Paid has recent terminal `pass` receipts. Reply has recent passes, but also fail-closed
   collector results (`inbox_coverage_incomplete` / `missing_container`). Storefront remains
   `resource_effect_unknown`. None of these statuses authorizes a blind retry.
