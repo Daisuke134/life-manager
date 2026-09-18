@@ -99,7 +99,7 @@
         {
           "source": "skills/agent-runner/agent_runner.py",
           "target": "runtime/agent-runner/agent_runner.py",
-          "sha256": "ba87c656fe4ee78c82296a48a49e865b86e054e9ffe77fb02574079588b88333"
+          "sha256": "68fdf49f0e0e30f1607e3254e7fc523622fc3fe543259a20fc195091cc4f8c95"
         },
         {
           "source": "skills/agent-runner/config.json",
@@ -152,7 +152,7 @@
           "source": "skills/_shared",
           "target": "skills/_shared",
           "files": 184,
-          "inventory_sha256": "bc3ab75cf8cc5996213304ab8cd0287e9a4dfce087655064ef004e1afdd68465"
+          "inventory_sha256": "f407c4dc53b5fdba5e5f419cdfa578466a817ccbb74d289b48f4d74b1ef2cf07"
         },
         {
           "source": "skills/anicca-life-manager",
