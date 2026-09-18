@@ -1143,6 +1143,39 @@ test("production provider router submits only strong or moderate ranked candidat
   await assert.rejects(router.discoverCandidates("luma", [], {}), /ranking unavailable/);
 });
 
+test("production provider router retains a moderate other reserve after priority candidates", async () => {
+  const priority = Object.freeze({
+    provider: "connpass", event_ref: "connpass-event://event/priority", canonical_url: "https://connpass.example/priority",
+    title: "AI Builders Tokyo", body: "AI builders", starts_at: "2026-09-20T10:00:00.000Z", ends_at: "2026-09-20T11:00:00.000Z",
+  });
+  const reserve = Object.freeze({
+    provider: "connpass", event_ref: "connpass-event://event/reserve", canonical_url: "https://connpass.example/reserve",
+    title: "Technical Workshop Tokyo", body: "Hands-on technical workshop", starts_at: "2026-09-21T10:00:00.000Z", ends_at: "2026-09-21T11:00:00.000Z",
+  });
+  const workflow = {
+    async discoverCandidates() { return [priority, reserve]; },
+    async runDirectAction() { return { status: "failed" }; },
+    async readProviderState() { return { status: "absent" }; },
+  };
+  const router = createProductionProviderRouter({
+    lumaWorkflow: workflow, connpassWorkflow: workflow,
+    eventPreferences: "Tokyo AI and technical builder events",
+    actionCache: { async replay() {}, async saveVerifiedRepair() {} },
+    browserHarness: { async runFallback() {} },
+    async performAction() {},
+    async rankCandidates(input) {
+      return validateProviderCandidateRanking({ ranked_events: [
+        { event_ref: priority.event_ref, priority_class: "ai", preference_fit: "strong", preference_reason: "AI fit." },
+        { event_ref: reserve.event_ref, priority_class: "other", preference_fit: "moderate", preference_reason: "Moderate technical fit." },
+      ] }, input);
+    },
+  });
+  assert.deepEqual(await router.discoverCandidates("connpass", [], {}), [
+    { ...priority, priority_class: "ai", preference_fit: "strong", preference_reason: "AI fit.", auto_apply_eligible: true },
+    { ...reserve, priority_class: "other", preference_fit: "moderate", preference_reason: "Moderate technical fit.", auto_apply_eligible: false, reserve_apply_eligible: true },
+  ]);
+});
+
 test("production provider router promotes a verified open talk within equally fitted AI candidates", async () => {
   const plain = Object.freeze({ provider: "luma", event_ref: "luma-event://event/plain-ai", canonical_url: "https://luma.com/plain-ai", title: "AI Builders", body: "AI meetup for builders." });
   const talk = Object.freeze({ provider: "luma", event_ref: "luma-event://event/ai-lt", canonical_url: "https://luma.com/ai-lt", title: "AI Builders LT", body: "AI meetup. 5 minute LT applications are open at https://forms.example.com/ai-lt" });
