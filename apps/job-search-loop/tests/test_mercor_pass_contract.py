@@ -18,6 +18,7 @@ from job_search_loop.mercor_pass import (
     record_profile_sync,
     record_verified_submissions,
     merge_card_only_evidence,
+    normalize_card_only_fit_decisions,
     validate_bounded_scan,
     validate_evidence_paths,
     validate_priority_scan,
@@ -29,6 +30,49 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class MercorPassContractTests(unittest.TestCase):
+    def test_card_only_low_fit_requires_detail_requirement_evidence(self):
+        result = {
+            "inspected_listings": [
+                {
+                    "listing_id": "list-card-unknown",
+                    "application_state": "card_only",
+                    "decision": "no_reasonable_shot",
+                    "ranking_band": "low",
+                    "ranking_evidence": ["visible card only"],
+                    "requirement_evidence": [],
+                },
+                {
+                    "listing_id": "list-card-grounded-low",
+                    "application_state": "card_only",
+                    "decision": "no_reasonable_shot",
+                    "ranking_band": "low",
+                    "ranking_evidence": ["language requirement"],
+                    "requirement_evidence": [{
+                        "requirement": "Kannada language",
+                        "fact_id": "languages",
+                        "disposition": "contradiction",
+                    }],
+                },
+                {
+                    "listing_id": "list-detail-low",
+                    "application_state": "2 of 4 steps completed",
+                    "decision": "no_reasonable_shot",
+                    "ranking_band": "low",
+                    "ranking_evidence": ["detail requirement"],
+                    "requirement_evidence": [],
+                },
+            ]
+        }
+
+        normalize_card_only_fit_decisions(result)
+
+        unknown = result["inspected_listings"][0]
+        self.assertEqual(unknown["decision"], "card_only_unverified")
+        self.assertEqual(unknown["ranking_band"], "medium")
+        self.assertIn("detail evidence required", unknown["ranking_evidence"][-1])
+        self.assertEqual(result["inspected_listings"][1]["ranking_band"], "low")
+        self.assertEqual(result["inspected_listings"][2]["ranking_band"], "low")
+
     def test_card_only_evidence_is_recovered_from_current_run_artifact(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
