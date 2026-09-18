@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Restore the paid contract on one persisted, unpublished Substack ID."""
-import argparse, importlib.util, json, os
+import argparse, importlib.util, json, os, subprocess, sys
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -87,6 +87,32 @@ def _owned_byline_ids(draft):
         raise m.SubstackRepairRefused("Substack byline readbacks disagree")
     return draft_ids or post_ids or set()
 
+
+def _build_embedded_markdown(state, lang):
+    """Rebuild same-draft media so cached tall Mermaid URLs cannot survive a refresh."""
+    descriptor = state.get("drafts", {}).get(lang, {})
+    source = Path(str(descriptor.get("path", "")))
+    media = state.get("media", {})
+    headline = media.get("headline_image", {})
+    bodies = media.get("body_assets", [])
+    if not source.is_file() or not headline.get("path") or not bodies:
+        raise m.SubstackRepairRefused("immutable Substack media inputs are incomplete")
+    run_dir = Path(str(state.get("run_dir", "")))
+    out = run_dir / "gates" / "substack-refresh" / f"article-{lang}-embedded.md"
+    command = [
+        sys.executable,
+        str(Path(__file__).parents[1] / "_shared" / "embed-mermaid-substack.py"),
+        "--markdown-file", str(source),
+        "--out", str(out),
+        "--headline-image", str(headline["path"]),
+    ]
+    for body in bodies:
+        command.extend(("--body-image", str(body["path"])))
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    if result.returncode != 0 or not out.is_file():
+        raise m.SubstackRepairRefused("same-ID media rebuild failed")
+    return out.read_text(encoding="utf-8")
+
 def refresh(pair):
     state=m._state(); entry=state["pairs"][pair]; target=str(entry.get("target",""))
     if entry.get("status")!="intent" or not target.isdigit(): raise m.SubstackRepairRefused("persisted intent missing")
@@ -115,9 +141,8 @@ def refresh(pair):
     for x in [headline,*bodies]:
         p=Path(x["path"])
         if not p.is_file() or m.sha256(p)!=x["sha256"]: raise m.SubstackRepairRefused("immutable media changed")
-    pub=m._publication(); cookie=m._cookie()
-    hu=m.upload_image(headline["path"],pub,cookie); bu=[m.upload_image(x["path"],pub,cookie) for x in bodies]
-    payload=m._paid_payload_builder()(title=title,subtitle=str(old.get("draft_subtitle") or old.get("subtitle") or ""),markdown=m.adapt_body(state,pair.split("/")[1],hu,bu),byline_id=m._identity())
+    embedded_markdown = _build_embedded_markdown(state, pair.split("/", 1)[1])
+    payload=m._paid_payload_builder()(title=title,subtitle=str(old.get("draft_subtitle") or old.get("subtitle") or ""),markdown=embedded_markdown,byline_id=m._identity())
     updated=m._request("PUT",f"/api/v1/drafts/{target}",payload=payload)
     if str(updated.get("id",""))!=target: raise m.SubstackRepairRefused("same-ID refresh failed")
     return {"pair":pair,"target":target,"refreshed":True}

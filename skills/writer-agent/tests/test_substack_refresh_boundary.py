@@ -35,6 +35,12 @@ def test_refresh_accepts_authenticated_post_bylines_shape() -> None:
     assert MODULE._owned_byline_ids({"postBylines": [{"user_id": 336441894}]}) == {336441894}
 
 
+def test_refresh_rebuilds_mermaid_media_before_same_id_put() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+    assert "embed-mermaid-substack.py" in source
+    assert "embedded_markdown" in source
+
+
 @pytest.mark.parametrize(
     "draft",
     [
