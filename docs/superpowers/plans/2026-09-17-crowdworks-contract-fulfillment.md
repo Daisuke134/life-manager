@@ -12,17 +12,32 @@
 
 ## Live cursor (2026-09-18)
 
-The execution cursor is **CW-F1: exact admission reconciliation and installed-owner wake**. Read-only
-provider evidence shows five active contracts: four `funded`, and `63583795` `delivered`/inspection
-pending. The Paid label is loaded from immutable release `20260918T052034-8c19c9df`
-(`8c19c9dfdc9c63398fbc10fd44c6771598a55f49`) with a finite 900-second bound, but launchd is currently
-`not running` with exit `75` because the stale occurrence
-`crowdworks-revenue-paid:18d62cf32eb0c678-48194` is still `claimed`/`effect_unknown=1`. The new
-pre-effect fence refuses to clear this inventory-failure occurrence without exact run-wide proof. Earlier
-occurrences `16007`, `26778` and `36919` are reconciled (`released/effect_unknown=0`). The bounded disk
-cleanup pass recovered free space to `8,080,977,920` bytes but reclaimed zero artifacts and recorded one
-error; the capacity floor is currently cleared, while the cleanup error remains open. Reconcile probes for
-the current legacy occurrence have no exact marker/intent, so no additional admission state changed.
+The execution cursor is **CW-F1: exact admission reconciliation and installed-owner wake**. The
+official CrowdWorks active-contract inventory was read at `2026-09-18T11:23:35Z` and returned five
+funded rows: `63712784`, `63659463`, `63657015`, `63570481`, and `63568785`. This is an inventory
+readback only; it is not a work submission, delivery, acceptance, settlement, payout, or MRR receipt.
+
+The immutable release `fed2839db846509585d6ba2d53da626a09dd0cae` is applied to the four CrowdWorks
+labels (`application`, `reply`, `paid`, and `report`); each loaded argv points to
+`/Users/anicca/loops/releases/20260918T203057-fed2839d`. The release includes occurrence binding in
+Paid output so future `paid-latest.json` results can be joined to the exact runtime wake. Focused tests
+and `./bin/lm-loop-contract` pass.
+
+The following old admission rows remain fenced and were not cleared:
+
+- `crowdworks-revenue-paid:18d62cf32eb0c678-48194`: a later run references this claim and exits with
+  `entrypoint_exit_1`; the historical `paid-latest.json` has no occurrence ID, and the host log records
+  the ENOSPC/DB-lock period. There is no exact durable no-dispatch marker, so no retry or resolve is safe.
+- `crowdworks-revenue-reply:18d64a10f2f1f838-83166`: its later run marker contains pending/reconcile-unknown
+  items, including an external Google Form action with `confirmation_requested`; provider confirmation is
+  absent, so this remains effect-unknown.
+- `crowdworks-revenue-application:18d6535f7dfb8910-33974`: a later run references this claim and exits
+  with `entrypoint_exit_1`; the receipt observed in the surrounding interval belongs to another claimed
+  occurrence, so it cannot clear this row.
+
+The disk floor is currently above the admission threshold, but historical ENOSPC remains the cause of
+the missing legacy evidence. No contract has buyer acceptance, settlement, payout, or verified USD
+10,000 MRR.
 
 **Verified contract outcomes:** `63659463` has confirmed Web Ads and common form receipts; its latest
 row is `verified` (`effect=1/readback=1`) but formal delivery, quality verification, acceptance and payout
@@ -33,17 +48,17 @@ missing customer-address answer is not corrected. `63568785` links to a Google D
 `編集権限をリクエスト`; no artifact exists.
 
 **Implementation status:** the buyer-context expansion, no-form answer and correction-revision changes
-are local work in progress and are not loaded production behavior until focused tests, review, merge and
-immutable release complete. The host also produced `ENOSPC` while creating a new worktree, so recover
-headroom before the next build/release mutation. No contract has buyer acceptance, settlement, payout or
-verified USD 10,000 MRR.
+remain subject to their own provider readback gates. The occurrence-bound Paid result fix is merged and
+loaded. Legacy fences are intentionally held until exact provider readback or an occurrence-bound
+no-dispatch proof exists. No contract has buyer acceptance, settlement, payout or verified USD 10,000 MRR.
 
-**Next order:** (1) reconcile occurrence `18d62cf32eb0c678-48194` using exact proof;
-(2) kickstart the targeted Paid owner without waiting for a global slot and read terminal/provider state;
-(3) reconcile `63657015` before any retry; (4) ship the `63570481` correction path and verify its result;
-(5) obtain permission and complete `63568785`; (6) audit, formally deliver and close `63659463`;
-(7) monitor `63583795` through acceptance/payout; (8) close every row with `correct_work_verified`,
-replay-zero and actual payout before counting recurring revenue.
+**Next order:** (1) obtain exact provider readback for each fenced occurrence without retrying an
+uncertain external action; (2) kickstart only the owner whose fence has been resolved and record the
+new occurrence-bound terminal/provider result; (3) reconcile `63657015` before any retry; (4) ship the
+`63570481` correction path and verify its result; (5) obtain permission and complete `63568785`;
+(6) audit, formally deliver and close `63659463`; (7) monitor `63583795` through acceptance/payout;
+(8) close every row with `correct_work_verified`, replay-zero and actual payout before counting recurring
+revenue.
 
 ## Global constraints
 
