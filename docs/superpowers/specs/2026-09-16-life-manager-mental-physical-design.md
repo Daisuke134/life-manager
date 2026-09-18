@@ -633,24 +633,26 @@ synthetic row, decide whether a rollout milestone is closed.
 - Explicit per-user quiet-hours columns, bounds, pair validation, scheduler read, and migration
   fallback are implemented. A reply to a durable V1 message can now map its known window to the
   quiet-hours preference; no free-form time is inferred.
-- The live `life-call` deployment is `92e9fc01664b65e8a22d37d3969b8379c67cb1fe` with `/health`
+- The live `life-call` deployment is `d4659ff4bc7b4e13aa67836243060ad1d4efbb03` with `/health`
   returning `200`; production schema/RLS readback and the Dais-only tenant preflight are recorded
   as passing in the evidence ledger. These are not the current release blocker.
 
 ### 19.2 Not done yet (current observed state)
 
-- The latest automated canary readback recorded in the evidence ledger is `v1_count=1`,
-  `legacy_count=33`, with one `morning_orientation` affirmation and structural `pass=true`.
-  This is one natural receipt, not a seven-day canary pass.
+- The latest automated canary readback recorded in the evidence ledger is `v1_count=2`,
+  `legacy_count=32`, with one `morning_orientation` affirmation, one `evening_direction`
+  manifestation, and structural `pass=true`. This is two natural receipts, not a seven-day
+  canary pass.
 - The first natural morning receipt now has provider-native body readback in the `Cloud Life
   Manager` dialog: the same-second inbound message matches the approved Japanese catalog template,
   has no reply markup/buttons, and is not an outgoing user message. The Bot API and MTProto IDs are
   different API identifiers; their same-second/template match is recorded without assuming an ID
   equivalence.
-- Midday/evening on this local day are correctly suppressed by the shared trailing-24-hour cap:
-  two legacy receipts plus the morning V1 receipt already consume the three-message budget. This
-  is not a canary failure or permission to delete history; family coverage continues on the next
-  natural local day.
+- The midday opportunity on this local day was correctly suppressed by the shared trailing-24-hour
+  cap. The later evening opportunity delivered durable row `id=160` with
+  `family=manifestation`, `window=evening_direction`, template
+  `antara:small-step-afraid:ja`, and Telegram ID `1395`. Provider-native body/markup readback for
+  this second receipt remains open; this is not a canary failure or permission to delete history.
 - The signed outcome bridge has only synthetic proof so far. Its test row, send receipt, and
   Telegram message were deleted and do not count toward the natural canary.
 - The following work is still open; the order is intentional and is the execution cursor for this
@@ -660,7 +662,7 @@ synthetic row, decide whether a rollout milestone is closed.
 
 | Step / state | TODO | Completion evidence |
 |---|---|---|
-| 1 — BLOCKED by wall clock | Observe a natural Dais morning, midday, and evening opportunity. | Provider-native Telegram message ID, exact text, family/window, and durable `lm_mental_send_log` row for each family. |
+| 1 — IN PROGRESS; wall clock | Observe a natural Dais morning, midday, and evening opportunity. | Provider-native Telegram message ID, exact text, family/window, and durable `lm_mental_send_log` row for each family. Morning and evening rows exist; midday and evening body/markup readback remain open. |
 | 2 — OPEN after step 1 | Keep the Dais-only canary running for seven consecutive local days. | Daily decision/send ledger with no synthetic rows and at least one real delivery from every V1 family. |
 | 3 — OPEN after step 2 | Close safety and UX counters and read back the actual Telegram messages. | `<=3` per local day, `>=3h` spacing, zero Calendar-busy sends, zero configured quiet-hour sends, zero unsupported claims, zero repeated templates within 14 days, replay-zero, and plain text with no keyboard/callback data, sender prefix, reply instruction, or unnatural/unreviewed locale text. |
 | 4 — IMPLEMENTED LOCALLY; production gate open | Apply/read back the closed decision-row migration, set `LM_MENTAL_DECISION_LOG_REQUIRED=1`, and add bounded policy promotion/rollback. | Production rows contain policy/profile versions, candidate/selected quote or silence reason, source refs, busy state, window, locale, and Telegram ID; old/new replay score promotes only when safety does not regress. |
@@ -672,10 +674,9 @@ synthetic row, decide whether a rollout milestone is closed.
 
 ### 19.4 What is blocking now
 
-**Primary blocker:** the natural seven-day provider observation has only one morning row. Its
-provider-native Telegram body is now read back, but midday and evening families plus six more local
-days are still missing. Today’s remaining windows are safely cap-suppressed by two legacy receipts;
-the next opportunity is the next local day. The structural evaluator reports one V1 row and
+**Primary blocker:** the natural seven-day provider observation has two V1 rows: a morning
+affirmation and an evening manifestation. The midday family, the evening provider-native body/markup
+readback, and six more local days are still missing. The structural evaluator reports two V1 rows and
 `pass=true`, but that does not prove family coverage, spacing, cap behavior, or replay-zero. This is
 a wall-clock/state-history dependency, not a code or test failure.
 Clock manipulation, synthetic rows, or a local unit-test pass cannot close it.
@@ -697,3 +698,101 @@ and quiet-hours migrations, and record provider-native receipts in the evidence 
 P0 checklist before changing copy, widening the allowlist, promoting a policy, or enabling
 Gmail/Calendar outcome context. Once P0 is closed, apply/read back the migrations, complete policy
 promotion, and verify the crisis route before general rollout.
+
+## 20. Root-cause diagnosis: host pressure versus cloud gates
+
+This section records the first-principles diagnosis so a symptom such as “the loop stopped” is not
+misclassified as malware, a zombie process, or a Telegram defect. The host audit and cloud readback
+were performed on 2026-09-18 and are summarized in
+`docs/evidence/life-manager-mental-canary.md`.
+
+### 20.1 Observed facts
+
+| Boundary | Evidence | Meaning |
+|---|---|---|
+| APFS/Data volume | `/System/Volumes/Data`: `228 GiB` total, `184 GiB` used, `6.8 GiB` available, `97%` capacity | The Mac is in a low-headroom state; writes, builds, browser profiles, and swap compete for the same Data volume. |
+| Memory/swap | `vm.swapusage`: `20 GiB` total, `18.76 GiB` used; `703` processes; `165` Chromium processes | Browser/agent concurrency is creating real resource pressure. Swap is a pressure symptom, not a virus indicator. |
+| Retained worktrees | `141` registered worktrees, `106` locked; `2.0 GiB` under `.worktrees`; `git worktree prune --dry-run` returns no prunable entries | The folders are registered, not orphaned Git metadata. Their lifecycle/lease policy is the missing control; blind deletion is unsafe. |
+| Retained artifacts | `~/.local/state/anicca` `4.7 GiB` (job-search evidence `2.4 GiB`), `~/.local/state/life-manager` `4.0 GiB`, `.codex/sessions` `3.5 GiB`, `.openclaw` `4.5 GiB`, `/private/tmp` `4.1 GiB` | Durable evidence, browser profiles, sessions, and temporary worktrees accumulate without a single bounded retention ledger. |
+| Defunct processes | Two `Z` processes; parents are Chromium PID `27633` and ChatGPT PID `52958`, not Life Manager | There are zombies, but they are child-process cleanup defects in unrelated desktop apps, not the MENTAL runtime's cause. |
+| Persistence inventory | `167` `ai.anicca` launchd jobs loaded, `34` with a live PID; names are repository-owned/known families | launchd is restarting/scheduling many jobs by design. A loaded job with PID `-` is not a zombie process. |
+| Deleted-open files | No large Life Manager artifact was found as a deleted file held open; `lsof +L1` output is dominated by macOS/browser/system resources | The primary disk issue is retained files and swap, not an invisible deleted log consuming the volume. |
+| Cloud MENTAL | evaluator: `v1_count=2`, `legacy_count=32`, morning `1`, evening `1`, `pass=true`; send row `id=160` exists | The cloud loop is alive and can naturally deliver. Silence was policy/state history, not a dead scheduler. |
+| Cloud schema | `lm_mental_decision_log` = `404/PGRST205`; quiet columns = `400/42703`; `lm_mental_send_log` = `200` | The hardening release is locally implemented but the production migration gate is genuinely open. |
+
+### 20.2 Root cause
+
+There are three independent failure classes, not one mysterious blocker:
+
+1. **Foundation pressure (local):** too many concurrent Chromium/agent processes plus roughly 20 GiB
+   of swap and unbounded evidence/worktree/session retention reduce filesystem and memory headroom.
+   This can cause `ENOSPC`, slow process startup, timeouts, and apparent loop instability.
+2. **Expected MENTAL silence (cloud):** the trailing 24-hour cap and legacy rows suppress eligible
+   opportunities. The correct output is silence; it is not a scheduler failure.
+3. **Release gate (cloud):** the decision-log and quiet-hours migrations are not present in the
+   Supabase schema, so the safety-hardening flag cannot be enabled. Railway Postgres is a different
+   database and must not be used as a substitute.
+
+No evidence in this audit proves a virus. A full malware scan was not performed, so “no virus” is
+not a claim. The observed mechanism is ordinary resource exhaustion and missing lifecycle/schema
+gates; the two zombies are unrelated child processes.
+
+### 20.3 As-is visual
+
+```mermaid
+flowchart LR
+  A[Many launchd jobs] --> B[Many browser/agent processes]
+  B --> C[High memory pressure]
+  C --> D[~18.8 GiB swap used]
+  D --> E[Data volume 97%]
+  E --> F[Slow/failed local writes, builds, worktrees]
+  G[Worktrees + sessions + evidence] --> E
+  H[Calendar/cap/history] --> I[MENTAL silence]
+  J[Supabase decision/quiet migrations absent] --> K[Hardening flag cannot enable]
+  L[Telegram] --> M[Natural morning + evening receipts]
+```
+
+### 20.4 To-be visual
+
+```mermaid
+flowchart LR
+  A[launchd inventory + owner leases] --> B[Bounded concurrency]
+  B --> C[Browser/process release at idle boundary]
+  C --> D[Stable memory + disk headroom]
+  E[TTL ledger for worktrees, sessions, evidence, profiles] --> D
+  F[Official Supabase migration CI] --> G[Schema readback]
+  G --> H[Enable decision log + quiet hours]
+  H --> I[Record every send/silence decision]
+  I --> J[Provider-native Telegram readback]
+  J --> K[Seven-day canary]
+```
+
+### 20.5 Fix order
+
+1. **Contain:** stop creating new worktrees and browser profiles when Data free space is below the
+   agreed safety floor; do not kill money/effect loops blindly. Read owner leases and active PIDs
+   first.
+2. **Reconcile:** close completed worktree leases through `git worktree remove` on exact paths,
+   then run `git worktree prune --dry-run` and record the result. Never `rm -rf` a shared worktree,
+   `.git/worktrees`, state, receipts, or credentials.
+3. **Retain intentionally:** add TTL/size budgets for Codex sessions, job-search evidence, browser
+   profiles, loop evidence, temporary worktrees, and diagnostics. Preserve state, ledgers, receipts,
+   profiles, and credentials; archive before deletion where recovery matters.
+4. **Reduce pressure:** cap simultaneous browser contexts and release only owner-confirmed idle
+   contexts. Re-measure process count, swap, `df`, and write latency after each bounded change.
+5. **Close Cloud gate:** obtain the Supabase project ref/access token through the private credential
+   SSOT, link the project, apply migration files through the official migration path, read back the
+   table/columns/RLS, then enable `LM_MENTAL_DECISION_LOG_REQUIRED=1` in a canary deployment.
+6. **Finish proof:** read back the evening body/markup, capture midday or its legitimate suppression,
+   complete seven local days, and only then widen the allowlist or unlock Gmail/Calendar outcome
+   context.
+
+### 20.6 External grounding
+
+- Apple Support, [Macストレージの空き領域を増やす](https://support.apple.com/ja-jp/102624):
+  「Macの起動ディスクがほぼ満杯になってしまった場合や、容量不足でダウンロード、インストール、コピーできなくなってしまった場合」.
+- Apple Developer, [The Life Cycle of a Daemon](https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/Lifecycle.html):
+  “The root process on OS X is `launchd`” and it “automatically starts the daemon to process the request.”
+- Supabase, [Database Migrations](https://supabase.com/docs/guides/deployment/database-migrations):
+  “never change the remote database directly” and remote changes should go through migration files;
+  deploy with `supabase db push`.

@@ -660,17 +660,22 @@ npm test
 
 - [x] Merge only after focused and full tests pass. V1 and profile PRs are merged with all CI checks green.
 
-- [x] Apply additive migrations and read columns/constraints/RLS back from production.
+- [x] Apply the earlier outcome/profile additive migrations and read columns/constraints/RLS back from production.
+- [ ] Apply and read back the newer decision-log and quiet-hours migrations; production probes still return
+  `lm_mental_decision_log=404/PGRST205` and missing quiet-hour columns.
 
-- [x] Require the Railway `life-call` deployment with merged main `commitHash=92e9fc01664b65e8a22d37d3969b8379c67cb1fe` to reach `SUCCESS`.
+- [x] Require the Railway `life-call` deployment to reach `SUCCESS`; fresh `/health` readback is
+  `d4659ff4bc7b4e13aa67836243060ad1d4efbb03`.
 
 - [x] Verify startup logs show the standalone scheduler loops and no import/schema failure.
 
 - [x] Enable the three V1 opportunities behind `LM_MENTAL_V1_ALLOWED_UIDS`, containing only the Dais tenant UID. Cap three/day and gap three hours.
 
-- [ ] Read one natural `organ:mental` opportunity tick. Record deployment ID, SHA, decision, family/window, template ID, Telegram message ID if sent, and send row ID.
+- [x] Read natural `organ:mental` opportunity ticks. Morning row `id=159` and evening row `id=160`
+  are recorded with family/window/template/Telegram IDs; midday remains naturally suppressed.
 
-- [ ] Verify the actual Telegram message contains no button, callback, sender signature, reply instruction, or unsupported context claim.
+- [ ] Verify both natural Telegram messages contain no button, callback, sender signature, reply instruction,
+  or unsupported context claim; morning is read back, evening body/markup readback remains open.
 
 - [ ] Commit and push the deployment evidence.
 
@@ -704,7 +709,9 @@ same-template repeat within 14 days = 0
 duplicate external sends = 0
 ```
 
-- [ ] Ensure at least one real delivered message from morning affirmation, midday mindfulness/body awareness, and evening manifestation/release. Use a reversible window adjustment if natural selection misses a family; do not fabricate user context.
+- [ ] Ensure at least one real delivered message from morning affirmation, midday mindfulness/body awareness,
+  and evening manifestation/release. Morning and evening are present; midday has not yet delivered naturally.
+  Use a reversible window adjustment only if natural selection misses a family; do not fabricate user context.
 
 - [ ] Replay one processed user/day/window. Require zero additional Telegram message IDs.
 
@@ -794,7 +801,7 @@ Do not route YC/general Gmail directly into MENTAL until an owning mail workflow
 - [ ] Start a changed policy in a bounded Dais canary, record old/new policy IDs, and provide a rollback to the previous policy version. No rating buttons or user survey are allowed.
 - [x] Treat an unsolicited user correction as a direct profile signal only when it cites a prior MENTAL message; persist only a bounded tone tag with an idempotent hashed source reference. Timing complaints remain no-op until a window-preference field exists; never send a prompt requesting correction.
 
-Current state: the offline evaluator and unit tests are merged (`mental-policy-eval.js`); they validate closed decision rows, local-day cap/14-day dedupe, operational counters, and replay fixtures for rejection, offer, interview, ambiguity, meeting suppression, cap, and ordinary day. Decision-row persistence and quiet-hours wiring are implemented locally; production migration/readback and bounded policy promotion remain open until natural provider receipts exist.
+Current state: the offline evaluator and unit tests are merged (`mental-policy-eval.js`); they validate closed decision rows, local-day cap/14-day dedupe, operational counters, and replay fixtures for rejection, offer, interview, ambiguity, meeting suppression, cap, and ordinary day. Two natural V1 provider rows now exist; decision-row persistence, quiet-hours production migration/readback, and bounded policy promotion remain open.
 
 ### Task 14: Crisis-response safety boundary
 
@@ -809,6 +816,7 @@ Anicca iOS is a separate product under the mobile-app loop, not a Life Manager c
 - [ ] Telnyx real-call receipt proves `90029` is gone.
 - [ ] Railway worker `commitHash` equals merged `main`.
 - [ ] Production schema matches the additive migration.
+- [ ] Host foundation has a bounded worktree/session/evidence retention ledger and safe concurrency cap.
 - [ ] V1 has exactly three message families.
 - [ ] Every delivered item is plain Telegram text.
 - [ ] Seven-day canary has zero unsupported context claims.
