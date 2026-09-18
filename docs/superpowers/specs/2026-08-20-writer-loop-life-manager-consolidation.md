@@ -1643,3 +1643,14 @@ PII失敗runの安全な再開、日次連続公開、公式readbackの連続証
 - 現在の最大の次cursorは、main統合前提を守りつつ、次の自然`article-daily`で同じ4面liveを再現し、その後7〜21 source runsを観測することである。
 
 **更新後結論:** Writerは同一自然runの再開で、Note・Substack JA/EN・X Article JAの4面live、公式readback、completion、replay-zeroまで実測PASSした。ただし1回のcanaryであり、日次連続運転と実収益は未完了である。次の完了条件は自然SLOとmoney receiptであり、現時点でgoal completeとはしない。
+
+## 2026-09-19 second-run regression update
+
+2回目の自然daily run `20260918-210852` は生成・identity・conscience・reader terminalまで進んだが、publication前に停止した。modelがstdoutをcanonical `reader-testing-gate-{lang}.terminal.json`へ直接redirectし、shell truncationでcontrollerのterminal evidenceを先に壊したためである。外部draft/live endpointは呼ばれていない。
+
+- RED: `reader-testing-empty-legacy.sh`で同じredirectを再現し、`terminal attempt evidence is malformed`を確認。
+- GREEN: `gate-attempt-control.py`のbegin時だけempty terminalをabsentとして扱い、finish時のstrict hash-bound receiptは維持。legacy＋terminal redirect回帰、quality persistent control、question cache、quality terminal、runtime env tests PASS。
+- 修正branch: `fix/writer-reader-terminal-race-20260919`（commit `9b2ad09a51`）。main/currentへはまだ反映していない。
+- 追加修正branch: `fix/writer-python-path-20260919`（bare `python3`をmanaged venvへ向ける、runtime env 18 tests/27 subtests PASS）。こちらもmain/current未反映。
+
+このため、4面live canaryは実証済みだが、2回目の自然runはreader infrastructure defectで失敗している。次のproduction前提は、上記2修正をreview後にmain由来releaseへ統合し、同じ自然run検証を再実行することである。日次SLOと収益は引き続き未達。
