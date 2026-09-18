@@ -3050,10 +3050,7 @@ still has 203 `application_verified` receipts and no award, delivery or payment 
 Thus verified net MRR is 0 USD; applications and public packages do not count as recurring
 revenue.
 
-The admission database currently has two Lancers effect fences: Storefront
-`18d6556c4dd03ee8-67903` and Negotiate `18d658787159fae8-19316`. They remain claimed with
-`effect_unknown=1` because an exact pre-effect marker or provider receipt is unavailable. Paid
-has no active fence: the exact
+The admission database currently has no Lancers effect fences. Paid has no active fence: the exact
 run `fde01e0c…` for occurrence `18d65712938c1d60-95360` completed with `effect=0`, and
 the next natural occurrence `18d65725f0c128a0-96252` also completed with `effect=0`;
 `paid-latest.json` reports `effect=0`, `failed=0`, `pending=0`.
@@ -3063,7 +3060,9 @@ shutdown boundary and was deployed as immutable release `3e9de7de71…` to all L
 including Browser. The dedicated Browser owner was restarted once while preserving its profile;
 CDP/Playwright attach then completed in 3.5 seconds and created an owned page. A fresh Paid
 wake on the new release exited 0 with `effect=0`, `failed=0`, and `pending=0`. The historical
-Storefront and Negotiate fences remain unchanged and were not retried.
+Storefront claim was later resolved from the official canonical listing readback
+(`1338228`, `aligned=true`, `mismatched_fields=[]`), and the Negotiate claim was resolved from
+official seller reply message `59170392`. The external booking remains pending.
 
 After this checkpoint, two pending Application readbacks completed without resubmission:
 project `5604034` became proposal `27945100`, and project `5601693` became proposal
@@ -3107,13 +3106,14 @@ the canonical order; the following are the concrete gates to work through, not a
    reconciled from exact no-effect run records; the following natural Paid wake also completed
    with effect 0, failed 0 and no funded work. The Storefront occurrence
    `18d6506438976f18-85445` was reconciled from exact `action=unchanged / status_effect_count=0`
-   evidence, but a later Storefront occurrence `18d6556c4dd03ee8-67903` is fenced again because
-   its exact pre-effect evidence is unavailable. Negotiate occurrence
+   evidence, and the later Storefront occurrence `18d6556c4dd03ee8-67903` was resolved from
+   the official canonical listing readback (`1338228`, `aligned=true`, `mismatched_fields=[]`).
+   Negotiate occurrence
    `18d658787159fae8-19316` was reconciled from official seller reply message `59170392`;
    the external booking remains pending and no duplicate reply is allowed. Telegram
    occurrence `18d608a51063bdc8-33964` was reconciled from the exact pre-child
    `resource_capacity_busy` event without sending again. The remaining Lancers fences are
-   therefore Storefront only; no blind retry is authorized.
+   therefore no Lancers effect fence remains; no blind retry was performed.
 2. **First paid conversion — CURRENT SUPPORTING ACTION:** measure proposal→buyer reply→award by profile, proof,
    proposal and price version; improve the weakest measured stage without inventing
    reviews or completed client work. Keep Storefront catalog families distinct and
@@ -3142,7 +3142,7 @@ the canonical order; the following are the concrete gates to work through, not a
 |---|---|---|
 | Apply | The installed release is `3e9de7de71…`; projects `5603444`, `5602388`, `5599100`, `5604034`, and `5601693` are confirmed as proposals `27942627`, `27943408`, `27904482`, `27945100`, and `27945097`. The ledger now has 206 verified applications and matching attribution records; no resend occurred. Older pending IDs `5601892` and `5601332` remain absent from complete proposal readback. | Keep the Application owner un-fenced and never retry the older pending IDs blindly; measure buyer reply/award from the verified funnel. |
 | Browser attach | PR #5549 retries one Playwright CDP timeout even when `/json/list` is temporarily unavailable or has no stale auth target; first client is stopped and normal tabs are left intact. The dedicated Browser owner was restarted once after repeated attach timeouts; the new owner at release `3e9de7de71…` passed a live attach/page-create probe in 3.5 seconds. | Keep the new owner alive and observe the next natural attach under production load; do not close unrelated tabs or clear the profile. |
-| Storefront | Official `/myplan` showed 7 active IDs exactly matching canonical plus catalog state: canonical `1338228`, Web-app `1342394`, and five other catalog listings. Eighteen duplicate Web-app packages were individually moved to `非表示`. The old uncertain occurrence was cleared only after an official ID set readback and pre-submit catalog state proof. A later occurrence `18d6506438976f18-85445` was cleared only from exact `action=unchanged / status_effect_count=0` evidence, but `18d6556c4dd03ee8-67903` is currently fenced. The durable listing receipt remains published; demand remains search 12 / detail 0 / inquiry 0 / order 0. | Obtain exact pre-effect or provider readback for `18d6556c4dd03ee8-67903`; keep report ACKs separate from publication effect and measure inquiry/order. |
+| Storefront | Official `/myplan` shows 7 active IDs exactly matching canonical plus catalog state: canonical `1338228`, Web-app `1342394`, and five other catalog listings. Eighteen duplicate Web-app packages were individually moved to `非表示`. Both uncertain occurrences are now resolved from official ID/listing readback. The durable listing receipt remains published; demand remains search 12 / detail 0 / inquiry 0 / order 0. | Keep publication ACKs separate from demand; run the inquiry/order conversion experiment without duplicate publication. |
 | Negotiate / Work Sync | Source-complete inventory has 14 boards, including outreach boards `9077726` and `9077932`, but required reply 0, incoming monthly offer 0, active monthly contract 0 and funded project 0. The external-action thread `9064025` has official seller reply message `59170392`; the external booking itself remains incomplete and is retained as pending work. | Resume the existing booking action only after the provider readback path indicates a safe resume; do not duplicate the seller reply. |
 | Paid | Historical queued occurrences surfaced after pre-effect browser timeouts; each cleared claim had its own `pre_effect` marker. PR #5546 makes the shared four-worker Paid kernel retain an owned host hint before any worker mutation and clear it before a successful reporter handoff. PR #5566 adds complete-inventory authoritative-absence readback. The fresh natural wake at `11:15:59 UTC` on release `3e9de7de71…` exited 0 with active funded work 0, effect 0, failed 0 and pending 0; the provider adapter still raises `lancers_paid_effect_not_implemented` for actual mutation. | Implement and prove funded delivery only when a real ContractReceipt exists; do not treat no-op as delivery. |
 | Reporter | The old effect-unknown occurrence `18d608a51063bdc8-33964` was reconciled from an exact pre-child admission event; no Telegram retry was sent. | Keep later report ACKs separate from business effects and fence any future uncertain send until provider readback. |
