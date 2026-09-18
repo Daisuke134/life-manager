@@ -610,6 +610,12 @@ class MercorPassContractTests(unittest.TestCase):
         }
         validate_bounded_scan(result)
 
+        result["inspected_listings"].append({
+            "listing_id": "list-card-submitted",
+            "application_state": "card_only; Submitted on 09/11/26",
+        })
+        validate_bounded_scan(result)
+
     def test_query_union_does_not_force_low_detail_fill(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
