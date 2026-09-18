@@ -132,7 +132,7 @@ async function readConnpassRegistrationStateOnPage(page) {
 // is required; first qualifying tier in document order wins. Online-only or
 // unlabeled tiers fail closed before confirmation.
 const TIER_RESTRICTION_PATTERN = /学生|招待|女性|男性|限定|会員|member|limited|登壇|発表|LT枠|スタッフ|関係者|主催|懇親会のみ/i;
-const TIER_GENERAL_PATTERN = /(?:一般(?:参加|枠|席|チケット|受付)|だれでも(?:参加|枠)?|誰でも(?:参加|枠)?|通常(?:参加|枠)?|オープン(?:参加|枠)?|^現地参加(?:枠)?(?=\s|$)|^参加(?:枠)?(?=\s|$)|public\b|open\b|anyone\b|\ball\b)/i;
+const TIER_GENERAL_PATTERN = /(?:一般(?:参加|枠|席|チケット|受付)|だれでも(?:参加|枠)?|誰でも(?:参加|枠)?|通常(?:参加|枠)?|オープン(?:参加|枠)?|^現地参加(?:枠|予定)?(?=\s|$)|^参加(?:枠)?(?=\s|$)|public\b|open\b|anyone\b|\ball\b)/i;
 const TIER_YEN_PATTERN = /¥|\d[,\d]*\s*円/;
 const TIER_ONLINE_PATTERN = /オンライン|リモート|配信|視聴|Zoom|Google\s*meet/i;
 const TIER_CAPACITY_PATTERN = /(\d+)\s*\/\s*(\d+)\s*人/;
