@@ -14,7 +14,7 @@ import sys
 import threading
 import time
 from typing import Any, Callable, Mapping
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from zoneinfo import ZoneInfo
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError, sync_playwright
 
@@ -68,6 +68,32 @@ def _digest(value: Mapping[str, Any]) -> str:
 
 def _google_form_url(value: str) -> bool:
     return google_form.is_google_form_url(value)
+
+
+def _canonical_google_form_url(value: str) -> str:
+    parsed = urlsplit(value)
+    if parsed.scheme == "https" and parsed.netloc in {"forms.gle", "docs.google.com"}:
+        query = urlencode(
+            [(key, item) for key, item in parse_qsl(parsed.query, keep_blank_values=True)
+             if key != "edit_requested"],
+            doseq=True,
+        )
+        return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, query, parsed.fragment))
+    return value
+
+
+_PLAIN_FORM_URL = re.compile(
+    r"https://(?:forms\.gle/[A-Za-z0-9_-]+|docs\.google\.com/forms/d/[^\s<>\"']+)"
+)
+
+
+def _google_form_urls_from_text(value: str) -> list[str]:
+    urls = []
+    for raw in _PLAIN_FORM_URL.findall(value):
+        url = _canonical_google_form_url(raw.rstrip(".,;:!?)]}>。、」』"))
+        if _google_form_url(url):
+            urls.append(url)
+    return sorted(set(urls))
 
 
 class CrowdWorksPaidBrowserUnavailable(RuntimeError):
@@ -477,7 +503,9 @@ class CrowdWorksPaidAdapter:
                                for found in [re.match(r"^/proposals/(\d+)(?:/|$)", href)] if found})
         proposal_id = proposal_ids[0] if len(proposal_ids) == 1 else None
         links = self.page.locator('a[href]').evaluate_all("nodes => nodes.map(a => a.href).filter(Boolean)")
-        form_urls = sorted({link for link in links if isinstance(link, str) and _google_form_url(link)})
+        form_urls = sorted({_canonical_google_form_url(link) for link in links
+                            if isinstance(link, str) and _google_form_url(link)})
+        form_urls = sorted(set(form_urls) | set(_google_form_urls_from_text(body)))
         document_urls = sorted({link for link in links if isinstance(link, str) and self._document_url(link)})
         artifact = self._document_access(document_urls)
         application_date = basic.get("application_date") if basic.get("proposal_id") == proposal_id else None
@@ -747,6 +775,40 @@ class CrowdWorksPaidAdapter:
             self._contract_cache[work_id] = normalized
         return dict(normalized)
 
+    def _legacy_form_urls(self, item: Mapping[str, Any]) -> list[str]:
+        """Recover raw form URLs from prior durable intents for receipt aliases."""
+        if self.state_path is None:
+            return []
+        work_id = str(item.get("work_id") or "")
+        if not work_id:
+            return []
+        found: set[str] = set()
+        for path in self.state_path.glob("items/*/state.json"):
+            try:
+                value = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError, json.JSONDecodeError):
+                continue
+            observation = value.get("observation") if isinstance(value, Mapping) else None
+            if not isinstance(observation, Mapping) or str(observation.get("work_id")) != work_id:
+                continue
+
+            def walk(node: Any) -> None:
+                if isinstance(node, Mapping):
+                    for key, child in node.items():
+                        if key == "form_url" and isinstance(child, str) and _google_form_url(child):
+                            found.add(child)
+                        elif key == "form_urls" and isinstance(child, list):
+                            found.update(value for value in child
+                                         if isinstance(value, str) and _google_form_url(value))
+                        elif key not in {"buyer_context", "artifact_content"}:
+                            walk(child)
+                elif isinstance(node, list):
+                    for child in node:
+                        walk(child)
+
+            walk(value)
+        return sorted(found)
+
     def _completed_form_urls(self, item: Mapping[str, Any]) -> list[str]:
         if self.state_path is None:
             return []
@@ -755,19 +817,25 @@ class CrowdWorksPaidAdapter:
             url = item.get("form_url")
             urls = [url] if isinstance(url, str) else []
         completed = []
+        legacy_urls = self._legacy_form_urls(item)
         for url in urls:
             if not isinstance(url, str) or not _google_form_url(url):
                 continue
-            try:
-                digest = hashlib.sha256(url.encode()).hexdigest()
-                if google_form.has_confirmed_bound_receipt(
-                        self.state_path, self._form_binding(item, digest)):
-                    completed.append(url)
-            except RuntimeError as error:
-                if str(error) == "google_form_submission_uncertain":
-                    raise
-            except Exception:
-                continue
+            aliases = [url]
+            aliases.extend(legacy for legacy in legacy_urls
+                           if _canonical_google_form_url(legacy) == _canonical_google_form_url(url))
+            for alias in dict.fromkeys(aliases):
+                try:
+                    digest = hashlib.sha256(alias.encode()).hexdigest()
+                    if google_form.has_confirmed_bound_receipt(
+                            self.state_path, self._form_binding(item, digest)):
+                        completed.append(url)
+                        break
+                except RuntimeError as error:
+                    if str(error) == "google_form_submission_uncertain":
+                        raise
+                except Exception:
+                    continue
         return sorted(set(completed))
 
     def _with_form_progress(self, item: Mapping[str, Any]) -> dict[str, Any]:

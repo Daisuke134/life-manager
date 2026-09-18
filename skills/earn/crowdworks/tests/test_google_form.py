@@ -20,6 +20,53 @@ def load():
     return module
 
 
+def test_published_form_route_without_e_segment_is_accepted():
+    module = load()
+
+    assert module.is_google_form_url(
+        "https://docs.google.com/forms/d/1a3rC5Znx5UynPdhp7D0S5Wvad7TO3MCQR0qkc6RWX1k/viewform?edit_requested=true"
+    ) is True
+
+
+def test_published_form_route_can_submit_without_e_segment(tmp_path):
+    module = load()
+
+    class Locator:
+        def __init__(self, selector): self.selector = selector
+        def get_attribute(self, name):
+            assert self.selector == "form" and name == "action"
+            return "https://docs.google.com/forms/d/form-id/formResponse"
+        def count(self): return 0
+
+    class Page:
+        url = "https://docs.google.com/forms/d/form-id/viewform"
+        def goto(self, *_args, **_kwargs): pass
+        def wait_for_timeout(self, _value): pass
+        def wait_for_url(self, *_args, **_kwargs): pass
+        def locator(self, selector): return Locator(selector)
+        def close(self): pass
+
+    class Response:
+        status = 200
+        def text(self): return "Your response has been recorded"
+
+    class Request:
+        def post(self, *_args, **_kwargs): return Response()
+
+    class Context:
+        request = Request()
+        def new_page(self): return Page()
+
+    url = "https://docs.google.com/forms/d/form-id/viewform"
+    receipt = module.submit_once(
+        context=Context(), state_root=tmp_path, url=url,
+        url_sha256=__import__("hashlib").sha256(url.encode()).hexdigest(),
+        answer_fields=lambda _page: [],
+    )
+
+    assert receipt["status"] == "confirmed"
+
+
 def test_short_form_route_gets_bounded_wait_for_exact_official_viewform(tmp_path):
     module = load()
     events = []

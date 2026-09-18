@@ -1092,6 +1092,92 @@ def test_detail_retains_multiple_buyer_form_links_for_later_task_selection():
     assert detail["form_url"] is None
 
 
+def test_detail_extracts_plain_text_google_form_links_from_buyer_messages():
+    module = load()
+    title, client = "buyer task", "buyer"
+    raw_links = [
+        "https://docs.google.com/forms/d/one/viewform?edit_requested=true",
+        "https://docs.google.com/forms/d/two/viewform?edit_requested=true",
+    ]
+    links = [url.split("?", 1)[0] for url in raw_links]
+
+    class Form:
+        def get_attribute(self, name):
+            assert name == "action"
+            return "/milestones/13798056/complete"
+
+    class Forms:
+        def count(self):
+            return 1
+
+        def nth(self, _index):
+            return Form()
+
+    class Locator:
+        def __init__(self, selector):
+            self.selector = selector
+
+        def inner_text(self):
+            return f"{title} {client} 業務を開始しています {' '.join(raw_links)}"
+
+        def evaluate_all(self, _expression):
+            return []
+
+    class Page:
+        def locator(self, selector):
+            if selector.startswith('form[action^="/milestones/"]'):
+                return Forms()
+            return Locator(selector)
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda _work_id: None
+
+    detail = adapter._detail_once({"work_id": "63712784", "title": title, "client": client})
+
+    assert detail["form_urls"] == links
+    assert detail["form_url"] is None
+
+
+def test_form_url_canonicalization_only_drops_edit_request_query():
+    module = load()
+
+    assert module._canonical_google_form_url(
+        "https://docs.google.com/forms/d/id/viewform?edit_requested=true&entry.1=keep"
+    ) == "https://docs.google.com/forms/d/id/viewform?entry.1=keep"
+
+
+def test_canonical_form_reuses_confirmed_receipt_bound_to_legacy_query_url(tmp_path):
+    module = load()
+    raw_url = "https://docs.google.com/forms/d/id/viewform?edit_requested=true"
+    canonical_url = "https://docs.google.com/forms/d/id/viewform"
+    item = {**funded(), "work_id": "63712784", "form_urls": [canonical_url],
+            "form_url": None}
+    state = tmp_path / "items" / "legacy" / "state.json"
+    state.parent.mkdir(parents=True)
+    state.write_text(json.dumps({
+        "version": 1,
+        "observation": {"provider": "crowdworks", "account_id": "7145638",
+                         "work_id": "63712784"},
+        "intent": {"payload": {"form_url": raw_url}},
+    }), encoding="utf-8")
+    binding = {"provider": "crowdworks", "account_id": "7145638",
+               "contract_id": "63712784", "milestone_id": "13798056",
+               "form_revision_sha256": hashlib.sha256(raw_url.encode()).hexdigest()}
+    receipt_key = module.google_form._identity({**binding, "submission_payload_sha256": "payload"})
+    module.google_form.write_json(tmp_path / "external-actions" / f"{receipt_key}.json",
+                                  {"binding": binding, "status": "confirmed",
+                                   "confirmation_sha256": "confirmed"})
+    module.google_form.write_json(
+        tmp_path / "external-actions" / f"index-{module.google_form._identity(binding)}.json",
+        {"version": 1, "status": "confirmed", "receipt_key": receipt_key},
+    )
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638", state_path=tmp_path)
+
+    assert adapter._completed_form_urls(item) == [canonical_url]
+
+
 def test_inventory_row_clears_singular_form_when_multiple_urls_are_present():
     module = load()
     row = {**funded(), "form_urls": [
