@@ -320,6 +320,9 @@ provider effect and it does not replace the ordered repair cursor in
   `missing_count=0`. This confirms `5276533` and records the other three as unresolved absence;
   their intent records still say `effect_phase=irreversible_attempt_started`, so this evidence does
   not authorize clearing the whole wake.
+- Later Storefront wakes `44826` and `65665` recorded `effect=0`, `readback=0` and
+  `no_executable_unfenced_mutation_contract`. They are later wakes, not a provider receipt for
+  `18d5fce0aaee0680-6502`, so the Storefront fence remains conservative.
 - Paid has recent terminal `pass` receipts. Reply has recent passes, but also fail-closed
   collector results (`inbox_coverage_incomplete` / `missing_container`). Storefront remains
   `resource_effect_unknown`. None of these statuses authorizes a blind retry.
