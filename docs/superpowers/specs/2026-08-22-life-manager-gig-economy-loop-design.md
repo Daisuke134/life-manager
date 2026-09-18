@@ -291,6 +291,9 @@ provider effect and it does not replace the ordered repair cursor in
   low enough to keep SQLite and release writes at risk. The process table contains two long-lived
   `Z` entries: one defunct child of CloakBrowser Chromium and one defunct child of ChatGPT. No
   unknown executable was found; these are host-hygiene findings, not proof of malware.
+- A read-only admission snapshot now passes `PRAGMA integrity_check` and shows 98 queued rows,
+  17,300 occurrence rows, 74 `effect_unknown` rows and one reservation. The historical 7,922-row
+  burst has therefore been reduced, but the shared fence is not repaired while unknown rows remain.
 - Paid has recent terminal `pass` receipts. Reply has recent passes, but also fail-closed
   collector results (`inbox_coverage_incomplete` / `missing_container`). Storefront remains
   `resource_effect_unknown`. None of these statuses authorizes a blind retry.
