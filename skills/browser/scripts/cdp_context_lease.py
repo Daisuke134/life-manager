@@ -12,6 +12,7 @@ the same trick as Playwright's storageState ("reuse this state and start already
     python3 cdp_context_lease.py acquire gig            # -> {"context_id":..., "target_id":..., "ws":...}
     python3 cdp_context_lease.py release gig            # dispose the context (tabs die with it)
     python3 cdp_context_lease.py gc --idle-min 45       # reap contexts a crashed loop left behind
+    python3 cdp_context_lease.py audit                   # report leased and unknown contexts; never closes
     python3 cdp_context_lease.py list
 """
 import asyncio
@@ -362,6 +363,62 @@ def _browser_context_exists(context_id):
     if not isinstance(context_ids, list):
         return None
     return context_id in context_ids
+
+
+def context_inventory():
+    """Read browser contexts and classify only the contexts known to this lease ledger.
+
+    Unknown contexts are deliberately reported, never disposed here. A shared daily-driver can
+    contain user pages or another loop's profile work, so a blank URL is not ownership proof.
+    Callers that need cleanup must use an owner-backed lease row and the existing ``gc`` path.
+    """
+    results = asyncio.run(_calls([
+        ("Target.getBrowserContexts", {}),
+        ("Target.getTargets", {}),
+    ]))
+    context_ids = results[0].get("browserContextIds")
+    target_infos = results[1].get("targetInfos")
+    if not isinstance(context_ids, list) or not all(isinstance(value, str) for value in context_ids):
+        raise RuntimeError("Target.getBrowserContexts returned invalid context IDs")
+    if not isinstance(target_infos, list):
+        raise RuntimeError("Target.getTargets returned invalid target infos")
+
+    context_set = set(context_ids)
+    pages_by_context = {context_id: [] for context_id in context_ids}
+    for target in target_infos:
+        if not isinstance(target, dict) or target.get("type") != "page":
+            continue
+        context_id = target.get("browserContextId")
+        if context_id not in context_set:
+            continue
+        url = target.get("url")
+        pages_by_context[context_id].append(url if isinstance(url, str) else "")
+
+    leases = _leases()
+    leased_context_ids = sorted({
+        row.get("context_id")
+        for row in leases.values()
+        if isinstance(row, dict) and isinstance(row.get("context_id"), str)
+        and row.get("context_id") in context_set
+    })
+    leased_set = set(leased_context_ids)
+    unknown_owner_contexts = []
+    for context_id in sorted(context_ids):
+        if context_id in leased_set:
+            continue
+        page_urls = sorted(pages_by_context[context_id])
+        unknown_owner_contexts.append({
+            "context_id": context_id,
+            "page_count": len(page_urls),
+            "blank_page_count": sum(url.startswith(("about:blank", "chrome://newtab")) for url in page_urls),
+            "page_urls": page_urls,
+        })
+    return {
+        "ok": True,
+        "context_count": len(context_ids),
+        "leased_context_ids": leased_context_ids,
+        "unknown_owner_contexts": unknown_owner_contexts,
+    }
 
 
 _PROVISIONING_TIMEOUT_SECONDS = 120
@@ -1431,6 +1488,8 @@ if __name__ == "__main__":
         elif cmd == "gc":
             idle = int(sys.argv[sys.argv.index("--idle-min") + 1]) if "--idle-min" in sys.argv else 45
             out = gc(idle)
+        elif cmd == "audit":
+            out = context_inventory()
         elif cmd == "list":
             out = {"ok": True, "leases": _leases()}
         else:
