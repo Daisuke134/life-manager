@@ -33,7 +33,8 @@ The production scheduler also observed the synthetic projection and logged a Tel
 
 ## Remaining canary gates
 
-- Latest automated readback at `2026-09-18T04:33:26+09:00`: `v1_count=0`, `legacy_count=34`, `pass=false` over the trailing 14-day window. This is an honest pre-window state, not a canary pass.
+- Latest automated readback at `2026-09-18T19:55:42+09:00`: `v1_count=1`, `legacy_count=33`, `daily_counts={2026-09-18: 1}`, `windows.morning_orientation=1`, and structural `pass=true` over the trailing 14-day window. This is one natural morning receipt, not a seven-day canary pass.
+- The receipt row has `family=affirmation`, `window=morning_orientation`, and template `antara:courage-quiet:ja`. The provider-native Telegram history probe did not find its `telegram_message_id=1384`, so exact body/readback remains open and the structural evaluator's `telegram_content_readback=required` condition is not closed.
 - Repository hardening is now pushed on the dedicated branch: closed decision rows with replay keys and explicit quiet-hours fields are implemented and covered by the full Life Manager test suite. Production has not received this release yet.
 - A secret-free production schema probe confirms the migration gate is still open: `lm_mental_decision_log` returns `404/PGRST205`, the quiet-hours columns return `400/42703`, and the existing `lm_mental_send_log` family columns return `200`. No production mutation was attempted because the available Railway service environment exposes Supabase REST credentials but no SQL/DB connection or migration executor.
 - The merged offline policy scorecard is available for replay, but no policy is promoted from it until natural provider receipts exist; this readback contains no synthetic rows.
