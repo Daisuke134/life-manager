@@ -12,42 +12,38 @@
 
 ## Live cursor (2026-09-18)
 
-The five active official contracts are currently four `funded` and one (`63583795`) `delivered`; formal CrowdWorks delivery is read back for
-`63583795` only, and that row is awaiting buyer inspection. Historical form receipts exist for `63583795`
-and `63570481`; the former also has a buyer-visible seller message and inspection-pending readback. The
-local Paid row for `63583795` must be reconciled before any retry, and the form/delivery must not be replayed.
-The previous 180-second Paid owner bound also terminated a wake during generation of a required 13-field
-form (`63659463`), leaving `intent_persisted` without a confirmed receipt. The Paid label is now targeted
-loaded from immutable `20260918T041155-d0401d93` (`d0401d93f3`) with a 900-second finite bound. Its first
-kickstart stopped before the child at the stale occurrence
-`crowdworks-revenue-paid:18d62a4c364cf0e0-11226` (`effect_unknown=1`); the next step is contract-specific
-reconcile, not a retry or guessed external effect.
-The installed d0401d93 owner still has a local `intent_persisted` row for `63659463` after the earlier
-pre-effect timeout; the official inventory readback remains 5/5 (four funded, `63583795` delivered), and
-the stale Admission occurrence must be resolved before a new child can start. The successful read-only probe
-is evidence for the next reconciliation, not a new external effect.
-The next implementation cursor is browser recovery and bounded contract context for the other four
-contracts, followed by separate external receipt and `納品する` readback. Do not treat the old
-three-contract example below as the current scope; the current scope is all five IDs: `63659463`, `63657015`,
-`63583795`, `63570481`, and `63568785`.
+The execution cursor is **CW-F1: exact admission reconciliation and installed-owner wake**. Read-only
+provider evidence shows five active contracts: four `funded`, and `63583795` `delivered`/inspection
+pending. The Paid label is loaded from immutable release `20260918T052034-8c19c9df`
+(`8c19c9dfdc9c63398fbc10fd44c6771598a55f49`) with a finite 900-second bound, but launchd is currently
+`not running` with exit `75` because the stale occurrence
+`crowdworks-revenue-paid:18d62cf32eb0c678-48194` is still `claimed`/`effect_unknown=1`. The new
+pre-effect fence refuses to clear this inventory-failure occurrence without exact run-wide proof. Earlier
+occurrences `16007`, `26778` and `36919` are reconciled (`released/effect_unknown=0`). The bounded disk
+cleanup pass recovered free space to `8,080,977,920` bytes but reclaimed zero artifacts and recorded one
+error; the capacity floor is currently cleared, while the cleanup error remains open. Reconcile probes for
+the current legacy occurrence have no exact marker/intent, so no additional admission state changed.
 
-**Ready-to-close facts:** `63583795` has a historical form receipt, verified formal delivery, and official
-inspection-pending readback; continue to acceptance/settlement without another send. `63570481` has a
-historical form receipt but the buyer says the customer-address answer is missing.
-**Work-required facts:** `63659463` exposes common/Web-ad/video candidates and needs model-confirmed role
-selection; `63657015` exposes a hearing sheet plus a common test and a designer-only branch; `63568785`
-provides a Google Docs assignment and no current form. The model must read the full conversation and linked
-content before choosing the action; code must not choose the first form or infer work from a URL.
+**Verified contract outcomes:** `63659463` has confirmed Web Ads and common form receipts; its latest
+row is `verified` (`effect=1/readback=1`) but formal delivery, quality verification, acceptance and payout
+are open. `63583795` has historical form and formal-delivery receipts and is awaiting buyer inspection;
+no replay is allowed. `63657015` has a timed-out common-form intent with no confirmed receipt. `63570481`
+has a read-only expanded buyer correction and exact form `https://forms.gle/vZeQpKMg2ma72Eeu6`, but the
+missing customer-address answer is not corrected. `63568785` links to a Google Doc that currently requires
+`編集権限をリクエスト`; no artifact exists.
 
-**Current code/runtime evidence:** PRs `#5393`, `#5401`, `#5411`, `#5412`, `#5413`, `#5419`, `#5437`, `#5443`, and `#5476`
-bound the Paid wake, preserve pre-effect hints, retry/recover CDP, start navigation at `commit`, fail
-closed on empty inventory, classify the official inspection-pending contract state as delivered/no-op, and
-isolate one contract-detail timeout as a retryable waiting item, and extend only the CrowdWorks Paid owner
-to a finite 900-second bound. CrowdWorks Paid is loaded from immutable release `20260918T041155-d0401d93`,
-with loaded argv and SHA read back. Focused adapter/kernel tests are green (198 tests plus 126 subtests).
-A locked read-only provider probe read five active contracts (four funded, `63583795` delivered); the latest
-owner wake stopped at the stale Admission occurrence before a provider terminal receipt with `effect=0`.
-The next live gate is exact occurrence reconcile followed by a successful Paid inventory/detail wake.
+**Implementation status:** the buyer-context expansion, no-form answer and correction-revision changes
+are local work in progress and are not loaded production behavior until focused tests, review, merge and
+immutable release complete. The host also produced `ENOSPC` while creating a new worktree, so recover
+headroom before the next build/release mutation. No contract has buyer acceptance, settlement, payout or
+verified USD 10,000 MRR.
+
+**Next order:** (1) reconcile occurrence `18d62cf32eb0c678-48194` using exact proof;
+(2) kickstart the targeted Paid owner without waiting for a global slot and read terminal/provider state;
+(3) reconcile `63657015` before any retry; (4) ship the `63570481` correction path and verify its result;
+(5) obtain permission and complete `63568785`; (6) audit, formally deliver and close `63659463`;
+(7) monitor `63583795` through acceptance/payout; (8) close every row with `correct_work_verified`,
+replay-zero and actual payout before counting recurring revenue.
 
 ## Global constraints
 

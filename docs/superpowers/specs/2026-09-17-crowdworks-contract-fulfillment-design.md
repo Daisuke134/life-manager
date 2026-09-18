@@ -16,77 +16,102 @@ Read-only production status at the planning snapshot: all four labels were `load
 
 CrowdWorks' official fixed-price guide defines application, negotiation, contract, escrow, work, **「納品する」**, inspection, and payment as distinct steps. A normal message in the same contract page does not invoke formal delivery. The official guide also says to begin work after escrow. Sources: [worker guide](https://crowdworks.jp/pages/guides/employee/fixed_price), [terms](https://crowdworks.jp/pages/agreement). Lancers' [project guide](https://www.lancers.jp/help/guide/lancer/project/3) likewise distinguishes proposal from work after escrow; its actual page/owner mapping needs separate inspection.
 
-## Live production cursor — 2026-09-18
+## Live production cursor — 2026-09-18 (current)
 
-This section is the current execution SSOT. It supersedes the older planning snapshot above where the
-observed state differs. The read-only CrowdWorks owner re-read all five active contract pages on
-2026-09-17:
+This section is the current execution SSOT. It supersedes the planning snapshot above wherever the
+observed provider, state or release differs. Evidence below is read-only state/provider evidence; it is
+not a claim that money has been earned.
 
-| contract | official state | current buyer request evidence | remaining fulfillment |
-|---|---|---|---|
-| `63659463` OnJob | `funded`; formal delivery not read back | Contract message lists a common test and separate Web-ad / video candidates; the contract title is Web広告運用. The model must confirm the intended role from the full conversation before choosing a form. | Read every candidate form's title/required fields, choose only the form(s) justified by the request, submit and verify, then formal delivery and readback. |
-| `63657015` Orecon | `funded`; formal delivery not read back | Buyer asks for a copied/fillable hearing sheet and a common email-writing test; a designer-only task is separately described. The model must confirm the worker role and required scope. | Create the requested hearing artifact, send it through the contract message using the allowed format, complete the applicable test, then formal delivery and readback. |
-| `63583795` Mirafull | `funded`; formal delivery read back; inspection pending | Historical form receipt is present. The seller-visible contract now says the client is inspecting the delivery, and the seller message confirms the Google Form response. | Do not resend the form or delivery. Reconcile the local Paid receipt, monitor `検収`/acceptance, and read back settlement/payout. |
-| `63570481` Effect | `funded`; one historical form receipt; formal delivery not read back | Buyer says the staff-address answer was seen but the customer-address answer was not. | Read the complete/expanded buyer task, identify the missing customer response, submit only that missing work, then formal delivery and readback. |
-| `63568785` undym67231 | `funded`; formal delivery not read back | Buyer supplied a Google Docs assignment link; no external form is exposed on the current contract page. | Read the document and full buyer instruction, produce the requested feedback artifact, send it through the contract, then formal delivery and readback. An application-date gate must not block a no-form task. |
+### Done (verified)
 
-### Verified current facts
+- **Boundary:** Apply owns proposals, Reply owns pre-contract negotiation/acceptance, and the existing
+  CrowdWorks Paid owner owns every post-contract reply, work artifact, external submission, revision and
+  formal `納品する` effect. There is no CrowdWorks Storefront owner. This is one post-contract lane per
+  contract ID; the other 14 loop owners remain independent.
+- **Runtime safeguards:** the bounded wake, timeout isolation, inspection-pending no-op, and run-wide
+  pre-effect fence are merged through PRs `#5430`, `#5437`, `#5443`, `#5476`, `#5492`, `#5512` and
+  `#5515`. The Paid label is loaded from main-derived immutable release
+  `e3c78a63527fea3c09ab5d782939e3c18c619bb3` at
+  `/Users/anicca/loops/crowdworks/releases/20260918T090049-e3c78a63` with a finite 900-second owner
+  bound. The release includes the active-inventory row wait and the quality/stage safeguards; Astra's
+  final read-only verdict was `ship`. Target apply receipt is `81c323cd38cb970453b24230`.
+- **Official inventory:** a fresh read-only provider pass after the row-wait fix returned exactly five
+  contract IDs (`63659463`, `63657015`, `63583795`, `63570481`, `63568785`), all currently `funded`.
+  The previous `63583795` delivery receipt remains historical evidence and is not replayed. A message,
+  filled composer, form URL, or local row is not treated as formal delivery, acceptance, settlement or
+  payout.
+- **`63659463` OnJob:** two Google Form effects have confirmed receipts (Web Ads form `f45…` and common
+  form `c7617bf45a655a8824b35e54171a8aa080987a2c61ccdd1c6b9f620f95d0e233`); the latest Paid row is
+  `verified` with `effect=1/readback=1`. Formal delivery, buyer acceptance, settlement and payout are
+  still open, and the submitted content still needs a request-to-result quality audit.
+- **`63583795` Mirafull:** a historical form receipt and formal CrowdWorks delivery exist, but the fresh
+  active inventory currently reports `funded`; current milestone state must be re-read before any action.
+  No historical form or delivery replay is allowed.
+- **`63570481` Effect:** the complete folded message history was expanded in a read-only detail probe.
+  The exact form `https://forms.gle/vZeQpKMg2ma72Eeu6` is visible, and the buyer says the staff-address
+  answer was received but the customer-address answer is missing. This identifies the correction; it is
+  not yet a corrected submission.
+- **`63568785` undym67231:** the funded contract and buyer Google Doc link are read back. The document
+  currently shows `編集権限をリクエスト`; no artifact can be claimed until the buyer grants access or
+  supplies the content.
+- **Host headroom:** the bounded existing cleanup owner completed a pass with
+  `free_after=8,080,977,920` bytes (about 7.5 GiB). It reclaimed no allow-listed artifact and preserved
+  five candidates (`errors=1`); later release work read back about 10.7 GB free. Capacity is above the
+  immediate ENOSPC floor but the cleanup pass itself is not a clean success.
+- **Admission progress:** occurrence `16007` was reconciled to the exact `63659463` common-form receipt;
+  occurrences `26778` and `36919` were reconciled from durable `completed/effect=0` run markers. Their
+  rows are now `released/effect_unknown=0`.
 
-- Official contract readback: **5/5 `funded`; 1/5 (`63583795`) has formal delivery read back and is awaiting buyer inspection; 4/5 have no formal delivery read back**.
-- Confirmed Google Form receipts exist for `63583795` and `63570481`. The `63583795` row now also has a buyer-visible seller message and official inspection-pending readback; the `63570481` form receipt still does not prove formal CrowdWorks delivery or buyer acceptance.
-- The local Paid item for `63583795` was persisted before the later provider readback and must be reconciled from the official contract before any retry. The provider readback is authoritative; do not resend a form or delivery from a stale local row.
-- The latest Paid attempts have `effect=0`; no new form or formal-delivery effect is accepted as successful.
-- The Paid label is now loaded from immutable release `20260918T041155-d0401d93` (`d0401d93f3`),
-  whose registry gives this owner a finite 900-second timeout. The first kickstart on that release was
-  blocked before the child started by the stale CrowdWorks occurrence
-  `crowdworks-revenue-paid:18d62a4c364cf0e0-11226` with `effect_unknown=1`; do not clear it without a
-  contract-specific proof.
-- The shared Paid kernel pre-effect-failure fix is merged in PR `#5365`. The CrowdWorks-specific timeout
-  correction is merged in PR `#5476` and is loaded in immutable release `20260918T041155-d0401d93`.
-  A timed Paid readback was stopped after it exceeded the old bounded wake; the contract item remains open
-  and must be reconciled from official state before retry.
-- PRs `#5393`, `#5401`, `#5411`, `#5412`, `#5413`, `#5419`, and `#5476` bound the Paid wake, preserve
-  pre-effect hints, retry/recover CDP contexts, start navigation at `commit`, fail closed on empty inventory,
-  and give CrowdWorks Paid the 900-second finite bound required by its model-generated forms. The Paid plist
-  readback points to `d0401d93f3`. The latest targeted wake was blocked by the stale occurrence named above,
-  ended with `effect=0`, and did not create a new form, message, or formal-delivery effect.
-- The authenticated CrowdWorks context is readable again: a fresh official inventory readback at
-  `2026-09-17T19:20:19Z` returned 5/5 contracts (four `funded`, `63583795` `delivered`). The stale
-  admission occurrence remains the current blocker; this readback is not a new work effect.
-- The Paid owner is the only post-contract effect owner. Reply may hand off an exact contract ID but must
-  not send an ordinary post-contract reply or external form for a Paid-owned contract.
+### Not done (current blockers and open work)
+
+- **Admission blocker:** the Paid owner remains stopped by the exact stale occurrence
+  `crowdworks-revenue-paid:18d62cf32eb0c678-48194` (`claimed`, `effect_unknown=1`). It came from a
+  provider-inventory failure in the legacy release with no durable run marker, so it cannot be cleared as
+  no-effect. The new release was applied and kickstarted, but its natural wake also ended before the child
+  with `host_admission_deferred:resource_effect_unknown`; launchd readback is `state=not running`,
+  `last exit code=75`.
+- **`63657015` Orecon:** the latest wake timed out with `CrowdWorksPaidContractTimeout`; its durable
+  form intent for `https://forms.gle/GxTdS4kZr8fbvej68` remains `intent_persisted` with no confirmed
+  receipt. Do not retry from the intent alone; first reconcile the official form/provider state.
+- **`63570481` correction:** the missing customer-address answer must be produced from the full buyer
+  task and submitted as a new correction revision bound to the buyer event. The implementation is merged
+  and present in release `e3c78a63`, but no natural child run has reached it while admission is fenced.
+- **`63568785` artifact:** send one precise permission/content request through the Paid owner, then read
+  the document, do the requested work, verify buyer-visible access/content and only then deliver.
+- **All five closures:** no contract has buyer acceptance, settlement, payout or verified USD 10,000 MRR.
+  `correct_work_verified` is not true for every row; formal delivery and exact readback remain open for
+  all currently funded rows. The host hit `ENOSPC` while creating a worktree during this update; headroom
+  has since recovered above the immediate floor, but the cleanup receipt still records one error and zero
+  reclaimed bytes.
 
 ### Remaining TODO, in execution order
 
-1. **Restore bounded browser readback and reconcile the already-observed delivery.** Keep a finite 900-second
-   bound for the Paid owner. The prior 180-second bound terminated a wake while the model was generating
-   the required fields of a 13-field Google Form; the observed state was `intent_persisted` with no new
-   confirmed receipt. The 900-second limit remains owner-specific and bounded, so it lets a correct work
-   item finish without making the shared loop fleet unbounded. Restore the authenticated CrowdWorks context,
-   read the five contract pages, and promote the
-   official `63583795` delivery/inspection readback into the durable Paid receipt without replaying it. A
-   slow contract must become a terminal, replayable `waiting_external`/failure item; it must not hold the
-   Paid owner indefinitely or block other contracts.
-2. **Persist full buyer context.** Store the newest buyer event, expanded message history, linked document/form
-   metadata, scope, corrections and the model's request-to-result mapping in private contract state.
-3. **Choose the requested work with model judgment.** For multiple forms, expose every exact URL plus visible
-   title, required fields and choices to the model. Never choose the first URL, submit all candidates, or infer
-   a task from a URL alone. If the mapping is ambiguous, ask one specific buyer question and perform no effect.
-4. **Create and quality-check each artifact.** Open the linked document/form, do the actual requested work,
-   verify content, completeness, format, permissions and buyer-visible access, and persist `correct_work_verified`
-   only after that readback.
-5. **Submit separate effects.** Fence external form/message/file submission separately from CrowdWorks formal
-   delivery. `63583795` is already sent and must remain replay-zero. For every other contract, read back each
-   exact receipt before retrying. Formal delivery is the named milestone control, not a normal message or an
-   empty composer.
-6. **Close each contract.** Read back `納品 → 検収/acceptance → settlement → payout`; for `63583795`,
-   continue from inspection pending. Preserve revisions as new buyer-event versions, and prove replay-zero
-   per contract.
-7. **Finish installed-owner proof.** The main-derived release and targeted Paid apply are complete. Re-run
-   only after browser readback is available, then inspect the terminal receipt plus exact official provider
-   readback; no browser-unavailable receipt counts as a provider effect.
-8. **Only after all five close, pursue recurring work.** Record cash received separately from verified recurring
-   MRR; USD 10,000 MRR remains open until collected/settled monthly-equivalent payment evidence exists.
+1. **Reconcile the exact admission occurrence.** Headroom recovery and the new release apply are read back,
+   but the cleanup error remains open. Use the existing provider/no-effect reconciliation path for occurrence
+   `18d62cf32eb0c678-48194` only when an exact run receipt or run-wide marker exists. Clear it only with
+   exact evidence; never guess and never reinterpret a browser timeout as a provider effect.
+2. **Wake the installed Paid owner without waiting for a global slot.** The new release has already been
+   applied and kickstarted once; after exact reconciliation, kickstart again and read its terminal receipt,
+   per-contract state and official active inventory. A blocked or slow contract must stay independently
+   represented so other contracts can advance.
+3. **Finish `63657015` safely.** Inspect the exact provider/form readback for the persisted intent. If no
+   effect occurred, read the full hearing/common-test instructions, produce the requested artifact, submit
+   only the applicable work and verify it. Do not fabricate the requested AI share link.
+4. **Ship and run the buyer-correction path for `63570481`.** Merge the focused form-revision/context
+   implementation, load its immutable release, select `vZeQpKMg2ma72Eeu6` only because the buyer correction
+   requires it, submit the missing customer response with a new buyer-event binding, and read back both
+   the form result and formal delivery.
+5. **Unblock `63568785`.** Ask for document permission or pasted instructions, then create the actual
+   requested feedback artifact, check permissions/content from the buyer view, send it and formally deliver.
+6. **Audit and deliver `63659463`.** Compare every submitted field with the buyer's full request and
+   grounded profile facts. Repair any wrong or unsupported answer before formal `納品する`; then read back
+   buyer inspection, acceptance, settlement and payout.
+7. **Monitor `63583795`.** Continue from official inspection pending to acceptance, settlement and payout;
+   keep replay-zero for its existing form and delivery receipts.
+8. **Close the revenue gate.** For every contract record artifact/response, `correct_work_verified`, exact
+   external receipts, formal delivery, buyer acceptance/revision, settlement, payout and replay-zero. Only
+   collected/settled recurring value counts toward USD 10,000 MRR; current escrow and one-off receipts do
+   not.
 
 ### Completion gate
 
