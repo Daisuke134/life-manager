@@ -774,8 +774,8 @@ Do not route YC/general Gmail directly into MENTAL until an owning mail workflow
 - Existing Telegram message intake and tests.
 
 - [x] Store each decision as `send` or `silence` with reason, source outcome ID, Calendar busy state, chosen text version, profile/policy versions, and eventual Telegram ID. The repository-owned decision log stores no Gmail body or inferred emotion; production migration/readback remains open.
-- [x] Add bounded per-user quiet-hours fields to the existing preferences source and make the scheduler fail closed on incomplete/out-of-range pairs. A user-facing correction-to-window parser remains open.
-- [ ] Treat an explicit user correction such as `この言い方は嫌`, `この時間は邪魔`, or `こういう時は短く` as source-backed feedback for that user; update tone/avoid tags or a delivery window only after the correction is tied to an exact prior message. Wording/tone corrections are live; timing corrections remain no-op until this parser is implemented.
+- [x] Add bounded per-user quiet-hours fields to the existing preferences source, make the scheduler fail closed on incomplete/out-of-range pairs, and map an explicit reply to a prior V1 receipt to that exact window. Production migration/readback remains open.
+- [x] Treat an explicit user correction such as `この言い方は嫌`, `この時間は邪魔`, or `こういう時は短く` as source-backed feedback for that user; update tone/avoid tags or the exact replied-to delivery window only after the correction is tied to an exact prior message. Wording/tone and timing correction paths are implemented; production migration/readback remains open.
 - [ ] Compare a changed policy with its prior version on verified cases: useful explicit reactions, intrusive corrections, false personal claims, duplicate sends, and missed material outcome reports. Keep the new policy only if it improves the intended signal without worsening the safety counters.
 - [ ] Test replay of the same correction and the same Gmail outcome. Both must have one durable update/effect at most.
 - [ ] Do not claim emotional benefit from silence, read receipts, or a delivered Telegram ID.

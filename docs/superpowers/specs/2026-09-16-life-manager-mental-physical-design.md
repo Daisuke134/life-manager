@@ -631,8 +631,8 @@ synthetic row, decide whether a rollout milestone is closed.
   runtime requires `LM_MENTAL_DECISION_LOG_REQUIRED=1` only after that readback; until then it
   preserves the existing send-ledger path during migration rollout.
 - Explicit per-user quiet-hours columns, bounds, pair validation, scheduler read, and migration
-  fallback are implemented. The correction parser still does not turn a timing complaint into a
-  setting automatically.
+  fallback are implemented. A reply to a durable V1 message can now map its known window to the
+  quiet-hours preference; no free-form time is inferred.
 - The live `life-call` deployment is `92e9fc01664b65e8a22d37d3969b8379c67cb1fe` with `/health`
   returning `200`; production schema/RLS readback and the Dais-only tenant preflight are recorded
   as passing in the evidence ledger. These are not the current release blocker.
@@ -681,14 +681,14 @@ has no eligible natural receipt; it is not evidence of a successful canary.
 
 **Secondary blockers for the full acceptance claim:** the decision-row and quiet-hours migrations
 are implemented in the repository but have not yet been applied and read back in the live tenant;
-the timing-correction parser is still no-op; and the crisis handoff owner has not been verified.
-These items do not prevent collecting the first ordinary V1 message, but they prevent claiming the
-full self-improving, timing-personalized, safety-complete rollout.
+and the crisis handoff owner has not been verified. These items do not prevent collecting the first
+ordinary V1 message, but they prevent claiming the full self-improving, timing-personalized,
+safety-complete rollout.
 
 ### 19.5 Next action
 
 Continue the Dais-only natural canary through the three local windows, apply/read back the decision
 and quiet-hours migrations, and record provider-native receipts in the evidence ledger. Close the
 P0 checklist before changing copy, widening the allowlist, promoting a policy, or enabling
-Gmail/Calendar outcome context. Once P0 is closed, complete policy promotion, timing-correction
-ownership, and crisis-route verification before general rollout.
+Gmail/Calendar outcome context. Once P0 is closed, apply/read back the migrations, complete policy
+promotion, and verify the crisis route before general rollout.
