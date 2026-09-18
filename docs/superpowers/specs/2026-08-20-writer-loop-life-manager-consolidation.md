@@ -1452,3 +1452,61 @@ loaded definitionと自然tickまで読み戻すことを意味する。A1のcon
 5. 収益: 現在の外部 received writing revenue、payout、subscription contract、active MRRは証拠上0。$10K MRRは未達で、公開数やdraft数を収益と数えない。
 
 現在の主ボトルネックはprovider生成やmedia creationではなく、Note/Xの既存live targetに対するpublisher-native repair/readbackである。未確認の外部状態を成功へ昇格させず、同一targetの公式readbackが取れるまで`repair-required`を保持する。
+
+## 2026-09-19 measured Writer status (current cursor)
+
+この節が、上記の履歴を踏まえた現在の実行順序と完了判定である。対象はLife Manager Main内の
+唯一のWriter loop（`article-daily`生成laneと`article-resume`再開lane）だけであり、他のloopは作業範囲外とする。
+
+### Done (evidence-backed)
+
+- PII gateの誤検知修正はmainへ統合済み（PR #5626、main `431b5020457190c9c458f732728d08034732fd25`）。
+  `aniccaai.com`のCTA lineage query trackingだけを許可し、外部／部分URLは従来どおり拒否する。focused PII test 41件と
+  `py_compile`はPASS。
+- `article-daily`／`article-resume`はpublish・agent・revenueとしてregistryへ統合済み（PR #5629）。既存queueは
+  runtime rebindで`admission_class=revenue`、`base_priority=revenue`へ移行し、Writerのqueued occurrenceは
+  `effect_unknown=0`である（PR #5632、focused rebind/apply tests PASS）。
+- multi-initialization時にモデルが4媒体公開へfall-throughしない修正はmainへ統合済み（PR #5635、main
+  `b4a502a5ce89f2b5d2bc16e24fe139cf7bfc46b8`）。回帰テストは、初期化ペアを決定的に1件ずつstageし、モデルを呼ばないことを確認する。
+- run `20260918-135644`では、Note JA、Substack JA、Substack EN、X Article JAの4つについて、publisher-native URL、
+  本文／identity／media readback、Telegram completion、`article-run-complete rc=0`、`publication_resume plan=all-complete`、
+  replay-zeroを同一runで取得済みである。これは1回のcanaryの証拠であり、日次SLOや収益の証明ではない。
+
+### Not done (must not be reported as success)
+
+- 最新loaded releaseは`aabbd69495d633a156e9622ff0a1140d14c0dc2d`であり、PR #5635の`b4a502a5`はsource/mainにmerge済みだが、
+  `article-resume`のloaded runtimeへ未反映である。
+- run `20260918-151040`は旧releaseのPII gateで4媒体すべてがprovider effect前に停止した。live URL、delivery ledger、
+  payment/publisher receiptはこのrunには無い。PII修正後の同run再開と4媒体公式readbackは未実施である。
+- 2026-09-19 01:30 JSTのreadbackでは`article-resume`が`loaded-running`（PID 34238）で、`article-daily`は
+  `loaded-idle`だが直近exit 75である。したがってb4 releaseの安全なapplyと、その後のkickstart canaryは未完了である。
+- admission DBにはWriter以外の古い`effect_unknown=1`が残る。Writer固有では、`article-daily`に過去のclaimed
+  `effect_unknown=1` occurrenceが1件残っており、外部作用が無いことのexact event proofなしに再実行してはならない。
+- money readbackはverified revenue event 0件、subscription 0件、Stripe receipt 0件。確定売上は¥0、active MRRは未証明であり、
+  $10K MRRは未達である。価格設定・公開数・draft数を売上へ加算しない。
+- 7日／21 scheduled source runsの連続自然terminal、各日4媒体live、Telegram receipt、replay-zeroは未取得である。
+
+### Current blockers
+
+1. **安全なrelease反映窓がない。** `article-resume`が5分周期の実行中であるため、loaded-idleを再読してからb4 releaseをapplyする必要がある。
+2. **過去のdaily effect fence。** `article-daily`のclaimed unknown occurrenceは、同一occurrenceのイベント列でpre-effect／
+   `effect_status=not_applicable`を証明できた場合だけ、既存のproof-bound resolverで解決する。証明できなければ保持する。
+3. **4媒体の新しい公式readback。** b4反映後、同一runでNote JA、Substack JA、Substack EN、X Article JAを再実行し、各URL・本文・
+   owner・media・delivery receiptを読み戻すまで完了扱いにしない。
+4. **収益接続。** provider／paymentの実receiptをmoney ledgerへjoinし、金額・通貨・destination・runを確認するまでMRRはunknown／0のままにする。
+
+### Ordered next TODO
+
+| 順序 | 作業 | 完了条件 |
+|---:|---|---|
+| 1 | `article-resume`が自然terminalになった後、main由来b4 releaseをapply | loaded argv／release SHAがb4a502a5 lineage、admission rebindが安全終了、未確認作用を新規生成しない |
+| 2 | `article-daily`のold unknown occurrenceをevent proofで判定 | pre-effect proofならresolver receipt、証明不能ならeffect fence保持。推測でclearしない |
+| 3 | b4 releaseで`article-resume`を1回kickstart | multi-initは決定的stageのみ、モデルfall-throughなし、run／state／ledger receiptを保存 |
+| 4 | 同一runの4媒体を公開し公式readback | Note／Substack JA／Substack EN／X Articleのnative URL、本文、identity、media、Telegram receiptが全件PASS |
+| 5 | completion／replay-zeroを同一runで取得 | `article-run-complete --armed 1` rc0、resume plan all-complete、ledger/state SHA不変の再実行 |
+| 6 | 7日（最低）または21 scheduled source runsを自然観測 | 各日4媒体native live、重複外部作用0、自然terminal、失敗時の自然文報告 |
+| 7 | payment／publisher receiptをmoney ledgerへ接続 | verified revenue event、payout、subscription、active MRRをsource付きで記録。未取得はunknown |
+
+**結論:** Writerのコード修正と1回の4媒体canaryは完了している。しかし、現在のloaded runtimeでの修正反映、
+PII失敗runの安全な再開、日次連続公開、公式readbackの連続証拠、実収益は未完了である。現時点の最大の実行ボトルネックは
+`article-resume`の自然terminal待ちと、`article-daily`の過去effect fenceを証拠付きで処理することだ。
