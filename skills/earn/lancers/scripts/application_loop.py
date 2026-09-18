@@ -557,21 +557,35 @@ def _discovery_turn_count(*, exhaustive: bool, source: object, query: object) ->
 
 
 def _pending_descriptor_for_wake(state_path: Path, tick_value: object) -> Optional[Mapping[str, object]]:
-    """Rotate read-only pending reconciliation so one stale job cannot starve fresh discovery."""
-    descriptors = application_tick.shared.read_pending_descriptors(Path(state_path))
-    if not descriptors:
-        return None
-    try:
-        if isinstance(tick_value, datetime):
-            moment = tick_value
-        else:
-            moment = datetime.fromisoformat(str(tick_value).strip().replace("Z", "+00:00"))
-        if moment.tzinfo is None or moment.utcoffset() is None:
-            raise ValueError
-        slot = int(moment.astimezone(timezone.utc).timestamp() // WAKE_INTERVAL_SECONDS)
-    except (AttributeError, OSError, OverflowError, TypeError, ValueError):
-        slot = 0
-    return descriptors[slot % len(descriptors)]
+    """Advance per attempted wake, including when earlier clock slots were skipped."""
+    state_path = Path(state_path)
+    cursor_path = state_path.with_name("application-pending-cursor.json")
+    with application_tick.shared.account_lock(state_path):
+        descriptors = application_tick.shared.read_pending_descriptors(state_path)
+        if not descriptors:
+            return None
+        try:
+            cursor = json.loads(cursor_path.read_text(encoding="utf-8")).get("next", 0)
+            if type(cursor) is not int or cursor < 0:
+                cursor = 0
+        except (OSError, ValueError, AttributeError):
+            cursor = 0
+        selected = descriptors[cursor % len(descriptors)]
+        temporary = None
+        try:
+            fd, temporary = tempfile.mkstemp(prefix=".application-pending-cursor.", dir=cursor_path.parent)
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump({"next": cursor + 1}, handle)
+                handle.write("\n")
+            os.replace(temporary, cursor_path)
+            temporary = None
+        except OSError:
+            pass  # Cursor persistence cannot suppress application work.
+        finally:
+            if temporary is not None:
+                try: os.unlink(temporary)
+                except OSError: pass
+        return selected
 
 def _safe_proposal(value: object, ids: Sequence[str]) -> bool:
     if not isinstance(value, str) or not 200 <= len(value) <= 3000: return False

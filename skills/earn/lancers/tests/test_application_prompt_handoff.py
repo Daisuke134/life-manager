@@ -99,7 +99,7 @@ def test_transient_pending_failure_does_not_abort_fresh_discovery(tmp_path, monk
     assert result["unresolved_project_id"] == "5601059"
 
 
-def test_pending_descriptor_rotates_by_wake_slot(monkeypatch):
+def test_pending_descriptor_rotates_by_attempt(tmp_path, monkeypatch):
     module = _load_application_loop()
     descriptors = [
         {"project_id": "1", "amount_minor": 1, "delivery_due_on": "2026-09-16"},
@@ -108,15 +108,35 @@ def test_pending_descriptor_rotates_by_wake_slot(monkeypatch):
     ]
     monkeypatch.setattr(module.application_tick.shared, "read_pending_descriptors", lambda _path: descriptors)
 
+    state_path = tmp_path / "application.json"
     first = module._pending_descriptor_for_wake(
-        Path("/tmp/application.json"), datetime(2026, 9, 15, tzinfo=timezone.utc)
+        state_path, datetime(2026, 9, 15, tzinfo=timezone.utc)
     )
     second = module._pending_descriptor_for_wake(
-        Path("/tmp/application.json"),
+        state_path,
         datetime(2026, 9, 15, tzinfo=timezone.utc) + timedelta(seconds=60),
     )
 
     assert first["project_id"] != second["project_id"]
+
+
+def test_pending_descriptor_visits_every_item_when_wakes_skip_clock_slots(tmp_path, monkeypatch):
+    module = _load_application_loop()
+    descriptors = [
+        {"project_id": str(i), "amount_minor": 1, "delivery_due_on": "2026-09-16"}
+        for i in range(1, 5)
+    ]
+    monkeypatch.setattr(module.application_tick.shared, "read_pending_descriptors", lambda _path: descriptors)
+    state_path = tmp_path / "application.json"
+    start = datetime(2026, 9, 15, tzinfo=timezone.utc)
+
+    visited = [module._pending_descriptor_for_wake(
+        state_path, start + timedelta(minutes=2 * i)
+    )["project_id"] for i in range(4)]
+
+    assert visited == ["1", "2", "3", "4"]
+    assert module._pending_descriptor_for_wake(state_path, start + timedelta(minutes=8))["project_id"] == "1"
+    assert (tmp_path / "application-pending-cursor.json").stat().st_mode & 0o777 == 0o600
 
 
 def test_default_discovery_reads_one_rotating_query_per_wake(tmp_path, monkeypatch):
