@@ -438,6 +438,8 @@ class MercorPassContractTests(unittest.TestCase):
             "rank that union before opening any default Explore card",
             "Do not select a candidate by default Explore DOM order",
             "Twelve candidate detail pages is a maximum, not a minimum",
+            "After twelve detail pages, record remaining cards as `card_only`",
+            "Do not open a thirteenth detail page",
             "A Japanese/Japan title alone does not outrank a high/medium-fit software or AI role",
             "Do not open a low-band Japanese/Japan contradiction merely to satisfy the priority queue",
             "Record every skipped low, submitted, or recent card",
