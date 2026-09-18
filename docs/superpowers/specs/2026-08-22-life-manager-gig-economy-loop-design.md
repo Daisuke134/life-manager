@@ -462,11 +462,11 @@ state transition. The next item starts only after its pass condition is recorded
 
 ### Release and natural acceptance
 
-- [ ] **A10 — Review the loaded-env patch.** Owner: runtime owner. Branch:
+- [x] **A10 — Review the loaded-env patch.** Owner: runtime owner. Branch:
   `fix/coconala-loaded-env-20260919`, commit `0071221f84`. Files:
   `runtime/loop/lm_loop_apply.py` and `runtime/loop/tests/test_lm_loop_apply.py`. Action: verify
   focused suite and diff against latest main. Output: review receipt. Pass: `103 passed, 31
-  subtests passed`; no production apply yet.
+  subtests passed`; branch is rebased and pushed; no production apply yet.
 - [ ] **A11 — Merge and cut one release.** Owner: release owner. Input: A10 review receipt and
   latest `origin/main`. Action: merge once, cut one immutable main-derived release. Output:
   release SHA and immutable path. Pass: release manifest SHA equals main commit.
