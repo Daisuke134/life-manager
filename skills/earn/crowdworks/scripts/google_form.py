@@ -20,7 +20,7 @@ def is_google_form_url(value: str) -> bool:
     return parsed.scheme == "https" and (
         parsed.netloc == "forms.gle" and bool(parsed.path.strip("/"))
         or parsed.netloc == "docs.google.com"
-        and re.fullmatch(r"/forms/d/e/[^/]+/viewform", parsed.path) is not None
+        and re.fullmatch(r"/forms/d/(?:e/)?[^/]+/viewform", parsed.path) is not None
     )
 
 
@@ -152,7 +152,7 @@ def submit_once(*, context: Any, state_root: Path, url: str, url_sha256: str,
         route = urlsplit(str(form.url))
         if route.scheme == "https" and route.netloc == "forms.gle":
             try:
-                form.wait_for_url(re.compile(r"https://docs\.google\.com/forms/d/e/[^/]+/viewform(?:\?.*)?"),
+                form.wait_for_url(re.compile(r"https://docs\.google\.com/forms/d/(?:e/)?[^/]+/viewform(?:\?.*)?"),
                                   timeout=10_000)
             except PlaywrightTimeoutError:
                 # The exact sanitized route check below owns the failure.  The
@@ -160,7 +160,7 @@ def submit_once(*, context: Any, state_root: Path, url: str, url_sha256: str,
                 pass
             route = urlsplit(str(form.url))
         if (route.scheme, route.netloc) != ("https", "docs.google.com") or re.fullmatch(
-                r"/forms/d/e/[^/]+/viewform", route.path) is None:
+                r"/forms/d/(?:e/)?[^/]+/viewform", route.path) is None:
             raise RuntimeError(f"google_form_route_invalid:{route.netloc or 'missing'}")
         fields = answer_fields(form)
         if not isinstance(fields, list) or not all(isinstance(name, str) and isinstance(value, str)
@@ -169,7 +169,7 @@ def submit_once(*, context: Any, state_root: Path, url: str, url_sha256: str,
         action = str(form.locator("form").get_attribute("action") or "")
         action_route = urlsplit(action)
         if ((action_route.scheme, action_route.netloc) != ("https", "docs.google.com")
-                or re.fullmatch(r"/forms/d/e/[^/]+/formResponse", action_route.path) is None):
+                or re.fullmatch(r"/forms/d/(?:e/)?[^/]+/formResponse", action_route.path) is None):
             raise RuntimeError("google_form_action_invalid")
         for name in ("fvv", "draftResponse", "pageHistory", "fbzx"):
             locator = form.locator(f'input[name="{name}"]')

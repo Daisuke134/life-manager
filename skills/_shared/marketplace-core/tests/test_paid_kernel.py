@@ -266,6 +266,18 @@ def test_state_records_the_runtime_occurrence_id(monkeypatch, tmp_path: Path) ->
     assert state["occurrence_id"] == "fixture-paid:run-1"
 
 
+def test_form_url_history_survives_stage_advance(tmp_path: Path) -> None:
+    path = tmp_path / "items" / "work-1" / "state.json"
+    raw_url = "https://docs.google.com/forms/d/id/viewform?edit_requested=true"
+
+    paid._write_state(path, {"version": 1,
+                             "intent": {"payload": {"form_url": raw_url}}}, None)
+    paid._write_state(path, {"version": 1, "status": "completed"}, None)
+
+    state = json.loads(path.read_text())
+    assert state["form_url_history"] == [raw_url]
+
+
 def test_new_buyer_event_invalidates_verified_receipt_before_decision(tmp_path: Path) -> None:
     adapter = Adapter([observation("work-1")])
     assert paid.run_wake(adapter=adapter, decide=submit, state_root=tmp_path)["effect"] == 1
