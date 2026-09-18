@@ -447,6 +447,8 @@ class MercorPassContractTests(unittest.TestCase):
             "no_reasonable_shot",
             "submitted_pending_review_observed",
             "query-*.json",
+            "Before final output, compare every target-query card ID against `inspected_listings`",
+            "add a `card_only` record for each missing card",
             "Do not open existing incomplete application cards before the target search queue",
             "human_gate_store",
             "application_report_outbox",
