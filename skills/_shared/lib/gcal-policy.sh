@@ -184,7 +184,28 @@ gog_create() {
   [ -n "$description" ] && args+=(--description "$description")
   [ -n "$attendees" ]   && args+=(--attendees "$attendees")
   [ -n "$color" ]       && args+=(--event-color "$color")
-  /opt/homebrew/bin/gog "${args[@]}" 2>&1 | grep '^id\t' | head -1 | awk '{print $2}'
+  local raw
+  if ! raw=$(/opt/homebrew/bin/gog "${args[@]}" --json --results-only 2>&1); then
+    printf '%s\n' "$raw" >&2
+    return 1
+  fi
+  printf '%s' "$raw" | python3 -c '
+import json, sys
+try:
+    value = json.load(sys.stdin)
+except (TypeError, ValueError):
+    raise SystemExit(1)
+for candidate in (
+    value.get("id") if isinstance(value, dict) else None,
+    value.get("event", {}).get("id") if isinstance(value, dict) and isinstance(value.get("event"), dict) else None,
+    value.get("data", {}).get("id") if isinstance(value, dict) and isinstance(value.get("data"), dict) else None,
+):
+    if isinstance(candidate, str) and candidate.strip():
+        print(candidate.strip())
+        break
+else:
+    raise SystemExit(1)
+'
 }
 
 # ── main flow ─────────────────────────────────────────────────────────────────
