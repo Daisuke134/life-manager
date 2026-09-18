@@ -9,6 +9,18 @@ _WRITER_STATE_CALLER="${WRITER_STATE_DIR:-${ARTICLE_STATE_DIR:-${LIFE_MANAGER_ST
 _WRITER_LOG_CALLER="${WRITER_LOG_DIR:-$_WRITER_STATE_CALLER/logs}"
 _WRITER_ENV_CALLER="${LIFE_MANAGER_ENV_FILE:-$HOME/.local/state/life-manager/.env}"
 _LIFE_MANAGER_SOURCE_REPO_CALLER="${LIFE_MANAGER_SOURCE_REPO:-}"
+_ARTICLE_PROVIDER_CALLER="${ARTICLE_PROVIDER:-}"
+_ARTICLE_MODEL_ROOT_CALLER="${ARTICLE_MODEL_ROOT:-}"
+_ARTICLE_MODEL_STATE_ROOT_CALLER="${ARTICLE_MODEL_STATE_ROOT:-}"
+_ARTICLE_MODEL_LOG_CALLER="${ARTICLE_MODEL_LOG:-}"
+_ARTICLE_PROVIDER_HEALTH_CALLER="${ARTICLE_PROVIDER_HEALTH:-}"
+_ARTICLE_MODEL_RUNNER_CALLER="${ARTICLE_MODEL_RUNNER:-}"
+_ARTICLE_CLAUDE_BIN_CALLER="${ARTICLE_CLAUDE_BIN:-}"
+_ARTICLE_CODEX_BIN_CALLER="${ARTICLE_CODEX_BIN:-}"
+_ARTICLE_CODEX_PROVIDER_ID_CALLER="${ARTICLE_CODEX_PROVIDER_ID:-}"
+_ARTICLE_CODEX_PROVIDER_BASE_URL_CALLER="${ARTICLE_CODEX_PROVIDER_BASE_URL:-}"
+_ARTICLE_CODEX_PROVIDER_ENV_KEY_CALLER="${ARTICLE_CODEX_PROVIDER_ENV_KEY:-}"
+_ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE_CALLER="${ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE:-}"
 # Prefer the Life Manager managed venv when the caller did not explicitly
 # choose a Python.  It carries the browser-only dependencies (cloakbrowser,
 # Playwright, websocket client) required by Note/X staging; explicit launchd
@@ -32,6 +44,36 @@ _ARTICLE_MEDIA_RAW_BASE_CALLER="${ARTICLE_MEDIA_RAW_BASE:-}"
 source "$_WRITER_REPO_CALLER/apps/life-manager/scripts/lib/load-env-file.sh"
 lm_load_env_file "$_WRITER_ENV_CALLER"
 
+# Dotenv is for credentials and operator defaults, not release ownership or
+# provider routing.  Restore the caller's immutable launchd contract and drop
+# executable overrides that were not explicitly supplied by that caller.
+restore_writer_value() {
+  local key="$1" value="$2"
+  if [ -n "$value" ]; then
+    export "$key=$value"
+  fi
+}
+clear_writer_override() {
+  local key="$1" value="$2"
+  if [ -n "$value" ]; then
+    export "$key=$value"
+  else
+    unset "$key"
+  fi
+}
+restore_writer_value ARTICLE_PROVIDER "$_ARTICLE_PROVIDER_CALLER"
+restore_writer_value ARTICLE_MODEL_ROOT "$_ARTICLE_MODEL_ROOT_CALLER"
+restore_writer_value ARTICLE_MODEL_STATE_ROOT "$_ARTICLE_MODEL_STATE_ROOT_CALLER"
+restore_writer_value ARTICLE_MODEL_LOG "$_ARTICLE_MODEL_LOG_CALLER"
+restore_writer_value ARTICLE_PROVIDER_HEALTH "$_ARTICLE_PROVIDER_HEALTH_CALLER"
+clear_writer_override ARTICLE_MODEL_RUNNER "$_ARTICLE_MODEL_RUNNER_CALLER"
+clear_writer_override ARTICLE_CLAUDE_BIN "$_ARTICLE_CLAUDE_BIN_CALLER"
+clear_writer_override ARTICLE_CODEX_BIN "$_ARTICLE_CODEX_BIN_CALLER"
+restore_writer_value ARTICLE_CODEX_PROVIDER_ID "$_ARTICLE_CODEX_PROVIDER_ID_CALLER"
+restore_writer_value ARTICLE_CODEX_PROVIDER_BASE_URL "$_ARTICLE_CODEX_PROVIDER_BASE_URL_CALLER"
+restore_writer_value ARTICLE_CODEX_PROVIDER_ENV_KEY "$_ARTICLE_CODEX_PROVIDER_ENV_KEY_CALLER"
+restore_writer_value ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE "$_ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE_CALLER"
+
 # Dotenv contains credentials, never path ownership. Preserve the caller's
 # immutable release and registry-selected writable roots across sourcing.
 WRITER_ROOT="$_WRITER_ROOT_CALLER"
@@ -54,6 +96,12 @@ unset _LIFE_MANAGER_SOURCE_REPO_CALLER
 unset _WRITER_BROWSER_PYTHON_CALLER _WRITER_CLOAK_PYTHON_CALLER
 unset _ZENN_REPOSITORY_URL_CALLER _ZENN_ACCOUNT_CALLER _ZENN_GIT_NAME_CALLER
 unset _ZENN_GIT_EMAIL_CALLER _ARTICLE_MEDIA_RAW_BASE_CALLER
+unset _ARTICLE_PROVIDER_CALLER _ARTICLE_MODEL_ROOT_CALLER
+unset _ARTICLE_MODEL_STATE_ROOT_CALLER _ARTICLE_MODEL_LOG_CALLER
+unset _ARTICLE_PROVIDER_HEALTH_CALLER _ARTICLE_MODEL_RUNNER_CALLER
+unset _ARTICLE_CLAUDE_BIN_CALLER _ARTICLE_CODEX_BIN_CALLER
+unset _ARTICLE_CODEX_PROVIDER_ID_CALLER _ARTICLE_CODEX_PROVIDER_BASE_URL_CALLER
+unset _ARTICLE_CODEX_PROVIDER_ENV_KEY_CALLER _ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE_CALLER
 
 case "$WRITER_STATE_DIR/$WRITER_LOG_DIR" in
   *"/.openclaw/"*|*"/.hermes/"*)

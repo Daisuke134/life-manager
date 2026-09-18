@@ -24,6 +24,7 @@ grep -F 'disk-pressure.block' "$WRAPPER" >/dev/null
 grep -F 'GIG_IGNORE_DISK_PRESSURE_BLOCK' "$WRAPPER" >/dev/null
 grep -F 'DISK_MIN_FREE_BYTES="${ARTICLE_RESUME_MIN_FREE_BYTES:-${ARTICLE_DISK_MIN_FREE_BYTES:-$((GIG_DISK_HEADROOM_KIB * 1024))}}"' "$ROOT/skills/writer-agent/scripts/article-resume-pending.sh" >/dev/null
 grep -F 'CANONICAL_DISK_HEADROOM_KIB=524288' "$ROOT/skills/writer-agent/scripts/article-resume-pending.sh" >/dev/null
+grep -F 'ARTICLE_PROVIDER="${ARTICLE_PROVIDER:-codex}"' "$ROOT/skills/writer-agent/scripts/article-resume-pending.sh" >/dev/null
 grep -F 'PRE_START_REASON" = "no-same-jst-day-run"' "$ROOT/skills/writer-agent/scripts/article-resume-pending.sh" >/dev/null
 
 echo 'PASS: wrapper creates only a new daily run and leaves saved work to durable workers'

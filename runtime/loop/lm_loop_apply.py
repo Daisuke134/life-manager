@@ -180,15 +180,27 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
     if loop_id.startswith(("article-", "writer-")):
         writer_root = str(release_root / "skills/writer-agent")
         writer_state = os.path.expanduser(entry["state_root"])
+        writer_log = os.path.expanduser(entry["log_root"])
         value["EnvironmentVariables"].update({
             "ARTICLE_ROOT": writer_root, "ARTICLE_SKILL_DIR": writer_root,
             "ARTICLE_STATE_DIR": writer_state, "WRITER_STATE_DIR": writer_state,
-            "WRITER_LOG_DIR": os.path.expanduser(entry["log_root"]),
+            "WRITER_LOG_DIR": writer_log,
             "LIFE_MANAGER_ENV_FILE": str(Path.home() / ".local/state/life-manager/.env"),
             "LIFE_MANAGER_PYTHON": str(
                 Path.home() / ".local/share/life-manager/venv/bin/python"
             ),
             "LIFE_MANAGER_REPO": str(release_root),
+            "ARTICLE_MODEL_ROOT": writer_root,
+            "ARTICLE_MODEL_STATE_ROOT": writer_state,
+            "ARTICLE_MODEL_LOG": str(Path(writer_log) / "model-runner.log"),
+            "ARTICLE_PROVIDER_HEALTH": str(Path(writer_state) / "provider-health.json"),
+            "ARTICLE_PROVIDER": "codex",
+            "ARTICLE_PROVIDER_COOLDOWN_SECONDS": "300",
+            "ARTICLE_AUTOPUBLISH": "1",
+            "ARTICLE_CODEX_PROVIDER_ID": "local_proxy",
+            "ARTICLE_CODEX_PROVIDER_BASE_URL": "http://127.0.0.1:8317/v1",
+            "ARTICLE_CODEX_PROVIDER_ENV_KEY": "CLIPROXY_API_KEY",
+            "ARTICLE_CODEX_PROVIDER_API_KEY_SOURCE": "cliproxyapi",
             "CLOAK_BROWSER_LAUNCHD_LABEL": "ai.anicca.life-manager-daily-driver",
             "CLOAK_CDP_BASE_URL": "http://127.0.0.1:9222",
             "CDP_DAILY_DRIVER_PORT": "9222",
