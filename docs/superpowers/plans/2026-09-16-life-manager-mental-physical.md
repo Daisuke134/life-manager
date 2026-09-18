@@ -666,8 +666,9 @@ npm test
 
 - [x] Require the current Railway `life-call` deployment to reach `SUCCESS`; fresh `/health` readback is
   `d4659ff4bc7b4e13aa67836243060ad1d4efbb03`.
-- [ ] Deploy the decision-log wiring and dedupe-fix release `5dcbb4e5ff`, read back its exact
-  production SHA, then enable `LM_MENTAL_DECISION_LOG_REQUIRED=1` for the Dais-only canary.
+- [ ] Deploy release `fca4014806`, read back its exact production SHA, set
+  `LM_MENTAL_CANARY_START_AT` to that verified timestamp, then enable
+  `LM_MENTAL_DECISION_LOG_REQUIRED=1` for the Dais-only canary.
 
 - [x] Verify startup logs show the standalone scheduler loops and no import/schema failure.
 
@@ -712,9 +713,9 @@ duplicate external sends = 0
 ```
 
 - [ ] Ensure at least one real delivered message from morning affirmation, midday mindfulness/body awareness,
-  and evening manifestation/release after `5dcbb4e5ff` is live. Morning and evening are present;
+  and evening manifestation/release after `fca4014806` is live. Morning and evening are present;
   midday has not yet delivered naturally. A historical pre-release template repeat is retained and
-  must age out; do not delete or fabricate history.
+  reported separately by the baseline evaluator; do not delete or fabricate history.
 
 - [ ] Replay one processed user/day/window. Require zero additional Telegram message IDs.
 

@@ -61,8 +61,12 @@ The production scheduler also observed the synthetic projection and logged a Tel
   `2026-09-18T23:01:13.217697Z`. This repeated the prior morning template after the old runtime's
   24-hour history query expired. The release branch fixes the cause by fetching a 14-day template
   horizon while keeping the 24-hour cap; the existing receipt is retained and is not deleted.
+- The release branch also adds a verified `LM_MENTAL_CANARY_START_AT` baseline: pre-release repeats
+  remain reported as `pre_canary_template_repeats`, while `template_repeats` and `pass` evaluate only
+  rows delivered after the verified fixed-release timestamp. This preserves history without waiting
+  for deletion or hiding the incident.
 - Repository hardening and the 14-day template-dedupe fix are pushed on release branch
-  `fix/lm-mental-production-release-20260919` at `5dcbb4e5ff`; MENTAL focused tests are `104/104`
+  `fix/lm-mental-production-release-20260919` at `fca4014806`; MENTAL focused tests are `104/104`
   and the full Life Manager suite exits `0`. Production has not received this code release yet,
   so `LM_MENTAL_DECISION_LOG_REQUIRED=1` remains intentionally off.
 - The remaining release mismatch is code, not schema: production `/health` still reports the older
@@ -74,11 +78,11 @@ The production scheduler also observed the synthetic projection and logged a Tel
 - [x] Capture one natural Dais morning affirmation in `morning_orientation`.
 - [ ] Capture one natural Dais midday mindfulness/body-awareness line in `midday_awareness`.
 - [x] Capture one natural Dais evening manifestation/release line in `evening_direction` (body/markup readback still open).
-- [ ] Deploy `5dcbb4e5ff` and read back its exact production SHA before enabling the decision-log flag.
+- [ ] Deploy `fca4014806` and read back its exact production SHA before enabling the decision-log flag.
 - [ ] For seven consecutive local days after the fixed release, record decision, family, template ID, window, Telegram ID, and durable receipt row.
 - [x] Apply and read back the decision-log and quiet-hours migrations through Supabase CLI.
 - [ ] Deploy the decision-log wiring release and read back its exact production SHA before enabling the flag.
-- [ ] Prove daily count <= 3, spacing >= 3 hours, busy/quiet suppression, no new 14-day template repeats, and replay-zero. The pre-release duplicate remains historical until it ages out; do not delete it.
+- [ ] Prove daily count <= 3, spacing >= 3 hours, busy/quiet suppression, no new 14-day template repeats after the verified baseline, and replay-zero. Preserve the pre-release duplicate as `pre_canary_template_repeats`.
 - [ ] Verify the actual Telegram text has no buttons, callback data, reply instruction, sender signature, or unsupported personal claim.
 
 No production rollout beyond the Dais allowlist is authorized until these rows are closed with provider-native Telegram readback.
