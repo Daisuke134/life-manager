@@ -3314,47 +3314,47 @@ next executable atom; it does not turn stale snapshots into current provider tru
 
 ### Current evidence
 
-- **Application:** the latest natural wake is blocked by the old Application `effect_unknown`
-  occurrence; no new external submit was attempted. The append-only Lancers ledger remains at 211
-  `application_verified` receipts with newest observed proposal `27945735`. Application state has
-  417 fingerprints and 82 legacy pending descriptors. The pending descriptors are not retried blindly.
+- **Application:** the owner is unloaded after repeated capacity deferrals. One old Application
+  `effect_unknown` occurrence remains; no new external submit was attempted. The append-only Lancers
+  ledger remains at 211 `application_verified` receipts with newest observed proposal `27945735`.
+  Application state has 417 fingerprints and 82 legacy pending descriptors. The pending descriptors are
+  not retried blindly.
 - **Sales / contract source:** Work Sync completed a fresh source-complete snapshot at
-  `2026-09-18T16:23:28Z`: 14 boards, 0 required replies, 0 monthly offers, 0 working projects,
+  `2026-09-18T16:40:13Z`: 14 boards, 0 required replies, 0 monthly offers, 0 working projects,
   0 contract candidates and 0 payment history. Its proposal funnel is current 321 / receipt 211 /
   open 56 / selecting 127 / canceled 111 / ended 27 / working 0. This is a verified absence of
   current contract/offer/payment rows at that readback time.
 - **Storefront:** canonical listing `1338228` remains published, product version 6, with search
-  impressions 9, detail views 0, favorites 0, inquiries 0 and orders 0. `listing.json` also records
-  six additional catalog entries (`1342394`, `1344056`–`1344061`). They are official listing
-  identities, not MRR, and must be audited read-only before any archive or replacement mutation.
+  impressions 9, detail views 0, favorites 0, inquiries 0 and orders 0. The six additional catalog
+  entries (`1342394`, `1344056`–`1344061`) each returned its exact official public detail route and
+  body hash; their Storefront occurrence is reconciled. They are official listing identities, not MRR.
 - **Browser:** the dedicated Lancers browser owner was recovered through the managed launchd path;
   CDP `:9227` is listening with the preserved profile and two pages (one authenticated Lancers page
   and one `about:blank` owner page). No browser restart or session reset is pending.
 - **Paid:** the latest paid envelope is `effect=0`, `failed=0`, `items=0`, and no PaymentReceipt
   exists. The old Paid occurrence was released only after its same-occurrence run marker proved
   `status=completed / effect=0`; the current zero remains a source observation, not revenue.
-- **Admission:** Lancers Work Sync is blocked by `resource_capacity_busy`. Nine old deterministic
-  borrow occurrences owned by other loops remain `effect_unknown`; Lancers Application and Storefront
-  still have fenced occurrences. The old Negotiate replay-zero occurrence was released from its
-  same-occurrence marker. No admission database row is edited manually. The only permitted release
-  is an exact provider readback or an explicit pre-effect proof tied to the same owner and occurrence.
+- **Admission:** Work Sync is passing source-complete wakes. Twelve old deterministic borrow
+  occurrences and one deterministic revenue occurrence owned by other loops remain `effect_unknown`;
+  the only remaining Lancers fence is the old Application occurrence. Paid, Negotiate and Storefront
+  were released only through same-occurrence pre-effect or official public readback evidence. No
+  admission database row is edited manually. The only permitted release is an exact provider readback
+  or an explicit pre-effect proof tied to the same owner and occurrence.
 - **Revenue:** active recurring contracts 0, DeliveryReceipt 0, PaymentReceipt 0, bank matches 0,
   and verified MRR is **USD 0**. Applications, proposal amounts, listing prices and search exposure
   remain outside the MRR denominator.
 
 ### Ordered remaining TODO
 
-1. **Admission fence reconciliation (current blocker).** For each deterministic stale owner and
-   Lancers Application/Storefront occurrence, obtain the exact provider or pre-effect evidence and close
-   only that occurrence through the supported admission resolver. Keep unresolved fences closed to
-   retries.
+1. **Admission fence reconciliation (current blocker).** Obtain exact evidence for the old Lancers
+   Application occurrence and the deterministic stale owners, then close only those occurrences through
+   the supported admission resolver. Keep unresolved fences closed to retries.
 2. **Application reconcile and attribution.** After its old effect fence is resolved, run one
    readback-only Application wake, map any pending descriptor to the official proposal ID and keep
    the 211-receipt ledger duplicate-free.
-3. **Storefront effect fence and Paid source.** Reconcile the Storefront listing run one by one;
-   keep Paid on source-complete zero until a PaymentReceipt exists. Preserve every official listing
-   and receipt until its exact status is read back. Do not archive the six additional listings from a
-   local assumption.
+3. **Storefront catalog monitoring and Paid source.** Storefront’s six listing IDs are now
+   read back and reconciled; preserve them until a deliberate catalog decision is separately grounded.
+   Keep Paid on source-complete zero until a PaymentReceipt exists.
 4. **ContractReceipt promotion.** When a positive project, monthly offer or Storefront contract
    candidate appears, read back its official ID, scope, price, due date and funding/escrow state;
    append one ContractReceipt only after that detail readback.
