@@ -266,6 +266,17 @@ test("official free 現地参加 labels qualify as general in-person tiers", asy
   }
 });
 
+test("official free 現地参加予定 labels qualify as general in-person tiers", async () => {
+  const page = joinFlowFixture({
+    tiers: [{ label: "現地参加予定 無料 先着順 6/15人", disabled: false }],
+    states: [{ state: "absent" }, { state: "registered" }],
+  });
+  assert.deepEqual(await submitConnpassOnPage(page), { status: "registered", effect_started: true });
+  assert.deepEqual(page.calls, [
+    "url", "click-join", "wait", "check-radio:0", "click-confirm", "wait", `goto:${EVENT_PAGE_URL}`,
+  ]);
+});
+
 test("an online-only event fails closed before the confirmation click", async () => {
   const page = joinFlowFixture({
     tiers: [
