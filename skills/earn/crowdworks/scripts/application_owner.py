@@ -321,15 +321,19 @@ def _reconcile(page):
         # back. Skipping the entries that already carried one stranded application 304592525.
         proposal_id = entry.get("proposal_id") or application.find_proposal_id(page, project_id)
         if not isinstance(proposal_id, str): continue
-        outcome = application.reconcile_existing_application(page=page, proposal_id=proposal_id, opportunity={"external_id": project_id}, state_path=TRANSACTION, ledger_writer=_append, now=lambda: datetime.now(timezone.utc).isoformat(), account_ready=lambda: True)
+        outcome = application.reconcile_existing_application(page=page, proposal_id=proposal_id, opportunity={"external_id": project_id}, state_path=TRANSACTION, ledger_writer=_append_historical, now=lambda: datetime.now(timezone.utc).isoformat(), account_ready=lambda: True)
         imported += 1 if getattr(outcome, "application_verified", False) else 0
     return imported
 
-def _append(receipt):
+def _append(receipt, *, bind_occurrence=True):
     LEDGER.parent.mkdir(parents=True,exist_ok=True)
-    receipt = _bind_runtime_occurrence(receipt, os.environ.get("LIFE_MANAGER_OCCURRENCE_ID"))
+    if bind_occurrence:
+        receipt = _bind_runtime_occurrence(receipt, os.environ.get("LIFE_MANAGER_OCCURRENCE_ID"))
     with LEDGER.open("a",encoding="utf-8") as handle:
         handle.write(json.dumps(receipt,ensure_ascii=False,separators=(",",":"))+"\n");handle.flush();os.fsync(handle.fileno())
+
+def _append_historical(receipt):
+    _append(receipt, bind_occurrence=False)
 
 def _write_status(payload):
     path=STATE/"application-owner.json";path.parent.mkdir(parents=True,exist_ok=True)
