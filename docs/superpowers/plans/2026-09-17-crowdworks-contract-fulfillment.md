@@ -17,17 +17,18 @@ official CrowdWorks active-contract inventory was read at `2026-09-18T11:23:35Z`
 funded rows: `63712784`, `63659463`, `63657015`, `63570481`, and `63568785`. This is an inventory
 readback only; it is not a work submission, delivery, acceptance, settlement, payout, or MRR receipt.
 
-Reply and Report remain on immutable release `fed2839db846509585d6ba2d53da626a09dd0cae`.
-Application is now target-applied from immutable release `8fbfb3a2f2b1449018d46f1978a500ce77f003a9`
-(`/Users/anicca/loops/releases/20260918T214610-8fbfb3a2`), which binds its status output to the exact
-runtime occurrence. A target-only Application kickstart at `2026-09-18T12:48:23Z` loaded and exited
-`75` before provider work with `host_admission_deferred:resource_effect_unknown`.
-Paid is now target-applied from immutable release `56d07a66eaa7c7d173c51314c47fb1c22b3f5610`
-(`/Users/anicca/loops/releases/20260918T213636-56d07a66`), which includes the buyer-form extraction,
+Reply and Report remain on immutable release fed2839db846509585d6ba2d53da626a09dd0cae.
+Application remains installed from immutable release 8fbfb3a2f2b1449018d46f1978a500ce77f003a9
+(/Users/anicca/loops/releases/20260918T214610-8fbfb3a2), while candidate release
+501058ec8237c3888d862ed92d0a048e0f2cc1f7 is correctly refused by the effect_unknown fence.
+PR #5634 now persists occurrence IDs on new application receipts while leaving historical imports
+unbound. The legacy occurrence remains fenced.
+Paid remains target-applied from immutable release 56d07a66eaa7c7d173c51314c47fb1c22b3f5610
+(/Users/anicca/loops/releases/20260918T213636-56d07a66), which includes buyer-form extraction,
 answer-URL normalization, receipt-alias preservation, and occurrence-bound Paid output. A target-only
-Paid kickstart at `2026-09-18T12:38:22Z` loaded and exited `75` before provider work with
-`host_admission_deferred:resource_effect_unknown`; no form, message, or delivery effect occurred in that
-wake. Focused tests (158 before this release cut) and `./bin/lm-loop-contract` pass.
+Paid wake stops before provider work with host_admission_deferred:resource_effect_unknown; no form,
+message, or delivery effect occurred in that wake. Focused Paid tests, Application receipt tests,
+disk-cleanup tests, and lm-loop-contract pass.
 
 The following old admission rows remain fenced and were not cleared:
 
@@ -45,10 +46,11 @@ The following old admission rows remain fenced and were not cleared:
 - `crowdworks-revenue-report:18d606cf95bd0ab0-85387`: the row is `released` but remains
   `effect_unknown=1`; reporting is not clean until the resolver/readback path proves its disposition.
 
-The latest host read shows 4.2 GiB available (98% used). The disk-cleanup receipt reports
-`free_after=8,080,977,920`, `reclaimed=0`, and `errors=1`; this is not a green capacity result. Historical
-ENOSPC is correlated with the missing legacy evidence, but the exact row-level write failure is not
-proven. No contract has buyer acceptance, settlement, payout, or verified USD 10,000 MRR.
+The latest disk-cleanup target pass loaded immutable release 65a1d563dca85d9c10019854c8f3bf7027c1e9
+and reported errors=0, reclaimed=221578, and free_after=8281886720; current host headroom is about
+7.0 GiB (97% used), still PRESSURE but without an unexplained cleanup probe error. Historical ENOSPC is
+correlated with missing legacy evidence, but the exact row-level write failure is not proven. No contract
+has buyer acceptance, settlement, payout, or verified USD 10,000 MRR.
 
 ## Root-cause deep dive: host failure versus zombies
 

@@ -28,14 +28,17 @@ work was correct; correctness requires full buyer-context mapping and buyer-visi
 - The admission database has four CrowdWorks rows with effect_unknown=1: Application, Paid, and Reply
   are claimed; Report is released but unresolved. The three claimed rows fence new provider children.
   The released Report row is not clean evidence. No direct SQL or guessed clear is permitted.
-- Application is loaded from immutable release 8fbfb3a2f2b1449018d46f1978a500ce77f003a9,
+- Application remains loaded from immutable release 8fbfb3a2f2b1449018d46f1978a500ce77f003a9,
   Paid from 56d07a66eaa7c7d173c51314c47fb1c22b3f5610, and Reply/Report from
-  fed2839db846509585d6ba2d53da626a09dd0cae. The latest target-only Application and Paid wakes loaded
-  their release and exited 75 before provider work with host_admission_deferred:resource_effect_unknown.
-- The latest host read has 4.2 GiB available (98% used). The disk-cleanup receipt is
-  free_after=8,080,977,920, reclaimed=0, errors=1; capacity recovery is not green. Historical ENOSPC
-  and database-lock errors correlate with missing legacy evidence, but the exact row-level failed write
-  is not proven.
+  fed2839db846509585d6ba2d53da626a09dd0cae. Candidate Application release
+  501058ec8237c3888d862ed92d0a048e0f2cc1f7 is ready, but target apply correctly refuses
+  effect_unknown=1. PR #5634 makes new application receipts occurrence-bound while historical imports
+  stay unbound. Latest Application/Paid wakes stop before provider work with
+  host_admission_deferred:resource_effect_unknown.
+- Disk-cleanup release 65a1d563dca85d9c10019854c8f3bf7027c1e9 passed its target wake with errors=0 and
+  free_after=8281886720; current host headroom is about 7.0 GiB (97% used), still PRESSURE. Historical
+  ENOSPC and database-lock errors correlate with missing legacy evidence, but the exact row-level failed
+  write is not proven.
 - The official read-only inventory contains funded IDs 63712784, 63659463, 63657015, 63570481, and
   63568785. This inventory is not work submission, delivery, acceptance, settlement, payout, or MRR.
 - Read-only process inspection observed defunct children of Chromium and ChatGPT, and lsof showed normal
