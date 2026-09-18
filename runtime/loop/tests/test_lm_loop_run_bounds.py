@@ -315,6 +315,52 @@ def test_running_child_receives_periodic_claim_heartbeat(tmp_path, monkeypatch):
     assert calls[-1] == "release"
 
 
+def test_release_waits_for_inflight_heartbeat_before_closing_claim(tmp_path, monkeypatch):
+    entry = {
+        "cadence": {"start_interval_seconds": 60},
+        "provider_route": "deterministic",
+        "admission_class": "revenue",
+        "priority": "revenue",
+    }
+    receipt = tmp_path / "receipt"
+    claim = tmp_path / "claim"
+    claim.write_text(json.dumps({"occurrence_id": "heartbeat-owner:run-2"}))
+    heartbeat_started = threading.Event()
+    heartbeat_finished = threading.Event()
+
+    def run_child(*_args, **kwargs):
+        kwargs["on_started"](4242)
+        assert heartbeat_started.wait(timeout=1)
+        return 0
+
+    def heartbeat(_claim):
+        heartbeat_started.set()
+        time.sleep(1.2)
+        heartbeat_finished.set()
+        return False
+
+    def release(*_args, **_kwargs):
+        assert heartbeat_finished.is_set()
+        return []
+
+    monkeypatch.setattr("runtime.loop.lm_loop_run.HEARTBEAT_INTERVAL_SECONDS", 0.01)
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")),
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(claim, "acquired")),
+          patch("runtime.loop.lm_loop_run.transfer_durable_resource"),
+          patch("runtime.loop.lm_loop_run.heartbeat_durable_resource",
+                side_effect=heartbeat),
+          patch("runtime.loop.lm_loop_run.release_and_reserve_resource",
+                side_effect=release),
+          patch("runtime.loop.lm_loop_run._run_entrypoint", side_effect=run_child)):
+        assert _run_admitted(
+            ["/bin/true"], entry, "heartbeat-owner", {}, receipt,
+            occurrence_id="heartbeat-owner:run-2",
+        ) == 0
+
+
 def test_memory_admission_exit_is_deferred_not_failed():
     assert _terminal_outcome(75, host_deferred="resource_capacity_busy") == (
         False, True, "host_admission_deferred:resource_capacity_busy")
