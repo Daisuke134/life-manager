@@ -135,6 +135,30 @@ def _body_media_readability(paths: list[Path]) -> dict[str, Any]:
     }
 
 
+def _clipboard_html_chunks(value: str, max_chars: int = 1800) -> list[str]:
+    """Split long HTML only at reader-block boundaries for reliable paste."""
+    if not value:
+        return []
+    if max_chars < 1:
+        raise XRepairRefused("X clipboard chunk limit must be positive")
+    boundaries = [match.end() for match in re.finditer(
+        r"</(?:p|h[1-6]|li|blockquote|ul|ol|pre|div)>",
+        value,
+        re.IGNORECASE,
+    )]
+    if not boundaries or len(value) <= max_chars:
+        return [value]
+    chunks: list[str] = []
+    start = 0
+    for end in boundaries:
+        if end - start >= max_chars:
+            chunks.append(value[start:end])
+            start = end
+    if start < len(value):
+        chunks.append(value[start:])
+    return chunks or [value]
+
+
 def _atomic_json(path: Path, value: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
@@ -918,11 +942,12 @@ class XBrowserAdapter:
                 raise XRepairRefused("X composer did not clear deterministically")
             for kind, value in chunks:
                 if kind == "html":
-                    if not value.strip():
-                        continue
-                    self._clipboard_html(page, value)
-                    page.keyboard.press("Meta+v")
-                    page.wait_for_timeout(2_000)
+                    for html_chunk in _clipboard_html_chunks(value):
+                        if not html_chunk.strip():
+                            continue
+                        self._clipboard_html(page, html_chunk)
+                        page.keyboard.press("Meta+v")
+                        page.wait_for_timeout(2_000)
                 else:
                     path = Path(value)
                     if not path.is_file():

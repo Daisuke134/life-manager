@@ -61,3 +61,10 @@ def test_inplace_repair_uses_repository_chunk_inserter_only():
     assert method.index("chunks = build_chunks") < method.index("manager, _browser, page = self._page()")
     assert ".claude/skills/x-article-publisher" not in source
     assert "spec_from_file_location" not in source
+
+
+def test_html_clipboard_chunks_preserve_block_boundaries():
+    html = "<p>alpha</p><p>beta</p><h2>出典</h2><p>omega</p>"
+    chunks = x_repair._clipboard_html_chunks(html, max_chars=14)
+    assert "".join(chunks) == html
+    assert all(chunk.endswith(("</p>", "</h2>")) for chunk in chunks)
