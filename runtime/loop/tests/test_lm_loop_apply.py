@@ -145,6 +145,15 @@ class LmLoopApplyTest(unittest.TestCase):
                 for argument in expected_arguments
             )
             script += "printf '%s\\n' '}'\n"
+            script += "printf '%s\\n' 'environment = {'\n"
+            script += (
+                f"{shlex.quote(sys.executable)} -c "
+                "'import plistlib,sys; d=plistlib.load(open(sys.argv[1],\"rb\")); "
+                "[print(str(k)+\" => \"+str(v)) for k,v in "
+                "d.get(\"EnvironmentVariables\",{}).items()]' "
+                f"{shlex.quote(str(plist))}\n"
+            )
+            script += "printf '%s\\n' '}'\n"
             script += "elif [ \"$1\" = bootout ]; then\n"
             script += f"[ \"$#\" -eq 2 ] && [ \"$2\" = {shlex.quote(service)} ] || exit 92\n"
             script += f"rm -f {shlex.quote(str(state))}\n"
@@ -850,6 +859,62 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertFalse((log_root / "launchd.out.log").exists())
         self.assertFalse((log_root / "launchd.err.log").exists())
         self.assertEqual(stat.S_IMODE(state_root.stat().st_mode), 0o755)
+
+    def test_install_retries_when_loaded_browser_environment_is_stale(self):
+        value = registry()
+        loop_id = "hf-gig-apply-direct"
+        value["loops"][loop_id] = value["loops"].pop("example")
+        value["loops"][loop_id]["label"] = "ai.anicca.hf-gig-apply-direct"
+        rendered = build_apply_plan(value, self.root, SHA)[0]
+        target = self.root / "installed-gig.plist"
+        expected = plistlib.loads(rendered["plist_bytes"])["EnvironmentVariables"]
+        required = (
+            "CLOAK_CDP_BASE_URL",
+            "GIG_CDP_HEALTH_URL",
+            "CDP_DAILY_DRIVER_PORT",
+            "CDP_DAILY_DRIVER_PROFILE",
+        )
+        print_count = 0
+        calls = []
+        sleeps = []
+
+        def launchctl(args):
+            nonlocal print_count
+            calls.append(args)
+            if args[0] == "print":
+                print_count += 1
+                if print_count == 1:
+                    return 1, "not loaded"
+                environment = {
+                    key: ("http://127.0.0.1:9222"
+                          if key in {"CLOAK_CDP_BASE_URL", "GIG_CDP_HEALTH_URL"}
+                          else "9222"
+                          if key == "CDP_DAILY_DRIVER_PORT"
+                          else "/legacy/profile")
+                for key in required} if print_count == 2 else {
+                    key: expected[key] for key in required
+                }
+                return 0, (
+                    "arguments = {\n"
+                    + "\n".join(rendered["expected_arguments"])
+                    + "\n}\n"
+                    + "environment = {\n"
+                    + "\n".join(f"{key} => {environment[key]}" for key in required)
+                    + "\n}\n"
+                )
+            return 0, ""
+
+        result = install_one(
+            rendered, target, launchctl, attempts=2, sleeper=sleeps.append,
+        )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(print_count, 3)
+        self.assertEqual(sleeps, [1.0, 3.0])
+        self.assertEqual(
+            plistlib.loads(target.read_bytes())["EnvironmentVariables"]["CDP_DAILY_DRIVER_PORT"],
+            "9223",
+        )
 
     def test_money_printer_install_secures_existing_and_new_launchd_log_files(self):
         cases = (

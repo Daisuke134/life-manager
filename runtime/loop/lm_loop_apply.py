@@ -432,6 +432,22 @@ def _loaded_arguments(text: str) -> list[str]:
     return arguments
 
 
+def _loaded_environment(text: str) -> dict[str, str]:
+    """Parse launchd's environment block for loaded contract readback."""
+    values, inside = {}, False
+    for raw in text.splitlines():
+        line = raw.strip()
+        if line == "environment = {":
+            inside = True
+            continue
+        if inside and line == "}":
+            break
+        if inside and " => " in line:
+            key, value = line.split(" => ", 1)
+            values[key] = value
+    return values
+
+
 def _snapshot_rollback_plist(item: dict, old_bytes: bytes,
                              loaded_detail: str) -> tuple[list[str], bytes]:
     old_args = _loaded_arguments(loaded_detail)
@@ -503,9 +519,29 @@ def install_one(item: dict, target: Path,
         if bootstrap_rc == 0:
             print_rc, printed = launchctl(["print", service])
             loaded = _loaded_arguments(printed) if print_rc == 0 else []
-            if loaded == item["expected_arguments"]:
+            expected_environment = plistlib.loads(item["plist_bytes"])[
+                "EnvironmentVariables"
+            ]
+            required_environment = {
+                key: str(expected_environment[key])
+                for key in (
+                    "CLOAK_CDP_BASE_URL",
+                    "GIG_CDP_HEALTH_URL",
+                    "CDP_DAILY_DRIVER_PORT",
+                    "CDP_DAILY_DRIVER_PROFILE",
+                )
+                if key in expected_environment
+            }
+            loaded_environment = _loaded_environment(printed) if print_rc == 0 else {}
+            environment_ok = all(
+                loaded_environment.get(key) == value
+                for key, value in required_environment.items()
+            )
+            if loaded == item["expected_arguments"] and environment_ok:
                 return {"ok": True, "label": label, "loaded_arguments": loaded,
                         "release_sha": item["release_sha"]}
+            if loaded == item["expected_arguments"] and not environment_ok:
+                last_detail = "loaded browser environment disagrees"
         launchctl(["bootout", service])
         sleeper(retry_delays[min(attempt, len(retry_delays) - 1)])
     if old_bytes is None:
