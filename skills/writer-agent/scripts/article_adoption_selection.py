@@ -73,6 +73,13 @@ def select(state_root: Path, ledger: Path, decision: dict) -> str | None:
     runs = state_root / "runs"
     selected = decision.get("run_id")
     if isinstance(selected, str) and _status(runs, selected) in ALLOWED_STATUSES:
+        # A publication-state run is owned by the foreground publication
+        # planner, even when its generation status still looks adoptable. Do
+        # not send it through prepublication adoption; that path must remain
+        # publication-state-free and would otherwise fail closed before the
+        # pending worker can reconcile its intents.
+        if (runs / selected / "gates/publication-state.json").exists():
+            return None
         return selected
 
     ledger_ids: set[str] = set()
