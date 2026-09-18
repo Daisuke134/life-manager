@@ -59,6 +59,39 @@ def test_host_deferred_event_is_explicit_pre_effect_proof(tmp_path):
     assert proof["evidence_ref"].startswith("lm-event://")
 
 
+def test_effect_unknown_without_claim_is_explicit_pre_effect_proof(tmp_path):
+    module = load()
+    owner = "crowdworks-revenue-application"
+    run = "run-effect-unknown-no-claim"
+    events = tmp_path / "events.jsonl"
+    write_events(events, [
+        event(owner=owner, run=run, status="running", effect_status="started"),
+        event(owner=owner, run=run, status="blocked", effect_status="unknown",
+              blocker="host_admission_deferred:resource_effect_unknown"),
+    ])
+
+    proof = module.find_host_deferred_proof(events, owner, f"{owner}:{run}")
+
+    assert proof["verified"] is True
+    assert proof["proof_type"] == "pre_effect"
+
+
+def test_effect_unknown_with_claim_is_not_pre_effect_proof(tmp_path):
+    module = load()
+    owner = "crowdworks-revenue-reply"
+    run = "run-effect-unknown-claimed"
+    events = tmp_path / "events.jsonl"
+    write_events(events, [
+        event(owner=owner, run=run, status="running", effect_status="started"),
+        event(owner=owner, run=run, status="blocked", effect_status="unknown",
+              blocker="host_admission_deferred:resource_effect_unknown",
+              refs=[f"lm-loop://{owner}/{run}/summary.json",
+                    f"lm-occurrence://{owner}/{owner}:claimed/claim"]),
+    ])
+
+    assert module.find_host_deferred_proof(events, owner, f"{owner}:{run}") is None
+
+
 def test_host_deferred_proof_rejects_effect_identity_and_non_deferred_terminal(tmp_path):
     module = load()
     owner = "crowdworks-revenue-reply"

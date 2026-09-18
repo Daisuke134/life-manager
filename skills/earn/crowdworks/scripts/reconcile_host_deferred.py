@@ -22,7 +22,14 @@ SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}\Z")
 # These are emitted before `_run_entrypoint` can start.  In particular,
 # `resource_admission_interrupted` is deliberately excluded: the runtime can
 # write that receipt after a child has already started and was interrupted.
-PRE_CHILD_REASONS = frozenset({"resource_capacity_busy", "resource_fifo_wait"})
+PRE_CHILD_REASONS = frozenset({
+    "resource_capacity_busy",
+    "resource_fifo_wait",
+    # Durable admission returns this before creating a claim when the owner
+    # already has an unresolved effect.  A claim/effect reference below still
+    # wins and keeps the occurrence fenced.
+    "resource_effect_unknown",
+})
 
 
 def _events(path: Path) -> list[dict[str, Any]]:
@@ -68,8 +75,9 @@ def find_host_deferred_proof(events_path: Path, owner: str,
             or not isinstance(blocker, str)
             or not blocker.startswith("host_admission_deferred:")
             or reason not in PRE_CHILD_REASONS
-            or any(isinstance(ref, str) and ref.startswith("lm-effect://")
-                   for ref in terminal.get("evidence_refs", []))):
+            or any(isinstance(ref, str)
+                   and ref.startswith(("lm-effect://", "lm-occurrence://"))
+                   for row in rows for ref in row.get("evidence_refs", []))):
         return None
     summary_ref = f"lm-loop://{owner}/{run_id}/summary.json"
     if summary_ref not in terminal.get("evidence_refs", []):
