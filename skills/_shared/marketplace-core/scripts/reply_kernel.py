@@ -108,6 +108,29 @@ def _write(path: Path, value: Mapping[str, Any]) -> None:
                 pass
 
 
+def _prepare_pre_effect_hint(max_workers: int) -> Path | None:
+    hint = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
+    if max_workers != 1 or not hint:
+        return None
+    path = Path(hint).expanduser().resolve()
+    _write(path, {"status": "pre_effect_failure", "effect": 0})
+    return path
+
+
+def _clear_pre_effect_hint(path: Path | None) -> None:
+    if path is not None:
+        path.unlink(missing_ok=True)
+
+
+def _guard_effect_callback(callback, hint: Path | None):
+    if callback is None:
+        return None
+    def guarded(*args, **kwargs):
+        _clear_pre_effect_hint(hint)
+        return callback(*args, **kwargs)
+    return guarded
+
+
 def _intent(row: Mapping[str, Any], decision: Mapping[str, Any]) -> dict[str, Any]:
     action = _text(decision.get("action"), "action")
     if action not in MUTATIONS:
@@ -223,6 +246,7 @@ def _run_locked(
     source: Mapping[str, Any],
     notify=None,
     human_notify=None,
+    pre_effect_hint: Path | None = None,
 ) -> dict[str, Any]:
     row = _observation(source)
     if "pending_reason" in row:
@@ -280,6 +304,7 @@ def _run_locked(
             return result
         if (prior_intent.get("action") == "external_action"
                 and official.get("resume_required") is True):
+            _clear_pre_effect_hint(pre_effect_hint)
             adapter.mutate(dict(prior_intent))
             resumed = adapter.readback(dict(prior_intent))
             if resumed.get("verified") is not True:
@@ -387,6 +412,7 @@ def _run_locked(
                       "status": "intent_persisted"})
         return _pending(row, "pre_effect_reconcile_unknown")
     try:
+        _clear_pre_effect_hint(pre_effect_hint)
         adapter.mutate(intent)
     except Exception as error:
         classify = getattr(adapter, "classify_mutation_error", None)
@@ -423,12 +449,14 @@ def _run_locked(
     return result
 
 
-def _run_one(adapter, decide, state_root, source, notify=None, human_notify=None):
+def _run_one(adapter, decide, state_root, source, notify=None, human_notify=None,
+             pre_effect_hint=None):
     row = _observation(source)
     path = _state_path(state_root, row)
     with _lock(path):
         try:
-            return _run_locked(adapter, decide, state_root, row, notify, human_notify)
+            return _run_locked(adapter, decide, state_root, row, notify, human_notify,
+                               pre_effect_hint)
         except Exception as error:
             state = _load(path)
             error_detail = str(error).strip()[:500] or type(error).__name__
@@ -473,6 +501,9 @@ def run_wake(*, adapter: ReplyAdapter,
              decide: Callable[[dict[str, Any]], Mapping[str, Any]],
              state_root: Path, max_workers: int = 4, notify=None,
              human_notify=None) -> dict[str, Any]:
+    pre_effect_hint = _prepare_pre_effect_hint(max_workers)
+    notify = _guard_effect_callback(notify, pre_effect_hint)
+    human_notify = _guard_effect_callback(human_notify, pre_effect_hint)
     try:
         rows = adapter.observe_threads()
         if not isinstance(rows, list):
@@ -486,12 +517,13 @@ def run_wake(*, adapter: ReplyAdapter,
         if workers == 1:
             # Sync browser adapters are thread-affine: even a one-worker pool moves
             # their Playwright page to another thread and invalidates every call.
-            items = [_run_one(adapter, decide, Path(state_root), row, notify, human_notify)
+            items = [_run_one(adapter, decide, Path(state_root), row, notify, human_notify,
+                              pre_effect_hint)
                      for row in normalized]
         else:
             with ThreadPoolExecutor(max_workers=workers) as pool:
                 futures = [pool.submit(_run_one, adapter, decide, Path(state_root), row,
-                                       notify, human_notify)
+                                       notify, human_notify, pre_effect_hint)
                            for row in normalized]
                 items = []
                 for row, future in zip(normalized, futures):
