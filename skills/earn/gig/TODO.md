@@ -1050,7 +1050,7 @@ work item and leave a sibling trace unchanged.
 **Not done / blockers:**
 
 - Application, Reply and Paid launchd are all `not running`, exit `75`; latest target runs
-  `18d646d6332dc0c8-73504`, `18d646d7e678a0e8-73709`, and `18d646cb227652a0-72465` respectively ended
+  `18d6476bd4be2618-91197`, `18d647699af710e0-90754`, and `18d6475aab0f20f8-82219` respectively ended
   with `host_admission_deferred:resource_effect_unknown`. Their three exact stale occurrences remain
   `claimed`/`effect_unknown=1`, and the current pre-effect code refuses an unbound legacy clear.
 - `63657015` has two current forms and no confirmed receipt under the current detail; its earlier durable
