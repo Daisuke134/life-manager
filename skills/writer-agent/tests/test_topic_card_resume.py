@@ -22,6 +22,7 @@ def run_resume(
     route_symlink=False,
     generation_status="interrupted-safe",
     generation_return_code=0,
+    adoption_receipt=False,
 ):
     run_id = "20260821-054500"
     run = tmp_path / "runs" / run_id
@@ -59,6 +60,20 @@ def run_resume(
         }),
         encoding="utf-8",
     )
+    if adoption_receipt:
+        (gates / "prepublication-adoption.json").write_text(
+            json.dumps({
+                "schema": "writer.prepublication-adoption",
+                "version": 1,
+                "run_id": run_id,
+                "to_status": "quality-repair-ready",
+            }),
+            encoding="utf-8",
+        )
+        (gates / "topic-card-resume.json").write_text(
+            json.dumps({"action": "existing", "run_id": run_id}),
+            encoding="utf-8",
+        )
     if generation_symlink:
         target = tmp_path / "generation-target.json"
         target.write_text(generation.read_text(encoding="utf-8"), encoding="utf-8")
@@ -118,6 +133,18 @@ def test_false_provider_return_code_does_not_skip_card_recovery(tmp_path):
     )
     assert result.returncode != 0
     assert receipt["reason"] == "topic-route-input-missing"
+
+
+def test_adopted_prepublication_does_not_rewrite_topic_card_receipt(tmp_path):
+    result, receipt = run_resume(
+        tmp_path,
+        route=None,
+        card_topic="paid-demand:unused",
+        generation_status="quality-repair-ready",
+        adoption_receipt=True,
+    )
+    assert result.returncode == 0
+    assert receipt == {"action": "existing", "run_id": "20260821-054500"}
 
 
 def test_existing_route_restores_exact_matching_card(tmp_path):

@@ -647,6 +647,11 @@ if route_status == "absent":
         fail("generation-state-invalid")
     attempts = generation.get("attempts")
     latest = attempts[-1] if isinstance(attempts, list) and attempts else None
+    adoption_path = gates / "prepublication-adoption.json"
+    adopted_prepublication = (
+        generation.get("status") == "quality-repair-ready"
+        and path_status(adoption_path) == "regular"
+    )
     archive_manifest = latest.get("archive_manifest") if isinstance(latest, dict) else None
     empty_interruption = (
         generation.get("version") == 1
@@ -713,6 +718,9 @@ if route_status == "absent":
             )
         ):
             public_row = True
+    if adopted_prepublication and not public_row:
+        print("topic-card resume: skipped adopted prepublication")
+        raise SystemExit(0)
     if (empty_interruption or empty_provider_failure or empty_provider_return) and not public_row:
         write_receipt({
             "version": 1,
