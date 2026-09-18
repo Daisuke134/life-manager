@@ -90,7 +90,9 @@ def bounded_attempts(payload: dict[str, Any], label: str, minimum: int) -> int:
 VALID_TERMINAL_STATUSES = {"revision-required", "advisory", "pass"}
 
 
-def read_evidence(path: Path, label: str) -> dict[str, Any] | None:
+def read_evidence(
+    path: Path, label: str, *, allow_empty: bool = False
+) -> dict[str, Any] | None:
     try:
         mode = path.lstat().st_mode
     except FileNotFoundError:
@@ -101,6 +103,8 @@ def read_evidence(path: Path, label: str) -> dict[str, Any] | None:
         raise ValueError(f"{label} is a symlink")
     if not stat.S_ISREG(mode):
         raise ValueError(f"{label} is not a regular file")
+    if allow_empty and path.stat().st_size == 0:
+        return None
     value = read_json(path)
     if value is None:
         raise ValueError(f"{label} is malformed")
@@ -176,7 +180,13 @@ def begin(args: argparse.Namespace) -> int:
 
         state_count = state_attempts(state_path, args, current_hash)
         terminal_info = terminal_record(terminal_path, args)
-        legacy = read_evidence(legacy_path, "legacy gate evidence")
+        # A shell caller may redirect stdout to this legacy path. The shell
+        # truncates the file before this process starts, so empty regular
+        # evidence means "not present yet", not malformed evidence. Attempt
+        # state and terminal evidence remain strict and fail closed.
+        legacy = read_evidence(
+            legacy_path, "legacy gate evidence", allow_empty=True
+        )
         status = legacy_status(args.gate, legacy) if legacy else None
         legacy_current_pass = bool(status and matches_article(legacy, current_hash))
         terminal = terminal_info[0] if terminal_info else None
