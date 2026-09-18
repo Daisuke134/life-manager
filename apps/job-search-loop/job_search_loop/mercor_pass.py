@@ -488,7 +488,9 @@ def validate_bounded_scan(result: dict[str, Any], evidence_root: Path | None = N
     inspected = {
         item.get("listing_id")
         for item in result.get("inspected_listings", [])
-        if isinstance(item, dict) and isinstance(item.get("listing_id"), str)
+        if isinstance(item, dict)
+        and item.get("application_state") != "card_only"
+        and isinstance(item.get("listing_id"), str)
     }
     if len(inspected) > 12:
         raise ValueError(f"bounded_scan_exceeded:{len(inspected)}_of_12")

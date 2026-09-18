@@ -594,6 +594,20 @@ class MercorPassContractTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "bounded_scan_exceeded:13_of_12"):
             validate_bounded_scan(result)
 
+    def test_card_only_priority_records_do_not_consume_detail_budget(self):
+        result = {
+            "status": "observed_no_action",
+            "inspected_listings": [
+                {"listing_id": f"list-card-{index}", "application_state": "card_only"}
+                for index in range(20)
+            ] + [
+                {"listing_id": f"list-detail-{index}", "application_state": "detail"}
+                for index in range(12)
+            ],
+            "evidence": {"dom_path": ""},
+        }
+        validate_bounded_scan(result)
+
     def test_query_union_does_not_force_low_detail_fill(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
