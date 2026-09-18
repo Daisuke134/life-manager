@@ -51,3 +51,18 @@ test("an unreadable preference store yields no preferences at all, not a permiss
   assert.equal(await readRuntimePreferences("u1", { ...SUPA, fetchImpl: async () => ({ ok: false, status: 503 }) }), null);
   assert.equal(await readRuntimePreferences("", { ...SUPA, fetchImpl: rows([]) }), null);
 });
+
+test("a pre-quiet-hours schema falls back without disabling the user", async () => {
+  const calls = [];
+  const result = await readRuntimePreferences("u1", {
+    ...SUPA,
+    fetchImpl: async (url) => {
+      calls.push(url);
+      if (calls.length === 1) return { ok: false, status: 400 };
+      return { ok: true, status: 200, json: async () => [{ call_enabled: true }] };
+    },
+  });
+  assert.equal(result.call_enabled, true);
+  assert.equal(result.mental_quiet_start_minute, null);
+  assert.equal(calls.length, 2);
+});

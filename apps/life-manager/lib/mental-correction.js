@@ -3,6 +3,7 @@
 const crypto = require("node:crypto");
 const { loadMentalCatalog } = require("./mental-catalog.js");
 const { recordMentalProfileTag } = require("./mental-profile-store.js");
+const { WINDOWS } = require("./mental-opportunity.js");
 
 const FAMILIES = new Set(["affirmation", "manifestation", "mindfulness_inquiry"]);
 
@@ -21,10 +22,10 @@ function classifyMentalCorrection(text) {
   if (/(この言い方|この表現|wording|言い回し).*(嫌|苦手|違和感|好きじゃない|don't like|wrong)/i.test(value)) {
     return { kind: "tone_switch" };
   }
-  // A timing complaint is recognized only as a correction candidate. V1 has no persisted
-  // per-window preference column yet, so it is never converted into a guessed profile tag.
+  // A timing complaint is recognized only as a correction candidate. It is mapped to a known
+  // opportunity window only after the handler verifies the exact replied-to V1 receipt.
   if (/(この時間|時間.*邪魔|wrong time|too early|too late|interrupt)/i.test(value)) {
-    return { kind: "timing_unimplemented" };
+    return { kind: "timing" };
   }
   return null;
 }
@@ -83,11 +84,22 @@ async function handleMentalCorrectionMessage(update, user, deps = {}) {
   const sent = await readSend({ uid: user.uid, messageId: update.replyToMessageId });
   if (!sent) return { handled: false };
   const quote = quoteById(sent.templateId, deps.locale || "ja");
-  if (correction.kind === "timing_unimplemented") {
-    return { handled: true, recorded: false, reason: "timing-preference-not-supported" };
+  if (correction.kind === "timing") {
+    const bounds = WINDOWS[sent.window];
+    if (!bounds || typeof deps.setQuietHours !== "function") {
+      return { handled: true, recorded: false, reason: "timing-preference-not-supported" };
+    }
+    try {
+      const result = await deps.setQuietHours({ start: bounds.start, end: bounds.end });
+      return result && result.recorded
+        ? { handled: true, recorded: true, reason: "quiet-hours-updated", start: bounds.start, end: bounds.end }
+        : { handled: true, recorded: false, reason: "quiet-hours-write-failed" };
+    } catch {
+      return { handled: true, recorded: false, reason: "quiet-hours-write-failed" };
+    }
   }
   const tag = correction.kind === "tone" ? correction.tag : alternateTone(quote);
-  if (!tag) return { handled: true, recorded: false, reason: correction.kind === "timing_unimplemented" ? "timing-preference-not-supported" : "ambiguous-tone" };
+  if (!tag) return { handled: true, recorded: false, reason: "ambiguous-tone" };
   const row = {
     uid: String(user.uid),
     kind: "tone",

@@ -13,7 +13,7 @@ const { schedulerCohortFilter, isCallablePhone } = require("./lib/user-selector.
 const { DEFAULTS: RUNTIME_DEFAULTS, readRuntimePreferences } = require("./lib/runtime-preferences.js");
 const { shouldWake, isHelperBlock } = require("./lib/wake-filter.js");
 const { mentalUserOnce, resolveSleepTarget } = require("./lib/mental-runtime.js");
-const { mentalV1UserOnce } = require("./lib/mental-v1-runtime.js");
+const { mentalV1UserOnce, normalizeQuietHours } = require("./lib/mental-v1-runtime.js");
 const { careUserOnce } = require("./lib/care-daily-runtime.js");
 const { dietUserOnce } = require("./lib/diet-runtime.js");
 const { dietNudgeOnce } = require("./lib/diet-nudge.js");
@@ -24,6 +24,9 @@ const { readMentalSendState, recordMentalSend } = require("./lib/mental-send-log
 const { runVerifiedOutcomes } = require("./lib/mental-outcome-runtime.js");
 const { readOutcomeSendState, readVerifiedOutcomes, recordOutcomeSend } = require("./lib/mental-outcome-store.js");
 const { readMentalProfile } = require("./lib/mental-profile-store.js");
+const {
+  recordMentalDecision, completeMentalDecision, failMentalDecision,
+} = require("./lib/mental-decision-log.js");
 
 // 12c: TROUGH_AFTER_MS (30 min) plus margin — how far back the tick looks for ended events.
 const MENTAL_LOOKBACK_MS = 35 * 60000;
@@ -118,7 +121,11 @@ async function supaUsers() {
   // call_time_zone rides along because it is the ONLY per-user timezone column that exists anywhere
   // in this schema (lm_users has none). The diet organ resolves each tenant's lunch window from it;
   // without it every tenant would be asked on Tokyo's clock, and the organ chooses silence over that.
-  const prefsResponse = await fetch(`${url}/rest/v1/lm_panel_preferences?uid=in.(${encodeURIComponent(ids)})&select=uid,call_enabled,notifications_enabled,daily_automation_enabled,call_time_zone`, { headers: hdr });
+  const preferenceUrl = `${url}/rest/v1/lm_panel_preferences?uid=in.(${encodeURIComponent(ids)})`;
+  let prefsResponse = await fetch(`${preferenceUrl}&select=uid,call_enabled,notifications_enabled,daily_automation_enabled,call_time_zone,mental_quiet_start_minute,mental_quiet_end_minute`, { headers: hdr });
+  if (!prefsResponse.ok) {
+    prefsResponse = await fetch(`${preferenceUrl}&select=uid,call_enabled,notifications_enabled,daily_automation_enabled,call_time_zone`, { headers: hdr });
+  }
   if (!prefsResponse.ok) return users.map(u => ({ ...u, call_enabled: false, notifications_enabled: false, daily_automation_enabled: false }));
   const preferenceRows = await prefsResponse.json().catch(() => null);
   if (!Array.isArray(preferenceRows)) return users.map(u => ({ ...u, call_enabled: false, notifications_enabled: false, daily_automation_enabled: false }));
@@ -410,6 +417,7 @@ function mentalV1Deps(u, events, deps = {}) {
   const supa = SUPA();
   const allowedUids = String(process.env.LM_MENTAL_V1_ALLOWED_UIDS || "")
     .split(",").map((value) => value.trim()).filter(Boolean);
+  const decisionLogRequired = String(process.env.LM_MENTAL_DECISION_LOG_REQUIRED || "").trim() === "1";
   return {
     fetchUpcomingEvents: async () => events,
     readSendState: deps.readMentalState
@@ -420,7 +428,10 @@ function mentalV1Deps(u, events, deps = {}) {
     telegramToken: deps.telegramToken !== undefined ? deps.telegramToken : process.env.LM_TELEGRAM_BOT_TOKEN,
     profile: deps.mentalProfile || {},
     readProfile: deps.readMentalProfile || ((uid, now) => readMentalProfile(uid, now, supa)),
-    quietHours: deps.quietHours || null,
+    quietHours: deps.quietHours !== undefined ? deps.quietHours : normalizeQuietHours(u),
+    recordDecision: deps.recordDecision || (decisionLogRequired ? ((row) => recordMentalDecision(row, supa)) : undefined),
+    completeDecision: deps.completeDecision || (decisionLogRequired ? ((key, messageId) => completeMentalDecision(key, messageId, supa)) : undefined),
+    failDecision: deps.failDecision || (decisionLogRequired ? ((key, reason) => failMentalDecision(key, reason, supa)) : undefined),
     tzOffsetH: deps.tzOffsetH,
     allowedUids: deps.allowedUids || allowedUids,
   };
@@ -1350,6 +1361,7 @@ module.exports = {
   listPaidUsers,
   // per-uid re-fetch for Inngest per-user functions (PII: sweepers send only uid)
   getUserByUid,
+  mentalV1Deps,
   // utilities used by server.js and tests
   isHelperBlock, buildStreamUrl, langForPhone, langForUser,
   // wake claim ledger (C-H1 dedup) — claim before dial, release on dial failure so a retry can fire

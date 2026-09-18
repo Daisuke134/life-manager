@@ -1290,6 +1290,18 @@ const server = http.createServer(async (req, res) => {
               supaUrl: SUPA_URL,
               supaKey: SUPA_KEY,
               locale: /^en(?:-|$)/i.test(String(u.languageCode || "")) ? "en" : "ja",
+              setQuietHours: async ({ start, end }) => {
+                const response = await fetch(`${SUPA_URL}/rest/v1/rpc/mutate_lm_panel_preferences`, {
+                  method: "POST",
+                  headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    p_uid: row.uid,
+                    p_chat_id: u.chatId,
+                    p_patch: { mental_quiet_start_minute: start, mental_quiet_end_minute: end },
+                  }),
+                }).catch(() => null);
+                return { recorded: Boolean(response && response.ok) };
+              },
             });
             if (correction.handled) {
               console.log(`[mental-correction] recorded=${correction.recorded === true}${correction.tag ? ` tag=${correction.tag}` : ""}${correction.reason ? ` reason=${correction.reason}` : ""}`);

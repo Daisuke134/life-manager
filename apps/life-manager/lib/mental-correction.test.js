@@ -11,7 +11,7 @@ const {
 } = require("./mental-correction.js");
 
 test("correction parser accepts only explicit, bounded natural corrections", () => {
-  assert.deepEqual(classifyMentalCorrection("この時間は邪魔"), { kind: "timing_unimplemented" });
+  assert.deepEqual(classifyMentalCorrection("この時間は邪魔"), { kind: "timing" });
   assert.deepEqual(classifyMentalCorrection("こういう時は短く"), { kind: "tone", tag: "direct" });
   assert.deepEqual(classifyMentalCorrection("もう少し優しく"), { kind: "tone", tag: "gentle" });
   assert.deepEqual(classifyMentalCorrection("この言い方は嫌"), { kind: "tone_switch" });
@@ -62,11 +62,12 @@ test("timing complaints are acknowledged internally but never mapped to a tone t
   const result = await handleMentalCorrectionMessage({
     kind: "message", chatId: "chat", messageId: "9", replyToMessageId: "7", text: "この時間は邪魔",
   }, { uid: "u1" }, {
-    readReferencedSend: async () => ({ templateId: "mental-buddy-breath-anchor:ja", family: "mindfulness_inquiry" }),
+    readReferencedSend: async () => ({ templateId: "mental-buddy-breath-anchor:ja", family: "mindfulness_inquiry", window: "midday_awareness" }),
     recordTag: async () => { writes += 1; return { recorded: true }; },
+    setQuietHours: async (value) => { writes += 1; assert.deepEqual(value, { start: 12 * 60, end: 15 * 60 }); return { recorded: true }; },
   });
-  assert.deepEqual(result, { handled: true, recorded: false, reason: "timing-preference-not-supported" });
-  assert.equal(writes, 0);
+  assert.deepEqual(result, { handled: true, recorded: true, reason: "quiet-hours-updated", start: 12 * 60, end: 15 * 60 });
+  assert.equal(writes, 1);
 });
 
 test("source reference is deterministic and contains no raw identifiers", () => {
