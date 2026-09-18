@@ -1605,3 +1605,15 @@ PII失敗runの安全な再開、日次連続公開、公式readbackの連続証
 - disk floor（1,155,780,608 bytes）とshared revenue FIFOは引き続き自然wakeの運用制約。現在の空きは約2.1GiBだが、生成・browser使用で変動するためbypassしない。
 
 **Current cursor:** `article-daily`のrun `20260918-221622`を自然終端まで観測し、4面公式readback→completion→replay-zeroを取得する。その後、最低7日/21 scheduled source runsとpayment receipt joinを続ける。現時点のボトルネックはprovider認証ではなく、自然runの連続証拠と実収益receiptである。
+
+## 2026-09-19 second natural four-platform run (latest cursor)
+
+- run `20260918-221622` は、最初のNote eyecatch `NONE`、disk-floor停止、同一target再開を経て、最終的に4面すべてをliveへ到達した。Noteは同一key `n12ced48b942c` を遅延live readbackから`record_live`でreconcileし、Substack JA/ENとXは同じdraft/edit targetをresumeした。新しいtargetや重複記事は作っていない。
+- Fresh provider probeは次をPASSした。
+  - Note JA: `https://note.com/anicca123/n/n12ced48b942c`（public id `n12ced48b942c`、published `2026-09-19T07:36:26+09:00`、price=500、本文・media・eyecatch・identity PASS）。
+  - Substack JA: `https://aniccabuddha.substack.com/p/claude-code-be2`（public id `216373166`、published `2026-09-18T22:39:30.939Z`、paid-only/paywall、本文・media・identity PASS）。
+  - Substack EN: `https://aniccaai2026.substack.com/p/claude-code-is-not-just-for-developers-fa3`（public id `216373183`、published `2026-09-18T22:41:38.394Z`、別publication、paid-only/paywall、本文・media・identity PASS）。
+  - X Article JA: same edit target `https://x.com/compose/articles/edit/2101075795842379776` → `https://x.com/diceai0/article/2101081029050298368`（public id `2101081029050298368`、published `2026-09-18T22:48:48Z`、本文・cover/body・identity PASS）。
+- completion Telegramはmessage ID `88838`。`article-run-complete.py --armed 1` rc0、`publication_resume.py plan` 2回とも`resumable=false / all-complete`。state SHA `e226aa3548fe8d057fba935f09bcebe5de13b9ff2e80e4461682af310a99866b`、ledger SHA `bc95074f46585b4635cc814394f881d90a4c028f8d84b0e63b289be1d8ee86e3` は再実行前後不変（replay-zero）。
+
+**未完了:** 連続自然runは2回であり、7日または21 scheduled source runs、実販売・入金・payout・active MRRは未証明。今回も最大の残作業は、同じ4面公式readbackを自然wakeで最低7日/21回積み上げ、payment receiptをmoney ledgerへjoinすること。現在の確定売上は¥0、`$10K MRR`未達である。
