@@ -89,7 +89,7 @@ LIFE_MANAGER_RELEASE_ROOT=/Users/anicca/loops/current \
 bin/lm-loop status life-manager-connector-native
 ```
 
-- [x] Installed and loaded Connector SHA now agree at `8eae86892e`; a natural wake on the previous SHA reached `completed_no_effect`, while the next manual wake was safely deferred by `resource_control_busy` before provider work and remains queued.
+- [x] Installed and loaded Connector SHA now agree at `0c1d82ea`; natural wake `wake-fead1bf2cb6cfea26eba4062` reached `completed_no_effect/providers_exhausted` with the occurrence released/known. Connpass remained paid/restricted and Luma had no Calendar-free candidate.
 
 ### Task 5: Official authentication and new effect
 
