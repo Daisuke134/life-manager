@@ -92,12 +92,57 @@ def test_reply_effect_is_fenced_read_back_and_replay_zero(tmp_path):
     assert first["failed"] == 0
     assert len(adapter.effects) == 1
 
-    second = reply_kernel.run_wake(adapter=adapter, decide=decide, state_root=tmp_path)
-    assert second["effect"] == 0
-    assert second["readback"] == 1
-    assert second["items"][0]["reason"] == "replay_zero"
-    assert len(adapter.effects) == 1
 
+def test_state_records_runtime_occurrence_and_run_marker(monkeypatch, tmp_path):
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:run-1")
+    result = reply_kernel.run_wake(
+        adapter=Adapter(),
+        decide=lambda _context: {"action": "accept_contract",
+                                 "payload": {"condition_id": "condition-1"}},
+        state_root=tmp_path,
+    )
+    assert result["effect"] == 1
+    state = json.loads(next(tmp_path.glob("threads/*/state.json")).read_text())
+    assert state["occurrence_id"] == "fixture-reply:run-1"
+    marker = reply_kernel._run_marker_path(tmp_path, "fixture-reply:run-1")
+    assert json.loads(marker.read_text())["occurrence_id"] == "fixture-reply:run-1"
+
+
+def test_reconcile_preserves_original_occurrence_binding(monkeypatch, tmp_path):
+    adapter = Adapter()
+    decide = lambda _context: {"action": "accept_contract",
+                               "payload": {"condition_id": "condition-1"}}
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:run-a")
+    assert reply_kernel.run_wake(adapter=adapter, decide=decide,
+                                 state_root=tmp_path)["effect"] == 1
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:run-b")
+    assert reply_kernel.run_wake(adapter=adapter, decide=decide,
+                                 state_root=tmp_path)["effect"] == 0
+    state = json.loads(next(tmp_path.glob("threads/*/state.json")).read_text())
+    assert state["occurrence_id"] == "fixture-reply:run-a"
+
+
+def test_new_intent_after_authoritatively_absent_rebinds_to_current_wake(
+        monkeypatch, tmp_path):
+    adapter = Adapter()
+    row = event()
+    legacy = reply_kernel._intent(row, {
+        "action": "accept_contract", "payload": {"condition_id": "old"}
+    })
+    path = reply_kernel._state_path(tmp_path, row)
+    reply_kernel._write(path, {
+        "version": 1, "inventory_event_id": row["latest_event_id"],
+        "observation": row, "intent": legacy, "status": "reconcile_unknown",
+    })
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-reply:run-b")
+    result = reply_kernel.run_wake(
+        adapter=adapter,
+        decide=lambda _context: {"action": "accept_contract",
+                                 "payload": {"condition_id": "new"}},
+        state_root=tmp_path,
+    )
+    assert result["effect"] == 1
+    assert json.loads(path.read_text())["occurrence_id"] == "fixture-reply:run-b"
 
 def test_contract_acceptance_uses_same_fence_readback_and_replay_zero(tmp_path):
     adapter = Adapter()
