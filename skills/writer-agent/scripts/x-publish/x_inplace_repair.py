@@ -1139,18 +1139,27 @@ def repair(
     if decision.get("action") != expected_action:
         raise XRepairRefused(
             f"X guard did not authorize {expected_action}"
-        )
+    )
     remote_proof = decision.get("remote")
+    repairable_content_mismatch = (
+        isinstance(remote_proof, dict)
+        and remote_proof.get("repairable_content_mismatch") is True
+        and remote_proof.get("reason") == "x-draft-content-mismatch"
+    )
     if expected_action == "publish" and not (
         isinstance(remote_proof, dict)
         and remote_proof.get("status") == "not-live"
         and remote_proof.get("verified") is True
-        and remote_proof.get("content_verified") is True
+        and (
+            remote_proof.get("content_verified") is True
+            or repairable_content_mismatch
+        )
         and remote_proof.get("artifact_sha256") == sha256(source)
         and remote_proof.get("target") == target
         and remote_proof.get("destination_identity") == expected_identity
         and remote_proof.get("identity_verified") is True
         and remote_proof.get("identity_source") == "x-authenticated-edit-url"
+        and remote_proof.get("source") == "x-cdp-saved-article-editor"
     ):
         raise XRepairRefused("X draft target/content readback proof is incomplete")
     work = state_path.parent / "x-inplace-repair" / language

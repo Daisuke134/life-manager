@@ -2398,6 +2398,7 @@ class PublicationStore:
             "errors": (
                 "ambiguous-x-draft-view",
                 "x-article-body-scope-ambiguous",
+                "x-draft-content-mismatch",
                 "canonical-content-readback-failed",
                 "public-asset-readback-failed",
                 "destination-media-readback-failed",
@@ -2421,6 +2422,7 @@ class PublicationStore:
             "errors": (
                 "ambiguous-x-draft-view",
                 "x-article-body-scope-ambiguous",
+                "x-draft-content-mismatch",
                 "canonical-content-readback-failed",
                 "public-asset-readback-failed",
                 "destination-media-readback-failed",
