@@ -219,13 +219,14 @@ Long waits belong in persisted `next_eligible_at` state and launchd cadence.
 - Symptom: an effectful owner is fenced after an observation failure that
   happened before any provider dispatch. Wrong instinct: clear all unknown
   claims or repeatedly restart its browser. Correct action: for an exact
-  allowlisted single-worker entrypoint, write the host's owned 0600
-  `pre_effect_failure` hint before observation and remove it before every
-  provider mutation or notification callback; leave the hint absent whenever
-  any effect might have started. General law: exit status alone cannot prove
-  pre-effect failure, and notifications are external effects too. Example: a
-  reply observer timed out before opening its inbox, while a later message POST
-  must remain fenced if its readback fails.
+  allowlisted entrypoint, write the host's owned 0600 `pre_effect_failure`
+  hint before observation and remove it before every provider mutation or
+  notification callback. Parallel workers share one hint; the first worker
+  about to mutate removes it. A successful kernel removes any remaining hint
+  before handing control to a downstream reporter. General law: exit status
+  alone cannot prove pre-effect failure, and notifications are external effects
+  too. Example: a reply observer timed out before opening its inbox, while a
+  four-worker Paid observer retained a hint only until its first real effect.
 - Symptom: a loop recreates an already published item after a successful wake.
   Wrong instinct: patch the provider form selector or retry creation. Correct
   action: compare the provider's exact published IDs with every writer of the
