@@ -43,6 +43,14 @@ JOB_GROUPS = (
 GROUPS_READ_PER_WAKE = 5
 
 
+def _bind_runtime_occurrence(result, occurrence_id=None):
+    data = dict(result)
+    if (isinstance(occurrence_id, str)
+            and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", occurrence_id)):
+        data["occurrence_id"] = occurrence_id
+    return data
+
+
 def _group_cursor():
     try: value = json.loads((STATE / "application-owner.json").read_text(encoding="utf-8")).get("next_group_index", 0)
     except (OSError, ValueError, AttributeError): return 0
@@ -357,6 +365,7 @@ def main():
     # Reporting is a separate owner (crowdworks-revenue-report). Apply owns submissions only, so a
     # failed or slow report can never hold up an application, and vice versa.
     result["next_group_index"] = (group_cursor + GROUPS_READ_PER_WAKE) % len(JOB_GROUPS) if result.get("ok") else group_cursor
+    result = _bind_runtime_occurrence(result, os.environ.get("LIFE_MANAGER_OCCURRENCE_ID"))
     result["observed_at"]=now.isoformat();_write_status(result);print(json.dumps(result,ensure_ascii=False,separators=(",",":")));return 0 if result.get("ok") else 1
 
 if __name__=="__main__":raise SystemExit(main())
