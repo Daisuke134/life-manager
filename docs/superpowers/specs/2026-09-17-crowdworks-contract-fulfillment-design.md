@@ -113,11 +113,13 @@ not a claim that money has been earned.
    for Application `18d5fce56607e540-6666`, Reply `18d5fa8f9d73cad8-49973`, and Paid
    `18d62cf32eb0c678-48194` only when an exact run receipt or run-wide marker exists. Clear a row only with
    exact evidence; never guess and never reinterpret a browser timeout as a provider effect.
-2. **Wake all three installed owners without waiting for a global slot.** After exact reconciliation,
-   kickstart Application, Reply and Paid one at a time and read each terminal receipt plus its official
-   provider readback. Application must prove the proposal receipt, Reply only pre-contract negotiation,
-   and Paid the five-contract fulfillment inventory. A blocked item stays independently represented so
-   other items can advance.
+2. **Align and wake all three installed owners without waiting for a global slot.** After exact
+   reconciliation, read each loaded immutable SHA; Application and Reply currently load `37384185`, while
+   Paid loads `8be258fc`. Apply a compatible main-derived release to a stale owner through the target-only
+   path, read back its loaded argv, then kickstart Application, Reply and Paid one at a time. Read each
+   terminal receipt plus its official provider readback: Application must prove the proposal receipt, Reply
+   only pre-contract negotiation, and Paid the five-contract fulfillment inventory. A blocked item stays
+   independently represented so other items can advance.
 3. **Finish `63657015` safely.** Inspect the exact provider/form readback for the persisted intent. If no
    effect occurred, read the full hearing/common-test instructions, produce the requested artifact, submit
    only the applicable work and verify it. Do not fabricate the requested AI share link.
