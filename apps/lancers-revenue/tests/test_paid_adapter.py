@@ -81,6 +81,20 @@ class LancersPaidAdapterTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "lancers_paid_inventory_unavailable"):
             adapter.observe_active()
 
+    def test_readback_marks_absent_work_only_after_complete_inventory(self):
+        module = load()
+        adapter = module.LancersPaidAdapter(
+            account_id="seller-1",
+            inventory_reader=lambda: {
+                "ok": True, "source_complete": True, "contract_candidates": [],
+                "boards": [], "finance": {"source_complete": True},
+            },
+        )
+        self.assertEqual(
+            adapter.readback({"work_id": "project:7"}),
+            {"verified": False, "authoritative_absent": True},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
