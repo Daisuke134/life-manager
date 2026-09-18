@@ -513,6 +513,31 @@ def build(argv): return Adapter(), decide
     }
 
 
+def test_cli_binds_provider_inventory_failure_to_runtime_occurrence(
+        tmp_path: Path, monkeypatch) -> None:
+    provider = tmp_path / "provider.py"
+    provider.write_text("""
+class Adapter:
+    def observe_active(self): raise RuntimeError("inventory unavailable")
+    def observe_one(self, work_id): raise AssertionError
+    def context(self, work_id): raise AssertionError
+    def mutate(self, intent): raise AssertionError
+    def readback(self, intent): raise AssertionError
+def decide(row): raise AssertionError
+def build(argv): return Adapter(), decide
+""", encoding="utf-8")
+    output = tmp_path / "result.json"
+    monkeypatch.setenv("LIFE_MANAGER_OCCURRENCE_ID", "fixture-paid:inventory-bound")
+
+    assert paid.main([
+        "--provider-adapter", str(provider), "--state-root", str(tmp_path / "state"),
+        "--output", str(output),
+    ]) == 1
+
+    result = json.loads(output.read_text(encoding="utf-8"))
+    assert result["occurrence_id"] == "fixture-paid:inventory-bound"
+
+
 def test_cli_marks_provider_inventory_failure_as_pre_effect_failure(tmp_path: Path, monkeypatch) -> None:
     provider = tmp_path / "provider.py"
     provider.write_text("""
