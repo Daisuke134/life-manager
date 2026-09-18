@@ -1545,3 +1545,39 @@ PII失敗runの安全な再開、日次連続公開、公式readbackの連続証
 | 5 | revenueをsource-backedに算定 | received revenue、payout、cost、profit、active MRRを分離し、$10K MRRの実測可否を報告 |
 
 **現在の結論:** 一回の4媒体公開・公式readback・completion・replay-zeroは実証済みで、Writer loopは「一度も動かない」状態ではない。未完了の本質は、candidate修正をmain由来releaseへ統合したうえでの日次連続観測と、実際の入金receiptである。最大の短期ボトルネックはarticle-dailyの自然wakeと共有revenue FIFOであり、X provider認証ではない。
+
+## 2026-09-19 current measured status (latest cursor)
+
+この節がこのspecの最新cursorである。対象はLife Manager Main内の唯一のWriter loopだけであり、candidateをproduction successへ昇格させない。
+
+### 今回の実測で完了したこと
+
+- run `20260918-172903` のactive-four 4件を、同一immutable artifact・同一targetで公式readbackした。
+  - Note JA: `https://note.com/anicca123/n/n0d1e76d41ab1`、public id `n0d1e76d41ab1`、price `500`、本文／owner／eyecatch／body media PASS。
+  - Substack JA: `https://aniccabuddha.substack.com/p/x`、draft id `216340163`、paid-only／paywall／本文／headline+body exact SHA／identity PASS。
+  - Substack EN: `https://aniccaai2026.substack.com/p/the-post-is-not-the-product-turn`、draft id `216340184`、JAとは別publication、paid-only／paywall／本文／media／identity PASS。
+  - X Article JA: `https://x.com/diceai0/article/2101021990039760968`、public id `2101021990039760968`、保存済み edit target `https://x.com/compose/articles/edit/2101003373684375552` の同一target repair、本文／owner／cover+body media PASS。
+- Substackの実測では `verify-preview` が両言語とも `images=2`, `tallest=900px`, `PASS`。公開後に `SELF_VERIFY_OK`（JA `images_found=26`、EN `images_found=14`）を取得した。
+- `article-run-complete.py --armed 1` は rc 0。直後の `publication_resume.py plan` は2回とも `{"resumable":false,"reason":"all-complete"}`（replay-zero）。最新 state SHA は `0f1ded90ed1c6c8d7549700ebda7c18434a9eeed00419d8c898538505f8fb4d9`、ledger SHA は `0ee508b1b9c4dcc6b8586da11386134454d26e7cf214e94ac654955fe8bd986c`。
+- stale Substack media cache は source SHA 付きへ変更し、same-ID refresh は `gates/substack-refresh/` を作ってから immutable media を再埋め込みするよう修正した。Substack payload は bytesを変更せず `resizeWidth=600` とし、portrait headlineでもpreview gate内に収めた。wrapperのbare `python3` は `LIFE_MANAGER_PYTHON`（Pillow入りmanaged venv）へ固定した。
+- 変更は branch `fix/writer-main-integration-20260919` の commit `f11a77448b46a270fe3658c6ac28ccd226170d77` までpush済み。candidate release は `/Users/anicca/loops/releases/20260919T035041-f11a7744`（`pushed-not-yet-on-main`、`current`未変更）である。
+
+### まだ完了していないこと／阻塞
+
+- **main統合とproduction反映:** candidateはorigin/mainの祖先ではなく、main merge・fresh review・main由来immutable release cut・loaded `article-daily`/`article-resume` argvの更新は未完了。現在のloaded plistは daily `aabbd694`、resume `7e4f7ac5` のままで、今回の修正を日次SLOの証拠には数えない。
+- **日次SLO:** 今回の4面liveは1 runだけ。7日（最低）または21 scheduled source runsの自然terminal、各日4面native live、重複外部作用0、連続replay-zeroは未取得。
+- **Telegram completion receipt:** 今回の直接resumeでは `Telegram target is required` が残り、completion message IDは未取得。URLとprovider readback自体はstate／ledgerに保存済み。
+- **収益:** `money_events=0`、`subscription_contracts=0`、`commercial_payment_bindings=0`、`payouts=0`。Noteの¥500やSubstack paid-onlyは価格／アクセス設定のreadbackであって、販売・入金・active MRRではない。確定売上¥0、`$10K MRR`未達。
+- **運用阻塞:** disk floor（`1,155,780,608` bytes）とshared revenue FIFOが自然wakeを遅らせうる。今回の再実行前にはopen handleのない再生成可能 `~/.cache/puppeteer` 約555MBだけを削除し、`.cloak`・state・release・active browser cacheは保持した。admission DBの手編集、他loop停止、slot bypassはしていない。
+
+### 次のTODO（成果基準順）
+
+| 順序 | 作業 | 完了条件 |
+|---:|---|---|
+| 1 | `f11a774` をfresh read-only reviewし、mainへ統合してmain由来immutable releaseをcut | main祖先SHA、release SHA、loaded argvが一致し、focused Writer tests PASS |
+| 2 | safe idle窓で `article-daily`／`article-resume`へmain由来releaseをapplyし、自然wakeをkickstart | loaded releaseとevent SHAが一致し、新runの4面native readbackがPASS |
+| 3 | 7日（推奨21 source runs）を自然観測 | 各run4面live、自然terminal、effect fence 0、replay-zero、Telegram receipt |
+| 4 | publisher/payment receiptをmoney ledgerへjoin | receipt id・金額・通貨・destination・runをsource付きで記録 |
+| 5 | received revenue／payout／cost／profit／active MRRを分離集計 | `$10K MRR`の実測可否をunknownを残して報告 |
+
+**最新結論:** Writerは「一度も動かない」状態ではない。今回の run は4平台の公開・公式readback・completion・replay-zeroまで実証済みだが、candidate-onlyの手動resumeであり、日次自然運転、main統合、Telegram completion、実入金は未完了である。現在の最大ボトルネックは provider 認証ではなく、main由来releaseへの昇格とshared admission FIFOを含む自然wakeの連続証拠である。
