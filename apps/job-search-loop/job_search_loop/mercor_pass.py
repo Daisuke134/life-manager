@@ -141,6 +141,32 @@ def _recent_listing_ids(path: Path, limit: int = 200) -> list[str]:
     return list(dict.fromkeys(identifiers))
 
 
+def _recent_inspections(path: Path, limit: int = 200) -> list[dict[str, Any]]:
+    if not path.is_file():
+        return []
+    latest: dict[str, dict[str, Any]] = {}
+    for line in path.read_text(encoding="utf-8").splitlines()[-limit:]:
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(value, dict):
+            continue
+        listing_id = value.get("listing_id")
+        if not isinstance(listing_id, str) or not listing_id.strip():
+            continue
+        latest[listing_id.strip()] = {
+            "listing_id": listing_id.strip(),
+            "title": str(value.get("title") or ""),
+            "url": str(value.get("url") or ""),
+            "decision": str(value.get("decision") or ""),
+            "ranking_band": str(value.get("ranking_band") or ""),
+            "provider_fit_status": str(value.get("provider_fit_status") or "unknown"),
+            "application_state": str(value.get("application_state") or ""),
+        }
+    return list(latest.values())
+
+
 def _profile_material(profile_path: Path, resume_path: Path) -> dict[str, Any]:
     """Bind each pass to the exact private facts and résumé it inspected.
 
@@ -218,6 +244,7 @@ def build_context(
         ),
         "submitted_listing_ids": sorted(submitted_listing_ids),
         "recently_inspected_listing_ids": _recent_listing_ids(inspection_ledger),
+        "recently_inspected_listings": _recent_inspections(inspection_ledger),
         "shared_apply_context": _shared_apply_context(profile_path),
         "mercor_auth_context": _mercor_auth_context(profile_path),
         "host_capabilities": _host_capabilities(),
@@ -280,6 +307,8 @@ def record_inspections(state_root: Path, result: dict[str, Any], *, run_id: str)
                 continue
             output.write(json.dumps({
                 "listing_id": listing_id.strip(),
+                "title": str(item.get("title") or ""),
+                "url": str(item.get("url") or ""),
                 "decision": str(item.get("decision") or ""),
                 "ranking_band": str(item.get("ranking_band") or ""),
                 "ranking_evidence": item.get("ranking_evidence")
@@ -287,6 +316,7 @@ def record_inspections(state_root: Path, result: dict[str, Any], *, run_id: str)
                 "provider_fit_status": str(item.get("provider_fit_status") or "unknown"),
                 "requirement_evidence": item.get("requirement_evidence")
                 if isinstance(item.get("requirement_evidence"), list) else [],
+                "application_state": str(item.get("application_state") or ""),
                 "strategy_version": str(item.get("strategy_version") or MERCOR_STRATEGY_VERSION),
                 "run_id": run_id,
                 "observed_at": datetime.now(timezone.utc).isoformat(),
@@ -452,48 +482,22 @@ def validate_evidence_paths(result: dict[str, Any], evidence_root: Path) -> None
 
 
 def validate_bounded_scan(result: dict[str, Any], evidence_root: Path | None = None) -> None:
-    """Do not accept a model's early exit while its evidence exposes a full queue."""
+    """Keep the detail-page scan bounded without forcing low-fit filler pages."""
     if result.get("status") in {"blocked", "submitted"}:
         return
-    evidence = result.get("evidence")
-    dom_path = evidence.get("dom_path") if isinstance(evidence, dict) else None
-    visible_ids: set[str] = set()
-    try:
-        if isinstance(dom_path, str) and dom_path.strip():
-            visible_ids.update(re.findall(
-                r"listingId(?:=|%3D)(list_[A-Za-z0-9_-]+)",
-                Path(dom_path).read_text(encoding="utf-8", errors="replace"),
-            ))
-    except OSError:
-        pass
-    if evidence_root is not None:
-        for query_path in evidence_root.expanduser().resolve().rglob("target-query-cards.json"):
-            try:
-                payload = json.loads(query_path.read_text(encoding="utf-8"))
-            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-                continue
-            groups = payload.values() if isinstance(payload, dict) else ()
-            for cards in groups:
-                if not isinstance(cards, list):
-                    continue
-                for card in cards:
-                    if not isinstance(card, dict):
-                        continue
-                    listing_id = card.get("id") or card.get("listing_id")
-                    if isinstance(listing_id, str) and listing_id.startswith("list_"):
-                        visible_ids.add(listing_id)
     inspected = {
         item.get("listing_id")
         for item in result.get("inspected_listings", [])
-        if isinstance(item, dict) and isinstance(item.get("listing_id"), str)
+        if isinstance(item, dict)
+        and item.get("application_state") != "card_only"
+        and isinstance(item.get("listing_id"), str)
     }
-    required = min(12, len(visible_ids))
-    if required and len(inspected) < required:
-        raise ValueError(f"bounded_scan_incomplete:{len(inspected)}_of_{required}")
+    if len(inspected) > 12:
+        raise ValueError(f"bounded_scan_exceeded:{len(inspected)}_of_12")
 
 
 def validate_priority_scan(result: dict[str, Any], evidence_root: Path) -> None:
-    """Require observed Japanese and resumable candidates before a successful pass."""
+    """Require visible priority cards to have a recorded candidate-local decision."""
     if result.get("status") in {"blocked", "submitted"}:
         return
     inspected = {
@@ -515,6 +519,25 @@ def validate_priority_scan(result: dict[str, Any], evidence_root: Path) -> None:
         for listing_id, title in card.findall(text):
             if re.search(r"Japanese|Japan|日本語", title, re.IGNORECASE):
                 required.add(listing_id)
+        if path.name == "target-query-cards.json" or path.name.startswith("query-"):
+            try:
+                payload = json.loads(text)
+            except json.JSONDecodeError:
+                continue
+            groups = payload if isinstance(payload, list) else payload.values() if isinstance(payload, dict) else ()
+            if isinstance(payload, dict) and isinstance(payload.get("cards"), list):
+                groups = [payload.get("cards")]
+            for cards in groups:
+                if not isinstance(cards, list):
+                    continue
+                for item in cards:
+                    if not isinstance(item, dict):
+                        continue
+                    listing_id = item.get("listing_id") or item.get("id")
+                    title = item.get("title") or item.get("text") or ""
+                    if (isinstance(listing_id, str) and listing_id.startswith("list_")
+                            and re.search(r"Japanese|Japan|日本語", str(title), re.IGNORECASE)):
+                        required.add(listing_id)
     missing = sorted(required - inspected)
     if missing:
         raise ValueError(f"priority_scan_incomplete:{','.join(missing)}")
