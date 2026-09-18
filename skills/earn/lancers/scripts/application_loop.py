@@ -2,7 +2,7 @@
 """Plan every visible Lancers opportunity and submit every eligible one."""
 from __future__ import annotations
 
-import argparse, hashlib, inspect, json, os, re, shutil, subprocess, sys, tempfile, time, uuid
+import argparse, fcntl, hashlib, inspect, json, os, re, shutil, subprocess, sys, tempfile, time, uuid
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta, timezone
 import importlib.util
@@ -408,14 +408,26 @@ def _run_default_discovery(tick_value: object, timeout: float, state_path: Path,
         "already_decided_count": decided_count,
     }
 
+def _attribution_hash(value: object) -> str:
+    return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
 def _seller_proof() -> dict[str, object]:
     product = json.loads(PRODUCT_PATH.read_text(encoding="utf-8")); portfolio = product["portfolio"]; software_portfolio = product["software_portfolio"]; software = PUBLIC_SOFTWARE_PROOF
+    product_id, product_version = product.get("product_id"), product.get("product_version")
+    if not isinstance(product_id, str) or not product_id.strip() or type(product_version) is not int or product_version < 1:
+        raise ValueError
     ids = (product["listing_external_id"], portfolio["external_id"], software_portfolio["external_id"])
     strings = (product["title_stem"], product["description"], product["notice"], portfolio["title_stem"], portfolio["description"], software_portfolio["title_stem"], software_portfolio["description"])
     if not isinstance(software, Mapping) or set(software) != {"source_url", "title", "description", "license"} or software.get("source_url") != "https://github.com/Daisuke134/life-manager" or any(not isinstance(software.get(key), str) or not software[key].strip() for key in ("title", "description", "license")): raise ValueError
     if any(not isinstance(value, str) or not value.strip() for value in ids + strings) or any(ID_RE.fullmatch(value) is None for value in ids): raise ValueError
     plans = [{key: plan[key] for key in ("description", "delivery_days", "price_jpy")} for plan in product["plans"]]
     return {
+        "catalog_product_id": product_id,
+        "catalog_product_version": product_version,
+        "profile_version": _attribution_hash(product["seller_profile"]),
+        "proof_version": _attribution_hash({"portfolio": portfolio, "software_portfolio": software_portfolio}),
+        "price_version": _attribution_hash(plans),
         "profile_url": "https://www.lancers.jp/profile/keiodaisuke",
         "portfolio_id": ids[1], "portfolio_url": f"https://www.lancers.jp/profile/keiodaisuke/portfolio_popup/{ids[1]}",
         "portfolio_title": portfolio["title_stem"] + "ました", "portfolio_description": portfolio["description"],
@@ -425,6 +437,48 @@ def _seller_proof() -> dict[str, object]:
         "package_title": product["title_stem"] + "ます", "package_scope": product["description"], "package_exclusions": product["notice"], "plans": plans,
         "public_software_proof": dict(software),
     }
+
+
+def _record_attribution(path: Path, record: Mapping[str, object]) -> bool:
+    required = ("application_external_id", "opportunity_external_id", "proposal_version", "profile_version", "proof_version", "price_version")
+    if any(not isinstance(record.get(field), str) or not str(record[field]).strip() for field in required):
+        raise ValueError("attribution_record_invalid")
+    if any(ID_RE.fullmatch(str(record[field])) is None for field in required[:2]):
+        raise ValueError("attribution_id_invalid")
+    if any(not isinstance(record[field], str) or not re.fullmatch(r"[0-9a-f]{64}", record[field]) for field in required[2:]):
+        raise ValueError("attribution_version_invalid")
+    normalized = {
+        "schema_version": 1,
+        "record_type": "lancers_conversion_attribution",
+        "platform": PLATFORM,
+        "idempotency_key": f"{PLATFORM}:conversion-attribution:{record['application_external_id']}:v1",
+        "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        **{key: record[key] for key in required},
+        **{key: record[key] for key in ("catalog_product_id", "catalog_product_version", "proposed_amount_minor") if key in record},
+    }
+    path = Path(path).expanduser().resolve()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = path.with_name(path.name + ".lock")
+    with lock_path.open("a+", encoding="utf-8") as lock:
+        os.chmod(lock_path, 0o600)
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        try:
+            existing = set()
+            if path.exists():
+                for line in path.read_text(encoding="utf-8").splitlines():
+                    value = json.loads(line)
+                    if isinstance(value, Mapping) and isinstance(value.get("idempotency_key"), str):
+                        existing.add(value["idempotency_key"])
+            if normalized["idempotency_key"] in existing:
+                return False
+            with path.open("a", encoding="utf-8") as output:
+                os.chmod(path, 0o600)
+                output.write(json.dumps(normalized, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n")
+                output.flush()
+                os.fsync(output.fileno())
+            return True
+        finally:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 def _snapshot(rows: Sequence[Mapping[str, object]], today: date) -> dict[str, object]:
     if len(rows) > MAX_OPPORTUNITIES: raise ValueError
@@ -956,6 +1010,26 @@ def _plan_and_submit(rows: Sequence[Mapping[str, object]], today: date, evidence
             verified.append(current)
             reports_by_id[project_id]["outcome"] = "application_verified"
             reports_by_id[project_id]["provider_proposal_id"] = current.provider_proposal_id
+            try:
+                if not isinstance(current.provider_proposal_id, str) or ID_RE.fullmatch(current.provider_proposal_id) is None:
+                    raise ValueError("provider_proposal_id_invalid")
+                proof = _seller_proof()
+                _record_attribution(
+                    Path(state_path).with_name("application-attribution.jsonl"),
+                    {
+                        "application_external_id": str(current.provider_proposal_id),
+                        "opportunity_external_id": project_id,
+                        "proposal_version": _attribution_hash(proposal),
+                        "profile_version": str(proof["profile_version"]),
+                        "proof_version": str(proof["proof_version"]),
+                        "price_version": str(proof["price_version"]),
+                        "catalog_product_id": proof["catalog_product_id"],
+                        "catalog_product_version": proof["catalog_product_version"],
+                        "proposed_amount_minor": amount,
+                    },
+                )
+            except Exception as error:
+                reports_by_id[project_id]["attribution_error"] = type(error).__name__
             continue
         if _provider_terminal_blocked(current):
             blocked.append(project_id)
