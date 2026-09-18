@@ -908,6 +908,24 @@ class MercorPassContractTests(unittest.TestCase):
                     root,
                 )
 
+    def test_human_gate_accepts_missing_dom_when_current_screenshot_exists(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            screenshot = root / "gate.png"
+            screenshot.write_bytes(b"png")
+            validate_evidence_paths(
+                {
+                    "status": "needs_human",
+                    "evidence": {
+                        "page_url": "https://work.mercor.com/explore",
+                        "screenshot_path": str(screenshot),
+                        "dom_path": str(root / "detail-after-start.json"),
+                    },
+                    "submitted": [],
+                },
+                root,
+            )
+
     def test_context_binds_the_current_evidence_directory(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
