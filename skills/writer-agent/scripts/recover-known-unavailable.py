@@ -16,6 +16,7 @@ from typing import Any
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 NOTE_RUNTIME_ERROR = "note_mcp_venv_missing"
+NOTE_BROWSER_RUNTIME_ERROR = "note-eyecatch-module-not-found:cloakbrowser"
 NOTE_S3_UPLOAD_ERROR = "note-body-image-s3-403-embedded-0-of-1"
 SUBSTACK_BROWSER_ERROR = "substack_editor_redirect_own_eyes_unverified"
 SUBSTACK_PROBE_TIMEOUT_SECONDS = 45
@@ -188,22 +189,27 @@ def recover_state(state_path: Path, *, allow_zenn_intent: bool = False) -> None:
     if (
         isinstance(note, dict)
         and note.get("status") == "unavailable"
-        and note.get("error") == NOTE_RUNTIME_ERROR
+        and note.get("error") in {NOTE_RUNTIME_ERROR, NOTE_BROWSER_RUNTIME_ERROR}
         and not note.get("receipt")
     ):
-        note_source = os.environ.get(
-            "NOTE_MCP_SRC",
-            str(SCRIPT_DIR.parent / "vendor/note-mcp/src"),
-        )
         runtime_python = os.environ.get("WRITER_BROWSER_PYTHON", "python3")
-        note_env = {
-            **env,
-            "NOTE_MCP_SRC": note_source,
-            "PYTHONPATH": note_source + (
-                os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
-            ),
-        }
-        if run([runtime_python, "-c", "import note_mcp.api.articles"], env=note_env):
+        if note.get("error") == NOTE_BROWSER_RUNTIME_ERROR:
+            import_check = [runtime_python, "-c", "import cloakbrowser"]
+            import_env = env
+        else:
+            note_source = os.environ.get(
+                "NOTE_MCP_SRC",
+                str(SCRIPT_DIR.parent / "vendor/note-mcp/src"),
+            )
+            import_check = [runtime_python, "-c", "import note_mcp.api.articles"]
+            import_env = {
+                **env,
+                "NOTE_MCP_SRC": note_source,
+                "PYTHONPATH": note_source + (
+                    os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
+                ),
+            }
+        if run(import_check, env=import_env):
             run(
                 ["python3", guard, "clear-unavailable", "--pair", "note/ja"],
                 env=env,
