@@ -53,6 +53,14 @@ Pass order:
    under the current `evidence_dir` before starting the next query. If the input value or cards
    do not reflect the query, retry once with `type_target`; if it still does not match, record
    that query as unavailable and continue without treating the default cards as query results.
+   Treat the union of the six query card lists as the first candidate queue; rank that union
+   before opening any default Explore card. Do not select a candidate by default Explore DOM order.
+   Open the strongest truthful-fit unseen card from that query union first, using its exact
+   observed card anchor, and continue with the remaining union after a submitted-pending-review
+   observation, unsuitable candidate, or human gate. Do not clear the search or start default
+   Explore pagination while a plausible unseen high/medium-fit candidate from the query union
+   remains. Search-result collection alone does not inspect those candidates; a title match is
+   only a reason to inspect, and eligibility still requires live detail evidence.
    Collect and deduplicate each query's visible cards before opening any detail; if the
    control is unavailable, record that observation and continue with the default Explore queue.
    Start every wake at Explore page 1 when pagination is visible. Collect the distinct listing

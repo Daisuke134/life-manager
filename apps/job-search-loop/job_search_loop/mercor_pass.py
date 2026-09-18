@@ -451,21 +451,37 @@ def validate_evidence_paths(result: dict[str, Any], evidence_root: Path) -> None
             raise ValueError(f"{label}_missing")
 
 
-def validate_bounded_scan(result: dict[str, Any]) -> None:
+def validate_bounded_scan(result: dict[str, Any], evidence_root: Path | None = None) -> None:
     """Do not accept a model's early exit while its evidence exposes a full queue."""
     if result.get("status") in {"blocked", "submitted"}:
         return
     evidence = result.get("evidence")
     dom_path = evidence.get("dom_path") if isinstance(evidence, dict) else None
-    if not isinstance(dom_path, str) or not dom_path.strip():
-        return
+    visible_ids: set[str] = set()
     try:
-        visible_ids = set(re.findall(
-            r"listingId(?:=|%3D)(list_[A-Za-z0-9_-]+)",
-            Path(dom_path).read_text(encoding="utf-8", errors="replace"),
-        ))
+        if isinstance(dom_path, str) and dom_path.strip():
+            visible_ids.update(re.findall(
+                r"listingId(?:=|%3D)(list_[A-Za-z0-9_-]+)",
+                Path(dom_path).read_text(encoding="utf-8", errors="replace"),
+            ))
     except OSError:
-        return
+        pass
+    if evidence_root is not None:
+        for query_path in evidence_root.expanduser().resolve().rglob("target-query-cards.json"):
+            try:
+                payload = json.loads(query_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            groups = payload.values() if isinstance(payload, dict) else ()
+            for cards in groups:
+                if not isinstance(cards, list):
+                    continue
+                for card in cards:
+                    if not isinstance(card, dict):
+                        continue
+                    listing_id = card.get("id") or card.get("listing_id")
+                    if isinstance(listing_id, str) and listing_id.startswith("list_"):
+                        visible_ids.add(listing_id)
     inspected = {
         item.get("listing_id")
         for item in result.get("inspected_listings", [])
@@ -609,7 +625,7 @@ def main(argv: list[str] | None = None) -> int:
         return 75
     try:
         validate_evidence_paths(result, args.evidence_dir.parent)
-        validate_bounded_scan(result)
+        validate_bounded_scan(result, args.evidence_dir.parent)
         validate_priority_scan(result, args.evidence_dir.parent)
         validate_submission_fit(result)
     except ValueError as error:
