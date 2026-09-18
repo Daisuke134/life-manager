@@ -647,6 +647,10 @@ synthetic row, decide whether a rollout milestone is closed.
   has no reply markup/buttons, and is not an outgoing user message. The Bot API and MTProto IDs are
   different API identifiers; their same-second/template match is recorded without assuming an ID
   equivalence.
+- Midday/evening on this local day are correctly suppressed by the shared trailing-24-hour cap:
+  two legacy receipts plus the morning V1 receipt already consume the three-message budget. This
+  is not a canary failure or permission to delete history; family coverage continues on the next
+  natural local day.
 - The signed outcome bridge has only synthetic proof so far. Its test row, send receipt, and
   Telegram message were deleted and do not count toward the natural canary.
 - The following work is still open; the order is intentional and is the execution cursor for this
@@ -670,9 +674,10 @@ synthetic row, decide whether a rollout milestone is closed.
 
 **Primary blocker:** the natural seven-day provider observation has only one morning row. Its
 provider-native Telegram body is now read back, but midday and evening families plus six more local
-days are still missing. The structural evaluator reports one V1 row and `pass=true`, but that does
-not prove family coverage, spacing, cap behavior, or replay-zero. This is a wall-clock dependency,
-not a code or test failure.
+days are still missing. Today’s remaining windows are safely cap-suppressed by two legacy receipts;
+the next opportunity is the next local day. The structural evaluator reports one V1 row and
+`pass=true`, but that does not prove family coverage, spacing, cap behavior, or replay-zero. This is
+a wall-clock/state-history dependency, not a code or test failure.
 Clock manipulation, synthetic rows, or a local unit-test pass cannot close it.
 
 **Release consequence:** keep `LM_MENTAL_V1_ALLOWED_UIDS` restricted to Dais and do not expand to
