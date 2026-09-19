@@ -110,7 +110,9 @@ Pass order:
    application-card button once, wait for the application detail or URL to change, and read back
    the title, step count, and URL. If the physical click leaves the page unchanged, invoke
    `.click()` once on that same exact observed application-card button and wait again. Only after
-   each attempt, wait up to five seconds for the detail surface to render. Accept only a URL
+   each attempt, wait up to five seconds for the detail surface to render. If both attempts
+   leave the page unchanged, focus the same exact observed application-card button and send
+   one Enter key, then wait up to five seconds again; Do not send Enter more than once. Accept only a URL
    change or visible detail heading/step summary as readback; focus or selected styling is not
    detail readback. Only after both attempts and this bounded wait may you record
    `listing_detail_not_rendered`; an absent href is not a broken application card.
