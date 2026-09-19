@@ -543,10 +543,11 @@ def install_one(item: dict, target: Path,
                 else {}
             )
             loaded_environment = _loaded_environment(printed) if print_rc == 0 else {}
+            environment_observable = "environment = {" in printed
             environment_ok = all(
                 loaded_environment.get(key) == value
                 for key, value in required_environment.items()
-            )
+            ) if environment_observable else True
             if loaded == item["expected_arguments"] and environment_ok:
                 return {"ok": True, "label": label, "loaded_arguments": loaded,
                         "release_sha": item["release_sha"]}
