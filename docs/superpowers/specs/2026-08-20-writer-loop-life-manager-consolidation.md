@@ -1784,3 +1784,66 @@ dormantなので、公開していないこと自体が未完了ではなく、�
 
 **残TODO:** 次のnatural runで`/lm` CTAを確認し、7日／21 scheduled runsの4面liveを積み上げる。同時にCTA click、checkout、settled payment、fee、payoutを
 同一artifact/runへjoinするまで、収益とMRRはunknown／¥0のまま扱う。
+
+## 2026-09-19 current runtime audit (latest cursor)
+
+この節が現在の運用状態の正本であり、上の過去節を上書きする。対象はLife Manager Main内の単一Writer loop
+（`article-daily`生成、`article-resume`再開、`writer-report`通知、`writer-money-sync`計測）だけである。
+候補、draft、intent、価格設定、送信受付は、native live publicationまたはsettled paymentの代わりにしない。
+
+### Done (実測済み)
+
+- `origin/main=262caeb53bb0b37fa1ff25e954e091c40896ac33`で、`/Users/anicca/loops/current`は
+  `/Users/anicca/loops/releases/20260919T121307-262caeb5`を指す。`RELEASE.json`は
+  `provenance=ancestor-of-origin-main`、`release_paths=ALL`を示す。main統合とimmutable release cutは完了している。
+- active-four契約（Note JA、Substack JA、Substack EN、X Article JA）は、既存の4 run
+  （自然2、recovery-assisted 2）で、各platform-native URL、本文、owner、media、completion Telegram、
+  `article-run-complete rc=0`、`all-complete`再計画、state/ledger不変のreplay-zeroまで実測済みである。
+  最新run `20260919-014228`のcompletion message IDは`89077`。これは「公開不能」ではないことの証拠だが、
+  7日/21 scheduled source runsの日次SLO完了証拠ではない。
+- PR #5682のowner-fence pre-effect hint修正とPR #5685の有料landing CTA (`https://aniccaai.com/lm`) 修正はmainへ統合済み。
+  `/lm`は`$29/mo`のcloud planとTelegram開始導線をHTTP 200でreadbackできる。root `/`をWriterの既定CTAには使わない。
+- active-four以外のZenn JA、Dev.to EN、X Article EN、X Post JAはdormant契約であり、skip receiptを残して公開しないこと自体は未完了ではない。
+- 2026-09-19 02:40 UTCの公式sales measurementでは、Noteは当月売上`¥0`・購入`0`。Substackのpaid subscribers、MRR、累計収益はdashboardが`-`で、推測で0にせずunknownを保持した。
+  `money_events=0`、`subscription_contracts=0`、`commercial_payment_bindings=0`、`payouts=0`も確認済みである。
+
+### Not done / 現在のブロッカー
+
+1. **直近run `20260919-025451` は未完・安全停止。** 11:54 JSTのmanual/kickstart wakeで生成したが、CTA修正前のroot
+   (`https://aniccaai.com`) を含む。Note key `n984df07e0ab5`、Substack draft `216395607`/`216395624` は
+   `intent`段階、Xはedit targetをstageしたがintent登録を拒否し、`publication-state.safety_status=BLOCK`となった。
+   その後のpublisherはdisk/temp不足で`mkdtemp`/`mkstemp`が`ENOENT`となり、runは`rc=124`で終了した。
+   公開URL、completion、active-four成功には数えない。既存draft/intentの公式readbackを束ねてからでなければ再送しない。
+2. **`article-resume`のloaded release driftとeffect fence。** launchd readbackでは`article-daily`がcurrent
+   `262caeb5`だが、`article-resume`は旧`8bab5537`をロードしている。occurrence
+   `18d69b002bdea278-16872`を含む`lm-loop status article-resume`は
+   `last_exit=75`、`host_admission_deferred:resource_effect_unknown`、`loaded-idle`を返す。occurrence-specificな
+   exact pre-effect proofまたは公式provider receiptがない限り、DB手編集・推測clear・blind retryは禁止する。
+3. **通知と収益同期にもhost fenceがある。** `writer-report` occurrence `18d69b05290597c8-17292` は `resource_effect_unknown`、
+   `writer-money-sync`は`resource_control_busy`である。したがって、公開成功を自然なTelegram deliveryやmoney syncの成功へ拡張できない。
+4. **容量不足。** 現在のData volume freeは`590,516 KB`で、Writer canonical floor `1,155,780,608 bytes`を下回る。
+   browser/cacheやrun tempを無条件削除せず、open-handleのない再生成可能キャッシュだけを安全に整理し、floorを超えるまで自然wakeを成功扱いにしない。
+5. **日次SLO未達。** 4面liveは4回あるが、自然な7日（最低）または21 scheduled source runs、各runの4面native readback、
+   completion receipt、effect fence 0、連続replay-zeroは未取得である。
+6. **収益未達・帰属欠落。** `/lm`のlive landingはあるが、現在の固定Telegram deeplink (`?start=lp`) はWriterが渡す
+   `product_id`、`run_id`、`artifact_id`、`variant_id`、`click_id`を決済側へ保持しない。したがってclick→checkout→settled payment→fee→payoutを
+   同一artifact/runへjoinできず、$10K MRRは未証明である。帰属redirectを`anicca-products`へ追加する変更は未実装で、別repoのbehavior changeとして
+   brainstorming承認後にのみ着手する。
+
+### Ordered remaining TODO (成果基準順)
+
+| 順序 | 作業 | 完了条件 |
+|---:|---|---|
+| 1 | `20260919-025451`のNote/Substack draftとX stagingを公式readbackし、安全blockを維持したまま同一runをquarantine/reconcile | provider effectの有無をtarget単位で確定。未確認ならfenceを保持し、再送0 |
+| 2 | `article-resume`のeffect fenceと`writer-report`のmessage fenceをoccurrence-specific証拠で解消 | exact pre-effect resolver receiptまたは公式provider receipt。DB手編集0 |
+| 3 | `article-resume`だけをmain由来`262caeb5`へtarget-only applyし、loaded argv／event SHA／state rootを一致させる | daily/resumeのrelease drift 0、loaded-idle、安全なkickstart境界 |
+| 4 | disk floorを安全なcleanupで回復し、次のnatural runを`/lm` CTA込みで完走 | floor以上、4面native live、CTA path `/lm`、completion Telegram、自然terminal |
+| 5 | 同一runのcompletion/replay-zeroを再確認し、自然7日または21 scheduled source runsを観測 | 各run4面live、重複外部作用0、effect fence 0、failure時も自然文receipt |
+| 6 | `/lm`のclick attributionを実装・検証（別repo、承認後） | query→receipt→Telegram/checkout→settled paymentのrun/artifact joinがnative readback可能 |
+| 7 | publisher/payment/payout receiptをmoney ledgerへ接続し収益を算定 | received revenue、payout、cost、profit、active MRRを分離し、unknownを0へ丸めない |
+
+**現在のボトルネック:** provider認証ではない。第一は `article-resume` の旧release＋effect fence、第二は
+disk floorとshared admission、第三は直近runの未確認draftを安全に閉じること。事業上の最終ボトルネックは、読者clickとsettled paymentの実receiptがまだ0件である。
+
+**現在の結論:** Writer loopのコードと4平台公開能力は実証済み。ただし「毎日各platformへ公開し、実際に稼ぐ」はまだ完了していない。
+残作業は上表の7項目で、特に1〜4を終えるまで日次運転成功を宣言しない。
