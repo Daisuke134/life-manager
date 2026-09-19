@@ -42,7 +42,8 @@ X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dorm
       title、body、owner、headline、paywall、live URLを4件すべて記録する。local testやpublisher `rc=0`だけでは完了にしない。
 - [ ] **W7: 2回目の自然wakeでreplay-zeroを確認する。** 記事、payment row、notification、Telegram attributionの重複effectを0件で確認する。
 - [ ] **W13–W16: 収益joinを完成し、最初のreceived writing paymentを公式provider/payment receiptで確認する。** view、like、pending、available、
-      CTA click、Telegram sendだけは売上ではない。現在、$10K MRRのreceived receiptは存在しない。
+      CTA click、Telegram sendだけは売上ではない。最新readbackはNote今月`¥0 / 0 purchases`、Substackはsubscriber/revenueが`-`でunknown。
+      received payout receiptと$10K MRRの証明は存在しない。
 - [ ] **W17–W21: 7日21 run、14日42 source article、別tenant OSS再現、完全calendar monthのunique net received payoutを順に実測する。**
       完全月のreceived writing payoutがUSD換算で$10,000以上になるまで、目標は未達である。
 
@@ -52,7 +53,8 @@ X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dorm
 2. **host capacity**: floorは`1,155,780,608` bytesで、空きは約1.45GB付近まで変動する。floor未達ならgeneration前にfail-closedする。別ownerのbrowser/sessionを停止して回復しない。
 3. **provider/payment boundary**: 旧releaseのactive-four canaryはliveだが、現行`94c622f3…`のfresh live URLとreceived payout receiptはまだ無い。コード、
       test、loaded/running、provider公開、収益を別々に証明する必要がある。
-4. **sales measurement**: `measure-sales.py`はNote/Substackのprivate env不足で5項目すべて`unknown`を返した。これは$0の証明でも$10Kの証明でもない。
+4. **sales measurement**: private envを正規sourceしてreadback済み。Noteは今月`¥0 / 0 purchases`、Substackは`-`表示でunknown。
+   payment receiptが無く、$10K MRRの証明は無い。
 5. **dormant surfaces**: Zenn JA、Dev.to EN、X Article EN、X Post JAはactive-four外で、enablement receiptが無い。
 
 **Completion rule:** 上記W2a→W2b→W2→W3–W7→W13–W21のreceiptが揃うまで、Writerを「毎日全platformで公開済み」「稼働して$10K MRR」とは報告しない。
