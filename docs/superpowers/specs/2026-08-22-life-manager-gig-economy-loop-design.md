@@ -447,8 +447,8 @@ receipt and resolver call must use the owner-prefixed database identity.
   `owner_id=hf-gig-apply-direct`, occurrence
   `hf-gig-apply-direct:18d5f9cd9f029658-33307`, all four candidate IDs,
   official evidence hashes, and provider states. Output: receipt JSON with exact occurrence identity.
-  Current canonical report: `~/gig/apply-direct/gig-apply-direct-1789611564192685000-46013/reconcile-evidence/a5-canonical-reconciliation-receipt-1789813605.json`
-  (SHA-256 `9d13c81ce495675a6c27feb57f57d56b7e83e6c808927cea20cd5fe9dab76c02`) is an immutable
+  Current canonical report: `~/gig/apply-direct/gig-apply-direct-1789611564192685000-46013/reconcile-evidence/a5-canonical-reconciliation-receipt-1789813818.json`
+  (SHA-256 `53989225c4c7b0faca934e3c814db864650dfb4d53e9d56ed0ca2a3736dda97a`) is an immutable
   `held` reconciliation report with `verified=false`, `resolve_allowed=false` and
   `retry_allowed=false`. The earlier short-ID report is preserved and superseded because it did
   not carry the canonical admission identity. A bounded full-history readback then reached
@@ -458,7 +458,7 @@ receipt and resolver call must use the owner-prefixed database identity.
   and no `応募済み` marker, but this does not resolve the historical occurrence. Runtime fix
   branch `fix/coconala-full-history-www-20260919` commit `f90b82e452` preserves the `www` host
   across pages, accepts resumable page start URLs, and saves a verified prefix when a later page
-  returns 403. The latest chunks read 45 pages and persisted `next_url=...page=46`; the three
+  returns 403. The latest chunks read 49 pages and persisted `next_url=...page=50`; the three
   candidates remain unobserved. The resumable cursor is persisted in
   `a5-www-full-history-cursor-1789813058.json` (SHA-256
   `37d4e57a6772c5c109d9e28864bb4b88ff77764f4298c4ad81ac69c79a41fc7e`). Pass: no candidate
