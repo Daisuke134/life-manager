@@ -25,19 +25,19 @@ X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dorm
 - [x] Writer-owned `effect_unknown` は occurrence-specific なpre-effect proofまたは公式draft readbackで処理済み。DBのadmission fenceと
       `lm-loop status`の過去イベント表示を混同しない。新しいterminal receiptが出るまでstatusの古いunknown表示は残り得る。
 - [x] CTAの固定landing、Life Manager `/start` の帰属ref保存、`writer_attribution_ref` migration、既存のactive-four publisher/gate/replay契約をmainへ統合済み。
+- [x] anicca-products PR #407–#410をmergeし、production valid queryのHTTP `302`と決定的`wr_<32hex>` Telegram Locationをreadback済み。保存receiptはbest-effortで、302を売上receiptとは数えない。
+- [x] Main `94c622f3…`由来immutable releaseを`article-daily`と`article-resume`へtarget-only applyし、plistのargvとsource SHAをreadback済み。
 - [x] 直近のsame-JST-day safety blockは重複公開を防いでおり、同じrunを再送していない。既存runを「今日の公開」とは数えていない。
 - [x] 直前のcanary `20260919-014228` は Note JA、Substack JA、Substack EN、X Article JA の4件を公式readbackし、completion notificationを送信済み。
       ただしこのrunのsourceは現行`94c622f3…`ではないため、最新releaseのfresh canary完了やreplay-zeroの証明にはまだ使わない。
 
 ### Not done yet / remaining cursor
 
-- [ ] **W2: 次の自然JST日を1回だけwakeする。** 実測capacity floor `1,155,780,608` bytes以上をreadbackし、fresh run、source article、
-      article固有headline、GPT Image 2 receipt、quality、completionを揃える。現在のinstalled Writerはsource `8cca66f…`、
-      `/Users/anicca/loops/current` はmain `71d332ae…`なので、公開前にtarget-only reconcileが必要である。
-- [ ] **W2a: CTA帰属導線を本番で成立させる。** anicca-products PR #407で、Supabase receipt保存が失敗しても決定的32桁ref付きTelegram 302を返す。
-      merge後にNetlify deployを確認し、valid queryのHTTP `302`、`Location: https://t.me/LifeManagerBotbot?start=wr_<ref>` をreadbackする。
-- [ ] **W2b: Life Manager deterministic ref parserをmainへmergeし、main由来immutable releaseをcutしてbotへtarget applyする。**
-      UUIDだけを受ける現行installed releaseのままでは、PR #407の32桁refを帰属できない。
+- [ ] **W2: 次の自然JST日を1回だけwakeする。** 実測capacity floor `1,155,780,608` bytes以上をreadbackし、現行release `94c622f3…`でfresh run、
+      source article、article固有headline、GPT Image 2 receipt、quality、completionを揃える。同日runの再送や日付偽装はしない。
+- [x] **W2a: CTA帰属導線を本番で成立させる。** PR #407–#410、deploy #35424169317、custom domain `302` readbackまで完了。
+- [x] **W2b: Life Manager deterministic ref parserをmainへmergeし、immutable releaseへtarget applyする。** PR #5697、Main `94c622f3…`、
+      article-daily/resumeのloaded argv readbackまで完了。
 - [ ] **W3–W6: fresh runについて、Note JA / Substack JA / Substack EN / X Article JAを各provider-native UI/APIでreadbackする。**
       title、body、owner、headline、paywall、live URLを4件すべて記録する。local testやpublisher `rc=0`だけでは完了にしない。
 - [ ] **W7: 2回目の自然wakeでreplay-zeroを確認する。** 記事、payment row、notification、Telegram attributionの重複effectを0件で確認する。
@@ -48,12 +48,12 @@ X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dorm
 
 ### Current blockers
 
-1. **本番CTA**: 旧live endpointは有効queryで503（保存先 unavailable）。PR #407のmerge/deploy/readbackが未完了である。
-2. **release drift**: current releaseはmain由来だが、Writer 2 labelのinstalled sourceは前release。deterministic ref parserを含む新releaseのtarget-only applyが未実施である。
-3. **自然wakeの順序**: same-day safety blockを迂回して再送することはできない。次のJST日まで待つ必要があるが、日付を偽装したcanaryは受け入れない。
-4. **host capacity**: floorは約1.156GBで、空きは約1.5GB付近まで変動する。floor未達ならgeneration前にfail-closedする。別ownerのbrowser/sessionを停止して回復しない。
-5. **provider/payment boundary**: active-fourの新しいfresh live URLとreceived payout receiptがまだ揃っていない。コード、テスト、loaded/running、
-      provider公開、収益を別々に証明する必要がある。
+1. **最新releaseのfresh canary**: same-day safety blockを迂回して再送することはできない。次の自然JST日まで待つ必要があり、日付を偽装したcanaryは受け入れない。
+2. **host capacity**: floorは`1,155,780,608` bytesで、空きは約1.45GB付近まで変動する。floor未達ならgeneration前にfail-closedする。別ownerのbrowser/sessionを停止して回復しない。
+3. **provider/payment boundary**: 旧releaseのactive-four canaryはliveだが、現行`94c622f3…`のfresh live URLとreceived payout receiptはまだ無い。コード、
+      test、loaded/running、provider公開、収益を別々に証明する必要がある。
+4. **sales measurement**: `measure-sales.py`はNote/Substackのprivate env不足で5項目すべて`unknown`を返した。これは$0の証明でも$10Kの証明でもない。
+5. **dormant surfaces**: Zenn JA、Dev.to EN、X Article EN、X Post JAはactive-four外で、enablement receiptが無い。
 
 **Completion rule:** 上記W2a→W2b→W2→W3–W7→W13–W21のreceiptが揃うまで、Writerを「毎日全platformで公開済み」「稼働して$10K MRR」とは報告しない。
 
