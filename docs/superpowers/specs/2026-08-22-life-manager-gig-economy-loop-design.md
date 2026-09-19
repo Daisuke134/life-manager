@@ -251,7 +251,7 @@ The dedicated label `ai.anicca.life-manager-upwork-free-loop` is loaded from imm
 zero, updated only `observed_at`, reproduced identical official evidence hashes and emitted zero
 stderr bytes; no proposal, Connects or payment effect occurred.
 
-### 0.2 Coconala live gate and current repair cursor (measured 2026-09-20, refreshed 23:30 JST)
+### 0.2 Coconala live gate and current repair cursor (measured 2026-09-20, refreshed 23:55 JST)
 
 This section records the current Coconala production boundary. It does not authorize a new
 provider effect and it does not replace the ordered repair cursor in
@@ -276,14 +276,15 @@ The current official/runtime snapshot does **not** satisfy the four-lane complet
   confirmed one application (`5277144`) with official readback but ended with `failed=1` because
   planner request `5268696` was dropped twice for
   `schema:decision[0]_hard_prohibited_evidence_not_in_visible_text`. The current Apply
-  effect fence is `hf-gig-apply-direct:18d6bd3a3f9c1bb8-94667`.
+  effect fence is `hf-gig-apply-direct:18d6bd3a3f9c1bb8-94667`; later natural wakes at
+  `23:48 JST`, `23:53 JST`, and `23:58 JST` remain `host_admission_deferred:resource_effect_unknown`.
 - **Storefront:** loaded release `d448cb8e…`; the current effect fence is
   `hf-gig-storefront-direct:18d5fd193aa926f0-9464`, repeatedly producing
-  `host_admission_deferred:resource_effect_unknown`. The earlier draft reconciliations do not
-  resolve this newer occurrence.
-- **Reply:** loaded release `6bbf377f…`; recent natural events repeatedly end
-  `entrypoint_exit_1`, and there is no current coverage receipt proving the Reply contract.
-- **Paid:** loaded release `6bbf377f…`; recent natural events pass, but the official seller-order
+  `host_admission_deferred:resource_effect_unknown`, including the latest `23:52 JST` wake. The
+  earlier draft reconciliations do not resolve this newer occurrence.
+- **Reply:** loaded release `6bbf377f…`; the latest observed wake ended `entrypoint_exit_1` at
+  `23:52 JST`, and there is no current coverage receipt proving the Reply contract.
+- **Paid:** loaded release `6bbf377f…`; the latest observed natural event passed at `23:40 JST`, but the official seller-order
   page still has four active items and overdue/repair statuses. Paid lane health is not the same as
   all Coconala client work being complete.
 - **Release split:** Apply, Reply/Paid, and Storefront are on different immutable releases. The
