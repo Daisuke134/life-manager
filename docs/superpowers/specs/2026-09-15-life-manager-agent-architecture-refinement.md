@@ -718,21 +718,23 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 provider readback are working. The requested new-effect gate is not closed.
 Historical registrations are evidence only and are not reused as the new event.
 
-**Current production readback (2026-09-18 23:27 UTC):**
+**Current production readback (2026-09-19 02:30 UTC):**
 
-- Current global release is complete `d77b006d42e8bf5035f1e220092e7b5633fbaacc`.
-  Connector is loaded-idle on complete release `0812457f7b76a845aa14ff7fee5e790fd6cd915c`;
-  installed/event SHA match for the last terminal, and the next natural wake must
-  reconcile to the newer current release.
-- Latest natural wake `wake-8df85ee1b5dfff6f5b52a9b9` ended
+- Current installed release is complete `8bab5537e4e46854ee0e589b6eaa7a88c7fbc775`
+  (`release_paths=ALL`, `provenance=ancestor-of-origin-main`). `origin/main` has
+  since advanced to `896bc3d7b2d44b3530f54801b1378b5e5baefe03` for unrelated
+  documentation, so Connector remains loaded-idle on its complete installed
+  release `0812457f7b76a845aa14ff7fee5e790fd6cd915c` until the next safe
+  main-derived promotion. No worktree points at production state.
+- Latest natural wake `wake-b0a0f97d85e6d12716f94d60` ended
   `completed_no_effect/providers_exhausted`; Submit 0, Calendar create 0,
   bundle 0, effect_unknown 0.
-- Connpass latest audit: observed 279, API free/open 244, Calendar-free 9.
+- Connpass latest audit: observed 280, API free/open 233, Calendar-free 10.
   Official detail gates reject the dispatched candidates: RumiCar and AWS are
   paid; AX has a paid general tier and restricted LT tier; CoderDojo rows are
   child/mentor roles; the free `406107` afterparty is restricted to attendees
   of its main workshop.
-- Luma latest audit: observed 10, normalized 6, free/open 1,
+- Luma latest audit: observed 10, normalized 6, free/open 0,
   Calendar-free 0.
 - Direct Calendar reader returned 119 timed busy intervals in the 28-day window.
   Therefore the calendar has many gaps. The no-work result is candidate-level,
@@ -743,8 +745,9 @@ Historical registrations are evidence only and are not reused as the new event.
 - Connpass GitHub OAuth recovery is complete. Dashboard readback is authenticated,
   event `404714` is officially `registered`, and vault keepalive succeeds.
   `404714` is an existing effect and cannot close the new-effect gate.
-- PR #5631 is still open/unstable because the shared OSS manifest check reports
-  unrelated `runtime/agent-runner/agent_runner.py` and `skills/_shared` mismatches.
+- PR #5631 is open with merge state `CLEAN`; its required checks are green,
+  including the OSS self-contained boundary. It is not merged or loaded, so its
+  provider-boundary code is not production evidence.
 
 **Ideal flow:**
 
