@@ -58,7 +58,11 @@ PY
   [ -f "$TEMP_ROOT/source/LICENSE" ]
   [ -f "$TEMP_ROOT/source/package-lock.json" ]
   [ -f "$TEMP_ROOT/source/server.js" ]
-  (cd "$TEMP_ROOT/source" && npm ci --ignore-scripts)
+  # stdout is the source-directory contract for callers using command
+  # substitution, so package-manager chatter belongs on stderr. `npm ci`
+  # deliberately skips lifecycle scripts; rebuild the required native binding
+  # explicitly so a changed Node ABI cannot leave Camoufox browserConnected:false.
+  (cd "$TEMP_ROOT/source" && npm ci --ignore-scripts >&2 && npm rebuild better-sqlite3 --foreground-scripts >&2)
   if [ -e "$FINAL_ROOT" ]; then
     rm -rf "$FINAL_ROOT"
   fi
