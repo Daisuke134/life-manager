@@ -516,8 +516,11 @@ receipt and resolver call must use the owner-prefixed database identity.
   release SHA and immutable path. Current integration candidate is pushed at
   `fix/coconala-a11-integration-20260919` with commits `7f95664f04`, `4c317cd6f5` and
   `25e298b0e7`; its focused gates pass (`11` full-history tests and `1` loaded-env regression).
-  It is not merged or loaded in production. Pass: after the remaining acceptance gates, merge once
-  and verify the release manifest SHA equals the main commit.
+  It is not merged or loaded in production. The Gig-wide suite produced `1322 passed` and `4`
+  failures; the failures are classified as host `ENOSPC` during temporary-file creation and
+  pre-existing release/reply fixture drift, so they are not a clean integration gate. Pass: after
+  the remaining acceptance gates and a clean integration verification, merge once and verify the
+  release manifest SHA equals the main commit.
 - [ ] **A12 — Target-apply the four lanes.** Owner: launchd owner. File:
   `runtime/loop/lm_loop.py` apply path. Action: apply only the four Gig labels from A11. Output:
   loaded `ProgramArguments`, release SHA, and required browser env for each lane. Pass: all four
