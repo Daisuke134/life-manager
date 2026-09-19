@@ -251,7 +251,7 @@ The dedicated label `ai.anicca.life-manager-upwork-free-loop` is loaded from imm
 zero, updated only `observed_at`, reproduced identical official evidence hashes and emitted zero
 stderr bytes; no proposal, Connects or payment effect occurred.
 
-### 0.2 Coconala live gate and current repair cursor (measured 2026-09-18/19)
+### 0.2 Coconala live gate and current repair cursor (measured 2026-09-19, refreshed 13:35 UTC)
 
 This section records the current Coconala production boundary. It does not authorize a new
 provider effect and it does not replace the ordered repair cursor in
@@ -259,9 +259,13 @@ provider effect and it does not replace the ordered repair cursor in
 
 **Observed facts:**
 
-- The dedicated CloakBrowser is alive on CDP `127.0.0.1:9223` (Chrome 145). The authenticated
-  official page `https://coconala.com/mypage/job_matching/applied/offers` returns HTTP 200 and
-  exposes the seller's applied-offer cards.
+- The dedicated CloakBrowser is alive on CDP `127.0.0.1:9223` (Chrome 145), but the current
+  Coconala source and history probes are not healthy. `https://www.coconala.com/job_matching/outsources`,
+  `https://www.coconala.com/mypage/job_matching/applied/offers`, the equivalent bare-host routes,
+  and a sampled request detail page all return `403 Forbidden`. Individual apply/edit pages still
+  render, so CDP health is not the same as source or official-history readback health. The exact
+  latest failure evidence is
+  `~/gig/apply-direct/gig-apply-direct-1789824501303370000-78007/coverage-evidence/parent-B2-applied-readback-unexpected-route-gig-apply-direct-1789824501303370000-78007-1789824555.json`.
 - PR #5578 corrected the Reply renderer so `hf-gig-reply-detector` uses the Gig browser
   (`CLOAK_CDP_BASE_URL`, `GIG_CDP_HEALTH_URL`, driver profile and session-vault port all use
   `9223`). The source contract is in `runtime/loop/lm_loop_apply.py` and its test is in
@@ -270,39 +274,46 @@ provider effect and it does not replace the ordered repair cursor in
   current: a release reconciliation was observed with Reply argv on a current main-derived
   release but `CLOAK_CDP_BASE_URL=9222`. Therefore a release SHA/argv readback alone is not a
   sufficient browser acceptance check; the loaded environment must be read back too.
+- The current launch-agent snapshot is split: Apply loads release
+  `84c0ba2c718a8c541ab0d3dc05cad568c3a8681a`, Reply and Storefront load
+  `d448cb8ef1b001b1ca61d1c4cc0738406e32a21f`, and Paid loads
+  `8cfa04809be081a6fe5af8250b9b9744d77f03eb`. The A12 receipt proves the earlier four-lane d448
+  target apply; it does not prove that the current fleet remains uniform. A17 must reconcile this
+  live release drift before closeout.
 - Historical Apply receipts are real: `~/gig/applied.jsonl` contains 1,117 rows with
   `submit_verified=true` and `applied_page_verified=true` (1,096 single applications and 9
   retainer applications). Request `5276533` is independently tied to official offer `6412654`.
   This proves historical single/retainer capability, not a current successful wake.
 - Current Apply wakes remain blocked by `resource_effect_unknown` with `effect=0` and
-  `readback=0`. The Coconala Apply occurrence still held by the fence is
-  `hf-gig-apply-direct:18d5f9cd9f029658-33307` (`claimed/effect_unknown=1`); the host database
-  currently has 74 unknown occurrences across owners, so this is a host-wide admission incident,
-  not an Apply-only queue. The matching later pass `46013` recorded four actionable candidates,
-  zero reported effect, zero readback and one failure; one candidate (`5276533`) was later recovered
-  by exact official readback. The Apply wake fence remains until the whole occurrence has an exact
-  provider proof.
-- The host audit records the causal infrastructure incident: `admission-v2.sqlite3` accumulated
-  7,922 queued occurrences after disk-full and database-locked errors; the audit also records that
-  Coconala browser `:9223` was healthy (issue #5590). This is evidence for an admission/storage
-  outage, not evidence of a provider or browser outage.
-- A fresh host snapshot (2026-09-19) reports about 3.3 GiB free in `df` and 4.24 GiB available via
-  `statvfs` on the Life Manager volume. That is above the 512 MiB immediate floor but is still
-  low enough to keep SQLite and release writes at risk. The process table contains two long-lived
+  `readback=0`. The current exact Apply occurrence held by the fence is
+  `hf-gig-apply-direct:18d6bb33dda2e408-55485` (`claimed/effect_unknown=1`). The next wake
+  `18d6bc3c971bd490-82212` was refused with `host_admission_deferred:resource_effect_unknown`.
+  The preceding wake on the retainer-host release (`18d6bbe6479721f0-77977`) ended
+  `entrypoint_exit_1` / `parent_failed_rc_2` after `retainer:new` returned `source_access_denied`.
+  The fence remains until this exact occurrence has an official provider proof or an
+  occurrence-bound pre-effect proof.
+- The host audit records the historical infrastructure incident: `admission-v2.sqlite3` accumulated
+  7,922 queued occurrences after disk-full and database-locked errors; that same historical audit
+  records Coconala browser `:9223` as healthy (issue #5590). This is evidence for the old
+  admission/storage outage, not evidence that the current provider 403 is fixed.
+- The historical host snapshot records disk-full and database-locked failures. The current read-only
+  `statvfs` probe reports 17,880,645,632 bytes available and the admission database passes
+  `PRAGMA integrity_check`. The old storage incident explains prior stale claims, but it is not
+  the direct cause of the current Coconala 403. The process table contains two long-lived
   `Z` entries: one defunct child of CloakBrowser Chromium and one defunct child of ChatGPT. No
   unknown executable was found; these are host-hygiene findings, not proof of malware.
-- A read-only admission snapshot now passes `PRAGMA integrity_check` and shows 98 queued rows,
+- A prior read-only admission snapshot passed `PRAGMA integrity_check` and showed 98 queued rows,
   17,300 occurrence rows, 74 `effect_unknown` rows and one reservation. The historical 7,922-row
-  burst has therefore been reduced, but the shared fence is not repaired while unknown rows remain.
+  burst was reduced; the current exact business fences are recorded below and remain open.
 - The central cleanup owner then removed exactly one unprotected immutable release and reclaimed
   80,867,742 bytes without deleting a current, loaded, running or pinned release. The latest
   read-only sample after that cleanup showed about 5.1 GiB available, `integrity_check=ok`, 101
   queued rows and 73 unknown rows; these counters are volatile while the schedulers continue.
-- Using the existing `clear_no_effect_unknown()` boundary, 20 stale unknowns whose registry
-  contracts declare `effect_class=none` were released only after confirming no live owner. The
-  latest sample then showed about 7.6 GiB available and 55 unknown rows. The remaining Coconala
-  effect-bearing unknowns are exactly one Apply occurrence and one Storefront occurrence; neither
-  was cleared.
+- Using the existing `clear_no_effect_unknown()` boundary, stale `effect_class=none` rows were
+  released only after confirming no live owner. The current Gig business fences are now exact and
+  occurrence-bound: Apply `hf-gig-apply-direct:18d6bb33dda2e408-55485` and Storefront
+  `hf-gig-storefront-direct:18d5fcfce4091da8-7995`. A third unknown belongs to the non-business
+  evidence-GC owner. None of these effect-bearing rows may be cleared by SQL or by a guessed receipt.
 - The four actionable candidates from Apply pass `46013` are `5276533`, `5266999`, `5275035` and
   `5266959`. Read-only official request pages returned HTTP 200: `5276533` is closed and has an
   exact applied-history receipt; the other three still expose the application form and no applied
@@ -322,7 +333,8 @@ provider effect and it does not replace the ordered repair cursor in
   not authorize clearing the whole wake.
 - Later Storefront wakes `44826` and `65665` recorded `effect=0`, `readback=0` and
   `no_executable_unfenced_mutation_contract`. They are later wakes, not a provider receipt for
-  `18d5fce0aaee0680-6502`, so the Storefront fence remains conservative.
+  the older Storefront occurrence `18d5fce0aaee0680-6502`; the current open Storefront fence is
+  `hf-gig-storefront-direct:18d5fcfce4091da8-7995` and remains conservative.
 - Owner action completed: session recovery, official applied-history capture, candidate-to-intent
   reconciliation and evidence persistence. The exact files are
   `skills/browser/scripts/session_vault.py`,
@@ -602,11 +614,21 @@ receipt and resolver call must use the owner-prefixed database identity.
   (SHA-256 `ef044f92d2e7e5ca80b5b213ecfa77b10728a107501b1892d21539034e90a526`). The runtime
   terminal itself ended `entrypoint_exit_143`, so this receipt proves the provider outcome but
   does not close the runtime acceptance gate; A13 remains unchecked.
-  The retainer-source failure was diagnosed as a bare-host 403 on the applied-history route. PR
+  The retainer-source failure was diagnosed first as a bare-host 403 on the applied-history route. PR
   #5715 (`fix(coconala): use www host for retainer readback`) passed the focused 50-test suite,
   was admin-squash-merged as `84c0ba2c718a8c541ab0d3dc05cad568c3a8681a`, and produced immutable
   release `/Users/anicca/loops/releases/20260919T222408-84c0ba2c`. Apply is now loaded-idle on
-  that release; the next natural A13 wake will exercise the `www` host fix.
+  that release. The next natural wake did exercise the `www` route, but still returned
+  `source_access_denied` with HTTP 403; the host change is deployed and the remaining boundary is
+  the browser/session/provider readback path. The exact result is
+  `~/gig/apply-direct/gig-apply-direct-1789824501303370000-78007/result.json` and the exact 403
+  evidence is the JSON path recorded in the first bullet of this section.
+  The atomic continuation for A13 is: (1) inspect and repair the existing Coconala browser/session
+  state through the owner-controlled session-vault path, without submitting; (2) prove that both
+  the source and applied-history pages return an authenticated, parseable official page; (3)
+  reconcile occurrence `hf-gig-apply-direct:18d6bb33dda2e408-55485` with an official receipt or
+  exact pre-effect proof and only then call the typed resolver; (4) run one natural single Apply
+  and retain its terminal, provider receipt and replay-zero evidence.
 - [ ] **A14 — Natural retainer Apply.** Owner: Apply scheduler. Action: wait for one natural
   retainer candidate. Output: terminal event, `effect=1`, official retainer readback, replay-zero.
   Pass: retainer identity and talkroom receipt are exact.
@@ -614,25 +636,29 @@ receipt and resolver call must use the owner-prefixed database identity.
   tests. Action: fix `inbox_coverage_incomplete` / `missing_container` ownership. Output: page,
   target, and coverage receipt. Pass: an empty inbox is never inferred from a missing container.
 - [ ] **A16 — Natural Storefront publish.** Owner: Storefront scheduler. Action: wait for one
-  natural publish wake after A9 and A12. Output: effect, public service readback, and replay-zero.
-  Pass: published service version matches the intended mutation contract.
+  natural publish wake after the current Storefront fence is reconciled. The currently held
+  occurrence is `hf-gig-storefront-direct:18d5fcfce4091da8-7995`; a later run
+  `18d6b8adb09ecce8-18145` ended `entrypoint_exit_1`, which is not a pre-effect proof. Output:
+  occurrence-bound effect, public service readback, and replay-zero. Pass: published service
+  version matches the intended mutation contract.
 - [ ] **A17 — Fleet closeout.** Owner: Codex. Input: A13–A16 receipts. Action: compare current
-  loaded SHA/env, terminal events, official provider receipts, and replay-zero. Output: final
-  immutable closeout receipt and spec cursor update. Pass: every lane has a current provider-native
-  receipt; otherwise the exact first failing atomic ID remains active.
+  loaded SHA/env, terminal events, official provider receipts, and replay-zero; first reconcile the
+  live release split (Apply `84c0ba2c…`, Reply/Storefront `d448cb8e…`, Paid `8cfa0480…`) to one
+  selected immutable main-derived release at a safe idle point. Output: final immutable closeout
+  receipt and spec cursor update. Pass: every lane has a current provider-native receipt and the
+  loaded release/env readback agrees; otherwise the exact first failing atomic ID remains active.
 
 ### 0.3 Fundamentals: what is actually failing
 
-The primary failure is an admission/storage incident, not a virus. The host ran low enough on disk
-that writes to the durable SQLite admission ledger hit disk-full and locked errors. The resulting
-queue grew to 7,922 entries, and at least one Apply occurrence was left `claimed/effect_unknown=1`.
-The admission layer correctly refuses a new external Apply while that result is not proven, so the
-visible symptom is repeated `resource_effect_unknown` with zero new effect and zero readback.
-
-The browser is a separate layer and is currently healthy: CDP `9223` responds and the official
-Coconala applied-history page returns HTTP 200. The loaded-environment drift (source says `9223`,
-an observed loaded Reply plist used `9222`) is another real release bug that can break routing after
-the admission incident is repaired; it is not evidence that the browser itself is down.
+There are two separate failure layers. First, an earlier disk-full/database-lock incident caused
+stale admission claims and explains why old runs left `effect_unknown`; the current volume has
+17,880,645,632 bytes available and the admission database passes `PRAGMA integrity_check`, so that
+historical storage incident is no longer the immediate Coconala failure. Second, the current
+provider readback boundary returns HTTP 403 for the source, applied-history, and sampled detail
+routes even though CDP `9223` is alive and some individual apply/edit pages render. The `www` host
+fix is present in release `84c0ba2c…`, but it did not restore those list/history pages. The latest
+Apply result therefore failed before a new provider write (`effect=0`, `readback=0`), while the
+previous exact occurrence remains fenced because a different external effect cannot be ruled out.
 
 There are two long-lived `Z` entries, but they are defunct children of the known CloakBrowser
 Chromium and ChatGPT processes. A zombie process has already exited; it cannot submit an application
@@ -646,24 +672,24 @@ The observed system is better described as **a safety circuit that is doing its 
 
 ```mermaid
 flowchart LR
-  B[Chrome 145 on CDP 9223\nCoconala page HTTP 200] --> L[Apply lane wake]
+  B[Chrome 145 on CDP 9223\nprovider pages mixed: 403 and renderable edit pages] --> L[Apply lane wake]
   L --> A{Durable admission}
   A -->|old effect_unknown claim| S[Stop before new provider effect\neffect 0 / readback 0]
   A -->|slot available| P[Provider Apply]
   P --> R[Official applied-history readback]
   R -->|exact receipt| C[Close occurrence]
-  R -->|missing or inconclusive| U[Keep unknown\nnever blind-retry]
-  D[Disk pressure\n3.3–4.24 GiB free] --> Q[SQLite disk-full / lock errors]
+  R -->|403 or inconclusive| U[Keep exact occurrence fenced\nnever blind-retry]
+  D[Historical disk-full / lock errors] --> Q[Stale SQLite claim]
   Q --> A
   Z[Two defunct children\nknown Chromium + ChatGPT] -.hygiene only.-> A
 ```
 
 In plain terms: the browser is the door, the SQLite admission ledger is the notebook, and the
-admission fence is the lock. The notebook ran out of writing room and sometimes could not be locked,
-so one earlier wake was left with an uncertain final result. The lock then refuses the next Apply
-before another application can be safely sent. This prevents duplicate applications. The
-`resource_effect_unknown` label names uncertainty about one external effect; it does not mean that
-a zombie folder or malware is attacking the repository.
+admission fence is the lock. The notebook previously ran out of writing room, leaving an old wake
+uncertain. Now the door itself answers “403” for the list/history pages. Life Manager therefore
+does two safe things: it does not submit a new application while the exact old effect is unresolved,
+and it does not pretend that a 403 page is an empty or successful provider readback. This is a
+provider/session readback problem plus exact safety fences, not a zombie folder or malware.
 
 The desired state is:
 
@@ -682,11 +708,13 @@ flowchart LR
   R --> H[Normal next wake]
 ```
 
-The repair order is deliberately mechanical: restore safe disk headroom and inspect the admission
-ledger without editing it manually; prove SQLite integrity and lock behavior; prove loaded browser
-environment; reconcile the one unknown Apply occurrence with an exact official provider receipt; run
-one natural single candidate; run one natural retainer candidate; and only then resume normal cadence.
-Disk cleanup is a prerequisite host repair here, but it is never a substitute for provider readback.
+The repair order is deliberately mechanical: keep the current disk and SQLite evidence, repair the
+browser/session path that produces the 403, obtain official source/history readback, reconcile the
+exact Apply and Storefront fences with occurrence-bound evidence, align the loaded immutable
+release/env, run one natural single candidate, run one natural retainer candidate, pass Reply
+coverage, publish one Storefront mutation, and only then resume normal cadence. Disk cleanup is a
+host prerequisite when the measured floor is crossed, but it is never a substitute for provider
+readback.
 
 ## 1. Goal, objective and boundaries
 
@@ -1009,10 +1037,12 @@ or read-only diagnostic tools until a separate eval proves that they do not intr
 owner, state store, scheduler or effect path. The next package decision is therefore after the
 current provider receipt gates, not before them.
 
-The ordered Coconala cursor remains one item at a time. A0–A11 are complete. The first active
-item is A12; the six unchecked items are A12, A13, A14, A15, A16 and A17. A later item
-cannot be marked complete from a later no-op wake, a local exit code, or an unrelated provider
-receipt.
+The ordered Coconala cursor remains one item at a time. A0–A12 are historically complete. The
+active cursor is A13: repair the 403 readback boundary, reconcile the exact Apply fence, and obtain
+one clean natural Apply. A14 then proves retainer Apply; A15 proves Reply coverage; A16 reconciles
+the current Storefront fence and proves one publish; A17 closes the release/env and receipt set. A
+later item cannot be marked complete from a later no-op wake, a local exit code, or an unrelated
+provider receipt.
 
 ## 3. Capability and authorization model
 
