@@ -18,6 +18,22 @@
 （`article-daily`、同じstateを再開する`article-resume`）で、現在のactive-fourは Note JA、Substack JA、Substack EN、
 X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dormant のままで、別の有効化receiptが必要である。
 
+### Live runtime readback — 2026-09-19 15:23 JST
+
+- `origin/main` は `ed82c570ce367c66a4e792aacbffa97d2f2ecfaa`。現在の `/Users/anicca/loops/current` は
+  immutable release `215d6e5343edd9359a8974c98b76f6ceb4356ce7`（`RELEASE.json` の `provenance=ancestor-of-origin-main`）で、
+  Mainの最新SHAそのものではない。
+- `article-daily` のloaded argvは `215d6e53…`、`state=not running`、`runs=1`、`last exit=78 (EX_CONFIG)`。
+  06:16:45 JSTのinstall/plan receipt以降、現行releaseでのfresh execute receiptはない。
+- `article-resume` のloaded argvは旧 `94c622f3…`、`state=not running`、`runs=6`、`last exit=75`。
+  最新試行 `18d6a4bc4253e098-95213`（06:23:50 JST）は `host_admission_deferred:resource_effect_unknown` で、
+  Writerの外部公開成功を示さない。
+- host freeは `769,474,560 bytes`（`df` readback）で、Writer run floor `1,155,780,608 bytes`を下回る。
+
+このreadbackにより、以前の「94c622f3を両Writerへtarget apply済み」は過去時点のreceiptとして保持し、現在の完了状態とは数えない。
+次の実行前に、最新Main由来の単一immutable releaseを `article-daily` と `article-resume` の両方へtarget-only applyし、
+loaded argv/source SHAを再一致させる必要がある。
+
 ### Done
 
 - [x] Writerのbounded executionがdetached child/grandchildを所有PID identity付きで終了させる。source test 3件、focused Writer/runtime test 64件、
@@ -26,18 +42,22 @@ X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dorm
       `lm-loop status`の過去イベント表示を混同しない。新しいterminal receiptが出るまでstatusの古いunknown表示は残り得る。
 - [x] CTAの固定landing、Life Manager `/start` の帰属ref保存、`writer_attribution_ref` migration、既存のactive-four publisher/gate/replay契約をmainへ統合済み。
 - [x] anicca-products PR #407–#410をmergeし、production valid queryのHTTP `302`と決定的`wr_<32hex>` Telegram Locationをreadback済み。保存receiptはbest-effortで、302を売上receiptとは数えない。
-- [x] Main `94c622f3…`由来immutable releaseを`article-daily`と`article-resume`へtarget-only applyし、plistのargvとsource SHAをreadback済み。
+- [x] Main `94c622f3…`由来immutable releaseを`article-daily`と`article-resume`へtarget-only applyした過去時点のreceiptを保存済み。
+      現在は後続applyで `article-daily=215d6e53…`、`article-resume=94c622f3…` にdriftしているため、現行完了とは数えない。
 - [x] 直近のsame-JST-day safety blockは重複公開を防いでおり、同じrunを再送していない。既存runを「今日の公開」とは数えていない。
 - [x] 直前のcanary `20260919-014228` は Note JA、Substack JA、Substack EN、X Article JA の4件を公式readbackし、completion notificationを送信済み。
       ただしこのrunのsourceは現行`94c622f3…`ではないため、最新releaseのfresh canary完了やreplay-zeroの証明にはまだ使わない。
 
 ### Not done yet / remaining cursor
 
-- [ ] **W2: 次の自然JST日を1回だけwakeする。** 実測capacity floor `1,155,780,608` bytes以上をreadbackし、現行release `94c622f3…`でfresh run、
+- [ ] **W2: 次の自然JST日を1回だけwakeする。** 実測capacity floor `1,155,780,608` bytes以上をreadbackし、最新Main由来の単一immutable releaseでfresh run、
       source article、article固有headline、GPT Image 2 receipt、quality、completionを揃える。同日runの再送や日付偽装はしない。
 - [x] **W2a: CTA帰属導線を本番で成立させる。** PR #407–#410、deploy #35424169317、custom domain `302` readbackまで完了。
-- [x] **W2b: Life Manager deterministic ref parserをmainへmergeし、immutable releaseへtarget applyする。** PR #5697、Main `94c622f3…`、
-      article-daily/resumeのloaded argv readbackまで完了。
+- [x] **W2b: Life Manager deterministic ref parserをmainへmergeし、immutable releaseへtarget applyした過去時点のreceiptを保存する。**
+      PR #5697、Main `94c622f3…`、article-daily/resumeのloaded argv readbackは当時完了。現行driftはW2cで扱う。
+- [ ] **W2c: 現在のrelease driftを解消する。** 最新 `origin/main` (`ed82c570…`) から単一immutable releaseを作り、
+      `article-daily` と `article-resume` だけへtarget-only applyする。両plistのargv、source SHA、state root、terminal receiptを
+      readbackし、sibling loopの変更0を確認する。
 - [ ] **W3–W6: fresh runについて、Note JA / Substack JA / Substack EN / X Article JAを各provider-native UI/APIでreadbackする。**
       title、body、owner、headline、paywall、live URLを4件すべて記録する。local testやpublisher `rc=0`だけでは完了にしない。
 - [ ] **W7: 2回目の自然wakeでreplay-zeroを確認する。** 記事、payment row、notification、Telegram attributionの重複effectを0件で確認する。
@@ -50,15 +70,19 @@ X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dorm
 ### Current blockers
 
 1. **最新releaseのfresh canary**: same-day safety blockを迂回して再送することはできない。次の自然JST日まで待つ必要があり、日付を偽装したcanaryは受け入れない。
-2. **host capacity**: floorは`1,155,780,608` bytesで、空きは約1.45GB付近まで変動する。floor未達ならgeneration前にfail-closedする。別ownerのbrowser/sessionを停止して回復しない。
-3. **provider/payment boundary**: 旧releaseのactive-four canaryはliveだが、現行`94c622f3…`のfresh live URLとreceived payout receiptはまだ無い。コード、
+2. **release drift**: `article-daily` は `215d6e53…`、`article-resume` は `94c622f3…` をloadedしており、最新Main `ed82c570…`由来の単一releaseに揃っていない。
+   dailyは `EX_CONFIG(78)`、resumeは `EX_TEMPFAIL(75)`/`effect_unknown` で、fresh canaryの前提を満たさない。
+3. **host capacity**: floorは`1,155,780,608` bytes、今回のfree readbackは`769,474,560` bytes。floor未達ならgeneration前にfail-closedする。
+   別ownerのbrowser/sessionを停止して回復しない。
+4. **provider/payment boundary**: 旧releaseのactive-four canaryはliveだが、現行Main由来releaseのfresh live URLとreceived payout receiptはまだ無い。コード、
       test、loaded/running、provider公開、収益を別々に証明する必要がある。
-4. **sales measurement**: private envを正規sourceしてreadback済み。Noteは今月`¥0 / 0 purchases`、Substackは`-`表示でunknown。
+5. **sales measurement**: private envを正規sourceしてreadback済み。Noteは今月`¥0 / 0 purchases`、Substackは`-`表示でunknown。
    payment receiptが無く、$10K MRRの証明は無い。
-5. **dormant surfaces**: Zenn JA、Dev.to EN、X Article EN、X Post JAはactive-four外で、enablement receiptが無い。
-6. **resume fence**: `article-resume`に過去occurrenceの`effect_unknown` claimが1件残る。occurrence-specificな公式readbackまたはpre-effect proofなしに解除せず、日次fresh canaryの完了とは別に解決する。
+6. **dormant surfaces**: Zenn JA、Dev.to EN、X Article EN、X Post JAはactive-four外で、enablement receiptが無い。
+7. **resume fence**: `article-resume`に過去occurrenceの`effect_unknown` claimが残り、現在も同種のadmission deferredが反復している。
+   occurrence-specificな公式readbackまたはpre-effect proofなしに解除せず、日次fresh canaryの完了とは別に解決する。
 
-**Completion rule:** 上記W2a→W2b→W2→W3–W7→W13–W21のreceiptが揃うまで、Writerを「毎日全platformで公開済み」「稼働して$10K MRR」とは報告しない。
+**Completion rule:** 上記W2a→W2b→W2c→W2→W3–W7→W13–W21のreceiptが揃うまで、Writerを「毎日全platformで公開済み」「稼働して$10K MRR」とは報告しない。
 
 - [x] W0 stale publication lock互換を修復する。`owner.pid`だけの旧lockについて、実PID不在、start token取得不能、
       directory identity不変を確認した場合だけquarantineし、新lockを取得する。`identity unavailable`を成功扱いの
