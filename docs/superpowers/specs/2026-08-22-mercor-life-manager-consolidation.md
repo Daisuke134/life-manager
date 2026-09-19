@@ -2,7 +2,7 @@
 
 初契約・初入金を目的とするプロフィール、適合案件、成果学習の設計と実装順序 → [Mercor first income design](./2026-09-17-mercor-first-income-design.md) / [implementation plan](../plans/2026-09-17-mercor-first-income.md)。この文書はMercorの稼働経路と既存の契約境界の正本を維持する。
 
-**Status:** provider lane restored / immutable release `1faa41f1` loaded / exact human-gate reuse merged and live / latest wake `needs_human` with no new submission / selection, contract, and payment still unobserved
+**Status:** provider lane restored / immutable release `1faa41f1` loaded / exact human-gate reuse merged and live / last completed wake `needs_human` with no new submission / current wake in progress / selection, contract, and payment still unobserved
 **Canonical repository:** `https://github.com/Daisuke134/life-manager`
 **Canonical checkout:** `/Users/anicca/Projects/life-manager-main`
 
@@ -19,6 +19,8 @@ below remain historical evidence and must not be read as current runtime state.
 - The installed Mercor owner uses that release and the authenticated isolated browser profile. The
   latest completed wake `mercor-20260919-184826-32102` returned `needs_human`, `submitted=[]`,
   Telegram receipt `89440`, and no provider submission receipt.
+- Wake `mercor-20260919-190501-44596` is currently live. Its terminal state is not known yet, so
+  its admission occurrence remains an active runtime observation rather than a failure conclusion.
 - The same-account/listing/step gate is now reused by both the model notification path and the
   terminal report path. Legacy rows remain append-only; current logical reads collapse known
   Voice Actor, PDF Annotation, Consultant, Bilingual, and Sonic identities without deleting history.
