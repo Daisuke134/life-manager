@@ -28,6 +28,9 @@ X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dorm
 - `article-resume` は loaded `ed82c570…`、`state=not running`、apply後のfresh runはまだ0回。過去の
   `effect_unknown` event/claimは残るが、今回のtarget apply自体は外部公開成功を示さない。
 - host freeは `722,415,616 bytes`（`df` readback）で、Writer run floor `1,155,780,608 bytes`を下回る。
+- 共有 `life-manager-release-reconciler` は別ownerの旧release `09a59ba1…`で稼働中（PID `18148`）。stderrには
+  欠損worktree `/Users/anicca/Projects/life-manager-daily-revenue-priority`、`ENOSPC`、`another release build owns` が反復する。
+  Writer workstreamからこのownerを停止・再起動・修正しない。
 
 このreadbackにより、以前の「94c622f3を両Writerへtarget apply済み」は過去時点のreceiptとして保持し、現行のloaded SHAには数えない。
 W2cのtarget-only applyは完了したが、W2のfresh publicationは次の自然JST日まで未完了である。
@@ -69,7 +72,7 @@ W2cのtarget-only applyは完了したが、W2のfresh publicationは次の自�
 
 1. **最新releaseのfresh canary**: same-day safety blockを迂回して再送することはできない。次の自然JST日まで待つ必要があり、日付を偽装したcanaryは受け入れない。
 2. **host capacity**: floorは`1,155,780,608` bytes、今回のfree readbackは`722,415,616` bytes。floor未達ならgeneration前にfail-closedする。
-   別ownerのbrowser/sessionを停止して回復しない。
+   別ownerのbrowser/session/reconcilerを停止して回復しない。release-reconcilerの欠損worktree/ENOSPCは別ownerの境界である。
 3. **provider/payment boundary**: 旧releaseのactive-four canaryはliveだが、現行Main由来releaseのfresh live URLとreceived payout receiptはまだ無い。コード、
       test、loaded/running、provider公開、収益を別々に証明する必要がある。
 4. **sales measurement**: private envを正規sourceしてreadback済み。Noteは今月`¥0 / 0 purchases`、Substackは`-`表示でunknown。
