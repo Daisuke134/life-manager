@@ -181,6 +181,10 @@ class HumanGateStore:
         )
         gate_id = hashlib.sha256(identity.encode()).hexdigest()[:24]
         rows = self._rows()
+        if not exact and legacy is not None:
+            exact_match = self._latest_pending_exact_listing_step(rows, *legacy)
+            if exact_match is not None:
+                return exact_match
         latest = self._latest_by_identity(rows).get(identity)
         if latest is None and exact:
             latest = self._latest_pending_listing_step(rows, listing_id, step_id)
@@ -242,6 +246,22 @@ class HumanGateStore:
             if _legacy_listing_step(row) == target:
                 return row
         return None
+
+    @classmethod
+    def _latest_pending_exact_listing_step(
+        cls, rows: list[dict[str, Any]], listing_id: str, step_id: str,
+    ) -> dict[str, Any] | None:
+        target = (listing_id.strip(), _normalize_step_id(step_id))
+        matches = []
+        for row in rows:
+            if row.get("status") != "pending":
+                continue
+            values = tuple(row.get(key) for key in ("account_id", "listing_id", "step_id"))
+            if not all(isinstance(value, str) and value.strip() for value in values):
+                continue
+            if (values[1].strip(), _normalize_step_id(values[2])) == target:
+                matches.append(row)
+        return matches[-1] if len(matches) == 1 else None
 
     @classmethod
     def _latest_by_identity(cls, rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:

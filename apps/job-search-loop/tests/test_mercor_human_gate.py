@@ -89,6 +89,25 @@ class MercorHumanGateTests(unittest.TestCase):
             self.assertEqual(exact["gate_id"], legacy["gate_id"])
             self.assertEqual(len(store.pending()), 1)
 
+    def test_legacy_report_reuses_existing_exact_gate(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = HumanGateStore(Path(directory) / "human-gates.jsonl")
+            exact = store.record(
+                run_id="run-1",
+                reason="assessment required",
+                evidence_ref="run:run-1",
+                account_id="acct1",
+                listing_id="list_bilingual",
+                step_id="Bilingual Competency",
+            )
+            legacy = store.record(
+                run_id="run-2",
+                reason="list_bilingual: Bilingual Competency remains Not done.",
+                evidence_ref="run:run-2",
+            )
+            self.assertEqual(legacy["gate_id"], exact["gate_id"])
+            self.assertEqual(len(store.pending()), 1)
+
     def test_completed_step_resumes_only_same_account_and_application(self):
         self.assertEqual(
             next_action(
