@@ -2,7 +2,7 @@
 
 初契約・初入金を目的とするプロフィール、適合案件、成果学習の設計と実装順序 → [Mercor first income design](./2026-09-17-mercor-first-income-design.md) / [implementation plan](../plans/2026-09-17-mercor-first-income.md)。この文書はMercorの稼働経路と既存の契約境界の正本を維持する。
 
-**Status:** provider lane restored / immutable release `1faa41f1` loaded / exact human-gate reuse merged and live / latest completed wake blocked by priority/detail readback validation with no submission / selection, contract, and payment still unobserved
+**Status:** provider lane restored / PR #5714 priority-observation recovery merged / immutable release `84c0ba2c` loaded / latest wakes are still held by browser/admission `entrypoint_exit_75` before provider scan / selection, contract, and payment still unobserved
 **Canonical repository:** `https://github.com/Daisuke134/life-manager`
 **Canonical checkout:** `/Users/anicca/Projects/life-manager-main`
 
@@ -15,7 +15,8 @@ below remain historical evidence and must not be read as current runtime state.
 
 - Main includes PR #5704 (`5d5d111ad3`, legacy human-gate canonicalization) and PR #5705
   (`5f809d81e4`, exact-gate reuse at terminal reporting). The latest immutable release is
-  `1faa41f1db2cb1d5d588cd80759e928adfb58998`.
+  `84c0ba2c718a8c541ab0d3dc05cad568c3a8681a`, which includes PR #5714
+  (`8cfa04809be081a6fe5af8250b9b9744d77f03eb`).
 - The installed Mercor owner uses that release and the authenticated isolated browser profile. The
   latest completed wake `mercor-20260919-184826-32102` returned `needs_human`, `submitted=[]`,
   Telegram receipt `89440`, and no provider submission receipt.
@@ -36,7 +37,16 @@ below remain historical evidence and must not be read as current runtime state.
   Telegram receipts, but no selection, contract, accepted work, settled payment, or bank match is
   verified. Applications are not revenue.
 - Mercor admission `effect_unknown` occurrences were resolved only through occurrence-specific
-  pre-effect proofs. No admission SQLite row was edited directly.
+  pre-effect or official-provider proofs. The stale application occurrence
+  `18d6b17394951ef8-51771` was correlated to official readback
+  `official-readback-20260919T1330Z.json` (100 applications, 0 contracts, 0 notifications,
+  zero application updates in its exact `10:16:51–10:22:11Z` window) and resolved with receipt
+  `mercor-official-readback:9bfa5dbf...`; no admission SQLite row was edited directly.
+- PR #5714 restores omitted current-run card and non-submission application observations from
+  `pass-result.json`, filling URLs/titles from same-run `query-*.json`. Replay of
+  `mercor-20260919-190501-44596` now passes both bounded and priority validation. A natural
+  production wake has not yet reached this validator: later wakes stopped at admission FIFO,
+  CDP WebSocket 500, `control_busy`, or `entrypoint_exit_75`.
 
 ### Human operator procedure (the only user-bound action)
 
@@ -60,10 +70,10 @@ that state. The operator does not need to keep the browser open after the provid
 
 ### Remaining TODO in execution order
 
-1. **Priority/detail and query-input readback:** fix `priority_scan_incomplete` so an unrendered application
-   card is recorded as a candidate-local `listing_detail_not_rendered`/card-only outcome and does not
-   fail the whole wake. Fix the controlled search input readback so a query is unavailable only after
-   an independently verified retry. Re-run a natural wake and require the priority validator to pass.
+1. **Priority/detail and query-input readback:** priority-observation recovery is merged and replayed
+   PASS. Fix the controlled search input readback so a query is unavailable only after an independently
+   verified retry, then obtain a natural wake that reaches the validator and passes it. The current
+   operational blocker is before provider scan: browser/admission `entrypoint_exit_75`.
 2. **Human-bound steps:** deliver one current link per exact gate. The user completes Voice Actor,
    PDF Annotation Bilingual Competency, Consultant Style and Midas, Bilingual Competency/interview,
    and any VS Code interview. The next wake verifies the same account/listing/step as `Completed`
