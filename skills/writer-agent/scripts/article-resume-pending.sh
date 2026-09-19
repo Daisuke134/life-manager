@@ -734,7 +734,12 @@ fi
 if [ "$ADOPTION_ACTIVE" -eq 1 ] \
   && [ "$PUBLICATION_HANDOFF_READY" -ne 1 ] \
   && [ "$PRIORITY_PUBLICATION_READY" -ne 1 ]; then
-  if [ -n "$PREVALIDATED_QUALITY_PLAN" ] \
+  if [ -f "$GENERATION_RUN_DIR/gates/publication-state.json" ]; then
+    # The immutable run already crossed the quality boundary and owns a
+    # publication state. Resume the exact persisted targets; do not let the
+    # quality-owner marker strand a run after publication init.
+    PUBLICATION_HANDOFF_READY=1
+  elif [ -n "$PREVALIDATED_QUALITY_PLAN" ] \
     || [ -e "$GENERATION_RUN_DIR/gates/quality-repair-state.json" ] \
     || [ -e "$GENERATION_RUN_DIR/gates/quality-self-heal.json" ]; then
     echo "article-resume: adopted run remains owned by quality repair run=$GENERATION_RUN_ID" >>"$LOG"
