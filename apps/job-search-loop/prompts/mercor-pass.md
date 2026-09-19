@@ -80,7 +80,10 @@ Pass order:
    Before final output, compare every target-query card ID against `inspected_listings`; add a
    `card_only` record for each missing card, including low-fit and Japanese/Japan cards skipped
    without opening detail.
-   Twelve candidate detail pages is a maximum, not a minimum. After twelve detail pages,
+   Twelve candidate detail pages is a maximum, not a minimum. The operational
+   live-action ceiling is 600 seconds or eight opened detail pages, whichever comes first.
+   At that ceiling, stop all browser commands and return the current structured result;
+   the parent will merge the current-run card-only artifact. After twelve detail pages,
    record remaining cards as `card_only`. Do not open a thirteenth detail page. When the
    current query union has no unseen high/medium candidate after submitted/recent filtering, advance its visible
    pagination or the next Explore page to discover more candidates before opening low-band
