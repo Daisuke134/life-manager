@@ -564,14 +564,43 @@ def reconcile_human_gate_resolutions(
     return receipts
 
 
+def _query_card_index(run_evidence_dir: Path) -> dict[str, dict[str, str]]:
+    """Index exact card URLs/titles captured by this pass's query artifacts."""
+    cards_by_listing: dict[str, dict[str, str]] = {}
+    for path in sorted(run_evidence_dir.glob("query-*.json")):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        cards = payload.get("cards") if isinstance(payload, dict) else None
+        if not isinstance(cards, list):
+            continue
+        for card in cards:
+            if not isinstance(card, dict):
+                continue
+            listing_id = card.get("listing_id") or card.get("id")
+            url = card.get("url") or card.get("href")
+            title = card.get("title") or card.get("text")
+            if not all(isinstance(value, str) and value.strip() for value in (
+                listing_id, url, title,
+            )):
+                continue
+            cards_by_listing[listing_id.strip()] = {
+                "url": url.strip(),
+                "title": title.strip(),
+            }
+    return cards_by_listing
+
+
 def merge_card_only_evidence(result: dict[str, Any], run_evidence_dir: Path) -> None:
-    """Restore card-only rows emitted by the browser pass before final JSON output.
+    """Restore current-run candidate observations before final JSON output.
 
     The model can persist a complete candidate union in ``pass-result.json`` while
-    its final response contains only the detail rows it opened.  Card-only rows are
-    read-only observations, so copying only those rows from this exact run keeps
-    the priority validator fail-closed without treating the artifact as a submit
-    receipt.
+    its final response contains only the detail rows it opened.  Card-only and
+    explicitly non-submission application observations are read-only, so copying
+    those rows from this exact run keeps the priority validator fail-closed without
+    treating the artifact as a submit receipt. Query artifacts supply the exact URL
+    when the model's candidate artifact omitted it.
     """
     artifact = run_evidence_dir.expanduser() / "pass-result.json"
     try:
@@ -590,6 +619,12 @@ def merge_card_only_evidence(result: dict[str, Any], run_evidence_dir: Path) -> 
         for item in inspected
         if isinstance(item, dict) and isinstance(item.get("listing_id"), str)
     }
+    query_cards = _query_card_index(run_evidence_dir)
+    observation_only_decisions = {
+        "listing_detail_not_rendered",
+        "human_gate_pending_observed",
+        "required_control_missing_truthful_fact",
+    }
     valid_fit_statuses = {"allowed", "warning", "blocked", "not_shown", "unknown"}
     valid_bands = {"high", "medium", "low"}
     for candidate in payload["inspected_listings"]:
@@ -600,7 +635,10 @@ def merge_card_only_evidence(result: dict[str, Any], run_evidence_dir: Path) -> 
         if (
             not isinstance(listing_id, str)
             or not isinstance(application_state, str)
-            or not application_state.startswith("card_only")
+            or (
+                not application_state.startswith("card_only")
+                and candidate.get("decision") not in observation_only_decisions
+            )
         ):
             continue
         listing_id = listing_id.strip()
@@ -608,7 +646,17 @@ def merge_card_only_evidence(result: dict[str, Any], run_evidence_dir: Path) -> 
             continue
         url = candidate.get("url")
         title = candidate.get("title")
-        if not isinstance(url, str) or not url.strip() or not isinstance(title, str):
+        query_card = query_cards.get(listing_id, {})
+        if not isinstance(url, str) or not url.strip():
+            url = query_card.get("url")
+        if not isinstance(title, str) or not title.strip():
+            title = query_card.get("title")
+        if (
+            not isinstance(url, str)
+            or not url.strip()
+            or not isinstance(title, str)
+            or not title.strip()
+        ):
             continue
         ranking_evidence = candidate.get("ranking_evidence")
         if not isinstance(ranking_evidence, list) or not all(

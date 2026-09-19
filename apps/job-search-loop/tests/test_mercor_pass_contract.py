@@ -119,6 +119,53 @@ class MercorPassContractTests(unittest.TestCase):
                 ["list-existing", "list-card"],
             )
 
+    def test_application_observation_uses_query_card_url_when_artifact_omits_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "run-1"
+            run.mkdir()
+            (run / "pass-result.json").write_text(json.dumps({
+                "status": "observed_no_action",
+                "inspected_listings": [{
+                    "listing_id": "list-human",
+                    "title": "Japanese Professional Voice Actor",
+                    "application_state": "4 of 5 steps completed",
+                    "decision": "human_gate_pending_observed",
+                    "ranking_band": "medium",
+                    "ranking_evidence": ["visible application card"],
+                    "provider_fit_status": "not_shown",
+                    "requirement_evidence": [],
+                    "strategy_version": "mercor-fit-evidence-v1",
+                }],
+            }), encoding="utf-8")
+            (run / "query-japan.json").write_text(json.dumps({
+                "query_label": "Japan",
+                "input_value": "Japan",
+                "query_available": True,
+                "cards": [{
+                    "listing_id": "list-human",
+                    "url": "https://work.mercor.com/explore?listingId=list-human",
+                    "title": "Japanese Professional Voice Actor",
+                }],
+            }), encoding="utf-8")
+            result = {"inspected_listings": []}
+
+            merge_card_only_evidence(result, run)
+
+            self.assertEqual(result["inspected_listings"], [{
+                "listing_id": "list-human",
+                "url": "https://work.mercor.com/explore?listingId=list-human",
+                "title": "Japanese Professional Voice Actor",
+                "application_state": "4 of 5 steps completed",
+                "submit_visible": False,
+                "decision": "human_gate_pending_observed",
+                "ranking_band": "medium",
+                "ranking_evidence": ["visible application card"],
+                "provider_fit_status": "not_shown",
+                "requirement_evidence": [],
+                "strategy_version": "mercor-fit-evidence-v1",
+            }])
+
     def test_media_permissions_are_denied_before_model_browser_work(self):
         class FakeWebSocket:
             def __init__(self):
