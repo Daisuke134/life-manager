@@ -298,6 +298,64 @@ class LoopCleanupTest(unittest.TestCase):
             self.assertTrue(run.is_dir())
             self.assertFalse(result["identity_snapshot_available"])
 
+    def test_scratch_gc_preserves_malformed_owner_without_failing_cleanup(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/job/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text("{")
+            result = scratch_gc({root}, starts={})
+            self.assertTrue(run.is_dir())
+            self.assertEqual(result["errors"], 0)
+            self.assertEqual(result["owner_metadata_invalid"], 1)
+
+    def test_scratch_gc_records_malformed_owner_before_terminal_preserve(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/job/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text("{")
+            (run / ".terminal-unrecorded").touch()
+            result = scratch_gc({root}, starts={})
+            self.assertTrue(run.is_dir())
+            self.assertEqual((result["errors"], result["owner_metadata_invalid"]), (0, 1))
+
+    def test_scratch_gc_records_owner_open_oserror(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/job/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": "old-start"}))
+            original_open = os.open
+
+            def fail_owner(path, flags, *args, **kwargs):
+                if path == ".owner.json":
+                    raise PermissionError("owner unavailable")
+                return original_open(path, flags, *args, **kwargs)
+
+            with mock.patch("runtime.loop.central_cleanup.os.open", side_effect=fail_owner):
+                result = scratch_gc({root}, starts={})
+            self.assertEqual((result["errors"], result["preserved"]), (1, 1))
+
+    def test_scratch_gc_preserves_invalid_present_effect_class(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/no-effect/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps({
+                "pid": 11, "process_start": "old-start", "effect_class": False,
+            }))
+            (run / ".terminal-unrecorded").touch()
+            (root / "events.jsonl").write_text(json.dumps({
+                "loop_id": "no-effect", "run_id": "run", "effect_class": "none",
+            }) + "\n")
+            result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                starts={}, no_effect_loop_ids={"no-effect"})
+            self.assertTrue(run.is_dir())
+            self.assertEqual((result["removed"], result["preserved"],
+                              result["owner_metadata_invalid"]), (0, 1, 1))
+
     def test_scratch_gc_preserves_unrecorded_terminal_evidence(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -554,7 +612,8 @@ class LoopCleanupTest(unittest.TestCase):
             result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
                                 starts={})
             self.assertTrue(run.exists())
-            self.assertEqual((result["removed"], result["errors"]), (0, 1))
+            self.assertEqual((result["removed"], result["errors"],
+                              result["owner_metadata_invalid"]), (0, 0, 1))
 
     def test_scratch_gc_preserves_owner_created_after_snapshot(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -596,7 +655,7 @@ class LoopCleanupTest(unittest.TestCase):
                                 starts={})
             self.assertEqual(result["removed"], 0)
             self.assertEqual(result["preserved"], 5)
-            self.assertEqual(result["errors"], 5)
+            self.assertEqual((result["errors"], result["owner_metadata_invalid"]), (0, 5))
 
     def test_installed_state_roots_uses_plist_runtime_override(self):
         with tempfile.TemporaryDirectory() as directory:
