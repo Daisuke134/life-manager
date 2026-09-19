@@ -2,7 +2,7 @@
 
 初契約・初入金を目的とするプロフィール、適合案件、成果学習の設計と実装順序 → [Mercor first income design](./2026-09-17-mercor-first-income-design.md) / [implementation plan](../plans/2026-09-17-mercor-first-income.md)。この文書はMercorの稼働経路と既存の契約境界の正本を維持する。
 
-**Status:** provider lane restored / PR #5714 priority-observation recovery merged / immutable release `84c0ba2c` loaded / latest wakes are still held by browser/admission `entrypoint_exit_75` before provider scan / selection, contract, and payment still unobserved
+**Status:** provider lane restored / PR #5714 priority-observation recovery merged / immutable release `84c0ba2c` loaded / the latest stale fence is resolved by an exact official readback / natural wakes still stop at `entrypoint_exit_75` before provider scan / selection, contract, and payment still unobserved
 **Canonical repository:** `https://github.com/Daisuke134/life-manager`
 **Canonical checkout:** `/Users/anicca/Projects/life-manager-main`
 
@@ -47,6 +47,12 @@ below remain historical evidence and must not be read as current runtime state.
   `mercor-20260919-190501-44596` now passes both bounded and priority validation. A natural
   production wake has not yet reached this validator: later wakes stopped at admission FIFO,
   CDP WebSocket 500, `control_busy`, or `entrypoint_exit_75`.
+- The newest stale application fence, occurrence `18d6beb625d44728-14221`, was correlated to
+  `official-readback-20260919T2320Z.json` (100 applications, 0 contracts, 0 notifications,
+  zero `updatedAt`/`appliedAt` changes in its exact `14:19:51–14:20:47Z` window) and resolved
+  with receipt `mercor-official-readback:3e2c31ab...`. The admission readback now shows
+  `effect_unknown=0`; `lm-loop status` may continue to display the last blocked event until a
+  new terminal wake is recorded.
 
 ### Human operator procedure (the only user-bound action)
 
@@ -73,7 +79,8 @@ that state. The operator does not need to keep the browser open after the provid
 1. **Priority/detail and query-input readback:** priority-observation recovery is merged and replayed
    PASS. Fix the controlled search input readback so a query is unavailable only after an independently
    verified retry, then obtain a natural wake that reaches the validator and passes it. The current
-   operational blocker is before provider scan: browser/admission `entrypoint_exit_75`.
+   operational blocker remains before provider scan: repeated `entrypoint_exit_75` with admission/control
+   contention and browser WebSocket failures.
 2. **Human-bound steps:** deliver one current link per exact gate. The user completes Voice Actor,
    PDF Annotation Bilingual Competency, Consultant Style and Midas, Bilingual Competency/interview,
    and any VS Code interview. The next wake verifies the same account/listing/step as `Completed`
