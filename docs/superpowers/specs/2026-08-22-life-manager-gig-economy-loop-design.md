@@ -602,6 +602,11 @@ receipt and resolver call must use the owner-prefixed database identity.
   (SHA-256 `ef044f92d2e7e5ca80b5b213ecfa77b10728a107501b1892d21539034e90a526`). The runtime
   terminal itself ended `entrypoint_exit_143`, so this receipt proves the provider outcome but
   does not close the runtime acceptance gate; A13 remains unchecked.
+  The retainer-source failure was diagnosed as a bare-host 403 on the applied-history route. PR
+  #5715 (`fix(coconala): use www host for retainer readback`) passed the focused 50-test suite,
+  was admin-squash-merged as `84c0ba2c718a8c541ab0d3dc05cad568c3a8681a`, and produced immutable
+  release `/Users/anicca/loops/releases/20260919T222408-84c0ba2c`. Apply is now loaded-idle on
+  that release; the next natural A13 wake will exercise the `www` host fix.
 - [ ] **A14 — Natural retainer Apply.** Owner: Apply scheduler. Action: wait for one natural
   retainer candidate. Output: terminal event, `effect=1`, official retainer readback, replay-zero.
   Pass: retainer identity and talkroom receipt are exact.
