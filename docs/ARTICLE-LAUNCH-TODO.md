@@ -29,6 +29,8 @@ X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dorm
   `host_admission_deferred:resource_effect_unknown` で、exact occurrence summary/pre-effect proofと公式provider readbackが無いため保持する。
 - `article-healthcheck` は旧 `215d6e53…` loadedのまま。target-only applyとloaded-idle reconcileはともに
   `skipped=pending-admission` で、Writer以外は変更していない。
+- source側ではregistryのhealthcheckに`resource_class=agent`、`admission_class=borrow`、`priority=support`を追加し、
+  focused apply suite 107/107とcontract gateをPASSした（branch commit `2a419e05a9`）。Main統合前なのでproductionには未適用。
 - host freeは `606,294,016 bytes`（15:56 JSTの最新`df` readback）で、Writer run floor `1,155,780,608 bytes`を下回る。
 - 共有 `life-manager-release-reconciler` は別ownerの旧release `09a59ba1…`で稼働中（PID `26051`）。stderrには
   欠損worktree `/Users/anicca/Projects/life-manager-daily-revenue-priority`、`ENOSPC`、`another release build owns` が反復する。
@@ -61,8 +63,10 @@ W2cのtarget-only applyは完了したが、W2のfresh publicationは次の自�
 - [x] **W2c: 現在のrelease driftを解消する。** 最新 `origin/main` (`ed82c570…`) から
       `20260919T153206-ed82c570` を作成し、`article-daily`/`article-resume`へtarget-only apply。install event
       `097de43691424c93ac6a26e6` / `78a5aaebdf7d7821a9b22b33`、loaded argv/source SHA一致、current symlink不変をreadback済み。
-- [ ] **W2d: Writer healthcheckのpending admissionを安全にreconcileする。** `article-healthcheck`だけを
-      loaded-idleで再bindし、最新Main releaseのargv/source SHA、state root、terminal receiptをreadbackする。
+- [x] **W2d-source: Writer healthcheckのpending admissionをrebind可能にするregistry契約を追加する。**
+      `agent/borrow/support` metadata、focused apply suite 107/107、contract gate PASS。branch commit `2a419e05a9`。
+- [ ] **W2d-prod: Main統合後にWriter healthcheckだけをloaded-idleで再bindする。** 最新Main releaseのargv/source SHA、
+      state root、terminal receiptをreadbackする。
 - [ ] **W3–W6: fresh runについて、Note JA / Substack JA / Substack EN / X Article JAを各provider-native UI/APIでreadbackする。**
       title、body、owner、headline、paywall、live URLを4件すべて記録する。local testやpublisher `rc=0`だけでは完了にしない。
 - [ ] **W7: 2回目の自然wakeでreplay-zeroを確認する。** 記事、payment row、notification、Telegram attributionの重複effectを0件で確認する。
@@ -76,6 +80,7 @@ W2cのtarget-only applyは完了したが、W2のfresh publicationは次の自�
 
 1. **最新releaseのfresh canary**: same-day safety blockを迂回して再送することはできない。次の自然JST日まで待つ必要があり、日付を偽装したcanaryは受け入れない。
 2. **Writer healthcheck drift**: `article-healthcheck`は`215d6e53…` loaded、target apply/reconcileは`pending-admission`でskipされた。
+   source fixはbranchにあり、Main統合とproduction applyが未完了。
 3. **host capacity**: floorは`1,155,780,608` bytes、今回のfree readbackは`606,294,016` bytes。floor未達ならgeneration前にfail-closedする。
    別ownerのbrowser/session/reconcilerを停止して回復しない。release-reconcilerの欠損worktree/ENOSPCは別ownerの境界である。
 4. **provider/payment boundary**: 旧releaseのactive-four canaryはliveだが、現行Main由来releaseのfresh live URLとreceived payout receiptはまだ無い。コード、
@@ -86,7 +91,7 @@ W2cのtarget-only applyは完了したが、W2のfresh publicationは次の自�
 7. **resume fence**: `article-resume`に過去occurrenceに加え、最新run `18d6a6855fccd740-34777`の`effect_unknown` claimが残る。
    occurrence-specificな公式readbackまたはpre-effect proofなしに解除せず、日次fresh canaryの完了とは別に解決する。
 
-**Completion rule:** 上記W2a→W2b→W2c→W2d→W2→W3–W7→W13–W21のreceiptが揃うまで、Writerを「毎日全platformで公開済み」「稼働して$10K MRR」とは報告しない。
+**Completion rule:** 上記W2a→W2b→W2c→W2d-source→W2d-prod→W2→W3–W7→W13–W21のreceiptが揃うまで、Writerを「毎日全platformで公開済み」「稼働して$10K MRR」とは報告しない。
 
 - [x] W0 stale publication lock互換を修復する。`owner.pid`だけの旧lockについて、実PID不在、start token取得不能、
       directory identity不変を確認した場合だけquarantineし、新lockを取得する。`identity unavailable`を成功扱いの
