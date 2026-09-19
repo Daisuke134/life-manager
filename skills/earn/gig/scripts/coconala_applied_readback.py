@@ -23,7 +23,7 @@ from urllib.parse import urlsplit
 import websockets
 
 
-APPLIED_OFFERS_URL = "https://coconala.com/mypage/job_matching/applied/offers"
+APPLIED_OFFERS_URL = "https://www.coconala.com/mypage/job_matching/applied/offers"
 RETAINER_APPLIED_URL = (
     "https://coconala.com/mypage/job_matching/applied/outsource_applications"
 )

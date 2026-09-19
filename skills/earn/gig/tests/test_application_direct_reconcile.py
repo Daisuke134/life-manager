@@ -178,6 +178,12 @@ def test_applied_history_pagination_preserves_www_host():
     assert application_parent._next_applied_history_page(current, [candidate]) == candidate
 
 
+def test_applied_history_starts_on_www_host():
+    assert application_parent._APPLIED_OFFERS_URL == (
+        "https://www.coconala.com/mypage/job_matching/applied/offers"
+    )
+
+
 def test_applied_history_accepts_www_start_page_one():
     assert application_parent._valid_applied_history_start_url(
         "https://www.coconala.com/mypage/job_matching/applied/offers"
