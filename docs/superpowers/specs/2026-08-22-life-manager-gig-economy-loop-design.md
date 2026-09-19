@@ -591,6 +591,11 @@ receipt and resolver call must use the owner-prefixed database identity.
 - [ ] **A13 — Natural single Apply.** Owner: Apply scheduler. Input: A12 loaded fleet. Action:
   wait for one natural single candidate. Output: terminal event, `effect=1`, official request/offer
   readback, and replay-zero. Pass: all four receipts agree on owner, occurrence, release, and ID.
+  The first clean d448 natural run has produced official applied-history readbacks and screenshots
+  for request IDs `5279920`, `5280710`, and `5279390` under
+  `/Users/anicca/gig/apply-direct/gig-apply-direct-1789822006917747000-28222/refresh-evidence/`.
+  The outer terminal receipt has not yet been written, so A13 remains open until its
+  `effect=1`, `readback=1`, and replay-zero fields are present.
 - [ ] **A14 — Natural retainer Apply.** Owner: Apply scheduler. Action: wait for one natural
   retainer candidate. Output: terminal event, `effect=1`, official retainer readback, replay-zero.
   Pass: retainer identity and talkroom receipt are exact.
