@@ -779,7 +779,11 @@ def _strict_next_page(current: str, candidate: object, *, path: str = "/requests
         if key != "page"
     ]
     retained.append(("page", str(after_page)))
-    return urlunsplit(("https", "coconala.com", after.path.rstrip("/"), urlencode(retained), ""))
+    # Keep the host that served the current page. Coconala currently serves the
+    # applied-history route reliably on `www.coconala.com` while the bare host can
+    # return a provider 403 during pagination. Rewriting the host here turns a
+    # successful page-one read into a false historical-readback failure on page two.
+    return urlunsplit(("https", before.hostname, after.path.rstrip("/"), urlencode(retained), ""))
 
 
 def _next_applied_history_page(current: str, candidates: object) -> str | None:
@@ -800,6 +804,35 @@ def _next_applied_history_page(current: str, candidates: object) -> str | None:
             f"official_readback_noncontiguous_pagination:expected_page={expected_page}"
         )
     return sorted(adjacent)[0]
+
+
+def _valid_applied_history_start_url(value: object) -> bool:
+    """Accept either official host alias at page one of applied history."""
+    if not isinstance(value, str):
+        return False
+    parsed = urlsplit(value)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname not in {"coconala.com", "www.coconala.com"}
+        or parsed.path.rstrip("/") != _APPLIED_OFFERS_PATH
+    ):
+        return False
+    try:
+        return _page_index(value) == 1
+    except ParentContractError:
+        return False
+
+
+def _history_readback_can_truncate(
+    page: object, *, pages_walked: int, allow_truncated: bool,
+) -> bool:
+    """Preserve a verified prefix when the provider denies a later page."""
+    return (
+        isinstance(page, dict)
+        and page.get("access_denied") is True
+        and pages_walked > 0
+        and allow_truncated
+    )
 
 
 class CdpParentEffects:
@@ -1999,8 +2032,7 @@ class CdpParentEffects:
             # what the wedge strike exists to count. Everything after the first successful
             # page eval is neighbour-scan and converts to ReadbackScanTimeout.
             initial_url = start_url or _APPLIED_OFFERS_URL
-            if (_strict_next_page(_APPLIED_OFFERS_URL, initial_url, path=_APPLIED_OFFERS_PATH) is None
-                    and initial_url != _APPLIED_OFFERS_URL):
+            if (not _valid_applied_history_start_url(initial_url)):
                 raise ParentContractError("official_readback_start_url_invalid")
             call_id = await self._navigate_retry_once(ws, initial_url, call_id + 1)
             observed: set[str] = set()
@@ -2010,6 +2042,7 @@ class CdpParentEffects:
             cards_seen = 0
             has_next_page = False
             truncated = False
+            next_url: str | None = None
             while True:
                 try:
                     page, call_id = await self._eval_json(
@@ -2090,6 +2123,16 @@ class CdpParentEffects:
                             ),
                         },
                     )
+                    if _history_readback_can_truncate(
+                        page, pages_walked=pages_walked, allow_truncated=allow_truncated
+                    ):
+                        # Keep the verified prefix and resume from the denied page on the
+                        # next bounded wake. Absence remains inconclusive until the page
+                        # can be read; this branch only preserves evidence.
+                        next_url = str(page.get("url") or "")
+                        has_next_page = True
+                        truncated = True
+                        break
                     if page.get("access_denied") is True:
                         raise ParentContractError("official_readback_access_denied")
                     raise ParentContractError("official_readback_route_invalid")
@@ -2160,7 +2203,8 @@ class CdpParentEffects:
             raise ReadbackScanTimeout(
                 f"official_readback_truncated_after_{pages_walked}_pages_next_page_remains"
             )
-        urls = [_APPLIED_OFFERS_URL]
+        history_url = str(first_page.get("url") or _APPLIED_OFFERS_URL)
+        urls = [history_url]
         if not truncated and (retainer_expected or include_retainer_history):
             call_id = await self._navigate_retry_once(ws, RETAINER_APPLIED_URL, call_id)
             titles = self._retainer_titles(retainer_expected)
@@ -2199,7 +2243,7 @@ class CdpParentEffects:
             "source": "code_owned_cdp_readback",
             "observed_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
             "pass_id": self.pass_id,
-            "url": _APPLIED_OFFERS_URL,
+            "url": history_url,
             "urls": urls,
             "title": first_page.get("title"),
             "observed": True,
