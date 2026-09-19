@@ -171,6 +171,39 @@ def test_applied_history_uses_numeric_pagination_when_next_label_is_absent():
     assert r"/^\\d+$/u.test" in source
 
 
+def test_applied_history_pagination_preserves_www_host():
+    current = "https://www.coconala.com/mypage/job_matching/applied/offers"
+    candidate = "https://www.coconala.com/mypage/job_matching/applied/offers?page=2"
+
+    assert application_parent._next_applied_history_page(current, [candidate]) == candidate
+
+
+def test_applied_history_accepts_www_start_page_one():
+    assert application_parent._valid_applied_history_start_url(
+        "https://www.coconala.com/mypage/job_matching/applied/offers"
+    ) is True
+    assert application_parent._valid_applied_history_start_url(
+        "https://www.coconala.com/mypage/job_matching/applied/offers?page=10"
+    ) is True
+    assert application_parent._valid_applied_history_start_url(
+        "https://evil.example/mypage/job_matching/applied/offers"
+    ) is False
+
+
+def test_partial_full_history_access_denied_is_recoverable_only_after_a_page():
+    denied = {"access_denied": True}
+
+    assert application_parent._history_readback_can_truncate(
+        denied, pages_walked=5, allow_truncated=True
+    ) is True
+    assert application_parent._history_readback_can_truncate(
+        denied, pages_walked=0, allow_truncated=True
+    ) is False
+    assert application_parent._history_readback_can_truncate(
+        denied, pages_walked=5, allow_truncated=False
+    ) is False
+
+
 def test_full_history_scan_state_accumulates_across_wakes():
     state = {
         "version": 1, "targets_sha256": "a" * 64,
