@@ -2,7 +2,7 @@
 
 初契約・初入金を目的とするプロフィール、適合案件、成果学習の設計と実装順序 → [Mercor first income design](./2026-09-17-mercor-first-income-design.md) / [implementation plan](../plans/2026-09-17-mercor-first-income.md)。この文書はMercorの稼働経路と既存の契約境界の正本を維持する。
 
-**Status:** provider lane restored / immutable release `1faa41f1` loaded / exact human-gate reuse merged and live / last completed wake `needs_human` with no new submission / current wake in progress / selection, contract, and payment still unobserved
+**Status:** provider lane restored / immutable release `1faa41f1` loaded / exact human-gate reuse merged and live / latest completed wake blocked by priority/detail readback validation with no submission / selection, contract, and payment still unobserved
 **Canonical repository:** `https://github.com/Daisuke134/life-manager`
 **Canonical checkout:** `/Users/anicca/Projects/life-manager-main`
 
@@ -19,8 +19,10 @@ below remain historical evidence and must not be read as current runtime state.
 - The installed Mercor owner uses that release and the authenticated isolated browser profile. The
   latest completed wake `mercor-20260919-184826-32102` returned `needs_human`, `submitted=[]`,
   Telegram receipt `89440`, and no provider submission receipt.
-- Wake `mercor-20260919-190501-44596` is currently live. Its terminal state is not known yet, so
-  its admission occurrence remains an active runtime observation rather than a failure conclusion.
+- The latest completed wake `mercor-20260919-190501-44596` produced `submitted=[]` and Telegram
+  receipt `89447`, but ended `blocked` on `priority_scan_incomplete` for Japanese Voice Actor and
+  Bilingual candidates whose detail readback did not render. This is an automation/readback defect,
+  not a provider submission or a human-gate completion.
 - The same-account/listing/step gate is now reused by both the model notification path and the
   terminal report path. Legacy rows remain append-only; current logical reads collapse known
   Voice Actor, PDF Annotation, Consultant, Bilingual, and Sonic identities without deleting history.
@@ -35,26 +37,29 @@ below remain historical evidence and must not be read as current runtime state.
 
 ### Remaining TODO in execution order
 
-1. **Human-bound steps:** deliver one current link per exact gate. The user completes Voice Actor,
+1. **Priority/detail readback boundary:** fix `priority_scan_incomplete` so an unrendered application
+   card is recorded as a candidate-local `listing_detail_not_rendered`/card-only outcome and does not
+   fail the whole wake. Re-run a natural wake and require the priority validator to pass.
+2. **Human-bound steps:** deliver one current link per exact gate. The user completes Voice Actor,
    PDF Annotation Bilingual Competency, Consultant Style and Midas, Bilingual Competency/interview,
    and any VS Code interview. The next wake verifies the same account/listing/step as `Completed`
    or `reused` and resumes automatically. Do not impersonate interviews, assessments, recording,
    camera, microphone, or screen sharing.
-2. **Sonic identity:** obtain the official `Unique Candidate ID` from Mercor UI or message, store it
+3. **Sonic identity:** obtain the official `Unique Candidate ID` from Mercor UI or message, store it
    in private state, and resume the intake form. Do not submit an empty or inferred ID.
-3. **Resident continuity:** prove two natural scheduled Mercor wakes and one Inbox wake from the
+4. **Resident continuity:** prove two natural scheduled Mercor wakes and one Inbox wake from the
    immutable release, each with terminal evidence, Telegram ACK or durable `delivery_unknown`, and
    zero duplicate submissions. A kickstart alone does not close this gate.
-4. **Truthful acquisition:** keep scanning new listings every wake, inspect plausible high/medium
+5. **Truthful acquisition:** keep scanning new listings every wake, inspect plausible high/medium
    candidates with detail evidence, submit at most one never-submitted ready listing, and record the
    official post-submit readback. If no suitable new listing exists, record `observed_no_action`.
-5. **Selection and contract reconciliation:** classify Mercor Gmail/provider messages for selection,
+6. **Selection and contract reconciliation:** classify Mercor Gmail/provider messages for selection,
    rejection, interview, and contract; persist each transition with an exact application identity.
-6. **Shared money receipts:** add and migrate Contract, Authorization, QA, Delivery, settled
+7. **Shared money receipts:** add and migrate Contract, Authorization, QA, Delivery, settled
    Payment, and payout/bank-match receipts before crediting revenue or portfolio allocation.
-7. **First paid E2E:** complete one selected contract only when work is explicitly authorized,
+8. **First paid E2E:** complete one selected contract only when work is explicitly authorized,
    perform independent QA and delivery, read acceptance and settled payout, and record verified net.
-8. **Operator replay and legacy cleanup:** reproduce the isolated flow on a clean non-Dais HOME,
+9. **Operator replay and legacy cleanup:** reproduce the isolated flow on a clean non-Dais HOME,
    then migrate or explicitly stop old-repository consumers before deleting `profitable-claude`.
 
 ## Current cursor: application repair and first-income funnel
