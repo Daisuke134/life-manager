@@ -524,21 +524,37 @@ receipt and resolver call must use the owner-prefixed database identity.
   exposed a non-Gig clean-install false failure. Commit `268316fe31` further preserves clean
   install compatibility when a test `launchctl print` has no environment block; real Gig loaded
   environment blocks remain strictly validated.
-  PR #5710 is open for review:
-  `https://github.com/Daisuke134/life-manager/pull/5710`.
-  Required CI checks are now all green and GitHub reports `mergeStateStatus=CLEAN` at head
-  `268316fe3112f752f8f58e86ce3def98fb80d3c0`. Main merge remains sequenced after the remaining
-  natural acceptance gates.
-  It is not merged or loaded in production. The Gig-wide suite produced `1322 passed` and `4`
-  failures; the failures are classified as host `ENOSPC` during temporary-file creation and
-  pre-existing release/reply fixture drift, so they are not a clean integration gate. Pass: after
-  the remaining acceptance gates and a clean integration verification, merge once and verify the
-  release manifest SHA equals the main commit. A read-only `git merge-tree` against current
-  `origin/main` produced tree `f0222455f54f60a4ce2cf9b561aa27f7addda278` with no merge conflict.
+  PR #5710 was admin-squash-merged; `origin/main` is now
+  `d448cb8ef1b001b1ca61d1c4cc0738406e32a21f`. Required CI checks were green at the merged
+  head. The immutable release was cut at
+  `/Users/anicca/loops/releases/20260919T204301-d448cb8e` and was later rebuilt at
+  `/Users/anicca/loops/releases/20260919T204543-d448cb8e` with the same manifest SHA after the
+  first candidate directory was removed during host release maintenance. The `current` symlink
+  intentionally remains on `20260919T184226-1faa41f1` until A12. The Gig-wide local suite had
+  `1322 passed` and `4` host/fixture failures; those failures were classified as ENOSPC during
+  temporary-file creation and pre-existing release/reply fixture drift, while the required PR CI
+  gate was green. A read-only `git merge-tree` against `origin/main` had no merge conflict.
 - [ ] **A12 — Target-apply the four lanes.** Owner: launchd owner. File:
   `runtime/loop/lm_loop.py` apply path. Action: apply only the four Gig labels from A11. Output:
   loaded `ProgramArguments`, release SHA, and required browser env for each lane. Pass: all four
   argv/env readbacks match; no fleet-wide apply.
+  First attempt on 2026-09-19 used the first candidate path and returned
+  `admission rebind refused: control_busy` before any provider action or plist readback. During
+  that attempt host release maintenance was still rebuilding the same SHA, so the candidate path
+  temporarily had no `RELEASE.json`. No lane was changed. The next attempt must use the complete
+  same-SHA release, acquire the shared admission control lock, and record each target's loaded
+  argv/env immediately after install.
+  A later retry acquired the control lock but found the exact safety fence
+  `hf-gig-apply-direct:18d5fa3b8315d220-45978` in `claimed/effect_unknown`. Read-only admission
+  state shows the prior A5 occurrence `18d5f9cd9f029658-33307` is released, while this second
+  occurrence remains fenced. Its matching run artifact is
+  `/Users/anicca/gig/apply-direct/gig-apply-direct-1789611564192685000-46013/result.json`:
+  `status=failed`, `effect=0`, and `browser_context_limit` in
+  `parent.invocation-refresh.json`, before provider dispatch. This is evidence for a typed
+  pre-effect resolver, not yet a resolution receipt; no SQLite mutation, retry, or lane reload
+  is allowed until the proof is written with this exact occurrence ID. The host currently has
+  about 229 MiB free, below the Gig 512 MiB producer floor, so the first A12 substep is bounded
+  cleanup/recovery through the existing cleanup contract.
 - [ ] **A13 — Natural single Apply.** Owner: Apply scheduler. Input: A12 loaded fleet. Action:
   wait for one natural single candidate. Output: terminal event, `effect=1`, official request/offer
   readback, and replay-zero. Pass: all four receipts agree on owner, occurrence, release, and ID.
