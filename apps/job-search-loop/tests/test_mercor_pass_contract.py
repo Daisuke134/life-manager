@@ -479,6 +479,8 @@ class MercorPassContractTests(unittest.TestCase):
             '"claimed": false',
             "capability_catalog_path",
             "Japan-eligible Japanese-language",
+            "direct product matches such as personal/life-assistant systems",
+            "direct Life Manager/AI-agent/product-operations overlap",
             "host_capabilities",
             "job_search_loop.mercor_human_gate_notify",
             "Never open or enter a person-bound step",
