@@ -794,6 +794,11 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                     "realtime-guide": (
                         "ANICCA_HOME", "OPENCLAW_ENV_FILE", "REALTIME_GUIDE_STATE_DIR",
                     ),
+                    # The reconciler's source checkout is derived from the current
+                    # release runner's default. Preserve only the immutable release
+                    # and state identity; an old checkout path can disappear and
+                    # otherwise turns every reconcile wake into exit 128.
+                    "life-manager-release-reconciler": ("LIFE_MANAGER_SOURCE_REPO",),
                     "lateness-heartbeat": (
                         "ANICCA_HOME", "OPENCLAW_ENV_FILE",
                     ),
