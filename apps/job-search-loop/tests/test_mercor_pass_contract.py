@@ -654,6 +654,7 @@ class MercorPassContractTests(unittest.TestCase):
             row["properties"]["official_step"]["enum"],
             ["completed", "reused"],
         )
+        self.assertIn("resolved_human_gates", schema["required"])
 
     def test_reconcile_human_gate_resolutions_requires_current_evidence_and_exact_identity(self):
         from job_search_loop.mercor_human_gate import HumanGateStore
@@ -745,7 +746,7 @@ class MercorPassContractTests(unittest.TestCase):
                 }],
                 "strategy_version": "mercor-fit-evidence-v1",
             }],
-            "submitted": [], "needs_human": [], "blocked": [],
+            "submitted": [], "needs_human": [], "resolved_human_gates": [], "blocked": [],
             "evidence": {"page_url": "https://work.mercor.com/explore", "screenshot_path": "", "dom_path": ""},
         }
         AgentRunner.validate(result, schema)
@@ -999,6 +1000,7 @@ class MercorPassContractTests(unittest.TestCase):
                 "evidence_path": "/tmp/evidence.json",
             }],
             "needs_human": [],
+            "resolved_human_gates": [],
             "blocked": [],
             "evidence": {
                 "page_url": "https://work.mercor.com/jobs/apply/test",
@@ -1015,7 +1017,7 @@ class MercorPassContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             fallback = _blocked_for_evidence_violation(
                 {"status": "submitted", "inspected_listings": [], "submitted": [],
-                 "needs_human": [], "blocked": [], "evidence": {}},
+                 "needs_human": [], "resolved_human_gates": [], "blocked": [], "evidence": {}},
                 Path(directory),
                 ValueError("stale evidence"),
             )

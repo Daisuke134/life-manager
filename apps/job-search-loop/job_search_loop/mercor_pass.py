@@ -817,6 +817,7 @@ def _blocked_for_evidence_violation(
         "inspected_listings": inspected,
         "submitted": [],
         "needs_human": needs_human,
+        "resolved_human_gates": [],
         "blocked": [*blocked, f"evidence_validation:{error}"],
         "evidence": {
             "page_url": evidence.get("page_url", ""),
