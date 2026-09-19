@@ -79,10 +79,12 @@ The production scheduler also observed the synthetic projection and logged a Tel
 - The remaining release mismatch is code, not schema: production `/health` still reports the older
   build `d4659ff4bc7b4e13aa67836243060ad1d4efbb03`, while the release branch contains the decision
   wiring. No production flag change was attempted before that code release.
-- Crisis-owner probe: `apps/life-manager/lib/mental-safety.js` only consumes an injected trusted
-  verdict and returns `safety_route_required`; no production verdict producer, location-aware
-  resource resolver, or human handoff delivery/readback is wired. MENTAL makes no crisis-support
-  claim until that owner and route are proven.
+- Crisis-owner probe: the separate `apps/api` owner has
+  `sufferingDetectionService`/`detectSuffering`, emits `safe_t_interrupted`, and notifies Slack
+  `#agents`. Life Manager MENTAL's `apps/life-manager/lib/mental-safety.js` only consumes an
+  injected trusted verdict; the adapter from that owner to MENTAL plus a location-aware user
+  resource/handoff readback is not wired. MENTAL makes no crisis-support claim until that boundary
+  is proven.
 - The merged offline policy scorecard is available for replay, but no policy is promoted from it until natural provider receipts exist; this readback contains no synthetic rows.
 - Explicit reply correction intake is live in the same deployment: only a reply to a durable V1 Telegram receipt can create a bounded tone tag; ambiguous/timing corrections remain no-op and no raw text is stored.
 - Window-bound scheduler logs now record send family/template/message ID or enum suppression reasons; outside-window heartbeats remain silent.

@@ -695,10 +695,11 @@ has no eligible natural receipt; it is not evidence of a successful canary.
 
 **Secondary blockers for the full acceptance claim:** the migration is applied/read back, but the
 decision-log wiring release is not yet the live production SHA; the flag remains off until that
-readback. The safety adapter currently accepts only an injected trusted verdict; there is no
-production verdict producer, location-aware resource resolver, or human handoff delivery/readback.
-These items do not prevent collecting the ordinary V1 message, but they prevent claiming the full
-self-improving, timing-personalized, safety-complete rollout.
+readback. A separate `apps/api` SAFE-T owner exists and emits `safe_t_interrupted` plus Slack
+`#agents` notification, but no adapter connects that owner to Life Manager MENTAL and no
+location-aware user resource/handoff readback is wired. These items do not prevent collecting the
+ordinary V1 message, but they prevent claiming the full self-improving, timing-personalized,
+safety-complete rollout.
 
 ### 19.5 Next action
 

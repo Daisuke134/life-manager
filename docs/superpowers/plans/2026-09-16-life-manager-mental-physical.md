@@ -811,9 +811,10 @@ Current state: the offline evaluator and unit tests are merged (`mental-policy-e
 
 Before claiming any self-harm support, verify the existing safety route and its actual owner. Explicit imminent self-harm language stops ordinary affirmation selection and offers location-appropriate human/crisis support. Do not infer crisis from rejection, silence, or Calendar gaps; do not claim suicide prevention, emergency dispatch, continuous monitoring, or treatment without independently proven capability. Test crisis text versus ordinary disappointment and read back the actual handoff route.
 
-Current readback: `apps/life-manager/lib/mental-safety.js` is only a trusted-verdict adapter; no
-production verdict producer or human/crisis handoff delivery owner is wired. Keep this task open and
-keep ordinary MENTAL copy free of crisis claims.
+Current readback: the separate `apps/api` SAFE-T owner detects explicit crisis signals, emits
+`safe_t_interrupted`, and notifies Slack `#agents`. Life Manager's `mental-safety.js` only consumes
+an injected trusted verdict; the cross-service adapter and location-aware user handoff/readback are
+not wired. Keep this task open and keep ordinary MENTAL copy free of crisis claims.
 
 ### Task 15: Optional Anicca iOS copy improvement
 
