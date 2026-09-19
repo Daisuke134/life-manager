@@ -513,7 +513,11 @@ receipt and resolver call must use the owner-prefixed database identity.
   subtests passed`; branch is rebased and pushed; no production apply yet.
 - [ ] **A11 — Merge and cut one release.** Owner: release owner. Input: A10 review receipt and
   latest `origin/main`. Action: merge once, cut one immutable main-derived release. Output:
-  release SHA and immutable path. Pass: release manifest SHA equals main commit.
+  release SHA and immutable path. Current integration candidate is pushed at
+  `fix/coconala-a11-integration-20260919` with commits `7f95664f04`, `4c317cd6f5` and
+  `25e298b0e7`; its focused gates pass (`11` full-history tests and `1` loaded-env regression).
+  It is not merged or loaded in production. Pass: after the remaining acceptance gates, merge once
+  and verify the release manifest SHA equals the main commit.
 - [ ] **A12 — Target-apply the four lanes.** Owner: launchd owner. File:
   `runtime/loop/lm_loop.py` apply path. Action: apply only the four Gig labels from A11. Output:
   loaded `ProgramArguments`, release SHA, and required browser env for each lane. Pass: all four
