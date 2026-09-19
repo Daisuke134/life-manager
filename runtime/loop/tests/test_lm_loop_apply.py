@@ -2734,6 +2734,43 @@ class LmLoopApplyTest(unittest.TestCase):
         )
         self.assertNotIn("WorkingDirectory", plistlib.loads(target.read_bytes()))
 
+    def test_release_reconciler_target_retires_stale_source_repo(self):
+        loop_id = "life-manager-release-reconciler"
+        release = self._release("release-reconciler").resolve()
+        registry_value = registry()
+        entry = registry_value["loops"].pop("example")
+        entry["label"] = "ai.anicca.life-manager-release-reconciler"
+        registry_value["loops"][loop_id] = entry
+        (release / "config/loop-registry.json").write_text(json.dumps(registry_value))
+        current = self.root / "current-reconciler"
+        current.symlink_to(release)
+        expected_arguments = [
+            str(release / "bin/lm-loop-run"), loop_id, str(release),
+        ]
+        values = self._apply_kwargs(
+            current, self.root / "apply-reconciler.lock", expected_arguments,
+            label="ai.anicca.life-manager-release-reconciler",
+        )
+        rendered = build_apply_plan(registry_value, release, SHA)[0]
+        target = values["agents_dir"] / "ai.anicca.life-manager-release-reconciler.plist"
+        installed = plistlib.loads(rendered["plist_bytes"])
+        installed["EnvironmentVariables"].update({
+            "LIFE_MANAGER_SOURCE_REPO": "/Users/anicca/Projects/life-manager-daily-revenue-priority",
+            "RECONCILER_CUSTOM": "kept",
+        })
+        target.write_bytes(plistlib.dumps(installed, fmt=plistlib.FMT_XML, sort_keys=True))
+
+        result = apply_live(
+            release, values["agents_dir"], values["launchctl_safe"],
+            target=loop_id, current=current,
+            lock_path=values["lock_path"], event_writer=lambda *_: None,
+        )
+
+        self.assertTrue(result[0]["changed"])
+        environment = plistlib.loads(target.read_bytes())["EnvironmentVariables"]
+        self.assertNotIn("LIFE_MANAGER_SOURCE_REPO", environment)
+        self.assertEqual(environment["RECONCILER_CUSTOM"], "kept")
+
     def test_selfbuild_target_retires_only_legacy_source_override(self):
         loop_id = "life-manager-selfbuild"
         release = self._release("release-selfbuild").resolve()
