@@ -429,16 +429,24 @@ state transition. The next item starts only after its pass condition is recorded
   `skills/earn/gig/scripts/coconala_applied_readback.py` and pass `46013` evidence. Action: read
   the four exact candidates. Output: `5276533`, `5266999`, `5275035`, `5266959` plus readback JSON.
   Pass: `observed=true`, three readback attempts, one verified and three unresolved.
-- [ ] **A4 — Inspect each started intent.** Owner: Apply owner. Files:
+- [x] **A4 — Inspect each started intent.** Owner: Apply owner. Files:
   `~/gig/application-intents/<request_id>.json` and its recovery history. Action: bind each
   candidate to its exact intent CAS, `effect_phase`, pass task, and saved nonlanding evidence.
-  Output: one row per candidate with `pre_effect`, `effect_started`, or `provider_verified`.
-  Pass: every candidate has an evidence-backed disposition. Do not infer from age or timestamps.
+  Output: `~/gig/apply-direct/gig-apply-direct-1789611564192685000-46013/reconcile-evidence/a4-intent-dispositions.json`
+  (SHA-256 `1c81ba67e3b5eb93c8cf1749ba09873d8aa61eb79174ff174bfa00b9fd67f0a9`). The four rows
+  classify one candidate as `provider_verified` (`5276533`, official offer `6412654`) and three
+  as `effect_started` with official absence but missing occurrence-bound submit/no-dispatch proof
+  (`5266999`, `5275035`, `5266959`). Pass: every candidate has an evidence-backed disposition.
+  Do not infer from age or timestamps.
 - [ ] **A5 — Produce the whole-wake receipt.** Owner: Coconala provider reconciler. Inputs: A3
   official readback plus A4 intent dispositions. Action: create one immutable receipt binding
   `owner_id=hf-gig-apply-direct`, occurrence `18d5f9cd9f029658-33307`, all four candidate IDs,
   official evidence hashes, and provider states. Output: receipt JSON with exact occurrence identity.
-  Pass: no candidate remains unresolved; otherwise leave the fence and emit the missing evidence.
+  Current attempt: `~/gig/apply-direct/gig-apply-direct-1789611564192685000-46013/reconcile-evidence/a5-apply-whole-wake-receipt.json`
+  (SHA-256 `1e28b30838a496749f7200a0edf7034b3af422aab19ebfa11a494c14aa0d1d60`) is an immutable
+  `held` reconciliation report with `verified=false`, `resolve_allowed=false` and
+  `retry_allowed=false`. Pass: no candidate remains unresolved; otherwise leave the fence and
+  emit the missing evidence. The current report names the three missing occurrence-bound proofs.
 - [ ] **A6 — Resolve the Apply fence.** Owner: admission owner. File:
   `runtime/host/resource_admission.py`. Action: call
   `resolve_unknown_occurrence()` using the A5 receipt and `expected_state="claimed"`. Output:
@@ -879,10 +887,10 @@ or read-only diagnostic tools until a separate eval proves that they do not intr
 owner, state store, scheduler or effect path. The next package decision is therefore after the
 current provider receipt gates, not before them.
 
-The ordered Coconala cursor remains one item at a time. A0–A3 and A10 are complete. The first
-active item is A4; the thirteen unchecked items are A4, A5, A6, A7, A8, A9, then A11, A12, A13,
-A14, A15, A16 and A17. A later item cannot be marked complete from a later no-op wake, a local
-exit code, or an unrelated provider receipt.
+The ordered Coconala cursor remains one item at a time. A0–A4 and A10 are complete. The first
+active item is A5; the twelve unchecked items are A5, A6, A7, A8, A9, then A11, A12, A13, A14,
+A15, A16 and A17. A later item cannot be marked complete from a later no-op wake, a local exit
+code, or an unrelated provider receipt.
 
 ## 3. Capability and authorization model
 
