@@ -241,6 +241,14 @@ Pass order:
    operator, then continue scanning other candidates. A step already shown as `Completed` or `reused`
    is not a human requirement and may be used automatically. The human gate is resumable;
    a later wake observes official completion and continues the same application.
+   On every later wake, read the pending exact rows in `human_gate_store` before deciding
+   that an existing application is still waiting. If the live detail readback for the same
+   account and same application shows that exact provider step as `Completed` or `reused`
+   in the official readback, add one `resolved_human_gates` row with the exact `account_id`, `listing_id`,
+   `step_id`, `official_step`, `same_account: true`, `same_application: true`, and a fresh
+   local `evidence_ref`. Resolve only from that official readback; never resolve from a
+   card count, a title match, or a different account/application. If the step is still not
+   complete, do not add a resolution row and preserve the pending gate.
 4. For a ready listing, save fresh pre-action screenshot and bounded DOM evidence.
    Mercor submission has two distinct controls. The page-level `Submit application`
    only opens a reversible confirmation modal and is not the provider mutation. Click
@@ -298,3 +306,5 @@ Do not write private resume contents, passwords, tokens, or raw Gmail bodies int
 result. Never write evidence, screenshots, DOM, queues, or temporary artifacts into
 the repository workdir or repo root; use only the current `evidence_dir`. The result
 must include `status`, all required arrays, and `evidence` even when no action is taken.
+   Include `resolved_human_gates` as an empty array when no exact official completion/reuse
+   readback was obtained.

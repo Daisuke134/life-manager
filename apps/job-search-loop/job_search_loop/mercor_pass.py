@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from .agent_runner import AgentRunner, PassAlreadyRunning
+from .mercor_human_gate import HumanGateStore, next_action
 from .mercor_provider import run_pass
 from .mercor_submit_guard import fenced_listing_ids
 from .profile_setup import activate_profile
@@ -479,6 +480,15 @@ def validate_evidence_paths(result: dict[str, Any], evidence_root: Path) -> None
             if isinstance(value, str) and value.strip():
                 candidates.append((f"submitted[{index}].evidence_path", value.strip()))
 
+    resolved_gates = result.get("resolved_human_gates")
+    if isinstance(resolved_gates, list):
+        for index, item in enumerate(resolved_gates):
+            if not isinstance(item, dict):
+                continue
+            value = item.get("evidence_ref")
+            if isinstance(value, str) and value.strip():
+                candidates.append((f"resolved_human_gates[{index}].evidence_ref", value.strip()))
+
     if submitted and not candidates:
         raise ValueError("submitted_result_missing_evidence_path")
 
@@ -492,6 +502,66 @@ def validate_evidence_paths(result: dict[str, Any], evidence_root: Path) -> None
             if label == "evidence.dom_path" and human_gate_dom_optional:
                 continue
             raise ValueError(f"{label}_missing")
+
+
+def reconcile_human_gate_resolutions(
+    state_root: Path,
+    result: dict[str, Any],
+    *,
+    run_id: str,
+    evidence_root: Path,
+) -> list[dict[str, Any]]:
+    """Resolve exact pending gates only after same-application official readback."""
+    requested = result.get("resolved_human_gates")
+    if not isinstance(requested, list):
+        result["human_gate_resolutions"] = []
+        return []
+
+    root = evidence_root.expanduser().resolve()
+    store = HumanGateStore(Path(state_root).expanduser() / "human-gates.jsonl")
+    receipts: list[dict[str, Any]] = []
+    for index, item in enumerate(requested):
+        if not isinstance(item, dict):
+            continue
+        account_id = item.get("account_id")
+        listing_id = item.get("listing_id")
+        step_id = item.get("step_id")
+        evidence_ref = item.get("evidence_ref")
+        if not all(isinstance(value, str) and value.strip() for value in (
+            account_id, listing_id, step_id, evidence_ref,
+        )):
+            continue
+        action = next_action(
+            gate_status="pending",
+            official_step=str(item.get("official_step") or ""),
+            same_account=item.get("same_account") is True,
+            same_application=item.get("same_application") is True,
+        )
+        if action != "resume_application":
+            continue
+        evidence_path = Path(evidence_ref).expanduser()
+        if not evidence_path.is_absolute():
+            evidence_path = root / evidence_path
+        try:
+            evidence_path = evidence_path.resolve()
+            evidence_path.relative_to(root)
+        except (OSError, ValueError) as error:
+            raise ValueError(
+                f"resolved_human_gates[{index}].evidence_ref_outside_current_pass"
+            ) from error
+        if not evidence_path.is_file():
+            raise ValueError(f"resolved_human_gates[{index}].evidence_ref_missing")
+        resolved = store.resolve(
+            run_id=run_id,
+            evidence_ref=str(evidence_path),
+            account_id=account_id.strip(),
+            listing_id=listing_id.strip(),
+            step_id=step_id.strip(),
+        )
+        if resolved is not None:
+            receipts.append(resolved)
+    result["human_gate_resolutions"] = receipts
+    return receipts
 
 
 def merge_card_only_evidence(result: dict[str, Any], run_evidence_dir: Path) -> None:
@@ -801,6 +871,12 @@ def main(argv: list[str] | None = None) -> int:
         validate_bounded_scan(result, args.evidence_dir.parent)
         validate_priority_scan(result, args.evidence_dir.parent)
         validate_submission_fit(result)
+        reconcile_human_gate_resolutions(
+            args.state_root,
+            result,
+            run_id=args.run_id,
+            evidence_root=args.evidence_dir.parent,
+        )
     except ValueError as error:
         result = _blocked_for_evidence_violation(result, args.evidence_dir, error)
     record_verified_submissions(args.state_root, result, run_id=args.run_id)

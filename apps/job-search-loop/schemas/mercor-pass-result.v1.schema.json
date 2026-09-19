@@ -94,6 +94,23 @@
       }
     },
     "needs_human": {"type": "array", "items": {"type": "string"}},
+    "resolved_human_gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["account_id", "listing_id", "step_id", "official_step", "same_account", "same_application", "evidence_ref"],
+        "properties": {
+          "account_id": {"type": "string", "minLength": 1},
+          "listing_id": {"type": "string", "minLength": 1},
+          "step_id": {"type": "string", "minLength": 1},
+          "official_step": {"type": "string", "enum": ["completed", "reused"]},
+          "same_account": {"type": "boolean"},
+          "same_application": {"type": "boolean"},
+          "evidence_ref": {"type": "string", "minLength": 1}
+        }
+      }
+    },
     "blocked": {"type": "array", "items": {"type": "string"}},
     "evidence": {
       "type": "object",

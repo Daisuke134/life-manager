@@ -71,7 +71,7 @@ def next_action(
     if gate_status != "pending":
         return "continue"
     if (
-        official_step.strip().casefold() == "completed"
+        official_step.strip().casefold() in {"completed", "reused"}
         and same_account is True
         and same_application is True
     ):
