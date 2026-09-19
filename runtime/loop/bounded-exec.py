@@ -14,6 +14,72 @@ STOP_PATHS_ENV = "BOUNDED_EXEC_STOP_PATHS"
 POLL_INTERVAL_SECONDS, DRAIN_GRACE_SECONDS = 0.1, 1.0
 
 
+def _process_table() -> dict[int, tuple[int, str]]:
+    """Return pid -> (ppid, start token) for the current host snapshot."""
+    try:
+        result = subprocess.run(
+            ["ps", "-axo", "pid=,ppid=,lstart="],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=2,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return {}
+    if result.returncode != 0:
+        return {}
+    table: dict[int, tuple[int, str]] = {}
+    for line in result.stdout.splitlines():
+        parts = line.strip().split(maxsplit=2)
+        if len(parts) != 3:
+            continue
+        try:
+            pid, ppid = int(parts[0]), int(parts[1])
+        except ValueError:
+            continue
+        if pid > 0 and ppid >= 0 and parts[2]:
+            table[pid] = (ppid, parts[2])
+    return table
+
+
+def _descendant_identities(root_pid: int) -> dict[int, str]:
+    """Snapshot recursive descendants before terminating the owned root."""
+    table = _process_table()
+    descendants: dict[int, str] = {}
+    parents = {root_pid}
+    while parents:
+        children = {
+            pid for pid, (ppid, _start) in table.items()
+            if ppid in parents and pid != root_pid and pid not in descendants
+        }
+        if not children:
+            break
+        for pid in children:
+            descendants[pid] = table[pid][1]
+        parents = children
+    return descendants
+
+
+def _signal_owned(pid: int, start: str, signum: int) -> bool:
+    """Signal a captured descendant only if its start token is unchanged."""
+    current = _process_table().get(pid)
+    if current is None or current[1] != start:
+        return False
+    try:
+        os.kill(pid, signum)
+    except ProcessLookupError:
+        return False
+    return True
+
+
+def _owned_descendants_alive(descendants: dict[int, str]) -> bool:
+    if not descendants:
+        return False
+    table = _process_table()
+    return any(table.get(pid, (None, None))[1] == start
+               for pid, start in descendants.items())
+
+
 def _stop_requested() -> bool:
     for path in filter(None, os.environ.get(STOP_PATHS_ENV, "").split(os.pathsep)):
         try:
@@ -37,10 +103,13 @@ def _group_exists(pgid: int) -> bool:
 
 
 def _terminate_group(process: subprocess.Popen[object]) -> None:
+    descendants = _descendant_identities(process.pid)
     with suppress(ProcessLookupError):
         os.killpg(process.pid, signal.SIGTERM)
+    for pid, start in descendants.items():
+        _signal_owned(pid, start, signal.SIGTERM)
     deadline = time.monotonic() + DRAIN_GRACE_SECONDS
-    while _group_exists(process.pid):
+    while _group_exists(process.pid) or _owned_descendants_alive(descendants):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             break
@@ -48,6 +117,8 @@ def _terminate_group(process: subprocess.Popen[object]) -> None:
     if _group_exists(process.pid):
         with suppress(OSError):
             os.killpg(process.pid, signal.SIGKILL)
+    for pid, start in descendants.items():
+        _signal_owned(pid, start, signal.SIGKILL)
     process.wait()
 
 
