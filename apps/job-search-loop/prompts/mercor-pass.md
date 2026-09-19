@@ -116,6 +116,13 @@ Pass order:
    change or visible detail heading/step summary as readback; focus or selected styling is not
    detail readback. Only after both attempts and this bounded wait may you record
    `listing_detail_not_rendered`; an absent href is not a broken application card.
+   Before returning `observed_no_action`, revisit each existing incomplete application card
+   through the existing application review queue after the target-query candidate queue is
+   exhausted. Build that queue from every visible truthful-fit card and revisit each card with the latest human gate or
+   detail-not-rendered outcome once per wake, using the exact card and the same
+   detail readback/focus/Enter fallback above. Do not return `observed_no_action` while a
+   high/medium existing application remains unreviewed; if its detail still does not render
+   after the bounded fallback, preserve the exact candidate-local decision and continue.
    and finish consecutive reversible steps: resume/profile upload, ordinary written questions, availability, location,
    work authorization, or other factual controls answered from verified profile facts. Save
    and read back progress after each such step, then resume the same application on a later
