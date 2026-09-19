@@ -1679,3 +1679,57 @@ PII失敗runの安全な再開、日次連続公開、公式readbackの連続証
   `article-resume:18d68cb03ce73160-50940`のclaimed `effect_unknown=1`を保持している。現在の空き容量も約`654MiB`でcanonical floor未達のため、公開を開始しない。
 
 このrecheckで追加された残TODOは、disk floorをbypassせず再生成可能キャッシュを安全に整理してから、resume fenceの証拠解消→resume apply→次の自然4面runへ進むことである。
+
+## 2026-09-19 third active-four completion and current runtime cursor (latest)
+
+この節が従来のcursorを上書きする。対象はLife Manager Main内の唯一のWriter loopであり、active-fourは
+Note JA、Substack JA、Substack EN、X Article JAである。Zenn JA、Dev.to EN、X Article EN、X Post JAは現在の契約で
+dormantなので、公開していないこと自体が未完了ではなく、契約どおりのskip receiptを保存する。
+
+### Done (fresh evidence)
+
+- PR #5678（hashless editorial receiptのdraft SHA再結合、publication handoff adoption、hashless preflight ledger recoveryを含む）は
+  mainへmerge済み。現在のproduction currentは `/Users/anicca/loops/releases/20260919T100431-4c153495` で、
+  `article-daily` と `article-resume` のinstalled/event SHAはいずれも
+  `4c15349548232e71344f9fb888d0e46c31afdeeb` である。
+- recovery-assisted run `20260918-225940` は、同一draft／同一targetを維持したままactive-fourを全件liveにした。
+  - Note JA: `https://note.com/anicca123/n/n2523c643f4ef`（public id `n2523c643f4ef`、published `2026-09-19T09:43:58+09:00`、price ¥500、本文・owner・eyecatch/body media PASS）。
+  - Substack JA: `https://aniccabuddha.substack.com/p/x-150`（public id `216385267`、published `2026-09-19T00:46:17.737Z`、only-paid/paywall・本文・media・identity PASS）。
+  - Substack EN: `https://aniccaai2026.substack.com/p/a-free-article-is-not-a-smaller-paid`（public id `216385281`、published `2026-09-19T00:48:09.460Z`、only-paid/paywall・本文・media・identity PASS）。
+  - X Article JA: `https://x.com/diceai0/article/2101112146629210621`（public id `2101112146629210621`、published `2026-09-19T00:52:27Z`、同一edit target `2101108578518175744`、本文・cover/body media・identity PASS）。
+- completion Telegram message IDは `88984`。`article-run-complete.py --armed 1` はrc0、`publication_resume.py plan` と
+  `publication-guard.py plan` はともに `resumable=false / all-complete`。再実行前後のstate SHA
+  `1da677708f451e948be0d01b0a8b82753efc67754dbf47c949b6f08e78c02f63` とledger SHA
+  `5cec2e681f601583201f1f69c8c454a43484e8c9f0498d068a99d22235afbfe5` は不変で、replay-zeroである。
+- 実測成功数は3件（自然4面run 2件、復旧-assisted 4面run 1件）。従ってWriterは「公開不能」ではないが、これは日次SLOの完了数ではない。
+- 直後の `article-daily:18d69370ff7d8c08-4778` は、同じJST日の完了runを再生成しない start-control
+  `same-jst-day-unclassified-run` でprovider dispatch前に停止した。eventsの同一occurrence列と
+  `article-daily.log` の行2591を束ねたpre-effect proofでresolverを実行し、Writer固有のdaily `effect_unknown` は0件へ戻した。
+
+### Not done / current blockers (must not be reported as success)
+
+- `article-resume:18d69400717c4418-13398` は `entrypoint_exit_1`（2026-09-19T01:17:18Z）で
+  `claimed/effect_unknown=1` のまま保持中である。同じ時間帯のresume logにはdisk floor blockedが連続しているが、
+  このoccurrence固有のexact pre-effect receiptまたは公式provider receiptがまだないため、推測clear・DB手編集・blind retryはしない。
+- `article-resume`はloaded-idleで、次回はinterval 300秒だが、admission queueには古いresume wakeが約200件残る。共有revenue FIFOとdisk floorが、
+  新しい自然wakeの到達を遅らせる運用上のボトルネックである。disk freeは観測時約1.5GiBだが、browser/cache生成でcanonical floor
+  `1,155,780,608` bytesを下回るため、bypassしない。
+- 日次SLOは未達。成功は3件（うち自然2件）で、7日最低または21 scheduled source runsの自然terminal、各runのactive-four公式readback、
+  completion receipt、連続replay-zeroは揃っていない。
+- 収益は未達。`money_events=0`、subscription contract=0、payment/payout receipt=0。Noteの¥500とSubstack only-paidは価格／アクセス設定であり、
+  販売・入金・active MRRではない。確定売上は¥0、`$10K MRR`は未証明である。
+
+### Ordered remaining TODO
+
+| 順序 | 作業 | 完了条件 |
+|---:|---|---|
+| 1 | `article-resume:18d69400717c4418-13398`を同一occurrenceの証拠でreconcile | exact pre-effect proofならresolver receipt、provider receiptなら公式readback。証明不能ならfenceを保持 |
+| 2 | current `4c153495...`をloaded SHA／event SHAと再確認し、resumeをtarget-onlyで自然wake可能にする | loaded argv、release SHA、state rootが一致し、DB手編集・slot bypassなし |
+| 3 | safe disk窓で次の自然source runを観測 | natural terminal、重複外部作用0、resource FIFOを破らない |
+| 4 | 次の同一runでactive-fourを公開し公式readback | Note JA、Substack JA/EN、X Article JAのnative URL・本文・owner・media・Telegram receiptが全件PASS |
+| 5 | completion／replay-zeroを同一runで取得 | `article-run-complete --armed 1` rc0、両plan `all-complete`、state/ledger SHA不変 |
+| 6 | 7日（最低）または21 scheduled source runsを自然観測 | 各run4面live、自然terminal、effect fence 0、重複0、失敗時の自然文receipt |
+| 7 | publisher/payment receiptをmoney ledgerへjoinし収益を算定 | received revenue、payout、cost、profit、active MRRを分離し、未取得はunknownのまま報告 |
+
+**最新結論:** コード、immutable release、active-fourの3回の実測公開、公式readback、completion、replay-zeroは完了している。
+未完了の本質は、resumeに残る1件のeffect fence、自然な日次連続証拠、そして実入金receiptである。provider認証は現在の主因ではない。
