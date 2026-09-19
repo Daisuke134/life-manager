@@ -423,7 +423,11 @@ state transition. The next item starts only after its pass condition is recorded
   the vault, then keepalive dashboard and applied-history pages. Output: dashboard URL, vault receipt,
   applied-history HTTP status. Pass: dashboard and applied-history readback are authenticated.
 
-### Apply occurrence `18d5f9cd9f029658-33307`
+### Apply occurrence suffix `18d5f9cd9f029658-33307`
+
+The canonical admission occurrence identity is
+`hf-gig-apply-direct:18d5f9cd9f029658-33307`. The suffix is a human-readable label only; every
+receipt and resolver call must use the owner-prefixed database identity.
 
 - [x] **A3 — Capture the candidate set.** Owner: Apply owner. Files:
   `skills/earn/gig/scripts/coconala_applied_readback.py` and pass `46013` evidence. Action: read
@@ -440,13 +444,19 @@ state transition. The next item starts only after its pass condition is recorded
   Do not infer from age or timestamps.
 - [ ] **A5 — Produce the whole-wake receipt.** Owner: Coconala provider reconciler. Inputs: A3
   official readback plus A4 intent dispositions. Action: create one immutable receipt binding
-  `owner_id=hf-gig-apply-direct`, occurrence `18d5f9cd9f029658-33307`, all four candidate IDs,
+  `owner_id=hf-gig-apply-direct`, occurrence
+  `hf-gig-apply-direct:18d5f9cd9f029658-33307`, all four candidate IDs,
   official evidence hashes, and provider states. Output: receipt JSON with exact occurrence identity.
-  Current attempt: `~/gig/apply-direct/gig-apply-direct-1789611564192685000-46013/reconcile-evidence/a5-apply-whole-wake-receipt.json`
-  (SHA-256 `1e28b30838a496749f7200a0edf7034b3af422aab19ebfa11a494c14aa0d1d60`) is an immutable
+  Current canonical report: `~/gig/apply-direct/gig-apply-direct-1789611564192685000-46013/reconcile-evidence/a5-canonical-reconciliation-receipt-1789811280.json`
+  (SHA-256 `8a5b5439d4f970ef66afe3eae6796eae2347ec56b5c8c7e6ab418cafc8a7de92`) is an immutable
   `held` reconciliation report with `verified=false`, `resolve_allowed=false` and
-  `retry_allowed=false`. Pass: no candidate remains unresolved; otherwise leave the fence and
-  emit the missing evidence. The current report names the three missing occurrence-bound proofs.
+  `retry_allowed=false`. The earlier short-ID report is preserved and superseded because it did
+  not carry the canonical admission identity. A bounded full-history readback then reached
+  `https://coconala.com/mypage/job_matching/applied/offers?page=3` and returned `403 Forbidden`;
+  that access-denied evidence is persisted beside the report. Current request-page readback is
+  persisted in `a5-current-request-readback-1789811162.json`: all three pages expose `応募する`
+  and no `応募済み` marker, but this does not resolve the historical occurrence. Pass: no
+  candidate remains unresolved; otherwise leave the fence and emit the missing evidence.
 - [ ] **A6 — Resolve the Apply fence.** Owner: admission owner. File:
   `runtime/host/resource_admission.py`. Action: call
   `resolve_unknown_occurrence()` using the A5 receipt and `expected_state="claimed"`. Output:
