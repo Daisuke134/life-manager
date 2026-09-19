@@ -481,6 +481,8 @@ class MercorPassContractTests(unittest.TestCase):
             "Japan-eligible Japanese-language",
             "direct product matches such as personal/life-assistant systems",
             "direct Life Manager/AI-agent/product-operations overlap",
+            "card_only_unverified` is provisional, not a rejection",
+            "Personalized Life Assistant",
             "host_capabilities",
             "job_search_loop.mercor_human_gate_notify",
             "Never open or enter a person-bound step",
