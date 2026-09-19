@@ -29,6 +29,62 @@ _KNOWN_LISTING_IDENTITIES = (
     ("list_aaabnvqibotac6n9df5jsbmj", "household_video_intake"),
 )
 
+_LEGACY_STEP_MARKERS = (
+    ("voice actor japanese assessment", "voice-actor-japanese-assessment"),
+    ("consultant calibration assessment", "consultant-calibration-assessment"),
+    ("bilingual competency", "bilingual-competency"),
+)
+
+_KNOWN_MERCOR_TITLE_LISTINGS = (
+    ("japanese professional voice actor", "list_AAABnMGxTAHltg__YT9Cvpll"),
+    ("pdf annotation transcription experts japanese", "list_AAABoGAkZhPWPiQWt3lKTZZA"),
+    ("consultant aesthetics projects", "list_AAABoJfeYpYV4fBdkphI55Ux"),
+    ("bilingual japanese generalist expert ai safety", "list_AAABoGokt0hNtBFFSCZBIrQA"),
+    ("sonic audit specialist japanese", "list_AAABoLW_z62ZeoY-wS1Ec47D"),
+)
+
+
+def _normalize_step_id(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", value.casefold())
+
+
+def _normalize_title(value: str) -> str:
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", value.casefold()).split())
+
+
+def _legacy_listing_step(row: dict[str, Any]) -> tuple[str, str] | None:
+    """Extract a stable listing/step pair from pre-exact gate rows."""
+    reason = str(row.get("reason", ""))
+    evidence = str(row.get("evidence_ref", ""))
+    combined = f"{reason}\n{evidence}"
+    listing = row.get("listing_id")
+    if not isinstance(listing, str) or not listing.strip():
+        match = re.search(r"list_[A-Za-z0-9_-]+", combined)
+        listing = match.group(0) if match else ""
+    if not listing:
+        normalized = _normalize_title(combined)
+        listing = next(
+            (
+                known_listing
+                for marker, known_listing in _KNOWN_MERCOR_TITLE_LISTINGS
+                if marker in normalized
+            ),
+            "",
+        )
+    step = row.get("step_id")
+    if not isinstance(step, str) or not step.strip():
+        lowered = combined.casefold()
+        step = next(
+            (canonical for marker, canonical in _LEGACY_STEP_MARKERS if marker in lowered),
+            "",
+        )
+    if (
+        not isinstance(listing, str) or not listing.strip()
+        or not isinstance(step, str) or not step.strip()
+    ):
+        return None
+    return listing.strip(), _normalize_step_id(step)
+
 
 def _identity(reason: str, evidence_ref: str) -> str:
     """Return a stable logical identity despite model wording drift."""
@@ -56,7 +112,7 @@ def _identity(reason: str, evidence_ref: str) -> str:
 
 def _exact_identity(account_id: str, listing_id: str, step_id: str) -> str:
     """Bind a resumable gate to one account, listing, and provider step."""
-    values = tuple(value.strip() for value in (account_id, listing_id, step_id))
+    values = (account_id.strip(), listing_id.strip(), _normalize_step_id(step_id))
     if not all(values):
         raise HumanGateError("account_id, listing_id, and step_id are required")
     digest = hashlib.sha256("\0".join(values).encode("utf-8")).hexdigest()
@@ -113,13 +169,21 @@ class HumanGateStore:
         ):
             raise HumanGateError("account_id, listing_id, and step_id are required together")
         exact = all(isinstance(value, str) and value.strip() for value in exact_values)
+        legacy = _legacy_listing_step({"reason": reason, "evidence_ref": evidence_ref})
         identity = (
             _exact_identity(account_id, listing_id, step_id)
-            if exact else _identity(reason.strip(), evidence_ref.strip())
+            if exact
+            else (
+                f"mercor-legacy:{legacy[0]}:{legacy[1]}"
+                if legacy is not None
+                else _identity(reason.strip(), evidence_ref.strip())
+            )
         )
         gate_id = hashlib.sha256(identity.encode()).hexdigest()[:24]
         rows = self._rows()
         latest = self._latest_by_identity(rows).get(identity)
+        if latest is None and exact:
+            latest = self._latest_pending_listing_step(rows, listing_id, step_id)
         if latest is not None and latest.get("status") == "pending":
             return latest
         row = {
@@ -150,6 +214,10 @@ class HumanGateStore:
         exact_values = tuple(row.get(key) for key in ("account_id", "listing_id", "step_id"))
         if all(isinstance(value, str) and value.strip() for value in exact_values):
             return _exact_identity(*exact_values)
+        legacy = _legacy_listing_step(row)
+        if legacy is not None:
+            listing_id, step_id = legacy
+            return f"mercor-legacy:{listing_id}:{step_id}"
         derived = _identity(str(row.get("reason", "")), str(row.get("evidence_ref", "")))
         if derived == "bilingual_competency":
             return derived
@@ -157,6 +225,23 @@ class HumanGateStore:
         if isinstance(value, str) and value.strip():
             return value.strip()
         return derived
+
+    @classmethod
+    def _latest_pending_listing_step(
+        cls, rows: list[dict[str, Any]], listing_id: str, step_id: str,
+    ) -> dict[str, Any] | None:
+        target = (listing_id.strip(), _normalize_step_id(step_id))
+        for row in reversed(rows):
+            if row.get("status") != "pending":
+                continue
+            if all(
+                isinstance(row.get(key), str) and row.get(key).strip()
+                for key in ("account_id", "listing_id", "step_id")
+            ):
+                continue
+            if _legacy_listing_step(row) == target:
+                return row
+        return None
 
     @classmethod
     def _latest_by_identity(cls, rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -183,7 +268,10 @@ class HumanGateStore:
             raise HumanGateError("identity_key or exact gate key is required")
         else:
             identity_key = identity_key.strip()
-        latest = self._latest_by_identity(self._rows()).get(identity_key)
+        rows = self._rows()
+        latest = self._latest_by_identity(rows).get(identity_key)
+        if latest is None and all(isinstance(value, str) and value.strip() for value in exact_values):
+            latest = self._latest_pending_listing_step(rows, listing_id, step_id)
         if latest is None or latest.get("status") != "pending":
             return None
         row = {

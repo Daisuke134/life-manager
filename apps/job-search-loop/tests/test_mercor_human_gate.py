@@ -42,6 +42,53 @@ class MercorHumanGateTests(unittest.TestCase):
             self.assertNotEqual(first["gate_id"], other_account["gate_id"])
             self.assertEqual(len(store.pending()), 3)
 
+    def test_exact_gate_reuses_legacy_listing_step_and_resolves_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = HumanGateStore(Path(directory) / "human-gates.jsonl")
+            legacy = store.record(
+                run_id="run-1",
+                reason="list_voice: complete the Voice Actor Japanese Assessment",
+                evidence_ref="https://work.mercor.com/explore?listingId=list_voice",
+            )
+            exact = store.record(
+                run_id="run-2",
+                reason="assessment still required",
+                evidence_ref="run:run-2",
+                account_id="acct1",
+                listing_id="list_voice",
+                step_id="voice-actor-japanese-assessment",
+            )
+            self.assertEqual(exact["gate_id"], legacy["gate_id"])
+            self.assertEqual(len(store.pending()), 1)
+            resolved = store.resolve(
+                run_id="run-3",
+                evidence_ref="run:run-3/readback.json",
+                account_id="acct1",
+                listing_id="list_voice",
+                step_id="Voice Actor Japanese Assessment",
+            )
+            self.assertEqual(resolved["gate_id"], legacy["gate_id"])
+            self.assertEqual(store.pending(), [])
+
+    def test_known_mercor_title_legacy_gate_maps_to_exact_listing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = HumanGateStore(Path(directory) / "human-gates.jsonl")
+            legacy = store.record(
+                run_id="run-1",
+                reason="Japanese Professional Voice Actor: Voice Actor Japanese Assessment remains Not done.",
+                evidence_ref="run:run-1",
+            )
+            exact = store.record(
+                run_id="run-2",
+                reason="assessment still required",
+                evidence_ref="run:run-2",
+                account_id="acct1",
+                listing_id="list_AAABnMGxTAHltg__YT9Cvpll",
+                step_id="Voice Actor Japanese Assessment",
+            )
+            self.assertEqual(exact["gate_id"], legacy["gate_id"])
+            self.assertEqual(len(store.pending()), 1)
+
     def test_completed_step_resumes_only_same_account_and_application(self):
         self.assertEqual(
             next_action(
