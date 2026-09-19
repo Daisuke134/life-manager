@@ -3,7 +3,7 @@
   "$id": "mercor-pass-result.v1.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["status", "profile_sync", "inspected_listings", "submitted", "needs_human", "blocked", "evidence"],
+  "required": ["status", "profile_sync", "inspected_listings", "submitted", "needs_human", "resolved_human_gates", "blocked", "evidence"],
   "properties": {
     "status": {
       "type": "string",
