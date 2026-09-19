@@ -617,6 +617,24 @@ class DirectCDPTypeTests(unittest.IsolatedAsyncioTestCase):
             [("Input.insertText", {"text": "Daisuke"})],
         )
 
+    async def test_type_reacquires_focus_once_after_controlled_search_rerender(self):
+        page = DirectCDPPage("ws://example", "target")
+        page.resolve_target = AsyncMock(return_value={"x": 10.0, "y": 20.0})
+        page.evaluate = AsyncMock(side_effect=[False, True])
+        page.call = AsyncMock(return_value={})
+
+        await page.type_target(
+            {"label": "Type to search", "role": "textbox", "stable_id": "ref:search"},
+            "Developer",
+        )
+
+        self.assertEqual(page.resolve_target.await_count, 2)
+        self.assertEqual(page.evaluate.await_count, 2)
+        self.assertEqual(
+            [call.args for call in page.call.await_args_list if call.args[0] == "Input.insertText"],
+            [("Input.insertText", {"text": "Developer"})],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
