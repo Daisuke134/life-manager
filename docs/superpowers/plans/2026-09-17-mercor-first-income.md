@@ -29,8 +29,11 @@
 - [x] Require detail evidence before a card-only low-fit rejection (PR #5657, `69c6ece1b6`).
 - [x] Keep submitted-pending application-card observations out of the twelve-detail-page budget (PR #5659, `d77b006d42`).
 - [x] Replay the blocked evidence: 80 rows reduce to six actual detail states; bounded and priority validation pass. Focused tests pass 74/74 plus two subtests.
-- [ ] Rebind the loaded owner to immutable `d77b006d`, then prove one natural wake with terminal receipt, loaded SHA, Telegram ACK, and no effect fence.
-- [ ] Continue only with detail-grounded high/medium candidates; submit when the official N/N, visible Submit, fit, dedupe and post-submit readback conditions all hold.
+- [x] Prioritize direct Life Manager/AI-agent/product-operations overlap (PR #5670, `05db94e33f`).
+- [x] Revisit provisional `card_only_unverified` overlap candidates after unseen queue exhaustion (PR #5676, `3541a2f7a6`).
+- [x] Resolve the exact `resource_effect_unknown` occurrence with fresh official Applications/Contracts/Notifications readback; `effect_unknown=0`.
+- [ ] Complete the active `3541a2f7` wake and prove terminal receipt, loaded SHA, Telegram ACK, and no effect fence.
+- [ ] Continue only with detail-grounded high/medium candidates; `Personalized Life Assistant Expert` was rejected by official United States location versus Japan-only authorization. Submit the next truthful-fit ready listing with dedupe and post-submit readback.
 - [ ] Reconcile selection, contract, authorized work, QA, delivery, acceptance, settled earnings and payout evidence. No offer, contract, payment or `$10K` claim is currently verified.
 
 ### Task 0: Stop unnecessary Mercor login mail and prove session reuse

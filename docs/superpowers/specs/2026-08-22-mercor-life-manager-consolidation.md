@@ -2,7 +2,7 @@
 
 初契約・初入金を目的とするプロフィール、適合案件、成果学習の設計と実装順序 → [Mercor first income design](./2026-09-17-mercor-first-income-design.md) / [implementation plan](../plans/2026-09-17-mercor-first-income.md)。この文書はMercorの稼働経路と既存の契約境界の正本を維持する。
 
-**Status:** application evidence repair merged / latest immutable release cut / owner transition pending after the active wake / no new submission / no contract or payment
+**Status:** application evidence repair merged / current immutable release loaded / current wake active / no new submission / no contract or payment
 **Canonical repository:** `https://github.com/Daisuke134/life-manager`
 **Canonical checkout:** `/Users/anicca/Projects/life-manager-main`
 
@@ -10,7 +10,7 @@
 
 ### As-is
 
-- Profile and résumé readback are authenticated and hash-bound. The Mercor owner still has an active wake on `69c6ece1`; the newer release `d77b006d42e8bf5035f1e220092e7b5633fbaacc` is cut from `origin/main` and waits for the owner to become loaded-idle before rebind.
+- Profile and résumé readback are authenticated and hash-bound. The owner currently loads immutable `3541a2f7a67d69d0181839790d654314e2a4afab`, which includes the direct product-overlap and provisional-card retry prompts; the current wake is active.
 - The prior d77 predecessor wake wrote 80 candidate rows. Thirty-one rows were initially counted as detail pages even though 25 were only `submitted_pending_review_observed` application-card observations; this produced `bounded_scan_exceeded:31_of_12`. The exact evidence replay now counts six actual detail states and passes the bounded and priority validators.
 - The account has existing submitted and person-bound applications. Recent passes produced no new submission, no offer, no contract, and no settled earnings. These are separate external outcomes and remain unverified.
 
@@ -26,12 +26,15 @@
 - [x] PR #5655 / `e733d0b85d`: recover current-run `card_only` rows from `pass-result.json` before priority validation.
 - [x] PR #5657 / `69c6ece1b6`: keep card-only low-fit decisions provisional without detail requirement evidence.
 - [x] PR #5659 / `d77b006d42`: exclude submitted-pending application-card observations from the detail budget.
+- [x] PR #5670 / `05db94e33f`: prioritize direct Life Manager/AI-agent/product-operations overlap.
+- [x] PR #5676 / `3541a2f7a6`: reopen `card_only_unverified` overlap candidates after unseen queue exhaustion.
+- [x] Official readback resolved occurrence `18d68604800aee30-82625` with receipt `mercor-official-readback:ba818f...`; `effect_unknown=0`. An incomplete 92MiB release was removed after current/loaded reference checks; disk free space recovered above 1GiB.
 - [x] Focused Mercor + Direct CDP tests pass: 74 tests and 2 subtests; `lm-loop-contract` passes; CI security/contract checks pass.
 
 ### Remaining TODO in execution order
 
-1. [ ] Rebind the loaded Mercor owner from `69c6ece1` to immutable release `d77b006d` after the active wake exits; read back plist argv, loaded argv, SHA, terminal receipt, Telegram ACK, and `effect_unknown=0`.
-2. [ ] Observe one d77 natural wake. Confirm no `bounded_scan_exceeded` or `priority_scan_incomplete`; inspect the medium candidate queue and submit every genuinely ready, deduplicated listing with official readback.
+1. [ ] Complete the active `3541a2f7` wake and read back terminal receipt, loaded SHA, Telegram ACK, and `effect_unknown=0`.
+2. [ ] Continue direct-overlap detail review. `Personalized Life Assistant Expert` was officially rejected because the listing requires United States location while the candidate has Japan-only work authorization; do not submit it. Find the next truthful-fit role and submit only after official ready-state readback.
 3. [ ] Complete person-bound gates when the operator chooses to act: Japanese Voice Actor (seven recordings plus English interview/Japanese assessment), Japanese PDF Annotation bilingual step, Bilingual Japanese Generalist gate, Consultant calibration assessment, and Sonic's missing required candidate ID. The loop must resume from official completion.
 4. [ ] Reconcile Gmail/Reply/Applications and identify an official selection or offer. Do not count pending review as a job.
 5. [ ] For a real contract, read back authorization, schedule human work where required, track artifacts, independent QA, delivery, acceptance, settled payment, and payout/bank match.
