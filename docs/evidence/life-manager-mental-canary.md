@@ -25,7 +25,9 @@ Status: `IN_PROGRESS` — production code and schema are live; the seven-day nat
 - The host had `703` processes and `165` Chromium processes. Two `Z`/defunct processes were
   observed; their parents were Chromium PID `27633` and ChatGPT PID `52958`, not Life Manager.
 - The main repository used `4.8 GiB` (`.worktrees` `2.0 GiB`, `.git` `2.8 GiB`), with `141` Git
-  worktrees registered (`106` locked); `git worktree prune --dry-run` returned no prunable entries.
+  worktrees registered (`106` locked); a bounded `git worktree prune` removed exactly two stale
+  gitdir metadata entries, and a fresh dry-run returned no remaining prunable entries. The current
+  registry count after cleanup is `146` because active worktrees were created during this repair.
   `/private/tmp` used `4.1 GiB`, `~/.local/state/anicca` `4.7 GiB`, `~/.local/state/life-manager`
   `4.0 GiB`, `.codex/sessions` `3.5 GiB`, and `.openclaw` `4.5 GiB`.
 - No large Life Manager deleted-open file was found. These observations support resource pressure
