@@ -2755,7 +2755,7 @@ class LmLoopApplyTest(unittest.TestCase):
         target = values["agents_dir"] / "ai.anicca.life-manager-release-reconciler.plist"
         installed = plistlib.loads(rendered["plist_bytes"])
         installed["EnvironmentVariables"].update({
-            "LIFE_MANAGER_SOURCE_REPO": "/Users/anicca/Projects/life-manager-daily-revenue-priority",
+            "LIFE_MANAGER_SOURCE_REPO": "/tmp/legacy-life-manager",
             "RECONCILER_CUSTOM": "kept",
         })
         target.write_bytes(plistlib.dumps(installed, fmt=plistlib.FMT_XML, sort_keys=True))
