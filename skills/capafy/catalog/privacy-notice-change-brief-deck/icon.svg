@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Privacy notice change brief</title>
+  <desc id="desc">A document with highlighted change lines and a review marker.</desc>
+  <rect width="512" height="512" rx="96" fill="#102a43"/>
+  <path d="M143 92h166l78 78v250a26 26 0 0 1-26 26H143a26 26 0 0 1-26-26V118a26 26 0 0 1 26-26Z" fill="#f6fbff"/>
+  <path d="M309 92v58a20 20 0 0 0 20 20h58" fill="#b9e5fb"/>
+  <path d="M184 211h145M184 259h108M184 307h145" fill="none" stroke="#486581" stroke-linecap="round" stroke-width="20"/>
+  <path d="M184 355h76" fill="none" stroke="#12b886" stroke-linecap="round" stroke-width="20"/>
+  <circle cx="364" cy="347" r="54" fill="#ffb703"/>
+  <path d="m338 347 17 17 34-40" fill="none" stroke="#102a43" stroke-linecap="round" stroke-linejoin="round" stroke-width="14"/>
+</svg>
