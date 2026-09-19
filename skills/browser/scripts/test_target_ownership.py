@@ -38,6 +38,21 @@ def test_idle_context_parks_when_owner_requests_reuse(tmp_path, monkeypatch):
     assert calls == [("park", "gig-reply-detector")]
 
 
+def test_default_tab_lease_uses_context_without_seed_target(monkeypatch):
+    calls = []
+
+    def acquire(owner, **kwargs):
+        calls.append((owner, kwargs))
+        return {"ok": True, "context_id": "context-paid", "target_id": None}
+
+    monkeypatch.setattr(default_tab.cdp_context_lease, "acquire", acquire)
+
+    assert default_tab._lease("paid") == {
+        "ok": True, "context_id": "context-paid", "target_id": None,
+    }
+    assert calls == [("paid", {"create_target": False})]
+
+
 def test_registry_release_refuses_foreign_owner(tmp_path, monkeypatch):
     registry = tmp_path / "target-owners.json"
     monkeypatch.setenv("CLOAK_TARGET_OWNERS_FILE", str(registry))

@@ -44,7 +44,7 @@ def _page_ws(target_id):
 
 
 def _lease(owner):
-    lease = cdp_context_lease.acquire(owner)
+    lease = cdp_context_lease.acquire(owner, create_target=False)
     if not lease.get("ok") or not lease.get("context_id"):
         raise RuntimeError(f"browser context lease failed: {lease.get('reason', 'unknown')}")
     return lease
