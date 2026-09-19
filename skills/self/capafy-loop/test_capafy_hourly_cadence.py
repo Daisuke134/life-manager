@@ -53,3 +53,14 @@ def test_key_health_runs_before_cap_full_healthy_idle() -> None:
     gate = 'skills/capafy-autopublish/scripts/key_health_gate.sh'
     assert script.count(gate) == 1
     assert script.index(gate) < script.index('if [ "$VERDICT" = "CAP_FULL" ]')
+
+
+def test_cap_full_fast_path_reconciles_the_live_ledger_before_inventory() -> None:
+    script = DAILY.read_text(encoding="utf-8")
+
+    reconcile = 'scripts/reconcile_ledger.py'
+    inventory = 'scripts/inventory_status.py'
+    cap_full = 'if [ "$VERDICT" = "CAP_FULL" ]'
+    assert script.count(reconcile) == 1
+    assert script.index(reconcile) < script.index(inventory)
+    assert script.index(reconcile) < script.index(cap_full)

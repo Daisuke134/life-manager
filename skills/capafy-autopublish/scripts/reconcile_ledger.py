@@ -71,11 +71,33 @@ def load_ledger():
 def server_agents():
     """Return the server's agent list (publish-list), or None on read failure."""
     try:
-        out = subprocess.run(
+        result = subprocess.run(
             [sys.executable, "packager.py", "publish-list"],
             cwd=PUB, capture_output=True, text=True, timeout=60,
-        ).stdout
-        return json.loads(out, strict=False)["agents"]["list"]
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"publish-list exited with {result.returncode}")
+        payload = json.loads(result.stdout, strict=False)
+        if not isinstance(payload, dict) or payload.get("ok") is False:
+            raise ValueError("invalid publish-list payload")
+        raw = payload.get("agents")
+        # Capafy 0.9.11 returns a flat snake_case agents array; older builds
+        # nested the rows under agents.list.  Accept both official shapes so a
+        # CLI upgrade cannot silently freeze the local truth ledger.
+        if isinstance(raw, dict):
+            raw = raw.get("list")
+        if not isinstance(raw, list):
+            raise ValueError("publish-list agents is not a list")
+        agents = []
+        for row in raw:
+            if not isinstance(row, dict):
+                raise ValueError("publish-list agent is not an object")
+            agents.append({
+                "agentId": row.get("agentId", row.get("agent_id")),
+                "name": row.get("name"),
+                "agentStatus": row.get("agentStatus", row.get("agent_status")),
+            })
+        return agents
     except Exception as e:
         print(f"[reconcile] server read FAILED: {e}", file=sys.stderr)
         return None
