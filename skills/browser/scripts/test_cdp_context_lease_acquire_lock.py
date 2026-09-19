@@ -69,6 +69,27 @@ def test_acquire_records_context_before_cookie_seeding(monkeypatch, tmp_path):
     assert module.acquire("client-1")["target_id"] == "target-1"
 
 
+def test_context_only_acquire_does_not_create_a_seed_target(monkeypatch, tmp_path):
+    module = load_module()
+    leases_file = tmp_path / "leases.json"
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases_file))
+    calls = []
+
+    async def create_context_only(pairs, timeout=None):
+        calls.extend(method for method, _params in pairs)
+        return [{"browserContextId": "context-only"}]
+
+    monkeypatch.setattr(module, "_calls", create_context_only)
+
+    result = module.acquire("client-1", no_seed=True, create_target=False)
+
+    assert result["context_id"] == "context-only"
+    assert result["target_id"] is None
+    assert result["ws"] is None
+    assert result["context_only"] is True
+    assert calls == ["Target.createBrowserContext"]
+
+
 def test_seed_and_dispose_failure_keeps_cleanup_tombstone(monkeypatch, tmp_path):
     module = load_module()
     leases_file = tmp_path / "leases.json"

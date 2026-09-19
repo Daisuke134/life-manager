@@ -544,7 +544,17 @@ async def _relogin_coconala():
         target = (made.get("result") or {}).get("targetId")
         if not target:
             return {"ok": False, "reason": "could not open a tab"}
-        attached = await call("Target.attachToTarget", {"targetId": target, "flatten": True})
+        try:
+            attached = await call("Target.attachToTarget", {"targetId": target, "flatten": True})
+        except BaseException:
+            # The target exists before attach. If attach fails or is cancelled, the
+            # normal body finally has not been entered yet, so close this exact target
+            # here or it survives as an unowned default-context about:blank page.
+            try:
+                await call("Target.closeTarget", {"targetId": target})
+            except BaseException:
+                pass
+            raise
         sess = (attached.get("result") or {}).get("sessionId")
         try:
             await call("Page.enable", {}, sess)

@@ -484,11 +484,13 @@ def _recover_capacity_if_needed(task, wait_seconds=25.0):
         _evict_parked_capacity()
 
 
-def acquire(task, url="about:blank", no_seed=False):
+def acquire(task, url="about:blank", no_seed=False, create_target=True):
     with _task_acquire_lock(task):
         with _seed_locks():
             seed_material = _seed_material(url, no_seed)
-        return _acquire_with_seed_material(task, url, seed_material)
+        return _acquire_with_seed_material(
+            task, url, seed_material, create_target=create_target,
+        )
 
 
 def _same_identity(current, snapshot):
@@ -572,7 +574,7 @@ def _evict_parked_capacity():
         return {"ok": True, "reaped": [victim]}
 
 
-def _acquire_with_seed_material(task, url, seed_material):
+def _acquire_with_seed_material(task, url, seed_material, *, create_target=True):
     # Routine browser admission must not wait for whole-ledger maintenance. At the
     # actual capacity boundary, however, reclaim one stale row (or briefly wait for the
     # existing single-flight reaper) so this same wake can make forward progress.
@@ -599,6 +601,9 @@ def _acquire_with_seed_material(task, url, seed_material):
         parked = bool(held) and held.get("parked") is True
         seed_changed = (parked and seed_fingerprint is not None
                         and held.get("seed_fingerprint") != seed_fingerprint)
+        mode_changed = bool(held) and (
+            bool(held.get("context_only")) != (not create_target)
+        )
         holder_pid_state = _pid_alive(held.get("pid")) if held and not parked else None
         if (held and not parked and held.get("pid") != current_holder
                 and holder_pid_state is not False
@@ -609,11 +614,17 @@ def _acquire_with_seed_material(task, url, seed_material):
 
     if held:
         invalid_without_probe = (
-            seed_changed or holder_dead or held.get("cleanup_pending") is True
+            seed_changed or mode_changed or holder_dead
+            or held.get("cleanup_pending") is True
         )
-        healthy = False if invalid_without_probe else target_responds(
-            held.get("ws") or _page_ws(held.get("target_id") or "")
-        )
+        if invalid_without_probe:
+            healthy = False
+        elif held.get("context_only") is True:
+            healthy = _browser_context_exists(held.get("context_id")) is True
+        else:
+            healthy = target_responds(
+                held.get("ws") or _page_ws(held.get("target_id") or "")
+            )
         if not healthy:
             _dispose_snapshot(task, held)
             held = None
@@ -690,28 +701,32 @@ def _acquire_with_seed_material(task, url, seed_material):
         if cookies:
             calls.append(("Storage.setCookies", {"cookies": cookies, "browserContextId": ctx_id}))
         seed_before_app = _has_web_storage_for_origin(url, overlay_origins)
-        calls.append(("Target.createTarget", {
-            "url": "about:blank" if seed_before_app else url,
-            "browserContextId": ctx_id,
-        }))
-        results = asyncio.run(_calls(calls))
-        target_id = results[-1]["targetId"]
-        try:
-            storage_origins_seeded = (
-                _seed_web_storage(_page_ws(target_id), url, overlay_origins)
-                if seed_before_app else 0
-            )
-        except Exception:
-            with contextlib.suppress(Exception):
-                asyncio.run(_calls([(
-                    "Target.disposeBrowserContext", {"browserContextId": ctx_id}
-                )]))
-            raise
+        create_seed_target = create_target or seed_before_app
+        if create_seed_target:
+            calls.append(("Target.createTarget", {
+                "url": "about:blank" if seed_before_app else url,
+                "browserContextId": ctx_id,
+            }))
+        results = asyncio.run(_calls(calls)) if calls else []
+        target_id = results[-1]["targetId"] if create_seed_target else None
+        storage_origins_seeded = 0
+        if seed_before_app:
+            try:
+                storage_origins_seeded = _seed_web_storage(
+                    _page_ws(target_id), url, overlay_origins,
+                )
+            except Exception:
+                with contextlib.suppress(Exception):
+                    asyncio.run(_calls([(
+                        "Target.disposeBrowserContext", {"browserContextId": ctx_id}
+                    )]))
+                raise
 
         lease = {
             "context_id": ctx_id,
             "target_id": target_id,
-            "ws": _page_ws(target_id),
+            "ws": _page_ws(target_id) if target_id else None,
+            "context_only": not create_seed_target,
             "ts": int(time.time()),
             "cookies_seeded": len(cookies),
             "storage_origins_seeded": storage_origins_seeded,
@@ -1288,7 +1303,12 @@ def _park_locked(task, token=None, generation=None):
 
     # A renderer probe is bounded but still network I/O. Probe without the fleet-wide
     # ledger lock, then finalize only if this exact lease identity still owns the row.
-    if not target_responds(held.get("ws") or _page_ws(held.get("target_id") or "")):
+    healthy = (
+        _browser_context_exists(held.get("context_id")) is True
+        if held.get("context_only") is True
+        else target_responds(held.get("ws") or _page_ws(held.get("target_id") or ""))
+    )
+    if not healthy:
         return {"ok": False, "reason": "target_unhealthy"}
     with _ledger_lock():
         leases = _leases()

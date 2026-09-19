@@ -209,10 +209,7 @@ def test_real_ig_headless_bridge_reaches_probe_without_safe_or_side_effects(tmp_
     assert "active_handle=fixture" in result.stdout
     assert "provision_needed=no" in result.stdout
     assert not fixture["safe_calls"].exists()
-    lease_calls = fixture["lease_calls"].read_text(encoding="utf-8").splitlines()
-    assert len(lease_calls) == 2
-    assert [line.split()[0] for line in lease_calls] == ["acquire", "release"]
-    assert all(line.split()[1].startswith("capafy-") for line in lease_calls)
+    assert not fixture["lease_calls"].exists()
     assert not fixture["side_effects"].exists()
 
 

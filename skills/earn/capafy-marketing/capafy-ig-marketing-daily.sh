@@ -105,12 +105,9 @@ PROVISION_REASON="$(capafy_ig_provision_reason "$IG_HANDLE" "$COOKED_MARKER")"
 PROVISION_NEEDED="no"
 [ -n "$PROVISION_REASON" ] && PROVISION_NEEDED="yes"
 mkdir -p "$(dirname "$LOG")" "$(dirname "$ROT")"
-# ── BROWSER ISOLATION (same lease system clip uses): take our own isolated context on :9222 so
-#    capafy never churns against clip/gig/Dais tabs on the shared daily-driver (churn = poison). ──
-BROWSER_SCRIPTS="$SCRIPT_DIR/../../browser/scripts"
+# The marketing path uses its dedicated CloakBrowser profile on :9332 below. Do not allocate a
+# second context or blank target on the shared daily-driver :9222 just to carry this run ID.
 CAPAFY_LEASE="capafy-$$"; export CAPAFY_LEASE
-trap '"$PYTHON_BIN" "$BROWSER_SCRIPTS/cdp_context_lease.py" release "$CAPAFY_LEASE" >/dev/null 2>&1' EXIT
-"$PYTHON_BIN" "$BROWSER_SCRIPTS/cdp_context_lease.py" acquire "$CAPAFY_LEASE" >/dev/null 2>&1 || true
 echo "=== capafy-ig-marketing-daily run $(date '+%F %T %Z') ===" >>"$LOG"
 echo "account_state=$ACCOUNTS_FILE active_handle=${IG_HANDLE:-none} active_port=${IG_PORT:-none} provision_needed=$PROVISION_NEEDED reason=${PROVISION_REASON:-none}" >>"$LOG"
 if [ "${CAPAFY_IG_PROBE_ONLY:-0}" = "1" ]; then
