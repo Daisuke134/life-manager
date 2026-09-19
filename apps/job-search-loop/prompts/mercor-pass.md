@@ -116,6 +116,11 @@ Pass order:
    change or visible detail heading/step summary as readback; focus or selected styling is not
    detail readback. Only after both attempts and this bounded wait may you record
    `listing_detail_not_rendered`; an absent href is not a broken application card.
+   If the exact observed listing ID is available from the current application evidence or
+   durable gate context and all card attempts remain unchanged, navigate once to the exact
+   Mercor listing URL, wait for the detail surface, and require the detail title and step summary
+   as official readback. Never construct a listing ID from a title; if the exact URL still shows
+   only the Explore shell, preserve `listing_detail_not_rendered`.
    Before returning `observed_no_action`, revisit each existing incomplete application card
    through the existing application review queue after the target-query candidate queue is
    exhausted. Build that queue from every visible truthful-fit card and revisit each card with the latest human gate or
