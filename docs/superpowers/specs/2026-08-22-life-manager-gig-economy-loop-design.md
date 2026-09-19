@@ -566,6 +566,16 @@ receipt and resolver call must use the owner-prefixed database identity.
   earlier capacity-busy event cannot be treated as pre-effect proof. Paid target-apply was
   safely skipped as `loaded-running` and must be retried at its natural idle gap; no running lane
   was killed or forcibly reloaded.
+  The Storefront occurrence was subsequently resolved through the typed pre-effect resolver
+  using an occurrence-bound event chain plus the durable intent inventory: all 75 stored
+  effect-intents predate the occurrence, and zero prepared contracts exist at or after it. The
+  proof is `/Users/anicca/gig/storefront-direct/evidence/a12-occurrence-18d5fceed9683770-7370/pre-effect-proof.json`
+  (SHA-256 `ce4ee145f67f43b37962710ff0fbb1ba3a5b03fd28a91ac8130d474bbbc5cb43`); the resolution
+  receipt is the adjacent `resolution-receipt.json` with DB `released/effect_unknown=0` and
+  `integrity_check=ok`. Storefront then target-applied successfully to the d448 release and
+  read back the 9223 browser environment. Paid remains on `8bab5537…` while its bounded project
+  worker is running; `paid_direct.py` gives each project step a 2100-second timeout, so A12 must
+  wait for that natural terminal before applying Paid.
 - [ ] **A13 — Natural single Apply.** Owner: Apply scheduler. Input: A12 loaded fleet. Action:
   wait for one natural single candidate. Output: terminal event, `effect=1`, official request/offer
   readback, and replay-zero. Pass: all four receipts agree on owner, occurrence, release, and ID.
