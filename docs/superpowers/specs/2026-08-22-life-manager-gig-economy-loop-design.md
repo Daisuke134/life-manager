@@ -557,6 +557,15 @@ receipt and resolver call must use the owner-prefixed database identity.
   about 229 MiB free at the time of that attempt, below the Gig 512 MiB producer floor; the
   existing cleanup contract has since recovered the host to about 26 GiB free. The first A12
   substep is therefore complete at the host level, but the occurrence fence remains open.
+  Partial target-apply readback now passes for `hf-gig-apply-direct` and
+  `hf-gig-reply-detector`: both are loaded from
+  `/Users/anicca/loops/releases/20260919T204543-d448cb8e`, manifest SHA
+  `d448cb8ef1b001b1ca61d1c4cc0738406e32a21f`, with the 9223 daily-driver env. Storefront
+  target-apply is still refused by the separate claimed occurrence
+  `hf-gig-storefront-direct:18d5fceed9683770-7370`; its later `entrypoint_exit_1` event means the
+  earlier capacity-busy event cannot be treated as pre-effect proof. Paid target-apply was
+  safely skipped as `loaded-running` and must be retried at its natural idle gap; no running lane
+  was killed or forcibly reloaded.
 - [ ] **A13 — Natural single Apply.** Owner: Apply scheduler. Input: A12 loaded fleet. Action:
   wait for one natural single candidate. Output: terminal event, `effect=1`, official request/offer
   readback, and replay-zero. Pass: all four receipts agree on owner, occurrence, release, and ID.
