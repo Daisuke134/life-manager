@@ -18,21 +18,19 @@
 （`article-daily`、同じstateを再開する`article-resume`）で、現在のactive-fourは Note JA、Substack JA、Substack EN、
 X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dormant のままで、別の有効化receiptが必要である。
 
-### Live runtime readback — 2026-09-19 15:23 JST
+### Live runtime readback — 2026-09-19 15:36 JST
 
-- `origin/main` は `ed82c570ce367c66a4e792aacbffa97d2f2ecfaa`。現在の `/Users/anicca/loops/current` は
-  immutable release `215d6e5343edd9359a8974c98b76f6ceb4356ce7`（`RELEASE.json` の `provenance=ancestor-of-origin-main`）で、
-  Mainの最新SHAそのものではない。
-- `article-daily` のloaded argvは `215d6e53…`、`state=not running`、`runs=1`、`last exit=78 (EX_CONFIG)`。
-  06:16:45 JSTのinstall/plan receipt以降、現行releaseでのfresh execute receiptはない。
-- `article-resume` のloaded argvは旧 `94c622f3…`、`state=not running`、`runs=6`、`last exit=75`。
-  最新試行 `18d6a4bc4253e098-95213`（06:23:50 JST）は `host_admission_deferred:resource_effect_unknown` で、
-  Writerの外部公開成功を示さない。
-- host freeは `769,474,560 bytes`（`df` readback）で、Writer run floor `1,155,780,608 bytes`を下回る。
+- `origin/main` は `ed82c570ce367c66a4e792aacbffa97d2f2ecfaa`。`20260919T153206-ed82c570` を候補として作成し、
+  `article-daily` と `article-resume` の両方へtarget-only applyした。両plistのloaded argv/source SHAは `ed82c570…` で一致する。
+  `/Users/anicca/loops/current` symlinkは `215d6e53…` のまま（Writer以外の兄弟loopを一括reloadしないため、意図的にglobal currentは変更していない）。
+- `article-daily` は loaded `ed82c570…`、`state=not running`、`last exit=0`。run `18d6a5488de1c250-14371` は
+  same-JST-day safety blockのno-opで、provider-native publicationは発生していない。
+- `article-resume` は loaded `ed82c570…`、`state=not running`、apply後のfresh runはまだ0回。過去の
+  `effect_unknown` event/claimは残るが、今回のtarget apply自体は外部公開成功を示さない。
+- host freeは `722,415,616 bytes`（`df` readback）で、Writer run floor `1,155,780,608 bytes`を下回る。
 
-このreadbackにより、以前の「94c622f3を両Writerへtarget apply済み」は過去時点のreceiptとして保持し、現在の完了状態とは数えない。
-次の実行前に、最新Main由来の単一immutable releaseを `article-daily` と `article-resume` の両方へtarget-only applyし、
-loaded argv/source SHAを再一致させる必要がある。
+このreadbackにより、以前の「94c622f3を両Writerへtarget apply済み」は過去時点のreceiptとして保持し、現行のloaded SHAには数えない。
+W2cのtarget-only applyは完了したが、W2のfresh publicationは次の自然JST日まで未完了である。
 
 ### Done
 
@@ -43,7 +41,7 @@ loaded argv/source SHAを再一致させる必要がある。
 - [x] CTAの固定landing、Life Manager `/start` の帰属ref保存、`writer_attribution_ref` migration、既存のactive-four publisher/gate/replay契約をmainへ統合済み。
 - [x] anicca-products PR #407–#410をmergeし、production valid queryのHTTP `302`と決定的`wr_<32hex>` Telegram Locationをreadback済み。保存receiptはbest-effortで、302を売上receiptとは数えない。
 - [x] Main `94c622f3…`由来immutable releaseを`article-daily`と`article-resume`へtarget-only applyした過去時点のreceiptを保存済み。
-      現在は後続applyで `article-daily=215d6e53…`、`article-resume=94c622f3…` にdriftしているため、現行完了とは数えない。
+      その後のdriftはW2cで解消した。
 - [x] 直近のsame-JST-day safety blockは重複公開を防いでおり、同じrunを再送していない。既存runを「今日の公開」とは数えていない。
 - [x] 直前のcanary `20260919-014228` は Note JA、Substack JA、Substack EN、X Article JA の4件を公式readbackし、completion notificationを送信済み。
       ただしこのrunのsourceは現行`94c622f3…`ではないため、最新releaseのfresh canary完了やreplay-zeroの証明にはまだ使わない。
@@ -55,9 +53,9 @@ loaded argv/source SHAを再一致させる必要がある。
 - [x] **W2a: CTA帰属導線を本番で成立させる。** PR #407–#410、deploy #35424169317、custom domain `302` readbackまで完了。
 - [x] **W2b: Life Manager deterministic ref parserをmainへmergeし、immutable releaseへtarget applyした過去時点のreceiptを保存する。**
       PR #5697、Main `94c622f3…`、article-daily/resumeのloaded argv readbackは当時完了。現行driftはW2cで扱う。
-- [ ] **W2c: 現在のrelease driftを解消する。** 最新 `origin/main` (`ed82c570…`) から単一immutable releaseを作り、
-      `article-daily` と `article-resume` だけへtarget-only applyする。両plistのargv、source SHA、state root、terminal receiptを
-      readbackし、sibling loopの変更0を確認する。
+- [x] **W2c: 現在のrelease driftを解消する。** 最新 `origin/main` (`ed82c570…`) から
+      `20260919T153206-ed82c570` を作成し、`article-daily`/`article-resume`へtarget-only apply。install event
+      `097de43691424c93ac6a26e6` / `78a5aaebdf7d7821a9b22b33`、loaded argv/source SHA一致、current symlink不変をreadback済み。
 - [ ] **W3–W6: fresh runについて、Note JA / Substack JA / Substack EN / X Article JAを各provider-native UI/APIでreadbackする。**
       title、body、owner、headline、paywall、live URLを4件すべて記録する。local testやpublisher `rc=0`だけでは完了にしない。
 - [ ] **W7: 2回目の自然wakeでreplay-zeroを確認する。** 記事、payment row、notification、Telegram attributionの重複effectを0件で確認する。
@@ -70,16 +68,14 @@ loaded argv/source SHAを再一致させる必要がある。
 ### Current blockers
 
 1. **最新releaseのfresh canary**: same-day safety blockを迂回して再送することはできない。次の自然JST日まで待つ必要があり、日付を偽装したcanaryは受け入れない。
-2. **release drift**: `article-daily` は `215d6e53…`、`article-resume` は `94c622f3…` をloadedしており、最新Main `ed82c570…`由来の単一releaseに揃っていない。
-   dailyは `EX_CONFIG(78)`、resumeは `EX_TEMPFAIL(75)`/`effect_unknown` で、fresh canaryの前提を満たさない。
-3. **host capacity**: floorは`1,155,780,608` bytes、今回のfree readbackは`769,474,560` bytes。floor未達ならgeneration前にfail-closedする。
+2. **host capacity**: floorは`1,155,780,608` bytes、今回のfree readbackは`722,415,616` bytes。floor未達ならgeneration前にfail-closedする。
    別ownerのbrowser/sessionを停止して回復しない。
-4. **provider/payment boundary**: 旧releaseのactive-four canaryはliveだが、現行Main由来releaseのfresh live URLとreceived payout receiptはまだ無い。コード、
+3. **provider/payment boundary**: 旧releaseのactive-four canaryはliveだが、現行Main由来releaseのfresh live URLとreceived payout receiptはまだ無い。コード、
       test、loaded/running、provider公開、収益を別々に証明する必要がある。
-5. **sales measurement**: private envを正規sourceしてreadback済み。Noteは今月`¥0 / 0 purchases`、Substackは`-`表示でunknown。
+4. **sales measurement**: private envを正規sourceしてreadback済み。Noteは今月`¥0 / 0 purchases`、Substackは`-`表示でunknown。
    payment receiptが無く、$10K MRRの証明は無い。
-6. **dormant surfaces**: Zenn JA、Dev.to EN、X Article EN、X Post JAはactive-four外で、enablement receiptが無い。
-7. **resume fence**: `article-resume`に過去occurrenceの`effect_unknown` claimが残り、現在も同種のadmission deferredが反復している。
+5. **dormant surfaces**: Zenn JA、Dev.to EN、X Article EN、X Post JAはactive-four外で、enablement receiptが無い。
+6. **resume fence**: `article-resume`に過去occurrenceの`effect_unknown` claimが残る。今回のapply後に新しいresume runはまだ無く、
    occurrence-specificな公式readbackまたはpre-effect proofなしに解除せず、日次fresh canaryの完了とは別に解決する。
 
 **Completion rule:** 上記W2a→W2b→W2c→W2→W3–W7→W13–W21のreceiptが揃うまで、Writerを「毎日全platformで公開済み」「稼働して$10K MRR」とは報告しない。
