@@ -587,6 +587,10 @@ class MercorPassContractTests(unittest.TestCase):
             "Before returning `observed_no_action`, revisit each existing incomplete application card",
             "latest human gate or detail-not-rendered outcome",
             "existing application review queue",
+            "If the exact observed listing ID is available",
+            "navigate once to the exact Mercor listing URL",
+            "require the detail title and step summary",
+            "Never construct a listing ID from a title",
         ):
             self.assertIn(required, prompt)
 
