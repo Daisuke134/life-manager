@@ -1,5 +1,6 @@
 """Per-run scratch is isolated without pre-admission recursive cleanup."""
 
+import json
 import tempfile
 import unittest
 import os
@@ -51,6 +52,18 @@ class LoopScratchTest(unittest.TestCase):
             self.assertTrue((stale / "blob.bin").is_file())
             os.close(run_fd)
             os.close(parent_fd)
+
+    def test_records_effect_class_in_run_owner_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / "state"
+            scratch, parent_fd, run_fd = reset_loop_scratch(
+                state, "job", "safe-run", effect_class="none")
+            try:
+                owner = json.loads((scratch / ".owner.json").read_text())
+                self.assertEqual(owner["effect_class"], "none")
+            finally:
+                os.close(run_fd)
+                os.close(parent_fd)
 
     def test_rejects_path_escape(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

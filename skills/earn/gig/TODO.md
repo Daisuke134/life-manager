@@ -1057,14 +1057,19 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
   reconciled before any retry. 63570481 still lacks the corrected customer-address answer and
   formal delivery. 63568785 still lacks permitted document content. 63659463 still needs the
   quality audit and delivery. 63583795 needs acceptance, settlement, and payout readback.
-- The host has a clean latest disk-cleanup pass but remains PRESSURE at about 7.0 GiB free; observed
-  zombie processes are separate exited children, and no virus evidence was found in the read-only checks.
+- The host's latest disk-cleanup pass was clean, but headroom is unstable at about 0.7–1.3 GiB free
+  and 100% capacity. Two roughly 535 MiB `capafy-ig-marketing-daily` scratch directories remain; one
+  has a stale owner plus a run-bound `effect_class=none` event and one has no owner identity. The shared
+  cleanup bug preserved every `.terminal-unrecorded` run, including no-effect runs. A candidate now
+  requires current registry `none`, unique run-bound `none` event, and stale PID/start identity before
+  deletion. It is not merged, released, or loaded. Observed zombie processes are separate exited
+  children, and no virus evidence was found in the read-only checks.
 
 **Remaining TODO, in order:**
 
-- [x] **CW-F1 — host capacity:** disk-cleanup release 65a1d563 completed a target pass with errors=0
-  and free_after=8281886720. Continue monitoring because the host remains PRESSURE; preserve credentials,
-  browser profiles, receipts, state, and loaded releases.
+- [ ] **CW-F1 — host capacity:** merge the shared no-effect scratch cleanup fix, cut a main-derived
+  immutable release, target-apply only disk-cleanup, and read back a successful cleanup receipt plus
+  stable headroom. Preserve credentials, browser profiles, receipts, state, and loaded releases.
 - [ ] **CW-F2 — Application admission:** use the resolver/readback path to bind
   18d6535f7dfb8910-33974 to an exact no-dispatch marker or official receipt; never retry while
   the effect is unknown.

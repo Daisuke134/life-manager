@@ -39,8 +39,54 @@ def installed_state_roots(agents_dir: Path) -> set[Path]:
     return roots
 
 
+def no_effect_loop_ids(registry_path: Path) -> set[str]:
+    try:
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return set()
+    loops = registry.get("loops") if isinstance(registry, dict) else None
+    if not isinstance(loops, dict):
+        return set()
+    return {
+        loop_id for loop_id, entry in loops.items()
+        if isinstance(loop_id, str) and isinstance(entry, dict)
+        and entry.get("effect_class") == "none"
+    }
+
+
+def recorded_effect_classes(events_path: Path, loop_ids: set[str]) -> dict[tuple[str, str], str | None]:
+    observed: dict[tuple[str, str], set[str | None]] = {}
+    try:
+        with events_path.open(encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                try:
+                    event = json.loads(line)
+                except (UnicodeError, json.JSONDecodeError):
+                    return {}
+                if not isinstance(event, dict):
+                    return {}
+                loop_id, run_id, effect_class = (
+                    event.get("loop_id"), event.get("run_id"), event.get("effect_class"))
+                if not isinstance(loop_id, str) or loop_id not in loop_ids:
+                    continue
+                if not isinstance(run_id, str):
+                    return {}
+                observed.setdefault((loop_id, run_id), set()).add(
+                    effect_class if isinstance(effect_class, str) else None)
+    except (OSError, UnicodeError):
+        return {}
+    return {
+        key: next(iter(classes)) if len(classes) == 1 and None not in classes else None
+        for key, classes in observed.items()
+    }
+
+
 def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
-               starts: dict[int, str] | None = None) -> dict[str, int | bool]:
+               starts: dict[int, str] | None = None,
+               no_effect_loop_ids: set[str] | frozenset[str] = frozenset()
+               ) -> dict[str, int | bool]:
     """Delete only crashed per-run scratch whose process identity is provably stale."""
     started_ns = time.time_ns() if snapshot_started_ns is None else snapshot_started_ns
     identities = process_starts() if starts is None else starts
@@ -64,6 +110,7 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
         finally:
             if root_fd >= 0:
                 os.close(root_fd)
+        event_effect_classes = recorded_effect_classes(root / "events.jsonl", set(loop_names))
         try:
             for loop_name in loop_names:
                 loop_fd = -1
@@ -90,8 +137,11 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                                 os.stat(".terminal-unrecorded", dir_fd=run_fd,
                                         follow_symlinks=False)
                             except FileNotFoundError:
-                                pass
+                                has_terminal_unrecorded = False
                             else:
+                                has_terminal_unrecorded = True
+                            if (has_terminal_unrecorded
+                                    and loop_name not in no_effect_loop_ids):
                                 result["preserved"] += 1
                                 continue
                             owner_stat = os.fstat(owner_fd)
@@ -105,6 +155,18 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                             if (not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0
                                     or not isinstance(expected, str) or not expected):
                                 raise ValueError("invalid owner identity")
+                            owner_effect_class = owner.get("effect_class")
+                            if not isinstance(owner_effect_class, str):
+                                owner_effect_class = None
+                            if has_terminal_unrecorded:
+                                event_key = (loop_name, run_name)
+                                recorded_effect_class = event_effect_classes.get(event_key)
+                                if (event_key not in event_effect_classes
+                                        or recorded_effect_class != "none"
+                                        or (owner_effect_class is not None
+                                            and owner_effect_class != recorded_effect_class)):
+                                    result["preserved"] += 1
+                                    continue
                             if identities is None or owner_stat.st_mtime_ns >= started_ns:
                                 result["preserved"] += 1
                                 continue
@@ -239,7 +301,8 @@ def main() -> int:
     snapshot_started_ns = time.time_ns()
     scratch_result = scratch_gc(
         installed_state_roots(agents), snapshot_started_ns=snapshot_started_ns,
-        starts=process_starts())
+        starts=process_starts(),
+        no_effect_loop_ids=no_effect_loop_ids(ROOT / "config/loop-registry.json"))
     result.update({"ok": result["errors"] == 0 and host_ok and scratch_result["errors"] == 0,
                    "host_cleanup": host_result,
                    "scratch_cleanup": scratch_result,

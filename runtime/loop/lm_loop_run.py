@@ -78,7 +78,8 @@ def build_loop_command(registry: dict, loop_id: str, release_root: Path) -> list
     return command
 
 
-def reset_loop_scratch(state_root: Path, loop_id: str, run_id: str) -> tuple[Path, int, int]:
+def reset_loop_scratch(state_root: Path, loop_id: str, run_id: str, *,
+                       effect_class: str | None = None) -> tuple[Path, int, int]:
     """Create private per-run scratch without scanning a previous wake's tree."""
     if (not SAFE_RUN_ID.fullmatch(loop_id) or loop_id in {".", ".."}
             or not SAFE_RUN_ID.fullmatch(run_id) or run_id in {".", ".."}):
@@ -125,8 +126,10 @@ def reset_loop_scratch(state_root: Path, loop_id: str, run_id: str) -> tuple[Pat
                 ".owner.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL
                 | getattr(os, "O_NOFOLLOW", 0), 0o600, dir_fd=run_fd)
             with os.fdopen(owner_fd, "w", encoding="utf-8") as handle:
-                json.dump({"pid": os.getpid(), "process_start": identity}, handle,
-                          sort_keys=True, separators=(",", ":"))
+                owner = {"pid": os.getpid(), "process_start": identity}
+                if effect_class is not None:
+                    owner["effect_class"] = effect_class
+                json.dump(owner, handle, sort_keys=True, separators=(",", ":"))
                 handle.write("\n"); handle.flush(); os.fsync(handle.fileno())
             os.fsync(run_fd)
         except Exception:
@@ -852,7 +855,7 @@ def main(argv: list[str] | None = None) -> int:
             run_id = os.environ.get("LIFE_MANAGER_RUN_ID") or f"{time.time_ns():x}-{os.getpid()}"
             event_path = loop_state_root / "events.jsonl"
             scratch, scratch_parent_fd, scratch_fd = reset_loop_scratch(
-                loop_state_root, loop_id, run_id)
+                loop_state_root, loop_id, run_id, effect_class=entry["effect_class"])
             try:
                 append_runtime_event(event_path, build_runtime_start_event(
                     loop_id=loop_id, domain=entry["domain"], run_id=run_id,

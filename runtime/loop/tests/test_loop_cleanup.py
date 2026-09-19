@@ -14,7 +14,7 @@ from runtime.loop.loop_cleanup import cleanup_run_root, gc_releases
 from runtime.loop.lm_loop_run import build_loop_command
 from runtime.loop.runtime_event import validate_runtime_event
 from runtime.loop.central_cleanup import installed_state_roots, loaded_release_roots
-from runtime.loop.central_cleanup import open_release_roots, release_gc, scratch_gc
+from runtime.loop.central_cleanup import no_effect_loop_ids, open_release_roots, release_gc, scratch_gc
 from runtime.loop.central_cleanup import host_cleanup_command, host_cleanup_ok
 
 
@@ -27,6 +27,15 @@ def completed(root: Path, name: str, size: int = 1) -> Path:
 
 
 class LoopCleanupTest(unittest.TestCase):
+    def test_no_effect_loop_ids_reads_registry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            registry = Path(directory) / "loop-registry.json"
+            registry.write_text(json.dumps({"loops": {
+                "safe": {"effect_class": "none"},
+                "money": {"effect_class": "money"},
+            }}))
+            self.assertEqual(no_effect_loop_ids(registry), {"safe"})
+
     def test_host_cleanup_uses_durable_shared_pressure_state(self):
         command = host_cleanup_command(Path('/release'), Path('/home'))
         self.assertEqual(command[-4:], [
@@ -283,7 +292,7 @@ class LoopCleanupTest(unittest.TestCase):
             run = root / "loop-tmp/job/run"
             run.mkdir(parents=True)
             (run / ".owner.json").write_text(json.dumps(
-                {"pid": 11, "process_start": "old-start"}))
+                {"pid": 11, "process_start": "old-start", "effect_class": "none"}))
             with mock.patch("runtime.loop.central_cleanup.process_starts", return_value=None):
                 result = scratch_gc({root})
             self.assertTrue(run.is_dir())
@@ -299,6 +308,116 @@ class LoopCleanupTest(unittest.TestCase):
             (run / ".terminal-unrecorded").touch()
             result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
                                 starts={})
+            self.assertTrue(run.is_dir())
+            self.assertEqual((result["removed"], result["preserved"]), (0, 1))
+
+    def test_scratch_gc_preserves_owner_none_when_event_target_is_missing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/no-effect/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": "old-start", "effect_class": "none"}))
+            (run / ".terminal-unrecorded").touch()
+            (root / "events.jsonl").write_text(json.dumps({
+                "loop_id": "no-effect", "run_id": "other", "effect_class": "none",
+            }) + "\n")
+            result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                starts={}, no_effect_loop_ids={"no-effect"})
+            self.assertTrue(run.is_dir())
+            self.assertEqual((result["removed"], result["preserved"]), (0, 1))
+
+    def test_scratch_gc_removes_stale_unrecorded_no_effect_run(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/no-effect/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": "old-start", "effect_class": "none"}))
+            (run / ".terminal-unrecorded").touch()
+            (root / "events.jsonl").write_text(json.dumps({
+                "loop_id": "no-effect", "run_id": "run", "effect_class": "none",
+            }) + "\n")
+            result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                starts={}, no_effect_loop_ids={"no-effect"})
+            self.assertFalse(run.exists())
+            self.assertEqual((result["removed"], result["preserved"]), (1, 0))
+
+    def test_scratch_gc_preserves_live_no_effect_run(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/no-effect/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps(
+                {"pid": 10, "process_start": "live-start", "effect_class": "none"}))
+            (run / ".terminal-unrecorded").touch()
+            (root / "events.jsonl").write_text(json.dumps({
+                "loop_id": "no-effect", "run_id": "run", "effect_class": "none",
+            }) + "\n")
+            result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                starts={10: "live-start"}, no_effect_loop_ids={"no-effect"})
+            self.assertTrue(run.is_dir())
+            self.assertEqual((result["removed"], result["preserved"]), (0, 1))
+
+    def test_scratch_gc_preserves_historical_effectful_run_when_registry_is_none(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/no-effect/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": "old-start", "effect_class": "money"}))
+            (run / ".terminal-unrecorded").touch()
+            result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                starts={}, no_effect_loop_ids={"no-effect"})
+            self.assertTrue(run.is_dir())
+            self.assertEqual((result["removed"], result["preserved"]), (0, 1))
+
+    def test_scratch_gc_uses_run_bound_event_for_legacy_no_effect_run(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/no-effect/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": "old-start"}))
+            (run / ".terminal-unrecorded").touch()
+            (root / "events.jsonl").write_text(json.dumps({
+                "loop_id": "no-effect", "run_id": "run", "effect_class": "none",
+            }) + "\n")
+            result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                starts={}, no_effect_loop_ids={"no-effect"})
+            self.assertFalse(run.exists())
+            self.assertEqual((result["removed"], result["preserved"]), (1, 0))
+
+    def test_scratch_gc_preserves_conflicting_run_bound_effect_classes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/no-effect/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": "old-start"}))
+            (run / ".terminal-unrecorded").touch()
+            (root / "events.jsonl").write_text("\n".join(json.dumps(event) for event in (
+                {"loop_id": "no-effect", "run_id": "run", "effect_class": "none"},
+                {"loop_id": "no-effect", "run_id": "run", "effect_class": "money"},
+            )) + "\n")
+            result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                starts={}, no_effect_loop_ids={"no-effect"})
+            self.assertTrue(run.is_dir())
+            self.assertEqual((result["removed"], result["preserved"]), (0, 1))
+
+    def test_scratch_gc_preserves_legacy_run_when_event_log_is_corrupt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            run = root / "loop-tmp/no-effect/run"
+            run.mkdir(parents=True)
+            (run / ".owner.json").write_text(json.dumps(
+                {"pid": 11, "process_start": "old-start", "effect_class": "none"}))
+            (run / ".terminal-unrecorded").touch()
+            (root / "events.jsonl").write_text(json.dumps({
+                "loop_id": "no-effect", "run_id": "run", "effect_class": "none",
+            }) + "\n{" )
+            result = scratch_gc({root}, snapshot_started_ns=time.time_ns() + 1,
+                                starts={}, no_effect_loop_ids={"no-effect"})
             self.assertTrue(run.is_dir())
             self.assertEqual((result["removed"], result["preserved"]), (0, 1))
 
