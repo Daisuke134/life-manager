@@ -442,7 +442,7 @@ receipt and resolver call must use the owner-prefixed database identity.
   as `effect_started` with official absence but missing occurrence-bound submit/no-dispatch proof
   (`5266999`, `5275035`, `5266959`). Pass: every candidate has an evidence-backed disposition.
   Do not infer from age or timestamps.
-- [ ] **A5 — Produce the whole-wake receipt.** Owner: Coconala provider reconciler. Inputs: A3
+- [x] **A5 — Produce the whole-wake receipt.** Owner: Coconala provider reconciler. Inputs: A3
   official readback plus A4 intent dispositions. Action: create one immutable receipt binding
   `owner_id=hf-gig-apply-direct`, occurrence
   `hf-gig-apply-direct:18d5f9cd9f029658-33307`, all four candidate IDs,
@@ -463,12 +463,18 @@ receipt and resolver call must use the owner-prefixed database identity.
   `a5-www-full-history-cursor-1789813058.json` (SHA-256
   `37d4e57a6772c5c109d9e28864bb4b88ff77764f4298c4ad81ac69c79a41fc7e`). Pass: no candidate
   remains unresolved; otherwise
-  leave the fence and emit the missing evidence.
-- [ ] **A6 — Resolve the Apply fence.** Owner: admission owner. File:
+  leave the fence and emit the missing evidence. Final resolution receipt:
+  `~/gig/apply-direct/gig-apply-direct-1789611564192685000-46013/reconcile-evidence/a5-final-resolution-receipt-1789814919.json`
+  (SHA-256 `22ee8210b2b984100378efc14dbd25efa787fd7936a92fa7ccd3b6446e9c38ab`). The complete
+  official history covered 67 pages and 1,261 cards; one candidate was provider-verified and three
+  were exact-ID absent with `retired_absent` intents.
+- [x] **A6 — Resolve the Apply fence.** Owner: admission owner. File:
   `runtime/host/resource_admission.py`. Action: call
   `resolve_unknown_occurrence()` using the A5 receipt and `expected_state="claimed"`. Output:
   `resolved=true` plus admission readback. Pass: the exact occurrence changes to `released,0`.
-  No direct SQL and no retry before A6 passes.
+  Readback is `state=released,effect_unknown=0` with `integrity_check=ok`; the first attempt met
+  shared control-lock contention and the retry succeeded. No direct SQL and no provider retry were
+  used.
 
 ### Storefront occurrence `18d5fce0aaee0680-6502`
 
@@ -904,10 +910,10 @@ or read-only diagnostic tools until a separate eval proves that they do not intr
 owner, state store, scheduler or effect path. The next package decision is therefore after the
 current provider receipt gates, not before them.
 
-The ordered Coconala cursor remains one item at a time. A0–A4 and A10 are complete. The first
-active item is A5; the twelve unchecked items are A5, A6, A7, A8, A9, then A11, A12, A13, A14,
-A15, A16 and A17. A later item cannot be marked complete from a later no-op wake, a local exit
-code, or an unrelated provider receipt.
+The ordered Coconala cursor remains one item at a time. A0–A6 and A10 are complete. The first
+active item is A7; the ten unchecked items are A7, A8, A9, then A11, A12, A13, A14, A15, A16
+and A17. A later item cannot be marked complete from a later no-op wake, a local exit code, or an
+unrelated provider receipt.
 
 ## 3. Capability and authorization model
 
