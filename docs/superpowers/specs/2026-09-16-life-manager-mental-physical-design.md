@@ -653,7 +653,9 @@ synthetic row, decide whether a rollout milestone is closed.
   cap. The later evening opportunity delivered durable row `id=160` with
   `family=manifestation`, `window=evening_direction`, template
   `antara:small-step-afraid:ja`, and Telegram ID `1395`. Provider-native body/markup readback for
-  this second receipt remains open; this is not a canary failure or permission to delete history.
+  this receipt is complete; this is not a canary failure or permission to delete history.
+- Provider-native body/markup readback is now complete for morning and evening. The Telegram dialog
+  hashes match their catalog templates, both are inbound plain text, and neither has reply markup.
 - A third natural row `id=162` repeated `antara:courage-quiet:ja` in the next morning window after
   the old runtime's rolling 24-hour history expired. The release branch fixes the root cause by
   reading a 14-day template horizon separately from the 24-hour cap. The historical duplicate is
@@ -667,7 +669,7 @@ synthetic row, decide whether a rollout milestone is closed.
 
 | Step / state | TODO | Completion evidence |
 |---|---|---|
-| 1 — IN PROGRESS; wall clock + dedupe repair | Observe natural Dais windows after the dedupe fix. | Provider-native Telegram message ID, exact text, family/window, durable send row, and no new template repeat after the verified release baseline. A pre-release duplicate is retained and reported separately. |
+| 1 — IN PROGRESS; wall clock + dedupe repair | Observe natural Dais windows after the dedupe fix. | Provider-native Telegram message ID, exact text, family/window, durable send row, and no new template repeat after the verified release baseline. Morning/evening body and markup readback is complete; midday and release deployment remain open. |
 | 2 — OPEN after step 1 | Keep the Dais-only canary running for seven consecutive local days. | Daily decision/send ledger with no synthetic rows and at least one real delivery from every V1 family. |
 | 3 — OPEN after step 2 | Close safety and UX counters and read back the actual Telegram messages. | `<=3` per local day, `>=3h` spacing, zero Calendar-busy sends, zero configured quiet-hour sends, zero unsupported claims, zero repeated templates within 14 days, replay-zero, and plain text with no keyboard/callback data, sender prefix, reply instruction, or unnatural/unreviewed locale text. |
 | 4 — MIGRATION LIVE; code release open | Deploy release `fca4014806`, read back the exact production SHA, set `LM_MENTAL_CANARY_START_AT` to that verified timestamp, then set `LM_MENTAL_DECISION_LOG_REQUIRED=1` and add bounded policy promotion/rollback. | Pre-release rows remain visible; post-baseline rows contain policy/profile versions, candidate/selected quote or silence reason, source refs, busy state, window, locale, and Telegram ID; old/new replay score promotes only when safety does not regress. |
@@ -682,8 +684,9 @@ synthetic row, decide whether a rollout milestone is closed.
 **Primary blocker:** production is still running the pre-release code, which produced one historical
 14-day template repeat. The fixed release `fca4014806` is tested and pushed but not yet deployed.
 After deployment, the Dais-only canary must prove no new repeats after the verified release baseline,
-complete the midday family, read back evening body/markup, and run six more local days. The historical
-duplicate remains visible in `pre_canary_template_repeats`; it must not be deleted or rewritten.
+complete the midday family, and run six more local days. Morning/evening provider body/markup
+readback is already complete. The historical duplicate remains visible in
+`pre_canary_template_repeats`; it must not be deleted or rewritten.
 Clock manipulation, synthetic rows, or a local unit-test pass cannot close it.
 
 **Release consequence:** keep `LM_MENTAL_V1_ALLOWED_UIDS` restricted to Dais and do not expand to

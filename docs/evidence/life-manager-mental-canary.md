@@ -55,7 +55,12 @@ The production scheduler also observed the synthetic projection and logged a Tel
 
 - Latest automated readback at `2026-09-19T08:35:49+09:00`: `v1_count=3`, `legacy_count=32`, `daily_counts={2026-09-18: 2, 2026-09-19: 1}`, `min_gap_ms=38167867`, `windows.morning_orientation=2`, `windows.evening_direction=1`, `template_repeats=1`, and structural `pass=false` over the trailing 14-day window. This is three natural receipts, not a seven-day canary pass. The read-only wall-clock monitor was restarted after its prior process exited; no send or scheduler mutation was performed.
 - The receipt row has `family=affirmation`, `window=morning_orientation`, and template `antara:courage-quiet:ja`. The provider-native `Cloud Life Manager` dialog contains a same-second inbound MTProto message (`2026-09-17T23:00:50Z`) whose text hash/length exactly matches that approved catalog item; its message has no buttons/reply markup and `out=false`. Bot API receipt ID `1384` and MTProto ID `88742` are different API identifiers, so the cross-API ID mapping is recorded as an observation rather than assumed.
-- The midday opportunity on this local day was correctly suppressed by the shared trailing-24-hour cap; the evening opportunity later delivered one V1 manifestation. The durable row is `id=160`, `family=manifestation`, `window=evening_direction`, `template_id=antara:small-step-afraid:ja`, `telegram_message_id=1395`, `sent_at=2026-09-18T12:25:05.350819Z`. No cap bypass or extra send was authorized. Provider-native body/markup readback for this second receipt remains open.
+- The midday opportunity on this local day was correctly suppressed by the shared trailing-24-hour cap; the evening opportunity later delivered one V1 manifestation. The durable row is `id=160`, `family=manifestation`, `window=evening_direction`, `template_id=antara:small-step-afraid:ja`, `telegram_message_id=1395`, `sent_at=2026-09-18T12:25:05.350819Z`. No cap bypass or extra send was authorized.
+- Provider-native Telegram body/markup readback is now complete for both V1 receipts. In the
+  `Cloud Life Manager` dialog, Bot API `1395` corresponds by same-second/template hash observation
+  to MTProto `89648` (hash of `antara:small-step-afraid:ja`, 18 characters, `out=false`, no markup),
+  and Bot API `1400` corresponds to MTProto `90546` (hash of `antara:courage-quiet:ja`, 18
+  characters, `out=false`, no markup). Bot API and MTProto IDs are recorded as separate API IDs.
 - A third natural row `id=162` delivered `family=affirmation`, `window=morning_orientation`,
   `template_id=antara:courage-quiet:ja`, `telegram_message_id=1400`, at
   `2026-09-18T23:01:13.217697Z`. This repeated the prior morning template after the old runtime's
@@ -77,12 +82,12 @@ The production scheduler also observed the synthetic projection and logged a Tel
 - Window-bound scheduler logs now record send family/template/message ID or enum suppression reasons; outside-window heartbeats remain silent.
 - [x] Capture one natural Dais morning affirmation in `morning_orientation`.
 - [ ] Capture one natural Dais midday mindfulness/body-awareness line in `midday_awareness`.
-- [x] Capture one natural Dais evening manifestation/release line in `evening_direction` (body/markup readback still open).
+- [x] Capture one natural Dais evening manifestation/release line in `evening_direction` (body/markup readback complete).
 - [ ] Deploy `fca4014806` and read back its exact production SHA before enabling the decision-log flag.
 - [ ] For seven consecutive local days after the fixed release, record decision, family, template ID, window, Telegram ID, and durable receipt row.
 - [x] Apply and read back the decision-log and quiet-hours migrations through Supabase CLI.
 - [ ] Deploy the decision-log wiring release and read back its exact production SHA before enabling the flag.
 - [ ] Prove daily count <= 3, spacing >= 3 hours, busy/quiet suppression, no new 14-day template repeats after the verified baseline, and replay-zero. Preserve the pre-release duplicate as `pre_canary_template_repeats`.
-- [ ] Verify the actual Telegram text has no buttons, callback data, reply instruction, sender signature, or unsupported personal claim.
+- [x] Verify the actual Telegram text has no buttons, callback data, reply instruction, sender signature, or unsupported personal claim for both observed V1 receipts.
 
 No production rollout beyond the Dais allowlist is authorized until these rows are closed with provider-native Telegram readback.
