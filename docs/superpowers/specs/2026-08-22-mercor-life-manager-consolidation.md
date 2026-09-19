@@ -23,6 +23,9 @@ below remain historical evidence and must not be read as current runtime state.
   receipt `89447`, but ended `blocked` on `priority_scan_incomplete` for Japanese Voice Actor and
   Bilingual candidates whose detail readback did not render. This is an automation/readback defect,
   not a provider submission or a human-gate completion.
+- The next completed wake `mercor-20260919-191710-52060` produced `observed_no_action` and Telegram
+  receipt `89452`; the six typed search queries did not retain their exact values after one retry,
+  so those query artifacts remain unavailable until the input/readback boundary is repaired.
 - The same-account/listing/step gate is now reused by both the model notification path and the
   terminal report path. Legacy rows remain append-only; current logical reads collapse known
   Voice Actor, PDF Annotation, Consultant, Bilingual, and Sonic identities without deleting history.
@@ -35,11 +38,32 @@ below remain historical evidence and must not be read as current runtime state.
 - Mercor admission `effect_unknown` occurrences were resolved only through occurrence-specific
   pre-effect proofs. No admission SQLite row was edited directly.
 
+### Human operator procedure (the only user-bound action)
+
+For every Telegram human-gate message, the operator follows this exact sequence:
+
+1. Open the live Mercor link in the dedicated Mercor browser context.
+2. If Mercor sends a login email, open that email and complete ordinary sign-in. Login is an
+   authentication step; it is not evidence that the application step is complete.
+3. Read the named job and exact remaining provider step. Complete only that step personally:
+   interview, graded assessment, voice recording, camera, microphone, or screen sharing as shown.
+4. Use Mercor's own final `Submit`/`Complete` control. Do not ask the loop to impersonate the
+   interview, fabricate a recording, or infer an answer that is not in the private fact profile.
+5. Stop after the provider confirms completion. No chat reply or database edit is required; the next
+   wake reads the same account/listing/step from Mercor and resumes automatically.
+6. For Sonic, first obtain the official `Unique Candidate ID` from Mercor. Never enter a guessed,
+   blank, or borrowed ID.
+
+The loop fills ordinary factual fields, uploads only already-approved artifacts, sends the link,
+checks the official `Completed`/`reused` state, and performs any ordinary application Submit after
+that state. The operator does not need to keep the browser open after the provider confirmation.
+
 ### Remaining TODO in execution order
 
-1. **Priority/detail readback boundary:** fix `priority_scan_incomplete` so an unrendered application
+1. **Priority/detail and query-input readback:** fix `priority_scan_incomplete` so an unrendered application
    card is recorded as a candidate-local `listing_detail_not_rendered`/card-only outcome and does not
-   fail the whole wake. Re-run a natural wake and require the priority validator to pass.
+   fail the whole wake. Fix the controlled search input readback so a query is unavailable only after
+   an independently verified retry. Re-run a natural wake and require the priority validator to pass.
 2. **Human-bound steps:** deliver one current link per exact gate. The user completes Voice Actor,
    PDF Annotation Bilingual Competency, Consultant Style and Midas, Bilingual Competency/interview,
    and any VS Code interview. The next wake verifies the same account/listing/step as `Completed`
