@@ -2409,7 +2409,7 @@
     "mercor-revenue-application": {
       "adapter": "exec",
       "cadence": {
-        "start_interval_seconds": 1800
+        "start_interval_seconds": 300
       },
       "cleanup": {
         "max_age_days": 14,
@@ -2418,6 +2418,8 @@
       "command": [],
       "domain": "earn",
       "effect_class": "application",
+      "coalesce_queued_wakes": true,
+      "coalesce_reserved_wakes": true,
       "resource_class": "agent",
       "admission_class": "revenue",
       "entrypoint": "skills/earn/mercor/scripts/application-owner",
