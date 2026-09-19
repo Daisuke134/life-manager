@@ -447,16 +447,20 @@ receipt and resolver call must use the owner-prefixed database identity.
   `owner_id=hf-gig-apply-direct`, occurrence
   `hf-gig-apply-direct:18d5f9cd9f029658-33307`, all four candidate IDs,
   official evidence hashes, and provider states. Output: receipt JSON with exact occurrence identity.
-  Current canonical report: `~/gig/apply-direct/gig-apply-direct-1789611564192685000-46013/reconcile-evidence/a5-canonical-reconciliation-receipt-1789811280.json`
-  (SHA-256 `8a5b5439d4f970ef66afe3eae6796eae2347ec56b5c8c7e6ab418cafc8a7de92`) is an immutable
+  Current canonical report: `~/gig/apply-direct/gig-apply-direct-1789611564192685000-46013/reconcile-evidence/a5-canonical-reconciliation-receipt-1789812033.json`
+  (SHA-256 `8254622aae95e2e70357c141ffc8f480b75e9634f643fdd2cd2422c6b783d861`) is an immutable
   `held` reconciliation report with `verified=false`, `resolve_allowed=false` and
   `retry_allowed=false`. The earlier short-ID report is preserved and superseded because it did
   not carry the canonical admission identity. A bounded full-history readback then reached
   `https://coconala.com/mypage/job_matching/applied/offers?page=3` and returned `403 Forbidden`;
   that access-denied evidence is persisted beside the report. Current request-page readback is
   persisted in `a5-current-request-readback-1789811162.json`: all three pages expose `応募する`
-  and no `応募済み` marker, but this does not resolve the historical occurrence. Pass: no
-  candidate remains unresolved; otherwise leave the fence and emit the missing evidence.
+  and no `応募済み` marker, but this does not resolve the historical occurrence. Runtime fix
+  branch `fix/coconala-full-history-www-20260919` commit `c951134d8f` preserves the `www` host
+  across pages, accepts the `www` page-one start URL, and saves a verified prefix when a later
+  page returns 403. The latest partial scan read two pages and persisted `next_url=...page=3`;
+  it still cannot resolve the three candidates. Pass: no candidate remains unresolved; otherwise
+  leave the fence and emit the missing evidence.
 - [ ] **A6 — Resolve the Apply fence.** Owner: admission owner. File:
   `runtime/host/resource_admission.py`. Action: call
   `resolve_unknown_occurrence()` using the A5 receipt and `expected_state="claimed"`. Output:
