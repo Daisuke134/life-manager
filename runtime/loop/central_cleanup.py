@@ -92,6 +92,7 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
     identities = process_starts() if starts is None else starts
     result: dict[str, int | bool] = {
         "evaluated": 0, "removed": 0, "preserved": 0, "errors": 0,
+        "owner_metadata_invalid": 0,
         "identity_snapshot_available": identities is not None,
     }
     flags = os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0)
@@ -126,7 +127,14 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                             run_fd = os.open(run_name, flags, dir_fd=loop_fd)
                             owner_fd = os.open(
                                 ".owner.json", os.O_RDONLY | nofollow, dir_fd=run_fd)
+                        except FileNotFoundError:
+                            for descriptor in (owner_fd, run_fd):
+                                if descriptor >= 0:
+                                    os.close(descriptor)
+                            continue
                         except OSError:
+                            result["errors"] += 1
+                            result["preserved"] += 1
                             for descriptor in (owner_fd, run_fd):
                                 if descriptor >= 0:
                                     os.close(descriptor)
@@ -140,10 +148,8 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                                 has_terminal_unrecorded = False
                             else:
                                 has_terminal_unrecorded = True
-                            if (has_terminal_unrecorded
-                                    and loop_name not in no_effect_loop_ids):
-                                result["preserved"] += 1
-                                continue
+                            # Without this marker, lm_loop_run persisted the terminal event and
+                            # ordinary stale-owner GC may reclaim the completed scratch.
                             owner_stat = os.fstat(owner_fd)
                             owner_bytes = b""
                             while chunk := os.read(owner_fd, 65536):
@@ -155,9 +161,17 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                             if (not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0
                                     or not isinstance(expected, str) or not expected):
                                 raise ValueError("invalid owner identity")
-                            owner_effect_class = owner.get("effect_class")
-                            if not isinstance(owner_effect_class, str):
+                            if "effect_class" in owner:
+                                owner_effect_class = owner["effect_class"]
+                                if (not isinstance(owner_effect_class, str)
+                                        or not owner_effect_class):
+                                    raise ValueError("invalid owner effect class")
+                            else:
                                 owner_effect_class = None
+                            if (has_terminal_unrecorded
+                                    and loop_name not in no_effect_loop_ids):
+                                result["preserved"] += 1
+                                continue
                             if has_terminal_unrecorded:
                                 event_key = (loop_name, run_name)
                                 recorded_effect_class = event_effect_classes.get(event_key)
@@ -179,7 +193,10 @@ def scratch_gc(roots: set[Path], *, snapshot_started_ns: int | None = None,
                             else:
                                 result["errors"] += 1
                                 result["preserved"] += 1
-                        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+                        except (TypeError, ValueError, json.JSONDecodeError):
+                            result["owner_metadata_invalid"] += 1
+                            result["preserved"] += 1
+                        except OSError:
                             result["errors"] += 1
                             result["preserved"] += 1
                         finally:
