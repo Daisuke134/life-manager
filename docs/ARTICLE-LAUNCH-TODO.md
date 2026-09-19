@@ -18,7 +18,7 @@
 （`article-daily`、同じstateを再開する`article-resume`）で、現在のactive-fourは Note JA、Substack JA、Substack EN、
 X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dormant のままで、別の有効化receiptが必要である。
 
-### Live runtime readback — 2026-09-19 15:43 JST
+### Live runtime readback — 2026-09-19 15:48 JST
 
 - `origin/main` は `ed82c570ce367c66a4e792aacbffa97d2f2ecfaa`。`20260919T153206-ed82c570` を候補として作成し、
   `article-daily` と `article-resume` の両方へtarget-only applyした。両plistのloaded argv/source SHAは `ed82c570…` で一致する。
@@ -27,8 +27,8 @@ X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dorm
   same-JST-day safety blockのno-opで、provider-native publicationは発生していない。
 - `article-resume` は loaded `ed82c570…`、`state=not running`。新しいrun `18d6a5a6b607fd90-19669`（06:40:38Z）は
   `host_admission_deferred:resource_effect_unknown` で、exact occurrence summary/pre-effect proofと公式provider readbackが無いため保持する。
-- host freeは `433,999,872 bytes`（15:43 JSTの最新`df` readback）で、Writer run floor `1,155,780,608 bytes`を下回る。
-- 共有 `life-manager-release-reconciler` は別ownerの旧release `09a59ba1…`で稼働中（PID `18148`）。stderrには
+- host freeは `425,041,920 bytes`（15:48 JSTの最新`df` readback）で、Writer run floor `1,155,780,608 bytes`を下回る。
+- 共有 `life-manager-release-reconciler` は別ownerの旧release `09a59ba1…`で稼働中（PID `26051`）。stderrには
   欠損worktree `/Users/anicca/Projects/life-manager-daily-revenue-priority`、`ENOSPC`、`another release build owns` が反復する。
   Writer workstreamからこのownerを停止・再起動・修正しない。
 
@@ -71,7 +71,7 @@ W2cのtarget-only applyは完了したが、W2のfresh publicationは次の自�
 ### Current blockers
 
 1. **最新releaseのfresh canary**: same-day safety blockを迂回して再送することはできない。次の自然JST日まで待つ必要があり、日付を偽装したcanaryは受け入れない。
-2. **host capacity**: floorは`1,155,780,608` bytes、今回のfree readbackは`433,999,872` bytes。floor未達ならgeneration前にfail-closedする。
+2. **host capacity**: floorは`1,155,780,608` bytes、今回のfree readbackは`425,041,920` bytes。floor未達ならgeneration前にfail-closedする。
    別ownerのbrowser/session/reconcilerを停止して回復しない。release-reconcilerの欠損worktree/ENOSPCは別ownerの境界である。
 3. **provider/payment boundary**: 旧releaseのactive-four canaryはliveだが、現行Main由来releaseのfresh live URLとreceived payout receiptはまだ無い。コード、
       test、loaded/running、provider公開、収益を別々に証明する必要がある。
