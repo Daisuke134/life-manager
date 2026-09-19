@@ -32,6 +32,7 @@
 - [x] Prioritize direct Life Manager/AI-agent/product-operations overlap (PR #5670, `05db94e33f`).
 - [x] Revisit provisional `card_only_unverified` overlap candidates after unseen queue exhaustion (PR #5676, `3541a2f7a6`).
 - [x] Resolve the exact `resource_effect_unknown` occurrence with fresh official Applications/Contracts/Notifications readback; `effect_unknown=0`.
+- [x] Resolve the later surfaced occurrence `18d6888b1a586458-38506` with the same official readback contract; 97 applications / 0 contracts / 0 notifications, no update in its occurrence window, receipt `mercor-official-readback:3cf59365...`.
 - [ ] Complete the active `3541a2f7` wake and prove terminal receipt, loaded SHA, Telegram ACK, and no effect fence.
 - [ ] Continue only with detail-grounded high/medium candidates; `Personalized Life Assistant Expert` was rejected by official United States location versus Japan-only authorization. Submit the next truthful-fit ready listing with dedupe and post-submit readback.
 - [ ] Reconcile selection, contract, authorized work, QA, delivery, acceptance, settled earnings and payout evidence. No offer, contract, payment or `$10K` claim is currently verified.

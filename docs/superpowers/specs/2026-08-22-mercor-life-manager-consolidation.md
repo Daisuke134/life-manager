@@ -29,6 +29,7 @@
 - [x] PR #5670 / `05db94e33f`: prioritize direct Life Manager/AI-agent/product-operations overlap.
 - [x] PR #5676 / `3541a2f7a6`: reopen `card_only_unverified` overlap candidates after unseen queue exhaustion.
 - [x] Official readback resolved occurrence `18d68604800aee30-82625` with receipt `mercor-official-readback:ba818f...`; `effect_unknown=0`. An incomplete 92MiB release was removed after current/loaded reference checks; disk free space recovered above 1GiB.
+- [x] A later surfaced fence, occurrence `18d6888b1a586458-38506`, was correlated against a fresh official readback: 97 applications, 0 contracts, 0 notifications, and no application update in its 21:47:12–21:57:49 UTC window. Resolver receipt `mercor-official-readback:3cf59365f6c215339e25c14693b3c72f6891297015bc72f988e95d94c94f3223` closed the fence; the owner now reads `effect_unknown=0` and loaded-idle on `3541a2f7`.
 - [x] Focused Mercor + Direct CDP tests pass: 74 tests and 2 subtests; `lm-loop-contract` passes; CI security/contract checks pass.
 
 ### Remaining TODO in execution order
