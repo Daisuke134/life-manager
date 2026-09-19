@@ -70,6 +70,13 @@ python3 "$TERMINAL_TOOL" start --ledger "$TERMINAL_LEDGER" \
 bash "$LIFE_MANAGER_RELEASE_ROOT/skills/capafy-autopublish/scripts/key_health_gate.sh" \
   >>"$LOG" 2>&1 || exit $?
 
+# Keep the published ledger synchronized even when the publish queue is full.
+# The CAP_FULL fast-path below intentionally avoids the drainer, which normally
+# performs this reconciliation.  Without it, live server listings accumulated
+# while published.jsonl stayed stale and falsely triggered the self-fix audit.
+python3 "$LIFE_MANAGER_RELEASE_ROOT/skills/capafy-autopublish/scripts/reconcile_ledger.py" \
+  --json >>"$LOG" 2>&1 || true
+
 # Enforce the five simultaneous-submission cap before spending an agent turn.
 # CAP_FULL permits one offline-only candidate build per local calendar day. It never writes to Capafy.
 INVENTORY="$(CAPAFY_CATALOG_DIR="$LIFE_MANAGER_RELEASE_ROOT/skills/capafy/catalog" \
