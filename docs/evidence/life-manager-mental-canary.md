@@ -71,7 +71,7 @@ The production scheduler also observed the synthetic projection and logged a Tel
   rows delivered after the verified fixed-release timestamp. This preserves history without waiting
   for deletion or hiding the incident.
 - Repository hardening and the 14-day template-dedupe fix are pushed on release branch
-  `fix/lm-mental-production-release-20260919` at `fca4014806`; MENTAL focused tests are `104/104`
+  `fix/lm-mental-production-release-20260919` at `066476b145`; MENTAL focused tests are `104/104`
   and the full Life Manager suite exits `0`. Production has not received this code release yet,
   so `LM_MENTAL_DECISION_LOG_REQUIRED=1` remains intentionally off.
 - The remaining release mismatch is code, not schema: production `/health` still reports the older
@@ -87,7 +87,7 @@ The production scheduler also observed the synthetic projection and logged a Tel
 - [x] Capture one natural Dais morning affirmation in `morning_orientation`.
 - [ ] Capture one natural Dais midday mindfulness/body-awareness line in `midday_awareness`.
 - [x] Capture one natural Dais evening manifestation/release line in `evening_direction` (body/markup readback complete).
-- [ ] Deploy `fca4014806` and read back its exact production SHA before enabling the decision-log flag.
+- [ ] Deploy `066476b145` and read back its exact production SHA before enabling the decision-log flag.
 - [ ] For seven consecutive local days after the fixed release, record decision, family, template ID, window, Telegram ID, and durable receipt row.
 - [x] Apply and read back the decision-log and quiet-hours migrations through Supabase CLI.
 - [ ] Deploy the decision-log wiring release and read back its exact production SHA before enabling the flag.

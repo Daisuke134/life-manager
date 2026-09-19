@@ -672,7 +672,7 @@ synthetic row, decide whether a rollout milestone is closed.
 | 1 — IN PROGRESS; wall clock + dedupe repair | Observe natural Dais windows after the dedupe fix. | Provider-native Telegram message ID, exact text, family/window, durable send row, and no new template repeat after the verified release baseline. Morning/evening body and markup readback is complete; midday and release deployment remain open. |
 | 2 — OPEN after step 1 | Keep the Dais-only canary running for seven consecutive local days. | Daily decision/send ledger with no synthetic rows and at least one real delivery from every V1 family. |
 | 3 — OPEN after step 2 | Close safety and UX counters and read back the actual Telegram messages. | `<=3` per local day, `>=3h` spacing, zero Calendar-busy sends, zero configured quiet-hour sends, zero unsupported claims, zero repeated templates within 14 days, replay-zero, and plain text with no keyboard/callback data, sender prefix, reply instruction, or unnatural/unreviewed locale text. |
-| 4 — MIGRATION LIVE; code release open | Deploy release `fca4014806`, read back the exact production SHA, set `LM_MENTAL_CANARY_START_AT` to that verified timestamp, then set `LM_MENTAL_DECISION_LOG_REQUIRED=1` and add bounded policy promotion/rollback. | Pre-release rows remain visible; post-baseline rows contain policy/profile versions, candidate/selected quote or silence reason, source refs, busy state, window, locale, and Telegram ID; old/new replay score promotes only when safety does not regress. |
+| 4 — MIGRATION LIVE; code release open | Deploy release `066476b145`, read back the exact production SHA, set `LM_MENTAL_CANARY_START_AT` to that verified timestamp, then set `LM_MENTAL_DECISION_LOG_REQUIRED=1` and add bounded policy promotion/rollback. | Pre-release rows remain visible; post-baseline rows contain policy/profile versions, candidate/selected quote or silence reason, source refs, busy state, window, locale, and Telegram ID; old/new replay score promotes only when safety does not regress. |
 | 5 — MIGRATION LIVE; runtime read open | Read the explicit per-user quiet-hours source through the deployed scheduler and observe suppression. | The versioned preference fields are populated/read by the scheduler and suppression is observed; incomplete pairs fail closed. |
 | 6 — OPEN for full acceptance | Verify the existing crisis handoff owner and route. | A tested, location-appropriate handoff is read back; until then MENTAL makes no suicide-prevention or emergency-support claim. |
 | 7 — OPTIONAL, non-blocking | Run Telnyx duplicate/replay-zero if the stronger provider proof is required. | A second authorized test is deduplicated or otherwise reconciled without an unapproved duplicate effect. This does not block the mental canary. |
@@ -682,7 +682,7 @@ synthetic row, decide whether a rollout milestone is closed.
 ### 19.4 What is blocking now
 
 **Primary blocker:** production is still running the pre-release code, which produced one historical
-14-day template repeat. The fixed release `fca4014806` is tested and pushed but not yet deployed.
+14-day template repeat. The fixed release `066476b145` is tested and pushed but not yet deployed.
 After deployment, the Dais-only canary must prove no new repeats after the verified release baseline,
 complete the midday family, and run six more local days. Morning/evening provider body/markup
 readback is already complete. The historical duplicate remains visible in
@@ -726,7 +726,7 @@ were performed on 2026-09-18 and are summarized in
 | Defunct processes | Two `Z` processes; parents are Chromium PID `27633` and ChatGPT PID `52958`, not Life Manager | There are zombies, but they are child-process cleanup defects in unrelated desktop apps, not the MENTAL runtime's cause. |
 | Persistence inventory | `167` `ai.anicca` launchd jobs loaded, `34` with a live PID; names are repository-owned/known families | launchd is restarting/scheduling many jobs by design. A loaded job with PID `-` is not a zombie process. |
 | Deleted-open files | No large Life Manager artifact was found as a deleted file held open; `lsof +L1` output is dominated by macOS/browser/system resources | The primary disk issue is retained files and swap, not an invisible deleted log consuming the volume. |
-| Cloud MENTAL | evaluator: `v1_count=3`, `legacy_count=32`, morning `2`, evening `1`, `template_repeats=1`, `pass=false`; send row `id=162` is the repeated morning template | The cloud loop is alive; the pre-release selector violated the 14-day template rule. Release `fca4014806` fixes selection and adds a release-baseline evaluator; production deployment/readback remains open. |
+| Cloud MENTAL | evaluator: `v1_count=3`, `legacy_count=32`, morning `2`, evening `1`, `template_repeats=1`, `pass=false`; send row `id=162` is the repeated morning template | The cloud loop is alive; the pre-release selector violated the 14-day template rule. Release `066476b145` fixes selection and adds a release-baseline evaluator; production deployment/readback remains open. |
 | Cloud schema | CLI migration list local/remote equal; decision-log, quiet-hours, and send-log REST readbacks all `200` | The production schema gate is closed; the remaining cloud gate is deploying the matching code SHA. |
 
 ### 20.2 Root cause
@@ -789,7 +789,7 @@ flowchart LR
    profiles, and credentials; archive before deletion where recovery matters.
 4. **Reduce pressure:** cap simultaneous browser contexts and release only owner-confirmed idle
    contexts. Re-measure process count, swap, `df`, and write latency after each bounded change.
-5. **Close Cloud code gate:** deploy release branch `8023b98b9d` through the main production path,
+5. **Close Cloud code gate:** deploy release branch `066476b145` through the main production path,
    read back the exact `/health` SHA, then set `LM_MENTAL_DECISION_LOG_REQUIRED=1` in a Dais-only
    canary. The schema migration is already applied/read back.
 6. **Finish proof:** read back the evening body/markup, capture midday or its legitimate suppression,

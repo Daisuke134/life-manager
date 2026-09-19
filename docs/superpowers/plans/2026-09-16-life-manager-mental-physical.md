@@ -666,7 +666,7 @@ npm test
 
 - [x] Require the current Railway `life-call` deployment to reach `SUCCESS`; fresh `/health` readback is
   `d4659ff4bc7b4e13aa67836243060ad1d4efbb03`.
-- [ ] Deploy release `fca4014806`, read back its exact production SHA, set
+- [ ] Deploy release `066476b145`, read back its exact production SHA, set
   `LM_MENTAL_CANARY_START_AT` to that verified timestamp, then enable
   `LM_MENTAL_DECISION_LOG_REQUIRED=1` for the Dais-only canary.
 
@@ -713,7 +713,7 @@ duplicate external sends = 0
 ```
 
 - [ ] Ensure at least one real delivered message from morning affirmation, midday mindfulness/body awareness,
-  and evening manifestation/release after `fca4014806` is live. Morning and evening are present;
+  and evening manifestation/release after `066476b145` is live. Morning and evening are present;
   midday has not yet delivered naturally. A historical pre-release template repeat is retained and
   reported separately by the baseline evaluator; do not delete or fabricate history.
 
