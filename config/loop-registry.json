@@ -605,6 +605,9 @@
       "entrypoint": "skills/earn/capafy-marketing/capafy-ig-marketing-daily.sh",
       "label": "ai.anicca.capafy-ig-marketing-daily",
       "log_root": "~/.local/state/life-manager/logs",
+      "resource_class": "agent",
+      "admission_class": "borrow",
+      "priority": "support",
       "provider_route": "shared-agent-runner",
       "state_root": "~/.local/state/life-manager"
     },
