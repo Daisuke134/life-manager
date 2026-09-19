@@ -71,7 +71,7 @@ W2cのtarget-only applyは完了したが、W2のfresh publicationは次の自�
 ### Current blockers
 
 1. **最新releaseのfresh canary**: same-day safety blockを迂回して再送することはできない。次の自然JST日まで待つ必要があり、日付を偽装したcanaryは受け入れない。
-2. **host capacity**: floorは`1,155,780,608` bytes、今回のfree readbackは`428,998,656` bytes。floor未達ならgeneration前にfail-closedする。
+2. **host capacity**: floorは`1,155,780,608` bytes、今回のfree readbackは`433,999,872` bytes。floor未達ならgeneration前にfail-closedする。
    別ownerのbrowser/session/reconcilerを停止して回復しない。release-reconcilerの欠損worktree/ENOSPCは別ownerの境界である。
 3. **provider/payment boundary**: 旧releaseのactive-four canaryはliveだが、現行Main由来releaseのfresh live URLとreceived payout receiptはまだ無い。コード、
       test、loaded/running、provider公開、収益を別々に証明する必要がある。
