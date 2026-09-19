@@ -511,9 +511,13 @@ receipt and resolver call must use the owner-prefixed database identity.
   `runtime/loop/lm_loop_apply.py` and `runtime/loop/tests/test_lm_loop_apply.py`. Action: verify
   focused suite and diff against latest main. Output: review receipt. Pass: `103 passed, 31
   subtests passed`; branch is rebased and pushed; no production apply yet.
-- [ ] **A11 — Merge and cut one release.** Owner: release owner. Input: A10 review receipt and
+- [x] **A11 — Merge and cut one release.** Owner: release owner. Input: A10 review receipt and
   latest `origin/main`. Action: merge once, cut one immutable main-derived release. Output:
-  release SHA and immutable path. Current integration candidate is pushed at
+  release SHA and immutable path. The integration candidate was merged via PR #5710 at
+  `d448cb8ef1b001b1ca61d1c4cc0738406e32a21f`. The immutable release is
+  `/Users/anicca/loops/releases/20260919T204301-d448cb8e` with manifest SHA
+  `d448cb8ef1b001b1ca61d1c4cc0738406e32a21f` and `release_paths=ALL`; current symlink remains on
+  the previous release until A12. The former integration candidate was pushed at
   `fix/coconala-a11-integration-20260919` with commits `7f95664f04`, `4c317cd6f5` and
   `25e298b0e7`; its focused gates pass (`11` full-history tests and `1` loaded-env regression).
   Follow-up commit `7494638da0` scopes the loaded browser-env gate to the four Gig lanes after CI
@@ -940,8 +944,8 @@ or read-only diagnostic tools until a separate eval proves that they do not intr
 owner, state store, scheduler or effect path. The next package decision is therefore after the
 current provider receipt gates, not before them.
 
-The ordered Coconala cursor remains one item at a time. A0–A10 are complete. The first active
-item is A11; the seven unchecked items are A11, A12, A13, A14, A15, A16 and A17. A later item
+The ordered Coconala cursor remains one item at a time. A0–A11 are complete. The first active
+item is A12; the six unchecked items are A12, A13, A14, A15, A16 and A17. A later item
 cannot be marked complete from a later no-op wake, a local exit code, or an unrelated provider
 receipt.
 
