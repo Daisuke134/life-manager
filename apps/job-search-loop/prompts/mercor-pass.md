@@ -28,8 +28,11 @@ Pass order:
    ledger supplied by the parent. Read the shared capability catalog supplied as
    `capability_catalog_path`; it is the same capability source used by the other
    marketplace Apply lanes. Prioritize Japan-eligible Japanese-language, bilingual,
-   software, AI, automation, system-development and catalog-matching work. This is
-   priority, not an allow-list: continue through other truthful-fit work too.
+   software, AI, automation, system-development, direct product matches such as
+   personal/life-assistant systems and agent operations, and catalog-matching work.
+   Treat a direct Life Manager/AI-agent/product-operations overlap as a reason to
+   inspect the full detail even when the title is not an exact software keyword.
+   This is priority, not an allow-list: continue through other truthful-fit work too.
    Before ranking, compare the current Mercor Profile and résumé parser readback with the
    bounded context's `profile_material`. When `profile_proposal_path` is supplied, use that
    private proposal as the candidate text; otherwise draft a concise
