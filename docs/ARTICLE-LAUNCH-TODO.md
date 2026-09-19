@@ -18,16 +18,16 @@
 （`article-daily`、同じstateを再開する`article-resume`）で、現在のactive-fourは Note JA、Substack JA、Substack EN、
 X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dormant のままで、別の有効化receiptが必要である。
 
-### Live runtime readback — 2026-09-19 15:36 JST
+### Live runtime readback — 2026-09-19 15:43 JST
 
 - `origin/main` は `ed82c570ce367c66a4e792aacbffa97d2f2ecfaa`。`20260919T153206-ed82c570` を候補として作成し、
   `article-daily` と `article-resume` の両方へtarget-only applyした。両plistのloaded argv/source SHAは `ed82c570…` で一致する。
   `/Users/anicca/loops/current` symlinkは `215d6e53…` のまま（Writer以外の兄弟loopを一括reloadしないため、意図的にglobal currentは変更していない）。
 - `article-daily` は loaded `ed82c570…`、`state=not running`、`last exit=0`。run `18d6a5488de1c250-14371` は
   same-JST-day safety blockのno-opで、provider-native publicationは発生していない。
-- `article-resume` は loaded `ed82c570…`、`state=not running`、apply後のfresh runはまだ0回。過去の
-  `effect_unknown` event/claimは残るが、今回のtarget apply自体は外部公開成功を示さない。
-- host freeは `428,998,656 bytes`（15:42 JSTの最新`df` readback）で、Writer run floor `1,155,780,608 bytes`を下回る。
+- `article-resume` は loaded `ed82c570…`、`state=not running`。新しいrun `18d6a5a6b607fd90-19669`（06:40:38Z）は
+  `host_admission_deferred:resource_effect_unknown` で、exact occurrence summary/pre-effect proofと公式provider readbackが無いため保持する。
+- host freeは `433,999,872 bytes`（15:43 JSTの最新`df` readback）で、Writer run floor `1,155,780,608 bytes`を下回る。
 - 共有 `life-manager-release-reconciler` は別ownerの旧release `09a59ba1…`で稼働中（PID `18148`）。stderrには
   欠損worktree `/Users/anicca/Projects/life-manager-daily-revenue-priority`、`ENOSPC`、`another release build owns` が反復する。
   Writer workstreamからこのownerを停止・再起動・修正しない。
@@ -78,7 +78,7 @@ W2cのtarget-only applyは完了したが、W2のfresh publicationは次の自�
 4. **sales measurement**: private envを正規sourceしてreadback済み。Noteは今月`¥0 / 0 purchases`、Substackは`-`表示でunknown。
    payment receiptが無く、$10K MRRの証明は無い。
 5. **dormant surfaces**: Zenn JA、Dev.to EN、X Article EN、X Post JAはactive-four外で、enablement receiptが無い。
-6. **resume fence**: `article-resume`に過去occurrenceの`effect_unknown` claimが残る。今回のapply後に新しいresume runはまだ無く、
+6. **resume fence**: `article-resume`に過去occurrenceに加え、最新run `18d6a5a6b607fd90-19669`の`effect_unknown` claimが残る。
    occurrence-specificな公式readbackまたはpre-effect proofなしに解除せず、日次fresh canaryの完了とは別に解決する。
 
 **Completion rule:** 上記W2a→W2b→W2c→W2→W3–W7→W13–W21のreceiptが揃うまで、Writerを「毎日全platformで公開済み」「稼働して$10K MRR」とは報告しない。
