@@ -792,7 +792,7 @@ test("a Connpass confirm-unavailable tier does not invoke browser fallback", asy
     },
   });
   const result = await runMinimalConnectorWake({ ownerToken: "owner-token-connpass-confirm-unavailable", providers: ["connpass"] }, state.dependencies);
-  assert.deepEqual(result, { status: "completed_no_effect", safe_reason: "providers_exhausted", telegram_provider_id: "9001" });
+  assert.deepEqual(result, { status: "completed_no_effect", safe_reason: "connpass_candidates_ineligible", telegram_provider_id: "9001" });
   assert.equal(state.calls.some(([name]) => name === "agent"), false);
   const directFailure = state.calls
     .filter(([name]) => name === "history")
