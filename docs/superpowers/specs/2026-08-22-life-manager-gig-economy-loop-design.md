@@ -520,7 +520,8 @@ receipt and resolver call must use the owner-prefixed database identity.
   failures; the failures are classified as host `ENOSPC` during temporary-file creation and
   pre-existing release/reply fixture drift, so they are not a clean integration gate. Pass: after
   the remaining acceptance gates and a clean integration verification, merge once and verify the
-  release manifest SHA equals the main commit.
+  release manifest SHA equals the main commit. A read-only `git merge-tree` against current
+  `origin/main` produced tree `f0222455f54f60a4ce2cf9b561aa27f7addda278` with no merge conflict.
 - [ ] **A12 — Target-apply the four lanes.** Owner: launchd owner. File:
   `runtime/loop/lm_loop.py` apply path. Action: apply only the four Gig labels from A11. Output:
   loaded `ProgramArguments`, release SHA, and required browser env for each lane. Pass: all four
