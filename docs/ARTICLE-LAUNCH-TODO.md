@@ -56,6 +56,7 @@ X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dorm
 4. **sales measurement**: private envを正規sourceしてreadback済み。Noteは今月`¥0 / 0 purchases`、Substackは`-`表示でunknown。
    payment receiptが無く、$10K MRRの証明は無い。
 5. **dormant surfaces**: Zenn JA、Dev.to EN、X Article EN、X Post JAはactive-four外で、enablement receiptが無い。
+6. **resume fence**: `article-resume`に過去occurrenceの`effect_unknown` claimが1件残る。occurrence-specificな公式readbackまたはpre-effect proofなしに解除せず、日次fresh canaryの完了とは別に解決する。
 
 **Completion rule:** 上記W2a→W2b→W2→W3–W7→W13–W21のreceiptが揃うまで、Writerを「毎日全platformで公開済み」「稼働して$10K MRR」とは報告しない。
 
