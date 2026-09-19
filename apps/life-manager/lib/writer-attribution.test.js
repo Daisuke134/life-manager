@@ -9,10 +9,10 @@ const {
   bindWriterAttribution,
 } = require("./writer-attribution.js");
 
-test("writer attribution accepts only a UUID-shaped Telegram start token", () => {
+test("writer attribution accepts only a deterministic 32-hex Telegram start token", () => {
   assert.equal(
-    parseWriterStartPayload("/start wr_123e4567-e89b-12d3-a456-426614174000"),
-    "123e4567-e89b-12d3-a456-426614174000",
+    parseWriterStartPayload("/start wr_0123456789abcdef0123456789abcdef"),
+    "0123456789abcdef0123456789abcdef",
   );
   assert.equal(parseWriterStartPayload("/start lp"), null);
   assert.equal(parseWriterStartPayload("/start wr_not-a-token"), null);
@@ -28,7 +28,7 @@ test("writer attribution binding is idempotent and tenant scoped", async () => {
 
   assert.equal(
     await bindWriterAttribution(
-      "tenant-1", "123e4567-e89b-12d3-a456-426614174000",
+      "tenant-1", "0123456789abcdef0123456789abcdef",
       "https://supabase.example", "service-key", fetchImpl,
     ),
     true,
@@ -36,7 +36,7 @@ test("writer attribution binding is idempotent and tenant scoped", async () => {
   assert.equal(calls.length, 1);
   assert.match(calls[0].url, /lm_users\?uid=eq\.tenant-1&writer_attribution_ref=is\.null$/);
   assert.deepEqual(JSON.parse(calls[0].options.body), {
-    writer_attribution_ref: "123e4567-e89b-12d3-a456-426614174000",
+    writer_attribution_ref: "0123456789abcdef0123456789abcdef",
   });
   assert.equal(calls[0].options.method, "PATCH");
 });
