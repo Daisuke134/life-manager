@@ -522,16 +522,26 @@ def install_one(item: dict, target: Path,
             expected_environment = plistlib.loads(item["plist_bytes"])[
                 "EnvironmentVariables"
             ]
-            required_environment = {
-                key: str(expected_environment[key])
-                for key in (
-                    "CLOAK_CDP_BASE_URL",
-                    "GIG_CDP_HEALTH_URL",
-                    "CDP_DAILY_DRIVER_PORT",
-                    "CDP_DAILY_DRIVER_PROFILE",
-                )
-                if key in expected_environment
+            browser_contract_loops = {
+                "hf-gig-apply-direct",
+                "hf-gig-reply-detector",
+                "hf-gig-storefront-direct",
+                "hf-gig-paid-direct",
             }
+            required_environment = (
+                {
+                    key: str(expected_environment[key])
+                    for key in (
+                        "CLOAK_CDP_BASE_URL",
+                        "GIG_CDP_HEALTH_URL",
+                        "CDP_DAILY_DRIVER_PORT",
+                        "CDP_DAILY_DRIVER_PROFILE",
+                    )
+                    if key in expected_environment
+                }
+                if item["loop_id"] in browser_contract_loops
+                else {}
+            )
             loaded_environment = _loaded_environment(printed) if print_rc == 0 else {}
             environment_ok = all(
                 loaded_environment.get(key) == value
