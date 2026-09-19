@@ -65,6 +65,36 @@ class MercorHumanGateTests(unittest.TestCase):
             "recheck_later",
         )
 
+    def test_reused_step_resumes_only_same_account_and_application(self):
+        self.assertEqual(
+            next_action(
+                gate_status="pending", official_step="reused",
+                same_account=True, same_application=True,
+            ),
+            "resume_application",
+        )
+
+    def test_exact_gate_resolution_is_idempotent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "human-gates.jsonl"
+            store = HumanGateStore(path)
+            gate = store.record(
+                run_id="run-1", reason="complete the interview",
+                evidence_ref="run:run-1", account_id="daisuke",
+                listing_id="list-a", step_id="interview-a",
+            )
+            first = store.resolve(
+                run_id="run-2", evidence_ref="evidence:run-2",
+                account_id="daisuke", listing_id="list-a", step_id="interview-a",
+            )
+            second = store.resolve(
+                run_id="run-3", evidence_ref="evidence:run-3",
+                account_id="daisuke", listing_id="list-a", step_id="interview-a",
+            )
+            self.assertEqual(first["gate_id"], gate["gate_id"])
+            self.assertIsNone(second)
+            self.assertEqual(len(path.read_text(encoding="utf-8").splitlines()), 2)
+
     def test_gate_is_idempotent_and_pending_is_replayable(self):
         with tempfile.TemporaryDirectory() as directory:
             store = HumanGateStore(Path(directory) / "human-gates.jsonl")

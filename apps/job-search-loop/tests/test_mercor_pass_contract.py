@@ -16,6 +16,7 @@ from job_search_loop.mercor_pass import (
     main,
     record_inspections,
     record_profile_sync,
+    reconcile_human_gate_resolutions,
     record_verified_submissions,
     merge_card_only_evidence,
     normalize_card_only_fit_decisions,
@@ -558,6 +559,9 @@ class MercorPassContractTests(unittest.TestCase):
             "exempt from the twelve-item scan requirement",
             "profile_sync",
             "field hashes",
+            "resolved_human_gates",
+            "same account and same application",
+            "in the official readback",
         ):
             self.assertIn(required, prompt)
         self.assertNotIn("Choose at most one new listing", prompt)
@@ -632,6 +636,81 @@ class MercorPassContractTests(unittest.TestCase):
         field_hashes = profile_sync["properties"]["field_hashes"]
         self.assertFalse(field_hashes.get("additionalProperties", True))
         self.assertEqual(field_hashes["required"], ["claims"])
+
+    def test_result_contract_defines_exact_human_gate_resolution_rows(self):
+        schema = json.loads(
+            (ROOT / "schemas" / "mercor-pass-result.v1.schema.json").read_text(encoding="utf-8")
+        )
+        self.assertIn("resolved_human_gates", schema["properties"])
+        row = schema["properties"]["resolved_human_gates"]["items"]
+        self.assertEqual(
+            set(row["required"]),
+            {
+                "account_id", "listing_id", "step_id", "official_step",
+                "same_account", "same_application", "evidence_ref",
+            },
+        )
+        self.assertEqual(
+            row["properties"]["official_step"]["enum"],
+            ["completed", "reused"],
+        )
+
+    def test_reconcile_human_gate_resolutions_requires_current_evidence_and_exact_identity(self):
+        from job_search_loop.mercor_human_gate import HumanGateStore
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = root / "state"
+            evidence = root / "evidence"
+            state.mkdir()
+            evidence.mkdir()
+            readback = evidence / "detail.json"
+            readback.write_text("{}", encoding="utf-8")
+            store = HumanGateStore(state / "human-gates.jsonl")
+            store.record(
+                run_id="run-1", reason="complete the interview",
+                evidence_ref="run:run-1", account_id="daisuke",
+                listing_id="list-a", step_id="interview-a",
+            )
+            result = {
+                "resolved_human_gates": [{
+                    "account_id": "daisuke",
+                    "listing_id": "list-a",
+                    "step_id": "interview-a",
+                    "official_step": "reused",
+                    "same_account": True,
+                    "same_application": True,
+                    "evidence_ref": str(readback),
+                }]
+            }
+
+            receipts = reconcile_human_gate_resolutions(
+                state, result, run_id="run-2", evidence_root=evidence,
+            )
+
+            self.assertEqual(len(receipts), 1)
+            self.assertEqual(receipts[0]["status"], "resolved")
+            self.assertEqual(store.pending(), [])
+            self.assertEqual(reconcile_human_gate_resolutions(
+                state, result, run_id="run-3", evidence_root=evidence,
+            ), [])
+
+            wrong_account = dict(result["resolved_human_gates"][0])
+            wrong_account["same_account"] = False
+            result["resolved_human_gates"] = [wrong_account]
+            self.assertEqual(
+                reconcile_human_gate_resolutions(
+                    state, result, run_id="run-3b", evidence_root=evidence,
+                ),
+                [],
+            )
+
+            result["resolved_human_gates"][0]["same_account"] = True
+            result["resolved_human_gates"][0]["evidence_ref"] = str(root / "outside.json")
+            with self.assertRaisesRegex(ValueError, r"resolved_human_gates\[0\].evidence_ref"):
+                reconcile_human_gate_resolutions(
+                    state, result, run_id="run-4", evidence_root=evidence,
+                )
 
     def test_missing_requirement_evidence_accepts_null_fact_id(self):
         schema = json.loads(
