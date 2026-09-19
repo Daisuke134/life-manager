@@ -459,7 +459,10 @@ receipt and resolver call must use the owner-prefixed database identity.
   branch `fix/coconala-full-history-www-20260919` commit `f90b82e452` preserves the `www` host
   across pages, accepts resumable page start URLs, and saves a verified prefix when a later page
   returns 403. The latest chunks read 31 pages and persisted `next_url=...page=32`; the three
-  candidates remain unobserved. Pass: no candidate remains unresolved; otherwise
+  candidates remain unobserved. The resumable cursor is persisted in
+  `a5-www-full-history-cursor-1789813058.json` (SHA-256
+  `37d4e57a6772c5c109d9e28864bb4b88ff77764f4298c4ad81ac69c79a41fc7e`). Pass: no candidate
+  remains unresolved; otherwise
   leave the fence and emit the missing evidence.
 - [ ] **A6 — Resolve the Apply fence.** Owner: admission owner. File:
   `runtime/host/resource_admission.py`. Action: call
