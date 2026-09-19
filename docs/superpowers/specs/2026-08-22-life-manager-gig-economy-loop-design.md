@@ -812,6 +812,78 @@ terms version.
 Social posts and screenshots are opportunity hypotheses only. Claimed earnings never enter the
 ledger without provider and payout receipts.
 
+### 2.4 Shared loop, instruction ownership and bounded tool adoption
+
+Life Manager uses one shared loop contract. A new marketplace or product loop adds a provider
+adapter and a registry row; it does not add a second decision brain, scheduler, browser harness,
+commerce ledger, admission database or receipt vocabulary.
+
+```mermaid
+flowchart TD
+    K["Shared kernel: runtime loop + ledger + admission + lease + receipt + eval"]
+    K --> C["Coconala adapter"]
+    K --> L["Lancers adapter"]
+    K --> W["Writer adapter"]
+    K --> M["Mercor adapter"]
+    C --> CR["Official provider readback"]
+    L --> LR["Official provider readback"]
+    W --> WR["Publication/readback"]
+    M --> MR["Official provider readback"]
+```
+
+The shared identity chain is `loop_id`, `owner_id`, `wake_id`, `occurrence_id`, `effect_key`,
+`release_sha` and the provider receipt. Local and cloud hosts use the same chain and business
+implementation; only the host adapter, secret store, durable state location and browser transport
+vary. Provider adapters own selectors, provider IDs, transport and official readback. The shared
+kernel owns leases, effect fences, retry classification, receipt persistence, Telegram reporting,
+CFO events, replay-zero and evaluation gates.
+
+The instruction and evidence sources have separate ownership:
+
+| Purpose | Canonical source | What is written there | What does not belong there |
+|---|---|---|---|
+| Cross-harness operating rule | `/Users/anicca/.config/ai/core.md` | General rule that `unknown` is a diagnostic cursor, required evidence fields, and no premature `blocked` | Coconala selectors, live receipts or provider state |
+| Repository map and boundaries | `AGENTS.md` | Source authority, worktree, ownership, skill-routing and safety boundaries | Long provider procedures or mutable runtime facts |
+| Shared loop lifecycle | `skills/loop-development/SKILL.md` and `runtime/` | Loop IDs, owner leases, recovery intents, release and receipt contracts | Provider-specific selectors or guessed outcomes |
+| Observability contract | `skills/observability-engineering/SKILL.md` and shared event/ledger code | Event/span fields, redaction, trace links, health versus business success | Dashboard-only business receipts |
+| Evaluation contract | `skills/eval-engineering/SKILL.md` and `apps/life-manager/eval/` | Dataset, deterministic checks, held-out cases, promotion gates and failed trajectories | Production mutations or unverified provider effects |
+| Gig production order | `skills/earn/gig/TODO.md` | Shared provider cursor and current production repair order | A duplicate provider TODO in a new loop |
+| Coconala live gate | This spec, section 0.2 and A0–A17 | Exact occurrence IDs, evidence paths, owner and acceptance conditions | Global rules or unrelated marketplace state |
+| Live state | `~/gig`, private admission state, browser/session stores | Logs, intents, receipts, screenshots, readbacks and leases | Git source, prompts or credentials |
+
+The global file is an instruction source for agent harnesses, not a runtime dependency. The
+repository must continue to function when `/Users/anicca/.config/ai/` is unavailable. The synced
+Codex, Claude and Gemini instruction files point back to the same rule, while production code
+enforces the rule through typed events, effect fences, receipts and eval gates.
+
+The rule for every agent is:
+
+```text
+unknown / failed / blocked
+  -> inspect the exact boundary, caller, input, output, environment and state
+  -> add the smallest probe or regression before repeating the same failure
+  -> obtain official provider readback when an external effect may have started
+  -> create an occurrence-specific receipt
+  -> resolve the fence or keep it held with a concrete missing-evidence reason
+```
+
+`blocked` is a terminal report only after the same cause has been reproduced, the self-owned code,
+configuration, cleanup or readback gap has been addressed, additional observability has been
+added, and no safe next operation remains. This rule drives progress while preserving the
+no-duplicate-effect boundary.
+
+Tool adoption is deliberately staged. The current Coconala gate does not add a new agent runtime.
+OpenTelemetry may later export the existing event and receipt stream, but it cannot replace the
+ledger or provider readback. OpenAI Agents SDK and other orchestration frameworks remain reference
+or read-only diagnostic tools until a separate eval proves that they do not introduce a second
+owner, state store, scheduler or effect path. The next package decision is therefore after the
+current provider receipt gates, not before them.
+
+The ordered Coconala cursor remains one item at a time. A0–A3 and A10 are complete. The first
+active item is A4; the thirteen unchecked items are A4, A5, A6, A7, A8, A9, then A11, A12, A13,
+A14, A15, A16 and A17. A later item cannot be marked complete from a later no-op wake, a local
+exit code, or an unrelated provider receipt.
+
 ## 3. Capability and authorization model
 
 ### 3.1 Action-level receipt
