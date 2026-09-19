@@ -11,6 +11,50 @@
 判断してsignup、login、profile、publish、earnings、payout readbackまで操作する。UI変更時は再observeして判断し直す。
 決定論コードはcredential SSOT、browser lease、intent/effect fence、receipt、dedupe、金額計算だけを担う。
 
+## Current execution state — 2026-09-19 JST
+
+これは「Writer loopが毎日公開し、実際に収益を受け取った」と宣言するための現在cursorである。過去の成功記事、テスト、
+`launchd loaded-idle`、HTTP healthだけでは公開成功に数えない。対象はLife Manager Main内の唯一のWriter loop
+（`article-daily`、同じstateを再開する`article-resume`）で、現在のactive-fourは Note JA、Substack JA、Substack EN、
+X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dormant のままで、別の有効化receiptが必要である。
+
+### Done
+
+- [x] Writerのbounded executionがdetached child/grandchildを所有PID identity付きで終了させる。source test 3件、focused Writer/runtime test 64件、
+      `lm-loop-contract`、immutable releaseのsource/runtime SHA一致を確認済み。ENOSPCで落ちたfull suite 2件は環境容量であり、Writerコードの失敗とは別である。
+- [x] Writer-owned `effect_unknown` は occurrence-specific なpre-effect proofまたは公式draft readbackで処理済み。DBのadmission fenceと
+      `lm-loop status`の過去イベント表示を混同しない。新しいterminal receiptが出るまでstatusの古いunknown表示は残り得る。
+- [x] CTAの固定landing、Life Manager `/start` の帰属ref保存、`writer_attribution_ref` migration、既存のactive-four publisher/gate/replay契約をmainへ統合済み。
+- [x] 直近のsame-JST-day safety blockは重複公開を防いでおり、同じrunを再送していない。既存runを「今日の公開」とは数えていない。
+
+### Not done yet / remaining cursor
+
+- [ ] **W2: 次の自然JST日を1回だけwakeする。** 実測capacity floor `1,155,780,608` bytes以上をreadbackし、fresh run、source article、
+      article固有headline、GPT Image 2 receipt、quality、completionを揃える。現在のinstalled Writerはsource `8cca66f…`、
+      `/Users/anicca/loops/current` はmain `71d332ae…`なので、公開前にtarget-only reconcileが必要である。
+- [ ] **W2a: CTA帰属導線を本番で成立させる。** anicca-products PR #407で、Supabase receipt保存が失敗しても決定的32桁ref付きTelegram 302を返す。
+      merge後にNetlify deployを確認し、valid queryのHTTP `302`、`Location: https://t.me/LifeManagerBotbot?start=wr_<ref>` をreadbackする。
+- [ ] **W2b: Life Manager deterministic ref parserをmainへmergeし、main由来immutable releaseをcutしてbotへtarget applyする。**
+      UUIDだけを受ける現行installed releaseのままでは、PR #407の32桁refを帰属できない。
+- [ ] **W3–W6: fresh runについて、Note JA / Substack JA / Substack EN / X Article JAを各provider-native UI/APIでreadbackする。**
+      title、body、owner、headline、paywall、live URLを4件すべて記録する。local testやpublisher `rc=0`だけでは完了にしない。
+- [ ] **W7: 2回目の自然wakeでreplay-zeroを確認する。** 記事、payment row、notification、Telegram attributionの重複effectを0件で確認する。
+- [ ] **W13–W16: 収益joinを完成し、最初のreceived writing paymentを公式provider/payment receiptで確認する。** view、like、pending、available、
+      CTA click、Telegram sendだけは売上ではない。現在、$10K MRRのreceived receiptは存在しない。
+- [ ] **W17–W21: 7日21 run、14日42 source article、別tenant OSS再現、完全calendar monthのunique net received payoutを順に実測する。**
+      完全月のreceived writing payoutがUSD換算で$10,000以上になるまで、目標は未達である。
+
+### Current blockers
+
+1. **本番CTA**: 旧live endpointは有効queryで503（保存先 unavailable）。PR #407のmerge/deploy/readbackが未完了である。
+2. **release drift**: current releaseはmain由来だが、Writer 2 labelのinstalled sourceは前release。deterministic ref parserを含む新releaseのtarget-only applyが未実施である。
+3. **自然wakeの順序**: same-day safety blockを迂回して再送することはできない。次のJST日まで待つ必要があるが、日付を偽装したcanaryは受け入れない。
+4. **host capacity**: floorは約1.156GBで、空きは約1.5GB付近まで変動する。floor未達ならgeneration前にfail-closedする。別ownerのbrowser/sessionを停止して回復しない。
+5. **provider/payment boundary**: active-fourの新しいfresh live URLとreceived payout receiptがまだ揃っていない。コード、テスト、loaded/running、
+      provider公開、収益を別々に証明する必要がある。
+
+**Completion rule:** 上記W2a→W2b→W2→W3–W7→W13–W21のreceiptが揃うまで、Writerを「毎日全platformで公開済み」「稼働して$10K MRR」とは報告しない。
+
 - [x] W0 stale publication lock互換を修復する。`owner.pid`だけの旧lockについて、実PID不在、start token取得不能、
       directory identity不変を確認した場合だけquarantineし、新lockを取得する。`identity unavailable`を成功扱いの
       exit 0にせずterminal failure receiptへ残す。完了: PR #2952、21 lock cases PASS、production legacy lock回収。
