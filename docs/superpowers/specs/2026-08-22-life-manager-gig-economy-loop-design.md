@@ -535,7 +535,7 @@ receipt and resolver call must use the owner-prefixed database identity.
   `1322 passed` and `4` host/fixture failures; those failures were classified as ENOSPC during
   temporary-file creation and pre-existing release/reply fixture drift, while the required PR CI
   gate was green. A read-only `git merge-tree` against `origin/main` had no merge conflict.
-- [ ] **A12 — Target-apply the four lanes.** Owner: launchd owner. File:
+- [x] **A12 — Target-apply the four lanes.** Owner: launchd owner. File:
   `runtime/loop/lm_loop.py` apply path. Action: apply only the four Gig labels from A11. Output:
   loaded `ProgramArguments`, release SHA, and required browser env for each lane. Pass: all four
   argv/env readbacks match; no fleet-wide apply.
@@ -576,6 +576,12 @@ receipt and resolver call must use the owner-prefixed database identity.
   read back the 9223 browser environment. Paid remains on `8bab5537…` while its bounded project
   worker is running; `paid_direct.py` gives each project step a 2100-second timeout, so A12 must
   wait for that natural terminal before applying Paid.
+  A12 is now complete. The four target applies and loaded readbacks are recorded in
+  `/Users/anicca/gig/a12-target-apply-receipt-d448cb8e.json` (SHA-256
+  `d3c5f106397ed510accd21b881f988b5e83c6a77a8168dba6ec8c31c491d538`). Each lane has
+  `ProgramArguments` pinned to `/Users/anicca/loops/releases/20260919T204543-d448cb8e`, manifest
+  SHA `d448cb8ef1b001b1ca61d1c4cc0738406e32a21f`, and the required 9223 daily-driver env;
+  no fleet-wide apply was used. Later natural wake results remain A13–A16 acceptance work.
 - [ ] **A13 — Natural single Apply.** Owner: Apply scheduler. Input: A12 loaded fleet. Action:
   wait for one natural single candidate. Output: terminal event, `effect=1`, official request/offer
   readback, and replay-zero. Pass: all four receipts agree on owner, occurrence, release, and ID.
