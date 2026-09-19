@@ -251,11 +251,66 @@ The dedicated label `ai.anicca.life-manager-upwork-free-loop` is loaded from imm
 zero, updated only `observed_at`, reproduced identical official evidence hashes and emitted zero
 stderr bytes; no proposal, Connects or payment effect occurred.
 
-### 0.2 Coconala live gate and current repair cursor (measured 2026-09-19, refreshed 13:35 UTC)
+### 0.2 Coconala live gate and current repair cursor (measured 2026-09-20, refreshed 23:30 JST)
 
 This section records the current Coconala production boundary. It does not authorize a new
 provider effect and it does not replace the ordered repair cursor in
 `skills/earn/gig/TODO.md`.
+
+### 0.2A Current refresh: Coconala is not finished
+
+The current official/runtime snapshot does **not** satisfy the four-lane completion contract.
+
+- **Hirose direct-message lead:** Official Coconala direct message
+  [10070709](https://coconala.com/mypage/direct_message/10070709) is from `ひろせ` and the latest
+  buyer message is `進捗いかがでしょうか？` at `2026-09-20 04:00:31`. The preceding seller promise
+  says one test edit should be made first, then the preset should be produced after confirmation.
+  The page offers `見積り提案をする` and has no purchased order or talkroom. The official seller
+  order page currently shows four other active items—Ryu `要修正`, Chii `納品日超過`, and two
+  こころ支援 items—and does not show Hirose. Evidence:
+  `~/gig/evidence/coconala-hirose-10070709-20260920/readback.json` and
+  `~/gig/evidence/coconala-current-audit-20260920/received-orders-readback.json`.
+  This is an **unstarted pre-purchase test work item**, not a review-slot wait and not proof of a
+  system slot failure. No local Paid project exists for message `10070709`.
+- **Apply:** loaded release `84c0ba2c…`; the latest run `gig-apply-direct-1789826681065210000-3754`
+  confirmed one application (`5277144`) with official readback but ended with `failed=1` because
+  planner request `5268696` was dropped twice for
+  `schema:decision[0]_hard_prohibited_evidence_not_in_visible_text`. The current Apply
+  effect fence is `hf-gig-apply-direct:18d6bd3a3f9c1bb8-94667`.
+- **Storefront:** loaded release `d448cb8e…`; the current effect fence is
+  `hf-gig-storefront-direct:18d5fd193aa926f0-9464`, repeatedly producing
+  `host_admission_deferred:resource_effect_unknown`. The earlier draft reconciliations do not
+  resolve this newer occurrence.
+- **Reply:** loaded release `6bbf377f…`; recent natural events repeatedly end
+  `entrypoint_exit_1`, and there is no current coverage receipt proving the Reply contract.
+- **Paid:** loaded release `6bbf377f…`; recent natural events pass, but the official seller-order
+  page still has four active items and overdue/repair statuses. Paid lane health is not the same as
+  all Coconala client work being complete.
+- **Release split:** Apply, Reply/Paid, and Storefront are on different immutable releases. The
+  fleet has not passed the final same-release/env closeout.
+
+**Current judgment:** Coconala is **not finished**. Hirose is not blocked by a review slot; the
+one test edit has not been started or recorded as a durable project. The active production blockers
+are the new Apply/Storefront effect fences, Reply coverage failures, and release alignment.
+
+**Remaining atomic actions from this refresh:**
+
+1. Reconcile Apply occurrence `hf-gig-apply-direct:18d6bd3a3f9c1bb8-94667` with its exact
+   provider result or pre-effect proof; never reuse the successful `5277144` receipt for this newer
+   occurrence.
+2. Reconcile Storefront occurrence `hf-gig-storefront-direct:18d5fd193aa926f0-9464` with an
+   occurrence-bound official draft/public readback; the older `4409300` receipt does not cover it.
+3. Repair the Apply planner evidence failure for request `5268696`
+   (`hard_prohibited_evidence_not_in_visible_text`) and rerun only through the normal natural owner.
+4. Bring Reply to a current loaded release and produce a fresh coverage receipt; repeated
+   `entrypoint_exit_1` is not a coverage pass.
+5. Complete the four active seller-order items from official talkroom state: Ryu correction, Chii
+   overdue delivery, and the two こころ支援 items. Paid pass health alone does not close them.
+6. Treat Hirose message `10070709` as a separate pre-purchase lead: either create the isolated
+   one-image test-edit work item and send the agreed test result through the same official message,
+   or decline/clarify the scope. No review-slot evidence exists, and no system-slot repair can be
+   claimed from this direct-message state.
+7. Align the four loaded immutable releases and run the final fleet closeout/replay-zero check.
 
 **Observed facts:**
 
@@ -301,13 +356,14 @@ provider effect and it does not replace the ordered repair cursor in
   `Z` entries: one defunct child of CloakBrowser Chromium and one defunct child of ChatGPT. No
   unknown executable was found; these are host-hygiene findings, not proof of malware.
 - A prior read-only admission snapshot passed `PRAGMA integrity_check` and showed 98 queued rows,
-  17,300 occurrence rows, 74 `effect_unknown` rows and one reservation. The historical 7,922-row
-  burst was reduced; the current exact business fences are recorded below and remain open.
+  17,300 occurrence rows, 74 `effect_unknown` rows and one reservation. This is historical evidence
+  from the 2026-09-19 refresh; the current fences are recorded in section 0.2A.
 - The central cleanup owner then removed exactly one unprotected immutable release and reclaimed
   80,867,742 bytes without deleting a current, loaded, running or pinned release. The latest
   read-only sample after that cleanup showed about 5.1 GiB available, `integrity_check=ok`, 101
   queued rows and 73 unknown rows; these counters are volatile while the schedulers continue.
-- Using the existing typed resolver boundaries, the two Coconala business fences were reconciled:
+- Using the existing typed resolver boundaries, the two Coconala business fences were reconciled in
+  the prior refresh:
   Apply with pre-effect proof and Storefront with an official draft readback. The Storefront
   occurrence `hf-gig-storefront-direct:18d5fcfce4091da8-7995` is recorded as
   `draft_created` (draft service `4356229`, public effect `0`) at
@@ -315,8 +371,8 @@ provider effect and it does not replace the ordered repair cursor in
   A later Storefront occurrence `hf-gig-storefront-direct:18d5fd0af4fe0a70-8716` is also
   reconciled as `draft_created_then_deleted` for draft `4409300` at
   `~/gig/storefront-direct/evidence/a13-occurrence-18d5fd0af4fe0a70-8716/resolution-receipt.json`.
-  At this refresh there is no Coconala business `effect_unknown` fence; the non-business
-  evidence-GC owner is separate.
+  Newer live wakes may create a new occurrence; section 0.2A is the current source of truth. The
+  non-business evidence-GC owner is separate.
 - The four actionable candidates from Apply pass `46013` are `5276533`, `5266999`, `5275035` and
   `5266959`. Read-only official request pages returned HTTP 200: `5276533` is closed and has an
   exact applied-history receipt; the other three still expose the application form and no applied
@@ -1028,11 +1084,14 @@ or read-only diagnostic tools until a separate eval proves that they do not intr
 owner, state store, scheduler or effect path. The next package decision is therefore after the
 current provider receipt gates, not before them.
 
-The ordered Coconala cursor remains one item at a time. A0–A13 are complete with the receipts
-listed above. The active cursor is A14: prove one natural retainer Apply. A15 then proves Reply
-coverage; A16 proves one public Storefront publish after the draft reconciliation; A17 closes the
-release/env and receipt set. A later item cannot be marked complete from a later no-op wake, a local
-exit code, or an unrelated provider receipt.
+The ordered Coconala cursor remains one item at a time. A0–A13 have historical accepted receipts,
+but the live refresh adds two recovery cursors: reconcile current Apply occurrence
+`18d6bd3a3f9c1bb8-94667` and current Storefront occurrence `18d5fd193aa926f0-9464`. After those
+fences are resolved, A14 proves one natural retainer Apply; A15 proves Reply coverage; A16 proves
+one public Storefront publish; A17 closes the release/env and receipt set. Hirose's direct-message
+test edit is tracked as a separate pre-purchase lead and cannot be counted as a Paid completion.
+A later item cannot be marked complete from a later no-op wake, a local exit code, or an unrelated
+provider receipt.
 
 ## 3. Capability and authorization model
 
