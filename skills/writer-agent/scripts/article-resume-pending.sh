@@ -573,6 +573,28 @@ esac
 GENERATION_RUN_DIR="$STATE_DIR/runs/$GENERATION_RUN_ID"
 GENERATION_STATE_PATH="$GENERATION_RUN_DIR/gates/generation-state.json"
 
+# A pre-publication run adopted after the old hashless editorial receipt bug
+# can be repaired deterministically under the current release.  Rebind the
+# cached receipts and normalize the continuous force-advisory policy before
+# handing the exact run to target initialization; no draft rewrite or model
+# decision is allowed in this branch.
+UNBOUND_QUALITY_REASON="$(jq -r '.reason // empty' \
+  "$GENERATION_RUN_DIR/gates/quality-self-heal-blocker.json" 2>/dev/null || true)"
+if [ "$ADOPTION_ACTIVE" -eq 1 ] \
+  && [ ! -f "$GENERATION_RUN_DIR/gates/publication-state.json" ] \
+  && [[ "$UNBOUND_QUALITY_REASON" == *"hash binding"* ]]; then
+  ARTICLE_PUBLICATION_POLICY=continuous python3 \
+    "$ARTICLE_ROOT/scripts/quality_self_heal.py" repair-unbound-force \
+    --run-dir "$GENERATION_RUN_DIR" \
+    --draft-ja "$GENERATION_RUN_DIR/article-ja.md" \
+    --draft-en "$GENERATION_RUN_DIR/article-en.md" >>"$LOG" 2>&1 || {
+      echo "article-resume: deterministic unbound quality repair failed closed run=$GENERATION_RUN_ID" >>"$LOG"
+      exit 1
+    }
+  PUBLICATION_HANDOFF_READY=1
+  echo "article-resume: deterministic unbound quality repair complete run=$GENERATION_RUN_ID" >>"$LOG"
+fi
+
 # A replacement that consumed its one normal reroute may receive one research-first
 # recovery on the same run. It runs before legacy/source-defect repair because its
 # terminal receipts are current and its missing evidence is the actual input.

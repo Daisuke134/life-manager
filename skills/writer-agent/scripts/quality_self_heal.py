@@ -652,6 +652,62 @@ def validate_force_receipt(run_dir: Path | str, drafts: dict[str, Path]) -> bool
     return True
 
 
+def repair_unbound_force_receipt(
+    run_dir: Path | str, drafts: dict[str, Path]
+) -> dict[str, Any]:
+    """Repair a pre-publication hashless receipt and bind its advisory policy.
+
+    A generation run can be adopted after an older release rejected cached
+    editorial rechecks without ``article_sha256``.  The current gate code can
+    safely bind those receipts, but adoption must also produce the continuous
+    force-advisory receipt required by publication_resume.  This operation is
+    deterministic: it never rewrites a draft or invokes a model.
+    """
+    run_dir = Path(run_dir).resolve()
+    if set(drafts) != {"ja", "en"}:
+        raise QualitySelfHealError("drafts must contain ja and en")
+    blocker = _read_json(run_dir / "gates" / "quality-self-heal-blocker.json")
+    current = _read_json(run_dir / "gates" / "quality-self-heal.json")
+    blocker_reason = str(blocker.get("reason", "")) if isinstance(blocker, dict) else ""
+    if ("hash binding" not in blocker_reason.lower()
+            and not (isinstance(current, dict)
+                     and current.get("action") == "force_publish_advisory")):
+        raise QualitySelfHealError("unbound editorial blocker is not identified")
+    for lang in ("ja", "en"):
+        _repair_unbound_editorial_receipt(run_dir, lang, Path(drafts[lang]))
+
+    if not (isinstance(current, dict)
+            and current.get("action") == "force_publish_advisory"):
+        prior_policy = os.environ.get("ARTICLE_PUBLICATION_POLICY")
+        os.environ["ARTICLE_PUBLICATION_POLICY"] = "continuous"
+        try:
+            current = assess(run_dir, drafts)
+        finally:
+            if prior_policy is None:
+                os.environ.pop("ARTICLE_PUBLICATION_POLICY", None)
+            else:
+                os.environ["ARTICLE_PUBLICATION_POLICY"] = prior_policy
+    if not isinstance(current, dict) or current.get("action") != "force_publish_advisory":
+        raise QualitySelfHealError("unbound receipt did not produce force advisory")
+    if current.get("publication_policy") != "continuous":
+        before = run_dir / "gates" / "quality-self-heal-policy-rebind-before.json"
+        if not before.exists():
+            _atomic_write(before, current)
+        current = dict(current)
+        current["publication_policy"] = "continuous"
+        current["receipt_rebound_policy"] = "continuous"
+        current["receipt_sha256"] = _receipt_hash(current)
+        attempt = int(current.get("attempt", MAX_ITERATIONS))
+        _atomic_write(
+            run_dir / "gates" / f"quality-self-heal-attempt-{attempt}.json",
+            current,
+        )
+        _atomic_write(run_dir / "gates" / "quality-self-heal.json", current)
+    if not validate_force_receipt(run_dir, drafts):
+        raise QualitySelfHealError("normalized force receipt failed validation")
+    return current
+
+
 def _feedback_consumption(run_dir: Path) -> dict[str, Any] | None:
     state = run_dir / "gates" / "quality-feedback-recovery-state.json"
     if not state.is_file() or state.is_symlink():
@@ -854,15 +910,17 @@ def assess(run_dir: Path, drafts: dict[str, Path]) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("assess",))
+    parser.add_argument("command", choices=("assess", "repair-unbound-force"))
     parser.add_argument("--run-dir", required=True, type=Path)
     parser.add_argument("--draft-ja", required=True, type=Path)
     parser.add_argument("--draft-en", required=True, type=Path)
     args = parser.parse_args()
-    decision = assess(
-        args.run_dir,
-        {"ja": args.draft_ja, "en": args.draft_en},
-    )
+    drafts = {"ja": args.draft_ja, "en": args.draft_en}
+    if args.command == "repair-unbound-force":
+        decision = repair_unbound_force_receipt(args.run_dir, drafts)
+        print(json.dumps(decision, ensure_ascii=False, separators=(",", ":")))
+        return 0
+    decision = assess(args.run_dir, drafts)
     print(json.dumps(decision, ensure_ascii=False, separators=(",", ":")))
     if decision["action"] in {"ready_to_freeze", "force_publish_advisory"}:
         return 0

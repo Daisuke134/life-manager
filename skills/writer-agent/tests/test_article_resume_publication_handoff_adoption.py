@@ -10,3 +10,4 @@ def test_adopted_run_with_publication_state_can_reach_foreground_publication():
     assert 'if [ "$ADOPTION_ACTIVE" -eq 1 ]' in source
     assert 'if [ -f "$GENERATION_RUN_DIR/gates/publication-state.json" ]; then' in source
     assert 'PUBLICATION_HANDOFF_READY=1' in source
+    assert 'repair-unbound-force' in source
