@@ -481,8 +481,15 @@ receipt and resolver call must use the owner-prefixed database identity.
 - [ ] **A7 — Capture the exact service state.** Owner: Storefront owner. File:
   `skills/earn/gig/scripts/storefront_direct.py` plus official seller-service readback. Action:
   read current service IDs, versions, mutation contracts, and publication state for the old wake.
-  Output: service-level evidence tied to the occurrence. Pass: every proposed mutation has an
-  official `published` or `not_published` state; later no-op wakes alone do not pass.
+  Current readback: `~/gig/apply-direct/gig-apply-direct-1789611564192685000-46013/reconcile-evidence/a7-current-service-readback-www.json`
+  (SHA-256 `df951cb24781208a3e1e91f73587bc4f0872b0a958c2fb564592c57345ed4259`) shows the four
+  configured service pages and seller inventory on the official `www` host. The occurrence
+  diagnostic is `a7-occurrence-diagnostic-1789815655.json` (SHA-256
+  `48b83aadf28b698e5a0af816cbaf7cb29abc61f17e7dbe034ad3db95c1ba057d`): the old wake was
+  `resource_capacity_busy`, and a later claim ended `entrypoint_exit_1`, but the old mutation
+  contract and occurrence-bound before/after service readback are missing. Pass: every proposed
+  mutation has an official `published` or `not_published` state bound to this occurrence; current
+  service pages and later no-op wakes alone do not pass.
 - [ ] **A8 — Produce the Storefront receipt.** Owner: Storefront provider reconciler. Inputs: A7
   evidence and the occurrence identity. Action: build one provider receipt whose `effect_key`
   identifies the exact old wake. Output: immutable receipt JSON. Pass: exact occurrence binding;
