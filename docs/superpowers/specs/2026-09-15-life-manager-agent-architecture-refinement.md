@@ -722,13 +722,13 @@ replays. That later release contains the same Connector source and produced
 the required Submit-0/duplicate-0 evidence. Historical registrations are
 evidence only and were not reused as this new event.
 
-**Current production readback (2026-09-19 02:57 UTC):**
+**Current production readback (2026-09-19 04:08 UTC):**
 
-- Complete immutable release `969b4e03bcc65a8d24241c8ca90ad05a860f6b38`
+- Complete immutable release `78aa4bc6930a191e73c98a88efe38cf8cc26b18`
   (`release_paths=ALL`, `provenance=ancestor-of-origin-main`) is installed and
-  loaded-idle on Connector. The first effect was produced by the preceding
-  complete release `8a8968f1cb…`; the release reconciler advanced the idle
-  owner to `969b4e03…` before replay observation.
+  loaded-idle on Connector. It is a later main-derived promotion after the
+  first effect and replay evidence; the recorded effect/replays remain tied to
+  `8a8968f1cb…` and `969b4e03…` below.
 - The successful natural/owner wake was run
   `18d69950d404af08-71263`, inner wake `wake-8fe1984052719545a34f6ad0`,
   on the exact loaded SHA. It ended `applied_bundle/applied_bundle` with
