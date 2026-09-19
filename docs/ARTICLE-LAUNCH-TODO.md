@@ -26,6 +26,8 @@ X Article JA である。Zenn JA、Dev.to EN、X Article EN、X Post JA は dorm
       `lm-loop status`の過去イベント表示を混同しない。新しいterminal receiptが出るまでstatusの古いunknown表示は残り得る。
 - [x] CTAの固定landing、Life Manager `/start` の帰属ref保存、`writer_attribution_ref` migration、既存のactive-four publisher/gate/replay契約をmainへ統合済み。
 - [x] 直近のsame-JST-day safety blockは重複公開を防いでおり、同じrunを再送していない。既存runを「今日の公開」とは数えていない。
+- [x] 直前のcanary `20260919-014228` は Note JA、Substack JA、Substack EN、X Article JA の4件を公式readbackし、completion notificationを送信済み。
+      ただしこのrunのsourceは現行`94c622f3…`ではないため、最新releaseのfresh canary完了やreplay-zeroの証明にはまだ使わない。
 
 ### Not done yet / remaining cursor
 
