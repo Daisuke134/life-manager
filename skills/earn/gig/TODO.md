@@ -1021,8 +1021,11 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
   501058ec8237c3888d862ed92d0a048e0f2cc1f7 is ready, but target apply correctly refuses
   effect_unknown=1. PR #5634 binds new application receipts to their runtime occurrence while
   historical imports remain unbound.
-- Disk-cleanup release 65a1d563dca85d9c10019854c8f3bf7027c1e9 passed its target wake with errors=0 and
-  free_after=8281886720; current host headroom is about 7.0 GiB (97% used), still PRESSURE.
+- Disk-cleanup release `20260919T093130-c320c48f` (main `c320c48f6a`) is exact-loaded for the
+  target owner. Its latest wake passed with `errors=0`, `owner_metadata_invalid=4`, `preserved=210`,
+  `removed=1`, and `free_after=1931776000`; malformed owner files remain protected and visible.
+  Current host headroom is about 1.8 GiB and still PRESSURE. One ownerless legacy Capafy scratch is
+  retained because no stale owner identity exists.
 - The read-only CrowdWorks inventory contains funded IDs 63712784, 63659463, 63657015,
   63570481, and 63568785. This inventory is not a work submission, delivery, acceptance,
   settlement, payout, or MRR receipt.
@@ -1057,19 +1060,17 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
   reconciled before any retry. 63570481 still lacks the corrected customer-address answer and
   formal delivery. 63568785 still lacks permitted document content. 63659463 still needs the
   quality audit and delivery. 63583795 needs acceptance, settlement, and payout readback.
-- The host's latest disk-cleanup pass was clean, but headroom is unstable at about 0.7–1.3 GiB free
-  and 100% capacity. Two roughly 535 MiB `capafy-ig-marketing-daily` scratch directories remain; one
-  has a stale owner plus a run-bound `effect_class=none` event and one has no owner identity. The shared
-  cleanup bug preserved every `.terminal-unrecorded` run, including no-effect runs. A candidate now
-  requires current registry `none`, unique run-bound `none` event, and stale PID/start identity before
-  deletion. It is not merged, released, or loaded. Observed zombie processes are separate exited
-  children, and no virus evidence was found in the read-only checks.
+- The latest target cleanup pass is green, but headroom remains PRESSURE at about 1.8 GiB free and one
+  ownerless legacy scratch remains protected. The shared cleanup fix is merged and loaded; it requires
+  current registry `none`, unique run-bound `none` event, and stale PID/start identity before deleting
+  an unrecorded no-effect run. Observed zombie processes are separate exited children, and no virus
+  evidence was found in the read-only checks.
 
 **Remaining TODO, in order:**
 
-- [ ] **CW-F1 — host capacity:** merge the shared no-effect scratch cleanup fix, cut a main-derived
-  immutable release, target-apply only disk-cleanup, and read back a successful cleanup receipt plus
-  stable headroom. Preserve credentials, browser profiles, receipts, state, and loaded releases.
+- [ ] **CW-F1 — host capacity:** monitor another clean disk-cleanup wake and stable headroom. Keep the
+  ownerless legacy scratch, credentials, browser profiles, receipts, state, and loaded releases until
+  exact owner evidence exists; do not delete it by timestamp or guess.
 - [ ] **CW-F2 — Application admission:** use the resolver/readback path to bind
   18d6535f7dfb8910-33974 to an exact no-dispatch marker or official receipt; never retry while
   the effect is unknown.
