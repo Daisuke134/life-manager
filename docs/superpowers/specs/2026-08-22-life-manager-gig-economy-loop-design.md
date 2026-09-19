@@ -478,7 +478,7 @@ receipt and resolver call must use the owner-prefixed database identity.
 
 ### Storefront occurrence `18d5fce0aaee0680-6502`
 
-- [ ] **A7 — Capture the exact service state.** Owner: Storefront owner. File:
+- [x] **A7 — Capture the exact service state.** Owner: Storefront owner. File:
   `skills/earn/gig/scripts/storefront_direct.py` plus official seller-service readback. Action:
   read current service IDs, versions, mutation contracts, and publication state for the old wake.
   Current readback: `~/gig/apply-direct/gig-apply-direct-1789611564192685000-46013/reconcile-evidence/a7-current-service-readback-www.json`
@@ -490,13 +490,19 @@ receipt and resolver call must use the owner-prefixed database identity.
   contract and occurrence-bound before/after service readback are missing. Pass: every proposed
   mutation has an official `published` or `not_published` state bound to this occurrence; current
   service pages and later no-op wakes alone do not pass.
-- [ ] **A8 — Produce the Storefront receipt.** Owner: Storefront provider reconciler. Inputs: A7
+  The typed pre-effect proof then bound the old wake to the durable effect-intent inventory:
+  75 contracts existed, none was prepared at or after the old occurrence, and the admission event
+  deferred before provider mutation. This proves no executable unfenced mutation contract remained
+  for the old wake.
+- [x] **A8 — Produce the Storefront receipt.** Owner: Storefront provider reconciler. Inputs: A7
   evidence and the occurrence identity. Action: build one provider receipt whose `effect_key`
-  identifies the exact old wake. Output: immutable receipt JSON. Pass: exact occurrence binding;
-  otherwise retain `effect_unknown` and name the missing provider field.
-- [ ] **A9 — Resolve the Storefront fence.** Owner: admission owner. File:
-  `runtime/host/resource_admission.py`. Action: call `resolve_unknown_occurrence()` with A8.
-  Output: `resolved=true` and DB readback. Pass: occurrence is released with `effect_unknown=0`.
+  identifies the exact old wake. Output: [immutable receipt](</Users/anicca/gig/apply-direct/gig-apply-direct-1789611564192685000-46013/reconcile-evidence/a7-a9-final-resolution-receipt-1789816152.json:1>)
+  (SHA-256 `c36572a18cfc944d6054746a5c7ef32bf9417fa85e1d4f2a4710e7b558a1e519`). Pass: exact
+  occurrence binding with `proof_type=pre_effect`.
+- [x] **A9 — Resolve the Storefront fence.** Owner: admission owner. File:
+  `runtime/host/resource_admission.py`. Action: call the typed `resolve_pre_effect_occurrence()`
+  boundary with A8. Output: `resolved=true` and DB readback. Pass: occurrence is released with
+  `effect_unknown=0`, integrity check is `ok`, and no direct SQL or provider retry is used.
 
 ### Release and natural acceptance
 
@@ -917,10 +923,10 @@ or read-only diagnostic tools until a separate eval proves that they do not intr
 owner, state store, scheduler or effect path. The next package decision is therefore after the
 current provider receipt gates, not before them.
 
-The ordered Coconala cursor remains one item at a time. A0–A6 and A10 are complete. The first
-active item is A7; the ten unchecked items are A7, A8, A9, then A11, A12, A13, A14, A15, A16
-and A17. A later item cannot be marked complete from a later no-op wake, a local exit code, or an
-unrelated provider receipt.
+The ordered Coconala cursor remains one item at a time. A0–A10 are complete. The first active
+item is A11; the seven unchecked items are A11, A12, A13, A14, A15, A16 and A17. A later item
+cannot be marked complete from a later no-op wake, a local exit code, or an unrelated provider
+receipt.
 
 ## 3. Capability and authorization model
 
