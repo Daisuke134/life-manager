@@ -271,19 +271,25 @@ class DirectCDPPage:
             await asyncio.sleep(0.25)
 
     async def type_target(self, target: dict[str, Any], text: str) -> None:
-        resolved = await self.resolve_target(target, scroll=True)
-        x, y = float(resolved["x"]), float(resolved["y"])
-        await self.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y})
-        await self.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "button": "left", "clickCount": 1})
-        await self.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x, "y": y, "button": "left", "clickCount": 1})
-        selected = await self.evaluate("""() => {
-          const el = document.activeElement;
-          if (!el || !['INPUT', 'TEXTAREA'].includes(el.tagName)) return false;
-          if (el.value.length === 0) return document.activeElement === el;
-          if (typeof el.select !== 'function') return false;
-          el.select();
-          return el.selectionStart === 0 && el.selectionEnd === el.value.length;
-        }""")
+        async def focus_and_select() -> bool:
+            resolved = await self.resolve_target(target, scroll=True)
+            x, y = float(resolved["x"]), float(resolved["y"])
+            await self.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y})
+            await self.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "button": "left", "clickCount": 1})
+            await self.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x, "y": y, "button": "left", "clickCount": 1})
+            return bool(await self.evaluate("""() => {
+              const el = document.activeElement;
+              if (!el || !['INPUT', 'TEXTAREA'].includes(el.tagName)) return false;
+              if (el.value.length === 0) return document.activeElement === el;
+              if (typeof el.select !== 'function') return false;
+              el.select();
+              return el.selectionStart === 0 && el.selectionEnd === el.value.length;
+            }"""))
+
+        selected = await focus_and_select()
+        if not selected:
+            await asyncio.sleep(0.1)
+            selected = await focus_and_select()
         if not selected:
             raise RuntimeError("visible text target did not accept whole-value selection")
         modifiers = 4  # Meta on macOS Chromium.
