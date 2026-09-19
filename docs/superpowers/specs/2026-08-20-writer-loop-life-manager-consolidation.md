@@ -1733,3 +1733,40 @@ dormantなので、公開していないこと自体が未完了ではなく、�
 
 **最新結論:** コード、immutable release、active-fourの3回の実測公開、公式readback、completion、replay-zeroは完了している。
 未完了の本質は、resumeに残る1件のeffect fence、自然な日次連続証拠、そして実入金receiptである。provider認証は現在の主因ではない。
+
+## 2026-09-19 fourth active-four completion (latest measured cursor)
+
+### Done (fresh evidence)
+
+- PR #5682（owner-fence acquisition refusalをchild publisher実行前のpre-effect hintとして保存する修正）はmainへmerge済み。
+  runに使ったmain祖先immutable releaseは `/Users/anicca/loops/releases/20260919T103740-839d0798` で、
+  `article-daily`／`article-resume`のloaded SHAは `839d0798e76714c294e233a2bc889127e88a0768` である。
+- recovery-assisted run `20260919-014228` は、初回stageのtimeout・disk floorを経た後も、同じdraftとstable targetを維持してactive-four全件をliveへ到達させた。
+  - Note JA: `https://note.com/anicca123/n/nf501952e4e27`（public id `nf501952e4e27`、published `2026-09-19T11:16:40+09:00`、price ¥500、本文・owner・eyecatch/body media PASS）。
+  - Substack JA: `https://aniccabuddha.substack.com/p/x-94a`（public id `216390473`、published `2026-09-19T02:18:26.915Z`、only-paid/paywall、本文・media・identity PASS）。
+  - Substack EN: `https://aniccaai2026.substack.com/p/dont-turn-every-x-post-into-a-pitch`（public id `216391003`、published `2026-09-19T02:20:29Z`、only-paid/paywall、本文・media・identity PASS）。
+  - X Article JA: `https://x.com/diceai0/article/2101135315759194296`（public id `2101135315759194296`、published `2026-09-19T02:24:31Z`、同一edit target `2101130889136832512`、本文・cover/body media・identity PASS）。
+- completion Telegram message IDは `89077`。`article-run-complete.py --armed 1` はrc0、`publication_resume.py plan`は複数回 `resumable=false / all-complete`。
+  state SHA `67e311f5f4b6c8fb068e3844df6f1c07ca65c9a92ea2894684c535b6b70f6f10` とledger SHA
+  `18738d10ab1a1a7768383090255938b068fe1d43dfd81eee9e1188980c8d9ac6` は再実行前後不変で、replay-zeroである。
+- 現在のWriter固有admission `effect_unknown` はdaily/resumeとも0件。owner-fence拒否、disk-floor停止、初期化recoveryは、各々pre-effectまたはprovider receiptでreconcileした。
+- 実測成功数は4件（自然4面run 2件、recovery-assisted 4面run 2件）。「4平台を一度も公開できない」状態は解消した。
+
+### Not done / remaining
+
+- 7日最低または21 scheduled source runsの自然連続証拠は未達。今回のrunもmanual kickstartとresume recoveryを含むため、日次SLOの自然run数へは加算しない。
+- active-four以外のZenn JA、Dev.to EN、X Article EN、X Post JAは現在の契約でdormant。公開していないのはskip receipt付きの契約動作である。
+- `article-resume`のadmission queueには古いqueued wakeが約180件残る。effect_unknownではないが、shared revenue FIFOを通るため自然wakeを遅延させる。disk freeは約1.5GiBでもCamoufox再生成でfloorを下回りうる。
+- money ledgerは `money_events=0`、`subscription_contracts=0`、`commercial_payment_bindings=0`、`payouts=0`。Note ¥500とSubstack only-paidは価格／アクセス設定であり、販売・入金・active MRRではない。確定売上¥0、`$10K MRR`未証明。
+
+### Ordered remaining TODO
+
+| 順序 | 作業 | 完了条件 |
+|---:|---|---|
+| 1 | resume queueを正規tickでdrainし、disk floorを維持 | queued wakeが自然に消化され、effect_unknown=0、DB手編集なし |
+| 2 | 次の自然source runを7日（最低）または21回観測 | 各runでactive-four native live、自然terminal、completion receipt、replay-zero |
+| 3 | publisher/payment receiptをmoney ledgerへjoin | receipt id・金額・通貨・destination・runをsource付きで記録 |
+| 4 | received revenue／payout／cost／profit／active MRRを分離算定 | 未取得をunknownのまま保持し、$10K MRRの実測可否を報告 |
+
+**最新結論:** Writerのコード、main由来immutable release、active-four 4回の公式live readback、completion、replay-zeroは実証済み。
+残る本質は自然な日次連続運転と実入金receiptであり、公開済み記事を売上・MRRとは数えない。
