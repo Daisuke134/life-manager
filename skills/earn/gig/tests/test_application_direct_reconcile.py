@@ -183,6 +183,9 @@ def test_applied_history_accepts_www_start_page_one():
         "https://www.coconala.com/mypage/job_matching/applied/offers"
     ) is True
     assert application_parent._valid_applied_history_start_url(
+        "https://www.coconala.com/mypage/job_matching/applied/offers?page=10"
+    ) is True
+    assert application_parent._valid_applied_history_start_url(
         "https://evil.example/mypage/job_matching/applied/offers"
     ) is False
 

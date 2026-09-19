@@ -807,7 +807,7 @@ def _next_applied_history_page(current: str, candidates: object) -> str | None:
 
 
 def _valid_applied_history_start_url(value: object) -> bool:
-    """Accept either official host alias at page one of applied history."""
+    """Accept either official host alias at any resumable history page."""
     if not isinstance(value, str):
         return False
     parsed = urlsplit(value)
@@ -818,7 +818,7 @@ def _valid_applied_history_start_url(value: object) -> bool:
     ):
         return False
     try:
-        return _page_index(value) == 1
+        return _page_index(value) >= 1
     except ParentContractError:
         return False
 
