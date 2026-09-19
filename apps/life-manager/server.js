@@ -85,6 +85,7 @@ const { completeBrowserHandoff, startBrowserJobLoop } = require("./lib/browser-j
 const { startInvestmentDryRunLoop } = require("./lib/investment-dry-run.js");
 const { makeSteelCdpClient } = require("./lib/steel-cdp-client.js");
 const { claimEvent, unclaimEvent, applyBilling } = require("./lib/billing.js");
+const { parseWriterStartPayload, bindWriterAttribution } = require("./lib/writer-attribution.js");
 const { constructStripeWebhookEvent, stripeWebhookAllowed } = require("./lib/stripe-webhook-signature.js");
 const { recordCost } = require("./lib/ledger.js");
 const { recordUsageEvent } = require("./lib/usage-event.js");
@@ -1217,6 +1218,13 @@ const server = http.createServer(async (req, res) => {
             if (claim.status === "claimed" && String(claim.chat_id) !== String(u.chatId)) throw new Error("telegram actor claim failed");
             row = await rowByChatId(u.chatId, SUPA_URL, SUPA_KEY);
             if (!row || !row.uid) throw new Error("telegram actor unavailable");
+            const writerAttributionToken = parseWriterStartPayload(u.text);
+            if (writerAttributionToken) {
+              const bound = await bindWriterAttribution(
+                row.uid, writerAttributionToken, SUPA_URL, SUPA_KEY,
+              );
+              if (!bound) console.error("[telegram] writer attribution binding deferred");
+            }
             // Agent Economy is additive. A stale/replanned runtime job must never prevent the
             // primary Telegram onboarding path from issuing a fresh Calendar consent link.
             try {
