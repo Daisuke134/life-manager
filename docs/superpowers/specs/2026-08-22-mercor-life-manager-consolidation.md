@@ -2,9 +2,58 @@
 
 初契約・初入金を目的とするプロフィール、適合案件、成果学習の設計と実装順序 → [Mercor first income design](./2026-09-17-mercor-first-income-design.md) / [implementation plan](../plans/2026-09-17-mercor-first-income.md)。この文書はMercorの稼働経路と既存の契約境界の正本を維持する。
 
-**Status:** application evidence repair merged / current immutable release loaded / current wake active / no new submission / no contract or payment
+**Status:** provider lane restored / immutable release `1faa41f1` loaded / exact human-gate reuse merged and live / latest wake `needs_human` with no new submission / selection, contract, and payment still unobserved
 **Canonical repository:** `https://github.com/Daisuke134/life-manager`
 **Canonical checkout:** `/Users/anicca/Projects/life-manager-main`
+
+## 0.1 Current readback and active TODO (supersedes older checkpoint prose)
+
+This section is the current operational source for the Mercor lane. The older checkpoint paragraphs
+below remain historical evidence and must not be read as current runtime state.
+
+### Current verified state
+
+- Main includes PR #5704 (`5d5d111ad3`, legacy human-gate canonicalization) and PR #5705
+  (`5f809d81e4`, exact-gate reuse at terminal reporting). The latest immutable release is
+  `1faa41f1db2cb1d5d588cd80759e928adfb58998`.
+- The installed Mercor owner uses that release and the authenticated isolated browser profile. The
+  latest completed wake `mercor-20260919-184826-32102` returned `needs_human`, `submitted=[]`,
+  Telegram receipt `89440`, and no provider submission receipt.
+- The same-account/listing/step gate is now reused by both the model notification path and the
+  terminal report path. Legacy rows remain append-only; current logical reads collapse known
+  Voice Actor, PDF Annotation, Consultant, Bilingual, and Sonic identities without deleting history.
+- The latest Mercor readback still shows Voice Actor `4/5`, PDF Annotation `2/3`, Consultant `3/4`,
+  Bilingual Japanese Generalist `2/3`, and Sonic `2/4`. Sonic is stopped at the missing official
+  `Unique Candidate ID`; no guessed value is allowed.
+- Two finance applications have official `Your application has been submitted!` readbacks and
+  Telegram receipts, but no selection, contract, accepted work, settled payment, or bank match is
+  verified. Applications are not revenue.
+- Mercor admission `effect_unknown` occurrences were resolved only through occurrence-specific
+  pre-effect proofs. No admission SQLite row was edited directly.
+
+### Remaining TODO in execution order
+
+1. **Human-bound steps:** deliver one current link per exact gate. The user completes Voice Actor,
+   PDF Annotation Bilingual Competency, Consultant Style and Midas, Bilingual Competency/interview,
+   and any VS Code interview. The next wake verifies the same account/listing/step as `Completed`
+   or `reused` and resumes automatically. Do not impersonate interviews, assessments, recording,
+   camera, microphone, or screen sharing.
+2. **Sonic identity:** obtain the official `Unique Candidate ID` from Mercor UI or message, store it
+   in private state, and resume the intake form. Do not submit an empty or inferred ID.
+3. **Resident continuity:** prove two natural scheduled Mercor wakes and one Inbox wake from the
+   immutable release, each with terminal evidence, Telegram ACK or durable `delivery_unknown`, and
+   zero duplicate submissions. A kickstart alone does not close this gate.
+4. **Truthful acquisition:** keep scanning new listings every wake, inspect plausible high/medium
+   candidates with detail evidence, submit at most one never-submitted ready listing, and record the
+   official post-submit readback. If no suitable new listing exists, record `observed_no_action`.
+5. **Selection and contract reconciliation:** classify Mercor Gmail/provider messages for selection,
+   rejection, interview, and contract; persist each transition with an exact application identity.
+6. **Shared money receipts:** add and migrate Contract, Authorization, QA, Delivery, settled
+   Payment, and payout/bank-match receipts before crediting revenue or portfolio allocation.
+7. **First paid E2E:** complete one selected contract only when work is explicitly authorized,
+   perform independent QA and delivery, read acceptance and settled payout, and record verified net.
+8. **Operator replay and legacy cleanup:** reproduce the isolated flow on a clean non-Dais HOME,
+   then migrate or explicitly stop old-repository consumers before deleting `profitable-claude`.
 
 ## Current cursor: application repair and first-income funnel
 
