@@ -175,6 +175,7 @@ _NO_EFFECT_LEDGER_KEYS = frozenset(
         "published_at",
         "reality_gate",
         "error",
+        "failure_reason",
     }
 )
 _NO_EFFECT_REQUIRED_KEYS = frozenset(
@@ -600,7 +601,14 @@ def _is_nonpublication_preflight_row(
     if not isinstance(state_value, str):
         return False
     lowered = state_value.lower()
-    if any(token in lowered for token in _NO_EFFECT_STATE_FORBIDDEN_TOKENS):
+    quality_init_unbound = (
+        state_value == "pending:publication-init-quality-receipt-unbound"
+        and isinstance(row.get("failure_reason"), str)
+        and "hash binding" in row["failure_reason"].lower()
+    )
+    if not quality_init_unbound and any(
+        token in lowered for token in _NO_EFFECT_STATE_FORBIDDEN_TOKENS
+    ):
         return False
     if (
         row.get("run_id") != state.get("run_id")
