@@ -714,26 +714,26 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 
 ### Connector active goal and remaining TODO
 
-**Status: OPEN.** Connector source, browser authentication, Calendar reading and
-provider readback are working. The requested new-effect gate is not closed.
-Historical registrations are evidence only and are not reused as the new event.
+**Status: OPEN for replay close only.** Connector source, browser authentication,
+Calendar reading and provider readback are working. The first new-effect gate is
+closed with event `407445`; two later natural replay-zero wakes are still required.
+Historical registrations are evidence only and are not reused as this new event.
 
-**Current production readback (2026-09-19 02:30 UTC):**
+**Current production readback (2026-09-19 02:57 UTC):**
 
-- Current installed release is complete `8bab5537e4e46854ee0e589b6eaa7a88c7fbc775`
-  (`release_paths=ALL`, `provenance=ancestor-of-origin-main`). `origin/main` has
-  since advanced to `896bc3d7b2d44b3530f54801b1378b5e5baefe03` for unrelated
-  documentation, so Connector remains loaded-idle on its complete installed
-  release `0812457f7b76a845aa14ff7fee5e790fd6cd915c` until the next safe
-  main-derived promotion. No worktree points at production state.
-- Latest natural wake `wake-b0a0f97d85e6d12716f94d60` ended
-  `completed_no_effect/providers_exhausted`; Submit 0, Calendar create 0,
-  bundle 0, effect_unknown 0.
+- Complete immutable release `8a8968f1cb227575b81e1850aeb2b561b6330da5`
+  (`release_paths=ALL`, `provenance=ancestor-of-origin-main`) is installed and
+  loaded-idle on Connector. `origin/main` later advanced to
+  `969b4e03bc...` for unrelated Writer documentation; the installed Connector
+  release remains the exact main-derived SHA used by the successful wake.
+- The successful natural/owner wake was run
+  `18d69950d404af08-71263`, inner wake `wake-8fe1984052719545a34f6ad0`,
+  on the exact loaded SHA. It ended `applied_bundle/applied_bundle` with
+  `effect_unknown=0`.
 - Connpass latest audit: observed 280, API free/open 233, Calendar-free 10.
-  Official detail gates reject the dispatched candidates: RumiCar and AWS are
-  paid; AX has a paid general tier and restricted LT tier; CoderDojo rows are
-  child/mentor roles; the free `406107` afterparty is restricted to attendees
-  of its main workshop.
+  The first three selected rows were paid-only (`394390`, `407256`, `407258`).
+  The fourth selected event `407445` is free, open, in-person and accepted by
+  the official join page's `参加枠1 無料` tier.
 - Luma latest audit: observed 10, normalized 6, free/open 0,
   Calendar-free 0.
 - Direct Calendar reader returned 119 timed busy intervals in the 28-day window.
@@ -745,9 +745,32 @@ Historical registrations are evidence only and are not reused as the new event.
 - Connpass GitHub OAuth recovery is complete. Dashboard readback is authenticated,
   event `404714` is officially `registered`, and vault keepalive succeeds.
   `404714` is an existing effect and cannot close the new-effect gate.
-- PR #5631 is open with merge state `CLEAN`; its required checks are green,
-  including the OSS self-contained boundary. It is not merged or loaded, so its
-  provider-boundary code is not production evidence.
+- PR #5631 merged as `8a8968f1cb`; its provider-boundary code is loaded in the
+  complete release above.
+
+**New-effect evidence (event 407445):**
+
+- Official Connpass screenshot artifact
+  `object://sha256/2cfba816fdadd26e27b3b97d87f9ca796ecf0f4c6ed44284819fe82c92811585`
+  shows the canonical event page with `このイベントに参加できます`,
+  `参加票を確認` and `申し込みキャンセル`.
+- Provider receipt
+  `provider-receipt://connpass/ab0d63cfd909ebc71d65a6d930eebbd384506079ad06482526b965e11ca99f66`
+  records `registered` for `connpass-event://event/407445`.
+- Bundle
+  `applied-bundle:135006842cd11ff4f46b78a97bab1130b7173a2e94e41a9e1ca3acec2d698cb8`
+  joins that provider receipt to Calendar ID `vtjh7p2ensh15drjb1n9vimk28`,
+  Calendar readback `2026-09-19T02:57:35.910Z`, artifact SHA above and Telegram
+  message/photo IDs `89104`/`89105`.
+- Independent `gog calendar event primary vtjh7p2ensh15drjb1n9vimk28 -j`
+  readback returned title `【屋根付き通路で濡れずに】【データサイエンスonly】
+  もくもく会`, Connpass URL `https://datamoku.connpass.com/event/407445/`,
+  `2026-09-21T14:00:00+09:00`–`17:00:00+09:00`, and `status=confirmed`.
+  The same private idempotency key query returned exactly one event.
+- A preceding live wake was delayed by shared `ENOSPC` and `control_busy`
+  errors (PID `71263`); no provider action occurred during that boundary. Safe
+  release cleanup and removal of this owner worktree recovered disk; shared
+  runtime/admission code was not edited.
 
 **Ideal flow:**
 
@@ -777,32 +800,32 @@ flowchart TD
 
 **Remaining TODO — six management gates, in order:**
 
-1. **Release/load gate.** Reconcile Connector to the latest complete main-derived
+1. **Release/load gate — PASS.** Reconcile Connector to the complete main-derived
    release. Verify `RELEASE.json`, `release_paths=ALL`, installed argv, launchd
    loaded argv, event SHA and the next terminal. Evidence: one same-SHA natural
    terminal. Connector does not cut or repair immutable releases.
-2. **Observability gate.** Resolve the shared OSS manifest mismatch, merge/load
-   PR #5631, and verify that a no-effect wake reports the provider-specific
+2. **Observability gate — PASS.** Merge/load PR #5631 and verify that a no-effect
+   wake reports the provider-specific
    boundary. Evidence: PR checks, loaded SHA, action history, ranking/dispatch
    audit and terminal report. Connector does not edit `runtime/` or
    `skills/_shared` to make CI green.
-3. **Browser/session gate.** Keep the existing GitHub-backed Connpass and Luma
+3. **Browser/session gate — PASS for the successful wake.** Keep the existing GitHub-backed Connpass and Luma
    session alive with session-vault; if official readback becomes login-required,
    restore through the existing GitHub path and dump the vault. Complete the
    proof-gated orphan cleanup only through the browser foundation owner. Evidence:
    official dashboard/readback, keepalive `logged_out=false`, owner target lease,
    and no unknown-context mass-close.
-4. **Candidate gate.** On each natural 1800-second wake, read Calendar busy
+4. **Candidate gate — PASS for event 407445.** On each natural 1800-second wake, read Calendar busy
    intervals, discover Luma then Connpass, and retain only free, open, in-person,
    relevant, wholly Calendar-free candidates. Empty calendar time alone is not a
    candidate. Evidence: discovery totals, candidate ranking, official detail page
    restriction/price readback and truthful no-work when no candidate qualifies.
-5. **Effect gate.** For the first new qualifying event, perform pre-submit
+5. **Effect gate — PASS for event 407445.** For the first new qualifying event, perform pre-submit
    readback, one existing provider Submit, official `registered/pending` readback,
    idempotent Google Calendar create, independent Calendar exact count 1, durable
    provider/evidence/Telegram receipts and bundle. Evidence must contain the new
    event identity; historical 404714/405297 receipts cannot substitute.
-6. **Replay/close gate.** Observe two subsequent natural wakes on the same loaded
+6. **Replay/close gate — OPEN.** Observe two subsequent natural wakes on the same loaded
    SHA with Submit 0, official provider state retained, Calendar exact count 1 and
    duplicate count 0. Only then mark Connector closed and advance to Coconala
    Apply, Reply, Paid and Storefront.
