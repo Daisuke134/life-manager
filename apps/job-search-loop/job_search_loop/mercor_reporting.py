@@ -108,6 +108,29 @@ def _labels(rows: Any, *, field: str = "title") -> list[str]:
     return values
 
 
+def _canonical_human_gate_reason(reason: str, inspected: Any) -> str:
+    """Attach the observed listing id before persisting model-only gate text."""
+    value = reason.strip()
+    if not isinstance(inspected, list):
+        return value
+    candidates = [
+        row
+        for row in inspected
+        if isinstance(row, Mapping)
+        and isinstance(row.get("listing_id"), str)
+        and row["listing_id"].strip()
+        and isinstance(row.get("title"), str)
+        and row["title"].strip()
+        and row["title"].casefold() in value.casefold()
+    ]
+    if not candidates:
+        return value
+    listing_id = max(candidates, key=lambda row: len(row["title"].strip()))["listing_id"].strip()
+    if listing_id.casefold() in value.casefold():
+        return value
+    return f"{listing_id}: {value}"
+
+
 def build_pass_message(
     *, run_id: str, result: Mapping[str, Any], human_gate_ids: list[str] | None = None
 ) -> str:
@@ -170,8 +193,10 @@ def report_pass(*, run_id: str, result_path: Path, outbox: Path, gate_store: Pat
                     run_id=run_id,
                     evidence_ref=f"run:{run_id}",
                 )
+        inspected = result.get("inspected_listings")
         for reason in result.get("needs_human", []):
             if isinstance(reason, str) and reason.strip():
+                reason = _canonical_human_gate_reason(reason, inspected)
                 gate_id = store.record(
                     run_id=run_id,
                     reason=reason,

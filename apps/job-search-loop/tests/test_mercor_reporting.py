@@ -82,6 +82,56 @@ class MercorReportingTests(unittest.TestCase):
 
         self.assertEqual(len(receipt["human_gate_ids"]), 1)
 
+    def test_report_canonicalizes_human_gate_to_inspected_listing_and_step(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            gates = root / "human-gates.jsonl"
+            result = root / "result.json"
+            result.write_text(
+                json.dumps(
+                    {
+                        "status": "needs_human",
+                        "inspected_listings": [
+                            {
+                                "listing_id": "list_voice",
+                                "title": "Japanese Professional Voice Actor",
+                            }
+                        ],
+                        "submitted": [],
+                        "needs_human": [
+                            "Japanese Professional Voice Actor — Voice Actor Japanese Assessment remains Not done."
+                        ],
+                        "blocked": [],
+                        "evidence": {"page_url": "https://work.mercor.com/explore"},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with patch(
+                "job_search_loop.mercor_reporting.send_once",
+                return_value={"status": "sent", "message_id": "telegram-1"},
+            ):
+                first = report_pass(
+                    run_id="run-1",
+                    result_path=result,
+                    outbox=root / "outbox.sqlite3",
+                    gate_store=gates,
+                )
+                changed = json.loads(result.read_text(encoding="utf-8"))
+                changed["needs_human"] = [
+                    "Japanese Professional Voice Actor — required Voice Actor Japanese Assessment is still Not done."
+                ]
+                result.write_text(json.dumps(changed), encoding="utf-8")
+                second = report_pass(
+                    run_id="run-2",
+                    result_path=result,
+                    outbox=root / "outbox.sqlite3",
+                    gate_store=gates,
+                )
+
+            self.assertEqual(first["human_gate_ids"], second["human_gate_ids"])
+            self.assertEqual(len(HumanGateStore(gates).pending()), 1)
+
     def test_grounded_pass_resolves_stale_auth_and_resume_gates(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
