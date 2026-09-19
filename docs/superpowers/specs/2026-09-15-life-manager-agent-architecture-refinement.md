@@ -701,7 +701,7 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 | 1 | **Scoped overlap check — done for step 2:** compare latest main, foundation `3a70e98867`, admission source `c7ce1e9fc6` and the exact provider-owned paths below. Skip a fleet-wide audit before the first patch. | Shared runtime/registry/Connector/provider ownership is mapped below; no other owner's worktree, profile or state was edited. Recheck only changed overlaps before each integration. |
 | 2 | **Shared runtime source integrated; live gate open:** focused main changes cover durable queue, claim→child identity, release→next claim, priority/aging, owner recovery and uncertain-effect handling. Do not tune the slot count to hide liveness failure. The old candidate branch is not the production source. | Focused source checks passed and representative owners ran from main releases; step 3 must still prove no persistent queue starvation across mixed owners. |
 | 3 | **Current cursor — A15 only.** Execute the atomic A15 items at the top of this spec without changing the provider order. Fair owner handoff and main-only `current` are already merged; identity-matched malformed-plist recovery and its production acceptance remain. | Same main-derived release, exact loaded argv, natural outer terminal and bounded agent/browser/deterministic handoff with live heartbeat/headroom; fenced effects remain fenced. Historical total queue age is not the eligible-wait measure. |
-| 4 | **Connector primary-provider repair:** Connpass and Luma are the only active providers for this cursor. Connpass discovery has found Calendar-free candidates but the latest wake has no downstream action/readback; Luma has candidates but `calendar_free=0`. KokuchPro and every other fallback are removed from the active Connector route and are not repaired in this cursor. | Prove the Connpass/Luma candidate-selection → official registration → independent Calendar exact 1 chain, then two later natural wakes with Submit 0 and Calendar duplicate 0. No fallback provider may consume the primary providers' wake budget. |
+| 4 | **Connector primary-provider repair — PASS:** Connpass and Luma are the only active providers for this cursor. Connpass event `407445` reached official `registered`, Calendar exact-one and durable evidence; two later natural wakes had Submit 0 and Calendar duplicate 0. KokuchPro and every other fallback remain out of the active Connector route. | New-effect chain and replay-zero are proven; advance to Coconala Apply, Reply, Paid and Storefront. |
 | 5 | Coconala Apply, Reply, Paid, Storefront as separate lanes: current eligible screening-answer submit; 15 pending replies; per-client funded work, attachments and payout; official listing state; reconcile old 54 uncertain intents only as preemptible background work. | Each applicable lane has current same-SHA terminal, exact official effect/readback or truthful wait/no-work, and replay-zero; no account/browser interference. |
 | 6 | CrowdWorks: complete the three existing paid contracts first, then restore inventory, Reply and Apply continuity; Lancers: browser/auth, Apply→Reply→Paid→payout and supported Storefront; Mercor: persistent auth, Apply→Reply→human handoff→Paid→payout. | Each provider's actual effect/readback and per-client terminal, not generic exit 0. Unsupported Storefront is proven not-applicable. |
 | 7 | Freelancer.com and Upwork: verify current account/policy, then applicable Apply→Reply→Paid→payout and Storefront only if official surface exists. | Official receipts, payout attribution and replay-zero. |
@@ -714,18 +714,21 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 
 ### Connector active goal and remaining TODO
 
-**Status: OPEN for replay close only.** Connector source, browser authentication,
-Calendar reading and provider readback are working. The first new-effect gate is
-closed with event `407445`; two later natural replay-zero wakes are still required.
-Historical registrations are evidence only and are not reused as this new event.
+**Status: CLOSED for the Connector external-effect gate.** Connector source,
+browser authentication, Calendar reading, provider readback, one new effect and
+two natural replay-zero wakes are proven. The first effect ran on `8a8968f1…`;
+the release reconciler promoted the idle owner to `969b4e03…` before the two
+replays. That later release contains the same Connector source and produced
+the required Submit-0/duplicate-0 evidence. Historical registrations are
+evidence only and were not reused as this new event.
 
 **Current production readback (2026-09-19 02:57 UTC):**
 
-- Complete immutable release `8a8968f1cb227575b81e1850aeb2b561b6330da5`
+- Complete immutable release `969b4e03bcc65a8d24241c8ca90ad05a860f6b38`
   (`release_paths=ALL`, `provenance=ancestor-of-origin-main`) is installed and
-  loaded-idle on Connector. `origin/main` later advanced to
-  `969b4e03bc...` for unrelated Writer documentation; the installed Connector
-  release remains the exact main-derived SHA used by the successful wake.
+  loaded-idle on Connector. The first effect was produced by the preceding
+  complete release `8a8968f1cb…`; the release reconciler advanced the idle
+  owner to `969b4e03…` before replay observation.
 - The successful natural/owner wake was run
   `18d69950d404af08-71263`, inner wake `wake-8fe1984052719545a34f6ad0`,
   on the exact loaded SHA. It ended `applied_bundle/applied_bundle` with
@@ -771,6 +774,19 @@ Historical registrations are evidence only and are not reused as this new event.
   errors (PID `71263`); no provider action occurred during that boundary. Safe
   release cleanup and removal of this owner worktree recovered disk; shared
   runtime/admission code was not edited.
+
+**Replay-zero evidence:**
+
+- Replay 1: `wake-23678374b603cd2e6014e135` on loaded `969b4e03…` ended
+  `completed_no_effect/connpass_candidates_ineligible`. Action history contains
+  no provider-direct success and no evidence completion. The bundled event was
+  not redispatched.
+- Replay 2: `wake-1a26b491333902626748c189` on the same loaded
+  `969b4e03…` ended `completed_no_effect/connpass_candidates_ineligible` with
+  no provider-direct success and no evidence completion.
+- Independent `gog calendar events` queries after each replay returned exactly
+  one event for the private Connector idempotency key: ID
+  `vtjh7p2ensh15drjb1n9vimk28`, status `confirmed`, Connpass URL unchanged.
 
 **Ideal flow:**
 
@@ -825,9 +841,9 @@ flowchart TD
    idempotent Google Calendar create, independent Calendar exact count 1, durable
    provider/evidence/Telegram receipts and bundle. Evidence must contain the new
    event identity; historical 404714/405297 receipts cannot substitute.
-6. **Replay/close gate — OPEN.** Observe two subsequent natural wakes on the same loaded
-   SHA with Submit 0, official provider state retained, Calendar exact count 1 and
-   duplicate count 0. Only then mark Connector closed and advance to Coconala
+6. **Replay/close gate — PASS.** Two subsequent natural wakes on loaded
+   `969b4e03…` had Submit 0, retained the official provider receipt, Calendar
+   exact count 1 and duplicate count 0. Connector is closed; advance to Coconala
    Apply, Reply, Paid and Storefront.
 
 **No-self-blocking operating rule:** every failure is classified as one of
