@@ -391,7 +391,7 @@ def test_context_requires_the_retainer_source_and_target() -> None:
     assert context["max_applications"] == 20
     assert "retainer:new" in context["required_search_source_ids"]
     assert parent.CdpSnapshotCollector._source_url("retainer:new") == (
-        "https://coconala.com/job_matching/outsources"
+        "https://www.coconala.com/job_matching/outsources"
     )
 
 

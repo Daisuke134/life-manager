@@ -146,7 +146,7 @@ class ReadbackScanTimeout(ParentContractError):
 
 _REQUEST_URL = re.compile(r"^/requests/([0-9]+)$")
 _RETAINER_ID = re.compile(r"^[0-7][0-9A-HJKMNP-TV-Z]{25}$")
-_APPLIED_OFFERS_URL = "https://coconala.com/mypage/job_matching/applied/offers"
+_APPLIED_OFFERS_URL = "https://www.coconala.com/mypage/job_matching/applied/offers"
 
 _APPLIED_OFFERS_PATH = "/mypage/job_matching/applied/offers"
 _COCONALA_HOSTS = {"coconala.com", "www.coconala.com"}
@@ -2616,7 +2616,7 @@ class CdpSnapshotCollector:
         if source_id == "single:new":
             return "https://coconala.com/requests?sort=new&recruiting=true"
         if source_id == "retainer:new":
-            return "https://coconala.com/job_matching/outsources"
+            return "https://www.coconala.com/job_matching/outsources"
         if source_id == "single:keyword":
             return "https://coconala.com/requests?keyword=AI&recruiting=true"
         prefix = "single:category:"

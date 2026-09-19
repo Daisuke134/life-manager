@@ -65,9 +65,15 @@ def test_single_source_failure_advances_to_retainer_source(tmp_path):
     ) == {
         "source_id": "retainer:new",
         "previous_url": "",
-        "next_url": "https://coconala.com/job_matching/outsources",
+            "next_url": "https://www.coconala.com/job_matching/outsources",
         "reason": "continue_after_temporary_source_failure",
-    }
+    } 
+
+
+def test_retainer_source_cursor_starts_on_www_host():
+    assert b2_result_gate._missing_required_source_url("retainer:new") == (
+        "https://www.coconala.com/job_matching/outsources"
+    )
 
 
 def test_a_non_contract_failure_still_ends_the_pass():
