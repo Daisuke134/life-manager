@@ -1770,3 +1770,17 @@ dormantなので、公開していないこと自体が未完了ではなく、�
 
 **最新結論:** Writerのコード、main由来immutable release、active-four 4回の公式live readback、completion、replay-zeroは実証済み。
 残る本質は自然な日次連続運転と実入金receiptであり、公開済み記事を売上・MRRとは数えない。
+
+## 2026-09-19 revenue measurement and CTA correction cursor (latest)
+
+- PR #5685（Writerの未設定CTA defaultを `https://aniccaai.com/lm` へ変更）はmainへmerge済み。runtime private envの
+  `ARTICLE_PRODUCT_LANDING_URL`、`ARTICLE_CTA_URLS`、`ARTICLE_INTERNAL_LINK_URLS`、`ARTICLE_SELF_OWNED_BASE_URL`も同じ有料landingへ更新した。
+  `/lm`は現在 `$29/mo` cloud planとTelegram開始導線を公式readbackできる。有料landingを持たないroot `/`は今後のdefault CTAに使わない。
+- 新しいsource run `20260919-025451`はCTA修正前に生成され、本文CTAがroot URLだったため、公開成功数へ加算しない。次のrunからCTA gateは`/lm`と同一pathを要求する。
+- fresh sales measurement（`2026-09-19T02:40Z`）は、Noteのcurrent-month account sales `¥0`、purchase count `0`を公式dashboardでreadbackした。
+  Substackのpaid subscribers／MRR／cumulative revenueはdashboardが`-`表示であり、推測で0へ変換せずunknownを保持した。
+  `money_sync`後もverified revenue events、Stripe receipts、subscriptions、payoutsは0件である。
+- したがって、現在の収益ボトルネックは公開配線ではなく、`/lm`への読者到達・クリック・購入receipt・継続課金receiptの獲得である。
+
+**残TODO:** 次のnatural runで`/lm` CTAを確認し、7日／21 scheduled runsの4面liveを積み上げる。同時にCTA click、checkout、settled payment、fee、payoutを
+同一artifact/runへjoinするまで、収益とMRRはunknown／¥0のまま扱う。
