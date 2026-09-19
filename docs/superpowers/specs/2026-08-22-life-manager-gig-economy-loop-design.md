@@ -522,6 +522,9 @@ receipt and resolver call must use the owner-prefixed database identity.
   environment blocks remain strictly validated.
   PR #5710 is open for review:
   `https://github.com/Daisuke134/life-manager/pull/5710`.
+  Required CI checks are now all green and GitHub reports `mergeStateStatus=CLEAN` at head
+  `268316fe3112f752f8f58e86ce3def98fb80d3c0`. Main merge remains sequenced after the remaining
+  natural acceptance gates.
   It is not merged or loaded in production. The Gig-wide suite produced `1322 passed` and `4`
   failures; the failures are classified as host `ENOSPC` during temporary-file creation and
   pre-existing release/reply fixture drift, so they are not a clean integration gate. Pass: after
