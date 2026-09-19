@@ -35,13 +35,15 @@ work was correct; correctness requires full buyer-context mapping and buyer-visi
   effect_unknown=1. PR #5634 makes new application receipts occurrence-bound while historical imports
   stay unbound. Latest Application/Paid wakes stop before provider work with
   host_admission_deferred:resource_effect_unknown.
-- The previous disk-cleanup release 65a1d563dca85d9c10019854c8f3bf7027c1e9 passed one target wake,
-  but headroom is not stable: fresh probes reached about 0.7–1.3 GiB available at 100% capacity. Two
-  roughly 535 MiB directories remain under the no-effect `capafy-ig-marketing-daily` scratch root. One
-  has a stale owner and a run-bound `effect_class=none` event; the other has no owner identity and stays
-  protected. The shared cleanup root cause is confirmed: every `.terminal-unrecorded` run was preserved,
-  even for no-effect loops. A candidate now records per-run effect metadata and requires a unique,
-  run-bound `effect_class=none` event plus stale identity before deletion. It is not merged or loaded yet.
+- Main `c320c48f6a9659ccb6424b12ec2841f3cf4b10d7` contains the shared cleanup fix. Immutable release
+  `20260919T093130-c320c48f` is target-applied only to `life-manager-disk-cleanup`; loaded argv,
+  installed SHA, and event SHA match. The latest target wake passed with `errors=0`,
+  `owner_metadata_invalid=4`, `preserved=210`, `removed=1`, and `free_after=1931776000` bytes.
+  Malformed owner files are retained and counted; they no longer turn safe cleanup into exit 1.
+- Headroom remains under pressure at about 1.8 GiB free. One roughly 535 MiB no-effect scratch
+  directory has no owner identity and stays protected; no process/browser currently owns it, but the
+  evidence is insufficient for deletion under the stale-owner contract. The shared root cause is now
+  fixed for new and legacy runs with run-bound evidence. Do not delete the ownerless directory by guess.
 - The official read-only inventory contains funded IDs 63712784, 63659463, 63657015, 63570481, and
   63568785. This inventory is not work submission, delivery, acceptance, settlement, payout, or MRR.
 - Read-only process inspection observed defunct children of Chromium and ChatGPT, and lsof showed normal
@@ -75,15 +77,14 @@ work was correct; correctness requires full buyer-context mapping and buyer-visi
   delivery. 63583795 needs acceptance, settlement, and payout readback.
 - The host capacity issue and admission fence are active. resource_control_busy is a transient lock;
   effect_unknown is the durable evidence boundary. Zombie processes are not a reason to retry. The
-  cleanup candidate must be merged, cut into an immutable release, target-applied only to disk-cleanup,
-  and read back before the stale no-effect directory can be reclaimed.
+  cleanup owner is green on the latest wake; continue monitoring stable headroom and preserve the
+  ownerless legacy directory until an occurrence-bound owner proof exists.
 
 ### Remaining TODO, in order
 
-1. Merge and deploy the shared cleanup fix through the existing disk governor. Target-apply only
-   disk-cleanup, reclaim the stale no-effect scratch only after its run-bound event and stale identity
-   checks pass, and require stable headroom plus a cleanup receipt without an unexplained error. Preserve
-   credentials, browser profiles, receipts, state, and loaded releases.
+1. Keep the deployed disk-cleanup release on its existing cadence and require another clean receipt
+   with stable headroom. Preserve the ownerless legacy scratch, credentials, browser profiles, receipts,
+   state, and loaded releases until exact owner evidence exists.
 2. Resolve the Application occurrence through the resolver/readback path using an occurrence-bound no-dispatch
    marker or official receipt. Do not retry an unknown effect.
 3. Resolve the Paid occurrence 18d62cf32eb0c678-48194. The historical paid-latest result has no
