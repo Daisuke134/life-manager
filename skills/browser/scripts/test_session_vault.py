@@ -195,3 +195,46 @@ def test_keepalive_attach_failure_still_closes_and_releases_target(monkeypatch):
         ("send", "Target.closeTarget"),
         ("release", "keepalive-tab", "session-vault-keepalive"),
     ]
+
+
+def test_coconala_relogin_attach_exception_still_closes_created_target(monkeypatch):
+    """A CDP attach failure must not leave the just-created default-context tab behind."""
+    events = []
+
+    class Socket:
+        last = None
+
+        async def send(self, payload):
+            self.last = json.loads(payload)
+            events.append(("send", self.last["method"]))
+
+        async def recv(self):
+            if self.last["method"] == "Target.createTarget":
+                return json.dumps({"id": self.last["id"], "result": {"targetId": "relogin-tab"}})
+            if self.last["method"] == "Target.attachToTarget":
+                raise RuntimeError("attach failed")
+            return json.dumps({"id": self.last["id"], "result": {"success": True}})
+
+    class Connection:
+        async def __aenter__(self):
+            return Socket()
+
+        async def __aexit__(self, *_args):
+            return None
+
+    monkeypatch.setattr(sv, "_coconala_credentials", lambda: ("owner@example.com", "secret"))
+    monkeypatch.setattr(sv, "_browser_ws", lambda: "ws://browser")
+    monkeypatch.setattr(sv.websockets, "connect", lambda *_a, **_k: Connection())
+
+    try:
+        asyncio.run(sv._relogin_coconala())
+    except RuntimeError as error:
+        assert str(error) == "attach failed"
+    else:
+        raise AssertionError("attach failure should propagate")
+
+    assert events == [
+        ("send", "Target.createTarget"),
+        ("send", "Target.attachToTarget"),
+        ("send", "Target.closeTarget"),
+    ]
