@@ -596,6 +596,12 @@ receipt and resolver call must use the owner-prefixed database identity.
   `/Users/anicca/gig/apply-direct/gig-apply-direct-1789822006917747000-28222/refresh-evidence/`.
   The outer terminal receipt has not yet been written, so A13 remains open until its
   `effect=1`, `readback=1`, and replay-zero fields are present.
+  A provider-effect reconciliation receipt now confirms the three official request IDs and
+  replay-zero (one ledger row each):
+  `/Users/anicca/gig/apply-direct/gig-apply-direct-1789822006917747000-28222/a13-provider-effect-reconciliation.json`
+  (SHA-256 `ef044f92d2e7e5ca80b5b213ecfa77b10728a107501b1892d21539034e90a526`). The runtime
+  terminal itself ended `entrypoint_exit_143`, so this receipt proves the provider outcome but
+  does not close the runtime acceptance gate; A13 remains unchecked.
 - [ ] **A14 — Natural retainer Apply.** Owner: Apply scheduler. Action: wait for one natural
   retainer candidate. Output: terminal event, `effect=1`, official retainer readback, replay-zero.
   Pass: retainer identity and talkroom receipt are exact.
