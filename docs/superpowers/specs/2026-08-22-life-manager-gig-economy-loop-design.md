@@ -582,6 +582,12 @@ receipt and resolver call must use the owner-prefixed database identity.
   `ProgramArguments` pinned to `/Users/anicca/loops/releases/20260919T204543-d448cb8e`, manifest
   SHA `d448cb8ef1b001b1ca61d1c4cc0738406e32a21f`, and the required 9223 daily-driver env;
   no fleet-wide apply was used. Later natural wake results remain A13–A16 acceptance work.
+  A stale Apply owner discovered during A13 preparation was also resolved without provider retry:
+  occurrence `hf-gig-apply-direct:18d6b3492ccea6e0-74744` has a typed pre-effect resolution at
+  `/Users/anicca/gig/apply-direct/a12-occurrence-18d6b3492ccea6e0-74744/resolution-receipt.json`;
+  its proof records zero prepared intents after the complete official-history reconciliation and
+  the source effect-fence contract. The lane was reinstalled from d448 and is now loaded-idle;
+  the next 300-second scheduler wake is the first clean A13 attempt.
 - [ ] **A13 — Natural single Apply.** Owner: Apply scheduler. Input: A12 loaded fleet. Action:
   wait for one natural single candidate. Output: terminal event, `effect=1`, official request/offer
   readback, and replay-zero. Pass: all four receipts agree on owner, occurrence, release, and ID.
