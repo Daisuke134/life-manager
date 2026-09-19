@@ -120,8 +120,34 @@ def release(path: Path, token: str) -> None:
     path.rmdir()
 
 
+def write_pre_effect_hint() -> None:
+    path_value = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "")
+    if not path_value:
+        return
+    path = Path(path_value)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags, 0o600)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write('{"status":"pre_effect_failure","effect":0}\n')
+            handle.flush()
+            os.fsync(handle.fileno())
+    finally:
+        os.chmod(path, 0o600)
+
+
 def run(args: argparse.Namespace) -> int:
-    token = acquire(Path(args.fence_dir), args.owner, args.root, args.state, args.run_id)
+    try:
+        token = acquire(Path(args.fence_dir), args.owner, args.root, args.state, args.run_id)
+    except (FenceError, OSError, ValueError):
+        # Acquisition refusal happens before the child publisher can start.
+        # Preserve that exact boundary for lm-loop-run instead of creating an
+        # effect-unknown fence for a provider action that never ran.
+        try:
+            write_pre_effect_hint()
+        except OSError:
+            pass
+        raise
     environment = os.environ.copy()
     environment["ARTICLE_OWNER_FENCE_ACTIVE"] = "1"
     environment["ARTICLE_OWNER_FENCE_DIR"] = str(Path(args.fence_dir).expanduser().absolute())
