@@ -517,7 +517,9 @@ receipt and resolver call must use the owner-prefixed database identity.
   `fix/coconala-a11-integration-20260919` with commits `7f95664f04`, `4c317cd6f5` and
   `25e298b0e7`; its focused gates pass (`11` full-history tests and `1` loaded-env regression).
   Follow-up commit `7494638da0` scopes the loaded browser-env gate to the four Gig lanes after CI
-  exposed a non-Gig clean-install false failure.
+  exposed a non-Gig clean-install false failure. Commit `268316fe31` further preserves clean
+  install compatibility when a test `launchctl print` has no environment block; real Gig loaded
+  environment blocks remain strictly validated.
   PR #5710 is open for review:
   `https://github.com/Daisuke134/life-manager/pull/5710`.
   It is not merged or loaded in production. The Gig-wide suite produced `1322 passed` and `4`
