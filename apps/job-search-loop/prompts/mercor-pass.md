@@ -66,8 +66,11 @@ Pass order:
    only a reason to inspect, and eligibility still requires live detail evidence.
    The context includes `recently_inspected_listings` with the prior decision, ranking band,
    provider-fit status, and application state. Treat `submitted_pending_review_observed` and
-   `no_reasonable_shot` as durable candidate-local outcomes; do not reopen them merely to fill
-   the detail budget. A `listing_detail_not_rendered` record may be retried after unseen
+   detail-grounded `no_reasonable_shot` as durable candidate-local outcomes; do not reopen them merely to fill
+   the detail budget. `card_only_unverified` is provisional, not a rejection: when no unseen
+   high/medium query candidate remains, reopen the strongest direct product/AI-agent overlap
+   card-only candidates, including `Personalized Life Assistant`/`Life Manager` matches, for
+   full detail evidence before opening unrelated specialist cards. A `listing_detail_not_rendered` record may be retried after unseen
    candidates are exhausted. A Japanese/Japan title alone does not outrank a high/medium-fit
    software or AI role. Do not open a low-band Japanese/Japan contradiction merely to satisfy
    the priority queue. Record every skipped low, submitted, or recent card in
