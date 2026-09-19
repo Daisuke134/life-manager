@@ -584,6 +584,9 @@ class MercorPassContractTests(unittest.TestCase):
             "wait for the application detail or URL to change",
             "wait up to five seconds for the detail surface",
             "focus or selected styling is not detail readback",
+            "Before returning `observed_no_action`, revisit each existing incomplete application card",
+            "latest human gate or detail-not-rendered outcome",
+            "existing application review queue",
         ):
             self.assertIn(required, prompt)
 
