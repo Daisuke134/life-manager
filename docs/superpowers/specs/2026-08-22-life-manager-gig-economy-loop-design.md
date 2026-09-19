@@ -516,8 +516,8 @@ receipt and resolver call must use the owner-prefixed database identity.
   release SHA and immutable path. The integration candidate was merged via PR #5710 at
   `d448cb8ef1b001b1ca61d1c4cc0738406e32a21f`. The immutable release is
   `/Users/anicca/loops/releases/20260919T204301-d448cb8e` with manifest SHA
-  `d448cb8ef1b001b1ca61d1c4cc0738406e32a21f` and `release_paths=ALL`; current symlink remains on
-  the previous release until A12. The former integration candidate was pushed at
+  `d448cb8ef1b001b1ca61d1c4cc0738406e32a21f` and `release_paths=ALL`; the former integration
+  candidate was pushed at
   `fix/coconala-a11-integration-20260919` with commits `7f95664f04`, `4c317cd6f5` and
   `25e298b0e7`; its focused gates pass (`11` full-history tests and `1` loaded-env regression).
   Follow-up commit `7494638da0` scopes the loaded browser-env gate to the four Gig lanes after CI
@@ -529,8 +529,9 @@ receipt and resolver call must use the owner-prefixed database identity.
   head. The immutable release was cut at
   `/Users/anicca/loops/releases/20260919T204301-d448cb8e` and was later rebuilt at
   `/Users/anicca/loops/releases/20260919T204543-d448cb8e` with the same manifest SHA after the
-  first candidate directory was removed during host release maintenance. The `current` symlink
-  intentionally remains on `20260919T184226-1faa41f1` until A12. The Gig-wide local suite had
+  first candidate directory was removed during host release maintenance. `current` now points
+  to the rebuilt release, while the four loaded Gig plists still point to older release SHAs;
+  A12 is the targeted plist apply that closes this split. The Gig-wide local suite had
   `1322 passed` and `4` host/fixture failures; those failures were classified as ENOSPC during
   temporary-file creation and pre-existing release/reply fixture drift, while the required PR CI
   gate was green. A read-only `git merge-tree` against `origin/main` had no merge conflict.
@@ -553,8 +554,9 @@ receipt and resolver call must use the owner-prefixed database identity.
   `parent.invocation-refresh.json`, before provider dispatch. This is evidence for a typed
   pre-effect resolver, not yet a resolution receipt; no SQLite mutation, retry, or lane reload
   is allowed until the proof is written with this exact occurrence ID. The host currently has
-  about 229 MiB free, below the Gig 512 MiB producer floor, so the first A12 substep is bounded
-  cleanup/recovery through the existing cleanup contract.
+  about 229 MiB free at the time of that attempt, below the Gig 512 MiB producer floor; the
+  existing cleanup contract has since recovered the host to about 26 GiB free. The first A12
+  substep is therefore complete at the host level, but the occurrence fence remains open.
 - [ ] **A13 — Natural single Apply.** Owner: Apply scheduler. Input: A12 loaded fleet. Action:
   wait for one natural single candidate. Output: terminal event, `effect=1`, official request/offer
   readback, and replay-zero. Pass: all four receipts agree on owner, occurrence, release, and ID.
