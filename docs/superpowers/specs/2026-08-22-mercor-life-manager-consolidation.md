@@ -52,6 +52,13 @@ below remain historical evidence and must not be read as current runtime state.
   `effect_unknown=0`. The lazy-section guard produced `profile_sync=synced` with exact
   `profile_version`, `field_hashes`, résumé SHA, and `parser_reviewed=true`; no provider effect
   or recording upload occurred.
+- The pagination guard is live in release `a9fe6f52`. The next natural wake wrote
+  `explore-page-1-reset.json`, `explore-page-2.json`, and `coding-page-2.json`, proving that
+  page 2 is collected before `observed_no_action` when the first query union is exhausted.
+- The latest provider-effect fence was resolved with official snapshot
+  `official-readback-20260920T0355Z.json`: 100 applications, 0 contracts, 0 notifications, and
+  zero application updates in the occurrence window. Receipt:
+  `mercor-official-readback:11b910e46194fdec82d4aa4267cd16d07e48b320172f8e13d83b59acb63f27e7`.
 
 ### Human operator procedure (the only user-bound action)
 
@@ -84,8 +91,8 @@ that state. The operator does not need to keep the browser open after the provid
 ### Remaining TODO in execution order
 
 1. **Natural wake continuity:** three natural Mercor wakes now have terminal Telegram ACKs and zero
-   duplicate or uncertain provider effects. Keep the resident cadence running; the lazy-profile
-   guard has produced an exact synced readback in the latest wake.
+   duplicate or uncertain provider effects. Keep the resident cadence running; pagination and
+   lazy-profile guards are deployed. The latest fence was closed only after official readback.
 2. **Human-bound steps and approved artifacts:** deliver one current link per exact gate. The seven
    approved Voice Actor recordings remain held until the private upload-enable marker is explicitly
    enabled; then the loop may upload them only when the exact assessment page exposes file slots and
@@ -127,6 +134,8 @@ that state. The operator does not need to keep the browser open after the provid
 - The first `083c4913` wake produced exact `profile_sync=synced`, six query artifacts, Telegram ACK
   `90128`, and no new submission. The provider queue still had no truthful ready listing; the loop
   recorded `observed_no_action` and preserved all human/provider boundaries.
+- The current candidate scan records page-specific Explore evidence and does not clear a provider
+  effect fence until the occurrence-specific official resolver succeeds.
 - The account has existing submitted and person-bound applications. Recent passes produced no new submission, no offer, no contract, and no settled earnings. These are separate external outcomes and remain unverified.
 
 ### To-be
