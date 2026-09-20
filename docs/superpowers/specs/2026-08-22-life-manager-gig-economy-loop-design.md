@@ -278,12 +278,21 @@ The current official/runtime snapshot does **not** satisfy the four-lane complet
   `schema:decision[0]_hard_prohibited_evidence_not_in_visible_text`. The current Apply
   effect fence is `hf-gig-apply-direct:18d6bd3a3f9c1bb8-94667`; later natural wakes at
   `23:48 JST`, `23:53 JST`, and `23:58 JST` remain `host_admission_deferred:resource_effect_unknown`.
+  The one failed planner item is traceable to
+  `skills/earn/gig/scripts/application_planner.py:320`: the model's hard-prohibited reason text for
+  request `5268696` is not a contiguous substring of that request's captured `visible_text`. The
+  retry evidence is under
+  `~/gig/apply-direct/gig-apply-direct-1789826681065210000-3754/refresh-evidence/`.
 - **Storefront:** loaded release `d448cb8e…`; the current effect fence is
   `hf-gig-storefront-direct:18d5fd193aa926f0-9464`, repeatedly producing
   `host_admission_deferred:resource_effect_unknown`, including the latest `23:52 JST` wake. The
   earlier draft reconciliations do not resolve this newer occurrence.
 - **Reply:** loaded release `6bbf377f…`; the latest observed wake ended `entrypoint_exit_1` at
-  `23:52 JST`, and there is no current coverage receipt proving the Reply contract.
+  `23:52 JST`, and there is no current coverage receipt proving the Reply contract. The concrete
+  traceback is `skills/earn/gig/scripts/coconala_queue_snapshot.py:2412`:
+  `failed to open authenticated hidden target: context_cleanup_pending`, called from
+  `skills/earn/gig/scripts/coconala_reply_adapter.py:108` during inventory collection. This is a
+  browser-context cleanup/lease-state failure before message observation, not an empty inbox.
 - **Paid:** loaded release `6bbf377f…`; the latest observed natural event passed at `23:40 JST`, but the official seller-order
   page still has four active items and overdue/repair statuses. Paid lane health is not the same as
   all Coconala client work being complete.
