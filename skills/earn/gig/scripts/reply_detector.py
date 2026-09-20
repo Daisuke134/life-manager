@@ -601,6 +601,11 @@ def _wake_result(*, run_id: str, trigger: str, status: str) -> dict[str, Any]:
     }
 
 
+def _entrypoint_exit_code(result: dict[str, Any]) -> int:
+    """Keep row-level failures in the receipt without hiding them as process failure."""
+    return 0 if str(result.get("status") or "") in {"completed", "ok"} else 1
+
+
 def _persist_wake_report(args: Any, output: Path, result: dict[str, Any]) -> None:
     report_input = output
     fallback_dir: Path | None = None
@@ -2655,7 +2660,7 @@ def main() -> int:
             }
             _persist_wake_report(args, output, result)
             print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
-            return 0 if result["status"] == "completed" else 1
+            return _entrypoint_exit_code(result)
         except CollectorBlocked as error:
             blocker = {
                 "collector_unhealthy:inbox_access_forbidden":
