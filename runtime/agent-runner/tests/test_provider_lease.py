@@ -137,6 +137,35 @@ class ProviderLeaseTest(unittest.TestCase):
         self.assertEqual(results, [0, 0])
         self.assertEqual([row[0] for row in rows], ["start", "end", "start", "end"])
 
+    def test_stable_provider_completion_fallback_is_sealed_to_result_path(self):
+        fallback = self.root / "pass-result.json"
+        result = self.root / "attempt-01.result.json"
+        provider = self.root / "provider.py"
+        provider.write_text(
+            "import sys, time\n"
+            "from pathlib import Path\n"
+            "Path(sys.argv[1]).write_text('{\"status\":\"needs_human\"}\\n')\n"
+            "while True:\n"
+            "    time.sleep(1)\n",
+            encoding="utf-8",
+        )
+
+        rc = run_provider_process(
+            [sys.executable, str(provider), str(fallback)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+            cwd=str(self.root),
+            input_bytes=None,
+            stdin=subprocess.DEVNULL,
+            env=os.environ.copy(),
+            completion_path=result,
+            completion_paths=(fallback,),
+        )
+
+        self.assertEqual(rc, 0)
+        self.assertEqual(result.read_text(encoding="utf-8"), fallback.read_text(encoding="utf-8"))
+
     def test_codex_invocations_use_isolated_homes_and_cleanup(self):
         automation_home = self.root / "codex-profile"
         auth_file = self.root / "profile-auth.json"

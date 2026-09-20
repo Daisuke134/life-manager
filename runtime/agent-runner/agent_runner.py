@@ -893,6 +893,7 @@ def run_provider_process(command: list[str], *, stdout: Any, stderr: Any,
                          timeout: int, cwd: str, input_bytes: bytes | None,
                          stdin: Any, env: dict[str, str],
                          completion_path: Path | None = None,
+                         completion_paths: tuple[Path, ...] = (),
                          lease_fd: int | None = None,
                          deadline: float | None = None) -> int:
     """Run one provider in an isolated process group with a hard timeout."""
@@ -936,6 +937,7 @@ def run_provider_process(command: list[str], *, stdout: Any, stderr: Any,
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise subprocess.TimeoutExpired(command, timeout)
+        completion_started_ns = time.time_ns()
         process = subprocess.Popen(
             command,
             stdin=subprocess.PIPE if input_bytes is not None else stdin,
@@ -951,24 +953,41 @@ def run_provider_process(command: list[str], *, stdout: Any, stderr: Any,
             process.stdin.write(input_bytes)
             process.stdin.close()
         stable: tuple[int, int, float] | None = None
+        stable_path: Path | None = None
+        completion_candidates = tuple(
+            path for path in (completion_path, *completion_paths) if path is not None
+        )
         while process.poll() is None:
-            if completion_path is not None and completion_path.is_file():
-                snapshot = (completion_path.stat().st_size, completion_path.stat().st_mtime_ns)
-                if stable is None or stable[:2] != snapshot:
+            completed_path: Path | None = None
+            for candidate in completion_candidates:
+                try:
+                    snapshot = (candidate.stat().st_size, candidate.stat().st_mtime_ns)
+                except FileNotFoundError:
+                    continue
+                if candidate != completion_path and snapshot[1] < completion_started_ns:
+                    continue
+                if stable_path != candidate or stable is None or stable[:2] != snapshot:
+                    stable_path = candidate
                     stable = (*snapshot, time.monotonic())
                 elif time.monotonic() - stable[2] >= 2:
+                    completed_path = candidate
+                    break
+            if completed_path is not None:
+                if completion_path is not None and completed_path != completion_path:
+                    shutil.copyfile(completed_path, completion_path)
+                    os.chmod(completion_path, 0o600)
+                try:
+                    terminate_process_tree(process)
+                except PermissionError:
+                    # macOS can deny a group signal after the provider has
+                    # already sealed its result. Stop the leader directly
+                    # and wait; never report success while it remains alive.
                     try:
-                        terminate_process_tree(process)
+                        process.terminate()
                     except PermissionError:
-                        # macOS can deny a group signal after the provider has
-                        # already sealed its result. Stop the leader directly
-                        # and wait; never report success while it remains alive.
-                        try:
-                            process.terminate()
-                        except PermissionError:
-                            pass
-                        process.wait(timeout=5)
-                    return 0
+                        pass
+                    process.wait(timeout=5)
+                return 0
             if time.monotonic() >= deadline:
                 terminate_process_tree(process)
                 raise subprocess.TimeoutExpired(command, timeout)
@@ -1568,7 +1587,11 @@ def run() -> int:
         stdout_path = evidence_dir / f"attempt-{index:02d}.stdout.log"
         stderr_path = evidence_dir / f"attempt-{index:02d}.stderr.log"
         result_path = evidence_dir / f"attempt-{index:02d}.result.json"
-        for stale_path in (stdout_path, stderr_path, result_path):
+        completion_fallback_paths = (
+            tuple(evidence_dir / name for name in ("pass-result.json", "mercor-pass-result.json"))
+            if parsed.task_label == "mercor_pass" else ()
+        )
+        for stale_path in (stdout_path, stderr_path, result_path, *completion_fallback_paths):
             stale_path.unlink(missing_ok=True)
         budget_event_id = f"agent-budget-{uuid.uuid4().hex}"
         if budget_enabled:
@@ -1652,6 +1675,7 @@ def run() -> int:
                             ),
                         ),
                         completion_path=result_path,
+                        completion_paths=completion_fallback_paths,
                         lease_fd=lease_fd,
                         deadline=total_deadline,
                     )
