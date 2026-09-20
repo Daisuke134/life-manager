@@ -169,3 +169,48 @@ def test_release_cannot_dispose_context_after_same_task_reacquires(monkeypatch, 
 
     assert release_result["released"] == "client-1"
     assert acquire_result["context_id"] != "context-1"
+
+
+def test_release_serializes_browser_context_disposal(monkeypatch, tmp_path):
+    module = load_module()
+    leases_file = tmp_path / "leases.json"
+    monkeypatch.setenv("CLOAK_CONTEXT_LEASES_FILE", str(leases_file))
+    monkeypatch.setenv(
+        "CLOAK_CONTEXT_DISPOSE_LOCK_FILE", str(tmp_path / "dispose.lock"),
+    )
+    module._save({
+        "client-1": {
+            "token": "one", "generation": 1, "context_id": "context-1",
+            "target_id": "target-1", "ws": "ws://target-1", "pid": None, "ts": 1,
+        },
+        "client-2": {
+            "token": "two", "generation": 1, "context_id": "context-2",
+            "target_id": "target-2", "ws": "ws://target-2", "pid": None, "ts": 1,
+        },
+    })
+    active = 0
+    max_active = 0
+    state_lock = threading.Lock()
+
+    async def dispose(pairs, timeout=None):
+        nonlocal active, max_active
+        assert pairs[0][0] == "Target.disposeBrowserContext"
+        with state_lock:
+            active += 1
+            max_active = max(max_active, active)
+        time.sleep(0.05)
+        with state_lock:
+            active -= 1
+        return [{}]
+
+    monkeypatch.setattr(module, "_calls", dispose)
+    threads = [
+        threading.Thread(target=module.release, args=(task, token, 1))
+        for task, token in (("client-1", "one"), ("client-2", "two"))
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(2)
+
+    assert max_active == 1
