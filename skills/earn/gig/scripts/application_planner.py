@@ -13,6 +13,7 @@ import json
 import re
 import sys
 import unicodedata
+from difflib import SequenceMatcher
 from pathlib import Path
 
 from application_snapshot import stable_request_text, validate_snapshot
@@ -103,6 +104,26 @@ def _work_fit():
 
 
 HARD_PROHIBITION_CLASSES = _work_fit().HARD_PROHIBITION_CLASSES
+
+
+def _evidence_excerpt_in_visible_text(excerpt: str, visible_text: str) -> bool:
+    """Accept a faithful excerpt when the page inserts a short role qualifier."""
+    excerpt = stable_request_text(excerpt)
+    visible_text = stable_request_text(visible_text)
+    if not excerpt or excerpt in visible_text:
+        return bool(excerpt)
+    if len(excerpt) < 20:
+        return False
+    matcher = SequenceMatcher(None, excerpt, visible_text, autojunk=False)
+    block = matcher.find_longest_match(0, len(excerpt), 0, len(visible_text))
+    if block.size < max(12, int(len(excerpt) * 0.55)):
+        return False
+    margin = max(8, int(len(excerpt) * 0.2))
+    start = max(0, block.b - block.a - margin)
+    end = min(len(visible_text), start + int(len(excerpt) * 1.5) + 1)
+    return SequenceMatcher(
+        None, excerpt, visible_text[start:end], autojunk=False,
+    ).ratio() >= 0.88
 
 
 def common_marketplace_feasibility_policy() -> str:
@@ -314,7 +335,9 @@ def validate_decisions(
                         errors.append(f"decision[{index}]_hard_prohibited_evidence_length_invalid")
                     elif (
                         not isinstance(row_detail, dict)
-                        or excerpt not in stable_request_text(row_detail["visible_text"])
+                        or not _evidence_excerpt_in_visible_text(
+                            excerpt, row_detail["visible_text"]
+                        )
                     ):
                         errors.append(
                             f"decision[{index}]_hard_prohibited_evidence_not_in_visible_text"
