@@ -759,7 +759,7 @@ class LmLoopApplyTest(unittest.TestCase):
             environment["CLOAK_TARGET_OWNERS_FILE"],
             str(Path.home() / ".cloak/vault/coconala-reply-targets.json"),
         )
-        self.assertEqual(environment["CLOAK_CONTEXT_PARK_ON_IDLE"], "1")
+        self.assertEqual(environment["CLOAK_CONTEXT_PARK_ON_IDLE"], "0")
 
     def test_realtime_guide_plist_projects_canonical_env(self):
         entrypoint = "skills/anicca-life-manager/scripts/realtime_guide.py"
