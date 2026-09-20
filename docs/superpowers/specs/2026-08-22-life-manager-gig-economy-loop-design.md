@@ -773,6 +773,67 @@ coverage, publish one Storefront mutation, and only then resume normal cadence. 
 host prerequisite when the measured floor is crossed, but it is never a substitute for provider
 readback.
 
+### 0.2B Current stepwise refresh (measured 2026-09-20 09:36 JST)
+
+This is the newest live cursor for the one-by-one Coconala repair. It supersedes older “current
+fence” wording above while preserving every historical receipt. No provider retry was made while
+resolving either fence.
+
+- **Apply occurrence resolution:**
+  `hf-gig-apply-direct:18d6bd3a3f9c1bb8-94667` was resolved earlier with the exact official
+  application receipt for request `5277144` plus the no-effect disposition for planner request
+  `5268696`. The admission row is `released/effect_unknown=0`; the next Apply rows are queued and
+  do not authorize a blind resend. The unresolved code defect remains at
+  `skills/earn/gig/scripts/application_planner.py:320`:
+  `hard_prohibited_evidence_not_in_visible_text`.
+- **Storefront occurrence resolutions:**
+  `hf-gig-storefront-direct:18d5fd193aa926f0-9464` is resolved by the pre-effect proof at
+  `~/gig/storefront-direct/evidence/a14-occurrence-18d5fd193aa926f0-9464/pre-effect-proof.json`
+  (SHA-256 `d7fd117b0c6e2078a4cedb6cf34011b0fe37c126463db959259c10d667b36862`) and its adjacent
+  resolution receipt (SHA-256 `205d46204295a53e5c3c53e8dd1886991fe5bb1adcfe804048bdd3d279618bcb`).
+  The later coalesced occurrence
+  `hf-gig-storefront-direct:18d5fd276ec84250-10484` is resolved by
+  `a15-occurrence-18d5fd276ec84250-10484/pre-effect-proof.json` (SHA-256
+  `2ad102b8dae912f191478a12fd5bb3a4b46e2ba1aeac87b3ededa5b15f406166`) and its adjacent
+  resolution receipt (SHA-256 `092ce747f3e1d708b921e288956c72346da08047b74a21e1a74c61478e6075b8`).
+  Both proofs bind the event chain, show zero effect-intents prepared at or after the occurrence,
+  and show the official Coconala inventory at 19 public services with only the existing draft
+  `4356229`. Both DB readbacks are `released/effect_unknown=0`, with `integrity_check=ok`.
+- **Storefront failure boundary:** the natural run
+  `storefront-direct-1789863704867461000-14128` ended `entrypoint_exit_1` with
+  `no close frame received or sent`, while its official inventory readback was complete and its
+  result had `effect=0/readback=0`. The failure is in cleanup of a read-only CDP WebSocket after
+  page observation, not a Coconala publish receipt and not evidence that a publish was attempted.
+  Historical stderr also contains `Errno 28 No space left on device` and SQLite lock errors; the
+  current read-only `df` probe now reports about 23 GiB available, so ENOSPC is recorded as the
+  historical host cause, not silently conflated with the current browser cleanup boundary.
+- **Code patch:** branch `fix/coconala-storefront-close-20260920`, commit `108e38b`, adds
+  `_cdp_session()` in `skills/earn/gig/scripts/listing_inventory.py`. It suppresses only the
+  exact cleanup disconnect string `no close frame received or sent` for read-only inventory and
+  category sockets. Page-read exceptions and other cleanup errors still fail. Focused evidence:
+  `test_cdp_connect_retry.py` 9 passed, `test_storefront_direct.py` 41 passed,
+  `test_storefront_per_item_failures.py` 9 passed, and
+  `test_storefront_competitor_transient.py` 5 passed. The patch is pushed but not merged into
+  `main`, not cut into an immutable release, and not loaded by the live Storefront plist.
+
+**New atomic cursor (only item 1 is active):**
+
+1. Merge `108e38b`, cut one immutable main-derived release, target-apply Storefront at a safe
+   idle point, and read back loaded argv plus the 9223 browser environment. Then wait for one
+   natural Storefront wake and capture its terminal event, official inventory/public mutation
+   readback, and replay-zero. A no-op must carry the same official inventory and no-dispatch proof.
+2. Fix the Apply planner evidence boundary for request `5268696`; add the smallest regression for
+   the visible-text/prohibited-reason mismatch, then let the normal natural owner run. Do not
+   resend `5277144`.
+3. Complete one natural retainer Apply with an official retainer/talkroom receipt.
+4. Repair Reply's `context_cleanup_pending` coverage boundary and produce a fresh message-coverage
+   receipt; missing containers cannot mean an empty inbox.
+5. Read and complete the four official active Paid talkrooms (Ryu, Chii, and the two こころ支援
+   items), each with buyer-visible correctness and delivery/payment evidence.
+6. Handle Hirose direct message `10070709` as a separate pre-purchase one-image test-edit item;
+   it is not a review-slot wait and has no Paid order.
+7. Align all four loaded immutable releases/envs and write the final replay-zero closeout receipt.
+
 ## 1. Goal, objective and boundaries
 
 ### 1.1 Goal
