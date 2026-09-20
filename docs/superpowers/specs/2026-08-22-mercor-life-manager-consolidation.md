@@ -63,7 +63,13 @@ For every Telegram human-gate message, the operator follows this exact sequence:
    authentication step; it is not evidence that the application step is complete.
 3. Read the named job and exact remaining provider step. Complete only that step personally:
    interview, graded assessment, voice recording, camera, microphone, or screen sharing as shown.
-4. Use Mercor's own final `Submit`/`Complete` control. Do not ask the loop to impersonate the
+   For the Japanese Voice Actor assessment, the loop may upload only the seven files in the
+   private approved-recordings manifest when the exact provider page visibly exposes file-upload
+   slots. Each upload requires fresh provider readback; an upload never counts as assessment
+   completion by itself. Live recording, camera, microphone, screen share, AI interview, and
+   free-response answers remain human-only.
+4. Use Mercor's own final `Submit`/`Complete` control after Mercor marks every required step
+   `Completed` or `reused`. Do not ask the loop to impersonate the
    interview, fabricate a recording, or infer an answer that is not in the private fact profile.
 5. Stop after the provider confirms completion. No chat reply or database edit is required; the next
    wake reads the same account/listing/step from Mercor and resumes automatically.
@@ -81,11 +87,13 @@ that state. The operator does not need to keep the browser open after the provid
    verified retry, then obtain a natural wake that reaches the validator and passes it. The current
    operational blocker remains before provider scan: repeated `entrypoint_exit_75` with admission/control
    contention and browser WebSocket failures.
-2. **Human-bound steps:** deliver one current link per exact gate. The user completes Voice Actor,
+2. **Human-bound steps and approved artifacts:** deliver one current link per exact gate. The loop
+   uploads the seven approved Voice Actor recordings only when the exact assessment page exposes
+   file slots and verifies each upload; the user completes Voice Actor's live interview/assessment,
    PDF Annotation Bilingual Competency, Consultant Style and Midas, Bilingual Competency/interview,
    and any VS Code interview. The next wake verifies the same account/listing/step as `Completed`
    or `reused` and resumes automatically. Do not impersonate interviews, assessments, recording,
-   camera, microphone, or screen sharing.
+   camera, microphone, screen sharing, or free-response answers.
 3. **Sonic identity:** obtain the official `Unique Candidate ID` from Mercor UI or message, store it
    in private state, and resume the intake form. Do not submit an empty or inferred ID.
 4. **Resident continuity:** prove two natural scheduled Mercor wakes and one Inbox wake from the

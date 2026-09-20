@@ -199,6 +199,19 @@ def _profile_material(profile_path: Path, resume_path: Path) -> dict[str, Any]:
     }
 
 
+def _approved_recordings_manifest(state_root: Path) -> Path | None:
+    """Return the newest private operator-approved recording manifest, if present."""
+    candidates = sorted(
+        state_root.parent.glob("voice-actor-recordings-manifest-*.json"),
+        key=lambda path: path.name,
+        reverse=True,
+    )
+    for path in candidates:
+        if path.is_file():
+            return path.resolve()
+    return None
+
+
 def build_context(
     *,
     state_root: Path,
@@ -253,6 +266,9 @@ def build_context(
         "cdp_url": cdp_url,
         "cdp_page_ws": cdp_page_ws,
     }
+    recordings_manifest = _approved_recordings_manifest(state_root)
+    if recordings_manifest is not None:
+        context["approved_recordings_manifest"] = str(recordings_manifest)
     proposal_path = state_root / "profile-proposal.json"
     if proposal_path.is_file():
         context["profile_proposal_path"] = str(proposal_path.resolve())

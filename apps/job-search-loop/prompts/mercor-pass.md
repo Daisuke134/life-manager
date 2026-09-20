@@ -218,7 +218,14 @@ Pass order:
    role's visible `Completed` or `reused` state to decide whether that interview
    satisfies this application.
    If a new interview, assessment, camera/screen-share ceremony or other person-bound
-   step is required, first finish all reversible automated steps.
+   step is required, first finish all reversible automated steps. If the bounded context
+   includes `approved_recordings_manifest` and the exact assessment page visibly offers
+   file upload, upload only the approved recordings listed by that manifest, one provider
+   slot at a time, and save fresh provider readback after every upload. Do not treat upload
+   as assessment completion, invent a slot, or click a final assessment Submit without
+   official completion/reuse. If the step asks for live recording, camera, microphone,
+   screen sharing, an AI interview, or free-response assessment answers, stop at that step
+   and notify the human gate.
    Follow `shared_apply_context.policy.ranking.band_definitions`: general software or AI
    overlap alone never makes a senior/specialist role high when the posting contains a
    material seniority, language, location, or domain contradiction. For a low-band
