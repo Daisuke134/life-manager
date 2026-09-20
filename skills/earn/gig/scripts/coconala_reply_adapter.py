@@ -118,6 +118,11 @@ class CoconalaReplyAdapter:
 
     def _read_thread(self, thread_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
         url = f"https://coconala.com/mypage/direct_message/{thread_id}"
+        transient_read_errors = {
+            "authenticated tab did not finish navigation",
+            "collector_unhealthy:unexpected_title",
+            "collector_unhealthy:dm_attachment_message_identity_changed",
+        }
         for attempt in range(2):
             try:
                 with reply_browser.CoconalaCdpReplyBrowser(
@@ -130,10 +135,7 @@ class CoconalaReplyAdapter:
                     self._raw_threads[thread_id] = browser.raw
                     return result
             except RuntimeError as error:
-                if (
-                    str(error) != "authenticated tab did not finish navigation"
-                    or attempt == 1
-                ):
+                if str(error) not in transient_read_errors or attempt == 1:
                     raise
         raise AssertionError("unreachable")
 

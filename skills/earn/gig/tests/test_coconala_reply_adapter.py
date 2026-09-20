@@ -276,6 +276,47 @@ def test_read_thread_retries_only_pre_effect_navigation_timeout(monkeypatch, tmp
     assert bounded["last_sender"] == "buyer"
 
 
+@pytest.mark.parametrize(
+    "transient_error",
+    [
+        "collector_unhealthy:unexpected_title",
+        "collector_unhealthy:dm_attachment_message_identity_changed",
+    ],
+)
+def test_read_thread_retries_transient_read_boundary(monkeypatch, tmp_path, transient_error):
+    attempts = []
+
+    class Browser:
+        raw = {"messages": [{"message_id": "m1"}]}
+
+        def __init__(self, *_args, **_kwargs):
+            attempts.append(self)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read_before(self):
+            if len(attempts) == 1:
+                raise RuntimeError(transient_error)
+            return ({
+                "conversation": [{"side": "buyer", "message_id": "m1", "body": "質問"}],
+            }, {"last_sender": "buyer"})
+
+    monkeypatch.setattr(adapter_module.reply_browser, "CoconalaCdpReplyBrowser", Browser)
+    adapter = adapter_module.CoconalaReplyAdapter(
+        state_root=tmp_path, inventory_reader=lambda: [],
+    )
+
+    context, bounded = adapter._read_thread("12")
+
+    assert len(attempts) == 2
+    assert context["conversation"][-1]["message_id"] == "m1"
+    assert bounded["last_sender"] == "buyer"
+
+
 def test_read_thread_does_not_retry_non_navigation_failure(monkeypatch, tmp_path):
     attempts = []
 
