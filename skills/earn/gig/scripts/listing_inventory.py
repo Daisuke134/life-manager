@@ -34,6 +34,7 @@ import os
 import re
 import subprocess
 import sys
+from contextlib import asynccontextmanager
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -299,8 +300,42 @@ async def _cdp_connect(ws_url: str):
     raise last
 
 
+def _is_cleanup_disconnect(error: BaseException) -> bool:
+    """Recognize a socket that was already gone while a read-only page closed."""
+    return "no close frame received or sent" in str(error).lower()
+
+
+@asynccontextmanager
+async def _cdp_session(ws_url: str):
+    """Use one read-only CDP socket without turning a missing close frame into a wake failure.
+
+    Errors raised while the caller is reading the page remain fatal.  Only an error raised by
+    the websocket context manager after the caller returned is treated as a lost cleanup ack;
+    the browser has already dropped this read-only socket and there is no provider effect to
+    reconcile.
+    """
+    connection = await _cdp_connect(ws_url)
+    entered = await connection.__aenter__()
+    body_error: BaseException | None = None
+    try:
+        try:
+            yield entered
+        except BaseException as error:
+            body_error = error
+            raise
+    finally:
+        try:
+            await connection.__aexit__(
+                type(body_error), body_error,
+                body_error.__traceback__ if body_error is not None else None,
+            )
+        except BaseException as cleanup_error:
+            if not _is_cleanup_disconnect(cleanup_error):
+                raise
+
+
 async def _eval_json(ws_url: str, url: str, expression: str) -> dict:
-    async with await _cdp_connect(ws_url) as ws:
+    async with _cdp_session(ws_url) as ws:
         cid = 1
         await _call(ws, "Page.enable", {}, cid); cid += 1
         await ws.send(json.dumps({"id": cid, "method": "Page.navigate", "params": {"url": url}})); cid += 1
@@ -417,7 +452,7 @@ async def _fetch_category(
 
     os.environ["CLOAK_CDP_BASE_URL"] = cdp_base
     async with hidden_page_target(url) as ws_url:
-        async with await _cdp_connect(ws_url) as ws:
+        async with _cdp_session(ws_url) as ws:
             cid = 1
             await _call(ws, "Page.enable", {}, cid); cid += 1
             await ws.send(json.dumps({"id": cid, "method": "Page.navigate", "params": {"url": url}})); cid += 1

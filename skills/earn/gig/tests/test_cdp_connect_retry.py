@@ -33,6 +33,11 @@ class _Socket:
         return False
 
 
+class _CleanupDisconnectSocket(_Socket):
+    async def __aexit__(self, *exc):
+        raise OSError("no close frame received or sent")
+
+
 @pytest.fixture
 def connect(monkeypatch):
     calls, sleeps = [], []
@@ -95,6 +100,37 @@ def test_a_dropped_connection_is_retried_too(connect):
     assert len(calls) == 2
 
 
+def test_read_only_session_ignores_disconnect_during_cleanup(monkeypatch):
+    socket = _CleanupDisconnectSocket()
+
+    async def connect_once(_url):
+        return socket
+
+    monkeypatch.setattr(listing_inventory, "_cdp_connect", connect_once)
+
+    async def read_page():
+        async with listing_inventory._cdp_session("ws://x") as entered:
+            return entered
+
+    assert asyncio.run(read_page()) is socket
+
+
+def test_read_only_session_preserves_page_error_when_cleanup_disconnects(monkeypatch):
+    socket = _CleanupDisconnectSocket()
+
+    async def connect_once(_url):
+        return socket
+
+    monkeypatch.setattr(listing_inventory, "_cdp_connect", connect_once)
+
+    async def read_page():
+        async with listing_inventory._cdp_session("ws://x"):
+            raise ValueError("page read failed")
+
+    with pytest.raises(ValueError, match="page read failed"):
+        asyncio.run(read_page())
+
+
 def test_the_last_refusal_is_raised_unchanged(connect):
     install, _, _ = connect
     specific = OSError("server rejected WebSocket connection: HTTP 500")
@@ -107,7 +143,7 @@ def test_the_last_refusal_is_raised_unchanged(connect):
 def test_eval_json_goes_through_the_retrying_connect():
     source = (SCRIPTS / "listing_inventory.py").read_text(encoding="utf-8")
     block = source[source.index("async def _eval_json"):][:300]
-    assert "_cdp_connect" in block
+    assert "_cdp_session" in block
     assert "websockets.connect(" not in block
 
 
