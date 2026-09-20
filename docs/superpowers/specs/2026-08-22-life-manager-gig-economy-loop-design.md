@@ -785,7 +785,13 @@ resolving either fence.
   `5268696`. The admission row is `released/effect_unknown=0`; the next Apply rows are queued and
   do not authorize a blind resend. A newer current fence,
   `hf-gig-apply-direct:18d6bde12c541cc0-3706`, is now `claimed/effect_unknown=1` and must be
-  reconciled separately. The unresolved code defect remains at
+  reconciled separately. Diagnostic
+  `~/gig/apply-direct/a14-occurrence-18d6bde12c541cc0-3706/diagnostic.json` (SHA-256
+  `d181f3865cd7a37c27f32d5ad59681ff0e0692b352ee1a8062f39af23baafcc8`) binds the newer failed
+  run: official applied-history readbacks confirm `5280210`, `5280409`, `5281601`, `5281700`,
+  and `5281717`; `5280157` and `5281660` remain unresolved because the parent stopped with
+  `parent_failed_rc_2` and the history route returned `403 Forbidden`. The receipt set is therefore
+  incomplete and the resolver must remain closed. The unresolved code defect remains at
   `skills/earn/gig/scripts/application_planner.py:320`:
   `hard_prohibited_evidence_not_in_visible_text`.
 - **Storefront occurrence resolutions:**
