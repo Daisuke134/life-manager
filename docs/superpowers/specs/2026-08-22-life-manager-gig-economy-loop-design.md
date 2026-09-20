@@ -1094,6 +1094,30 @@ the same as a buyer-visible Coconala message or formal delivery.
    TikTok/Sheets evidence before any new seller report.
 5. Do not perform another manual browser probe during a Paid owner wake; use the next natural receipt.
 
+### 0.2I Ryu owner PASS, connector still pending (measured 2026-09-20 14:27 JST)
+
+- The current Ryu owner cycle reached v522 after two readback failures that correctly caused further
+  repair instead of a false PASS. The final remote result is
+  `~/gig/projects/18211957/delivery/paid-remote-result.json` with feedback SHA
+  `2291a538…`, `required_effect_satisfied=true`, `required_output_satisfied=true`, and four exact
+  official receipts. The buyer-requested production URL is `https://colors-hachioji.com/admin.php`;
+  the cache-safe management asset is
+  `https://colors-hachioji.com/management-editor.js?v=inline-preview-v522`.
+- The v522 browser receipt proves `date_cast_table=true`, `table_rows=12`, `time_inputs=24`,
+  `inline_preview=true`, and `save_publish=true`, with fresh mobile/desktop screenshots. API and
+  FTPS readbacks are also exact (`profiles=12`, `schedule=28`). This closes the remote owner work,
+  not the Coconala message effect.
+- The code-owned Coconala connector has not yet produced an exact seller-message receipt for the v522
+  message. The latest official talkroom readback still has
+  `buyer_visible_artifact_observed=false`, `formal_delivery_confirmed=false`, and
+  `buyer_feedback_pending_artifact=true`; therefore Ryu remains open. A new Paid owner invocation
+  is currently reading the changed feedback contract under the existing owner; no second browser
+  owner or manual message is allowed.
+
+**Atomic cursor:** wait for that Paid invocation to finish, then require one Coconala seller-message
+receipt bound to feedback SHA `2291a538…` and exact talkroom readback. Only after that may Ryu move to
+formal delivery/acceptance according to the official talkroom state.
+
 ## 1. Goal, objective and boundaries
 
 ### 1.1 Goal
