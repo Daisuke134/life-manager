@@ -39,6 +39,37 @@ requested_estimate = _load_module(
 )
 
 
+def test_inbox_http_failure_is_preserved_as_a_typed_collection_block(monkeypatch, tmp_path):
+    args = SimpleNamespace(
+        snapshot_script=tmp_path / "snapshot.py",
+        runner=tmp_path / "runner.py",
+        semantic_schema=tmp_path / "semantic.json",
+        semantic_effects_enabled=False,
+        database=tmp_path / "outbox.sqlite3",
+        manifest=tmp_path / "manifest.json",
+    )
+
+    def fail_collect(_step, command):
+        evidence_dir = Path(command[command.index("--evidence-dir") + 1])
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+        (evidence_dir / "snapshot-failure.json").write_text(
+            json.dumps({
+                "status": "failed",
+                "error": "collector_unhealthy:inbox_provider_http_error",
+                "source_receipt": {"provider_http_status": 404},
+            }),
+            encoding="utf-8",
+        )
+        raise detector.StepFailure("collect", 1)
+
+    monkeypatch.setattr(detector, "_run", fail_collect)
+
+    with pytest.raises(RuntimeError, match="inbox_provider_http_error"):
+        detector._collect_snapshot_with_retry(
+            args, tmp_path / "snapshot.json", tmp_path / "evidence",
+        )
+
+
 def test_default_tab_open_failure_preserves_helper_reason(monkeypatch, tmp_path):
     failure = snapshot.subprocess.CalledProcessError(
         1,

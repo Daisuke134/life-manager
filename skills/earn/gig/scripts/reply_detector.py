@@ -56,6 +56,18 @@ class StepFailure(RuntimeError):
         self.attempts = list(attempts or [])
 
 
+class CollectorBlocked(StepFailure):
+    """A typed provider observation block with a durable collector receipt."""
+
+    def __init__(
+        self, reason: str, returncode: int, *, receipt: dict[str, Any],
+        attempts: list[dict[str, Any]] | None = None,
+    ):
+        super().__init__(f"collector:{reason}", returncode, attempts=attempts)
+        self.reason = reason
+        self.receipt = dict(receipt)
+
+
 class TargetedIdentityChanged(ValueError):
     """The official inbox head changed before a targeted effect could start."""
 
@@ -147,6 +159,34 @@ def _collect_snapshot_with_retry(
                 collect_command.append("--semantic-effects-enabled")
             _run("collect", collect_command)
         except StepFailure as error:
+            failure_path = attempt_evidence / "snapshot-failure.json"
+            failure: dict[str, Any] | None = None
+            try:
+                loaded = json.loads(failure_path.read_text(encoding="utf-8"))
+                if isinstance(loaded, dict):
+                    failure = loaded
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                failure = None
+            collector_error = str(failure.get("error") or "") if failure else ""
+            if collector_error in {
+                "collector_unhealthy:inbox_access_forbidden",
+                "collector_unhealthy:inbox_provider_http_error",
+            }:
+                attempts.append({
+                    "attempt": number, "status": "blocked",
+                    "returncode": error.returncode,
+                    "error": collector_error,
+                    "source_receipt": failure.get("source_receipt"),
+                    "evidence_dir": str(attempt_evidence),
+                })
+                if number == 2:
+                    raise CollectorBlocked(
+                        collector_error,
+                        error.returncode,
+                        receipt=failure,
+                        attempts=attempts,
+                    ) from error
+                continue
             attempts.append({
                 "attempt": number, "status": "failed",
                 "returncode": error.returncode,
@@ -2616,6 +2656,30 @@ def main() -> int:
             _persist_wake_report(args, output, result)
             print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))
             return 0 if result["status"] == "completed" else 1
+        except CollectorBlocked as error:
+            blocker = {
+                "collector_unhealthy:inbox_access_forbidden":
+                    "provider_inbox_access_forbidden",
+                "collector_unhealthy:inbox_provider_http_error":
+                    "provider_inbox_http_error",
+            }.get(error.reason, error.reason)
+            blocked = {
+                **_wake_result(
+                    run_id=run_id, trigger=args.trigger, status="blocked",
+                ),
+                "blocker": blocker,
+                "error_detail": error.reason,
+                "effect": 0,
+                "official_readback": 0,
+                "pending": 0,
+                "failed": 0,
+                "collect_attempts": len(error.attempts),
+                "collect_attempt_receipts": error.attempts,
+                "source_receipt": error.receipt.get("source_receipt"),
+            }
+            _persist_wake_report(args, output, blocked)
+            print(json.dumps(blocked, ensure_ascii=False, separators=(",", ":")))
+            return 0
         except StepFailure as error:
             failure = {
                 **_wake_result(
