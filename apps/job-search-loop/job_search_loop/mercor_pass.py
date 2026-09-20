@@ -200,7 +200,14 @@ def _profile_material(profile_path: Path, resume_path: Path) -> dict[str, Any]:
 
 
 def _approved_recordings_manifest(state_root: Path) -> Path | None:
-    """Return the newest private operator-approved recording manifest, if present."""
+    """Return the recording manifest only after explicit private upload enablement."""
+    enable_marker = state_root.parent / "voice-actor-recordings-upload-enabled.json"
+    try:
+        marker = json.loads(enable_marker.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(marker, dict) or marker.get("version") != 1 or marker.get("enabled") is not True:
+        return None
     candidates = sorted(
         state_root.parent.glob("voice-actor-recordings-manifest-*.json"),
         key=lambda path: path.name,

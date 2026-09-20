@@ -301,6 +301,9 @@ class MercorPassContractTests(unittest.TestCase):
             state.mkdir(parents=True)
             manifest = state.parent / "voice-actor-recordings-manifest-20260917.json"
             manifest.write_text(json.dumps({"version": 1, "recordings": []}), encoding="utf-8")
+            (state.parent / "voice-actor-recordings-upload-enabled.json").write_text(
+                json.dumps({"version": 1, "enabled": True}), encoding="utf-8"
+            )
             context = build_context(
                 state_root=state,
                 profile_path=self._profile(root / "profile.json"),
@@ -308,6 +311,21 @@ class MercorPassContractTests(unittest.TestCase):
                 cdp_url="http://127.0.0.1:9222",
             )
             self.assertEqual(context["approved_recordings_manifest"], str(manifest.resolve()))
+
+    def test_context_holds_recording_manifest_until_private_enable_marker_exists(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = root / "mercor" / "application"
+            state.mkdir(parents=True)
+            manifest = state.parent / "voice-actor-recordings-manifest-20260917.json"
+            manifest.write_text(json.dumps({"version": 1, "recordings": []}), encoding="utf-8")
+            context = build_context(
+                state_root=state,
+                profile_path=self._profile(root / "profile.json"),
+                resume_path=root / "resume.pdf",
+                cdp_url="http://127.0.0.1:9222",
+            )
+            self.assertNotIn("approved_recordings_manifest", context)
 
     def test_context_exposes_only_private_profile_proposal_path_when_present(self):
         with tempfile.TemporaryDirectory() as directory:
