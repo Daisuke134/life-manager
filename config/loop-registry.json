@@ -1198,8 +1198,7 @@
       "cadence": {
         "calendar_interval": {
           "Hour": 9,
-          "Minute": 15,
-          "Weekday": 1
+          "Minute": 15
         }
       },
       "cleanup": {

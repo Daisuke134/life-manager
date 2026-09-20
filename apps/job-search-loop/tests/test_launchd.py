@@ -23,7 +23,7 @@ class LaunchdTests(unittest.TestCase):
         self.assertTrue(learning["RunAtLoad"])
         self.assertEqual(
             learning["StartCalendarInterval"],
-            {"Weekday": 1, "Hour": 9, "Minute": 15},
+            {"Hour": 9, "Minute": 15},
         )
         self.assertNotEqual(daily["Label"], inbox["Label"])
         self.assertNotEqual(daily["ProgramArguments"][0], inbox["ProgramArguments"][0])

@@ -399,7 +399,7 @@ raise SystemExit(0)
             self.assertEqual(inbox["StartInterval"], 900)
             self.assertEqual(
                 learning["StartCalendarInterval"],
-                {"Weekday": 1, "Hour": 9, "Minute": 15},
+                {"Hour": 9, "Minute": 15},
             )
             self.assertTrue(
                 daily["StandardOutPath"].startswith(
@@ -466,7 +466,7 @@ raise SystemExit(0)
             self.assertIn(
                 str(APP_ROOT / "scripts" / "run-learning.sh"), learning_service
             )
-            self.assertIn("OnCalendar=Sun *-*-* 09:15:00 Asia/Tokyo", learning_timer)
+            self.assertIn("OnCalendar=*-*-* 09:15:00 Asia/Tokyo", learning_timer)
             self.assertIn("Persistent=true", learning_timer)
             encoded = "\n".join(
                 path.read_text(encoding="utf-8") for path in unit_dir.iterdir()
