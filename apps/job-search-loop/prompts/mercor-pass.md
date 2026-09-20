@@ -48,6 +48,10 @@ Pass order:
    sentence to `document.body.innerText` as an exact string: Mercor combines or reformats fields. Write
    `claim_matches` only from the mapped provider fields, and set `parser_reviewed` true only after the
    résumé filename and those structured fields are visible after reload.
+   If a Profile section is blank because it is collapsed or lazy-rendered, open the corresponding visible
+   Profile section and wait for its values before saving readback. Do not set `parser_reviewed` true until
+   Summary, Work experience, Projects, Skills, and Languages are non-empty or the provider explicitly
+   reports that section has no values.
    When the supplied `profile-proposal.json` values match the live readback, copy the exact
    profile_version and field hashes from the supplied profile proposal into the final JSON;
    save a fresh local Profile/Résumé readback JSON under the current `evidence_dir` and use
