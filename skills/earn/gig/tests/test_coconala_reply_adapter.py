@@ -120,13 +120,21 @@ def test_only_exact_navigation_timeout_is_classified_as_observation_wait(tmp_pat
 
 
 @pytest.mark.parametrize(
-    "error_text",
+    "error_text,expected_reason",
     [
-        "collector_unhealthy:inbox_access_forbidden",
-        "collector_unhealthy:inbox_provider_http_error",
+        (
+            "collector_unhealthy:inbox_access_forbidden",
+            "provider_inbox_access_forbidden",
+        ),
+        (
+            "collector_unhealthy:inbox_provider_http_error",
+            "provider_inbox_http_error",
+        ),
     ],
 )
-def test_provider_inbox_access_errors_are_explicit_observation_waits(tmp_path, error_text):
+def test_provider_inbox_access_errors_are_explicit_observation_waits(
+    tmp_path, error_text, expected_reason,
+):
     adapter = adapter_module.CoconalaReplyAdapter(
         state_root=tmp_path, inventory_reader=lambda: [],
     )
@@ -134,7 +142,7 @@ def test_provider_inbox_access_errors_are_explicit_observation_waits(tmp_path, e
     classified = adapter.classify_observation_error(RuntimeError(error_text))
 
     assert classified == {
-        "reason": "provider_inbox_access_forbidden",
+        "reason": expected_reason,
         "remaining_work": ["Retry the authenticated Coconala inbox read and preserve the provider receipt"],
     }
 
@@ -254,6 +262,31 @@ def test_inventory_does_not_retry_non_transient_collector_failure(monkeypatch, t
         adapter._read_inventory()
 
     assert len(observations) == 1
+
+
+def test_inventory_classifies_default_tab_http_error(monkeypatch, tmp_path):
+    def inspect(*_args, **_kwargs):
+        raise RuntimeError(
+            "failed to open authenticated default tab: "
+            "HTTPError: HTTP Error 404: Not Found"
+        )
+
+    monkeypatch.setattr(adapter_module.snapshot, "inspect_page_with_retry", inspect)
+    adapter = adapter_module.CoconalaReplyAdapter(state_root=tmp_path)
+
+    with pytest.raises(
+        adapter_module.snapshot.CollectorUnhealthy,
+        match="inbox_provider_http_error",
+    ) as raised:
+        adapter._read_inventory()
+
+    assert raised.value.details == {
+        "provider_http_status": 404,
+        "helper_error": (
+            "failed to open authenticated default tab: "
+            "HTTPError: HTTP Error 404: Not Found"
+        ),
+    }
 
 
 def test_read_thread_retries_only_pre_effect_navigation_timeout(monkeypatch, tmp_path):

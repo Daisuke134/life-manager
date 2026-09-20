@@ -114,6 +114,26 @@ class CoconalaReplyAdapter:
             except snapshot.CollectorUnhealthy as error:
                 if str(error) not in transient or attempt == 1:
                     raise
+            except RuntimeError as error:
+                message = str(error)
+                if not message.startswith("failed to open authenticated default tab:"):
+                    raise
+                match = re.search(r"HTTP Error (\d{3})", message)
+                if match is None:
+                    raise
+                status = int(match.group(1))
+                reason = (
+                    "inbox_access_forbidden"
+                    if status == 403
+                    else "inbox_provider_http_error"
+                )
+                raise snapshot.CollectorUnhealthy(
+                    reason,
+                    {
+                        "provider_http_status": status,
+                        "helper_error": message,
+                    },
+                ) from error
         raise AssertionError("unreachable")
 
     def _read_thread(self, thread_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -266,12 +286,16 @@ class CoconalaReplyAdapter:
         message = str(error)
         if message == "authenticated tab did not finish navigation":
             return {"reason": "provider_readback_temporarily_unavailable"}
-        if message in {
-            "collector_unhealthy:inbox_access_forbidden",
-            "collector_unhealthy:inbox_provider_http_error",
-        }:
+        if message == "collector_unhealthy:inbox_access_forbidden":
             return {
                 "reason": "provider_inbox_access_forbidden",
+                "remaining_work": [
+                    "Retry the authenticated Coconala inbox read and preserve the provider receipt",
+                ],
+            }
+        if message == "collector_unhealthy:inbox_provider_http_error":
+            return {
+                "reason": "provider_inbox_http_error",
                 "remaining_work": [
                     "Retry the authenticated Coconala inbox read and preserve the provider receipt",
                 ],
