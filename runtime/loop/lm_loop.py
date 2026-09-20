@@ -49,7 +49,25 @@ def _pending_admission_owners() -> set[str]:
                UNION
                SELECT o.owner_id FROM occurrences o
                  JOIN queue q ON q.owner_id=o.owner_id
-                WHERE o.state='queued' AND o.effect_unknown=0""")}
+               WHERE o.state='queued' AND o.effect_unknown=0""")}
+
+
+def _admission_effect_unknown_owners() -> set[str]:
+    """Read current effect fences so status does not trust a stale terminal event."""
+    database = admission_root() / "admission-v2.sqlite3"
+    try:
+        database.stat()
+    except FileNotFoundError:
+        return set()
+    try:
+        with sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True, timeout=1) as connection:
+            return {
+                owner_id for (owner_id,) in connection.execute(
+                    "SELECT DISTINCT owner_id FROM occurrences WHERE effect_unknown=1"
+                )
+            }
+    except sqlite3.Error:
+        return set()
 
 
 @contextmanager
@@ -113,7 +131,8 @@ def _next_eligible(cadence: dict) -> str:
 
 
 def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
-                installed_releases: dict) -> list[dict]:
+                installed_releases: dict,
+                admission_effect_unknown: set[str] | None = None) -> list[dict]:
     validate_registry(registry)
     rows = []
     for loop_id in sorted(registry["loops"]):
@@ -127,6 +146,19 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         else:
             launchd_state = "unloaded"
         event = events.get(loop_id) or {}
+        current_effect_unknown = (
+            None if admission_effect_unknown is None
+            else loop_id in admission_effect_unknown
+        )
+        stale_event = None
+        blocker = event.get("blocker")
+        if (
+            admission_effect_unknown is not None
+            and current_effect_unknown is False
+            and blocker == "host_admission_deferred:resource_effect_unknown"
+        ):
+            stale_event = "resource_effect_unknown_resolved"
+            blocker = None
         rows.append({
             "classification": "managed",
             "owner": "life-manager",
@@ -147,15 +179,24 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "effect_status": event.get("effect_status", "unknown"),
             "event_release_sha": event.get("release_sha"),
             "next_eligible_run": _next_eligible(entry["cadence"]),
-            "blocker": event.get("blocker"),
+            "blocker": blocker,
+            "admission_effect_unknown": current_effect_unknown,
+            "stale_event": stale_event,
         })
     return rows
 
 
 def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
-                  installed_releases: dict, installed_labels: set[str]) -> list[dict]:
-    rows = status_rows(registry, loaded=loaded, disabled=disabled, events=events,
-                       installed_releases=installed_releases)
+                    installed_releases: dict, installed_labels: set[str],
+                    admission_effect_unknown: set[str] | None = None) -> list[dict]:
+    rows = status_rows(
+        registry,
+        loaded=loaded,
+        disabled=disabled,
+        events=events,
+        installed_releases=installed_releases,
+        admission_effect_unknown=admission_effect_unknown,
+    )
     managed = {entry["label"] for entry in registry["loops"].values()}
     external = set(registry.get("external_labels", []))
     retired = set(registry.get("retired_labels", []))
@@ -395,11 +436,13 @@ def snapshot(registry: dict, target: str) -> list[dict]:
             selected_registry, full_inventory=False)
         return status_rows(
             selected_registry, loaded=loaded, disabled=disabled, events=events,
-            installed_releases=releases)
+            installed_releases=releases,
+            admission_effect_unknown=_admission_effect_unknown_owners())
     loaded, disabled, events, releases, installed = collect_live(registry)
     rows = resolver_rows(
         registry, loaded=loaded, disabled=disabled, events=events,
-        installed_releases=releases, installed_labels=installed)
+        installed_releases=releases, installed_labels=installed,
+        admission_effect_unknown=_admission_effect_unknown_owners())
     return _select(rows, target)
 
 
@@ -444,6 +487,7 @@ def targeted_snapshot(registry: dict, targets: set[str],
             disabled={label: disabled.get(label, False)},
             events={loop_id: event} if event else {},
             installed_releases={label: _release_from_plist(plist_path)},
+            admission_effect_unknown=_admission_effect_unknown_owners(),
         ))
     return rows
 
