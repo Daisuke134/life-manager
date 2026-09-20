@@ -783,7 +783,9 @@ resolving either fence.
   `hf-gig-apply-direct:18d6bd3a3f9c1bb8-94667` was resolved earlier with the exact official
   application receipt for request `5277144` plus the no-effect disposition for planner request
   `5268696`. The admission row is `released/effect_unknown=0`; the next Apply rows are queued and
-  do not authorize a blind resend. The unresolved code defect remains at
+  do not authorize a blind resend. A newer current fence,
+  `hf-gig-apply-direct:18d6bde12c541cc0-3706`, is now `claimed/effect_unknown=1` and must be
+  reconciled separately. The unresolved code defect remains at
   `skills/earn/gig/scripts/application_planner.py:320`:
   `hard_prohibited_evidence_not_in_visible_text`.
 - **Storefront occurrence resolutions:**
@@ -818,26 +820,39 @@ resolving either fence.
   category sockets. Page-read exceptions and other cleanup errors still fail. Focused evidence:
   `test_cdp_connect_retry.py` 9 passed, `test_storefront_direct.py` 41 passed,
   `test_storefront_per_item_failures.py` 9 passed, and
-  `test_storefront_competitor_transient.py` 5 passed. The patch is pushed but not merged into
-  `main`, not cut into an immutable release, and not loaded by the live Storefront plist.
+  `test_storefront_competitor_transient.py` 5 passed. The patch was then merged and loaded as
+  recorded below.
 
-**New atomic cursor (only item 1 is active):**
+**Storefront item 1 completion:** PR #5723 was admin-squash-merged as main
+`1c11bda318047375ef2fe4183acabd232d19c20e`. Immutable release
+`/Users/anicca/loops/releases/20260920T094726-1c11bda3` was cut and Storefront-only target-apply
+read back the required 9223 browser environment. The target receipt is
+`~/gig/storefront-direct/evidence/a17-target-apply-1c11bda3.json` (SHA-256
+`93034a2ef67fc0cb607e5b1277679efa52f239dd341ebbd7c3edc07555da7302`). The first natural wake
+from this release, run `18d6e13eeefdf2e8-60512`, ended `status=pass`; its official inventory readback
+observed 20 services and the result was a no-op with no new mutation contract. No
+`no close frame received or sent` error occurred. The earlier d448 wake had already created and
+officially read back service `4409818` at
+`https://coconala.com/services/4409818` with `effect=1`, `public_effect=1`, and
+`readback=1`; the patched wake did not duplicate it. Storefront's current admission rows are
+`effect_unknown=0`.
 
-1. Merge `108e38b`, cut one immutable main-derived release, target-apply Storefront at a safe
-   idle point, and read back loaded argv plus the 9223 browser environment. Then wait for one
-   natural Storefront wake and capture its terminal event, official inventory/public mutation
-   readback, and replay-zero. A no-op must carry the same official inventory and no-dispatch proof.
-2. Fix the Apply planner evidence boundary for request `5268696`; add the smallest regression for
-   the visible-text/prohibited-reason mismatch, then let the normal natural owner run. Do not
-   resend `5277144`.
-3. Complete one natural retainer Apply with an official retainer/talkroom receipt.
-4. Repair Reply's `context_cleanup_pending` coverage boundary and produce a fresh message-coverage
+**New atomic cursor (only item 2 is active):**
+
+1. [x] Merge `108e38b`, cut the immutable release, target-apply Storefront, and verify one natural
+   pass plus official inventory/readback and replay-zero.
+2. Reconcile Apply occurrence `hf-gig-apply-direct:18d6bde12c541cc0-3706` with an exact provider
+   receipt or occurrence-bound pre-effect proof; do not resend `5277144`.
+3. Fix the Apply planner evidence boundary for request `5268696`; add the smallest regression for
+   the visible-text/prohibited-reason mismatch, then let the normal natural owner run.
+4. Complete one natural retainer Apply with an official retainer/talkroom receipt.
+5. Repair Reply's `context_cleanup_pending` coverage boundary and produce a fresh message-coverage
    receipt; missing containers cannot mean an empty inbox.
-5. Read and complete the four official active Paid talkrooms (Ryu, Chii, and the two こころ支援
+6. Read and complete the four official active Paid talkrooms (Ryu, Chii, and the two こころ支援
    items), each with buyer-visible correctness and delivery/payment evidence.
-6. Handle Hirose direct message `10070709` as a separate pre-purchase one-image test-edit item;
+7. Handle Hirose direct message `10070709` as a separate pre-purchase one-image test-edit item;
    it is not a review-slot wait and has no Paid order.
-7. Align all four loaded immutable releases/envs and write the final replay-zero closeout receipt.
+8. Align all four loaded immutable releases/envs and write the final replay-zero closeout receipt.
 
 ## 1. Goal, objective and boundaries
 
