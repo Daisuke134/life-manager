@@ -2286,6 +2286,14 @@ def _project_identity_snapshot(root: Path, exclude: Path) -> dict[str, tuple[Any
     for path in sorted(root.rglob("*")):
         try:
             if exclude == path or exclude in path.parents: continue
+            if path.name in {
+                ".paid-remote-owner-private-data.sb",
+                ".paid-remote-verifier-private-data.sb",
+            }:
+                # _private_model_runner creates these owned Seatbelt profiles for the
+                # model boundary itself. They are control-plane artifacts, not buyer
+                # project mutations, and the verifier is expected to create its own.
+                continue
             if "__pycache__" in path.parts or path.suffix in {".pyc", ".pyo"}: continue
             info = path.lstat()
         except OSError as error: raise Failure("remote_verifier") from error

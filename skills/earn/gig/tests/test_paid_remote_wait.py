@@ -3998,6 +3998,23 @@ def test_project_identity_snapshot_ignores_python_bytecode(tmp_path):
     assert not any("__pycache__" in path or path.endswith(".pyc") for path in snapshot)
 
 
+def test_project_identity_snapshot_ignores_owned_private_sandbox_profiles(tmp_path):
+    paid = load("paid_direct")
+    root = tmp_path / "project"
+    verifier = root / "evidence" / "agent-PAID_REMOTE_VERIFY"
+    verifier.mkdir(parents=True)
+    context = root / "context"
+    context.mkdir()
+    (context / ".paid-remote-verifier-private-data.sb").write_text("profile\n")
+    (context / ".paid-remote-owner-private-data.sb").write_text("profile\n")
+    (context / "buyer-contract.json").write_text("{}\n")
+
+    snapshot = paid._project_identity_snapshot(root, verifier)
+
+    assert "context/buyer-contract.json" in snapshot
+    assert not any(path.endswith("-private-data.sb") for path in snapshot)
+
+
 def test_consultation_owner_cannot_overwrite_remote_repair_pending(tmp_path):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)
