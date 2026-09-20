@@ -1146,6 +1146,25 @@ formal delivery/acceptance according to the official talkroom state.
    `18d5fe2cfd5ce560-29338`, Chii correctness, Hirose `10070709`, and the final SHA/env/replay-zero
    closeout in that order.
 
+### 0.2K Latest Reply/Paid terminal receipts (measured 2026-09-20 15:45 JST)
+
+- Reply on loaded c5 (`c5d97196…`) now has a clean natural no-effect pass:
+  `observed=186`, `effect=0`, `readback=170`, `failed=0`, `pending=16`, process exit 0.
+  The inbox access boundary is explicit and no generic `entrypoint_exit_1` remains for the
+  collector failure path. The main-derived e0d2/c5 release alignment is complete for Reply.
+- Ryu owner and independent verifier receipts are both PASS for feedback SHA `2291a538…`, but
+  the connector's presend official readback returned `collector_unhealthy:talkroom_history_empty`.
+  The connector sent `effect=0`; no duplicate or uncertain message was dispatched. The next fix
+  is PR #5751, which increases selected-talkroom history retry from two to three fresh tabs with
+  a one-second bounded delay and keeps fail-closed after the third attempt.
+- The Paid parent remains active under the existing c5 owner and must finish its current natural
+  wake before the new history-retry release can be targeted. No manual Coconala probe is allowed
+  during this owner wake.
+
+**Atomic cursor:** wait for the c5 Paid wake to finish, cut/apply the merged PR #5751 release to
+Paid, then require the exact v531 seller-message receipt and talkroom readback. After that, return to
+the still-fenced Apply and Storefront occurrences.
+
 ## 1. Goal, objective and boundaries
 
 ### 1.1 Goal
