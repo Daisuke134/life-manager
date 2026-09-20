@@ -36,6 +36,45 @@ class LmLoopReadonlyTest(unittest.TestCase):
                          ("blocked", "unknown", "provider_capacity"))
         self.assertNotEqual(row["installed_release_sha"], row["event_release_sha"])
 
+    def test_status_marks_resolved_effect_unknown_event_as_stale(self):
+        events = {"example": {
+            "timestamp": "2026-08-28T00:00:00Z",
+            "status": "pass",
+            "effect_status": "unknown",
+            "blocker": "host_admission_deferred:resource_effect_unknown",
+            "release_sha": "a" * 40,
+        }}
+        row = status_rows(
+            REGISTRY,
+            loaded={},
+            disabled={},
+            events=events,
+            installed_releases={},
+            admission_effect_unknown=set(),
+        )[0]
+        self.assertIsNone(row["blocker"])
+        self.assertFalse(row["admission_effect_unknown"])
+        self.assertEqual(row["stale_event"], "resource_effect_unknown_resolved")
+
+    def test_status_preserves_live_effect_unknown_fence(self):
+        events = {"example": {
+            "timestamp": "2026-08-28T00:00:00Z",
+            "status": "blocked",
+            "effect_status": "unknown",
+            "blocker": "host_admission_deferred:resource_effect_unknown",
+        }}
+        row = status_rows(
+            REGISTRY,
+            loaded={},
+            disabled={},
+            events=events,
+            installed_releases={},
+            admission_effect_unknown={"example"},
+        )[0]
+        self.assertEqual(row["blocker"], "host_admission_deferred:resource_effect_unknown")
+        self.assertTrue(row["admission_effect_unknown"])
+        self.assertIsNone(row["stale_event"])
+
     def test_doctor_lists_unmanaged_and_missing(self):
         report = doctor_report(REGISTRY,
             installed_labels={"ai.anicca.example", "ai.anicca.unmanaged"},
