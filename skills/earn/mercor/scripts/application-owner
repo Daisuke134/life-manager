@@ -7,7 +7,9 @@ LEASE_PYTHON="${LIFE_MANAGER_LEASE_PYTHON:-/usr/bin/python3}"
 STATE_ROOT="${LIFE_MANAGER_STATE_ROOT:?LIFE_MANAGER_STATE_ROOT is required}"
 LEASE_SCRIPT="$ROOT/skills/browser/scripts/cdp_context_lease.py"
 TASK="mercor-revenue-application"
-CDP="http://127.0.0.1:9222"
+# localhost resolves to the managed Chromium IPv6 listener on this host. The
+# IPv4 address is occupied by an unrelated Chrome endpoint returning 404/500.
+CDP="http://localhost:9222"
 LEASE_JSON="$STATE_ROOT/browser-lease.json"
 WRITEBACK_JSON="$STATE_ROOT/session-writeback.json"
 AUTH_READBACK_JSON="$STATE_ROOT/auth-readback.json"
