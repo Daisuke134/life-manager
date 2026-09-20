@@ -872,6 +872,23 @@ officially read back service `4409818` at
    it is not a review-slot wait and has no Paid order.
 8. Align all four loaded immutable releases/envs and write the final replay-zero closeout receipt.
 
+### 0.2C Latest live refresh (measured 2026-09-20 11:50 JST)
+
+- **Apply:** release `a26c7f95…` is loaded on CDP 9223. Recent natural wakes complete with
+  `failed=0/pending=0`; the visible-text planner exception is not recurring. Apply has no current
+  `effect_unknown` row.
+- **Storefront:** release `1c11bda3…` is loaded on CDP 9223, but new natural wakes are again
+  producing `host_admission_deferred:resource_effect_unknown`. Each new occurrence needs the same
+  exact official/no-effect reconciliation before retry or release.
+- **Reply:** the loaded release is `aa63982c…` with `CLOAK_CDP_BASE_URL=9222` while the Gig
+  browser contract requires 9223. Recent wakes end `entrypoint_exit_1`; coverage is not proven.
+- **Paid:** release `6bbf377f…` is loaded on 9223. The current DB still has one
+  `effect_unknown` occurrence; recent Paid terminal events are no-effect passes, so the exact
+  stale occurrence must be reconciled before declaring the lane closed.
+
+The next active cursor is therefore Storefront/Reply/Paid reconciliation, followed by retainer
+Apply, Hirose pre-purchase work, and the final four-lane release/env closeout.
+
 ## 1. Goal, objective and boundaries
 
 ### 1.1 Goal
