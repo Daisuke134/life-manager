@@ -140,7 +140,7 @@ def _plist(loop_id: str, entry: dict, release_root: Path, release_sha: str,
             "CLOAK_TARGET_OWNERS_FILE": str(
                 Path.home() / ".cloak/vault/coconala-reply-targets.json"
             ),
-            "CLOAK_CONTEXT_PARK_ON_IDLE": "1",
+            "CLOAK_CONTEXT_PARK_ON_IDLE": "0",
             "GIG_CDP_HEALTH_URL": "http://127.0.0.1:9223/json/version",
             "CLOAK_CONTEXT_COOKIE_DOMAINS": "coconala.com",
         })
