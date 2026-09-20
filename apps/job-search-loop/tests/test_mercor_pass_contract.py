@@ -685,6 +685,21 @@ class MercorPassContractTests(unittest.TestCase):
         ):
             self.assertIn(required, prompt)
 
+    def test_prompt_requires_stable_profile_readback_and_exact_detail_retry(self):
+        prompt = " ".join(
+            (ROOT / "prompts" / "mercor-pass.md").read_text(encoding="utf-8").split()
+        ).lower()
+        for required in (
+            "wait for the Profile form and resume filename to render",
+            "read the visible input and textarea values",
+            "read the Summary, Work experience, Projects, Skills, and Languages sections",
+            "do not compare the proposal sentence to `document.body.innerText` as an exact string",
+            "write `claim_matches` only from the mapped provider fields",
+            "retry the exact observed listing URL once after the Explore shell",
+            "require the listing title and step summary after that retry",
+        ):
+            self.assertIn(required.lower(), prompt)
+
     def test_legacy_job_hunter_reference_only_points_to_mercor_canon(self):
         reference = (
             ROOT.parents[1] / "skills" / "job-hunter" / "references" / "mercor.md"
