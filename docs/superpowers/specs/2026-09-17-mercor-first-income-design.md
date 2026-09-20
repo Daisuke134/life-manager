@@ -2,6 +2,21 @@
 
 **Status:** design and implementation handoff. No first Mercor contract, work trial, or payout is claimed. This document supplements the [Mercor integration SSOT](./2026-08-22-mercor-life-manager-consolidation.md) and the [shared marketplace learning contract](./2026-08-22-life-manager-gig-economy-loop-design.md); those retain runtime ownership.
 
+## Current production snapshot (2026-09-20)
+
+- PR #5741 merged the stale effect-fence status readback. Immutable release `d400bbea8c714aafc17276574e7fea3b5c0a69b5` is loaded for `ai.anicca.mercor-revenue-application`; the loaded `ProgramArguments` and `LIFE_MANAGER_RELEASE_SHA` both point to that release. The focused readonly suite is 14/14 passing.
+- Natural run `mercor-20260920-134037-94835` completed with `status=needs_human`, `submitted=[]`, and no blocked effect. It inspected the current query union and pagination, revisited existing applications, and notified three candidate-local gates: Bilingual Japanese Generalist Expert — AI Safety, PDF Annotation & Transcription Experts – Japanese, and Financial Compliance Expert (CL Funnel). Telegram delivery receipt is message `90222`.
+- The run authenticated the existing Mercor account and re-read the profile and résumé surface. The seven voice recordings remain on hold: `voice-actor-recordings-upload-enabled.json` is absent, and no recording was uploaded or used to answer a person-bound assessment.
+- Official readback at `2026-09-20T04:56:06.571918Z` shows 100 applications, 46 assessments, 1 interview record, 0 contracts, 0 notifications, and 45 Gmail messages. There is still no official offer, work trial, paid/settled earnings row, or payout receipt.
+- `resource_fifo_wait` occurred once as a concrete admission queue result before the pass was dispatched. It is not an auth or provider failure; the queued occurrence was later claimed by the natural wake. The current lane is `loaded-idle`, `last_exit=0`, `admission_effect_unknown=false`, `blocker=null`, and `stale_event=null`.
+
+### Remaining work after this snapshot
+
+1. Keep the natural application wake running with the authenticated profile, truthful-fit ranking, page 1–4 evidence, and candidate-local human gates.
+2. Resume a candidate only after the user completes the exact person-bound step and the provider shows it complete. Do not upload the seven recordings or perform interviews, graded assessments, camera, microphone, or screen-share work automatically.
+3. Inspect a newly surfaced high/medium-fit role with all required reversible steps complete; submit only after the live Submit control, fit evidence, and duplicate fence are read back. The latest wake submitted none because every inspected plausible role had a human gate, a missing truthful fact, or a material mismatch.
+4. After an official selection, verify the contract, completed work, settled earnings, and payout separately. No monthly revenue target is counted from an application, rate card, assessment, interview, or contract alone.
+
 ## Outcome and scope
 
 The first outcome is one **official Mercor offer or paid work trial**, followed by one **official paid/settled Mercor earnings row and payout receipt**. A profile view, application, assessment, interview, trial invitation, or contract alone is an intermediate stage. USD 10,000 net received in a complete calendar month is the later scale outcome, never a promise or a reason to delay the first payment. Hourly rates are not monthly recurring revenue: project hours and continuity must be observed.
