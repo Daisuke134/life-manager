@@ -1536,8 +1536,8 @@ def inspect_selected_talkroom_with_history_retry(
     helper: Path, talkroom_url: str, screenshot_path: Path,
     project_id: str, projects_root: Path, talkroom_id: str, observed_at: str,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Retry one transient empty selected-talkroom DOM with a fresh tab."""
-    for attempt in range(2):
+    """Retry transient empty selected-talkroom DOM with fresh tabs."""
+    for attempt in range(3):
         raw_talkroom = inspect_page_with_retry(
             helper, talkroom_url, TALKROOM_FULL_EXPRESSION, screenshot_path,
             hidden=False,
@@ -1552,8 +1552,9 @@ def inspect_selected_talkroom_with_history_retry(
             )
             return raw_talkroom, history
         except CollectorUnhealthy as error:
-            if str(error) != "collector_unhealthy:talkroom_history_empty" or attempt:
+            if str(error) != "collector_unhealthy:talkroom_history_empty" or attempt == 2:
                 raise
+            time.sleep(1)
     raise AssertionError("unreachable selected-talkroom retry state")
 
 
