@@ -936,6 +936,30 @@ next atomic cursor; it does not turn a provider error into an empty queue.
 6. [pending] Reconcile every new Storefront `effect_unknown` occurrence by occurrence before any
    retry, then produce the final four-lane loaded-release and replay-zero closeout receipt.
 
+### 0.2E Reply release and current acceptance evidence (measured 2026-09-20 13:10 JST)
+
+- PR #5738 merged as main `b93926ac39933dd4a4954d4cdb1ff4d9e195e41f`. It includes the one-retry
+  thread-read boundary for `unexpected_title` and `dm_attachment_message_identity_changed`, plus a
+  browser-port dispose lock that serializes `Target.disposeBrowserContext` across Reply workers.
+  Focused evidence is 25 Reply-adapter tests, 62 Reply-concurrency tests, 69 browser-lease tests, and
+  Python compile success.
+- Immutable release `/Users/anicca/loops/releases/20260920T130654-b93926ac` is loaded by Reply with
+  CDP/Session Vault 9223 and `CLOAK_CONTEXT_PARK_ON_IDLE=0`.
+- Natural run `18d6ebf2a2098a10-35481` enumerated 185 inbox threads with `failed=0` and no external
+  effect. Its marker is
+  `~/.local/state/life-manager/coconala/reply/kernel/runs/2399f621ab340be60e902e402ea6526528923fc23d9d1f2f98ed3bc90b137016.json`
+  (SHA-256 `2ca6e0b42b26ff6172426ce363f61e0a7917decaeb1d9541c62c3d38c3e0a56a`). The marker remains
+  `effect_unknown` only because 11 rows are `provider_sending_unavailable`, 5 are
+  `reconcile_unknown`, and 1 is retry-backoff; there are no failed rows and no submitted Reply.
+- A later natural wake received `inbox_access_forbidden` from Coconala's 403 page. It is a provider
+  access receipt, never an empty queue. Reply-owned stale contexts were then reaped by owner-scoped GC;
+  the lease ledger is empty and browser audit shows only 12 sibling/user contexts.
+
+**Atomic cursor:** obtain two consecutive natural Reply cycles on `b93926ac` with either a complete
+coverage receipt or an explicit provider access receipt, preserve the access class in the terminal
+report instead of generic `entrypoint_exit_1`, then complete retainer Apply, Paid talkrooms, Hirose
+`10070709`, Storefront occurrence reconciliation, and final four-lane replay-zero closeout.
+
 ## 1. Goal, objective and boundaries
 
 ### 1.1 Goal
