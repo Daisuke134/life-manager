@@ -24,6 +24,7 @@
 - Official readback at `2026-09-20T05:51:26.262393Z` remains Applications 100, Assessments 46, Interviews 1, Contracts 0, Notifications 0, and Gmail 45. No new application or contract was created by this wake.
 - The highest-fit candidates still have candidate-local blockers: Bilingual Competency, a Consultant calibration assessment, or missing truthful product facts such as current Android Studio/VS Code availability. The system records these exact controls and continues other candidates; it does not fabricate answers or perform the person-bound step.
 - Focused verification for the runner and Mercor contracts is 68 passed with 5 subtests, and the prior effect fence was resolved by an occurrence-specific official readback before this release was installed.
+- The shared `job-search-learning` wake now runs daily at 09:15 Asia/Tokyo on both launchd and systemd. It records source-labeled hypotheses and funnel evidence without promoting public claims into profile facts or income receipts.
 
 ## Outcome and scope
 

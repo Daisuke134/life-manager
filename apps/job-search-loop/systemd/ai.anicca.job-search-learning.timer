@@ -1,8 +1,8 @@
 [Unit]
-Description=Run Anicca job search learning pass weekly
+Description=Run Anicca job search learning pass daily
 
 [Timer]
-OnCalendar=Sun *-*-* 09:15:00 Asia/Tokyo
+OnCalendar=*-*-* 09:15:00 Asia/Tokyo
 Persistent=true
 Unit=ai.anicca.job-search-learning.service
 
