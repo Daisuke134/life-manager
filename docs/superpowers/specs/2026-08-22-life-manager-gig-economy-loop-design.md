@@ -854,12 +854,15 @@ officially read back service `4409818` at
 2. [x] Reconcile Apply occurrence `hf-gig-apply-direct:18d6bde12c541cc0-3706` with the exact
    70-page official history scan, five confirmed provider receipts, and two no-effect dispositions;
    do not resend `5277144`.
-3. [in progress] Fix the Apply planner evidence boundary for request `5268696`; branch
+3. [in progress] Fix the Apply planner evidence boundary for request `5268696`. Branch
    `fix/coconala-apply-planner-20260920`, commit `fb89f73`, adds
    `_evidence_excerpt_in_visible_text()` in
    `skills/earn/gig/scripts/application_planner.py` and tests the qualifier-insertion case plus
-   unrelated-text rejection. Focused application suites are green; PR #5725 is awaiting CI and
-   merge. Production is not reloaded with this patch yet.
+   unrelated-text rejection. PR #5725 was admin-squash-merged as main
+   `a26c7f954123af2321de808f8bdbea4e8a2c4e37`; immutable release
+   `/Users/anicca/loops/releases/20260920T105812-a26c7f95` is loaded by Apply with CDP 9223.
+   A natural Apply run with `effect=5/readback=5/business_success=true` occurred on the prior
+   `84c0ba2c…` release; the first natural terminal from `a26c7f95…` remains the acceptance gate.
 4. Complete one natural retainer Apply with an official retainer/talkroom receipt.
 5. Repair Reply's `context_cleanup_pending` coverage boundary and produce a fresh message-coverage
    receipt; missing containers cannot mean an empty inbox.
