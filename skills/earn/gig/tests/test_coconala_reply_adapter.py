@@ -119,6 +119,26 @@ def test_only_exact_navigation_timeout_is_classified_as_observation_wait(tmp_pat
     assert adapter.classify_observation_error(RuntimeError("network_timeout")) is None
 
 
+@pytest.mark.parametrize(
+    "error_text",
+    [
+        "collector_unhealthy:inbox_access_forbidden",
+        "collector_unhealthy:inbox_provider_http_error",
+    ],
+)
+def test_provider_inbox_access_errors_are_explicit_observation_waits(tmp_path, error_text):
+    adapter = adapter_module.CoconalaReplyAdapter(
+        state_root=tmp_path, inventory_reader=lambda: [],
+    )
+
+    classified = adapter.classify_observation_error(RuntimeError(error_text))
+
+    assert classified == {
+        "reason": "provider_inbox_access_forbidden",
+        "remaining_work": ["Retry the authenticated Coconala inbox read and preserve the provider receipt"],
+    }
+
+
 def test_default_runtime_paths_stay_inside_the_release(tmp_path):
     adapter = adapter_module.CoconalaReplyAdapter(
         state_root=tmp_path,

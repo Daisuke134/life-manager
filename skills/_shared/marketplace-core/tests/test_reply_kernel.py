@@ -80,6 +80,35 @@ def test_single_worker_hint_survives_observe_failure_and_clears_before_mutation(
     assert not hint.exists()
 
 
+def test_classified_inventory_boundary_returns_structured_blocked_result(tmp_path):
+    class ProviderInboxUnavailable(Adapter):
+        def observe_threads(self):
+            raise RuntimeError("collector_unhealthy:inbox_access_forbidden")
+
+        def classify_observation_error(self, error):
+            assert str(error) == "collector_unhealthy:inbox_access_forbidden"
+            return {
+                "reason": "provider_inbox_access_forbidden",
+                "remaining_work": ["Retry the authenticated Coconala inbox read"],
+            }
+
+    result = reply_kernel.run_wake(
+        adapter=ProviderInboxUnavailable(), decide=lambda _context: {}, state_root=tmp_path,
+    )
+
+    assert result == {
+        "status": "blocked",
+        "observed": 0,
+        "actionable": 0,
+        "effect": 0,
+        "readback": 0,
+        "failed": 0,
+        "pending": 0,
+        "blocker": "provider_inbox_access_forbidden",
+        "error_detail": "collector_unhealthy:inbox_access_forbidden",
+    }
+
+
 def test_reply_effect_is_fenced_read_back_and_replay_zero(tmp_path):
     adapter = Adapter()
 

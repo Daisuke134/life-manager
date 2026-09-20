@@ -596,6 +596,23 @@ def run_wake(*, adapter: ReplyAdapter,
                         items.append({"thread_id": row["thread_id"], "status": "failed",
                                       "reason": type(error).__name__, "effect": 0,
                                       "readback": 0, "failed": 1})
+    except Exception as error:
+        classify = getattr(adapter, "classify_observation_error", None)
+        classified = classify(error) if callable(classify) else None
+        if not isinstance(classified, Mapping):
+            raise
+        reason = _text(classified.get("reason"), "observation_boundary")
+        return {
+            "status": "blocked",
+            "observed": 0,
+            "actionable": 0,
+            "effect": 0,
+            "readback": 0,
+            "failed": 0,
+            "pending": 0,
+            "blocker": reason,
+            "error_detail": str(error).strip()[:500] or type(error).__name__,
+        }
     finally:
         close = getattr(adapter, "close", None)
         if callable(close):

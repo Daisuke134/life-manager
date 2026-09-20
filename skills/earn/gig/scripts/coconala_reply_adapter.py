@@ -263,9 +263,20 @@ class CoconalaReplyAdapter:
 
     @staticmethod
     def classify_observation_error(error: Exception) -> dict[str, str] | None:
-        if str(error) != "authenticated tab did not finish navigation":
-            return None
-        return {"reason": "provider_readback_temporarily_unavailable"}
+        message = str(error)
+        if message == "authenticated tab did not finish navigation":
+            return {"reason": "provider_readback_temporarily_unavailable"}
+        if message in {
+            "collector_unhealthy:inbox_access_forbidden",
+            "collector_unhealthy:inbox_provider_http_error",
+        }:
+            return {
+                "reason": "provider_inbox_access_forbidden",
+                "remaining_work": [
+                    "Retry the authenticated Coconala inbox read and preserve the provider receipt",
+                ],
+            }
+        return None
 
     def readback(self, intent: dict[str, Any]) -> dict[str, Any]:
         cached = self._receipts.get(intent["effect_key"])
