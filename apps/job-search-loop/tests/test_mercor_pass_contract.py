@@ -294,6 +294,21 @@ class MercorPassContractTests(unittest.TestCase):
                              hashlib.sha256(resume.read_bytes()).hexdigest())
             self.assertEqual(context["profile_material"]["verified_fact_ids"], ["education"])
 
+    def test_context_exposes_approved_voice_recording_manifest_when_present(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = root / "mercor" / "application"
+            state.mkdir(parents=True)
+            manifest = state.parent / "voice-actor-recordings-manifest-20260917.json"
+            manifest.write_text(json.dumps({"version": 1, "recordings": []}), encoding="utf-8")
+            context = build_context(
+                state_root=state,
+                profile_path=self._profile(root / "profile.json"),
+                resume_path=root / "resume.pdf",
+                cdp_url="http://127.0.0.1:9222",
+            )
+            self.assertEqual(context["approved_recordings_manifest"], str(manifest.resolve()))
+
     def test_context_exposes_only_private_profile_proposal_path_when_present(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)
@@ -612,6 +627,10 @@ class MercorPassContractTests(unittest.TestCase):
             "resolved_human_gates",
             "same account and same application",
             "in the official readback",
+            "approved_recordings_manifest",
+            "exact assessment page visibly offers file upload",
+            "upload only the approved recordings",
+            "Do not treat upload as assessment completion",
         ):
             self.assertIn(required, prompt)
         self.assertNotIn("Choose at most one new listing", prompt)
