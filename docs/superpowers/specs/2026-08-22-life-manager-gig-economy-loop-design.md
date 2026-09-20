@@ -2621,3 +2621,50 @@ ownership. The Lancers plan at
 `docs/superpowers/plans/2026-08-24-lancers-general-money-agent.md` remains the next provider-neutral
 lane after the active Mercor slice. Each coding slice targets at most three production/test files and
 about 100 changed production/test lines; larger slices are split before execution.
+
+### 0.2L Current Paid receipt-identity mismatch and atomic cursor (measured 2026-09-20 16:07 JST)
+
+This section supersedes the previous Paid waiting note with the newest durable evidence. It records a
+code/receipt contract mismatch; it does not authorize a blind Coconala send or an admission-state edit.
+
+- **Release plane:** `origin/main` is `7858bed4cf` (`fix(paid): retry transient empty talkroom history`),
+  and `/Users/anicca/loops/current` points to immutable release `20260920T154813-7858bed4`.
+  The loaded Paid owner is still `c5d971962f3ad1fd00c6b1a311347b99de7a430b`, so PR #5751's
+  three-attempt selected-talkroom history retry is not yet active in Paid.
+- **Ryu owner/verifier:** the current remote owner and independent verifier satisfy the remote contract
+  for feedback SHA `2291a538b0694704293b1791d21e66cc9ea64016568ef59bd97f15359d05103e`.
+  `delivery/paid-answer.json` and `delivery/paid-remote-result.json` both contain the current
+  customer-message hash `9646b02b441133051dd44ebb8840c8e02777f42cd2f9c8b5ec3bcad6ed6d3377`.
+- **Concrete failure:** `paid_remote_result.resume()` compares the answer, remote result, and the
+  existing `events.jsonl` receipt. The receipt for the same feedback/target/desired-state key still
+  carries the earlier message hash `57e72ab1400731b315fe4b5bef222e5dcd7adb11b1723d855178aa09f5434a9b`.
+  Because `_receipt()` keys the lookup by feedback, target and desired-state digest but not
+  `message_sha256`, a revised verified customer message reuses an old receipt and fails closed with
+  `paid answer message hash mismatch`. The connector therefore records `effect=0`, sends no
+  Coconala message, and creates no duplicate or uncertain effect. This is a local receipt-identity
+  defect, not a provider capacity or slot result.
+- **Other lanes:** Reply has a natural no-effect pass on loaded c5 (`observed=186`, `effect=0`,
+  `readback=170`, `failed=0`, `pending=16`). Apply occurrence
+  `18d6e6e0c10fa690-98578` remains `claimed/effect_unknown=1`; its official history prefix reaches
+  19 pages/360 cards and page 20 still returns 403, so presence or absence of request `5280157` is
+  unproved. Storefront occurrence `18d5fe2cfd5ce560-29338` remains `claimed/effect_unknown=1` after
+  `execute → resource_capacity_busy`; older draft receipts do not cover it. Chii `18180857` remains
+  correctness work because the buyer reports the 300 TikTok accounts are missing from the sheet;
+  both こころ支援 rooms remain buyer-waiting with buyer-visible artifacts.
+
+**Atomic cursor:**
+
+1. Add a focused regression test and minimal fix in the shared Paid receipt contract so a receipt key
+   cannot bind a different customer-message hash to the same desired-state occurrence; preserve the
+   effect fence while repairing the local ledger identity.
+2. Let the existing Paid owner finish, apply immutable release `7858bed4cf` to Paid, and run one
+   natural wake. Require the exact seller-message receipt and fresh official talkroom readback for Ryu;
+   formal delivery remains off.
+3. Reconcile Chii's official TikTok/Sheets rows and correct the missing work before any new seller
+   report. Keep both こころ支援 rooms in buyer-wait state.
+4. Keep Apply and Storefront fences. Retry Apply's full history only after the page-20 provider route
+   is readable; use the occurrence resolver only after exact request `5280157` presence/absence is
+   proved. Obtain an occurrence-bound Storefront listing/draft/public receipt before retry.
+5. Execute Hirose `10070709` as an isolated pre-purchase test-edit and read back the official message.
+6. Apply one immutable main-derived release to Apply, Reply, Paid and Storefront, then record loaded
+   argv/env, release SHA, official receipts, and four-lane replay-zero as the final Coconala gate.
