@@ -100,6 +100,27 @@ def _operation_lock_path(target_id):
     return os.path.join(leases_dir, "operations", f"{target_id}.lock")
 
 
+def _dispose_lock_path():
+    configured = os.environ.get("CLOAK_CONTEXT_DISPOSE_LOCK_FILE")
+    if configured:
+        return os.path.expanduser(configured)
+    parsed = urlparse(os.environ.get("CLOAK_CDP_BASE_URL", "http://127.0.0.1:9222"))
+    port = parsed.port or 9222
+    return os.path.expanduser(f"~/.cloak/vault/cdp-context-dispose-{port}.lock")
+
+
+@contextlib.contextmanager
+def _browser_dispose_lock():
+    path = _dispose_lock_path()
+    os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+    with open(path, "a+", encoding="utf-8") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
 def _ledger_lock_path():
     return _leases_path() + ".lock"
 
@@ -524,17 +545,17 @@ def _dispose_snapshot(task, snapshot):
     os.makedirs(os.path.dirname(operation_path), mode=0o700, exist_ok=True)
     with open(operation_path, "a+", encoding="utf-8") as operation_lock:
         fcntl.flock(operation_lock.fileno(), fcntl.LOCK_EX)
-        try:
-            asyncio.run(_calls([(
-                "Target.disposeBrowserContext",
-                {"browserContextId": snapshot.get("context_id")},
-            )]))
-            disposed = True
-        except Exception as caught:
-            error = caught
-            disposed = _browser_context_exists(snapshot.get("context_id")) is False
-        finally:
-            fcntl.flock(operation_lock.fileno(), fcntl.LOCK_UN)
+        with _browser_dispose_lock():
+            try:
+                asyncio.run(_calls([(
+                    "Target.disposeBrowserContext",
+                    {"browserContextId": snapshot.get("context_id")},
+                )]))
+                disposed = True
+            except Exception as caught:
+                error = caught
+                disposed = _browser_context_exists(snapshot.get("context_id")) is False
+        fcntl.flock(operation_lock.fileno(), fcntl.LOCK_UN)
     with _ledger_lock():
         leases = _leases()
         current = leases.get(task)
@@ -1243,20 +1264,20 @@ def _release_locked(task, token=None, generation=None):
     os.makedirs(os.path.dirname(lock_path), exist_ok=True)
     with open(lock_path, "a+", encoding="utf-8") as operation_lock:
         fcntl.flock(operation_lock.fileno(), fcntl.LOCK_EX)
-        dispose_note = None
-        disposed = False
-        try:
-            asyncio.run(_calls([(
-                "Target.disposeBrowserContext",
-                {"browserContextId": held["context_id"]},
-            )]))
-            disposed = True
-        except Exception as e:
-            disposed = _browser_context_exists(held.get("context_id")) is False
-            if not disposed:
-                dispose_note = f"context_left_for_gc: {type(e).__name__}"
-        finally:
-            fcntl.flock(operation_lock.fileno(), fcntl.LOCK_UN)
+        with _browser_dispose_lock():
+            dispose_note = None
+            disposed = False
+            try:
+                asyncio.run(_calls([(
+                    "Target.disposeBrowserContext",
+                    {"browserContextId": held["context_id"]},
+                )]))
+                disposed = True
+            except Exception as e:
+                disposed = _browser_context_exists(held.get("context_id")) is False
+                if not disposed:
+                    dispose_note = f"context_left_for_gc: {type(e).__name__}"
+        fcntl.flock(operation_lock.fileno(), fcntl.LOCK_UN)
 
     with _ledger_lock():
         leases = _leases()
