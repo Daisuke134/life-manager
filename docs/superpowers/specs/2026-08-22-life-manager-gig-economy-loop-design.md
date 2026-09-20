@@ -960,6 +960,31 @@ coverage receipt or an explicit provider access receipt, preserve the access cla
 report instead of generic `entrypoint_exit_1`, then complete retainer Apply, Paid talkrooms, Hirose
 `10070709`, Storefront occurrence reconciliation, and final four-lane replay-zero closeout.
 
+### 0.2F Current cursor after Reply acceptance (measured 2026-09-20 13:45 JST)
+
+- **Reply accepted:** PR #5740 merged as `386ba3a5ca5cc577f5bda710059364b621e1726d`; immutable
+  release `/Users/anicca/loops/releases/20260920T132110-386ba3a5` is loaded. One cycle produced an
+  explicit `status=blocked, blocker=provider_inbox_access_forbidden` result for Coconala 403; the next
+  cycle read 185 threads with `failed=0`, `effect=0`, and `readback=168` (17 provider/reconcile pending
+  rows). No generic Reply `entrypoint_exit_1` occurred on the 386 release.
+- **Retainer Apply remains fenced:** occurrence
+  `hf-gig-apply-direct:18d6e6e0c10fa690-98578` is still `claimed/effect_unknown=1`; durable intent
+  `5280157` remains `prepared`. The current official applied-history readback repeatedly reaches
+  `403 Forbidden`/`source_access_denied`, so no provider retry or admission release is safe. Apply is
+  still loaded from the older `aa63982c…` release until this exact fence is reconciled.
+- **Paid owner boundary:** Paid is currently running a separate owner task for Ryu `18211957`; its
+  current result says the provider-specific browser endpoint is unavailable for the final viewport
+  check. Do not share that profile or interrupt that owner. Chii and both こころ支援 rooms remain
+  buyer-visible/correctness and formal-delivery readback work until fresh official evidence closes them.
+- **Host:** current `df` shows about 17 GiB free. Historical Paid `disk_headroom_low` receipts are
+  preserved as historical evidence; the current long Paid wake is waiting on shared admission/owner
+  work, not a measured zero-free-space condition.
+
+**Next atomic order:** (1) reconcile `5280157` with a fresh official full-history readback when the
+provider route is readable, (2) align Apply to the current immutable release, (3) let the existing Paid
+owner finish Ryu and then read Chii/こころ支援 official states, (4) complete Hirose `10070709`, and
+(5) reconcile Storefront occurrences and write the final four-lane SHA/env/replay-zero receipt.
+
 ## 1. Goal, objective and boundaries
 
 ### 1.1 Goal
