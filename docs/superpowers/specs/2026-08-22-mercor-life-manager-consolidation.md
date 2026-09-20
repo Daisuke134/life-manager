@@ -2,7 +2,7 @@
 
 初契約・初入金を目的とするプロフィール、適合案件、成果学習の設計と実装順序 → [Mercor first income design](./2026-09-17-mercor-first-income-design.md) / [implementation plan](../plans/2026-09-17-mercor-first-income.md)。この文書はMercorの稼働経路と既存の契約境界の正本を維持する。
 
-**Status:** provider lane restored / PR #5714 priority-observation recovery merged / immutable release `84c0ba2c` loaded / the latest stale fence is resolved by an exact official readback / natural wakes still stop at `entrypoint_exit_75` before provider scan / selection, contract, and payment still unobserved
+**Status:** provider lane restored / PR #5728 profile-and-detail readback repair merged / immutable release `aa63982c` loaded for the Mercor owner / the admission database has zero Mercor `effect_unknown` rows / first selection, contract, and payment remain unobserved
 **Canonical repository:** `https://github.com/Daisuke134/life-manager`
 **Canonical checkout:** `/Users/anicca/Projects/life-manager-main`
 
@@ -13,20 +13,17 @@ below remain historical evidence and must not be read as current runtime state.
 
 ### Current verified state
 
-- Main includes PR #5704 (`5d5d111ad3`, legacy human-gate canonicalization) and PR #5705
-  (`5f809d81e4`, exact-gate reuse at terminal reporting). The latest immutable release is
-  `84c0ba2c718a8c541ab0d3dc05cad568c3a8681a`, which includes PR #5714
-  (`8cfa04809be081a6fe5af8250b9b9744d77f03eb`).
-- The installed Mercor owner uses that release and the authenticated isolated browser profile. The
-  latest completed wake `mercor-20260919-184826-32102` returned `needs_human`, `submitted=[]`,
-  Telegram receipt `89440`, and no provider submission receipt.
-- The latest completed wake `mercor-20260919-190501-44596` produced `submitted=[]` and Telegram
-  receipt `89447`, but ended `blocked` on `priority_scan_incomplete` for Japanese Voice Actor and
-  Bilingual candidates whose detail readback did not render. This is an automation/readback defect,
-  not a provider submission or a human-gate completion.
-- The next completed wake `mercor-20260919-191710-52060` produced `observed_no_action` and Telegram
-  receipt `89452`; the six typed search queries did not retain their exact values after one retry,
-  so those query artifacts remain unavailable until the input/readback boundary is repaired.
+- Main includes PR #5728 (`aa63982c917e`), which adds stable Profile form/résumé readback and one
+  exact observed-URL retry when a Mercor detail surface initially shows only the Explore shell.
+  The installed owner runs immutable release `20260920T113219-aa63982c` with release SHA
+  `aa63982c917e1ed82d151f0bc1df8dad359b16e9`.
+- The latest completed pre-PR wake `mercor-20260920-111844-74492` returned `needs_human`,
+  `submitted=[]`, and profile sync `unchanged` with `parser_reviewed=true`, résumé filename,
+  structured summary/work/project/skill/language readback, and matching profile/resume hashes.
+  It observed the Bilingual Japanese Generalist, Japanese Voice Actor, and Japanese PDF gates;
+  Sonic still stopped at its application-card detail surface with no submission.
+- Search query artifacts for all six target queries were written in that wake. The account still
+  has no new provider submission, selection, contract, settled earnings, or payout receipt.
 - The same-account/listing/step gate is now reused by both the model notification path and the
   terminal report path. Legacy rows remain append-only; current logical reads collapse known
   Voice Actor, PDF Annotation, Consultant, Bilingual, and Sonic identities without deleting history.
@@ -36,23 +33,14 @@ below remain historical evidence and must not be read as current runtime state.
 - Two finance applications have official `Your application has been submitted!` readbacks and
   Telegram receipts, but no selection, contract, accepted work, settled payment, or bank match is
   verified. Applications are not revenue.
-- Mercor admission `effect_unknown` occurrences were resolved only through occurrence-specific
-  pre-effect or official-provider proofs. The stale application occurrence
-  `18d6b17394951ef8-51771` was correlated to official readback
-  `official-readback-20260919T1330Z.json` (100 applications, 0 contracts, 0 notifications,
-  zero application updates in its exact `10:16:51–10:22:11Z` window) and resolved with receipt
-  `mercor-official-readback:9bfa5dbf...`; no admission SQLite row was edited directly.
-- PR #5714 restores omitted current-run card and non-submission application observations from
-  `pass-result.json`, filling URLs/titles from same-run `query-*.json`. Replay of
-  `mercor-20260919-190501-44596` now passes both bounded and priority validation. A natural
-  production wake has not yet reached this validator: later wakes stopped at admission FIFO,
-  CDP WebSocket 500, `control_busy`, or `entrypoint_exit_75`.
-- The newest stale application fence, occurrence `18d6beb625d44728-14221`, was correlated to
-  `official-readback-20260919T2320Z.json` (100 applications, 0 contracts, 0 notifications,
-  zero `updatedAt`/`appliedAt` changes in its exact `14:19:51–14:20:47Z` window) and resolved
-  with receipt `mercor-official-readback:3e2c31ab...`. The admission readback now shows
-  `effect_unknown=0`; `lm-loop status` may continue to display the last blocked event until a
-  new terminal wake is recorded.
+- Mercor admission recovery remains occurrence-specific. The resource admission database currently
+  reads zero rows with `effect_unknown=1`; the latest occurrences `18d6e52741c7feb0-58744` and
+  `18d6e5ef15b1ff10-74338` are `released` with `effect_unknown=0`. No admission SQLite row was
+  edited directly.
+- PR #5714's card-only merge/validator replay remains passing. PR #5728 is now installed and
+  awaits a natural wake from `aa63982c`; the previous status event may still show the old release
+  until that wake writes a new terminal event. The private voice recording upload marker remains
+  absent, so the seven recordings stay held.
 
 ### Human operator procedure (the only user-bound action)
 
@@ -84,11 +72,9 @@ that state. The operator does not need to keep the browser open after the provid
 
 ### Remaining TODO in execution order
 
-1. **Priority/detail and query-input readback:** priority-observation recovery is merged and replayed
-   PASS. Fix the controlled search input readback so a query is unavailable only after an independently
-   verified retry, then obtain a natural wake that reaches the validator and passes it. The current
-   operational blocker remains before provider scan: repeated `entrypoint_exit_75` with admission/control
-   contention and browser WebSocket failures.
+1. **Natural wake from the repaired release:** obtain one terminal Mercor wake from `aa63982c` with
+   structured Profile readback, six exact query artifacts, bounded/priority validation, and zero
+   duplicate or uncertain provider effects. Then prove a second scheduled wake for continuity.
 2. **Human-bound steps and approved artifacts:** deliver one current link per exact gate. The seven
    approved Voice Actor recordings remain held until the private upload-enable marker is explicitly
    enabled; then the loop may upload them only when the exact assessment page exposes file slots and
@@ -118,8 +104,12 @@ that state. The operator does not need to keep the browser open after the provid
 
 ### As-is
 
-- Profile and résumé readback are authenticated and hash-bound. The owner currently loads immutable `3541a2f7a67d69d0181839790d654314e2a4afab`, which includes the direct product-overlap and provisional-card retry prompts; the current wake is active.
-- The prior d77 predecessor wake wrote 80 candidate rows. Thirty-one rows were initially counted as detail pages even though 25 were only `submitted_pending_review_observed` application-card observations; this produced `bounded_scan_exceeded:31_of_12`. The exact evidence replay now counts six actual detail states and passes the bounded and priority validators.
+- Profile and résumé readback are authenticated and hash-bound. The owner currently loads immutable
+  `aa63982c917e1ed82d151f0bc1df8dad359b16e9`, which contains PR #5728's stable Profile-form and
+  exact-detail retry prompt. The recording-upload marker remains absent.
+- The last completed wake produced structured Profile readback (`unchanged`, `parser_reviewed=true`),
+  six query artifacts, and 60 inspected rows. Three person-bound gates remain pending; no new
+  submission was made. The new release is loaded-idle and awaiting its first natural wake.
 - The account has existing submitted and person-bound applications. Recent passes produced no new submission, no offer, no contract, and no settled earnings. These are separate external outcomes and remain unverified.
 
 ### To-be
@@ -136,13 +126,17 @@ that state. The operator does not need to keep the browser open after the provid
 - [x] PR #5659 / `d77b006d42`: exclude submitted-pending application-card observations from the detail budget.
 - [x] PR #5670 / `05db94e33f`: prioritize direct Life Manager/AI-agent/product-operations overlap.
 - [x] PR #5676 / `3541a2f7a6`: reopen `card_only_unverified` overlap candidates after unseen queue exhaustion.
+- [x] PR #5714 / `8cfa04809b`: restore current-run card-only evidence from query artifacts.
+- [x] PR #5722 and #5724: keep the approved voice-recording handoff behind a private disabled marker.
+- [x] PR #5726 / `a13c610fde`: use the managed browser's IPv6-capable `localhost:9222` endpoint.
+- [x] PR #5728 / `aa63982c917e`: wait for structured Profile readback and retry only an exact observed detail URL.
 - [x] Official readback resolved occurrence `18d68604800aee30-82625` with receipt `mercor-official-readback:ba818f...`; `effect_unknown=0`. An incomplete 92MiB release was removed after current/loaded reference checks; disk free space recovered above 1GiB.
 - [x] A later surfaced fence, occurrence `18d6888b1a586458-38506`, was correlated against a fresh official readback: 97 applications, 0 contracts, 0 notifications, and no application update in its 21:47:12–21:57:49 UTC window. Resolver receipt `mercor-official-readback:3cf59365f6c215339e25c14693b3c72f6891297015bc72f988e95d94c94f3223` closed the fence; the owner now reads `effect_unknown=0` and loaded-idle on `3541a2f7`.
 - [x] Focused Mercor + Direct CDP tests pass: 74 tests and 2 subtests; `lm-loop-contract` passes; CI security/contract checks pass.
 
 ### Remaining TODO in execution order
 
-1. [ ] Complete the active `3541a2f7` wake and read back terminal receipt, loaded SHA, Telegram ACK, and `effect_unknown=0`.
+1. [ ] Complete the first natural wake from `aa63982c`, then a second scheduled wake, and read back terminal receipts, loaded SHA, Telegram ACK, bounded/priority validators, and `effect_unknown=0`.
 2. [ ] Continue direct-overlap detail review. `Personalized Life Assistant Expert` was officially rejected because the listing requires United States location while the candidate has Japan-only work authorization; do not submit it. Find the next truthful-fit role and submit only after official ready-state readback.
 3. [ ] Complete person-bound gates when the operator chooses to act: Japanese Voice Actor (seven recordings plus English interview/Japanese assessment), Japanese PDF Annotation bilingual step, Bilingual Japanese Generalist gate, Consultant calibration assessment, and Sonic's missing required candidate ID. The loop must resume from official completion.
 4. [ ] Reconcile Gmail/Reply/Applications and identify an official selection or offer. Do not count pending review as a job.
