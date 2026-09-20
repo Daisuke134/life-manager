@@ -883,10 +883,10 @@ officially read back service `4409818` at
   `hf-gig-storefront-direct:18d5fe19db6db5f0-28383` was resolved by
   `~/gig/storefront-direct/evidence/a18-occurrence-18d5fe19db6db5f0-28383/` (DB
   `released/effect_unknown=0`, integrity ok); future new fences remain occurrence-specific.
-- **Reply:** the loaded release is `aa63982c…` with `CLOAK_CDP_BASE_URL=9222` while the Gig
-  browser contract requires 9223. Reply was target-applied to release `a26c7f95…`; loaded env now
-  reads CDP 9223. A fresh 5-minute natural wake is still required to prove that
-  `context_cleanup_pending` and `entrypoint_exit_1` are gone and to produce a coverage receipt.
+- **Reply:** the loaded release is now `aa63982c…`, rendered from its own source with
+  `CLOAK_CDP_BASE_URL=9223`, `GIG_CDP_HEALTH_URL=9223`, and `SESSION_VAULT_PORT=9223`. A fresh
+  5-minute natural wake is still required to prove that `context_cleanup_pending` and
+  `entrypoint_exit_1` are gone and to produce a coverage receipt.
 - **Paid:** release `6bbf377f…` is loaded on 9223. The current DB still has one
   `effect_unknown` occurrence; recent Paid terminal events are no-effect passes, so the exact
   stale occurrence must be reconciled before declaring the lane closed. The latest fence
