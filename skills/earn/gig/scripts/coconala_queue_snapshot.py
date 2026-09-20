@@ -456,6 +456,23 @@ class CollectorUnhealthy(RuntimeError):
         self.details = dict(details or {})
 
 
+def _classify_default_tab_http_error(error: RuntimeError) -> CollectorUnhealthy | None:
+    """Turn helper HTTP failures into a provider receipt at the browser boundary."""
+    message = str(error)
+    prefix = "failed to open authenticated default tab:"
+    if not message.startswith(prefix):
+        return None
+    match = re.search(r"HTTP Error (\d{3})", message)
+    if match is None:
+        return None
+    status = int(match.group(1))
+    reason = "inbox_access_forbidden" if status == 403 else "inbox_provider_http_error"
+    return CollectorUnhealthy(
+        reason,
+        {"provider_http_status": status, "helper_error": message},
+    )
+
+
 def load_connector_manifest(path: Path = CONNECTOR_MANIFEST_PATH) -> dict[str, Any]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -3089,6 +3106,9 @@ def inspect_page_with_retry(
             if attempt == attempts - 1:
                 raise
         except RuntimeError as exc:
+            classified = _classify_default_tab_http_error(exc)
+            if classified is not None:
+                raise classified from exc
             if not _is_transient_tab_open_error(exc) or attempt == attempts - 1:
                 raise
     raise AssertionError("unreachable navigation retry state")

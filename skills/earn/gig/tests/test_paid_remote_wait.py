@@ -526,6 +526,42 @@ def test_talkroom_readback_retries_hidden_helper_transport_timeout(monkeypatch) 
     assert len(attempts) == 2
 
 
+def test_inbox_helper_http_error_becomes_provider_receipt(monkeypatch) -> None:
+    snapshot = load("coconala_queue_snapshot")
+
+    class Tab:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def __enter__(self):
+            raise RuntimeError(
+                "failed to open authenticated default tab: "
+                "HTTPError: HTTP Error 404: Not Found"
+            )
+
+        def __exit__(self, *_args):
+            return False
+
+    monkeypatch.setattr(snapshot, "DefaultTab", Tab)
+
+    with pytest.raises(
+        snapshot.CollectorUnhealthy,
+        match="inbox_provider_http_error",
+    ) as raised:
+        snapshot.inspect_page_with_retry(
+            Path("helper"), snapshot.MESSAGES_URL, "1", None,
+            hidden=False,
+        )
+
+    assert raised.value.details == {
+        "provider_http_status": 404,
+        "helper_error": (
+            "failed to open authenticated default tab: "
+            "HTTPError: HTTP Error 404: Not Found"
+        ),
+    }
+
+
 def test_buyer_attachment_fetch_has_a_finite_timeout() -> None:
     snapshot = load("coconala_queue_snapshot")
 
