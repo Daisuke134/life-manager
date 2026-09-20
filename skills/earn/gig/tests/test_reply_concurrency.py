@@ -70,6 +70,13 @@ def test_inbox_http_failure_is_preserved_as_a_typed_collection_block(monkeypatch
         )
 
 
+def test_ok_reply_wake_keeps_row_failure_as_durable_data_not_process_exit():
+    result = {"status": "ok", "failed": 1, "effect": 0}
+
+    assert detector._entrypoint_exit_code(result) == 0
+    assert result["failed"] == 1
+
+
 def test_default_tab_open_failure_preserves_helper_reason(monkeypatch, tmp_path):
     failure = snapshot.subprocess.CalledProcessError(
         1,
