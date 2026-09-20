@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Sustainability Disclosure Evidence Deck icon</title>
+  <desc id="desc">A green evidence card with a linked leaf and check mark.</desc>
+  <rect width="512" height="512" rx="104" fill="#10251e"/>
+  <rect x="104" y="92" width="292" height="328" rx="30" fill="#ecf7ee"/>
+  <path d="M159 178h182M159 226h182M159 274h105" fill="none" stroke="#2a704b" stroke-linecap="round" stroke-width="20"/>
+  <path d="M292 327c15-60 62-87 110-85-3 56-34 99-93 105" fill="#79c692"/>
+  <path d="M269 371c32-49 65-75 106-105" fill="none" stroke="#1b6040" stroke-linecap="round" stroke-width="16"/>
+  <circle cx="169" cy="352" r="42" fill="#2a704b"/>
+  <path d="m148 351 15 15 29-34" fill="none" stroke="#ecf7ee" stroke-linecap="round" stroke-linejoin="round" stroke-width="14"/>
+</svg>
