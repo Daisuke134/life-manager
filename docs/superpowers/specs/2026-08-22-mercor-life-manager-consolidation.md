@@ -42,6 +42,11 @@ below remain historical evidence and must not be read as current runtime state.
   It produced Telegram ACK `90092`, profile sync `unchanged`/`parser_reviewed=true`, six exact
   query artifacts, 60 inspected rows, and no submission. Sonic's exact detail readback stopped at
   the missing `Unique Candidate ID`; the private voice recording upload marker remains absent.
+- The next scheduled continuity wake completed as `observed_no_action` in evidence run
+  `mercor-20260920-115541-18327` with Telegram ACK `90112`, `submitted=[]`, 60 inspected rows,
+  and `effect_unknown=0`. Its profile fields were visible and parser-reviewed, but the provider
+  version/hash readback was incomplete, so `profile_sync=unknown` was retained. No provider effect
+  or duplicate submission occurred.
 
 ### Human operator procedure (the only user-bound action)
 
@@ -73,9 +78,9 @@ that state. The operator does not need to keep the browser open after the provid
 
 ### Remaining TODO in execution order
 
-1. **Natural wake continuity:** obtain one more scheduled Mercor wake from `aa63982c` with the same
-   structured Profile/query/detail evidence, terminal Telegram ACK, and zero duplicate or uncertain
-   provider effects. The first wake already passed this step's first occurrence.
+1. **Natural wake continuity:** two natural Mercor wakes from `aa63982c` now have terminal Telegram
+   ACKs and zero duplicate or uncertain provider effects. Keep the resident cadence running and
+   repair the occasional provider profile version/hash readback when it is missing.
 2. **Human-bound steps and approved artifacts:** deliver one current link per exact gate. The seven
    approved Voice Actor recordings remain held until the private upload-enable marker is explicitly
    enabled; then the loop may upload them only when the exact assessment page exposes file slots and
@@ -108,10 +113,11 @@ that state. The operator does not need to keep the browser open after the provid
 - Profile and résumé readback are authenticated and hash-bound. The owner currently loads immutable
   `aa63982c917e1ed82d151f0bc1df8dad359b16e9`, which contains PR #5728's stable Profile-form and
   exact-detail retry prompt. The recording-upload marker remains absent.
-- The first `aa63982c` natural wake produced structured Profile readback (`unchanged`,
-  `parser_reviewed=true`), six query artifacts, 60 inspected rows, Telegram ACK `90092`, and
-  `observed_no_action`. It found no ready truthful-fit listing and made no new submission. Sonic's
-  required Unique Candidate ID remains a candidate-local missing fact.
+- Two `aa63982c` natural wakes produced six query artifacts each, 60 inspected rows each, terminal
+  Telegram ACKs `90092` and `90112`, and no new submission. The first had exact profile hash
+  readback (`unchanged`); the second retained `profile_sync=unknown` because the provider version
+  and field hashes were not returned. Sonic's required Unique Candidate ID remains a candidate-local
+  missing fact.
 - The account has existing submitted and person-bound applications. Recent passes produced no new submission, no offer, no contract, and no settled earnings. These are separate external outcomes and remain unverified.
 
 ### To-be
