@@ -796,9 +796,14 @@ resolving either fence.
   `a15-occurrence-18d5fd276ec84250-10484/pre-effect-proof.json` (SHA-256
   `2ad102b8dae912f191478a12fd5bb3a4b46e2ba1aeac87b3ededa5b15f406166`) and its adjacent
   resolution receipt (SHA-256 `092ce747f3e1d708b921e288956c72346da08047b74a21e1a74c61478e6075b8`).
+  The next stale coalesced occurrence
+  `hf-gig-storefront-direct:18d5fd35aa9bea58-11132` is resolved by
+  `a16-occurrence-18d5fd35aa9bea58-11132/pre-effect-proof.json` (SHA-256
+  `247be7693c11cb24767fe01b3dcea9b5ac66bc0745c9b960dfe459a075a0a3bc`) and its adjacent
+  resolution receipt (SHA-256 `9da70ec1ba4e62e6c203ef4131a835fde750b72c44a3ced49cbc99ad2d2b1852`).
   Both proofs bind the event chain, show zero effect-intents prepared at or after the occurrence,
   and show the official Coconala inventory at 19 public services with only the existing draft
-  `4356229`. Both DB readbacks are `released/effect_unknown=0`, with `integrity_check=ok`.
+  `4356229`. All three DB readbacks are `released/effect_unknown=0`, with `integrity_check=ok`.
 - **Storefront failure boundary:** the natural run
   `storefront-direct-1789863704867461000-14128` ended `entrypoint_exit_1` with
   `no close frame received or sent`, while its official inventory readback was complete and its
