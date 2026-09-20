@@ -854,8 +854,12 @@ officially read back service `4409818` at
 2. [x] Reconcile Apply occurrence `hf-gig-apply-direct:18d6bde12c541cc0-3706` with the exact
    70-page official history scan, five confirmed provider receipts, and two no-effect dispositions;
    do not resend `5277144`.
-3. Fix the Apply planner evidence boundary for request `5268696`; add the smallest regression for
-   the visible-text/prohibited-reason mismatch, then let the normal natural owner run.
+3. [in progress] Fix the Apply planner evidence boundary for request `5268696`; branch
+   `fix/coconala-apply-planner-20260920`, commit `fb89f73`, adds
+   `_evidence_excerpt_in_visible_text()` in
+   `skills/earn/gig/scripts/application_planner.py` and tests the qualifier-insertion case plus
+   unrelated-text rejection. Focused application suites are green; PR #5725 is awaiting CI and
+   merge. Production is not reloaded with this patch yet.
 4. Complete one natural retainer Apply with an official retainer/talkroom receipt.
 5. Repair Reply's `context_cleanup_pending` coverage boundary and produce a fresh message-coverage
    receipt; missing containers cannot mean an empty inbox.
