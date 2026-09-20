@@ -15,6 +15,89 @@ def load_planner():
     return module
 
 
+def _hard_prohibited_snapshot(visible_text: str) -> dict:
+    from application_snapshot import build_envelope
+
+    return build_envelope({
+        "pass_id": "planner-visible-evidence",
+        "lease_fence": {"task": "planner-test", "token": "1" * 32, "generation": 1},
+        "observed_at": "2026-09-20T00:00:00Z",
+        "objective": {
+            "target_applications": 1,
+            "max_applications": 1,
+            "required_search_source_ids": ["source"],
+        },
+        "search_sources": [{
+            "source_id": "source",
+            "url": "https://coconala.com/requests",
+            "page_index": 1,
+            "card_request_ids": ["5268696"],
+            "has_next": False,
+            "exhausted": True,
+            "screenshot_sha256": "2" * 64,
+            "dom_sha256": "3" * 64,
+        }],
+        "request_details": [{
+            "request_id": "5268696",
+            "canonical_url": "https://coconala.com/requests/5268696",
+            "title": "音声ドラマの女性案内人役",
+            "category": "ナレーション・ボイス制作",
+            "visible_text": visible_text,
+            "accepting_applications": True,
+            "budget_min_jpy": None,
+            "budget_max_jpy": 5000,
+            "applicants_count": 31,
+            "contracted_count": 0,
+            "applicants": [],
+            "observed_at": "2026-09-20T00:00:00Z",
+        }],
+        "already_applied_ids": [],
+    })
+
+
+def _hard_prohibited_decision() -> dict:
+    return {
+        "request_id": "5268696",
+        "business_class": "hard_prohibited",
+        "reason_codes": [
+            "mandatory_human_presence",
+            "案内人(ミサト役)に加えて、劇中に登場する「広報アナウンサー」および「自動電話対応アナウンサー」のセリフ(計3行)の兼任をお願いいたします。",
+        ],
+        "proposal_text": None,
+        "price_jpy": None,
+        "deliver_date": None,
+        "work_frequency": None,
+        "weekly_hours_min": None,
+        "weekly_hours_max": None,
+        "screening_answers": [],
+    }
+
+
+def test_hard_prohibited_evidence_allows_a_small_visible_role_qualifier_insertion():
+    planner = load_planner()
+    snapshot = _hard_prohibited_snapshot(
+        "募集内容\nメインの案内人役(ミサト役)に加えて、劇中に登場する「広報アナウンサー」"
+        "および「自動電話対応アナウンサー」のセリフ(計3行)の兼任をお願いいたします。"
+    )
+
+    errors = planner.validate_decisions(
+        snapshot, {"decisions": [_hard_prohibited_decision()]}, require_complete=True,
+    )
+
+    assert "decision[0]_hard_prohibited_evidence_not_in_visible_text" not in errors
+
+
+def test_hard_prohibited_evidence_still_rejects_unrelated_visible_text():
+    planner = load_planner()
+    snapshot = _hard_prohibited_snapshot("募集内容\n別の募集内容だけが表示されています。")
+
+    errors = planner.validate_decisions(
+        snapshot, {"decisions": [_hard_prohibited_decision()]}, require_complete=True,
+    )
+
+    assert "decision[0]_hard_prohibited_evidence_not_in_visible_text" in errors
+
+
 def test_prompt_prioritizes_async_strengths_and_rejects_operational_labor():
     planner = load_planner()
 
