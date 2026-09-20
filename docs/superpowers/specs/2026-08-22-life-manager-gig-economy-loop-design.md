@@ -1046,6 +1046,54 @@ it does not authorize a provider retry or a direct admission-state edit.
 6. Align Apply, Reply, Paid, and Storefront to one immutable main-derived release and complete the
    final loaded argv/env/SHA and four-lane replay-zero receipt.
 
+### 0.2H Current Paid readbacks and connector cursor (measured 2026-09-20 14:20 JST)
+
+The Paid remote owner and the Coconala connector have separate receipts. A remote owner PASS is not
+the same as a buyer-visible Coconala message or formal delivery.
+
+- **Ryu `18211957`:** remote owner v518 has official API, FTPS, and fresh target-browser receipts with
+  `required_effect_satisfied=true` and `required_output_satisfied=true` in
+  `~/gig/projects/18211957/delivery/paid-remote-result.json`. The newest official Coconala talkroom
+  readback is
+  `~/gig/evidence/codex-current-readback-18211957/talkroom-18211957.json` (observed
+  `2026-09-20T05:18:30Z`): `buyer_feedback_pending_artifact=true`,
+  `buyer_visible_artifact_observed=false`, `formal_delivery_confirmed=false`. The v518 customer
+  message has not yet been observed in the talkroom, so the code-owned connector still must send it
+  once and read back the exact seller message. No Coconala effect was sent by the read-only probe.
+- **こころ支援 `18223833`:** fresh official readback
+  `~/gig/evidence/codex-current-readback-18223833/talkroom-18223833.json` is complete and shows
+  `buyer_visible_artifact_observed=true`, `buyer_reply_after_artifact_observed=false`,
+  `buyer_feedback_pending_artifact=false`, and `transaction_state=取引中`. This item is waiting for
+  the buyer's response; no new seller mutation is justified by this receipt.
+- **こころ支援 `18250352`:** fresh official readback
+  `~/gig/evidence/codex-current-readback-18250352/talkroom-18250352.json` is complete and shows
+  `buyer_visible_artifact_observed=true`, `buyer_reply_after_artifact_observed=false`,
+  `buyer_feedback_pending_artifact=false`, and `transaction_state=取引中`. This item is also
+  buyer-waiting, not a completed transaction.
+- **Chii `18180857`:** fresh official readback
+  `~/gig/evidence/codex-current-readback-18180857/talkroom-18180857.json` is complete and shows
+  `buyer_visible_artifact_observed=true`, `formal_delivery_confirmed=false`, and a buyer complaint
+  that the reported 300 TikTok accounts were not entered into the spreadsheet. The current project
+  remains `WORK_REQUIRED`; the old seller report is not correctness proof. The next Paid owner must
+  restore the registered provider identity or use the authorized alternative, verify the actual
+  paired TikTok/Sheets rows, correct the missing work, and read back the buyer-visible result.
+- **Connector scheduling:** a previous d400 natural Paid wake ended `status=failed` with
+  `effect=0`, `readback=2`, `failed=2` after targeted readbacks collided with an owner-scoped
+  read-only probe. The current natural process `18d6efaaaa9a3ee8-24011` has acquired the agent slot
+  and is still running; no second Paid browser owner may be started while it runs. This incident
+  does not prove provider failure and did not send a duplicate message.
+
+**Atomic Paid cursor:**
+
+1. Let `18d6efaaaa9a3ee8-24011` finish and inspect its durable terminal receipt.
+2. On the next idle natural wake, let the code-owned connector send Ryu v518 exactly once and verify
+   the exact seller message in the official talkroom; preserve formal delivery off until its contract
+   says otherwise.
+3. Keep `18223833` and `18250352` in buyer-wait state until a new official buyer message arrives.
+4. Treat `18180857` as correctness work, not a pass; reconcile the spreadsheet against the official
+   TikTok/Sheets evidence before any new seller report.
+5. Do not perform another manual browser probe during a Paid owner wake; use the next natural receipt.
+
 ## 1. Goal, objective and boundaries
 
 ### 1.1 Goal
