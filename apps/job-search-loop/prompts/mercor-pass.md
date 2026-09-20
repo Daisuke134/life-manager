@@ -112,6 +112,10 @@ Pass order:
    material contradiction remains low and may be recorded from the visible card without
    opening its detail. `submitted_pending_review` entries are observe-only and must never
    be resubmitted.
+   Before returning `observed_no_action`, collect Explore pages 2 through 4 whenever the visible
+   pagination exposes them and the current query union has no unseen high/medium candidate. Save each
+   Explore page card list as a fresh page-specific evidence artifact, merge those cards into the same
+   candidate queue, and do not finalize after only the first visible Explore page.
 2. Observe existing applications from the application-list cards only. Do not open existing
    incomplete application cards before the target search queue; record their visible state and
    continue to the target queries first. Inspect an existing

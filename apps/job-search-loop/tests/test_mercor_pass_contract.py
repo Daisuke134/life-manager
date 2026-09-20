@@ -700,6 +700,9 @@ class MercorPassContractTests(unittest.TestCase):
             "do not set `parser_reviewed` true until Summary, Work experience, Projects, Skills, and Languages are non-empty",
             "retry the exact observed listing URL once after the Explore shell",
             "require the listing title and step summary after that retry",
+            "before returning `observed_no_action`, collect Explore pages 2 through 4",
+            "save each Explore page card list",
+            "do not finalize after only the first visible Explore page",
         ):
             self.assertIn(required.lower(), prompt)
 
