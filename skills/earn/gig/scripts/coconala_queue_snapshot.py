@@ -358,7 +358,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms)),
 isB1=location.pathname==='/message'&&new URL(location.href).searchParams.get('fromMyPage')==='true',
 direct=location.pathname==='/message'&&!isB1,
 sel=direct?"a.c-messageItemWrap[href*='/mypage/direct_message/']":null,
-records=new Map(),pageLimit=10;
+records=new Map(),pageLimit=10,hydrationDeadline=Date.now()+1500;
 let pagesObserved=0,iterations=0,terminationReason='pagination_limit',paginationNextPresent=null,
  paginationContainerPresent=false,paginationCurrentPresent=false,paginationTerminalProven=false,
  paginationCurrentPage=null,paginationHighestPage=null,pageCounts=[];
@@ -380,8 +380,9 @@ while(pagesObserved<pageLimit){
   iterations++;
   const keys=[...records.keys()].sort().join('|'),root=document.querySelector('main.c-layoutMypage #c-main .c-content')||document.body,height=Math.max(root.scrollHeight,document.body.scrollHeight);
   stable=keys===lastKeys&&height===lastHeight?stable+1:0;
+  if(direct&&records.size===0&&Date.now()<hydrationDeadline)stable=0;
   lastKeys=keys;lastHeight=height;window.scrollTo(0,document.body.scrollHeight);await sleep(100);
- }
+}
  const pageCards=await read();
  pageCounts.push(new Set(pageCards.map(row=>row.talkroom_url)).size);
  const pageRoot=document.querySelector('main.c-layoutMypage #c-main .c-content')||document.body,
@@ -687,6 +688,14 @@ def validate_inbox_coverage(dom: dict[str, Any], previous_count: int | None = No
     observed_count = dom.get("cards_count")
     if observed_count is not None and int(observed_count) != count:
         unhealthy("inbox_card_count_mismatch")
+    provider_http_status = dom.get("provider_http_status")
+    if provider_http_status is None:
+        title_match = re.match(r"\s*([45]\d{2})\b", str(dom.get("title") or ""))
+        provider_http_status = int(title_match.group(1)) if title_match else None
+    if provider_http_status == 403:
+        unhealthy("inbox_access_forbidden")
+    if isinstance(provider_http_status, int) and 400 <= provider_http_status <= 599:
+        unhealthy("inbox_provider_http_error")
     pagination_pages, page_counts, pagination_metadata_supplied = bounded_pagination_metadata(dom)
     if pagination_metadata_supplied and (pagination_pages is None or page_counts is None):
         unhealthy("inbox_pagination_metadata_invalid")
@@ -1217,6 +1226,8 @@ def source_receipt(
         cards_count = len(dedupe_inbox_cards([card for card in cards if isinstance(card, dict)]))
     current_url = str(dom.get("url") or "")
     title = str(dom.get("title") or "")
+    status_match = re.match(r"\s*([45]\d{2})\b", title)
+    provider_http_status = int(status_match.group(1)) if status_match else None
     login_redirect = None
     if current_url or title:
         login_redirect = urlsplit(current_url).path.startswith("/login") or "ログイン" in title
@@ -1230,6 +1241,8 @@ def source_receipt(
         "source": str(source),
         "requested_route": safe_coconala_url(requested_url),
         "final_route": safe_coconala_url(current_url),
+        "page_title": safe_text(title, 200),
+        "provider_http_status": provider_http_status,
         "login_redirect": login_redirect,
         "container_found": dom.get("container_present") if isinstance(dom.get("container_present"), bool) else None,
         "cards_count": cards_count,

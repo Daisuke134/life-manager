@@ -107,7 +107,7 @@ class CoconalaReplyAdapter:
             try:
                 dom = snapshot.inspect_page_with_retry(
                     self.cdp_helper, snapshot.MESSAGES_URL,
-                    snapshot.MESSAGES_EXPRESSION, None, hidden=True,
+                    snapshot.MESSAGES_EXPRESSION, None, hidden=False,
                 )
                 snapshot.validate_inbox_coverage(dom)
                 return snapshot.inquiries_from_dom(dom)

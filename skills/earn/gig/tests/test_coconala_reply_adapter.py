@@ -173,6 +173,51 @@ def test_inventory_retries_transient_incomplete_coverage(monkeypatch, tmp_path):
     assert rows[0]["talkroom_id"] == "12"
 
 
+def test_inventory_uses_visible_target_for_dynamic_direct_inbox(monkeypatch, tmp_path):
+    seen_hidden = []
+
+    def inspect(*_args, **kwargs):
+        seen_hidden.append(kwargs["hidden"])
+        return {
+            "url": adapter_module.snapshot.MESSAGES_URL,
+            "title": "メッセージ | マイページ | ココナラ",
+            "container_present": True,
+            "coverage_complete": True,
+            "termination_reason": "fixed_point",
+            "cards_count": 1,
+            "cards": [{
+                "talkroom_url": "https://coconala.com/mypage/direct_message/12",
+                "last_message_identity_sha256": "a" * 64,
+            }],
+        }
+
+    monkeypatch.setattr(adapter_module.snapshot, "inspect_page_with_retry", inspect)
+    adapter = adapter_module.CoconalaReplyAdapter(state_root=tmp_path)
+
+    rows = adapter._read_inventory()
+
+    assert seen_hidden == [False]
+    assert rows[0]["talkroom_id"] == "12"
+
+
+def test_inbox_403_is_classified_as_provider_access_denied():
+    with pytest.raises(
+        adapter_module.snapshot.CollectorUnhealthy,
+        match="inbox_access_forbidden",
+    ) as raised:
+        adapter_module.snapshot.validate_inbox_coverage({
+            "url": adapter_module.snapshot.MESSAGES_URL,
+            "title": "403 Forbidden",
+            "cards": [],
+            "cards_count": 0,
+            "coverage_complete": False,
+            "termination_reason": None,
+            "iterations": 3,
+        })
+
+    assert raised.value.details["provider_http_status"] == 403
+
+
 def test_inventory_does_not_retry_non_transient_collector_failure(monkeypatch, tmp_path):
     observations = []
 
