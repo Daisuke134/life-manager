@@ -37,10 +37,11 @@ below remain historical evidence and must not be read as current runtime state.
   reads zero rows with `effect_unknown=1`; the latest occurrences `18d6e52741c7feb0-58744` and
   `18d6e5ef15b1ff10-74338` are `released` with `effect_unknown=0`. No admission SQLite row was
   edited directly.
-- PR #5714's card-only merge/validator replay remains passing. PR #5728 is now installed and
-  awaits a natural wake from `aa63982c`; the previous status event may still show the old release
-  until that wake writes a new terminal event. The private voice recording upload marker remains
-  absent, so the seven recordings stay held.
+- PR #5714's card-only merge/validator replay remains passing. The first natural wake from
+  `aa63982c` completed as `observed_no_action` in evidence run `mercor-20260920-113935-3557`.
+  It produced Telegram ACK `90092`, profile sync `unchanged`/`parser_reviewed=true`, six exact
+  query artifacts, 60 inspected rows, and no submission. Sonic's exact detail readback stopped at
+  the missing `Unique Candidate ID`; the private voice recording upload marker remains absent.
 
 ### Human operator procedure (the only user-bound action)
 
@@ -72,9 +73,9 @@ that state. The operator does not need to keep the browser open after the provid
 
 ### Remaining TODO in execution order
 
-1. **Natural wake from the repaired release:** obtain one terminal Mercor wake from `aa63982c` with
-   structured Profile readback, six exact query artifacts, bounded/priority validation, and zero
-   duplicate or uncertain provider effects. Then prove a second scheduled wake for continuity.
+1. **Natural wake continuity:** obtain one more scheduled Mercor wake from `aa63982c` with the same
+   structured Profile/query/detail evidence, terminal Telegram ACK, and zero duplicate or uncertain
+   provider effects. The first wake already passed this step's first occurrence.
 2. **Human-bound steps and approved artifacts:** deliver one current link per exact gate. The seven
    approved Voice Actor recordings remain held until the private upload-enable marker is explicitly
    enabled; then the loop may upload them only when the exact assessment page exposes file slots and
@@ -107,9 +108,10 @@ that state. The operator does not need to keep the browser open after the provid
 - Profile and résumé readback are authenticated and hash-bound. The owner currently loads immutable
   `aa63982c917e1ed82d151f0bc1df8dad359b16e9`, which contains PR #5728's stable Profile-form and
   exact-detail retry prompt. The recording-upload marker remains absent.
-- The last completed wake produced structured Profile readback (`unchanged`, `parser_reviewed=true`),
-  six query artifacts, and 60 inspected rows. Three person-bound gates remain pending; no new
-  submission was made. The new release is loaded-idle and awaiting its first natural wake.
+- The first `aa63982c` natural wake produced structured Profile readback (`unchanged`,
+  `parser_reviewed=true`), six query artifacts, 60 inspected rows, Telegram ACK `90092`, and
+  `observed_no_action`. It found no ready truthful-fit listing and made no new submission. Sonic's
+  required Unique Candidate ID remains a candidate-local missing fact.
 - The account has existing submitted and person-bound applications. Recent passes produced no new submission, no offer, no contract, and no settled earnings. These are separate external outcomes and remain unverified.
 
 ### To-be
