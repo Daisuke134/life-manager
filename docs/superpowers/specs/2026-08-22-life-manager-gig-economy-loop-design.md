@@ -985,6 +985,61 @@ provider route is readable, (2) align Apply to the current immutable release, (3
 owner finish Ryu and then read Chii/こころ支援 official states, (4) complete Hirose `10070709`, and
 (5) reconcile Storefront occurrences and write the final four-lane SHA/env/replay-zero receipt.
 
+### 0.2G Current live cursor after exact-fence probes (measured 2026-09-20 14:05 JST)
+
+This is the newest evidence for the ordered cursor above. It records what was actually inspected;
+it does not authorize a provider retry or a direct admission-state edit.
+
+- **Release/status plane:** `/Users/anicca/loops/current` points to immutable release
+  `d400bbea8c714aafc17276574e7fea3b5c0a69b5`, the same SHA as `origin/main`. `lm-loop doctor`
+  passes (`registry_entries=166`, `missing_entrypoints=0`, `unmanaged_labels=0`). The d400 status
+  readback now distinguishes a live admission fence from a stale terminal event; it does not clear a
+  live fence.
+- **Apply occurrence `18d6e6e0c10fa690-98578`:** the admission database
+  `~/.local/state/life-manager/host-admission/resources/admission-v2.sqlite3` passes
+  `PRAGMA integrity_check=ok`. The row is still `claimed/effect_unknown=1`; its durable intent is
+  request `5280157`, `state=prepared`, `effect_phase=irreversible_attempt_started`. This numeric
+  request is a normal single application, not a retainer ULID. A fresh owner-scoped official scan
+  started at `https://www.coconala.com/mypage/job_matching/applied/offers` and reached page 20, where
+  Coconala redirected to the bare host and returned `title=403 Forbidden`. The durable diagnostic is
+  `~/gig/apply-direct/evidence/occurrence-18d6e6e0c10fa690-98578/parent-B2-applied-readback-unexpected-route-codex-reconcile-5280157-1789880618.json`.
+  Because the scan did not reach the end of history, it proves neither presence nor absence of
+  `5280157`; the fence remains held and no retry or resolver call is safe.
+- **Storefront occurrence `18d5fe2cfd5ce560-29338`:** the official runtime event sequence is
+  `execute/effect_status=started` followed by `resource_capacity_busy/effect_status=unknown`, and a
+  later d400-era entrypoint failure references the same claim via
+  `lm-occurrence://hf-gig-storefront-direct/18d5fe2cfd5ce560-29338/claim`. The current admission row
+  is still `claimed/effect_unknown=1`. The older `draft_created` receipts for `18d5fcfce4091da8-7995`
+  and `18d5fd0af4fe0a70-8716` do not cover this occurrence. Since the effect phase started, only an
+  occurrence-bound official listing/draft/public readback can resolve it.
+- **Reply:** the previous 386 acceptance remains valid as historical evidence (one explicit 403
+  access receipt and one 185-thread no-effect pass). The current d400 fleet status is temporarily
+  `host_admission_deferred:resource_control_busy`, with no Reply effect or failure. A new two-cycle
+  acceptance must still be recorded on the currently loaded SHA before final closeout.
+- **Paid/Ryu:** the dedicated owner is still running under its own browser identity
+  `colors-hachioji:owner-18211957`; the fresh v517 management/API/FTPS artifacts exist, but the
+  project state remains `WORK_REQUIRED` with `buyer_visible_artifact_observed=false` and
+  `formal_delivery_confirmed=false`. Do not share or interrupt that owner. Its terminal result and
+  buyer-visible readback must be inspected after the owner exits.
+- **Host:** the current read-only root filesystem probe reports 17.11 GiB free. Historical
+  `disk_headroom_low` receipts are not current disk evidence, and no unknown executable or database
+  corruption was observed.
+
+**Atomic cursor after this probe:**
+
+1. Keep Apply `18d6e6e0c10fa690-98578` fenced; retry the exact full-history readback after the provider
+   route recovers, then use the typed occurrence resolver only if the result proves the exact request.
+2. Keep Storefront `18d5fe2cfd5ce560-29338` fenced; identify its exact listing intent from owner evidence
+   and obtain an occurrence-bound official draft/public receipt before any retry.
+3. Wait for the existing Ryu Paid owner to finish, then perform fresh official readback for Ryu, Chii,
+   and both こころ支援 items. A process pass is not buyer-visible completion.
+4. Run the current d400 Reply owner for two natural five-minute cycles and persist the coverage/access
+   receipt plus replay-zero.
+5. Create the isolated Hirose `10070709` pre-purchase test-edit work item and send/read back the agreed
+   test result through the official message path.
+6. Align Apply, Reply, Paid, and Storefront to one immutable main-derived release and complete the
+   final loaded argv/env/SHA and four-lane replay-zero receipt.
+
 ## 1. Goal, objective and boundaries
 
 ### 1.1 Goal
