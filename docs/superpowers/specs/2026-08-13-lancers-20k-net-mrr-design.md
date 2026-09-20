@@ -3314,59 +3314,101 @@ next executable atom; it does not turn stale snapshots into current provider tru
 
 ### Current evidence
 
-- **Application:** the owner is unloaded after repeated capacity deferrals. One old Application
-  `effect_unknown` occurrence remains; no new external submit was attempted. The append-only Lancers
-  ledger remains at 211 `application_verified` receipts with newest observed proposal `27945735`.
-  Application state has 417 fingerprints and 82 legacy pending descriptors. The pending descriptors are
-  not retried blindly.
-- **Sales / contract source:** Work Sync completed a fresh source-complete snapshot at
-  `2026-09-18T16:40:13Z`: 14 boards, 0 required replies, 0 monthly offers, 0 working projects,
-  0 contract candidates and 0 payment history. Its proposal funnel is current 321 / receipt 211 /
-  open 56 / selecting 127 / canceled 111 / ended 27 / working 0. This is a verified absence of
-  current contract/offer/payment rows at that readback time.
-- **Storefront:** canonical listing `1338228` remains published, product version 6, with search
-  impressions 9, detail views 0, favorites 0, inquiries 0 and orders 0. The six additional catalog
-  entries (`1342394`, `1344056`–`1344061`) each returned its exact official public detail route and
-  body hash; their Storefront occurrence is reconciled. They are official listing identities, not MRR.
-- **Browser:** the dedicated Lancers browser owner was recovered through the managed launchd path;
-  CDP `:9227` is listening with the preserved profile and two pages (one authenticated Lancers page
-  and one `about:blank` owner page). No browser restart or session reset is pending.
-- **Paid:** the latest paid envelope is `effect=0`, `failed=0`, `items=0`, and no PaymentReceipt
-  exists. The old Paid occurrence was released only after its same-occurrence run marker proved
-  `status=completed / effect=0`; the current zero remains a source observation, not revenue.
-- **Admission:** Work Sync is passing source-complete wakes. Twelve old deterministic borrow
-  occurrences and one deterministic revenue occurrence owned by other loops remain `effect_unknown`;
-  the only remaining Lancers fence is the old Application occurrence. Paid, Negotiate and Storefront
-  were released only through same-occurrence pre-effect or official public readback evidence. No
-  admission database row is edited manually. The only permitted release is an exact provider readback
-  or an explicit pre-effect proof tied to the same owner and occurrence.
-- **Revenue:** active recurring contracts 0, DeliveryReceipt 0, PaymentReceipt 0, bank matches 0,
-  and verified MRR is **USD 0**. Applications, proposal amounts, listing prices and search exposure
-  remain outside the MRR denominator.
+The following values were remeasured from the live runtime and append-only state at
+**2026-09-20T01:54:34Z**. The current `/Users/anicca/loops/current` symlink resolved to release
+`20260920T104540-301f9ac9` during this read. Owner releases can differ because the release
+reconciler advances owners independently; each owner status must be read with its own loaded SHA.
+
+- **Application / Apply:** `ai.anicca.lancers-revenue-application` is `loaded-idle`, has no PID,
+  and is repeatedly blocked by `host_admission_deferred:resource_effect_unknown`. The exact
+  unresolved occurrence is
+  `lancers-revenue-application:18d6687b702bab18-56803` (claimed, `effect_unknown=1`,
+  queued at `2026-09-18T11:59:41Z`). No new external submit is authorized while this fence is
+  open. Application state contains 417 fingerprints and 82 legacy pending descriptors; those
+  descriptors are not retried blindly. The append-only ledger contains 211
+  `application_verified` receipts, newest external proposal `27945735`.
+- **Sales / contract source:** the latest Work Sync snapshot is source-complete at
+  `2026-09-20T01:54:08.697250Z`: 14 boards, 0 required replies, 1 unread board, 0 incoming
+  monthly offers, 0 monthly contracts, 0 working projects, 0 contract candidates and 0 payment
+  history. The proposal funnel is current 321 / receipt 211 / open 41 / selecting 135 /
+  canceled 115 / ended 30 / working 0 / unknown 0 / unlisted receipt 0. Finance readback is
+  source-complete with account balance JPY 0 and received gross JPY 0. This proves an absence of
+  current offer/contract/payment rows at that readback time; it is not revenue.
+- **Reply / Negotiate:** the old Negotiate fence
+  `lancers-revenue-negotiate:18d6736f08c1bef0-77507` was closed only after its same-occurrence
+  run file proved `status=completed` with 14 items at `effect=0`, `readback=1`,
+  `reason=replay_zero`. The current database has no Negotiate `effect_unknown` row, but the
+  latest lane readback still has one actionable failure for thread `9064025`:
+  `external_browser_unavailable`, `effect=0`, `readback=0`; the other 13 observed items
+  are read back. This lane is therefore not end-to-end healthy and must be repaired/read back
+  before any retry.
+- **Storefront:** canonical listing `1338228` is published (product version 6). Its latest
+  demand counters are search impressions 10, detail views 0, favorites 0, inquiries 0 and
+  orders 0. The six official catalog listing IDs remain
+  `1342394`, `1344056`, `1344057`, `1344058`, `1344060` and `1344061`; their exact
+  public detail routes and body hashes are recorded in
+  `/Users/anicca/.local/state/anicca/lancers/storefront-readback-18d6702063e33590-32703.json`.
+  That older storefront readback resolved its own occurrence, but the newer unresolved occurrence
+  `lancers-revenue-storefront:18d67d28fc8af5c0-77700` remains claimed with
+  `effect_unknown=1` (queued at `2026-09-18T18:18:36Z`). The six IDs are listing identities,
+  not MRR.
+- **Paid:** the current paid envelope is `status=ok`, `effect=0`, `failed=0`, `items=0`,
+  `readback=0`, `pending=0`; its current occurrence is
+  `lancers-revenue-paid:18d679cea2547e08-98875`. The previous stale Paid fence was released
+  through its same-occurrence `status=completed / effect=0` marker. No PaymentReceipt exists,
+  so this zero is a source observation, not revenue.
+- **Work Sync:** Work Sync is `loaded-idle` with the latest terminal result `pass` and the
+  source-complete snapshot above. Its old `effect_class=none` fence was closed through the
+  supported no-effect resolver; no manual Admission row edit was made.
+- **Admission:** the remaining Lancers `effect_unknown` rows are exactly:
+  `lancers-revenue-application:18d6687b702bab18-56803`,
+  `lancers-revenue-storefront:18d67d28fc8af5c0-77700` and
+  `lancers-revenue-telegram-report:18d60ec7916672d0-58953`. Paid and Negotiate were released
+  only through occurrence-specific pre-effect proof; Work Sync was released under its registry
+  `effect_class=none` contract. No fence is cleared from a nearby receipt or a timestamp.
+- **Browser:** the managed browser owner is `loaded-running` with CDP `:9227` listening. A
+  live probe saw two authenticated Lancers proposal pages and one `about:blank` owner page; the
+  preserved profile was not reset. The browser is technically reachable, but Reply still reports
+  `external_browser_unavailable` for thread `9064025`, so reachability alone is not a
+  buyer-visible effect.
+- **Revenue / E2E:** the platform is **not complete end-to-end**. Current verified counts are
+  active recurring contracts 0, `ContractReceipt` 0, `DeliveryReceipt` 0,
+  `PaymentReceipt` 0, bank matches 0 and verified net MRR **USD 0**. The remaining gap to the
+  first target is therefore USD 10,000 of verified net recurring MRR. Applications, proposal
+  amounts, listing prices, impressions, browser reachability and sent/readback-zero envelopes are
+  excluded from the MRR denominator.
 
 ### Ordered remaining TODO
 
-1. **Admission fence reconciliation (current blocker).** Obtain exact evidence for the old Lancers
-   Application occurrence and the deterministic stale owners, then close only those occurrences through
-   the supported admission resolver. Keep unresolved fences closed to retries.
-2. **Application reconcile and attribution.** After its old effect fence is resolved, run one
-   readback-only Application wake, map any pending descriptor to the official proposal ID and keep
-   the 211-receipt ledger duplicate-free.
-3. **Storefront catalog monitoring and Paid source.** Storefront’s six listing IDs are now
-   read back and reconciled; preserve them until a deliberate catalog decision is separately grounded.
-   Keep Paid on source-complete zero until a PaymentReceipt exists.
-4. **ContractReceipt promotion.** When a positive project, monthly offer or Storefront contract
+1. **Close only the three live Lancers fences.** Obtain exact occurrence-specific provider
+   readback or explicit pre-effect proof for the old Application, Storefront and Telegram-report
+   occurrences. Keep those owners fail-closed and do not retry an external effect while the
+   corresponding fence remains open.
+2. **Repair the Reply browser boundary.** Investigate the exact owner/profile/lease path that
+   produced `external_browser_unavailable` for thread `9064025`; then perform a readback-only
+   check of that thread. Send at most one bounded reply only after the provider state proves no
+   prior send, and require message-ID/content readback with replay-zero.
+3. **Reconcile Application and attribution.** After the Application fence is closed, run one
+   readback-first wake, map each eligible pending descriptor to an official proposal ID, preserve
+   the 211-receipt ledger as duplicate-free, and verify the provider list again. Do not treat the
+   82 pending descriptors as submissions.
+4. **Choose a Storefront demand experiment.** Preserve the six official listing IDs and the
+   canonical listing until a deliberate catalog decision is grounded. Measure detail-view,
+   inquiry and order conversion from official counters; change one profile, offer, price or
+   proof variable at a time. Do not create generic listings while the Storefront fence is open.
+5. **Promote a ContractReceipt.** When a positive project, monthly offer or Storefront contract
    candidate appears, read back its official ID, scope, price, due date and funding/escrow state;
-   append one ContractReceipt only after that detail readback.
-5. **Capacity quota (G3C).** Persist authoritative active-contract capacity and apply the bounded
-   three-client/tick/day policy only after a fresh source-complete contract snapshot.
-6. **Fulfillment and finance (G5–G6).** For funded contracts only, produce, QA, deliver and read
-   back a DeliveryReceipt; then reconcile PaymentReceipt, fees, costs, payout batch and bank
-   transaction with delta zero.
-7. **MRR and learning (G7).** Compute recorded-FX net MRR from received recurring receipts only,
-   then attribute conversion, retention, margin and owner time one variable at a time.
+   append exactly one ContractReceipt only after that detail readback.
+6. **Capacity quota (G3C).** Persist authoritative active-contract capacity and enforce the
+   bounded three-client/tick/day policy only after a fresh source-complete contract snapshot.
+7. **Fulfillment and finance (G5-G6).** For funded contracts only, produce, QA, deliver and
+   read back a DeliveryReceipt; then reconcile PaymentReceipt, platform fees, AI/subcontractor
+   costs, payout batch and bank transaction with delta zero.
+8. **MRR and learning (G7).** Compute recorded-FX net MRR from received recurring receipts only,
+   then attribute selection, contract, delivery, payment, retention, margin and owner time one
+   variable at a time.
 
-The cleanup race fix is merged and deployed, and browser recovery is complete. The next cursor is
-item 1 above; no new crawler, generic listing, external reply, offer or payment action is allowed
-while the admission fence is unresolved.
-
+The cleanup-race fix and browser recovery remain deployed, but they are implementation health
+signals, not business success. The next cursor is item 1; no new crawler, generic listing,
+external reply, offer or payment action is allowed while any Lancers `effect_unknown` fence
+remains unresolved.
