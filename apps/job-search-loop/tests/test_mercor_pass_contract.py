@@ -695,6 +695,9 @@ class MercorPassContractTests(unittest.TestCase):
             "read the Summary, Work experience, Projects, Skills, and Languages sections",
             "do not compare the proposal sentence to `document.body.innerText` as an exact string",
             "write `claim_matches` only from the mapped provider fields",
+            "if a Profile section is blank because it is collapsed or lazy-rendered",
+            "open the corresponding visible Profile section and wait for its values",
+            "do not set `parser_reviewed` true until Summary, Work experience, Projects, Skills, and Languages are non-empty",
             "retry the exact observed listing URL once after the Explore shell",
             "require the listing title and step summary after that retry",
         ):
