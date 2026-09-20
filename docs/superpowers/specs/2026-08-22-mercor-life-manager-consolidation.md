@@ -2,7 +2,7 @@
 
 初契約・初入金を目的とするプロフィール、適合案件、成果学習の設計と実装順序 → [Mercor first income design](./2026-09-17-mercor-first-income-design.md) / [implementation plan](../plans/2026-09-17-mercor-first-income.md)。この文書はMercorの稼働経路と既存の契約境界の正本を維持する。
 
-**Status:** provider lane restored / PR #5728 profile-and-detail readback repair merged / immutable release `aa63982c` loaded for the Mercor owner / the admission database has zero Mercor `effect_unknown` rows / first selection, contract, and payment remain unobserved
+**Status:** provider lane restored / PR #5732 lazy-profile-section guard merged / immutable release `083c4913` loaded for the Mercor owner / the admission database has zero Mercor `effect_unknown` rows / first selection, contract, and payment remain unobserved
 **Canonical repository:** `https://github.com/Daisuke134/life-manager`
 **Canonical checkout:** `/Users/anicca/Projects/life-manager-main`
 
@@ -47,6 +47,11 @@ below remain historical evidence and must not be read as current runtime state.
   and `effect_unknown=0`. Its profile fields were visible and parser-reviewed, but the provider
   version/hash readback was incomplete, so `profile_sync=unknown` was retained. No provider effect
   or duplicate submission occurred.
+- The next wake from release `083c4913` completed as `observed_no_action` in evidence run
+  `mercor-20260920-121707-58580` with Telegram ACK `90128`, `submitted=[]`, and
+  `effect_unknown=0`. The lazy-section guard produced `profile_sync=synced` with exact
+  `profile_version`, `field_hashes`, résumé SHA, and `parser_reviewed=true`; no provider effect
+  or recording upload occurred.
 
 ### Human operator procedure (the only user-bound action)
 
@@ -78,9 +83,9 @@ that state. The operator does not need to keep the browser open after the provid
 
 ### Remaining TODO in execution order
 
-1. **Natural wake continuity:** two natural Mercor wakes from `aa63982c` now have terminal Telegram
-   ACKs and zero duplicate or uncertain provider effects. Keep the resident cadence running and
-   repair the occasional provider profile version/hash readback when it is missing.
+1. **Natural wake continuity:** three natural Mercor wakes now have terminal Telegram ACKs and zero
+   duplicate or uncertain provider effects. Keep the resident cadence running; the lazy-profile
+   guard has produced an exact synced readback in the latest wake.
 2. **Human-bound steps and approved artifacts:** deliver one current link per exact gate. The seven
    approved Voice Actor recordings remain held until the private upload-enable marker is explicitly
    enabled; then the loop may upload them only when the exact assessment page exposes file slots and
@@ -111,13 +116,17 @@ that state. The operator does not need to keep the browser open after the provid
 ### As-is
 
 - Profile and résumé readback are authenticated and hash-bound. The owner currently loads immutable
-  `aa63982c917e1ed82d151f0bc1df8dad359b16e9`, which contains PR #5728's stable Profile-form and
-  exact-detail retry prompt. The recording-upload marker remains absent.
+  `083c4913cec4ba41f9f19497defcf83de4685b18`, which contains PR #5728 and PR #5732's stable
+  Profile-form, lazy-section, and exact-detail retry prompts. The recording-upload marker remains
+  absent.
 - Two `aa63982c` natural wakes produced six query artifacts each, 60 inspected rows each, terminal
   Telegram ACKs `90092` and `90112`, and no new submission. The first had exact profile hash
   readback (`unchanged`); the second retained `profile_sync=unknown` because the provider version
   and field hashes were not returned. Sonic's required Unique Candidate ID remains a candidate-local
   missing fact.
+- The first `083c4913` wake produced exact `profile_sync=synced`, six query artifacts, Telegram ACK
+  `90128`, and no new submission. The provider queue still had no truthful ready listing; the loop
+  recorded `observed_no_action` and preserved all human/provider boundaries.
 - The account has existing submitted and person-bound applications. Recent passes produced no new submission, no offer, no contract, and no settled earnings. These are separate external outcomes and remain unverified.
 
 ### To-be
