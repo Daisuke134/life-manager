@@ -897,6 +897,45 @@ officially read back service `4409818` at
 The next active cursor is therefore Storefront/Reply/Paid reconciliation, followed by retainer
 Apply, Hirose pre-purchase work, and the final four-lane release/env closeout.
 
+### 0.2D Latest live refresh (measured 2026-09-20 12:40 JST)
+
+This section supersedes the previous Reply wording. It records the current browser boundary and the
+next atomic cursor; it does not turn a provider error into an empty queue.
+
+- **Reply root cause:** the authenticated hidden target receives an HTML `403 Forbidden` for
+  `https://coconala.com/message`. The saved failure receipt is
+  `~/gig/reply-direct/evidence/a20-hidden-403-20260920/failure-diagnostic.json` (SHA-256
+  `72328a3d2b766eb20c105a769185976e97298f4b4c987729285ab5690191a713`); it records `title=403
+  Forbidden`, `container_found=false`, `direct_message_links=0`, and no provider cards.
+  A separate visible-target probe previously rendered the real dynamic inbox (`30` cards on page 1,
+  pagination through `7` pages, `185` total) after client-side hydration. Later fresh probes returned
+  403 again, so this is an explicit provider/browser access boundary, never an empty inbox.
+- **Reply code repair:** PR #5735 (`fix/coconala-reply-visible-inbox-20260920`, commit `68dcc76`)
+  changes the inventory observer to a visible read-only target, waits up to 1.5 seconds for the
+  dynamic list to hydrate, and records `page_title` plus `provider_http_status` in the source receipt.
+  `403` is now `collector_unhealthy:inbox_access_forbidden`; other 4xx/5xx responses are
+  `inbox_provider_http_error`. The patch has local evidence of 23 adapter tests, 62 Reply concurrency
+  tests, and Python compile success, but it is not yet in an immutable production release.
+- **Lease hygiene:** stale Reply-owned contexts were removed with owner-scoped `gc`; sibling Apply,
+  Storefront, and user contexts were not disposed. No provider message or application was sent by the
+  probes.
+
+**Atomic cursor after PR #5735:**
+
+1. [in progress] Merge PR #5735, cut one immutable release, target-apply Reply, and verify loaded
+   argv/env SHA plus `CLOAK_CDP_BASE_URL=9223`.
+2. [pending] Run two natural five-minute Reply cycles. Each must produce a complete direct-inbox
+   coverage receipt or an explicit provider access receipt; `403`, missing container, and zero cards
+   cannot be classified as an empty queue. Confirm no `entrypoint_exit_1`, no hidden-target route, and
+   replay-zero.
+3. [pending] Complete one retainer Apply with an official retainer/talkroom receipt.
+4. [pending] Read and complete Ryu, Chii, and both こころ支援 Paid talkrooms with buyer-visible
+   correctness and delivery/payment evidence.
+5. [pending] Complete Hirose direct message `10070709` as the separate pre-purchase one-image test
+   edit, with official thread readback.
+6. [pending] Reconcile every new Storefront `effect_unknown` occurrence by occurrence before any
+   retry, then produce the final four-lane loaded-release and replay-zero closeout receipt.
+
 ## 1. Goal, objective and boundaries
 
 ### 1.1 Goal
