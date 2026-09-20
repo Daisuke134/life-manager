@@ -42,6 +42,12 @@ Pass order:
    Profile page, then reload it and the résumé parser. Return `profile_sync` as `synced` or
    `unchanged` only when the exact profile version, field hashes, and résumé SHA match the
    readback; a save click without reload is `unknown` and leaves the prior version active.
+   After every Profile navigation or reload, wait for the Profile form and resume filename to render before
+   reading evidence. Read the visible input and textarea values, and read the Summary, Work experience,
+   Projects, Skills, and Languages sections (including their chips and values). Do not compare the proposal
+   sentence to `document.body.innerText` as an exact string: Mercor combines or reformats fields. Write
+   `claim_matches` only from the mapped provider fields, and set `parser_reviewed` true only after the
+   résumé filename and those structured fields are visible after reload.
    When the supplied `profile-proposal.json` values match the live readback, copy the exact
    profile_version and field hashes from the supplied profile proposal into the final JSON;
    save a fresh local Profile/Résumé readback JSON under the current `evidence_dir` and use
@@ -124,6 +130,9 @@ Pass order:
    Mercor listing URL, wait for the detail surface, and require the detail title and step summary
    as official readback. Never construct a listing ID from a title; if the exact URL still shows
    only the Explore shell, preserve `listing_detail_not_rendered`.
+   If that exact observed listing URL still shows only the Explore shell, retry the exact observed
+   listing URL once after the Explore shell settles; require the listing title and step summary after
+   that retry. Do not treat the URL alone as detail readback and do not retry a guessed or reconstructed URL.
    Before returning `observed_no_action`, revisit each existing incomplete application card
    through the existing application review queue after the target-query candidate queue is
    exhausted. Build that queue from every visible truthful-fit card and revisit each card with the latest human gate or
