@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[4]
 def test_owner_uses_shared_browser_lease_and_revenue_name():
     source = (ROOT / "skills/earn/mercor/scripts/application-owner").read_text()
     assert 'TASK="mercor-revenue-application"' in source
-    assert 'CDP="http://127.0.0.1:9222"' in source
+    assert 'CDP="http://localhost:9222"' in source
     assert 'cdp_context_lease.py' in source
     assert 'park "$TASK"' in source
     assert 'MERCOR_CDP_PAGE_WS' in source
