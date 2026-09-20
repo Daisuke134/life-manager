@@ -784,14 +784,18 @@ resolving either fence.
   application receipt for request `5277144` plus the no-effect disposition for planner request
   `5268696`. The admission row is `released/effect_unknown=0`; the next Apply rows are queued and
   do not authorize a blind resend. A newer current fence,
-  `hf-gig-apply-direct:18d6bde12c541cc0-3706`, is now `claimed/effect_unknown=1` and must be
-  reconciled separately. Diagnostic
+  `hf-gig-apply-direct:18d6bde12c541cc0-3706` was later reconciled separately. Diagnostic
   `~/gig/apply-direct/a14-occurrence-18d6bde12c541cc0-3706/diagnostic.json` (SHA-256
   `d181f3865cd7a37c27f32d5ad59681ff0e0692b352ee1a8062f39af23baafcc8`) binds the newer failed
   run: official applied-history readbacks confirm `5280210`, `5280409`, `5281601`, `5281700`,
-  and `5281717`; `5280157` and `5281660` remain unresolved because the parent stopped with
-  `parent_failed_rc_2` and the history route returned `403 Forbidden`. The receipt set is therefore
-  incomplete and the resolver must remain closed. The unresolved code defect remains at
+  and `5281717`; a fresh owner-controlled 70-page official history scan found neither `5280157`
+  nor `5281660`, while the request-form readback remained present for `5280157` and no intent exists
+  for `5281660`. The provider-effect reconciliation is
+  `~/gig/apply-direct/a14-occurrence-18d6bde12c541cc0-3706/provider-effect-reconciliation.json`
+  (SHA-256 `f79cf4a3b341de17979383c9320d2ffce267eb82eabca31c0a864b067aa6b482`); its resolution
+  receipt is adjacent (SHA-256 `5f21b430d0a36756e5a2c9fabb0f5b00a592997dc53127d1bec9b084f2d22c8e`).
+  The exact row is now `released/effect_unknown=0`, with `integrity_check=ok`; no provider retry was
+  used. The unresolved code defect remains at
   `skills/earn/gig/scripts/application_planner.py:320`:
   `hard_prohibited_evidence_not_in_visible_text`.
 - **Storefront occurrence resolutions:**
@@ -843,12 +847,13 @@ officially read back service `4409818` at
 `readback=1`; the patched wake did not duplicate it. Storefront's current admission rows are
 `effect_unknown=0`.
 
-**New atomic cursor (only item 2 is active):**
+**New atomic cursor (only item 3 is active):**
 
 1. [x] Merge `108e38b`, cut the immutable release, target-apply Storefront, and verify one natural
    pass plus official inventory/readback and replay-zero.
-2. Reconcile Apply occurrence `hf-gig-apply-direct:18d6bde12c541cc0-3706` with an exact provider
-   receipt or occurrence-bound pre-effect proof; do not resend `5277144`.
+2. [x] Reconcile Apply occurrence `hf-gig-apply-direct:18d6bde12c541cc0-3706` with the exact
+   70-page official history scan, five confirmed provider receipts, and two no-effect dispositions;
+   do not resend `5277144`.
 3. Fix the Apply planner evidence boundary for request `5268696`; add the smallest regression for
    the visible-text/prohibited-reason mismatch, then let the normal natural owner run.
 4. Complete one natural retainer Apply with an official retainer/talkroom receipt.
