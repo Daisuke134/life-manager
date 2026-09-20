@@ -17,6 +17,14 @@
 3. Inspect a newly surfaced high/medium-fit role with all required reversible steps complete; submit only after the live Submit control, fit evidence, and duplicate fence are read back. The latest wake submitted none because every inspected plausible role had a human gate, a missing truthful fact, or a material mismatch.
 4. After an official selection, verify the contract, completed work, settled earnings, and payout separately. No monthly revenue target is counted from an application, rate card, assessment, interview, or contract alone.
 
+## Follow-up production snapshot (2026-09-20T05:51Z)
+
+- PR #5743 merged the provider-runner completion fix. Immutable release `7496333697a11c98b7115efbfe2d31e78aefb090` is installed for the Mercor application lane. A stable `pass-result.json` or `mercor-pass-result.json` is now sealed into `attempt-01.result.json` before the provider process is cleaned up, so a valid human-gate/no-submit pass does not wait for a second model response until the outer timeout.
+- Natural run `mercor-20260920-144105-62311` completed on that release with `status=observed_no_action`, `profile_sync=synced`, `submitted=[]`, and no human gate. The readback carries profile version `dfaab53ef271b32aa5304351165c4fb86d51d75860cbe02b11e7bee16c188bfe`, 11 verified fact claims, and the unchanged résumé SHA.
+- Official readback at `2026-09-20T05:51:26.262393Z` remains Applications 100, Assessments 46, Interviews 1, Contracts 0, Notifications 0, and Gmail 45. No new application or contract was created by this wake.
+- The highest-fit candidates still have candidate-local blockers: Bilingual Competency, a Consultant calibration assessment, or missing truthful product facts such as current Android Studio/VS Code availability. The system records these exact controls and continues other candidates; it does not fabricate answers or perform the person-bound step.
+- Focused verification for the runner and Mercor contracts is 68 passed with 5 subtests, and the prior effect fence was resolved by an occurrence-specific official readback before this release was installed.
+
 ## Outcome and scope
 
 The first outcome is one **official Mercor offer or paid work trial**, followed by one **official paid/settled Mercor earnings row and payout receipt**. A profile view, application, assessment, interview, trial invitation, or contract alone is an intermediate stage. USD 10,000 net received in a complete calendar month is the later scale outcome, never a promise or a reason to delay the first payment. Hourly rates are not monthly recurring revenue: project hours and continuity must be observed.
