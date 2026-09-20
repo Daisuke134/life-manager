@@ -1005,6 +1005,12 @@ it does not authorize a provider retry or a direct admission-state edit.
   `~/gig/apply-direct/evidence/occurrence-18d6e6e0c10fa690-98578/parent-B2-applied-readback-unexpected-route-codex-reconcile-5280157-1789880618.json`.
   Because the scan did not reach the end of history, it proves neither presence nor absence of
   `5280157`; the fence remains held and no retry or resolver call is safe.
+- **Prefix and page-boundary probe:** the bounded read-only scan persisted 19 official pages,
+  `cards_seen=360`, `missing_count=1`, and `next_url=https://coconala.com/mypage/job_matching/applied/offers?page=20`
+  at `~/gig/apply-direct/evidence/occurrence-18d6e6e0c10fa690-98578/official-history-prefix-readback-5280157.json`.
+  A one-page retry that explicitly started at the `www` page-20 URL reproduced `403 Forbidden`; its
+  diagnostic is `~/gig/apply-direct/evidence/occurrence-18d6e6e0c10fa690-98578/parent-B2-applied-readback-unexpected-route-codex-probe-page20-5280157-1789881233.json`.
+  This narrows the provider boundary to page 20, but still does not prove absence.
 - **Storefront occurrence `18d5fe2cfd5ce560-29338`:** the official runtime event sequence is
   `execute/effect_status=started` followed by `resource_capacity_busy/effect_status=unknown`, and a
   later d400-era entrypoint failure references the same claim via
