@@ -9,6 +9,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import websockets
 
@@ -25,6 +26,14 @@ def earnings_surface_ready(text: str) -> bool:
 
 
 def parse_earnings_text(text: str, *, observed_at: str, page_url: str) -> dict[str, Any]:
+    parsed_url = urlsplit(page_url)
+    if parsed_url.path.rstrip("/") != "/earnings" or re.search(r"\b(sign in|log in)\b", text, re.I):
+        return {
+            "status": "blocked",
+            "reason": "earnings_surface_auth_unavailable",
+            "page_url": page_url,
+            "observed_at": observed_at,
+        }
     total_match = TOTAL_RE.search(text)
     total = (total_match.group(1) if total_match else "0.00").replace(",", "")
     if "no payment history yet" in text.casefold():

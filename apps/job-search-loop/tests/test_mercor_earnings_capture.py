@@ -38,6 +38,15 @@ class MercorEarningsCaptureTests(unittest.TestCase):
         self.assertEqual(snapshot["status"], "blocked")
         self.assertEqual(snapshot["reason"], "payment_rows_require_structured_extraction")
 
+    def test_login_redirect_is_classified_as_auth_readback_blocker(self):
+        snapshot = parse_earnings_text(
+            "Explore\nHome\nSign in\nGet Instant work offers\n$0",
+            observed_at="2026-08-22T12:00:00+00:00",
+            page_url="https://work.mercor.com/explore",
+        )
+        self.assertEqual(snapshot["status"], "blocked")
+        self.assertEqual(snapshot["reason"], "earnings_surface_auth_unavailable")
+
 
 if __name__ == "__main__":
     unittest.main()
