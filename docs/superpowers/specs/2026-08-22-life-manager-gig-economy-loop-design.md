@@ -1118,6 +1118,34 @@ the same as a buyer-visible Coconala message or formal delivery.
 receipt bound to feedback SHA `2291a538…` and exact talkroom readback. Only after that may Ryu move to
 formal delivery/acceptance according to the official talkroom state.
 
+### 0.2J Reply collector boundary is now explicit (measured 2026-09-20 15:10 JST)
+
+- PRs #5745, #5747, and #5749 are merged. The current main-derived release is
+  `20260920T150954-e0d2f433`, but the loaded Reply job remains on `b3b8041e…` until its next
+  targeted apply window; the apply attempt during the Paid owner wake was rejected as
+  `control_busy` and was not retried blindly.
+- The loaded b3 natural wake produced the durable Reply receipt
+  `~/.local/state/life-manager/coconala/reply/latest.json` with
+  `status=blocked`, `blocker=provider_inbox_http_error`, `observed=0`, `effect=0`,
+  `failed=0`, `pending=0`. The 404 from `cdp_default_tab.py` is now preserved as a provider
+  HTTP observation receipt instead of `entrypoint_exit_1`.
+- Earlier b3 wakes with a complete inbox snapshot produced `status=ok`, `observed=186`,
+  `effect=0`, `readback=168`, and row-level `failed=1`/`pending=17`; the row failure remains in
+  the durable receipt and does not become an unexplained process exit after PR #5749.
+- Ryu owner v531 has fresh API/browser/FTPS receipts with the remote contract satisfied, but the
+  independent verifier is still running and no exact Coconala seller-message receipt exists yet.
+  The Paid owner remains the only browser owner for that account.
+
+**Atomic cursor after this refresh:**
+
+1. Let the Ryu verifier/parent finish; then require the single v531 seller-message send/readback.
+2. After Paid releases admission, apply release `e0d2f433` to Reply and run two natural cycles;
+   accept either an explicit provider access/HTTP receipt or a complete coverage receipt, with no
+   generic `entrypoint_exit_1`.
+3. Continue with Apply occurrence `18d6e6e0c10fa690-98578`, Storefront occurrence
+   `18d5fe2cfd5ce560-29338`, Chii correctness, Hirose `10070709`, and the final SHA/env/replay-zero
+   closeout in that order.
+
 ## 1. Goal, objective and boundaries
 
 ### 1.1 Goal
