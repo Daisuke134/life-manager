@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Delivery Commitment Evidence Ledger icon</title>
+  <desc id="desc">A document ledger with linked check marks.</desc>
+  <rect width="256" height="256" rx="48" fill="#102a43"/>
+  <path d="M66 48h88l36 36v124H66z" fill="#e8f1f8"/>
+  <path d="M154 48v38h36" fill="#b9d8ee"/>
+  <path d="M92 112h72M92 142h72M92 172h42" stroke="#2b6f95" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="174" cy="172" r="31" fill="#2f855a"/>
+  <path d="m159 172 10 10 20-23" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
