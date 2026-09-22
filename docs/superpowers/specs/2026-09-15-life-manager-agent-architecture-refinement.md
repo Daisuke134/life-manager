@@ -2561,17 +2561,44 @@ sequence `127503`. The reconciler retained that reservation and queue row, recor
 `bb7b342a3cb0e0498b5abb24`, loaded exact `3fe9eadc...` argv and returned `failed=[]`. This closes the
 automatic reserved-release rebind acceptance. The preceding natural Affiliate wake on
 `6df273fa...` reached outer `pass`, exact installed/event provenance and `effect_unknown=0`. A natural
-Affiliate wake on `3fe9eadc...` is still pending; do not count the install event as a provider effect
-or revenue receipt.
+Affiliate wake `e69b33e93eb11213d5f2e3e4721913359a21b5839bc9f1e3958c05aaf5229679` on exact
+`3fe9eadc...` also reached outer `pass` with current installed/event provenance and no admission
+effect fence. The following natural wake
+`f81e20a5d67c5f3465979cdef50428f39aa9c5d938241fa6f266d3bb6f1f0f82` safely claimed an older
+queued occurrence and reached outer `pass`, but its `publication.advance` write boundary timed out
+before an official postcondition. The occurrence is therefore fenced as `effect_unknown`; this is
+not replay-zero and must not be cleared or retried by inference.
+
+PR #5784 merges the Codex-runner pin self-heal as
+`193ee61c1364a63fc6cf194c4874b5d8fbea7b96`. A missing previously verified versioned binary may be
+re-pinned exactly once only when the old canonical path is absent, the private sibling request still
+matches the prior receipt SHA-256, and the refreshed canonical path/version/binary SHA-256 all
+re-verify. In-place binary changes, changed requests, symlinks and insecure modes fail closed. The
+Affiliate suite passes 195/195, the loop contract reports 14 catalog loops with no errors, every PR
+check is green and fresh read-only review is SHIP. Production naturally cuts complete immutable
+release `20260923T060006-193ee61c`, selects it as `current`, waits for the old Affiliate wake instead
+of restarting it, then loads exact new argv under install event `e93e5286ca49498bed92e112` with
+`failed=[]`. No manual restart or apply is used.
+
+The first fresh PartnerStack API readback returns HTTP 401 while the Affiliate receipt still says
+`provider_state=AUTHENTICATED`. That state only proves the ElevenLabs application session; it does not
+prove the PartnerStack affiliate session used for custom links and revenue. Current verified money
+evidence remains eight cumulative historical provider clicks, zero current CTA clicks, zero
+transactions and zero approved/paid commissions. The immediate repair cursor is therefore the false
+green auth boundary plus official reconciliation of the fenced publication attempt; the new pin
+self-heal is not production-accepted until a later natural wake on `193ee61c...` reaches the decision
+tools without `RUNNER_PIN_REJECTED`.
 
 The remaining order is fixed as follows:
 
-1. Require Affiliate's next natural wake on `3fe9eadc...` with exact release provenance, no
-   `effect_unknown`, official readback and replay-zero. Then repair the typed business blockers:
-   acquisition-decision runner pin rejection, unavailable owned-visit analytics, transient Impact
-   observation and quarantined publication. Current cumulative provider clicks are 8 and verified
-   transactions/approved/paid commissions remain 0; an existing public page, impressions or process
-   `exit 0` is not revenue completion.
+1. Finish Affiliate without manual restart: repair PartnerStack auth health so HTTP 401 cannot report
+   `AUTHENTICATED`; re-authenticate from the private credential SSOT when the normal flow is safe;
+   officially read back the exact custom-link target and reconcile the current `effect_unknown`
+   occurrence without creating or resending a link; then require a natural wake on `193ee61c...` to
+   self-refresh the stale Codex pin and reach acquisition/funnel decisions without
+   `RUNNER_PIN_REJECTED`. Continue with unavailable owned-visit analytics, transient Impact
+   observation, publication timeout/quarantine, attributable conversion and replay-zero. An existing
+   public page, impressions or process `exit 0` is not revenue completion.
 2. Verify Mobile Apps/Postiz on its natural schedule: expected posts exist on the official provider,
    the intended three-per-day cadence is durable, missed occurrences are reconciled without duplicate
    publication, and analytics/revenue receipts feed the same evaluation contract.
