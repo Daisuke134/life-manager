@@ -25,6 +25,13 @@ SPEC.loader.exec_module(MODULE)
 
 
 class LocalLoopTest(unittest.TestCase):
+    def test_installed_release_sha_uses_validated_runtime_environment(self):
+        release_sha = "a" * 40
+        with patch.dict(
+            MODULE.os.environ, {"LIFE_MANAGER_RELEASE_SHA": release_sha}, clear=False,
+        ):
+            self.assertEqual(MODULE.installed_release_sha(), release_sha)
+
     def test_provider_poll_turns_transport_timeout_into_typed_observation_failure(self):
         with tempfile.TemporaryDirectory() as root:
             with (

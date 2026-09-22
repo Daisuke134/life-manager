@@ -1303,6 +1303,9 @@ def cost_budget_snapshot(state_root, cap_minor=EXTERNAL_COST_DAILY_CAP_MINOR):
 
 def installed_release_sha():
     """Return the immutable release SHA, or an explicit source-checkout marker."""
+    candidate = os.environ.get("LIFE_MANAGER_RELEASE_SHA", "").strip()
+    if RELEASE_SHA_PATTERN.fullmatch(candidate):
+        return candidate
     candidate = Path(__file__).resolve().parents[1].name
     return candidate if RELEASE_SHA_PATTERN.fullmatch(candidate) else "SOURCE_CHECKOUT"
 
