@@ -283,6 +283,7 @@ def rebind_queued_owner(
     resource_class: str,
     admission_class: str,
     priority: str | None = None,
+    effect_scope: str = "owner",
 ) -> str:
     """Migrate one effect-free queued owner to its current registry admission policy.
 
@@ -294,6 +295,7 @@ def rebind_queued_owner(
         not owner_id
         or resource_class not in set(RESOURCE_CLASSES)
         or admission_class not in ADMISSION_CLASSES
+        or effect_scope not in EFFECT_SCOPES
     ):
         raise RuntimeError("invalid queued owner rebind identity")
     priority_name = _normalize_priority(priority, admission_class)
@@ -317,8 +319,13 @@ def rebind_queued_owner(
                 return "reserved"
             if connection.execute(
                 """SELECT 1 FROM occurrences
-                   WHERE owner_id=? AND (state='claimed' OR effect_unknown=1)
+                   WHERE owner_id=?
+                     AND ((state='claimed' AND effect_unknown=0)
+                          OR (?='owner' AND effect_unknown=1))
                    LIMIT 1""",
+                (owner_id, effect_scope),
+            ).fetchone() or connection.execute(
+                "SELECT 1 FROM priorities WHERE owner_id=? AND effect_unknown=1",
                 (owner_id,),
             ).fetchone():
                 return "effect_unknown"
@@ -330,18 +337,20 @@ def rebind_queued_owner(
             ).fetchone():
                 return "no_queued_occurrence"
             current = connection.execute(
-                """SELECT admission_class,base_priority,admission_policy
+                """SELECT admission_class,base_priority,admission_policy,effect_scope
                    FROM priorities WHERE owner_id=?""",
                 (owner_id,),
             ).fetchone()
             if current is None:
                 raise RuntimeError("queued owner priority row missing")
-            changed = current != (admission_class, priority_name, ADMISSION_POLICY)
+            changed = current != (
+                admission_class, priority_name, ADMISSION_POLICY, effect_scope,
+            )
             connection.execute(
                 """UPDATE priorities
-                   SET admission_class=?, admission_policy=?, base_priority=?
+                   SET admission_class=?, admission_policy=?, base_priority=?, effect_scope=?
                    WHERE owner_id=?""",
-                (admission_class, ADMISSION_POLICY, priority_name, owner_id),
+                (admission_class, ADMISSION_POLICY, priority_name, effect_scope, owner_id),
             )
             connection.execute(
                 """UPDATE occurrences

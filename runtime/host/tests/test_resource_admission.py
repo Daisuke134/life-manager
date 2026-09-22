@@ -141,6 +141,45 @@ def test_rebind_queued_owner_refuses_claimed_effect_boundary(tmp_path, monkeypat
     ) in {"not_queued", "reserved", "effect_unknown"}
 
 
+def test_rebind_occurrence_scoped_owner_preserves_old_unknown_and_migrates_queue(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "mobile-publisher"
+    admission.enqueue_durable(
+        "agent", owner, admission_class="revenue",
+        occurrence_id=f"{owner}:old", now=100,
+    )
+    old, reason = admission.claim_durable(
+        "agent", owner, admission_class="revenue", now=101,
+    )
+    assert old is not None and reason == "acquired"
+    admission.enqueue_durable(
+        "agent", owner, admission_class="revenue",
+        occurrence_id=f"{owner}:new", now=102,
+    )
+    admission.release_and_reserve(old, effect_unknown=True, reserve=False, now=103)
+
+    assert admission.rebind_queued_owner(
+        owner, resource_class="agent", admission_class="revenue",
+        priority="revenue", effect_scope="occurrence",
+    ) == "rebound"
+
+    rows = {row["occurrence_id"]: row for row in durable_rows(tmp_path, "occurrences")}
+    assert (rows[f"{owner}:old"]["state"], rows[f"{owner}:old"]["effect_unknown"]) == (
+        "claimed", 1,
+    )
+    assert rows[f"{owner}:new"]["state"] == "queued"
+    priority = durable_rows(tmp_path, "priorities")[0]
+    assert priority["effect_scope"] == "occurrence"
+    new, reason = admission.claim_durable(
+        "agent", owner, admission_class="revenue", effect_scope="occurrence", now=104,
+    )
+    assert new is not None and reason == "acquired"
+    assert json.loads(new.read_text())["occurrence_id"] == f"{owner}:new"
+    admission.release_and_reserve(new, reserve=False)
+
+
 def test_durable_protocol_defaults_v1_and_activates_only_when_idle(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch)
     assert admission.durable_protocol_version() == 1

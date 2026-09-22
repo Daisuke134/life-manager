@@ -19,10 +19,11 @@ Restore naturally scheduled Mobile/Postiz publishing without deleting or guessin
    - reservation dispatch preserves the scope.
 2. Persist `effect_scope` in the durable priority/claim contract with a safe `owner` default and migration.
 3. Thread `effect_scope=occurrence` from `lm_loop_run` only when the validated registry entry is `effect_class=publish` and its exact entrypoint is `apps/life-manager/scripts/mobile-app`.
-4. Run focused admission and runner tests, then the existing Mobile publication and mapping tests.
-5. Run the full Life Manager suite and protected-scope diff checks.
-6. Commit and push the source result. Merge only after the scoped source acceptance is green.
-7. Build/apply one immutable main-derived release to one naturally due non-OBou Mobile owner, then verify terminal event, exact provider receipt and replay-zero before staged rollout.
+4. Migrate the same explicit scope through deploy-time queue rebind so a retained historical unknown cannot block installation of the occurrence-scoped runner. Never alter the unknown row, and keep owner-scoped or claimed non-unknown work fail-closed.
+5. Run focused admission and runner tests, then the existing Mobile publication and mapping tests.
+6. Run the full Life Manager suite and protected-scope diff checks.
+7. Commit and push the source result. Merge only after the scoped source acceptance is green.
+8. Build/apply one immutable main-derived release to one naturally due non-OBou Mobile owner, then verify terminal event, exact provider receipt and replay-zero before staged rollout.
 
 ## Failure policy
 
@@ -32,6 +33,7 @@ Restore naturally scheduled Mobile/Postiz publishing without deleting or guessin
 
 ## Current progress
 
-- Complete: explicit occurrence-scoped admission, Mobile-only runner wiring, same-occurrence refusal, reservation/requeue/stale-claim preservation, focused/full tests, loop contract and fresh read-only review.
+- Complete: initial occurrence-scoped admission, Mobile-only runner wiring, same-occurrence refusal, reservation/requeue/stale-claim preservation, focused/full tests, loop contract, fresh read-only review and PR #5765/main merge `ac2d9b26d1…`.
 - Unchanged: 17 historical unknown occurrences (14 released, 3 claimed), Paid scope, registry/catalog, provider sessions and OBOU hold.
-- Current cursor: PR/main integration, then one immutable-release natural canary, exact official receipt and replay-zero.
+- Observed canary gate: latest-main release `87aa9d11…` contains the runner fix; the targeted apply changed nothing and reported `admission rebind refused: effect_unknown`, proving deploy rebind still used owner scope.
+- Current cursor: finish and merge the Mobile-only deploy-rebind regression, then apply only `life-manager-anicca-jp1-tiktok` for its next natural 06:30 JST canary, exact official receipt and replay-zero.
