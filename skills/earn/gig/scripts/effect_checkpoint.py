@@ -261,12 +261,47 @@ def tiktok_verified_unique_count(ledger: Path) -> int | None:
     return baseline + len(handles)
 
 
+def tiktok_required_unique_sends(ledger: Path) -> int | None:
+    if ledger.is_symlink() or not ledger.is_file():
+        return None
+    targets: set[int] = set()
+    for line in ledger.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        if not isinstance(row, dict):
+            continue
+        campaign = (row.get("observed_state") or {}).get("campaign")
+        if not isinstance(campaign, dict) or "required_unique_sends" not in campaign:
+            continue
+        required = campaign["required_unique_sends"]
+        if isinstance(required, bool) or not isinstance(required, int) or required <= 0:
+            return None
+        targets.add(required)
+    return next(iter(targets)) if len(targets) == 1 else None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project-root", required=True, type=Path)
-    parser.add_argument("--effect-json", required=True, type=Path)
+    action = parser.add_mutually_exclusive_group(required=True)
+    action.add_argument("--effect-json", type=Path)
+    action.add_argument("--audit-tiktok-counts", action="store_true")
     args = parser.parse_args()
     root = args.project_root.resolve()
+    ledger = root / "delivery" / "paid-remote-progress.jsonl"
+    if args.audit_tiktok_counts:
+        reconcile_tiktok_recipient_counts(ledger)
+        verified = tiktok_verified_unique_count(ledger)
+        required = tiktok_required_unique_sends(ledger)
+        if verified is None or required is None or verified > required:
+            raise SystemExit("TikTok count audit unavailable")
+        print(json.dumps({
+            "verified_unique_sends": verified,
+            "required_unique_sends": required,
+            "remaining_eligible_personalized_sends": required - verified,
+        }, sort_keys=True))
+        return 0
     source = args.effect_json.resolve()
     if root not in source.parents or source.is_symlink() or not source.is_file():
         raise SystemExit("effect JSON must be a regular project-owned file")
@@ -274,7 +309,6 @@ def main() -> int:
     value = bind_current_cycle(root, unbound_value)
     if not valid_checkpoint(value):
         raise SystemExit("invalid effect checkpoint")
-    ledger = root / "delivery" / "paid-remote-progress.jsonl"
     ledger.parent.mkdir(parents=True, exist_ok=True)
     existing = []
     if ledger.is_file():
