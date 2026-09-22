@@ -95,6 +95,18 @@ function validateGoal(goal, portfolio, authorizedRefs, goalIds) {
   return goal;
 }
 
+function validatePortfolioGoalShape(value) {
+  const dependencies = Array.isArray(value && value.dependencies) ? value.dependencies : [];
+  const evidenceRefs = Array.isArray(value && value.evidence_refs) ? value.evidence_refs : [];
+  validateGoal(
+    value,
+    { tenant_id: value && value.tenant_id, revision: value && value.revision },
+    new Set(evidenceRefs),
+    new Set([value && value.goal_id, ...dependencies]),
+  );
+  return deepFreeze(value);
+}
+
 function validateGoalPortfolio(value, context = {}) {
   if (!exactKeys(value, PORTFOLIO_KEYS)
     || value.schema_version !== "life-manager.goal-portfolio.v1"
@@ -190,5 +202,6 @@ module.exports = {
   activePortfolioGoal,
   goalReference,
   synthesizeGoalPortfolio,
+  validatePortfolioGoalShape,
   validateGoalPortfolio,
 };

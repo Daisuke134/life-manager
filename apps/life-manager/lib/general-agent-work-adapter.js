@@ -17,9 +17,20 @@ function contract(job) {
     !job || job.loop_id !== LOOP_ID || job.capability !== CAPABILITY
     || job.effect_class !== "none" || job.effect_key !== null || job.max_attempts !== 1
     || typeof job.tenant_id !== "string" || !job.tenant_id
-    || typeof job.job_id !== "string" || !job.job_id.startsWith("goal:")
+    || typeof job.job_id !== "string"
     || !refs || JSON.stringify(Object.keys(refs)) !== JSON.stringify(["goal_ref"])
-    || !String(refs.goal_ref || "").startsWith(`intent-entry://${encodeURIComponent(job.tenant_id)}/`)
+  ) throw new Error("general agent WorkItem invalid");
+  const identity = /^goal:([a-z0-9][a-z0-9._-]{0,199}):r([1-9][0-9]*)$/iu.exec(job.job_id);
+  let parsed;
+  try { parsed = new URL(refs.goal_ref); } catch { throw new Error("general agent WorkItem invalid"); }
+  if (!identity
+    || parsed.protocol !== "goal-portfolio:"
+    || parsed.username || parsed.password || parsed.port || parsed.hash
+    || parsed.hostname !== job.tenant_id
+    || decodeURIComponent(parsed.pathname) !== `/${identity[1]}`
+    || parsed.searchParams.size !== 1
+    || parsed.searchParams.get("revision") !== identity[2]
+    || refs.goal_ref !== `goal-portfolio://${encodeURIComponent(job.tenant_id)}/${encodeURIComponent(identity[1])}?revision=${identity[2]}`
   ) throw new Error("general agent WorkItem invalid");
   return Object.freeze({
     tenant_id: job.tenant_id,
@@ -51,7 +62,7 @@ function receipt(value, expected) {
 function createGeneralAgentWorkLoopAdapter(deps = {}) {
   return Object.freeze({
     async plan(context = {}) {
-      return [buildGoalWorkItem(context.goal, context.nowMs)];
+      return [buildGoalWorkItem(context.portfolioGoal, context.nowMs)];
     },
     async execute(job, services = {}) {
       const expected = contract(job);
