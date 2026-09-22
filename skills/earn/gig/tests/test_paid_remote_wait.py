@@ -4502,6 +4502,80 @@ def test_paid_admission_keeps_later_orders_for_future_wakes(tmp_path):
     assert [item["talkroom_id"] for item in admitted] == ["101"]
 
 
+def test_paid_admission_does_not_expand_one_identity_to_multiple_talkrooms(tmp_path):
+    paid = load("paid_direct")
+    args = SimpleNamespace(projects_root=tmp_path)
+    items = [
+        {"request_id": "shared", "talkroom_id": "101", "buyer": "buyer-a"},
+        {"request_id": "shared", "talkroom_id": "102", "buyer": "buyer-b"},
+    ]
+
+    admitted = paid._admitted_paid_projects(args, items)
+
+    assert [(item["request_id"], item["talkroom_id"]) for item in admitted] == [
+        ("shared", "101"),
+    ]
+
+
+def test_paid_noop_winner_rotates_next_wake_to_one_later_effect(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    items = [
+        {"talkroom_id": "101", "buyer": "buyer-a", "delivery_date": "2026-09-01"},
+        {"talkroom_id": "102", "buyer": "buyer-b", "delivery_date": "2026-09-02"},
+    ]
+    args = SimpleNamespace(
+        projects_root=tmp_path / "projects",
+        evidence_dir=tmp_path / "evidence",
+        lock_file=tmp_path / "paid.lock",
+        operator_brake=tmp_path / "operator.brake",
+    )
+    effects = []
+
+    monkeypatch.setattr(paid, "observe_orders", lambda *_args: [dict(item) for item in items])
+    monkeypatch.setattr(paid, "_targeted", lambda _args, item, _index: dict(item))
+    monkeypatch.setattr(
+        paid,
+        "_reported_paid_row",
+        lambda _args, item: (
+            {
+                "talkroom_id": "101",
+                "status": "completed",
+                "send_performed": False,
+                "deduplicated": True,
+                "formal_delivery_checkbox": False,
+            }
+            if item["talkroom_id"] == "101"
+            else None
+        ),
+    )
+    monkeypatch.setattr(paid, "_effect_gate_reason", lambda _args: None)
+    monkeypatch.setattr(
+        paid,
+        "_recoverable",
+        lambda _args, item: (args.projects_root / item["talkroom_id"], None),
+    )
+    monkeypatch.setattr(paid, "_reclaim_paid_tabs", lambda *_args: None)
+    monkeypatch.setattr(
+        paid,
+        "_run_paid_item",
+        lambda _args, room, *_rest: (
+            effects.append(room) or ({"talkroom_id": room, "status": "completed"}, 1, 1, 0, "")
+        ),
+    )
+    monkeypatch.setattr(paid, "_reconcile_absent_talkrooms", lambda *_args: {"status": "ok"})
+    monkeypatch.setattr(paid.project_janitor, "scan", lambda *_args, **_kwargs: {"status": "ok"})
+
+    first = tmp_path / "first.json"
+    second = tmp_path / "second.json"
+    assert paid.run_once(args, first) == 0
+    assert effects == []
+
+    assert paid.run_once(args, second) == 0
+    assert effects == ["102"]
+    result = json.loads(second.read_text(encoding="utf-8"))
+    assert [row["status"] for row in result["items"]] == ["completed", "completed"]
+
+
 def test_paid_observation_does_not_exclude_ryu_talkroom(tmp_path, monkeypatch):
     paid = load("paid_direct")
     evidence = tmp_path / "orders"

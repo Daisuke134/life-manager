@@ -6857,8 +6857,14 @@ def _admitted_paid_projects(args, items: list[dict[str, Any]]) -> list[dict[str,
         admission, projects_root=args.projects_root,
         pass_id=f"paid-direct-{time.time_ns()}",
     )
-    admitted = set(admission.get("admitted") or [])
-    return [item for item in available if paid_admission.stable_identity(item) in admitted]
+    admitted_indexes = {
+        decision["index"]
+        for decision in admission.get("decisions", [])
+        if isinstance(decision, dict)
+        and decision.get("decision") == paid_admission.ADMIT
+        and isinstance(decision.get("index"), int)
+    }
+    return [item for index, item in enumerate(available) if index in admitted_indexes]
 
 
 def _paid_timed_retry_is_future(args, item: dict[str, Any], now: float | None = None) -> bool:
@@ -6926,8 +6932,8 @@ def run_once(args, output: Path) -> int:
                 failed += 1
                 failed_step = "owner_policy_invalid"
         active_items = _paid_active_items(args, items)
-        admitted_paid_identities = {
-            paid_admission.stable_identity(item)
+        admitted_paid_rooms = {
+            _text(item.get("talkroom_id"))
             for item in _admitted_paid_projects(args, active_items)
         }
         executor = _paid_project_executor()
@@ -6958,12 +6964,23 @@ def run_once(args, output: Path) -> int:
                                   "reason": "browser_lease_busy",
                                   "browser_lease_owner": item.get("browser_lease_owner")}
                     continue
+                if room in admitted_paid_rooms:
+                    try:
+                        delivery_project.record_queue_selection(
+                            args.projects_root, item, adapter="coconala",
+                        )
+                    except (OSError, ValueError, TypeError, json.JSONDecodeError) as error:
+                        step = "context_compile"
+                        failed, failed_step = failed + 1, step
+                        rows[room] = {"talkroom_id": room, "status": "failed",
+                                      "failed_step": step, "error_detail": str(error)[:500]}
+                        continue
                 reported = _reported_paid_row(args, item)
                 if reported is not None:
                     rows[room] = reported
                     readback += 1
                     continue
-                if paid_admission.stable_identity(item) not in admitted_paid_identities:
+                if room not in admitted_paid_rooms:
                     rows[room] = {"talkroom_id": room, "status": "queued"}
                     continue
                 if disk_blocked_reason is None:
@@ -6976,9 +6993,6 @@ def run_once(args, output: Path) -> int:
                         failed, failed_step = failed + 1, "disk_checkpoint"
                     continue
                 try:
-                    delivery_project.record_queue_selection(
-                        args.projects_root, item, adapter="coconala",
-                    )
                     resolved = _recoverable(args, item)
                     if resolved is None:
                         root = _paid_project_root(args, item)
