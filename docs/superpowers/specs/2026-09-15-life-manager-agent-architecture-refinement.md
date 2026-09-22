@@ -2532,6 +2532,59 @@ owners continue their rows independently. The architecture workstream owns only 
 skills, specifications, fixtures, and read-only diagnostics until a shared-file overlap check approves
 runtime changes.
 
+### J4. Current local-first execution cursor
+
+Life Manager assigns proactive goals from the one-shot onboarding facts, verified state, policy and
+receipts. An ordinary wake never asks the user to invent or restate a goal. The only user interruption
+is a typed gate that cannot be completed safely by the system itself, such as a one-time identity check
+or a policy/permission decision. Local repair and verification finish before cloud promotion; cloud is
+the same implementation behind tenant-scoped host adapters, not a second product.
+
+The shared foundation already provides the 14-loop catalog, registry ownership, immutable release
+provenance, bounded resource admission, occurrence/effect fences, official-readback vocabulary,
+replay protection, runtime status, completion manifests, Local/Cloud gates, recovery intents and the
+bounded evaluation/promotion contract. These contracts are necessary infrastructure, but they do not
+by themselves prove that all 14 Product Loops work in production.
+
+The current non-Paid cursor is Affiliate. Public CTA/readback and release-provenance repairs are on
+main. The queued-release self-heal change is also on main at `619b90d0745f3244354e756d1ff03787adf98d33`:
+only explicitly opted-in owners may reconcile a queued release, active reservations and
+`effect_unknown` remain fenced, loaded-idle is required, and occurrence/FIFO identity is preserved.
+Focused registry/apply tests pass 190/190, the Python runtime suite passes 509/509, scoped Node
+catalog/recovery tests pass 39/39, and the loop contract reports 14 catalog loops with no errors. The
+production release reconciler has naturally cut the complete immutable
+`20260923T051252-619b90d0` release. Affiliate remains on the preceding `e6cdef15...` release until the
+natural deterministic reconcile records an owner-scoped install event; therefore automatic rebind is
+in progress, not yet accepted.
+
+The remaining order is fixed as follows:
+
+1. Finish Affiliate automatic idle-boundary rebind acceptance on `619b90d...`, then require a natural
+   wake with exact release provenance, no `effect_unknown`, official readback and replay-zero. Repair
+   the observed acquisition-decision, owned-visit, provider-poll and publication failures from their
+   typed receipts; an existing public page or process `exit 0` is not revenue completion.
+2. Verify Mobile Apps/Postiz on its natural schedule: expected posts exist on the official provider,
+   the intended three-per-day cadence is durable, missed occurrences are reconciled without duplicate
+   publication, and analytics/revenue receipts feed the same evaluation contract.
+3. Repair Connector from the latest typed `wake_boundary_failed` evidence, then prove one natural
+   registration/readback and replay-zero without a manual restart.
+4. Continue the remaining non-Paid rows in the Fourteen-Loop Remediation Matrix one owner at a time.
+   The separate Paid owner retains exclusive control of Coconala, CrowdWorks, Lancers and Upwork Paid
+   fulfillment; this workstream never edits or restarts that state.
+5. Re-run the 14-loop Local completion gate until no enabled owner is `unknown`, stale, silently
+   failing or dependent on a visible desktop. Every row must have current official evidence or a
+   truthful typed `setup_required`/`not_applicable` state.
+6. Prove shared self-healing by failure injection and natural recovery, then prove bounded
+   self-improvement by receipt-to-eval-to-candidate-to-held-out/safety/live-evidence-to-immutable-release
+   promotion and rollback. Prove the new-loop meta-loop uses the same contracts instead of creating a
+   parallel scheduler or provider owner.
+7. Re-run Local/Eval after those proofs. Only then promote the identical main-derived immutable SHA to
+   tenant-isolated cloud workers and cloud browser sessions, run resource-class canaries, and expose a
+   phone-only conversational control path. The user supplies one-shot facts and receives outcomes or
+   rare typed gates; routine operation needs no Mac, command, goal-setting conversation or babysitting.
+8. Grow verified net revenue toward self-funding and USD 10,000 MRR. Applications, posts, impressions,
+   contracts and model claims never count as revenue without attributable provider/payment receipts.
+
 ### K. User Communication Contract
 
 Every wake, retry, evaluation, health signal, and diagnostic remains in the private ledger/control room
