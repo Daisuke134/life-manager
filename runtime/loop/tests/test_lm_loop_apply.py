@@ -103,7 +103,7 @@ class LmLoopApplyTest(unittest.TestCase):
                 ("revenue", "revenue"),
             )
 
-    def test_admission_rebind_guard_keeps_reserved_owner_for_release_install(self):
+    def test_admission_rebind_guard_defers_release_install_for_reserved_owner(self):
         entry = {
             "resource_class": "agent",
             "admission_class": "revenue",
@@ -114,7 +114,7 @@ class LmLoopApplyTest(unittest.TestCase):
             patch.object(lm_loop, "rebind_queued_owner", return_value="reserved") as rebind,
             lm_loop._admission_rebind_guard("example", True, entry=entry) as decision,
         ):
-            self.assertIsNone(decision)
+            self.assertEqual(decision, "pending")
         rebind.assert_called_once_with(
             "example", resource_class="agent", admission_class="revenue", priority="revenue"
         )

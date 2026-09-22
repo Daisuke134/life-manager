@@ -112,11 +112,13 @@ def _admission_rebind_guard(
                 and entry.get("entrypoint") == "apps/life-manager/scripts/mobile-app"):
             rebind_kwargs["effect_scope"] = "occurrence"
         result = rebind_queued_owner(loop_id, **rebind_kwargs)
-        if result in {"reserved", "not_queued"}:
-            # A reserved occurrence already owns its admission policy, and a
-            # drained queue row has no policy to migrate. Keep the admission
-            # state intact and let the release install proceed; the next wake
-            # will reconcile any policy change after the occurrence drains.
+        if result == "reserved":
+            # Keep the old release paired with its reserved admission policy.
+            # The next reconciler pass can rebind after the lease expires.
+            yield "pending"
+            return
+        if result == "not_queued":
+            # A drained queue row has no policy to migrate.
             yield None
             return
         if result not in {"rebound", "unchanged"}:
