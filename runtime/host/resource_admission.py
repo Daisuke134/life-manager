@@ -313,6 +313,9 @@ def rebind_queued_owner(
                 return "not_queued"
             if queue_row[0] != resource_class:
                 raise RuntimeError("queued owner resource class changed")
+            connection.execute(
+                "DELETE FROM reservations WHERE lease_until <= ?", (time.time(),)
+            )
             if connection.execute(
                 "SELECT 1 FROM reservations WHERE owner_id=?", (owner_id,)
             ).fetchone():

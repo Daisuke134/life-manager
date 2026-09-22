@@ -124,6 +124,30 @@ def test_rebind_queued_owner_updates_admission_without_changing_sequence(tmp_pat
     assert occurrence[0]["base_priority"] == "revenue"
 
 
+def test_rebind_queued_owner_discards_expired_reservation(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="4")
+    ticket, reason = admission.enqueue_durable(
+        "agent", "writer", admission_class="borrow", priority="support",
+        occurrence_id="writer:wake", now=100,
+    )
+    assert ticket is not None and reason in {"ready", "capacity_busy", "fifo_wait"}
+    assert admission.reserve_available(now=101, lease_seconds=5) == ["writer"]
+    monkeypatch.setattr(admission.time, "time", lambda: 107)
+
+    result = admission.rebind_queued_owner(
+        "writer", resource_class="agent", admission_class="revenue", priority="revenue",
+    )
+
+    assert result == "rebound"
+    assert durable_rows(tmp_path, "reservations") == []
+    priority = durable_rows(tmp_path, "priorities")[0]
+    assert priority["admission_class"] == "revenue"
+    assert priority["base_priority"] == "revenue"
+    occurrence = durable_rows(tmp_path, "occurrences")[0]
+    assert occurrence["admission_class"] == "revenue"
+    assert occurrence["base_priority"] == "revenue"
+
+
 def test_rebind_queued_owner_refuses_claimed_effect_boundary(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="2")
     ticket, _ = admission.enqueue_durable(
