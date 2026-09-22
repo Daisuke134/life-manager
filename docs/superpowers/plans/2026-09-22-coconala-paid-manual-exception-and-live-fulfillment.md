@@ -247,7 +247,18 @@
 ## Task 8: Prove one non-Ryu natural canary end to end
 
 **Files:**
+- Modify: `skills/browser/scripts/tiktok_message_transport.py`
+- Modify: `skills/browser/scripts/test_tiktok_message_transport.py`
 - Read/write outside Git: selected non-Ryu project state and evidence
+
+- [ ] **Step 0: Close the recipient-idempotency production incident before re-entry**
+
+  Add a RED regression where a prior `sent`, `attempting`, or `unknown` row uses a
+  different effect key for the same canonical TikTok handle. Under the existing
+  project transport lock, reject it before `new_target`, insertion, or keypress. Keep
+  verified `not_sent` retryable. Run the focused transport suite, the Paid/Coconala
+  source gate, fresh review, PR/merge, immutable release, and targeted apply before a
+  new canary. The Chii production duplicate is uncounted and cannot be replayed.
 
 - [ ] **Step 1: Refresh all current paid rooms and select the earliest safe non-Ryu item**
 
