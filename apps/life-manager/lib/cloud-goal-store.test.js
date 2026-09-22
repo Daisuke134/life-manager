@@ -268,6 +268,17 @@ test("migration keeps goal state immutable tenant-bound and service-role-only", 
   assert.match(sql, /pg_advisory_xact_lock/i);
   assert.match(sql, /goal context collision/i);
   assert.match(sql, /goal portfolio collision/i);
+  assert.match(sql, /GRANT SELECT ON TABLE public\.lm_goal_contexts TO service_role/i);
+  assert.match(sql, /GRANT SELECT ON TABLE public\.lm_goal_portfolios TO service_role/i);
+  assert.doesNotMatch(sql, /GRANT [^;]*INSERT[^;]* TO service_role/i);
+  assert.match(
+    sql,
+    /users\.telegram_chat_id::text = p_chat_id[\s\S]{0,120}FOR KEY SHARE/i,
+  );
+  const tenantLocks = sql.match(
+    /hashtextextended\('lm_goal_state:' \|\| p_tenant_id, 0\)/g,
+  ) || [];
+  assert.equal(tenantLocks.length, 2);
   assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.put_lm_goal_context[\s\S]+TO service_role/i);
   assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.put_lm_goal_portfolio[\s\S]+TO service_role/i);
   assert.doesNotMatch(sql, /GRANT (?:SELECT|INSERT|UPDATE|DELETE|ALL|EXECUTE)[\s\S]{0,180} TO (?:anon|authenticated)/i);

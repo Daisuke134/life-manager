@@ -71,8 +71,8 @@ BEGIN
     EXECUTE 'REVOKE ALL ON TABLE public.lm_goal_portfolios FROM authenticated';
   END IF;
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
-    EXECUTE 'GRANT SELECT, INSERT ON TABLE public.lm_goal_contexts TO service_role';
-    EXECUTE 'GRANT SELECT, INSERT ON TABLE public.lm_goal_portfolios TO service_role';
+    EXECUTE 'GRANT SELECT ON TABLE public.lm_goal_contexts TO service_role';
+    EXECUTE 'GRANT SELECT ON TABLE public.lm_goal_portfolios TO service_role';
   END IF;
 END
 $$;
@@ -106,16 +106,16 @@ BEGIN
     RAISE EXCEPTION 'goal context invalid';
   END IF;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM public.lm_users AS users
-    WHERE users.uid = p_tenant_id
-      AND users.telegram_chat_id::text = p_chat_id
-  ) THEN
+  PERFORM 1 FROM public.lm_users AS users
+  WHERE users.uid = p_tenant_id
+    AND users.telegram_chat_id::text = p_chat_id
+  FOR KEY SHARE;
+  IF NOT FOUND THEN
     RETURN;
   END IF;
 
   PERFORM pg_advisory_xact_lock(
-    hashtextextended('lm_goal_context:' || p_tenant_id || ':' || p_revision::text, 0)
+    hashtextextended('lm_goal_state:' || p_tenant_id, 0)
   );
   SELECT rows.* INTO existing
   FROM public.lm_goal_contexts AS rows
@@ -168,6 +168,9 @@ BEGIN
     RAISE EXCEPTION 'goal portfolio invalid';
   END IF;
 
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended('lm_goal_state:' || p_tenant_id, 0)
+  );
   IF NOT EXISTS (
     SELECT 1 FROM public.lm_goal_contexts AS contexts
     WHERE contexts.tenant_id = p_tenant_id AND contexts.revision = p_revision
@@ -175,9 +178,6 @@ BEGIN
     RETURN;
   END IF;
 
-  PERFORM pg_advisory_xact_lock(
-    hashtextextended('lm_goal_portfolio:' || p_tenant_id || ':' || p_revision::text, 0)
-  );
   SELECT rows.* INTO existing
   FROM public.lm_goal_portfolios AS rows
   WHERE rows.tenant_id = p_tenant_id AND rows.revision = p_revision
