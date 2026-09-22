@@ -68,7 +68,7 @@ def test_search_does_not_finish_on_navigation_profile_before_results_load(tmp_pa
         def evaluate(self, target, _expression):
             assert target == "search-tab"
             self.reads += 1
-            profiles = ["https://www.tiktok.com/@anicca.jp?lang=ja-JP"]
+            profiles = []
             if self.reads > 2:
                 profiles.append("https://www.tiktok.com/@candidate?lang=ja-JP")
             return {"url": self.url, "title": "TikTok", "ready": self.reads > 2,
@@ -82,9 +82,32 @@ def test_search_does_not_finish_on_navigation_profile_before_results_load(tmp_pa
 
     assert fake.reads == 4
     assert result["profiles"] == [
-        "https://www.tiktok.com/@anicca.jp?lang=ja-JP",
         "https://www.tiktok.com/@candidate?lang=ja-JP",
     ]
+
+
+def test_search_requires_two_ready_samples_after_readiness_transition(tmp_path):
+    search = load_module()
+
+    class ReadyTransition(FakeCDP):
+        def evaluate(self, target, _expression):
+            self.reads += 1
+            if self.reads == 1:
+                return {"url": self.url, "title": "TikTok", "ready": False,
+                        "profiles": []}
+            profiles = (["https://www.tiktok.com/@early"] if self.reads == 2 else
+                        ["https://www.tiktok.com/@candidate"])
+            return {"url": self.url, "title": "TikTok", "ready": True,
+                    "profiles": profiles}
+
+    fake = ReadyTransition()
+    result = search.search_users(
+        "美容 vlog", "paid-search", tmp_path / "search.json",
+        cdp_client=fake, wait=lambda _seconds: None, attempts=4,
+    )
+
+    assert fake.reads == 4
+    assert result["profiles"] == ["https://www.tiktok.com/@candidate"]
 
 
 def test_search_timeout_is_incomplete_when_results_never_become_ready(tmp_path):
@@ -127,6 +150,26 @@ def test_search_timeout_is_incomplete_while_ready_results_keep_changing(tmp_path
 
     assert result["complete"] is False
     assert result["ready"] is True
+
+
+def test_ready_empty_results_complete_only_after_stable_empty_sample(tmp_path):
+    search = load_module()
+
+    class Empty(FakeCDP):
+        def evaluate(self, target, _expression):
+            self.reads += 1
+            return {"url": self.url, "title": "TikTok", "ready": True,
+                    "profiles": []}
+
+    fake = Empty()
+    result = search.search_users(
+        "not-found", "paid-search", tmp_path / "search.json",
+        cdp_client=fake, wait=lambda _seconds: None, attempts=3,
+    )
+
+    assert fake.reads == 2
+    assert result["complete"] is True
+    assert result["profiles"] == []
 
 
 def test_search_closes_owned_target_on_read_failure(tmp_path):

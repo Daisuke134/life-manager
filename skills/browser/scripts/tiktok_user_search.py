@@ -18,14 +18,27 @@ READBACK = r"""
   const resultItems = [...document.querySelectorAll(
     '[data-e2e="search-user-item"], [data-e2e="search-user-card"], [data-e2e="search-user-item-container"]'
   )];
-  const body = document.body?.innerText || '';
-  const empty = /No results found|No users found|検索結果がありません|ユーザーが見つかりません/i.test(body);
+  const visible = node => {
+    const style = getComputedStyle(node);
+    const rect = node.getBoundingClientRect();
+    return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+  };
+  const emptyNodes = [...document.querySelectorAll(
+    '[data-e2e="search-no-result"], [data-e2e="search-empty"], [data-e2e="no-result"], [role="status"]'
+  )].filter(visible);
+  const empty = emptyNodes.some(node =>
+    /No results found|No users found|検索結果がありません|ユーザーが見つかりません/i.test(node.innerText || '')
+  );
+  const resultLinks = resultItems.flatMap(node => [
+    ...(node.matches('a[href*="/@"]') ? [node] : []),
+    ...node.querySelectorAll('a[href*="/@"]')
+  ]);
   return {
     url: location.href,
     title: document.title,
     ready: resultItems.length > 0 || empty,
     empty,
-    profiles: [...new Set([...document.querySelectorAll('a[href*="/@"]')]
+    profiles: empty ? [] : [...new Set(resultLinks
       .map(node => node.href).filter(Boolean))].slice(0, 50)
   };
 })()
@@ -80,7 +93,7 @@ def search_users(query: str, owner: str, output: Path, *, cdp_client=cdp,
                 raise RuntimeError(f"TikTok user search readback failed: {observed}")
             profiles = _profile_urls(observed.get("profiles"))
             ready = observed.get("ready") is True
-            stable = ready and profiles == previous_profiles
+            stable = ready and previous_profiles is not None and profiles == previous_profiles
             if stable:
                 result = {
                     "version": 1,
@@ -93,7 +106,7 @@ def search_users(query: str, owner: str, output: Path, *, cdp_client=cdp,
                 }
                 _write(output.resolve(), result)
                 return result
-            previous_profiles = profiles
+            previous_profiles = profiles if ready else None
             if attempt == attempts - 1:
                 result = {
                     "version": 1,
