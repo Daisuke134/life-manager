@@ -3,6 +3,7 @@ import hashlib
 import json
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -316,6 +317,52 @@ class SourceCaptureTest(unittest.TestCase):
             self.assertEqual([row["plan_id"] for row in result["plans"]], [
                 "alpha-en", "beta-en", "gamma-en",
             ])
+
+    def test_concurrent_wake_has_one_discovery_and_one_plan_owner(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "skill"
+            plans = root / "config" / "source-plans"
+            plans.mkdir(parents=True)
+            (plans / "alpha-en.json").write_text(json.dumps({
+                "schema_version": 1, "plan_id": "alpha-en",
+                "locale": "en", "sources": [],
+            }))
+            state = Path(directory) / "state"
+            discovery_entered = threading.Event()
+            release_discovery = threading.Event()
+            discovery_calls = []
+            first_result = []
+
+            def discover(*_args):
+                discovery_calls.append("called")
+                if len(discovery_calls) == 1:
+                    discovery_entered.set()
+                    self.assertTrue(release_discovery.wait(timeout=5))
+                return {"state": "COOLDOWN"}
+
+            def run_first():
+                first_result.append(MODULE.refresh_all(
+                    root, state, now=1000, disk_floor_bytes=1,
+                ))
+
+            with (
+                mock.patch.object(MODULE, "discover_official_plan", side_effect=discover),
+                mock.patch.object(MODULE, "capture", return_value=[]) as capture,
+            ):
+                first = threading.Thread(target=run_first)
+                first.start()
+                self.assertTrue(discovery_entered.wait(timeout=5))
+                second = MODULE.refresh_all(
+                    root, state, now=1001, disk_floor_bytes=1,
+                )
+                release_discovery.set()
+                first.join(timeout=5)
+
+            self.assertFalse(first.is_alive())
+            self.assertEqual(second["state"], "ALREADY_RUNNING")
+            self.assertEqual(len(discovery_calls), 1)
+            self.assertEqual(first_result[0]["state"], "COMPLETE")
+            capture.assert_called_once()
 
     def test_disk_guard_preserves_partial_cycle_cursor(self):
         with tempfile.TemporaryDirectory() as directory:

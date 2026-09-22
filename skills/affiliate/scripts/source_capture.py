@@ -590,37 +590,42 @@ def refresh_all(
         atomic_write(state_root / "source-refresh-guard.json", receipt)
         return receipt
     receipt_path = state_root / "source-refresh.json"
-    try:
-        discovery = discover_official_plan(root, state_root, now)
-    except OpportunityBudgetBlocked as error:
-        budget = error.summary.get("budget", {})
-        if not isinstance(budget, dict):
-            budget = {}
-        discovery = {
-            "schema_version": 1, "receipt_type": "OPPORTUNITY_DISCOVERY",
-            "state": "BUDGET_BLOCKED", "completed_at": now,
-            "completed_day": datetime.fromtimestamp(now, timezone.utc).date().isoformat(),
-            "failure_type": "OPPORTUNITY_DECISION_BUDGET_BLOCKED",
-            "budget_day": budget.get("day"), "budget_reason": budget.get("reason"),
-            "budget_reservation_tokens": budget.get("reservation_tokens"),
-            "budget_daily_consumed_tokens": budget.get("daily_consumed_tokens"),
-            "budget_daily_limit_tokens": budget.get("daily_limit_tokens"),
-            "budget_retry_after": agent_runner.budget_retry_after(error.summary),
-        }
-        atomic_write(state_root / "opportunity-discovery.json", discovery)
-    except (CaptureError, OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
-        discovery = {
-            "schema_version": 1, "receipt_type": "OPPORTUNITY_DISCOVERY",
-            "state": "FAILED", "completed_at": now,
-            "retry_after": now + 1800,
-            "failure_type": type(error).__name__,
-        }
-        atomic_write(state_root / "opportunity-discovery.json", discovery)
     with (state_root / ".source-refresh.lock").open("a+") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             return {"state": "ALREADY_RUNNING", "completed_at": None, "plans": []}
+        try:
+            discovery = discover_official_plan(root, state_root, now)
+        except OpportunityBudgetBlocked as error:
+            budget = error.summary.get("budget", {})
+            if not isinstance(budget, dict):
+                budget = {}
+            discovery = {
+                "schema_version": 1, "receipt_type": "OPPORTUNITY_DISCOVERY",
+                "state": "BUDGET_BLOCKED", "completed_at": now,
+                "completed_day": datetime.fromtimestamp(
+                    now, timezone.utc,
+                ).date().isoformat(),
+                "failure_type": "OPPORTUNITY_DECISION_BUDGET_BLOCKED",
+                "budget_day": budget.get("day"),
+                "budget_reason": budget.get("reason"),
+                "budget_reservation_tokens": budget.get("reservation_tokens"),
+                "budget_daily_consumed_tokens": budget.get("daily_consumed_tokens"),
+                "budget_daily_limit_tokens": budget.get("daily_limit_tokens"),
+                "budget_retry_after": agent_runner.budget_retry_after(error.summary),
+            }
+            atomic_write(state_root / "opportunity-discovery.json", discovery)
+        except (
+            CaptureError, OSError, ValueError, KeyError, subprocess.SubprocessError,
+        ) as error:
+            discovery = {
+                "schema_version": 1, "receipt_type": "OPPORTUNITY_DISCOVERY",
+                "state": "FAILED", "completed_at": now,
+                "retry_after": now + 1800,
+                "failure_type": type(error).__name__,
+            }
+            atomic_write(state_root / "opportunity-discovery.json", discovery)
         paths = plan_paths(root, state_root)
         plan_set = plan_set_sha256(root, state_root)
         plan_hashes = {path.stem: hashlib.sha256(path.read_bytes()).hexdigest()
