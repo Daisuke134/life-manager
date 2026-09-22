@@ -29,7 +29,7 @@
     },
     {
       "id": "gig-crowdworks",
-      "job_ids": ["crowdworks-revenue-application", "crowdworks-revenue-paid", "crowdworks-revenue-reply", "crowdworks-revenue-report"],
+      "job_ids": ["crowdworks-revenue-application", "crowdworks-revenue-browser", "crowdworks-revenue-paid", "crowdworks-revenue-reply", "crowdworks-revenue-report"],
       "name": "Gig — CrowdWorks",
       "description": "Apply to suitable CrowdWorks projects and report evidence-backed outcomes.",
       "requirements": ["crowdworks_account", "work_profile", "public_guided_installer"],

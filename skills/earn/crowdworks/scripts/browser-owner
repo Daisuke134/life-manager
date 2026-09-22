@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+profile="${CROWDWORKS_BROWSER_PROFILE:-$HOME/.local/state/anicca/crowdworks/browser-profile}"
+renderer_limit="${CROWDWORKS_BROWSER_RENDERER_LIMIT:-8}"
+case "$renderer_limit" in ''|*[!0-9]*) exit 64 ;; esac
+[[ "$renderer_limit" -ge 1 && "$renderer_limit" -le 64 ]] || exit 64
+
+if [[ "${CROWDWORKS_BROWSER_PORT_OWNED:-0}" != 1 ]]; then
+  port_owner="$root/runtime/host/browser_port_owner.py"
+  [[ -f "$port_owner" && ! -L "$port_owner" && -r "$port_owner" ]] || {
+    echo "crowdworks browser port owner is missing or unsafe" >&2
+    exit 1
+  }
+  exec /usr/bin/python3 -I "$port_owner" run \
+    --port 9228 --profile "$profile" --owner crowdworks-revenue-browser \
+    -- /usr/bin/env CROWDWORKS_BROWSER_PORT_OWNED=1 "$0"
+fi
+
+BROWSER="${CROWDWORKS_CHROMIUM:-}"
+if [[ -z "$BROWSER" ]]; then
+  BROWSER="$(find "$HOME/.cloakbrowser" -maxdepth 6 -type f \
+    -path '*/Chromium.app/Contents/MacOS/Chromium' -print 2>/dev/null | sort | tail -1)"
+fi
+[[ -x "$BROWSER" ]] || { echo "crowdworks browser binary unavailable" >&2; exit 78; }
+mkdir -p "$profile"
+exec "$BROWSER" --no-first-run --no-default-browser-check \
+  --disable-features=MacAppCodeSignClone \
+  --renderer-process-limit="$renderer_limit" \
+  --remote-debugging-address=127.0.0.1 --remote-allow-origins='*' \
+  --remote-debugging-port=9228 --user-data-dir="$profile" about:blank

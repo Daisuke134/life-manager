@@ -34,6 +34,32 @@ def test_all_browser_lanes_share_one_provider_lock():
         assert '"$STATE_ROOT/provider-browser.lock"' in source
 
 
+def test_crowdworks_browser_owner_is_the_only_9228_process_owner():
+    script = ROOT / "skills" / "earn" / "crowdworks" / "scripts" / "browser-owner"
+    source = script.read_text(encoding="utf-8")
+    assert "--port 9228 --profile \"$profile\" --owner crowdworks-revenue-browser" in source
+    assert "--remote-debugging-port=9228" in source
+    assert "--user-data-dir=\"$profile\"" in source
+    assert "CROWDWORKS_BROWSER_PORT_OWNED=1" in source
+    assert "browser_port_owner.py" in source
+
+
+def test_crowdworks_browser_owner_is_registered_with_the_paid_product_loop():
+    import json
+
+    registry = json.loads((ROOT / "config" / "loop-registry.json").read_text(encoding="utf-8"))
+    row = registry["loops"]["crowdworks-revenue-browser"]
+    assert row["browser_owner"] == {
+        "cdp_port": 9228,
+        "profile": "~/.local/state/anicca/crowdworks/browser-profile",
+    }
+    assert "crowdworks-revenue-browser" in next(
+        item["job_ids"] for item in json.loads(
+            (ROOT / "apps/life-manager/config/product-loop-catalog.json").read_text(encoding="utf-8")
+        )["loops"] if item["id"] == "gig-crowdworks"
+    )
+
+
 def test_application_owner_exports_its_fallback_state_root_to_dom_evidence():
     script = ROOT / "skills" / "earn" / "crowdworks" / "scripts" / "application-owner"
     source = script.read_text(encoding="utf-8")
