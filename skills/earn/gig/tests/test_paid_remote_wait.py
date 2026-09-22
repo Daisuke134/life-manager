@@ -3160,6 +3160,184 @@ def test_remote_owner_prompt_uses_shared_tiktok_user_search(tmp_path):
     assert "never count receipt rows or effect keys as recipient totals" in prompt
 
 
+def test_tiktok_ledger_reconcile_revises_empty_profile_and_sheet_counts(tmp_path):
+    checkpoint = load("effect_checkpoint")
+    ledger = tmp_path / "delivery/paid-remote-progress.jsonl"
+    rows = [
+        {
+            "effect_key": "tiktok:recipient-preflight:1:@emptyuser:old",
+            "target": "https://www.tiktok.com/@emptyuser",
+            "payload_sha256": "1" * 64,
+            "official_receipt_url": "https://www.tiktok.com/@emptyuser",
+            "exact_readback": True,
+            "quality_status": "invalid",
+            "qualification_sources": ["https://www.tiktok.com/@emptyuser"],
+            "semantic_contract_sha256": "2" * 64,
+            "counts_toward_50": False,
+            "claim_to_source_map": [{"claim": "@emptyuser had no posted videos in the official profile readback."}],
+        },
+        {
+            "effect_key": "tiktok:dm:1:now:emptyuser",
+            "target": "https://www.tiktok.com/messages",
+            "payload_sha256": "3" * 64,
+            "official_receipt_url": "https://www.tiktok.com/messages/1",
+            "exact_readback": True,
+            "quality_status": "qualified",
+            "qualification_sources": ["https://www.tiktok.com/@emptyuser"],
+            "semantic_contract_sha256": "4" * 64,
+            "counts_toward_50": True,
+            "business_outcome": {"recipient_handle": "@emptyuser"},
+            "claim_to_source_map": [{"claim": "The profile exposes a message route."}],
+        },
+        {
+            "effect_key": "google-sheets:append-readback:1:now:emptyuser",
+            "target": "https://docs.google.com/spreadsheets/d/1/edit",
+            "payload_sha256": "5" * 64,
+            "official_receipt_url": "https://docs.google.com/spreadsheets/d/1/edit",
+            "exact_readback": True,
+            "quality_status": "qualified",
+            "qualification_sources": ["https://docs.google.com/spreadsheets/d/1/edit"],
+            "semantic_contract_sha256": "6" * 64,
+            "counts_toward_50": True,
+        },
+    ]
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+
+    revised = checkpoint.reconcile_tiktok_recipient_counts(ledger)
+
+    effective = {}
+    for line in ledger.read_text(encoding="utf-8").splitlines():
+        row = json.loads(line)
+        effective[row["effect_key"]] = row
+    assert set(revised) == {rows[1]["effect_key"], rows[2]["effect_key"]}
+    assert effective[rows[1]["effect_key"]]["quality_status"] == "invalid"
+    assert effective[rows[1]["effect_key"]]["counts_toward_50"] is False
+    assert effective[rows[2]["effect_key"]]["counts_toward_50"] is False
+    assert all(effective[key]["classification_revision"] is True for key in revised)
+
+
+def test_tiktok_ledger_reconcile_keeps_dm_with_positive_posted_content_proof(tmp_path):
+    checkpoint = load("effect_checkpoint")
+    ledger = tmp_path / "progress.jsonl"
+    rows = [
+        {
+            "effect_key": "tiktok:recipient-preflight:1:@creator:old",
+            "quality_status": "invalid",
+            "counts_toward_50": False,
+            "claim_to_source_map": [{"claim": "@creator had no posted videos."}],
+        },
+        {
+            "effect_key": "tiktok:dm:1:now:creator",
+            "quality_status": "qualified",
+            "counts_toward_50": True,
+            "business_outcome": {"recipient_handle": "@creator"},
+            "claim_to_source_map": [{"claim": "The official profile contains visible posted content."}],
+        },
+    ]
+    ledger.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+
+    assert checkpoint.reconcile_tiktok_recipient_counts(ledger) == []
+
+
+def test_tiktok_ledger_reconcile_is_recipient_scoped_idempotent_and_rejects_negated_proof(tmp_path):
+    checkpoint = load("effect_checkpoint")
+    ledger = tmp_path / "progress.jsonl"
+    common = {
+        "target": "https://www.tiktok.com/messages", "payload_sha256": "a" * 64,
+        "official_receipt_url": "https://www.tiktok.com/messages/1", "exact_readback": True,
+        "qualification_sources": ["https://www.tiktok.com"], "semantic_contract_sha256": "b" * 64,
+    }
+    rows = [
+        {**common, "effect_key": "tiktok:candidate-screen:1", "quality_status": "invalid",
+         "counts_toward_50": False, "claim_to_source_map": [
+             {"claim": "@empty had no posted videos."},
+             {"claim": "@valid had visible posted content."},
+         ]},
+        {**common, "effect_key": "tiktok:dm:1:first:empty", "quality_status": "qualified",
+         "counts_toward_50": True, "business_outcome": {"recipient_handle": "@empty"},
+         "claim_to_source_map": [{"claim": "Posted content could not be confirmed; no visible posted content."}]},
+        {**common, "effect_key": "tiktok:dm:1:first:valid", "quality_status": "qualified",
+         "counts_toward_50": True, "business_outcome": {"recipient_handle": "@valid"},
+         "claim_to_source_map": [{"claim": "The official profile contains visible posted content."}]},
+        {**common, "effect_key": "tiktok:dm:1:second:valid", "quality_status": "qualified",
+         "counts_toward_50": True, "business_outcome": {"recipient_handle": "@valid"},
+         "claim_to_source_map": [{"claim": "The official profile contains visible posted content."}]},
+        {**common, "effect_key": "google-sheets:standalone-result", "quality_status": "qualified",
+         "counts_toward_50": True, "record_type": "google_sheets_append"},
+    ]
+    ledger.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+
+    revised = checkpoint.reconcile_tiktok_recipient_counts(ledger)
+    assert set(revised) == {"tiktok:dm:1:first:empty", "tiktok:dm:1:second:valid"}
+    assert checkpoint.reconcile_tiktok_recipient_counts(ledger) == []
+
+    effective = {}
+    for line in ledger.read_text(encoding="utf-8").splitlines():
+        row = json.loads(line)
+        effective[row["effect_key"]] = row
+    assert effective["tiktok:dm:1:first:valid"]["counts_toward_50"] is True
+    assert effective["google-sheets:standalone-result"]["counts_toward_50"] is True
+
+
+def test_tiktok_result_total_must_match_deterministic_ledger_count(tmp_path):
+    paid = load("paid_direct")
+    ledger = tmp_path / "delivery/paid-remote-progress.jsonl"
+    rows = [
+        {"effect_key": "tiktok:effective-ledger-audit:1", "quality_status": "invalid",
+         "observed_state": {"campaign": {"ledger_audit": {"verified_effective_total": 12}}}},
+        {"effect_key": "tiktok:dm:1:now:creator", "quality_status": "qualified",
+         "counts_toward_50": True, "business_outcome": {"recipient_handle": "@creator"}},
+        {"effect_key": "google-sheets:append-readback:1:now:creator", "quality_status": "qualified",
+         "exact_readback": True, "business_outcome": {"recipient_handle": "@creator"}},
+    ]
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+    wrong = {"customer_message": "現在14件、残り286件です。", "observed_state": {
+        "campaign": {"required_unique_sends": 300, "verified_unique_sends": 14,
+                     "remaining_eligible_personalized_sends": 286}}}
+
+    with pytest.raises(ValueError, match="recipient total"):
+        paid._require_tiktok_recipient_total(tmp_path, wrong)
+
+    correct = {"customer_message": "現在13件、残り287件です。", "observed_state": {
+        "campaign": {"required_unique_sends": 300, "verified_unique_sends": 13,
+                     "remaining_eligible_personalized_sends": 287}}}
+    assert paid._require_tiktok_recipient_total(tmp_path, correct) == 13
+
+
+def test_tiktok_count_requires_qualified_dm_and_matching_sheet(tmp_path):
+    checkpoint = load("effect_checkpoint")
+    ledger = tmp_path / "progress.jsonl"
+    rows = [
+        {"effect_key": "tiktok:effective-ledger-audit:base", "quality_status": "invalid",
+         "observed_state": {"campaign": {"ledger_audit": {"verified_effective_total": 12}}}},
+        {"effect_key": "tiktok:dm:1:now:no-sheet", "quality_status": "qualified",
+         "counts_toward_50": True, "business_outcome": {"recipient_handle": "@no-sheet"}},
+        {"effect_key": "tiktok:dm:1:now:pending", "quality_status": "qualification",
+         "counts_toward_50": True, "business_outcome": {"recipient_handle": "@pending"}},
+        {"effect_key": "google-sheets:append-readback:1:now:pending", "quality_status": "qualified",
+         "exact_readback": True, "business_outcome": {"recipient_handle": "@pending"}},
+    ]
+    ledger.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+
+    assert checkpoint.tiktok_verified_unique_count(ledger) == 12
+
+
+def test_tiktok_reconcile_does_not_let_pending_dm_reserve_recipient(tmp_path):
+    checkpoint = load("effect_checkpoint")
+    ledger = tmp_path / "progress.jsonl"
+    rows = [
+        {"effect_key": "tiktok:dm:1:pending:creator", "quality_status": "qualification",
+         "counts_toward_50": True, "business_outcome": {"recipient_handle": "@creator"}},
+        {"effect_key": "tiktok:dm:1:qualified:creator", "quality_status": "qualified",
+         "counts_toward_50": True, "business_outcome": {"recipient_handle": "@creator"}},
+    ]
+    ledger.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+
+    assert checkpoint.reconcile_tiktok_recipient_counts(ledger) == [rows[0]["effect_key"]]
+
+
 def test_paid_agent_creates_authorized_missing_resources_instead_of_asking_buyer(tmp_path):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)

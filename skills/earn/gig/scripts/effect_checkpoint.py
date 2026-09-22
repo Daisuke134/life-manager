@@ -3,13 +3,24 @@
 from __future__ import annotations
 
 import argparse
+import fcntl
 import json
 import os
+import re
 from pathlib import Path
 
 
 REQUIRED = ("effect_key", "target", "payload_sha256", "official_receipt_url",
             "exact_readback", "quality_status", "qualification_sources", "semantic_contract_sha256")
+
+_NO_POST_MARKERS = (
+    "no posted content", "no posted videos", "no posts", "without posted content",
+    "投稿なし", "投稿がなく", "投稿がない", "コンテンツはありません", "まだ動画はありません",
+)
+_POST_PROOF_MARKERS = (
+    "visible posted content", "visible posted video", "posted videos are visible",
+    "投稿を確認", "投稿動画を確認", "投稿コンテンツを確認",
+)
 
 
 def _same_json(left: object, right: object) -> bool:
@@ -85,6 +96,171 @@ def valid_checkpoint(value: object) -> bool:
     )
 
 
+def _row_text(row: dict) -> str:
+    return json.dumps(row, ensure_ascii=False, sort_keys=True).lower()
+
+
+def _recipient_handle(row: dict) -> str:
+    outcome = row.get("business_outcome")
+    candidates = [
+        row.get("candidate_handle"),
+        outcome.get("recipient_handle") if isinstance(outcome, dict) else None,
+    ]
+    key = str(row.get("effect_key") or "")
+    if key.startswith("tiktok:dm:") or key.startswith("google-sheets:append-readback:"):
+        candidates.append(key.rsplit(":", 1)[-1])
+    for candidate in candidates:
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip().lower().lstrip("@")
+    return ""
+
+
+def _has_positive_post_proof(row: dict) -> bool:
+    text = _row_text(row)
+    negated = (
+        "no visible posted", "not visible posted", "could not be confirmed",
+        "did not confirm", "unable to confirm", "確認できな", "確認されな", "投稿なし",
+    )
+    return (not any(marker in text for marker in negated)
+            and any(marker in text for marker in _POST_PROOF_MARKERS))
+
+
+def _reconcile_tiktok_recipient_counts_unlocked(ledger: Path) -> list[str]:
+    if ledger.is_symlink() or not ledger.is_file():
+        return []
+    rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()
+            if line.strip()]
+    effective: dict[str, dict] = {}
+    empty_profile_handles: set[str] = set()
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        key = str(row.get("effect_key") or "")
+        if key:
+            effective[key] = row
+        if row.get("quality_status") == "invalid":
+            claims = row.get("claim_to_source_map")
+            claims = claims if isinstance(claims, list) else []
+            for claim in claims:
+                claim_text = str(claim.get("claim") or "").lower() if isinstance(claim, dict) else ""
+                if any(marker in claim_text for marker in _NO_POST_MARKERS):
+                    claim_handles = set(re.findall(r"@([a-z0-9._]+)", claim_text))
+                    empty_profile_handles.update(claim_handles)
+                    if not claim_handles and _recipient_handle(row):
+                        empty_profile_handles.add(_recipient_handle(row))
+            text = _row_text(row)
+            handle = _recipient_handle(row)
+            mentioned = set(re.findall(r"@([a-z0-9._]+)", text))
+            if (not claims and handle and mentioned == {handle}
+                    and any(marker in text for marker in _NO_POST_MARKERS)):
+                empty_profile_handles.add(handle)
+
+    revisions: list[dict] = []
+    counted_recipient_keys: dict[str, str] = {}
+    paired_tiktok_handles = {
+        _recipient_handle(row) for key, row in effective.items()
+        if key.startswith("tiktok:dm:") and _recipient_handle(row)
+    }
+    for key, row in effective.items():
+        if row.get("counts_toward_50") is not True:
+            continue
+        reason = ""
+        handle = _recipient_handle(row)
+        if ((key.startswith("google-sheets:append-readback:")
+             or row.get("record_type") == "google_sheets_append")
+                and handle in paired_tiktok_handles):
+            reason = "Bookkeeping receipts support a recipient send but never count as another recipient."
+        elif key.startswith("tiktok:dm:"):
+            if row.get("quality_status") != "qualified":
+                reason = "Only a fully qualified recipient DM can increment the campaign total."
+            elif (handle in empty_profile_handles
+                    and not _has_positive_post_proof(row)):
+                reason = ("Earlier official profile evidence shows no posted content, and this DM row "
+                          "does not contain newer positive posted-content proof.")
+            elif handle and handle in counted_recipient_keys:
+                reason = ("This recipient already has a counted TikTok DM receipt; a recipient can "
+                          "increment the campaign total only once.")
+            elif handle:
+                counted_recipient_keys[handle] = key
+        if not reason:
+            continue
+        revision = dict(row)
+        revision.update({
+            "classification_revision": True,
+            "record_type": "classification_revision",
+            "counts_toward_50": False,
+            "revision_reason": reason,
+        })
+        if key.startswith("tiktok:dm:") and "Earlier official" in reason:
+            revision["quality_status"] = "invalid"
+        revisions.append(revision)
+
+    if revisions:
+        with ledger.open("a", encoding="utf-8") as handle:
+            for revision in revisions:
+                handle.write(json.dumps(revision, ensure_ascii=False, sort_keys=True,
+                                        separators=(",", ":")) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+    return [str(row["effect_key"]) for row in revisions]
+
+
+def reconcile_tiktok_recipient_counts(ledger: Path) -> list[str]:
+    """Append deterministic, idempotent recipient-count revisions under a file lock."""
+    lock = ledger.with_suffix(ledger.suffix + ".reconcile.lock")
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    with lock.open("a", encoding="utf-8") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            return _reconcile_tiktok_recipient_counts_unlocked(ledger)
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def tiktok_verified_unique_count(ledger: Path) -> int | None:
+    """Return the audited baseline plus later effective unique counted recipients."""
+    if ledger.is_symlink() or not ledger.is_file():
+        return None
+    rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()
+            if line.strip()]
+    anchor_index, baseline = -1, None
+    effective: dict[str, dict] = {}
+    first_index: dict[str, int] = {}
+    for index, row in enumerate(rows):
+        if not isinstance(row, dict):
+            continue
+        campaign = (row.get("observed_state") or {}).get("campaign")
+        audit = campaign.get("ledger_audit") if isinstance(campaign, dict) else None
+        value = audit.get("verified_effective_total") if isinstance(audit, dict) else None
+        key = str(row.get("effect_key") or "")
+        if (baseline is None and key.startswith("tiktok:effective-ledger-audit:")
+                and row.get("quality_status") == "invalid"
+                and isinstance(value, int) and value >= 0):
+            anchor_index, baseline = index, value
+        if key:
+            effective[key] = row
+            first_index.setdefault(key, index)
+    if baseline is None:
+        return None
+    sheet_handles = {
+        _recipient_handle(row)
+        for key, row in effective.items()
+        if (first_index[key] > anchor_index
+            and key.startswith("google-sheets:append-readback:")
+            and row.get("exact_readback") is True and row.get("quality_status") == "qualified"
+            and _recipient_handle(row))
+    }
+    handles = set()
+    for key, row in effective.items():
+        handle = _recipient_handle(row)
+        if (first_index[key] > anchor_index and key.startswith("tiktok:dm:")
+                and row.get("counts_toward_50") is True
+                and row.get("quality_status") == "qualified"
+                and handle in sheet_handles):
+            handles.add(handle)
+    return baseline + len(handles)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project-root", required=True, type=Path)
@@ -128,6 +304,7 @@ def main() -> int:
         handle.write(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n")
         handle.flush()
         os.fsync(handle.fileno())
+    reconcile_tiktok_recipient_counts(ledger)
     print(json.dumps({"status": "classification_revised" if revision else "checkpointed",
                       "effect_key": value["effect_key"]}))
     return 0
