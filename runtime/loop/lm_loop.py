@@ -103,12 +103,15 @@ def _admission_rebind_guard(
             if skipped is not None and skipped.get("skipped") != "unloaded":
                 yield skipped
                 return
-        result = rebind_queued_owner(
-            loop_id,
-            resource_class=resource_class,
-            admission_class=admission_class,
-            priority=priority,
-        )
+        rebind_kwargs = {
+            "resource_class": resource_class,
+            "admission_class": admission_class,
+            "priority": priority,
+        }
+        if (entry.get("effect_class") == "publish"
+                and entry.get("entrypoint") == "apps/life-manager/scripts/mobile-app"):
+            rebind_kwargs["effect_scope"] = "occurrence"
+        result = rebind_queued_owner(loop_id, **rebind_kwargs)
         if result in {"reserved", "not_queued"}:
             # A reserved occurrence already owns its admission policy, and a
             # drained queue row has no policy to migrate. Keep the admission
