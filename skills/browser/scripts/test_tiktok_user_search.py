@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 from pathlib import Path
 
 
@@ -177,6 +178,43 @@ def test_readback_ignores_hidden_or_linkless_result_items():
 
     assert ")].filter(visible);" in search.READBACK
     assert "ready: resultLinks.length > 0 || empty" in search.READBACK
+
+
+def test_readback_uses_current_search_result_container_not_sidebar_links():
+    search = load_module()
+    fixture = r"""
+const link = href => ({
+  href, innerText: href, matches: () => false, querySelectorAll: () => [],
+  getBoundingClientRect: () => ({width: 100, height: 20})
+});
+const nav = link('https://www.tiktok.com/@anicca.jp?lang=ja-JP');
+const result = link('https://www.tiktok.com/@candidate?lang=ja-JP');
+const root = {querySelectorAll: selector =>
+  selector.includes('DivPanelContainer') ? [result] : []};
+globalThis.getComputedStyle = () => ({display: 'block', visibility: 'visible'});
+globalThis.location = {href: 'https://www.tiktok.com/search/user?q=test'};
+globalThis.document = {
+  title: 'TikTok', nav,
+  querySelector: () => WITH_RESULTS ? root : null,
+  querySelectorAll: () => []
+};
+"""
+
+    def run(with_results: bool) -> dict:
+        source = fixture.replace("WITH_RESULTS", json.dumps(with_results))
+        source += f"\nconsole.log(JSON.stringify(eval({json.dumps(search.READBACK)})));"
+        completed = subprocess.run(
+            ["node", "-e", source], check=True, text=True, capture_output=True,
+        )
+        return json.loads(completed.stdout)
+
+    assert run(False) == {
+        "url": "https://www.tiktok.com/search/user?q=test",
+        "title": "TikTok", "ready": False, "empty": False, "profiles": [],
+    }
+    assert run(True)["profiles"] == [
+        "https://www.tiktok.com/@candidate?lang=ja-JP"
+    ]
 
 
 def test_search_closes_owned_target_on_read_failure(tmp_path):
