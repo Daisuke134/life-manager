@@ -58,6 +58,28 @@
       "priority": "revenue",
       "state_root": "~/.local/state/anicca/crowdworks"
     },
+    "crowdworks-revenue-browser": {
+      "adapter": "exec",
+      "browser_owner": {
+        "cdp_port": 9228,
+        "profile": "~/.local/state/anicca/crowdworks/browser-profile"
+      },
+      "cadence": {
+        "keep_alive": true
+      },
+      "cleanup": {
+        "max_age_days": 14,
+        "max_runs": 100
+      },
+      "command": [],
+      "domain": "earn",
+      "effect_class": "none",
+      "entrypoint": "skills/earn/crowdworks/scripts/browser-owner",
+      "label": "ai.anicca.crowdworks-revenue-browser",
+      "log_root": "~/.local/state/life-manager/crowdworks-revenue-browser/logs",
+      "provider_route": "deterministic",
+      "state_root": "~/.local/state/life-manager/crowdworks-revenue-browser"
+    },
     "crowdworks-revenue-report": {
       "adapter": "exec",
       "cadence": {"start_interval_seconds": 300},
