@@ -2230,12 +2230,9 @@ def _decision_only(args, item_path: Path, output: Path) -> int:
         root.relative_to(projects)
         if not root.is_dir():
             raise Failure("paid_work_decision")
-        manual_owner = _manual_owner_record(args, item)
-        if manual_owner is not None:
-            _write(output, {"status": "reserved_for_owner", "talkroom_id": room,
-                            "effect": 0, "readback": 1, "failed": 0,
-                            "owner_record": str(manual_owner)})
-            return 0
+        owner_stop = _stop_for_owner_policy(args, item, output)
+        if owner_stop is not None:
+            return owner_stop
         if _account_owner_observe_only(args, item) is not None:
             _write(output, {"status": "reserved_for_owner", "talkroom_id": room,
                             "effect": 0, "readback": 1, "failed": 0})
@@ -2748,19 +2745,22 @@ PAID_OWNER_KEYS = frozenset({
 })
 
 
-def _manual_owner_record(args, item: dict[str, Any]) -> Path | None:
-    """Return an exact durable manual-owner record bound to this talkroom."""
+def _paid_owner_disposition(args, item: dict[str, Any]) -> tuple[str, Path | None]:
+    """Distinguish absent policy from valid manual ownership and invalid-present state."""
     try:
         room = _text(item.get("talkroom_id"))
         if not re.fullmatch(r"[0-9]+", room):
-            return None
+            return "invalid", None
         root = _paid_project_root(args, item)
         path = root / "context" / "paid-owner.json"
+        if not path.exists() and not path.is_symlink():
+            return "absent", None
+        visible_path = path.absolute()
         if path.is_symlink() or not _regular_file(path):
-            return None
+            return "invalid", visible_path
         record = _load(path)
         if set(record) != PAID_OWNER_KEYS:
-            return None
+            return "invalid", visible_path
         expected = {
             "version": 1,
             "provider": "coconala",
@@ -2771,13 +2771,61 @@ def _manual_owner_record(args, item: dict[str, Any]) -> Path | None:
             "reason": "permanent_manual_exception",
             "release_required": True,
         }
-        return path.resolve() if record == expected else None
+        return ("manual", path.resolve()) if record == expected else ("invalid", visible_path)
     except (AttributeError, Failure, OSError, ValueError, TypeError, json.JSONDecodeError):
-        return None
+        try:
+            root = _paid_project_root(args, item)
+            path = root / "context" / "paid-owner.json"
+            if path.exists() or path.is_symlink():
+                return "invalid", path.absolute()
+        except (AttributeError, Failure, OSError, ValueError, TypeError, json.JSONDecodeError):
+            return "invalid", None
+        return "absent", None
+
+
+def _manual_owner_record(args, item: dict[str, Any]) -> Path | None:
+    disposition, path = _paid_owner_disposition(args, item)
+    return path if disposition == "manual" else None
 
 
 def _paid_project_is_manual(args, item: dict[str, Any]) -> bool:
     return _manual_owner_record(args, item) is not None
+
+
+def _paid_project_has_owner_fence(args, item: dict[str, Any]) -> bool:
+    return _paid_owner_disposition(args, item)[0] != "absent"
+
+
+def _owner_policy_row(args, item: dict[str, Any]) -> dict[str, Any] | None:
+    room = _text(item.get("talkroom_id"))
+    disposition, path = _paid_owner_disposition(args, item)
+    if disposition == "absent":
+        return None
+    if disposition == "invalid":
+        return {"talkroom_id": room, "status": "failed", "failed": 1,
+                "failed_step": "owner_policy_invalid", "effect": 0, "readback": 0,
+                "send_performed": False, "formal_delivery_checkbox": False,
+                "owner_record": str(path) if path is not None else None}
+    return {"talkroom_id": room, "status": "reserved_for_owner", "failed": 0,
+            "effect": 0, "readback": 1, "send_performed": False,
+            "deduplicated": True, "formal_delivery_checkbox": False,
+            "owner_record": str(path)}
+
+
+def _stop_for_owner_policy(args, item: dict[str, Any], output: Path) -> int | None:
+    row = _owner_policy_row(args, item)
+    if row is None:
+        return None
+    _write(output, row)
+    return int(row["status"] == "failed")
+
+
+def _require_owner_policy_clear(args, item: dict[str, Any]) -> None:
+    disposition, _path = _paid_owner_disposition(args, item)
+    if disposition == "manual":
+        raise Failure("manual_owner_fence")
+    if disposition == "invalid":
+        raise Failure("owner_policy_invalid")
 
 
 def _account_owner_observe_only(args, item: dict[str, Any]) -> Path | None:
@@ -5405,6 +5453,7 @@ def _operator_policy_newer_than(root: Path, item: dict[str, Any], checkpoint: Pa
 
 
 def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: Path) -> Path:
+    _require_owner_policy_clear(args, _load(item_path))
     context = root / "context" / "current.json"
     context.parent.mkdir(parents=True, exist_ok=True)
     _run([sys.executable, str(args.context_compiler), "--project-root", str(root), "--queue-item", str(item_path), "--output", str(context)], "context_compile")
@@ -5487,6 +5536,7 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
                   "--loop", _runner_loop_id(), "--workdir", str(root), *_paid_owner_timeout_args()]
             progress_size = progress.stat().st_size if _regular_file(progress) else 0
             try:
+                _require_owner_policy_clear(args, _load(item_path))
                 _run_private_model_serialized(
                     root, owner_command, "paid-remote-owner", "remote_builder", effect_owner=True,
                     timeout=PAID_FILE_OWNER_OUTER_TIMEOUT_SECONDS,
@@ -5656,6 +5706,7 @@ def _durable_coconala_cancellation_intent(intent: dict[str, Any], item: dict[str
 
 def _run_coconala_cancellation(args, item_path: Path, root: Path,
                                feedback: str, evidence_dir: Path) -> dict[str, Any]:
+    _require_owner_policy_clear(args, _load(item_path))
     payload = _json_line(_run([
         sys.executable, str(args.cancel_browser),
         "--queue-item", str(item_path), "--project-root", str(root),
@@ -5682,12 +5733,9 @@ def _prepare_one(args, item_path: Path, output: Path) -> int:
         item = _load(item_path); room, feedback = _text(item.get("talkroom_id")), _text(item.get("buyer_feedback_sha256"))
         diagnostic_stage = "resolve_project"
         root = _paid_project_root(args, item)
-        manual_owner = _manual_owner_record(args, item)
-        if manual_owner is not None:
-            _write(output, {"status": "reserved_for_owner", "talkroom_id": room,
-                            "effect": 0, "readback": 1, "failed": 0,
-                            "owner_record": str(manual_owner)})
-            return 0
+        owner_stop = _stop_for_owner_policy(args, item, output)
+        if owner_stop is not None:
+            return owner_stop
         if _account_owner_observe_only(args, item) is not None:
             _write(output, {"status": "reserved_for_owner", "talkroom_id": room,
                             "effect": 0, "readback": 1, "failed": 0})
@@ -5884,6 +5932,9 @@ def _prepare_one(args, item_path: Path, output: Path) -> int:
 def _write_file_effect(args, item_path: Path, output: Path, prepared: dict[str, Any]) -> int:
     room = _text(prepared.get("talkroom_id")); sent_effect = 0
     try:
+        owner_stop = _stop_for_owner_policy(args, prepared, output)
+        if owner_stop is not None:
+            return owner_stop
         feedback = _text(prepared.get("buyer_feedback_sha256"))
         root = _paid_project_root(args, prepared)
         requirements_sha256 = _text(prepared.get("requirements_sha256"))
@@ -5956,6 +6007,9 @@ def _write_file_effect(args, item_path: Path, output: Path, prepared: dict[str, 
         disk_reason = _effect_gate_reason(args)
         if disk_reason is not None:
             return _write_disk_pending(output, room, disk_reason, "before_file_browser_effect")
+        owner_stop = _stop_for_owner_policy(args, prepared, output)
+        if owner_stop is not None:
+            return owner_stop
         browser_process = _run_bounded(command)
         if browser_process.returncode:
             browser_error = {
@@ -6045,6 +6099,9 @@ def _write_remote_formal_effect(args, item_path: Path, output: Path,
     """Formally close a verified live-system delivery under one exact-cycle owner policy."""
     room = _text(prepared.get("talkroom_id")); sent_effect = 0
     try:
+        owner_stop = _stop_for_owner_policy(args, prepared, output)
+        if owner_stop is not None:
+            return owner_stop
         root = _paid_project_root(args, prepared)
         feedback = _text(prepared.get("buyer_feedback_sha256"))
         requirements_sha256 = _text(prepared.get("requirements_sha256"))
@@ -6122,6 +6179,9 @@ def _write_remote_formal_effect(args, item_path: Path, output: Path,
                 or _remote_formal_authorization(root, feedback, requirements_sha256, prepared) != authorization):
             raise Failure("remote_formal_toctou")
         paid_remote_result.resume(root, feedback, digest, verifier_path)
+        owner_stop = _stop_for_owner_policy(args, prepared, output)
+        if owner_stop is not None:
+            return owner_stop
         process = _run_bounded([
             sys.executable, str(args.formal_browser), "--queue-item", str(browser_item),
             "--manifest", str(manifest), "--project-root", str(root),
@@ -6170,12 +6230,9 @@ def _write_one(args, item_path: Path, output: Path) -> int:
             _write(output, {"status": "failed", "talkroom_id": room, "failed": 1,
                             "failed_step": "writer_owner", "effect": 0, "readback": 0})
             return 1
-        manual_owner = _manual_owner_record(args, item)
-        if manual_owner is not None:
-            _write(output, {"status": "reserved_for_owner", "talkroom_id": room,
-                            "effect": 0, "readback": 1, "failed": 0,
-                            "owner_record": str(manual_owner)})
-            return 0
+        owner_stop = _stop_for_owner_policy(args, item, output)
+        if owner_stop is not None:
+            return owner_stop
         if _account_owner_observe_only(args, item) is not None:
             _write(output, {"status": "reserved_for_owner",
                             "talkroom_id": _text(prepared.get("talkroom_id")),
@@ -6185,18 +6242,18 @@ def _write_one(args, item_path: Path, output: Path) -> int:
         if disk_reason is not None:
             return _write_disk_pending(output, _text(prepared.get("talkroom_id")), disk_reason,
                                        "before_paid_effect")
-        manual_owner = _manual_owner_record(args, item)
-        if manual_owner is not None:
-            _write(output, {"status": "reserved_for_owner", "talkroom_id": room,
-                            "effect": 0, "readback": 1, "failed": 0,
-                            "owner_record": str(manual_owner)})
-            return 0
+        owner_stop = _stop_for_owner_policy(args, item, output)
+        if owner_stop is not None:
+            return owner_stop
         if prepared.get("_paid_mode") == "file":
             return _write_file_effect(args, item_path, output, prepared)
         room, feedback = _text(item.get("talkroom_id")), _text(item.get("buyer_feedback_sha256"))
         root = _paid_project_root(args, item)
         base = args.evidence_dir / "paid-direct" / room
         if prepared.get("_paid_mode") == "cancellation":
+            owner_stop = _stop_for_owner_policy(args, item, output)
+            if owner_stop is not None:
+                return owner_stop
             cancellation = _run_coconala_cancellation(
                 args, item_path, root, feedback, base / "cancellation",
             )
@@ -6294,6 +6351,9 @@ def _write_one(args, item_path: Path, output: Path) -> int:
         disk_reason = _effect_gate_reason(args)
         if disk_reason is not None:
             return _write_disk_pending(output, room, disk_reason, "before_answer_browser_effect")
+        owner_stop = _stop_for_owner_policy(args, item, output)
+        if owner_stop is not None:
+            return owner_stop
         browser = _json_line(_run([sys.executable, str(args.answer_browser), "--queue-item", str(item_path), "--answer-file", str(answer_snapshot),
                                    "--evidence-dir", str(answer_dir), "--default-tab-helper", str(args.cdp_helper)], "answer_browser"), "answer_browser")
         if browser.get("ok") is not True or not isinstance(browser.get("evidence"), dict): raise Failure("answer_browser")
@@ -6609,7 +6669,7 @@ def _paid_project_is_delegated(args, item: dict[str, Any]) -> bool:
 def _paid_active_items(args, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [item for item in items
             if not _paid_project_is_delegated(args, item)
-            and not _paid_project_is_manual(args, item)]
+            and not _paid_project_has_owner_fence(args, item)]
 
 
 def _disk_gate_reason() -> str | None:
@@ -6739,12 +6799,9 @@ def _official_seller_attachment_wait(item: dict[str, Any]) -> bool:
 
 def _reported_paid_row(args, item: dict[str, Any]) -> dict[str, Any] | None:
     room = _text(item.get("talkroom_id"))
-    manual_owner = _manual_owner_record(args, item)
-    if manual_owner is not None:
-        return {"talkroom_id": room, "status": "reserved_for_owner",
-                "send_performed": False, "deduplicated": True,
-                "formal_delivery_checkbox": False,
-                "evidence_paths": {"official_readback": str(manual_owner)}}
+    owner_row = _owner_policy_row(args, item)
+    if owner_row is not None:
+        return owner_row
     effect_policy = _account_owner_observe_only(args, item)
     if effect_policy is not None:
         return {"talkroom_id": room, "status": "reserved_for_owner",
@@ -6858,14 +6915,16 @@ def run_once(args, output: Path) -> int:
             rows[room] = {"talkroom_id": room, "status": "delegated",
                           "send_performed": False, "deduplicated": True,
                           "formal_delivery_checkbox": False}
-        manual_items = [item for item in items if _paid_project_is_manual(args, item)]
-        for item in manual_items:
+        owner_items = [item for item in items if _paid_project_has_owner_fence(args, item)]
+        for item in owner_items:
             room = _text(item.get("talkroom_id"))
-            owner_record = _manual_owner_record(args, item)
-            rows[room] = {"talkroom_id": room, "status": "reserved_for_owner",
-                          "send_performed": False, "deduplicated": True,
-                          "formal_delivery_checkbox": False,
-                          "evidence_paths": {"official_readback": str(owner_record)}}
+            owner_row = _owner_policy_row(args, item)
+            if owner_row is None:
+                continue
+            rows[room] = owner_row
+            if owner_row["status"] == "failed":
+                failed += 1
+                failed_step = "owner_policy_invalid"
         active_items = _paid_active_items(args, items)
         executor = _paid_project_executor()
         jobs = {}
