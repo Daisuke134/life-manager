@@ -58,6 +58,13 @@ def _browser_call(method: str, params: dict) -> dict:
 def new_target(url: str = "about:blank", owner: str | None = None) -> str:
     """Create one page and bind its lifecycle to the declared owner."""
     owner = target_ownership.require_owner(owner)
+    inventory = _browser_call("Target.getTargets", {})
+    live_target_ids = {
+        row.get("targetId")
+        for row in inventory.get("targetInfos", [])
+        if isinstance(row, dict) and row.get("targetId")
+    }
+    target_ownership.prune_missing_targets(live_target_ids)
     target_id = _browser_call("Target.createTarget", {"url": url})["targetId"]
     try:
         target_ownership.claim_target(
