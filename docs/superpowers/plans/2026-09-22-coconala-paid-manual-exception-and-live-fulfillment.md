@@ -274,21 +274,21 @@
   source gate, fresh review, PR/merge, immutable release, and targeted apply before a
   new canary. The Chii production duplicate is uncounted and cannot be replayed.
 
-- [ ] **Step 1: Refresh all current paid rooms and select the earliest safe non-Ryu item**
+- [x] **Step 1: Refresh all current paid rooms and select the earliest safe non-Ryu item**
 
-  Re-read Chii and both NPO rooms instead of assuming the planning inventory is unchanged. Exclude Ryu by owner record. Select one funded, actionable room with no unresolved effect fence; use paid admission ordering rather than a hard-coded buyer name.
+  Re-read Chii and both NPO rooms instead of assuming the planning inventory is unchanged. Exclude Ryu by owner record. The 2026-09-22/23 official orders snapshot contains exactly four open Coconala rooms: Ryu `18211957` (permanent manual owner), Chii `18180857` (`awaiting_buyer`), and NPO rooms `18223833` and `18250352` (both buyer-dependent). The natural canary selected `18223833` by paid admission ordering and had no unresolved effect fence.
 
-- [ ] **Step 2: Let one natural wake perform the real job**
+- [x] **Step 2: Let one natural wake perform the real job**
 
-  Require complete conversation/attachment ingestion, current request map, actual work result, independent verifier pass, and a fresh presend readback. The buyer-visible message contains only the result and necessary access/delivery information, never automation commentary.
+  The natural wake completed conversation/attachment ingestion and the semantic decision for `18223833`. It correctly found four missing buyer facts and stopped at `await_buyer` instead of fabricating an artifact or sending an unnecessary DM. An actionable-room send path is intentionally still unproven and remains a separate TODO.
 
-- [ ] **Step 3: Verify the provider effect**
+- [x] **Step 3: Verify the provider effect**
 
-  Require the exact room/event effect key, `send_performed=true` or a provider-proven dedupe, correct attachment/link binding, correct formal-delivery state for that room, and official Coconala readback of the seller-visible result.
+  The natural run produced `effect=0`, `readback=1`, `send_performed=false`, and `deduplicated=true` for `18223833`; official selected-talkroom readback at `2026-09-22T23:24:03Z` showed no new seller message, no compose draft, and no formal-delivery effect. This proves the no-effect/await-buyer branch, not an actionable send.
 
-- [ ] **Step 4: Prove replay-zero**
+- [x] **Step 4: Prove replay-zero**
 
-  Run the next natural wake and require no duplicate reply, attachment, or formal-delivery effect. Confirm Ryu still reports `reserved_for_owner` with zero effect.
+  The following natural wake completed at `2026-09-22T23:25:32Z` on release `4c6b1dc8a52952e31f13bcb26a5266e570169e1d`. It left `18223833` at `awaiting_buyer` with `effect=0`/`readback=1`; the official readback retained the same seller-message count/hash and empty draft. The same inventory still reports Chii awaiting buyer and Ryu reserved for owner with zero effect. No duplicate reply, attachment, or formal-delivery effect occurred.
 
 ## Task 9: Drain every remaining eligible Coconala paid room one by one
 
@@ -313,7 +313,9 @@
 
 ### Live cursor update — 2026-09-23
 
-The following natural wake (`18d7c7dcb40b2f90-7799`) was deferred before provider work by `host_admission_deferred:resource_capacity_busy`; its terminal evidence records `effect=0`, `readback=0`, and `admission_effect_unknown=false`. This is not replay-zero evidence because the room was not processed. Keep the replay-zero cursor open and let the next scheduled wake retry naturally; do not kickstart repeatedly or send manually.
+The replay-zero natural wake completed at `2026-09-22T23:25:32Z` on release `4c6b1dc8a52952e31f13bcb26a5266e570169e1d`. The official orders snapshot at `/Users/anicca/gig/evidence/paid-direct-live/orders/orders-only-snapshot.json` had four open cards; `/Users/anicca/gig/evidence/paid-direct-live/latest.json` classified Chii and both NPO rooms as `awaiting_buyer`, while Ryu remained `reserved_for_owner`. The run recorded no new send effect, no draft, and no formal-delivery click. Chii's seller history remains ten messages with the final report already answered; the historical campaign response count is three (two message-request approvals and one `配信中なので該当しません`).
+
+An earlier natural wake (`18d7c7dcb40b2f90-7799`) was deferred before provider work by `host_admission_deferred:resource_capacity_busy`; its terminal evidence records `effect=0`, `readback=0`, and `admission_effect_unknown=false`. This was not replay-zero evidence because the room was not processed; the later natural wake above closed that cursor. Do not kickstart repeatedly or send manually.
 
 The Chii state-machine fix is merged and deployed in immutable release `4c6b1dc8a52952e31f13bcb26a5266e570169e1d`. The target-only apply succeeded after the paid owner's FIFO reservation naturally expired, and loaded argv/env read back to the same SHA. The first natural run on that release (`18d7c73738bf4b78-1330`) reached the host admission/evidence boundary but terminated as `host_admission_deferred:resource_fifo_wait` after transient `No space left on device`; its evidence records `effect=0`, `readback=0`, and `admission_effect_unknown=false`. This is not a buyer failure or a Chii send. The live terminal proof and replay-zero remain open. The next cursor is storage/capacity recovery followed by one terminal natural Coconala run; no additional Chii message is allowed. Ryu remains a permanent manual-only exception.
 
