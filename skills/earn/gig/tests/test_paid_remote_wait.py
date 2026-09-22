@@ -38,6 +38,23 @@ def write_json(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+def write_manual_paid_owner(root: Path, talkroom_id: str = "18211957", **changes) -> Path:
+    record = {
+        "version": 1,
+        "provider": "coconala",
+        "contract_id": talkroom_id,
+        "mode": "manual",
+        "owner_id": "dais",
+        "authority": "account_owner_instruction",
+        "reason": "permanent_manual_exception",
+        "release_required": True,
+    }
+    record.update(changes)
+    path = root / "context/paid-owner.json"
+    write_json(path, record)
+    return path
+
+
 def write_official_buyer(root: Path, talkroom_id: str, message_id: str = "buyer-approval") -> dict:
     row = {
         "version": 1, "source": "coconala_live_talkroom", "talkroom_id": talkroom_id,
@@ -1832,7 +1849,7 @@ def test_confirmed_handled_feedback_dominates_stale_derived_work_state(tmp_path,
     })
     monkeypatch.setattr(paid, "_paid_project_root", lambda *_args: root)
     item = {
-        "talkroom_id": "room",
+        "talkroom_id": "101",
         "talkroom_state": "取引中",
         "buyer_feedback_sha256": feedback,
         "buyer_feedback_pending_artifact": False,
@@ -1849,7 +1866,7 @@ def test_official_seller_attachment_wait_dominates_stale_local_state(tmp_path, m
     root.mkdir()
     monkeypatch.setattr(paid, "_paid_project_root", lambda *_args: root)
     item = {
-        "talkroom_id": "room",
+        "talkroom_id": "101",
         "talkroom_state": "取引中",
         "buyer_feedback_sha256": "d" * 64,
         "buyer_feedback_pending_artifact": False,
@@ -2888,6 +2905,164 @@ def test_file_presend_reclaims_targeted_owner_before_open(tmp_path, monkeypatch)
         ("reclaim", "paid-direct-18223833"),
         ("open", "paid-direct-18223833"),
     ]
+
+
+def test_file_presend_rejects_stale_buyer_feedback_before_browser(tmp_path, monkeypatch):
+    """Dropping the feedback comparison would send event-A work after event B arrived."""
+    paid = load("paid_direct")
+    root = tmp_path / "project"
+    root.mkdir()
+    feedback_a = "a" * 64
+    feedback_b = "b" * 64
+    requirements_sha = "c" * 64
+    browser_calls = []
+
+    monkeypatch.setattr(paid, "_paid_project_root", lambda *_args: root)
+    monkeypatch.setattr(paid, "_file_mode", lambda *_args: True)
+    monkeypatch.setattr(
+        paid.paid_remote_result, "requirements_digest", lambda *_args: requirements_sha,
+    )
+    monkeypatch.setattr(paid.delivery_queue, "evidence_path", lambda *_args: tmp_path / "stable.json")
+    monkeypatch.setattr(paid, "_validate_file_authorization", lambda *_args: {
+        "artifact_version": "v1", "package_sha256": "d" * 64,
+    })
+    monkeypatch.setattr(paid, "_reclaim_browser_owner", lambda *_args: None)
+    monkeypatch.setattr(paid, "_fresh_child_env", lambda *_args, **_kwargs: {})
+    collector_output = {}
+
+    def collector(_args, _mode, output_path, *_rest):
+        collector_output["path"] = output_path
+        return ["collector"]
+
+    def run_collector(*_args, **_kwargs):
+        write_json(collector_output["path"], {"talkroom_id": "18223833"})
+
+    monkeypatch.setattr(paid, "_collector", collector)
+    monkeypatch.setattr(paid, "_run", run_collector)
+    monkeypatch.setattr(paid, "_row", lambda *_args: {
+        "talkroom_id": "18223833",
+        "buyer_feedback_sha256": feedback_b,
+        "talkroom_state": "取引中",
+        "formal_delivery_observed": False,
+    })
+    monkeypatch.setattr(
+        paid, "_run_bounded", lambda *_args: browser_calls.append(True) or pytest.fail(
+            "browser must not run for stale buyer work"
+        ),
+    )
+    args = SimpleNamespace(
+        evidence_dir=tmp_path / "evidence",
+        delivery_evidence_dir=tmp_path,
+        projects_root=tmp_path,
+        cdp_lock_dir=tmp_path / "locks",
+    )
+    prepared = {
+        "talkroom_id": "18223833",
+        "buyer_feedback_sha256": feedback_a,
+        "requirements_sha256": requirements_sha,
+    }
+    output = tmp_path / "result.json"
+
+    assert paid._write_file_effect(args, tmp_path / "item.json", output, prepared) == 1
+    result = json.loads(output.read_text(encoding="utf-8"))
+    assert result["failed_step"] == "presend_readback"
+    assert result["effect"] == 0
+    assert browser_calls == []
+
+
+def test_file_effect_rechecks_owner_policy_immediately_before_browser(tmp_path, monkeypatch):
+    """Creating the manual fence during presend must stop the pending provider mutation."""
+    paid = load("paid_direct")
+    projects = tmp_path / "projects"
+    root = projects / "18211957"
+    root.mkdir(parents=True)
+    feedback = "a" * 64
+    requirements_sha = "b" * 64
+    artifact = root / "delivery/result.zip"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_bytes(b"result")
+    browser_calls = []
+    prepared = {
+        "talkroom_id": "18211957",
+        "buyer_feedback_sha256": feedback,
+        "requirements_sha256": requirements_sha,
+        "delivery_action": "progress",
+    }
+    manifest = {
+        "artifact_version": "v1",
+        "package_sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
+        "artifact_path": str(artifact),
+        "customer_message": "成果物です。",
+    }
+    evidence = {
+        "project_root": str(root),
+        "requirements_path": str(root / "requirements/live-buyer-reply.json"),
+        "artifact_path": str(artifact),
+        "artifact_version": "v1",
+        "acceptance_evidence_path": str(root / "acceptance/result.json"),
+        "acceptance_status": "PASS",
+        "package_sha256": manifest["package_sha256"],
+        "acceptance_delta": ["complete"],
+        "recipient_access_required": False,
+    }
+    monkeypatch.setattr(paid, "_file_mode", lambda *_args: True)
+    monkeypatch.setattr(
+        paid.paid_remote_result, "requirements_digest", lambda *_args: requirements_sha,
+    )
+    monkeypatch.setattr(paid.delivery_queue, "evidence_path", lambda *_args: tmp_path / "stable.json")
+    monkeypatch.setattr(paid, "_validate_file_authorization", lambda *_args: manifest)
+    monkeypatch.setattr(paid.delivery_queue, "delivery_gate", lambda *_args: (evidence, []))
+    monkeypatch.setattr(
+        paid.delivery_queue, "delivery_decision",
+        lambda *_args: {"mode": "progress", "formal_delivery_checkbox": False},
+    )
+    monkeypatch.setattr(paid, "_file_progress_payload", lambda *_args: {"message": "成果物です。"})
+    monkeypatch.setattr(paid, "_reclaim_browser_owner", lambda *_args: None)
+    monkeypatch.setattr(paid, "_fresh_child_env", lambda *_args, **_kwargs: {})
+    collector_output = {}
+
+    def collector(_args, _mode, output_path, *_rest):
+        collector_output["path"] = output_path
+        return ["collector"]
+
+    def run_collector(*_args, **_kwargs):
+        write_json(collector_output["path"], {"talkroom_id": "18211957"})
+
+    monkeypatch.setattr(paid, "_collector", collector)
+    monkeypatch.setattr(paid, "_run", run_collector)
+    monkeypatch.setattr(paid, "_row", lambda *_args: {
+        "talkroom_id": "18211957",
+        "buyer_feedback_sha256": feedback,
+        "talkroom_state": "取引中",
+        "formal_delivery_observed": False,
+    })
+
+    def install_owner_at_effect_boundary(_args):
+        write_manual_paid_owner(root)
+        return None
+
+    monkeypatch.setattr(paid, "_effect_gate_reason", install_owner_at_effect_boundary)
+    monkeypatch.setattr(
+        paid, "_run_bounded", lambda *_args: browser_calls.append(True) or pytest.fail(
+            "browser must not run after a manual owner appears"
+        ),
+    )
+    args = SimpleNamespace(
+        evidence_dir=tmp_path / "evidence",
+        delivery_evidence_dir=tmp_path,
+        projects_root=projects,
+        cdp_lock_dir=tmp_path / "locks",
+        answer_browser=tmp_path / "answer.py",
+        formal_browser=tmp_path / "formal.py",
+        cdp_helper=tmp_path / "cdp.py",
+    )
+    output = tmp_path / "result.json"
+
+    assert paid._write_file_effect(args, tmp_path / "item.json", output, prepared) == 0
+    result = json.loads(output.read_text(encoding="utf-8"))
+    assert result["status"] == "reserved_for_owner"
+    assert result["effect"] == 0
+    assert browser_calls == []
 
 
 def test_remote_verifier_prompt_persists_decision_before_optional_exploration(tmp_path):
@@ -4505,6 +4680,182 @@ def test_account_owner_policy_can_forbid_review_ready_shipment():
         paid._review_ready_allowed_by_policy(
             True, {"review_ready_shipment_allowed": "false"},
         )
+
+
+def test_permanent_manual_owner_reserves_new_ryu_reply(tmp_path):
+    """Removing the durable owner check would let a new Ryu reply enter paid automation."""
+    paid = load("paid_direct")
+    root = tmp_path / "18211957"
+    write_json(root / "state.json", {"talkroom_id": "18211957"})
+    owner = write_manual_paid_owner(root)
+    args = SimpleNamespace(projects_root=tmp_path, evidence_dir=tmp_path / "evidence")
+    item = {
+        "talkroom_id": "18211957",
+        "buyer_reply_after_artifact_observed": True,
+        "buyer_feedback_sha256": "b" * 64,
+    }
+
+    manual_owner = getattr(paid, "_manual_owner_record", lambda *_args: None)
+
+    assert manual_owner(args, item) == owner.resolve()
+    assert paid._paid_active_items(args, [item]) == []
+    assert paid._reported_paid_row(args, item) == {
+        "talkroom_id": "18211957",
+        "status": "reserved_for_owner",
+        "failed": 0,
+        "effect": 0,
+        "readback": 1,
+        "send_performed": False,
+        "deduplicated": True,
+        "formal_delivery_checkbox": False,
+        "owner_record": str(owner.resolve()),
+    }
+
+
+@pytest.mark.parametrize("changes", [
+    {"provider": "lancers"},
+    {"contract_id": "999"},
+    {"authority": "loop_instruction"},
+    {"mode": "loop"},
+    {"release_required": False},
+    {"unexpected": "field"},
+])
+def test_invalid_present_manual_owner_record_fails_closed(tmp_path, changes):
+    """Treating an edited owner record as absent would restore automation authority."""
+    paid = load("paid_direct")
+    root = tmp_path / "18211957"
+    write_json(root / "state.json", {"talkroom_id": "18211957"})
+    write_manual_paid_owner(root, **changes)
+    args = SimpleNamespace(projects_root=tmp_path)
+    item = {"talkroom_id": "18211957"}
+    manual_owner = getattr(paid, "_manual_owner_record", lambda *_args: None)
+
+    disposition = getattr(paid, "_paid_owner_disposition", lambda *_args: ("absent", None))
+    assert manual_owner(args, item) is None
+    assert disposition(args, item) == ("invalid", (root / "context/paid-owner.json").resolve())
+    assert paid._paid_active_items(args, [item]) == []
+
+
+def test_symlinked_manual_owner_record_fails_closed(tmp_path):
+    """Treating a symlinked owner record as absent would restore automation authority."""
+    paid = load("paid_direct")
+    root = tmp_path / "18211957"
+    write_json(root / "state.json", {"talkroom_id": "18211957"})
+    external = tmp_path / "external-owner.json"
+    write_manual_paid_owner(tmp_path / "source")
+    external.write_text(
+        (tmp_path / "source/context/paid-owner.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    policy = root / "context/paid-owner.json"
+    policy.parent.mkdir(parents=True)
+    policy.symlink_to(external)
+    args = SimpleNamespace(projects_root=tmp_path)
+    item = {"talkroom_id": "18211957"}
+    manual_owner = getattr(paid, "_manual_owner_record", lambda *_args: None)
+
+    disposition = getattr(paid, "_paid_owner_disposition", lambda *_args: ("absent", None))
+    assert manual_owner(args, item) is None
+    assert disposition(args, item) == ("invalid", policy.absolute())
+    assert paid._paid_active_items(args, [item]) == []
+
+
+def test_manual_owner_record_missing_release_requirement_fails_closed(tmp_path):
+    """Omitting release semantics must not silently restore automation authority."""
+    paid = load("paid_direct")
+    root = tmp_path / "18211957"
+    write_json(root / "state.json", {"talkroom_id": "18211957"})
+    path = write_manual_paid_owner(root)
+    record = json.loads(path.read_text(encoding="utf-8"))
+    record.pop("release_required")
+    write_json(path, record)
+    args = SimpleNamespace(projects_root=tmp_path)
+    item = {"talkroom_id": "18211957"}
+
+    assert paid._manual_owner_record(args, item) is None
+    assert paid._paid_owner_disposition(args, item) == ("invalid", path.resolve())
+    assert paid._paid_active_items(args, [item]) == []
+
+
+def test_absent_manual_owner_record_keeps_ordinary_paid_room_active(tmp_path):
+    """Fail-closed parsing must not reserve rooms that have no owner policy file."""
+    paid = load("paid_direct")
+    root = tmp_path / "18250352"
+    write_json(root / "state.json", {"talkroom_id": "18250352"})
+    args = SimpleNamespace(projects_root=tmp_path)
+    item = {"talkroom_id": "18250352"}
+
+    assert paid._paid_owner_disposition(args, item) == ("absent", None)
+    assert paid._paid_active_items(args, [item]) == [item]
+
+
+@pytest.mark.parametrize("entrypoint", ["_decision_only", "_prepare_one", "_write_one"])
+def test_permanent_manual_owner_stops_every_paid_child_entrypoint(
+        tmp_path, monkeypatch, entrypoint):
+    """Removing any child guard would let a direct worker invocation mutate Ryu's room."""
+    paid = load("paid_direct")
+    root = tmp_path / "18211957"
+    write_json(root / "state.json", {"talkroom_id": "18211957"})
+    owner = write_manual_paid_owner(root)
+    item_path = tmp_path / "item.json"
+    output = tmp_path / f"{entrypoint}.json"
+    write_json(item_path, {
+        "talkroom_id": "18211957",
+        "buyer_feedback_sha256": "a" * 64,
+        "_paid_mode": "file",
+    })
+    args = SimpleNamespace(projects_root=tmp_path, evidence_dir=tmp_path / "evidence")
+    if entrypoint == "_write_one":
+        monkeypatch.setenv("CLOAK_BROWSER_OWNER", "paid-direct-18211957")
+
+    assert getattr(paid, entrypoint)(args, item_path, output) == 0
+    result = json.loads(output.read_text(encoding="utf-8"))
+    assert result["status"] == "reserved_for_owner"
+    assert result["effect"] == 0
+    assert result["owner_record"] == str(owner.resolve())
+
+
+@pytest.mark.parametrize("entrypoint", ["_decision_only", "_prepare_one", "_write_one"])
+def test_invalid_present_owner_policy_stops_every_paid_child_entrypoint(
+        tmp_path, monkeypatch, entrypoint):
+    """A damaged manual policy must fail with zero effect at every direct child boundary."""
+    paid = load("paid_direct")
+    root = tmp_path / "18211957"
+    write_json(root / "state.json", {"talkroom_id": "18211957"})
+    owner = write_manual_paid_owner(root, authority="damaged")
+    item_path = tmp_path / "item.json"
+    output = tmp_path / f"invalid-{entrypoint}.json"
+    write_json(item_path, {
+        "talkroom_id": "18211957",
+        "buyer_feedback_sha256": "a" * 64,
+        "_paid_mode": "file",
+    })
+    args = SimpleNamespace(projects_root=tmp_path, evidence_dir=tmp_path / "evidence")
+    if entrypoint == "_write_one":
+        monkeypatch.setenv("CLOAK_BROWSER_OWNER", "paid-direct-18211957")
+
+    assert getattr(paid, entrypoint)(args, item_path, output) == 1
+    result = json.loads(output.read_text(encoding="utf-8"))
+    assert result["status"] == "failed"
+    assert result["failed_step"] == "owner_policy_invalid"
+    assert result["effect"] == 0
+    assert result["owner_record"] == str(owner.resolve())
+
+
+def test_manual_ryu_room_does_not_stall_other_paid_room(tmp_path):
+    """Filtering the queue wholesale would stall eligible clients beside manual Ryu."""
+    paid = load("paid_direct")
+    ryu = {"talkroom_id": "18211957", "buyer": "Ryu0820119"}
+    other = {"talkroom_id": "18250352", "buyer": "eligible-client"}
+    for item in (ryu, other):
+        write_json(tmp_path / item["talkroom_id"] / "state.json", {
+            "talkroom_id": item["talkroom_id"],
+        })
+    write_manual_paid_owner(tmp_path / "18211957")
+    args = SimpleNamespace(projects_root=tmp_path)
+
+    assert paid._paid_active_items(args, [ryu, other]) == [other]
+    assert paid._admitted_paid_projects(args, [other]) == [other]
 
 
 def test_paid_runner_contract_matches_runtime_terra_route():

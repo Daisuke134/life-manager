@@ -99,7 +99,7 @@
         {
           "source": "skills/agent-runner/agent_runner.py",
           "target": "runtime/agent-runner/agent_runner.py",
-          "sha256": "68fdf49f0e0e30f1607e3254e7fc523622fc3fe543259a20fc195091cc4f8c95"
+          "sha256": "dc8393f92e52107cedf12109fa2eea135897a0334232f2124ac2954f999bd18c"
         },
         {
           "source": "skills/agent-runner/config.json",
@@ -145,14 +145,14 @@
         {
           "source": "skills/capafy-autopublish",
           "target": "skills/capafy-autopublish",
-          "files": 223,
-          "inventory_sha256": "9374108b87c9776261a2a9dcbc6b23b99240105ebf43c85b426a07b8b3e127f4"
+          "files": 224,
+          "inventory_sha256": "742cfa4c297cc2dcb8ed1f123b9c16f80b4083117118a050be70845dbbf5c0fd"
         },
         {
           "source": "skills/_shared",
           "target": "skills/_shared",
           "files": 184,
-          "inventory_sha256": "f407c4dc53b5fdba5e5f419cdfa578466a817ccbb74d289b48f4d74b1ef2cf07"
+          "inventory_sha256": "54bfb4f14d51581a9a9fe5e2d47134227f7a9e826107fbe0db8801f5c521df3f"
         },
         {
           "source": "skills/anicca-life-manager",

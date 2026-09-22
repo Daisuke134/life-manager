@@ -142,7 +142,7 @@ def test_job_needs_activation_when_loaded_environment_is_stale(monkeypatch):
     }
     table = {
         "RELEASE": "/tmp/current",
-        "HOME": "/Users/test",
+        "HOME": "/tmp/test-home",
         "GIG_LOG_DIR": "/tmp/logs",
     }
     desired = gig_release.plist_for(job, table)
@@ -161,7 +161,7 @@ def test_job_does_not_need_activation_when_program_and_environment_match(monkeyp
     }
     table = {
         "RELEASE": "/tmp/current",
-        "HOME": "/Users/test",
+        "HOME": "/tmp/test-home",
         "GIG_LOG_DIR": "/tmp/logs",
     }
     desired = gig_release.plist_for(job, table)
@@ -298,14 +298,17 @@ def test_release_watch_is_retired_in_favor_of_the_shared_reconciler():
     reconciler = gig_release.REPO_ROOT / "bin" / "reconcile-agent-runner-release.sh"
     assert reconciler.is_file()
     script = reconciler.read_text(encoding="utf-8")
+    registry = json.loads(
+        (gig_release.REPO_ROOT / "config" / "loop-registry.json").read_text(encoding="utf-8")
+    )
+    reconciled_routes = {"shared-agent-runner", "deterministic"}
+    for route in reconciled_routes:
+        assert f'reconcile {route} --loaded-idle-only --max-owners 4' in script
     for loop_id in (
         "hf-gig-apply-direct", "hf-gig-reply-detector",
         "hf-gig-storefront-direct", "hf-gig-paid-direct",
     ):
-        assert f"--loop-id {loop_id}" in script
+        assert registry["loops"][loop_id]["provider_route"] in reconciled_routes
 
-    registry = json.loads(
-        (gig_release.REPO_ROOT / "config" / "loop-registry.json").read_text(encoding="utf-8")
-    )
     reconciler_loop = registry["loops"]["life-manager-release-reconciler"]
     assert reconciler_loop["entrypoint"] == "bin/reconcile-agent-runner-release.sh"
