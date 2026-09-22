@@ -298,14 +298,17 @@ def test_release_watch_is_retired_in_favor_of_the_shared_reconciler():
     reconciler = gig_release.REPO_ROOT / "bin" / "reconcile-agent-runner-release.sh"
     assert reconciler.is_file()
     script = reconciler.read_text(encoding="utf-8")
+    registry = json.loads(
+        (gig_release.REPO_ROOT / "config" / "loop-registry.json").read_text(encoding="utf-8")
+    )
+    reconciled_routes = {"shared-agent-runner", "deterministic"}
+    for route in reconciled_routes:
+        assert f'reconcile {route} --loaded-idle-only --max-owners 4' in script
     for loop_id in (
         "hf-gig-apply-direct", "hf-gig-reply-detector",
         "hf-gig-storefront-direct", "hf-gig-paid-direct",
     ):
-        assert f"--loop-id {loop_id}" in script
+        assert registry["loops"][loop_id]["provider_route"] in reconciled_routes
 
-    registry = json.loads(
-        (gig_release.REPO_ROOT / "config" / "loop-registry.json").read_text(encoding="utf-8")
-    )
     reconciler_loop = registry["loops"]["life-manager-release-reconciler"]
     assert reconciler_loop["entrypoint"] == "bin/reconcile-agent-runner-release.sh"
