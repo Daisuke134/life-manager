@@ -240,7 +240,60 @@ def verified_codex_record(receipt_path: Path) -> dict:
 
 
 def verify_codex_pin(receipt_path: Path) -> Path:
-    return Path(verified_codex_record(receipt_path)["canonical_path"])
+    try:
+        record = verified_codex_record(receipt_path)
+    except PinError:
+        _refresh_codex_pin(receipt_path)
+        record = verified_codex_record(receipt_path)
+    return Path(record["canonical_path"])
+
+
+def _refresh_codex_pin(receipt_path: Path) -> None:
+    """Refresh one stale versioned pin through its stable, private request."""
+    request_path = receipt_path.with_name("codex-request.json")
+    parent = receipt_path.parent
+    try:
+        if (
+            receipt_path.name != "codex-capability.json"
+            or receipt_path.is_symlink()
+            or request_path.is_symlink()
+            or parent.is_symlink()
+            or not parent.is_dir()
+            or not request_path.is_file()
+            or parent.stat().st_mode & 0o077
+            or request_path.stat().st_mode & 0o077
+        ):
+            raise PinError
+        previous = json.loads(receipt_path.read_text(encoding="utf-8"))
+        capabilities = previous.get("capabilities")
+        if not isinstance(capabilities, list):
+            raise PinError
+        matches = [
+            item for item in capabilities
+            if isinstance(item, dict)
+            and item.get("name") == "codex-cli"
+            and item.get("kind") == "codex_cli"
+        ]
+        if previous.get("status") != "READY" or len(matches) != 1:
+            raise PinError
+        canonical_path = matches[0].get("canonical_path")
+        if not isinstance(canonical_path, str) or not Path(canonical_path).is_absolute():
+            raise PinError
+        try:
+            Path(canonical_path).lstat()
+        except FileNotFoundError:
+            pass
+        except OSError:
+            raise PinError
+        else:
+            raise PinError
+        request_bytes = request_path.read_bytes()
+        if previous.get("request_sha256") != hashlib.sha256(request_bytes).hexdigest():
+            raise PinError
+        inventory.refresh_receipt(request_path, receipt_path)
+        receipt_path.chmod(0o600)
+    except (OSError, TypeError, ValueError, inventory.InventoryError):
+        raise PinError
 
 
 def write_model_call_pin(receipt_path: Path, evidence_dir: Path) -> Path:
