@@ -16,38 +16,45 @@ Restore the mobile publishing cadence without losing the one-to-one mapping betw
 ## To-be
 
 1. Every publish occurrence carries or can deterministically recover its exact `effect_key`, `job_id`, product, platform, account, Postiz integration reference and media/caption hashes.
-2. A released unknown occurrence is eventually cleared only by `runtime.host.resource_admission.resolve_unknown_occurrence()` after a provider-owned executor performs fresh official readback with a proof whose `owner_id` and `occurrence_id` match and whose provider receipt is exact and reconciled. The checked-in proof gate never clears state.
-3. A claimed unknown occurrence stays fenced. Missing local summaries, a provider dashboard draft, a planned job, a browser URL, or a non-exact receipt never authorizes a retry.
-4. Reconciliation runs one owner at a time, then allows one natural scheduled wake. The result must distinguish process exit, runtime terminal status, provider receipt and replay-zero.
-5. `config/marketing-destinations.json`, mobile loop IDs, cadence slots, Postiz integration IDs and the OBOU hold remain unchanged by this recovery.
-6. Production launchd changes, if required after fence recovery, use the existing `lm-loop apply` path against one pushed immutable release and preserve rollback evidence.
+2. Mobile publish owners declare an occurrence-scoped effect contract. An old unknown occurrence remains visible and fenced, but it does not stop a different scheduled occurrence whose inner job has a different exact effect identity.
+3. Replaying the same unknown occurrence remains forbidden. A released unknown occurrence can be cleared only by `runtime.host.resource_admission.resolve_unknown_occurrence()` after a provider-owned executor performs fresh official readback with an exact owner, occurrence and provider receipt match.
+4. The occurrence-scoped contract is granted only to the canonical `apps/life-manager/scripts/mobile-app` entrypoint with `effect_class=publish`. Merely being a publish or revenue loop never grants it.
+5. A failed Mobile occurrence is isolated from later slots, while its exact inner publication job remains protected by the local job/effect key, durable receipt and provider readback contracts.
+6. Recovery rolls out one owner at a time, beginning with one naturally due canary. The result distinguishes process exit, runtime terminal status, provider receipt and replay-zero before the next owner is admitted.
+7. `config/marketing-destinations.json`, mobile loop IDs, cadence slots, Postiz integration IDs, Paid owner configuration and the OBOU hold remain unchanged by this recovery.
+8. Production launchd changes use the existing `lm-loop apply` path against one pushed immutable main-derived release and preserve rollback evidence.
 
 ## Invariants
 
 - No direct SQL update, `clear_no_effect_unknown()` call, manual JSON edit or deletion of an effect-bearing fence.
-- No new provider post is created merely to test recovery.
+- No historical unknown is relabeled as no-effect merely to unblock an owner.
+- No new provider post is created outside a naturally due Mobile slot.
 - No cross-family route is accepted: the provider account, integration reference, product, locale, format and content hashes must match the canonical destination contract.
 - A provider post ID is authoritative only when the provider adapter's official readback confirms the exact account/integration and content identity.
+- Owner-scoped effect loops remain fail-closed; occurrence isolation is not inferred from `effect_class`, priority, domain or owner-name prefixes.
 - OBOU remains `ebook-ja` Instagram and stays outside the active mobile daily target set.
 
 ## Data flow
 
 ```text
 unknown occurrence
-  -> exact run/effect identity
+  -> retain as observable quarantine
+  -> enqueue a different natural occurrence under the Mobile occurrence contract
+  -> exact inner job/effect identity before provider call
   -> provider-owned official readback
-  -> exact proof (or held/inconclusive)
-  -> resolve_unknown_occurrence (released rows only)
-  -> one natural wake
   -> terminal runtime event + provider receipt + replay-zero
+
+historical occurrence
+  -> exact proof if it becomes available
+  -> resolve_unknown_occurrence (released rows only)
 ```
 
 ## Completion evidence
 
-- A redacted reconciliation ledger lists every mobile/Honne unknown occurrence and one of `ready`, `inconclusive` or `claimed-held`, with no guessed mapping. `ready` is a precondition for a fresh provider-owned readback, not a state mutation.
-- Verified rows have the exact provider receipt ID and official account/integration/content readback; the admission ledger shows `effect_unknown=0` only for those rows.
-- One natural wake per verified owner produces a terminal event. If the effect already exists, provider execution delta is zero; if it does not, the single new execution has an official receipt. Duplicate executions are zero.
-- Targeted `lm-loop status` shows no `resource_effect_unknown` for the reconciled owner and still reports the immutable release argv. The destination and mobile mapping contract tests remain green.
+- The existing 17 historical Mobile/Honne unknown occurrences remain present and unchanged unless exact provider proof later resolves one.
+- A unit gate proves that default owners still block, a Mobile occurrence-scoped owner can claim a different occurrence, and the same unknown occurrence cannot be replayed.
+- One natural canary produces a terminal event and exact provider receipt. A replay of its exact inner publication job produces provider execution delta zero.
+- Targeted `lm-loop status` no longer reports `resource_effect_unknown` for the canary's new occurrence and still reports immutable main-derived release argv. The destination and mobile mapping contract tests remain green.
 
 ## Inventory evidence
 
@@ -57,12 +64,13 @@ The first read-only inventory is recorded at `docs/superpowers/evidence/mobile-p
 
 The identity bridge is now in `runtime/loop/lm_loop_run.py`, `runtime/loop/runtime_event.py`, `apps/life-manager/lib/marketing-effect-identity.js`, and the existing video/native-carousel adapters. It records the exact occurrence, runtime run, job/effect key, destination integration, account and content hashes before a provider call, then preserves only validated nonzero-effect sidecars outside scratch. PR #5423 merged at `c947b72dbc7f`; 109 focused Python tests and 37 mobile publication tests pass. The read-only proof gate is in `apps/life-manager/scripts/mobile-postiz-effect-reconcile.py`; PR #5431 merged at `b325a34d5b8e3ca9eaecc396311026d58d0ce399`, with seven reconciler tests passing. The provider-owned executor is `apps/life-manager/scripts/mobile-postiz-provider-reconcile.py`; PR #5453 merged at `23afec79cd640f343e5ac152a4950f90faac4b4d`, with nine executor tests, 106 admission tests and 24 Postiz adapter tests passing. It performs official Postiz post/integration GET readback, separates provider content from local media evidence, and can resolve only an authoritative released row after a fresh proof. It was not run against the live provider; the 17 historical fences remain unchanged.
 
-## Current wake and release gate
+## Current diagnosis and release gate
 
-- A fresh read-only SQLite query still finds exactly 17 mobile/Honne `effect_unknown=1` occurrences: 14 `released` and 3 `claimed`. No effect identity sidecar exists for those historical runs, so none is eligible for `--resolve` or a natural wake.
-- Targeted `lm-loop status life-manager-honne-ja` reports `loaded-idle`, immutable release `61036e1e…`, terminal `blocked`, exit 75 and `host_admission_deferred:resource_effect_unknown`. This confirms the fence is holding before provider execution; no Postiz request was made.
-- The observed `~/loops/current/RELEASE.json` is main-derived and contains both canonical mobile trees. Inspected launchd plists each point to one immutable release directory. Production remains unchanged until an exact historical proof exists.
-- Fresh host readback at the current release boundary confirms `RELEASE.json.sha=47b010350d9487e6c16f039c7b91dbbcb93f9ba3`, both canonical mobile trees are present, and the identity-sidecar locations are absent. The admission ledger remains 17 unknown rows (14 released, 3 claimed); `life-manager-honne-ja` remains blocked before provider execution. No provider request, SQL mutation, retry or launchd cutover was performed.
+- Read-only SQLite still finds exactly 17 Mobile/Honne `effect_unknown=1` occurrences: 14 `released` and 3 `claimed`. Their exact identity sidecars do not exist, so none can be truthfully cleared.
+- All 17 loaded owners stop before provider execution with `host_admission_deferred:resource_effect_unknown`; OBOU remains intentionally unloaded.
+- The failure is the outer host admission granularity, not a current Postiz API or generation failure: one historical occurrence fences every future slot for that owner.
+- Mobile's inner runtime already derives slot/content-bound job and effect identities, stores receipts, and refuses a terminal job without a receipt. The outer runtime must preserve those old unknowns while allowing only a distinct occurrence to enter that inner safety boundary.
+- Source changes are developed on a latest-main Mobile-only branch. No production state, provider session, Paid fulfillment file, Paid owner, registry entry or OBOU state changes before the focused gates pass.
 
 ## Non-goals
 
