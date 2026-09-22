@@ -1701,6 +1701,38 @@ class LmLoopApplyTest(unittest.TestCase):
 
         self.assertEqual(targeted.call_args.args[1], {"example"})
 
+    def test_explicit_target_reconcile_delegates_pending_owner_to_atomic_rebind(self):
+        release = self._release("release-target-pending").resolve()
+        row = {
+            "classification": "managed",
+            "provider_route": "deterministic",
+            "launchd_state": "unloaded",
+            "installed_release_sha": "b" * 40,
+            "loop_id": "example",
+        }
+        applied = []
+
+        def record_apply(_release_root, *args, **kwargs):
+            applied.append(kwargs)
+            return [{"ok": True, "release_sha": SHA}]
+
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "targeted_snapshot", return_value=[row]),
+            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "apply_live", side_effect=record_apply),
+            patch.dict(os.environ, {"LIFE_MANAGER_RELEASE_ROOT": str(release)}),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(lm_loop.main([
+                "reconcile", "deterministic", "--loop-id", "example",
+            ]), 0)
+
+        self.assertEqual([row["target"] for row in applied], ["example"])
+        receipt = json.loads(output.getvalue())
+        self.assertEqual(receipt["eligible"], 1)
+        self.assertEqual(receipt["skipped_pending"], [])
+
     def test_targeted_snapshot_never_lists_fleet(self):
         value = registry()
         value["loops"]["example"]["provider_route"] = "deterministic"

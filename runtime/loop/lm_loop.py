@@ -1086,7 +1086,8 @@ def main(argv: list[str] | None = None) -> int:
             row["classification"] == "managed"
             and row["loop_id"] != os.environ.get("LIFE_MANAGER_LOOP_ID")
             and row["provider_route"] == route
-            and row["loop_id"] not in pending_owners
+            and (row["loop_id"] not in pending_owners
+                 or row["loop_id"] in requested_ids)
             and (not requested_ids or row["loop_id"] in effective_requested_ids)
             and row["launchd_state"] in eligible_states
             and (row["launchd_state"] != "loaded-running"
@@ -1106,7 +1107,9 @@ def main(argv: list[str] | None = None) -> int:
             eligible = [row for row in eligible if row not in extra][:max_owners] + extra
         skipped_non_ancestor = sorted(set(skipped_non_ancestor))
         skipped_pending = sorted({row["loop_id"] for row in rows if (
-            row["provider_route"] == route and row["loop_id"] in pending_owners)})
+            row["provider_route"] == route
+            and row["loop_id"] in pending_owners
+            and row["loop_id"] not in requested_ids)})
         applied, failed = [], []
         for row in eligible:
             try:
