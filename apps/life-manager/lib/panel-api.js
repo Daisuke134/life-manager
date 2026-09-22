@@ -24,6 +24,7 @@ const HUMAN_TASK_ANSWER_ENDPOINT = "money-printer/human-task/answer";
 const MONEY_PRINTER_OPPORTUNITY_ENDPOINT = "money-printer/opportunity";
 const MONEY_PRINTER_WORKROOM_ENDPOINT = "money-printer/workroom";
 const MONEY_PRINTER_FIND_WORK_ENDPOINT = "money-printer/find-work";
+const GOALS_ENDPOINT = "goals";
 const MERCOR_FIND_WORK_GOAL = "Open https://work.mercor.com/explore and list the paid roles that are currently open. "
   + "For each role return its title, its short description, and its pay if shown. Do not log in. "
   + "Stop at any login, OTP, CAPTCHA, KYC, camera, microphone, or personal-experience question.";
@@ -564,6 +565,33 @@ function sendJson(res, status, body, extraHeaders = {}) {
   res.end(JSON.stringify(body));
 }
 
+function safeGoalProjection(value, scope) {
+  const keys = ["created", "goal_ref", "job_ref", "receipt_ref", "status", "tenant_id"];
+  const tenant = encodeURIComponent(scope.uid);
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || Object.keys(value).length !== keys.length
+    || !Object.keys(value).sort().every((key, index) => key === keys[index])
+    || typeof value.created !== "boolean"
+    || value.tenant_id !== scope.uid
+    || typeof value.status !== "string" || !value.status) {
+    throw new Error("cloud goal projection invalid");
+  }
+  if (value.status === "not_started") {
+    if (value.created !== false || value.goal_ref !== null || value.job_ref !== null
+      || value.receipt_ref !== null) throw new Error("cloud goal projection invalid");
+    return value;
+  }
+  if (typeof value.goal_ref !== "string"
+    || !value.goal_ref.startsWith(`goal-portfolio://${tenant}/`)
+    || typeof value.job_ref !== "string"
+    || !value.job_ref.startsWith(`runtime-job://${tenant}/`)
+    || !(value.receipt_ref === null || (typeof value.receipt_ref === "string"
+      && value.receipt_ref.startsWith(`runtime-receipt://${tenant}/`)))) {
+    throw new Error("cloud goal projection invalid");
+  }
+  return value;
+}
+
 function sendPanelSection(res, section, candidate, opts) {
   try {
     const transformed = typeof opts.responseCandidateTransform === "function"
@@ -973,7 +1001,7 @@ async function handlePanelApiRequest(req, res, opts = {}) {
   if (!ENDPOINTS.has(endpoint) && endpoint !== "control-center" && endpoint !== "commands"
     && !onboardingEndpoint && !humanTaskNextEndpoint && !humanTaskAnswerEndpoint
     && endpoint !== MONEY_PRINTER_OPPORTUNITY_ENDPOINT && endpoint !== MONEY_PRINTER_WORKROOM_ENDPOINT
-    && endpoint !== MONEY_PRINTER_FIND_WORK_ENDPOINT) {
+    && endpoint !== MONEY_PRINTER_FIND_WORK_ENDPOINT && endpoint !== GOALS_ENDPOINT) {
     sendJson(res, 404, { error: "not_found" });
     return;
   }
@@ -998,6 +1026,63 @@ async function handlePanelApiRequest(req, res, opts = {}) {
   const commandStore = opts.commandStore || createSupabaseCommandStore(opts);
   if (!opts.sessionScopeImpl && !await commandStore.assertCurrentScope(scope)) {
     sendJson(res, 401, { error: "unauthorized" });
+    return;
+  }
+  if (endpoint === GOALS_ENDPOINT) {
+    if (requestUrl.searchParams.size !== 0) {
+      sendJson(res, 400, { error: "invalid_goal_request" });
+      return;
+    }
+    if (!opts.cloudGoalService || typeof opts.cloudGoalService.read !== "function"
+      || typeof opts.cloudGoalService.start !== "function") {
+      sendJson(res, 502, { error: "goal_unavailable" });
+      return;
+    }
+    if (req.method === "GET") {
+      try {
+        const result = await opts.cloudGoalService.read({ session });
+        sendJson(res, 200, safeGoalProjection(result, scope));
+      } catch {
+        sendJson(res, 502, { error: "goal_unavailable" });
+      }
+      return;
+    }
+    if (req.method !== "POST") {
+      sendJson(res, 405, { error: "method_not_allowed" }, { Allow: "GET, POST" });
+      return;
+    }
+    if (!/^application\/json(?:;|$)/i.test(String(req.headers["content-type"] || ""))) {
+      sendJson(res, 415, { error: "json_required" });
+      return;
+    }
+    const expectedOrigin = String(opts.panelOrigin || opts.panelBaseUrl || "").replace(/\/$/, "");
+    if (!expectedOrigin || String(req.headers.origin || "") !== expectedOrigin) {
+      sendJson(res, 403, { error: "origin_rejected" });
+      return;
+    }
+    if (!timingEqual(req.headers["x-lm-csrf"], scope.csrf || csrfToken(session))) {
+      sendJson(res, 403, { error: "csrf_rejected" });
+      return;
+    }
+    const key = String(req.headers["idempotency-key"] || "");
+    if (!/^[A-Za-z0-9._:-]{8,128}$/.test(key)) {
+      sendJson(res, 400, { error: "idempotency_required" });
+      return;
+    }
+    try {
+      const body = await readJson(req);
+      if (!body || typeof body !== "object" || Array.isArray(body)
+        || Object.keys(body).length !== 0) {
+        sendJson(res, 400, { error: "invalid_goal_request" });
+        return;
+      }
+      const result = await opts.cloudGoalService.start({ session, nowMs });
+      sendJson(res, 200, safeGoalProjection(result, scope));
+    } catch (error) {
+      const status = error && error.message === "body_too_large" ? 413
+        : error && error.message === "invalid_json" ? 400 : 502;
+      sendJson(res, status, { error: status === 502 ? "goal_unavailable" : "invalid_goal_request" });
+    }
     return;
   }
   if (endpoint === MONEY_PRINTER_OPPORTUNITY_ENDPOINT) {
