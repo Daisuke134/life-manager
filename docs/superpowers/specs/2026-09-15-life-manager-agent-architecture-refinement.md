@@ -704,22 +704,29 @@ the phone-only product path without weakening any provider receipt gate. The cur
 is this written contract and its review; the production A15/marketplace cursors and their external-effect
 owners remain unchanged until an approved implementation plan assigns a non-overlapping task.
 
+**Parallel-owner correction:** the previous table still assigned Paid work for Coconala, CrowdWorks,
+Lancers, and Upwork to this cursor. That scope now belongs exclusively to the workstream defined in J7.
+The new order after the cloud core is `non-Paid observability/self-heal → Mobile Apps/Postiz → Affiliate
+→ remaining non-Paid loops → isolated non-Paid marketplace work → channel/Muse`. This cursor reads Paid
+milestones only after the Paid owner publishes them; it never uses a Paid blocker as a reason to stop
+independent work or as permission to touch the Paid implementation, state, browser, or effect fence.
+
 | # | Atomic result, in dependency order | Acceptance; do not advance on source-only PASS |
 |---:|---|---|
 | 1 | **Scoped overlap check — done for step 2:** compare latest main, foundation `3a70e98867`, admission source `c7ce1e9fc6` and the exact provider-owned paths below. Skip a fleet-wide audit before the first patch. | Shared runtime/registry/Connector/provider ownership is mapped below; no other owner's worktree, profile or state was edited. Recheck only changed overlaps before each integration. |
 | 2 | **Shared runtime source integrated; live gate open:** focused main changes cover durable queue, claim→child identity, release→next claim, priority/aging, owner recovery and uncertain-effect handling. Do not tune the slot count to hide liveness failure. The old candidate branch is not the production source. | Focused source checks passed and representative owners ran from main releases; step 3 must still prove no persistent queue starvation across mixed owners. |
 | 3 | **Current cursor — A15 only.** Execute the atomic A15 items at the top of this spec without changing the provider order. Fair owner handoff and main-only `current` are already merged; identity-matched malformed-plist recovery and its production acceptance remain. | Same main-derived release, exact loaded argv, natural outer terminal and bounded agent/browser/deterministic handoff with live heartbeat/headroom; fenced effects remain fenced. Historical total queue age is not the eligible-wait measure. |
-| 4 | **Connector primary-provider repair — PASS:** Connpass and Luma are the only active providers for this cursor. Connpass event `407445` reached official `registered`, Calendar exact-one and durable evidence; two later natural wakes had Submit 0 and Calendar duplicate 0. KokuchPro and every other fallback remain out of the active Connector route. | New-effect chain and replay-zero are proven. The shared-product cursor advances to the cloud core; the separate marketplace owner may continue Coconala without blocking it. |
+| 4 | **Connector primary-provider repair — PASS:** Connpass and Luma are the only active providers for this cursor. Connpass event `407445` reached official `registered`, Calendar exact-one and durable evidence; two later natural wakes had Submit 0 and Calendar duplicate 0. KokuchPro and every other fallback remain out of the active Connector route. | New-effect chain and replay-zero are proven. The shared-product cursor advances to the cloud core; marketplace work follows rows 9–10 and J7 without blocking it. |
 | 5 | Build the non-effectful cloud vertical slice: tenant sign-in, one-time facts/consent, Life Manager-generated Goal Portfolio, durable receipt projection, and phone/web status. | Client closes while state/work persists; tenant cross-read is 0; no provider mutation or copied local credential/session is used. |
 | 6 | Add cloud policy authority, credential broker, bounded admission/worker isolation, and causal `status --explain`; keep business recipes shared with Local. | A broken synthetic owner is fenced or repaired while its sibling progresses; host-parity and credential-surrogate tests pass. |
-| 7 | Coconala Apply, Reply, Paid, Storefront as separate lanes: current eligible screening-answer submit; 15 pending replies; per-client funded work, attachments and payout; official listing state; reconcile old 54 uncertain intents only as preemptible background work. | Each applicable lane has current same-SHA terminal, exact official effect/readback or truthful wait/no-work, and replay-zero; no account/browser interference. |
-| 8 | CrowdWorks: complete the three existing paid contracts first, then restore inventory, Reply and Apply continuity; Lancers: browser/auth, Apply→Reply→Paid→payout and supported Storefront; Mercor: persistent auth, Apply→Reply→human handoff→Paid→payout. | Each provider's actual effect/readback and per-client terminal, not generic exit 0. Unsupported Storefront is proven not-applicable. |
-| 9 | Freelancer.com and Upwork: verify current account/policy, then applicable Apply→Reply→Paid→payout and Storefront only if official surface exists. | Official receipts, payout attribution and replay-zero. |
-| 10 | Observe every job in all 14 Product Loops (the marketplace lanes plus Writer, Affiliate, Investment, Agent Economy, Job Hunter, Fundraiser, Connector, Self-Build, Mobile Apps, Capafy and CFO); repair each remaining provider/domain blocker, including Mobile/Metrics. | Local manifest binds current installed SHA, outer terminal, official receipt or explicit setup/not-applicable state. A foundation PASS does not turn a broken provider adapter into success. |
-| 11 | Run each repaired loop's completion and S-04 Eval gate on the actual main-derived candidate, then promote that loop to one cloud canary independently. | Baseline, held-out, safety, latency/cost, official Local/Cloud evidence, rollback and replay-zero PASS for that owner; another loop's failure does not block it. |
-| 12 | Activate bounded self-heal and self-improve through existing supervisor/reconcile/eval paths: missed-cadence alert → exact-owner recovery → isolated candidate → held-out/safety/cost/live gate → promotion or rollback. Publish the six candidate-only engineering skills as a separate docs-only reviewed slice before depending on them; do not bring the candidate's runtime/provider edits along. | A real injected failure resumes only its owner with terminal repair receipt and leaves siblings unchanged; identity, permissions and gate criteria are immutable to self-improvement. Skills are present on main before being treated as product assets. |
-| 13 | New-platform meta loop: qualify policy and net value, create a thin adapter, canary its official effect, and promote only the passing result. Add Muse only as a thin channel after its authenticated protocol is inspected. | New platform/channel reuses the shared runtime and authority without a new scheduler, credential store, goal store, or provider-specific queue. |
-| 14 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
+| 7 | Repair non-Paid shared visibility and self-heal, then restore Mobile Apps/Postiz publication/metrics and Affiliate source→publication→attribution continuity. | Causal `status --explain`, current-source evidence, official publication/readback, attribution receipt, and replay-zero; no Paid owner, state, tab, or registry row is touched. |
+| 8 | Continue Writer, Investment, Agent Economy, Job Hunter, Fundraiser, Connector monitoring, Self-Build, Capafy, CFO, Mercor, and Freelancer.com by verified revenue value and dependency order. | Each owner has a current terminal plus official receipt or exact typed blocker; one failure does not consume another owner's capacity. |
+| 9 | Resume Coconala/CrowdWorks/Lancers/Upwork non-Paid lanes only after read-only ownership checks prove their source files, browser profile/session/tabs, registry rows, and mutable state are disjoint from J7. Otherwise defer that platform and continue independent work. | Exact ownership map shows zero shared mutable resource; Apply/Reply/Storefront effects retain their own official readback and replay-zero. Paid fulfillment remains outside this cursor. |
+| 10 | Observe all fourteen Product Loops without mutating J7 resources. Import Paid status only from its published SSOT/receipts and keep fleet completion open until both independent streams integrate through main. | Local manifest binds current installed SHA and outer terminal; provider truth remains official. No read-only projection is treated as authority to restart or reconcile Paid. |
+| 11 | Run each repaired **non-Paid** loop's completion and S-04 Eval gate, then promote that loop to one cloud canary independently. | Baseline, held-out, safety, latency/cost, official Local/Cloud evidence, rollback and replay-zero PASS for that owner; Paid cloud promotion remains with J7. |
+| 12 | Activate bounded self-heal and self-improve on synthetic or non-Paid owners through existing supervisor/reconcile/eval paths: missed-cadence alert → exact-owner recovery → isolated candidate → held-out/safety/cost/live gate → promotion or rollback. | A real non-Paid failure resumes only its owner with terminal repair receipt and leaves siblings unchanged; the repair system cannot target a J7 owner or resource. |
+| 13 | New-platform meta loop: qualify policy and net value, create a thin adapter, canary its official effect, and promote only the passing result. Add Muse only as a thin channel after its authenticated protocol is inspected. | New platform/channel reuses the shared runtime and authority without a new scheduler, credential store, goal store, Paid implementation, or provider-specific queue. |
+| 14 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. Consume merged Paid receipts as read-only revenue facts; do not create or repair them here. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
 
 ### Connector active goal and remaining TODO
 
@@ -855,8 +862,10 @@ flowchart TD
 6. **Replay/close gate — PASS.** Two subsequent natural wakes on loaded
    `969b4e03…` had Submit 0, retained the official provider receipt, Calendar
    exact count 1 and duplicate count 0. Connector is closed. Its marketplace
-   owner advances to Coconala Apply, Reply, Paid and Storefront independently;
-   the shared-product cursor advances through CC01–CC05.
+   owner advances only to a Coconala non-Paid lane after the J7 ownership check
+   proves that source, runtime, browser session, and mutable state are disjoint;
+   otherwise it continues another independent non-Paid task. The shared-product
+   cursor advances through CC01–CC05.
 
 **No-self-blocking operating rule:** every failure is classified as one of
 `source`, `release`, `load`, `browser`, `admission`, `provider`, `calendar`, or
@@ -967,31 +976,14 @@ inventory rather than invented here; one selected ID is handled per item.
 - [ ] CC03 — Expose that slice through phone/web, close the client, and prove cloud state/work continuity plus source-backed `status --explain` readback.
 - [ ] CC04 — Add tenant isolation, policy authority, credential-surrogate broker, bounded worker admission, and cross-tenant rejection without copying Local credentials, sessions, or mutable state.
 - [ ] CC05 — Inject one synthetic owner failure in Cloud and prove exact-owner reconcile/repair/verify/resume while an independent sibling progresses; no provider mutation is part of this gate.
+- [x] PX01 — Read-only coordination snapshot recorded from Paid branch HEAD `ececcf86ae`, its SSOT/plan, and its active lease. This is not Paid completion and performed no fence, owner, provider, browser, state, or client mutation.
 - [x] CN03 — Observe one eligible Connector automatic wake through an official registration ID. On run `18d5fce89d880ad8-6986`, Connpass event `405705` reached `provider_status=registered`; provider receipt `cbff78d53a91288bf4268554b9ba6f615007047cd482b1b2c6bfe0d5b2e32c29` retains a screenshot of the official page with the cancellation control visible. This was release-driven, not manually kickstarted.
 - [x] CN04 — Read back the matching Google Calendar event ID for that registration. Independent Google Calendar API `read_event` returned ID `0c706h76f6ceoh99cdaug31cd4`, the matching Connpass `405705` URL in its description and the event's exact scheduled time.
 - [x] CN05 — Observe the next Connector wake and prove the same event was not registered or calendared twice. Automatic run `18d5fd14c75486f8-9227` ended outer `pass`; its inner report `wake-26e8babbb69e3e9352ab2bbc` was `completed_no_effect`, the applied-bundle store contains one record for event `405705`, and bounded Google Calendar search returned exactly the same one event ID. This is one-next-wake replay-zero, not a 24-hour availability claim.
 - [x] CN06 — Close the repaired Connector gate with new event `405297`, release `393f1745`, official registered readback, Calendar exact-one ID `hkpcm5qds9fhk6khorr2kfqnro`, Telegram IDs `86619`/`86620`, bundle `e8c393f6cd21636df0057ce49e82bd44257c9d128870dd8054585ff6a1c6b869`, and two same-SHA natural replay-zero wakes `wake-953036ad8babec6ae03109f1` / `wake-96cc924ba6c56c1562a25308`. Historical `405705` remains separate baseline evidence.
-- [ ] CO01 — Verify the single owned Coconala browser profile/session is authenticated without changing another lane's tabs.
-- [ ] CO02 — Submit one new eligible Coconala Apply item with screening answer and official applied-record readback.
-- [ ] CO03 — Prove that same Apply item replays zero on the next natural wake.
-- [ ] CO04 — Advance one currently actionable pending Reply talkroom to official message readback or typed buyer-wait receipt.
-- [ ] CO05 — Advance one funded Paid client with a new buyer event to exact talkroom effect/readback or typed wait.
-- [ ] CO06 — Prove one supported Storefront listing mutation or official truthful no-work against current inventory.
-- [ ] CO07 — Attribute one accepted payout/bank receipt to its originating application and contract.
-- [ ] CO08 — Advance the frozen historical uncertain-Apply cursor by one officially reconciled ID without resending it; continue as preemptible work until empty.
-- [ ] CW01 — Identify the exact current CrowdWorks Paid inventory failure at CDP, auth, timeout or official-list parsing boundary.
-- [ ] CW02 — Fix only that Paid inventory boundary and read back the current official funded-contract list.
-- [ ] CW03 — Submit the first existing funded contract's actual artifact and read back its provider receipt.
-- [ ] CW04 — Submit the second existing funded contract's actual artifact and read back its provider receipt.
-- [ ] CW05 — Submit the third existing funded contract's actual artifact and read back its provider receipt.
-- [ ] CW06 — Reconcile one pending/failed CrowdWorks Reply thread before any resend.
-- [ ] CW07 — Prove one eligible CrowdWorks Apply effect or truthful no-eligible result with next-wake replay-zero.
-- [ ] LA01 — Restore one owner-scoped authenticated Lancers Playwright/CDP attachment without restarting sibling browsers.
-- [ ] LA02 — Submit one eligible Lancers proposal and read back its exact official ID.
-- [ ] LA03 — Resolve one actionable Lancers negotiation thread by official readback or typed wait.
-- [ ] LA04 — Read current funded-contract inventory with typed account/lock/browser errors instead of a generic failure.
-- [ ] LA05 — Deliver one funded Lancers work item and read back submission/payment state.
-- [ ] LA06 — Verify one officially supported Lancers Storefront listing change or truthful no-work.
+- [ ] MP01 — Keep every Coconala mutation deferred in this cursor while J7 owns a potentially shared provider session/profile/tab. After J7 releases or an ownership check proves full isolation, create a new non-Paid Apply/Reply/Storefront task; never revive the removed Paid tasks here.
+- [ ] MP02 — Keep every CrowdWorks mutation deferred under the same rule. Resume only non-Paid Application/Reply work from a distinct source/runtime/session boundary after J7's ownership release or proved isolation.
+- [ ] MP03 — Keep every Lancers mutation deferred under the same rule, including Browser/Work Sync changes that could affect J7. Resume only isolated non-Paid Application/Negotiate/Storefront work.
 - [ ] ME01 — Restore the existing Mercor owner session and verify authenticated provider readback.
 - [ ] ME02 — Prove one Mercor application receipt or truthful no-eligible result.
 - [ ] ME03 — Resolve one Mercor Reply/interview event with an exact human-gate or provider receipt.
@@ -999,9 +991,7 @@ inventory rather than invented here; one selected ID is handled per item.
 - [ ] FR01 — Verify Freelancer.com account and current automation/policy eligibility.
 - [ ] FR02 — Prove one eligible Freelancer.com Apply or truthful no-eligible result.
 - [ ] FR03 — Prove one Freelancer.com Reply-to-funded-work receipt and payout lineage.
-- [ ] UP01 — Verify Upwork account and current automation/policy eligibility.
-- [ ] UP02 — Prove one eligible Upwork proposal or truthful no-eligible result.
-- [ ] UP03 — Prove one Upwork Reply-to-funded-work receipt and payout lineage.
+- [ ] MP04 — Keep every Upwork mutation deferred until J7 finishes lifecycle registration/live inventory or proves a separate non-Paid account/session/owner. Do not register or repair the Upwork Paid owner in this cursor.
 - [ ] PL01 — Verify Writer's current natural terminal and official publication/revenue receipt or typed blocker.
 - [ ] PL02 — Verify Affiliate's current natural terminal and official link/publication/conversion receipt or typed blocker.
 - [ ] PL03 — Verify Investment's current mode, risk boundary and broker/paper receipt or typed blocker.
@@ -1020,11 +1010,11 @@ inventory rather than invented here; one selected ID is handled per item.
 - [ ] SH01 — Inject one missed-cadence or auth/browser failure and prove the alert names the exact owner.
 - [ ] SH02 — Recover only that owner from durable state, with sibling effects unchanged and a terminal repair receipt.
 - [ ] SH03 — Evaluate one self-improvement candidate against baseline/held-out/safety/cost/live evidence and promote or roll back.
-- [ ] CL01 — Promote one approved effectful loop SHA through its own contract gate into the tenant-isolated Cloud host adapter; another loop's unfinished state does not block it.
+- [ ] CL01 — Promote one approved **non-Paid** effectful loop SHA through its own contract gate into the tenant-isolated Cloud host adapter; another loop's unfinished state does not block it.
 - [ ] CL02 — Provision fresh cloud-scoped provider authorization and prove no Local credential, browser session, or mutable state was copied.
 - [ ] CL03 — Prove Steel session lease/release leaves no second owner or stale lease for that loop.
 - [ ] CL04 — Prove one phone-only typed human-gate/resume/readback flow through the shared channel API.
-- [ ] CL05 — Run that loop's Cloud gate on the same SHA with official effect/readback, replay-zero, and rollback evidence.
+- [ ] CL05 — Run that non-Paid loop's Cloud gate on the same SHA with official effect/readback, replay-zero, and rollback evidence. Paid Local/Cloud parity remains J7-owned.
 - [ ] R01 — Start hosted subscription billing and verify one official paid subscription receipt.
 - [ ] R02 — Reach and verify USD 10K MRR from attributable accepted contracts, subscriptions, payouts and bank records.
 - [ ] R03 — Publish accurate traction, retention, margin and automation metrics.
@@ -2503,9 +2493,9 @@ events but no owner files; do not delete or mark effects absent by SQL guess.
 
 | # | Product Loop | First repair focus | Shared-kernel use | Completion condition | Workstream owner |
 |---:|---|---|---|---|---|
-| 1 | Coconala | source/form health, browser ownership, four-lane cursor | Apply/Reply/Storefront/Paid, effect fence, readback | official application or funded work receipt plus replay-zero | marketplace TODO owner |
-| 2 | Lancers | account/session, CDP health, proposal form | same Apply/Reply/Paid/Storefront contracts | official proposal/contract receipt plus replay-zero | marketplace TODO owner |
-| 3 | CrowdWorks | profile/dependency completeness, browser lock | shared application and contract lifecycle | official proposal or truthful not-applicable receipt | marketplace TODO owner |
+| 1 | Coconala | non-Paid source/form health only after browser isolation; Paid is J7-owned | Apply/Reply/Storefront remain separate from the external Paid fulfillment contract | non-Paid official receipt plus replay-zero; Paid acceptance comes only from the Paid SSOT | non-Paid marketplace owner / exclusive Paid owner in J7 |
+| 2 | Lancers | non-Paid account/session/proposal only after browser isolation; Paid is J7-owned | Apply/Negotiate/Storefront remain separate from the external Paid fulfillment contract | non-Paid official receipt plus replay-zero; Paid acceptance comes only from the Paid SSOT | non-Paid marketplace owner / exclusive Paid owner in J7 |
+| 3 | CrowdWorks | non-Paid profile/Application/Reply only after browser isolation; Paid is J7-owned | Application/Reply remain separate from the external Paid fulfillment contract | non-Paid official receipt plus replay-zero; Paid acceptance comes only from the Paid SSOT | non-Paid marketplace owner / exclusive Paid owner in J7 |
 | 4 | Writer | opportunity, authoring, publisher, payment lineage | goal/artifact/publish/settlement receipts | publisher confirmation and attributable payment receipt | Writer owner |
 | 5 | Affiliate | source freshness, attribution, publish readback | opportunity/effect/link/revenue ledger | official publication and attributed conversion evidence | Affiliate owner |
 | 6 | Investment | mode separation, risk budget, order reconciliation | goal/effect/payment readback and kill boundary | explicit paper/shadow/live mode and broker receipt | Investment owner |
@@ -2518,10 +2508,11 @@ events but no owner files; do not delete or mark effects absent by SQL guess.
 | 13 | Capafy | product/sales/outcome/audience resource separation | goal/effect/attribution/Telegram contract | official business outcome or explicit setup state | Capafy owner |
 | 14 | CFO | source reconciliation, payout matching, report noise | revenue/cost/balance/evidence graph | verified financial snapshot; unknown never becomes zero | CFO owner |
 
-The marketplace TODO workstream owns rows 1–3 and the existing `skills/earn/gig/TODO.md`; other
-owners continue their rows independently. The architecture workstream owns only the shared contracts,
-skills, specifications, fixtures, and read-only diagnostics until a shared-file overlap check approves
-runtime changes.
+Rows 1–3 have split ownership. Their non-Paid lanes remain with a future marketplace cursor only after
+source/runtime/browser isolation is proved. Their Paid lanes, plus Upwork Paid, belong exclusively to
+J7. Other owners continue independently. This architecture workstream owns only its specification and
+the non-Paid cloud/control-plane contracts until an approved implementation plan names disjoint files;
+it does not use a shared-file overlap check as permission to enter J7.
 
 ### J4. Canonical Product Contract — Life Manager owns goals
 
@@ -2606,6 +2597,9 @@ CrowdWorks, Mercor, and future sites are provider adapters with independent effe
 Factory and Gig Work share the delivery pipeline—demand evidence, scope, build, QA, delivery/publication,
 marketing, measurement, settlement—while differing in customer and sales channel. Registry jobs remain
 independently observable and fenced even when the product UI groups them under one capability.
+The active Paid workstream in J7 owns implementation of the funded-client fulfillment half of that
+pipeline. This architecture cursor may later consume its merged provider-neutral item/receipt contract,
+but must not extract, refactor, or “share” Paid code while that owner is still proving live delivery.
 
 ### J6. Muse and Grok Bot comparison and connector decision
 
@@ -2632,6 +2626,59 @@ action, callback, idempotency, security-review, and payment contracts, then deci
 Stripe Link may collect payment through Muse, but Life Manager's own settlement receipt remains the
 financial source of truth. If Muse access, economics, or policy is unsuitable, the same channel API
 continues to serve web/mobile, Telegram, iMessage, Grok, and future clients.
+
+### J7. Exclusive Paid Fulfillment workstream and collision boundary
+
+Paid fulfillment for Coconala, CrowdWorks, Lancers, and Upwork is one exclusive external workstream.
+Its execution SSOT is `docs/superpowers/specs/2026-09-22-paid-fulfillment-all-platforms-design.md` on
+branch `docs/paid-fulfillment-all-platforms-20260922`; its current Coconala plan is
+`docs/superpowers/plans/2026-09-22-coconala-paid-manual-exception-and-live-fulfillment.md`. While that
+branch is unmerged, the working copy is `/private/tmp/lm-paid-all-platforms-20260922`, with active lease
+owner `codex-root` and task `paid-fulfillment-all-platforms-20260922`. This document defines only the
+coordination boundary and does not duplicate or override the Paid completion contract.
+
+**Read-only status observed for coordination:** branch HEAD `ececcf86ae` contains the source commit
+`fix(gig): fence permanent manual paid rooms` in `paid_direct.py` and its focused test file. The Paid
+plan checklist is not yet marked complete, and the Paid SSOT still requires exact occurrence
+reconciliation, source acceptance, PR/main integration, immutable release, one non-Ryu natural canary,
+all current Coconala clients, then CrowdWorks, Lancers, and Upwork. This is progress, not production
+completion. `hf-gig-paid-direct` remains stopped with an uncertain admission effect until its owner
+reconciles the exact occurrence through official readback.
+
+| Concern | As-Is | To-Be authority |
+|---|---|---|
+| Ryu | Talkroom `18211957` is handled directly by a person; the Paid branch contains the durable manual-fence source change | Permanent manual exception; automated work/reply/attachment/formal delivery stays zero unless Dais explicitly changes ownership |
+| Client name | Earlier “Risa” references are a transcription error | No Risa item exists; the only named exception is Ryu |
+| Coconala Paid | Owner stopped; exact effect remains uncertain; fence code is branch-only | Paid owner reconciles, promotes, runs one non-Ryu canary, drains every eligible room, handles revisions, and proves replay-zero |
+| CrowdWorks/Lancers Paid | Existing owners remain effect-fenced; support/browser resources may be shared with their providers | Paid owner resolves each occurrence and delivers every current funded contract one by one without cross-client blocking |
+| Upwork Paid | Provider modules exist, but the registry has no canonical Paid owner | Paid owner inventories the live account, registers one owner, and proves a real funded-contract canary before general admission |
+| Cloud/architecture | This branch contains only the cloud-first written design; it has no Paid runtime authority | This cursor builds non-effectful cloud core and non-Paid contracts; Paid Local/Cloud parity is promoted by the Paid owner |
+
+The Paid owner exclusively controls:
+
+- its worktree, branch, Paid SSOT, current Coconala plan, and later provider plans;
+- every Coconala/CrowdWorks/Lancers/Upwork Paid source module, test, and Paid registry row;
+- `paid_direct.py`, `paid_admission.py`, `paid_thread_state.py`, and
+  `test_paid_remote_wait.py`;
+- Paid mutable state, contract/project state, occurrences, effect fences, reconciliation, receipts,
+  provider sessions, browser profiles/tabs, attachments, sends, formal deliveries, and revisions;
+- lifecycle mutations for every Paid owner, including the stopped `hf-gig-paid-direct`; and
+- Coconala project `18211957` and every decision about the permanent Ryu manual exception.
+
+This architecture workstream may inspect pushed Git/spec/lease status read-only and later consume
+receipts published by the Paid SSOT. It may not use the Paid worktree as an editing or execution
+environment, edit or cherry-pick its branch, start/stop/apply/restart a Paid owner, inspect or mutate a
+Paid browser/session, resolve an occurrence, clear a fence, send a client artifact/message, or edit the
+Paid parts of `config/loop-registry.json`. A cloud, observability, self-heal, marketplace, or
+shared-kernel task that reaches one of those resources stops before mutation, records the exact overlap,
+reports it to Dais, and continues with a disjoint task.
+
+Integration occurs only through a merged-main contract and immutable receipts. The Paid owner publishes
+its accepted item identities, state transitions, quality evidence, official readback, replay-zero, and
+settlement facts. The cloud/control-plane workstream projects those facts read-only and never becomes a
+second provider-effect owner. Coconala completion is only a Paid milestone; cross-platform completion
+requires Coconala, CrowdWorks, Lancers, and Upwork current and future funded work plus revisions to pass
+the Paid SSOT's live acceptance criteria.
 
 ### K. User Communication Contract
 
@@ -2763,6 +2810,7 @@ its SSPL/commercial licensing.
 | Hosts | Local and cloud share a target architecture but portability is incomplete | Same recipes/contracts; host adapters own only infrastructure differences |
 | Goal ownership | The older onboarding spec asked for goal/outcome selection; this document corrects the spec, while README/client/runtime conformance remains unproved | Life Manager synthesizes and maintains a source-backed Goal Portfolio; the person supplies one-time facts, access, consent, and boundaries |
 | Channels | Telegram and local UI behavior can look like separate products | Phone/web is the primary surface; messaging agents and connectors are thin adapters to one cloud authority |
+| Parallel ownership | This architecture TODO previously duplicated Paid provider work now active on another branch | J7 exclusively owns all four-platform Paid fulfillment; this cursor advances cloud and non-Paid work and integrates only merged receipts |
 
 「100 loopを同時に100 browserで起動する」ことがスケールではない。各loopは同じ共有kernelを使い、
 `resource_class`、CPU/メモリ、browser session、provider/account、tenantの上限を先に確認する。
@@ -2827,7 +2875,8 @@ provenance questions; it never substitutes for provider truth.
 | 19 | Per-loop cloud promotion | `test_cloud_promotion_requires_loop_contract_gate_and_canary` | OK: cloud core is independent; an effectful owner needs immutable source, local fixture/readback, official cloud readback, replay-zero |
 | 20 | Life Manager-owned goals | `test_missing_user_goal_synthesizes_goal_portfolio` | OK: no open-ended goal prompt or `setup_required`; provenance is `life_manager` |
 | 21 | Thin channel adapters | `test_channel_cannot_own_state_policy_scheduler_or_credentials` | OK: web/mobile/message/Muse paths resolve to one tenant authority |
-| 22 | Shared revenue delivery pipeline | `test_gig_and_mobile_apps_share_delivery_contracts` | OK: common demand/build/QA/delivery/marketing/settlement schema, provider-specific effects remain fenced |
+| 22 | Shared revenue delivery projection | `test_mobile_and_paid_receipts_share_projection_without_effect_ownership` | OK: merged delivery/quality/settlement receipts project into one product vocabulary while J7 retains every Paid effect |
+| 23 | Exclusive Paid ownership | `test_non_paid_cursor_cannot_target_paid_owner_or_resource` | OK: Paid files, registry rows, state, occurrences, sessions, and effects fail closed outside J7 while independent owners continue |
 
 All tests are deterministic fixtures or read-only contract checks. External marketplace acceptance
 remains a separate owner-scoped operation that requires the existing immutable-release,
@@ -2873,6 +2922,9 @@ official-readback, and replay-zero rules.
   fabricate a personal fact or consent in order to avoid an exact typed human gate.
 - Do not make Muse, Grok Bot, Telegram, iMessage, or a mobile client the authoritative scheduler,
   memory, policy, credential, receipt, or billing store.
+- Respect J7 as an exclusive workstream. No cloud, self-heal, marketplace, or fleet task may mutate a
+  Paid source, registry row, state, occurrence, effect fence, owner, provider session/tab, or client
+  effect; a discovered overlap stops that task before mutation.
 
 ## 7. Detailed Acceptance Backlog
 
@@ -2888,7 +2940,7 @@ and file ownership allow, but they are not prerequisites for the CC01–CC05 non
    existing redaction and effect-reconciliation seams.
 4. Add the pure cross-loop graph projector and competency queries; rebuild it from ledger fixtures and
    keep provider readback as the authority boundary.
-5. Add the shared eval case/run/score/gate schema and migrate one marketplace recipe plus one
+5. Add the shared eval case/run/score/gate schema and migrate one non-Paid marketplace recipe plus one
    non-marketplace loop before expanding coverage.
 6. Route Mercor-style identity/interview/media actions through the provider-neutral human-gate
    contract and prove one notification, resumable wake, and replay-zero fixture.
@@ -2897,8 +2949,8 @@ and file ownership allow, but they are not prerequisites for the CC01–CC05 non
 8. Enable bounded skill/prompt candidate promotion only after baseline, held-out, safety, and live
    evidence gates pass; record rollback and the generalized lesson.
 9. Re-run focused runtime, graph, eval, human-gate, and host-parity tests, then perform targeted
-   immutable-release acceptance for one owner at a time. Update the active TODO only from measured
-   receipts.
+   immutable-release acceptance for one non-Paid owner at a time. Update the active TODO only from
+   measured receipts.
 10. Add the private control-room projection and notification policy; prove routine wakes stay private,
     human gates are delivered once, and persistent blockers are rate-limited.
 11. Add the Responses API brain adapter with explicit capsule/hash, tool-call, background, polling,
@@ -2907,13 +2959,13 @@ and file ownership allow, but they are not prerequisites for the CC01–CC05 non
     session/evidence and disabled sensitive trace capture; prove it cannot schedule or mutate a provider.
 13. Run the Agents API maintenance pilot against a read-only release and bounded fixture, verify the
     task manifest, result/artifact hashes, no credential/effect access, and import only its recommendation.
-14. Run the no-babysitting supervisor fixture, then targeted immutable-release acceptance and update
-    the active TODO only from official receipts.
+14. Run the no-babysitting supervisor fixture on a synthetic or non-Paid owner, then targeted
+    immutable-release acceptance and update the active TODO only from official receipts.
 15. Implement the provider-neutral browser-session interface against Steel, preserving the current
     CDP/Playwright adapter contract and explicit session ownership.
 16. Run headless compatibility and measured memory/concurrency acceptance for one read-only provider,
-    then one effectful provider with official readback and replay-zero; keep a headed/remote-view path
-    only for human gates and debugging.
+    then one non-Paid effectful provider with official readback and replay-zero; keep a headed/remote-view
+    path only for human gates and debugging.
 17. Use Firecracker only for untrusted repair/evaluation execution and run Lightpanda only as a
     read-only discovery experiment; record the license and compatibility decision before any promotion.
 18. Freeze the Life Manager-owned Goal Portfolio contract, remove goal/outcome selection from onboarding
@@ -2923,12 +2975,13 @@ and file ownership allow, but they are not prerequisites for the CC01–CC05 non
     projection. Prove the app can close while work and state continue in cloud.
 20. Add the cloud policy authority, credential broker, bounded scheduler, worker isolation, and
     causal `status --explain` path. Prove one broken owner is repaired or fenced while siblings progress.
-21. Promote one low-risk effectful loop through its own contract gate. Use identical immutable source,
+21. Promote one low-risk **non-Paid** effectful loop through its own contract gate. Use identical immutable source,
     fresh cloud credentials/session, official provider readback, replay-zero, and rollback; do not copy
     local mutable state.
-22. Migrate the remaining fourteen-loop inventory one owner at a time. Group Gig Work as one product
-    capability while retaining provider/effect ownership, and extract the shared demand→build→QA→
-    delivery/publication→marketing→settlement pipeline with Mobile App Factory.
+22. Migrate the remaining non-Paid fourteen-loop inventory one owner at a time. Group Gig Work as one
+    product capability while retaining provider/effect ownership. After J7 reaches merged-main
+    acceptance, consume its provider-neutral fulfillment receipts without editing or re-owning its
+    demand→build→QA→delivery→revision→settlement implementation.
 23. Feed incidents, outcomes, cost, and revenue into isolated improvement candidates; require frozen
     baseline, held-out, safety, cost, live-evidence, canary, and rollback before promotion. Keep goal
     policy, evaluator, permissions, identity, and receipt authority immutable to the candidate.
