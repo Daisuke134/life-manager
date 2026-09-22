@@ -101,7 +101,8 @@ test("enqueue is idempotent by job id and rejects a cross-tenant collision", asy
     loopId: "marketing.anicca.slideshow",
   }), { query });
   assert.deepEqual(result, { created: false, job: existing });
-  assert.match(calls[0].sql, /ON CONFLICT \(job_id\) DO NOTHING/i);
+  assert.match(calls[0].sql, /ON CONFLICT DO NOTHING/i);
+  assert.doesNotMatch(calls[0].sql, /ON CONFLICT \(job_id\)/i);
   assert.match(calls[1].sql, /WHERE job_id = \$1 AND tenant_id = \$2/i);
   assert.equal(calls[1].params[1], "tenant-a");
 
@@ -141,6 +142,8 @@ test("scheduled enqueue writes available_at atomically and keeps idempotency exa
   const created = await enqueueJobAt(canonical, availableAt, { query });
   assert.equal(created.created, true);
   assert.match(calls[0].sql, /available_at/i);
+  assert.match(calls[0].sql, /ON CONFLICT DO NOTHING/i);
+  assert.doesNotMatch(calls[0].sql, /ON CONFLICT \(job_id\)/i);
   assert.equal(calls[0].params.at(-1), availableAt);
 
   const existingQuery = async (sql) => ({

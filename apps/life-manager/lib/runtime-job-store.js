@@ -142,7 +142,7 @@ async function enqueueJob(input, opts = {}) {
     INSERT INTO public.lm_runtime_jobs (
       job_id, tenant_id, loop_id, capability, effect_class, effect_key, input_refs, max_attempts
     ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8)
-    ON CONFLICT (job_id) DO NOTHING
+    ON CONFLICT DO NOTHING
     RETURNING *
   `, [
     job.job_id,
@@ -189,7 +189,7 @@ async function enqueueJobAt(input, availableAtValue, opts = {}) {
       job_id, tenant_id, loop_id, capability, effect_class, effect_key,
       input_refs, max_attempts, available_at
     ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9::timestamptz)
-    ON CONFLICT (job_id) DO NOTHING
+    ON CONFLICT DO NOTHING
     RETURNING *
   `, [
     job.job_id,
