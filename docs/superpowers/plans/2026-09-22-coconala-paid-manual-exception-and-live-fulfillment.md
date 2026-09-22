@@ -22,6 +22,19 @@
 - Production proceeds one non-Ryu room at a time. A room failure remains isolated and cannot block another eligible room.
 - Keep credentials, buyer materials, screenshots, and live evidence outside Git.
 
+## Current State Update (2026-09-23)
+
+- Chii is not self-actionable: the latest authenticated buyer request was already answered with the reply/reaction count and sending method. Until a newer buyer message appears, the correct state is `awaiting_buyer`; no additional DM or delivery is permitted.
+- Ryu remains a permanent manual-only exception. The paid loop must report `reserved_for_owner` with zero effect and never press formal delivery for that room.
+- The paid state-machine fix is implemented and reviewed: seller-answer detection is gated to the `revision` stage, and report-only observations persist through `queue_observed` without creating an admission/actionable cycle. PR #5787 (`84dd3c124d...`) merged successfully as `37e1d582f15fd642669eb699c09c467903bc08bb`.
+- Next cursor is operational proof: resolve the bounded host storage/write-capacity issue, then verify a natural terminal event and replay-zero for Chii before processing any genuinely actionable Coconala room. CloudWorks, Lancers, and Upwork remain later platform-proof work.
+
+### Deployment readback
+
+- PR #5787 is merged as `37e1d582f15fd642669eb699c09c467903bc08bb`; immutable release `/Users/anicca/loops/releases/20260923T073120-37e1d582` is installed for `hf-gig-paid-direct` only.
+- The stale admission occurrence was reconciled against the official Chii snapshot and is now `released` with `effect_unknown=0`.
+- The first natural kickstart produced no external effect, but could not write its terminal evidence because the host paid-loop writer hit `No space left on device`; the target loop was stopped safely. A live terminal/replay-zero canary is still required after bounded storage remediation.
+
 ## Review Focus
 
 1. A new Ryu buyer reply still cannot enter decision, preparation, reply, attachment, cancellation, remote mutation, or formal-delivery paths.
