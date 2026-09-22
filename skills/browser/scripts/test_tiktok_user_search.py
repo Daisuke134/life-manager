@@ -179,6 +179,13 @@ def test_readback_ignores_hidden_or_linkless_result_items():
     assert "ready: resultLinks.length > 0 || empty" in search.READBACK
 
 
+def test_readback_uses_current_search_result_container_not_sidebar_links():
+    search = load_module()
+
+    assert '[class*="DivSearchContentBodyContainer"]' in search.READBACK
+    assert '[class*="DivPanelContainer"] > a[href*="/@"]' in search.READBACK
+
+
 def test_search_closes_owned_target_on_read_failure(tmp_path):
     search = load_module()
 

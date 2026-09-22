@@ -23,16 +23,20 @@ READBACK = r"""
   const resultItems = [...document.querySelectorAll(
     '[data-e2e="search-user-item"], [data-e2e="search-user-card"], [data-e2e="search-user-item-container"]'
   )].filter(visible);
+  const resultRoot = document.querySelector('[class*="DivSearchContentBodyContainer"]');
+  const currentResultLinks = [...(resultRoot?.querySelectorAll(
+    '[class*="DivPanelContainer"] > a[href*="/@"]'
+  ) || [])].filter(visible);
   const emptyNodes = [...document.querySelectorAll(
     '[data-e2e="search-no-result"], [data-e2e="search-empty"], [data-e2e="no-result"], [role="status"]'
   )].filter(visible);
   const empty = emptyNodes.some(node =>
     /No results found|No users found|検索結果がありません|ユーザーが見つかりません/i.test(node.innerText || '')
   );
-  const resultLinks = resultItems.flatMap(node => [
+  const resultLinks = [...currentResultLinks, ...resultItems.flatMap(node => [
     ...(node.matches('a[href*="/@"]') ? [node] : []),
     ...node.querySelectorAll('a[href*="/@"]')
-  ]);
+  ])];
   return {
     url: location.href,
     title: document.title,
