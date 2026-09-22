@@ -1860,6 +1860,127 @@ def test_confirmed_handled_feedback_dominates_stale_derived_work_state(tmp_path,
     assert paid._reported_handled_feedback_cycle(SimpleNamespace(), item) == root
 
 
+def test_latest_seller_answer_closes_current_buyer_feedback_until_new_message():
+    queue = load("coconala_queue_snapshot")
+    messages = [
+        {"side": "seller", "text": "成果物を共有します。", "attachments": [{"filename": "work.zip"}]},
+        {"side": "buyer", "text": "返信状況を教えてください。", "attachments": []},
+        {"side": "seller", "text": "現時点の確認結果を報告します。", "attachments": []},
+    ]
+
+    answered = queue.minimize_talkroom_dom(
+        {"transaction_state": "取引中", "messages": messages}, "18180857", "now",
+    )
+
+    assert answered["buyer_feedback_answered_by_seller"] is True
+
+    messages.append({"side": "buyer", "text": "追加で確認をお願いします。", "attachments": []})
+    pending = queue.minimize_talkroom_dom(
+        {"transaction_state": "取引中", "messages": messages}, "18180857", "now",
+    )
+
+    assert pending["buyer_feedback_answered_by_seller"] is False
+
+
+def test_reported_paid_row_waits_after_official_seller_answer(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    root = tmp_path / "18180857"
+    root.mkdir()
+    monkeypatch.setattr(paid, "_paid_project_root", lambda *_args: root)
+    item = {
+        "talkroom_id": "18180857",
+        "talkroom_state": "取引中",
+        "buyer_feedback_sha256": "e" * 64,
+        "buyer_feedback_stage": "revision",
+        "buyer_feedback_pending_artifact": False,
+        "buyer_feedback_answered_by_seller": True,
+        "talkroom_evidence_file": str(tmp_path / "talkroom.json"),
+    }
+
+    result = paid._reported_paid_row(SimpleNamespace(), item)
+
+    assert result["status"] == "awaiting_buyer"
+    assert result["send_performed"] is False
+    assert result["deduplicated"] is True
+
+    item["buyer_feedback_stage"] = "initial_request"
+    assert paid._official_buyer_feedback_answer_wait(item) is False
+
+
+def test_reported_feedback_answer_observation_is_persisted_without_effect_slot(
+        tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    room = "18180857"
+    item = {
+        "request_id": room,
+        "talkroom_id": room,
+        "buyer": "buyer",
+        "buyer_feedback_sha256": "f" * 64,
+        "buyer_feedback_stage": "revision",
+        "buyer_feedback_answered_by_seller": True,
+        "buyer_feedback_pending_artifact": False,
+        "talkroom_state": "取引中",
+    }
+    args = SimpleNamespace(
+        projects_root=tmp_path / "projects",
+        evidence_dir=tmp_path / "evidence",
+        lock_file=tmp_path / "paid.lock",
+        operator_brake=tmp_path / "operator.brake",
+    )
+    write_json(
+        args.projects_root / room / "state.json",
+        {"request_id": room, "adapter": "coconala", "next_action": "WORK_REQUIRED"},
+    )
+    monkeypatch.setattr(paid, "observe_orders", lambda *_args: [dict(item)])
+    monkeypatch.setattr(paid, "_targeted", lambda _args, value, _index: dict(value))
+    monkeypatch.setattr(paid, "_effect_gate_reason", lambda _args: None)
+    monkeypatch.setattr(paid, "_reconcile_absent_talkrooms", lambda *_args: {"status": "ok"})
+    monkeypatch.setattr(paid.project_janitor, "scan", lambda *_args, **_kwargs: {"status": "ok"})
+    monkeypatch.setattr(
+        paid, "_reported_paid_row",
+        lambda _args, _item: {
+            "talkroom_id": room, "status": "awaiting_buyer",
+            "send_performed": False, "deduplicated": True,
+            "formal_delivery_checkbox": False,
+        },
+    )
+
+    output = tmp_path / "result.json"
+    assert paid.run_once(args, output) == 0
+    state = json.loads((args.projects_root / room / "state.json").read_text())
+    assert state["buyer_feedback_answered_by_seller"] is True
+
+
+def test_queue_observation_does_not_create_admission_or_actionable_cycle(tmp_path):
+    delivery = load("delivery_project")
+    room = "18180857"
+    root = tmp_path / room
+    write_json(root / "state.json", {
+        "request_id": room,
+        "adapter": "coconala",
+        "next_action": "await_buyer_feedback",
+        "feedback_cycle_count": 4,
+    })
+    item = {
+        "request_id": room,
+        "talkroom_id": room,
+        "buyer_feedback_sha256": "1" * 64,
+        "buyer_feedback_stage": "revision",
+        "buyer_feedback_answered_by_seller": True,
+        "buyer_feedback_pending_artifact": False,
+        "talkroom_state": "取引中",
+    }
+
+    delivery.record_queue_observation(tmp_path, item, adapter="coconala")
+
+    state = json.loads((root / "state.json").read_text())
+    assert state["buyer_feedback_answered_by_seller"] is True
+    assert state["next_action"] == "await_buyer_feedback"
+    assert state["feedback_cycle_count"] == 4
+    events = [json.loads(line) for line in (root / "events.jsonl").read_text().splitlines()]
+    assert [event["event"] for event in events] == ["queue_observed"]
+
+
 def test_official_seller_attachment_wait_dominates_stale_local_state(tmp_path, monkeypatch):
     paid = load("paid_direct")
     root = tmp_path / "project"

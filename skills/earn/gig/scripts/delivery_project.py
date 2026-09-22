@@ -99,6 +99,7 @@ def record_queue_selection(base: str | Path, item: dict[str, Any], *, adapter: s
         "buyer_feedback_pending_artifact": item.get("buyer_feedback_pending_artifact") is True,
         "buyer_agreement_observed": item.get("buyer_agreement_observed") is True,
         "buyer_reply_after_artifact_observed": item.get("buyer_reply_after_artifact_observed") is True,
+        "buyer_feedback_answered_by_seller": item.get("buyer_feedback_answered_by_seller") is True,
     }
     feedback = str(item.get("buyer_feedback_sha256") or "").strip().lower()
     if re.fullmatch(r"[0-9a-f]{64}", feedback):
@@ -145,6 +146,44 @@ def record_queue_selection(base: str | Path, item: dict[str, Any], *, adapter: s
     if decided and (not _buyer_wait_recorded(existing) or _fresh_buyer_fact(item, existing)):
         observed.update(decided)
     project_ledger.append(root, observed, "queue_selected")
+    return root
+
+
+def record_queue_observation(base: str | Path, item: dict[str, Any], *, adapter: str) -> Path:
+    """Persist a fresh queue observation without creating an admission fact.
+
+    Report-only Paid rows were previously tempted to call
+    ``record_queue_selection`` so their live facts survived the wake.  That
+    function intentionally records an admission decision and feedback cycle;
+    reusing it for a no-effect waiter pollutes round-robin history.  This lane
+    writes only observations and uses a distinct event name, so admission sees
+    neither a selected room nor a new actionable cycle.
+    """
+    request_id = _resolved_project_identity(base, item)
+    root = Path(base) / request_id
+    if not _existing_state(root):
+        raise ValueError("observation_project_missing")
+    observed = {
+        "buyer": item.get("buyer"),
+        "delivery_date": item.get("delivery_date"),
+        "talkroom_id": item.get("talkroom_id"),
+        "source_contract_id": item.get("contract_id"),
+        "queue_class": item.get("queue_class"),
+        "talkroom_state": item.get("talkroom_state"),
+        "transaction_state": item.get("transaction_state", item.get("talkroom_state")),
+        "buyer_visible_artifact_observed": item.get("buyer_visible_artifact_observed") is True,
+        "buyer_feedback_pending_artifact": item.get("buyer_feedback_pending_artifact") is True,
+        "buyer_agreement_observed": item.get("buyer_agreement_observed") is True,
+        "buyer_reply_after_artifact_observed": item.get("buyer_reply_after_artifact_observed") is True,
+        "buyer_feedback_answered_by_seller": item.get("buyer_feedback_answered_by_seller") is True,
+    }
+    feedback = str(item.get("buyer_feedback_sha256") or "").strip().lower()
+    if re.fullmatch(r"[0-9a-f]{64}", feedback):
+        observed["buyer_feedback_sha256"] = feedback
+    price = item.get("price_jpy")
+    if isinstance(price, (int, float)) and not isinstance(price, bool) and price > 0:
+        observed["price_jpy"] = int(price)
+    project_ledger.append(root, observed, "queue_observed")
     return root
 
 
