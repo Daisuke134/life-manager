@@ -53,15 +53,17 @@ and is not proof that the automated Paid owner works.
 
 ### Coconala
 
-At the planning readback, the active order inventory contained four talkrooms:
-Ryu `18211957`, two orders for the same NPO (`18250352`, `18223833`), and Chii
-`18180857`. The original `admission_effect_unknown` occurrence was reconciled and the
-Ryu fence plus one-project-per-wake release reached production. A later Chii wake sent
-to a TikTok recipient whose earlier `sent` row already existed under a different
-effect key. `hf-gig-paid-direct` is therefore disabled and unloaded until recipient
-identity, not only effect-key identity, is enforced atomically at the transport
-boundary. `hf-gig-reply-detector` is a separate observation/pre-contract owner and
-must not acquire post-payment fulfillment authority.
+The current official inventory still contains exactly four open talkrooms: Ryu
+`18211957`, Chii `18180857`, and the two NPO rooms `18223833` and `18250352`.
+`hf-gig-paid-direct` is installed from immutable release
+`4c6b1dc8a52952e31f13bcb26a5266e570169e1d`; its natural canary and replay-zero
+passed with no new external effect because Chii and both NPO rooms are genuinely
+`awaiting_buyer`, while Ryu is `reserved_for_owner`. Chii's 300-row campaign,
+three response/reaction records, and final seller report are complete; no Chii
+message may be resent. `hf-gig-reply-detector` remains a separate
+observation/pre-contract owner and cannot acquire post-payment fulfillment
+authority. The remaining Coconala cursor is therefore honest state classification,
+not a request to manufacture another client action.
 
 ### CrowdWorks
 
@@ -69,8 +71,15 @@ The registered Application, Reply, Paid, and Report owners are loaded but fenced
 `host_admission_deferred:resource_effect_unknown`. The provider-specific execution
 cursor remains the existing
 `docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md`.
-This specification adds the cross-provider completion contract; it does not erase
-that contract inventory or its occurrence-specific reconciliation obligations.
+The 2026-09-23 read-only probe also found no listener on the required CDP port
+`9228`, an empty `provider-browser.lock`, and no registered CrowdWorks Browser
+owner. Consequently Paid stops at `provider_inventory` before any form, message, or
+delivery effect; this is a runtime-owner gap, not proof that contracts are absent.
+The fix is pushed on branch `fix/crowdworks-browser-owner-20260923` (commit
+`38bf9ab65f`): it adds a dedicated port/profile owner and maps it into the
+CrowdWorks Product Loop. It must pass merge, immutable release, targeted Browser
+owner apply, official active-contract readback, and replay-zero before any Paid
+owner fence is resolved or any client effect is retried.
 
 ### Lancers
 
@@ -86,6 +95,27 @@ message, revision, delivery, sealed-effect, and finance adapters with focused te
 There is no registered Upwork Paid product-loop owner in `config/loop-registry.json`.
 Upwork therefore requires lifecycle registration and a live contract inventory
 before it can claim end-to-end paid fulfillment.
+
+## Current execution checkpoint — 2026-09-23
+
+This checkpoint supersedes older planning prose above when a state differs:
+
+1. Ryu is complete for the latest manual correction and remains a permanent manual
+   exception. No formal-delivery control was clicked and no automated effect is
+   permitted for talkroom `18211957`.
+2. Chii is complete and buyer-waiting. The verified campaign count is 300 unique
+   sends; the later seller report records three reactions/responses. There is no new
+   buyer event, so the loop must not reopen or resend Chii.
+3. Coconala's installed natural wake and immediate replay-zero are green. Its
+   remaining non-Ryu rooms are buyer-dependent; they are not failed deliveries.
+4. The next production cursor is CrowdWorks. First merge/apply the dedicated
+   `9228` Browser owner, then perform exact occurrence reconciliation for the
+   Application, Paid, Reply, and Report fences. Only after that may one funded
+   contract (`63712784` first) enter the full context → correct work → form/message
+   receipt → formal delivery → official readback sequence.
+5. Lancers remains later: resolve its exact effect-unknown occurrences, then repair
+   the unimplemented Paid mutation path. Upwork remains last: register a Paid owner
+   only after a read-only funded-contract inventory.
 
 ## Architecture
 

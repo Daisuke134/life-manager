@@ -52,6 +52,30 @@ and reported errors=0, reclaimed=221578, and free_after=8281886720; current host
 correlated with missing legacy evidence, but the exact row-level write failure is not proven. No contract
 has buyer acceptance, settlement, payout, or verified USD 10,000 MRR.
 
+## Current execution checkpoint (2026-09-23)
+
+The prior occurrence fences remain authoritative and must not be retried or cleared
+by owner-wide reset. A fresh read-only adapter inventory currently fails earlier than
+provider observation with `CrowdWorksPaidBrowserUnavailable`: CDP `127.0.0.1:9228`
+has no listener, `provider-browser.lock` is zero bytes with no live holder, and
+`config/loop-registry.json` has no CrowdWorks Browser owner. This is why the Paid
+loop is not sending work; it is correctly fail-closed before any provider mutation.
+
+The smallest source fix is pushed on `fix/crowdworks-browser-owner-20260923`
+(`38bf9ab65f`). It adds `skills/earn/crowdworks/scripts/browser-owner`, registers
+`crowdworks-revenue-browser` at port `9228` with the existing host port/profile lock,
+and adds it to the `gig-crowdworks` Product Loop. Focused provider tests (8), registry
+tests (75 + 131 subtests), `lm-loop-contract`, and `git diff --check` pass. The branch
+is not yet a production release; merge, immutable release, targeted Browser-owner
+apply, and official browser/account readback remain open.
+
+The next safe order is: (1) merge/apply only the Browser owner; (2) read the official
+active-contract page and reconcile the exact Application/Paid/Reply/Report
+occurrences; (3) start one Paid canary at contract `63712784`; (4) verify the actual
+buyer-requested artifact/form/message and `納品する` result; (5) perform official
+readback and replay-zero; (6) continue one contract at a time. No client message or
+delivery is authorized while the 9228 owner or any exact effect fence is unresolved.
+
 ## Root-cause deep dive: host failure versus zombies
 
 **Evidence.** The historical launchd error log contains repeated `Errno 28 No space left on device`
