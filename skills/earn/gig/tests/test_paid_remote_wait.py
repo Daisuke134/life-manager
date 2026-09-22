@@ -38,6 +38,23 @@ def write_json(path: Path, value: dict) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+def write_manual_paid_owner(root: Path, talkroom_id: str = "18211957", **changes) -> Path:
+    record = {
+        "version": 1,
+        "provider": "coconala",
+        "contract_id": talkroom_id,
+        "mode": "manual",
+        "owner_id": "dais",
+        "authority": "account_owner_instruction",
+        "reason": "permanent_manual_exception",
+        "release_required": True,
+    }
+    record.update(changes)
+    path = root / "context/paid-owner.json"
+    write_json(path, record)
+    return path
+
+
 def write_official_buyer(root: Path, talkroom_id: str, message_id: str = "buyer-approval") -> dict:
     row = {
         "version": 1, "source": "coconala_live_talkroom", "talkroom_id": talkroom_id,
@@ -4505,6 +4522,134 @@ def test_account_owner_policy_can_forbid_review_ready_shipment():
         paid._review_ready_allowed_by_policy(
             True, {"review_ready_shipment_allowed": "false"},
         )
+
+
+def test_permanent_manual_owner_reserves_new_ryu_reply(tmp_path):
+    """Removing the durable owner check would let a new Ryu reply enter paid automation."""
+    paid = load("paid_direct")
+    root = tmp_path / "18211957"
+    write_json(root / "state.json", {"talkroom_id": "18211957"})
+    owner = write_manual_paid_owner(root)
+    args = SimpleNamespace(projects_root=tmp_path, evidence_dir=tmp_path / "evidence")
+    item = {
+        "talkroom_id": "18211957",
+        "buyer_reply_after_artifact_observed": True,
+    }
+
+    manual_owner = getattr(paid, "_manual_owner_record", lambda *_args: None)
+
+    assert manual_owner(args, item) == owner.resolve()
+    assert paid._paid_active_items(args, [item]) == []
+    assert paid._reported_paid_row(args, item) == {
+        "talkroom_id": "18211957",
+        "status": "reserved_for_owner",
+        "send_performed": False,
+        "deduplicated": True,
+        "formal_delivery_checkbox": False,
+        "evidence_paths": {"official_readback": str(owner.resolve())},
+    }
+
+
+@pytest.mark.parametrize("changes", [
+    {"provider": "lancers"},
+    {"contract_id": "999"},
+    {"authority": "loop_instruction"},
+    {"mode": "loop"},
+    {"release_required": False},
+    {"unexpected": "field"},
+])
+def test_invalid_manual_owner_record_cannot_suppress_paid_work(tmp_path, changes):
+    """Relaxing any owner-record field would let malformed state seize an ordinary room."""
+    paid = load("paid_direct")
+    root = tmp_path / "18211957"
+    write_json(root / "state.json", {"talkroom_id": "18211957"})
+    write_manual_paid_owner(root, **changes)
+    args = SimpleNamespace(projects_root=tmp_path)
+    item = {"talkroom_id": "18211957"}
+    manual_owner = getattr(paid, "_manual_owner_record", lambda *_args: None)
+
+    assert manual_owner(args, item) is None
+    assert paid._paid_active_items(args, [item]) == [item]
+
+
+def test_symlinked_manual_owner_record_cannot_suppress_paid_work(tmp_path):
+    """Following a policy symlink would let state outside the project seize the room."""
+    paid = load("paid_direct")
+    root = tmp_path / "18211957"
+    write_json(root / "state.json", {"talkroom_id": "18211957"})
+    external = tmp_path / "external-owner.json"
+    write_manual_paid_owner(tmp_path / "source")
+    external.write_text(
+        (tmp_path / "source/context/paid-owner.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    policy = root / "context/paid-owner.json"
+    policy.parent.mkdir(parents=True)
+    policy.symlink_to(external)
+    args = SimpleNamespace(projects_root=tmp_path)
+    item = {"talkroom_id": "18211957"}
+    manual_owner = getattr(paid, "_manual_owner_record", lambda *_args: None)
+
+    assert manual_owner(args, item) is None
+    assert paid._paid_active_items(args, [item]) == [item]
+
+
+def test_manual_owner_record_missing_release_requirement_cannot_suppress_paid_work(tmp_path):
+    """Omitting explicit release semantics must not create an unreviewable ownership fence."""
+    paid = load("paid_direct")
+    root = tmp_path / "18211957"
+    write_json(root / "state.json", {"talkroom_id": "18211957"})
+    path = write_manual_paid_owner(root)
+    record = json.loads(path.read_text(encoding="utf-8"))
+    record.pop("release_required")
+    write_json(path, record)
+    args = SimpleNamespace(projects_root=tmp_path)
+    item = {"talkroom_id": "18211957"}
+
+    assert paid._manual_owner_record(args, item) is None
+    assert paid._paid_active_items(args, [item]) == [item]
+
+
+@pytest.mark.parametrize("entrypoint", ["_decision_only", "_prepare_one", "_write_one"])
+def test_permanent_manual_owner_stops_every_paid_child_entrypoint(
+        tmp_path, monkeypatch, entrypoint):
+    """Removing any child guard would let a direct worker invocation mutate Ryu's room."""
+    paid = load("paid_direct")
+    root = tmp_path / "18211957"
+    write_json(root / "state.json", {"talkroom_id": "18211957"})
+    owner = write_manual_paid_owner(root)
+    item_path = tmp_path / "item.json"
+    output = tmp_path / f"{entrypoint}.json"
+    write_json(item_path, {
+        "talkroom_id": "18211957",
+        "buyer_feedback_sha256": "a" * 64,
+        "_paid_mode": "file",
+    })
+    args = SimpleNamespace(projects_root=tmp_path, evidence_dir=tmp_path / "evidence")
+    if entrypoint == "_write_one":
+        monkeypatch.setenv("CLOAK_BROWSER_OWNER", "paid-direct-18211957")
+
+    assert getattr(paid, entrypoint)(args, item_path, output) == 0
+    result = json.loads(output.read_text(encoding="utf-8"))
+    assert result["status"] == "reserved_for_owner"
+    assert result["effect"] == 0
+    assert result["owner_record"] == str(owner.resolve())
+
+
+def test_manual_ryu_room_does_not_stall_other_paid_room(tmp_path):
+    """Filtering the queue wholesale would stall eligible clients beside manual Ryu."""
+    paid = load("paid_direct")
+    ryu = {"talkroom_id": "18211957", "buyer": "Ryu0820119"}
+    other = {"talkroom_id": "18250352", "buyer": "eligible-client"}
+    for item in (ryu, other):
+        write_json(tmp_path / item["talkroom_id"] / "state.json", {
+            "talkroom_id": item["talkroom_id"],
+        })
+    write_manual_paid_owner(tmp_path / "18211957")
+    args = SimpleNamespace(projects_root=tmp_path)
+
+    assert paid._paid_active_items(args, [ryu, other]) == [other]
+    assert paid._admitted_paid_projects(args, [other]) == [other]
 
 
 def test_paid_runner_contract_matches_runtime_terra_route():

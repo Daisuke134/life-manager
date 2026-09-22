@@ -2230,6 +2230,12 @@ def _decision_only(args, item_path: Path, output: Path) -> int:
         root.relative_to(projects)
         if not root.is_dir():
             raise Failure("paid_work_decision")
+        manual_owner = _manual_owner_record(args, item)
+        if manual_owner is not None:
+            _write(output, {"status": "reserved_for_owner", "talkroom_id": room,
+                            "effect": 0, "readback": 1, "failed": 0,
+                            "owner_record": str(manual_owner)})
+            return 0
         if _account_owner_observe_only(args, item) is not None:
             _write(output, {"status": "reserved_for_owner", "talkroom_id": room,
                             "effect": 0, "readback": 1, "failed": 0})
@@ -2734,6 +2740,44 @@ def _paid_project_root(args, item: dict[str, Any]) -> Path:
     root = candidate.resolve()
     root.relative_to(projects)
     return root
+
+
+PAID_OWNER_KEYS = frozenset({
+    "version", "provider", "contract_id", "mode", "owner_id", "authority",
+    "reason", "release_required",
+})
+
+
+def _manual_owner_record(args, item: dict[str, Any]) -> Path | None:
+    """Return an exact durable manual-owner record bound to this talkroom."""
+    try:
+        room = _text(item.get("talkroom_id"))
+        if not re.fullmatch(r"[0-9]+", room):
+            return None
+        root = _paid_project_root(args, item)
+        path = root / "context" / "paid-owner.json"
+        if path.is_symlink() or not _regular_file(path):
+            return None
+        record = _load(path)
+        if set(record) != PAID_OWNER_KEYS:
+            return None
+        expected = {
+            "version": 1,
+            "provider": "coconala",
+            "contract_id": room,
+            "mode": "manual",
+            "owner_id": "dais",
+            "authority": "account_owner_instruction",
+            "reason": "permanent_manual_exception",
+            "release_required": True,
+        }
+        return path.resolve() if record == expected else None
+    except (AttributeError, Failure, OSError, ValueError, TypeError, json.JSONDecodeError):
+        return None
+
+
+def _paid_project_is_manual(args, item: dict[str, Any]) -> bool:
+    return _manual_owner_record(args, item) is not None
 
 
 def _account_owner_observe_only(args, item: dict[str, Any]) -> Path | None:
@@ -5638,6 +5682,12 @@ def _prepare_one(args, item_path: Path, output: Path) -> int:
         item = _load(item_path); room, feedback = _text(item.get("talkroom_id")), _text(item.get("buyer_feedback_sha256"))
         diagnostic_stage = "resolve_project"
         root = _paid_project_root(args, item)
+        manual_owner = _manual_owner_record(args, item)
+        if manual_owner is not None:
+            _write(output, {"status": "reserved_for_owner", "talkroom_id": room,
+                            "effect": 0, "readback": 1, "failed": 0,
+                            "owner_record": str(manual_owner)})
+            return 0
         if _account_owner_observe_only(args, item) is not None:
             _write(output, {"status": "reserved_for_owner", "talkroom_id": room,
                             "effect": 0, "readback": 1, "failed": 0})
@@ -6120,6 +6170,12 @@ def _write_one(args, item_path: Path, output: Path) -> int:
             _write(output, {"status": "failed", "talkroom_id": room, "failed": 1,
                             "failed_step": "writer_owner", "effect": 0, "readback": 0})
             return 1
+        manual_owner = _manual_owner_record(args, item)
+        if manual_owner is not None:
+            _write(output, {"status": "reserved_for_owner", "talkroom_id": room,
+                            "effect": 0, "readback": 1, "failed": 0,
+                            "owner_record": str(manual_owner)})
+            return 0
         if _account_owner_observe_only(args, item) is not None:
             _write(output, {"status": "reserved_for_owner",
                             "talkroom_id": _text(prepared.get("talkroom_id")),
@@ -6129,6 +6185,12 @@ def _write_one(args, item_path: Path, output: Path) -> int:
         if disk_reason is not None:
             return _write_disk_pending(output, _text(prepared.get("talkroom_id")), disk_reason,
                                        "before_paid_effect")
+        manual_owner = _manual_owner_record(args, item)
+        if manual_owner is not None:
+            _write(output, {"status": "reserved_for_owner", "talkroom_id": room,
+                            "effect": 0, "readback": 1, "failed": 0,
+                            "owner_record": str(manual_owner)})
+            return 0
         if prepared.get("_paid_mode") == "file":
             return _write_file_effect(args, item_path, output, prepared)
         room, feedback = _text(item.get("talkroom_id")), _text(item.get("buyer_feedback_sha256"))
@@ -6545,7 +6607,9 @@ def _paid_project_is_delegated(args, item: dict[str, Any]) -> bool:
 
 
 def _paid_active_items(args, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [item for item in items if not _paid_project_is_delegated(args, item)]
+    return [item for item in items
+            if not _paid_project_is_delegated(args, item)
+            and not _paid_project_is_manual(args, item)]
 
 
 def _disk_gate_reason() -> str | None:
@@ -6675,6 +6739,12 @@ def _official_seller_attachment_wait(item: dict[str, Any]) -> bool:
 
 def _reported_paid_row(args, item: dict[str, Any]) -> dict[str, Any] | None:
     room = _text(item.get("talkroom_id"))
+    manual_owner = _manual_owner_record(args, item)
+    if manual_owner is not None:
+        return {"talkroom_id": room, "status": "reserved_for_owner",
+                "send_performed": False, "deduplicated": True,
+                "formal_delivery_checkbox": False,
+                "evidence_paths": {"official_readback": str(manual_owner)}}
     effect_policy = _account_owner_observe_only(args, item)
     if effect_policy is not None:
         return {"talkroom_id": room, "status": "reserved_for_owner",
@@ -6788,6 +6858,14 @@ def run_once(args, output: Path) -> int:
             rows[room] = {"talkroom_id": room, "status": "delegated",
                           "send_performed": False, "deduplicated": True,
                           "formal_delivery_checkbox": False}
+        manual_items = [item for item in items if _paid_project_is_manual(args, item)]
+        for item in manual_items:
+            room = _text(item.get("talkroom_id"))
+            owner_record = _manual_owner_record(args, item)
+            rows[room] = {"talkroom_id": room, "status": "reserved_for_owner",
+                          "send_performed": False, "deduplicated": True,
+                          "formal_delivery_checkbox": False,
+                          "evidence_paths": {"official_readback": str(owner_record)}}
         active_items = _paid_active_items(args, items)
         executor = _paid_project_executor()
         jobs = {}
