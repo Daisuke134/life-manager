@@ -1146,6 +1146,15 @@ def main(argv: list[str] | None = None) -> int:
                 _pending_admission_policy_mismatches(registry)
                 if automatic_release_reconciler else set()
             )
+            pending_release_rebinds = (
+                {
+                    loop_id for loop_id in pending_owners
+                    if registry["loops"].get(loop_id, {}).get(
+                        "reconcile_queued_release"
+                    ) is True
+                }
+                if automatic_release_reconciler else set()
+            )
         except (OSError, sqlite3.Error) as exc:
             print(json.dumps({"ok": False, "error": f"admission queue read failed: {type(exc).__name__}"}))
             return 1
@@ -1166,7 +1175,8 @@ def main(argv: list[str] | None = None) -> int:
             and row["provider_route"] == route
             and (row["loop_id"] not in pending_owners
                  or row["loop_id"] in requested_ids
-                 or row["loop_id"] in pending_policy_mismatches)
+                 or row["loop_id"] in pending_policy_mismatches
+                 or row["loop_id"] in pending_release_rebinds)
             and (not requested_ids or row["loop_id"] in effective_requested_ids)
             and row["launchd_state"] in eligible_states
             and (row["launchd_state"] != "loaded-running"
@@ -1189,7 +1199,8 @@ def main(argv: list[str] | None = None) -> int:
             row["provider_route"] == route
             and row["loop_id"] in pending_owners
             and row["loop_id"] not in requested_ids
-            and row["loop_id"] not in pending_policy_mismatches)})
+            and row["loop_id"] not in pending_policy_mismatches
+            and row["loop_id"] not in pending_release_rebinds)})
         applied, failed = [], []
         for row in eligible:
             try:

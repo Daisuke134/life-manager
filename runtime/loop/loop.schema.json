@@ -24,6 +24,11 @@
     ],
     "command": [
       "adapter"
+    ],
+    "reconcile_queued_release": [
+      "resource_class",
+      "admission_class",
+      "priority"
     ]
   },
   "properties": {
@@ -201,6 +206,9 @@
         "shared-agent-runner"
       ],
       "type": "string"
+    },
+    "reconcile_queued_release": {
+      "type": "boolean"
     },
     "resource_class": {
       "enum": [
