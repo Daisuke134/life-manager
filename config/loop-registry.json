@@ -193,6 +193,7 @@
       "log_root": "~/.local/state/life-manager/affiliate-loop/logs",
       "priority": "revenue",
       "provider_route": "deterministic",
+      "reconcile_queued_release": true,
       "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/affiliate-loop"
     },

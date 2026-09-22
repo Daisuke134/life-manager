@@ -38,6 +38,33 @@ def browser_entry(label: str, profile: str, port: int):
 
 
 class MacosLoopRegistryTest(unittest.TestCase):
+    def test_queued_release_reconcile_is_an_explicit_boolean(self):
+        row = entry()
+        row.update({
+            "resource_class": "deterministic",
+            "admission_class": "revenue",
+            "priority": "revenue",
+            "reconcile_queued_release": True,
+        })
+        self.assertTrue(validate_registry({
+            "schema_version": 2, "loops": {"example": row},
+        })["loops"]["example"]["reconcile_queued_release"])
+
+        for invalid_value in (None, 1, "true"):
+            invalid = dict(row)
+            invalid["reconcile_queued_release"] = invalid_value
+            with self.subTest(value=invalid_value), self.assertRaisesRegex(
+                ValueError, "invalid reconcile_queued_release",
+            ):
+                validate_registry({"schema_version": 2, "loops": {"example": invalid}})
+
+        missing_contract = entry()
+        missing_contract["reconcile_queued_release"] = True
+        with self.assertRaisesRegex(ValueError, "requires admission contract"):
+            validate_registry({
+                "schema_version": 2, "loops": {"example": missing_contract},
+            })
+
     def test_queued_wake_coalescing_requires_reserved_wake_coalescing(self):
         row = entry()
         row["coalesce_queued_wakes"] = True
@@ -286,6 +313,13 @@ class MacosLoopRegistryTest(unittest.TestCase):
         daily = registry["loops"]["life-manager-daily"]
         self.assertEqual(daily.get("admission_class"), "revenue")
         self.assertEqual(daily.get("priority"), "revenue")
+
+    def test_affiliate_loop_opts_into_queued_release_reconcile(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        self.assertIs(
+            registry["loops"]["affiliate-loop"].get("reconcile_queued_release"),
+            True,
+        )
 
     def test_writer_publication_owners_use_revenue_admission(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())

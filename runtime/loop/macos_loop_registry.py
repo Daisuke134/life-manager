@@ -18,7 +18,7 @@ FIELDS = {
 OPTIONAL_FIELDS = {
     "adapter", "admission_class", "browser_owner", "coalesce_reserved_wakes",
     "coalesce_queued_wakes", "command",
-    "priority", "runtime_timeout_seconds", "resource_class",
+    "priority", "reconcile_queued_release", "runtime_timeout_seconds", "resource_class",
 }
 QUEUE_PRIORITIES = {"critical_paid", "revenue", "support"}
 SECRET_FIELD = re.compile(r"token|secret|password|credential|auth|api.?key", re.I)
@@ -72,6 +72,12 @@ def validate_registry(registry: dict) -> dict:
         if "coalesce_queued_wakes" in row and (type(row["coalesce_queued_wakes"]) is not bool
                 or (row["coalesce_queued_wakes"] and row.get("coalesce_reserved_wakes") is not True)):
             _fail(f"{loop_id}: invalid coalesce_queued_wakes")
+        if ("reconcile_queued_release" in row
+                and type(row["reconcile_queued_release"]) is not bool):
+            _fail(f"{loop_id}: invalid reconcile_queued_release")
+        if ("reconcile_queued_release" in row
+                and not {"resource_class", "admission_class", "priority"}.issubset(row)):
+            _fail(f"{loop_id}: reconcile_queued_release requires admission contract")
         if row.get("priority") not in {None, *QUEUE_PRIORITIES}:
             _fail(f"{loop_id}: invalid priority")
         adapter_present = "adapter" in row
@@ -214,6 +220,7 @@ def loop_json_schema() -> dict:
             "admission_class": {"type": "string", "enum": ["borrow", "revenue"]},
             "coalesce_reserved_wakes": {"type": "boolean"},
             "coalesce_queued_wakes": {"type": "boolean"},
+            "reconcile_queued_release": {"type": "boolean"},
             "resource_class": {"type": "string", "enum": ["agent", "browser", "deterministic"]},
             "priority": {"type": "string", "enum": sorted(QUEUE_PRIORITIES)},
             "runtime_timeout_seconds": positive_integer,
@@ -238,6 +245,9 @@ def loop_json_schema() -> dict:
         "dependentRequired": {
             "adapter": ["command"],
             "command": ["adapter"],
+            "reconcile_queued_release": [
+                "resource_class", "admission_class", "priority",
+            ],
         },
         "allOf": [{
             "not": {
