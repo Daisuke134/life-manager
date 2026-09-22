@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from websocket import WebSocketException, WebSocketTimeoutException
+
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "revenue_cli.py"
 sys.path.insert(0, str(SCRIPT.parent))
@@ -14,6 +16,33 @@ SPEC.loader.exec_module(MODULE)
 
 
 class RevenueCliTest(unittest.TestCase):
+    def test_failure_type_is_redacted_and_actionable(self):
+        self.assertEqual(
+            MODULE.failure_type(MODULE.RevenueError("PartnerStack authentication is required")),
+            "AUTH_REQUIRED",
+        )
+        self.assertEqual(
+            MODULE.failure_type(MODULE.RevenueError("PartnerStack metrics did not become ready")),
+            "METRICS_NOT_READY",
+        )
+        self.assertEqual(
+            MODULE.failure_type(MODULE.RevenueError("expected one provider tab, found 2")),
+            "TAB_INVARIANT",
+        )
+        self.assertEqual(
+            MODULE.failure_type(MODULE.RevenueError("provider report schema is incomplete")),
+            "PROVIDER_SCHEMA_ERROR",
+        )
+        self.assertEqual(MODULE.failure_type(OSError("private path")), "RUNTIME_IO")
+        self.assertEqual(
+            MODULE.failure_type(WebSocketTimeoutException("private timeout detail")),
+            "BROWSER_TRANSPORT",
+        )
+        self.assertEqual(
+            MODULE.failure_type(WebSocketException("private transport detail")),
+            "BROWSER_TRANSPORT",
+        )
+
     def test_legacy_slug_merges_into_canonical_dedicated_placement(self):
         with tempfile.TemporaryDirectory() as directory:
             state = Path(directory)

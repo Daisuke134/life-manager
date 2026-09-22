@@ -1387,9 +1387,10 @@ def _tool_outcome(result, failure_type=None):
         return "FAILED"
     if state in {
         "COOLDOWN", "NO_PENDING", "NO_TRANSACTIONS", "NOT_RUN", "WAITING_FOR_PLACEMENT_LINK",
+        "ALREADY_LIVE",
         "BROWSER_UNAVAILABLE", "SIGN_IN_REQUIRED", "AUTH_REQUIRED", "ELIGIBILITY_BLOCKED",
         "DISK_GUARD_BLOCKED", "DISK_GUARD_UNKNOWN", "QUARANTINED",
-        "ACTION_CAP_BLOCKED", "COST_CAP_BLOCKED",
+        "ACTION_CAP_BLOCKED", "COST_CAP_BLOCKED", "SOURCE_UNAVAILABLE",
     }:
         return "NO_EFFECT"
     return "COMPLETED"
@@ -1439,10 +1440,37 @@ def _classify_revenue_failure(failure_type):
     classes = {
         "TIMEOUT": "BROWSER_TRANSIENT",
         "NONZERO_EXIT": "PROVIDER_TRANSIENT",
+        "AUTH_REQUIRED": "AUTH_REQUIRED",
+        "METRICS_NOT_READY": "PROVIDER_TRANSIENT",
+        "TAB_INVARIANT": "BROWSER_TRANSIENT",
+        "BROWSER_TRANSPORT": "BROWSER_TRANSIENT",
+        "PROVIDER_SCHEMA_ERROR": "CONTRACT",
+        "RUNTIME_IO": "RUNTIME_TRANSIENT",
+        "CONTRACT": "CONTRACT",
         "INVALID_JSON": "CONTRACT",
     }
     failure_class = classes.get(failure_type, "UNKNOWN")
-    return failure_class, 3_600 if failure_class != "CONTRACT" else None
+    retry_seconds = {
+        "BROWSER_TRANSIENT": 300,
+        "PROVIDER_TRANSIENT": 3_600,
+        "AUTH_REQUIRED": 3_600,
+        "RUNTIME_TRANSIENT": 600,
+    }.get(failure_class)
+    return failure_class, retry_seconds
+
+
+def revenue_command_failure_type(stderr):
+    """Read only the stable redacted failure type emitted by revenue_cli."""
+    allowed = {
+        "AUTH_REQUIRED", "METRICS_NOT_READY", "TAB_INVARIANT",
+        "BROWSER_TRANSPORT", "PROVIDER_SCHEMA_ERROR", "RUNTIME_IO", "CONTRACT",
+    }
+    try:
+        value = json.loads(stderr)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return "NONZERO_EXIT"
+    failure_type = value.get("failure_type") if isinstance(value, dict) else None
+    return failure_type if failure_type in allowed else "NONZERO_EXIT"
 
 
 def append_tool_attempt_receipt(
@@ -2338,8 +2366,11 @@ def advance_substack_distribution(state, now=None, cooldown_seconds=86400):
                     "plan_id": row.get("plan_id"), "public_url": row.get("public_url")}
         event_uuid = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
         if row.get("state") == "LIVE" and event_uuid not in sent_ids:
-            return {"state": "LIVE", "public_url": row.get("public_url"),
-                    "plan_id": row.get("plan_id"), "channel": "substack", "changed": True}
+            return {
+                "state": "ALREADY_LIVE", "public_url": row.get("public_url"),
+                "plan_id": row.get("plan_id"), "channel": "substack",
+                "changed": False, "notification_pending": True,
+            }
     observed = []
     for row in receipts:
         try:
@@ -2434,7 +2465,10 @@ def owner_event(state, wake_event, sent_event_ids=None):
             "placement_id": wake_event.get("publication_link_placement"),
             "provider_link_key": wake_event.get("publication_link_key"),
         }, "link verified / commission not observed yet")
-    if wake_event.get("distribution_changed") and wake_event.get("distribution_state") == "LIVE":
+    if (
+        wake_event.get("distribution_changed")
+        or wake_event.get("distribution_notification_pending")
+    ) and wake_event.get("distribution_state") in {"LIVE", "ALREADY_LIVE"}:
         kind = "DISTRIBUTION_LIVE"
         add(kind, {
             "kind": kind, "channel": wake_event.get("distribution_channel"),
@@ -4297,7 +4331,8 @@ def run_revenue_cycle(state, cdp_port):
             return revenue_failure(state, command, "TIMEOUT", None, str(error))
         if completed.returncode:
             return revenue_failure(
-                state, command, "NONZERO_EXIT", completed.returncode, completed.stderr,
+                state, command, revenue_command_failure_type(completed.stderr),
+                completed.returncode, completed.stderr,
             )
         try:
             result = json.loads(completed.stdout)
@@ -5258,6 +5293,9 @@ def _wake_once(args, started_at, run_id):
         "distribution_plan_id": distribution.get("plan_id"),
         "distribution_channel": distribution.get("channel"),
         "distribution_changed": distribution.get("changed", False),
+        "distribution_notification_pending": distribution.get(
+            "notification_pending", False,
+        ),
         "distribution_failure_type": distribution.get("failure_type"),
         "distribution_failure_detail": distribution.get("failure_detail"),
         "devto_metrics_state": devto_metrics.get("state"),

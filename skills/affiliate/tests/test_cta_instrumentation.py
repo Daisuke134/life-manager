@@ -210,6 +210,43 @@ function renderMarkdown(md: string): string {
         with patch.object(MODULE.urllib.request, "urlopen", side_effect=missing):
             self.assertFalse(MODULE._entry_public_ready())
 
+    def test_live_public_instrumentation_does_not_require_local_source_checkout(self):
+        with tempfile.TemporaryDirectory() as root:
+            state = Path(root) / "state"
+            landing = Path(root) / "missing-landing-checkout"
+            MODULE.atomic_write(state / "cta-instrumentation.json", {
+                "state": "LIVE", "commit": "a" * 40,
+                "placement_id": "older-placement-en-1",
+            })
+            placement_id = "elevenlabs-discovered-voice-isolator-en-1"
+            owned_url = "https://aniccaai.com/blog/elevenlabs-voice-isolator-for-creators"
+
+            with patch.object(MODULE, "_public_ready", return_value=True), \
+                 patch.object(MODULE, "_entry_public_ready", return_value=True):
+                result = MODULE.advance(state, landing, placement_id, owned_url)
+
+            self.assertEqual(result["state"], "LIVE")
+            self.assertTrue(result["changed"])
+            self.assertEqual(result["placement_id"], placement_id)
+            self.assertEqual(result["owned_url"], owned_url)
+            self.assertFalse(landing.exists())
+
+    def test_missing_source_without_public_readback_is_typed_no_effect(self):
+        with tempfile.TemporaryDirectory() as root:
+            state = Path(root) / "state"
+            landing = Path(root) / "missing-landing-checkout"
+            with patch.object(MODULE, "_public_ready", return_value=False), \
+                 patch.object(MODULE, "_entry_public_ready", return_value=False):
+                result = MODULE.advance(
+                    state, landing,
+                    "elevenlabs-discovered-voice-isolator-en-1",
+                    "https://aniccaai.com/blog/elevenlabs-voice-isolator-for-creators",
+                )
+
+            self.assertEqual(result["state"], "SOURCE_UNAVAILABLE")
+            self.assertFalse(result["changed"])
+            self.assertEqual(result["reason"], "LOCAL_SOURCE_UNAVAILABLE")
+
 
 if __name__ == "__main__":
     unittest.main()
