@@ -310,3 +310,7 @@
 - [ ] **Step 4: Record the provider milestone and next cursor**
 
   Update the cross-provider spec/TODO with Coconala receipts, release SHA, canary room, replay-zero evidence, remaining external blockers, and set the next cursor to the separate CrowdWorks plan. Do not claim the cross-platform goal complete at this milestone.
+
+### Live cursor update — 2026-09-23
+
+The Chii state-machine fix is merged and deployed in immutable release `4c6b1dc8a52952e31f13bcb26a5266e570169e1d`. The target-only apply succeeded after the paid owner's FIFO reservation naturally expired, and loaded argv/env read back to the same SHA. The first natural run on that release (`18d7c73738bf4b78-1330`) reached the host admission/evidence boundary but terminated as `host_admission_deferred:resource_fifo_wait` after transient `No space left on device`; its evidence records `effect=0`, `readback=0`, and `admission_effect_unknown=false`. This is not a buyer failure or a Chii send. The live terminal proof and replay-zero remain open. The next cursor is storage/capacity recovery followed by one terminal natural Coconala run; no additional Chii message is allowed. Ryu remains a permanent manual-only exception.
