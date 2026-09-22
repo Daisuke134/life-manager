@@ -673,6 +673,9 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
                 enqueue_kwargs["coalesce_reserved"] = True
             if entry.get("effect_class") == "none":
                 enqueue_kwargs["allow_no_effect_recovery"] = True
+            if (entry.get("effect_class") == "publish"
+                    and entry.get("entrypoint") == "apps/life-manager/scripts/mobile-app"):
+                enqueue_kwargs["effect_scope"] = "occurrence"
             ticket, admission_reason = (None, "legacy")
             for attempt in range(ADMISSION_CONTROL_RETRY_ATTEMPTS):
                 ticket, admission_reason = (
@@ -716,6 +719,9 @@ def _run_admitted(command: list[str], entry: dict, loop_id: str, env: dict[str, 
             claim = None
             admission_reason = None
             claim_kwargs = {"admission_class": admission_class}
+            if (entry.get("effect_class") == "publish"
+                    and entry.get("entrypoint") == "apps/life-manager/scripts/mobile-app"):
+                claim_kwargs["effect_scope"] = "occurrence"
             if durable and entry.get("coalesce_queued_wakes") is True and occurrence_id is not None:
                 claim_kwargs["coalesced_occurrence_id"] = occurrence_id
             for attempt in range(ADMISSION_CONTROL_RETRY_ATTEMPTS):

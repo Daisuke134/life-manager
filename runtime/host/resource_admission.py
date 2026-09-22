@@ -24,6 +24,7 @@ from typing import Callable, Mapping
 ADMISSION_CLASSES = {"borrow", "revenue"}
 ADMISSION_POLICY = "revenue-floor-v1"
 RESOURCE_CLASSES = ("agent", "browser", "deterministic")
+EFFECT_SCOPES = {"owner", "occurrence"}
 
 # ``admission_class`` remains the mixed-release capacity fence.  These
 # explicit priorities are an ordering policy for durable waiters and are
@@ -425,7 +426,8 @@ def _database(path: Path) -> sqlite3.Connection:
             admission_policy TEXT,
             base_priority TEXT,
             queued_at REAL,
-            effect_unknown INTEGER NOT NULL DEFAULT 0 CHECK(effect_unknown IN (0,1))
+            effect_unknown INTEGER NOT NULL DEFAULT 0 CHECK(effect_unknown IN (0,1)),
+            effect_scope TEXT NOT NULL DEFAULT 'owner' CHECK(effect_scope IN ('owner','occurrence'))
         );
         CREATE TABLE IF NOT EXISTS occurrences (
             occurrence_id TEXT PRIMARY KEY,
@@ -478,6 +480,10 @@ def _database(path: Path) -> sqlite3.Connection:
         if "effect_unknown" not in priority_columns:
             connection.execute(
                 "ALTER TABLE priorities ADD COLUMN effect_unknown INTEGER NOT NULL DEFAULT 0"
+            )
+        if "effect_scope" not in priority_columns:
+            connection.execute(
+                "ALTER TABLE priorities ADD COLUMN effect_scope TEXT NOT NULL DEFAULT 'owner'"
             )
         occurrence_columns = {
             row[1] for row in connection.execute("PRAGMA table_info(occurrences)")
@@ -674,8 +680,10 @@ def _durable_queue_rows(connection: sqlite3.Connection, resource_class: str,
                  LEFT JOIN priorities p ON p.owner_id=q.owner_id
                 WHERE q.resource_class=? AND r.owner_id IS NULL
                   AND COALESCE(p.next_eligible_at,0)<=?
-                   AND (q.owner_id=? OR COALESCE(p.effect_unknown,0)=0)
-                   AND (q.owner_id=? OR NOT EXISTS (
+                   AND (q.owner_id=? OR COALESCE(p.effect_scope,'owner')='occurrence'
+                        OR COALESCE(p.effect_unknown,0)=0)
+                   AND (q.owner_id=? OR COALESCE(p.effect_scope,'owner')='occurrence'
+                        OR NOT EXISTS (
                        SELECT 1 FROM occurrences o
                         WHERE o.owner_id=q.owner_id AND o.effect_unknown=1
                    ))""",
@@ -804,11 +812,12 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                             (row["sequence"], row["owner_id"], row["resource_class"]))
                         connection.execute(
                             """INSERT OR IGNORE INTO priorities(
-                                   owner_id,admission_class,admission_policy,base_priority,queued_at
-                               ) VALUES(?,?,?,?,?)""",
+                                   owner_id,admission_class,admission_policy,base_priority,
+                                   queued_at,effect_scope
+                               ) VALUES(?,?,?,?,?,?)""",
                             (row["owner_id"], row.get("admission_class", "borrow"),
                              row.get("admission_policy"), row.get("base_priority"),
-                             row.get("queued_at", now)))
+                             row.get("queued_at", now), row.get("effect_scope", "owner")))
                 if isinstance(occurrence_id, str) and occurrence_id and row.get("phase", "claimed") == "claimed":
                     connection.execute(
                         "UPDATE occurrences SET state='queued' WHERE occurrence_id=? AND state='claimed'",
@@ -828,11 +837,11 @@ def _durable_capacity(connection: sqlite3.Connection, owners: Path, resource_cla
                     connection.execute(
                         """INSERT OR IGNORE INTO priorities(
                                owner_id,admission_class,admission_policy,
-                               base_priority,queued_at,effect_unknown
-                           ) VALUES(?,?,?,?,?,1)""",
+                               base_priority,queued_at,effect_unknown,effect_scope
+                           ) VALUES(?,?,?,?,?,1,?)""",
                         (row["owner_id"], row.get("admission_class", "borrow"),
                          row.get("admission_policy"), row.get("base_priority"),
-                         row.get("queued_at", now)),
+                         row.get("queued_at", now), row.get("effect_scope", "owner")),
                     )
                     connection.execute(
                         "UPDATE priorities SET effect_unknown=1 WHERE owner_id=?",
@@ -883,12 +892,14 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                     occurrence_id: str | None = None,
                     coalesce_reserved: bool = False,
                     allow_no_effect_recovery: bool = False,
+                    effect_scope: str = "owner",
                     now: float | None = None) -> tuple[Path | None, str]:
     """Persist a process-independent, priority-aware queue position."""
     if (resource_class not in set(RESOURCE_CLASSES) or not owner_id
             or admission_class not in ADMISSION_CLASSES
             or type(coalesce_reserved) is not bool
-            or type(allow_no_effect_recovery) is not bool):
+            or type(allow_no_effect_recovery) is not bool
+            or effect_scope not in EFFECT_SCOPES):
         raise RuntimeError("invalid resource identity")
     priority_name = _normalize_priority(priority, admission_class)
     occurrence_name = _normalize_occurrence_id(occurrence_id)
@@ -921,12 +932,13 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                         "UPDATE priorities SET effect_unknown=0 WHERE owner_id=?",
                         (owner_id,),
                     )
-            if owner_id != CONNECTOR_OBSERVATION_OWNER and (connection.execute(
+            if (owner_id != CONNECTOR_OBSERVATION_OWNER
+                    and effect_scope != "occurrence" and (connection.execute(
                     "SELECT 1 FROM occurrences WHERE owner_id=? AND effect_unknown=1 LIMIT 1",
                     (owner_id,)).fetchone()
                     or connection.execute(
                         "SELECT 1 FROM priorities WHERE owner_id=? AND effect_unknown=1",
-                        (owner_id,)).fetchone()):
+                        (owner_id,)).fetchone())):
                 return None, "effect_unknown"
             if occurrence_name is not None:
                 existing_occurrence = connection.execute(
@@ -971,10 +983,14 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                     connection.execute(
                         """INSERT OR IGNORE INTO priorities(
                                owner_id,admission_class,admission_policy,
-                               base_priority,queued_at
-                           ) VALUES(?,?,?,?,?)""",
+                               base_priority,queued_at,effect_scope
+                           ) VALUES(?,?,?,?,?,?)""",
                         (owner_id, admission_class, ADMISSION_POLICY,
-                         priority_name, instant),
+                         priority_name, instant, effect_scope),
+                    )
+                    connection.execute(
+                        "UPDATE priorities SET effect_scope=? WHERE owner_id=?",
+                        (effect_scope, owner_id),
                     )
                     queued_identity = connection.execute(
                         """SELECT q.resource_class,p.admission_class
@@ -1004,9 +1020,15 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
                                (owner_id, resource_class))
             connection.execute(
                 """INSERT OR IGNORE INTO priorities(
-                       owner_id,admission_class,admission_policy,base_priority,queued_at
-                   ) VALUES(?,?,?,?,?)""",
-                (owner_id, admission_class, ADMISSION_POLICY, priority_name, instant))
+                       owner_id,admission_class,admission_policy,base_priority,queued_at,
+                       effect_scope
+                   ) VALUES(?,?,?,?,?,?)""",
+                (owner_id, admission_class, ADMISSION_POLICY, priority_name, instant,
+                 effect_scope))
+            connection.execute(
+                "UPDATE priorities SET effect_scope=? WHERE owner_id=?",
+                (effect_scope, owner_id),
+            )
             _promote_queued_priority(connection, owner_id, priority_name, instant)
             row = connection.execute("""
                 SELECT q.sequence,q.resource_class,p.admission_class,
@@ -1035,8 +1057,11 @@ def enqueue_durable(resource_class: str, owner_id: str, *,
 def claim_durable(resource_class: str, owner_id: str, *,
                   admission_class: str = "borrow",
                   coalesced_occurrence_id: str | None = None,
+                  effect_scope: str = "owner",
                   now: float | None = None) -> tuple[Path | None, str]:
     """Convert this owner's queued/reserved v2 position into a live claim."""
+    if effect_scope not in EFFECT_SCOPES:
+        raise RuntimeError("invalid effect scope")
     coalesced_name = _normalize_occurrence_id(coalesced_occurrence_id)
     root, owners, tickets, database = _durable_paths()
     starts, snapshot_started_ns = _identity_snapshot(owners, tickets)
@@ -1054,12 +1079,14 @@ def claim_durable(resource_class: str, owner_id: str, *,
             row = connection.execute("""
                 SELECT q.sequence,q.resource_class,
                        COALESCE(p.admission_class,'borrow'),
-                       p.base_priority,p.queued_at
+                       p.base_priority,p.queued_at,COALESCE(p.effect_scope,'owner')
                 FROM queue q LEFT JOIN priorities p ON p.owner_id=q.owner_id
                 WHERE q.owner_id=?
             """, (owner_id,)).fetchone()
             if row is None or row[1:3] != (resource_class, admission_class):
                 return None, "ticket_missing"
+            if row[5] != effect_scope:
+                raise RuntimeError("durable owner effect scope changed")
             available, occupied = _durable_capacity(
                 connection, owners, resource_class, admission_class, instant,
                 starts, snapshot_started_ns)
@@ -1071,13 +1098,14 @@ def claim_durable(resource_class: str, owner_id: str, *,
                     LIMIT 1""",
                 (owner_id,),
             ).fetchone()
-            if owner_id != CONNECTOR_OBSERVATION_OWNER and (connection.execute(
+            if (owner_id != CONNECTOR_OBSERVATION_OWNER
+                    and effect_scope != "occurrence" and (connection.execute(
                     "SELECT 1 FROM occurrences WHERE owner_id=? AND effect_unknown=1 LIMIT 1",
                     (owner_id,),
                 ).fetchone() or connection.execute(
                     "SELECT 1 FROM priorities WHERE owner_id=? AND effect_unknown=1",
                     (owner_id,),
-                ).fetchone()):
+                ).fetchone())):
                 connection.execute(
                     "DELETE FROM reservations WHERE owner_id=?", (owner_id,))
                 return None, "effect_unknown"
@@ -1129,6 +1157,7 @@ def claim_durable(resource_class: str, owner_id: str, *,
                         "resource_class": resource_class, "sequence": row[0],
                         "admission_class": admission_class,
                         "admission_policy": ADMISSION_POLICY,
+                        "effect_scope": effect_scope,
                         "base_priority": row[3], "queued_at": row[4],
                         "occurrence_id": occurrence[0] if occurrence else None,
                         "heartbeat_at": instant,
@@ -1327,11 +1356,12 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                     (sequence, value["owner_id"], value["resource_class"]))
                 connection.execute(
                     """INSERT OR IGNORE INTO priorities(
-                           owner_id,admission_class,admission_policy,base_priority,queued_at
-                       ) VALUES(?,?,?,?,?)""",
+                           owner_id,admission_class,admission_policy,base_priority,queued_at,
+                           effect_scope
+                       ) VALUES(?,?,?,?,?,?)""",
                     (value["owner_id"], value.get("admission_class", "borrow"),
                       value.get("admission_policy"), value.get("base_priority"),
-                     value.get("queued_at", instant)))
+                     value.get("queued_at", instant), value.get("effect_scope", "owner")))
             occurrence_id = value.get("occurrence_id")
             if isinstance(occurrence_id, str) and occurrence_id:
                 if effect_unknown:
@@ -1349,11 +1379,11 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                 connection.execute(
                     """INSERT OR IGNORE INTO priorities(
                            owner_id,admission_class,admission_policy,
-                           base_priority,queued_at,effect_unknown)
-                       VALUES(?,?,?,?,?,1)""",
+                           base_priority,queued_at,effect_unknown,effect_scope)
+                       VALUES(?,?,?,?,?,1,?)""",
                     (value["owner_id"], value.get("admission_class", "borrow"),
                      value.get("admission_policy"), value.get("base_priority"),
-                     value.get("queued_at", instant)),
+                     value.get("queued_at", instant), value.get("effect_scope", "owner")),
                 )
                 connection.execute(
                     "UPDATE priorities SET effect_unknown=1 WHERE owner_id=?",
@@ -1373,11 +1403,11 @@ def release_and_reserve(claim: Path, *, requeue: bool = False,
                     connection.execute(
                         """INSERT OR IGNORE INTO priorities(
                                owner_id,admission_class,admission_policy,
-                               base_priority,queued_at
-                           ) VALUES(?,?,?,?,?)""",
+                               base_priority,queued_at,effect_scope
+                           ) VALUES(?,?,?,?,?,?)""",
                         (value["owner_id"], value.get("admission_class", "borrow"),
                          value.get("admission_policy"), value.get("base_priority"),
-                         remaining),
+                         remaining, value.get("effect_scope", "owner")),
                     )
                     connection.execute(
                         "UPDATE priorities SET queued_at=? WHERE owner_id=?",
