@@ -4,6 +4,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -105,9 +106,22 @@ class TikTokMessageTransportTest(unittest.TestCase):
             "message": "本文",
         }
 
-    def send(self, payload, fake, *, send=True):
+    def send(self, payload, fake, *, send=True, dedupe_runner=None):
         return transport.send_one(payload, cdp_client=fake, send=send,
-                                  wait=lambda _: None, project_root=self.project_root)
+                                  wait=lambda _: None, project_root=self.project_root,
+                                  dedupe_runner=dedupe_runner)
+
+    def seed_sheet_dedupe_policy(self):
+        (self.project_root / "delivery/tiktok-recipient-dedupe-policy.json").write_text(
+            json.dumps({
+                "schema_version": 1,
+                "provider": "google_sheets",
+                "spreadsheet_id": "sheet-id",
+                "range": "'2026年8月'!A1:A1400",
+                "account": "owner@example.com",
+            }),
+            encoding="utf-8",
+        )
 
     def seed_recipient_effect(self, state):
         ledger = self.project_root / "delivery/tiktok-message-effects.jsonl"
@@ -264,6 +278,52 @@ class TikTokMessageTransportTest(unittest.TestCase):
                 self.assertFalse(result["retry_safe"])
                 self.assertEqual(result["prior_effect_key"], "older-effect-key")
                 self.assertFalse(fake.calls)
+
+    def test_live_sheet_results_only_array_blocks_recorded_recipient_before_browser(self):
+        self.seed_sheet_dedupe_policy()
+        calls = []
+
+        def official_sheet(command, **kwargs):
+            calls.append(command)
+            return subprocess.CompletedProcess(
+                command, 0, stdout=json.dumps([["アカウント名"], ["@candidate"]]), stderr=""
+            )
+
+        fake = FakeCDP()
+        result = self.send(self.payload(), fake, dedupe_runner=official_sheet)
+
+        self.assertEqual(result["status"], "recipient_already_recorded")
+        self.assertEqual(result["effect"], 0)
+        self.assertFalse(result["retry_safe"])
+        self.assertEqual(fake.calls, [])
+        self.assertEqual(calls[0][:3], ["gog", "sheets", "get"])
+
+    def test_live_sheet_readback_failure_blocks_send_before_browser(self):
+        self.seed_sheet_dedupe_policy()
+
+        def failed_sheet(command, **kwargs):
+            return subprocess.CompletedProcess(command, 1, stdout="", stderr="provider failed")
+
+        fake = FakeCDP()
+        result = self.send(self.payload(), fake, dedupe_runner=failed_sheet)
+
+        self.assertEqual(result["status"], "recipient_dedupe_readback_failed")
+        self.assertEqual(result["effect"], 0)
+        self.assertTrue(result["retry_safe"])
+        self.assertEqual(fake.calls, [])
+
+    def test_live_sheet_object_allows_unrecorded_recipient(self):
+        self.seed_sheet_dedupe_policy()
+
+        def official_sheet(command, **kwargs):
+            return subprocess.CompletedProcess(
+                command, 0, stdout=json.dumps({"values": [["@someone_else"]]}), stderr=""
+            )
+
+        result = self.send(self.payload(), FakeCDP(), dedupe_runner=official_sheet)
+
+        self.assertEqual(result["status"], "sent_exact_official_readback")
+        self.assertEqual(result["effect"], 1)
 
     def test_provider_proven_not_sent_recipient_remains_retryable(self):
         self.seed_recipient_effect("not_sent")

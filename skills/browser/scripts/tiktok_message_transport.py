@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -131,6 +132,42 @@ def _contacted_recipient(path: Path, candidate: str, effect_key: str) -> dict | 
     return None
 
 
+def _sheet_recipient_status(project_root: Path, candidate: str, run) -> str | None:
+    policy_path = project_root / "delivery/tiktok-recipient-dedupe-policy.json"
+    if not policy_path.exists():
+        return None
+    policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    if not isinstance(policy, dict) or policy.get("schema_version") != 1:
+        raise ValueError("recipient_dedupe_policy_invalid")
+    if policy.get("provider") != "google_sheets":
+        raise ValueError("recipient_dedupe_policy_invalid")
+    spreadsheet_id = str(policy.get("spreadsheet_id") or "").strip()
+    sheet_range = str(policy.get("range") or "").strip()
+    account = str(policy.get("account") or "").strip()
+    if not spreadsheet_id or not sheet_range or not account:
+        raise ValueError("recipient_dedupe_policy_invalid")
+    completed = run(
+        ["gog", "sheets", "get", spreadsheet_id, sheet_range,
+         "--account", account, "--json", "--results-only", "--no-input"],
+        check=False, capture_output=True, text=True,
+    )
+    if completed.returncode != 0:
+        return "recipient_dedupe_readback_failed"
+    try:
+        decoded = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        return "recipient_dedupe_readback_failed"
+    values = decoded.get("values") if isinstance(decoded, dict) else decoded
+    if not isinstance(values, list):
+        return "recipient_dedupe_readback_failed"
+    recorded = {
+        str(row[0]).strip().casefold()
+        for row in values
+        if isinstance(row, list) and row and isinstance(row[0], str)
+    }
+    return "recipient_already_recorded" if candidate in recorded else None
+
+
 def _append(path: Path, result: dict, state: str) -> None:
     row = {
         "schema_version": 1,
@@ -151,11 +188,10 @@ def _append(path: Path, result: dict, state: str) -> None:
 
 
 def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sleep,
-             project_root: Path | None = None) -> dict:
+             project_root: Path | None = None, dedupe_runner=subprocess.run) -> dict:
     """Preflight or send once. An uncertain mutation is never retried here."""
-    result, owner, candidate, sender, profile, message, ledger = _base(
-        payload, (project_root or Path.cwd()).resolve()
-    )
+    resolved_root = (project_root or Path.cwd()).resolve()
+    result, owner, candidate, sender, profile, message, ledger = _base(payload, resolved_root)
     lock = Path(str(ledger) + ".lock").open("a+", encoding="utf-8")
     fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
     prior = _records(ledger, result["effect_key"])
@@ -171,6 +207,12 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
             prior_effect_key=contacted["effect_key"],
             prior_state=contacted["state"],
         )
+        fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+        lock.close()
+        return result
+    sheet_status = _sheet_recipient_status(resolved_root, candidate, dedupe_runner)
+    if sheet_status is not None:
+        result.update(status=sheet_status, retry_safe=sheet_status != "recipient_already_recorded")
         fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
         lock.close()
         return result
