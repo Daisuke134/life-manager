@@ -64,12 +64,16 @@ def search_users(query: str, owner: str, output: Path, *, cdp_client=cdp,
     target = cdp_client.new_target(url, owner)
     try:
         observed = None
+        previous_profiles = None
         for attempt in range(attempts):
             observed = cdp_client.evaluate(target, READBACK)
             if not isinstance(observed, dict) or "__error__" in observed:
                 raise RuntimeError(f"TikTok user search readback failed: {observed}")
             profiles = _profile_urls(observed.get("profiles"))
-            if profiles or attempt == attempts - 1:
+            # Navigation/profile chrome renders before async search results. A
+            # nonempty first sample is not proof that the result list loaded;
+            # require one stable consecutive sample before returning it.
+            if (profiles and profiles == previous_profiles) or attempt == attempts - 1:
                 result = {
                     "version": 1,
                     "provider": "tiktok.com",
@@ -81,6 +85,7 @@ def search_users(query: str, owner: str, output: Path, *, cdp_client=cdp,
                 }
                 _write(output.resolve(), result)
                 return result
+            previous_profiles = profiles
             wait(0.5)
         raise AssertionError("unreachable")
     finally:

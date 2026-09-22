@@ -55,9 +55,34 @@ def test_search_retries_dedupes_and_atomically_writes(tmp_path):
 
     assert result["profiles"] == ["https://www.tiktok.com/@candidate?lang=ja-JP"]
     assert json.loads(output.read_text()) == result
-    assert fake.reads == 2
+    assert fake.reads == 3
     assert fake.closed == [("search-tab", "paid-search")]
     assert "q=%E7%A4%BE%E4%BC%9A%E4%BA%BA%20%E6%97%A5%E5%B8%B8" in fake.url
+
+
+def test_search_does_not_finish_on_navigation_profile_before_results_load(tmp_path):
+    search = load_module()
+
+    class NavigationFirst(FakeCDP):
+        def evaluate(self, target, _expression):
+            assert target == "search-tab"
+            self.reads += 1
+            profiles = ["https://www.tiktok.com/@anicca.jp?lang=ja-JP"]
+            if self.reads > 1:
+                profiles.append("https://www.tiktok.com/@candidate?lang=ja-JP")
+            return {"url": self.url, "title": "TikTok", "profiles": profiles}
+
+    fake = NavigationFirst()
+    result = search.search_users(
+        "美容 vlog", "paid-search", tmp_path / "search.json",
+        cdp_client=fake, wait=lambda _seconds: None, attempts=3,
+    )
+
+    assert fake.reads == 3
+    assert result["profiles"] == [
+        "https://www.tiktok.com/@anicca.jp?lang=ja-JP",
+        "https://www.tiktok.com/@candidate?lang=ja-JP",
+    ]
 
 
 def test_search_closes_owned_target_on_read_failure(tmp_path):
