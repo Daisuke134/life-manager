@@ -3,6 +3,8 @@
 const { isDeepStrictEqual } = require("node:util");
 
 const { enqueueHostedGoal } = require("./hosted-goal-ingress.js");
+const { activePortfolioGoal } = require("./goal-portfolio.js");
+const { buildGoalWorkItem } = require("./goal-work-item.js");
 
 const PROJECTION_KEYS = Object.freeze([
   "goal_ref", "job_ref", "receipt_ref", "status", "tenant_id",
@@ -15,6 +17,12 @@ const NON_EFFECTFUL_CLOUD_HEALTH = Object.freeze({
 
 function reject(message) {
   throw new Error(message);
+}
+
+function exactInput(value, keys) {
+  return value && typeof value === "object" && !Array.isArray(value)
+    && Object.keys(value).length === keys.length
+    && Object.keys(value).sort().every((key, index) => key === keys[index]);
 }
 
 function requiredDependencies(value) {
@@ -56,6 +64,29 @@ function safeProjection(value, expected) {
     reject("cloud goal projection scope mismatch");
   }
   return value;
+}
+
+function initialGoalContext(tenantId) {
+  return Object.freeze({
+    schema_version: "life-manager.goal-context.v1",
+    tenant_id: tenantId,
+    revision: 1,
+    fact_refs: Object.freeze([]),
+    account_refs: Object.freeze([]),
+    consent_refs: Object.freeze([]),
+    boundary_refs: Object.freeze([]),
+  });
+}
+
+function projected(value, created) {
+  return Object.freeze({
+    created,
+    tenant_id: value.tenant_id,
+    goal_ref: value.goal_ref,
+    job_ref: value.job_ref,
+    status: value.status,
+    receipt_ref: value.receipt_ref,
+  });
 }
 
 async function runCloudGoalSlice(input = {}, injected = {}) {
@@ -118,14 +149,67 @@ async function runCloudGoalSlice(input = {}, injected = {}) {
     jobId: hosted.job_id,
   }), { tenantId, jobRef: hosted.job_ref });
 
-  return Object.freeze({
-    created: hosted.created,
-    tenant_id: projection.tenant_id,
-    goal_ref: projection.goal_ref,
-    job_ref: projection.job_ref,
-    status: projection.status,
-    receipt_ref: projection.receipt_ref,
+  return projected(projection, hosted.created);
+}
+
+async function startCloudGoalSlice(input = {}, injected = {}) {
+  if (!exactInput(input, ["nowMs", "session"])) {
+    reject("cloud goal start input contains caller-controlled fields");
+  }
+  const deps = requiredDependencies(injected);
+  const scope = sessionIdentity(await deps.resolveSession(input.session));
+  const existing = await deps.store.loadContext(scope);
+  return runCloudGoalSlice({
+    session: input.session,
+    nowMs: input.nowMs,
+    ...(existing ? {} : { context: initialGoalContext(scope.uid) }),
+  }, {
+    ...deps,
+    resolveSession: async () => scope,
   });
 }
 
-module.exports = { runCloudGoalSlice };
+async function readCloudGoalSlice(input = {}, injected = {}) {
+  if (!exactInput(input, ["session"])) {
+    reject("cloud goal read input contains caller-controlled fields");
+  }
+  const store = injected && injected.store;
+  if (typeof injected.resolveSession !== "function" || !store
+    || typeof store.loadContext !== "function"
+    || typeof store.loadGoalPortfolio !== "function"
+    || typeof store.readProjection !== "function") {
+    reject("cloud goal read dependencies unavailable");
+  }
+  if (typeof input.session !== "string" || !input.session) {
+    reject("cloud goal session required");
+  }
+  const scope = sessionIdentity(await injected.resolveSession(input.session));
+  const context = await store.loadContext(scope);
+  if (!context) {
+    return projected({
+      tenant_id: scope.uid,
+      goal_ref: null,
+      job_ref: null,
+      status: "not_started",
+      receipt_ref: null,
+    }, false);
+  }
+  const portfolio = await store.loadGoalPortfolio(scope.uid);
+  if (!portfolio) reject("cloud goal portfolio unavailable");
+  const generatedAt = Date.parse(portfolio.generated_at);
+  const goal = activePortfolioGoal(portfolio, generatedAt);
+  const job = buildGoalWorkItem(goal, generatedAt);
+  const jobRef = `runtime-job://${encodeURIComponent(scope.uid)}/${encodeURIComponent(job.job_id)}`;
+  const projection = safeProjection(await store.readProjection({
+    tenantId: scope.uid,
+    jobId: job.job_id,
+  }), { tenantId: scope.uid, jobRef });
+  return projected(projection, false);
+}
+
+module.exports = {
+  initialGoalContext,
+  readCloudGoalSlice,
+  runCloudGoalSlice,
+  startCloudGoalSlice,
+};

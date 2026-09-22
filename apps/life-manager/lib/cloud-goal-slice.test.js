@@ -4,7 +4,11 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { createCloudGoalStore } = require("./cloud-goal-store.js");
-const { runCloudGoalSlice } = require("./cloud-goal-slice.js");
+const {
+  readCloudGoalSlice,
+  runCloudGoalSlice,
+  startCloudGoalSlice,
+} = require("./cloud-goal-slice.js");
 const { buildRuntimeJob } = require("./runtime-job-store.js");
 
 const NOW_MS = Date.parse("2026-09-22T12:00:00.000Z");
@@ -321,4 +325,88 @@ test("a foreign projection fails closed without another model save or job mutati
   assert.equal(db.calls.savePortfolio, baseline.savePortfolio);
   assert.equal(db.portfolios.size, baseline.portfolios);
   assert.equal(db.jobs.size, baseline.jobs);
+});
+
+test("phone start creates the server-owned empty context and fresh read restores the same job", async () => {
+  const db = memoryDatabase();
+  const before = await readCloudGoalSlice({ session: SESSION_A }, dependencies(db));
+  assert.deepEqual(before, {
+    created: false,
+    tenant_id: "tenant-a",
+    goal_ref: null,
+    job_ref: null,
+    status: "not_started",
+    receipt_ref: null,
+  });
+  assert.equal(db.calls.generate, 0);
+  assert.equal(db.calls.enqueue, 0);
+
+  const started = await startCloudGoalSlice(
+    { session: SESSION_A, nowMs: NOW_MS },
+    dependencies(db),
+  );
+  assert.equal(started.created, true);
+  assert.deepEqual(db.contexts.get("tenant-a:1").context, {
+    schema_version: "life-manager.goal-context.v1",
+    tenant_id: "tenant-a",
+    revision: 1,
+    fact_refs: [],
+    account_refs: [],
+    consent_refs: [],
+    boundary_refs: [],
+  });
+
+  const fresh = await readCloudGoalSlice(
+    { session: SESSION_A },
+    dependencies(db),
+  );
+  assert.deepEqual(fresh, { ...started, created: false });
+  assert.equal(db.calls.generate, 1);
+  assert.equal(db.calls.enqueue, 1);
+  assert.equal(db.contexts.size, 1);
+  assert.equal(db.portfolios.size, 1);
+  assert.equal(db.jobs.size, 1);
+
+  const replay = await startCloudGoalSlice(
+    { session: SESSION_A, nowMs: NOW_MS },
+    dependencies(db),
+  );
+  assert.deepEqual(replay, { ...started, created: false });
+  assert.equal(db.calls.generate, 1);
+  assert.equal(db.contexts.size, 1);
+  assert.equal(db.portfolios.size, 1);
+  assert.equal(db.jobs.size, 1);
+});
+
+test("phone start/read reject caller scope fields and foreign chat reads zero state", async () => {
+  const rejected = [
+    { session: SESSION_A, nowMs: NOW_MS, goal: candidate() },
+    { session: SESSION_A, nowMs: NOW_MS, tenant_id: "tenant-b" },
+    { session: SESSION_A, nowMs: NOW_MS, job_ref: "runtime-job://tenant-b/foreign" },
+    { session: SESSION_A, nowMs: NOW_MS, context: context() },
+  ];
+  for (const request of rejected) {
+    const db = memoryDatabase();
+    await assert.rejects(startCloudGoalSlice(request, dependencies(db)), /input|caller|field/i);
+    assert.equal(db.contexts.size, 0);
+    assert.equal(db.portfolios.size, 0);
+    assert.equal(db.jobs.size, 0);
+  }
+
+  const db = memoryDatabase();
+  await startCloudGoalSlice({ session: SESSION_A, nowMs: NOW_MS }, dependencies(db));
+  const foreign = await readCloudGoalSlice(
+    { session: "mismatched-session" },
+    dependencies(db),
+  );
+  assert.deepEqual(foreign, {
+    created: false,
+    tenant_id: "tenant-a",
+    goal_ref: null,
+    job_ref: null,
+    status: "not_started",
+    receipt_ref: null,
+  });
+  assert.equal(db.calls.generate, 1);
+  assert.equal(db.jobs.size, 1);
 });
