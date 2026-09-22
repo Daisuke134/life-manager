@@ -526,7 +526,7 @@ def plan(
         if not isinstance(item, dict):
             continue
         try:
-            identity = stable_identity(item)
+            identity = delivery_project.resolve_project_root(root, item).name
         except ValueError:
             # No identity means no ledger and no project root; it cannot be
             # worked and it cannot be recorded against. Leave it out entirely
