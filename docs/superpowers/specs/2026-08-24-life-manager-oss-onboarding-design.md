@@ -7,6 +7,10 @@ consent only on the official service that requires it. Life Manager reuses every
 fact and authenticated session, starts every ready loop, and shows verified outcomes in
 one product surface. A new skill plugs into this flow instead of inventing another setup.
 
+Goal ownership follows the canonical contract in
+[Life Manager Agent Architecture Refinement — J4](./2026-09-15-life-manager-agent-architecture-refinement.md#j4-canonical-product-contract--life-manager-owns-goals).
+The person never has to choose, write, or maintain goals during onboarding.
+
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Daisuke134/life-manager/main/scripts/bootstrap.sh)"
 ```
@@ -20,9 +24,9 @@ the normal onboarding product.
 flowchart TD
     Install["Run one command"] --> Local["Open local setup UI"]
     Local --> Brain["Connect ChatGPT/Codex once"]
-    Brain --> Basics["Confirm reusable profile once"]
-    Basics --> Catalog["Choose goals and integrations"]
-    Catalog --> Connect["One official setup session per service"]
+    Brain --> Basics["Confirm reusable facts and boundaries once"]
+    Basics --> Portfolio["Life Manager creates the Goal Portfolio"]
+    Portfolio --> Connect["Connect only the services each action needs"]
     Connect --> Verify["Official state readback"]
     Verify --> Start["Start every ready loop"]
     Start --> Home["Money · Body · Mind home"]
@@ -35,11 +39,12 @@ flowchart TD
    plain language and never exposes logs, plist labels, JSON, ports, or environment keys.
 3. Connect ChatGPT/Codex once. The UI waits for official CLI authentication readback.
 4. Confirm reusable non-secret facts once: locale, time zone, notification preference,
-   goals, and any public profile facts the owner elects to reuse. Passwords, OTPs,
+   hard boundaries, and any public profile facts the owner elects to reuse. Passwords, OTPs,
    identity documents, face images, and bank values stay on provider surfaces.
-5. Select outcomes, not internal loops: earn money, find a job, manage schedule, protect
-   sleep/health, or enable all. Recommended ready integrations are preselected; nothing
-   unsupported is presented as active.
+5. Life Manager synthesizes and prioritizes the Money, Body, and Mind Goal Portfolio from
+   those facts, delegated authority, observed state, and verified receipts. It does not ask
+   the person to select outcomes or goals. Ready integrations are proposed only when a
+   planned action needs them; nothing unsupported is presented as active.
 6. Each service card shows prerequisites, estimated owner time, why each ceremony is
    required, and one `Connect` button. The service opens in its dedicated persistent
    browser profile. The owner completes the official ceremony once and returns.
@@ -132,7 +137,8 @@ receipt vocabulary.
 ## Acceptance
 
 The code-owned gate is complete only when a clean Mac reaches the local UI from one command,
-all manifests render, reusable facts are asked once, every ready loop starts, blocked loops
+all manifests render, reusable facts are asked once, goals are synthesized without a goal-selection
+question, every ready loop starts, blocked loops
 name one exact owner action, restart resumes state, uninstall preserves/export private data
 as documented, and no secret enters Git/logs/prompts/reports.
 

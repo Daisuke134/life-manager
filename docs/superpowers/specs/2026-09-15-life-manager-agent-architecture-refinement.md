@@ -696,21 +696,30 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 
 ### Active remaining TODO — one program, through the final outcome
 
+**Order decision:** the old order was `shared runtime → every provider/14-loop Local completion →
+Eval → Cloud`. That made unrelated provider/account blockers a prerequisite for building the hosted
+product. The new order is `shared contract → read-only cloud vertical slice → cloud policy/isolation →
+provider loops one by one → each effectful cloud canary → self-improvement and expansion`. This shortens
+the phone-only product path without weakening any provider receipt gate. The current architecture cursor
+is this written contract and its review; the production A15/marketplace cursors and their external-effect
+owners remain unchanged until an approved implementation plan assigns a non-overlapping task.
+
 | # | Atomic result, in dependency order | Acceptance; do not advance on source-only PASS |
 |---:|---|---|
 | 1 | **Scoped overlap check — done for step 2:** compare latest main, foundation `3a70e98867`, admission source `c7ce1e9fc6` and the exact provider-owned paths below. Skip a fleet-wide audit before the first patch. | Shared runtime/registry/Connector/provider ownership is mapped below; no other owner's worktree, profile or state was edited. Recheck only changed overlaps before each integration. |
 | 2 | **Shared runtime source integrated; live gate open:** focused main changes cover durable queue, claim→child identity, release→next claim, priority/aging, owner recovery and uncertain-effect handling. Do not tune the slot count to hide liveness failure. The old candidate branch is not the production source. | Focused source checks passed and representative owners ran from main releases; step 3 must still prove no persistent queue starvation across mixed owners. |
 | 3 | **Current cursor — A15 only.** Execute the atomic A15 items at the top of this spec without changing the provider order. Fair owner handoff and main-only `current` are already merged; identity-matched malformed-plist recovery and its production acceptance remain. | Same main-derived release, exact loaded argv, natural outer terminal and bounded agent/browser/deterministic handoff with live heartbeat/headroom; fenced effects remain fenced. Historical total queue age is not the eligible-wait measure. |
-| 4 | **Connector primary-provider repair — PASS:** Connpass and Luma are the only active providers for this cursor. Connpass event `407445` reached official `registered`, Calendar exact-one and durable evidence; two later natural wakes had Submit 0 and Calendar duplicate 0. KokuchPro and every other fallback remain out of the active Connector route. | New-effect chain and replay-zero are proven; advance to Coconala Apply, Reply, Paid and Storefront. |
-| 5 | Coconala Apply, Reply, Paid, Storefront as separate lanes: current eligible screening-answer submit; 15 pending replies; per-client funded work, attachments and payout; official listing state; reconcile old 54 uncertain intents only as preemptible background work. | Each applicable lane has current same-SHA terminal, exact official effect/readback or truthful wait/no-work, and replay-zero; no account/browser interference. |
-| 6 | CrowdWorks: complete the three existing paid contracts first, then restore inventory, Reply and Apply continuity; Lancers: browser/auth, Apply→Reply→Paid→payout and supported Storefront; Mercor: persistent auth, Apply→Reply→human handoff→Paid→payout. | Each provider's actual effect/readback and per-client terminal, not generic exit 0. Unsupported Storefront is proven not-applicable. |
-| 7 | Freelancer.com and Upwork: verify current account/policy, then applicable Apply→Reply→Paid→payout and Storefront only if official surface exists. | Official receipts, payout attribution and replay-zero. |
-| 8 | After the shared gate, observe every job in all 14 Product Loops (the marketplace lanes plus Writer, Affiliate, Investment, Agent Economy, Job Hunter, Fundraiser, Connector, Self-Build, Mobile Apps, Capafy and CFO); repair each remaining provider/domain blocker, including Mobile/Metrics. | Local manifest binds current installed SHA, outer terminal, official receipt or explicit setup/not-applicable state. A foundation PASS does not turn a broken provider adapter into success. |
-| 9 | Run Local completion gate and S-04 Eval on the actual main-derived candidate: baseline, held-out, safety, latency/cost, live evidence and rollback. | Both PASS without mock as external success; a failed gate stays failed. No fixed 24-hour waiting gate is invented, but later cadence misses remain monitored. |
-| 10 | New-platform meta loop: qualify policy and net value, create a thin adapter, canary its official effect, and promote only the passing result. | A new platform reuses the shared runtime without a new scheduler or provider-specific queue. |
-| 11 | Activate bounded self-heal and self-improve through existing supervisor/reconcile/eval paths: missed-cadence alert → exact-owner recovery → isolated candidate → held-out/safety/cost/live gate → promotion or rollback. Publish the six candidate-only engineering skills as a separate docs-only reviewed slice before depending on them; do not bring the candidate's runtime/provider edits along. | A real injected failure resumes only its owner with terminal repair receipt and leaves siblings unchanged; identity, permissions and gate criteria are immutable to self-improvement. Skills are present on main before being treated as product assets. |
-| 12 | Promote the identical approved business kernel/source SHA to tenant-isolated Cloud; test Steel owner lease/release and phone-only status/human handoff/readback; run Cloud gate. | Tenant cross-read 0, credential/state mix 0, official effects and replay-zero, Local/Eval/Cloud all PASS. |
-| 13 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
+| 4 | **Connector primary-provider repair — PASS:** Connpass and Luma are the only active providers for this cursor. Connpass event `407445` reached official `registered`, Calendar exact-one and durable evidence; two later natural wakes had Submit 0 and Calendar duplicate 0. KokuchPro and every other fallback remain out of the active Connector route. | New-effect chain and replay-zero are proven. The shared-product cursor advances to the cloud core; the separate marketplace owner may continue Coconala without blocking it. |
+| 5 | Build the non-effectful cloud vertical slice: tenant sign-in, one-time facts/consent, Life Manager-generated Goal Portfolio, durable receipt projection, and phone/web status. | Client closes while state/work persists; tenant cross-read is 0; no provider mutation or copied local credential/session is used. |
+| 6 | Add cloud policy authority, credential broker, bounded admission/worker isolation, and causal `status --explain`; keep business recipes shared with Local. | A broken synthetic owner is fenced or repaired while its sibling progresses; host-parity and credential-surrogate tests pass. |
+| 7 | Coconala Apply, Reply, Paid, Storefront as separate lanes: current eligible screening-answer submit; 15 pending replies; per-client funded work, attachments and payout; official listing state; reconcile old 54 uncertain intents only as preemptible background work. | Each applicable lane has current same-SHA terminal, exact official effect/readback or truthful wait/no-work, and replay-zero; no account/browser interference. |
+| 8 | CrowdWorks: complete the three existing paid contracts first, then restore inventory, Reply and Apply continuity; Lancers: browser/auth, Apply→Reply→Paid→payout and supported Storefront; Mercor: persistent auth, Apply→Reply→human handoff→Paid→payout. | Each provider's actual effect/readback and per-client terminal, not generic exit 0. Unsupported Storefront is proven not-applicable. |
+| 9 | Freelancer.com and Upwork: verify current account/policy, then applicable Apply→Reply→Paid→payout and Storefront only if official surface exists. | Official receipts, payout attribution and replay-zero. |
+| 10 | Observe every job in all 14 Product Loops (the marketplace lanes plus Writer, Affiliate, Investment, Agent Economy, Job Hunter, Fundraiser, Connector, Self-Build, Mobile Apps, Capafy and CFO); repair each remaining provider/domain blocker, including Mobile/Metrics. | Local manifest binds current installed SHA, outer terminal, official receipt or explicit setup/not-applicable state. A foundation PASS does not turn a broken provider adapter into success. |
+| 11 | Run each repaired loop's completion and S-04 Eval gate on the actual main-derived candidate, then promote that loop to one cloud canary independently. | Baseline, held-out, safety, latency/cost, official Local/Cloud evidence, rollback and replay-zero PASS for that owner; another loop's failure does not block it. |
+| 12 | Activate bounded self-heal and self-improve through existing supervisor/reconcile/eval paths: missed-cadence alert → exact-owner recovery → isolated candidate → held-out/safety/cost/live gate → promotion or rollback. Publish the six candidate-only engineering skills as a separate docs-only reviewed slice before depending on them; do not bring the candidate's runtime/provider edits along. | A real injected failure resumes only its owner with terminal repair receipt and leaves siblings unchanged; identity, permissions and gate criteria are immutable to self-improvement. Skills are present on main before being treated as product assets. |
+| 13 | New-platform meta loop: qualify policy and net value, create a thin adapter, canary its official effect, and promote only the passing result. Add Muse only as a thin channel after its authenticated protocol is inspected. | New platform/channel reuses the shared runtime and authority without a new scheduler, credential store, goal store, or provider-specific queue. |
+| 14 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
 
 ### Connector active goal and remaining TODO
 
@@ -845,8 +854,9 @@ flowchart TD
    event identity; historical 404714/405297 receipts cannot substitute.
 6. **Replay/close gate — PASS.** Two subsequent natural wakes on loaded
    `969b4e03…` had Submit 0, retained the official provider receipt, Calendar
-   exact count 1 and duplicate count 0. Connector is closed; advance to Coconala
-   Apply, Reply, Paid and Storefront.
+   exact count 1 and duplicate count 0. Connector is closed. Its marketplace
+   owner advances to Coconala Apply, Reply, Paid and Storefront independently;
+   the shared-product cursor advances through CC01–CC05.
 
 **No-self-blocking operating rule:** every failure is classified as one of
 `source`, `release`, `load`, `browser`, `admission`, `provider`, `calendar`, or
@@ -952,6 +962,11 @@ inventory rather than invented here; one selected ID is handled per item.
 - [x] A15d1 — PR #5317 passed all eight CI jobs and merged at main `20c6067c3d`; full immutable/current release `20260917T132328-20c6067c` was import-smoked under minimal launchd PATH and resolved `/opt/homebrew/bin/node`. The release-reconciler label still loads predecessor `e278c0a894`, so a production fix is not yet proved.
 - [x] A15d2 — Synced only the loaded-idle release-reconciler label to `20c6067c3d` (install event `c95deac2b6e23a47c68426f7`). Independent launchctl readback showed exact new-release argv. Its next natural run `18d603e783e3e858-24932` started at `2026-09-17T05:16:34Z` and reached outer `pass` with blocker null at `05:18:26Z`; installed and event SHA both match `20c6067c3d`. No restart or force-merge occurred.
 - [ ] A15 — Current atomic cursor and remaining acceptance checks are at the top of this spec. The older `2026-09-17T05:27Z` sample (97 queued owners; oldest about 717 minutes) is historical and mixed effect-fenced rows with runnable work. The later main-derived owner-turn fix has live deterministic handoff evidence, but the shared malformed-plist recovery and final same-SHA fleet check remain; Foundation is not yet Done.
+- [ ] CC01 — Make J4 the goal-policy SSOT; update README, manifests, onboarding/client prompts, and contract tests so a missing user-authored goal synthesizes `origin=life_manager` goals instead of asking a goal-selection question.
+- [ ] CC02 — Build tenant sign-in, one-time facts/consent/boundaries, durable Goal Portfolio and receipt projection as a non-effectful cloud vertical slice; do not wait for provider completion.
+- [ ] CC03 — Expose that slice through phone/web, close the client, and prove cloud state/work continuity plus source-backed `status --explain` readback.
+- [ ] CC04 — Add tenant isolation, policy authority, credential-surrogate broker, bounded worker admission, and cross-tenant rejection without copying Local credentials, sessions, or mutable state.
+- [ ] CC05 — Inject one synthetic owner failure in Cloud and prove exact-owner reconcile/repair/verify/resume while an independent sibling progresses; no provider mutation is part of this gate.
 - [x] CN03 — Observe one eligible Connector automatic wake through an official registration ID. On run `18d5fce89d880ad8-6986`, Connpass event `405705` reached `provider_status=registered`; provider receipt `cbff78d53a91288bf4268554b9ba6f615007047cd482b1b2c6bfe0d5b2e32c29` retains a screenshot of the official page with the cancellation control visible. This was release-driven, not manually kickstarted.
 - [x] CN04 — Read back the matching Google Calendar event ID for that registration. Independent Google Calendar API `read_event` returned ID `0c706h76f6ceoh99cdaug31cd4`, the matching Connpass `405705` URL in its description and the event's exact scheduled time.
 - [x] CN05 — Observe the next Connector wake and prove the same event was not registered or calendared twice. Automatic run `18d5fd14c75486f8-9227` ended outer `pass`; its inner report `wake-26e8babbb69e3e9352ab2bbc` was `completed_no_effect`, the applied-bundle store contains one record for event `405705`, and bounded Google Calendar search returned exactly the same one event ID. This is one-next-wake replay-zero, not a 24-hour availability claim.
@@ -997,7 +1012,7 @@ inventory rather than invented here; one selected ID is handled per item.
 - [ ] PL08 — Verify Mobile Apps' build/store/marketing receipts and repair its remaining unloaded/failing job.
 - [ ] PL09 — Verify Capafy's official product/publication/revenue receipt or typed blocker.
 - [ ] PL10 — Verify CFO's actual financial snapshot and payout reconciliation; unknown is never zero.
-- [ ] G01 — Run the 14-row Local completion gate against current same-SHA natural terminals and official evidence.
+- [ ] G01 — Run the 14-row Local fleet completion gate against current same-SHA natural terminals and official evidence; this closes fleet acceptance but does not gate CC01–CC05.
 - [ ] G02 — Run one held-out Eval comparison against a frozen baseline, recording safety, latency and cost.
 - [ ] G03 — Prove the rollback pointer rejects a candidate that regresses held-out, safety, cost or required live evidence.
 - [ ] MT01 — Qualify one new platform from current policy, automation feasibility and expected net value.
@@ -1005,11 +1020,11 @@ inventory rather than invented here; one selected ID is handled per item.
 - [ ] SH01 — Inject one missed-cadence or auth/browser failure and prove the alert names the exact owner.
 - [ ] SH02 — Recover only that owner from durable state, with sibling effects unchanged and a terminal repair receipt.
 - [ ] SH03 — Evaluate one self-improvement candidate against baseline/held-out/safety/cost/live evidence and promote or roll back.
-- [ ] CL01 — Place the identical approved business-kernel SHA in a tenant-isolated Cloud host adapter.
-- [ ] CL02 — Prove tenant A cannot read tenant B's credential, browser session, state or receipt.
-- [ ] CL03 — Prove Steel session lease/release leaves no second owner or stale lease.
-- [ ] CL04 — Prove one phone-only Telegram status/human-gate/resume/readback flow.
-- [ ] CL05 — Run the Cloud gate on the same SHA and official replay-zero evidence.
+- [ ] CL01 — Promote one approved effectful loop SHA through its own contract gate into the tenant-isolated Cloud host adapter; another loop's unfinished state does not block it.
+- [ ] CL02 — Provision fresh cloud-scoped provider authorization and prove no Local credential, browser session, or mutable state was copied.
+- [ ] CL03 — Prove Steel session lease/release leaves no second owner or stale lease for that loop.
+- [ ] CL04 — Prove one phone-only typed human-gate/resume/readback flow through the shared channel API.
+- [ ] CL05 — Run that loop's Cloud gate on the same SHA with official effect/readback, replay-zero, and rollback evidence.
 - [ ] R01 — Start hosted subscription billing and verify one official paid subscription receipt.
 - [ ] R02 — Reach and verify USD 10K MRR from attributable accepted contracts, subscriptions, payouts and bank records.
 - [ ] R03 — Publish accurate traction, retention, margin and automation metrics.
@@ -1339,7 +1354,7 @@ agent-economy processはまだ旧releaseなので、次のimmutable releaseで�
 - `BROWSER-04` / `ADMISSION-02`: branch実装・テスト済み。main由来release反映と自然wake canaryは未完了
 - `CONTROL-01`: registry外Browser provisionerの所有者分類とhandoff
 - Responses APIの通常Loopへの昇格（既存adapterの受入整理）
-- 14 Loopのlocal completion gate
+- 14 Loopのlocal completion gate（fleet全体の受入証拠。cloud core開始の前提ではない）
 - tenant分離したcloud、cloud canary、phone-only経路、本番昇格
 
 証拠はplan `docs/superpowers/plans/2026-09-15-life-manager-local-to-cloud.md`と専用branch
@@ -2216,7 +2231,9 @@ The target is one owner-aware Life Manager control plane that runs finite wakes 
 resource admission, compiles small provenance-bound context capsules, projects an auditable graph,
 evaluates behavior against frozen baselines, represents human work as resumable typed gates, and
 feeds verified outcomes into bounded self-improvement. Local and cloud remain host adapters for the
-same product recipes and evidence contracts.
+same product recipes and evidence contracts. Cloud is the primary consumer product; local is the
+self-hosted, development, and recovery mode. Life Manager—not the person—creates and maintains the
+goal portfolio from one-time facts, delegated authority, observed state, and verified outcomes.
 
 ## 2. Acceptance Criteria
 
@@ -2407,13 +2424,19 @@ Life Manager exposes two deployment modes for the same implementation:
    sessions run continuously in the cloud. A phone and Telegram/app are sufficient for the user. Cloud
    is the production expansion mode, not a fork of the business code.
 
-The **local completion gate** MUST pass before cloud promotion: every advertised Product Loop has one
-canonical owner and release, no stale/duplicate scheduler, bounded resource admission, a context and
-receipt contract, private internal reporting, and either a verified official effect or an explicit
-`setup_required`/`not_applicable` capability state. No enabled owner may remain `unknown`, silently
-failing, or dependent on a visible desktop window. Cloud promotion copies the immutable source and
-contracts, creates fresh tenant-scoped state, runs one cloud canary, and proves the same official
-readback/replay-zero behavior. It never copies local credentials, browser sessions, or mutable logs.
+The **shared-contract gate** MUST pass before any effectful Product Loop is enabled in cloud: the loop
+has one canonical owner and release, bounded resource admission, a context and receipt contract,
+private internal reporting, and a verified local fixture or provider readback for the capability being
+promoted. No promoted owner may remain `unknown`, silently fail, or depend on a visible desktop window.
+Cloud promotion copies immutable source and contracts, creates fresh tenant-scoped state, runs one
+cloud canary, and proves the same official readback/replay-zero behavior. It never copies local
+credentials, browser sessions, or mutable logs.
+
+Building the cloud control plane, tenant store, phone/web surface, read-only status path, and one
+non-effectful vertical slice does **not** wait for all fourteen Product Loops to finish local provider
+acceptance. Effectful loops promote independently after their own shared-contract gate. One broken
+marketplace adapter cannot block cloud work or an unrelated loop, and a cloud skeleton cannot be used
+to claim that a provider effect works.
 
 Local and cloud remain available as user choices after promotion. `phone-only` use is the default cloud
 experience; local mode remains a self-hosted option and a recovery path. Both modes use the same
@@ -2421,7 +2444,8 @@ implementation, and only their host adapters differ. Ordinary wakes do not requi
 a goal. User involvement is limited to an explicit typed human gate or a deliberate
 policy/permission change; ordinary wakes continue without conversation.
 
-The rule is: **no cloud promotion before local acceptance**.
+The rule is: **build the cloud core now; promote each effectful loop only after that loop's contract and
+evidence gate passes**. There is no fleet-wide “all fourteen effects first” prerequisite.
 
 ### J2. Parallel Workstream Boundary
 
@@ -2498,6 +2522,116 @@ The marketplace TODO workstream owns rows 1–3 and the existing `skills/earn/gi
 owners continue their rows independently. The architecture workstream owns only the shared contracts,
 skills, specifications, fixtures, and read-only diagnostics until a shared-file overlap check approves
 runtime changes.
+
+### J4. Canonical Product Contract — Life Manager owns goals
+
+This section is the single source of truth for goal ownership and the no-human-in-the-loop product
+promise. Onboarding, README copy, clients, loop manifests, and channel adapters reference this contract;
+they do not define a second goal policy.
+
+**Life Manager is a cloud-first, self-healing, self-improving, and self-funding agent that proactively
+manages Money, Body, and Mind within delegated legal and safety boundaries. Routine operation requires
+no human in the loop.** The person supplies reusable facts, accounts, credentials, consent, and hard
+boundaries once when they are actually needed. Life Manager then creates, versions, prioritizes,
+executes, verifies, and retires goals. The person is never required to invent, select, restate, or
+maintain goals before Life Manager can begin useful work.
+
+The absence of an explicit user-authored goal is never `setup_required`, `blocked`, or a reason to ask
+“What is your goal?” Life Manager asks only for one exact missing fact or ceremony when law, provider
+policy, safety, identity, or an irreversible action makes autonomous continuation impossible. KYC,
+passkey/OTP entry, provider-mandated interviews, personal medical decisions, external wallet/bank spend,
+and unforeseen public or legal commitments remain typed human gates. These sparse exceptions do not
+turn goal-setting or routine delivery back into human work. The person can always inspect, correct,
+pause, or override Life Manager; control is available without becoming a recurring prerequisite.
+
+Every goal records `goal_id`, revision, `origin=life_manager`, evidence sources, confidence, applicable
+person/tenant, expected outcome, cost/risk budget, dependencies, expiry, and success receipt. A goal
+must not be represented as a user statement unless the person actually made that statement. The model
+uses current evidence and the capability graph to judge the next best action; deterministic code owns
+permissions, budgets, leases, idempotency, receipts, and effect fences rather than embedding business
+judgment in keyword rules.
+
+The standing objective order is:
+
+1. Preserve life, safety, legality, identity, and the person's declared boundaries.
+2. Maintain essential continuity across Money, Body, and Mind.
+3. Increase verified long-term financial surplus and pay for Life Manager's own compute and services.
+4. Allocate remaining capacity to the action with the highest evidence-backed marginal outcome.
+
+“Self-funding” means verified attributable income exceeds attributable operating cost over the declared
+window; subscription, applications, activity, projected revenue, or model claims are not income.
+“Self-healing” means `observe → explain → reconcile → repair → verify → resume`, with official readback
+before retrying an uncertain effect. “Self-improving” means production outcomes and incidents create
+bounded candidates that must beat an immutable baseline across held-out, safety, cost, live-evidence,
+and rollback gates. Neither mechanism may rewrite this product contract, its evaluator, permissions,
+identity, or receipt authority.
+
+### J5. Cloud product, shared capabilities, and channel adapters
+
+The primary experience is phone-first and cloud-resident. A person can open a web/PWA or mobile client,
+complete the minimum one-time identity/integration ceremonies, and leave. Work continues when every
+client is closed. Telegram, iMessage, Grok Bot, Muse, and future agent surfaces are optional thin
+channels into the same tenant, Goal Portfolio, policy, ledger, and receipts; none becomes a second
+scheduler, memory, credential store, permission authority, or business implementation.
+
+```mermaid
+flowchart LR
+    U[Phone / Web / Telegram / iMessage / Muse / Grok] --> G[Identity + channel gateway]
+    G --> T[Tenant store<br/>facts · consent · Goal Portfolio · receipts]
+    T --> P[Planner<br/>model chooses next capability]
+    P --> S[Scheduler + bounded admission]
+    S --> W[Isolated worker / browser session]
+    W --> A[Shared capability API]
+    A --> X[Provider adapters]
+    X --> R[Official readback + receipt]
+    R --> T
+    V[Policy authority + credential broker] --> P
+    V --> W
+    R --> H[Self-heal controller]
+    R --> I[Isolated improvement lab]
+    H --> S
+    I --> E[Eval + canary + rollback]
+    E --> S
+```
+
+Tenant isolation, durable state outside disposable workers, surrogate credential injection, one policy
+authority, idempotent effects, and official receipts are contracts. A dedicated VM per person is not an
+initial requirement: begin with tenant-scoped state and isolated ephemeral workers, then dedicate
+compute only where continuous browser state or measured risk requires it. Local mode uses the same
+planner, capabilities, adapters, receipts, and policies behind different host/storage/secret adapters.
+
+The fourteen current Product Loops remain the migration and acceptance inventory. They do not justify
+fourteen private runtimes. Gig Work becomes one user-facing capability family whose Coconala, Lancers,
+CrowdWorks, Mercor, and future sites are provider adapters with independent effect owners. Mobile App
+Factory and Gig Work share the delivery pipeline—demand evidence, scope, build, QA, delivery/publication,
+marketing, measurement, settlement—while differing in customer and sales channel. Registry jobs remain
+independently observable and fenced even when the product UI groups them under one capability.
+
+### J6. Muse and Grok Bot comparison and connector decision
+
+Life Manager should learn from these products without becoming a plugin trapped inside either one.
+
+| System | Officially documented strength to reuse | Life Manager's deliberate difference |
+|---|---|---|
+| [Muse](https://introducing.muse.ai/) | proactive cloud work, persistent memory, goals/artifacts, scheduled or event-driven background activity | Muse starts from user-created goals/tasks; Life Manager generates and manages the Goal Portfolio itself |
+| [Muse security model](https://security.muse.ai/) | isolated per-user runtime, durable state outside the runtime, credential broker, separate permission authority, auditable activity | adopt the contracts, but start with measured tenant isolation rather than prematurely requiring one always-on VM per person |
+| [Grok Bot](https://docs.x.ai/grok-bot/overview) | persistent cloud computer, browser/files/terminal, multi-agent coordination, mobile access while work continues | useful interaction/runtime pattern, but its documented setup begins with the person giving a Bot a job; Life Manager is proactively outcome-owned |
+| [Grok Bot routines](https://docs.x.ai/grok-bot/skills-routines-and-automations) | turn a proven task into a skill, then schedule it; explicit run history, idempotency, stale-data policy, and approval boundaries | Life Manager additionally closes provider effects with receipts and improves candidates through held-out/live promotion gates |
+| [Muse Connector Platform](https://muse.ai/platform) | distribution inside Muse, end-to-end review, directory discovery, and Stripe Link support for agentic payment | a channel and commercial adapter only; Life Manager remains the state, goal, policy, execution, evidence, and billing authority |
+
+The product priority is therefore **cloud core first, Muse Connector second**. The cloud core must work
+from a phone/web client without Muse. It exposes a narrow, idempotent channel API for tenant linking,
+status/outcome readback, integration ceremonies, typed approvals, pause/resume, and bounded action
+requests. A Muse Connector later maps Muse identity and consent to that API; it does not expose a
+`create_goal` requirement and never receives raw provider credentials.
+
+The public Muse platform page describes connector review and distribution but does not expose the
+authenticated technical protocol to this specification. Do not invent its schema. After the channel
+API and one cloud loop pass end to end, run an authenticated feasibility spike, record actual auth,
+action, callback, idempotency, security-review, and payment contracts, then decide whether to submit.
+Stripe Link may collect payment through Muse, but Life Manager's own settlement receipt remains the
+financial source of truth. If Muse access, economics, or policy is unsuitable, the same channel API
+continues to serve web/mobile, Telegram, iMessage, Grok, and future clients.
 
 ### K. User Communication Contract
 
@@ -2627,6 +2761,8 @@ its SSPL/commercial licensing.
 | Human loop | Mercor and marketplace gates exist in lane-specific work | Provider-neutral typed `human_gate` lifecycle and Telegram outbox idempotency |
 | Learning | Self-eval and promotion helpers exist in separate areas | One candidate → baseline → eval → tripwire → promotion/rollback contract |
 | Hosts | Local and cloud share a target architecture but portability is incomplete | Same recipes/contracts; host adapters own only infrastructure differences |
+| Goal ownership | The older onboarding spec asked for goal/outcome selection; this document corrects the spec, while README/client/runtime conformance remains unproved | Life Manager synthesizes and maintains a source-backed Goal Portfolio; the person supplies one-time facts, access, consent, and boundaries |
+| Channels | Telegram and local UI behavior can look like separate products | Phone/web is the primary surface; messaging agents and connectors are thin adapters to one cloud authority |
 
 「100 loopを同時に100 browserで起動する」ことがスケールではない。各loopは同じ共有kernelを使い、
 `resource_class`、CPU/メモリ、browser session、provider/account、tenantの上限を先に確認する。
@@ -2639,22 +2775,26 @@ its SSPL/commercial licensing.
 
 ```mermaid
 flowchart TD
-    G[Durable goals and revisions] --> P[Graph projection and competency queries]
+    F[One-time facts · consent · boundaries] --> G[Life Manager Goal Portfolio]
+    R[Official receipts · observed state] --> G
+    G --> P[Graph projection and competency queries]
     P --> Q[Owner-aware work queue]
     Q --> A[Resource admission<br/>memory/load/browser/model budgets]
-    A --> W[Finite wake worker]
+    A --> W[Finite isolated worker]
     W --> C[Bounded context capsule]
     C --> M[Model chooses capability]
     M --> X[Leased provider effect]
-    X --> R[Official readback + replay check]
+    X --> R
     R --> L[Append-only ledger / receipt facts]
     L --> P
-    L --> O[Observability events and metrics]
-    L --> E[Eval dataset and promotion gate]
-    W --> H[Typed human gate -> Telegram outbox]
-    H --> W
-    E --> N[New goal/skill candidate]
-    N --> G
+    L --> O[Observability + causal explain]
+    O --> H[Self-heal<br/>reconcile · repair · verify · resume]
+    H --> Q
+    L --> E[Improvement candidate + frozen eval]
+    E --> N[Canary / promote / rollback]
+    N --> Q
+    W --> T[Typed human gate<br/>only when required]
+    T --> W
 ```
 
 The scheduler is an alarm clock, not a second agent brain. The model chooses semantic work from the
@@ -2684,7 +2824,10 @@ provenance questions; it never substitutes for provider truth.
 | 16 | Agents API sandbox boundary | `test_agents_api_task_manifest_and_readonly_release` | OK: bounded subagents, no credentials/effects, hashed outputs |
 | 17 | Browser session mode and capacity | `test_browser_session_mode_capacity_and_handoff` | OK: headless default, session state, limits, viewer handoff, no duplicate session |
 | 18 | Two deployment modes | `test_local_and_cloud_use_the_same_implementation_contract` | OK: host-only variation, tenant isolation, phone-only cloud path |
-| 19 | Local-first promotion | `test_cloud_promotion_requires_local_completion_gate_and_canary` | OK: no unknown/stale owner, immutable source, official readback/replay-zero |
+| 19 | Per-loop cloud promotion | `test_cloud_promotion_requires_loop_contract_gate_and_canary` | OK: cloud core is independent; an effectful owner needs immutable source, local fixture/readback, official cloud readback, replay-zero |
+| 20 | Life Manager-owned goals | `test_missing_user_goal_synthesizes_goal_portfolio` | OK: no open-ended goal prompt or `setup_required`; provenance is `life_manager` |
+| 21 | Thin channel adapters | `test_channel_cannot_own_state_policy_scheduler_or_credentials` | OK: web/mobile/message/Muse paths resolve to one tenant authority |
+| 22 | Shared revenue delivery pipeline | `test_gig_and_mobile_apps_share_delivery_contracts` | OK: common demand/build/QA/delivery/marketing/settlement schema, provider-specific effects remain fenced |
 
 All tests are deterministic fixtures or read-only contract checks. External marketplace acceptance
 remains a separate owner-scoped operation that requires the existing immutable-release,
@@ -2722,11 +2865,20 @@ official-readback, and replay-zero rules.
   compatibility, authentication persistence, official readback, and replay-zero acceptance.
 - Do not create a second browser session for a human handoff; attach the viewer to the existing leased
   session and resume the same owner.
-- Do not promote cloud before the local completion gate passes; do not copy local mutable state,
-  credentials, browser sessions, or logs into cloud.
+- Do not enable an effectful cloud loop before that loop's shared-contract/evidence gate passes. Do not
+  postpone the cloud core until every local provider effect is complete, and do not copy local mutable
+  state, credentials, browser sessions, or logs into cloud.
 - Do not maintain separate local and cloud business implementations. Only host adapters may differ.
+- Do not ask the person to author, choose, or maintain goals as an onboarding prerequisite. Do not
+  fabricate a personal fact or consent in order to avoid an exact typed human gate.
+- Do not make Muse, Grok Bot, Telegram, iMessage, or a mobile client the authoritative scheduler,
+  memory, policy, credential, receipt, or billing store.
 
-## 7. Execution Steps
+## 7. Detailed Acceptance Backlog
+
+The dependency order and current cursor are owned by **Active remaining TODO** above. The numbered
+items here preserve detailed foundation and acceptance work; items 1–17 may run when their dependencies
+and file ownership allow, but they are not prerequisites for the CC01–CC05 non-effectful cloud slice.
 
 1. Add registry identity/resource-class fixtures and measure the current 165-job inventory without
    changing production state.
@@ -2764,12 +2916,28 @@ official-readback, and replay-zero rules.
     only for human gates and debugging.
 17. Use Firecracker only for untrusted repair/evaluation execution and run Lightpanda only as a
     read-only discovery experiment; record the license and compatibility decision before any promotion.
-18. Complete the local completion gate for every advertised Product Loop, including owner/release
-    readback, resource admission, private reporting, official effect/readback or explicit capability
-    state, and replay-zero where an effect exists.
-19. Promote the identical immutable source to cloud, provision tenant-scoped state and Steel sessions,
-    run one canary per supported resource class, prove official readback/replay-zero, and expose the
-    phone-only notification/control path before enabling broader cloud capacity.
+18. Freeze the Life Manager-owned Goal Portfolio contract, remove goal/outcome selection from onboarding
+    copy, and make README, manifests, client prompts, and tests reference J4 as the single authority.
+19. Build the cloud read-only vertical slice without waiting for all provider loops: tenant sign-in,
+    one-time facts/consent, Goal Portfolio synthesis, durable tenant state, phone/web status, and receipt
+    projection. Prove the app can close while work and state continue in cloud.
+20. Add the cloud policy authority, credential broker, bounded scheduler, worker isolation, and
+    causal `status --explain` path. Prove one broken owner is repaired or fenced while siblings progress.
+21. Promote one low-risk effectful loop through its own contract gate. Use identical immutable source,
+    fresh cloud credentials/session, official provider readback, replay-zero, and rollback; do not copy
+    local mutable state.
+22. Migrate the remaining fourteen-loop inventory one owner at a time. Group Gig Work as one product
+    capability while retaining provider/effect ownership, and extract the shared demand→build→QA→
+    delivery/publication→marketing→settlement pipeline with Mobile App Factory.
+23. Feed incidents, outcomes, cost, and revenue into isolated improvement candidates; require frozen
+    baseline, held-out, safety, cost, live-evidence, canary, and rollback before promotion. Keep goal
+    policy, evaluator, permissions, identity, and receipt authority immutable to the candidate.
+24. Expose one channel API for web/mobile and optional message-agent adapters. After one cloud loop passes
+    end to end, inspect the authenticated Muse Connector protocol, implement the thinnest tenant-link/
+    action/readback adapter, and submit only if its security, economics, and distribution are favorable.
+25. Enable self-funding only from verified settlement minus attributable compute/provider cost. Scale
+    cloud workers and dedicated tenant compute from measured isolation, continuity, and unit economics,
+    not from loop count or projected revenue.
 
 ## E2E Judgment
 
