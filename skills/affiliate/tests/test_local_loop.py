@@ -74,6 +74,24 @@ class LocalLoopTest(unittest.TestCase):
             self.assertEqual(result["retry_state"], "RETRYABLE")
             self.assertGreater(result["retry_due_at"], time.time())
 
+    def test_provider_poll_does_not_repeat_failed_renderer_recovery(self):
+        with tempfile.TemporaryDirectory() as root:
+            with (
+                patch.object(
+                    MODULE, "observe",
+                    side_effect=MODULE.ProviderRendererError("recovery failed"),
+                ) as observe,
+                patch.object(MODULE.time, "sleep") as sleep,
+            ):
+                result = MODULE.provider_poll(Path(root), 9324, attempts=15)
+
+            self.assertEqual(observe.call_count, 1)
+            sleep.assert_not_called()
+            self.assertEqual(result["state"], "PROVIDER_OBSERVATION_FAILED")
+            self.assertEqual(result["failure_type"], "ProviderRendererError")
+            self.assertEqual(result["failure_class"], "BROWSER_TRANSIENT")
+            self.assertEqual(result["retry_state"], "RETRYABLE")
+
     def test_pre_effect_hint_survives_reads_and_clears_before_external_effect(self):
         with tempfile.TemporaryDirectory() as root:
             hint = Path(root) / "entrypoint-result.json"
@@ -1740,6 +1758,7 @@ class LocalLoopTest(unittest.TestCase):
             provider = {
                 "state": "AUTHENTICATED", "changed": True,
                 "transition_id": "transition-1",
+                "renderer_recovered": True,
             }
             output = io.StringIO()
             with (
@@ -1773,6 +1792,7 @@ class LocalLoopTest(unittest.TestCase):
             event = json.loads(output.getvalue())
             self.assertEqual(event["status"], "READY_FOR_PUBLICATION")
             self.assertEqual(event["provider_state"], "AUTHENTICATED")
+            self.assertTrue(event["provider_renderer_recovered"])
             self.assertEqual(event["provider_transition_id"], "transition-1")
             self.assertEqual(event["revenue_state"], "NO_TRANSACTIONS")
 

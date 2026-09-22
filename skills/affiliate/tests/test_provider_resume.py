@@ -6,6 +6,7 @@ import unittest
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch
+from websocket import WebSocketTimeoutException
 
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "provider_cli.py"
@@ -16,6 +17,106 @@ SPEC.loader.exec_module(provider_cli)
 
 
 class ProviderResumeTest(unittest.TestCase):
+    def test_renderer_timeout_reloads_same_target_once_then_retries_observation(self):
+        rendered = {
+            "url": "https://elevenlabs.io/app/home",
+            "title": "Home | ElevenLabs",
+            "text": "Affiliate earnings",
+        }
+        with (
+            patch.object(
+                provider_cli, "_evaluate_once",
+                side_effect=(WebSocketTimeoutException("read timeout"), rendered),
+            ) as evaluate_once,
+            patch.object(provider_cli, "reload_renderer") as reload_renderer,
+        ):
+            result = provider_cli.evaluate("127.0.0.1", 9324, "provider-tab")
+
+        self.assertEqual(result, {**rendered, "renderer_recovered": True})
+        self.assertEqual(evaluate_once.call_count, 2)
+        reload_renderer.assert_called_once_with("127.0.0.1", 9324, "provider-tab")
+
+    def test_renderer_recovery_failure_is_typed_after_one_reload(self):
+        with (
+            patch.object(
+                provider_cli, "_evaluate_once",
+                side_effect=WebSocketTimeoutException("read timeout"),
+            ) as evaluate_once,
+            patch.object(provider_cli, "reload_renderer") as reload_renderer,
+        ):
+            with self.assertRaises(provider_cli.ProviderRendererError):
+                provider_cli.evaluate("127.0.0.1", 9324, "provider-tab")
+
+        self.assertEqual(evaluate_once.call_count, 2)
+        reload_renderer.assert_called_once_with("127.0.0.1", 9324, "provider-tab")
+
+    def test_renderer_reload_targets_exact_page_and_waits_for_load(self):
+        socket = MagicMock()
+        socket.recv.side_effect = (
+            json.dumps({"id": 1, "result": {"sessionId": "session-one"}}),
+            json.dumps({"id": 2, "sessionId": "session-one", "result": {}}),
+            json.dumps({
+                "method": "Page.loadEventFired", "sessionId": "foreign-session",
+            }),
+            json.dumps({"method": "Page.loadEventFired", "sessionId": "session-one"}),
+            json.dumps({"id": 3, "sessionId": "session-one", "result": {}}),
+        )
+        with (
+            patch.object(provider_cli, "read_json", return_value={
+                "webSocketDebuggerUrl":
+                    "ws://127.0.0.1:9324/devtools/browser/browser-one",
+            }),
+            patch.object(provider_cli, "create_connection", return_value=socket),
+        ):
+            provider_cli.reload_renderer("127.0.0.1", 9324, "provider-tab")
+
+        sent = [json.loads(item.args[0]) for item in socket.send.call_args_list]
+        self.assertEqual(sent[0]["method"], "Target.attachToTarget")
+        self.assertEqual(sent[0]["params"]["targetId"], "provider-tab")
+        self.assertTrue(sent[0]["params"]["flatten"])
+        self.assertEqual(sent[1]["method"], "Page.enable")
+        self.assertEqual(sent[1]["sessionId"], "session-one")
+        self.assertEqual(sent[2]["method"], "Page.reload")
+        self.assertEqual(sent[2]["sessionId"], "session-one")
+        socket.close.assert_called_once()
+
+    def test_renderer_reload_rejects_non_object_browser_version(self):
+        with patch.object(provider_cli, "read_json", return_value=[]):
+            with self.assertRaises(provider_cli.ProviderRendererError):
+                provider_cli.reload_renderer("127.0.0.1", 9324, "provider-tab")
+
+    def test_renderer_reload_rejects_non_browser_websocket_endpoint(self):
+        invalid_endpoints = (
+            "ws://user@127.0.0.1:9324/devtools/browser/browser-one",
+            "ws://127.0.0.1:9324/devtools/page/provider-tab",
+            "ws://127.0.0.1:9324/devtools/browser/browser-one?token=secret",
+            "ws://127.0.0.1:9324/devtools/browser/browser-one#fragment",
+        )
+        for endpoint in invalid_endpoints:
+            with self.subTest(endpoint=endpoint):
+                with patch.object(provider_cli, "read_json", return_value={
+                    "webSocketDebuggerUrl": endpoint,
+                }):
+                    with self.assertRaises(provider_cli.ProviderRendererError):
+                        provider_cli.reload_renderer(
+                            "127.0.0.1", 9324, "provider-tab",
+                        )
+
+    def test_renderer_reload_types_non_object_cdp_reply(self):
+        socket = MagicMock()
+        socket.recv.return_value = json.dumps([])
+        with (
+            patch.object(provider_cli, "read_json", return_value={
+                "webSocketDebuggerUrl":
+                    "ws://127.0.0.1:9324/devtools/browser/browser-one",
+            }),
+            patch.object(provider_cli, "create_connection", return_value=socket),
+        ):
+            with self.assertRaises(provider_cli.ProviderRendererError):
+                provider_cli.reload_renderer("127.0.0.1", 9324, "provider-tab")
+
+        socket.close.assert_called_once()
+
     def test_semantic_click_activates_exact_node_directly(self):
         socket = object()
         with (

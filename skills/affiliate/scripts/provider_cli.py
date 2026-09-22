@@ -16,7 +16,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
-from websocket import create_connection
+from websocket import WebSocketTimeoutException, create_connection
 from job_journal import (
     JobStateError, reconcile_effect, resume_effect, start_effect,
     unresolved_effect, verify_effect,
@@ -24,6 +24,10 @@ from job_journal import (
 
 
 class ProviderError(Exception):
+    pass
+
+
+class ProviderRendererError(ProviderError):
     pass
 
 
@@ -60,7 +64,7 @@ def choose_target(targets, playbook):
     return matches[0]
 
 
-def evaluate(host, port, target_id):
+def _evaluate_once(host, port, target_id):
     ws = create_connection(
         f"ws://{host}:{port}/devtools/page/{target_id}",
         timeout=20,
@@ -84,6 +88,109 @@ def evaluate(host, port, target_id):
                 return message["result"]["result"]["value"]
     finally:
         ws.close()
+
+
+def _send_cdp(ws, request_id, method, params=None, session_id=None):
+    request = {
+        "id": request_id,
+        "method": method,
+        "params": params or {},
+    }
+    if session_id is not None:
+        request["sessionId"] = session_id
+    ws.send(json.dumps(request))
+
+
+def _recv_cdp_object(ws):
+    message = json.loads(ws.recv())
+    if not isinstance(message, dict):
+        raise ProviderRendererError("invalid CDP renderer recovery reply")
+    return message
+
+
+def _wait_cdp_reply(ws, request_id):
+    while True:
+        message = _recv_cdp_object(ws)
+        if message.get("id") == request_id:
+            if "error" in message:
+                raise ProviderRendererError("CDP renderer recovery failed")
+            return message.get("result", {})
+
+
+def reload_renderer(host, port, target_id):
+    """Reload one unresponsive provider renderer without restarting its browser."""
+    ws = None
+    try:
+        version = read_json(f"http://{host}:{port}/json/version")
+        if not isinstance(version, dict):
+            raise ProviderRendererError("invalid browser CDP endpoint")
+        browser_ws = version.get("webSocketDebuggerUrl")
+        parsed = urlparse(browser_ws) if isinstance(browser_ws, str) else None
+        if (
+            parsed is None
+            or parsed.scheme != "ws"
+            or parsed.hostname != host
+            or parsed.port != port
+            or parsed.username is not None
+            or parsed.password is not None
+            or re.fullmatch(r"/devtools/browser/[^/?#]+", parsed.path) is None
+            or bool(parsed.query)
+            or bool(parsed.fragment)
+        ):
+            raise ProviderRendererError("invalid browser CDP endpoint")
+        ws = create_connection(
+            browser_ws, timeout=20, max_size=None, suppress_origin=True,
+        )
+        _send_cdp(
+            ws, 1, "Target.attachToTarget",
+            {"targetId": target_id, "flatten": True},
+        )
+        session_id = _wait_cdp_reply(ws, 1).get("sessionId")
+        if not isinstance(session_id, str) or not session_id:
+            raise ProviderRendererError("CDP renderer recovery failed")
+        _send_cdp(ws, 2, "Page.enable", session_id=session_id)
+        _wait_cdp_reply(ws, 2)
+        _send_cdp(
+            ws, 3, "Page.reload", {"ignoreCache": False}, session_id=session_id,
+        )
+        replied = False
+        loaded = False
+        deadline = time.monotonic() + 20
+        while not (replied and loaded):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise ProviderRendererError("CDP renderer recovery timed out")
+            ws.settimeout(remaining)
+            message = _recv_cdp_object(ws)
+            if message.get("id") == 3:
+                if "error" in message:
+                    raise ProviderRendererError("CDP renderer recovery failed")
+                replied = True
+            elif (
+                message.get("method") == "Page.loadEventFired"
+                and message.get("sessionId") == session_id
+            ):
+                loaded = True
+    except ProviderRendererError:
+        raise
+    except (OSError, ValueError, KeyError, WebSocketTimeoutException) as error:
+        raise ProviderRendererError("CDP renderer recovery failed") from error
+    finally:
+        if ws is not None:
+            ws.close()
+
+
+def evaluate(host, port, target_id):
+    try:
+        return _evaluate_once(host, port, target_id)
+    except WebSocketTimeoutException:
+        reload_renderer(host, port, target_id)
+        try:
+            page = _evaluate_once(host, port, target_id)
+            page["renderer_recovered"] = True
+            return page
+        except WebSocketTimeoutException as error:
+            raise ProviderRendererError("CDP renderer stayed unresponsive") from error
 
 
 def cdp_call(ws, request_id, method, params=None):
@@ -405,6 +512,7 @@ def observe(args):
         "url": page["url"],
         "title": page["title"],
         "matched_markers": markers,
+        "renderer_recovered": bool(page.get("renderer_recovered", False)),
         "rendered_text_sha256": hashlib.sha256(page["text"].encode()).hexdigest(),
     }
 

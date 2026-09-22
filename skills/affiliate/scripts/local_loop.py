@@ -25,7 +25,9 @@ from job_journal import (
     JobStateError, reconcile_effect, resume_effect, start_effect,
     unresolved_effect, verify_effect,
 )
-from provider_cli import ProviderError, observe, poll, read_login_credentials, resume
+from provider_cli import (
+    ProviderError, ProviderRendererError, observe, poll, read_login_credentials, resume,
+)
 from program_registry import TTS_PLACEMENT, apply_getresponse, elevenlabs_link_action
 from acquisition_decision import advance as advance_acquisition_decision
 from funnel_decision import (
@@ -1423,7 +1425,7 @@ def _classify_tool_failure(error):
     name = type(error).__name__
     module = type(error).__module__
     if (
-        name in {"TimeoutError", "WebSocketTimeoutException"}
+        name in {"TimeoutError", "WebSocketTimeoutException", "ProviderRendererError"}
         or module.startswith(("playwright.", "websocket."))
     ):
         return "BROWSER_TRANSIENT", 300
@@ -3606,6 +3608,9 @@ def provider_poll(state, cdp_port, attempts=15, provider="elevenlabs"):
     for attempt in range(attempts):
         try:
             return poll(args, observe(args))
+        except ProviderRendererError as error:
+            last_error = error
+            break
         except (
             ProviderError, WebSocketTimeoutException, OSError, ValueError,
             KeyError, json.JSONDecodeError,
@@ -5279,6 +5284,7 @@ def _wake_once(args, started_at, run_id):
         "cost_budget_unknown_rows": cost_budget.get("unknown_rows"),
         "provider_changed": provider["changed"],
         "provider_state": provider["state"],
+        "provider_renderer_recovered": bool(provider.get("renderer_recovered", False)),
         "provider_service_state": provider.get("service_state"),
         "provider_affiliate_network_state": provider.get("affiliate_network_state"),
         "provider_auth_boundary": provider.get("auth_boundary"),
