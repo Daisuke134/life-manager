@@ -2602,6 +2602,42 @@ The active Paid workstream in J7 owns implementation of the funded-client fulfil
 pipeline. This architecture cursor may later consume its merged provider-neutral item/receipt contract,
 but must not extract, refactor, or “share” Paid code while that owner is still proving live delivery.
 
+#### CC02 concrete contract — authenticated durable non-effectful slice
+
+CC02 reuses the existing Panel session boundary as Cloud tenant sign-in. A resolved session supplies the
+server-owned `uid` and Telegram `chatId`; no request body, query string, Muse identity, or model output can
+choose another tenant. A separate authentication system or a second user table would create two identity
+authorities and is therefore out of scope.
+
+The durable goal store has two versioned tenant-scoped records. Goal context stores only bounded URI
+references for facts, accounts, consent, and hard boundaries; raw personal values and credentials stay in
+their existing source stores. Goal Portfolio stores the validated `life-manager.goal-portfolio.v1` object,
+bound to the same tenant and revision. The first context write is replay-safe, a same-revision payload
+collision fails closed, and a later correction requires a new revision rather than overwriting the evidence
+that produced an earlier goal.
+
+```mermaid
+flowchart LR
+    S[Existing Panel session] --> I[Server-owned tenant scope]
+    I --> C[Versioned reference-only goal context]
+    C --> G[Life Manager Goal Portfolio synthesis]
+    G --> P[Durable portfolio]
+    P --> J[effect_class=none RuntimeJob]
+    J --> R[Tenant-scoped safe receipt projection]
+```
+
+The slice resolves the authenticated scope, creates or reads the one-time context, loads or synthesizes the
+portfolio, enqueues the existing reference-only `general-agent.work` job, and then projects its durable
+state. A queued job is reported as `queued` with only `goal_ref` and `job_ref`; a later runtime receipt may
+add its safe status and opaque `receipt_ref`. Goal prose, raw facts, chat IDs, credentials, and provider data
+never enter the projection. Every read includes the authenticated tenant key, and cross-tenant reads return
+zero rows rather than a redacted foreign record.
+
+CC02 adds no public HTTP screen, provider adapter, browser session, credential copy, or external effect.
+Phone/web exposure and client-close continuity are CC03. The rejected alternatives are JSON columns on
+`lm_users` (identity rows are not a versioned evidence ledger) and a new Cloud auth stack (it would duplicate
+the accepted Panel session authority).
+
 ### J6. Muse and Grok Bot comparison and connector decision
 
 Life Manager should learn from these products without becoming a plugin trapped inside either one.
