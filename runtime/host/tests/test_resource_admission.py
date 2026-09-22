@@ -1355,6 +1355,63 @@ def test_connector_old_unknown_is_observable_without_blocking_new_wake(tmp_path,
     admission.release_and_reserve(new, reserve=False)
 
 
+def test_occurrence_scoped_owner_keeps_old_unknown_and_claims_new_occurrence(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "mobile-publisher"
+    admission.enqueue_durable(
+        "agent", owner, admission_class="revenue",
+        occurrence_id=f"{owner}:old", effect_scope="occurrence", now=100,
+    )
+    old, reason = admission.claim_durable(
+        "agent", owner, admission_class="revenue", effect_scope="occurrence", now=101,
+    )
+    assert old is not None and reason == "acquired"
+    admission.release_and_reserve(old, effect_unknown=True, reserve=False, now=102)
+
+    ticket, reason = admission.enqueue_durable(
+        "agent", owner, admission_class="revenue",
+        occurrence_id=f"{owner}:new", effect_scope="occurrence", now=103,
+    )
+    assert ticket is not None and reason in {"ready", "capacity_busy", "fifo_wait"}
+    assert admission.reserve_available(now=104) == [owner]
+    new, reason = admission.claim_durable(
+        "agent", owner, admission_class="revenue", effect_scope="occurrence", now=105,
+    )
+    assert new is not None and reason == "acquired"
+    assert json.loads(new.read_text())["occurrence_id"] == f"{owner}:new"
+    rows = {row["occurrence_id"]: row for row in durable_rows(tmp_path, "occurrences")}
+    assert (rows[f"{owner}:old"]["state"], rows[f"{owner}:old"]["effect_unknown"]) == (
+        "claimed", 1,
+    )
+    admission.release_and_reserve(new, reserve=False)
+
+
+def test_occurrence_scoped_owner_cannot_replay_same_unknown_occurrence(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "mobile-publisher"
+    occurrence = f"{owner}:same"
+    admission.enqueue_durable(
+        "agent", owner, admission_class="revenue",
+        occurrence_id=occurrence, effect_scope="occurrence", now=100,
+    )
+    claim, reason = admission.claim_durable(
+        "agent", owner, admission_class="revenue", effect_scope="occurrence", now=101,
+    )
+    assert claim is not None and reason == "acquired"
+    admission.release_and_reserve(claim, effect_unknown=True, reserve=False, now=102)
+
+    blocked, reason = admission.enqueue_durable(
+        "agent", owner, admission_class="revenue",
+        occurrence_id=occurrence, effect_scope="occurrence", now=103,
+    )
+
+    assert blocked is None and reason == "effect_unknown"
+
+
 def test_no_effect_owner_releases_stale_unknown_before_new_wake(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="1")
     admission.activate_durable_v2()

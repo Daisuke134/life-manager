@@ -95,6 +95,65 @@ def test_explicit_registry_priority_is_forwarded_to_durable_admission(tmp_path):
     run.assert_not_called()
 
 
+def test_mobile_publish_entrypoint_uses_occurrence_scoped_admission(tmp_path):
+    entry = {
+        "cadence": {"calendar_interval": [{"Hour": 8, "Minute": 0}]},
+        "provider_route": "deterministic",
+        "resource_class": "agent",
+        "admission_class": "revenue",
+        "priority": "revenue",
+        "effect_class": "publish",
+        "entrypoint": "apps/life-manager/scripts/mobile-app",
+    }
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(tmp_path / "ticket", "ready")) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(None, "effect_unknown")) as claim,
+          patch("runtime.loop.lm_loop_run.reserve_available_resource", return_value=[]),
+          patch("runtime.loop.lm_loop_run._dispatch_reserved"),
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(
+            ["/bin/true"], entry, "life-manager-honne-ja", {},
+            tmp_path / "mobile-receipt", occurrence_id="life-manager-honne-ja:new",
+        ) == 75
+
+    enqueue.assert_called_once_with(
+        "agent", "life-manager-honne-ja", admission_class="revenue",
+        priority="revenue", occurrence_id="life-manager-honne-ja:new",
+        effect_scope="occurrence",
+    )
+    claim.assert_called_once_with(
+        "agent", "life-manager-honne-ja", admission_class="revenue",
+        effect_scope="occurrence",
+    )
+    run.assert_not_called()
+
+
+def test_non_mobile_publish_entrypoint_keeps_owner_scoped_admission(tmp_path):
+    entry = {
+        "cadence": {"start_interval_seconds": 60},
+        "provider_route": "deterministic",
+        "admission_class": "revenue",
+        "effect_class": "publish",
+        "entrypoint": "skills/earn/article/scripts/article-daily.sh",
+    }
+    with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
+          patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
+                return_value=(None, "effect_unknown")) as enqueue,
+          patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
+        assert _run_admitted(
+            ["/bin/true"], entry, "article-daily", {},
+            tmp_path / "article-receipt", occurrence_id="article-daily:new",
+        ) == 75
+
+    enqueue.assert_called_once_with(
+        "deterministic", "article-daily", admission_class="revenue",
+        occurrence_id="article-daily:new",
+    )
+    run.assert_not_called()
+
+
 def test_transient_admission_lock_contention_is_retried_before_deferring(tmp_path):
     entry = {
         "cadence": {"start_interval_seconds": 60},
