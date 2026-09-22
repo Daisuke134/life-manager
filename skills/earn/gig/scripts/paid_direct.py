@@ -6990,13 +6990,10 @@ def run_once(args, output: Path) -> int:
                 failed += 1
                 failed_step = "owner_policy_invalid"
         active_items = _paid_active_items(args, items)
-        admitted_paid_rooms = {
-            _text(item.get("talkroom_id"))
-            for item in _admitted_paid_projects(args, active_items)
-        }
         executor = _paid_project_executor()
         jobs = {}
         disk_blocked_reason: str | None = None
+        refreshed_items: list[dict[str, Any]] = []
         with ThreadPoolExecutor(
             max_workers=PAID_MAX_PARALLEL_READBACKS, thread_name_prefix="paid-refresh",
         ) as refresh_executor:
@@ -7004,8 +7001,6 @@ def run_once(args, output: Path) -> int:
                 refresh_executor.submit(_targeted, args, item, index): item
                 for index, item in enumerate(active_items)
             }
-            # Advance each client as soon as its own official readback completes. A slow or
-            # broken talkroom must not hold ready clients behind a batch-wide barrier.
             for refresh_job, original in _completed_paid_readbacks(refresh_jobs):
                 room = _text(original.get("talkroom_id"))
                 try:
@@ -7022,6 +7017,20 @@ def run_once(args, output: Path) -> int:
                                   "reason": "browser_lease_busy",
                                   "browser_lease_owner": item.get("browser_lease_owner")}
                     continue
+                refreshed_items.append(item)
+
+            # Admission must use the fresh targeted readback. Orders-only rows omit
+            # seller messages and formal/feedback state, so a report-only waiter can
+            # otherwise consume the sole effect slot and starve actionable work.
+            admission_items = [
+                item for item in refreshed_items if _reported_paid_row(args, item) is None
+            ]
+            admitted_paid_rooms = {
+                _text(item.get("talkroom_id"))
+                for item in _admitted_paid_projects(args, admission_items)
+            }
+            for item in refreshed_items:
+                room = _text(item.get("talkroom_id"))
                 if room in admitted_paid_rooms:
                     try:
                         delivery_project.record_queue_selection(
