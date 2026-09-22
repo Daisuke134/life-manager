@@ -12,6 +12,7 @@ const {
   readCommonJob,
   readCommonReceipt,
   claimJobs,
+  claimCloudJob,
   heartbeatJob,
   completeJob,
   completeJobAndEnqueue,
@@ -242,6 +243,88 @@ test("claim filters capabilities, has a bounded lease, and uses one narrow atomi
     2,
     180,
   ]);
+});
+
+test("Cloud claim is exact-one, tenant-scoped, non-effectful, and uses one narrow RPC", async () => {
+  const calls = [];
+  const row = {
+    ...buildRuntimeJob({
+      jobId: "goal:financial-continuity:r1",
+      tenantId: "tenant-a",
+      loopId: "life-manager.manager",
+      capability: "general-agent.work",
+      effectClass: "none",
+      effectKey: null,
+      inputRefs: { goal_ref: "goal-portfolio://tenant-a/financial-continuity?revision=1" },
+      maxAttempts: 1,
+    }),
+    attempt: 1,
+    status: "running",
+    lease_owner: "cloud-worker-a",
+  };
+  const query = async (sql, params) => {
+    calls.push({ sql, params });
+    return { rows: [row] };
+  };
+  assert.deepEqual(await claimCloudJob({
+    workerId: "cloud-worker-a",
+    capabilities: ["general-agent.work"],
+    tenantId: "tenant-a",
+    leaseSeconds: 180,
+  }, { query }), row);
+  assert.match(calls[0].sql, /claim_lm_cloud_runtime_job\(\$1, \$2::text\[\], \$3, \$4\)/iu);
+  assert.deepEqual(calls[0].params, [
+    "cloud-worker-a", ["general-agent.work"], "tenant-a", 180,
+  ]);
+
+  assert.equal(await claimCloudJob({
+    workerId: "cloud-worker-a", capabilities: ["general-agent.work"],
+    tenantId: "tenant-a", leaseSeconds: 180,
+  }, { query: async () => ({ rows: [] }) }), null);
+});
+
+test("Cloud claim rejects policy expansion and untrusted or multiple returned rows", async () => {
+  let calls = 0;
+  const query = async () => { calls += 1; return { rows: [] }; };
+  const base = {
+    workerId: "cloud-worker-a", capabilities: ["general-agent.work"],
+    tenantId: "tenant-a", leaseSeconds: 180,
+  };
+  for (const input of [
+    { ...base, capabilities: ["general-agent.work", "other.work"] },
+    { ...base, capabilities: ["provider.publish"] },
+    { ...base, tenantId: "" },
+    { ...base, leaseSeconds: 29 },
+    { ...base, leaseSeconds: 901 },
+    { ...base, limit: 2 },
+  ]) {
+    await assert.rejects(claimCloudJob(input, { query }), /cloud runtime claim invalid/iu);
+  }
+  assert.equal(calls, 0);
+
+  const validRow = {
+    ...buildRuntimeJob({
+      jobId: "goal:financial-continuity:r1", tenantId: "tenant-a",
+      loopId: "life-manager.manager", capability: "general-agent.work",
+      effectClass: "none", effectKey: null,
+      inputRefs: { goal_ref: "goal-portfolio://tenant-a/financial-continuity?revision=1" },
+      maxAttempts: 1,
+    }),
+    attempt: 1, status: "running", lease_owner: "cloud-worker-a",
+  };
+  for (const rows of [
+    [validRow, validRow],
+    [{ ...validRow, tenant_id: "tenant-b" }],
+    [{ ...validRow, capability: "provider.publish" }],
+    [{ ...validRow, effect_class: "publish", effect_key: "publish:1" }],
+    [{ ...validRow, attempt: 2 }],
+    [{ ...validRow, lease_owner: "cloud-worker-b" }],
+  ]) {
+    await assert.rejects(
+      claimCloudJob(base, { query: async () => ({ rows }) }),
+      /cloud runtime claim invalid/iu,
+    );
+  }
 });
 
 test("heartbeat, completion, failure, and reconciliation are tenant and attempt scoped", async () => {

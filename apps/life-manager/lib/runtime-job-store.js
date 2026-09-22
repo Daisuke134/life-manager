@@ -349,6 +349,51 @@ async function claimJobs(input, opts = {}) {
   )).rows;
 }
 
+async function claimCloudJob(input, opts = {}) {
+  const expectedKeys = ["capabilities", "leaseSeconds", "tenantId", "workerId"];
+  if (!input || typeof input !== "object" || Array.isArray(input)
+    || Object.keys(input).length !== expectedKeys.length
+    || !Object.keys(input).sort().every((key, index) => key === expectedKeys[index])
+    || !Array.isArray(input.capabilities) || input.capabilities.length !== 1
+    || input.capabilities[0] !== "general-agent.work"
+    || typeof input.workerId !== "string" || !input.workerId.trim()
+    || typeof input.tenantId !== "string" || !input.tenantId.trim()
+    || !Number.isInteger(input.leaseSeconds)
+    || input.leaseSeconds < 30 || input.leaseSeconds > 900) {
+    throw new Error("cloud runtime claim invalid");
+  }
+  const workerId = input.workerId.trim();
+  const tenantId = input.tenantId.trim();
+  if (workerId !== input.workerId || tenantId !== input.tenantId
+    || workerId.length > 200 || tenantId.length > 200) {
+    throw new Error("cloud runtime claim invalid");
+  }
+  const { query } = database(opts);
+  const rows = (await query(
+    "SELECT * FROM public.claim_lm_cloud_runtime_job($1, $2::text[], $3, $4)",
+    [workerId, input.capabilities, tenantId, input.leaseSeconds],
+  )).rows;
+  if (!Array.isArray(rows) || rows.length > 1) throw new Error("cloud runtime claim invalid");
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  try {
+    const job = buildRuntimeJob(row);
+    if (job.tenant_id !== tenantId || job.loop_id !== "life-manager.manager"
+      || job.capability !== "general-agent.work" || job.effect_class !== "none"
+      || job.effect_key !== null || job.max_attempts !== 1
+      || !Number.isInteger(row.attempt) || row.attempt !== 1
+      || row.status !== "running" || row.lease_owner !== workerId
+      || Object.keys(job.input_refs).length !== 1
+      || typeof job.input_refs.goal_ref !== "string"
+      || !job.input_refs.goal_ref.startsWith(`goal-portfolio://${encodeURIComponent(tenantId)}/`)) {
+      throw new Error("invalid");
+    }
+  } catch {
+    throw new Error("cloud runtime claim invalid");
+  }
+  return row;
+}
+
 function identity(input, withWorker = true) {
   const value = {
     tenantId: nonEmpty(input && input.tenantId, "runtime tenant id"),
@@ -477,6 +522,7 @@ module.exports = {
   readCommonJob,
   readCommonReceipt,
   claimJobs,
+  claimCloudJob,
   heartbeatJob,
   completeJob,
   completeJobAndEnqueue,
