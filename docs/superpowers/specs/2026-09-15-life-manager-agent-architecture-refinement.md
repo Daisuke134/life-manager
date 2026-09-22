@@ -560,11 +560,10 @@ Local gate and Eval, build meta/self-heal on those proven contracts, then promot
 the approved source to Cloud and pass its gate.
 Reason: a candidate checkout or mock cannot be the production code authority;
 deferring main until after Cloud leaves live owners on the old admission path.
-Current cursor is step 3's A15 fleet gate: the release-reconciler was synced
-to the already-built `20c6067c3d` release while loaded-idle, then its next
-natural run `18d603e783e3e858-24932` reached an outer `pass` with no blocker.
-The remaining step is a bounded queue-age/recovery check. Main has the focused source changes; loaded releases
-are still mixed. A single Connector effect cannot certify the fleet. Do not
+At that historical handover, the cursor was step 3's A15 fleet gate. The authoritative
+completion record at the top now closes A15 after the later bounded queue-age/recovery,
+same-SHA handoff, release, doctor, memory, and disk receipts. A single Connector effect
+did not certify the fleet. Do not
 perform one 87-commit big-bang merge; merge candidate-only skills separately
 if they are useful. Later historical R2–R6 tables remain evidence of the
 superseded plan, not the active cursor.
@@ -704,8 +703,9 @@ self-improvement/promotion/rollback → Cloud deployment → phone-only gate →
 CC01–CC04 are retained as reviewed **source-only prerequisites**; they do not advance the production
 Cloud cursor, are not deployed, and create no exception to Local-first acceptance. Reason: Cloud must
 host a measured self-operating business kernel, not move current Local breakage to another machine.
-The sole current cursor is A15. After A15, revenue/dependency evidence chooses the next non-Paid Local
-owner; the known first checks are Mobile Apps/Postiz publication continuity and Affiliate attribution.
+The sole current cursor is PL08 Mobile Apps/Postiz. A15 is already Done in the authoritative record at
+the top. After PL08, the fixed Local order is PL02 Affiliate, the Connector's current safe stop, then
+the remaining non-Paid owners by revenue/dependency evidence.
 Paid fulfillment remains exclusively J7-owned and contributes only published read-only receipts.
 
 **Parallel-owner correction:** the previous table still assigned Paid work for Coconala, CrowdWorks,
@@ -719,7 +719,7 @@ independent work or as permission to touch the Paid implementation, state, brows
 |---:|---|---|
 | 1 | **Scoped overlap check — done for step 2:** compare latest main, foundation `3a70e98867`, admission source `c7ce1e9fc6` and the exact provider-owned paths below. Skip a fleet-wide audit before the first patch. | Shared runtime/registry/Connector/provider ownership is mapped below; no other owner's worktree, profile or state was edited. Recheck only changed overlaps before each integration. |
 | 2 | **Shared runtime source integrated; live gate open:** focused main changes cover durable queue, claim→child identity, release→next claim, priority/aging, owner recovery and uncertain-effect handling. Do not tune the slot count to hide liveness failure. The old candidate branch is not the production source. | Focused source checks passed and representative owners ran from main releases; step 3 must still prove no persistent queue starvation across mixed owners. |
-| 3 | **Current cursor — A15 only.** Execute the atomic A15 items at the top of this spec without changing the provider order. Fair owner handoff and main-only `current` are already merged; identity-matched malformed-plist recovery and its production acceptance remain. | Same main-derived release, exact loaded argv, natural outer terminal and bounded agent/browser/deterministic handoff with live heartbeat/headroom; fenced effects remain fenced. Historical total queue age is not the eligible-wait measure. |
+| 3 | **A15 shared foundation — PASS.** The authoritative completion record is at the top of this spec; lower incomplete snapshots are historical. | Main-derived complete release, exact loaded argv, natural terminals, bounded agent/browser/deterministic handoff, live heartbeat/headroom, doctor, queue, memory and cleanup receipts all pass; fenced effects remain fenced. |
 | 4 | **Connector primary-provider repair — historical PASS:** Connpass and Luma are the only active providers for this cursor. Connpass event `407445` reached official `registered`, Calendar exact-one and durable evidence; two later natural wakes had Submit 0 and Calendar duplicate 0. KokuchPro and every other fallback remain out of the active Connector route. | The effect chain and replay-zero remain evidence, but the newly reported `wake_boundary_failed` safe stop requires a fresh Local diagnosis after A15; historical PASS never advances the Cloud cursor. |
 | 5 | Repair non-Paid shared visibility first, then restore Mobile Apps/Postiz publication/metrics and Affiliate source→publication→attribution continuity. Re-read Connector's current safe stop even though its earlier effect gate passed. | Causal `status --explain`, current-source evidence, official publication/readback, attribution receipt, and replay-zero; historical success never hides a current failure. No J7 resource is touched. |
 | 6 | Continue Writer, Investment, Agent Economy, Job Hunter, Fundraiser, Connector, Self-Build, Capafy, CFO, Mercor, and Freelancer.com by verified revenue value and dependency order. | Each owner has a current same-SHA terminal plus official receipt or exact typed blocker; one failure does not consume another owner's capacity. |
@@ -914,7 +914,7 @@ provider effect; independent Calendar exact-one; durable receipts; and two
 replay-zero natural wakes. Tests, exit 0, screenshots, existing 404714 or a
 full-looking calendar do not satisfy it.
 
-### Atomic remaining execution list — current cursor A15
+### Historical A15 atomic execution list — superseded by the completion record above
 
 Order correction for the current tail: the previous order was A14 → A15. The
 deterministic Metrics label reports launchd `runs=0` since its loaded-idle swap,
@@ -940,7 +940,7 @@ No in-flight effect is interrupted or resent. The two historical occurrence IDs 
 `life-manager-connector-native:18d5cc1bd5aeb4a0-9766` and
 `life-manager-connector-native:18d5d38a21bdf160-33935`.
 
-This list tracks the current atomic work. Each checkbox is one reviewable
+This list tracks the historical A15 work. Each checkbox is one reviewable
 transition with its own evidence. The table above is a program map, not a
 second execution cursor. Provider/client IDs are read from fresh official
 inventory rather than invented here; one selected ID is handled per item.
@@ -975,7 +975,7 @@ inventory rather than invented here; one selected ID is handled per item.
 - [x] A15c — Repair the existing release-reconciler's observed PATH failure before claiming fleet self-healing. Its natural `e278c0a894` run ended `entrypoint_exit_1`; its own output identified `pm-decision-loop: managed node executable is unavailable`. The launchd PATH omits Homebrew while `/opt/homebrew/bin/node` exists and is already installed in the PM plist. Candidate `342e0f9b7a` uses one shared fallback for three existing Node-managed labels; red fixture, 87 apply tests + 30 subtests, and minimal-PATH host smoke PASS. This is code evidence only.
 - [x] A15d1 — PR #5317 passed all eight CI jobs and merged at main `20c6067c3d`; full immutable/current release `20260917T132328-20c6067c` was import-smoked under minimal launchd PATH and resolved `/opt/homebrew/bin/node`. The release-reconciler label still loads predecessor `e278c0a894`, so a production fix is not yet proved.
 - [x] A15d2 — Synced only the loaded-idle release-reconciler label to `20c6067c3d` (install event `c95deac2b6e23a47c68426f7`). Independent launchctl readback showed exact new-release argv. Its next natural run `18d603e783e3e858-24932` started at `2026-09-17T05:16:34Z` and reached outer `pass` with blocker null at `05:18:26Z`; installed and event SHA both match `20c6067c3d`. No restart or force-merge occurred.
-- [ ] A15 — Current atomic cursor and remaining acceptance checks are at the top of this spec. The older `2026-09-17T05:27Z` sample (97 queued owners; oldest about 717 minutes) is historical and mixed effect-fenced rows with runnable work. The later main-derived owner-turn fix has live deterministic handoff evidence, but the shared malformed-plist recovery and final same-SHA fleet check remain; Foundation is not yet Done.
+- [x] A15 — Closed by the authoritative completion record at the top. This older snapshot predated the shared malformed-plist recovery and final same-SHA fleet receipts and is retained only as history.
 - [x] CC01 — Make J4 the goal-policy SSOT; update README, manifests, onboarding/client prompts, and contract tests so a missing user-authored goal synthesizes `origin=life_manager` goals instead of asking a goal-selection question. Branch `docs/lm-goal-cloud-muse-20260922` is pushed through `2f4d15ac23`: the final focused acceptance passed 52/52 tests, `test:goal-policy` passed 14/14, `test:runtime-job` passed 22/22 before re-running the 14 goal-policy tests, and `./bin/lm-loop-contract` returned `ok=true` for 14 catalog loops, 166 registry jobs, and 96 mapped jobs. The branch diff contains no J7 Paid implementation, Paid registry, or product-loop catalog change.
 - CC01 implementation plan: `docs/superpowers/plans/2026-09-22-life-manager-owned-goal-policy.md`. CC01 proves Life Manager-owned goal policy, model-generated Goal Portfolio validation, reference-only WorkItems, replay-zero ingress, and public-copy conformance. It does not claim persistent cloud tenant storage, phone/web availability, provider effects, or Paid fulfillment.
 - [x] CC02 — The authenticated durable non-effectful slice is pushed on `docs/lm-goal-cloud-muse-20260922`: reference-only context `7b49ef45e4`, service-role-only versioned store and migration `18a01242ce`, authenticated orchestration and safe projection `a1f13ea130`, continuous gate `759e71ea49`, and final write-authority review fix `062df4895b`. Fresh acceptance passed `test:cloud-goal` 26/26, `test:runtime-job` 22/22 plus goal-policy 14/14 and cloud-goal 26/26, and the full Life Manager `npm test` with exit 0. A disposable PostgreSQL cluster applied the runtime and CC02 migrations, returned context create/replay `t/f`, portfolio create/replay `t/f`, rejected collisions and direct service-role table inserts, and returned zero rows for a wrong chat scope. `./bin/lm-loop-contract` returned `ok=true` for 14 catalog loops, 166 registry jobs, and 96 mapped jobs; the protected J7 Paid/config boundary check passed.
@@ -984,10 +984,10 @@ inventory rather than invented here; one selected ID is handled per item.
 - [x] CC04 — The policy-bound tenant worker source contract is pushed through `57d2bb512c` on `docs/lm-goal-cloud-muse-20260922`: canonical policy `0426d61dbb`, signed grant authority `2a20bbc0c8`, tenant admission `0cdd4b0d59`, credential-surrogate broker `edc0bd8cb5`, bounded worker `054eb76d98`, PostgreSQL proof `7d34ee36e7`, and fresh-review hardening `57d2bb512c`. The final review rejects non-canonical signatures and exact-expiry grants, shares one canonical Goal WorkItem identity across adapter/authority/admission/worker/broker, rejects same-tenant goal or revision substitution before vault access, and prevents malformed queue rows from consuming a lease. Focused Goal/Cloud tests pass 22/22; `test:cc04` passes 22/22 + runtime 24/24 + goal policy 14/14 + cloud/runtime 31/31; CC03 passes Node 90/90 + Python 17/17; the full Life Manager suite exits 0. Disposable PostgreSQL passes twice with exact-one same-tenant claim, independent sibling progress, malformed-row exclusion, max-attempt replay zero, secret non-persistence, fresh-process receipt verification, cross-tenant broker rejection, and client-role denial. `lm-loop-contract` reports 14 catalog loops, 166 registry jobs, 96 mappings, zero errors; Paid/config and Local credential/session scans are empty. This is source/contract proof only: no main merge, production migration/deployment, loop restart, provider mutation, Local credential/session/state copy, or Paid work is claimed.
 - [ ] CC05 — Deferred until the Local 14-loop, self-heal, and self-improvement gates pass. Then inject one synthetic owner failure in Cloud and prove exact-owner reconcile/repair/verify/resume while an independent sibling progresses; no provider mutation is part of this gate.
 
-**Sole current cursor: A15.** Close the shared Local fleet/recovery acceptance, then advance through
-Mobile Apps/Postiz, Affiliate, the remaining non-Paid Local owners, G01, SH01–SH03/G02–G03, and only
-then CC05/Cloud/one-phone. The old CC04 → CC05 cursor is superseded; no running external effect is
-interrupted or duplicated by this reorder.
+**Sole current cursor: PL08 Mobile Apps/Postiz.** A15 is already Done. Advance through PL08, PL02
+Affiliate, the Connector's current safe stop, the remaining non-Paid Local owners, G01,
+SH01–SH03/G02–G03, and only then CC05/Cloud/one-phone. The old CC04 → CC05 cursor is superseded; no
+running external effect is interrupted or duplicated by this reorder.
 - [x] PX01 — Read-only coordination snapshot recorded from Paid branch HEAD `ececcf86ae`, its SSOT/plan, and its active lease. This is not Paid completion and performed no fence, owner, provider, browser, state, or client mutation.
 - [x] CN03 — Observe one eligible Connector automatic wake through an official registration ID. On run `18d5fce89d880ad8-6986`, Connpass event `405705` reached `provider_status=registered`; provider receipt `cbff78d53a91288bf4268554b9ba6f615007047cd482b1b2c6bfe0d5b2e32c29` retains a screenshot of the official page with the cancellation control visible. This was release-driven, not manually kickstarted.
 - [x] CN04 — Read back the matching Google Calendar event ID for that registration. Independent Google Calendar API `read_event` returned ID `0c706h76f6ceoh99cdaug31cd4`, the matching Connpass `405705` URL in its description and the event's exact scheduled time.
