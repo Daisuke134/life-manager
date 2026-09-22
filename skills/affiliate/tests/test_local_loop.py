@@ -1620,6 +1620,13 @@ class LocalLoopTest(unittest.TestCase):
             self.assertEqual(event["provider_state"], "AUTHENTICATED")
             self.assertEqual(event["publication_state"], "X_LIVE")
             self.assertEqual(event["revenue_state"], "NO_TRANSACTIONS")
+            systeme_attempt = next(
+                row for row in MODULE.json_rows(
+                    args.state / "tool-attempt-receipts.jsonl"
+                )
+                if row.get("tool") == "provider.verify.systeme-io"
+            )
+            self.assertEqual(systeme_attempt["effect_class"], "EXTERNAL_WRITE")
             run_receipts = [
                 json.loads(line)
                 for line in (args.state / "run-receipts.jsonl").read_text().splitlines()
@@ -1685,6 +1692,85 @@ class LocalLoopTest(unittest.TestCase):
             self.assertEqual(event["provider_state"], "AUTHENTICATED")
             self.assertEqual(event["provider_transition_id"], "transition-1")
             self.assertEqual(event["revenue_state"], "NO_TRANSACTIONS")
+
+    def test_action_budget_blocks_systeme_verification_submission(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            private = root / "affiliate-credentials.md"
+            private.write_text(
+                "## ElevenLabs\n"
+                "- Default affiliate link: `https://try.elevenlabs.io/example`\n",
+                encoding="utf-8",
+            )
+            private.chmod(0o600)
+            args = Namespace(
+                private_markdown=private, state=root / "state", cdp_port=9324,
+                x_cdp_port=9326, landing_root=root / "landing",
+            )
+            provider = {
+                "state": "AUTHENTICATED", "changed": False,
+                "transition_id": "transition-1",
+            }
+            budget_calls = 0
+
+            def budget_after_provider_link(_state):
+                nonlocal budget_calls
+                budget_calls += 1
+                blocked = 3 <= budget_calls <= 5
+                return {
+                    "state": "ACTION_CAP_BLOCKED" if blocked else "CLEAR",
+                    "used_attempts": 1 if blocked else 0,
+                    "daily_cap": 1,
+                }
+
+            application = Mock(return_value={
+                "state": "ELIGIBILITY_BLOCKED", "program": "getresponse",
+                "deduplicated": True,
+            })
+            verify = Mock(return_value={
+                "state": "CAPTCHA_CHALLENGE", "deduplicated": False,
+            })
+            output = io.StringIO()
+            with (
+                patch.object(MODULE, "browser_ready", side_effect=lambda port: port == 9324),
+                patch.object(MODULE, "provider_poll", return_value=provider),
+                patch.object(MODULE, "action_budget_snapshot", side_effect=budget_after_provider_link),
+                patch.object(MODULE, "elevenlabs_link_action", return_value={
+                    "state": "VERIFIED", "placement": MODULE.TTS_PLACEMENT,
+                    "deduplicated": True, "provider_link_key": "link-1",
+                }),
+                patch.object(MODULE, "apply_getresponse", application),
+                patch.object(MODULE, "verify_systeme_email", verify),
+                patch.object(MODULE, "advance_known_publication", return_value={
+                    "state": "X_LIVE", "public_url": "https://x.com/selawmqt/status/1",
+                }),
+                patch.object(MODULE, "observe_devto_acquisition", return_value={
+                    "state": "OBSERVED", "article_count": 1,
+                    "total_page_views": 0, "delta_page_views": 0,
+                }),
+                patch.object(MODULE, "run_revenue_cycle", return_value={
+                    "state": "NO_TRANSACTIONS", "source_rows": 0,
+                    "appended_transitions": 0,
+                }),
+                patch.object(MODULE, "flush_telegram", return_value={
+                    "state": "NO_PENDING", "sent": 0, "message_id": None,
+                }),
+                contextlib.redirect_stdout(output),
+            ):
+                MODULE.wake(args)
+
+            application.assert_not_called()
+            verify.assert_not_called()
+            systeme_attempt = next(
+                row for row in MODULE.json_rows(
+                    args.state / "tool-attempt-receipts.jsonl"
+                )
+                if row.get("tool") == "provider.verify.systeme-io"
+            )
+            self.assertEqual(systeme_attempt["effect_class"], "EXTERNAL_WRITE")
+            self.assertEqual(
+                systeme_attempt["postcondition"]["state"], "ACTION_CAP_BLOCKED",
+            )
 
     def test_run_receipt_is_append_only_and_replay_safe(self):
         with tempfile.TemporaryDirectory() as root:

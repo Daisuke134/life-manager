@@ -4893,7 +4893,7 @@ def _wake_once(args, started_at, run_id):
     if provider["state"] == "AUTHENTICATED" and placement_link_ready and not placement_link_changed:
         try:
             systeme_verification = admit(
-                "provider.verify.systeme-io", "READ_ONLY",
+                "provider.verify.systeme-io", "EXTERNAL_WRITE",
                 {"provider_state": provider.get("state")},
                 lambda: verify_systeme_email(
                     state, args.cdp_port, args.private_markdown.expanduser(),
