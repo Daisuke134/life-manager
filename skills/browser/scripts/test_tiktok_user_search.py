@@ -28,10 +28,11 @@ class FakeCDP:
         assert target == "search-tab"
         self.reads += 1
         if self.reads == 1:
-            return {"url": self.url, "title": "TikTok", "profiles": []}
+            return {"url": self.url, "title": "TikTok", "ready": False, "profiles": []}
         return {
             "url": self.url,
             "title": "TikTok",
+            "ready": True,
             "profiles": [
                 "https://www.tiktok.com/@candidate?lang=ja-JP",
                 "https://www.tiktok.com/@candidate?lang=ja-JP",
@@ -68,21 +69,64 @@ def test_search_does_not_finish_on_navigation_profile_before_results_load(tmp_pa
             assert target == "search-tab"
             self.reads += 1
             profiles = ["https://www.tiktok.com/@anicca.jp?lang=ja-JP"]
-            if self.reads > 1:
+            if self.reads > 2:
                 profiles.append("https://www.tiktok.com/@candidate?lang=ja-JP")
-            return {"url": self.url, "title": "TikTok", "profiles": profiles}
+            return {"url": self.url, "title": "TikTok", "ready": self.reads > 2,
+                    "profiles": profiles}
 
     fake = NavigationFirst()
+    result = search.search_users(
+        "美容 vlog", "paid-search", tmp_path / "search.json",
+        cdp_client=fake, wait=lambda _seconds: None, attempts=4,
+    )
+
+    assert fake.reads == 4
+    assert result["profiles"] == [
+        "https://www.tiktok.com/@anicca.jp?lang=ja-JP",
+        "https://www.tiktok.com/@candidate?lang=ja-JP",
+    ]
+
+
+def test_search_timeout_is_incomplete_when_results_never_become_ready(tmp_path):
+    search = load_module()
+
+    class NavigationOnly(FakeCDP):
+        def evaluate(self, target, _expression):
+            self.reads += 1
+            return {"url": self.url, "title": "TikTok", "ready": False,
+                    "profiles": ["https://www.tiktok.com/@anicca.jp?lang=ja-JP"]}
+
+    fake = NavigationOnly()
+    output = tmp_path / "search.json"
+    result = search.search_users(
+        "美容 vlog", "paid-search", output,
+        cdp_client=fake, wait=lambda _seconds: None, attempts=3,
+    )
+
+    assert fake.reads == 3
+    assert result["complete"] is False
+    assert result["ready"] is False
+    assert result["reason"] == "search_results_not_stable"
+    assert json.loads(output.read_text()) == result
+
+
+def test_search_timeout_is_incomplete_while_ready_results_keep_changing(tmp_path):
+    search = load_module()
+
+    class Changing(FakeCDP):
+        def evaluate(self, target, _expression):
+            self.reads += 1
+            return {"url": self.url, "title": "TikTok", "ready": True,
+                    "profiles": [f"https://www.tiktok.com/@candidate{self.reads}"]}
+
+    fake = Changing()
     result = search.search_users(
         "美容 vlog", "paid-search", tmp_path / "search.json",
         cdp_client=fake, wait=lambda _seconds: None, attempts=3,
     )
 
-    assert fake.reads == 3
-    assert result["profiles"] == [
-        "https://www.tiktok.com/@anicca.jp?lang=ja-JP",
-        "https://www.tiktok.com/@candidate?lang=ja-JP",
-    ]
+    assert result["complete"] is False
+    assert result["ready"] is True
 
 
 def test_search_closes_owned_target_on_read_failure(tmp_path):

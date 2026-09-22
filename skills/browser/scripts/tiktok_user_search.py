@@ -14,12 +14,21 @@ import cdp
 
 
 READBACK = r"""
-(() => ({
-  url: location.href,
-  title: document.title,
-  profiles: [...new Set([...document.querySelectorAll('a[href*="/@"]')]
-    .map(node => node.href).filter(Boolean))].slice(0, 50)
-}))()
+(() => {
+  const resultItems = [...document.querySelectorAll(
+    '[data-e2e="search-user-item"], [data-e2e="search-user-card"], [data-e2e="search-user-item-container"]'
+  )];
+  const body = document.body?.innerText || '';
+  const empty = /No results found|No users found|検索結果がありません|ユーザーが見つかりません/i.test(body);
+  return {
+    url: location.href,
+    title: document.title,
+    ready: resultItems.length > 0 || empty,
+    empty,
+    profiles: [...new Set([...document.querySelectorAll('a[href*="/@"]')]
+      .map(node => node.href).filter(Boolean))].slice(0, 50)
+  };
+})()
 """
 
 
@@ -70,10 +79,9 @@ def search_users(query: str, owner: str, output: Path, *, cdp_client=cdp,
             if not isinstance(observed, dict) or "__error__" in observed:
                 raise RuntimeError(f"TikTok user search readback failed: {observed}")
             profiles = _profile_urls(observed.get("profiles"))
-            # Navigation/profile chrome renders before async search results. A
-            # nonempty first sample is not proof that the result list loaded;
-            # require one stable consecutive sample before returning it.
-            if (profiles and profiles == previous_profiles) or attempt == attempts - 1:
+            ready = observed.get("ready") is True
+            stable = ready and profiles == previous_profiles
+            if stable:
                 result = {
                     "version": 1,
                     "provider": "tiktok.com",
@@ -86,6 +94,20 @@ def search_users(query: str, owner: str, output: Path, *, cdp_client=cdp,
                 _write(output.resolve(), result)
                 return result
             previous_profiles = profiles
+            if attempt == attempts - 1:
+                result = {
+                    "version": 1,
+                    "provider": "tiktok.com",
+                    "query": query,
+                    "url": observed.get("url"),
+                    "title": observed.get("title"),
+                    "profiles": profiles,
+                    "complete": False,
+                    "ready": ready,
+                    "reason": "search_results_not_stable",
+                }
+                _write(output.resolve(), result)
+                return result
             wait(0.5)
         raise AssertionError("unreachable")
     finally:
