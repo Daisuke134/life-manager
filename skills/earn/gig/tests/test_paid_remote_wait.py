@@ -2475,6 +2475,21 @@ def test_remote_owner_prompt_searches_complete_repo_and_valid_shared_tools(tmp_p
     assert "must not create or invoke a project-local TikTok transport" in prompt
 
 
+def test_remote_owner_prompt_requires_atomic_two_cell_sheets_append(tmp_path):
+    paid = load("paid_direct")
+    root, feedback, _digest = blocked_project(tmp_path)
+    requirements_sha = paid.paid_remote_result.requirements_digest(root, feedback)
+
+    prompt = paid._repair_prompt(
+        root, tmp_path / "item.json", feedback, requirements_sha,
+        False, tmp_path / "cdp.py",
+    )
+
+    assert "--values-json with one JSON 2D row" in prompt
+    assert "updatedRows=1, updatedColumns=2, and updatedCells=2" in prompt
+    assert "never pass the two cells as separate positional arguments" in prompt
+
+
 def test_remote_verifier_prompt_forbids_unproven_executable_help_paths(tmp_path):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)
