@@ -38,6 +38,31 @@ def prepare_checkpoint(value: object) -> object:
     return prepared
 
 
+def bind_current_cycle(root: Path, value: object) -> object:
+    """Bind a receipt to the active paid cycle without trusting model repetition."""
+    if not isinstance(value, dict):
+        return value
+    intent_path = root / "delivery" / "paid-remote-intent.json"
+    if intent_path.is_symlink() or not intent_path.is_file():
+        return value
+    intent = json.loads(intent_path.read_text(encoding="utf-8"))
+    if not isinstance(intent, dict):
+        raise ValueError("invalid paid intent")
+    prepared = dict(value)
+    cycle = {
+        "feedback_sha256": intent.get("buyer_feedback_sha256") or intent.get("feedback_sha256"),
+        "requirements_sha256": intent.get("requirements_sha256"),
+        "semantic_contract_sha256": intent.get("semantic_contract_sha256"),
+    }
+    for field, expected in cycle.items():
+        if expected is None:
+            continue
+        if field in prepared and not _same_json(prepared[field], expected):
+            raise ValueError(f"conflicting checkpoint cycle field: {field}")
+        prepared[field] = expected
+    return prepared
+
+
 def valid_checkpoint(value: object) -> bool:
     if not isinstance(value, dict) or any(key not in value for key in REQUIRED):
         return False
@@ -67,7 +92,9 @@ def main() -> int:
     source = args.effect_json.resolve()
     if root not in source.parents or source.is_symlink() or not source.is_file():
         raise SystemExit("effect JSON must be a regular project-owned file")
-    value = prepare_checkpoint(json.loads(source.read_text(encoding="utf-8")))
+    value = bind_current_cycle(
+        root, prepare_checkpoint(json.loads(source.read_text(encoding="utf-8")))
+    )
     if not valid_checkpoint(value):
         raise SystemExit("invalid effect checkpoint")
     ledger = root / "delivery" / "paid-remote-progress.jsonl"

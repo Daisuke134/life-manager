@@ -81,6 +81,76 @@ def _run_cli(tmp_path, value):
     return result, project / "delivery" / "paid-remote-progress.jsonl"
 
 
+def test_cli_binds_checkpoint_to_current_paid_cycle(tmp_path):
+    feedback = "c" * 64
+    requirements = "d" * 64
+    semantic = "e" * 64
+    value = {
+        "effect_key": "tiktok:campaign:recipient",
+        "target": "https://www.tiktok.com/messages",
+        "message_sha256": "a" * 64,
+        "semantic_contract_sha256": semantic,
+        "quality_status": "qualified",
+        "qualification_sources": ["https://www.tiktok.com/messages"],
+        "official_readback": {
+            "official_url": "https://www.tiktok.com/messages",
+            "exact_readback": True,
+        },
+    }
+    project = tmp_path / "project"
+    intent = project / "delivery" / "paid-remote-intent.json"
+    intent.parent.mkdir(parents=True, exist_ok=True)
+    intent.write_text(json.dumps({
+        "buyer_feedback_sha256": feedback,
+        "requirements_sha256": requirements,
+        "semantic_contract_sha256": semantic,
+    }), encoding="utf-8")
+    effect = project / "delivery" / "effect.json"
+    effect.write_text(json.dumps(value), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(MODULE), "--project-root", str(project), "--effect-json", str(effect)],
+        text=True, capture_output=True,
+    )
+
+    assert result.returncode == 0
+    row = json.loads((project / "delivery" / "paid-remote-progress.jsonl").read_text())
+    assert row["feedback_sha256"] == feedback
+    assert row["requirements_sha256"] == requirements
+    assert row["semantic_contract_sha256"] == semantic
+
+
+def test_cli_rejects_checkpoint_bound_to_different_paid_cycle(tmp_path):
+    value = {
+        "effect_key": "tiktok:campaign:recipient",
+        "target": "https://www.tiktok.com/messages",
+        "payload_sha256": "a" * 64,
+        "semantic_contract_sha256": "b" * 64,
+        "feedback_sha256": "c" * 64,
+        "official_receipt_url": "https://www.tiktok.com/messages",
+        "exact_readback": True,
+        "quality_status": "qualified",
+        "qualification_sources": ["https://www.tiktok.com/messages"],
+    }
+    project = tmp_path / "project"
+    intent = project / "delivery" / "paid-remote-intent.json"
+    intent.parent.mkdir(parents=True, exist_ok=True)
+    intent.write_text(json.dumps({
+        "buyer_feedback_sha256": "d" * 64,
+        "semantic_contract_sha256": "b" * 64,
+    }), encoding="utf-8")
+    effect = project / "delivery" / "effect.json"
+    effect.write_text(json.dumps(value), encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(MODULE), "--project-root", str(project), "--effect-json", str(effect)],
+        text=True, capture_output=True,
+    )
+
+    assert result.returncode != 0
+    assert "conflicting checkpoint cycle field" in result.stderr
+
+
 def test_cli_appends_normalized_receipt_and_replays_identically(tmp_path):
     digest = "a" * 64
     value = {
