@@ -1,6 +1,7 @@
 "use strict";
 
 const { loadCloudExecutionPolicy } = require("./cloud-execution-policy.js");
+const { validateGoalWorkItem } = require("./goal-work-item.js");
 
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/u;
 const TENANT_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
@@ -10,16 +11,12 @@ function invalid() {
 }
 
 function workerProjection(row, tenantId, workerId, capability) {
-  const refs = row && row.input_refs;
+  try { validateGoalWorkItem(row); } catch { return invalid(); }
   if (!row || row.tenant_id !== tenantId || row.lease_owner !== workerId
-    || row.loop_id !== "life-manager.manager" || row.capability !== capability.capability
-    || row.effect_class !== capability.effect_class || row.effect_key !== null
+    || row.capability !== capability.capability || row.effect_class !== capability.effect_class
     || row.max_attempts !== capability.max_attempts
-    || !Number.isInteger(row.attempt) || row.attempt !== 1 || row.status !== "running"
-    || !refs || typeof refs !== "object" || Array.isArray(refs)
-    || JSON.stringify(Object.keys(refs)) !== JSON.stringify(["goal_ref"])
-    || typeof refs.goal_ref !== "string"
-    || !refs.goal_ref.startsWith(`goal-portfolio://${encodeURIComponent(tenantId)}/`)) invalid();
+    || !Number.isInteger(row.attempt) || row.attempt !== 1 || row.status !== "running") invalid();
+  const refs = row.input_refs;
   return Object.freeze({
     job_id: row.job_id,
     tenant_id: row.tenant_id,

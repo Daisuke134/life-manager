@@ -51,6 +51,19 @@ function resign(token, change, key = KEY) {
   return `${material}.${signature}`;
 }
 
+function nonCanonicalSignatureAlias(token) {
+  const parts = token.split(".");
+  const original = Buffer.from(parts[2], "base64url");
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  for (const character of alphabet) {
+    const candidate = `${parts[2].slice(0, -1)}${character}`;
+    if (candidate !== parts[2] && Buffer.from(candidate, "base64url").equals(original)) {
+      return `${parts[0]}.${parts[1]}.${candidate}`;
+    }
+  }
+  throw new Error("test could not create a base64url alias");
+}
+
 test("issues a deterministic short-lived policy-bound grant and verifies its exact identity", () => {
   const service = authority();
   const token = service.issue({ job: job(), workerId: "cloud-worker-a" });
@@ -83,6 +96,7 @@ test("rejects tamper, current-policy drift, expiry, future issue time, and malfo
   const parts = token.split(".");
   const invalid = [
     `${parts[0]}.${parts[1]}.${parts[2].slice(0, -1)}A`,
+    nonCanonicalSignatureAlias(token),
     resign(token, { policy_digest: "c".repeat(64) }),
     resign(token, { expires_at: "2026-09-22T12:05:00.000Z" }),
     resign(token, { credential_refs: ["secret://other/key"] }),
@@ -93,6 +107,10 @@ test("rejects tamper, current-policy drift, expiry, future issue time, and malfo
   for (const value of invalid) {
     assert.throws(() => service.verify(value, expected()), /cloud work grant invalid/iu);
   }
+  assert.throws(
+    () => authority(NOW + 60_000).verify(token, expected()),
+    /cloud work grant invalid/iu,
+  );
   assert.throws(
     () => authority(NOW + 60_001).verify(token, expected()),
     /cloud work grant invalid/iu,
@@ -123,6 +141,9 @@ test("issuance rejects foreign jobs, unsupported work, malformed identity, and w
   const invalidJobs = [
     job({ tenant_id: "../tenant-b" }),
     job({ job_id: "job with spaces" }),
+    job({ job_id: "goal:other:r1" }),
+    job({ input_refs: { goal_ref: "goal-portfolio://tenant-a/other?revision=1" } }),
+    job({ input_refs: { goal_ref: "goal-portfolio://tenant-a/financial-continuity?revision=2" } }),
     job({ attempt: 0 }),
     job({ attempt: 2 }),
     job({ capability: "provider.publish" }),

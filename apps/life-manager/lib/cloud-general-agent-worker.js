@@ -1,6 +1,7 @@
 "use strict";
 
 const { createGeneralAgentWorkLoopAdapter } = require("./general-agent-work-adapter.js");
+const { validateGoalWorkItem } = require("./goal-work-item.js");
 
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$/u;
 const TENANT_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
@@ -19,15 +20,9 @@ function projection(status, tenantId, job = null) {
 }
 
 function validateJob(job, tenantId) {
-  const refs = job && job.input_refs;
+  try { validateGoalWorkItem(job); } catch { return invalid(); }
   if (!job || job.tenant_id !== tenantId || !SAFE_ID.test(String(job.job_id || ""))
-    || job.loop_id !== "life-manager.manager" || job.capability !== "general-agent.work"
-    || job.effect_class !== "none" || job.effect_key !== null
-    || job.max_attempts !== 1 || job.attempt !== 1
-    || !refs || typeof refs !== "object" || Array.isArray(refs)
-    || JSON.stringify(Object.keys(refs)) !== JSON.stringify(["goal_ref"])
-    || typeof refs.goal_ref !== "string"
-    || !refs.goal_ref.startsWith(`goal-portfolio://${encodeURIComponent(tenantId)}/`)) invalid();
+    || job.attempt !== 1) invalid();
   return job;
 }
 

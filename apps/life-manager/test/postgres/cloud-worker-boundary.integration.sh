@@ -101,6 +101,26 @@ function admission({ tenantId, workerId, query, authority }) {
 (async () => {
   const pool = new Pool();
   const query = pool.query.bind(pool);
+  await pool.query(`
+    INSERT INTO public.lm_runtime_jobs(
+      job_id, tenant_id, loop_id, capability, effect_class, effect_key,
+      input_refs, max_attempts, available_at
+    ) VALUES (
+      'goal:poison:r1', 'tenant-a', 'life-manager.manager', 'general-agent.work',
+      'none', NULL, '{"goal_ref":"goal-portfolio://tenant-a/other?revision=1"}'::jsonb,
+      1, '2020-01-01T00:00:00Z'
+    )
+  `);
+  await pool.query(`
+    INSERT INTO public.lm_runtime_jobs(
+      job_id, tenant_id, loop_id, capability, effect_class, effect_key,
+      input_refs, max_attempts, attempt, status, lease_owner, lease_expires_at
+    ) VALUES (
+      'goal:expired:r1', 'tenant-c', 'life-manager.manager', 'general-agent.work',
+      'none', NULL, '{"goal_ref":"goal-portfolio://tenant-c/expired?revision=1"}'::jsonb,
+      1, 1, 'running', 'expired-worker', '2020-01-01T00:00:00Z'
+    )
+  `);
   for (const item of [
     runtimeJob("tenant-a", "continuity-a"),
     runtimeJob("tenant-a", "continuity-b"),
@@ -108,6 +128,15 @@ function admission({ tenantId, workerId, query, authority }) {
   ]) await enqueueJob(item, { query });
 
   const authority = createCloudWorkAuthority({ signingKey: KEY, now: () => NOW });
+  assert.equal(await claimCloudJob({
+    workerId: "worker-c1", capabilities: ["general-agent.work"],
+    tenantId: "tenant-c", leaseSeconds: 180,
+  }, { query }), null);
+  const expired = (await pool.query(`
+    SELECT status, attempt, lease_owner FROM public.lm_runtime_jobs
+    WHERE tenant_id = 'tenant-c' AND job_id = 'goal:expired:r1'
+  `)).rows[0];
+  assert.deepEqual(expired, { status: "running", attempt: 1, lease_owner: "expired-worker" });
   const [a1, a2, b1] = await Promise.all([
     admission({ tenantId: "tenant-a", workerId: "worker-a1", query, authority }).claim(),
     admission({ tenantId: "tenant-a", workerId: "worker-a2", query, authority }).claim(),
@@ -117,6 +146,12 @@ function admission({ tenantId, workerId, query, authority }) {
   assert.equal(tenantAClaims.length, 1);
   assert.ok(b1);
   const claimed = tenantAClaims[0];
+  assert.notEqual(claimed.job.job_id, "goal:poison:r1");
+  const poison = (await pool.query(`
+    SELECT status, attempt, lease_owner FROM public.lm_runtime_jobs
+    WHERE tenant_id = 'tenant-a' AND job_id = 'goal:poison:r1'
+  `)).rows[0];
+  assert.deepEqual(poison, { status: "queued", attempt: 0, lease_owner: null });
   const workerId = claimed.job.job_id === a1?.job.job_id ? "worker-a1" : "worker-a2";
   let vaultCalls = 0;
   let providerCalls = 0;

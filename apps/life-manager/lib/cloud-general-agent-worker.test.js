@@ -142,3 +142,15 @@ test("worker identity and public run arguments are fixed at construction", async
   await assert.rejects(worker.runOnce({ tenantId: "tenant-b" }), /cloud general agent worker invalid/iu);
   assert.deepEqual(calls, []);
 });
+
+test("same-tenant goal substitution is rejected before broker access", async () => {
+  const canonical = job("tenant-a", "financial-continuity");
+  const malformed = fixture({
+    job: Object.freeze({
+      ...canonical,
+      input_refs: Object.freeze({ goal_ref: "goal-portfolio://tenant-a/other?revision=1" }),
+    }),
+  });
+  await assert.rejects(malformed.worker.runOnce(), /cloud general agent worker invalid/iu);
+  assert.equal(malformed.calls.some(([name]) => name === "broker"), false);
+});

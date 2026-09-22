@@ -3,6 +3,7 @@
 const crypto = require("node:crypto");
 
 const { loadCloudExecutionPolicy } = require("./cloud-execution-policy.js");
+const { validateGoalWorkItem } = require("./goal-work-item.js");
 
 const TOKEN_PREFIX = "lmwg1";
 const PAYLOAD_KEYS = [
@@ -55,20 +56,11 @@ function capabilityPolicy(bundle) {
 }
 
 function validateJob(job, entry) {
-  const refs = job && job.input_refs;
-  if (!job || !TENANT_ID.test(String(job.tenant_id || ""))
-    || !SAFE_ID.test(String(job.job_id || ""))
-    || job.loop_id !== "life-manager.manager"
-    || job.capability !== entry.capability
-    || job.effect_class !== entry.effect_class || job.effect_key !== null
+  try { validateGoalWorkItem(job); } catch { return invalid(); }
+  if (!TENANT_ID.test(String(job.tenant_id || "")) || !SAFE_ID.test(String(job.job_id || ""))
+    || job.capability !== entry.capability || job.effect_class !== entry.effect_class
     || job.max_attempts !== entry.max_attempts
-    || !Number.isInteger(job.attempt) || job.attempt < 1 || job.attempt > job.max_attempts
-    || !refs || typeof refs !== "object" || Array.isArray(refs)
-    || JSON.stringify(Object.keys(refs)) !== JSON.stringify(["goal_ref"])
-    || typeof refs.goal_ref !== "string"
-    || !refs.goal_ref.startsWith(`goal-portfolio://${encodeURIComponent(job.tenant_id)}/`)) {
-    invalid();
-  }
+    || !Number.isInteger(job.attempt) || job.attempt < 1 || job.attempt > job.max_attempts) invalid();
   return job;
 }
 
@@ -93,7 +85,8 @@ function parsePayload(token, key) {
   let suppliedSignature;
   try { suppliedSignature = Buffer.from(parts[2], "base64url"); }
   catch { return invalid(); }
-  if (suppliedSignature.length !== expectedSignature.length
+  if (suppliedSignature.toString("base64url") !== parts[2]
+    || suppliedSignature.length !== expectedSignature.length
     || !crypto.timingSafeEqual(suppliedSignature, expectedSignature)) invalid();
   let payload;
   try {
@@ -156,7 +149,7 @@ function createCloudWorkAuthority(options = {}) {
         || payload.capability !== expected.capability || payload.effect_class !== expected.effectClass
         || !issued || !expires || Date.parse(expires) - Date.parse(issued)
           !== bundle.policy.claim.grant_ttl_seconds * 1000
-        || current < Date.parse(issued) || current > Date.parse(expires)
+        || current < Date.parse(issued) || current >= Date.parse(expires)
         || !Array.isArray(payload.credential_refs)
         || payload.credential_refs.length !== entry.credential_refs.length
         || payload.credential_refs.some((ref, index) => ref !== entry.credential_refs[index])) {

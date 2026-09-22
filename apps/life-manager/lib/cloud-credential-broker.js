@@ -1,5 +1,7 @@
 "use strict";
 
+const { validateGoalWorkItem } = require("./goal-work-item.js");
+
 const INPUT_KEYS = [
   "attempt", "capability", "credentialRef", "effectClass", "grant", "inputRefs",
   "jobId", "operation", "tenantId", "workerId",
@@ -38,12 +40,21 @@ function validateInvocation(value) {
     || !Number.isInteger(value.attempt) || value.attempt !== 1
     || !SECRET_REF.test(String(value.credentialRef || ""))
     || value.operation !== "gemini.generate-plan"
-    || !refs || typeof refs !== "object" || Array.isArray(refs)
-    || JSON.stringify(Object.keys(refs)) !== JSON.stringify(["goal_ref"])
-    || typeof refs.goal_ref !== "string"
-    || !refs.goal_ref.startsWith(`goal-portfolio://${encodeURIComponent(value.tenantId)}/`)) {
+    || !refs || typeof refs !== "object" || Array.isArray(refs)) {
     invocationInvalid();
   }
+  try {
+    validateGoalWorkItem({
+      tenant_id: value.tenantId,
+      job_id: value.jobId,
+      loop_id: "life-manager.manager",
+      capability: value.capability,
+      effect_class: value.effectClass,
+      effect_key: null,
+      input_refs: refs,
+      max_attempts: 1,
+    });
+  } catch { return invocationInvalid(); }
   return value;
 }
 

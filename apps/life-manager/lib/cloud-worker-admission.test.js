@@ -86,6 +86,8 @@ test("foreign, effectful, over-attempt, or wrong-owner rows fail closed", async 
     claimed({ attempt: 2 }),
     claimed({ lease_owner: "cloud-worker-b" }),
     claimed({ input_refs: { goal_ref: "goal-portfolio://tenant-b/other?revision=1" } }),
+    claimed({ input_refs: { goal_ref: "goal-portfolio://tenant-a/other?revision=1" } }),
+    claimed({ input_refs: { goal_ref: "goal-portfolio://tenant-a/financial-continuity?revision=2" } }),
   ]) {
     await assert.rejects(fixture(row).admission.claim(), /cloud worker admission invalid/iu);
   }
@@ -98,7 +100,12 @@ test("migration serializes tenant claims and exposes only a service-role non-eff
   assert.match(sql, /SECURITY DEFINER/iu);
   assert.match(sql, /pg_advisory_xact_lock\s*\([\s\S]*p_tenant_id/iu);
   assert.match(sql, /p_capabilities\s*<>\s*ARRAY\['general-agent\.work'\]/iu);
+  assert.match(sql, /loop_id\s*=\s*'life-manager\.manager'/iu);
   assert.match(sql, /effect_class\s*=\s*'none'/iu);
+  assert.match(sql, /max_attempts\s*=\s*1/iu);
+  assert.match(sql, /jobs\.input_refs\s*=\s*jsonb_build_object\s*\(\s*'goal_ref'/iu);
+  assert.match(sql, /jobs\.input_refs\s*\?\s*'goal_ref'/iu);
+  assert.match(sql, /split_part\s*\(\s*jobs\.job_id\s*,\s*':'\s*,\s*2\s*\)/iu);
   assert.match(sql, /status\s*=\s*'running'[\s\S]*lease_expires_at\s*>\s*clock_timestamp/iu);
   assert.match(sql, /LIMIT 1[\s\S]*FOR UPDATE SKIP LOCKED/iu);
   assert.match(sql, /REVOKE ALL ON FUNCTION public\.claim_lm_cloud_runtime_job[\s\S]*FROM PUBLIC/iu);

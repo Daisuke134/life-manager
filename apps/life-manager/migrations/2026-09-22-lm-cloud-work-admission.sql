@@ -15,7 +15,9 @@ DECLARE
   candidate_job_id text;
 BEGIN
   IF p_worker_id IS NULL OR char_length(p_worker_id) NOT BETWEEN 1 AND 200
+    OR p_worker_id !~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,199}$'
     OR p_tenant_id IS NULL OR char_length(p_tenant_id) NOT BETWEEN 1 AND 200
+    OR p_tenant_id !~ '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$'
     OR p_capabilities IS NULL
     OR p_capabilities <> ARRAY['general-agent.work']::text[]
     OR p_lease_seconds IS NULL OR p_lease_seconds NOT BETWEEN 30 AND 900
@@ -30,8 +32,25 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM public.lm_runtime_jobs AS active
     WHERE active.tenant_id = p_tenant_id
+      AND active.loop_id = 'life-manager.manager'
       AND active.capability = 'general-agent.work'
       AND active.effect_class = 'none'
+      AND active.effect_key IS NULL
+      AND active.max_attempts = 1
+      AND jsonb_typeof(active.input_refs) = 'object'
+      AND active.input_refs ? 'goal_ref'
+      AND active.input_refs = jsonb_build_object(
+        'goal_ref', active.input_refs->>'goal_ref'
+      )
+      AND left(
+        active.input_refs->>'goal_ref',
+        char_length('goal-portfolio://' || p_tenant_id || '/')
+      ) = 'goal-portfolio://' || p_tenant_id || '/'
+      AND active.job_id ~ '^goal:[a-z0-9][a-z0-9._-]{0,199}:r[1-9][0-9]*$'
+      AND active.input_refs->>'goal_ref' =
+        'goal-portfolio://' || p_tenant_id || '/'
+        || split_part(active.job_id, ':', 2) || '?revision='
+        || substring(split_part(active.job_id, ':', 3) FROM 2)
       AND active.status = 'running'
       AND active.lease_expires_at > clock_timestamp()
   ) THEN
@@ -41,10 +60,26 @@ BEGIN
   SELECT jobs.job_id INTO candidate_job_id
   FROM public.lm_runtime_jobs AS jobs
   WHERE jobs.tenant_id = p_tenant_id
+    AND jobs.loop_id = 'life-manager.manager'
     AND jobs.capability = ANY(p_capabilities)
     AND jobs.capability = 'general-agent.work'
     AND jobs.effect_class = 'none'
     AND jobs.effect_key IS NULL
+    AND jobs.max_attempts = 1
+    AND jsonb_typeof(jobs.input_refs) = 'object'
+    AND jobs.input_refs ? 'goal_ref'
+    AND jobs.input_refs = jsonb_build_object(
+      'goal_ref', jobs.input_refs->>'goal_ref'
+    )
+    AND left(
+      jobs.input_refs->>'goal_ref',
+      char_length('goal-portfolio://' || p_tenant_id || '/')
+    ) = 'goal-portfolio://' || p_tenant_id || '/'
+    AND jobs.job_id ~ '^goal:[a-z0-9][a-z0-9._-]{0,199}:r[1-9][0-9]*$'
+    AND jobs.input_refs->>'goal_ref' =
+      'goal-portfolio://' || p_tenant_id || '/'
+      || split_part(jobs.job_id, ':', 2) || '?revision='
+      || substring(split_part(jobs.job_id, ':', 3) FROM 2)
     AND jobs.available_at <= clock_timestamp()
     AND jobs.attempt < jobs.max_attempts
     AND (

@@ -106,6 +106,8 @@ test("foreign, tampered, overbroad, and raw-value invocations stop before vault 
     ["raw credential", (grant) => invocation(grant, { credentialRef: RAW_SECRET })],
     ["foreign operation", (grant) => invocation(grant, { operation: "gemini.raw-secret" })],
     ["foreign goal ref", (grant) => invocation(grant, { inputRefs: { goal_ref: "goal-portfolio://tenant-b/other?revision=1" } })],
+    ["same-tenant goal substitution", (grant) => invocation(grant, { inputRefs: { goal_ref: "goal-portfolio://tenant-a/other?revision=1" } })],
+    ["same-tenant revision substitution", (grant) => invocation(grant, { inputRefs: { goal_ref: "goal-portfolio://tenant-a/financial-continuity?revision=2" } })],
     ["unknown field", (grant) => ({ ...invocation(grant), extra: true })],
   ];
   for (const [label, make] of invalid) {
