@@ -1,7 +1,9 @@
 import importlib.util
+import hashlib
 import json
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -141,7 +143,7 @@ class SourceCaptureTest(unittest.TestCase):
         self.assertEqual(MODULE.classify_failure(1, "HTTP 403"), "AUTH")
         self.assertEqual(MODULE.classify_failure(1, "boom"), "UPSTREAM")
 
-    def test_refresh_all_plans_writes_one_daily_receipt(self):
+    def test_refresh_all_plans_finishes_daily_receipt_across_wakes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "skill"
             plans = root / "config" / "source-plans"
@@ -160,10 +162,229 @@ class SourceCaptureTest(unittest.TestCase):
                     root, state, now=1001, cooldown_seconds=86400,
                     disk_floor_bytes=1,
                 )
-            self.assertEqual(receipt["state"], "COMPLETE")
-            self.assertEqual([row["plan_id"] for row in receipt["plans"]], ["alpha-en", "beta-en"])
+                cooldown = MODULE.refresh_all(
+                    root, state, now=1002, cooldown_seconds=86400,
+                    disk_floor_bytes=1,
+                )
+            self.assertEqual(receipt["state"], "IN_PROGRESS")
+            self.assertEqual([row["plan_id"] for row in receipt["plans"]], ["alpha-en"])
             self.assertTrue((state / "composition-inbox" / "alpha-en.json").is_file())
+            self.assertEqual(replay["state"], "COMPLETE")
+            self.assertEqual([row["plan_id"] for row in replay["plans"]], ["alpha-en", "beta-en"])
+            self.assertTrue((state / "composition-inbox" / "beta-en.json").is_file())
+            self.assertEqual(cooldown["state"], "COOLDOWN")
+
+    def test_refresh_resumes_one_plan_per_wake_without_repeating_completed_plan(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "skill"
+            plans = root / "config" / "source-plans"
+            plans.mkdir(parents=True)
+            for plan_id in ("alpha-en", "beta-en", "gamma-en"):
+                (plans / f"{plan_id}.json").write_text(json.dumps({
+                    "schema_version": 1, "plan_id": plan_id,
+                    "locale": "en", "sources": [],
+                }))
+            state = Path(directory) / "state"
+            with (mock.patch.object(MODULE, "discover_official_plan", return_value={"state": "COOLDOWN"}),
+                  mock.patch.object(MODULE, "capture", return_value=[])):
+                first = MODULE.refresh_all(root, state, now=1000, disk_floor_bytes=1)
+                second = MODULE.refresh_all(root, state, now=1001, disk_floor_bytes=1)
+                third = MODULE.refresh_all(root, state, now=1002, disk_floor_bytes=1)
+                replay = MODULE.refresh_all(root, state, now=1003, disk_floor_bytes=1)
+            self.assertEqual(first["state"], "IN_PROGRESS")
+            self.assertEqual(first["pending_count"], 2)
+            self.assertEqual([row["plan_id"] for row in first["plans"]], ["alpha-en"])
+            self.assertEqual(second["state"], "IN_PROGRESS")
+            self.assertEqual(second["pending_count"], 1)
+            self.assertEqual([row["plan_id"] for row in second["plans"]], ["alpha-en", "beta-en"])
+            self.assertEqual(third["state"], "COMPLETE")
+            self.assertEqual(third["pending_count"], 0)
+            self.assertEqual([row["plan_id"] for row in third["plans"]], [
+                "alpha-en", "beta-en", "gamma-en",
+            ])
             self.assertEqual(replay["state"], "COOLDOWN")
+
+    def test_failed_official_discovery_retries_after_bounded_backoff(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "skill"
+            (root / "config" / "source-plans").mkdir(parents=True)
+            state = Path(directory) / "state"
+            with mock.patch.object(MODULE, "run_adapter", side_effect=MODULE.CaptureError("offline")):
+                first = MODULE.refresh_all(root, state, now=1000, disk_floor_bytes=1)
+            self.assertEqual(first["discovery_state"], "FAILED")
+            with mock.patch.object(MODULE, "run_adapter", side_effect=AssertionError("retried today")):
+                second = MODULE.discover_official_plan(root, state, now=1001)
+            self.assertEqual(second["state"], "DEFERRED")
+            with mock.patch.object(MODULE, "run_adapter", side_effect=MODULE.CaptureError("still offline")):
+                with self.assertRaises(MODULE.CaptureError):
+                    MODULE.discover_official_plan(root, state, now=2800)
+
+    def test_failed_plan_retries_after_cooldown_not_every_wake(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "skill"
+            plans = root / "config" / "source-plans"
+            plans.mkdir(parents=True)
+            (plans / "alpha-en.json").write_text(json.dumps({
+                "schema_version": 1, "plan_id": "alpha-en", "locale": "en", "sources": [],
+            }))
+            state = Path(directory) / "state"
+            with (mock.patch.object(MODULE, "discover_official_plan", return_value={"state": "COOLDOWN"}),
+                  mock.patch.object(MODULE, "capture", side_effect=MODULE.CaptureError("upstream")) as capture):
+                first = MODULE.refresh_all(root, state, now=1000, disk_floor_bytes=1)
+                cooldown = MODULE.refresh_all(root, state, now=1001, disk_floor_bytes=1)
+                retry = MODULE.refresh_all(root, state, now=1000 + 86400, disk_floor_bytes=1)
+            self.assertEqual(first["state"], "PARTIAL")
+            self.assertEqual(cooldown["state"], "COOLDOWN")
+            self.assertEqual(retry["state"], "PARTIAL")
+            self.assertEqual(capture.call_count, 2)
+
+    def test_old_partial_receipt_starts_bounded_cycle_without_daily_stall(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "skill"
+            plans = root / "config" / "source-plans"
+            plans.mkdir(parents=True)
+            for plan_id in ("alpha-en", "beta-en"):
+                (plans / f"{plan_id}.json").write_text(json.dumps({
+                    "schema_version": 1, "plan_id": plan_id, "locale": "en", "sources": [],
+                }))
+            state = Path(directory) / "state"
+            state.mkdir()
+            (state / "source-refresh.json").write_text(json.dumps({
+                "schema_version": 1, "receipt_type": "SOURCE_REFRESH",
+                "state": "PARTIAL", "completed_at": 1000,
+                "plan_set_sha256": MODULE.plan_set_sha256(root, state),
+                "plans": [{"plan_id": "alpha-en", "state": "FAILED"}],
+            }))
+            with (mock.patch.object(MODULE, "discover_official_plan", return_value={"state": "COOLDOWN"}),
+                  mock.patch.object(MODULE, "capture", return_value=[])):
+                result = MODULE.refresh_all(root, state, now=1001, disk_floor_bytes=1)
+            self.assertEqual(result["state"], "IN_PROGRESS")
+            self.assertEqual([row["plan_id"] for row in result["plans"]], ["alpha-en"])
+            self.assertEqual(result["pending_count"], 1)
+
+    def test_new_plan_does_not_restart_unchanged_pending_cycle(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "skill"
+            plans = root / "config" / "source-plans"
+            plans.mkdir(parents=True)
+            for plan_id in ("alpha-en", "beta-en"):
+                (plans / f"{plan_id}.json").write_text(json.dumps({
+                    "schema_version": 1, "plan_id": plan_id, "locale": "en", "sources": [],
+                }))
+            state = Path(directory) / "state"
+            with (mock.patch.object(MODULE, "discover_official_plan", return_value={"state": "COOLDOWN"}),
+                  mock.patch.object(MODULE, "capture", return_value=[])):
+                first = MODULE.refresh_all(root, state, now=1000, disk_floor_bytes=1)
+                (plans / "gamma-en.json").write_text(json.dumps({
+                    "schema_version": 1, "plan_id": "gamma-en", "locale": "en", "sources": [],
+                }))
+                second = MODULE.refresh_all(root, state, now=1001, disk_floor_bytes=1)
+            self.assertEqual([row["plan_id"] for row in first["plans"]], ["alpha-en"])
+            self.assertEqual([row["plan_id"] for row in second["plans"]], ["alpha-en", "beta-en"])
+            self.assertEqual(second["pending_count"], 1)
+
+    def test_rechecks_checkpoint_after_discovery_before_advancing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "skill"
+            plans = root / "config" / "source-plans"
+            plans.mkdir(parents=True)
+            for plan_id in ("alpha-en", "beta-en", "gamma-en"):
+                (plans / f"{plan_id}.json").write_text(json.dumps({
+                    "schema_version": 1, "plan_id": plan_id, "locale": "en", "sources": [],
+                }))
+            state = Path(directory) / "state"
+            state.mkdir()
+            checkpoint = {
+                "schema_version": 1, "receipt_type": "SOURCE_REFRESH",
+                "state": "IN_PROGRESS", "completed_at": 1000,
+                "plan_set_sha256": MODULE.plan_set_sha256(root, state),
+                "plans": [{"plan_id": "alpha-en", "state": "CAPTURED",
+                           "plan_sha256": hashlib.sha256((plans / "alpha-en.json").read_bytes()).hexdigest()}],
+            }
+            (state / "source-refresh.json").write_text(json.dumps(checkpoint))
+
+            def concurrent_progress(*_args):
+                advanced = {**checkpoint, "plans": [*checkpoint["plans"], {
+                    "plan_id": "beta-en", "state": "CAPTURED",
+                    "plan_sha256": hashlib.sha256((plans / "beta-en.json").read_bytes()).hexdigest(),
+                }]}
+                (state / "source-refresh.json").write_text(json.dumps(advanced))
+                return {"state": "COOLDOWN"}
+
+            with (mock.patch.object(MODULE, "discover_official_plan", side_effect=concurrent_progress),
+                  mock.patch.object(MODULE, "capture", return_value=[])):
+                result = MODULE.refresh_all(root, state, now=1001, disk_floor_bytes=1)
+            self.assertEqual([row["plan_id"] for row in result["plans"]], [
+                "alpha-en", "beta-en", "gamma-en",
+            ])
+
+    def test_concurrent_wake_has_one_discovery_and_one_plan_owner(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "skill"
+            plans = root / "config" / "source-plans"
+            plans.mkdir(parents=True)
+            (plans / "alpha-en.json").write_text(json.dumps({
+                "schema_version": 1, "plan_id": "alpha-en",
+                "locale": "en", "sources": [],
+            }))
+            state = Path(directory) / "state"
+            discovery_entered = threading.Event()
+            release_discovery = threading.Event()
+            discovery_calls = []
+            first_result = []
+
+            def discover(*_args):
+                discovery_calls.append("called")
+                if len(discovery_calls) == 1:
+                    discovery_entered.set()
+                    self.assertTrue(release_discovery.wait(timeout=5))
+                return {"state": "COOLDOWN"}
+
+            def run_first():
+                first_result.append(MODULE.refresh_all(
+                    root, state, now=1000, disk_floor_bytes=1,
+                ))
+
+            with (
+                mock.patch.object(MODULE, "discover_official_plan", side_effect=discover),
+                mock.patch.object(MODULE, "capture", return_value=[]) as capture,
+            ):
+                first = threading.Thread(target=run_first)
+                first.start()
+                self.assertTrue(discovery_entered.wait(timeout=5))
+                second = MODULE.refresh_all(
+                    root, state, now=1001, disk_floor_bytes=1,
+                )
+                release_discovery.set()
+                first.join(timeout=5)
+
+            self.assertFalse(first.is_alive())
+            self.assertEqual(second["state"], "ALREADY_RUNNING")
+            self.assertEqual(len(discovery_calls), 1)
+            self.assertEqual(first_result[0]["state"], "COMPLETE")
+            capture.assert_called_once()
+
+    def test_disk_guard_preserves_partial_cycle_cursor(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "skill"
+            plans = root / "config" / "source-plans"
+            plans.mkdir(parents=True)
+            for plan_id in ("alpha-en", "beta-en"):
+                (plans / f"{plan_id}.json").write_text(json.dumps({
+                    "schema_version": 1, "plan_id": plan_id, "locale": "en", "sources": [],
+                }))
+            state = Path(directory) / "state"
+            with (mock.patch.object(MODULE, "discover_official_plan", return_value={"state": "COOLDOWN"}),
+                  mock.patch.object(MODULE, "capture", return_value=[])):
+                first = MODULE.refresh_all(root, state, now=1000, disk_floor_bytes=1)
+                with mock.patch.object(MODULE, "runtime_guard", return_value={"state": "DISK_BLOCKED"}):
+                    blocked = MODULE.refresh_all(root, state, now=1001, disk_floor_bytes=1)
+                resumed = MODULE.refresh_all(root, state, now=1002, disk_floor_bytes=1)
+            self.assertEqual(first["state"], "IN_PROGRESS")
+            self.assertEqual(blocked["state"], "DISK_BLOCKED")
+            self.assertEqual([row["plan_id"] for row in resumed["plans"]], [
+                "alpha-en", "beta-en",
+            ])
 
 
 if __name__ == "__main__":
