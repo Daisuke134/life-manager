@@ -3153,6 +3153,7 @@ def test_remote_owner_prompt_uses_shared_tiktok_user_search(tmp_path):
     assert "Search results are candidate discovery, not eligibility proof" in prompt
     assert "A profile with no posted content is invalid" in prompt
     assert "must not send or count it" in prompt
+    assert "reclassify the same effect_key as invalid" in prompt
 
 
 def test_paid_agent_creates_authorized_missing_resources_instead_of_asking_buyer(tmp_path):
