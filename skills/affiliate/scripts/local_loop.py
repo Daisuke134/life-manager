@@ -18,6 +18,7 @@ from datetime import datetime, time as datetime_time, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 from types import SimpleNamespace
+from websocket import WebSocketTimeoutException
 from zoneinfo import ZoneInfo
 
 from job_journal import (
@@ -80,6 +81,23 @@ def atomic_json(path, value):
         os.replace(name, path)
     finally:
         Path(name).unlink(missing_ok=True)
+
+
+def prepare_pre_effect_hint():
+    """Mark that this wake has not started any provider or message effect."""
+    value = os.environ.get("LIFE_MANAGER_RESULT_HINT_PATH", "").strip()
+    if not value:
+        return None
+    path = Path(value).expanduser().resolve()
+    atomic_json(path, {"status": "pre_effect_failure", "effect": 0})
+    return path
+
+
+def run_effect_guarded(effect_class, operation, pre_effect_hint):
+    """Invalidate pre-effect proof immediately before the first external call."""
+    if effect_class in _TOOL_EXTERNAL_EFFECTS and pre_effect_hint is not None:
+        pre_effect_hint.unlink(missing_ok=True)
+    return operation()
 
 
 def append(path, value):
@@ -1400,7 +1418,10 @@ def _classify_tool_failure(error):
     """Return a typed failure class and bounded retry window without error text."""
     name = type(error).__name__
     module = type(error).__module__
-    if name == "TimeoutError" or module.startswith("playwright."):
+    if (
+        name in {"TimeoutError", "WebSocketTimeoutException"}
+        or module.startswith(("playwright.", "websocket."))
+    ):
         return "BROWSER_TRANSIENT", 300
     if isinstance(error, ProviderError):
         return "PROVIDER_TRANSIENT", 900
@@ -3544,16 +3565,26 @@ def provider_poll(state, cdp_port, attempts=15, provider="elevenlabs"):
         state=state,
         receipt=state / "providers" / f"{provider}.json",
     )
+    last_error = None
     for attempt in range(attempts):
         try:
             return poll(args, observe(args))
-        except (ProviderError, OSError, ValueError, KeyError, json.JSONDecodeError):
+        except (
+            ProviderError, WebSocketTimeoutException, OSError, ValueError,
+            KeyError, json.JSONDecodeError,
+        ) as error:
+            last_error = error
             if attempt + 1 < attempts:
                 time.sleep(2)
+    failure_class, retry_seconds = _classify_tool_failure(last_error)
     return {
         "state": "PROVIDER_OBSERVATION_FAILED",
         "changed": False,
         "transition_id": None,
+        "failure_type": type(last_error).__name__,
+        "failure_class": failure_class,
+        "retry_state": "RETRYABLE" if retry_seconds else "NOT_RETRYABLE",
+        "retry_due_at": time.time() + retry_seconds if retry_seconds else None,
     }
 
 
@@ -4532,6 +4563,7 @@ def wake(args):
 
 
 def _wake_once(args, started_at, run_id):
+    pre_effect_hint = prepare_pre_effect_hint()
     state = args.state.expanduser()
     state.mkdir(mode=0o700, parents=True, exist_ok=True)
     guard = runtime_guard(state)
@@ -4636,7 +4668,10 @@ def _wake_once(args, started_at, run_id):
             return result
         try:
             result = attempt_tool(
-                state, run_id, tool, effect_class, preconditions, operation,
+                state, run_id, tool, effect_class, preconditions,
+                lambda: run_effect_guarded(
+                    effect_class, operation, pre_effect_hint,
+                ),
                 attempt=attempt_counts[tool],
                 wake_event_uuid=wake_event_uuid,
             )
@@ -5172,6 +5207,10 @@ def _wake_once(args, started_at, run_id):
         "provider_changed": provider["changed"],
         "provider_state": provider["state"],
         "provider_transition_id": provider["transition_id"],
+        "provider_failure_type": provider.get("failure_type"),
+        "provider_failure_class": provider.get("failure_class"),
+        "provider_retry_state": provider.get("retry_state"),
+        "provider_retry_due_at": provider.get("retry_due_at"),
         "provider_recovery_state": recovery_state,
         "placement_link_state": placement_link.get("state"),
         "placement_link_placement": placement_link.get("placement"),
@@ -5182,6 +5221,10 @@ def _wake_once(args, started_at, run_id):
         "impact_state": impact["state"],
         "impact_changed": impact["changed"],
         "impact_transition_id": impact["transition_id"],
+        "impact_failure_type": impact.get("failure_type"),
+        "impact_failure_class": impact.get("failure_class"),
+        "impact_retry_state": impact.get("retry_state"),
+        "impact_retry_due_at": impact.get("retry_due_at"),
         "impact_recovery_state": impact_recovery_state,
         "impact_login_reconciled_job_id": impact.get("login_reconciled_job_id"),
         "application_program": application.get("program"),

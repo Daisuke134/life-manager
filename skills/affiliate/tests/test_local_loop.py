@@ -5,12 +5,14 @@ import io
 import json
 import subprocess
 import tempfile
+import time
 import unittest
 import sys
 from argparse import Namespace
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock, patch
+from websocket import WebSocketTimeoutException
 from zoneinfo import ZoneInfo
 from jsonschema import Draft202012Validator
 
@@ -23,6 +25,52 @@ SPEC.loader.exec_module(MODULE)
 
 
 class LocalLoopTest(unittest.TestCase):
+    def test_provider_poll_turns_transport_timeout_into_typed_observation_failure(self):
+        with tempfile.TemporaryDirectory() as root:
+            with (
+                patch.object(
+                    MODULE, "observe",
+                    side_effect=WebSocketTimeoutException("read timeout"),
+                ),
+                patch.object(MODULE.time, "sleep"),
+            ):
+                result = MODULE.provider_poll(Path(root), 9324, attempts=2)
+
+            self.assertEqual(result["state"], "PROVIDER_OBSERVATION_FAILED")
+            self.assertFalse(result["changed"])
+            self.assertIsNone(result["transition_id"])
+            self.assertEqual(result["failure_type"], "WebSocketTimeoutException")
+            self.assertEqual(result["failure_class"], "BROWSER_TRANSIENT")
+            self.assertEqual(result["retry_state"], "RETRYABLE")
+            self.assertGreater(result["retry_due_at"], time.time())
+
+    def test_pre_effect_hint_survives_reads_and_clears_before_external_effect(self):
+        with tempfile.TemporaryDirectory() as root:
+            hint = Path(root) / "entrypoint-result.json"
+            with patch.dict(MODULE.os.environ, {
+                "LIFE_MANAGER_RESULT_HINT_PATH": str(hint),
+            }):
+                prepared = MODULE.prepare_pre_effect_hint()
+            self.assertEqual(prepared, hint.resolve())
+            self.assertEqual(json.loads(hint.read_text()), {
+                "status": "pre_effect_failure", "effect": 0,
+            })
+            self.assertEqual(hint.stat().st_mode & 0o777, 0o600)
+
+            read = Mock(return_value={"state": "OBSERVED"})
+            self.assertEqual(
+                MODULE.run_effect_guarded("READ_ONLY", read, prepared),
+                {"state": "OBSERVED"},
+            )
+            self.assertTrue(hint.exists())
+
+            publish = Mock(return_value={"state": "LIVE"})
+            self.assertEqual(
+                MODULE.run_effect_guarded("PUBLICATION_WRITE", publish, prepared),
+                {"state": "LIVE"},
+            )
+            self.assertFalse(hint.exists())
+
     def test_distribution_plan_queues_one_content_preserving_child_job(self):
         with tempfile.TemporaryDirectory() as root:
             state = Path(root)
