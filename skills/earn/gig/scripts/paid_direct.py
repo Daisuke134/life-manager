@@ -6865,7 +6865,8 @@ def _official_buyer_feedback_answer_wait(item: dict[str, Any]) -> bool:
     room with no formal delivery and no fresh artifact feedback may use it.
     """
     return (
-        item.get("buyer_feedback_answered_by_seller") is True
+        item.get("buyer_feedback_stage") == "revision"
+        and item.get("buyer_feedback_answered_by_seller") is True
         and item.get("buyer_feedback_pending_artifact") is not True
         and item.get("formal_delivery_observed", item.get("formal_delivery_confirmed")) is not True
         and _text(item.get("talkroom_state", item.get("transaction_state"))) == "取引中"
@@ -7066,6 +7067,23 @@ def run_once(args, output: Path) -> int:
                         continue
                 reported = _reported_paid_row(args, item)
                 if reported is not None:
+                    # Report-only waiters do not consume the effect slot, but the
+                    # ordered official observation is still durable project fact.
+                    # Persist it after admission so a later wake can audit the
+                    # same buyer-answer boundary without rebuilding or sending.
+                    if item.get("buyer_feedback_answered_by_seller") is True:
+                        try:
+                            delivery_project.record_queue_selection(
+                                args.projects_root, item, adapter="coconala",
+                            )
+                        except (OSError, ValueError, TypeError, json.JSONDecodeError) as error:
+                            rows[room] = {
+                                "talkroom_id": room, "status": "failed",
+                                "failed_step": "context_compile",
+                                "error_detail": str(error)[:500],
+                            }
+                            failed, failed_step = failed + 1, "context_compile"
+                            continue
                     rows[room] = reported
                     readback += 1
                     continue

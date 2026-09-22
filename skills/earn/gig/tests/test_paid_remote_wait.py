@@ -1891,6 +1891,7 @@ def test_reported_paid_row_waits_after_official_seller_answer(tmp_path, monkeypa
         "talkroom_id": "18180857",
         "talkroom_state": "取引中",
         "buyer_feedback_sha256": "e" * 64,
+        "buyer_feedback_stage": "revision",
         "buyer_feedback_pending_artifact": False,
         "buyer_feedback_answered_by_seller": True,
         "talkroom_evidence_file": str(tmp_path / "talkroom.json"),
@@ -1901,6 +1902,53 @@ def test_reported_paid_row_waits_after_official_seller_answer(tmp_path, monkeypa
     assert result["status"] == "awaiting_buyer"
     assert result["send_performed"] is False
     assert result["deduplicated"] is True
+
+    item["buyer_feedback_stage"] = "initial_request"
+    assert paid._official_buyer_feedback_answer_wait(item) is False
+
+
+def test_reported_feedback_answer_observation_is_persisted_without_effect_slot(
+        tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    room = "18180857"
+    item = {
+        "request_id": room,
+        "talkroom_id": room,
+        "buyer": "buyer",
+        "buyer_feedback_sha256": "f" * 64,
+        "buyer_feedback_stage": "revision",
+        "buyer_feedback_answered_by_seller": True,
+        "buyer_feedback_pending_artifact": False,
+        "talkroom_state": "取引中",
+    }
+    args = SimpleNamespace(
+        projects_root=tmp_path / "projects",
+        evidence_dir=tmp_path / "evidence",
+        lock_file=tmp_path / "paid.lock",
+        operator_brake=tmp_path / "operator.brake",
+    )
+    write_json(
+        args.projects_root / room / "state.json",
+        {"request_id": room, "adapter": "coconala", "next_action": "WORK_REQUIRED"},
+    )
+    monkeypatch.setattr(paid, "observe_orders", lambda *_args: [dict(item)])
+    monkeypatch.setattr(paid, "_targeted", lambda _args, value, _index: dict(value))
+    monkeypatch.setattr(paid, "_effect_gate_reason", lambda _args: None)
+    monkeypatch.setattr(paid, "_reconcile_absent_talkrooms", lambda *_args: {"status": "ok"})
+    monkeypatch.setattr(paid.project_janitor, "scan", lambda *_args, **_kwargs: {"status": "ok"})
+    monkeypatch.setattr(
+        paid, "_reported_paid_row",
+        lambda _args, _item: {
+            "talkroom_id": room, "status": "awaiting_buyer",
+            "send_performed": False, "deduplicated": True,
+            "formal_delivery_checkbox": False,
+        },
+    )
+
+    output = tmp_path / "result.json"
+    assert paid.run_once(args, output) == 0
+    state = json.loads((args.projects_root / room / "state.json").read_text())
+    assert state["buyer_feedback_answered_by_seller"] is True
 
 
 def test_official_seller_attachment_wait_dominates_stale_local_state(tmp_path, monkeypatch):
