@@ -130,9 +130,53 @@ def _next_eligible(cadence: dict) -> str:
     return key.replace("_", "-")
 
 
+def _validated_report_event(value: dict | None) -> dict | None:
+    try:
+        event = validate_runtime_event(value)
+    except ValueError:
+        return None
+    return event if event["phase"] == "report" else None
+
+
+def _status_explanation(row: dict, event: dict | None) -> dict:
+    source = _validated_report_event(event)
+    identity = {
+        "event_id": source.get("event_id") if source else None,
+        "run_id": source.get("run_id") if source else None,
+        "phase": source.get("phase") if source else None,
+        "evidence_refs": list(source.get("evidence_refs", [])) if source else [],
+    }
+    if row.get("launchd_state") == "disabled":
+        reason, action = "disabled", "inspect_disabled_state"
+    elif row.get("launchd_state") == "unloaded":
+        reason, action = "unloaded", "apply_immutable_release"
+    elif source is None:
+        reason, action = "insufficient_evidence", "await_next_scheduled_wake"
+    elif not row.get("installed_release_sha"):
+        reason, action = "installed_release_unknown", "inspect_installed_release"
+    elif source.get("release_sha") != row.get("installed_release_sha"):
+        reason, action = "stale_release_event", "reconcile_loaded_release"
+    elif row.get("admission_effect_unknown") is True:
+        reason, action = "effect_unknown_fence", "obtain_official_readback"
+    elif row.get("blocker"):
+        reason, action = "runtime_blocker", "inspect_evidence"
+    elif source.get("status") in {"fail", "blocked"}:
+        reason, action = "terminal_failure", "inspect_evidence"
+    elif (row.get("effect_class") != "none"
+          and source.get("effect_status") != "verified"):
+        reason, action = "effect_unverified", "obtain_official_readback"
+    elif (source.get("status") == "pass"
+          and source.get("effect_status") in {"verified", "not_applicable"}):
+        reason, action = "healthy", "none"
+    else:
+        reason, action = "insufficient_evidence", "inspect_evidence"
+    return {"reason_code": reason, "next_action": action, **identity}
+
+
 def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
                 installed_releases: dict,
-                admission_effect_unknown: set[str] | None = None) -> list[dict]:
+                admission_effect_unknown: set[str] | None = None,
+                explain: bool = False) -> list[dict]:
     validate_registry(registry)
     rows = []
     for loop_id in sorted(registry["loops"]):
@@ -159,7 +203,7 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         ):
             stale_event = "resource_effect_unknown_resolved"
             blocker = None
-        rows.append({
+        row = {
             "classification": "managed",
             "owner": "life-manager",
             "desired_mode": "continuous" if "keep_alive" in entry["cadence"] else "scheduled",
@@ -182,13 +226,17 @@ def status_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "blocker": blocker,
             "admission_effect_unknown": current_effect_unknown,
             "stale_event": stale_event,
-        })
+        }
+        if explain:
+            row["explain"] = _status_explanation(row, event)
+        rows.append(row)
     return rows
 
 
 def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
                     installed_releases: dict, installed_labels: set[str],
-                    admission_effect_unknown: set[str] | None = None) -> list[dict]:
+                    admission_effect_unknown: set[str] | None = None,
+                    explain: bool = False) -> list[dict]:
     rows = status_rows(
         registry,
         loaded=loaded,
@@ -196,6 +244,7 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         events=events,
         installed_releases=installed_releases,
         admission_effect_unknown=admission_effect_unknown,
+        explain=explain,
     )
     managed = {entry["label"] for entry in registry["loops"].values()}
     external = set(registry.get("external_labels", []))
@@ -217,7 +266,7 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
         else:
             launchd_state = "unloaded"
         present = bool(runtime or label in installed_labels)
-        rows.append({
+        row = {
             "classification": classification,
             "owner": "external" if classification == "external" else (
                 "retired" if classification == "retired" else "unknown"),
@@ -241,7 +290,10 @@ def resolver_rows(registry: dict, *, loaded: dict, disabled: dict, events: dict,
             "blocker": (
                 "retired_still_present" if classification == "retired" and present else
                 "unmanaged_label" if classification == "unmanaged" else None),
-        })
+        }
+        if explain:
+            row["explain"] = _status_explanation(row, None)
+        rows.append(row)
     return sorted(rows, key=lambda row: row["label"])
 
 
@@ -429,7 +481,7 @@ def _bounded_reconcile_candidates(registry: dict, route: str,
     return set(candidates)
 
 
-def snapshot(registry: dict, target: str) -> list[dict]:
+def snapshot(registry: dict, target: str, *, explain: bool = False) -> list[dict]:
     if target != "all" and target in registry["loops"]:
         selected_registry = {**registry, "loops": {target: registry["loops"][target]}}
         loaded, disabled, events, releases, _ = collect_live(
@@ -437,12 +489,14 @@ def snapshot(registry: dict, target: str) -> list[dict]:
         return status_rows(
             selected_registry, loaded=loaded, disabled=disabled, events=events,
             installed_releases=releases,
-            admission_effect_unknown=_admission_effect_unknown_owners())
+            admission_effect_unknown=_admission_effect_unknown_owners(),
+            explain=explain)
     loaded, disabled, events, releases, installed = collect_live(registry)
     rows = resolver_rows(
         registry, loaded=loaded, disabled=disabled, events=events,
         installed_releases=releases, installed_labels=installed,
-        admission_effect_unknown=_admission_effect_unknown_owners())
+        admission_effect_unknown=_admission_effect_unknown_owners(),
+        explain=explain)
     return _select(rows, target)
 
 
@@ -896,7 +950,7 @@ def main(argv: list[str] | None = None) -> int:
         "start", "stop", "restart", "status", "watch",
     }
     if not args or args[0] not in commands:
-        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status|watch [<loop-id|all>]", file=sys.stderr)
+        print("usage: lm-loop admission-v2-enable|apply [--all]|doctor|reconcile <provider-route> [--loaded-idle-only] [--max-owners N] [--loop-id <loop-id>]...|start|stop|restart <loop-id|all>|status [<loop-id|all>] [--explain]|watch [<loop-id|all>]", file=sys.stderr)
         return 2
     command = args[0]
     if command == "apply":
@@ -1163,7 +1217,22 @@ def main(argv: list[str] | None = None) -> int:
                 lambda launch_args: _safe_launchctl(launchctl_safe, launch_args)))
         print(json.dumps(results, indent=2, sort_keys=True))
         return 1 if any(row["return_code"] for row in results) else 0
-    target = args[1] if len(args) > 1 else "all"
+    explain = False
+    if command in {"status", "watch"}:
+        status_args = args[1:]
+        explain_count = status_args.count("--explain")
+        if explain_count:
+            if command != "status" or explain_count != 1:
+                print(json.dumps({"ok": False, "error": "--explain is valid once for status only"}, sort_keys=True))
+                return 2
+            explain = True
+            status_args = [value for value in status_args if value != "--explain"]
+        if len(status_args) > 1 or any(value.startswith("-") for value in status_args):
+            print(json.dumps({"ok": False, "error": f"{command} accepts one <loop-id|all>"}, sort_keys=True))
+            return 2
+        target = status_args[0] if status_args else "all"
+    else:
+        target = args[1] if len(args) > 1 else "all"
     if command == "doctor":
         loaded, _, _, _, installed = collect_live(registry)
         existing = {entry["entrypoint"] for entry in registry["loops"].values()
@@ -1173,7 +1242,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(report, indent=2, sort_keys=True))
         return 0 if report["ok"] else 1
     while True:
-        print(json.dumps(snapshot(registry, target), indent=2, sort_keys=True), flush=True)
+        print(json.dumps(snapshot(registry, target, explain=explain), indent=2, sort_keys=True), flush=True)
         if command == "status" or os.environ.get("LM_LOOP_WATCH_ONCE") == "1":
             return 0
         time.sleep(2)

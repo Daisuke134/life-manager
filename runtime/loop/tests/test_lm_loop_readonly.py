@@ -22,6 +22,28 @@ REGISTRY = {"schema_version": 2, "loops": {"example": {
 }}}
 
 
+def runtime_event(**overrides):
+    value = {
+        "version": 1,
+        "event_id": "a" * 24,
+        "timestamp": "2026-08-28T00:00:00Z",
+        "loop_id": "example",
+        "domain": "earn",
+        "run_id": "run-example",
+        "phase": "report",
+        "status": "pass",
+        "release_sha": "b" * 40,
+        "provider": "deterministic",
+        "profile_alias": None,
+        "effect_class": "application",
+        "effect_status": "verified",
+        "blocker": None,
+        "evidence_refs": ["lm-loop://example/run-example/summary.json"],
+    }
+    value.update(overrides)
+    return value
+
+
 class LmLoopReadonlyTest(unittest.TestCase):
     def test_status_separates_runtime_and_business_truth(self):
         events = {"example": {"timestamp": "2026-08-28T00:00:00Z", "status": "blocked",
@@ -190,6 +212,100 @@ class LmLoopReadonlyTest(unittest.TestCase):
                 "EnvironmentVariables": {"LIFE_MANAGER_STATE_ROOT": custom},
             }))
             self.assertEqual(_state_root_from_plist(path, "/default-state"), custom)
+
+    def test_status_explain_is_opt_in_and_uses_only_validated_event_evidence(self):
+        default = status_rows(
+            REGISTRY,
+            loaded={"ai.anicca.example": {"last_exit": "0"}},
+            disabled={}, events={"example": runtime_event()},
+            installed_releases={"ai.anicca.example": "b" * 40},
+        )[0]
+        self.assertNotIn("explain", default)
+
+        explained = status_rows(
+            REGISTRY,
+            loaded={"ai.anicca.example": {"last_exit": "0"}},
+            disabled={}, events={"example": runtime_event()},
+            installed_releases={"ai.anicca.example": "b" * 40},
+            admission_effect_unknown=set(), explain=True,
+        )[0]["explain"]
+        self.assertEqual(explained, {
+            "reason_code": "healthy",
+            "next_action": "none",
+            "event_id": "a" * 24,
+            "run_id": "run-example",
+            "phase": "report",
+            "evidence_refs": ["lm-loop://example/run-example/summary.json"],
+        })
+
+    def test_status_explain_covers_operational_and_business_failure_boundaries(self):
+        loaded = {"ai.anicca.example": {"last_exit": "0"}}
+        installed = {"ai.anicca.example": "b" * 40}
+
+        def reason(*, event=None, runtime=loaded, disabled=None, release=installed,
+                   fenced=None):
+            return status_rows(
+                REGISTRY,
+                loaded=runtime,
+                disabled=disabled or {},
+                events={} if event is None else {"example": event},
+                installed_releases=release,
+                admission_effect_unknown=fenced,
+                explain=True,
+            )[0]["explain"]
+
+        cases = [
+            (reason(event=runtime_event(), disabled={"ai.anicca.example": True}),
+             "disabled", "inspect_disabled_state"),
+            (reason(event=runtime_event(), runtime={}),
+             "unloaded", "apply_immutable_release"),
+            (reason(event=runtime_event(release_sha="c" * 40)),
+             "stale_release_event", "reconcile_loaded_release"),
+            (reason(event=runtime_event(
+                status="blocked", effect_status="unknown",
+                blocker="host_admission_deferred:resource_effect_unknown"),
+                fenced={"example"}),
+             "effect_unknown_fence", "obtain_official_readback"),
+            (reason(event=runtime_event(status="fail", effect_status="failed",
+                                        blocker="entrypoint_exit_1")),
+             "runtime_blocker", "inspect_evidence"),
+            (reason(event=runtime_event(effect_status="unknown"), fenced=set()),
+             "effect_unverified", "obtain_official_readback"),
+        ]
+        for explanation, code, action in cases:
+            self.assertEqual((explanation["reason_code"], explanation["next_action"]),
+                             (code, action))
+            self.assertEqual(explanation["event_id"], "a" * 24)
+            self.assertEqual(explanation["phase"], "report")
+            self.assertEqual(explanation["evidence_refs"],
+                             ["lm-loop://example/run-example/summary.json"])
+
+        no_event = reason()
+        self.assertEqual((no_event["reason_code"], no_event["next_action"]),
+                         ("insufficient_evidence", "await_next_scheduled_wake"))
+        self.assertEqual(no_event["evidence_refs"], [])
+        self.assertIsNone(no_event["event_id"])
+        invalid = reason(event={"status": "pass", "evidence_refs": ["forged"]})
+        self.assertEqual(invalid["reason_code"], "insufficient_evidence")
+        self.assertEqual(invalid["evidence_refs"], [])
+
+    def test_status_explain_cli_accepts_one_target_and_rejects_unknown_flags(self):
+        root = Path(__file__).resolve().parents[3]
+        explained = subprocess.run(
+            [str(root / "bin/lm-loop"), "status", "fundraiser", "--explain"],
+            cwd="/tmp", capture_output=True, text=True, timeout=10,
+        )
+        self.assertEqual(explained.returncode, 0, explained.stderr)
+        row = json.loads(explained.stdout)[0]
+        self.assertEqual(row["loop_id"], "fundraiser")
+        self.assertEqual(set(row["explain"]), {
+            "reason_code", "next_action", "event_id", "run_id", "phase", "evidence_refs",
+        })
+        rejected = subprocess.run(
+            [str(root / "bin/lm-loop"), "status", "fundraiser", "--guess"],
+            cwd="/tmp", capture_output=True, text=True, timeout=10,
+        )
+        self.assertEqual(rejected.returncode, 2)
 
 
 if __name__ == "__main__":
