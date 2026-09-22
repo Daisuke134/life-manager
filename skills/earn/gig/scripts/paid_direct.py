@@ -5464,6 +5464,30 @@ def _operator_policy_newer_than(root: Path, item: dict[str, Any], checkpoint: Pa
             and policy_path.stat().st_mtime_ns > checkpoint.stat().st_mtime_ns)
 
 
+def _require_tiktok_recipient_total(root: Path, result: dict[str, Any]) -> int | None:
+    expected = effect_checkpoint.tiktok_verified_unique_count(
+        root / "delivery" / "paid-remote-progress.jsonl",
+    )
+    if expected is None:
+        return None
+    campaign = (result.get("observed_state") or {}).get("campaign")
+    if not isinstance(campaign, dict) or not isinstance(campaign.get("required_unique_sends"), int):
+        raise ValueError("TikTok recipient total contract missing from result")
+    required = campaign["required_unique_sends"]
+    remaining = required - expected
+    if (campaign.get("verified_unique_sends") != expected
+            or campaign.get("remaining_eligible_personalized_sends") != remaining):
+        raise ValueError("TikTok recipient total differs from deterministic ledger")
+    message = _text(result.get("customer_message"))
+    current_match = re.search(r"現在\s*(\d+)\s*件", message)
+    remaining_match = re.search(r"残り\s*(\d+)\s*件", message)
+    if (not current_match or not remaining_match
+            or int(current_match.group(1)) != expected
+            or int(remaining_match.group(1)) != remaining):
+        raise ValueError("TikTok recipient total in customer message differs from deterministic ledger")
+    return expected
+
+
 def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: Path) -> Path:
     _require_owner_policy_clear(args, _load(item_path))
     context = root / "context" / "current.json"
@@ -5473,6 +5497,7 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as error: raise Failure("context_compile") from error
     requirements_snapshot = _requirements_snapshot(root)
     progress = root / "delivery" / "paid-remote-progress.jsonl"
+    effect_checkpoint.reconcile_tiktok_recipient_counts(progress)
     try: _, semantic_contract_sha256 = _semantic_effect_contract(root)
     except (OSError, ValueError, TypeError, json.JSONDecodeError) as error: raise Failure("context_compile") from error
     progress_contract = {
@@ -5490,6 +5515,7 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
         intent = _load(root / "delivery" / "paid-remote-intent.json")
         delivery_result = _load(root / "delivery" / "paid-remote-result.json")
         _require_semantic_effect_binding(root, intent, delivery_result)
+        _require_tiktok_recipient_total(root, delivery_result)
         digest = _text(intent.get("desired_state_sha256"))
         if _remote_wait_is_fresh(root, feedback, digest):
             raise Failure("remote_progress")
@@ -5573,6 +5599,8 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
                     raise ValueError("semantic effect contract changed")
                 _normalize_builder_result(root, pass_start)
                 intent = _load(root / "delivery" / "paid-remote-intent.json")
+                delivery_result = _load(root / "delivery" / "paid-remote-result.json")
+                _require_tiktok_recipient_total(root, delivery_result)
                 digest = _text(intent.get("desired_state_sha256"))
                 checkpoint = _remote_owner_checkpoint(
                     step_result_status.status_from_evidence(owner_evidence),
