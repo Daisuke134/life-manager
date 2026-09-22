@@ -319,13 +319,17 @@ def rebind_queued_owner(
             connection.execute(
                 "DELETE FROM reservations WHERE lease_until <= ?", (time.time(),)
             )
+            reserved = connection.execute(
+                "SELECT 1 FROM reservations WHERE owner_id=?", (owner_id,)
+            ).fetchone()
             if connection.execute(
                 """SELECT 1 FROM occurrences
                    WHERE owner_id=?
                      AND ((state='claimed' AND effect_unknown=0)
-                          OR (?='owner' AND effect_unknown=1))
+                          OR ((?='owner' OR ?=1) AND effect_unknown=1))
                    LIMIT 1""",
-                (owner_id, effect_scope),
+                (owner_id, effect_scope,
+                 int(bool(replace_reserved_policy_drift and reserved))),
             ).fetchone() or connection.execute(
                 "SELECT 1 FROM priorities WHERE owner_id=? AND effect_unknown=1",
                 (owner_id,),
@@ -348,9 +352,6 @@ def rebind_queued_owner(
             changed = current != (
                 admission_class, priority_name, ADMISSION_POLICY, effect_scope,
             )
-            reserved = connection.execute(
-                "SELECT 1 FROM reservations WHERE owner_id=?", (owner_id,)
-            ).fetchone()
             if reserved and not (replace_reserved_policy_drift and changed):
                 return "reserved"
             if reserved:
