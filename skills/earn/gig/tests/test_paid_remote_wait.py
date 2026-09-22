@@ -4520,8 +4520,18 @@ def test_paid_admission_does_not_expand_one_identity_to_multiple_talkrooms(tmp_p
 def test_paid_noop_winner_rotates_next_wake_to_one_later_effect(tmp_path, monkeypatch):
     paid = load("paid_direct")
     items = [
-        {"talkroom_id": "101", "buyer": "buyer-a", "delivery_date": "2026-09-01"},
-        {"talkroom_id": "102", "buyer": "buyer-b", "delivery_date": "2026-09-02"},
+        {
+            "request_id": "request-a",
+            "talkroom_id": "101",
+            "buyer": "buyer-a",
+            "delivery_date": "2026-09-01",
+        },
+        {
+            "request_id": "request-b",
+            "talkroom_id": "102",
+            "buyer": "buyer-b",
+            "delivery_date": "2026-09-02",
+        },
     ]
     args = SimpleNamespace(
         projects_root=tmp_path / "projects",
@@ -4530,6 +4540,15 @@ def test_paid_noop_winner_rotates_next_wake_to_one_later_effect(tmp_path, monkey
         operator_brake=tmp_path / "operator.brake",
     )
     effects = []
+    for item in items:
+        write_json(
+            args.projects_root / item["talkroom_id"] / "requirements/live-buyer-reply.json",
+            {
+                "request_id": item["request_id"],
+                "project_id": item["request_id"],
+                "talkroom_id": item["talkroom_id"],
+            },
+        )
 
     monkeypatch.setattr(paid, "observe_orders", lambda *_args: [dict(item) for item in items])
     monkeypatch.setattr(paid, "_targeted", lambda _args, item, _index: dict(item))
@@ -4574,6 +4593,12 @@ def test_paid_noop_winner_rotates_next_wake_to_one_later_effect(tmp_path, monkey
     assert effects == ["102"]
     result = json.loads(second.read_text(encoding="utf-8"))
     assert [row["status"] for row in result["items"]] == ["completed", "completed"]
+    for room in ("101", "102"):
+        events = [
+            json.loads(line)
+            for line in (args.projects_root / room / "events.jsonl").read_text().splitlines()
+        ]
+        assert [row["event"] for row in events].count("queue_selected") == 1
 
 
 def test_paid_observation_does_not_exclude_ryu_talkroom(tmp_path, monkeypatch):
