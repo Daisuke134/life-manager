@@ -68,6 +68,8 @@ The occurrence-isolation source gate is pushed at `a82085698e`. Shared admission
 
 PR #5765 merged at `ac2d9b26d1d808a5f5cca40791c8b15a9e2d8df1`. Latest-main immutable release `87aa9d11fbd8b6eff6cf4bed119635471e037aa8` contains the source gate. The first targeted canary apply correctly made no launchd or provider change: one attempt serialized behind the Paid owner's shared control lock, and the next exposed a remaining deploy-plane mismatch, `admission rebind refused: effect_unknown`. The rebind path still assumed owner-wide effects even though the runner was occurrence-scoped. The follow-up keeps every historical unknown row intact, changes only the canonical Mobile publish queue's persisted `effect_scope`, and leaves claimed non-unknown work plus every default owner fail-closed. A regression test migrates a pre-fix queue with an old unknown and proves that only its different queued occurrence can subsequently claim.
 
+The deploy-rebind follow-up passed 115 shared admission tests, 68 runner tests, 110 apply tests, the full runtime suite (`826 passed, 598 subtests`) and the 14-loop contract (`166` registry jobs, `0` errors). Fresh read-only review returned `ship`; PR #5767 merged at `3bf95b4787863f5cece5c084a481a6567bf9b307`. Immutable release `/Users/anicca/loops/releases/20260923T013355-3bf95b47` matches that main SHA. Targeted apply changed only `life-manager-anicca-jp1-tiktok`, with install event `55cad11137bcadb03f92b5d6`; loaded argv and plist both reference that exact release, `runs=0`, and the next calendar wake remains 06:30 JST. The admission priority now records `effect_scope=occurrence`; all 17 Mobile/Honne historical unknown rows and the jp1 unknown row remain unchanged. No provider call or post occurred during apply.
+
 ## Current diagnosis and release gate
 
 - Read-only SQLite still finds exactly 17 Mobile/Honne `effect_unknown=1` occurrences: 14 `released` and 3 `claimed`. Their exact identity sidecars do not exist, so none can be truthfully cleared.
@@ -75,7 +77,7 @@ PR #5765 merged at `ac2d9b26d1d808a5f5cca40791c8b15a9e2d8df1`. Latest-main immut
 - The failure is the outer host admission granularity, not a current Postiz API or generation failure: one historical occurrence fences every future slot for that owner.
 - Mobile's inner runtime already derives slot/content-bound job and effect identities, stores receipts, and refuses a terminal job without a receipt. The outer runtime must preserve those old unknowns while allowing only a distinct occurrence to enter that inner safety boundary.
 - Source changes are developed on a latest-main Mobile-only branch. No production state, provider session, Paid fulfillment file, Paid owner, registry entry or OBOU state changes before the focused gates pass.
-- The runner source gate is on main and the 17-row readback remains unchanged. The current source cursor is the Mobile-only deploy-rebind follow-up; after its PR/main gate, acceptance returns to the latest-main immutable release, one naturally due non-OBou canary, its exact official provider receipt, and replay-zero before staged rollout.
+- Both runner and deploy-rebind gates are on main, the 17-row readback remains unchanged, and only the jp1 canary is loaded from the new release. The current cursor is its natural 06:30 JST wake, exact terminal event, official provider receipt and replay-zero. No second Mobile owner is promoted before these pass.
 
 ## Non-goals
 
