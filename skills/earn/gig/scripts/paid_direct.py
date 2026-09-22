@@ -4887,7 +4887,7 @@ def _repair_prompt(root: Path, item: Path, feedback: str, requirements_sha256: s
             "one exact row with `gog sheets append`; pass --values-json with one JSON 2D row such as "
             "`[[\"@handle\",\"9/23\"]]`; never pass the two cells as separate positional arguments. Atomically persist "
             "its JSON response and require updatedRows=1, updatedColumns=2, and updatedCells=2, then read the append "
-            "response's exact updatedRange with `gog sheets get` and require the same two matching values before checkpointing. "
+            "response's exact updated range (`updatedRange`) with `gog sheets get` and require the same two matching values before checkpointing. "
             "Choose skills from the complete project context and actual target capabilities, never from a hardcoded buyer-name or keyword router. "
             "Before any external mutation, bind every factual claim in the outbound payload to an official source URL or a hash-bound "
             "project source. Omit facts that were not observed; when a missing fact matters, ask the recipient as a concise qualification "
