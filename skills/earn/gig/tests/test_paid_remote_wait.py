@@ -4825,7 +4825,10 @@ def test_paid_reported_waiter_does_not_consume_only_effect_slot(tmp_path, monkey
         )
 
     monkeypatch.setattr(paid, "observe_orders", lambda *_args: [dict(item) for item in items])
-    monkeypatch.setattr(paid, "_targeted", lambda _args, item, _index: dict(item))
+    monkeypatch.setattr(
+        paid, "_targeted",
+        lambda _args, item, _index: {**item, "fresh_targeted_readback": True},
+    )
     monkeypatch.setattr(
         paid,
         "_reported_paid_row",
@@ -4837,7 +4840,7 @@ def test_paid_reported_waiter_does_not_consume_only_effect_slot(tmp_path, monkey
                 "deduplicated": True,
                 "formal_delivery_checkbox": False,
             }
-            if item["talkroom_id"] == "101"
+            if item["talkroom_id"] == "101" and item.get("fresh_targeted_readback") is True
             else None
         ),
     )
