@@ -727,7 +727,7 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 | 2 | **Shared runtime source integrated; live gate open:** focused main changes cover durable queue, claim→child identity, release→next claim, priority/aging, owner recovery and uncertain-effect handling. Do not tune the slot count to hide liveness failure. The old candidate branch is not the production source. | Focused source checks passed and representative owners ran from main releases; step 3 must still prove no persistent queue starvation across mixed owners. |
 | 3 | **A15 shared foundation — PASS, keep monitored.** Main-only immutable releases, bounded durable admission, owner-scoped effect fences, release reconciliation and disk/headroom guards exist. Foundation completion never implies a provider loop is complete. | Existing A15 receipts remain valid; any new regression is repaired through the same exact-owner path and re-proved by a natural wake. |
 | 4 | **Connector effect chain — previously PASS; continuity recheck remains.** Connpass event `407445` has official `registered`, Calendar exact-one and two replay-zero wakes. The later `wake_boundary_failed` circuit-open report is a new runtime-health cursor, not permission to erase the earlier receipt. | Diagnose the new exact occurrence and restore a natural terminal without repeating the registration; official state stays exact-one and replay-zero. |
-| 5 | **Current cursor — Affiliate local business repair.** The false-green PartnerStack boundary is repaired on main by PR #5786, merge `592afe9c82210d01037e90ba10975b3e6e0a6fd4`. ElevenLabs SaaS health and PartnerStack affiliate-network health are now separate; PartnerStack HTTP 401/403 yields typed `AUTH_REQUIRED`, a secret-free receipt and zero downstream GetResponse/Systeme/Impact-recovery/publication/distribution/revenue/CTA writes. Existing exact custom links verify without the Custom Links form. Affiliate tests are 199/199, shared runtime 511/511, loop contract and installed doctor PASS, all PR checks are green and the final fresh review is SHIP. Normal PartnerStack login was restored from the private credential SSOT; fresh official API readback is HTTP 200 and the current TTS plus two in-flight placement slugs each have exact-one valid `try.elevenlabs.io` link. Immutable release `20260923T065012-592afe9c` is current and Affiliate automatically rebinds loaded-idle to exact `592afe9c…` without a manual restart. Exact occurrence `affiliate-loop:18d60708b5280330-91709` is joined to outer run `18d7c076…`, scheduler run `e31d697…` and old release `3fe9ead…`. The two unknown operations timed out before `start_effect` and before owned/X publication; fresh read-only evidence review approves the 0600 pre-effect proof. The exact API moves only this occurrence from `claimed/effect_unknown=1` to `released/0`; status now reports `admission_effect_unknown=false` and `resource_effect_unknown_resolved`. Official business evidence remains cumulative provider clicks 8, current CTA clicks 0, transactions 0 and approved/paid 0. | Do not manually start or restart. Require the next natural wake on exact `592afe9c…` to report the composite provider fields, dedupe the existing official links, avoid `RUNNER_PIN_REJECTED`, reach the acquisition/funnel decisions, release its occurrence with `effect_unknown=0`, and then produce replay-zero. Continue with owned-visit analytics, transient Impact observation, publication quarantine and an attributable conversion/payment receipt. Source/CI/release/fence PASS is not Affiliate revenue completion. |
+| 5 | **Current cursor — Affiliate local business repair.** The false-green PartnerStack boundary and exact old effect fence are repaired by PR #5786, merge `592afe9c82210d01037e90ba10975b3e6e0a6fd4`. The first admitted natural wake on that SHA auto-refreshes the verified runner pin, reaches both acquisition and funnel decisions, and releases occurrence `affiliate-loop:18d607947836ded8-7444` with `effect_unknown=0`. It also exposes the next truthful boundary: CDP HTTP remains healthy while the exact ElevenLabs page renderer is wedged, so provider observation ends as typed `BROWSER_TRANSIENT` before any external write. A one-time exact-tab reload proves the renderer recovers without a browser/process restart. PR #5789, merge `296f07a446328b74035d164a8b12099508b67321`, adds bounded exact-target self-heal: one reload, one evaluation retry, strict browser-endpoint/reply validation, no 15-attempt reload storm and a `provider_renderer_recovered` wake field. Affiliate is 206/206, shared runtime 511/511, host admission 154/154, the 14-loop contract has errors 0, all PR checks are green and fresh review is Ready. The existing reconciler has cut current immutable release `20260923T080252-4c6b1dc8`, which contains the Affiliate merge; `affiliate-loop` remains safely loaded-idle on `37e1d582…` while owner reconciliation proceeds. Official business evidence remains cumulative provider clicks 8, current CTA clicks 0, transactions 0 and approved/paid 0. | Do not manually start or restart. Require automatic loaded-idle reconciliation to exact current `4c6b1dc8…`, then a natural wake with authenticated provider/service/network state, exact-link dedupe, no runner-pin rejection, occurrence release with `effect_unknown=0`, and the bounded renderer-recovery receipt if the fault recurs. Require the following natural replay-zero. Continue with owned-visit analytics, transient Impact observation, publication quarantine and an attributable conversion/payment receipt. Source/CI/release/fence PASS is not Affiliate revenue completion. |
 | 6 | **Mobile Apps/Postiz local canary.** Recipient counting, occurrence isolation and deterministic-ledger reconciliation are merged and loaded for `life-manager-anicca-jp1-tiktok`; its first scheduled wake is 06:30 JST. | Natural scheduled terminal, official Postiz/provider readback and replay-zero. Then roll the same proven contract through the remaining app/account jobs and restore the required three daily publication slots. |
 | 7 | **Paid fulfillment remains delegated.** The separate Paid owner completes Coconala → CrowdWorks → Lancers → Upwork client work under its own spec and lease. This workstream neither restarts Paid nor reconciles its effect state. | Import only its official delivery/revision/payment receipts after owner completion; no duplicate sender, browser session or state writer. |
 | 8 | **Repair every remaining non-Paid job in all 14 Product Loops, one exact owner at a time.** This includes CrowdWorks Application/Reply/Report where they do not overlap Paid, Affiliate revenue conversion, Connector continuity, Writer, Investment, Agent Economy, Job Hunter, Fundraiser, Self-Build, Mobile Apps, Capafy and CFO. | Each enabled job has the current installed SHA, bounded natural terminal, official effect/readback or explicit setup/not-applicable state, and replay-zero where an effect exists. A process exit or Telegram message alone is not success. |
@@ -2604,18 +2604,44 @@ before PartnerStack `start_effect` and before owned/X publication; all other wri
 deduplicated, no-effect or `changed=false`, and no relevant job journal row changed during the run.
 The 0600 proof receipt passes a fresh high-risk read-only review. The exact host API moves only that
 occurrence from `claimed/effect_unknown=1` to `released/0`; current status reports
-`admission_effect_unknown=false` and `resource_effect_unknown_resolved`. Production acceptance still
-waits for a natural terminal and replay-zero on `592afe9c...`; verified Affiliate revenue remains zero.
+`admission_effect_unknown=false` and `resource_effect_unknown_resolved`.
+
+The first natural capacity attempt on `592afe9c...` defers safely as
+`host_admission_deferred:resource_capacity_busy`; the durable FIFO later grants the same owner without
+a manual start. Natural run `18d7c47ab1763208-52370` auto-refreshes the old verified runner pin,
+reaches `READY` acquisition and funnel decisions, and releases occurrence
+`affiliate-loop:18d607947836ded8-7444` with `effect_unknown=0`. This closes the runner-pin and old-fence
+acceptance, but the run truthfully reports `provider_state=PROVIDER_OBSERVATION_FAILED`,
+`provider_affiliate_network_state=NOT_RUN` and `BROWSER_TRANSIENT`. CDP `/json/version` stays healthy
+while three direct `Runtime.evaluate` probes time out on the sole ElevenLabs page. Reloading that exact
+target once through the browser websocket restores evaluation immediately, proving a wedged renderer
+rather than lost browser/auth state. No provider write occurs.
+
+PR #5789 merges the reusable renderer self-heal as
+`296f07a446328b74035d164a8b12099508b67321`. A first page websocket timeout attaches to the same target,
+enables the page domain, reloads once, waits within a bounded deadline and retries evaluation once. A
+second timeout becomes typed `ProviderRendererError`; provider polling stops instead of repeating the
+reload fifteen times. The browser endpoint and every recovery reply fail closed on malformed schemas,
+and the wake receipt exposes `provider_renderer_recovered`. Affiliate passes 206/206, shared runtime
+511/511, host admission 154/154, the loop contract reports 14 loops and 166 registry jobs with errors
+0, every PR check is green and fresh read-only review reports Ready. The existing reconciler cuts
+current immutable release `20260923T080252-4c6b1dc8`, which contains this merge. Production acceptance
+now waits for automatic loaded-idle reconciliation from Affiliate's current `37e1d582...` to exact
+`4c6b1dc8...`, followed by a natural Affiliate terminal and replay-zero. Verified Affiliate revenue
+remains zero.
 
 The remaining order is fixed as follows:
 
-1. Finish Affiliate without manual restart: the PartnerStack auth boundary, normal re-authentication,
-   exact custom-link readback, exact occurrence reconciliation and immutable `592afe9c...` load are
-   complete. Require the next natural wake on exact `592afe9c...` to reach acquisition/funnel
-   decisions without `RUNNER_PIN_REJECTED`, preserve `effect_unknown=0` and then prove replay-zero.
-   Continue with unavailable owned-visit analytics, transient Impact
-   observation, publication timeout/quarantine, attributable conversion and replay-zero. An existing
-   public page, impressions or process `exit 0` is not revenue completion.
+1. Finish Affiliate without manual restart: PartnerStack authentication/link readback, exact occurrence
+   reconciliation, runner-pin recovery and acquisition/funnel decision execution are complete. The
+   next blocker is the page-renderer liveness boundary; its bounded exact-target self-heal is merged as
+   `296f07a4...`; immutable current `20260923T080252-4c6b1dc8` contains it. Let the existing reconciler
+   load Affiliate at the safe idle boundary, then require one natural wake with authenticated
+   provider/service/network state, exact-link dedupe, no
+   `RUNNER_PIN_REJECTED`, `effect_unknown=0` and a truthful renderer-recovery field. Require the next
+   natural replay-zero. Then continue with unavailable owned-visit analytics, transient Impact
+   observation, publication timeout/quarantine and attributable conversion/payment receipts. An
+   existing public page, impressions or process `exit 0` is not revenue completion.
 2. Verify Mobile Apps/Postiz on its natural schedule: expected posts exist on the official provider,
    the intended three-per-day cadence is durable, missed occurrences are reconciled without duplicate
    publication, and analytics/revenue receipts feed the same evaluation contract.
