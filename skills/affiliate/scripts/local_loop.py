@@ -1859,6 +1859,7 @@ def create_repost_proposal(state):
         Path.home() / "loops" / "x-repost"
     )
     eligible = []
+    observed = []
     for candidate in candidates:
         proposal_identity = {
             "placement_id": candidate["placement_id"],
@@ -1872,15 +1873,57 @@ def create_repost_proposal(state):
         delivery = repost_consumption_state(
             repost_root, candidate["proposal_id"], candidate["placement_id"]
         )
+        candidate["repost_delivery_state"] = delivery
+        observed.append(candidate)
         if delivery in {
             "CONSUMPTION_LEDGER_INVALID", "CONSUMPTION_LEDGER_UNAVAILABLE",
             "CONSUMPTION_LEDGER_MISMATCH",
         }:
-            return {"state": "REPOST_CONSUMPTION_UNSAFE", "changed": False}
+            selected = candidate
+            return {
+                "schema_version": 1,
+                "receipt_type": "AFFILIATE_REPOST_PROPOSAL",
+                "proposal_id": selected["proposal_id"],
+                "state": "REPOST_CONSUMPTION_UNSAFE",
+                "changed": False,
+                "placement_id": selected["placement_id"],
+                "plan_id": selected["plan_id"],
+                "owned_article_url": selected["owned_article_url"],
+                "language": "en",
+                "disclosure_required": True,
+                "provider_click_count": selected["provider_click_count"],
+                "article_title": selected["article_title"],
+                "buyer_intent": selected["buyer_intent"],
+                "repost_delivery_state": delivery,
+                "revenue_credit_state": "NO_REVENUE_CREDIT",
+                "tracking_link_state": "NOT_INCLUDED",
+            }
         if delivery == "UNCONSUMED_BY_SEPARATE_OWNER":
             eligible.append(candidate)
     if not eligible:
-        return {"state": "WAITING_FOR_REPOST_PROPOSAL_SLOT", "changed": False}
+        selected = max(observed, key=lambda row: (
+            row["provider_click_count"] is not None,
+            row["provider_click_count"] or -1,
+            row["created_at"],
+        ))
+        return {
+            "schema_version": 1,
+            "receipt_type": "AFFILIATE_REPOST_PROPOSAL",
+            "proposal_id": selected["proposal_id"],
+            "state": "ALREADY_PROPOSED",
+            "changed": False,
+            "placement_id": selected["placement_id"],
+            "plan_id": selected["plan_id"],
+            "owned_article_url": selected["owned_article_url"],
+            "language": "en",
+            "disclosure_required": True,
+            "provider_click_count": selected["provider_click_count"],
+            "article_title": selected["article_title"],
+            "buyer_intent": selected["buyer_intent"],
+            "repost_delivery_state": selected["repost_delivery_state"],
+            "revenue_credit_state": "NO_REVENUE_CREDIT",
+            "tracking_link_state": "NOT_INCLUDED",
+        }
     selected = max(eligible, key=lambda row: (
         row["provider_click_count"] is not None,
         row["provider_click_count"] or -1,
@@ -4928,11 +4971,19 @@ def _wake_once(args, started_at, run_id):
         {"placement_ledger_state": placement_ledger.get("state")},
         lambda: refresh_funnel_snapshot(state),
     )
-    owned_visits = admit(
-        "acquisition.observe-owned-visits", "READ_ONLY",
-        {"funnel_snapshot_sha256": funnel_snapshot.get("snapshot_sha256")},
-        lambda: observe_owned_visits(state),
-    )
+    try:
+        owned_visits = admit(
+            "acquisition.observe-owned-visits", "READ_ONLY",
+            {"funnel_snapshot_sha256": funnel_snapshot.get("snapshot_sha256")},
+            lambda: observe_owned_visits(state),
+        )
+    except Exception as error:
+        owned_visits = {
+            "state": "UNAVAILABLE", "changed": False,
+            "reason": "OWNED_VISIT_OBSERVATION_FAILED",
+            "receipt_sha256": None,
+            "failure_type": type(error).__name__,
+        }
     focused_funnel = (funnel_snapshot.get("placements") or [{}])[0]
     try:
         cta_instrumentation = admit(

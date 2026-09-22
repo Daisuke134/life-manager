@@ -65,10 +65,10 @@ class TerraDefaultTest(unittest.TestCase):
                                  "effort": "medium", "profile_alias": "acct1"}]
                 if name == "affiliate-marketing-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-terra",
-                                 "effort": "high", "profile_alias": "acct1"}]
+                                 "effort": "high", "profile_alias": "acct2"}]
                 if name == "affiliate-escalation-agent":
                     expected = [{"provider": "codex", "model": "gpt-5.6-sol",
-                                 "effort": "high", "profile_alias": "acct1"}]
+                                 "effort": "high", "profile_alias": "acct2"}]
                 if name == "browser-lane-agent":
                     expected = [
                         {"provider": "codex", "model": "gpt-5.6-terra",
@@ -83,7 +83,10 @@ class TerraDefaultTest(unittest.TestCase):
                 # Paid and explicit escalation stay Codex-only. Other executable
                 # classes retain their existing cross-provider fallback contract.
                 fallback = {"provider": "claude-direct", "model": "claude-sonnet-5"}
-                if name not in {"paid-owner-agent", "escalation-agent", "codex-brain-agent"} and fallback not in expected:
+                if name not in {
+                    "paid-owner-agent", "escalation-agent", "codex-brain-agent",
+                    "affiliate-marketing-agent", "affiliate-escalation-agent",
+                } and fallback not in expected:
                     expected.append(fallback)
                 self.assertEqual(candidates, expected)
 
@@ -99,14 +102,19 @@ class TerraDefaultTest(unittest.TestCase):
             [("gpt-5.6-terra", "acct1"), ("gpt-5.6-terra", "acct2")],
         )
 
-    def test_every_codex_route_starts_with_account_one(self):
+    def test_every_codex_route_starts_with_its_declared_primary_account(self):
         config_path = Path(__file__).resolve().parents[1] / "config.json"
         config = json.loads(config_path.read_text(encoding="utf-8"))
         for name, task_class in config["task_classes"].items():
             for candidate in task_class.get("candidates", []):
                 if candidate.get("provider") == "codex":
                     with self.subTest(task_class=name, model=candidate.get("model")):
-                        self.assertEqual(candidate.get("profile_alias"), "acct1")
+                        expected = (
+                            "acct2" if name in {
+                                "affiliate-marketing-agent", "affiliate-escalation-agent",
+                            } else "acct1"
+                        )
+                        self.assertEqual(candidate.get("profile_alias"), expected)
 
     def test_a_restricted_candidate_carries_its_escalation_route(self):
         """Without the route the runner raises at the first wake, not at review time."""
