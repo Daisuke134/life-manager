@@ -5488,6 +5488,17 @@ def _require_tiktok_recipient_total(root: Path, result: dict[str, Any]) -> int |
     return expected
 
 
+def _tiktok_count_audit_instruction(root: Path) -> str:
+    command = (f"python3 {HERE / 'effect_checkpoint.py'} --project-root {root} "
+               "--audit-tiktok-counts")
+    return (
+        f"Run `{command}` immediately before writing paid-remote-result.json and after every new "
+        "TikTok or Sheets checkpoint. Its JSON is the only authoritative campaign total; copy "
+        "verified_unique_sends and remaining_eligible_personalized_sends exactly into both result "
+        "states and the customer message. Never derive totals from model-written audit rows.\n"
+    )
+
+
 def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: Path) -> Path:
     _require_owner_policy_clear(args, _load(item_path))
     context = root / "context" / "current.json"
@@ -5565,6 +5576,7 @@ def _run_remote_repair(args, item_path: Path, root: Path, feedback: str, base: P
                     "and receipt, write a corrected effect JSON with classification_revision=true and a nonempty revision_reason, and checkpoint "
                     "that same effect_key before calculating totals.\n"
                 )
+                handle.write(_tiktok_count_audit_instruction(root))
             owner_evidence = root / "evidence" / "agent-PAID_REMOTE_OWNER"
             owner_started_ns = time.time_ns()
             owner_command = [sys.executable, str(args.agent_runner), "--task-class", PAID_OWNER_TASK_CLASS,

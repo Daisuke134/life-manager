@@ -3311,7 +3311,8 @@ def test_tiktok_count_requires_qualified_dm_and_matching_sheet(tmp_path):
     ledger = tmp_path / "progress.jsonl"
     rows = [
         {"effect_key": "tiktok:effective-ledger-audit:base", "quality_status": "invalid",
-         "observed_state": {"campaign": {"ledger_audit": {"verified_effective_total": 12}}}},
+         "observed_state": {"campaign": {"required_unique_sends": 300,
+                                           "ledger_audit": {"verified_effective_total": 12}}}},
         {"effect_key": "tiktok:dm:1:now:no-sheet", "quality_status": "qualified",
          "counts_toward_50": True, "business_outcome": {"recipient_handle": "@no-sheet"}},
         {"effect_key": "tiktok:dm:1:now:pending", "quality_status": "qualification",
@@ -3336,6 +3337,41 @@ def test_tiktok_reconcile_does_not_let_pending_dm_reserve_recipient(tmp_path):
     ledger.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
 
     assert checkpoint.reconcile_tiktok_recipient_counts(ledger) == [rows[0]["effect_key"]]
+
+
+def test_tiktok_count_audit_cli_returns_code_owned_total(tmp_path, monkeypatch, capsys):
+    checkpoint = load("effect_checkpoint")
+    root = tmp_path / "project"
+    ledger = root / "delivery/paid-remote-progress.jsonl"
+    rows = [
+        {"effect_key": "tiktok:effective-ledger-audit:base", "quality_status": "invalid",
+         "observed_state": {"campaign": {"required_unique_sends": 300,
+                                           "ledger_audit": {"verified_effective_total": 12}}}},
+        {"effect_key": "tiktok:dm:1:now:creator", "quality_status": "qualified",
+         "counts_toward_50": True, "business_outcome": {"recipient_handle": "@creator"}},
+        {"effect_key": "google-sheets:append-readback:1:now:creator", "quality_status": "qualified",
+         "exact_readback": True, "business_outcome": {"recipient_handle": "@creator"}},
+    ]
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["effect_checkpoint.py", "--project-root", str(root),
+                                      "--audit-tiktok-counts"])
+
+    assert checkpoint.main() == 0
+    assert json.loads(capsys.readouterr().out) == {
+        "remaining_eligible_personalized_sends": 287,
+        "required_unique_sends": 300,
+        "verified_unique_sends": 13,
+    }
+
+
+def test_remote_owner_uses_code_owned_tiktok_count_audit_after_effects(tmp_path):
+    paid = load("paid_direct")
+    instruction = paid._tiktok_count_audit_instruction(tmp_path)
+
+    assert "--audit-tiktok-counts" in instruction
+    assert "after every new TikTok or Sheets checkpoint" in instruction
+    assert "only authoritative campaign total" in instruction
 
 
 def test_paid_agent_creates_authorized_missing_resources_instead_of_asking_buyer(tmp_path):
