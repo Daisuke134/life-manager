@@ -527,6 +527,31 @@ Cloud/phone-only, and prove attributable revenue. “24/7” means continuous du
 eligibility, bounded queue wait, owner-scoped recovery, and verified provider effects;
 it does not mean one immortal process or unlimited simultaneous Codex/Chrome runs.
 
+**Product doctrine — Life Manager sets and pursues the goals:** onboarding is a
+one-shot transfer of the minimum identity, credential, permission, budget and policy
+facts that cannot be derived safely. Life Manager MUST NOT ask a person to invent,
+choose or repeatedly restate their goals. It instantiates versioned default goals and
+keeps pursuing them proactively: improve verified financial health first, preserve the
+person's physical and mental health constraints, keep every enabled loop healthy, pay
+for its own bounded operating cost, and select the currently highest expected net-value
+action inside the person's permissions. A person is contacted only for an unavoidable
+typed human gate such as KYC, legal consent, payment authorization or a deliberate
+policy change. Ordinary planning, scheduling, retries, repairs, evaluation and goal
+revision have no human in the loop. An unresolved human gate pauses only that exact
+action; it never pauses unrelated goals or asks the person to manage the queue.
+
+```mermaid
+flowchart LR
+  A[One-shot profile, credentials, permissions] --> B[Versioned default goals]
+  B --> C[Local Product Loops]
+  C --> D[Official effects and receipts]
+  D --> E[Self-heal and bounded self-improvement]
+  E --> C
+  E --> F[Approved immutable release]
+  F --> G[Tenant-isolated Cloud]
+  G --> H[Phone-only conversation, status and rare human gates]
+```
+
 **Historical integration snapshot:** the old foundation candidate `3a70e98867` was
 separate and clean, 87 commits ahead of and 67 behind then-main `20c6067c3d`.
 It changes 83 paths, including shared runtime, provider code, tests and skills;
@@ -700,16 +725,16 @@ above; they are preconditions, not TODO items. The actual merge TODO is:
 |---:|---|---|
 | 1 | **Scoped overlap check — done for step 2:** compare latest main, foundation `3a70e98867`, admission source `c7ce1e9fc6` and the exact provider-owned paths below. Skip a fleet-wide audit before the first patch. | Shared runtime/registry/Connector/provider ownership is mapped below; no other owner's worktree, profile or state was edited. Recheck only changed overlaps before each integration. |
 | 2 | **Shared runtime source integrated; live gate open:** focused main changes cover durable queue, claim→child identity, release→next claim, priority/aging, owner recovery and uncertain-effect handling. Do not tune the slot count to hide liveness failure. The old candidate branch is not the production source. | Focused source checks passed and representative owners ran from main releases; step 3 must still prove no persistent queue starvation across mixed owners. |
-| 3 | **Current cursor — A15 only.** Execute the atomic A15 items at the top of this spec without changing the provider order. Fair owner handoff and main-only `current` are already merged; identity-matched malformed-plist recovery and its production acceptance remain. | Same main-derived release, exact loaded argv, natural outer terminal and bounded agent/browser/deterministic handoff with live heartbeat/headroom; fenced effects remain fenced. Historical total queue age is not the eligible-wait measure. |
-| 4 | **Connector primary-provider repair — PASS:** Connpass and Luma are the only active providers for this cursor. Connpass event `407445` reached official `registered`, Calendar exact-one and durable evidence; two later natural wakes had Submit 0 and Calendar duplicate 0. KokuchPro and every other fallback remain out of the active Connector route. | New-effect chain and replay-zero are proven; advance to Coconala Apply, Reply, Paid and Storefront. |
-| 5 | Coconala Apply, Reply, Paid, Storefront as separate lanes: current eligible screening-answer submit; 15 pending replies; per-client funded work, attachments and payout; official listing state; reconcile old 54 uncertain intents only as preemptible background work. | Each applicable lane has current same-SHA terminal, exact official effect/readback or truthful wait/no-work, and replay-zero; no account/browser interference. |
-| 6 | CrowdWorks: complete the three existing paid contracts first, then restore inventory, Reply and Apply continuity; Lancers: browser/auth, Apply→Reply→Paid→payout and supported Storefront; Mercor: persistent auth, Apply→Reply→human handoff→Paid→payout. | Each provider's actual effect/readback and per-client terminal, not generic exit 0. Unsupported Storefront is proven not-applicable. |
-| 7 | Freelancer.com and Upwork: verify current account/policy, then applicable Apply→Reply→Paid→payout and Storefront only if official surface exists. | Official receipts, payout attribution and replay-zero. |
-| 8 | After the shared gate, observe every job in all 14 Product Loops (the marketplace lanes plus Writer, Affiliate, Investment, Agent Economy, Job Hunter, Fundraiser, Connector, Self-Build, Mobile Apps, Capafy and CFO); repair each remaining provider/domain blocker, including Mobile/Metrics. | Local manifest binds current installed SHA, outer terminal, official receipt or explicit setup/not-applicable state. A foundation PASS does not turn a broken provider adapter into success. |
-| 9 | Run Local completion gate and S-04 Eval on the actual main-derived candidate: baseline, held-out, safety, latency/cost, live evidence and rollback. | Both PASS without mock as external success; a failed gate stays failed. No fixed 24-hour waiting gate is invented, but later cadence misses remain monitored. |
-| 10 | New-platform meta loop: qualify policy and net value, create a thin adapter, canary its official effect, and promote only the passing result. | A new platform reuses the shared runtime without a new scheduler or provider-specific queue. |
-| 11 | Activate bounded self-heal and self-improve through existing supervisor/reconcile/eval paths: missed-cadence alert → exact-owner recovery → isolated candidate → held-out/safety/cost/live gate → promotion or rollback. Publish the six candidate-only engineering skills as a separate docs-only reviewed slice before depending on them; do not bring the candidate's runtime/provider edits along. | A real injected failure resumes only its owner with terminal repair receipt and leaves siblings unchanged; identity, permissions and gate criteria are immutable to self-improvement. Skills are present on main before being treated as product assets. |
-| 12 | Promote the identical approved business kernel/source SHA to tenant-isolated Cloud; test Steel owner lease/release and phone-only status/human handoff/readback; run Cloud gate. | Tenant cross-read 0, credential/state mix 0, official effects and replay-zero, Local/Eval/Cloud all PASS. |
+| 3 | **A15 shared foundation — PASS, keep monitored.** Main-only immutable releases, bounded durable admission, owner-scoped effect fences, release reconciliation and disk/headroom guards exist. Foundation completion never implies a provider loop is complete. | Existing A15 receipts remain valid; any new regression is repaired through the same exact-owner path and re-proved by a natural wake. |
+| 4 | **Connector effect chain — previously PASS; continuity recheck remains.** Connpass event `407445` has official `registered`, Calendar exact-one and two replay-zero wakes. The later `wake_boundary_failed` circuit-open report is a new runtime-health cursor, not permission to erase the earlier receipt. | Diagnose the new exact occurrence and restore a natural terminal without repeating the registration; official state stays exact-one and replay-zero. |
+| 5 | **Current cursor — Affiliate local self-heal.** The bounded source fixes and automatic admission-policy reconciliation are merged. Main commit `a2d0e2d1c2…` contains the active-reservation starvation guard; later main `f86bacceab…` includes it and is current as immutable release `20260923T035050-f86bacce`. Natural run `18d7b90c10c01398-70755` on preceding main release `2fab674b28…` has acquired the deterministic slot and is running beyond the former `resource_admission_unavailable` boundary. | Wait for the natural outer terminal, inspect the official publication/attribution readback, keep `effect_unknown=0`, and prove a later replay does not duplicate an effect. Running is progress, not completion. |
+| 6 | **Mobile Apps/Postiz local canary.** Recipient counting, occurrence isolation and deterministic-ledger reconciliation are merged and loaded for `life-manager-anicca-jp1-tiktok`; its first scheduled wake is 06:30 JST. | Natural scheduled terminal, official Postiz/provider readback and replay-zero. Then roll the same proven contract through the remaining app/account jobs and restore the required three daily publication slots. |
+| 7 | **Paid fulfillment remains delegated.** The separate Paid owner completes Coconala → CrowdWorks → Lancers → Upwork client work under its own spec and lease. This workstream neither restarts Paid nor reconciles its effect state. | Import only its official delivery/revision/payment receipts after owner completion; no duplicate sender, browser session or state writer. |
+| 8 | **Repair every remaining non-Paid job in all 14 Product Loops, one exact owner at a time.** This includes CrowdWorks Application/Reply/Report where they do not overlap Paid, Affiliate revenue conversion, Connector continuity, Writer, Investment, Agent Economy, Job Hunter, Fundraiser, Self-Build, Mobile Apps, Capafy and CFO. | Each enabled job has the current installed SHA, bounded natural terminal, official effect/readback or explicit setup/not-applicable state, and replay-zero where an effect exists. A process exit or Telegram message alone is not success. |
+| 9 | **Run the complete Local gate and Eval on the actual main-derived candidate.** Bind all fourteen Product Loops, including receipts returned by the Paid owner, to one completion manifest; run baseline, held-out, safety, latency/cost, live-evidence and rollback checks. | Unknown enabled owners = 0; Local and Eval both PASS without mocks standing in for provider effects. |
+| 10 | **Prove shared self-heal, self-improvement and the new-loop meta loop locally.** A real failure becomes an exact-owner repair; verified outcomes become eval cases; an isolated candidate is promoted or rolled back; one thin new adapter is qualified by policy and expected net value. | Sibling effects remain unchanged; identity, permissions and receipt gates cannot self-modify; improvement beats the frozen baseline, one new adapter reuses the shared scheduler/admission/effect/receipt kernel, and the complete Local/Eval gates pass again on the promoted source. |
+| 11 | **Promote the identical approved Local source to tenant-isolated Cloud.** Provision tenant-scoped stores, secrets and Steel sessions; run canaries for deterministic, agent and browser resource classes. | Same source SHA and contracts as Local, tenant cross-read 0, credential/state mix 0, official effects and replay-zero, Cloud gate PASS. |
+| 12 | **Expose the phone-only product path.** Web/app/Telegram is a conversational control room for status and rare typed human gates, not a goal-setting wizard. Local remains an optional self-hosted/recovery mode. | A new person completes one-shot onboarding from a phone, receives proactive default goals, sees verified status, completes one unavoidable gate if needed, and the same Cloud owner resumes without desktop commands or repeated goal questions. |
 | 13 | Hosted subscription/unit economics, verified USD 10K MRR, accurate public metrics, YC Winter 2027 application, then safe duplicate-spec/artifact cleanup. | Official provider/payment/bank evidence and actual submitted application; one repository SSOT and no protected state deletion. |
 
 ### Connector active goal and remaining TODO
@@ -2425,13 +2450,21 @@ The rule is: **no cloud promotion before local acceptance**.
 
 ### J2. Parallel Workstream Boundary
 
-The active marketplace owner exclusively edits `skills/earn/gig/TODO.md` and provider-owned files
-while its vertical acceptance is in progress. Architecture work proceeds in a separate worktree on
-skills, specifications, contract fixtures, and read-only diagnostics. A shared-file overlap check is
-required before changing `config/loop-registry.json`, `runtime/loop`, `skills/browser`,
-`skills/_shared/marketplace-core`, or production state. No workstream edits the active TODO or
-provider-owned files concurrently, and no workstream changes a live browser/account/ledger owner
-owned by another workstream.
+The active Paid fulfillment owner exclusively owns Coconala, CrowdWorks, Lancers and Upwork Paid
+source, tests, registry ownership, occurrence/effect reconciliation, runtime state, provider sessions,
+client delivery and revision processing. Its current worktree is
+`/private/tmp/lm-paid-all-platforms-20260922`, branch
+`docs/paid-fulfillment-all-platforms-20260922`, with lease task
+`paid-fulfillment-all-platforms-20260922`. This architecture/local-repair workstream MUST NOT edit,
+start, stop, apply, restart, reconcile or inspect through a mutating provider session in that scope.
+
+This workstream may repair Affiliate, Mobile Apps, Connector and other non-Paid Product Loop lanes,
+and may perform read-only fleet diagnostics that do not acquire a Paid resource or provider session.
+Architecture work stays in its own worktree. A shared-file overlap check is required before changing
+`config/loop-registry.json`, `runtime/loop`, `skills/browser`,
+`skills/_shared/marketplace-core`, or production state. If a required fix overlaps Paid-owned source,
+state, owner, profile or browser session, stop that exact edit and record the dependency for the Paid
+owner instead of creating a competing implementation.
 
 ### J3. Fourteen-Loop Remediation Matrix
 
