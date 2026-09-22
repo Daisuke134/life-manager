@@ -174,6 +174,132 @@ class MachineCapabilityInventoryTests(unittest.TestCase):
             with self.assertRaises(gate.PinError):
                 gate.verify_codex_pin(receipt)
 
+    def test_stale_codex_pin_refreshes_from_secure_sibling_request(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            root.chmod(0o700)
+            old = root / "codex-old"
+            new = root / "codex-new"
+            stable = root / "codex"
+            old.write_text("#!/bin/sh\nprintf 'codex-cli 9.8.7\\n'\n", encoding="utf-8")
+            new.write_text("#!/bin/sh\nprintf 'codex-cli 9.8.8\\n'\n", encoding="utf-8")
+            old.chmod(0o755)
+            new.chmod(0o755)
+            stable.symlink_to(old)
+            request = root / "codex-request.json"
+            receipt = root / "codex-capability.json"
+            self.write_json(request, {"capabilities": [{
+                "name": "codex-cli",
+                "kind": "codex_cli",
+                "path": str(stable),
+            }]})
+            request.chmod(0o600)
+            first = self.run_inventory(self.require_script(), request, receipt)
+            self.assertEqual(first.returncode, 0, first.stderr)
+            self.assertEqual(
+                json.loads(receipt.read_text())["capabilities"][0]["version"],
+                "9.8.7",
+            )
+
+            stable.unlink()
+            old.unlink()
+            stable.symlink_to(new)
+
+            gate = self.load_module(RUNNER_GATE)
+            self.assertEqual(gate.verify_codex_pin(receipt), new.resolve())
+            refreshed = json.loads(receipt.read_text())
+            self.assertEqual(refreshed["capabilities"][0]["version"], "9.8.8")
+            self.assertEqual(refreshed["capabilities"][0]["sha256"], self.sha256(new))
+            self.assertEqual(receipt.stat().st_mode & 0o777, 0o600)
+
+    def test_stale_codex_pin_does_not_refresh_from_insecure_request(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            root.chmod(0o700)
+            executable = root / "codex"
+            executable.write_text(
+                "#!/bin/sh\nprintf 'codex-cli 9.8.7\\n'\n", encoding="utf-8"
+            )
+            executable.chmod(0o755)
+            request = root / "codex-request.json"
+            receipt = root / "codex-capability.json"
+            self.write_json(request, {"capabilities": [{
+                "name": "codex-cli",
+                "kind": "codex_cli",
+                "path": str(executable),
+            }]})
+            request.chmod(0o600)
+            first = self.run_inventory(self.require_script(), request, receipt)
+            self.assertEqual(first.returncode, 0, first.stderr)
+            original = receipt.read_bytes()
+            executable.unlink()
+            request.chmod(0o644)
+
+            gate = self.load_module(RUNNER_GATE)
+            with self.assertRaises(gate.PinError):
+                gate.verify_codex_pin(receipt)
+            self.assertEqual(receipt.read_bytes(), original)
+
+    def test_codex_pin_does_not_refresh_an_in_place_binary_change(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            root.chmod(0o700)
+            executable = root / "codex"
+            executable.write_text(
+                "#!/bin/sh\nprintf 'codex-cli 9.8.7\\n'\n", encoding="utf-8"
+            )
+            executable.chmod(0o755)
+            request = root / "codex-request.json"
+            receipt = root / "codex-capability.json"
+            self.write_json(request, {"capabilities": [{
+                "name": "codex-cli",
+                "kind": "codex_cli",
+                "path": str(executable),
+            }]})
+            request.chmod(0o600)
+            first = self.run_inventory(self.require_script(), request, receipt)
+            self.assertEqual(first.returncode, 0, first.stderr)
+            original = receipt.read_bytes()
+            executable.write_text(
+                "#!/bin/sh\nprintf 'codex-cli 9.8.8\\n'\n", encoding="utf-8"
+            )
+            executable.chmod(0o755)
+
+            gate = self.load_module(RUNNER_GATE)
+            with self.assertRaises(gate.PinError):
+                gate.verify_codex_pin(receipt)
+            self.assertEqual(receipt.read_bytes(), original)
+
+    def test_stale_codex_pin_does_not_refresh_a_changed_request(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            root.chmod(0o700)
+            old = root / "codex-old"
+            new = root / "codex-new"
+            old.write_text("#!/bin/sh\nprintf 'codex-cli 9.8.7\\n'\n", encoding="utf-8")
+            new.write_text("#!/bin/sh\nprintf 'codex-cli 9.8.8\\n'\n", encoding="utf-8")
+            old.chmod(0o755)
+            new.chmod(0o755)
+            request = root / "codex-request.json"
+            receipt = root / "codex-capability.json"
+            self.write_json(request, {"capabilities": [{
+                "name": "codex-cli", "kind": "codex_cli", "path": str(old),
+            }]})
+            request.chmod(0o600)
+            first = self.run_inventory(self.require_script(), request, receipt)
+            self.assertEqual(first.returncode, 0, first.stderr)
+            original = receipt.read_bytes()
+            old.unlink()
+            self.write_json(request, {"capabilities": [{
+                "name": "codex-cli", "kind": "codex_cli", "path": str(new),
+            }]})
+            request.chmod(0o600)
+
+            gate = self.load_module(RUNNER_GATE)
+            with self.assertRaises(gate.PinError):
+                gate.verify_codex_pin(receipt)
+            self.assertEqual(receipt.read_bytes(), original)
+
     def test_runner_environment_is_allowlisted_and_uses_isolated_home(self) -> None:
         gate = self.load_module(RUNNER_GATE)
         with tempfile.TemporaryDirectory() as temporary:

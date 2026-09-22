@@ -250,18 +250,24 @@ def write_receipt(path, payload):
                 temp.unlink()
     except OSError:
         raise InventoryError
+
+def refresh_receipt(request, receipt):
+    if platform.system() != "Darwin":
+        raise InventoryError
+    raw, entries = parse_request(request)
+    capabilities = [inspect(item) for item in sorted(entries, key=lambda item: item["name"])]
+    payload = {"schema_version": 1, "status": "READY", "platform": "macOS",
+        "architecture": platform.machine(), "capabilities": capabilities,
+        "request_sha256": hashlib.sha256(raw).hexdigest()}
+    write_receipt(receipt, payload)
+    return payload
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--request", required=True, type=Path)
     parser.add_argument("--receipt", required=True, type=Path)
     args = parser.parse_args()
-    if platform.system() != "Darwin":
-        raise InventoryError
-    raw, entries = parse_request(args.request)
-    capabilities = [inspect(item) for item in sorted(entries, key=lambda item: item["name"])]
-    write_receipt(args.receipt, {"schema_version": 1, "status": "READY", "platform": "macOS",
-        "architecture": platform.machine(), "capabilities": capabilities,
-        "request_sha256": hashlib.sha256(raw).hexdigest()})
+    refresh_receipt(args.request, args.receipt)
     return 0
 if __name__ == "__main__":
     try:
