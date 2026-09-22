@@ -4476,7 +4476,7 @@ def test_effect_process_diagnostic_is_bounded():
     }
 
 
-def test_paid_admission_selects_independent_projects_in_same_wake(tmp_path):
+def test_paid_admission_selects_only_earliest_project_per_wake(tmp_path):
     paid = load("paid_direct")
     args = SimpleNamespace(projects_root=tmp_path)
     items = [
@@ -4486,10 +4486,10 @@ def test_paid_admission_selects_independent_projects_in_same_wake(tmp_path):
 
     admitted = paid._admitted_paid_projects(args, items)
 
-    assert [item["talkroom_id"] for item in admitted] == ["101", "102"]
+    assert [item["talkroom_id"] for item in admitted] == ["101"]
 
 
-def test_paid_admission_includes_all_available_orders_beyond_worker_width(tmp_path):
+def test_paid_admission_keeps_later_orders_for_future_wakes(tmp_path):
     paid = load("paid_direct")
     args = SimpleNamespace(projects_root=tmp_path)
     items = [
@@ -4499,7 +4499,7 @@ def test_paid_admission_includes_all_available_orders_beyond_worker_width(tmp_pa
 
     admitted = paid._admitted_paid_projects(args, items)
 
-    assert [item["talkroom_id"] for item in admitted] == [str(101 + index) for index in range(9)]
+    assert [item["talkroom_id"] for item in admitted] == ["101"]
 
 
 def test_paid_observation_does_not_exclude_ryu_talkroom(tmp_path, monkeypatch):
@@ -4564,7 +4564,7 @@ def test_paid_admission_skips_future_timed_retry_for_actionable_project(tmp_path
     assert [item["talkroom_id"] for item in admitted] == ["102"]
 
 
-def test_paid_admission_orders_project_scoped_priority_without_excluding_others(tmp_path):
+def test_paid_admission_selects_only_the_project_scoped_priority_winner(tmp_path):
     paid = load("paid_direct")
     args = SimpleNamespace(projects_root=tmp_path)
     items = [
@@ -4584,7 +4584,7 @@ def test_paid_admission_orders_project_scoped_priority_without_excluding_others(
 
     admitted = paid._admitted_paid_projects(args, items)
 
-    assert [item["talkroom_id"] for item in admitted] == ["102", "101"]
+    assert [item["talkroom_id"] for item in admitted] == ["102"]
 
 
 def test_static_interactive_delegation_cannot_remove_paid_item_forever(tmp_path):

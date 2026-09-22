@@ -6851,7 +6851,7 @@ def _admitted_paid_projects(args, items: list[dict[str, Any]]) -> list[dict[str,
     admission = paid_admission.plan(
         available,
         projects_root=args.projects_root,
-        max_orders=len(available),
+        max_orders=1,
     )
     paid_admission.record_decisions(
         admission, projects_root=args.projects_root,
@@ -6926,6 +6926,10 @@ def run_once(args, output: Path) -> int:
                 failed += 1
                 failed_step = "owner_policy_invalid"
         active_items = _paid_active_items(args, items)
+        admitted_paid_identities = {
+            paid_admission.stable_identity(item)
+            for item in _admitted_paid_projects(args, active_items)
+        }
         executor = _paid_project_executor()
         jobs = {}
         disk_blocked_reason: str | None = None
@@ -6959,7 +6963,7 @@ def run_once(args, output: Path) -> int:
                     rows[room] = reported
                     readback += 1
                     continue
-                if not _admitted_paid_projects(args, [item]):
+                if paid_admission.stable_identity(item) not in admitted_paid_identities:
                     rows[room] = {"talkroom_id": room, "status": "queued"}
                     continue
                 if disk_blocked_reason is None:
