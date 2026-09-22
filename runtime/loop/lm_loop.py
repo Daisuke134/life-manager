@@ -142,6 +142,7 @@ def _admission_rebind_guard(
     item: dict | None = None,
     release_sha: str | None = None,
     launchctl_safe: Path | None = None,
+    replace_reserved_policy_drift: bool = False,
 ):
     if not enabled:
         yield None
@@ -171,6 +172,8 @@ def _admission_rebind_guard(
             "admission_class": admission_class,
             "priority": priority,
         }
+        if replace_reserved_policy_drift:
+            rebind_kwargs["replace_reserved_policy_drift"] = True
         if _entry_effect_scope(entry) == "occurrence":
             rebind_kwargs["effect_scope"] = "occurrence"
         result = rebind_queued_owner(loop_id, **rebind_kwargs)
@@ -766,6 +769,7 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                preserve_unloaded: bool = False,
                skip_busy: bool = False,
                preserve_pending_admission: bool = False,
+               replace_reserved_policy_drift: bool = False,
                reload_running: bool = False,
                require_current: bool = False,
                protocol_reader: Callable[[], int] = _protocol_v1,
@@ -779,6 +783,7 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                 current=current, lock_path=lock_path,
                 preserve_unloaded=preserve_unloaded, skip_busy=skip_busy,
                 preserve_pending_admission=preserve_pending_admission,
+                replace_reserved_policy_drift=replace_reserved_policy_drift,
                 reload_running=reload_running, require_current=require_current,
                 protocol_reader=protocol_reader,
                 event_writer=event_writer, _protocol_guarded=True,
@@ -814,7 +819,9 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                     item["loop_id"], True,
                     entry=registry["loops"][item["loop_id"]],
                     item=item, release_sha=release_sha,
-                    launchctl_safe=launchctl_safe) as pending_admission:
+                    launchctl_safe=launchctl_safe,
+                    replace_reserved_policy_drift=replace_reserved_policy_drift,
+            ) as pending_admission:
                 if isinstance(pending_admission, dict):
                     results.append(pending_admission)
                     continue
@@ -1194,6 +1201,9 @@ def main(argv: list[str] | None = None) -> int:
                     skip_busy=(loaded_idle_only and
                                row["loop_id"] not in explicitly_reloadable),
                     preserve_pending_admission=(row["launchd_state"] == "loaded-idle"),
+                    replace_reserved_policy_drift=(
+                        row["loop_id"] in pending_policy_mismatches
+                    ),
                     require_current=True,
                     reload_running=row["launchd_state"] == "loaded-running",
                     protocol_reader=durable_protocol_version)

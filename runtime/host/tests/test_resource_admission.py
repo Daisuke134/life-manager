@@ -148,6 +148,116 @@ def test_rebind_queued_owner_discards_expired_reservation(tmp_path, monkeypatch)
     assert occurrence["base_priority"] == "revenue"
 
 
+def test_rebind_queued_owner_releases_unclaimed_reservation_only_for_policy_drift(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="4")
+    ticket, _ = admission.enqueue_durable(
+        "deterministic", "affiliate-loop", admission_class="borrow", priority="support",
+        occurrence_id="affiliate-loop:wake", now=100,
+    )
+    assert ticket is not None
+    assert admission.reserve_available(now=101, lease_seconds=60) == ["affiliate-loop"]
+    monkeypatch.setattr(admission.time, "time", lambda: 102)
+
+    result = admission.rebind_queued_owner(
+        "affiliate-loop", resource_class="deterministic",
+        admission_class="revenue", priority="revenue",
+        replace_reserved_policy_drift=True,
+    )
+
+    assert result == "rebound"
+    assert durable_rows(tmp_path, "reservations") == []
+    assert durable_rows(tmp_path, "queue")[0]["sequence"] == 1
+    occurrence = durable_rows(tmp_path, "occurrences")[0]
+    assert occurrence["occurrence_id"] == "affiliate-loop:wake"
+    assert occurrence["state"] == "queued"
+    assert occurrence["admission_class"] == "revenue"
+    assert occurrence["base_priority"] == "revenue"
+
+
+def test_rebind_queued_owner_keeps_active_reservation_when_policy_is_unchanged(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="4")
+    ticket, _ = admission.enqueue_durable(
+        "deterministic", "source-refresh", admission_class="borrow", priority="support",
+        occurrence_id="source-refresh:wake", now=100,
+    )
+    assert ticket is not None
+    assert admission.reserve_available(now=101, lease_seconds=60) == ["source-refresh"]
+    monkeypatch.setattr(admission.time, "time", lambda: 102)
+
+    result = admission.rebind_queued_owner(
+        "source-refresh", resource_class="deterministic",
+        admission_class="borrow", priority="support",
+        replace_reserved_policy_drift=True,
+    )
+
+    assert result == "reserved"
+    assert durable_rows(tmp_path, "reservations")[0]["owner_id"] == "source-refresh"
+
+
+def test_rebind_queued_owner_keeps_reservation_at_claimed_effect_boundary(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="4")
+    ticket, _ = admission.enqueue_durable(
+        "deterministic", "claimed-owner", admission_class="borrow", priority="support",
+        occurrence_id="claimed-owner:running", now=100,
+    )
+    admission.enqueue_durable(
+        "deterministic", "claimed-owner", admission_class="borrow", priority="support",
+        occurrence_id="claimed-owner:queued", now=101,
+    )
+    assert ticket is not None
+    assert admission.reserve_available(now=102, lease_seconds=60) == ["claimed-owner"]
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        connection.execute(
+            "UPDATE occurrences SET state='claimed' "
+            "WHERE occurrence_id='claimed-owner:running'"
+        )
+    monkeypatch.setattr(admission.time, "time", lambda: 103)
+
+    result = admission.rebind_queued_owner(
+        "claimed-owner", resource_class="deterministic",
+        admission_class="revenue", priority="revenue",
+        replace_reserved_policy_drift=True,
+    )
+
+    assert result == "effect_unknown"
+    assert durable_rows(tmp_path, "reservations")[0]["owner_id"] == "claimed-owner"
+
+
+def test_reserved_policy_rebind_fences_occurrence_scoped_unknown(
+        tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch, total="1")
+    admission.activate_durable_v2()
+    owner = "mobile-publisher"
+    admission.enqueue_durable(
+        "deterministic", owner, admission_class="borrow", priority="support",
+        occurrence_id=f"{owner}:old", effect_scope="occurrence", now=100,
+    )
+    old, reason = admission.claim_durable(
+        "deterministic", owner, admission_class="borrow",
+        effect_scope="occurrence", now=101,
+    )
+    assert old is not None and reason == "acquired"
+    admission.enqueue_durable(
+        "deterministic", owner, admission_class="borrow", priority="support",
+        occurrence_id=f"{owner}:new", effect_scope="occurrence", now=102,
+    )
+    admission.release_and_reserve(old, effect_unknown=True, reserve=False, now=103)
+    assert admission.reserve_available(now=104, lease_seconds=60) == [owner]
+    monkeypatch.setattr(admission.time, "time", lambda: 105)
+
+    result = admission.rebind_queued_owner(
+        owner, resource_class="deterministic", admission_class="revenue",
+        priority="revenue", effect_scope="occurrence",
+        replace_reserved_policy_drift=True,
+    )
+
+    assert result == "effect_unknown"
+    assert durable_rows(tmp_path, "reservations")[0]["owner_id"] == owner
+
+
 def test_rebind_queued_owner_refuses_claimed_effect_boundary(tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="2")
     ticket, _ = admission.enqueue_durable(
