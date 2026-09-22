@@ -14,12 +14,34 @@ import cdp
 
 
 READBACK = r"""
-(() => ({
-  url: location.href,
-  title: document.title,
-  profiles: [...new Set([...document.querySelectorAll('a[href*="/@"]')]
-    .map(node => node.href).filter(Boolean))].slice(0, 50)
-}))()
+(() => {
+  const visible = node => {
+    const style = getComputedStyle(node);
+    const rect = node.getBoundingClientRect();
+    return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+  };
+  const resultItems = [...document.querySelectorAll(
+    '[data-e2e="search-user-item"], [data-e2e="search-user-card"], [data-e2e="search-user-item-container"]'
+  )].filter(visible);
+  const emptyNodes = [...document.querySelectorAll(
+    '[data-e2e="search-no-result"], [data-e2e="search-empty"], [data-e2e="no-result"], [role="status"]'
+  )].filter(visible);
+  const empty = emptyNodes.some(node =>
+    /No results found|No users found|検索結果がありません|ユーザーが見つかりません/i.test(node.innerText || '')
+  );
+  const resultLinks = resultItems.flatMap(node => [
+    ...(node.matches('a[href*="/@"]') ? [node] : []),
+    ...node.querySelectorAll('a[href*="/@"]')
+  ]);
+  return {
+    url: location.href,
+    title: document.title,
+    ready: resultLinks.length > 0 || empty,
+    empty,
+    profiles: empty ? [] : [...new Set(resultLinks
+      .map(node => node.href).filter(Boolean))].slice(0, 50)
+  };
+})()
 """
 
 
@@ -64,12 +86,15 @@ def search_users(query: str, owner: str, output: Path, *, cdp_client=cdp,
     target = cdp_client.new_target(url, owner)
     try:
         observed = None
+        previous_profiles = None
         for attempt in range(attempts):
             observed = cdp_client.evaluate(target, READBACK)
             if not isinstance(observed, dict) or "__error__" in observed:
                 raise RuntimeError(f"TikTok user search readback failed: {observed}")
             profiles = _profile_urls(observed.get("profiles"))
-            if profiles or attempt == attempts - 1:
+            ready = observed.get("ready") is True
+            stable = ready and previous_profiles is not None and profiles == previous_profiles
+            if stable:
                 result = {
                     "version": 1,
                     "provider": "tiktok.com",
@@ -78,6 +103,21 @@ def search_users(query: str, owner: str, output: Path, *, cdp_client=cdp,
                     "title": observed.get("title"),
                     "profiles": profiles,
                     "complete": True,
+                }
+                _write(output.resolve(), result)
+                return result
+            previous_profiles = profiles if ready else None
+            if attempt == attempts - 1:
+                result = {
+                    "version": 1,
+                    "provider": "tiktok.com",
+                    "query": query,
+                    "url": observed.get("url"),
+                    "title": observed.get("title"),
+                    "profiles": profiles,
+                    "complete": False,
+                    "ready": ready,
+                    "reason": "search_results_not_stable",
                 }
                 _write(output.resolve(), result)
                 return result
