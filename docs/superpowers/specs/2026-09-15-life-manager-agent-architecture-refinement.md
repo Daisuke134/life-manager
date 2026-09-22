@@ -2639,6 +2639,77 @@ Phone/web exposure and client-close continuity are CC03. The rejected alternativ
 `lm_users` (identity rows are not a versioned evidence ledger) and a new Cloud auth stack (it would duplicate
 the accepted Panel session authority).
 
+#### CC03 concrete contract — phone/web continuity and source-backed explain
+
+**As-is.** The authenticated Panel already gives phone/web clients one tenant-scoped session, and CC02 can
+persist a reference-only context, synthesize a validated Life Manager-owned Goal Portfolio, enqueue one
+`effect_class=none` job, and return an opaque projection. That slice is not reachable from the Panel, has no
+production model adapter, and cannot be recovered by a newly opened client without calling internal code.
+`lm-loop status` reports launchd, release, terminal, effect, blocker, and admission fields, but it drops the
+validated runtime event identity and evidence references and has no causal `--explain` contract.
+
+**To-be.** The existing authenticated Panel is the first cloud client; CC03 does not create another auth
+stack, user table, scheduler, goal form, or browser-owned state. A non-guest Panel automatically calls an
+empty-body, CSRF- and origin-protected Goal start endpoint. The server derives tenant identity only from the
+Panel session. When no context exists it writes revision 1 with empty tenant reference lists; J4 remains the
+mandatory evidence reference and therefore lets Life Manager begin useful work without asking the person to
+invent a goal. Existing contexts are reused exactly. A strict JSON model adapter may return only the bounded
+Goal candidate schema, and the existing portfolio validator rejects unknown fields, unauthorized references,
+unbounded cost/risk, caller goals, and malformed output before anything is stored.
+
+The start response is successful only after context, Goal Portfolio, and the replay-safe non-effectful
+RuntimeJob are durable. The browser is then disposable: a later GET from a fresh handler/store instance and
+the same authenticated session reconstructs the current opaque projection from PostgreSQL. It does not need
+the original response, local storage, an open socket, or a client-supplied job or tenant ID. A different
+session receives zero foreign state. Repeated and concurrent starts may do extra bounded model work, but may
+not create a second job, overwrite evidence, or turn a storage collision into a guessed replay.
+
+```mermaid
+sequenceDiagram
+    participant P as Phone/Web Panel
+    participant A as Existing Panel auth
+    participant G as Goal gateway
+    participant D as PostgreSQL runtime store
+    participant W as Cloud worker queue
+    P->>A: GET /api/panel/goals (session cookie)
+    A-->>P: not_started
+    P->>A: POST /api/panel/goals {} (Origin + CSRF)
+    A->>G: server-owned session scope
+    G->>D: context + portfolio + effect_class=none job
+    D->>W: durable replay-safe work
+    G-->>P: opaque goal/job/status projection
+    Note over P: Client closes
+    P->>A: Later GET from a fresh client
+    A->>D: tenant-scoped projection read
+    D-->>P: same job and current safe status
+```
+
+`lm-loop status <loop|all> --explain` remains read-only and deterministic. It enriches each existing status
+row with the latest validated report event identity, exact evidence references, a finite `reason_code`, and a
+finite `next_action`. The reason is derived only from observed launchd state, installed and event release
+SHAs, validated report status/blocker/effect, and the live admission fence. It never asks a model to explain
+operations, never treats PID or exit code as business success, never invents a provider receipt, and emits an
+explicit insufficient-evidence reason when the required source does not exist. Default `status` output stays
+backward compatible.
+
+CC03 acceptance requires all of the following:
+
+1. Authenticated GET returns only the caller's current safe Goal projection or exact `not_started`; request
+   tenant/job overrides are rejected or ignored rather than trusted.
+2. Authenticated POST accepts exactly `{}`, rejects a `goal` or any other caller field, enforces JSON, Origin,
+   and CSRF, and reaches durable enqueue before success.
+3. Panel JavaScript starts the slice automatically for `not_started`, renders only opaque refs/status, and
+   contains no goal prompt, goal input, or local-storage continuity dependency.
+4. A fresh process/store reads the same job after the initiating client is gone; replay creates no duplicate
+   context, portfolio, or job; another tenant cannot observe it.
+5. Model network, key, schema, and validation failures fail closed without a job or a false success.
+6. `status --explain` exposes only validated source evidence and deterministic reason/action enums; fixtures
+   cover no event, stale release, disabled/unloaded, blocker, live effect fence, unverified effect, and healthy.
+7. Focused Node/Python tests, PostgreSQL continuity/isolation replay, the full Life Manager suite, and the
+   14-loop contract pass without changing Paid fulfillment, Paid owner registry, Paid state, or provider
+   sessions. CC03 is source/contract proof until its migration and server release come from canonical main;
+   it does not claim a public production deployment or an effectful provider outcome.
+
 ### J6. Muse and Grok Bot comparison and connector decision
 
 Life Manager should learn from these products without becoming a plugin trapped inside either one.
