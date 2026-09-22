@@ -191,6 +191,28 @@ class LmLoopApplyTest(unittest.TestCase):
             "example", resource_class="agent", admission_class="revenue", priority="revenue"
         )
 
+    def test_admission_rebind_guard_allows_opted_in_release_swap_for_idle_reservation(self):
+        entry = {
+            "resource_class": "agent",
+            "admission_class": "revenue",
+            "priority": "revenue",
+        }
+        item = {"label": "ai.anicca.example"}
+        with (
+            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value=None),
+            patch.object(lm_loop, "rebind_queued_owner", return_value="reserved") as rebind,
+            lm_loop._admission_rebind_guard(
+                "example", True, entry=entry, item=item, release_sha=SHA,
+                launchctl_safe=Path("/tmp/launchctl-safe"),
+                allow_reserved_release_rebind=True,
+            ) as decision,
+        ):
+            self.assertIsNone(decision)
+        rebind.assert_called_once_with(
+            "example", resource_class="agent", admission_class="revenue", priority="revenue"
+        )
+
     def test_admission_rebind_guard_replaces_reserved_policy_drift_after_idle_readback(self):
         entry = {
             "resource_class": "agent",
@@ -230,10 +252,32 @@ class LmLoopApplyTest(unittest.TestCase):
                 "example", True, entry=entry, item=item, release_sha=SHA,
                 launchctl_safe=Path("/tmp/launchctl-safe"),
                 replace_reserved_policy_drift=True,
+                allow_reserved_release_rebind=True,
             ) as decision,
         ):
             self.assertEqual(decision, running)
         rebind.assert_not_called()
+
+    def test_admission_rebind_guard_does_not_swap_unloaded_reserved_owner(self):
+        entry = {
+            "resource_class": "agent",
+            "admission_class": "revenue",
+            "priority": "revenue",
+        }
+        item = {"label": "ai.anicca.example"}
+        with (
+            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(
+                lm_loop, "_skip_if_not_loaded_idle", return_value={"skipped": "unloaded"},
+            ),
+            patch.object(lm_loop, "rebind_queued_owner", return_value="reserved"),
+            lm_loop._admission_rebind_guard(
+                "example", True, entry=entry, item=item, release_sha=SHA,
+                launchctl_safe=Path("/tmp/launchctl-safe"),
+                allow_reserved_release_rebind=True,
+            ) as decision,
+        ):
+            self.assertEqual(decision, "pending")
 
     def test_admission_rebind_guard_keeps_pending_owner_when_queue_row_drained(self):
         entry = {
@@ -1971,6 +2015,7 @@ class LmLoopApplyTest(unittest.TestCase):
         self.assertEqual([row["target"] for row in applied], ["example"])
         self.assertTrue(applied[0]["preserve_pending_admission"])
         self.assertFalse(applied[0]["replace_reserved_policy_drift"])
+        self.assertTrue(applied[0]["allow_reserved_release_rebind"])
         receipt = json.loads(output.getvalue())
         self.assertEqual(receipt["eligible"], 1)
         self.assertEqual(receipt["skipped_pending"], ["paid-sibling"])

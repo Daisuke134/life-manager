@@ -143,6 +143,7 @@ def _admission_rebind_guard(
     release_sha: str | None = None,
     launchctl_safe: Path | None = None,
     replace_reserved_policy_drift: bool = False,
+    allow_reserved_release_rebind: bool = False,
 ):
     if not enabled:
         yield None
@@ -162,11 +163,13 @@ def _admission_rebind_guard(
             # Legacy registry rows retain the old pending-admission skip contract.
             yield "pending"
             return
+        loaded_idle_verified = False
         if item is not None and release_sha and launchctl_safe:
             skipped = _skip_if_not_loaded_idle(item, release_sha, launchctl_safe)
             if skipped is not None and skipped.get("skipped") != "unloaded":
                 yield skipped
                 return
+            loaded_idle_verified = skipped is None
         rebind_kwargs = {
             "resource_class": resource_class,
             "admission_class": admission_class,
@@ -178,6 +181,12 @@ def _admission_rebind_guard(
             rebind_kwargs["effect_scope"] = "occurrence"
         result = rebind_queued_owner(loop_id, **rebind_kwargs)
         if result == "reserved":
+            if allow_reserved_release_rebind and loaded_idle_verified:
+                # The reservation names only this owner and its preserved FIFO
+                # occurrence. Repointing an idle owner lets the dispatcher start
+                # that same reservation from the current immutable release.
+                yield None
+                return
             # Keep the old release paired with its reserved admission policy.
             # The next reconciler pass can rebind after the lease expires.
             yield "pending"
@@ -770,6 +779,7 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                skip_busy: bool = False,
                preserve_pending_admission: bool = False,
                replace_reserved_policy_drift: bool = False,
+               allow_reserved_release_rebind: bool = False,
                reload_running: bool = False,
                require_current: bool = False,
                protocol_reader: Callable[[], int] = _protocol_v1,
@@ -784,6 +794,7 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                 preserve_unloaded=preserve_unloaded, skip_busy=skip_busy,
                 preserve_pending_admission=preserve_pending_admission,
                 replace_reserved_policy_drift=replace_reserved_policy_drift,
+                allow_reserved_release_rebind=allow_reserved_release_rebind,
                 reload_running=reload_running, require_current=require_current,
                 protocol_reader=protocol_reader,
                 event_writer=event_writer, _protocol_guarded=True,
@@ -821,6 +832,7 @@ def apply_live(release_root: Path, agents_dir: Path, launchctl_safe: Path,
                     item=item, release_sha=release_sha,
                     launchctl_safe=launchctl_safe,
                     replace_reserved_policy_drift=replace_reserved_policy_drift,
+                    allow_reserved_release_rebind=allow_reserved_release_rebind,
             ) as pending_admission:
                 if isinstance(pending_admission, dict):
                     results.append(pending_admission)
@@ -1214,6 +1226,9 @@ def main(argv: list[str] | None = None) -> int:
                     preserve_pending_admission=(row["launchd_state"] == "loaded-idle"),
                     replace_reserved_policy_drift=(
                         row["loop_id"] in pending_policy_mismatches
+                    ),
+                    allow_reserved_release_rebind=(
+                        row["loop_id"] in pending_release_rebinds
                     ),
                     require_current=True,
                     reload_running=row["launchd_state"] == "loaded-running",
