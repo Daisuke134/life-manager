@@ -17,7 +17,7 @@
     "test:panel-score:postgres": "test/postgres/panel-score-postgres.integration.sh",
     "test:runtime-job": "node --test lib/runtime-job-store.test.js lib/connector-coverage-job.test.js lib/effect-reconciler.test.js && npm run test:goal-policy && npm run test:cloud-goal",
     "test:goal-policy": "node --test lib/goal-policy.test.js lib/goal-portfolio.test.js lib/goal-work-item.test.js lib/general-agent-work-adapter.test.js lib/hosted-goal-ingress.test.js",
-    "test:cloud-policy": "node --test lib/cloud-execution-policy.test.js",
+    "test:cloud-policy": "node --test lib/cloud-execution-policy.test.js lib/cloud-work-authority.test.js",
     "test:cloud-goal": "node --test lib/goal-policy.test.js lib/goal-context.test.js lib/goal-portfolio.test.js lib/goal-work-item.test.js lib/general-agent-work-adapter.test.js lib/hosted-goal-ingress.test.js lib/cloud-goal-generator.test.js lib/cloud-goal-store.test.js lib/cloud-goal-slice.test.js",
     "test:cloud-goal:postgres": "test/postgres/cloud-goal-postgres.integration.sh",
     "test:cc03": "npm run test:cloud-goal && node --test lib/panel-goal-api.test.js lib/panel-ui.test.js lib/panel-api.test.js && (cd ../.. && python3 -m unittest runtime.loop.tests.test_lm_loop_readonly)",
