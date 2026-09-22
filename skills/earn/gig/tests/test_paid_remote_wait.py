@@ -4534,6 +4534,7 @@ def test_permanent_manual_owner_reserves_new_ryu_reply(tmp_path):
     item = {
         "talkroom_id": "18211957",
         "buyer_reply_after_artifact_observed": True,
+        "buyer_feedback_sha256": "b" * 64,
     }
 
     manual_owner = getattr(paid, "_manual_owner_record", lambda *_args: None)
