@@ -142,7 +142,7 @@ def test_job_needs_activation_when_loaded_environment_is_stale(monkeypatch):
     }
     table = {
         "RELEASE": "/tmp/current",
-        "HOME": "/Users/test",
+        "HOME": "/tmp/test-home",
         "GIG_LOG_DIR": "/tmp/logs",
     }
     desired = gig_release.plist_for(job, table)
@@ -161,7 +161,7 @@ def test_job_does_not_need_activation_when_program_and_environment_match(monkeyp
     }
     table = {
         "RELEASE": "/tmp/current",
-        "HOME": "/Users/test",
+        "HOME": "/tmp/test-home",
         "GIG_LOG_DIR": "/tmp/logs",
     }
     desired = gig_release.plist_for(job, table)
