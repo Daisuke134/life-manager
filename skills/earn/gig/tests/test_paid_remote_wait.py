@@ -3154,6 +3154,10 @@ def test_remote_owner_prompt_uses_shared_tiktok_user_search(tmp_path):
     assert "A profile with no posted content is invalid" in prompt
     assert "must not send or count it" in prompt
     assert "reclassify the same effect_key as invalid" in prompt
+    assert "one eligible recipient handle can increment the cumulative total at most once" in prompt
+    assert "Google Sheets receipt is supporting bookkeeping evidence" in prompt
+    assert "counts_toward_50=false" in prompt
+    assert "never count receipt rows or effect keys as recipient totals" in prompt
 
 
 def test_paid_agent_creates_authorized_missing_resources_instead_of_asking_buyer(tmp_path):
