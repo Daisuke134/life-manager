@@ -109,6 +109,18 @@ class TikTokMessageTransportTest(unittest.TestCase):
         return transport.send_one(payload, cdp_client=fake, send=send,
                                   wait=lambda _: None, project_root=self.project_root)
 
+    def seed_recipient_effect(self, state):
+        ledger = self.project_root / "delivery/tiktok-message-effects.jsonl"
+        ledger.write_text(json.dumps({
+            "schema_version": 1,
+            "record_type": "tiktok_dm_effect_fence",
+            "effect_key": "older-effect-key",
+            "effect_binding_sha256": "older-binding",
+            "candidate_handle": "@Candidate",
+            "message_sha256": "older-message",
+            "state": state,
+        }) + "\n", encoding="utf-8")
+
     def test_rejects_profile_that_does_not_match_candidate(self):
         payload = self.payload()
         payload["profile_url"] = "https://www.tiktok.com/@different"
@@ -240,6 +252,26 @@ class TikTokMessageTransportTest(unittest.TestCase):
         payload["message"] = "変更本文"
         with self.assertRaisesRegex(ValueError, "effect_key_payload_conflict"):
             self.send(payload, FakeCDP())
+
+    def test_different_effect_key_cannot_resend_to_contacted_recipient(self):
+        for state in ("sent", "attempting", "unknown"):
+            with self.subTest(state=state):
+                self.seed_recipient_effect(state)
+                fake = FakeCDP()
+                result = self.send(self.payload(), fake)
+                self.assertEqual(result["status"], "recipient_already_contacted")
+                self.assertEqual(result["effect"], 0)
+                self.assertFalse(result["retry_safe"])
+                self.assertEqual(result["prior_effect_key"], "older-effect-key")
+                self.assertFalse(fake.calls)
+
+    def test_provider_proven_not_sent_recipient_remains_retryable(self):
+        self.seed_recipient_effect("not_sent")
+        fake = FakeCDP()
+        result = self.send(self.payload(), fake)
+        self.assertEqual(result["status"], "sent_exact_official_readback")
+        self.assertEqual(result["effect"], 1)
+        self.assertEqual(sum(call[0] == "key" for call in fake.calls), 1)
 
     def test_message_body_handle_cannot_substitute_for_recipient_header(self):
         fake = FakeCDP()

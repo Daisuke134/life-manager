@@ -55,9 +55,12 @@ and is not proof that the automated Paid owner works.
 
 At the planning readback, the active order inventory contained four talkrooms:
 Ryu `18211957`, two orders for the same NPO (`18250352`, `18223833`), and Chii
-`18180857`. `hf-gig-paid-direct` is unloaded and retains
-`admission_effect_unknown=true`; it must not be started until the exact occurrence is
-reconciled. `hf-gig-reply-detector` is a separate observation/pre-contract owner and
+`18180857`. The original `admission_effect_unknown` occurrence was reconciled and the
+Ryu fence plus one-project-per-wake release reached production. A later Chii wake sent
+to a TikTok recipient whose earlier `sent` row already existed under a different
+effect key. `hf-gig-paid-direct` is therefore disabled and unloaded until recipient
+identity, not only effect-key identity, is enforced atomically at the transport
+boundary. `hf-gig-reply-detector` is a separate observation/pre-contract owner and
 must not acquire post-payment fulfillment authority.
 
 ### CrowdWorks
@@ -129,6 +132,13 @@ Buyer revisions create a new buyer-event version on the same item. They do not e
 earlier receipts, silently create a second contract, or permit replay of an uncertain
 effect.
 
+For outbound campaign messages, effect identity includes the canonical provider
+recipient. Under the same project-owned transport lock used for the send fence, the
+adapter must reject a recipient already recorded as `attempting`, `unknown`, or
+`sent`, even when the caller supplies a new effect key or new message. A verified
+`not_sent` row may be retried. Prompt instructions, model-selected keys, and a later
+bookkeeping check are not substitutes for this mutation-boundary invariant.
+
 ## State Model
 
 ```text
@@ -196,6 +206,8 @@ formal delivery.
 - The current `effect_unknown` occurrence is reconciled before restart.
 - Production re-entry uses one non-Ryu canary, then all remaining eligible rooms one
   project per wake.
+- A remote campaign transport must reject a previously contacted canonical recipient
+  before opening a provider target; replay-zero is recipient-scoped across effect keys.
 
 ### CrowdWorks
 

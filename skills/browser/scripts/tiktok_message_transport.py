@@ -109,6 +109,28 @@ def _records(path: Path, effect_key: str) -> list[dict]:
     return rows
 
 
+def _contacted_recipient(path: Path, candidate: str, effect_key: str) -> dict | None:
+    if not path.exists():
+        return None
+    effective: dict[str, dict] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        if not isinstance(row, dict):
+            continue
+        row_effect_key = str(row.get("effect_key") or "").strip()
+        if row_effect_key:
+            effective[row_effect_key] = row
+    for row_effect_key, row in effective.items():
+        if row_effect_key == effect_key:
+            continue
+        row_candidate = str(row.get("candidate_handle") or "").strip().casefold()
+        if row_candidate == candidate and row.get("state") in {"attempting", "unknown", "sent"}:
+            return row
+    return None
+
+
 def _append(path: Path, result: dict, state: str) -> None:
     row = {
         "schema_version": 1,
@@ -141,6 +163,17 @@ def send_one(payload: dict, *, cdp_client=cdp, send: bool = False, wait=time.sle
         fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
         lock.close()
         raise ValueError("effect_key_payload_conflict")
+    contacted = _contacted_recipient(ledger, candidate, result["effect_key"])
+    if contacted is not None:
+        result.update(
+            status="recipient_already_contacted",
+            retry_safe=False,
+            prior_effect_key=contacted["effect_key"],
+            prior_state=contacted["state"],
+        )
+        fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
+        lock.close()
+        return result
     target = None
     try:
         target = cdp_client.new_target("https://www.tiktok.com/", owner)
