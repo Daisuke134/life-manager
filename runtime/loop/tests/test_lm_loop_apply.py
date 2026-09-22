@@ -191,6 +191,50 @@ class LmLoopApplyTest(unittest.TestCase):
             "example", resource_class="agent", admission_class="revenue", priority="revenue"
         )
 
+    def test_admission_rebind_guard_replaces_reserved_policy_drift_after_idle_readback(self):
+        entry = {
+            "resource_class": "agent",
+            "admission_class": "revenue",
+            "priority": "revenue",
+        }
+        item = {"label": "ai.anicca.example"}
+        with (
+            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value=None),
+            patch.object(lm_loop, "rebind_queued_owner", return_value="rebound") as rebind,
+            lm_loop._admission_rebind_guard(
+                "example", True, entry=entry, item=item, release_sha=SHA,
+                launchctl_safe=Path("/tmp/launchctl-safe"),
+                replace_reserved_policy_drift=True,
+            ) as decision,
+        ):
+            self.assertIsNone(decision)
+        rebind.assert_called_once_with(
+            "example", resource_class="agent", admission_class="revenue",
+            priority="revenue", replace_reserved_policy_drift=True,
+        )
+
+    def test_admission_rebind_guard_never_replaces_reservation_while_loaded_running(self):
+        entry = {
+            "resource_class": "agent",
+            "admission_class": "revenue",
+            "priority": "revenue",
+        }
+        item = {"label": "ai.anicca.example"}
+        running = {"ok": True, "skipped": "loaded-running"}
+        with (
+            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_skip_if_not_loaded_idle", return_value=running),
+            patch.object(lm_loop, "rebind_queued_owner") as rebind,
+            lm_loop._admission_rebind_guard(
+                "example", True, entry=entry, item=item, release_sha=SHA,
+                launchctl_safe=Path("/tmp/launchctl-safe"),
+                replace_reserved_policy_drift=True,
+            ) as decision,
+        ):
+            self.assertEqual(decision, running)
+        rebind.assert_not_called()
+
     def test_admission_rebind_guard_keeps_pending_owner_when_queue_row_drained(self):
         entry = {
             "resource_class": "agent",
@@ -1854,7 +1898,7 @@ class LmLoopApplyTest(unittest.TestCase):
                          return_value={"example"}),
             patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
             patch.object(lm_loop, "apply_live",
-                         side_effect=lambda *args, **kwargs: applied.append(kwargs["target"]) or [{"ok": True}]),
+                         side_effect=lambda *args, **kwargs: applied.append(kwargs) or [{"ok": True}]),
             patch.dict(os.environ, {
                 "LIFE_MANAGER_RELEASE_ROOT": str(release),
                 "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
@@ -1865,7 +1909,8 @@ class LmLoopApplyTest(unittest.TestCase):
                 "reconcile", "deterministic", "--loaded-idle-only",
             ]), 0)
 
-        self.assertEqual(applied, ["example"])
+        self.assertEqual([row["target"] for row in applied], ["example"])
+        self.assertTrue(applied[0]["replace_reserved_policy_drift"])
         receipt = json.loads(output.getvalue())
         self.assertEqual(receipt["eligible"], 1)
         self.assertEqual(receipt["skipped_pending"], [])

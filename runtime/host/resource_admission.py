@@ -284,18 +284,21 @@ def rebind_queued_owner(
     admission_class: str,
     priority: str | None = None,
     effect_scope: str = "owner",
+    replace_reserved_policy_drift: bool = False,
 ) -> str:
     """Migrate one effect-free queued owner to its current registry admission policy.
 
     Release changes can legitimately promote a pending owner from borrow/support to
-    revenue/revenue. Preserve its FIFO sequence and occurrence identity; never touch a
-    reservation, claimed occurrence, or effect-unknown row.
+    revenue/revenue. Preserve its FIFO sequence and occurrence identity. An explicitly
+    authorized policy-drift repair may release an unclaimed reservation; claimed and
+    effect-unknown occurrences always remain fenced.
     """
     if (
         not owner_id
         or resource_class not in set(RESOURCE_CLASSES)
         or admission_class not in ADMISSION_CLASSES
         or effect_scope not in EFFECT_SCOPES
+        or type(replace_reserved_policy_drift) is not bool
     ):
         raise RuntimeError("invalid queued owner rebind identity")
     priority_name = _normalize_priority(priority, admission_class)
@@ -316,10 +319,6 @@ def rebind_queued_owner(
             connection.execute(
                 "DELETE FROM reservations WHERE lease_until <= ?", (time.time(),)
             )
-            if connection.execute(
-                "SELECT 1 FROM reservations WHERE owner_id=?", (owner_id,)
-            ).fetchone():
-                return "reserved"
             if connection.execute(
                 """SELECT 1 FROM occurrences
                    WHERE owner_id=?
@@ -349,6 +348,15 @@ def rebind_queued_owner(
             changed = current != (
                 admission_class, priority_name, ADMISSION_POLICY, effect_scope,
             )
+            reserved = connection.execute(
+                "SELECT 1 FROM reservations WHERE owner_id=?", (owner_id,)
+            ).fetchone()
+            if reserved and not (replace_reserved_policy_drift and changed):
+                return "reserved"
+            if reserved:
+                connection.execute(
+                    "DELETE FROM reservations WHERE owner_id=?", (owner_id,)
+                )
             connection.execute(
                 """UPDATE priorities
                    SET admission_class=?, admission_policy=?, base_priority=?, effect_scope=?
