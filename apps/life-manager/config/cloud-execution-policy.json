@@ -1,0 +1,20 @@
+{
+  "schema_version": "life-manager.cloud-execution-policy.v1",
+  "authority": "life_manager",
+  "requires_user_authored_goal": false,
+  "claim": {
+    "limit": 1,
+    "lease_seconds": 180,
+    "grant_ttl_seconds": 60
+  },
+  "capabilities": [
+    {
+      "capability": "general-agent.work",
+      "effect_class": "none",
+      "max_attempts": 1,
+      "credential_refs": [
+        "secret://gemini/api-key"
+      ]
+    }
+  ]
+}
