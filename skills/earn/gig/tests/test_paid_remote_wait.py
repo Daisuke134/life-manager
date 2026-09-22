@@ -809,6 +809,14 @@ def blocked_project(tmp_path: Path) -> tuple[Path, str, str]:
     return root, feedback, digest
 
 
+def test_missing_paid_review_state_is_empty_for_first_cycle(tmp_path):
+    paid = load("paid_direct")
+    root = tmp_path / "new-project"
+    root.mkdir()
+
+    assert paid._pending_review_mode(root, "a" * 64) == ""
+
+
 def test_current_blocked_remote_result_is_a_valid_wait(tmp_path):
     remote = load("paid_remote_result")
     root, feedback, digest = blocked_project(tmp_path)

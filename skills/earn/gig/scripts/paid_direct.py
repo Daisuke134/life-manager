@@ -4617,7 +4617,14 @@ def _legacy_paid_mode(root: Path, feedback: str) -> str:
 
 
 def _pending_review_mode(root: Path, feedback: str) -> str:
-    review = _load(root / "context" / "paid-review-state.json")
+    review_path = root / "context" / "paid-review-state.json"
+    try:
+        review = _load(review_path)
+    except FileNotFoundError:
+        # A first-cycle project has no prior review state.  Treat that as an
+        # empty pending-review state; malformed or unreadable present files
+        # must still surface to the caller instead of silently authorizing work.
+        return ""
     if (review.get("state") != "REPAIR_PENDING"
             or review.get("buyer_feedback_sha256") != feedback
             or review.get("requirements_sha256")
