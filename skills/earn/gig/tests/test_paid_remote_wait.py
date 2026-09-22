@@ -1860,6 +1860,49 @@ def test_confirmed_handled_feedback_dominates_stale_derived_work_state(tmp_path,
     assert paid._reported_handled_feedback_cycle(SimpleNamespace(), item) == root
 
 
+def test_latest_seller_answer_closes_current_buyer_feedback_until_new_message():
+    queue = load("coconala_queue_snapshot")
+    messages = [
+        {"side": "seller", "text": "成果物を共有します。", "attachments": [{"filename": "work.zip"}]},
+        {"side": "buyer", "text": "返信状況を教えてください。", "attachments": []},
+        {"side": "seller", "text": "現時点の確認結果を報告します。", "attachments": []},
+    ]
+
+    answered = queue.minimize_talkroom_dom(
+        {"transaction_state": "取引中", "messages": messages}, "18180857", "now",
+    )
+
+    assert answered["buyer_feedback_answered_by_seller"] is True
+
+    messages.append({"side": "buyer", "text": "追加で確認をお願いします。", "attachments": []})
+    pending = queue.minimize_talkroom_dom(
+        {"transaction_state": "取引中", "messages": messages}, "18180857", "now",
+    )
+
+    assert pending["buyer_feedback_answered_by_seller"] is False
+
+
+def test_reported_paid_row_waits_after_official_seller_answer(tmp_path, monkeypatch):
+    paid = load("paid_direct")
+    root = tmp_path / "18180857"
+    root.mkdir()
+    monkeypatch.setattr(paid, "_paid_project_root", lambda *_args: root)
+    item = {
+        "talkroom_id": "18180857",
+        "talkroom_state": "取引中",
+        "buyer_feedback_sha256": "e" * 64,
+        "buyer_feedback_pending_artifact": False,
+        "buyer_feedback_answered_by_seller": True,
+        "talkroom_evidence_file": str(tmp_path / "talkroom.json"),
+    }
+
+    result = paid._reported_paid_row(SimpleNamespace(), item)
+
+    assert result["status"] == "awaiting_buyer"
+    assert result["send_performed"] is False
+    assert result["deduplicated"] is True
+
+
 def test_official_seller_attachment_wait_dominates_stale_local_state(tmp_path, monkeypatch):
     paid = load("paid_direct")
     root = tmp_path / "project"

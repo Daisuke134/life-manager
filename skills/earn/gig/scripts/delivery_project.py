@@ -99,6 +99,7 @@ def record_queue_selection(base: str | Path, item: dict[str, Any], *, adapter: s
         "buyer_feedback_pending_artifact": item.get("buyer_feedback_pending_artifact") is True,
         "buyer_agreement_observed": item.get("buyer_agreement_observed") is True,
         "buyer_reply_after_artifact_observed": item.get("buyer_reply_after_artifact_observed") is True,
+        "buyer_feedback_answered_by_seller": item.get("buyer_feedback_answered_by_seller") is True,
     }
     feedback = str(item.get("buyer_feedback_sha256") or "").strip().lower()
     if re.fullmatch(r"[0-9a-f]{64}", feedback):

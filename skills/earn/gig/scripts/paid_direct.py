@@ -6855,6 +6855,23 @@ def _official_seller_attachment_wait(item: dict[str, Any]) -> bool:
     )
 
 
+def _official_buyer_feedback_answer_wait(item: dict[str, Any]) -> bool:
+    """Treat a seller answer after the current feedback as a no-effect wait.
+
+    ``buyer_reply_after_artifact_observed`` is historical: it stays true after
+    any buyer message following an older artifact.  It cannot decide whether a
+    new send is needed.  The collector's ordered official history supplies the
+    missing edge, ``buyer_feedback_answered_by_seller``.  Only a live in-progress
+    room with no formal delivery and no fresh artifact feedback may use it.
+    """
+    return (
+        item.get("buyer_feedback_answered_by_seller") is True
+        and item.get("buyer_feedback_pending_artifact") is not True
+        and item.get("formal_delivery_observed", item.get("formal_delivery_confirmed")) is not True
+        and _text(item.get("talkroom_state", item.get("transaction_state"))) == "取引中"
+    )
+
+
 def _reported_paid_row(args, item: dict[str, Any]) -> dict[str, Any] | None:
     room = _text(item.get("talkroom_id"))
     owner_row = _owner_policy_row(args, item)
@@ -6879,6 +6896,11 @@ def _reported_paid_row(args, item: dict[str, Any]) -> dict[str, Any] | None:
                 "formal_delivery_checkbox": True,
                 "evidence_paths": {"official_readback": _text(item.get("talkroom_evidence_file"))}}
     if _reported_file_progress_cycle(args, item) is not None:
+        return {"talkroom_id": room, "status": "awaiting_buyer",
+                "send_performed": False, "deduplicated": True,
+                "formal_delivery_checkbox": False,
+                "evidence_paths": {"official_readback": _text(item.get("talkroom_evidence_file"))}}
+    if _official_buyer_feedback_answer_wait(item):
         return {"talkroom_id": room, "status": "awaiting_buyer",
                 "send_performed": False, "deduplicated": True,
                 "formal_delivery_checkbox": False,
@@ -7083,6 +7105,7 @@ def run_once(args, output: Path) -> int:
                 "buyer_feedback_sha256", "buyer_feedback_stage", "buyer_feedback_pending_artifact",
                 "buyer_feedback_identity_sha256", "buyer_feedback_message_identities",
                 "buyer_feedback_requirements_path", "buyer_reply_after_artifact_observed",
+                "buyer_feedback_answered_by_seller",
                 "buyer_formal_delivery_hold", "delivery_date", "status", "talkroom_state",
                 "talkroom_evidence_file", "talkroom_observed_at", "snapshot_captured_at",
                 "talkroom_evidence_sha256", "talkroom_screenshot_sha256", "formal_delivery_observed",

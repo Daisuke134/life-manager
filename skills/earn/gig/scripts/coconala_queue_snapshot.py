@@ -1353,6 +1353,7 @@ def minimize_talkroom_dom(talkroom: dict[str, Any], talkroom_id: str, observed_a
     )
     latest_actionable = -1
     latest_seller_attachment = -1
+    latest_seller_message = -1
     buyer_attachments: list[dict[str, Any]] = []
     buyer_message_indexes: list[int] = []
     buyer_agreement_indexes: list[int] = []
@@ -1376,6 +1377,7 @@ def minimize_talkroom_dom(talkroom: dict[str, Any], talkroom_id: str, observed_a
             # has the buyer seen an artifact -- and stays -1 in a room where we have
             # written five times in plain text, so it cannot stand in for "we spoke".
             seller_message_observed = True
+            latest_seller_message = index
             full_text = " ".join(str(message.get("text") or "").split())
             seller_sent_messages.append({
                 "text": safe_text(message.get("text"), 300),
@@ -1423,6 +1425,24 @@ def minimize_talkroom_dom(talkroom: dict[str, Any], talkroom_id: str, observed_a
     buyer_reply_after_artifact_observed = latest_seller_attachment >= 0 and any(
         index > latest_seller_attachment for index in buyer_message_indexes
     )
+    # A buyer reply after an earlier artifact is not automatically new work.
+    # The seller may already have answered that exact current feedback in plain
+    # text (without sending another artifact).  Keep this separate from the
+    # historical ``buyer_reply_after_artifact_observed`` flag: that flag answers
+    # "did the buyer ever speak after an artifact?", while this one answers the
+    # idempotency question the paid lane needs: "is the latest buyer feedback
+    # still unanswered?".  The same boundary used by
+    # ``persist_latest_paid_buyer_reply`` defines current feedback: all buyer
+    # messages before the first delivery, or all buyer messages after the latest
+    # seller attachment.
+    feedback_boundary = latest_seller_attachment
+    latest_buyer_feedback = max(
+        (index for index in buyer_message_indexes if index > feedback_boundary),
+        default=-1,
+    )
+    buyer_feedback_answered_by_seller = (
+        latest_buyer_feedback >= 0 and latest_seller_message > latest_buyer_feedback
+    )
     buyer_formal_delivery = buyer_formal_delivery_directive(messages)
     parsed_url = urlsplit(str(talkroom.get("url") or ""))
     # A5 (docs/loop-engineering/26-gig-loop-asis-tobe-plan.md section CC'): the room's
@@ -1463,6 +1483,7 @@ def minimize_talkroom_dom(talkroom: dict[str, Any], talkroom_id: str, observed_a
         "buyer_visible_artifact_observed": seller_attachment_after,
         "buyer_agreement_observed": buyer_agreement_observed,
         "buyer_reply_after_artifact_observed": buyer_reply_after_artifact_observed,
+        "buyer_feedback_answered_by_seller": buyer_feedback_answered_by_seller,
         **buyer_formal_delivery,
         "buyer_attachments": buyer_attachments,
         # A5: the marketplace's own cancellation clock, kept verbatim next to the parsed
@@ -3620,6 +3641,7 @@ def enrich_order(order: dict[str, Any], talkroom: dict[str, Any], offer: dict[st
     order["buyer_visible_artifact_observed"] = talkroom.get("buyer_visible_artifact_observed") is True
     order["buyer_agreement_observed"] = talkroom.get("buyer_agreement_observed") is True
     order["buyer_reply_after_artifact_observed"] = talkroom.get("buyer_reply_after_artifact_observed") is True
+    order["buyer_feedback_answered_by_seller"] = talkroom.get("buyer_feedback_answered_by_seller") is True
     order["buyer_formal_delivery_hold"] = talkroom.get("buyer_formal_delivery_hold") is True
     order["buyer_formal_delivery_hold_reason"] = (
         BUYER_FORMAL_DELIVERY_HOLD_REASON
