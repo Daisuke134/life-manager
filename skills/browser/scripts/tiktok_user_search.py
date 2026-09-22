@@ -15,14 +15,14 @@ import cdp
 
 READBACK = r"""
 (() => {
-  const resultItems = [...document.querySelectorAll(
-    '[data-e2e="search-user-item"], [data-e2e="search-user-card"], [data-e2e="search-user-item-container"]'
-  )];
   const visible = node => {
     const style = getComputedStyle(node);
     const rect = node.getBoundingClientRect();
     return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
   };
+  const resultItems = [...document.querySelectorAll(
+    '[data-e2e="search-user-item"], [data-e2e="search-user-card"], [data-e2e="search-user-item-container"]'
+  )].filter(visible);
   const emptyNodes = [...document.querySelectorAll(
     '[data-e2e="search-no-result"], [data-e2e="search-empty"], [data-e2e="no-result"], [role="status"]'
   )].filter(visible);
@@ -36,7 +36,7 @@ READBACK = r"""
   return {
     url: location.href,
     title: document.title,
-    ready: resultItems.length > 0 || empty,
+    ready: resultLinks.length > 0 || empty,
     empty,
     profiles: empty ? [] : [...new Set(resultLinks
       .map(node => node.href).filter(Boolean))].slice(0, 50)

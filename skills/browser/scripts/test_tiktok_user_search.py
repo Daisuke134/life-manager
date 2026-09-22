@@ -172,6 +172,13 @@ def test_ready_empty_results_complete_only_after_stable_empty_sample(tmp_path):
     assert result["profiles"] == []
 
 
+def test_readback_ignores_hidden_or_linkless_result_items():
+    search = load_module()
+
+    assert ")].filter(visible);" in search.READBACK
+    assert "ready: resultLinks.length > 0 || empty" in search.READBACK
+
+
 def test_search_closes_owned_target_on_read_failure(tmp_path):
     search = load_module()
 
