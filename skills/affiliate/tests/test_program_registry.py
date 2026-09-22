@@ -1,17 +1,146 @@
 import importlib.util
+import json
 import sys
 import tempfile
+import types
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
-SCRIPT = Path(__file__).parents[1] / "scripts" / "program_registry.py"
+SCRIPTS = Path(__file__).parents[1] / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+SCRIPT = SCRIPTS / "program_registry.py"
 SPEC = importlib.util.spec_from_file_location("affiliate_program_registry", SCRIPT)
 MODULE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MODULE)
 
 
+class ReadbackPage:
+    def __init__(self, observed):
+        self.observed = observed
+        self.navigations = []
+        self.ui_reads = 0
+
+    def goto(self, url, **_kwargs):
+        self.navigations.append(url)
+
+    def evaluate(self, _script):
+        return self.observed
+
+    def get_by_text(self, *_args, **_kwargs):
+        self.ui_reads += 1
+        raise AssertionError("official readback must stop before link-form UI")
+
+
+def fake_playwright(page):
+    class Playwright:
+        def __enter__(self):
+            browser = types.SimpleNamespace(
+                contexts=[types.SimpleNamespace(pages=[page])],
+            )
+            self.chromium = types.SimpleNamespace(
+                connect_over_cdp=lambda _url: browser,
+            )
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    sync_api = types.ModuleType("playwright.sync_api")
+    sync_api.sync_playwright = Playwright
+    playwright = types.ModuleType("playwright")
+    playwright.sync_api = sync_api
+    return patch.dict(sys.modules, {
+        "playwright": playwright,
+        "playwright.sync_api": sync_api,
+    })
+
+
 class ProgramRegistryTest(unittest.TestCase):
+    def test_partnerstack_unauthorized_stops_before_link_form_or_effect(self):
+        for http_status in (401, 403):
+            with self.subTest(http_status=http_status):
+                page = ReadbackPage({
+                    "state": "AUTH_REQUIRED",
+                    "partnership_http": http_status,
+                    "ensure_http": None,
+                    "items": [],
+                })
+
+                with tempfile.TemporaryDirectory() as temporary:
+                    state = Path(temporary) / "state"
+                    private = Path(temporary) / "credentials.md"
+                    private.write_text(
+                        "## ElevenLabs\n- Login: owner@example.com\n- Password: secret\n",
+                        encoding="utf-8",
+                    )
+                    private.chmod(0o600)
+                    with fake_playwright(page):
+                        receipt = MODULE.elevenlabs_link_action(
+                            state, 9324, private, "campaign-one", create=True,
+                            title="Campaign one", description="A decision guide.",
+                        )
+
+                    self.assertEqual(receipt["state"], "AUTH_REQUIRED")
+                    self.assertEqual(receipt["reason"], "PARTNERSTACK_AUTH_REQUIRED")
+                    self.assertEqual(receipt["provider_http_status"], http_status)
+                    self.assertFalse(receipt["provider_effect_started"])
+                    self.assertFalse(receipt["changed"])
+                    self.assertEqual(page.ui_reads, 0)
+                    self.assertEqual(
+                        page.navigations,
+                        [MODULE.ELEVENLABS_LINKS, MODULE.ELEVENLABS_HOME],
+                    )
+                    stored = json.loads((
+                        state / "program-links" / "campaign-one.json"
+                    ).read_text(encoding="utf-8"))
+                    self.assertEqual(stored, receipt)
+                    self.assertTrue({
+                        "schema_version", "receipt_type", "provider", "state",
+                        "reason", "placement", "provider_http_status",
+                        "provider_effect_started", "changed", "observed_at",
+                    }.issuperset(stored))
+
+    def test_existing_partnerstack_link_verifies_without_link_form(self):
+        page = ReadbackPage({
+            "state": "READY",
+            "partnership_http": 200,
+            "ensure_http": 200,
+            "items": [{
+                "key": "link-key-1",
+                "tracking_custom_link_id": "tracking-1",
+                "slug": "campaign-one",
+                "url": "https://try.elevenlabs.io/campaign-one",
+                "dest": "https://elevenlabs.io",
+            }],
+        })
+
+        with tempfile.TemporaryDirectory() as temporary:
+            state = Path(temporary) / "state"
+            private = Path(temporary) / "credentials.md"
+            private.write_text(
+                "## ElevenLabs\n- Login: owner@example.com\n- Password: secret\n",
+                encoding="utf-8",
+            )
+            private.chmod(0o600)
+            with fake_playwright(page):
+                receipt = MODULE.elevenlabs_link_action(
+                    state, 9324, private, "campaign-one", create=True,
+                    title="Campaign one", description="A decision guide.",
+                )
+
+            self.assertEqual(receipt["state"], "VERIFIED")
+            self.assertTrue(receipt["deduplicated"])
+            self.assertEqual(receipt["provider_link_key"], "link-key-1")
+            self.assertEqual(page.ui_reads, 0)
+            self.assertIn(
+                "- Placement 27f8a68166e22555 affiliate link: "
+                "https://try.elevenlabs.io/campaign-one",
+                private.read_text(encoding="utf-8"),
+            )
+
     def test_store_login_replaces_only_login_and_keeps_private_mode(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "credentials.md"

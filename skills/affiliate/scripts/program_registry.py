@@ -263,16 +263,35 @@ def atomic_receipt(path, payload):
 def _elevenlabs_links(page):
     return page.evaluate(
         """async () => {
-            const partnership = await fetch(
+            const partnershipResponse = await fetch(
               'https://api.partnerstack.com/api/companies/partnerships/elevenlabsinc',
-              {credentials: 'include'}).then(response => response.json());
+              {credentials: 'include'});
+            const partnership = await partnershipResponse.json().catch(() => ({}));
+            if ([401, 403].includes(partnershipResponse.status)) {
+              return {state: 'AUTH_REQUIRED', partnership_http: partnershipResponse.status,
+                      ensure_http: null, items: []};
+            }
+            if (!partnershipResponse.ok) {
+              return {state: 'PROVIDER_UNAVAILABLE', partnership_http: partnershipResponse.status,
+                      ensure_http: null, items: []};
+            }
             const key = partnership?.data?.key;
-            if (!key) throw new Error('ElevenLabs partnership key is unavailable');
+            if (!key) {
+              return {state: 'PROVIDER_SCHEMA_INVALID',
+                      partnership_http: partnershipResponse.status,
+                      ensure_http: null, items: []};
+            }
             const response = await fetch(
               `https://api.partnerstack.com/api/links/ensure/${key}`,
               {method: 'POST', credentials: 'include'});
-            const body = await response.json();
-            return {http: response.status, items: body?.data?.items || []};
+            const body = await response.json().catch(() => ({}));
+            return {
+              state: [401, 403].includes(response.status) ? 'AUTH_REQUIRED'
+                : response.ok ? 'READY' : 'PROVIDER_UNAVAILABLE',
+              partnership_http: partnershipResponse.status,
+              ensure_http: response.status,
+              items: body?.data?.items || [],
+            };
         }"""
     )
 
@@ -331,8 +350,25 @@ def elevenlabs_link_action(
         page = pages[0]
         try:
             page.goto(ELEVENLABS_LINKS, wait_until="domcontentloaded", timeout=20_000)
-            page.get_by_text(re.compile(r"^(カスタムリンク|Custom links?)")).first.wait_for(timeout=15_000)
             observed = _elevenlabs_links(page)
+            if observed.get("state") == "AUTH_REQUIRED":
+                result = {
+                    "schema_version": 1,
+                    "receipt_type": "PARTNERSTACK_PLACEMENT_LINK",
+                    "provider": "elevenlabs",
+                    "state": "AUTH_REQUIRED",
+                    "reason": "PARTNERSTACK_AUTH_REQUIRED",
+                    "placement": placement,
+                    "provider_http_status": (
+                        observed.get("ensure_http")
+                        or observed.get("partnership_http")
+                    ),
+                    "provider_effect_started": False,
+                    "changed": False,
+                    "observed_at": datetime.now(timezone.utc).isoformat(),
+                }
+                atomic_receipt(receipt_path, result)
+                return result
             match = next((item for item in observed["items"] if item.get("slug") == placement), None)
             if create and match is None and job:
                 result = {
@@ -345,6 +381,9 @@ def elevenlabs_link_action(
                 atomic_receipt(receipt_path, result)
                 return result
             if create and match is None:
+                page.get_by_text(
+                    re.compile(r"^(カスタムリンク|Custom links?)")
+                ).first.wait_for(timeout=15_000)
                 page.get_by_text(re.compile(r"^(カスタムリンクの作成|Create custom link)$")).click()
                 page.get_by_placeholder(re.compile(r"^(タイトル|Title)$")).fill(title[:160])
                 page.locator("textarea").fill(description[:500])
@@ -373,6 +412,9 @@ def elevenlabs_link_action(
                     if match:
                         break
             if not create:
+                page.get_by_text(
+                    re.compile(r"^(カスタムリンク|Custom links?)")
+                ).first.wait_for(timeout=15_000)
                 page.get_by_text(re.compile(r"^(カスタムリンクの作成|Create custom link)$")).click()
                 page.get_by_text("https://elevenlabs.io", exact=True).click()
                 destinations = page.get_by_role("option").all_inner_texts()

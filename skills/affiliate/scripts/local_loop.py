@@ -3643,6 +3643,27 @@ def recover_provider(state, cdp_port, private_markdown, provider="elevenlabs"):
     return poll(poll_args, recovered)
 
 
+def combine_provider_health(service, affiliate_network):
+    """Join the SaaS and affiliate-network sessions into one usable health state."""
+    combined = {
+        **service,
+        "service_state": service.get("state"),
+        "affiliate_network_state": affiliate_network.get("state"),
+    }
+    if (
+        service.get("state") == "AUTHENTICATED"
+        and affiliate_network.get("state") == "AUTH_REQUIRED"
+    ):
+        combined.update({
+            "state": "AUTH_REQUIRED",
+            "auth_boundary": "partnerstack",
+            "next_action": "RESTORE_PARTNERSTACK_AUTH",
+            "network_http_status": affiliate_network.get("provider_http_status"),
+            "transition_id": None,
+        })
+    return combined
+
+
 def generic_publication_terminal_state(completed, invalid_metadata):
     if invalid_metadata:
         return "CAMPAIGN_METADATA_INVALID"
@@ -4877,6 +4898,9 @@ def _wake_once(args, started_at, run_id):
                 }
             else:
                 raise
+    provider = combine_provider_health(provider, placement_link)
+    if provider.get("auth_boundary") == "partnerstack":
+        recovery_state = "PARTNERSTACK_AUTH_REQUIRED"
     placement_link_ready = placement_link.get("state") == "VERIFIED"
     placement_link_changed = placement_link_ready and not placement_link.get("deduplicated", False)
     impact = {
@@ -4893,7 +4917,10 @@ def _wake_once(args, started_at, run_id):
             "provider.poll.hubspot-impact", "READ_ONLY", {"browser_ready": True},
             lambda: provider_poll(state, impact_port, provider="hubspot-impact"),
         )
-        if impact["state"] == "SIGN_IN_REQUIRED":
+        if (
+            impact["state"] == "SIGN_IN_REQUIRED"
+            and provider["state"] == "AUTHENTICATED"
+        ):
             try:
                 impact = admit(
                     "provider.recover.hubspot-impact", "EXTERNAL_WRITE",
@@ -4910,6 +4937,8 @@ def _wake_once(args, started_at, run_id):
                 )
             except (ProviderError, JobStateError, OSError, ValueError, KeyError, json.JSONDecodeError):
                 impact_recovery_state = "RECOVERY_FAILED"
+        elif impact["state"] == "SIGN_IN_REQUIRED":
+            impact_recovery_state = "SKIPPED_PROVIDER_NOT_AUTHENTICATED"
     application = {"state": "NOT_RUN", "program": "getresponse"}
     if provider["state"] == "AUTHENTICATED" and placement_link_ready and not placement_link_changed:
         try:
@@ -5058,20 +5087,26 @@ def _wake_once(args, started_at, run_id):
             "failure_type": type(error).__name__,
         }
     focused_funnel = (funnel_snapshot.get("placements") or [{}])[0]
-    try:
-        cta_instrumentation = admit(
-            "publication.cta-instrumentation", "PUBLICATION_WRITE",
-            {"placement_id": focused_funnel.get("placement_id")},
-            lambda: advance_cta_instrumentation(
-                state, landing_root.expanduser(), focused_funnel["placement_id"],
-                focused_funnel["owned_url"],
-            ),
-        )
-    except Exception as error:
+    if provider["state"] != "AUTHENTICATED":
         cta_instrumentation = {
-            "state": "CTA_INSTRUMENTATION_FAILED", "changed": False,
-            "failure_type": type(error).__name__,
+            "state": "PROVIDER_NOT_AUTHENTICATED", "changed": False,
+            "failure_type": None,
         }
+    else:
+        try:
+            cta_instrumentation = admit(
+                "publication.cta-instrumentation", "PUBLICATION_WRITE",
+                {"placement_id": focused_funnel.get("placement_id")},
+                lambda: advance_cta_instrumentation(
+                    state, landing_root.expanduser(), focused_funnel["placement_id"],
+                    focused_funnel["owned_url"],
+                ),
+            )
+        except Exception as error:
+            cta_instrumentation = {
+                "state": "CTA_INSTRUMENTATION_FAILED", "changed": False,
+                "failure_type": type(error).__name__,
+            }
     try:
         owned_entries = admit(
             "acquisition.observe-x-owned-entries", "READ_ONLY",
@@ -5244,6 +5279,10 @@ def _wake_once(args, started_at, run_id):
         "cost_budget_unknown_rows": cost_budget.get("unknown_rows"),
         "provider_changed": provider["changed"],
         "provider_state": provider["state"],
+        "provider_service_state": provider.get("service_state"),
+        "provider_affiliate_network_state": provider.get("affiliate_network_state"),
+        "provider_auth_boundary": provider.get("auth_boundary"),
+        "provider_network_http_status": provider.get("network_http_status"),
         "provider_transition_id": provider["transition_id"],
         "provider_failure_type": provider.get("failure_type"),
         "provider_failure_class": provider.get("failure_class"),
