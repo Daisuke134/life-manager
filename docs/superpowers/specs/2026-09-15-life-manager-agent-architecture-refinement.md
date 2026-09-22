@@ -2546,23 +2546,32 @@ replay protection, runtime status, completion manifests, Local/Cloud gates, reco
 bounded evaluation/promotion contract. These contracts are necessary infrastructure, but they do not
 by themselves prove that all 14 Product Loops work in production.
 
-The current non-Paid cursor is Affiliate. Public CTA/readback and release-provenance repairs are on
-main. The queued-release self-heal change is also on main at `619b90d0745f3244354e756d1ff03787adf98d33`:
-only explicitly opted-in owners may reconcile a queued release, active reservations and
-`effect_unknown` remain fenced, loaded-idle is required, and occurrence/FIFO identity is preserved.
-Focused registry/apply tests pass 190/190, the Python runtime suite passes 509/509, scoped Node
-catalog/recovery tests pass 39/39, and the loop contract reports 14 catalog loops with no errors. The
-production release reconciler has naturally cut the complete immutable
-`20260923T051252-619b90d0` release. Affiliate remains on the preceding `e6cdef15...` release until the
-natural deterministic reconcile records an owner-scoped install event; therefore automatic rebind is
-in progress, not yet accepted.
+The current non-Paid cursor is Affiliate. Public CTA/readback, release-provenance and queued-release
+self-heal repairs are on main. PR #5783 is merged as
+`3fe9eadcff1d1cbc0b4fa4551d3fa27563e7372f`: only explicitly opted-in owners may rebind while an
+active reservation exists; loaded-idle readback is mandatory; claimed or `effect_unknown` work stays
+fenced; and the reservation, occurrence and FIFO identity are preserved. The Python runtime suite
+passes 511/511, host admission passes 120/120, the focused apply module passes 117/117, scoped Node
+registry tests pass 15/15, all PR checks are green, fresh review is SHIP, and the loop contract reports
+14 catalog loops with no errors.
+
+Production has naturally cut the complete immutable `20260923T053459-3fe9eadc` release. During the
+same natural reconcile, Affiliate was loaded-idle on `6df273fa...` with deterministic reservation
+sequence `127503`. The reconciler retained that reservation and queue row, recorded install event
+`bb7b342a3cb0e0498b5abb24`, loaded exact `3fe9eadc...` argv and returned `failed=[]`. This closes the
+automatic reserved-release rebind acceptance. The preceding natural Affiliate wake on
+`6df273fa...` reached outer `pass`, exact installed/event provenance and `effect_unknown=0`. A natural
+Affiliate wake on `3fe9eadc...` is still pending; do not count the install event as a provider effect
+or revenue receipt.
 
 The remaining order is fixed as follows:
 
-1. Finish Affiliate automatic idle-boundary rebind acceptance on `619b90d...`, then require a natural
-   wake with exact release provenance, no `effect_unknown`, official readback and replay-zero. Repair
-   the observed acquisition-decision, owned-visit, provider-poll and publication failures from their
-   typed receipts; an existing public page or process `exit 0` is not revenue completion.
+1. Require Affiliate's next natural wake on `3fe9eadc...` with exact release provenance, no
+   `effect_unknown`, official readback and replay-zero. Then repair the typed business blockers:
+   acquisition-decision runner pin rejection, unavailable owned-visit analytics, transient Impact
+   observation and quarantined publication. Current cumulative provider clicks are 8 and verified
+   transactions/approved/paid commissions remain 0; an existing public page, impressions or process
+   `exit 0` is not revenue completion.
 2. Verify Mobile Apps/Postiz on its natural schedule: expected posts exist on the official provider,
    the intended three-per-day cadence is durable, missed occurrences are reconciled without duplicate
    publication, and analytics/revenue receipts feed the same evaluation contract.
