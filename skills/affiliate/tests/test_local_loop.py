@@ -25,6 +25,29 @@ SPEC.loader.exec_module(MODULE)
 
 
 class LocalLoopTest(unittest.TestCase):
+    def test_partnerstack_auth_failure_overrides_service_auth_health(self):
+        combined = MODULE.combine_provider_health(
+            {
+                "state": "AUTHENTICATED",
+                "changed": False,
+                "transition_id": "service-transition",
+                "next_action": "NO_STATE_CHANGE",
+            },
+            {
+                "state": "AUTH_REQUIRED",
+                "reason": "PARTNERSTACK_AUTH_REQUIRED",
+                "provider_http_status": 401,
+                "provider_effect_started": False,
+            },
+        )
+
+        self.assertEqual(combined["state"], "AUTH_REQUIRED")
+        self.assertEqual(combined["service_state"], "AUTHENTICATED")
+        self.assertEqual(combined["affiliate_network_state"], "AUTH_REQUIRED")
+        self.assertEqual(combined["auth_boundary"], "partnerstack")
+        self.assertEqual(combined["next_action"], "RESTORE_PARTNERSTACK_AUTH")
+        self.assertFalse(combined["changed"])
+
     def test_installed_release_sha_uses_validated_runtime_environment(self):
         release_sha = "a" * 40
         with patch.dict(
@@ -1752,6 +1775,104 @@ class LocalLoopTest(unittest.TestCase):
             self.assertEqual(event["provider_state"], "AUTHENTICATED")
             self.assertEqual(event["provider_transition_id"], "transition-1")
             self.assertEqual(event["revenue_state"], "NO_TRANSACTIONS")
+
+    def test_wake_stops_partnerstack_work_when_network_auth_is_required(self):
+        with tempfile.TemporaryDirectory() as root:
+            root = Path(root)
+            private = root / "affiliate-credentials.md"
+            private.write_text(
+                "## ElevenLabs\n"
+                "- Default affiliate link: `https://try.elevenlabs.io/example`\n",
+                encoding="utf-8",
+            )
+            private.chmod(0o600)
+            args = Namespace(
+                private_markdown=private, state=root / "state", cdp_port=9324,
+                x_cdp_port=9326, landing_root=root / "landing",
+            )
+            provider = {
+                "state": "AUTHENTICATED", "changed": False,
+                "transition_id": "service-transition",
+            }
+            provider_state = provider
+            application = Mock()
+            verification = Mock()
+            publication = Mock()
+            cta = Mock(return_value={"state": "LIVE", "changed": True})
+            recover = Mock(return_value={
+                "state": "APPROVED", "changed": True,
+                "transition_id": "impact-recovery-transition",
+            })
+            revenue = Mock(return_value={
+                "state": "NO_TRANSACTIONS", "source_rows": 0,
+                "appended_transitions": 0,
+            })
+            output = io.StringIO()
+            with (
+                patch.object(
+                    MODULE, "browser_ready",
+                    side_effect=lambda port: port in {9324, 9327},
+                ),
+                patch.object(
+                    MODULE, "provider_poll",
+                    side_effect=lambda _state, _port, provider="elevenlabs": (
+                        {"state": "SIGN_IN_REQUIRED", "changed": False,
+                         "transition_id": "impact-transition"}
+                        if provider == "hubspot-impact" else provider_state
+                    ),
+                ),
+                patch.object(MODULE, "recover_provider", recover),
+                patch.object(MODULE, "elevenlabs_link_action", return_value={
+                    "state": "AUTH_REQUIRED",
+                    "reason": "PARTNERSTACK_AUTH_REQUIRED",
+                    "provider_http_status": 401,
+                    "provider_effect_started": False,
+                    "changed": False,
+                }),
+                patch.object(MODULE, "apply_getresponse", application),
+                patch.object(MODULE, "verify_systeme_email", verification),
+                patch.object(MODULE, "advance_known_publication", publication),
+                patch.object(MODULE, "refresh_funnel_snapshot", return_value={
+                    "state": "OBSERVED", "snapshot_sha256": "snapshot-1",
+                    "placements": [{
+                        "placement_id": "placement-1",
+                        "owned_url": "https://aniccaai.com/guide",
+                    }],
+                }),
+                patch.object(MODULE, "advance_cta_instrumentation", cta),
+                patch.object(MODULE, "run_revenue_cycle", revenue),
+                patch.object(MODULE, "observe_devto_acquisition", return_value={
+                    "state": "OBSERVED", "article_count": 1,
+                    "total_page_views": 0, "delta_page_views": 0,
+                }),
+                patch.object(MODULE, "flush_telegram", return_value={
+                    "state": "NO_PENDING", "sent": 0, "message_id": None,
+                }),
+                contextlib.redirect_stdout(output),
+            ):
+                MODULE.wake(args)
+
+            event = json.loads(output.getvalue())
+            self.assertEqual(event["status"], "AUTH_REQUIRED")
+            self.assertEqual(event["provider_state"], "AUTH_REQUIRED")
+            self.assertEqual(event["provider_service_state"], "AUTHENTICATED")
+            self.assertEqual(event["provider_affiliate_network_state"], "AUTH_REQUIRED")
+            self.assertEqual(event["provider_auth_boundary"], "partnerstack")
+            self.assertEqual(event["provider_network_http_status"], 401)
+            self.assertEqual(
+                event["provider_recovery_state"], "PARTNERSTACK_AUTH_REQUIRED",
+            )
+            self.assertEqual(
+                event["impact_recovery_state"],
+                "SKIPPED_PROVIDER_NOT_AUTHENTICATED",
+            )
+            self.assertEqual(event["placement_link_state"], "AUTH_REQUIRED")
+            application.assert_not_called()
+            verification.assert_not_called()
+            publication.assert_not_called()
+            cta.assert_not_called()
+            recover.assert_not_called()
+            revenue.assert_not_called()
 
     def test_action_budget_blocks_systeme_verification_submission(self):
         with tempfile.TemporaryDirectory() as root:
