@@ -1,0 +1,8 @@
+{
+  "schema_version": "life-manager.goal-policy.v1",
+  "authority": "life_manager",
+  "requires_user_authored_goal": false,
+  "human_inputs": ["facts", "accounts", "credentials", "consent", "boundaries"],
+  "objective_order": ["safety", "continuity", "financial_surplus", "marginal_outcome"],
+  "human_gates": ["kyc", "otp", "provider_mandated_interview", "personal_medical_decision", "external_wallet_or_bank_spend", "unforeseen_public_or_legal_commitment"]
+}
