@@ -8,8 +8,16 @@ const { roundedScoreValue } = require("./panel-score-semantics.js");
 let renderPanelPage = null;
 let renderScoreCards = null;
 let renderPanelOnboardingPage = null;
+let renderGoalPanelProjection = null;
+let validateGoalPanelProjection = null;
 try {
-  ({ renderPanelPage, renderScoreCards, renderPanelOnboardingPage } = require("./panel-ui.js"));
+  ({
+    renderGoalPanelProjection,
+    renderPanelPage,
+    renderScoreCards,
+    renderPanelOnboardingPage,
+    validateGoalPanelProjection,
+  } = require("./panel-ui.js"));
 } catch (error) {
   if (error.code !== "MODULE_NOT_FOUND") throw error;
 }
@@ -832,4 +840,57 @@ test("PANEL-8g: emitted browser score renderer accepts the integer-safe FINANCIA
   const organs = safeIntegerFinancialOrgans();
   assert.equal(roundedScoreValue(organs.financial.numerator, organs.financial.denominator), 10);
   assert.doesNotThrow(() => emittedScoreRenderer()({ organs }));
+});
+
+test("CC03: authenticated phone Panel automatically starts Goal work without a goal form", () => {
+  const html = renderPanelPage({ csrf: "goal-csrf" });
+  assert.match(html, /data-panel-section="goals"/);
+  assert.match(html, /goals:\s*"\/api\/panel\/goals"/);
+  assert.match(html, /data\.status === "not_started"/);
+  assert.match(html, /fetch\("\/api\/panel\/goals",\s*\{\s*method:\s*"POST"/);
+  assert.match(html, /body:\s*JSON\.stringify\(\{\}\)/);
+  assert.match(html, /"x-lm-csrf":\s*controlCsrf/);
+  assert.match(html, /"idempotency-key"/);
+  assert.match(html, /credentials:\s*"same-origin"/);
+  assert.match(html, /goalStartFailed[\s\S]*fetch\(panelEndpoints\[name\]/);
+  assert.doesNotMatch(html, /localStorage|sessionStorage/);
+
+  const section = html.match(/<section class="panel-section" data-panel-section="goals"[\s\S]*?<\/section>/)[0];
+  assert.doesNotMatch(section, /<input|<textarea|<form|<button/i);
+  assert.doesNotMatch(section, /what is your goal|目標を(?:入力|選択|教えて)|goal_statement/i);
+
+  const guest = renderPanelPage({ guest: true });
+  assert.doesNotMatch(guest, /<section class="panel-section" data-panel-section="goals"/);
+  assert.doesNotMatch(guest, /\n\s*goals:\s*"\/api\/panel\/goals"/);
+});
+
+test("CC03: Goal projection renderer accepts only consistent opaque state and escapes refs", () => {
+  assert.equal(typeof validateGoalPanelProjection, "function");
+  assert.equal(typeof renderGoalPanelProjection, "function");
+  const started = {
+    created: false,
+    tenant_id: "tenant-a",
+    goal_ref: "goal-portfolio://tenant-a/financial-continuity?revision=1",
+    job_ref: "runtime-job://tenant-a/goal%3Afinancial-continuity%3Ar1",
+    status: "queued",
+    receipt_ref: null,
+  };
+  assert.deepEqual(validateGoalPanelProjection(started), started);
+  const rendered = renderGoalPanelProjection(started);
+  assert.match(rendered, /queued/);
+  assert.match(rendered, /goal-portfolio:\/\/tenant-a/);
+  assert.match(rendered, /runtime-job:\/\/tenant-a/);
+  assert.doesNotMatch(rendered, /financial surplus|settled revenue|chat|credential/i);
+
+  const notStarted = {
+    created: false, tenant_id: "tenant-a", goal_ref: null, job_ref: null,
+    status: "not_started", receipt_ref: null,
+  };
+  assert.doesNotThrow(() => validateGoalPanelProjection(notStarted));
+  for (const invalid of [
+    { ...started, tenant_id: "tenant-b" },
+    { ...started, goal_ref: "goal-portfolio://tenant-b/foreign?revision=1" },
+    { ...started, raw_goal: "secret" },
+    { ...notStarted, created: true },
+  ]) assert.throws(() => validateGoalPanelProjection(invalid), /invalid goal panel projection/);
 });

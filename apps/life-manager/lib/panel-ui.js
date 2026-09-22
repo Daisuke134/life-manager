@@ -59,6 +59,48 @@ function renderScoreCards(data) {
   return '<div class="score-grid">' + rows + '</div>';
 }
 
+function goalPanelEscapeHtml(value) {
+  return String(value == null ? "" : value).replace(/[&<>"']/g, function (character) {
+    return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character];
+  });
+}
+
+function validateGoalPanelProjection(value) {
+  const keys = ["created", "goal_ref", "job_ref", "receipt_ref", "status", "tenant_id"];
+  const statuses = ["not_started", "queued", "running", "reconciling", "dead_letter", "planned", "completed", "blocked"];
+  if (!value || typeof value !== "object" || Array.isArray(value)
+    || Object.keys(value).length !== keys.length
+    || !Object.keys(value).sort().every(function (key, index) { return key === keys[index]; })
+    || typeof value.created !== "boolean"
+    || typeof value.tenant_id !== "string" || !/^[a-z0-9][a-z0-9._-]{0,199}$/u.test(value.tenant_id)
+    || !statuses.includes(value.status)) throw new Error("invalid goal panel projection");
+  if (value.status === "not_started") {
+    if (value.created !== false || value.goal_ref !== null || value.job_ref !== null || value.receipt_ref !== null) {
+      throw new Error("invalid goal panel projection");
+    }
+    return value;
+  }
+  const tenant = encodeURIComponent(value.tenant_id);
+  if (typeof value.goal_ref !== "string" || !value.goal_ref.startsWith("goal-portfolio://" + tenant + "/")
+    || typeof value.job_ref !== "string" || !value.job_ref.startsWith("runtime-job://" + tenant + "/")
+    || !(value.receipt_ref === null || (typeof value.receipt_ref === "string"
+      && value.receipt_ref.startsWith("runtime-receipt://" + tenant + "/")))) {
+    throw new Error("invalid goal panel projection");
+  }
+  return value;
+}
+
+function renderGoalPanelProjection(data) {
+  const value = validateGoalPanelProjection(data);
+  if (value.status === "not_started") return '<p class="loading">Life Managerが次の仕事を準備しています。</p>';
+  const receipt = value.receipt_ref === null ? "—" : value.receipt_ref;
+  return '<div class="goal-projection"><p class="goal-status"><span>Cloud work</span><strong>'
+    + goalPanelEscapeHtml(value.status) + '</strong></p><dl><dt>Goal</dt><dd>'
+    + goalPanelEscapeHtml(value.goal_ref) + '</dd><dt>Work</dt><dd>'
+    + goalPanelEscapeHtml(value.job_ref) + '</dd><dt>Receipt</dt><dd>'
+    + goalPanelEscapeHtml(receipt) + '</dd></dl></div>';
+}
+
 function renderPanelOnboardingPage(options = {}) {
   const csrf = scoreEscapeHtml(options.csrf || "");
   return `<!doctype html>
@@ -328,6 +370,12 @@ function renderPanelPage(options = {}) {
     .panel-section:nth-child(5) { grid-column: span 12; animation-delay: 320ms; }
     .panel-section:nth-child(6) { grid-column: span 12; animation-delay: 360ms; }
     .panel-section[data-panel-section="money-printer"] { grid-column: span 12; }
+    .panel-section[data-panel-section="goals"] { grid-column: span 12; }
+    .goal-status { display:flex; justify-content:space-between; gap:16px; margin:0 0 16px; }
+    .goal-status span { color:var(--ink-soft); }
+    .goal-projection dl { display:grid; grid-template-columns:auto minmax(0,1fr); gap:8px 16px; margin:0; }
+    .goal-projection dt { color:var(--ink-soft); font-size:.72rem; font-weight:800; }
+    .goal-projection dd { min-width:0; margin:0; overflow-wrap:anywhere; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.72rem; }
     .money-metrics, .money-board { display: grid; gap: 10px; }
     .money-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 18px; }
     .money-board { grid-template-columns: repeat(6, minmax(9rem, 1fr)); overflow-x: auto; }
@@ -687,6 +735,10 @@ function renderPanelPage(options = {}) {
         <div class="section-body" data-panel-body aria-live="polite"><p class="loading">Money Printerの状態を確認しています。</p></div>
         <p class="money-webmcp-status" data-money-webmcp-status aria-live="polite"></p>
       </section>
+      ${guest ? "" : `<section class="panel-section" data-panel-section="goals" data-state="loading" aria-labelledby="goals-title">
+        <header class="section-head"><h2 id="goals-title">Goal Portfolio</h2><span class="section-kicker">Cloud continuity</span></header>
+        <div class="section-body" data-panel-body aria-live="polite"><p class="loading">Life Managerの継続中の仕事を確認しています。</p></div>
+      </section>`}
       ${guest ? "" : `<section class="panel-section" data-panel-section="timeline" data-state="loading" aria-labelledby="timeline-title">
         <header class="section-head"><h2 id="timeline-title">今日の timeline</h2><span class="section-kicker">Today</span></header>
         <div class="section-body" data-panel-body aria-live="polite"><p class="loading">今日の予定を確認しています。</p></div>
@@ -724,6 +776,7 @@ function renderPanelPage(options = {}) {
 
     const panelEndpoints = Object.freeze({
       "money-printer": "/api/panel/money-printer",
+      ${guest ? "" : 'goals: "/api/panel/goals",'}
       ${guest ? "" : 'timeline: "/api/panel/timeline",'}
       ${guest ? "" : 'scores: "/api/panel/scores",'}
       ${guest ? "" : 'ledger: "/api/panel/ledger",'}
@@ -1301,7 +1354,10 @@ function renderPanelPage(options = {}) {
       return intake + '<div class="money-metrics">' + metrics + '</div><div class="money-board">' + lanes + '</div><div data-money-human-task><p class="loading">Checking human tasks…</p></div><div class="money-workroom" data-money-workroom><p class="empty">Select an opportunity to inspect its workroom.</p></div>';
     }
 
-    const renderers = Object.freeze({ "money-printer": renderMoneyPrinter, timeline: renderTimeline, scores: renderScores, ledger: renderLedger, gates: renderGates, settings: renderSettings, "control-center": renderControlCenter });
+    ${goalPanelEscapeHtml.toString()}
+    ${validateGoalPanelProjection.toString()}
+    ${renderGoalPanelProjection.toString()}
+    const renderers = Object.freeze({ "money-printer": renderMoneyPrinter, goals: renderGoalPanelProjection, timeline: renderTimeline, scores: renderScores, ledger: renderLedger, gates: renderGates, settings: renderSettings, "control-center": renderControlCenter });
 
     async function loadPanelSection(name) {
       const response = await fetch(panelEndpoints[name], { credentials: "same-origin", headers: { Accept: "application/json" } });
@@ -1310,7 +1366,27 @@ function renderPanelPage(options = {}) {
         throw new Error("session expired");
       }
       if (!response.ok) throw new Error(name + " unavailable");
-      const data = await response.json();
+      let data = await response.json();
+      if (name === "goals") {
+        validateGoalPanelProjection(data);
+        if (data.status === "not_started") {
+          let goalStartFailed = false;
+          try {
+            const started = await fetch("/api/panel/goals", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-lm-csrf": controlCsrf || "${String(options.csrf || "")}", "idempotency-key": (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + "-goal") }, body: JSON.stringify({}) });
+            if (!started.ok) throw new Error("goal start unavailable");
+            data = await started.json();
+          } catch {
+            goalStartFailed = true;
+          }
+          if (goalStartFailed) {
+            const recovered = await fetch(panelEndpoints[name], { credentials: "same-origin", headers: { Accept: "application/json" } });
+            if (!recovered.ok) throw new Error("goals unavailable");
+            data = await recovered.json();
+          }
+          validateGoalPanelProjection(data);
+          if (data.status === "not_started") throw new Error("goals unavailable");
+        }
+      }
       if (displayContainsSensitiveValue(data)) throw new Error(name + " unavailable");
       markLoaded(name, renderers[name](data));
       if (name === "money-printer") await loadMoneyHumanTask();
@@ -1431,4 +1507,10 @@ ${logoutScript}
 </html>`;
 }
 
-module.exports = { renderPanelPage, renderPanelOnboardingPage, renderScoreCards };
+module.exports = {
+  renderGoalPanelProjection,
+  renderPanelPage,
+  renderPanelOnboardingPage,
+  renderScoreCards,
+  validateGoalPanelProjection,
+};
