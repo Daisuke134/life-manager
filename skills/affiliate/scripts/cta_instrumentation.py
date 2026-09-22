@@ -520,6 +520,33 @@ def advance(state, landing_root, placement_id, owned_url):
     receipt_path = state / "cta-instrumentation.json"
     prior = json.loads(receipt_path.read_text()) if receipt_path.is_file() else {}
     root = landing_root.resolve()
+    observed_at = datetime.now(timezone.utc).isoformat()
+    if _public_ready(owned_url, placement_id) and _entry_public_ready():
+        receipt = {
+            **prior,
+            "schema_version": 1,
+            "receipt_type": "AFFILIATE_CTA_INSTRUMENTATION",
+            "state": "LIVE",
+            "placement_id": placement_id,
+            "owned_url": owned_url,
+            "observed_at": observed_at,
+        }
+        changed = any(
+            prior.get(key) != receipt[key]
+            for key in ("state", "placement_id", "owned_url")
+        )
+        atomic_write(receipt_path, receipt)
+        return {**receipt, "changed": changed}
+
+    source_paths = {name: root / name for name in FILES}
+    if not all(path.is_file() for path in source_paths.values()):
+        return {
+            "state": "SOURCE_UNAVAILABLE",
+            "changed": False,
+            "reason": "LOCAL_SOURCE_UNAVAILABLE",
+            "placement_id": placement_id,
+            "owned_url": owned_url,
+        }
     v2_paths = {name: root / name for name in V2_FILES}
     v2_ready = all(
         path.is_file() and V2_MARKER in path.read_text(encoding="utf-8")
@@ -527,7 +554,7 @@ def advance(state, landing_root, placement_id, owned_url):
     )
     v3_paths = {name: root / name for name in V3_NEW_FILES}
     page_path = root / "apps/landing/app/blog/[slug]/page.tsx"
-    v3_ready = V3_MARKER in page_path.read_text(encoding="utf-8") and all(
+    v3_ready = page_path.is_file() and V3_MARKER in page_path.read_text(encoding="utf-8") and all(
         path.is_file() and V3_MARKER in path.read_text(encoding="utf-8")
         for path in v3_paths.values()
     )
@@ -536,12 +563,12 @@ def advance(state, landing_root, placement_id, owned_url):
         and v2_ready and v3_ready and _public_ready(owned_url, placement_id)
         and _entry_public_ready()
     ):
-        receipt = {**prior, "state": "LIVE", "observed_at": datetime.now(timezone.utc).isoformat()}
+        receipt = {**prior, "state": "LIVE", "observed_at": observed_at}
         atomic_write(receipt_path, receipt)
         return {**receipt, "changed": prior.get("state") != "LIVE"}
     if _git(root, "rev-parse", "--show-toplevel") != str(root):
         raise InstrumentationError("publication worktree mismatch")
-    paths = {name: root / name for name in FILES}
+    paths = source_paths
     if not all(MARKER in path.read_text(encoding="utf-8") for path in paths.values()):
         if _git(root, "status", "--porcelain"):
             raise InstrumentationError("publication worktree is dirty")

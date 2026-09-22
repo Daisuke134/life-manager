@@ -12,7 +12,7 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from websocket import create_connection
+from websocket import WebSocketException, create_connection
 
 from local_loop import append_unique
 from provider_cli import atomic_write, cdp_call, read_json
@@ -20,6 +20,24 @@ from provider_cli import atomic_write, cdp_call, read_json
 
 class RevenueError(Exception):
     pass
+
+
+def failure_type(error):
+    """Reduce provider failures to actionable types without logging private text."""
+    message = str(error)
+    if isinstance(error, WebSocketException):
+        return "BROWSER_TRANSPORT"
+    if isinstance(error, RevenueError):
+        if "authentication is required" in message:
+            return "AUTH_REQUIRED"
+        if "metrics did not become ready" in message:
+            return "METRICS_NOT_READY"
+        if "expected one provider tab" in message:
+            return "TAB_INVARIANT"
+        return "PROVIDER_SCHEMA_ERROR"
+    if isinstance(error, OSError):
+        return "RUNTIME_IO"
+    return "CONTRACT"
 
 
 LABELS = {
@@ -1227,6 +1245,12 @@ def main():
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (RevenueError, OSError, ValueError, KeyError, json.JSONDecodeError):
-        print("affiliate revenue: failed closed", file=sys.stderr)
+    except (
+        RevenueError, WebSocketException, OSError, ValueError, KeyError,
+        json.JSONDecodeError,
+    ) as error:
+        print(json.dumps(
+            {"failure_type": failure_type(error)},
+            sort_keys=True, separators=(",", ":"),
+        ), file=sys.stderr)
         raise SystemExit(1)

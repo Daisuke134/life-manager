@@ -1172,6 +1172,59 @@ class LocalLoopTest(unittest.TestCase):
             "NO_EFFECT",
         )
 
+    def test_missing_optional_publication_source_is_known_no_effect(self):
+        result = {
+            "state": "SOURCE_UNAVAILABLE",
+            "changed": False,
+            "reason": "LOCAL_SOURCE_UNAVAILABLE",
+        }
+        self.assertEqual(MODULE._tool_outcome(result), "NO_EFFECT")
+        self.assertEqual(
+            MODULE._tool_effect_certainty(result, "PUBLICATION_WRITE"),
+            "NO_EFFECT",
+        )
+
+    def test_existing_substack_publication_is_replay_zero_while_notification_stays_pending(self):
+        with tempfile.TemporaryDirectory() as root:
+            state = Path(root)
+            MODULE.atomic_json(state / "substack-publications" / "plan-1.json", {
+                "state": "LIVE",
+                "plan_id": "plan-1",
+                "public_url": "https://example.substack.com/p/plan-1",
+                "observed_at": "2026-09-23T00:00:00+00:00",
+            })
+
+            result = MODULE.advance_substack_distribution(state, now=1_790_100_000)
+
+            self.assertEqual(result["state"], "ALREADY_LIVE")
+            self.assertFalse(result["changed"])
+            self.assertTrue(result["notification_pending"])
+            wake = {
+                "distribution_changed": result["changed"],
+                "distribution_notification_pending": result["notification_pending"],
+                "distribution_state": result["state"],
+                "distribution_channel": result["channel"],
+                "distribution_plan_id": result["plan_id"],
+                "distribution_url": result["public_url"],
+            }
+            event = MODULE.owner_event(state, wake)
+            self.assertEqual(event["kind"], "DISTRIBUTION_LIVE")
+            MODULE.append(state / "telegram-sent.jsonl", {
+                "event_uuid": event["event_uuid"], "message_id": "1",
+            })
+
+            replay = MODULE.advance_substack_distribution(state, now=1_790_100_001)
+
+            self.assertEqual(replay["state"], "COOLDOWN")
+            self.assertFalse(replay["changed"])
+            self.assertFalse(replay.get("notification_pending", False))
+            next_event = MODULE.owner_event(state, {
+                **wake,
+                "distribution_notification_pending": False,
+                "distribution_state": replay["state"],
+            })
+            self.assertNotEqual((next_event or {}).get("kind"), "DISTRIBUTION_LIVE")
+
     def test_daily_summary_has_stable_jst_day_identity_and_money_stage(self):
         with tempfile.TemporaryDirectory() as root:
             state = Path(root)
@@ -2182,6 +2235,32 @@ class LocalLoopTest(unittest.TestCase):
             self.assertGreater(result["retry_after"], receipt["observed_at"])
             self.assertEqual(receipt["failure_class"], "PROVIDER_TRANSIENT")
             self.assertEqual(receipt["retry_state"], "RETRYABLE")
+
+    def test_revenue_command_failure_preserves_redacted_provider_reason(self):
+        self.assertEqual(
+            MODULE.revenue_command_failure_type(
+                '{"failure_type":"AUTH_REQUIRED"}\n'
+            ),
+            "AUTH_REQUIRED",
+        )
+        self.assertEqual(
+            MODULE._classify_revenue_failure("AUTH_REQUIRED"),
+            ("AUTH_REQUIRED", 3_600),
+        )
+        self.assertEqual(
+            MODULE.revenue_command_failure_type(
+                '{"failure_type":"BROWSER_TRANSPORT"}\n'
+            ),
+            "BROWSER_TRANSPORT",
+        )
+        self.assertEqual(
+            MODULE._classify_revenue_failure("BROWSER_TRANSPORT"),
+            ("BROWSER_TRANSIENT", 300),
+        )
+        self.assertEqual(
+            MODULE.revenue_command_failure_type("unstructured private failure"),
+            "NONZERO_EXIT",
+        )
 
     def test_placement_receipt_is_exactly_once_and_hides_tracking_link(self):
         with tempfile.TemporaryDirectory() as root:
