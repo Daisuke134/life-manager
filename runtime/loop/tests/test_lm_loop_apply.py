@@ -103,6 +103,35 @@ class LmLoopApplyTest(unittest.TestCase):
                 ("revenue", "revenue"),
             )
 
+    def test_pending_admission_policy_mismatches_detects_only_registry_drift(self):
+        from runtime.host import resource_admission
+
+        resource_admission.enqueue_durable(
+            "deterministic", "affiliate-loop", admission_class="borrow",
+            priority="support", occurrence_id="affiliate-loop:wake",
+        )
+        resource_admission.enqueue_durable(
+            "deterministic", "affiliate-source-refresh", admission_class="borrow",
+            priority="support", occurrence_id="affiliate-source-refresh:wake",
+        )
+        value = {"loops": {
+            "affiliate-loop": {
+                "resource_class": "deterministic", "admission_class": "revenue",
+                "priority": "revenue", "effect_class": "publish",
+                "entrypoint": "skills/affiliate/affiliate",
+            },
+            "affiliate-source-refresh": {
+                "resource_class": "deterministic", "admission_class": "borrow",
+                "priority": "support", "effect_class": "none",
+                "entrypoint": "skills/affiliate/affiliate",
+            },
+        }}
+
+        self.assertEqual(
+            lm_loop._pending_admission_policy_mismatches(value),
+            {"affiliate-loop"},
+        )
+
     def test_admission_rebind_guard_defers_release_install_for_reserved_owner(self):
         entry = {
             "resource_class": "agent",
@@ -1748,6 +1777,52 @@ class LmLoopApplyTest(unittest.TestCase):
             ]), 0)
 
         self.assertEqual([row["target"] for row in applied], ["example"])
+        receipt = json.loads(output.getvalue())
+        self.assertEqual(receipt["eligible"], 1)
+        self.assertEqual(receipt["skipped_pending"], [])
+
+    def test_automatic_reconcile_delegates_only_policy_drift_to_atomic_rebind(self):
+        release = self._release("release-auto-pending-policy-drift").resolve()
+        value = registry()
+        value["loops"]["example"].update({
+            "resource_class": "deterministic",
+            "admission_class": "revenue",
+            "priority": "revenue",
+        })
+        value["loops"]["life-manager-disk-cleanup"] = {
+            **value["loops"]["example"],
+            "label": "ai.anicca.life-manager-disk-cleanup",
+        }
+        (release / "config/loop-registry.json").write_text(json.dumps(value))
+        row = {
+            "classification": "managed",
+            "provider_route": "deterministic",
+            "launchd_state": "loaded-idle",
+            "installed_release_sha": "b" * 40,
+            "event_release_sha": "b" * 40,
+            "loop_id": "example",
+        }
+        applied = []
+        with (
+            patch.object(lm_loop, "ROOT", release),
+            patch.object(lm_loop, "snapshot", return_value=[row]),
+            patch.object(lm_loop, "_pending_admission_owners", return_value={"example"}),
+            patch.object(lm_loop, "_pending_admission_policy_mismatches",
+                         return_value={"example"}),
+            patch.object(lm_loop, "_loaded_sha_is_ancestor", return_value=True),
+            patch.object(lm_loop, "apply_live",
+                         side_effect=lambda *args, **kwargs: applied.append(kwargs["target"]) or [{"ok": True}]),
+            patch.dict(os.environ, {
+                "LIFE_MANAGER_RELEASE_ROOT": str(release),
+                "LIFE_MANAGER_LOOP_ID": "life-manager-release-reconciler",
+            }),
+            redirect_stdout(io.StringIO()) as output,
+        ):
+            self.assertEqual(lm_loop.main([
+                "reconcile", "deterministic", "--loaded-idle-only",
+            ]), 0)
+
+        self.assertEqual(applied, ["example"])
         receipt = json.loads(output.getvalue())
         self.assertEqual(receipt["eligible"], 1)
         self.assertEqual(receipt["skipped_pending"], [])

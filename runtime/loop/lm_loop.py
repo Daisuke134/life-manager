@@ -28,7 +28,7 @@ from runtime.loop.lm_loop_apply import (
 from runtime.loop.lm_loop_lifecycle import lifecycle, lifecycle_one
 from runtime.loop.runtime_event import append_runtime_event, build_install_event, validate_runtime_event
 from runtime.host.resource_admission import (
-    activate_durable_v2, durable_protocol_version, owner_deploy_lock,
+    ADMISSION_POLICY, activate_durable_v2, durable_protocol_version, owner_deploy_lock,
     rebind_queued_owner,
     state_root as admission_root,
 )
@@ -50,6 +50,51 @@ def _pending_admission_owners() -> set[str]:
                SELECT o.owner_id FROM occurrences o
                  JOIN queue q ON q.owner_id=o.owner_id
                WHERE o.state='queued' AND o.effect_unknown=0""")}
+
+
+def _entry_effect_scope(entry: dict) -> str:
+    if (entry.get("effect_class") == "publish"
+            and entry.get("entrypoint") == "apps/life-manager/scripts/mobile-app"):
+        return "occurrence"
+    return "owner"
+
+
+def _pending_admission_policy_mismatches(registry: dict) -> set[str]:
+    """Return effect-free queued owners whose durable policy differs from registry."""
+    expected_by_owner = {}
+    for owner_id, entry in registry.get("loops", {}).items():
+        expected = (
+            entry.get("resource_class"), entry.get("admission_class"),
+            entry.get("priority"), ADMISSION_POLICY, _entry_effect_scope(entry),
+        )
+        if all(isinstance(value, str) and value for value in expected[:3]):
+            expected_by_owner[owner_id] = expected
+    if not expected_by_owner:
+        return set()
+    database = admission_root() / "admission-v2.sqlite3"
+    try:
+        database.stat()
+    except FileNotFoundError:
+        return set()
+    with sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True, timeout=1) as connection:
+        rows = connection.execute(
+            """SELECT q.owner_id,q.resource_class,p.admission_class,p.base_priority,
+                      p.admission_policy,p.effect_scope
+               FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
+               WHERE EXISTS (
+                   SELECT 1 FROM occurrences o
+                   WHERE o.owner_id=q.owner_id
+                     AND o.state='queued' AND o.effect_unknown=0
+               )"""
+        ).fetchall()
+    mismatches = set()
+    for owner_id, resource_class, admission_class, priority, policy, effect_scope in rows:
+        expected = expected_by_owner.get(owner_id)
+        if expected is None:
+            continue
+        if (resource_class, admission_class, priority, policy, effect_scope) != expected:
+            mismatches.add(owner_id)
+    return mismatches
 
 
 def _admission_effect_unknown_owners() -> set[str]:
@@ -108,8 +153,7 @@ def _admission_rebind_guard(
             "admission_class": admission_class,
             "priority": priority,
         }
-        if (entry.get("effect_class") == "publish"
-                and entry.get("entrypoint") == "apps/life-manager/scripts/mobile-app"):
+        if _entry_effect_scope(entry) == "occurrence":
             rebind_kwargs["effect_scope"] = "occurrence"
         result = rebind_queued_owner(loop_id, **rebind_kwargs)
         if result == "reserved":
@@ -1073,6 +1117,10 @@ def main(argv: list[str] | None = None) -> int:
         ancestry_cache: dict[str, bool] = {}
         try:
             pending_owners = _pending_admission_owners()
+            pending_policy_mismatches = (
+                _pending_admission_policy_mismatches(registry)
+                if automatic_release_reconciler else set()
+            )
         except (OSError, sqlite3.Error) as exc:
             print(json.dumps({"ok": False, "error": f"admission queue read failed: {type(exc).__name__}"}))
             return 1
@@ -1092,7 +1140,8 @@ def main(argv: list[str] | None = None) -> int:
             and row["loop_id"] != os.environ.get("LIFE_MANAGER_LOOP_ID")
             and row["provider_route"] == route
             and (row["loop_id"] not in pending_owners
-                 or row["loop_id"] in requested_ids)
+                 or row["loop_id"] in requested_ids
+                 or row["loop_id"] in pending_policy_mismatches)
             and (not requested_ids or row["loop_id"] in effective_requested_ids)
             and row["launchd_state"] in eligible_states
             and (row["launchd_state"] != "loaded-running"
@@ -1114,7 +1163,8 @@ def main(argv: list[str] | None = None) -> int:
         skipped_pending = sorted({row["loop_id"] for row in rows if (
             row["provider_route"] == route
             and row["loop_id"] in pending_owners
-            and row["loop_id"] not in requested_ids)})
+            and row["loop_id"] not in requested_ids
+            and row["loop_id"] not in pending_policy_mismatches)})
         applied, failed = [], []
         for row in eligible:
             try:
