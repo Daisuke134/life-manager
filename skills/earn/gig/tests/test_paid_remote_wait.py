@@ -4791,7 +4791,7 @@ def test_paid_admission_does_not_expand_one_identity_to_multiple_talkrooms(tmp_p
     ]
 
 
-def test_paid_noop_winner_rotates_next_wake_to_one_later_effect(tmp_path, monkeypatch):
+def test_paid_reported_waiter_does_not_consume_only_effect_slot(tmp_path, monkeypatch):
     paid = load("paid_direct")
     items = [
         {
@@ -4859,20 +4859,16 @@ def test_paid_noop_winner_rotates_next_wake_to_one_later_effect(tmp_path, monkey
     monkeypatch.setattr(paid.project_janitor, "scan", lambda *_args, **_kwargs: {"status": "ok"})
 
     first = tmp_path / "first.json"
-    second = tmp_path / "second.json"
     assert paid.run_once(args, first) == 0
-    assert effects == []
-
-    assert paid.run_once(args, second) == 0
     assert effects == ["102"]
-    result = json.loads(second.read_text(encoding="utf-8"))
+    result = json.loads(first.read_text(encoding="utf-8"))
     assert [row["status"] for row in result["items"]] == ["completed", "completed"]
-    for room in ("101", "102"):
-        events = [
-            json.loads(line)
-            for line in (args.projects_root / room / "events.jsonl").read_text().splitlines()
-        ]
-        assert [row["event"] for row in events].count("queue_selected") == 1
+    assert not (args.projects_root / "101/events.jsonl").exists()
+    events = [
+        json.loads(line)
+        for line in (args.projects_root / "102/events.jsonl").read_text().splitlines()
+    ]
+    assert [row["event"] for row in events].count("queue_selected") == 1
 
 
 def test_paid_observation_does_not_exclude_ryu_talkroom(tmp_path, monkeypatch):

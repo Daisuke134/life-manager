@@ -6989,10 +6989,16 @@ def run_once(args, output: Path) -> int:
             if owner_row["status"] == "failed":
                 failed += 1
                 failed_step = "owner_policy_invalid"
+        # A room whose current durable state is already report-only must not consume
+        # the single effect slot and push an actually actionable client to the next
+        # wake. Targeted readback below still refreshes and reports every room.
         active_items = _paid_active_items(args, items)
+        admission_items = [
+            item for item in active_items if _reported_paid_row(args, item) is None
+        ]
         admitted_paid_rooms = {
             _text(item.get("talkroom_id"))
-            for item in _admitted_paid_projects(args, active_items)
+            for item in _admitted_paid_projects(args, admission_items)
         }
         executor = _paid_project_executor()
         jobs = {}
