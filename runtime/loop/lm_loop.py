@@ -130,16 +130,20 @@ def _next_eligible(cadence: dict) -> str:
     return key.replace("_", "-")
 
 
-def _validated_report_event(value: dict | None) -> dict | None:
+def _validated_report_event(value: dict | None, row: dict) -> dict | None:
     try:
         event = validate_runtime_event(value)
     except ValueError:
         return None
-    return event if event["phase"] == "report" else None
+    return event if (
+        event["phase"] == "report"
+        and event["loop_id"] == row.get("loop_id")
+        and event["effect_class"] == row.get("effect_class")
+    ) else None
 
 
 def _status_explanation(row: dict, event: dict | None) -> dict:
-    source = _validated_report_event(event)
+    source = _validated_report_event(event, row)
     identity = {
         "event_id": source.get("event_id") if source else None,
         "run_id": source.get("run_id") if source else None,

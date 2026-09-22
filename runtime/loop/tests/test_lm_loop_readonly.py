@@ -288,6 +288,13 @@ class LmLoopReadonlyTest(unittest.TestCase):
         invalid = reason(event={"status": "pass", "evidence_refs": ["forged"]})
         self.assertEqual(invalid["reason_code"], "insufficient_evidence")
         self.assertEqual(invalid["evidence_refs"], [])
+        for mismatched in (
+            runtime_event(loop_id="another-loop"),
+            runtime_event(effect_class="none", effect_status="not_applicable"),
+        ):
+            explanation = reason(event=mismatched)
+            self.assertEqual(explanation["reason_code"], "insufficient_evidence")
+            self.assertEqual(explanation["evidence_refs"], [])
 
     def test_status_explain_cli_accepts_one_target_and_rejects_unknown_flags(self):
         root = Path(__file__).resolve().parents[3]
