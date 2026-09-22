@@ -79,7 +79,18 @@ def _pending_admission_policy_mismatches(registry: dict) -> set[str]:
     with sqlite3.connect(f"{database.as_uri()}?mode=ro", uri=True, timeout=1) as connection:
         rows = connection.execute(
             """SELECT q.owner_id,q.resource_class,p.admission_class,p.base_priority,
-                      p.admission_policy,p.effect_scope
+                      p.admission_policy,p.effect_scope,p.effect_unknown,
+                      EXISTS (
+                          SELECT 1 FROM occurrences claimed
+                          WHERE claimed.owner_id=q.owner_id
+                            AND claimed.state='claimed'
+                            AND claimed.effect_unknown=0
+                      ),
+                      EXISTS (
+                          SELECT 1 FROM occurrences uncertain
+                          WHERE uncertain.owner_id=q.owner_id
+                            AND uncertain.effect_unknown=1
+                      )
                FROM queue q JOIN priorities p ON p.owner_id=q.owner_id
                WHERE EXISTS (
                    SELECT 1 FROM occurrences o
@@ -88,9 +99,16 @@ def _pending_admission_policy_mismatches(registry: dict) -> set[str]:
                )"""
         ).fetchall()
     mismatches = set()
-    for owner_id, resource_class, admission_class, priority, policy, effect_scope in rows:
+    for (owner_id, resource_class, admission_class, priority, policy, effect_scope,
+         priority_effect_unknown, claimed, occurrence_effect_unknown) in rows:
         expected = expected_by_owner.get(owner_id)
         if expected is None:
+            continue
+        expected_resource, *_rest, expected_effect_scope = expected
+        if resource_class != expected_resource:
+            continue
+        if (priority_effect_unknown or claimed
+                or (expected_effect_scope == "owner" and occurrence_effect_unknown)):
             continue
         if (resource_class, admission_class, priority, policy, effect_scope) != expected:
             mismatches.add(owner_id)

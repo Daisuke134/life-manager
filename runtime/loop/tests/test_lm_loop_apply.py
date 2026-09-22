@@ -114,6 +114,34 @@ class LmLoopApplyTest(unittest.TestCase):
             "deterministic", "affiliate-source-refresh", admission_class="borrow",
             priority="support", occurrence_id="affiliate-source-refresh:wake",
         )
+        resource_admission.enqueue_durable(
+            "deterministic", "claimed-owner", admission_class="borrow",
+            priority="support", occurrence_id="claimed-owner:running",
+        )
+        resource_admission.enqueue_durable(
+            "deterministic", "claimed-owner", admission_class="borrow",
+            priority="support", occurrence_id="claimed-owner:queued",
+        )
+        resource_admission.enqueue_durable(
+            "deterministic", "resource-drift", admission_class="borrow",
+            priority="support", occurrence_id="resource-drift:wake",
+        )
+        resource_admission.enqueue_durable(
+            "deterministic", "unknown-owner", admission_class="borrow",
+            priority="support", occurrence_id="unknown-owner:known",
+        )
+        resource_admission.enqueue_durable(
+            "deterministic", "unknown-owner", admission_class="borrow",
+            priority="support", occurrence_id="unknown-owner:unknown",
+        )
+        with sqlite3.connect(self.root / "admission" / "admission-v2.sqlite3") as connection:
+            connection.execute(
+                "UPDATE occurrences SET state='claimed' WHERE occurrence_id='claimed-owner:running'"
+            )
+            connection.execute(
+                "UPDATE occurrences SET effect_unknown=1 "
+                "WHERE occurrence_id='unknown-owner:unknown'"
+            )
         value = {"loops": {
             "affiliate-loop": {
                 "resource_class": "deterministic", "admission_class": "revenue",
@@ -124,6 +152,21 @@ class LmLoopApplyTest(unittest.TestCase):
                 "resource_class": "deterministic", "admission_class": "borrow",
                 "priority": "support", "effect_class": "none",
                 "entrypoint": "skills/affiliate/affiliate",
+            },
+            "claimed-owner": {
+                "resource_class": "deterministic", "admission_class": "revenue",
+                "priority": "revenue", "effect_class": "publish",
+                "entrypoint": "skills/example",
+            },
+            "resource-drift": {
+                "resource_class": "agent", "admission_class": "revenue",
+                "priority": "revenue", "effect_class": "publish",
+                "entrypoint": "skills/example",
+            },
+            "unknown-owner": {
+                "resource_class": "deterministic", "admission_class": "revenue",
+                "priority": "revenue", "effect_class": "publish",
+                "entrypoint": "skills/example",
             },
         }}
 
