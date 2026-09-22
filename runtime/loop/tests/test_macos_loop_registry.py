@@ -391,6 +391,9 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual(row["command"], ["sources", "wake"])
         self.assertEqual(row["entrypoint"], "skills/affiliate/affiliate")
         self.assertEqual(row["runtime_timeout_seconds"], 10800)
+        self.assertEqual(row["resource_class"], "deterministic")
+        self.assertEqual(row["admission_class"], "borrow")
+        self.assertEqual(row["priority"], "support")
 
     def test_affiliate_loop_uses_direct_exec_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
@@ -398,6 +401,9 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual(row["adapter"], "exec")
         self.assertEqual(row["command"], ["loop", "wake"])
         self.assertEqual(row["entrypoint"], "skills/affiliate/affiliate")
+        self.assertEqual(row["resource_class"], "deterministic")
+        self.assertEqual(row["admission_class"], "revenue")
+        self.assertEqual(row["priority"], "revenue")
 
     def test_affiliate_browser_uses_repo_managed_runtime_python(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
@@ -437,6 +443,9 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual(row["adapter"], "exec")
         self.assertEqual(row["command"], ["compose", "wake"])
         self.assertEqual(row["entrypoint"], "skills/affiliate/affiliate")
+        self.assertEqual(row["resource_class"], "deterministic")
+        self.assertEqual(row["admission_class"], "borrow")
+        self.assertEqual(row["priority"], "support")
 
     def test_crowdworks_application_uses_repo_managed_runtime_python(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())

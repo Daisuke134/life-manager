@@ -128,6 +128,7 @@
     },
     "affiliate-composition": {
       "adapter": "exec",
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 600
       },
@@ -144,7 +145,9 @@
       "entrypoint": "skills/affiliate/affiliate",
       "label": "ai.anicca.affiliate-composition",
       "log_root": "~/.local/state/life-manager/affiliate-composition/logs",
+      "priority": "support",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/affiliate-composition"
     },
     "affiliate-impact-browser": {
@@ -171,6 +174,7 @@
     },
     "affiliate-loop": {
       "adapter": "exec",
+      "admission_class": "revenue",
       "cadence": {
         "start_interval_seconds": 600
       },
@@ -187,11 +191,14 @@
       "entrypoint": "skills/affiliate/affiliate",
       "label": "ai.anicca.affiliate-loop",
       "log_root": "~/.local/state/life-manager/affiliate-loop/logs",
+      "priority": "revenue",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "state_root": "~/.local/state/life-manager/affiliate-loop"
     },
     "affiliate-source-refresh": {
       "adapter": "exec",
+      "admission_class": "borrow",
       "cadence": {
         "start_interval_seconds": 600
       },
@@ -208,7 +215,9 @@
       "entrypoint": "skills/affiliate/affiliate",
       "label": "ai.anicca.affiliate-source-refresh",
       "log_root": "~/.local/state/life-manager/affiliate-source-refresh/logs",
+      "priority": "support",
       "provider_route": "deterministic",
+      "resource_class": "deterministic",
       "runtime_timeout_seconds": 10800,
       "state_root": "~/.local/state/life-manager/affiliate-source-refresh"
     },
