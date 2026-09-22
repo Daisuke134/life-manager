@@ -103,7 +103,13 @@ function memoryDatabase() {
         return { rows: user && user.telegram_chat_id === chatId ? [{ ...user }] : [] };
       }
       if (/FROM public\.lm_goal_contexts AS context_row/i.test(sql)) {
-        const [tenantId, chatId, revision] = params;
+        const scoped = /JOIN public\.lm_users AS user_row/i.test(sql);
+        if ((!scoped && params.length !== 2) || (scoped && params.length !== 3)) {
+          throw new Error("goal context SQL parameters are not contiguous");
+        }
+        const tenantId = params[0];
+        const chatId = scoped ? params[1] : null;
+        const revision = scoped ? params[2] : params[1];
         const user = users.get(tenantId);
         if (!user || (chatId != null && user.telegram_chat_id !== chatId)) return { rows: [] };
         const row = [...contexts.values()]

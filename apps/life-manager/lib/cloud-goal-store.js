@@ -132,9 +132,9 @@ function createCloudGoalStore(opts = {}) {
              context_row.context_sha256
       FROM public.lm_goal_contexts AS context_row
       WHERE context_row.tenant_id = $1
-        AND ($3::integer IS NULL OR context_row.revision = $3)
+        AND ($2::integer IS NULL OR context_row.revision = $2)
       ORDER BY context_row.revision DESC LIMIT 1
-    `, [id, null, revision]), "cloud goal context read");
+    `, [id, revision]), "cloud goal context read");
   }
 
   return Object.freeze({
