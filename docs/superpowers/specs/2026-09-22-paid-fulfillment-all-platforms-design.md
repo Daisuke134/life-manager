@@ -57,13 +57,18 @@ The current official inventory still contains exactly four open talkrooms: Ryu
 `18211957`, Chii `18180857`, and the two NPO rooms `18223833` and `18250352`.
 `hf-gig-paid-direct` is installed from immutable release
 `4c6b1dc8a52952e31f13bcb26a5266e570169e1d`; its natural canary and replay-zero
-passed with no new external effect because Chii and both NPO rooms are genuinely
-`awaiting_buyer`, while Ryu is `reserved_for_owner`. Chii's 300-row campaign,
-three response/reaction records, and final seller report are complete; no Chii
-message may be resent. `hf-gig-reply-detector` remains a separate
-observation/pre-contract owner and cannot acquire post-payment fulfillment
-authority. The remaining Coconala cursor is therefore honest state classification,
-not a request to manufacture another client action.
+passed with no new external effect because the non-Ryu rooms are currently
+`awaiting_buyer`, while Ryu is `reserved_for_owner`. Chii's seller-facing report
+was sent, but that report is not proof that the underlying 300-recipient campaign
+completed. The latest private paid-campaign readback at
+`/Users/anicca/gig/projects/18180857/delivery/paid-remote-result.json`
+(`2026-09-23T07:36:32+09:00`) verifies only 20/300 TikTok-send/Sheet pairs;
+280 remain and the current inbox readback cannot render reply text. Therefore
+Chii is paused for exact reconciliation: no Chii DM resend, guessed reply count,
+or formal-delivery effect is permitted while the system-repair cursor is active.
+`hf-gig-reply-detector` remains a separate observation/pre-contract owner and
+cannot acquire post-payment fulfillment authority. The Coconala queue state is
+an honest buyer-waiting classification, not proof of campaign completion.
 
 ### CrowdWorks
 
@@ -103,9 +108,13 @@ This checkpoint supersedes older planning prose above when a state differs:
 1. Ryu is complete for the latest manual correction and remains a permanent manual
    exception. No formal-delivery control was clicked and no automated effect is
    permitted for talkroom `18211957`.
-2. Chii is complete and buyer-waiting. The verified campaign count is 300 unique
-   sends; the later seller report records three reactions/responses. There is no new
-   buyer event, so the loop must not reopen or resend Chii.
+2. Chii's seller-facing answer/report is already sent and the Coconala room is
+   buyer-waiting, but the paid campaign is not complete under the exact-effect
+   contract: the latest official readback verifies 20/300 recipient pairs, leaves
+   280 unresolved, and cannot render current reply text. Chii is therefore paused
+   for reconciliation; no resend, guessed response count, or formal-delivery click
+   is allowed during system repair. This corrects the earlier over-broad
+   "complete" label.
 3. Coconala's installed natural wake and immediate replay-zero are green. Its
    remaining non-Ryu rooms are buyer-dependent; they are not failed deliveries.
 4. The next production cursor is CrowdWorks. First merge/apply the dedicated
@@ -272,8 +281,10 @@ formal delivery.
 1. Keep Ryu manual forever; process every new Ryu revision directly and verify it.
 2. Add the durable Coconala manual-owner fence and the Ryu regression fixture.
 3. Reconcile Coconala's exact `effect_unknown`; do not clear it by owner-wide guess.
-4. Audit Chii and both NPO rooms, manually repair any imminent incomplete result, and
-   select one non-Ryu loop canary.
+4. Keep Chii's external effects paused; preserve the already-sent report and
+   reconcile its exact campaign receipts later. Audit the two NPO rooms and select
+   one non-Ryu canary only after the Coconala owner/fence tests pass; do not reopen
+   Chii merely because its talkroom remains `進行中`.
 5. Ship Coconala source through focused tests, contract gate, PR/merge, immutable
    release, targeted apply, natural canary, official readback, and replay-zero.
 6. Admit every remaining eligible Coconala paid room while Ryu remains excluded.
