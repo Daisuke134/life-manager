@@ -8,6 +8,11 @@ completed real-world actions, acts within delegated boundaries, verifies what ha
 in plain language with evidence in Telegram. Its mission is to make dependable care and agency continuously
 available and end suffering for humans and, ultimately, all living beings.
 
+Life Manager creates, prioritizes, and maintains your Goal Portfolio from the facts, accounts, consent, and
+boundaries you provide once. It does not require you to invent or maintain goals. It works continuously, asks
+only for an exact KYC, OTP, safety, identity, or irreversible-action gate when necessary, and closes outcomes
+with official receipts.
+
 | Group | What Life Manager manages through its loops |
 |---|---|
 | **Daily** | Calendar, event and accelerator applications, job applications, priorities, and follow-through |
