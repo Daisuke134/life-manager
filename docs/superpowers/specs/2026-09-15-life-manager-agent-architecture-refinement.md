@@ -2710,6 +2710,79 @@ CC03 acceptance requires all of the following:
    sessions. CC03 is source/contract proof until its migration and server release come from canonical main;
    it does not claim a public production deployment or an effectful provider outcome.
 
+#### CC04 concrete contract — policy-bound tenant worker and credential surrogate
+
+**As-is.** CC03 can persist and expose one tenant-bound non-effectful Goal job, while the shared runtime
+queue already supports tenant-filtered claims and bounded leases. Those pieces do not yet form a Cloud
+execution security boundary. The generic worker can claim without a fixed tenant, its model key is read
+directly from process environment, and `secret-provider.js` deliberately returns plaintext to its caller.
+There is no signed proof tying one claimed attempt to the canonical Life Manager policy, one worker,
+one tenant, one capability, and the exact credential references that capability may use. A process-level
+`limit:1` also does not prevent two Cloud worker replicas from concurrently running two jobs for one tenant.
+
+**To-be.** One exact Cloud execution policy remains subordinate to J4 and accepts only
+`authority=life_manager`, `requires_user_authored_goal=false`, the non-effectful
+`general-agent.work` capability, one tenant claim at a time, one bounded lease, one bounded grant TTL, and
+the declared `secret://gemini/api-key` surrogate reference. The policy authority validates the claimed
+RuntimeJob, computes the canonical policy digest, and signs a short-lived capability grant bound to
+`tenant_id`, `job_id`, `attempt`, `worker_id`, capability, effect class, allowed secret references, and
+expiry. Callers cannot add permissions, extend expiry, substitute a tenant, or change a signed field.
+
+The Cloud claim path is a narrow PostgreSQL RPC rather than a second queue. It always requires a trusted
+tenant scope, accepts only a bounded capability allowlist and lease, returns at most one non-effectful job,
+and serializes claims for the same tenant. Concurrent replicas therefore produce at most one active claim
+for tenant A while tenant B can still progress. Existing generic Local claims remain unchanged.
+
+The credential-surrogate broker is the only component that receives the Cloud vault adapter. A worker
+presents its signed grant and a reference-only invocation; the broker revalidates policy, identity, lease
+attempt, capability, credential reference, expiry, and response schema before resolving the secret. The
+plaintext value exists only inside the broker-to-provider callback and is never returned to the worker,
+written to PostgreSQL, logged, embedded in a grant, or copied from the Mac. The broker returns an exact
+secret-free result containing opaque operation/evidence references. Tenant, worker, job, attempt,
+capability, reference, signature, or expiry mismatch is rejected before vault access.
+
+```mermaid
+sequenceDiagram
+    participant S as Tenant-scoped scheduler
+    participant Q as Existing PostgreSQL queue
+    participant P as Life Manager policy authority
+    participant W as Isolated worker
+    participant B as Credential-surrogate broker
+    participant V as Cloud vault
+    S->>Q: claim exact tenant, limit 1, bounded lease
+    Q-->>S: one effect_class=none RuntimeJob
+    S->>P: validate job + policy
+    P-->>W: short-lived signed capability grant
+    W->>B: grant + reference-only invocation
+    B->>P: verify tenant/job/attempt/worker/capability/expiry
+    B->>V: resolve one authorized secret reference internally
+    V-->>B: plaintext only inside broker boundary
+    B-->>W: secret-free opaque result
+    W->>Q: bounded completion receipt
+```
+
+CC04 acceptance requires all of the following:
+
+1. The execution-policy loader rejects unknown fields, another authority, user-required goals, effectful
+   capabilities, overbroad claim/lease/grant bounds, raw credential values, and undeclared secret refs.
+2. A signed grant is deterministic for the same policy/job/attempt/worker/time inputs, short-lived, and
+   rejected on any tamper, expiry, tenant/job/attempt/worker/capability/effect/reference mismatch, or policy
+   digest drift.
+3. The Cloud claim API has a trusted fixed tenant, returns at most one validated non-effectful job, and never
+   delegates tenant, limit, capability, or lease expansion to a phone/client/model request.
+4. Disposable PostgreSQL concurrency proves same-tenant active claims are at most one, an independent tenant
+   still claims its sibling job, expired non-effectful work follows the existing bounded-attempt rule, and
+   service/client roles cannot bypass the claim RPC or read another tenant's state.
+5. The broker rejects a foreign or malformed invocation before vault access. A valid invocation calls the
+   vault exactly once and gives plaintext only to the broker-owned provider callback; grant, worker input,
+   database rows, logs, result, and receipt contain no raw secret.
+6. One `general-agent.work` fixture crosses tenant claim → signed grant → surrogate invocation → verified
+   non-effectful completion receipt; replay/cross-tenant attempts create no extra claim or broker call.
+7. Focused tests, the CC04 PostgreSQL gate, the CC03 regression gate, the full Life Manager suite, the
+   14-loop contract, and the Paid/config boundary check pass. CC04 remains source/contract proof until a
+   canonical-main immutable release and fresh Cloud vault configuration are deployed; it claims no Local
+   credential/session copy, production migration, provider mutation, or Paid fulfillment.
+
 ### J6. Muse and Grok Bot comparison and connector decision
 
 Life Manager should learn from these products without becoming a plugin trapped inside either one.
