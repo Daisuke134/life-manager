@@ -1951,6 +1951,36 @@ def test_reported_feedback_answer_observation_is_persisted_without_effect_slot(
     assert state["buyer_feedback_answered_by_seller"] is True
 
 
+def test_queue_observation_does_not_create_admission_or_actionable_cycle(tmp_path):
+    delivery = load("delivery_project")
+    room = "18180857"
+    root = tmp_path / room
+    write_json(root / "state.json", {
+        "request_id": room,
+        "adapter": "coconala",
+        "next_action": "await_buyer_feedback",
+        "feedback_cycle_count": 4,
+    })
+    item = {
+        "request_id": room,
+        "talkroom_id": room,
+        "buyer_feedback_sha256": "1" * 64,
+        "buyer_feedback_stage": "revision",
+        "buyer_feedback_answered_by_seller": True,
+        "buyer_feedback_pending_artifact": False,
+        "talkroom_state": "取引中",
+    }
+
+    delivery.record_queue_observation(tmp_path, item, adapter="coconala")
+
+    state = json.loads((root / "state.json").read_text())
+    assert state["buyer_feedback_answered_by_seller"] is True
+    assert state["next_action"] == "await_buyer_feedback"
+    assert state["feedback_cycle_count"] == 4
+    events = [json.loads(line) for line in (root / "events.jsonl").read_text().splitlines()]
+    assert [event["event"] for event in events] == ["queue_observed"]
+
+
 def test_official_seller_attachment_wait_dominates_stale_local_state(tmp_path, monkeypatch):
     paid = load("paid_direct")
     root = tmp_path / "project"

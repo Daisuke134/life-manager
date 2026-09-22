@@ -7073,7 +7073,7 @@ def run_once(args, output: Path) -> int:
                     # same buyer-answer boundary without rebuilding or sending.
                     if item.get("buyer_feedback_answered_by_seller") is True:
                         try:
-                            delivery_project.record_queue_selection(
+                            delivery_project.record_queue_observation(
                                 args.projects_root, item, adapter="coconala",
                             )
                         except (OSError, ValueError, TypeError, json.JSONDecodeError) as error:
