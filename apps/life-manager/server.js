@@ -94,11 +94,14 @@ const { provisionAndStartAgentEconomy } = require("./lib/agent-economy-cloud-pro
 const { planProductOnboarding } = require("./lib/product-onboarding.js");
 const { ingestMentalOutcome } = require("./lib/mental-outcome-http.js");
 const { enqueueJob } = require("./lib/runtime-job-store.js");
+const { createCloudGoalStore } = require("./lib/cloud-goal-store.js");
+const { generateCloudGoalPortfolio } = require("./lib/cloud-goal-generator.js");
+const { readCloudGoalSlice, startCloudGoalSlice } = require("./lib/cloud-goal-slice.js");
 const { createAgentEconomyControlStore, economyReply } = require("./lib/agent-economy-control.js");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder"); // apiKey unused by constructEvent
 const SUPA_URL = process.env.SUPABASE_URL, SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const COMPOSIO_KEY = process.env.COMPOSIO_API_KEY;
-let moneyPrinterSource, moneyPrinterRuntimePool, moneyPrinterRuntimeStore, investmentStateStore, cloudCitizenStore, agentEconomyControlStore;
+let moneyPrinterSource, moneyPrinterRuntimePool, moneyPrinterRuntimeStore, investmentStateStore, cloudCitizenStore, agentEconomyControlStore, cloudGoalService;
 
 async function readWakeCallFacts(wake) {
   if (!SUPA_URL || !SUPA_KEY || !wake || !wake.wakeUid || !wake.wakeEventKey) return null;
@@ -122,6 +125,27 @@ function getMoneyPrinterRuntimeStore() {
     moneyPrinterRuntimeStore = createMoneyPrinterRuntimeStore({ query: moneyPrinterRuntimePool.query.bind(moneyPrinterRuntimePool) });
   }
   return moneyPrinterRuntimeStore;
+}
+function getCloudGoalService() {
+  getMoneyPrinterRuntimeStore();
+  if (!cloudGoalService) {
+    const query = moneyPrinterRuntimePool.query.bind(moneyPrinterRuntimePool);
+    const dependencies = Object.freeze({
+      resolveSession: (session) => sessionScope(session, {
+        supaUrl: SUPA_URL,
+        supaKey: SUPA_KEY,
+        fetchImpl: fetch,
+      }),
+      store: createCloudGoalStore({ query }),
+      generateGoalPortfolio: (input) => generateCloudGoalPortfolio(input),
+      enqueueJob: (input) => enqueueJob(input, { query: moneyPrinterRuntimePool.query.bind(moneyPrinterRuntimePool) }),
+    });
+    cloudGoalService = Object.freeze({
+      read: (input) => readCloudGoalSlice(input, dependencies),
+      start: (input) => startCloudGoalSlice(input, dependencies),
+    });
+  }
+  return cloudGoalService;
 }
 function getInvestmentStateStore() {
   getMoneyPrinterRuntimeStore();
@@ -218,7 +242,11 @@ function getMoneyPrinterSource(scope) {
   }
   return moneyPrinterSource(scope);
 }
-function panelApiOptions(path, options, getRuntimeStore = getMoneyPrinterRuntimeStore) {
+function panelApiOptions(path, options, getRuntimeStore = getMoneyPrinterRuntimeStore,
+                         getGoalService = getCloudGoalService) {
+  if (path === "/api/panel/goals") {
+    return { ...options, cloudGoalService: getGoalService() };
+  }
   if (!path.startsWith("/api/panel/money-printer")) return options;
   const runtimeStore = getRuntimeStore();
   return {

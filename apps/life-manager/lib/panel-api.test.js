@@ -492,20 +492,42 @@ test("Task 7B1 server source wiring is lazy and has no fake Money Printer fallba
   assert.doesNotMatch(server, /moneyPrinterSource:\s*(?:async\s*)?\(?.*=>\s*\(\{\s*tenantId/);
 });
 
-test("Task 8A server only resolves runtime storage for Money Printer paths", () => {
+test("Task 8A/CC03 server lazily resolves only the runtime service required by each Panel path", () => {
   const { panelApiOptions, panelOriginForPath } = require("../server.js");
   const base = { supaUrl: "https://db.example", supaKey: "service-key" };
   let calls = 0;
+  let goalCalls = 0;
   const getRuntimeStore = () => { calls += 1; return { name: "runtime" }; };
+  const goalService = { read: async () => null, start: async () => null };
+  const getCloudGoalService = () => { goalCalls += 1; return goalService; };
 
-  assert.equal(panelApiOptions("/api/panel/timeline", base, getRuntimeStore), base);
+  assert.equal(panelApiOptions("/api/panel/timeline", base, getRuntimeStore, getCloudGoalService), base);
   assert.equal(calls, 0);
-  const money = panelApiOptions("/api/panel/money-printer/workroom", base, getRuntimeStore);
+  assert.equal(goalCalls, 0);
+  const goals = panelApiOptions("/api/panel/goals", base, getRuntimeStore, getCloudGoalService);
+  assert.equal(calls, 0);
+  assert.equal(goalCalls, 1);
+  assert.equal(goals.cloudGoalService, goalService);
+  const money = panelApiOptions("/api/panel/money-printer/workroom", base, getRuntimeStore, getCloudGoalService);
   assert.equal(calls, 1);
+  assert.equal(goalCalls, 1);
   assert.equal(money.runtimeStore.name, "runtime");
   assert.equal(money.opportunityStore, money.runtimeStore);
   assert.equal(money.humanTaskStore, money.runtimeStore);
   assert.equal(typeof money.moneyPrinterSource, "function");
+});
+
+test("CC03 server Goal service reuses Panel auth, runtime PostgreSQL, strict generation, and RuntimeJob enqueue", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../server.js"), "utf8");
+  assert.match(source, /createCloudGoalStore/);
+  assert.match(source, /generateCloudGoalPortfolio/);
+  assert.match(source, /readCloudGoalSlice/);
+  assert.match(source, /startCloudGoalSlice/);
+  assert.match(source, /moneyPrinterRuntimePool\.query\.bind\(moneyPrinterRuntimePool\)/);
+  assert.match(source, /resolveSession:[\s\S]*sessionScope/);
+  assert.match(source, /enqueueJob\(input,[\s\S]*moneyPrinterRuntimePool\.query\.bind\(moneyPrinterRuntimePool\)/);
+  assert.doesNotMatch(source, /cloudGoalRuntimePool/);
+  assert.equal((source.match(/new \(require\("pg"\)\.Pool\)/g) || []).length, 1);
 });
 
 test("Task 8A server uses public origin only for proxied Money Printer APIs", () => {
