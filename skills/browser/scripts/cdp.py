@@ -55,9 +55,31 @@ def _browser_call(method: str, params: dict) -> dict:
         ws.close()
 
 
+def _prune_missing_target_rows(owner: str) -> int:
+    """Drop only this owner's pre-snapshot rows missing from official CDP state."""
+    owned_before = target_ownership.targets_for_owner(owner)
+    inventory = _browser_call("Target.getTargets", {})
+    target_infos = inventory.get("targetInfos") if isinstance(inventory, dict) else None
+    if not isinstance(target_infos, list):
+        raise RuntimeError("Target.getTargets returned no targetInfos list")
+    if any(
+        not isinstance(row, dict)
+        or not isinstance(row.get("targetId"), str)
+        or not row["targetId"]
+        for row in target_infos
+    ):
+        raise RuntimeError("Target.getTargets returned an invalid targetInfos row")
+    live_target_ids = {row["targetId"] for row in target_infos}
+    return sum(
+        target_ownership.release_target(target_id, owner)
+        for target_id in owned_before - live_target_ids
+    )
+
+
 def new_target(url: str = "about:blank", owner: str | None = None) -> str:
     """Create one page and bind its lifecycle to the declared owner."""
     owner = target_ownership.require_owner(owner)
+    _prune_missing_target_rows(owner)
     target_id = _browser_call("Target.createTarget", {"url": url})["targetId"]
     try:
         target_ownership.claim_target(

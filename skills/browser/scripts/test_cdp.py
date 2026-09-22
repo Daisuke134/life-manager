@@ -7,6 +7,13 @@ from unittest.mock import patch
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def isolated_target_registry(tmp_path, monkeypatch):
+    monkeypatch.setenv(
+        "CLOAK_TARGET_OWNERS_FILE", str(tmp_path / "target-owners.json")
+    )
+
+
 def _load_module():
     path = Path(__file__).resolve().parent / "cdp.py"
     spec = importlib.util.spec_from_file_location("browser_cdp", path)
@@ -52,8 +59,13 @@ def test_guarded_lease_overrides_stale_inherited_host_and_port(monkeypatch):
 def test_new_claims_target_for_required_owner(monkeypatch, capsys):
     module = _load_module()
     events = []
+
+    def browser_call(method, _params):
+        return ({"targetInfos": []} if method == "Target.getTargets" else
+                {"targetId": "new-tab"})
+
     monkeypatch.setattr(
-        module, "_browser_call", lambda method, params: {"targetId": "new-tab"}
+        module, "_browser_call", browser_call,
     )
     monkeypatch.setattr(
         module.target_ownership,
@@ -82,8 +94,13 @@ def test_close_refuses_foreign_target_before_cdp_call(monkeypatch):
 def test_new_target_claims_and_returns_id(monkeypatch):
     module = _load_module()
     events = []
+
+    def browser_call(method, _params):
+        return ({"targetInfos": []} if method == "Target.getTargets" else
+                {"targetId": "owned-tab"})
+
     monkeypatch.setattr(
-        module, "_browser_call", lambda method, params: {"targetId": "owned-tab"}
+        module, "_browser_call", browser_call,
     )
     monkeypatch.setattr(
         module.target_ownership,
@@ -97,12 +114,118 @@ def test_new_target_claims_and_returns_id(monkeypatch):
     assert events == [("owned-tab", "paid-room", 1)]
 
 
+def test_new_target_prunes_missing_owner_rows_before_enforcing_limit(
+    tmp_path, monkeypatch,
+):
+    module = _load_module()
+    registry = tmp_path / "target-owners.json"
+    monkeypatch.setenv("CLOAK_TARGET_OWNERS_FILE", str(registry))
+    module.target_ownership.claim_target("stale-tab", "paid-room")
+    calls = []
+
+    def browser_call(method, params):
+        calls.append((method, params))
+        if method == "Target.getTargets":
+            return {"targetInfos": [{"targetId": "foreign-live"}]}
+        if method == "Target.createTarget":
+            return {"targetId": "owned-tab"}
+        raise AssertionError((method, params))
+
+    monkeypatch.setattr(module, "_browser_call", browser_call)
+
+    assert module.new_target("https://example.com", "paid-room") == "owned-tab"
+    assert calls == [
+        ("Target.getTargets", {}),
+        ("Target.createTarget", {"url": "https://example.com"}),
+    ]
+    assert module.target_ownership.targets_for_owner("paid-room") == {"owned-tab"}
+
+
+def test_new_target_preserves_live_owner_row_and_closes_only_surplus_target(
+    tmp_path, monkeypatch,
+):
+    module = _load_module()
+    registry = tmp_path / "target-owners.json"
+    monkeypatch.setenv("CLOAK_TARGET_OWNERS_FILE", str(registry))
+    module.target_ownership.claim_target("live-tab", "paid-room")
+    calls = []
+
+    def browser_call(method, params):
+        calls.append((method, params))
+        if method == "Target.getTargets":
+            return {"targetInfos": [{"targetId": "live-tab"}]}
+        if method == "Target.createTarget":
+            return {"targetId": "surplus-tab"}
+        if method == "Target.closeTarget":
+            assert params == {"targetId": "surplus-tab"}
+            return {"success": True}
+        raise AssertionError((method, params))
+
+    monkeypatch.setattr(module, "_browser_call", browser_call)
+
+    with pytest.raises(RuntimeError, match="browser_tab_limit"):
+        module.new_target("https://example.com", "paid-room")
+    assert calls[-1] == (
+        "Target.closeTarget", {"targetId": "surplus-tab"},
+    )
+    assert module.target_ownership.targets_for_owner("paid-room") == {"live-tab"}
+
+
+@pytest.mark.parametrize("inventory", [{}, {"targetInfos": None}, {
+    "targetInfos": [{"targetId": ""}],
+}])
+def test_new_target_rejects_invalid_inventory_without_pruning_or_creating(
+    monkeypatch, inventory,
+):
+    module = _load_module()
+    module.target_ownership.claim_target("owned-tab", "paid-room")
+    calls = []
+    monkeypatch.setattr(
+        module, "_browser_call",
+        lambda method, params: calls.append((method, params)) or inventory,
+    )
+
+    with pytest.raises(RuntimeError, match="Target.getTargets"):
+        module.new_target("https://example.com", "paid-room")
+    assert calls == [("Target.getTargets", {})]
+    assert module.target_ownership.targets_for_owner("paid-room") == {"owned-tab"}
+
+
+def test_new_target_preserves_claim_created_after_owner_snapshot(monkeypatch):
+    module = _load_module()
+    module.target_ownership.claim_target("stale-tab", "paid-room")
+    calls = []
+
+    def browser_call(method, params):
+        calls.append((method, params))
+        if method == "Target.getTargets":
+            module.target_ownership.claim_target(
+                "concurrent-live", "paid-room", max_targets=2,
+            )
+            return {"targetInfos": []}
+        if method == "Target.createTarget":
+            return {"targetId": "surplus-tab"}
+        if method == "Target.closeTarget":
+            return {"success": True}
+        raise AssertionError((method, params))
+
+    monkeypatch.setattr(module, "_browser_call", browser_call)
+
+    with pytest.raises(RuntimeError, match="browser_tab_limit"):
+        module.new_target("https://example.com", "paid-room")
+    assert module.target_ownership.targets_for_owner("paid-room") == {
+        "concurrent-live"
+    }
+
+
 def test_new_target_closes_target_when_claim_fails(monkeypatch):
     module = _load_module()
     calls = []
 
     def browser_call(method, params):
         calls.append((method, params))
+        if method == "Target.getTargets":
+            return {"targetInfos": []}
         return {"targetId": "unclaimed-tab"}
 
     monkeypatch.setattr(module, "_browser_call", browser_call)
