@@ -34,6 +34,7 @@
 - PR #5787 is merged as `37e1d582f15fd642669eb699c09c467903bc08bb`; immutable release `/Users/anicca/loops/releases/20260923T073120-37e1d582` is installed for `hf-gig-paid-direct` only.
 - The stale admission occurrence was reconciled against the official Chii snapshot and is now `released` with `effect_unknown=0`.
 - The first natural kickstart produced no external effect, but could not write its terminal evidence because the host paid-loop writer hit `No space left on device`; the target loop was stopped safely. A live terminal/replay-zero canary is still required after bounded storage remediation.
+- Ryu manual completion is already verified: v696's production correction and authenticated audit passed, then the final answer was sent through talkroom `18211957` with `formal_delivery_checkbox=false`. The official evidence is `/Users/anicca/gig/projects/18211957/evidence/manual-v696-send/paid-queue-evidence.json`; no formal-delivery button was pressed and the durable owner fence remains permanent.
 
 ## Review Focus
 
