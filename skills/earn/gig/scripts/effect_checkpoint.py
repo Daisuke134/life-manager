@@ -54,6 +54,8 @@ def bind_current_cycle(root: Path, value: object) -> object:
         "requirements_sha256": intent.get("requirements_sha256"),
         "semantic_contract_sha256": intent.get("semantic_contract_sha256"),
     }
+    if prepared.get("classification_revision") is True:
+        cycle.pop("semantic_contract_sha256")
     for field, expected in cycle.items():
         if expected is None:
             continue
@@ -92,9 +94,8 @@ def main() -> int:
     source = args.effect_json.resolve()
     if root not in source.parents or source.is_symlink() or not source.is_file():
         raise SystemExit("effect JSON must be a regular project-owned file")
-    value = bind_current_cycle(
-        root, prepare_checkpoint(json.loads(source.read_text(encoding="utf-8")))
-    )
+    unbound_value = prepare_checkpoint(json.loads(source.read_text(encoding="utf-8")))
+    value = bind_current_cycle(root, unbound_value)
     if not valid_checkpoint(value):
         raise SystemExit("invalid effect checkpoint")
     ledger = root / "delivery" / "paid-remote-progress.jsonl"
@@ -105,7 +106,7 @@ def main() -> int:
     matches = [row for row in existing if row.get("effect_key") == value["effect_key"]]
     revision = value.get("classification_revision") is True
     if matches and not revision:
-        if not _same_json(matches[-1], value):
+        if not (_same_json(matches[-1], value) or _same_json(matches[-1], unbound_value)):
             raise SystemExit("duplicate effect checkpoint differs from durable receipt")
         print(json.dumps({"status": "already_checkpointed", "effect_key": value["effect_key"]}))
         return 0

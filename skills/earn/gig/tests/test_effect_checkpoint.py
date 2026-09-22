@@ -173,6 +173,30 @@ def test_cli_appends_normalized_receipt_and_replays_identically(tmp_path):
     assert len(ledger.read_text(encoding="utf-8").splitlines()) == 1
 
 
+def test_cli_replays_legacy_receipt_after_cycle_binding_is_enabled(tmp_path):
+    value = {
+        "effect_key": "tiktok:campaign:legacy-recipient",
+        "target": "https://www.tiktok.com/messages",
+        "payload_sha256": "a" * 64,
+        "semantic_contract_sha256": "b" * 64,
+        "official_receipt_url": "https://www.tiktok.com/messages",
+        "exact_readback": True,
+        "quality_status": "qualified",
+        "qualification_sources": ["https://www.tiktok.com/messages"],
+    }
+    first, ledger = _run_cli(tmp_path, value)
+    project = ledger.parents[1]
+    (project / "delivery" / "paid-remote-intent.json").write_text(json.dumps({
+        "buyer_feedback_sha256": "c" * 64,
+        "requirements_sha256": "d" * 64,
+        "semantic_contract_sha256": "b" * 64,
+    }), encoding="utf-8")
+    second, _ = _run_cli(tmp_path, value)
+
+    assert first.returncode == second.returncode == 0
+    assert len(ledger.read_text(encoding="utf-8").splitlines()) == 1
+
+
 def test_cli_rejects_different_receipt_for_existing_effect_key(tmp_path):
     base = {
         "effect_key": "tiktok:campaign:recipient",
@@ -257,3 +281,35 @@ def test_cli_accepts_explicit_classification_revision(tmp_path):
     rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
     assert len(rows) == 2
     assert rows[1]["record_type"] == "classification_revision"
+
+
+def test_cli_revision_preserves_original_semantic_contract_with_new_active_cycle(tmp_path):
+    base = {
+        "effect_key": "tiktok:campaign:recipient",
+        "target": "https://www.tiktok.com/messages",
+        "payload_sha256": "a" * 64,
+        "semantic_contract_sha256": "b" * 64,
+        "official_receipt_url": "https://www.tiktok.com/messages",
+        "exact_readback": True,
+        "quality_status": "qualification",
+        "qualification_sources": ["https://www.tiktok.com/messages"],
+    }
+    first, ledger = _run_cli(tmp_path, base)
+    project = ledger.parents[1]
+    (project / "delivery" / "paid-remote-intent.json").write_text(json.dumps({
+        "buyer_feedback_sha256": "c" * 64,
+        "requirements_sha256": "d" * 64,
+        "semantic_contract_sha256": "e" * 64,
+    }), encoding="utf-8")
+    revision = {
+        **base,
+        "quality_status": "qualified",
+        "classification_revision": True,
+        "revision_reason": "Official reply supplied the missing qualification.",
+    }
+
+    second, _ = _run_cli(tmp_path, revision)
+
+    assert first.returncode == second.returncode == 0
+    rows = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines()]
+    assert rows[-1]["semantic_contract_sha256"] == "b" * 64
