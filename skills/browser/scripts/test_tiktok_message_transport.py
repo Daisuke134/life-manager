@@ -286,7 +286,7 @@ class TikTokMessageTransportTest(unittest.TestCase):
         def official_sheet(command, **kwargs):
             calls.append(command)
             return subprocess.CompletedProcess(
-                command, 0, stdout=json.dumps([["アカウント名"], ["@candidate"]]), stderr=""
+                command, 0, stdout=json.dumps([["アカウント名"], ["@Candidate"]]), stderr=""
             )
 
         fake = FakeCDP()
