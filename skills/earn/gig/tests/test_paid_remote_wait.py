@@ -2907,6 +2907,69 @@ def test_file_presend_reclaims_targeted_owner_before_open(tmp_path, monkeypatch)
     ]
 
 
+def test_file_presend_rejects_stale_buyer_feedback_before_browser(tmp_path, monkeypatch):
+    """Dropping the feedback comparison would send event-A work after event B arrived."""
+    paid = load("paid_direct")
+    root = tmp_path / "project"
+    root.mkdir()
+    feedback_a = "a" * 64
+    feedback_b = "b" * 64
+    requirements_sha = "c" * 64
+    browser_calls = []
+
+    monkeypatch.setattr(paid, "_paid_project_root", lambda *_args: root)
+    monkeypatch.setattr(paid, "_file_mode", lambda *_args: True)
+    monkeypatch.setattr(
+        paid.paid_remote_result, "requirements_digest", lambda *_args: requirements_sha,
+    )
+    monkeypatch.setattr(paid.delivery_queue, "evidence_path", lambda *_args: tmp_path / "stable.json")
+    monkeypatch.setattr(paid, "_validate_file_authorization", lambda *_args: {
+        "artifact_version": "v1", "package_sha256": "d" * 64,
+    })
+    monkeypatch.setattr(paid, "_reclaim_browser_owner", lambda *_args: None)
+    monkeypatch.setattr(paid, "_fresh_child_env", lambda *_args, **_kwargs: {})
+    collector_output = {}
+
+    def collector(_args, _mode, output_path, *_rest):
+        collector_output["path"] = output_path
+        return ["collector"]
+
+    def run_collector(*_args, **_kwargs):
+        write_json(collector_output["path"], {"talkroom_id": "18223833"})
+
+    monkeypatch.setattr(paid, "_collector", collector)
+    monkeypatch.setattr(paid, "_run", run_collector)
+    monkeypatch.setattr(paid, "_row", lambda *_args: {
+        "talkroom_id": "18223833",
+        "buyer_feedback_sha256": feedback_b,
+        "talkroom_state": "取引中",
+        "formal_delivery_observed": False,
+    })
+    monkeypatch.setattr(
+        paid, "_run_bounded", lambda *_args: browser_calls.append(True) or pytest.fail(
+            "browser must not run for stale buyer work"
+        ),
+    )
+    args = SimpleNamespace(
+        evidence_dir=tmp_path / "evidence",
+        delivery_evidence_dir=tmp_path,
+        projects_root=tmp_path,
+        cdp_lock_dir=tmp_path / "locks",
+    )
+    prepared = {
+        "talkroom_id": "18223833",
+        "buyer_feedback_sha256": feedback_a,
+        "requirements_sha256": requirements_sha,
+    }
+    output = tmp_path / "result.json"
+
+    assert paid._write_file_effect(args, tmp_path / "item.json", output, prepared) == 1
+    result = json.loads(output.read_text(encoding="utf-8"))
+    assert result["failed_step"] == "presend_readback"
+    assert result["effect"] == 0
+    assert browser_calls == []
+
+
 def test_remote_verifier_prompt_persists_decision_before_optional_exploration(tmp_path):
     paid = load("paid_direct")
     root, feedback, _digest = blocked_project(tmp_path)
