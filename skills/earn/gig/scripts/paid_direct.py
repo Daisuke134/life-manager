@@ -5465,15 +5465,21 @@ def _operator_policy_newer_than(root: Path, item: dict[str, Any], checkpoint: Pa
 
 
 def _require_tiktok_recipient_total(root: Path, result: dict[str, Any]) -> int | None:
-    expected = effect_checkpoint.tiktok_verified_unique_count(
-        root / "delivery" / "paid-remote-progress.jsonl",
-    )
+    ledger = root / "delivery" / "paid-remote-progress.jsonl"
+    expected = effect_checkpoint.tiktok_verified_unique_count(ledger)
     if expected is None:
         return None
+    expected_required = effect_checkpoint.tiktok_required_unique_sends(ledger)
+    if expected_required is None:
+        raise ValueError("TikTok required target is unavailable or conflicting")
     campaign = (result.get("observed_state") or {}).get("campaign")
-    if not isinstance(campaign, dict) or not isinstance(campaign.get("required_unique_sends"), int):
+    if (not isinstance(campaign, dict)
+            or isinstance(campaign.get("required_unique_sends"), bool)
+            or not isinstance(campaign.get("required_unique_sends"), int)):
         raise ValueError("TikTok recipient total contract missing from result")
     required = campaign["required_unique_sends"]
+    if required != expected_required:
+        raise ValueError("TikTok required target differs from deterministic ledger")
     remaining = required - expected
     if (campaign.get("verified_unique_sends") != expected
             or campaign.get("remaining_eligible_personalized_sends") != remaining):

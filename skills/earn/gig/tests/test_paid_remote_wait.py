@@ -3285,7 +3285,8 @@ def test_tiktok_result_total_must_match_deterministic_ledger_count(tmp_path):
     ledger = tmp_path / "delivery/paid-remote-progress.jsonl"
     rows = [
         {"effect_key": "tiktok:effective-ledger-audit:1", "quality_status": "invalid",
-         "observed_state": {"campaign": {"ledger_audit": {"verified_effective_total": 12}}}},
+         "observed_state": {"campaign": {"required_unique_sends": 300,
+                                           "ledger_audit": {"verified_effective_total": 12}}}},
         {"effect_key": "tiktok:dm:1:now:creator", "quality_status": "qualified",
          "counts_toward_50": True, "business_outcome": {"recipient_handle": "@creator"}},
         {"effect_key": "google-sheets:append-readback:1:now:creator", "quality_status": "qualified",
@@ -3304,6 +3305,43 @@ def test_tiktok_result_total_must_match_deterministic_ledger_count(tmp_path):
         "campaign": {"required_unique_sends": 300, "verified_unique_sends": 13,
                      "remaining_eligible_personalized_sends": 287}}}
     assert paid._require_tiktok_recipient_total(tmp_path, correct) == 13
+
+
+def test_tiktok_result_required_target_must_match_code_owned_ledger_target(tmp_path):
+    paid = load("paid_direct")
+    ledger = tmp_path / "delivery/paid-remote-progress.jsonl"
+    rows = [
+        {"effect_key": "tiktok:effective-ledger-audit:base", "quality_status": "invalid",
+         "observed_state": {"campaign": {"required_unique_sends": 300,
+                                           "ledger_audit": {"verified_effective_total": 17}}}},
+    ]
+    ledger.parent.mkdir(parents=True)
+    ledger.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+    self_consistent_but_wrong = {
+        "customer_message": "現在17件、残り284件です。",
+        "observed_state": {"campaign": {
+            "required_unique_sends": 301,
+            "verified_unique_sends": 17,
+            "remaining_eligible_personalized_sends": 284,
+        }},
+    }
+
+    with pytest.raises(ValueError, match="required target"):
+        paid._require_tiktok_recipient_total(tmp_path, self_consistent_but_wrong)
+
+
+@pytest.mark.parametrize("targets", [[300, 301], [300, True]])
+def test_tiktok_required_target_fails_closed_on_conflicting_or_boolean_values(tmp_path, targets):
+    checkpoint = load("effect_checkpoint")
+    ledger = tmp_path / "progress.jsonl"
+    rows = [
+        {"effect_key": f"tiktok:audit:{index}",
+         "observed_state": {"campaign": {"required_unique_sends": target}}}
+        for index, target in enumerate(targets)
+    ]
+    ledger.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+
+    assert checkpoint.tiktok_required_unique_sends(ledger) is None
 
 
 def test_tiktok_count_requires_qualified_dm_and_matching_sheet(tmp_path):

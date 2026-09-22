@@ -264,6 +264,7 @@ def tiktok_verified_unique_count(ledger: Path) -> int | None:
 def tiktok_required_unique_sends(ledger: Path) -> int | None:
     if ledger.is_symlink() or not ledger.is_file():
         return None
+    targets: set[int] = set()
     for line in ledger.read_text(encoding="utf-8").splitlines():
         if not line.strip():
             continue
@@ -271,10 +272,13 @@ def tiktok_required_unique_sends(ledger: Path) -> int | None:
         if not isinstance(row, dict):
             continue
         campaign = (row.get("observed_state") or {}).get("campaign")
-        required = campaign.get("required_unique_sends") if isinstance(campaign, dict) else None
-        if isinstance(required, int) and required > 0:
-            return required
-    return None
+        if not isinstance(campaign, dict) or "required_unique_sends" not in campaign:
+            continue
+        required = campaign["required_unique_sends"]
+        if isinstance(required, bool) or not isinstance(required, int) or required <= 0:
+            return None
+        targets.add(required)
+    return next(iter(targets)) if len(targets) == 1 else None
 
 
 def main() -> int:
