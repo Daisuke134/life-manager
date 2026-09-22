@@ -817,6 +817,35 @@ def test_missing_paid_review_state_is_empty_for_first_cycle(tmp_path):
     assert paid._pending_review_mode(root, "a" * 64) == ""
 
 
+def test_malformed_paid_review_state_fails_closed(tmp_path):
+    paid = load("paid_direct")
+    review = tmp_path / "project" / "context" / "paid-review-state.json"
+    review.parent.mkdir(parents=True)
+    review.write_text("{not-json", encoding="utf-8")
+
+    with pytest.raises(json.JSONDecodeError):
+        paid._pending_review_mode(review.parents[1], "a" * 64)
+
+
+def test_dangling_paid_review_state_symlink_fails_closed(tmp_path):
+    paid = load("paid_direct")
+    review = tmp_path / "project" / "context" / "paid-review-state.json"
+    review.parent.mkdir(parents=True)
+    review.symlink_to(review.with_name("missing.json"))
+
+    with pytest.raises(ValueError, match="invalid paid review state"):
+        paid._pending_review_mode(review.parents[1], "a" * 64)
+
+
+def test_nonregular_paid_review_state_fails_closed(tmp_path):
+    paid = load("paid_direct")
+    review = tmp_path / "project" / "context" / "paid-review-state.json"
+    review.mkdir(parents=True)
+
+    with pytest.raises(ValueError, match="invalid paid review state"):
+        paid._pending_review_mode(review.parents[1], "a" * 64)
+
+
 def test_current_blocked_remote_result_is_a_valid_wait(tmp_path):
     remote = load("paid_remote_result")
     root, feedback, digest = blocked_project(tmp_path)
