@@ -64,6 +64,8 @@ The first read-only inventory is recorded at `docs/superpowers/evidence/mobile-p
 
 The identity bridge is now in `runtime/loop/lm_loop_run.py`, `runtime/loop/runtime_event.py`, `apps/life-manager/lib/marketing-effect-identity.js`, and the existing video/native-carousel adapters. It records the exact occurrence, runtime run, job/effect key, destination integration, account and content hashes before a provider call, then preserves only validated nonzero-effect sidecars outside scratch. PR #5423 merged at `c947b72dbc7f`; 109 focused Python tests and 37 mobile publication tests pass. The read-only proof gate is in `apps/life-manager/scripts/mobile-postiz-effect-reconcile.py`; PR #5431 merged at `b325a34d5b8e3ca9eaecc396311026d58d0ce399`, with seven reconciler tests passing. The provider-owned executor is `apps/life-manager/scripts/mobile-postiz-provider-reconcile.py`; PR #5453 merged at `23afec79cd640f343e5ac152a4950f90faac4b4d`, with nine executor tests, 106 admission tests and 24 Postiz adapter tests passing. It performs official Postiz post/integration GET readback, separates provider content from local media evidence, and can resolve only an authoritative released row after a fresh proof. It was not run against the live provider; the 17 historical fences remain unchanged.
 
+The occurrence-isolation source gate is pushed at `a82085698e`. Shared admission persists an explicit `effect_scope` with the safe `owner` default; only the canonical Mobile publish entrypoint requests `occurrence`. Tests prove that a different occurrence can reserve and claim while the old unknown remains, the same occurrence stays blocked, and a non-Mobile publish loop keeps owner-wide fencing. Verification passes: 182 shared admission/runner tests, 67 Mobile publication/mapping tests, the complete Life Manager Node suite, 716 runtime tests plus 501 subtests, and the loop contract (`14` catalog loops, `166` registry jobs, `96` mapped jobs, `0` errors). Fresh read-only review finds no material safety or regression issue.
+
 ## Current diagnosis and release gate
 
 - Read-only SQLite still finds exactly 17 Mobile/Honne `effect_unknown=1` occurrences: 14 `released` and 3 `claimed`. Their exact identity sidecars do not exist, so none can be truthfully cleared.
@@ -71,6 +73,7 @@ The identity bridge is now in `runtime/loop/lm_loop_run.py`, `runtime/loop/runti
 - The failure is the outer host admission granularity, not a current Postiz API or generation failure: one historical occurrence fences every future slot for that owner.
 - Mobile's inner runtime already derives slot/content-bound job and effect identities, stores receipts, and refuses a terminal job without a receipt. The outer runtime must preserve those old unknowns while allowing only a distinct occurrence to enter that inner safety boundary.
 - Source changes are developed on a latest-main Mobile-only branch. No production state, provider session, Paid fulfillment file, Paid owner, registry entry or OBOU state changes before the focused gates pass.
+- The source gate is green and the 17-row readback remains unchanged. The remaining acceptance gate is a main-derived immutable release, one naturally due non-OBou canary, its exact official provider receipt, and replay-zero before staged rollout.
 
 ## Non-goals
 

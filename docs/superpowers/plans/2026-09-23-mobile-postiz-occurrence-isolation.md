@@ -29,3 +29,9 @@ Restore naturally scheduled Mobile/Postiz publishing without deleting or guessin
 - Never clear historical rows without exact official proof.
 - Never treat a process exit or local ledger row as a provider receipt.
 - If the canary creates an unknown new effect, keep that occurrence fenced, stop its rollout, and diagnose from its new exact identity without blocking unrelated Mobile owners.
+
+## Current progress
+
+- Complete: explicit occurrence-scoped admission, Mobile-only runner wiring, same-occurrence refusal, reservation/requeue/stale-claim preservation, focused/full tests, loop contract and fresh read-only review.
+- Unchanged: 17 historical unknown occurrences (14 released, 3 claimed), Paid scope, registry/catalog, provider sessions and OBOU hold.
+- Current cursor: PR/main integration, then one immutable-release natural canary, exact official receipt and replay-zero.
