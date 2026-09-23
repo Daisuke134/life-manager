@@ -19,14 +19,20 @@ runtime/provider readback.
   readback is `awaiting_buyer` with `effect=0`, and no Chii ledger row exists after
   the fix. The latest official inbox readback supports 0 eligible positive replies
   and 1 ineligible reply.
-- The latest natural `hf-gig-paid-direct` wake at
-  `2026-09-23T00:55:02+00:00` completed with
+- The latest natural `hf-gig-paid-direct` wake (targeted readback through
+  `2026-09-23T01:07:47+00:00`) completed with
   `status=completed`, `effect=0`, `readback=3`, `failed=0`, and `pending=0`.
   It independently reconfirmed Ryu as `reserved_for_owner` and Chii plus both NPO
   rooms as `awaiting_buyer`; no client DM was sent. The installed owner is
   `loaded-idle`, `last_exit=0`, and eligible again on its normal 300-second
   interval. Chii is not the current work cursor and no manual Chii action is
   needed.
+- A prior NPO wake failed closed on a one-character model hash typo even though
+  the semantic decision was `await_buyer`; `effect=0` proves no external send.
+  Code commit `7244c3e856` now binds each outcome to the exact official message
+  ID and canonical provider hash. The next wake accepted the decision as
+  `awaiting_buyer`, so this fix is verified locally and by natural readback but
+  is not yet promoted.
 - Shared admission root cause is now narrowed to owner-wide `effect_unknown` fences
   on CrowdWorks/Lancers revenue owners plus host capacity pressure. Commit
   `11dcf8c6f3` adds an explicit `admission_effect_scope` registry field and enables
@@ -36,7 +42,7 @@ runtime/provider readback.
   released, or applied; no production state changed. Follow-up commit
   `9df3731ccb` adds queue/reservation wake coalescing for Coconala Paid so repeated
   safe no-op wakes do not build an unbounded owner queue; it is likewise not yet
-  promoted or applied.
+  promoted or applied. The follow-up identity-binding fix is `7244c3e856`.
 - The next production cursor is the CrowdWorks occurrence-by-occurrence
   reconciliation and one funded-contract canary, followed by Lancers and Upwork.
 

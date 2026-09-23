@@ -56,12 +56,22 @@ zero eligible positive replies and one ineligible reply. The talkroom remains op
 with formal delivery OFF by design, so the correct terminal state is
 `awaiting_buyer`, not another send or the formal-delivery button.
 
-The natural wake at `2026-09-23T00:55:02+00:00` observed all four open Coconala
-rooms and completed with `effect=0`, `readback=3`, `failed=0`, and `pending=0`.
-It re-read Chii as `awaiting_buyer`. This is the expected no-op: the loop has
-already answered the newest buyer event and waits for a genuinely newer buyer
-message before reopening the item. Ryu is the only room that can be handled
-directly by a human; Chii is not a manual exception.
+The latest natural wake read the four open Coconala rooms through
+`2026-09-23T01:07:47+00:00` and completed with `effect=0`, `readback=3`,
+`failed=0`, and `pending=0`. It re-read Chii as `awaiting_buyer` and both NPO
+rooms as `awaiting_buyer`. This is the expected no-op: the loop has already
+answered the newest buyer event where it had a complete result, and it waits for
+a genuinely newer buyer message where missing buyer facts are required. Ryu is
+the only room that can be handled directly by a human; Chii is not a manual
+exception.
+
+The preceding NPO wake exposed a safe serialization bug: room `18223833`'s
+model decision was semantically `await_buyer`, but its outcome copied a buyer
+message hash with one wrong character. The effect fence correctly sent nothing.
+Commit `7244c3e856` now binds outcome identities by exact official message ID and
+canonicalizes the hash from the provider readback; unknown IDs and invalid hashes
+still fail closed. The next natural wake accepted the same decision as
+`awaiting_buyer`, proving the fix without an external effect.
 
 ## Verified Current State
 
@@ -79,9 +89,10 @@ requested production changes:
 
 Authenticated browser readback is stored outside Git under project `18211957` as
 `delivery/manual-emergency-audit-v696.json`. The reply was sent once without the
-formal-delivery checkbox; Coconala readback observed it as the latest seller message
-at `2026-09-22T11:34:08.476934+00:00`. Ryu remains open for direct revision handling
-and is not proof that the automated Paid owner works.
+formal-delivery checkbox; Coconala readback observed the exact seller message
+`js-talkroomMessage-222192497` at `2026-09-22T11:34:08.476934+00:00`. Ryu remains
+open for direct revision handling and is not proof that the automated Paid owner
+works.
 
 ### Coconala
 
@@ -91,12 +102,13 @@ is loaded from immutable release `4c6b1dc8a52952e31f13bcb26a5266e570169e1d`, whi
 contains the answered-feedback stop fix. Its latest official queue readback is
 terminal with `effect=0`: Ryu is `reserved_for_owner` and the other three rooms are
 `awaiting_buyer`.
-The natural wake at `2026-09-23T00:55:02+00:00` completed with
-`status=completed`, `effect=0`, `readback=3`, `failed=0`, and `pending=0`; it
-reconfirmed Ryu as `reserved_for_owner` and Chii plus both NPO rooms as
-`awaiting_buyer`. The installed owner is now `loaded-idle`, `last_exit=0`, and
-`next_eligible_run=interval:300s`. This is a safe idle state, not a request to send
-anything.
+The latest natural wake (targeted readback through
+`2026-09-23T01:07:47+00:00`) completed with `status=completed`, `effect=0`,
+`readback=3`, `failed=0`, and `pending=0`; it reconfirmed Ryu as
+`reserved_for_owner` and Chii plus both NPO rooms as `awaiting_buyer`. The
+installed owner is `loaded-idle`, `last_exit=0`, and
+`next_eligible_run=interval:300s`. This is a safe idle state, not a request to
+send anything.
 
 Ryu is a permanent manual exception. The automated owner may observe it for
 reconciliation but may never create work, reply, attach a file, or invoke formal
@@ -247,7 +259,9 @@ never deleted or mass-cleared. Report, Storefront, Telegram reporting, and all
 unproven providers remain owner-scoped until their item-level idempotency and
 readback are proven. Follow-up commit `9df3731ccb` also enables queued/reserved wake
 coalescing for Coconala Paid, preventing repeated safe no-op wakes from accumulating
-an unbounded owner queue. This code is pushed but not yet promoted into `main`, an
+an unbounded owner queue. Commit `7244c3e856` additionally binds model outcome
+identities to official provider IDs/hashes. These changes are pushed but not yet
+promoted into `main`, an
 immutable release, or live launchd state; natural-wake and provider acceptance gates
 remain open.
 
