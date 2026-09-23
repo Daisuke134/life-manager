@@ -140,6 +140,16 @@ effects. The old occurrence
 `crowdworks-revenue-paid:18d62cf32eb0c678-48194` remains fenced; no duplicate
 send or guessed artifact is allowed.
 
+The subsequent live wake completed at `2026-09-23T12:54:45.867362Z` with
+`last_exit=0`, `pass`, and a new occurrence claim
+`crowdworks-revenue-paid:18d7eae6141c38a8-49823`; its provider summary still
+has `effect=0`, four readbacks, and one pending buyer-artifact item. Running the
+installed immutable release's loaded-idle reconciliation returned
+`eligible=0`, `applied=[]`, and `skipped_pending=[]`; the old unknown claim was
+therefore not cleared and no provider mutation occurred. The source branch's
+new no-effect reconciler is not installed in this release, so promotion remains
+a source/lifecycle task rather than an external-send permission.
+
 Lancers Paid is scheduled and `loaded-idle` on installed/event SHA
 `799045e7ba66ee66fe22b35153a3217054ac7ac3`, with `last_exit=0` and terminal
 `pass`; the current source-complete official inventory remains zero funded
