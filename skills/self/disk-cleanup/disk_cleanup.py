@@ -116,9 +116,9 @@ def _sparkle_updater_processes(sparkle_root: Path) -> list[dict[str, int | str]]
         )
     except (OSError, subprocess.TimeoutExpired):
         return None
-    if completed.returncode != 0:
+    if completed.returncode != 0 or completed.stderr.strip():
         return None
-    launcher = str((sparkle_root / "Launcher").resolve()) + "/"
+    launcher = str(Path(os.path.abspath(sparkle_root / "Launcher"))) + "/"
     processes: list[dict[str, int | str]] = []
     for line in completed.stdout.splitlines():
         relevant = (
@@ -176,30 +176,40 @@ def _sparkle_updater_active(sparkle_root: Path) -> bool:
     return processes is None or bool(processes)
 
 
-def _real_directory_fingerprint(root: Path, path: Path) -> tuple[int, int, int] | None:
-    """Return identity only when every component from root is a real directory."""
+def _real_directory_state(
+    root: Path, path: Path
+) -> tuple[str, tuple[int, int, int] | None]:
+    """Classify a lexical path without following any symlink component."""
     root = Path(os.path.abspath(root))
     path = Path(os.path.abspath(path))
     try:
         relative = path.relative_to(root)
     except ValueError:
-        return None
+        return ("ambiguous", None)
     current = root
     try:
         final = current.lstat()
         if stat.S_ISLNK(final.st_mode) or not stat.S_ISDIR(final.st_mode):
-            return None
+            return ("ambiguous", None)
         for part in relative.parts:
             current = current / part
             info = current.lstat()
             if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
-                return None
+                return ("ambiguous", None)
             final = info
+    except FileNotFoundError:
+        return ("missing", None)
     except OSError:
-        return None
+        return ("ambiguous", None)
     if final is None:
-        return None
-    return (final.st_dev, final.st_ino, final.st_mode)
+        return ("ambiguous", None)
+    return ("real", (final.st_dev, final.st_ino, final.st_mode))
+
+
+def _real_directory_fingerprint(root: Path, path: Path) -> tuple[int, int, int] | None:
+    """Return identity only when every component from root is a real directory."""
+    state, fingerprint = _real_directory_state(root, path)
+    return fingerprint if state == "real" else None
 
 
 def _bytes(
@@ -449,9 +459,10 @@ class HostDiskGovernor:
             "preserved": 0,
             "errors": 0,
         }
-        if not sparkle_root.exists() and not sparkle_root.is_symlink():
+        root_state, _root_fingerprint = _real_directory_state(self.home, sparkle_root)
+        if root_state == "missing":
             return result
-        if _real_directory_fingerprint(self.home, sparkle_root) is None:
+        if root_state != "real":
             result["preserved"] = 1
             result["errors"] = 1
             return result
@@ -704,6 +715,29 @@ class HostDiskGovernor:
         """Require discovery proof and an exact regenerable path family."""
         if item.get("discovery") != "allowlisted":
             return False
+        if item.get("class") == "regenerable_output" and item.get("owner") == "codex-app-updater":
+            lexical = Path(os.path.abspath(path))
+            expected_parents = {
+                Path(os.path.abspath(
+                    self.home
+                    / f"Library/Caches/{bundle_id}/org.sparkle-project.Sparkle/Installation"
+                ))
+                for bundle_id in SPARKLE_CACHE_BUNDLE_IDS
+            }
+            proof = item.get("sparkle_identity")
+            if (
+                lexical.parent not in expected_parents
+                or re.fullmatch(r"[A-Za-z0-9]{6,64}", lexical.name) is None
+                or not isinstance(proof, tuple)
+                or len(proof) != 3
+            ):
+                return False
+            current = (
+                _real_directory_fingerprint(self.home, lexical.parent.parent),
+                _real_directory_fingerprint(self.home, lexical.parent),
+                _real_directory_fingerprint(self.home, lexical),
+            )
+            return current == proof
         try:
             resolved = path.resolve()
             temporary = Path(tempfile.gettempdir()).resolve()
@@ -725,17 +759,6 @@ class HostDiskGovernor:
                 and resolved.parent.name
                 in {"com.google.Chrome.code_sign_clone", "org.chromium.Chromium.code_sign_clone"}
                 and resolved.name.startswith("code_sign_clone.")
-            )
-        if item.get("class") == "regenerable_output" and item.get("owner") == "codex-app-updater":
-            return (
-                resolved.parent in {
-                    (
-                        self.home
-                        / f"Library/Caches/{bundle_id}/org.sparkle-project.Sparkle/Installation"
-                    ).resolve()
-                    for bundle_id in SPARKLE_CACHE_BUNDLE_IDS
-                }
-                and re.fullmatch(r"[A-Za-z0-9]{6,64}", resolved.name) is not None
             )
         if item.get("class") == "regenerable_output":
             exact_caches = {
@@ -812,6 +835,62 @@ class HostDiskGovernor:
             except OSError:
                 pass
         shutil.rmtree(path)
+
+    def _open_real_directory(self, path: Path) -> int:
+        """Open a directory from home one no-follow component at a time."""
+        root = Path(os.path.abspath(self.home))
+        target = Path(os.path.abspath(path))
+        relative = target.relative_to(root)
+        if not hasattr(os, "O_NOFOLLOW"):
+            raise OSError(errno.ENOTSUP, "O_NOFOLLOW is required")
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | os.O_NOFOLLOW
+        descriptor = os.open(root, flags)
+        try:
+            for part in relative.parts:
+                next_descriptor = os.open(part, flags, dir_fd=descriptor)
+                os.close(descriptor)
+                descriptor = next_descriptor
+            return descriptor
+        except BaseException:
+            os.close(descriptor)
+            raise
+
+    def _remove_sparkle_tree(self, path: Path, item: dict) -> None:
+        """Remove one proven generation relative to its pinned Installation dir."""
+        proof = item.get("sparkle_identity")
+        if (
+            not isinstance(proof, tuple)
+            or len(proof) != 3
+            or not getattr(shutil.rmtree, "avoids_symlink_attacks", False)
+        ):
+            raise OSError(errno.ENOTSUP, "safe Sparkle removal is unavailable")
+        parent_descriptor = self._open_real_directory(path.parent)
+        try:
+            parent_info = os.fstat(parent_descriptor)
+            parent_fingerprint = (
+                parent_info.st_dev,
+                parent_info.st_ino,
+                parent_info.st_mode,
+            )
+            child_info = os.stat(
+                path.name,
+                dir_fd=parent_descriptor,
+                follow_symlinks=False,
+            )
+            child_fingerprint = (
+                child_info.st_dev,
+                child_info.st_ino,
+                child_info.st_mode,
+            )
+            if (
+                parent_fingerprint != proof[1]
+                or child_fingerprint != proof[2]
+                or not stat.S_ISDIR(child_info.st_mode)
+            ):
+                raise OSError(errno.ESTALE, "Sparkle candidate identity changed")
+            shutil.rmtree(path.name, dir_fd=parent_descriptor)
+        finally:
+            os.close(parent_descriptor)
 
     @staticmethod
     def _receipt_reserve_valid(path: Path) -> bool:
@@ -996,6 +1075,13 @@ class HostDiskGovernor:
                 result["errors"] += state == "probe-error"
                 preserve(state)
                 continue
+            if (
+                item.get("owner") == "codex-app-updater"
+                and not self._allowlisted_candidate(path, item)
+            ):
+                result["errors"] += 1
+                preserve("path_identity_changed")
+                continue
             # Classes where the whole tree is the unit of proof. A release is an
             # export of the repository, so it always contains source and scanning
             # inside would preserve every generation forever; what makes an old one
@@ -1026,6 +1112,13 @@ class HostDiskGovernor:
                 if before is None:
                     preserve("probe-budget-exhausted")
                     continue
+                if (
+                    item.get("owner") == "codex-app-updater"
+                    and not self._allowlisted_candidate(path, item)
+                ):
+                    result["errors"] += 1
+                    preserve("path_identity_changed")
+                    continue
                 if deadline is not None and self.clock() + POST_SWEEP_RESERVE_SECONDS >= deadline:
                     preserve("probe-budget-exhausted")
                     continue
@@ -1048,8 +1141,17 @@ class HostDiskGovernor:
             if self._active_lease(item):
                 preserve("active_lease")
                 continue
+            if (
+                item.get("owner") == "codex-app-updater"
+                and not self._allowlisted_candidate(path, item)
+            ):
+                result["errors"] += 1
+                preserve("path_identity_changed")
+                continue
             try:
-                if path.is_dir():
+                if item.get("owner") == "codex-app-updater":
+                    self._remove_sparkle_tree(path, item)
+                elif path.is_dir():
                     self._remove_tree(path)
                 else:
                     path.unlink()
@@ -1123,15 +1225,30 @@ class HostDiskGovernor:
                 self.home / f"Library/Caches/{bundle_id}/org.sparkle-project.Sparkle"
             )
             sparkle_installation = sparkle_root / "Installation"
-            if (
-                _real_directory_fingerprint(self.home, sparkle_root) is not None
-                and _real_directory_fingerprint(self.home, sparkle_installation) is not None
-                and not _sparkle_updater_active(sparkle_root)
-            ):
-                for child in sorted(sparkle_installation.iterdir()):
+            root_fingerprint = _real_directory_fingerprint(self.home, sparkle_root)
+            installation_fingerprint = _real_directory_fingerprint(
+                self.home, sparkle_installation
+            )
+            if root_fingerprint is not None and installation_fingerprint is not None:
+                if _sparkle_updater_active(sparkle_root):
+                    continue
+                current_root = _real_directory_fingerprint(self.home, sparkle_root)
+                current_installation = _real_directory_fingerprint(
+                    self.home, sparkle_installation
+                )
+                if (
+                    current_root != root_fingerprint
+                    or current_installation != installation_fingerprint
+                ):
+                    continue
+                try:
+                    children = sorted(sparkle_installation.iterdir())
+                except OSError:
+                    continue
+                for child in children:
+                    child_fingerprint = _real_directory_fingerprint(self.home, child)
                     if (
-                        child.is_dir()
-                        and not child.is_symlink()
+                        child_fingerprint is not None
                         and re.fullmatch(r"[A-Za-z0-9]{6,64}", child.name) is not None
                     ):
                         candidates.append(
@@ -1140,6 +1257,11 @@ class HostDiskGovernor:
                                 "class": "regenerable_output",
                                 "owner": "codex-app-updater",
                                 "discovery": "allowlisted",
+                                "sparkle_identity": (
+                                    current_root,
+                                    current_installation,
+                                    child_fingerprint,
+                                ),
                             }
                         )
         temporary = Path(tempfile.gettempdir())
