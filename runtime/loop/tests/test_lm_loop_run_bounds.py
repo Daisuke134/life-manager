@@ -430,6 +430,8 @@ def test_old_reservation_only_marker_does_not_advertise_queued_coalescing(tmp_pa
     with (patch("runtime.loop.lm_loop_run.memory_free_percent", return_value=50),
           patch("runtime.loop.lm_loop_run.enqueue_durable_resource",
                 return_value=(tmp_path / "ticket", "capacity_busy")) as enqueue,
+          patch("runtime.loop.lm_loop_run.claim_durable_resource",
+                return_value=(None, "capacity_busy")) as claim,
           patch("runtime.loop.lm_loop_run._run_entrypoint") as run):
         assert _run_admitted(
             ["/bin/true"], entry, "life-manager-connector-native", {},
@@ -438,6 +440,9 @@ def test_old_reservation_only_marker_does_not_advertise_queued_coalescing(tmp_pa
     enqueue.assert_called_once_with(
         "browser", "life-manager-connector-native", admission_class="revenue",
         occurrence_id="connector:new",
+    )
+    claim.assert_called_once_with(
+        "browser", "life-manager-connector-native", admission_class="revenue",
     )
     run.assert_not_called()
 
