@@ -17,7 +17,7 @@ PYTHON_BIN="${LIFE_MANAGER_PYTHON:-$(command -v python3 || true)}"
 
 if ! POSTIZ_API_KEY="$LM_POSTIZ_API_KEY" "$PYTHON_BIN" \
   "$SCRIPT_DIR/mobile-postiz-provider-reconcile.py" \
-  --auto-owner "$LOOP_ID" --resolve
+  --auto-owner "$LOOP_ID" --resolve >&2
 then
   printf 'mobile app prior-effect reconciliation deferred: %s\n' "$LOOP_ID" >&2
 fi

@@ -402,11 +402,13 @@ def reconcile_pending_owner(
     if not ID.fullmatch(owner_id):
         return _inconclusive(owner_id, "", "owner_id_invalid")
     try:
-        candidates = sorted(identity_dir.iterdir(), key=lambda item: item.name)[:256]
+        candidates = sorted(identity_dir.iterdir(), key=lambda item: item.name)
     except OSError:
         candidates = []
     seen: set[str] = set()
     inspected = 0
+    limit_reached = False
+    last_inconclusive: dict[str, Any] | None = None
     for sidecar in candidates:
         rows = _safe_jsonl(sidecar)
         if rows is None:
@@ -419,6 +421,9 @@ def reconcile_pending_owner(
             state, effect_unknown = _admission_state(admission_db, owner_id, occurrence_id)
             if state not in {"claimed", "released"} or effect_unknown != 1:
                 continue
+            if inspected >= 256:
+                limit_reached = True
+                break
             inspected += 1
             ledger = _ledger_for_identity(identity, data_dir, tenant_id)
             if ledger is None or _local_receipt(identity, ledger) is None:
@@ -428,7 +433,14 @@ def reconcile_pending_owner(
                 state=state, effect_unknown=effect_unknown, api_key=api_key,
                 apply=apply, admission_db=admission_db,
             )
-            return {**result, "inspected": inspected}
+            result = {**result, "inspected": inspected}
+            if result.get("status") != "inconclusive":
+                return result
+            last_inconclusive = result
+        if limit_reached:
+            break
+    if last_inconclusive is not None:
+        return last_inconclusive
     return {
         "status": "no_match",
         "owner_id": owner_id,

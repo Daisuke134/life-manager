@@ -74,7 +74,7 @@ test("the shared mobile wrapper reconciles one exact prior occurrence before the
   const resultHint = path.join(directory, "effect-result.json");
   fs.writeFileSync(
     python,
-    `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\ncase "$1" in\n  *run-with-timeout.py) printf '%s\\n' '{"publication":{"created":false,"provider_post_id":"postiz-existing-1"}}' ;;\nesac\nexit 0\n`,
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> "${calls}"\ncase "$1" in\n  *run-with-timeout.py) printf '%s\\n' '{"publication":{"created":false,"provider_post_id":"postiz-existing-1"}}' ;;\n  *) printf '%s\\n' '{"status":"no_match"}' ;;\nesac\nexit 0\n`,
     { mode: 0o700 },
   );
   fs.writeFileSync(

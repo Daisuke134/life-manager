@@ -501,3 +501,105 @@ def test_owner_reconcile_keeps_unjoined_unknown_without_provider_request(
 
     assert result["status"] == "no_match"
     assert result["reason"] == "exact_pending_receipt_unavailable"
+
+
+def test_owner_reconcile_applies_bound_after_owner_filter(
+        tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    identity_dir = tmp_path / "effect-identities"
+    identity_dir.mkdir()
+    for index in range(256):
+        unrelated = identity()
+        unrelated["runtime_run_id"] = f"other-{index}"
+        unrelated["loop_id"] = "life-manager-other"
+        unrelated["occurrence_id"] = f"life-manager-other:run-{index}"
+        write_identity(identity_dir / f"{index:03d}-other.jsonl", unrelated)
+        resolved = identity()
+        resolved["runtime_run_id"] = f"resolved-{index}"
+        resolved["occurrence_id"] = f"life-manager-honne-ja:resolved-{index}"
+        write_identity(identity_dir / f"r{index:03d}-resolved.jsonl", resolved)
+    write_identity(identity_dir / "zzz-target.jsonl", identity())
+    monkeypatch.setattr(
+        module,
+        "_admission_state",
+        lambda _db, _owner, occurrence: (
+            ("claimed", 1)
+            if occurrence == "life-manager-honne-ja:run-1"
+            else ("released", 0)
+        ),
+    )
+    monkeypatch.setattr(module, "_ledger_for_identity", lambda *_: tmp_path / "ledger")
+    monkeypatch.setattr(module, "_local_receipt", lambda *_: {"provider_id": "post-1"})
+    calls = []
+
+    def reconcile(*args, **kwargs):
+        calls.append((args, kwargs))
+        return {
+            "status": "resolved",
+            "owner_id": "life-manager-honne-ja",
+            "occurrence_id": "life-manager-honne-ja:run-1",
+        }
+
+    monkeypatch.setattr(module, "reconcile_provider_effect", reconcile)
+
+    result = module.reconcile_pending_owner(
+        owner_id="life-manager-honne-ja",
+        identity_dir=identity_dir,
+        data_dir=tmp_path / "data",
+        tenant_id="dais-local",
+        admission_db=tmp_path / "admission.sqlite3",
+        api_key="token",
+        apply=True,
+    )
+
+    assert result["status"] == "resolved"
+    assert result["occurrence_id"] == "life-manager-honne-ja:run-1"
+    assert result["inspected"] == 1
+    assert len(calls) == 1
+
+
+def test_owner_reconcile_continues_after_inconclusive_exact_candidate(
+        tmp_path: Path, monkeypatch) -> None:
+    module = load_module()
+    identity_dir = tmp_path / "effect-identities"
+    identity_dir.mkdir()
+    first = identity()
+    first["runtime_run_id"] = "run-a"
+    first["occurrence_id"] = "life-manager-honne-ja:run-a"
+    second = identity()
+    second["runtime_run_id"] = "run-b"
+    second["occurrence_id"] = "life-manager-honne-ja:run-b"
+    write_identity(identity_dir / "a.jsonl", first)
+    write_identity(identity_dir / "b.jsonl", second)
+    monkeypatch.setattr(module, "_admission_state", lambda *_: ("claimed", 1))
+    monkeypatch.setattr(module, "_ledger_for_identity", lambda *_: tmp_path / "ledger")
+    monkeypatch.setattr(module, "_local_receipt", lambda *_: {"provider_id": "post-1"})
+    calls = []
+
+    def reconcile(_identity, _ledger, owner_id, occurrence_id, **_kwargs):
+        calls.append(occurrence_id)
+        if len(calls) == 1:
+            return module._inconclusive(
+                owner_id, occurrence_id, "provider_readback_not_exact")
+        return {
+            "status": "resolved",
+            "owner_id": owner_id,
+            "occurrence_id": occurrence_id,
+        }
+
+    monkeypatch.setattr(module, "reconcile_provider_effect", reconcile)
+
+    result = module.reconcile_pending_owner(
+        owner_id="life-manager-honne-ja",
+        identity_dir=identity_dir,
+        data_dir=tmp_path / "data",
+        tenant_id="dais-local",
+        admission_db=tmp_path / "admission.sqlite3",
+        api_key="token",
+        apply=True,
+    )
+
+    assert calls == ["life-manager-honne-ja:run-a", "life-manager-honne-ja:run-b"]
+    assert result["status"] == "resolved"
+    assert result["occurrence_id"] == "life-manager-honne-ja:run-b"
+    assert result["inspected"] == 2
