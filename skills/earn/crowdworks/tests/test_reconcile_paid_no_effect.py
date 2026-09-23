@@ -65,6 +65,24 @@ def test_exact_paid_zero_effect_run_proves_pre_effect(tmp_path):
     assert proof["evidence_ref"] in proof["evidence_refs"]
 
 
+def test_pre_effect_marker_without_effect_field_proves_no_dispatch(tmp_path):
+    module = load()
+    occurrence = "crowdworks-revenue-paid:pre-effect-marker"
+    state_root = seed(tmp_path, occurrence=occurrence)
+    marker = module.run_marker_path(state_root, occurrence)
+    write_json(marker, {
+        "version": 1,
+        "occurrence_id": occurrence,
+        "status": "pre_effect",
+    })
+
+    proof = module.find_paid_no_effect_proof(state_root, "crowdworks-revenue-paid", occurrence)
+
+    assert proof is not None
+    assert proof["verified"] is True
+    assert proof["proof_type"] == "pre_effect"
+
+
 def test_paid_no_effect_proof_rejects_mismatches_and_effectful_items(tmp_path):
     module = load()
     occurrence = "crowdworks-revenue-paid:run-2"

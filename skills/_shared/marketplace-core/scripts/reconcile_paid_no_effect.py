@@ -30,6 +30,20 @@ def run_marker_path(state_root: Path, occurrence: str) -> Path:
     return state_root / "paid" / "runs" / f"{digest}.json"
 
 
+def _marker_proves_no_effect(marker: dict[str, Any] | None,
+                             occurrence: str) -> bool:
+    if (marker is None or marker.get("version") != 1
+            or marker.get("occurrence_id") != occurrence):
+        return False
+    status = marker.get("status")
+    if status == "pre_effect":
+        # The paid kernel writes this marker before arming any provider
+        # mutation. Older markers do not carry an ``effect`` field; if one is
+        # present, only an explicit zero remains admissible.
+        return "effect" not in marker or marker.get("effect") == 0
+    return status == "completed" and marker.get("effect") == 0
+
+
 def find_paid_no_effect_proof(state_root: Path, owner: str,
                               occurrence: str) -> dict[str, Any] | None:
     if (not SAFE_ID.fullmatch(owner) or not SAFE_ID.fullmatch(occurrence)
@@ -37,25 +51,16 @@ def find_paid_no_effect_proof(state_root: Path, owner: str,
         return None
     marker_path = run_marker_path(state_root, occurrence)
     marker = _read(marker_path)
-    if (marker is None or marker.get("version") != 1
-            or marker.get("occurrence_id") != occurrence
-            or marker.get("status") not in {"pre_effect", "completed"}
-            or marker.get("effect") != 0):
+    if not _marker_proves_no_effect(marker, occurrence):
         # Mercor keeps the shared Paid kernel under ``shared-paid`` while the
         # other marketplace owners use ``paid``.  Probe that provider-owned
         # layout only after the canonical path has no valid exact marker.
         shared_marker_path = state_root / "shared-paid" / "runs" / marker_path.name
         if shared_marker_path != marker_path:
             marker = _read(shared_marker_path)
-            if (marker is not None and marker.get("version") == 1
-                    and marker.get("occurrence_id") == occurrence
-                    and marker.get("status") in {"pre_effect", "completed"}
-                    and marker.get("effect") == 0):
+            if _marker_proves_no_effect(marker, occurrence):
                 marker_path = shared_marker_path
-    if (marker is None or marker.get("version") != 1
-            or marker.get("occurrence_id") != occurrence
-            or marker.get("status") not in {"pre_effect", "completed"}
-            or marker.get("effect") != 0):
+    if not _marker_proves_no_effect(marker, occurrence):
         return None
     evidence_ref = f"lm-paid-run://{owner}/{marker_path.name}"
     return {

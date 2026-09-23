@@ -1867,3 +1867,18 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   funded contract. No duplicate or formal delivery was issued.
 - [ ] Continue at the first admissible buyer-material/funded-contract event and
   obtain an official funded-provider canary before production promotion.
+
+### Paid fulfillment checkpoint — 2026-09-24 03:08 JST
+
+- [x] Fixed the shared no-effect reconciler for legacy `pre_effect` markers
+  without an `effect` field; non-zero and `effect_started` markers remain
+  fail-closed. CrowdWorks tests `223`, Paid-kernel tests `32`, and the loop
+  contract gate pass.
+- [x] Released only exact pre-effect fences: three CrowdWorks occurrences and
+  two Lancers no-contract occurrences, each with an occurrence-matched marker;
+  no Provider mutation or replay was performed.
+- [ ] Keep CrowdWorks occurrence `18d62cf32eb0c678-48194` fenced until an
+  occurrence-bound Provider receipt or explicit no-dispatch marker is found.
+  Continue the next admissible CrowdWorks buyer-material event, then Lancers'
+  first funded contract; Upwork remains disabled pending authorization,
+  authentication, and a funded contract.

@@ -1399,3 +1399,19 @@ The objective is complete only when all of the following are proven:
   `readback=4`, `pending=1` for buyer-material wait; Lancers is `observed=0`,
   `effect=0`, `readback=0`, `pending=0` with no funded contract. No new
   provider effect or formal delivery was created.
+
+## Runtime Cursor — 2026-09-24 03:08 JST
+
+- The shared Paid no-effect reconciler now accepts the kernel's legacy
+  `pre_effect` run marker when the marker has no `effect` field; it still rejects
+  any non-zero or `effect_started` marker. CrowdWorks tests pass `223`, the
+  shared Paid-kernel tests pass `32`, and `lm-loop-contract` remains clean.
+- Exact pre-effect proof released three CrowdWorks occurrences
+  (`18d7f93a28a78888-75124`, `18d7f5dcebed3880-20347`,
+  `18d7f5c4954ae490-18782`) and one Lancers occurrence
+  (`18d7f5a216849038-14684`). A later Lancers no-contract wake
+  (`18d7fa0fc6b825c0-85613`) also resolved from its completed zero-effect
+  marker. No provider mutation occurred in any of these reconciliations.
+- CrowdWorks occurrence `18d62cf32eb0c678-48194` remains fenced because its
+  event says `effect_status=started` and there is no occurrence-bound provider
+  receipt or no-dispatch marker. It is not cleared by inference or replay.
