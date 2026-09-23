@@ -60,6 +60,34 @@ historical plan. Provider-specific specs remain authoritative for exact live con
 inventories and page semantics unless this document explicitly changes ownership or
 completion criteria.
 
+## Runtime checkpoint — 2026-09-24 00:12 JST
+
+- Ryu `18211957` remains closed under the permanent manual fence. The latest direct
+  seller receipt is `js-talkroomMessage-222245383`, with
+  `formal_delivery_clicked=false` and `paid_loop_used=false`; no resend is
+  permitted without a genuinely newer buyer event.
+- Coconala's Paid owner remains `scheduled`/`loaded-idle` with `last_exit=0` and
+  no provider effect. Its current natural-wake result is a safe no-op; the manual
+  Ryu record is not counted as an automated effect.
+- CrowdWorks completed a fresh natural wake at `2026-09-24 00:12 JST` with
+  `observed=5`, `actionable=1`, `effect=0`, `readback=4`, `failed=0`, and
+  `pending=1`. Work `63568785` remains `waiting_external`: its document is
+  readable, but the requested external LINE account and forms are not an
+  admissible CrowdWorks delivery path. Its prior in-platform answer receipt is
+  durable and replay-zero; no duplicate answer or formal delivery is sent.
+- Lancers completed a fresh natural wake with zero funded contracts and `effect=0`.
+  The source quality boundary passes `427 passed, 17 subtests`, `lm-loop-contract`,
+  and `lm-loop doctor`; production still runs the older installed release and
+  must not be called complete until the all-platform release gate and a funded
+  canary exist.
+- Upwork still has no Paid owner, live CDP, OAuth2 credential, fresh authorization,
+  or funded contract. The architectural owner design and provider authorization
+  gate are still required before any Upwork mutation is attempted.
+
+The current execution cursor is therefore: preserve the CrowdWorks external-input
+wait without replay, keep Ryu manual-only, then finish Lancers production promotion
+and the approved Upwork readiness design before claiming cross-platform completion.
+
 ## User Decisions
 
 - Execute one provider vertical at a time: Coconala, then CrowdWorks, then Lancers,

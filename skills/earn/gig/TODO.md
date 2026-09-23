@@ -35,6 +35,20 @@ runtime/provider readback.
   owner or fabricate a send until written/approved provider authorization,
   fresh authentication, and a funded contract exist.
 
+### Fresh natural wake and source verification — 2026-09-24 00:12 JST
+
+- [x] Ryu `18211957` remains manual-only with official seller readback
+  `js-talkroomMessage-222245383`; no duplicate or formal-delivery action.
+- [x] CrowdWorks natural wake passed (`observed=5`, `effect=0`, `readback=4`,
+  `pending=1`). The sole pending work `63568785` is waiting for admissible
+  buyer-provided material; its existing answer receipt is replay-zero.
+- [x] Lancers natural wake passed with zero funded contracts. Source verification
+  passed `427 tests, 17 subtests`, `lm-loop-contract`, and `lm-loop doctor`.
+- [ ] Lancers production promotion and funded canary remain open; production still
+  runs the prior immutable release.
+- [ ] Upwork owner readiness remains gated on an approved design, provider
+  authorization, fresh authentication, and a funded contract.
+
 ### Runtime gate correction — 2026-09-23
 
 - [x] Reproduce and fix the stop/reservation starvation bug: `lm-loop stop` now
