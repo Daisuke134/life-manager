@@ -17,6 +17,7 @@ import math
 import os
 import pwd
 import re
+import signal
 import shutil
 import stat
 import subprocess
@@ -34,6 +35,9 @@ GOVERNOR_BUDGET_SECONDS = 90
 LSOF_TIMEOUT_SECONDS = 15
 POST_SWEEP_RESERVE_SECONDS = 30
 HEALTH_CHECK_TIMEOUT_SECONDS = 5
+STALE_SPARKLE_UPDATER_SECONDS = 24 * 60 * 60
+SPARKLE_UPDATER_TERM_TIMEOUT_SECONDS = 5
+SPARKLE_UPDATER_POLL_SECONDS = 0.1
 CANONICAL_LABEL = "ai.anicca.life-manager-disk-cleanup"
 THRESHOLDS = ((20 * GiB, "NORMAL"), (11 * GiB, "PREVENTIVE"), (6 * GiB, "PRESSURE"), (3 * GiB, "CRITICAL"))
 RECEIPT_RESERVE_BYTES = 1024 * 1024
@@ -43,6 +47,7 @@ RECEIPT_PAYLOAD_MAX_BYTES = 64 * 1024
 # unreferenced, closed generations must not consume another 1.2 GiB each.
 RELEASE_RETENTION = 1
 RELEASE_NAME_PATTERN = re.compile(r"\d{8}T\d{6}-[0-9a-f]{8}")
+SPARKLE_CACHE_BUNDLE_IDS = ("com.openai.codex", "com.steipete.codexbar")
 SOURCE_SUFFIXES = {
     ".c", ".cc", ".cpp", ".go", ".h", ".hpp", ".java", ".js", ".jsx",
     ".kt", ".kts", ".m", ".md", ".mm", ".py", ".rb", ".rs", ".sh", ".swift",
@@ -89,25 +94,68 @@ def _session_recovery_receipt() -> dict[str, object]:
     }
 
 
-def _sparkle_updater_active(sparkle_root: Path) -> bool:
-    """Fail closed while Sparkle may still consume a staged generation."""
+def _elapsed_seconds(value: str) -> int | None:
+    match = re.fullmatch(r"(?:(\d+)-)?(?:(\d+):)?(\d+):(\d+)", value)
+    if match is None:
+        return None
+    days, hours, minutes, seconds = (int(part or 0) for part in match.groups())
+    if hours >= 24 or minutes >= 60 or seconds >= 60:
+        return None
+    return days * 86400 + hours * 3600 + minutes * 60 + seconds
+
+
+def _sparkle_updater_processes(sparkle_root: Path) -> list[dict[str, int | str]] | None:
+    """Return exact same-user Sparkle launcher processes, or None on probe failure."""
     try:
         completed = subprocess.run(
-            ["ps", "axww", "-o", "command="],
+            ["ps", "axww", "-o", "uid=,pid=,ppid=,etime=,command="],
             capture_output=True,
             text=True,
             timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
-        return True
+        return None
     if completed.returncode != 0:
-        return True
+        return None
     launcher = str((sparkle_root / "Launcher").resolve()) + "/"
-    return any(
-        launcher in command and "/Updater.app/Contents/MacOS/Updater" in command
-        for command in completed.stdout.splitlines()
-    )
+    processes: list[dict[str, int | str]] = []
+    for line in completed.stdout.splitlines():
+        parts = line.split(None, 4)
+        if len(parts) != 5:
+            continue
+        uid_text, pid_text, ppid_text, elapsed_text, command = parts
+        try:
+            uid, pid, ppid = int(uid_text), int(pid_text), int(ppid_text)
+        except ValueError:
+            continue
+        elapsed = _elapsed_seconds(elapsed_text)
+        binary = command.split(None, 1)[0]
+        relative_binary = binary.removeprefix(launcher)
+        if (
+            uid != os.getuid()
+            or pid <= 0
+            or elapsed is None
+            or binary == relative_binary
+            or re.fullmatch(
+                r"[A-Za-z0-9]{6,64}/Updater\.app/Contents/MacOS/Updater",
+                relative_binary,
+            ) is None
+        ):
+            continue
+        processes.append({
+            "pid": pid,
+            "ppid": ppid,
+            "elapsed_seconds": elapsed,
+            "command": command,
+        })
+    return processes
+
+
+def _sparkle_updater_active(sparkle_root: Path) -> bool:
+    """Fail closed while Sparkle may still consume a staged generation."""
+    processes = _sparkle_updater_processes(sparkle_root)
+    return processes is None or bool(processes)
 
 
 def _bytes(
@@ -348,6 +396,61 @@ class HostDiskGovernor:
         usage = shutil.disk_usage("/System/Volumes/Data" if Path("/System/Volumes/Data").exists() else "/")
         return usage.free, usage.total
 
+    def _reconcile_stale_sparkle_updaters(self, sparkle_root: Path) -> dict[str, int]:
+        result = {"observed": 0, "terminated": 0, "preserved": 0, "errors": 0}
+        processes = _sparkle_updater_processes(sparkle_root)
+        if processes is None:
+            result["errors"] = 1
+            return result
+        staged_paths = (
+            sparkle_root / "Installation",
+            sparkle_root / "PersistentDownloads",
+        )
+        for process in processes:
+            result["observed"] += 1
+            if (
+                process["ppid"] != 1
+                or process["elapsed_seconds"] < STALE_SPARKLE_UPDATER_SECONDS
+            ):
+                result["preserved"] += 1
+                continue
+            if any(path.is_symlink() for path in staged_paths):
+                result["preserved"] += 1
+                continue
+            staged_states = [
+                self.lsof(path)
+                for path in staged_paths
+                if path.exists() and not path.is_symlink()
+            ]
+            if any(state != "confirmed-closed" for state in staged_states):
+                result["errors"] += sum(state == "probe-error" for state in staged_states)
+                result["preserved"] += 1
+                continue
+            pid = int(process["pid"])
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                result["terminated"] += 1
+                continue
+            except OSError:
+                result["errors"] += 1
+                result["preserved"] += 1
+                continue
+            deadline = self.clock() + SPARKLE_UPDATER_TERM_TIMEOUT_SECONDS
+            while self.clock() < deadline:
+                remaining = _sparkle_updater_processes(sparkle_root)
+                if remaining is None:
+                    result["errors"] += 1
+                    result["preserved"] += 1
+                    break
+                if not any(int(item["pid"]) == pid for item in remaining):
+                    result["terminated"] += 1
+                    break
+                time.sleep(SPARKLE_UPDATER_POLL_SECONDS)
+            else:
+                result["preserved"] += 1
+        return result
+
     @staticmethod
     def _active_lease(item: dict) -> bool:
         lease = item.get("lease")
@@ -522,12 +625,14 @@ class HostDiskGovernor:
                 and resolved.name.startswith("code_sign_clone.")
             )
         if item.get("class") == "regenerable_output" and item.get("owner") == "codex-app-updater":
-            installation = (
-                self.home
-                / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle/Installation"
-            ).resolve()
             return (
-                resolved.parent == installation
+                resolved.parent in {
+                    (
+                        self.home
+                        / f"Library/Caches/{bundle_id}/org.sparkle-project.Sparkle/Installation"
+                    ).resolve()
+                    for bundle_id in SPARKLE_CACHE_BUNDLE_IDS
+                }
                 and re.fullmatch(r"[A-Za-z0-9]{6,64}", resolved.name) is not None
             )
         if item.get("class") == "regenerable_output":
@@ -911,27 +1016,30 @@ class HostDiskGovernor:
                         "discovery": "allowlisted",
                     }
                 )
-        sparkle_root = self.home / "Library/Caches/com.openai.codex/org.sparkle-project.Sparkle"
-        sparkle_installation = sparkle_root / "Installation"
-        if (
-            sparkle_installation.is_dir()
-            and not sparkle_installation.is_symlink()
-            and not _sparkle_updater_active(sparkle_root)
-        ):
-            for child in sorted(sparkle_installation.iterdir()):
-                if (
-                    child.is_dir()
-                    and not child.is_symlink()
-                    and re.fullmatch(r"[A-Za-z0-9]{6,64}", child.name) is not None
-                ):
-                    candidates.append(
-                        {
-                            "path": child,
-                            "class": "regenerable_output",
-                            "owner": "codex-app-updater",
-                            "discovery": "allowlisted",
-                        }
-                    )
+        for bundle_id in SPARKLE_CACHE_BUNDLE_IDS:
+            sparkle_root = (
+                self.home / f"Library/Caches/{bundle_id}/org.sparkle-project.Sparkle"
+            )
+            sparkle_installation = sparkle_root / "Installation"
+            if (
+                sparkle_installation.is_dir()
+                and not sparkle_installation.is_symlink()
+                and not _sparkle_updater_active(sparkle_root)
+            ):
+                for child in sorted(sparkle_installation.iterdir()):
+                    if (
+                        child.is_dir()
+                        and not child.is_symlink()
+                        and re.fullmatch(r"[A-Za-z0-9]{6,64}", child.name) is not None
+                    ):
+                        candidates.append(
+                            {
+                                "path": child,
+                                "class": "regenerable_output",
+                                "owner": "codex-app-updater",
+                                "discovery": "allowlisted",
+                            }
+                        )
         temporary = Path(tempfile.gettempdir())
         temp_parent = temporary.parent
         clone_root = temp_parent / "X"
@@ -997,11 +1105,20 @@ class HostDiskGovernor:
             }
             self._receipt(result)
             return result
+        updater_recovery = {"observed": 0, "terminated": 0, "preserved": 0, "errors": 0}
+        for bundle_id in SPARKLE_CACHE_BUNDLE_IDS:
+            sparkle_root = (
+                self.home / f"Library/Caches/{bundle_id}/org.sparkle-project.Sparkle"
+            )
+            recovery = self._reconcile_stale_sparkle_updaters(sparkle_root)
+            for key in updater_recovery:
+                updater_recovery[key] += recovery[key]
         result = self.sweep(
             self.discover_candidates(),
             write_receipt=False,
             deadline=deadline,
         )
+        result["updater_recovery"] = updater_recovery
         # Cleanup must never pause revenue loops. Remove the retired shared
         # pressure marker; producers own bounded retention for their outputs.
         pressure_file = self.state_dir / "disk-pressure.block"

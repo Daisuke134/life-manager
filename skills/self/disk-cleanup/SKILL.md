@@ -16,6 +16,12 @@ allow-listed regenerable artifact after an open-path probe confirms
   databases, credentials, cookies, source, and `state/*.jsonl` are preserved.
 - Unknown paths, active leases, symlinks, open paths, and probe errors are
   preserved and recorded.
+- A stale Sparkle staging blocker has one narrow recovery action: send one
+  `SIGTERM` only to the same-UID updater whose executable is under an exact
+  allow-listed Codex/CodexBar Sparkle `Launcher`, whose parent is `launchd`,
+  whose elapsed time exceeds 24 hours, and whose staged paths are confirmed
+  closed. Record the result and preserve on any mismatch or probe failure.
+  Never use `SIGKILL`, stop the parent app, or signal a browser or loop.
 - `sweep()` accepts only candidates carrying internal allow-list discovery proof
   for the exact regenerable families; the CLI `--candidate` escape hatch is
   rejected so an arbitrary path cannot be promoted by an operator flag.
