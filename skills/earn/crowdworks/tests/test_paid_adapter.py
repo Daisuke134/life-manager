@@ -1028,6 +1028,34 @@ def test_answer_readback_accepts_message_api_when_thread_body_is_folded():
     assert result["provider_receipt_id"] == "contract:63568785:answer:permission-key"
 
 
+def test_answer_readback_normalizes_message_api_html_breaks():
+    module = load()
+    expected = "一行目\n\n二行目"
+
+    class Root:
+        def get_attribute(self, name):
+            assert name == "data"
+            return json.dumps({"id": 304402038, "messageableId": 63568785})
+
+    class Page:
+        def locator(self, selector):
+            assert selector == "#pack-message-thread"
+            return Root()
+
+        def evaluate(self, _script, thread_id):
+            assert thread_id == 304402038
+            return {"status": 200, "body": json.dumps({"messages": [
+                {"id": 426855154, "own_message": False, "body": "buyer"},
+                {"id": 428636540, "own_message": True,
+                 "body": "一行目<br />\r\n<br />\r\n二行目"},
+            ]})}
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+
+    assert adapter._seller_message_contains("63568785", "426855154", expected) is True
+
+
 def test_document_access_reports_permission_required_without_verifying_artifact():
     module = load()
 
@@ -1050,6 +1078,51 @@ def test_document_access_reports_permission_required_without_verifying_artifact(
         "artifact_required": True, "artifact_access": "permission_required",
         "artifact_verified": False,
     }
+
+
+def test_document_access_prefers_gog_drive_export_without_browser_context(monkeypatch):
+    module = load()
+    url = "https://docs.google.com/document/d/abc123/edit?tab=t.0"
+    monkeypatch.setattr(module, "_gog_document_text", lambda value: (
+        "buyer assignment contents" if value == url else None
+    ))
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+
+    assert adapter._document_access([url]) == {
+        "artifact_required": True, "artifact_access": "readable",
+        "artifact_content": f"[{url}]\nbuyer assignment contents",
+        "artifact_verified": False,
+    }
+
+
+def test_gog_document_text_uses_drive_get_and_txt_export(monkeypatch):
+    module = load()
+    document_id = "1m_AvzDfDARBXqcvrvuDJV_t8jjuiSEkQKDZcMZCONvA"
+    url = f"https://docs.google.com/document/d/{document_id}/edit?tab=t.0"
+    calls = []
+
+    monkeypatch.setattr(module, "_gog_binary", lambda: "/opt/homebrew/bin/gog")
+    monkeypatch.setattr(module, "_gog_json", lambda command: (
+        calls.append(command)
+        or {"file": {"id": document_id, "mimeType": "application/vnd.google-apps.document"}}
+    ))
+
+    def fake_run(command, **_kwargs):
+        calls.append(command)
+        output = next(value.split("=", 1)[1] for value in command if value.startswith("--out="))
+        Path(output).write_text("buyer assignment contents\n", encoding="utf-8")
+
+        class Result:
+            returncode = 0
+
+        return Result()
+
+    monkeypatch.setattr(module.subprocess, "run", fake_run)
+
+    assert module._gog_document_text(url) == "buyer assignment contents"
+    assert calls[0][-3:] == ["drive", "get", document_id]
+    assert calls[1][2:5] == ["drive", "download", document_id]
 
 
 def test_document_access_waits_for_permission_surface_after_commit():

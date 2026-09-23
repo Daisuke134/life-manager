@@ -4,13 +4,18 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timezone
+import html
 import hashlib
 import importlib.util
 import json
 import math
+import os
 from pathlib import Path
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import threading
 import time
 from typing import Any, Callable, Mapping
@@ -97,6 +102,88 @@ def _google_form_urls_from_text(value: str) -> list[str]:
         if _google_form_url(url):
             urls.append(url)
     return sorted(set(urls))
+
+
+def _gog_binary() -> str | None:
+    """Return the installed gog CLI without relying on launchd's PATH."""
+    configured = os.environ.get("GOG_CLI_PATH", "").strip()
+    if configured and Path(configured).is_file() and os.access(configured, os.X_OK):
+        return configured
+    for candidate in ("gog", "/opt/homebrew/bin/gog", "/usr/local/bin/gog"):
+        resolved = shutil.which(candidate) if candidate == "gog" else candidate
+        if resolved and Path(resolved).is_file() and os.access(resolved, os.X_OK):
+            return resolved
+    return None
+
+
+def _gog_json(command: list[str]) -> Mapping[str, Any] | None:
+    try:
+        result = subprocess.run(
+            command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            text=True, timeout=30, check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    try:
+        value = json.loads(result.stdout)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+    return value if isinstance(value, Mapping) else None
+
+
+def _gog_document_text(url: str) -> str | None:
+    """Read a Google Doc through the authenticated Drive CLI when available.
+
+    Drive export works with the normal ``drive`` OAuth scope even when the
+    separate Docs API is disabled.  Returning ``None`` is deliberately soft:
+    callers may fall back to the browser surface and preserve the existing
+    permission/unknown distinction.
+    """
+    parsed = urlsplit(url)
+    if (parsed.scheme, parsed.netloc) != ("https", "docs.google.com") or "/document/" not in parsed.path:
+        return None
+    match = re.search(r"/document/d/([^/]+)", urlsplit(url).path)
+    if not match:
+        return None
+    binary = _gog_binary()
+    if binary is None:
+        return None
+    document_id = match.group(1)
+    # Google-issued document IDs are long opaque tokens.  This also keeps
+    # malformed/test URLs on the normal browser fallback path.
+    if len(document_id) < 16:
+        return None
+    metadata = _gog_json([binary, "--no-input", "--json", "drive", "get", document_id])
+    file_metadata = metadata.get("file") if isinstance(metadata, Mapping) else None
+    if not isinstance(file_metadata, Mapping):
+        return None
+    if (str(file_metadata.get("id") or "") != document_id
+            or file_metadata.get("mimeType") != "application/vnd.google-apps.document"):
+        return None
+    try:
+        with tempfile.TemporaryDirectory(prefix=".crowdworks-gog-doc-") as temporary:
+            output = Path(temporary) / "document.txt"
+            result = subprocess.run(
+                [binary, "--no-input", "drive", "download", document_id,
+                 "--format=txt", f"--out={output}"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                text=True, timeout=30, check=False,
+            )
+            if result.returncode != 0 or not output.is_file():
+                return None
+            content = output.read_text(encoding="utf-8-sig").strip()
+    except (OSError, UnicodeError, subprocess.SubprocessError):
+        return None
+    return content or None
+
+
+def _canonical_message_body(value: Any) -> str:
+    """Compare CrowdWorks API HTML bodies with the visible plain-text body."""
+    text = html.unescape(str(value or ""))
+    text = re.sub(r"<br\s*/?>\s*", "\n", text, flags=re.IGNORECASE)
+    return text.replace("\r\n", "\n").replace("\r", "\n")
 
 
 class CrowdWorksPaidBrowserUnavailable(RuntimeError):
@@ -468,6 +555,14 @@ class CrowdWorksPaidAdapter:
     def _detail_once(self, basic: Mapping[str, Any]) -> dict[str, Any]:
         work_id = _text(basic.get("work_id"))
         self._goto_contract(work_id)
+        # CrowdWorks returns the contract shell at ``commit`` and hydrates the
+        # message thread immediately afterwards.  Expanding folded messages
+        # before that hydration completes can produce a short, incomplete
+        # buyer_context and a false quality-hash mismatch at mutation time.
+        try:
+            self.page.wait_for_timeout(3_000)
+        except Exception:
+            pass
         self._expand_folded_messages()
         body = _text(self.page.locator("body").inner_text(), "crowdworks_paid_contract_unavailable")
         buyer_event = self._latest_buyer_event(work_id) or {}
@@ -593,7 +688,7 @@ class CrowdWorksPaidAdapter:
             message.get("own_message") is True
             and isinstance(message.get("id"), int)
             and int(message["id"]) > int(buyer_event_id)
-            and body in str(message.get("body") or "")
+            and body in _canonical_message_body(message.get("body"))
             for message in messages
         )
 
@@ -603,13 +698,32 @@ class CrowdWorksPaidAdapter:
         return (parsed.scheme, parsed.netloc) == ("https", "docs.google.com") and "/document/" in parsed.path
 
     def _document_access(self, urls: list[str]) -> dict[str, Any]:
-        if not urls or self.owned_context is None:
-            return {"artifact_required": bool(urls), "artifact_access": "unknown" if urls else None,
+        if not urls:
+            return {"artifact_required": False, "artifact_access": None,
                     "artifact_verified": False}
         permission_seen = False
         unknown_seen = False
         readable: list[str] = []
+        browser_urls: list[str] = []
         for url in urls:
+            cli_content = _gog_document_text(url)
+            if isinstance(cli_content, str) and cli_content.strip():
+                if len(cli_content) > 12_000:
+                    unknown_seen = True
+                else:
+                    readable.append(f"[{url}]\n{cli_content.strip()}")
+                continue
+            browser_urls.append(url)
+        if self.owned_context is None:
+            if permission_seen:
+                return {"artifact_required": True, "artifact_access": "permission_required",
+                        "artifact_verified": False}
+            if unknown_seen or not readable:
+                return {"artifact_required": True, "artifact_access": "unknown",
+                        "artifact_verified": False}
+            return {"artifact_required": True, "artifact_access": "readable",
+                    "artifact_content": "\n\n".join(readable), "artifact_verified": False}
+        for url in browser_urls:
             page = self.owned_context.new_page()
             try:
                 page.goto(url, wait_until="commit", timeout=20_000)
