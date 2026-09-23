@@ -1445,19 +1445,20 @@ class CrowdWorksPaidAdapter:
                 self._goto_contract(work_id)
                 visible_body = _text(self.page.locator("body").inner_text(),
                                      "crowdworks_paid_contract_unavailable")
-                if body in visible_body:
-                    buyer_event_id = payload.get("buyer_event_id")
-                    if isinstance(buyer_event_id, str) and buyer_event_id.isdigit():
-                        try:
-                            present = self._seller_message_contains(work_id, buyer_event_id, body)
-                        except Exception:
-                            raise
-                        if not present:
-                            return {"authoritative_absent": True}
-                    return {"verified": True,
-                            "provider_receipt_id": f"contract:{work_id}:answer:{_text(intent.get('effect_key'))}",
-                            "observed_at": _now()}
-                return {"authoritative_absent": True}
+                buyer_event_id = payload.get("buyer_event_id")
+                if body not in visible_body:
+                    # Folded CrowdWorks threads can hide a real seller message
+                    # from the page body. The message API is the authoritative
+                    # fallback, but only with an exact numeric buyer-event bind.
+                    if (not isinstance(buyer_event_id, str) or not buyer_event_id.isdigit()
+                            or not self._seller_message_contains(work_id, buyer_event_id, body)):
+                        return {"authoritative_absent": True}
+                elif isinstance(buyer_event_id, str) and buyer_event_id.isdigit():
+                    if not self._seller_message_contains(work_id, buyer_event_id, body):
+                        return {"authoritative_absent": True}
+                return {"verified": True,
+                        "provider_receipt_id": f"contract:{work_id}:answer:{_text(intent.get('effect_key'))}",
+                        "observed_at": _now()}
             if intent.get("action") == "formal_delivery" and isinstance(intent.get("payload"), Mapping):
                 payload = intent["payload"]; work_id = _text(intent.get("work_id")); self._goto_contract(work_id)
                 if (not isinstance(payload.get("buyer_event_id"), str)

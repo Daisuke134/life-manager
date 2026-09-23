@@ -990,6 +990,44 @@ def test_answer_readback_accepts_new_seller_message_bound_to_buyer_event():
     assert result["verified"] is True
 
 
+def test_answer_readback_accepts_message_api_when_thread_body_is_folded():
+    module = load()
+    expected = module.PERMISSION_REQUEST_BODY
+
+    class Body:
+        def inner_text(self): return "最新メッセージだけが表示されています。"
+
+    class Root:
+        def get_attribute(self, name):
+            assert name == "data"
+            return json.dumps({"id": 304402038, "messageableId": 63568785})
+
+    class Page:
+        def locator(self, selector):
+            if selector == "body": return Body()
+            if selector == "#pack-message-thread": return Root()
+            raise AssertionError(selector)
+
+        def evaluate(self, _script, thread_id):
+            assert thread_id == 304402038
+            return {"status": 200, "body": json.dumps({"messages": [
+                {"id": 426855154, "own_message": False,
+                 "senddate": "2026年09月11日 21:17", "body": "buyer"},
+                {"id": 428634040, "own_message": True,
+                 "senddate": "2026年09月23日 14:30", "body": expected},
+            ]})}
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda _work_id: None
+    result = adapter.readback({"action": "answer", "work_id": "63568785",
+                               "effect_key": "permission-key",
+                               "payload": {"body": expected, "buyer_event_id": "426855154"}})
+
+    assert result["verified"] is True
+    assert result["provider_receipt_id"] == "contract:63568785:answer:permission-key"
+
+
 def test_document_access_reports_permission_required_without_verifying_artifact():
     module = load()
 
