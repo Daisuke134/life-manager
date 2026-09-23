@@ -2278,6 +2278,19 @@ def test_existing_priorities_schema_migrates_policy_column(tmp_path, monkeypatch
     assert "admission_policy" in columns
 
 
+def test_admission_schema_has_occurrence_lookup_indexes(tmp_path, monkeypatch):
+    isolated(tmp_path, monkeypatch)
+    admission.activate_durable_v2()
+
+    with sqlite3.connect(tmp_path / "admission-v2.sqlite3") as connection:
+        indexes = {
+            row[1] for row in connection.execute("PRAGMA index_list(occurrences)")
+        }
+
+    assert "idx_occurrences_owner_state_effect" in indexes
+    assert "idx_occurrences_state_effect" in indexes
+
+
 def test_reserved_revenue_rechecks_legacy_owner_before_claim(
         tmp_path, monkeypatch):
     isolated(tmp_path, monkeypatch, total="5")

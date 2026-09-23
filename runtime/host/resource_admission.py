@@ -525,6 +525,17 @@ def _database(path: Path) -> sqlite3.Connection:
             "UPDATE priorities SET queued_at=? WHERE queued_at IS NULL",
             (migration_now,),
         )
+        # Keep admission transactions bounded as the occurrence ledger grows.
+        # Owner-scoped checks run on every wake, while the state/effect index
+        # covers stale-claim recovery without scanning the full ledger.
+        connection.execute(
+            """CREATE INDEX IF NOT EXISTS idx_occurrences_owner_state_effect
+               ON occurrences(owner_id,state,effect_unknown,queued_at,occurrence_id)"""
+        )
+        connection.execute(
+            """CREATE INDEX IF NOT EXISTS idx_occurrences_state_effect
+               ON occurrences(state,effect_unknown,queued_at,occurrence_id)"""
+        )
         connection.commit()
     except Exception:
         connection.rollback()
