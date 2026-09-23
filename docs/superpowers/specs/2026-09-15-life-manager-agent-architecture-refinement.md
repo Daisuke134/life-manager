@@ -2861,8 +2861,8 @@ The durable job remains the same `f9624461eafb89067f15a51145c5b50b187760d57b4779
 for placement `elevenlabs-discovered-subtitle-translator-en-experiment-04766a91bcba-1`; no second post
 is permitted.
 
-This run also exposes a separate local liveness defect. The Affiliate state has 1,813 job JSON files,
-including about 900 `key-*.json` indexes. Each unresolved-target lookup scans every key file while
+This run also exposes a separate local liveness defect. The Affiliate state has 1,814 job JSON files,
+including 892 `key-*.json` indexes. Each unresolved-target lookup scans every key file while
 holding the job lock and takes about fifteen minutes under current disk pressure; the natural run does
 this twice and lasts about thirty minutes. Shared PR #5804 merges as
 `35e66d242798e28403e98d06037484d5c2a28795` and indexes the host occurrence ledger, but it does not
@@ -2870,12 +2870,16 @@ index this Affiliate-owned job journal. Production currently has `35e66d...` ins
 latest terminal event remains on `51e7d9...`; status truthfully remains `effect_status=unknown` and
 `admission_effect_unknown=true`.
 
-The source candidate on `fix/affiliate-job-target-index-20260923` adds a durable target index with
-one-time legacy backfill, keeps duplicate legacy targets quarantined, fails closed on malformed indexes,
-and changes the authenticated X readback to a bounded exact-content wait before and after submission.
-The current focused ledger/X tests pass 13/13 and `git diff --check` passes. The candidate is not yet
-committed, reviewed, merged, released or production-accepted. Therefore the official post evidence
-proves the external object, not completion of the internal reconciliation or replay-zero gate.
+Source commit `0ecdfa49bf` on pushed branch `fix/affiliate-job-target-index-20260923` adds a durable
+target index with one-time positive and empty-result legacy backfill, keeps duplicate legacy targets
+quarantined, derivationally validates job identity, and fails closed on malformed indexes. Authenticated
+X readback now uses a bounded exact-content wait before and after submission, pairs the uniquely resolved
+owned CTA with its rendered text, rejects extra-copy lookalikes in DOM and SSR evidence, and never submits
+again while an unresolved effect exists. Affiliate passes 239 tests plus 131 subtests; the 14-loop contract
+reports 14 catalog loops, 167 registry jobs and zero errors; the registry adapter passes 15/15; `py_compile`
+and `git diff --check` pass; the final read-only Astra review returns `VERDICT ship`. The candidate is
+committed, reviewed and pushed, but is not merged, released or production-accepted. Therefore the official
+post evidence proves the external object, not completion of the internal reconciliation or replay-zero gate.
 
 The remaining order is fixed as follows. The ordering change is deliberate: the old order kept the
 primary cursor on Affiliate through conversion/payment evidence before moving to Mobile Apps. The
@@ -2933,7 +2937,7 @@ Affiliate takes too long because four different gates are serialized as though t
 | Boundary | Current evidence | Consequence | Required correction |
 |---|---|---|---|
 | Effect safety | `affiliate-loop` is loaded on exact `35e66d...` but the current occurrence is `resource_effect_unknown`; the exact X post is public while the internal journal still lacks a verified terminal | A blind retry could duplicate a public post, so the business body is correctly fenced | Reconcile only the exact job/occurrence from official X evidence, then prove same-SHA replay-zero |
-| Local liveness | 1,813 job files include about 900 legacy target indexes; unresolved-target lookup scans them under the lock twice and adds about thirty minutes | Every recovery iteration is unnecessarily slow | Finish the durable O(1) target index and bounded exact-timeline readback; retain fail-closed duplicate handling |
+| Local liveness | 1,814 job files include 892 legacy target indexes; unresolved-target lookup scans them under the lock twice and adds about thirty minutes | Every recovery iteration is unnecessarily slow | Source fix `0ecdfa49bf` provides the O(1) target index and bounded exact-timeline readback; merge/release it, then prove natural recovery and replay-zero |
 | Experiment lifecycle | The active experiment starts at nine impressions with a stored `exposure_assessment=insufficient`; current evidence is 1,232 impressions, but the gate copies the old assessment and has no terminal transition. A different decision returns `BLOCKED_ACTIVE_EXPERIMENT` | Self-improvement cannot close the old experiment or activate the next CTA/offer hypothesis | Re-evaluate exposure from current receipts, apply a declared minimum-exposure/deadline rule, terminalize `won`/`lost`/`inconclusive`, and permit exactly one next-variable experiment |
 | Money funnel | Exact monetization impressions are 1,232, owned entries are 0, CTA clicks are 0, transactions are 0, and every commission state is 0. Provider cumulative clicks are 23/22 unique but `post_distribution_state=BASELINE_UNAVAILABLE` | There is no attributable conversion or money evidence; more infrastructure success does not imply commercial progress | Optimize the first broken measurable transition, impression→owned entry/CTA, then click→transaction; keep unattributed historical clicks out of the winner decision |
 
