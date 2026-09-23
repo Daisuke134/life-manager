@@ -244,6 +244,15 @@ supports 0 eligible positive replies and 1 ineligible reply; older intermediate
 counts are not completion evidence. Chii remains `awaiting_buyer`; no recipient,
 report, or formal-delivery message may be resent.
 
+The one-by-one Coconala readback at `2026-09-23T03:10:08Z` shows the final
+300-row audit report as the latest seller message and
+`buyer_feedback_answered_by_seller=true`; formal delivery remains OFF. The
+standalone semantic-decision command can still see the older 20/300 remote
+contract because it does not perform fresh queue readback. The real Paid queue
+has the answered-feedback guard and must report Chii as `awaiting_buyer`,
+`effect=0`, `deduplicated=true`; do not use the standalone result as permission
+to resend.
+
 The apparent “still working on Chii” state came from two non-canonical snapshots:
 an intermediate `20/300` result and the pre-fix 24-send overrun. Neither reopens
 the client. The 300-row campaign and the answer/report were already sent and read

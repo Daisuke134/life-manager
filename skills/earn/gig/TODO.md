@@ -28,6 +28,13 @@ runtime/provider readback.
   readback is `awaiting_buyer` with `effect=0`, and no Chii ledger row exists after
   the fix. The latest official inbox readback supports 0 eligible positive replies
   and 1 ineligible reply.
+- One-by-one Coconala readback at `2026-09-23T03:10:08Z` shows the final
+  300-row audit report as the latest seller message and
+  `buyer_feedback_answered_by_seller=true`; formal delivery remains OFF. The
+  standalone semantic-decision command still sees an older 20/300 remote
+  contract because it skips fresh queue readback. The real Paid queue has the
+  answered-feedback guard and must return `awaiting_buyer`, `effect=0`,
+  `deduplicated=true`; do not resend Chii from the standalone result.
 - The latest natural `hf-gig-paid-direct` wake (targeted readback through
   `2026-09-23T01:07:47+00:00`) completed with
   `status=completed`, `effect=0`, `readback=3`, `failed=0`, and `pending=0`.
