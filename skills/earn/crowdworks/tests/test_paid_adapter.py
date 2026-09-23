@@ -707,6 +707,52 @@ def test_formal_delivery_readback_requires_target_dialog_to_be_gone():
     assert result["verified"] is True
 
 
+def test_formal_delivery_readback_accepts_hidden_disabled_target_form_during_inspection():
+    module = load()
+    message = module._delivery_message("13798056", form=True)
+
+    class Submit:
+        def count(self): return 1
+        def nth(self, _index): return self
+        def is_visible(self): return False
+        def is_enabled(self): return False
+
+    class TargetForm:
+        def is_visible(self): return False
+        def locator(self, _selector): return Submit()
+
+    class Locator:
+        def __init__(self, kind): self.kind = kind
+        def count(self): return 1 if self.kind in {"all_forms", "target_form"} else 0
+        def nth(self, _index): return TargetForm()
+        def evaluate_all(self, expression):
+            if "forms =>" in expression:
+                return ["/milestones/13798056/complete"]
+            if "node.innerText" in expression:
+                return [{"label": "納品", "className": "done"}]
+            return []
+        def inner_text(self):
+            return "クライアント（発注者）が検収を行っています。\n検収完了までしばらくお待ちください。\n" + message
+
+    class Page:
+        def locator(self, selector):
+            if selector.startswith('form[action^='):
+                return Locator("all_forms")
+            if selector.startswith('form[action='):
+                return Locator("target_form")
+            return Locator("other")
+
+    adapter = module.CrowdWorksPaidAdapter(account_id="7145638")
+    adapter.page = Page()
+    adapter._goto_contract = lambda _work_id: None
+    adapter._seller_message_contains = lambda _work_id, _buyer_event_id, _body: True
+    result = adapter.readback({"action": "formal_delivery", "work_id": "63570481",
+                               "effect_key": "delivery-effect",
+                               "payload": {"milestone_id": "13798056", "message": message,
+                                           "buyer_event_id": "427573234"}})
+    assert result["verified"] is True
+
+
 def test_formal_delivery_readback_rejects_another_open_milestone():
     module = load()
 

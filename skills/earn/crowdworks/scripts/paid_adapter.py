@@ -1450,6 +1450,14 @@ class CrowdWorksPaidAdapter:
                     return {"authoritative_absent": True}
                 if f"納品対象マイルストーン: {milestone_id}" not in delivery_message:
                     return {"authoritative_absent": True}
+                # The contract page hydrates the milestone form and progress
+                # state after the initial navigation commit.  Give the
+                # provider DOM a bounded settle window before observing it;
+                # without this, a genuine delivery can be read as absent.
+                try:
+                    self.page.wait_for_timeout(3_000)
+                except Exception:
+                    pass
                 actions = self.page.locator('form[action^="/milestones/"][action$="/complete"]').evaluate_all(
                     "forms => forms.map(form => form.getAttribute('action'))")
                 progress_steps = self.page.locator("ul.progress li").evaluate_all(
@@ -1467,7 +1475,33 @@ class CrowdWorksPaidAdapter:
                                       and "検収完了までしばらくお待ちください" in body)
                 if any(action != completion_action for action in actions):
                     return {"authoritative_absent": True}
-                delivered = completion_action not in actions and not target_dialog_visible
+                # CrowdWorks keeps the submitted milestone form in the DOM
+                # while the contract is in client inspection.  That form is
+                # hidden and its submit control is disabled, so the raw action
+                # list alone is not an authoritative "still open" signal.
+                target_form_open = completion_action in actions
+                try:
+                    target_forms = self.page.locator(
+                        f'form[action="{completion_action}"]')
+                    target_form_open = False
+                    for index in range(target_forms.count()):
+                        target_form = target_forms.nth(index)
+                        if target_form.is_visible():
+                            target_form_open = True
+                            break
+                        submit = target_form.locator(
+                            'input[name="commit"][type="submit"]')
+                        if any(
+                                submit.nth(submit_index).is_visible()
+                                and submit.nth(submit_index).is_enabled()
+                                for submit_index in range(submit.count())):
+                            target_form_open = True
+                            break
+                except Exception:
+                    # Preserve the conservative legacy fence if the provider
+                    # DOM cannot expose form visibility safely.
+                    target_form_open = completion_action in actions
+                delivered = not target_form_open and not target_dialog_visible
                 delivery_step_done = any(
                     isinstance(step, Mapping)
                     and step.get("label") == "納品"
