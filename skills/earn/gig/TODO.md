@@ -1991,3 +1991,24 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   only through the main/release lifecycle after the funded-provider gates.
 - [ ] Continue at CrowdWorks buyer-material event, then Lancers' first funded
   contract and Upwork's explicit authorization/authentication prerequisite.
+
+### Paid fulfillment checkpoint — 2026-09-24 04:05 JST
+
+- [x] Ryu remains seller-last under the permanent manual fence; the official
+  seller receipt `js-talkroomMessage-222245383` covers the current correction,
+  so no resend or formal-delivery click is allowed.
+- [x] Coconala Paid completed its managed wake with `loaded-idle`,
+  `last_exit=0`, terminal `pass`, and the unchanged official inventory
+  `observed=4/actionable=0/effect=0/readback=3/pending=0`.
+- [x] CrowdWorks Paid remains enabled with the latest wake `last_exit=0`/
+  `pass`; its official inventory is still `observed=5/effect=0/readback=4/
+  pending=1`. Work `63568785` remains buyer-material-gated; no duplicate
+  message or formal delivery was issued.
+- [x] Fresh authenticated Lancers `ELZ-L01` two-pass inventory is identical
+  (`02cc770e42dafb093407dc4635c870593a48dd58fbb1b82348635a263f4b410d`),
+  logged in/source-complete, 14 boards, zero funded contract candidates,
+  zero working contracts, and zero incoming offers.
+- [ ] Continue at CrowdWorks `63568785` when a permitted buyer artifact
+  arrives; otherwise keep Lancers/Upwork fail-closed and do not promote the
+  source branch without the official funded-provider receipt and replay-zero
+  gates.

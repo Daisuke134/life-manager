@@ -1560,3 +1560,25 @@ The objective is complete only when all of the following are proven:
   The installed CrowdWorks/Lancers releases still predate the pushed wake-
   coalescing fields, so queued zero-effect history may continue until the
   source branch is promoted through the main/release lifecycle.
+
+## Runtime Cursor — 2026-09-24 04:05 JST
+
+- Ryu remains closed under the permanent manual fence: the latest official
+  seller message `js-talkroomMessage-222245383` is seller-last and already
+  contains the complete requested correction. No resend or formal-delivery
+  click is permitted.
+- Coconala Paid completed its managed wake with `loaded-idle`, `last_exit=0`,
+  and terminal `pass`; its official inventory remains `observed=4`,
+  `actionable=0`, `effect=0`, `readback=3`, `pending=0`.
+- CrowdWorks Paid is enabled and its latest wake is `last_exit=0`/`pass`; the
+  official inventory remains `observed=5`, `effect=0`, `readback=4`,
+  `pending=1`. Work `63568785` still has the occurrence-bound permission-answer
+  receipt but no permitted buyer artifact for formal delivery. The historical
+  effect-unknown fence remains closed; no replay or duplicate message was made.
+- A fresh two-pass authenticated Lancers read-only inventory returned identical
+  hash `02cc770e42dafb093407dc4635c870593a48dd58fbb1b82348635a263f4b410d`:
+  `logged_in=true`, `source_complete=true`, 14 boards, zero working contracts,
+  zero incoming offers, and zero contract candidates. No Lancers effect is
+  admissible until a funded contract appears. Upwork remains disabled by its
+  explicit authorization ledger. The next mutation cursor is CrowdWorks
+  `63568785` when permitted buyer material arrives.
