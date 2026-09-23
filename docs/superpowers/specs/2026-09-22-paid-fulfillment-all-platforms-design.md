@@ -815,6 +815,16 @@ formal delivery.
   This is a host-resource scheduling wait, not a stop command or a provider
   effect; the durable Coconala evidence remains `effect=0`.
 
+## Runtime Checkpoint — 2026-09-23 22:21 JST
+
+- After the competing CrowdWorks run drained, the installed Coconala Paid owner
+  was explicitly kickstarted and completed a natural wake at
+  `2026-09-23T13:21:20Z` with `pass`/exit `0`: `observed=4`,
+  `actionable=0`, `effect=0`, `readback=3`, `failed=0`, `pending=0`.
+  Ryu `18211957` remained `reserved_for_owner`; Chii `18180857` and NPO rooms
+  `18223833`/`18250352` remained `awaiting_buyer`. No Coconala provider send or
+  formal delivery occurred during this wake.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:
