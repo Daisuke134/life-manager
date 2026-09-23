@@ -105,6 +105,18 @@ current funded Paid candidate and its Paid owner is likewise fenced. The next
 safe engineering action is occurrence-scoped CrowdWorks reconciliation after
 the shared source fix is promoted; no fence is cleared owner-wide.
 
+The one-off reconciliation then ran with the corrected canonical `evidence_ref`
+contract (source commit `348c004077`): six CrowdWorks Paid occurrences and the
+one Lancers Paid occurrence whose exact run markers were `completed` with
+`effect=0` were released through the host resolver. No provider mutation
+occurred. The remaining CrowdWorks occurrence
+`crowdworks-revenue-paid:18d62cf32eb0c678-48194` has no run marker and only
+`effect_started → unknown`, so it remains fenced; official contract/message
+readback showed no new Paid seller message attributable to that wake, but that
+is not sufficient no-dispatch proof. CrowdWorks therefore remains loaded-idle
+and fenced, while Lancers' Paid effect fence is clear. The source fix is still
+not an installed production release; no natural Paid canary is claimed.
+
 This document is the current cross-provider execution SSOT. It supersedes conflicting
 Ryu automation or formal-delivery instructions in
 `docs/superpowers/plans/2026-09-04-coconala-paid-all-clients.md`; that file remains a
