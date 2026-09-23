@@ -667,6 +667,12 @@ class MacosLoopRegistryTest(unittest.TestCase):
         self.assertEqual(row["command"], [])
         self.assertEqual(row["entrypoint"], "skills/earn/gig/scripts/paid-direct-owner")
 
+    def test_hf_gig_paid_direct_coalesces_queued_and_reserved_wakes(self):
+        registry = json.loads((ROOT / "config/loop-registry.json").read_text())
+        row = registry["loops"]["hf-gig-paid-direct"]
+        self.assertTrue(row.get("coalesce_queued_wakes"))
+        self.assertTrue(row.get("coalesce_reserved_wakes"))
+
     def test_writer_claim_loop_uses_repo_owned_exec_adapter(self):
         registry = json.loads((ROOT / "config/loop-registry.json").read_text())
         row = registry["loops"]["writer-claim-loop"]
