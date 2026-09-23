@@ -2933,12 +2933,13 @@ only for a rare typed gate that the system cannot safely complete itself.
 
 ### J5. Affiliate revenue diagnosis and external harness decisions
 
-Affiliate takes too long because four different gates are serialized as though they were one result:
+Affiliate takes too long because five different gates are serialized as though they were one result:
 
 | Boundary | Current evidence | Consequence | Required correction |
 |---|---|---|---|
-| Effect safety | `affiliate-loop` is loaded on exact `35e66d...` but the current occurrence is `resource_effect_unknown`; the exact X post is public while the internal journal still lacks a verified terminal | A blind retry could duplicate a public post, so the business body is correctly fenced | Reconcile only the exact job/occurrence from official X evidence, then prove same-SHA replay-zero |
-| Local liveness | 1,814 job files include 892 legacy target indexes; unresolved-target lookup scans them under the lock twice and adds about thirty minutes | Every recovery iteration is unnecessarily slow | Merged source fix `0ecdfa49bf` provides the O(1) target index and bounded exact-timeline readback; cut/load the main release, then prove natural recovery and replay-zero |
+| Effect safety | PR #5805 is merged and `affiliate-loop` is loaded from complete immutable release `80749f841f...`. The exact host occurrence is reconciled from authenticated X timeline/detail readback and now has `effect_unknown=0`; the public URL remains `https://x.com/selawmqt/status/2102661291412463855`. The business job `f9624461...` is still `EFFECT_STARTED/NOT_FOUND`, so it has not yet recorded that official readback. | A blind retry is no longer needed or permitted. Host safety is clear, but the business journal still lacks the verified terminal and replay-zero needed for operational acceptance. | Keep the natural occurrence queued. Its next admitted body must migrate/index the exact target, read the existing URL, transition the same job to `VERIFIED`, and then prove same-SHA replay-zero without a second post. |
+| Local liveness | 1,814 job files include 892 legacy target indexes; the old unresolved-target lookup scanned them under the lock twice and added about thirty minutes. The O(1) index/bounded-readback fix is now merged and loaded in `80749f841f...`, with 239 tests + 131 subtests and the 14-loop contract passing. | Source and deployment liveness are repaired, but production acceptance is still pending because the natural body has not passed admission. | Accept the loaded fix only after a natural terminal and same-SHA replay-zero on the existing URL; do not manufacture acceptance with a manual start. |
+| Shared host capacity | The first two natural wakes on `80749f841f...` defer as `resource_capacity_busy` and `resource_database_busy`; Affiliate remains in deterministic revenue sequence `132092` with no effect fence. Data-volume free space is about 348,168 KiB, below the 1,155,780,608-byte floor. The current cleanup owner reports passing wakes, while its canonical cleanup/inventory receipt still exposes no reclaim and an incomplete fast inventory, so `PASS` does not prove the floor is restored. | Admission and receipt writes can remain unstable even though Affiliate code is correct; repeatedly kicking Affiliate would add duplicate queued occurrences and obscure the shared Foundation fault. | Repair the cleanup observation/reclaim contract at the shared owner boundary, reclaim only owner-proven/regenerable data, restore the floor, and let FIFO admission resume the same Affiliate work. Never guess-delete unattributed data. |
 | Experiment lifecycle | The active experiment starts at nine impressions with a stored `exposure_assessment=insufficient`; current evidence is 1,232 impressions, but the gate copies the old assessment and has no terminal transition. A different decision returns `BLOCKED_ACTIVE_EXPERIMENT` | Self-improvement cannot close the old experiment or activate the next CTA/offer hypothesis | Re-evaluate exposure from current receipts, apply a declared minimum-exposure/deadline rule, terminalize `won`/`lost`/`inconclusive`, and permit exactly one next-variable experiment |
 | Money funnel | Exact monetization impressions are 1,232, owned entries are 0, CTA clicks are 0, transactions are 0, and every commission state is 0. Provider cumulative clicks are 23/22 unique but `post_distribution_state=BASELINE_UNAVAILABLE` | There is no attributable conversion or money evidence; more infrastructure success does not imply commercial progress | Optimize the first broken measurable transition, impression→owned entry/CTA, then click→transaction; keep unattributed historical clicks out of the winner decision |
 
@@ -2975,14 +2976,20 @@ The six supplied external examples produce the following decisions:
 | [OpenBot](https://github.com/nightly-labs/openbot) | Persistent per-agent workspaces, crash-safe FIFO queues, pause/resume/cancel, compaction, agent messaging and mobile remote control form a useful operator experience | Reuse the design lessons for durable control, phone access and explicit ownership | Do not replace Life Manager with it: current OpenBot is local-first, development-preview, grants agents broad host access, and current code uses the PolyForm Noncommercial license, so it is neither the commercial cloud runtime nor the business/effect ledger |
 | [Unreal Agent](https://github.com/unreallabsai/unreal-agent) | An MIT async-first harness can separate a model turn from serializable durable operations, atomically record tool-call/operation state, and resume/fork sessions | Evaluate versioned operations and a swappable local/cloud operation manager against the existing runtime job store | Do not rewrite the 14-loop control plane around a newly released harness or accept vendor benchmark claims without reproducing them on Life Manager traces |
 | [Evals Skills](https://github.com/ai-evals-course/evals-skills) | Error discovery precedes evaluator design; deterministic checks beat LLM judges for objective rules; judges require held-out TPR/TNR validation | Audit the existing eval pipeline, derive failure modes from real traces, validate any semantic judge, and preserve full tool/effect traces | Do not copy repository code until its license is explicit, require recurring user goal-setting, or let an unvalidated judge promote itself |
-| [DigitalOcean Managed Agents](https://www.digitalocean.com/blog/managed-agents-public-preview) | A managed runtime can provide isolated microVM sessions, pause/resume/fork, durable files/processes/context, centralized tools/credentials and usage events | Treat it as a cloud worker adapter candidate after Local/Eval gates; canary one non-effect owner with the same immutable SHA, receipt schema and tenant boundary | Do not move the business control plane or source of truth into a public-preview vendor, and do not confuse paused compute with an always-on scheduler |
+| [DigitalOcean Managed Agents in `doctl`](https://github.com/digitalocean/doctl/blob/main/commands/agents_help.go) and [example agents](https://github.com/digitalocean/marketplace-agents) | The public CLI implementation exposes isolated microVM sessions, headless runs, immutable configs, scoped secrets/egress, checkpoint/fork/rollback, cron/webhook triggers and machine-readable usage | Treat it as a cloud worker adapter candidate after Local/Eval gates; canary one non-effect owner with the same immutable SHA, receipt schema and tenant boundary | Do not move the business control plane or source of truth into a public-preview vendor, and do not confuse a resumable worker session with Life Manager's always-on scheduler and portfolio allocator |
 
 [Muse Connector Platform](https://muse.ai/platform) is a distribution/interaction surface, not the
-Life Manager runtime. Its value is that the connector supplies an API while Muse supplies the agent,
-browser and user context, plus review/directory/payment distribution. Life Manager should expose a
-narrow connector after its cloud API and effect contracts are stable; Muse must remain one replaceable
-channel beside the web/phone client, not the owner of goals, receipts, credentials or revenue policy.
-OpenBot similarly can inform the phone/operator interface without becoming the control plane.
+Life Manager runtime. Current GitHub implementations such as
+[`tickadoo/tickadoo-mcp`](https://github.com/tickadoo/tickadoo-mcp/tree/main/connectors/muse) and
+[`1clawAI/muse-connector`](https://github.com/1clawAI/muse-connector) show the present integration
+shape: keep the existing HTTPS/OpenAPI or Streamable HTTP MCP backend, publish a stable agent brief,
+allowed hosts, scoped/revocable authentication, security/legal answers and executable E2E cases, then
+submit that narrow surface for directory review. GitHub search does not expose an official Muse SDK,
+so Life Manager must not invent a second control plane around community conventions. Muse can supply
+agent/browser/user context and distribution, while Life Manager keeps goals, credentials, effects,
+receipts and revenue policy. Build the cloud control plane and governed API first, then add Muse as one
+replaceable channel beside the web/phone client. OpenBot similarly informs the phone/operator
+experience without becoming the control plane.
 
 The ideal deployment keeps one product implementation and replaces only host adapters:
 
@@ -3017,7 +3024,10 @@ pagination, thread/card-link extraction, watchlists, caching, source labels and 
 No discovered skill receives production credentials or becomes an effect owner merely because its
 repository is popular or recently updated.
 
-1. Search X and primary GitHub/vendor sources for relevant technology, distribution and revenue ideas.
+1. Search GitHub and official vendor repositories/docs first for code, skills, harnesses and API
+   contracts. Use the existing `x-search-cdp` adapter for requested or scheduled discovery of current
+   use cases, distribution patterns and revenue ideas, then follow every material claim back to a
+   primary source. This review uses GitHub, not X.
 2. Store the source URL, author, observed time, claim, license and affected Life Manager boundary.
 3. Treat X as discovery, not proof; confirm code/API/licensing claims in the primary repository or docs.
 4. Convert only a concrete gap into a candidate and eval. Never edit production prompts/code directly
