@@ -86,9 +86,14 @@ work was correct; correctness requires full buyer-context mapping and buyer-visi
   returned `provider_state=delivered` and seller message `428633469`. The correction
   answered the missing customer email using the exact task facts, and the original
   form receipt was not replayed. The unresolved Paid occurrence remains fenced.
-- `63568785` lacks permitted document content; `63659463`, `63712784`, `63657015`,
-  and `63570481` are delivered but still need acceptance/settlement/payout readback;
-  `63583795` needs acceptance, settlement, and payout readback.
+- `63568785` remains funded at milestone `13797948` with buyer event `426855154`.
+  The linked Google Doc is an official permission-request surface, so a permission
+  request was sent once (seller message `428634040`) and verified through the
+  message API as `contract:63568785:answer:cw-63568785-permission-426855154`.
+  No artifact or formal delivery is claimed; the item waits for access or pasted
+  content. `63659463`, `63712784`, `63657015`, and `63570481` are delivered but
+  still need acceptance/settlement/payout readback; `63583795` needs acceptance,
+  settlement, and payout readback.
 - The host capacity issue and admission fence are active. resource_control_busy is a transient lock;
   effect_unknown is the durable evidence boundary. Zombie processes are not a reason to retry. The
   cleanup owner is green on the latest wake; continue monitoring stable headroom and preserve the
@@ -107,7 +112,8 @@ work was correct; correctness requires full buyer-context mapping and buyer-visi
    and confirmation-requested form effects; never resend an uncertain sibling.
 5. Resolve the released Report row through resolver/readback. released plus effect_unknown is not clean.
 6. After all four evidence fences resolve, continue the one-owner-at-a-time flow with
-   `63568785`: obtain permitted document content before doing work or delivery.
+   `63568785` after the buyer grants access or pastes the document content; obtain
+   and verify the permitted content before doing work or delivery.
 7. Reconcile acceptance/settlement/payout for the delivered contracts `63712784`,
    `63659463`, `63657015`, and `63570481` (and historical `63583795`) with the same
    full-context, correct-work, buyer-visible-readback,

@@ -387,6 +387,15 @@ Paid occurrence remains fenced. Source commit `471f3c6a97` retains durable form
 history when CrowdWorks removes a submitted form URL from the live contract page;
 the focused CrowdWorks suite passed `116`.
 
+Contract `63568785` remains funded at milestone `13797948` with buyer event
+`426855154`. Its linked Google Doc was read in the authenticated owner context and
+exposes an official permission-request surface, so the owner sent one access/content
+request (seller message `428634040`) and verified it via the official message API as
+`contract:63568785:answer:cw-63568785-permission-426855154`. No artifact or formal
+delivery was claimed; the next step is to wait for access or pasted content. Source
+commit `f8a57184c5` polls delayed Docs surfaces and accepts folded-thread API
+readback; the focused CrowdWorks suite passed `118`.
+
 ### Lancers
 
 Application, Negotiate, Paid, Storefront, and Telegram Report are fenced by

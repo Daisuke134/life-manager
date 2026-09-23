@@ -125,6 +125,14 @@ runtime/provider readback.
   form receipt was retained and not replayed; the unresolved Paid occurrence remains
   fenced. Source fix `471f3c6a97` retains durable form history when CrowdWorks hides
   a submitted form link; CrowdWorks tests passed `116`.
+- `63568785` remains `funded` at milestone `13797948` with buyer event
+  `426855154`. Its linked Google Doc exposes an official permission-request
+  surface, so one permission request was sent and verified as seller message
+  `428634040` / `contract:63568785:answer:cw-63568785-permission-426855154`.
+  No artifact or formal delivery was claimed; wait for access or pasted content
+  before doing work. Source fix `f8a57184c5` polls delayed document-access surfaces
+  and uses the official message API when seller threads are folded; CrowdWorks
+  tests passed `118`.
 - Lancers official read-only inventory at `2026-09-23T04:05:08Z` was
   authenticated/source-complete with 14 boards, one unread, zero working or
   monthly contracts, zero incoming offers, zero storefront contract candidates,
@@ -190,8 +198,9 @@ runtime/provider readback.
    immutable Paid fix and prove a natural canary/replay-zero without replaying
    `63712784`.
 4. **CrowdWorks remaining funded contracts.** Complete `63568785` through the same
-   contract-keyed flow after permitted document content is available, including
-   acceptance and payout evidence; then reconcile any newly funded inventory. The
+   contract-keyed flow after the buyer grants access or provides permitted document
+   content, including acceptance and payout evidence; then reconcile any newly
+   funded inventory. The
    delivered rows `63712784`, `63659463`, `63657015`, and `63570481` still need
    acceptance/settlement/payout readback.
 5. **Lancers.** Keep the current browser/work-sync owners running; implement the
