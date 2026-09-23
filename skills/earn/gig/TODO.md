@@ -51,6 +51,10 @@ runtime/provider readback.
   so no duplicate message, form answer, or delivery click is allowed now.
 - Lancers Paid has the same safety fence (`admission_effect_unknown=true`), so
   it is not started or declared complete from its local `effect=0` snapshot.
+  A fresh official read-only inventory at `2026-09-23T11:53Z` is
+  `source_complete=true` with zero working projects, monthly contracts,
+  incoming offers, storefront candidates, and contract candidates; balance is
+  0 JPY. There is no Lancers client effect to send now.
 
 - Latest official Coconala readback (2026-09-23 20:35 JST) is split by client:
   Ryu `18211957` has the manual seller message

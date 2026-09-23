@@ -549,6 +549,13 @@ candidates, and finance balance `0` JPY. Therefore there is no current Lancers
 Paid client to submit; the Paid mutation path remains explicitly unimplemented
 and must be completed before a future funded contract can become a canary.
 
+A second official Paid-only read at `2026-09-23T11:53Z` remains
+`source_complete=true` with zero working, monthly, incoming-offer, storefront,
+and contract candidates and balance `0` JPY. This confirms that the next Lancers
+step is engineering the fenced mutation/readback path, not sending a client
+message; the existing `effect_unknown` occurrence is not cleared by this
+zero-inventory observation.
+
 The same owner-locked read-only probe inspected historical project details
 `5601892`, `5601332`, and one ended proposal. Each exposed only the proposal /
 question surface (`POST` question form); none exposed a funded-contract
