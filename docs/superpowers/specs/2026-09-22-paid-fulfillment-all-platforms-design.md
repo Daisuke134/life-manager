@@ -122,6 +122,36 @@ is not sufficient no-dispatch proof. CrowdWorks therefore remains loaded-idle
 and fenced, while Lancers' Paid effect fence is clear. The source fix is still
 not an installed production release; no natural Paid canary is claimed.
 
+### Operator checkpoint — 2026-09-23 21:52 JST
+
+The 21:51 JST live status readback supersedes the earlier 21:39 readiness
+snapshot. `hf-gig-paid-direct` is scheduled and `loaded-idle`, with
+`last_exit=0`, `last_terminal_result=pass`, and installed/event SHA
+`cbc9cf42309f023b20db247d60c6892e672b106b`. A single preceding wake returned
+`host_admission_deferred:resource_fifo_wait`; the next wake returned `pass`
+without a provider effect. This is transient shared admission contention, not a
+client send or a permission to replay.
+
+CrowdWorks Paid is scheduled and `loaded-idle` on installed/event SHA
+`f01c612d6448bc2850f3ed951f8dd3485e0cb121`, with `last_exit=0` and terminal
+`pass`. Its authoritative summary remains five observed contracts, one
+actionable/pending buyer-artifact item, four official readbacks, and zero new
+effects. The old occurrence
+`crowdworks-revenue-paid:18d62cf32eb0c678-48194` remains fenced; no duplicate
+send or guessed artifact is allowed.
+
+Lancers Paid is scheduled and `loaded-idle` on installed/event SHA
+`799045e7ba66ee66fe22b35153a3217054ac7ac3`, with `last_exit=0` and terminal
+`pass`; the current source-complete official inventory remains zero funded
+contracts/offers and the Paid summary remains zero observed/actionable/effect.
+The provider-specific mutation path stays fail-closed until a real funded
+detail exposes its native delivery/readback controls.
+
+Upwork still has no registered Paid owner, authenticated live inventory, or
+available CDP `9233`; no mutation loop is enabled. Execution cursor remains
+CrowdWorks occurrence reconciliation, then the first real Lancers funded-detail
+canary, then Upwork lifecycle registration after live authentication.
+
 ### Operator checkpoint — 2026-09-23 21:39 JST
 
 The current live readback supersedes the earlier lifecycle snapshot. Ryu remains
