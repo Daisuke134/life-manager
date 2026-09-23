@@ -1769,3 +1769,53 @@ clicked again.
 5. Keep Upwork disabled until explicit authorization, fresh authentication,
    and a funded contract exist; then apply the same quality/effect/readback
    contract.
+
+## Production Cursor — 2026-09-24 08:47 JST
+
+- **Main/release:** PR #5818 is merged at `07f76049fdebcd65a4a1182395dd9f09f4eb1d75`.
+  The immutable main-derived release is `20260924T082936-07f76049` with the
+  same SHA. The earlier candidate-path typo produced no mutation; the exact
+  release was then used for the targeted apply.
+- **Targeted apply/readback:** only `hf-gig-paid-direct`,
+  `crowdworks-revenue-paid`, and `lancers-revenue-paid` were touched. Each
+  launchd argv and runtime event now points to the exact release SHA. Ryu's
+  `18211957` remains `reserved_for_owner`; no formal-delivery control was
+  clicked.
+- **Natural canary:** Coconala is `loaded-idle`, exit `0`, terminal `pass`,
+  with `observed=4/actionable=0/effect=0/readback=3/pending=0`. CrowdWorks is
+  `loaded-idle`, exit `0`, terminal `pass`, with
+  `observed=5/actionable=1/effect=0/readback=4/pending=1`; work `63568785`
+  remains `buyer_task_detail_required`. Lancers is `loaded-idle` on the same
+  SHA with `effect=0`, no funded contract, and its latest wake safely deferred
+  on `host_admission_deferred:resource_capacity_busy`; its historical
+  effect-unknown fence remains intact.
+- **Ryu recheck:** a fresh authenticated Coconala DOM readback still ends at
+  the buyer's 03:15 paid-option request and our 08:07/08:09 ordinary replies;
+  there is no newer buyer message to fix or resend.
+- **Capacity observation:** stale `verify-loops-audit` Camoufox scratch was
+  moved to a recoverable Trash location after process/open-handle checks. The
+  host is now above the 512 MiB producer floor, but capacity contention remains
+  an admission state, not a reason to clear a fence or force a provider call.
+
+### Remaining TODO (updated after production promotion)
+
+1. **Ryu:** wait for a genuinely newer buyer request. Re-read the entire live
+   room, fix/read back the site, and send one ordinary manual reply. Never
+   click formal delivery again or let the Paid loop touch this room.
+2. **Coconala other rooms:** keep the loop enabled and buyer-waiting. On a new
+   artifact, produce one quality-checked submission with official receipt;
+   verify replay-zero after the first real effect.
+3. **CrowdWorks `63568785`:** wait for the permitted buyer task artifact,
+   complete and quality-check the work, submit once, then capture the official
+   receipt and replay-zero. Keep the historical unknown occurrence fenced.
+4. **Lancers:** wait for the first funded `ContractReceipt`; capture the exact
+   `完了報告` control/readback before implementing or sending any delivery.
+   Retry only through the scheduled loop after admission capacity recovers.
+5. **External integrations:** obtain concrete provider URLs, management
+   permissions, filing/review state, and supported connector requirements;
+   connect one provider at a time with official readback.
+6. **Upwork:** remain disabled until explicit authorization, fresh
+   authentication, and a funded contract exist.
+7. **Close-out:** after a real provider completion, verify acceptance,
+   settlement/payout, and revision handling. A loop `pass` or chat receipt is
+   not a contract completion.

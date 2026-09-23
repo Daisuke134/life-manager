@@ -2102,6 +2102,36 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
 - [ ] Promote the source-branch loop fixes only through immutable main-derived
   release, targeted apply, natural canary, official receipt, and replay-zero.
 
+### Paid fulfillment checkpoint — 2026-09-24 08:47 JST
+
+- [x] Merged PR #5818 at `07f76049fdebcd65a4a1182395dd9f09f4eb1d75` and cut
+  immutable main-derived release `20260924T082936-07f76049`.
+- [x] Targeted only the three Paid owners: Coconala, CrowdWorks, and Lancers.
+  Launchd argv and runtime-event readback for all three match the exact
+  release SHA; Ryu remains permanently manual and excluded.
+- [x] Coconala natural wake is terminal `pass` with
+  `observed=4/actionable=0/effect=0/readback=3/pending=0`.
+- [x] CrowdWorks natural wake is terminal `pass` with
+  `observed=5/actionable=1/effect=0/readback=4/pending=1`; `63568785` is still
+  `buyer_task_detail_required`.
+- [x] Lancers is loaded on the exact release with zero effect and zero funded
+  contracts. Its latest wake deferred on capacity; the effect-unknown fence
+  was not cleared and no provider call was forced.
+- [x] Fresh Ryu readback found no buyer message after the 03:15 request; the
+  existing 08:07/08:09 manual replies remain the seller-last boundary.
+- [x] Stale Camoufox scratch from `verify-loops-audit` passed process/open-handle
+  checks and was moved to recoverable Trash; host headroom is now above the
+  512 MiB floor.
+- [ ] Wait for real buyer/contract artifacts: Ryu follow-up, Coconala buyer
+  reply, CrowdWorks task material, and a funded Lancers contract.
+- [ ] For the first real effect on each provider, capture the official receipt
+  and run replay-zero; do not treat a local pass or no-effect snapshot as a
+  delivery.
+- [ ] Obtain external-integration permissions/URLs and connect one provider at
+  a time with official readback.
+- [ ] Keep Upwork disabled until authorization, authentication, and funded
+  contract gates are all present.
+
 ### Paid fulfillment checkpoint — 2026-09-24 08:18 JST
 
 - [x] Re-ran focused source acceptance on the pushed branch: Coconala `326
