@@ -1175,3 +1175,33 @@ The objective is complete only when all of the following are proven:
 - Do not count a test, process state, message, or provider click as buyer acceptance or
   revenue.
 - Do not broaden this work into unrelated acquisition, storefront, or host cleanup.
+
+## Runtime Checkpoint — 2026-09-24 00:02 JST
+
+- The latest natural wake completed for Coconala with `pass`/exit `0`,
+  `effect=0`, and no provider mutation. Ryu `18211957` remains represented by
+  the durable manual owner record and the direct seller readback
+  `js-talkroomMessage-222245383`; no duplicate or formal-delivery click was
+  issued.
+- CrowdWorks completed another natural wake with
+  `observed=5`, `actionable=1`, `effect=0`, `readback=4`, `failed=0`,
+  `pending=1`. The sole pending funded contract is `63568785`; its prior
+  answer receipt is durable and replay-zero. The buyer artifact is readable,
+  but the requested LINE account and external-form actions are not an
+  admissible provider-side completion path, so the item remains
+  `buyer_task_detail_required` without duplicate delivery.
+- Lancers completed a natural wake with zero active funded contracts and
+  `effect=0`; no send is admissible. The source branch has the quality-composed,
+  digest-bound, replay-safe answer boundary, but production promotion remains
+  behind the all-platform acceptance gate.
+- Upwork remains unregistered for Paid: both historical browser/free owners are
+  `retired`/`disabled`, CDP `127.0.0.1:9233` is unavailable, and the private
+  authorization ledger contains only denied browser receipts for inspect,
+  message, proposal, offer, delivery and finance actions. The local account
+  snapshot is stale/conflicting (email flow recorded, fresh identity probe
+  blocked on Google 2FA), with no current funded contract. Upwork's current
+  official legal/help pages prohibit unauthorised bots/scrapers and access
+  outside its interface; an owner cannot be registered or a send fabricated
+  until written permission or an approved API path, fresh authentication, and
+  a funded contract exist: https://www.upwork.com/legal and
+  https://support.upwork.com/hc/en-us/articles/43342677368467-Use-bots-and-other-automation-properly.
