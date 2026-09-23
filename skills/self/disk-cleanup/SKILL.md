@@ -18,10 +18,15 @@ allow-listed regenerable artifact after an open-path probe confirms
   preserved and recorded.
 - A stale Sparkle staging blocker has one narrow recovery action: send one
   `SIGTERM` only to the same-UID updater whose executable is under an exact
-  allow-listed Codex/CodexBar Sparkle `Launcher`, whose parent is `launchd`,
-  whose elapsed time exceeds 24 hours, and whose staged paths are confirmed
-  closed. Record the result and preserve on any mismatch or probe failure.
-  Never use `SIGKILL`, stop the parent app, or signal a browser or loop.
+  allow-listed Codex/CodexBar Sparkle `Launcher`, whose PPID is 1, whose elapsed
+  time exceeds 24 hours, and whose start-time/process fingerprint still matches
+  immediately before signaling. The Sparkle root, Launcher, Installation and
+  PersistentDownloads paths must exist as stable real directories with no
+  symlink component, and both staged paths must remain `confirmed-closed` across
+  the identity check. Record `signaled`, verified `terminated`, `already_exited`,
+  `preserved` and `errors` separately. Preserve on any mismatch, replacement,
+  timeout or probe ambiguity. Never use `SIGKILL`, stop the parent app, or signal
+  a browser or loop.
 - `sweep()` accepts only candidates carrying internal allow-list discovery proof
   for the exact regenerable families; the CLI `--candidate` escape hatch is
   rejected so an arbitrary path cannot be promoted by an operator flag.

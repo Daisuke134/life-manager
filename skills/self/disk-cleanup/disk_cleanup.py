@@ -105,10 +105,10 @@ def _elapsed_seconds(value: str) -> int | None:
 
 
 def _sparkle_updater_processes(sparkle_root: Path) -> list[dict[str, int | str]] | None:
-    """Return exact same-user Sparkle launcher processes, or None on probe failure."""
+    """Return exact Sparkle launcher processes, or None on relevant probe ambiguity."""
     try:
         completed = subprocess.run(
-            ["ps", "axww", "-o", "uid=,pid=,ppid=,etime=,command="],
+            ["ps", "axww", "-o", "uid=,pid=,ppid=,etime=,lstart=,command="],
             capture_output=True,
             text=True,
             timeout=HEALTH_CHECK_TIMEOUT_SECONDS,
@@ -121,32 +121,50 @@ def _sparkle_updater_processes(sparkle_root: Path) -> list[dict[str, int | str]]
     launcher = str((sparkle_root / "Launcher").resolve()) + "/"
     processes: list[dict[str, int | str]] = []
     for line in completed.stdout.splitlines():
-        parts = line.split(None, 4)
-        if len(parts) != 5:
+        relevant = (
+            launcher in line
+            and "/Updater.app/Contents/MacOS/Updater" in line
+        )
+        parts = line.split(None, 9)
+        if len(parts) != 10:
+            if relevant:
+                return None
             continue
-        uid_text, pid_text, ppid_text, elapsed_text, command = parts
+        uid_text, pid_text, ppid_text, elapsed_text = parts[:4]
+        started_at = " ".join(parts[4:9])
+        command = parts[9]
         try:
             uid, pid, ppid = int(uid_text), int(pid_text), int(ppid_text)
         except ValueError:
+            if relevant:
+                return None
             continue
         elapsed = _elapsed_seconds(elapsed_text)
         binary = command.split(None, 1)[0]
         relative_binary = binary.removeprefix(launcher)
-        if (
-            uid != os.getuid()
-            or pid <= 0
-            or elapsed is None
-            or binary == relative_binary
-            or re.fullmatch(
+        exact_binary = (
+            binary != relative_binary
+            and re.fullmatch(
                 r"[A-Za-z0-9]{6,64}/Updater\.app/Contents/MacOS/Updater",
                 relative_binary,
-            ) is None
-        ):
+            ) is not None
+        )
+        try:
+            time.strptime(started_at, "%a %b %d %H:%M:%S %Y")
+        except ValueError:
+            if relevant:
+                return None
+            continue
+        if pid <= 0 or elapsed is None or not exact_binary:
+            if relevant:
+                return None
             continue
         processes.append({
+            "uid": uid,
             "pid": pid,
             "ppid": ppid,
             "elapsed_seconds": elapsed,
+            "started_at": started_at,
             "command": command,
         })
     return processes
@@ -156,6 +174,32 @@ def _sparkle_updater_active(sparkle_root: Path) -> bool:
     """Fail closed while Sparkle may still consume a staged generation."""
     processes = _sparkle_updater_processes(sparkle_root)
     return processes is None or bool(processes)
+
+
+def _real_directory_fingerprint(root: Path, path: Path) -> tuple[int, int, int] | None:
+    """Return identity only when every component from root is a real directory."""
+    root = Path(os.path.abspath(root))
+    path = Path(os.path.abspath(path))
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        return None
+    current = root
+    try:
+        final = current.lstat()
+        if stat.S_ISLNK(final.st_mode) or not stat.S_ISDIR(final.st_mode):
+            return None
+        for part in relative.parts:
+            current = current / part
+            info = current.lstat()
+            if stat.S_ISLNK(info.st_mode) or not stat.S_ISDIR(info.st_mode):
+                return None
+            final = info
+    except OSError:
+        return None
+    if final is None:
+        return None
+    return (final.st_dev, final.st_ino, final.st_mode)
 
 
 def _bytes(
@@ -397,7 +441,20 @@ class HostDiskGovernor:
         return usage.free, usage.total
 
     def _reconcile_stale_sparkle_updaters(self, sparkle_root: Path) -> dict[str, int]:
-        result = {"observed": 0, "terminated": 0, "preserved": 0, "errors": 0}
+        result = {
+            "observed": 0,
+            "signaled": 0,
+            "terminated": 0,
+            "already_exited": 0,
+            "preserved": 0,
+            "errors": 0,
+        }
+        if not sparkle_root.exists() and not sparkle_root.is_symlink():
+            return result
+        if _real_directory_fingerprint(self.home, sparkle_root) is None:
+            result["preserved"] = 1
+            result["errors"] = 1
+            return result
         processes = _sparkle_updater_processes(sparkle_root)
         if processes is None:
             result["errors"] = 1
@@ -406,36 +463,80 @@ class HostDiskGovernor:
             sparkle_root / "Installation",
             sparkle_root / "PersistentDownloads",
         )
+        identity_paths = (
+            sparkle_root,
+            sparkle_root / "Launcher",
+            *staged_paths,
+        )
         for process in processes:
             result["observed"] += 1
             if (
-                process["ppid"] != 1
+                process["uid"] != os.getuid()
+                or process["ppid"] != 1
                 or process["elapsed_seconds"] < STALE_SPARKLE_UPDATER_SECONDS
             ):
                 result["preserved"] += 1
                 continue
-            if any(path.is_symlink() for path in staged_paths):
+            staged_fingerprints = tuple(
+                _real_directory_fingerprint(self.home, path)
+                for path in identity_paths
+            )
+            if any(fingerprint is None for fingerprint in staged_fingerprints):
+                result["errors"] += 1
                 result["preserved"] += 1
                 continue
             staged_states = [
                 self.lsof(path)
                 for path in staged_paths
-                if path.exists() and not path.is_symlink()
             ]
             if any(state != "confirmed-closed" for state in staged_states):
                 result["errors"] += sum(state == "probe-error" for state in staged_states)
                 result["preserved"] += 1
                 continue
+            current_fingerprints = tuple(
+                _real_directory_fingerprint(self.home, path)
+                for path in identity_paths
+            )
+            if current_fingerprints != staged_fingerprints:
+                result["errors"] += 1
+                result["preserved"] += 1
+                continue
             pid = int(process["pid"])
+            current_processes = _sparkle_updater_processes(sparkle_root)
+            if current_processes is None:
+                result["errors"] += 1
+                result["preserved"] += 1
+                continue
+            identity_keys = ("uid", "pid", "ppid", "started_at", "command")
+            current_pid_processes = [
+                item for item in current_processes if int(item["pid"]) == pid
+            ]
+            if len(current_pid_processes) != 1 or any(
+                current_pid_processes[0][key] != process[key]
+                for key in identity_keys
+            ):
+                result["errors"] += 1
+                result["preserved"] += 1
+                continue
             try:
                 os.kill(pid, signal.SIGTERM)
             except ProcessLookupError:
-                result["terminated"] += 1
+                remaining = _sparkle_updater_processes(sparkle_root)
+                still_exact = remaining is not None and any(
+                    all(item[key] == process[key] for key in identity_keys)
+                    for item in remaining
+                )
+                if remaining is None or still_exact:
+                    result["errors"] += 1
+                    result["preserved"] += 1
+                else:
+                    result["already_exited"] += 1
                 continue
             except OSError:
                 result["errors"] += 1
                 result["preserved"] += 1
                 continue
+            result["signaled"] += 1
             deadline = self.clock() + SPARKLE_UPDATER_TERM_TIMEOUT_SECONDS
             while self.clock() < deadline:
                 remaining = _sparkle_updater_processes(sparkle_root)
@@ -448,6 +549,7 @@ class HostDiskGovernor:
                     break
                 time.sleep(SPARKLE_UPDATER_POLL_SECONDS)
             else:
+                result["errors"] += 1
                 result["preserved"] += 1
         return result
 
@@ -1022,8 +1124,8 @@ class HostDiskGovernor:
             )
             sparkle_installation = sparkle_root / "Installation"
             if (
-                sparkle_installation.is_dir()
-                and not sparkle_installation.is_symlink()
+                _real_directory_fingerprint(self.home, sparkle_root) is not None
+                and _real_directory_fingerprint(self.home, sparkle_installation) is not None
                 and not _sparkle_updater_active(sparkle_root)
             ):
                 for child in sorted(sparkle_installation.iterdir()):
@@ -1105,7 +1207,14 @@ class HostDiskGovernor:
             }
             self._receipt(result)
             return result
-        updater_recovery = {"observed": 0, "terminated": 0, "preserved": 0, "errors": 0}
+        updater_recovery = {
+            "observed": 0,
+            "signaled": 0,
+            "terminated": 0,
+            "already_exited": 0,
+            "preserved": 0,
+            "errors": 0,
+        }
         for bundle_id in SPARKLE_CACHE_BUNDLE_IDS:
             sparkle_root = (
                 self.home / f"Library/Caches/{bundle_id}/org.sparkle-project.Sparkle"
@@ -1119,6 +1228,7 @@ class HostDiskGovernor:
             deadline=deadline,
         )
         result["updater_recovery"] = updater_recovery
+        result["errors"] += updater_recovery["errors"]
         # Cleanup must never pause revenue loops. Remove the retired shared
         # pressure marker; producers own bounded retention for their outputs.
         pressure_file = self.state_dir / "disk-pressure.block"
