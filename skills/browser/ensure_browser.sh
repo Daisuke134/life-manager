@@ -7,10 +7,23 @@ CDP="${CLOAK_CDP_BASE_URL:-http://127.0.0.1:9222}"
 CDP_PORT="${CDP_DAILY_DRIVER_PORT:-${CDP##*:}}"
 LOG="${CDP_GUARD_LOG:-${LIFE_MANAGER_HOME:-${XDG_STATE_HOME:-$HOME/.local/state}/life-manager}/logs/cdp-daily-driver-guard.log}"
 GUARD="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../earn/gig/scripts/cdp_daily_driver_guard.sh"
+PORT_OWNER="${BROWSER_PORT_OWNER_BIN:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/runtime/host/browser_port_owner.py}"
+PORT_OWNER_PYTHON="${BROWSER_PORT_OWNER_PYTHON:-python3}"
+RUNTIME_OWNER="${CLOAK_BROWSER_RUNTIME_OWNER:-}"
 export CDP_DAILY_DRIVER_PORT="$CDP_PORT"
 export SESSION_VAULT_PORT="${SESSION_VAULT_PORT:-$CDP_PORT}"
+export BROWSER_PORT_OWNER_BIN="$PORT_OWNER"
+export BROWSER_PORT_OWNER_PYTHON="$PORT_OWNER_PYTHON"
 
-alive() { curl -s --max-time 4 "$CDP/json/version" >/dev/null 2>&1; }
+alive() {
+  if [ -n "$RUNTIME_OWNER" ]; then
+    [ -f "$PORT_OWNER" ] || return 1
+    "$PORT_OWNER_PYTHON" -I "$PORT_OWNER" resolve \
+      --port "$CDP_PORT" --owner "$RUNTIME_OWNER" >/dev/null 2>&1
+    return $?
+  fi
+  curl -fsS --max-time 4 "$CDP/json/version" >/dev/null 2>&1
+}
 wait_for_alive() {
   local waited=0
   while [ "$waited" -lt 45 ]; do

@@ -23,6 +23,8 @@ CDP_PORT="${CDP_DAILY_DRIVER_PORT:-9222}"
 CDP_PROFILE="${CDP_DAILY_DRIVER_PROFILE:-$HOME/.cloak/profiles/daily-driver}"
 CDP_GUARD_LOCK="${CDP_GUARD_LOCK:-$HOME/gig/.cdp-guard.lock}"
 CDP_GUARD_LOG="${CDP_GUARD_LOG:-$HOME/.local/state/life-manager/logs/cdp-daily-driver-guard.log}"
+BROWSER_PORT_OWNER_BIN="${BROWSER_PORT_OWNER_BIN:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)/runtime/host/browser_port_owner.py}"
+BROWSER_PORT_OWNER_PYTHON="${BROWSER_PORT_OWNER_PYTHON:-python3}"
 mkdir -p "$(dirname "$CDP_GUARD_LOG")" 2>/dev/null || true
 
 _cdp_guard_log() { echo "$(date '+%F %T') cdp_guard: $*" >> "$CDP_GUARD_LOG"; }
@@ -32,8 +34,14 @@ _cdp_guard_log() { echo "$(date '+%F %T') cdp_guard: $*" >> "$CDP_GUARD_LOG"; }
 # distinguishes "healthy" from "starved" here).
 _cdp_guard_probe() {
   local timeout="${1:-6}"
+  if [ -n "${CLOAK_BROWSER_RUNTIME_OWNER:-}" ]; then
+    [ -f "$BROWSER_PORT_OWNER_BIN" ] || return 1
+    "$BROWSER_PORT_OWNER_PYTHON" -I "$BROWSER_PORT_OWNER_BIN" resolve \
+      --port "$CDP_PORT" --owner "$CLOAK_BROWSER_RUNTIME_OWNER" >/dev/null 2>&1
+    return $?
+  fi
   python3 - "$CDP_PORT" "$timeout" <<'PYEOF' 2>/dev/null
-import socket, sys, urllib.request
+import json, socket, sys, urllib.request
 port, timeout = int(sys.argv[1]), float(sys.argv[2])
 try:
     s = socket.create_connection(("127.0.0.1", port), timeout=timeout)
@@ -42,8 +50,8 @@ except Exception:
     sys.exit(1)
 try:
     with urllib.request.urlopen(f"http://127.0.0.1:{port}/json/version", timeout=timeout) as r:
-        r.read(1)
-    sys.exit(0)
+        data = json.load(r)
+    sys.exit(0 if isinstance(data, dict) and data.get("Browser") and data.get("webSocketDebuggerUrl") else 1)
 except Exception:
     sys.exit(1)
 PYEOF
