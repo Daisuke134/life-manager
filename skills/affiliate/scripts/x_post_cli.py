@@ -16,7 +16,6 @@ from urllib.request import Request, urlopen
 from job_journal import (
     JobStateError,
     reconcile_effect,
-    resume_effect,
     start_effect,
     unresolved_effect,
     verify_effect,
@@ -108,12 +107,40 @@ def resolve_outbound(url):
         return ""
 
 
+def normalized_visible(value):
+    return re.sub(r"\s+", " ", str(value)).strip()
+
+
+def exact_rendered_body(rendered, text, link_texts):
+    """Match the complete authored body while allowing X's URL rendering."""
+    owned_url = re.findall(r"https://[^\s]+", text)[0].rstrip(".,)")
+    before, _, after = text.partition(owned_url)
+    rendered = normalized_visible(rendered)
+    candidates = {normalized_visible(f"{before}{after}")}
+    candidates.update(
+        normalized_visible(f"{before}{link_text}{after}")
+        for link_text in link_texts
+        if normalized_visible(link_text)
+    )
+    if rendered in candidates:
+        return True
+    if normalized_visible(after):
+        return False
+    prefix = normalized_visible(before)
+    if not rendered.startswith(prefix):
+        return False
+    rendered_url = rendered[len(prefix):].strip()
+    return bool(re.fullmatch(r"https://(?:\s)?\S+", rendered_url))
+
+
 def find_exact(rows, text, resolver=resolve_outbound):
     owned_url = re.findall(r"https://[^\s]+", text)[0].rstrip(".,)")
-    prefix = text.replace(owned_url, "").strip()
     for row in rows:
         url = str(row.get("url", ""))
-        outbound = [resolver(str(link)) for link in row.get("outbound", [])]
+        outbound_links = [str(link) for link in row.get("outbound", [])]
+        visible_links = [str(link_text) for link_text in row.get("outbound_text", [])]
+        if not re.search(r"/status/[0-9]+", url):
+            continue
         # X renders an owned article URL behind a t.co anchor.  The old
         # resolver used a Python HEAD request for that anchor, which falsely
         # failed closed when the Mac's DNS could not resolve t.co even though
@@ -122,30 +149,71 @@ def find_exact(rows, text, resolver=resolve_outbound):
         # exact owned URL shown by the authenticated X DOM as a fallback.
         visible_outbound = [
             re.sub(r"\s+", "", str(link_text))
-            for link_text in row.get("outbound_text", [])
+            for link_text in visible_links
         ]
-        owned_link_present = owned_url in outbound or any(
-            owned_url in link_text for link_text in visible_outbound
-        )
-        if (
-            str(row.get("text", "")).strip().startswith(prefix)
-            and owned_link_present
-            and re.search(r"/status/[0-9]+", url)
-        ):
+        visible_matches = [
+            index for index, value in enumerate(visible_outbound)
+            if value == owned_url
+        ]
+        if len(visible_matches) == 1:
+            owned_index = visible_matches[0]
+            if len(visible_links) != len(outbound_links) or any(
+                index != owned_index
+                and (
+                    link == owned_url
+                    or urlparse(link).hostname == "t.co"
+                )
+                for index, link in enumerate(outbound_links)
+            ):
+                continue
+        elif visible_matches:
+            continue
+        else:
+            outbound = [resolver(link) for link in outbound_links]
+            resolved_matches = [
+                index for index, value in enumerate(outbound)
+                if value == owned_url
+            ]
+            if len(resolved_matches) != 1:
+                continue
+            owned_index = resolved_matches[0]
+        owned_display = visible_links[owned_index] if owned_index < len(visible_links) else ""
+        if exact_rendered_body(row.get("text", ""), text, [owned_display]):
             return url.split("?")[0]
     return ""
 
 
+def wait_for_exact_timeline(
+    ws, request_id, text, attempts=20, delay=0.25, sleeper=time.sleep,
+):
+    """Bound one official timeline wait after navigation or an ambiguous write."""
+    attempts = max(1, int(attempts))
+    rows = []
+    for attempt in range(attempts):
+        rows, request_id = timeline_posts(ws, request_id)
+        public_url = find_exact(rows, text)
+        if public_url:
+            return public_url, rows, request_id
+        if attempt + 1 < attempts:
+            sleeper(delay)
+    return "", rows, request_id
+
+
 def find_exact_public_markup(markup, text, handle):
     owned_url = re.findall(r"https://[^\s]+", text)[0].rstrip(".,)")
-    prefix = text.replace(owned_url, "").strip()
+    escaped_url = html_lib.escape(owned_url, quote=True)
     for article in re.findall(r"<article\b.*?</article>", markup, flags=re.DOTALL):
         match = re.search(r'data-tweet-id="([0-9]+)"', article)
-        if not match or f'href="{html_lib.escape(owned_url, quote=True)}"' not in article:
+        anchor = re.search(
+            rf'<a\b[^>]*href="{re.escape(escaped_url)}"[^>]*>(.*?)</a>',
+            article,
+            flags=re.DOTALL,
+        )
+        if not match or not anchor:
             continue
         visible = html_lib.unescape(re.sub(r"<[^>]+>", " ", article))
-        visible = re.sub(r"\s+", " ", visible).strip()
-        if re.sub(r"\s+", " ", prefix).strip() in visible:
+        link_visible = html_lib.unescape(re.sub(r"<[^>]+>", " ", anchor.group(1)))
+        if exact_rendered_body(visible, text, [link_visible]):
             return f"https://x.com/{handle}/status/{match.group(1)}"
     return ""
 
@@ -165,9 +233,9 @@ def public_profile_readback(handle, text):
 
 def live_readback(ws, request_id, url, text):
     request_id = navigate(ws, request_id, url)
-    rows, request_id = timeline_posts(ws, request_id)
+    found_url, _, request_id = wait_for_exact_timeline(ws, request_id, text)
     handle = urlparse(url).path.strip("/").split("/", 1)[0]
-    if find_exact(rows, text) != url and public_profile_readback(handle, text) != url:
+    if found_url != url and public_profile_readback(handle, text) != url:
         raise XPostError("published X post failed exact public readback")
     return request_id
 
@@ -191,8 +259,7 @@ def publish(args):
     ws = connect(args, target)
     try:
         request_id = navigate(ws, 1, f"https://x.com/{config['handle']}")
-        rows, request_id = timeline_posts(ws, request_id)
-        public_url = find_exact(rows, text)
+        public_url, rows, request_id = wait_for_exact_timeline(ws, request_id, text)
         if not public_url:
             public_url = public_profile_readback(config["handle"], text)
         if not public_url and receipt_path.is_file():
@@ -204,13 +271,9 @@ def publish(args):
         effect_job = None
         if not public_url:
             if pending:
-                cooldown = int(pending.get("cooldown", {}).get("seconds", 0))
-                updated_at = int(pending.get("updated_at", 0))
-                if int(time.time()) - updated_at < cooldown:
-                    raise XPostError(
-                        "unresolved X effect is in cooldown; retry will reconcile timeline"
-                    )
-                effect_job = resume_effect(state_root, "X_POST_PUBLISH", args.placement)
+                raise XPostError(
+                    "unresolved X effect requires official reconciliation; repost is forbidden"
+                )
             else:
                 effect_job = start_effect(
                     state_root, "X_POST_PUBLISH", args.placement,
@@ -250,8 +313,9 @@ def publish(args):
             click(ws, request_id, '[role="dialog"] [data-testid="tweetButton"]:not([disabled])')
             time.sleep(6)
             request_id = navigate(ws, request_id + 10, f"https://x.com/{config['handle']}")
-            rows, request_id = timeline_posts(ws, request_id)
-            public_url = find_exact(rows, text)
+            public_url, rows, request_id = wait_for_exact_timeline(
+                ws, request_id, text,
+            )
             if not public_url:
                 raise XPostError("X effect is ambiguous; retry will reconcile timeline")
         live_readback(ws, request_id, public_url, text)
