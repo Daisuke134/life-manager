@@ -180,6 +180,14 @@ runtime/provider readback.
   `gog drive download --format=txt` (or an authenticated connector/plugin) before
   any browser Docs path. Do not request browser permission when the CLI already
   has Drive scope; use browser only when CLI/connector readback fails.
+- Before the Coconala Paid owner is promoted or restarted, fix its talkroom
+  delivery-date extraction to select the newest provider schedule system event
+  instead of the first historical match, and add a regression fixture containing
+  multiple schedule changes. The live 18223833 readback exposed this gap: the
+  visible/latest schedule is 2026-09-30 while the old collector field returned a
+  stale earlier date. Until that fix is released, trust the latest provider event
+  in `evidence/manual-npo-answer-20260923/paid-queue-live-dom.json` and do not
+  infer a deadline from the stale field.
 - One-by-one official readback of room `18250352` at `2026-09-23T03:09:04Z`
   confirms the v15 review package is already visible, formal delivery is OFF,
   and no buyer reply followed it. Its actionable file decision still awaits
