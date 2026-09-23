@@ -1367,3 +1367,17 @@ The objective is complete only when all of the following are proven:
   `registry_jobs=167`, `mapped_jobs=97`, no shared job IDs, and no errors.
 - These are source and contract guarantees only; they do not substitute for a
   funded provider canary or official buyer/settlement receipt.
+
+## Runtime Cursor — 2026-09-24 00:52 JST
+
+- Coconala and Lancers Paid owners were read back without restart; both are
+  `loaded-running`/`pass`. Lancers' official inventory is complete and reports
+  zero funded contract candidates, therefore no buyer-visible send is
+  admissible at this cursor.
+- The next Lancers action is provider-grounded: when a funded
+  `ContractReceipt` appears, read its official detail and completion surface,
+  then perform one quality-digested answer/formal-delivery effect with official
+  readback and replay-zero. Until that evidence exists, the adapter stays
+  fail-closed and does not guess an endpoint.
+- CrowdWorks' existing FIFO/effect-unknown fence and pending `63568785`
+  buyer-material wait remain unchanged; no forced wake or replay was issued.

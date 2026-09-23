@@ -103,6 +103,19 @@ runtime/provider readback.
   formal-delivery canary; and approved Upwork authorization plus a funded
   contract. Keep all loops fail-closed until their provider evidence exists.
 
+### Runtime checkpoint — 2026-09-24 00:52
+
+- [x] Rechecked the live Paid owners without restarting them: Coconala and
+  Lancers are `loaded-running`/`pass`; Lancers' authoritative inventory is
+  `source_complete=true` with `contract_candidate_count=0`, so no provider
+  send is admissible and no effect was fabricated.
+- [x] Advanced the working cursor to Lancers. The next funded
+  `ContractReceipt` must be read from its official detail surface before any
+  formal-delivery mutation; the current adapter remains fail-closed until that
+  surface is observed.
+- [ ] CrowdWorks remains in its existing FIFO/effect-unknown fence; preserve
+  the pending `63568785` buyer-material wait and do not force a wake or replay.
+
 ### Superseding cross-platform readback — 2026-09-24
 
 - [x] **Ryu manual exception:** direct seller message
