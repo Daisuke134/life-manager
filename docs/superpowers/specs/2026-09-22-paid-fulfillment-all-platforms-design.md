@@ -1057,6 +1057,23 @@ the authenticated inventory is empty.
   Upwork effect is claimed. CrowdWorks remains scheduled with its historical
   unknown-effect fence held.
 
+## Implementation Checkpoint — 2026-09-23 23:46 JST
+
+- The Lancers Paid source adapter now owns the missing quality boundary: for a
+  funded contract with a current buyer event it can compose the contract-specific
+  answer, run an independent quality verdict, bind the answer and buyer context to
+  a SHA-256 quality record, and admit at most one buyer-visible answer. A verified
+  answer is not recomposed or resent on replay; until the official Lancers
+  completion/delivery surface is observed, the next wake returns the explicit
+  `formal_delivery_surface_unverified` wait.
+- This is source-only until the installed release is promoted. No live Lancers
+  contract exists, so no provider effect was created. The authenticated inventory
+  remains the evidence for zero current Lancers sends.
+- Focused Paid adapter/owner/kernel tests pass (`293 passed`); the full Lancers
+  application/Paid suite passes (`425 passed, 17 subtests`). The stale timeout
+  assertion was aligned with the existing bounded-wake implementation (`60s`),
+  and `./bin/lm-loop-contract` remains PASS with no shared job IDs or errors.
+
 ## Production Promotion Contract
 
 Every source change starts from current `origin/main` in a leased worktree and follows:

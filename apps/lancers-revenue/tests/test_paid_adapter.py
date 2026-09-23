@@ -137,6 +137,81 @@ class LancersPaidAdapterTests(unittest.TestCase):
         self.assertEqual(decision["payload"]["buyer_event_id"], "buyer-7")
         self.assertTrue(decision["payload"]["correct_work_verified"])
 
+    def test_funded_detail_builds_and_quality_checks_answer_before_send(self):
+        module = load()
+        contract = {
+            "provider_state": "funded",
+            "buyer_event_id": "buyer-7",
+            "buyer_context": "依頼内容に沿った結果をメッセージで提出してください。",
+        }
+        row = {
+            "provider": "lancers", "account_id": "seller-1", "work_id": "project:7",
+            "latest_event_id": "digest", "provider_state": "funded",
+            "observed_at": "2026-09-07T00:00:00Z", "context": {"contract": contract},
+        }
+        decision = module.decide(
+            row,
+            answer_selector=lambda _contract: "依頼内容に沿った結果です。",
+            quality_selector=lambda _contract, _body: "quality_ok",
+        )
+
+        self.assertEqual(decision["action"], "answer")
+        self.assertEqual(decision["payload"]["body"], "依頼内容に沿った結果です。")
+        self.assertTrue(decision["payload"]["correct_work_verified"])
+        self.assertEqual(decision["payload"]["quality_verdict"], "quality_ok")
+        self.assertEqual(
+            decision["payload"]["quality_sha256"],
+            module._digest({"buyer_context": contract["buyer_context"],
+                            "body": decision["payload"]["body"]}),
+        )
+
+    def test_funded_detail_waits_when_independent_quality_check_rejects_answer(self):
+        module = load()
+        contract = {
+            "provider_state": "funded",
+            "buyer_event_id": "buyer-7",
+            "buyer_context": "依頼内容に沿った結果をメッセージで提出してください。",
+        }
+        decision = module.decide(
+            {
+                "provider": "lancers", "account_id": "seller-1", "work_id": "project:7",
+                "latest_event_id": "digest", "provider_state": "funded",
+                "observed_at": "2026-09-07T00:00:00Z", "context": {"contract": contract},
+            },
+            answer_selector=lambda _contract: "未完成の回答です。",
+            quality_selector=lambda _contract, _body: "quality_needs_rework",
+        )
+
+        self.assertEqual(decision["action"], "wait")
+        self.assertEqual(decision["reason"], "work_quality_required")
+        self.assertTrue(decision["remaining_work"])
+
+    def test_verified_answer_waits_for_delivery_surface_instead_of_recomposing(self):
+        module = load()
+        contract = {
+            "provider_state": "funded",
+            "buyer_event_id": "buyer-7",
+            "buyer_context": "依頼内容に沿った結果をメッセージで提出してください。",
+        }
+        decision = module.decide(
+            {
+                "provider": "lancers", "account_id": "seller-1", "work_id": "project:7",
+                "latest_event_id": "digest", "provider_state": "funded",
+                "observed_at": "2026-09-07T00:00:00Z",
+                "context": {
+                    "contract": contract,
+                    "previous_effect_verified": True,
+                    "previous_intent": {"action": "answer", "effect_key": "effect-7"},
+                },
+            },
+            answer_selector=lambda _contract: (_ for _ in ()).throw(
+                AssertionError("verified answer must not be recomposed")
+            ),
+        )
+
+        self.assertEqual(decision["action"], "wait")
+        self.assertEqual(decision["reason"], "formal_delivery_surface_unverified")
+
     def test_answer_mutation_requires_provider_receipt_and_replays_by_effect_key(self):
         module = load()
         snapshot = {

@@ -19,6 +19,5 @@ def _module():
 def test_safety_verifier_uses_a_shorter_parent_timeout_than_planner():
     module = _module()
 
-    assert module._agent_timeout_seconds(module.SAFETY_TASK_CLASS) == 150
+    assert module._agent_timeout_seconds(module.SAFETY_TASK_CLASS) == 60
     assert module._agent_timeout_seconds(module.PLANNER_TASK_CLASS) == module.PLANNER_TIMEOUT_SECONDS
-
