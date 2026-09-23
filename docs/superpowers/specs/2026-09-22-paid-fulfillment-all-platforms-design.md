@@ -59,6 +59,8 @@ is loaded from immutable release `4c6b1dc8a52952e31f13bcb26a5266e570169e1d`, whi
 contains the answered-feedback stop fix. Its latest official queue readback is
 terminal with `effect=0`: Ryu is `reserved_for_owner` and the other three rooms are
 `awaiting_buyer`.
+The latest loop status is `loaded-idle` with terminal result `pass`; this is a
+safe idle state, not a request to send anything.
 
 Ryu is a permanent manual exception. The automated owner may observe it for
 reconciliation but may never create work, reply, attach a file, or invoke formal
@@ -78,6 +80,13 @@ readback and must not reopen the client. The latest official TikTok inbox readba
 supports 0 eligible positive replies and 1 ineligible reply; older intermediate
 counts are not completion evidence. Chii remains `awaiting_buyer`; no recipient,
 report, or formal-delivery message may be resent.
+
+The apparent “still working on Chii” state came from two non-canonical snapshots:
+an intermediate `20/300` result and the pre-fix 24-send overrun. Neither reopens
+the client. The 300-row campaign and the answer/report were already sent and read
+back; the latest official inbox readback is 0 eligible positive replies and 1
+ineligible reply. Chii is loop-owned but closed until a genuinely newer buyer
+event appears, while Ryu alone remains manual-owned.
 
 Release `37e1d582f1` (#5787) added the semantic answered-feedback wait, and
 `4c6b1dc8a5` (#5788) fixed the first-cycle fail-closed state. Since the fix, the

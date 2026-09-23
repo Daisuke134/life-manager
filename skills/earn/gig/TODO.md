@@ -19,6 +19,9 @@ runtime/provider readback.
   readback is `awaiting_buyer` with `effect=0`, and no Chii ledger row exists after
   the fix. The latest official inbox readback supports 0 eligible positive replies
   and 1 ineligible reply.
+- The latest `hf-gig-paid-direct` status is `loaded-idle` with terminal result
+  `pass`; this is a safe idle state. Chii is not the current work cursor and no
+  client DM is needed for this checkpoint.
 - The next production cursor is the CrowdWorks occurrence-by-occurrence
   reconciliation and one funded-contract canary, followed by Lancers and Upwork.
 
