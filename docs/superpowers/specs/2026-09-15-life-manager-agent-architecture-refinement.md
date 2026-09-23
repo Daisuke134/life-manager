@@ -2917,15 +2917,20 @@ or provider session is part of this reorder.
    `effect_class=none` shared browser owner; absence of a finite terminal is expected and is not a Mobile
    publication defect.
 
-   The active implementation branch is `fix/mobile-postiz-terminal-occurrence-20260923`. The next
-   behavior contract is already expressed as failing tests: the shared Mobile wrapper must preserve the
-   runner's stdout and exit code, emit a private exact owner/occurrence/Postiz receipt hint, and the host
-   runtime must upgrade a successful terminal to `verified` or `reconciled` only after validating that
+   Candidate `d4e004b089` on `fix/mobile-postiz-terminal-occurrence-20260923` implements that common
+   boundary. The shared Mobile wrapper preserves runner stdout and exit status, writes a private exact
+   owner/occurrence/Postiz receipt hint only after a verified or deduplicated runner result, and the host
+   runtime upgrades a successful terminal to `verified` or `reconciled` only after validating the exact
    hint. A missing, malformed, cross-owner, cross-occurrence, symlinked or permissively readable hint
-   must leave the terminal `unknown`. The tests currently fail at the intended missing boundary (no
-   result file and no runtime effect-result allowlist/reader); therefore this atomic is in progress, not
-   accepted. The next step is the minimum shared implementation, followed by focused Mobile/runtime
-   tests, commit/push, main integration, immutable release, one natural canary and same-SHA replay-zero.
+   leaves the terminal `unknown`; effectful failures still use the existing `effect_unknown` fence.
+   TDD proves both missing wiring and wrong `verified`/`reconciled` classification fail before the fix.
+   The final local tree passes runtime/loop 599 tests plus 518 subtests, shared host/Postiz 146 tests,
+   principal Mobile runner/wrapper 34 tests, `py_compile`, Node and Bash syntax checks, ShellCheck and
+   `git diff --check`. Two Obou-specific canary tests independently fail at the pre-existing
+   `MARKETING_PUBLICATION_LANE_FORBIDDEN` boundary in unchanged ledger/canary files; that is the next
+   separate Obou owner atomic and is not evidence against this shared result contract. This candidate is
+   pushed but not yet merged or production-accepted. The next cursor is fresh read-only review, PR/main
+   integration, main-derived immutable release, one natural canary and same-SHA replay-zero.
 2. In parallel through its natural owner schedule, complete Affiliate production acceptance without a
    manual restart or second delivery. Load main `799045e7…` as an immutable release, reconcile only the
    exact historical occurrence `affiliate-loop:18d7bd776d9c8a78-1576`, and require a same-SHA terminal and
