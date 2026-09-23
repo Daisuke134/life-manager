@@ -84,6 +84,13 @@ runtime/provider readback.
   `entrypoint_exit_1` before any provider effect. Host free space was
   `511220` KiB, below the Paid producer's 512 MiB guard, so the next action is
   safe headroom recovery—not a blind restart.
+- A read-only official four-room Coconala pass at `2026-09-23T09:55:47Z`
+  found seller-last states for Ryu `222245383`, Chii `222152477`, NPO
+  `18223833` `222233461`, and NPO `18250352` `222157659`; no send, attachment,
+  or formal delivery was performed. Evidence is
+  `projects/18211957/delivery/coconala-four-room-official-readback-20260923.json`.
+  This is provider readback only; the installed-release natural-wake and
+  replay-zero gate remains open.
 - Chii `18180857` is complete for the required campaign and is buyer-waiting. The
   required 300 consists of 12 previously verified sends plus 288 exact-readback
   sends on 2026-09-15; the official Sheet contains 300 unique rows and the workbook

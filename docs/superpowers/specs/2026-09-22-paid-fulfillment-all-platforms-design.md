@@ -273,6 +273,14 @@ KiB, below the Paid producer's 512 MiB guard. The next safe cursor is headroom
 recovery followed by one natural wake, official four-room readback, and
 replay-zero; blind restart and Ryu replay are prohibited.
 
+A read-only official four-room pass at `2026-09-23T09:55:47Z` found seller-last
+messages for Ryu `222245383`, Chii `222152477`, NPO room `18223833`
+`222233461`, and NPO room `18250352` `222157659`. It performed no send,
+attachment, or formal-delivery action. The evidence is stored at
+`projects/18211957/delivery/coconala-four-room-official-readback-20260923.json`;
+this does not substitute for the installed-release natural-wake and
+replay-zero proof.
+
 Latest production checkpoint: the occurrence-ledger lookup-index fix is merged in
 main at `35e66d242798e28403e98d06037484d5c2a28795` and cut as immutable release
 `20260923T174546-35e66d24`. The Paid owner was stopped only through the canonical
