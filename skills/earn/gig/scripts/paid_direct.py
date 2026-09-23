@@ -299,6 +299,8 @@ def _install_bounded_shutdown_handlers() -> dict[int, Any]:
 
     def forward(_signum: int, _frame: Any) -> None:
         _terminate_active_bounded_processes()
+        signal.signal(_signum, signal.SIG_DFL)
+        os.kill(os.getpid(), _signum)
 
     for signum in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):
         previous[signum] = signal.getsignal(signum)

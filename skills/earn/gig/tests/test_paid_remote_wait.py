@@ -5581,6 +5581,35 @@ def test_active_bounded_process_groups_are_terminated_on_shutdown(monkeypatch):
     assert signals == [(43210, paid.signal.SIGTERM)]
 
 
+def test_shutdown_handler_terminates_paid_parent_after_children(monkeypatch):
+    paid = load("paid_direct")
+    installed = {}
+    killed = []
+    stopped = []
+
+    def fake_signal(signum, handler):
+        installed[signum] = handler
+        return "previous"
+
+    monkeypatch.setattr(paid.signal, "signal", fake_signal)
+    monkeypatch.setattr(
+        paid, "_terminate_active_bounded_processes", lambda: stopped.append(True)
+    )
+    monkeypatch.setattr(
+        paid.os, "kill", lambda pid, signum: killed.append((pid, signum))
+    )
+
+    previous = paid._install_bounded_shutdown_handlers()
+    try:
+        installed[paid.signal.SIGTERM](paid.signal.SIGTERM, None)
+    finally:
+        paid._restore_bounded_shutdown_handlers(previous)
+
+    assert stopped == [True]
+    assert killed == [(paid.os.getpid(), paid.signal.SIGTERM)]
+    assert installed[paid.signal.SIGTERM] is paid.signal.SIG_DFL
+
+
 def test_runner_loop_id_uses_managed_control_plane_identity(monkeypatch):
     paid = load("paid_direct")
     monkeypatch.setenv("LIFE_MANAGER_LOOP_ID", "hf-gig-paid-direct")
