@@ -2012,3 +2012,8 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   arrives; otherwise keep Lancers/Upwork fail-closed and do not promote the
   source branch without the official funded-provider receipt and replay-zero
   gates.
+- [ ] Lancers' official guide identifies the post-escrow plan action as
+  `完了報告`, but the current authenticated inventory has no funded contract
+  page. On the first real ContractReceipt, capture that page's exact DOM/API
+  control and official readback before adding any delivery mutation; do not
+  guess a selector or endpoint. (https://www.lancers.jp/help/guide/lancer/offer/2)

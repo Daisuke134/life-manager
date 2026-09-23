@@ -1582,3 +1582,8 @@ The objective is complete only when all of the following are proven:
   admissible until a funded contract appears. Upwork remains disabled by its
   explicit authorization ledger. The next mutation cursor is CrowdWorks
   `63568785` when permitted buyer material arrives.
+- The current official Lancers guide describes the post-contract completion
+  control as the plan's `完了報告` step after escrow; the live account has no
+  funded contract page on which to bind that control or its readback selector.
+  Keep formal delivery fail-closed until the first funded ContractReceipt
+  exposes the actual DOM/API surface. Source: https://www.lancers.jp/help/guide/lancer/offer/2
