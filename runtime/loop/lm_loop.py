@@ -358,7 +358,12 @@ def _last_event(state_root: str, loop_id: str | None = None,
                 cache: dict[Path, dict[str | None, dict]] | None = None) -> dict | None:
     path = Path(os.path.expanduser(state_root)) / "events.jsonl"
     if cache is not None and path in cache:
-        return cache[path].get(loop_id)
+        cached = cache[path]
+        # A targeted scan stores only the requested loop.  The ``None`` key
+        # is populated only by a complete scan, so it is the signal that a
+        # missing loop id is a cached miss rather than an unscanned one.
+        if loop_id in cached or None in cached:
+            return cached.get(loop_id)
     reports: dict[str | None, dict] = {}
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
@@ -372,6 +377,10 @@ def _last_event(state_root: str, loop_id: str | None = None,
             continue
         if value.get("phase") != "report":
             continue
+        if loop_id is not None and value.get("loop_id") == loop_id:
+            if cache is not None:
+                cache.setdefault(path, {})[loop_id] = value
+            return value
         reports.setdefault(None, value)
         reports.setdefault(value.get("loop_id"), value)
     if cache is not None:
