@@ -1205,3 +1205,13 @@ The objective is complete only when all of the following are proven:
   until written permission or an approved API path, fresh authentication, and
   a funded contract exist: https://www.upwork.com/legal and
   https://support.upwork.com/hc/en-us/articles/43342677368467-Use-bots-and-other-automation-properly.
+
+## Verification Checkpoint — 2026-09-24 00:03 JST
+
+- Fresh branch verification passes: Lancers application/Paid suites are
+  `427 passed, 17 subtests passed`; Coconala Paid/readback/remote-wait coverage
+  is `274 passed`.
+- The repository loop contract gate passes with `catalog_loops=14`,
+  `registry_jobs=167`, `mapped_jobs=97`, no shared job IDs, and no errors.
+- These are source and contract guarantees only; they do not substitute for a
+  funded provider canary or official buyer/settlement receipt.
