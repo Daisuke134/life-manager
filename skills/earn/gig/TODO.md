@@ -1906,3 +1906,17 @@ MRR. Larger revenue ambitions remain direction, never a substitute for this meas
   `effect=0/readback=0/pending=0`; no provider mutation occurred.
 - [ ] Keep the historical CrowdWorks unknown fence and `63568785` material wait;
   continue at the next permitted CrowdWorks event or funded Lancers contract.
+
+### Paid fulfillment checkpoint — 2026-09-24 03:24 JST
+
+- [x] Re-audited Ryu from the official readback: seller message
+  `js-talkroomMessage-222245383` follows the newest buyer events and contains
+  the complete requested fix; Ryu remains manual-only and is not resent.
+- [x] CrowdWorks and Lancers completed after the finite-slot wake and returned
+  `loaded-idle`/`pass`; official snapshots are unchanged at CrowdWorks
+  `effect=0/readback=4/pending=1` and Lancers `effect=0/readback=0/pending=0`.
+- [x] Source verification passed: CrowdWorks `223`, Lancers `196`, Upwork
+  `180`, Coconala/Paid `274`, and `lm-loop-contract`.
+- [ ] Keep the CrowdWorks historical fence and `63568785` buyer-material wait;
+  no funded Lancers contract or authorized Upwork Paid owner exists yet. Do not
+  report source tests as external provider sends.

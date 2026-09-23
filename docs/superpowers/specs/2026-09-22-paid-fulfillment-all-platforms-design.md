@@ -1444,3 +1444,22 @@ The objective is complete only when all of the following are proven:
 - Keep the historical CrowdWorks unknown fence and the `63568785` buyer-material
   wait. The next admissible cursor is a permitted CrowdWorks material event or
   a real funded Lancers contract; Upwork remains unregistered and disabled.
+
+## Runtime Cursor — 2026-09-24 03:24 JST
+
+- Ryu's manual-only cycle was re-audited from the official talkroom receipt:
+  buyer events `222222979`/`222223030` are followed by seller message
+  `js-talkroomMessage-222245383`, which covers all five paid-option changes,
+  per-girl configuration, save-preservation, editable WEB予約 wording,
+  management preview, and the roster-limit answer. The message is seller-last;
+  no resend or formal-delivery click is permitted.
+- After the finite-slot wake, all three managed Paid owners are back to
+  `loaded-idle`/`last_exit=0`/`pass`. Official snapshots remain Coconala
+  `observed=4/effect=0/readback=3/pending=0`, CrowdWorks
+  `observed=5/effect=0/readback=4/pending=1`, and Lancers
+  `observed=0/effect=0/readback=0/pending=0`. The CrowdWorks historical
+  effect-unknown fence is unchanged; no external mutation was created.
+- Current source evidence passes: CrowdWorks `223`, Lancers `196`, Upwork
+  `180`, Coconala/Paid `274`, plus `lm-loop-contract`. These are source gates,
+  not provider-effect receipts; the branch remains unpromoted until a funded
+  provider canary has an official receipt and replay-zero readback.
