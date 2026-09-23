@@ -1235,6 +1235,12 @@ docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md.
 
 ### 4. Lancers vertical proof
 
+Current readback (2026-09-23): `lancers-revenue-paid` is `loaded-idle` with no PID and its latest
+run is blocked by `host_admission_deferred:resource_control_busy`. The admission ledger still has
+`lancers-revenue-paid:18d67a28e56c4b58-6829` as `claimed/effect_unknown=1`; the latest `paid-latest.json`
+is `observed=0/effect=0` and is not proof that the occurrence had no effect. No Lancers Paid submission
+or provider receipt is counted until this fence and the provider mutation/readback path are resolved.
+
 - [x] Phone verification.
 - [ ] Restore durable browser availability and persistent authentication.
 - [ ] Prove Apply -> Reply -> contract -> Paid -> payout; Storefront only if officially supported.
