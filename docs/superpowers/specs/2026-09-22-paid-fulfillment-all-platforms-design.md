@@ -103,13 +103,17 @@ cursor remains the existing
 `docs/superpowers/specs/2026-09-17-crowdworks-contract-fulfillment-design.md`.
 This specification adds the cross-provider completion contract; it does not erase
 that contract inventory or its occurrence-specific reconciliation obligations.
+The new registry contract isolates future Application/Paid/Reply occurrences from an
+older unknown row after promotion; it does not release the four existing fences.
 
 ### Lancers
 
 Application, Negotiate, Paid, Storefront, and Telegram Report are fenced by
 `resource_effect_unknown`. Browser and Work Sync are running and must not be stopped
 or repurposed during repair. The paid adapter exists, but a running support owner is
-not evidence that client work is being completed or delivered.
+not evidence that client work is being completed or delivered. The new registry
+contract isolates future Application/Negotiate/Paid occurrences after promotion;
+Storefront and Telegram Report remain owner-scoped pending their own proof.
 
 ### Upwork
 
@@ -192,6 +196,22 @@ observed
 `effect_unknown` are explicit nonterminal states. A blocked item remains independently
 represented while other eligible items progress. `effect_unknown` always routes to
 official reconciliation before any retry.
+
+### Admission isolation for independent marketplace items
+
+The durable admission default remains owner-scoped and fail-closed. The registry now
+has an explicit `admission_effect_scope` contract; the occurrence value is granted
+only to lanes whose provider kernel persists an immutable item identity, intent,
+per-item lock, and official readback. The pushed implementation (`9ab1181de8`,
+branch `fix/marketplace-occurrence-scope-20260923`) enables that contract for
+CrowdWorks Application/Paid/Reply and Lancers Application/Negotiate/Paid. A different
+contract occurrence can progress while an older occurrence stays `effect_unknown`;
+the same occurrence remains fenced and must be reconciled officially. The old row is
+never deleted or mass-cleared. Report, Storefront, Telegram reporting, and all
+unproven providers remain owner-scoped until their item-level idempotency and
+readback are proven. This code is pushed but not yet promoted into `main`, an
+immutable release, or live launchd state; natural-wake and provider acceptance gates
+remain open.
 
 ## Ownership and the Ryu Fence
 
@@ -281,7 +301,8 @@ formal delivery.
    self-heal) while preserving the Ryu fence and Chii wait state.
 5. Continue with CrowdWorks: the dedicated Browser owner is merged in current main
    and its read-only inventory shows five funded contracts. Reconcile the existing
-   Application/Paid/Reply/Report occurrences one by one, then canary contract
+   Application/Paid/Reply/Report occurrences one by one, promote the occurrence
+   isolation change, then canary contract
    `63712784` through full context, correct work, buyer-visible submission, formal
    delivery, official readback, and replay-zero.
 6. Resolve Lancers occurrences, implement and prove the Paid mutation path, then

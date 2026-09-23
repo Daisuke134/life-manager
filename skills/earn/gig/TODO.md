@@ -22,6 +22,13 @@ runtime/provider readback.
 - The latest `hf-gig-paid-direct` status is `loaded-idle` with terminal result
   `pass`; this is a safe idle state. Chii is not the current work cursor and no
   client DM is needed for this checkpoint.
+- Shared admission root cause is now narrowed to owner-wide `effect_unknown` fences
+  on CrowdWorks/Lancers revenue owners plus host capacity pressure. Commit
+  `9ab1181de8` adds an explicit `admission_effect_scope` registry field and enables
+  occurrence isolation only for item-kernel lanes (CrowdWorks Application/Paid/Reply;
+  Lancers Application/Negotiate/Paid). It preserves the old unknown rows and keeps
+  Report/Storefront/Telegram owner-scoped. The branch is pushed but not yet merged,
+  released, or applied; no production state changed.
 - The next production cursor is the CrowdWorks occurrence-by-occurrence
   reconciliation and one funded-contract canary, followed by Lancers and Upwork.
 
